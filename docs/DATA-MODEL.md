@@ -66,28 +66,46 @@ card_sets 1──* cards *──1 illustrators             │ (slot_type = 'car
               pokemon 1──* cards
 ```
 
-## Sourcing the catalogue from artofpkm.com
+## Sourcing the catalogue
 
-[The Art of Pokémon](https://www.artofpkm.com/pokemon) organizes content by **Cards, Products,
-Artwork, Illustrators, Pokémon, and Characters** — which maps directly onto the reference tables
-above. It is the intended source for populating `pokemon`, `illustrators`, `card_sets`, and `cards`.
+The catalogue is ingested from **[TCGdex](https://tcgdex.dev/)** — a documented, MIT-licensed
+(metadata) Pokémon TCG API with **illustrator** data and a card-image CDN. We chose it over
+scraping [artofpkm.com](https://www.artofpkm.com/pokemon): that site has no public API, serves
+images through opaque, CDN-less Rails Active Storage redirect URLs, and doesn't even list
+individual cards in its sitemap — making it fragile to mirror and the weakest option on rights.
+artofpkm is better kept as *curation inspiration* (which illustrators / aesthetics to feature).
 
-### Ingestion approach (planned)
+The ingestion is a standalone server-side script (not part of the shipped app):
+[`scripts/ingest.mjs`](../scripts/ingest.mjs) — see [`scripts/README.md`](../scripts/README.md).
 
-A standalone server-side script (not part of the shipped app) will populate the catalogue:
+### How TCGdex maps onto the schema
 
-1. Collect card/illustrator/set/species records from artofpkm.com.
-2. Normalize them into the reference-table shapes (stable `id`s so re-runs upsert cleanly).
-3. Compute `dominant_color` per card from its artwork to power colour-theme layouts.
-4. Upsert via the Supabase **`service_role`** key, which bypasses RLS (reference tables have no
-   client write policies).
+| TCGdex             | poke-michi table / column                                  |
+| ------------------ | ---------------------------------------------------------- |
+| Set                | `card_sets` (name, `serie` → series, `releaseDate`)        |
+| Card `illustrator` | `illustrators` (deduped, slug `id`)                        |
+| Card               | `cards` (name, set, illustrator, `localId` → number, rarity) |
+| Card `image`       | `image_url` / `image_small_url` (+ `source_url`)           |
 
-> The `service_role` / secret key must live **only** in this script's environment — never in the
-> app, never in an `EXPO_PUBLIC_` variable, never committed. The app itself only ever reads the
-> catalogue.
+Re-runs are idempotent (upsert by stable `id`). `dominant_color` (for colour-theme layouts) and
+`pokemon_id` (from TCGdex `dexId`) are left null as later enrichment steps.
 
-Until the pipeline exists, [`supabase/seed.sql`](../supabase/seed.sql) loads a tiny hand-picked
-sample so the UI has something to render.
+### Image strategy (hybrid)
+
+By default the script stores TCGdex CDN URLs (`.../high.webp` 600×825, `.../low.webp` 245×337) plus
+the base `source_url`. With `--cache-images` it mirrors both qualities into a Supabase Storage
+`cards` bucket and points the columns at your own storage — the reliability of self-hosting without
+mirroring the entire catalogue upfront.
+
+### Security
+
+The script upserts with the Supabase **secret / `service_role`** key, which bypasses RLS (reference
+tables have no client write policies). That key lives **only** in the script's environment (a
+gitignored `.env`) — never in the app, never in an `EXPO_PUBLIC_` variable, never committed. The app
+only ever *reads* the catalogue.
+
+Until you run it, [`supabase/seed.sql`](../supabase/seed.sql) loads a tiny hand-picked sample so the
+UI has something to render.
 
 ### A note on rights
 

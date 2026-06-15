@@ -19,7 +19,7 @@ Most collection apps organize cards by number or set. poke-michi is about *compo
 | Routing      | [Expo Router](https://docs.expo.dev/router/introduction/) (file-based) |
 | Targets      | Web (`react-native-web`), iOS, Android — one codebase                  |
 | Backend      | [Supabase](https://supabase.com/) — Postgres, Auth, Row Level Security |
-| Data source  | [artofpkm.com](https://www.artofpkm.com/pokemon) (cards, illustrators) |
+| Data source  | [TCGdex](https://tcgdex.dev/) (cards, illustrators, images) — see [data model](docs/DATA-MODEL.md) |
 
 ## Getting started
 
@@ -126,7 +126,7 @@ poke-michi/
 - [x] Card browser (sample catalogue)
 - [ ] Wire the in-memory store to Supabase (replace `src/store/binders.tsx` internals)
 - [ ] Auth (sign up / sign in) and profile screen
-- [ ] Card catalogue ingestion from artofpkm.com
+- [x] Card catalogue ingestion (TCGdex) — `scripts/ingest.mjs`
 - [ ] Card browser filters (set / illustrator / Pokémon / colour)
 - [ ] Drag-and-drop placement; public binder sharing & discovery
 

@@ -4,7 +4,11 @@ Build **digital "michi binders"** — aesthetically curated Pokémon card layout
 
 Most collection apps organize cards by number or set. poke-michi is about *composition*: arranging cards into visually cohesive pages the way collectors do with the [Michi Method](https://woahpoke.com/michi-method/) — anchor layouts, single-Pokémon pages, color-themed spreads, artist pages, and full-page artwork, with intentional negative space and cards that span multiple pockets. Card metadata (sets, packs, illustrators, species) is sourced from [The Art of Pokémon](https://www.artofpkm.com/pokemon).
 
-> **Status:** early scaffold. The app shell, data model, and Supabase backend are in place; the binder editor and card browser are next. See the [Roadmap](#roadmap).
+> **Status:** early build. You can browse premade example binders, view/edit them on a 3×3
+> canvas (multi-slot spans, negative space, page navigation), create your own, and browse the
+> card catalogue — all running today with **no backend required** (binders live in an in-memory
+> store seeded with examples; see `src/store/binders.tsx`). Wiring this store to the Supabase
+> backend, plus auth and real card ingestion, is next. See the [Roadmap](#roadmap).
 
 ## Tech stack
 
@@ -60,13 +64,17 @@ npm start         # start the dev server and choose a target
 ```
 poke-michi/
 ├── src/
-│   ├── app/              # Expo Router routes (file-based). Screens live here.
-│   │   ├── _layout.tsx   # Root layout + tab navigator
-│   │   ├── index.tsx     # Home
-│   │   └── explore.tsx   # Browse (card catalogue — placeholder)
-│   ├── components/       # Reusable UI (themed text/view, etc.)
+│   ├── app/              # Expo Router routes (file-based)
+│   │   ├── _layout.tsx   # Root layout, tab navigator + BinderProvider
+│   │   ├── index.tsx     # Binders list (your binders + examples)
+│   │   └── explore.tsx   # Browse — the card catalogue
+│   ├── components/
+│   │   └── binder/       # BinderGrid, BinderScreen, BinderThumb, CardPicker
 │   ├── constants/        # Theme: colors, spacing, fonts
+│   ├── data/             # Local view-models + sample cards & example binders
 │   ├── hooks/            # Shared hooks (color scheme, theme)
+│   ├── store/
+│   │   └── binders.tsx   # In-memory binder store (the swap point for Supabase)
 │   ├── lib/
 │   │   └── supabase.ts   # Typed Supabase client (web + native)
 │   └── types/
@@ -106,11 +114,14 @@ poke-michi/
 - [x] App scaffold (Expo Router, TypeScript, theming) for web/iOS/Android
 - [x] Supabase schema + Row Level Security for binders, pages, and slots
 - [x] Typed Supabase client and domain types
+- [x] Binders list + 4 premade example binders to view
+- [x] Binder viewer & editor — 3×3 canvas, multi-slot spans, negative space, multi-page
+- [x] Card browser (sample catalogue)
+- [ ] Wire the in-memory store to Supabase (replace `src/store/binders.tsx` internals)
 - [ ] Auth (sign up / sign in) and profile screen
 - [ ] Card catalogue ingestion from artofpkm.com
-- [ ] Card browser with set / illustrator / Pokémon / color filters
-- [ ] Binder editor — the 3×3 canvas with multi-slot spans and negative space
-- [ ] Public binder sharing & discovery
+- [ ] Card browser filters (set / illustrator / Pokémon / colour)
+- [ ] Drag-and-drop placement; public binder sharing & discovery
 
 ## License
 

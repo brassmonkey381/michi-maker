@@ -63,6 +63,19 @@ The client is parameterized by the `Database` type, so every query is type-check
 - `domain.ts` — app-facing entity types derived from `database.ts`, plus presentation metadata
   such as the list of Michi layout styles. Components import from here, not from `database.ts`.
 
+### Binder data layer — `src/data/`, `src/store/`
+
+The current build runs **without a backend**. `src/data/` holds ergonomic view-models
+(`binderTypes.ts`) plus a sample card catalogue and four premade example binders
+(`sampleData.ts`). `src/store/binders.tsx` is a React context exposing the binders and all
+CRUD / slot-editing actions over in-memory state seeded with the examples.
+
+This store is the **single swap point** for the backend: it is the only module that knows binders
+live in memory. Wiring up Supabase means reimplementing its actions as queries/mutations (mapping
+the flat view-models to the `binders` / `binder_pages` / `binder_slots` rows) — the screens and
+components in `src/components/binder/` consume the store and don't change. The view-models in
+`binderTypes.ts` were intentionally shaped to mirror the schema to keep that mapping small.
+
 ### Backend — `supabase/`
 
 Postgres schema, Row Level Security, and seed data as versioned SQL migrations. Auth is handled

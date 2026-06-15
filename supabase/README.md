@@ -20,6 +20,20 @@ Two layers (full details in [../docs/DATA-MODEL.md](../docs/DATA-MODEL.md)):
 - **User data** — `profiles`, `binders`, `binder_pages`, `binder_slots`. Owned by a signed-in
   user and protected by Row Level Security.
 
+## How the app persists binders
+
+When the app has Supabase credentials, the binder store (`src/store/binders.tsx`) loads and saves
+*user* binders through `src/data/binderRepo.ts`. Every table has RLS, so this needs a session — and
+there's no auth UI yet — so the repo signs in **anonymously** on first load.
+
+**Enable it:** Dashboard → Authentication → Sign In / Providers → **Anonymous** sign-ins. Without it
+the app stays usable but shows only the bundled example binders (user binders won't load or save).
+The example binders are local to the app and are never written to the database.
+
+> Migration `20260615130000_decouple_card_refs.sql` drops the FK from `binder_slots.card_id` /
+> `binders.cover_card_id` to `cards`, so binders can reference cards from any source (the app's
+> sample set or TCGdex) that isn't necessarily ingested yet.
+
 ## First-time setup
 
 Install the [Supabase CLI](https://supabase.com/docs/guides/local-development) and log in:

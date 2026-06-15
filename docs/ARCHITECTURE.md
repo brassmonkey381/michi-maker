@@ -65,16 +65,22 @@ The client is parameterized by the `Database` type, so every query is type-check
 
 ### Binder data layer — `src/data/`, `src/store/`
 
-The current build runs **without a backend**. `src/data/` holds ergonomic view-models
-(`binderTypes.ts`) plus a sample card catalogue and four premade example binders
-(`sampleData.ts`). `src/store/binders.tsx` is a React context exposing the binders and all
-CRUD / slot-editing actions over in-memory state seeded with the examples.
+`src/data/binderTypes.ts` holds ergonomic view-models; `sampleData.ts` holds a sample card
+catalogue and four bundled example binders.
 
-This store is the **single swap point** for the backend: it is the only module that knows binders
-live in memory. Wiring up Supabase means reimplementing its actions as queries/mutations (mapping
-the flat view-models to the `binders` / `binder_pages` / `binder_slots` rows) — the screens and
-components in `src/components/binder/` consume the store and don't change. The view-models in
-`binderTypes.ts` were intentionally shaped to mirror the schema to keep that mapping small.
+`src/store/binders.tsx` is a React context exposing binders + all CRUD / slot-editing actions over
+React state (so the UI stays snappy). It is **backend-aware**:
+
+- **Local mode** (no Supabase credentials): everything runs in-memory, seeded with the examples.
+- **Cloud mode** (Supabase configured): on mount it ensures a session (signing in anonymously when
+  there's none) and loads the user's binders; every mutation updates state immediately and persists
+  in the background (optimistic). The bundled examples are never persisted — duplicating one creates
+  a real user binder.
+
+`src/data/binderRepo.ts` is the **only** module that talks to Supabase. It maps the flat
+view-models ↔ the `binders` / `binder_pages` / `binder_slots` rows and runs the reads/writes
+(scoped to the user by RLS). The screens/components in `src/components/binder/` consume the store
+and are identical in both modes — which is why the view-models were shaped to mirror the schema.
 
 ### Backend — `supabase/`
 

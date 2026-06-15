@@ -124,7 +124,7 @@ poke-michi/
 - [x] Binders list + 4 premade example binders to view
 - [x] Binder viewer & editor — 3×3 canvas, multi-slot spans, negative space, multi-page
 - [x] Card browser (sample catalogue)
-- [ ] Wire the in-memory store to Supabase (replace `src/store/binders.tsx` internals)
+- [x] Wire the binder store to Supabase (optimistic writes, anonymous session) — local mode still works
 - [ ] Auth (sign up / sign in) and profile screen
 - [x] Card catalogue ingestion (TCGdex) — `scripts/ingest.mjs`
 - [ ] Card browser filters (set / illustrator / Pokémon / colour)

@@ -7,6 +7,7 @@ import { BinderThumb } from '@/components/binder/BinderThumb';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { isSupabaseConfigured } from '@/lib/env';
 import { useBinders } from '@/store/binders';
 
 export default function BindersScreen() {
@@ -34,7 +35,7 @@ export default function BindersScreen() {
                 poke-michi
               </ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
-                Build digital michi binders
+                Build digital michi binders{isSupabaseConfigured ? '' : ' · Local mode'}
               </ThemedText>
             </View>
             <Pressable onPress={handleNew} style={({ pressed }) => [styles.newBtn, pressed && styles.pressed]}>

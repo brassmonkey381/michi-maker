@@ -41,14 +41,21 @@ This project also depends on a few packages that must match the Expo SDK. Instal
 npx expo install @supabase/supabase-js @react-native-async-storage/async-storage react-native-url-polyfill
 ```
 
-### 2. Configure Supabase
+### 2. (Optional) Configure Supabase
+
+**The app runs fully without a backend.** Binders and the card catalogue come from a local,
+in-memory store seeded with example binders, so you can skip straight to step 3 to try it out.
+Without credentials the app stays in **local mode** (`supabase` is `null` and never throws);
+Supabase only powers cloud sync, auth, and the real card catalogue (coming soon).
+
+When you're ready to enable it:
 
 ```bash
 cp .env.example .env
 ```
 
 Fill in `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` from your project's
-**Settings → API** page. Then apply the database schema — see **[supabase/README.md](supabase/README.md)**.
+**Settings → API** page, then apply the database schema — see **[supabase/README.md](supabase/README.md)**.
 
 ### 3. Run the app
 

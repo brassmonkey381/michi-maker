@@ -25,6 +25,7 @@ import * as repo from '@/data/binderRepo';
 import {
   cloneBinder,
   emptyPage,
+  slotCells,
   uuidv4,
   type DemoBinder,
   type DemoPage,
@@ -200,13 +201,23 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     (binderId: string, pageId: string, input: SlotInput) => {
       const target = binders.find((binder) => binder.id === binderId);
       const page = target?.pages.find((p) => p.id === pageId);
-      const existing = page?.slots.find((s) => s.row === input.row && s.col === input.col);
+      // If the binder/page can't be found, no-op (as before) — nothing to place onto.
+      if (!target || !page) return;
+
+      const existing = page.slots.find((s) => s.row === input.row && s.col === input.col);
+
+      // Desired span, then clamped so the slot never extends past the page grid. A span of
+      // at least 1 is always honoured; the clamp only ever shrinks an over-reaching span.
+      const wantRowSpan = input.rowSpan ?? existing?.rowSpan ?? 1;
+      const wantColSpan = input.colSpan ?? existing?.colSpan ?? 1;
+      const rowSpan = Math.max(1, Math.min(wantRowSpan, page.rows - input.row));
+      const colSpan = Math.max(1, Math.min(wantColSpan, page.cols - input.col));
 
       const slot: DemoSlot = existing
         ? {
             ...existing,
-            rowSpan: input.rowSpan ?? existing.rowSpan,
-            colSpan: input.colSpan ?? existing.colSpan,
+            rowSpan,
+            colSpan,
             type: input.type ?? existing.type,
             cardId: input.cardId ?? existing.cardId,
             insertColor: input.insertColor ?? existing.insertColor,
@@ -215,12 +226,25 @@ export function BinderProvider({ children }: { children: ReactNode }) {
             id: uuidv4(),
             row: input.row,
             col: input.col,
-            rowSpan: input.rowSpan ?? 1,
-            colSpan: input.colSpan ?? 1,
+            rowSpan,
+            colSpan,
             type: input.type ?? 'card',
             cardId: input.cardId,
             insertColor: input.insertColor,
           };
+
+      // When the placed slot spans more than one pocket, clear any *other* slots whose cells
+      // it now covers so the span lands cleanly instead of overlapping. The slot being edited
+      // is never removed (it's the one we're keeping/replacing). 1×1 placements skip this and
+      // behave exactly as before.
+      const removedSlotIds: string[] = [];
+      if (slot.rowSpan > 1 || slot.colSpan > 1) {
+        const covered = new Set(slotCells(slot));
+        for (const other of page.slots) {
+          if (other.id === slot.id) continue;
+          if (slotCells(other).some((cell) => covered.has(cell))) removedSlotIds.push(other.id);
+        }
+      }
 
       setBinders((prev) =>
         prev.map((binder) =>
@@ -231,9 +255,10 @@ export function BinderProvider({ children }: { children: ReactNode }) {
                   p.id === pageId
                     ? {
                         ...p,
-                        slots: existing
+                        slots: (existing
                           ? p.slots.map((s) => (s.id === existing.id ? slot : s))
-                          : [...p.slots, slot],
+                          : [...p.slots, slot]
+                        ).filter((s) => !removedSlotIds.includes(s.id)),
                       }
                     : p,
                 ),
@@ -241,7 +266,10 @@ export function BinderProvider({ children }: { children: ReactNode }) {
             : binder,
         ),
       );
-      if (target && !target.isExample) persist(() => repo.upsertSlot(pageId, slot));
+      if (!target.isExample) {
+        for (const removedId of removedSlotIds) persist(() => repo.deleteSlot(removedId));
+        persist(() => repo.upsertSlot(pageId, slot));
+      }
     },
     [binders, persist],
   );

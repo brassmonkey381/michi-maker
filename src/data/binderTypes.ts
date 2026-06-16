@@ -104,6 +104,55 @@ export function occupiedCells(page: DemoPage): Set<string> {
   return set;
 }
 
+/** A candidate placement (position + span) — a slot-shaped object without an id/type. */
+export interface SlotCandidate {
+  row: number;
+  col: number;
+  rowSpan: number;
+  colSpan: number;
+}
+
+/**
+ * Cells a candidate placement would cover, as "row,col" keys (accounts for spans).
+ * Mirrors `slotCells` but works on a span-only candidate (no id/type required).
+ */
+export function candidateCells(candidate: SlotCandidate): string[] {
+  const keys: string[] = [];
+  for (let r = candidate.row; r < candidate.row + candidate.rowSpan; r += 1) {
+    for (let c = candidate.col; c < candidate.col + candidate.colSpan; c += 1) {
+      keys.push(`${r},${c}`);
+    }
+  }
+  return keys;
+}
+
+/**
+ * Whether `candidate` can be placed on `page`:
+ *  - it fits within the grid (row/col >= 0, and row+rowSpan <= rows, col+colSpan <= cols), and
+ *  - none of its cells overlap an existing slot, ignoring the slot whose id === ignoreId
+ *    (so a slot can be re-placed/resized over its own footprint).
+ * Pure — does not mutate the page.
+ */
+export function canPlaceSlot(
+  page: DemoPage,
+  candidate: SlotCandidate,
+  ignoreId?: string,
+): boolean {
+  // Span must be a positive size and the footprint must sit inside the grid.
+  if (candidate.rowSpan < 1 || candidate.colSpan < 1) return false;
+  if (candidate.row < 0 || candidate.col < 0) return false;
+  if (candidate.row + candidate.rowSpan > page.rows) return false;
+  if (candidate.col + candidate.colSpan > page.cols) return false;
+
+  // No overlap with any other slot's cells (the ignored slot's cells are free game).
+  const taken = new Set<string>();
+  for (const slot of page.slots) {
+    if (slot.id === ignoreId) continue;
+    for (const key of slotCells(slot)) taken.add(key);
+  }
+  return candidateCells(candidate).every((key) => !taken.has(key));
+}
+
 /** Deep-clone a binder, assigning fresh (persistable) UUID ids — used to remix an example. */
 export function cloneBinder(binder: DemoBinder, overrides?: Partial<DemoBinder>): DemoBinder {
   return {

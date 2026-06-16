@@ -18,7 +18,11 @@ const INSERT_TONES: { label: string; color: string }[] = [
   { label: 'Charcoal', color: '#2A2A30' },
 ];
 
-/** Placement footprints, per the michi-method formats (woahpoke.com/michi-method). */
+/**
+ * Placement footprints. A real card is portrait (63×88), an aspect only square blocks
+ * (1×1, 2×2, 3×3) preserve — so only those carry cards. Non-square shapes carry tonal
+ * inserts (a solid colour has no aspect to distort), per woahpoke.com/michi-method.
+ */
 const SHAPES: { label: string; rows: number; cols: number }[] = [
   { label: '1×1', rows: 1, cols: 1 },
   { label: '1×2', rows: 1, cols: 2 },
@@ -44,8 +48,6 @@ interface CardPickerProps {
   onPickCard: (cardId: string) => void;
   /** Place a V-UNION's four pieces into the 2×2 starting at the target cell. */
   onPickVUnion: (pieces: readonly string[]) => void;
-  /** Place a card's art as a full-bleed artwork panel of the given size. */
-  onPickArtwork: (cardId: string, rowSpan: number, colSpan: number) => void;
   /** Fill the pocket with a tonal colour insert of the given size (negative space). */
   onPickInsert: (color: string, rowSpan: number, colSpan: number) => void;
   onClear: () => void;
@@ -62,7 +64,6 @@ export function CardPicker({
   onClose,
   onPickCard,
   onPickVUnion,
-  onPickArtwork,
   onPickInsert,
   onClear,
 }: CardPickerProps) {
@@ -78,10 +79,10 @@ export function CardPicker({
     !!cell && !!page && cell.row + rows <= page.rows && cell.col + cols <= page.cols;
 
   const is = (rows: number, cols: number) => shape.rows === rows && shape.cols === cols;
-  // Framed cards only exist at their real footprint: standard = 1×1, jumbo = 2×2.
+  // Framed cards only exist at their real, undistorted footprint: standard = 1×1, jumbo = 2×2.
   const framedCards = is(1, 1) ? STANDARD_CARDS : is(2, 2) ? JUMBO_CARDS : [];
   const showVUnion = is(2, 2);
-  const isMultiCell = shape.rows > 1 || shape.cols > 1;
+  const noCardForShape = framedCards.length === 0 && !showVUnion;
   const sizeLabel = `${shape.rows}×${shape.cols}`;
 
   const title = slot ? 'Edit pocket' : 'Add to pocket';
@@ -118,7 +119,7 @@ export function CardPicker({
           </View>
 
           <ScrollView contentContainerStyle={styles.scroll}>
-            {/* Framed cards that physically match this shape. */}
+            {/* Framed cards that physically match this shape (1×1 standard, 2×2 jumbo). */}
             {framedCards.length > 0 ? (
               <>
                 <Text style={styles.sectionLabel}>Cards · {sizeLabel}</Text>
@@ -131,12 +132,7 @@ export function CardPicker({
                         key={card.id}
                         style={[styles.thumb, selected && styles.thumbSelected]}
                         onPress={() => onPickCard(card.id)}>
-                        <View
-                          style={[
-                            styles.thumbImageWrap,
-                            jumbo && styles.squareWrap,
-                            { backgroundColor: `${card.dominantColor}22` },
-                          ]}>
+                        <View style={[styles.thumbImageWrap, { backgroundColor: `${card.dominantColor}22` }]}>
                           <Image source={{ uri: card.imageUrl }} style={styles.thumbImage} contentFit="contain" />
                           {jumbo ? (
                             <View style={styles.tag}>
@@ -163,8 +159,8 @@ export function CardPicker({
                     const tl = CARDS_BY_ID[set.pieces[0]];
                     return (
                       <Pressable key={set.key} style={styles.thumb} onPress={() => onPickVUnion(set.pieces)}>
-                        <View style={[styles.thumbImageWrap, styles.squareWrap, { backgroundColor: `${tl?.dominantColor ?? '#888'}33` }]}>
-                          {tl ? <Image source={{ uri: tl.imageUrl }} style={styles.thumbImage} contentFit="cover" /> : null}
+                        <View style={[styles.thumbImageWrap, { backgroundColor: `${tl?.dominantColor ?? '#888'}33` }]}>
+                          {tl ? <Image source={{ uri: tl.imageUrl }} style={styles.thumbImage} contentFit="contain" /> : null}
                           <View style={styles.tag}>
                             <Text style={styles.tagText}>V-UNION</Text>
                           </View>
@@ -179,32 +175,14 @@ export function CardPicker({
               </>
             ) : null}
 
-            {/* Artwork panels — a card's art as a full-bleed panel at the chosen multi-cell shape. */}
-            {isMultiCell ? (
-              <>
-                <Text style={styles.sectionLabel}>Artwork panel · {sizeLabel}</Text>
-                <View style={styles.grid}>
-                  {STANDARD_CARDS.map((card) => {
-                    const selected = slot?.type === 'artwork' && slot?.cardId === card.id;
-                    return (
-                      <Pressable
-                        key={card.id}
-                        style={[styles.thumb, selected && styles.thumbSelected]}
-                        onPress={() => onPickArtwork(card.id, shape.rows, shape.cols)}>
-                        <View style={[styles.thumbImageWrap, styles.squareWrap, { backgroundColor: `${card.dominantColor}33` }]}>
-                          <Image source={{ uri: card.imageUrl }} style={styles.thumbImage} contentFit="cover" />
-                        </View>
-                        <Text numberOfLines={1} style={styles.thumbName}>
-                          {card.name}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </>
+            {noCardForShape ? (
+              <Text style={styles.hint}>
+                No real card is {sizeLabel} (cards are 1×1, jumbo/V-UNION are 2×2). Fill this
+                shape with a tonal insert below.
+              </Text>
             ) : null}
 
-            {/* Tonal inserts at the chosen shape. */}
+            {/* Tonal inserts at the chosen shape — solid colour, so any shape is fine. */}
             <Text style={styles.sectionLabel}>Insert · {sizeLabel}</Text>
             <View style={styles.insertRow}>
               {INSERT_TONES.map((tone) => {
@@ -258,6 +236,7 @@ const styles = StyleSheet.create({
   spanChipText: { fontSize: 13, color: '#333' },
   spanChipTextActive: { color: '#fff', fontWeight: '600' },
   disabled: { opacity: 0.3 },
+  hint: { fontSize: 12, color: '#999', marginTop: 12, lineHeight: 17 },
   insertRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 8 },
   insertSwatch: { width: 28, height: 28, borderRadius: 7, borderWidth: 1, borderColor: 'rgba(128,128,128,0.35)' },
   insertSwatchActive: { borderWidth: 3, borderColor: '#3B82F6' },
@@ -283,7 +262,6 @@ const styles = StyleSheet.create({
   thumb: { width: 70, borderRadius: 8, padding: 3 },
   thumbSelected: { backgroundColor: '#e8f0fe' },
   thumbImageWrap: { width: '100%', aspectRatio: 63 / 88, borderRadius: 6, overflow: 'hidden' },
-  squareWrap: { aspectRatio: 1 },
   thumbImage: { width: '100%', height: '100%' },
   tag: {
     position: 'absolute',

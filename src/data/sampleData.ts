@@ -80,6 +80,32 @@ const RAW: Omit<DemoCard, 'orientation'>[] = [
   { id: 'cel25-19', name: 'Yveltal', pokemon: 'Yveltal', setName: 'Celebrations', illustrator: 'AKIRA EGAWA', imageUrl: 'https://assets.tcgdex.net/en/swsh/cel25/19/high.webp', dominantColor: '#C0392B' },
   { id: 'cel25-20', name: 'Dialga', pokemon: 'Dialga', setName: 'Celebrations', illustrator: '5ban Graphics', imageUrl: 'https://assets.tcgdex.net/en/swsh/cel25/20/high.webp', dominantColor: '#7FB0D0' },
   { id: 'cel25-22', name: 'Lugia', pokemon: 'Lugia', setName: 'Celebrations', illustrator: 'Kouki Saitou', imageUrl: 'https://assets.tcgdex.net/en/swsh/cel25/22/high.webp', dominantColor: '#C8D6E5' },
+
+  // --- V-UNION pieces (SWSH Black Star Promos) — four 1×1 cards that tile into a 2×2 ---
+  { id: 'swshp-SWSH159', name: 'Mewtwo V-UNION (top-left)', pokemon: 'Mewtwo', setName: 'SWSH Promos', imageUrl: 'https://assets.tcgdex.net/en/swsh/swshp/SWSH159/high.webp', dominantColor: '#9B8FB0', kind: 'vunion' },
+  { id: 'swshp-SWSH160', name: 'Mewtwo V-UNION (top-right)', pokemon: 'Mewtwo', setName: 'SWSH Promos', imageUrl: 'https://assets.tcgdex.net/en/swsh/swshp/SWSH160/high.webp', dominantColor: '#9B8FB0', kind: 'vunion' },
+  { id: 'swshp-SWSH161', name: 'Mewtwo V-UNION (bottom-left)', pokemon: 'Mewtwo', setName: 'SWSH Promos', imageUrl: 'https://assets.tcgdex.net/en/swsh/swshp/SWSH161/high.webp', dominantColor: '#9B8FB0', kind: 'vunion' },
+  { id: 'swshp-SWSH162', name: 'Mewtwo V-UNION (bottom-right)', pokemon: 'Mewtwo', setName: 'SWSH Promos', imageUrl: 'https://assets.tcgdex.net/en/swsh/swshp/SWSH162/high.webp', dominantColor: '#9B8FB0', kind: 'vunion' },
+  { id: 'swshp-SWSH155', name: 'Greninja V-UNION (top-left)', pokemon: 'Greninja', setName: 'SWSH Promos', imageUrl: 'https://assets.tcgdex.net/en/swsh/swshp/SWSH155/high.webp', dominantColor: '#4FA3D1', kind: 'vunion' },
+  { id: 'swshp-SWSH156', name: 'Greninja V-UNION (top-right)', pokemon: 'Greninja', setName: 'SWSH Promos', imageUrl: 'https://assets.tcgdex.net/en/swsh/swshp/SWSH156/high.webp', dominantColor: '#4FA3D1', kind: 'vunion' },
+  { id: 'swshp-SWSH157', name: 'Greninja V-UNION (bottom-left)', pokemon: 'Greninja', setName: 'SWSH Promos', imageUrl: 'https://assets.tcgdex.net/en/swsh/swshp/SWSH157/high.webp', dominantColor: '#4FA3D1', kind: 'vunion' },
+  { id: 'swshp-SWSH158', name: 'Greninja V-UNION (bottom-right)', pokemon: 'Greninja', setName: 'SWSH Promos', imageUrl: 'https://assets.tcgdex.net/en/swsh/swshp/SWSH158/high.webp', dominantColor: '#4FA3D1', kind: 'vunion' },
+  { id: 'swshp-SWSH163', name: 'Zacian V-UNION (top-left)', pokemon: 'Zacian', setName: 'SWSH Promos', imageUrl: 'https://assets.tcgdex.net/en/swsh/swshp/SWSH163/high.webp', dominantColor: '#5FA9C0', kind: 'vunion' },
+  { id: 'swshp-SWSH164', name: 'Zacian V-UNION (top-right)', pokemon: 'Zacian', setName: 'SWSH Promos', imageUrl: 'https://assets.tcgdex.net/en/swsh/swshp/SWSH164/high.webp', dominantColor: '#5FA9C0', kind: 'vunion' },
+  { id: 'swshp-SWSH165', name: 'Zacian V-UNION (bottom-left)', pokemon: 'Zacian', setName: 'SWSH Promos', imageUrl: 'https://assets.tcgdex.net/en/swsh/swshp/SWSH165/high.webp', dominantColor: '#5FA9C0', kind: 'vunion' },
+  { id: 'swshp-SWSH166', name: 'Zacian V-UNION (bottom-right)', pokemon: 'Zacian', setName: 'SWSH Promos', imageUrl: 'https://assets.tcgdex.net/en/swsh/swshp/SWSH166/high.webp', dominantColor: '#5FA9C0', kind: 'vunion' },
+  { id: 'swshp-SWSH139', name: 'Pikachu V-UNION (top-left)', pokemon: 'Pikachu', setName: 'SWSH Promos', imageUrl: 'https://assets.tcgdex.net/en/swsh/swshp/SWSH139/high.webp', dominantColor: '#F4D03F', kind: 'vunion' },
+  { id: 'swshp-SWSH140', name: 'Pikachu V-UNION (top-right)', pokemon: 'Pikachu', setName: 'SWSH Promos', imageUrl: 'https://assets.tcgdex.net/en/swsh/swshp/SWSH140/high.webp', dominantColor: '#F4D03F', kind: 'vunion' },
+  { id: 'swshp-SWSH141', name: 'Pikachu V-UNION (bottom-left)', pokemon: 'Pikachu', setName: 'SWSH Promos', imageUrl: 'https://assets.tcgdex.net/en/swsh/swshp/SWSH141/high.webp', dominantColor: '#F4D03F', kind: 'vunion' },
+  { id: 'swshp-SWSH142', name: 'Pikachu V-UNION (bottom-right)', pokemon: 'Pikachu', setName: 'SWSH Promos', imageUrl: 'https://assets.tcgdex.net/en/swsh/swshp/SWSH142/high.webp', dominantColor: '#F4D03F', kind: 'vunion' },
+
+  // --- Jumbo (oversized) cards — real hi-res art shown at jumbo size, badged "JUMBO" ---
+  { id: 'jumbo-charizard', name: 'Charizard ex (Jumbo)', pokemon: 'Charizard', setName: 'Jumbo', imageUrl: 'https://assets.tcgdex.net/en/sv/sv03.5/199/high.webp', dominantColor: '#E8743B', kind: 'jumbo' },
+  { id: 'jumbo-pikachu', name: 'Pikachu (Jumbo)', pokemon: 'Pikachu', setName: 'Jumbo', imageUrl: 'https://assets.tcgdex.net/en/swsh/cel25/5/high.webp', dominantColor: '#F4D03F', kind: 'jumbo' },
+  { id: 'jumbo-mewtwo', name: 'Mewtwo (Jumbo)', pokemon: 'Mewtwo', setName: 'Jumbo', imageUrl: 'https://assets.tcgdex.net/en/sv/sv03.5/150/high.webp', dominantColor: '#9B8FB0', kind: 'jumbo' },
+  { id: 'jumbo-lugia', name: 'Lugia (Jumbo)', pokemon: 'Lugia', setName: 'Jumbo', imageUrl: 'https://assets.tcgdex.net/en/swsh/cel25/22/high.webp', dominantColor: '#C8D6E5', kind: 'jumbo' },
+  { id: 'jumbo-umbreon', name: 'Umbreon VMAX (Jumbo)', pokemon: 'Umbreon', setName: 'Jumbo', imageUrl: 'https://assets.tcgdex.net/en/swsh/swsh7/215/high.webp', dominantColor: '#3A3A4A', kind: 'jumbo' },
+  { id: 'jumbo-blastoise', name: 'Blastoise (Jumbo)', pokemon: 'Blastoise', setName: 'Jumbo', imageUrl: 'https://assets.tcgdex.net/en/base/base1/2/high.webp', dominantColor: '#4F8FD1', kind: 'jumbo' },
 ];
 
 const BASE_CARDS: DemoCard[] = RAW.map((card) => ({ ...card, orientation: 'portrait' }));

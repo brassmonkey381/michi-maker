@@ -11,6 +11,15 @@ import type { BinderSlotType, CardOrientation, MichiLayoutStyle } from '@/types/
 
 export type { BinderSlotType, CardOrientation, MichiLayoutStyle };
 
+/**
+ * The real-world size class of a card, which determines its pocket footprint:
+ *  - `standard` — a normal 63×88mm card: exactly one pocket (1×1). The default.
+ *  - `jumbo`    — an oversized promo card: one card spanning multiple pockets (≈2×2).
+ *  - `vunion`   — one of the four pieces of a V-UNION card; each piece is itself a
+ *                 standard-size card (1×1), and four of them tile into a 2×2 block.
+ */
+export type CardKind = 'standard' | 'jumbo' | 'vunion';
+
 export interface DemoCard {
   id: string;
   name: string;
@@ -21,6 +30,8 @@ export interface DemoCard {
   /** Hex colour used for color-theme layouts and as the slot backing. */
   dominantColor?: string;
   orientation: CardOrientation;
+  /** Real-world size class. Absent ⇒ `standard` (a single pocket). */
+  kind?: CardKind;
 }
 
 export interface DemoSlot {

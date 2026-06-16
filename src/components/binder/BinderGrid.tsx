@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BinderSurface, Radii, Shadows, SlotBackingFallback } from '@/constants/theme';
 import { CARDS_BY_ID } from '@/data/sampleData';
-import { occupiedCells, type DemoPage, type DemoSlot } from '@/data/binderTypes';
+import { occupiedCells, type DemoCard, type DemoPage, type DemoSlot } from '@/data/binderTypes';
 
 const CARD_ASPECT = 88 / 63; // height / width of a standard card
 
@@ -96,7 +96,7 @@ export function BinderGrid({
         {/* Placed slots. */}
         {page.slots.map((slot) => {
           const selected = editable && slot.id === selectedSlotId;
-          const content = <SlotContent slot={slot} radius={slotRadius} />;
+          const content = <SlotContent slot={slot} radius={slotRadius} small={small} />;
           const style = [box(slot.row, slot.col, slot.rowSpan, slot.colSpan)];
           if (!editable) {
             return (
@@ -119,7 +119,17 @@ export function BinderGrid({
   );
 }
 
-function SlotContent({ slot, radius }: { slot: DemoSlot; radius: number }) {
+/** A small corner badge marking a card's real-world size class (jumbo / V-UNION). */
+function KindBadge({ kind, small }: { kind?: DemoCard['kind']; small: boolean }) {
+  if (small || (kind !== 'jumbo' && kind !== 'vunion')) return null;
+  return (
+    <View pointerEvents="none" style={styles.badge}>
+      <Text style={styles.badgeText}>{kind === 'jumbo' ? 'JUMBO' : 'V-UNION'}</Text>
+    </View>
+  );
+}
+
+function SlotContent({ slot, radius, small }: { slot: DemoSlot; radius: number; small: boolean }) {
   if (slot.type === 'insert') {
     // Tonal negative-space filler: solid colour with a soft top inner highlight
     // so it reads as an intentional, slightly raised tile.
@@ -161,6 +171,7 @@ function SlotContent({ slot, radius }: { slot: DemoSlot; radius: number }) {
           style={styles.fill}
           contentFit={spanning ? 'cover' : 'contain'}
         />
+        <KindBadge kind={cardData.kind} small={small} />
       </View>
     );
   }
@@ -176,6 +187,7 @@ function SlotContent({ slot, radius }: { slot: DemoSlot; radius: number }) {
           <View style={[styles.foilBar, styles.foilBarA]} />
           <View style={[styles.foilBar, styles.foilBarB]} />
         </View>
+        <KindBadge kind={cardData.kind} small={small} />
       </View>
     </View>
   );
@@ -265,5 +277,20 @@ const styles = StyleSheet.create({
   missingText: {
     fontSize: 20,
     color: '#9a9a9a',
+  },
+  badge: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: 'rgba(0,0,0,0.62)',
+  },
+  badgeText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 });

@@ -14,6 +14,7 @@
 
 import {
   uid,
+  type CardKind,
   type CardOrientation,
   type DemoBinder,
   type DemoCard,
@@ -22,7 +23,7 @@ import {
 } from '@/data/binderTypes';
 
 export { uid };
-export type { CardOrientation, DemoBinder, DemoCard, DemoPage, DemoSlot };
+export type { CardKind, CardOrientation, DemoBinder, DemoCard, DemoPage, DemoSlot };
 
 /** The shape every content module exports. */
 export interface ContentModule {
@@ -70,6 +71,70 @@ export function defineCard(
 ): DemoCard {
   return { orientation: 'portrait', ...c };
 }
+
+// --- realistic card sizes (jumbo & V-UNION) --------------------------------
+//
+// Standard cards are a single pocket (1×1) — just use `card(...)`. The two helpers
+// below place cards at their real-world oversized footprints:
+//   - `jumbo`  : one oversized card spanning ≈2×2 (renders with a "JUMBO" badge).
+//   - `vunion` : a V-UNION's four pieces, each a 1×1 card, tiled into a 2×2 block.
+
+/**
+ * A jumbo (oversized) card: one card spanning `rows`×`cols` pockets (default 2×2).
+ * Reference a card whose `kind` is `'jumbo'` in the catalogue so the renderer badges it.
+ */
+export function jumbo(
+  row: number,
+  col: number,
+  cardId: string,
+  opts?: { rows?: number; cols?: number },
+): DemoSlot {
+  return card(row, col, cardId, {
+    rowSpan: opts?.rows ?? 2,
+    colSpan: opts?.cols ?? 2,
+    type: 'card',
+  });
+}
+
+/**
+ * A V-UNION: its four pieces tiled into a 2×2 block whose top-left cell is (row,col).
+ * Pass the four piece card ids in reading order — [topLeft, topRight, bottomLeft, bottomRight].
+ * Each piece is a normal 1×1 card; reference `kind: 'vunion'` cards so they're badged.
+ */
+export function vunion(
+  row: number,
+  col: number,
+  pieces: readonly [string, string, string, string],
+): DemoSlot[] {
+  const [tl, tr, bl, br] = pieces;
+  return [
+    card(row, col, tl),
+    card(row, col + 1, tr),
+    card(row + 1, col, bl),
+    card(row + 1, col + 1, br),
+  ];
+}
+
+/**
+ * Verified V-UNION piece ids (TCGdex SWSH Black Star Promos, `swshp`), in
+ * [topLeft, topRight, bottomLeft, bottomRight] order for `vunion(...)`.
+ */
+export const VUNION = {
+  mewtwo: ['swshp-SWSH159', 'swshp-SWSH160', 'swshp-SWSH161', 'swshp-SWSH162'],
+  greninja: ['swshp-SWSH155', 'swshp-SWSH156', 'swshp-SWSH157', 'swshp-SWSH158'],
+  zacian: ['swshp-SWSH163', 'swshp-SWSH164', 'swshp-SWSH165', 'swshp-SWSH166'],
+  pikachu: ['swshp-SWSH139', 'swshp-SWSH140', 'swshp-SWSH141', 'swshp-SWSH142'],
+} as const satisfies Record<string, readonly [string, string, string, string]>;
+
+/** Jumbo (oversized) card ids in the catalogue — reference these from `jumbo(...)`. */
+export const JUMBO = {
+  charizard: 'jumbo-charizard',
+  pikachu: 'jumbo-pikachu',
+  mewtwo: 'jumbo-mewtwo',
+  lugia: 'jumbo-lugia',
+  umbreon: 'jumbo-umbreon',
+  blastoise: 'jumbo-blastoise',
+} as const;
 
 /** A page of slots. Title/background optional; grid defaults to 3×3. */
 export function page(

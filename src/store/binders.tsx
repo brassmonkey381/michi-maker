@@ -9,6 +9,10 @@
  *
  * `binderRepo` is the only module that talks to Supabase, so this file maps the store's
  * actions onto persistence and nothing else needs to know where binders live.
+ *
+ * Edits flow through `commit()`, which records an undo/redo history of in-memory snapshots
+ * (cheap — the mutators already build new immutable arrays). Undo/redo restore state locally;
+ * re-syncing an undo to Supabase is a future follow-up (today CLOUD edits persist forward only).
  */
 
 import {
@@ -23,6 +27,7 @@ import {
 
 import * as repo from '@/data/binderRepo';
 import {
+  canPlaceSlot,
   cloneBinder,
   emptyPage,
   slotCells,
@@ -36,6 +41,7 @@ import { SAMPLE_BINDERS } from '@/data/sampleData';
 import { isSupabaseConfigured } from '@/lib/env';
 
 const CLOUD = isSupabaseConfigured;
+const HISTORY_LIMIT = 50;
 
 export interface SlotInput {
   row: number;
@@ -61,17 +67,33 @@ interface BinderStore {
   addPage: (binderId: string) => void;
   updatePage: (binderId: string, pageId: string, patch: Partial<DemoPage>) => void;
   removePage: (binderId: string, pageId: string) => void;
+  reorderPages: (binderId: string, fromIndex: number, toIndex: number) => void;
   upsertSlot: (binderId: string, pageId: string, slot: SlotInput) => void;
+  moveSlot: (binderId: string, pageId: string, slotId: string, toRow: number, toCol: number) => void;
+  swapSlots: (binderId: string, pageId: string, slotIdA: string, slotIdB: string) => void;
   removeSlot: (binderId: string, pageId: string, slotId: string) => void;
+  undo: () => void;
+  redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+}
+
+interface History {
+  past: DemoBinder[][];
+  present: DemoBinder[];
+  future: DemoBinder[][];
 }
 
 const BinderContext = createContext<BinderStore | null>(null);
 
 export function BinderProvider({ children }: { children: ReactNode }) {
-  const [binders, setBinders] = useState<DemoBinder[]>(SAMPLE_BINDERS);
+  const [history, setHistory] = useState<History>({ past: [], present: SAMPLE_BINDERS, future: [] });
   const [loading, setLoading] = useState<boolean>(CLOUD);
 
-  // Load user binders from Supabase once (examples stay bundled/local).
+  const binders = history.present;
+
+  // Load user binders from Supabase once (examples stay bundled/local). This is not an
+  // undoable edit, so it replaces `present` without touching the history stacks.
   useEffect(() => {
     if (!CLOUD) return;
     let active = true;
@@ -79,7 +101,9 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       try {
         await repo.ensureSession();
         const userBinders = await repo.fetchUserBinders();
-        if (active) setBinders([...SAMPLE_BINDERS, ...userBinders]);
+        if (active) {
+          setHistory((h) => ({ ...h, present: [...SAMPLE_BINDERS, ...userBinders] }));
+        }
       } catch (error) {
         console.warn(
           `[poke-michi] Supabase load failed; showing examples only: ${(error as Error).message}`,
@@ -91,6 +115,35 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
+  }, []);
+
+  /** Apply an immutable update to the binders, recording it on the undo stack. */
+  const commit = useCallback((updater: (prev: DemoBinder[]) => DemoBinder[]) => {
+    setHistory((h) => {
+      const next = updater(h.present);
+      if (next === h.present) return h; // no-op updates don't pollute history
+      return {
+        past: [...h.past, h.present].slice(-HISTORY_LIMIT),
+        present: next,
+        future: [],
+      };
+    });
+  }, []);
+
+  const undo = useCallback(() => {
+    setHistory((h) => {
+      if (h.past.length === 0) return h;
+      const previous = h.past[h.past.length - 1];
+      return { past: h.past.slice(0, -1), present: previous, future: [h.present, ...h.future] };
+    });
+  }, []);
+
+  const redo = useCallback(() => {
+    setHistory((h) => {
+      if (h.future.length === 0) return h;
+      const [next, ...rest] = h.future;
+      return { past: [...h.past, h.present], present: next, future: rest };
+    });
   }, []);
 
   /** Run a persistence op in cloud mode; never let a failed write crash the UI. */
@@ -114,11 +167,11 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         pages: [emptyPage()],
         ...init,
       };
-      setBinders((prev) => [...prev, binder]);
+      commit((prev) => [...prev, binder]);
       persist(() => repo.insertBinder(binder));
       return binder;
     },
-    [persist],
+    [commit, persist],
   );
 
   const duplicateBinder = useCallback(
@@ -126,29 +179,29 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       const source = binders.find((binder) => binder.id === id);
       if (!source) return undefined;
       const copy = cloneBinder(source, { title: `${source.title} (copy)` });
-      setBinders((prev) => [...prev, copy]);
+      commit((prev) => [...prev, copy]);
       persist(() => repo.insertBinder(copy));
       return copy;
     },
-    [binders, persist],
+    [binders, commit, persist],
   );
 
   const updateBinder = useCallback(
     (id: string, patch: Partial<DemoBinder>) => {
       const target = binders.find((binder) => binder.id === id);
-      setBinders((prev) => prev.map((binder) => (binder.id === id ? { ...binder, ...patch } : binder)));
+      commit((prev) => prev.map((binder) => (binder.id === id ? { ...binder, ...patch } : binder)));
       if (target && !target.isExample) persist(() => repo.updateBinder(id, patch));
     },
-    [binders, persist],
+    [binders, commit, persist],
   );
 
   const deleteBinder = useCallback(
     (id: string) => {
       const target = binders.find((binder) => binder.id === id);
-      setBinders((prev) => prev.filter((binder) => binder.id !== id));
+      commit((prev) => prev.filter((binder) => binder.id !== id));
       if (target && !target.isExample) persist(() => repo.deleteBinder(id));
     },
-    [binders, persist],
+    [binders, commit, persist],
   );
 
   const addPage = useCallback(
@@ -156,20 +209,20 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       const target = binders.find((binder) => binder.id === binderId);
       if (!target) return;
       const page = emptyPage(3, 3, `Page ${target.pages.length + 1}`);
-      setBinders((prev) =>
+      commit((prev) =>
         prev.map((binder) =>
           binder.id === binderId ? { ...binder, pages: [...binder.pages, page] } : binder,
         ),
       );
       if (!target.isExample) persist(() => repo.insertPage(binderId, page, target.pages.length));
     },
-    [binders, persist],
+    [binders, commit, persist],
   );
 
   const updatePage = useCallback(
     (binderId: string, pageId: string, patch: Partial<DemoPage>) => {
       const target = binders.find((binder) => binder.id === binderId);
-      setBinders((prev) =>
+      commit((prev) =>
         prev.map((binder) =>
           binder.id === binderId
             ? { ...binder, pages: binder.pages.map((page) => (page.id === pageId ? { ...page, ...patch } : page)) }
@@ -178,14 +231,14 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       );
       if (target && !target.isExample) persist(() => repo.updatePage(pageId, patch));
     },
-    [binders, persist],
+    [binders, commit, persist],
   );
 
   const removePage = useCallback(
     (binderId: string, pageId: string) => {
       const target = binders.find((binder) => binder.id === binderId);
       if (!target || target.pages.length <= 1) return; // never leave a binder with zero pages
-      setBinders((prev) =>
+      commit((prev) =>
         prev.map((binder) =>
           binder.id === binderId
             ? { ...binder, pages: binder.pages.filter((page) => page.id !== pageId) }
@@ -194,7 +247,31 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       );
       if (!target.isExample) persist(() => repo.deletePage(pageId));
     },
-    [binders, persist],
+    [binders, commit, persist],
+  );
+
+  const reorderPages = useCallback(
+    (binderId: string, fromIndex: number, toIndex: number) => {
+      const target = binders.find((binder) => binder.id === binderId);
+      if (!target) return;
+      const count = target.pages.length;
+      if (
+        fromIndex === toIndex ||
+        fromIndex < 0 ||
+        toIndex < 0 ||
+        fromIndex >= count ||
+        toIndex >= count
+      ) {
+        return;
+      }
+      const pages = [...target.pages];
+      const [moved] = pages.splice(fromIndex, 1);
+      pages.splice(toIndex, 0, moved);
+      commit((prev) => prev.map((binder) => (binder.id === binderId ? { ...binder, pages } : binder)));
+      // Page-order persistence to Supabase (the `position` column) is a follow-up; local
+      // reorder is immediate. In cloud mode the new order is held in memory this session.
+    },
+    [binders, commit],
   );
 
   const upsertSlot = useCallback(
@@ -246,7 +323,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      setBinders((prev) =>
+      commit((prev) =>
         prev.map((binder) =>
           binder.id === binderId
             ? {
@@ -271,13 +348,94 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         persist(() => repo.upsertSlot(pageId, slot));
       }
     },
-    [binders, persist],
+    [binders, commit, persist],
+  );
+
+  /**
+   * Move a slot to a new top-left cell (drag-and-drop). Clamps so the slot's footprint stays
+   * in bounds; refuses (no-op) if the destination would overlap another slot — the caller
+   * (the drag UI) decides whether to snap back or `swapSlots` instead.
+   */
+  const moveSlot = useCallback(
+    (binderId: string, pageId: string, slotId: string, toRow: number, toCol: number) => {
+      const target = binders.find((binder) => binder.id === binderId);
+      const page = target?.pages.find((p) => p.id === pageId);
+      const slot = page?.slots.find((s) => s.id === slotId);
+      if (!target || !page || !slot) return;
+
+      const row = Math.max(0, Math.min(toRow, page.rows - slot.rowSpan));
+      const col = Math.max(0, Math.min(toCol, page.cols - slot.colSpan));
+      if (row === slot.row && col === slot.col) return;
+
+      const candidate = { row, col, rowSpan: slot.rowSpan, colSpan: slot.colSpan };
+      if (!canPlaceSlot(page, candidate, slot.id)) return; // overlaps — caller handles it
+
+      const moved: DemoSlot = { ...slot, row, col };
+      commit((prev) =>
+        prev.map((binder) =>
+          binder.id === binderId
+            ? {
+                ...binder,
+                pages: binder.pages.map((p) =>
+                  p.id === pageId
+                    ? { ...p, slots: p.slots.map((s) => (s.id === slotId ? moved : s)) }
+                    : p,
+                ),
+              }
+            : binder,
+        ),
+      );
+      if (!target.isExample) persist(() => repo.upsertSlot(pageId, moved));
+    },
+    [binders, commit, persist],
+  );
+
+  /**
+   * Swap the positions of two slots on a page (drag a card onto an occupied pocket). Only
+   * sensible when the two share a footprint — the drag UI enforces that before calling.
+   */
+  const swapSlots = useCallback(
+    (binderId: string, pageId: string, slotIdA: string, slotIdB: string) => {
+      if (slotIdA === slotIdB) return;
+      const target = binders.find((binder) => binder.id === binderId);
+      const page = target?.pages.find((p) => p.id === pageId);
+      const a = page?.slots.find((s) => s.id === slotIdA);
+      const b = page?.slots.find((s) => s.id === slotIdB);
+      if (!target || !page || !a || !b) return;
+
+      const movedA: DemoSlot = { ...a, row: b.row, col: b.col };
+      const movedB: DemoSlot = { ...b, row: a.row, col: a.col };
+      commit((prev) =>
+        prev.map((binder) =>
+          binder.id === binderId
+            ? {
+                ...binder,
+                pages: binder.pages.map((p) =>
+                  p.id === pageId
+                    ? {
+                        ...p,
+                        slots: p.slots.map((s) =>
+                          s.id === slotIdA ? movedA : s.id === slotIdB ? movedB : s,
+                        ),
+                      }
+                    : p,
+                ),
+              }
+            : binder,
+        ),
+      );
+      if (!target.isExample) {
+        persist(() => repo.upsertSlot(pageId, movedA));
+        persist(() => repo.upsertSlot(pageId, movedB));
+      }
+    },
+    [binders, commit, persist],
   );
 
   const removeSlot = useCallback(
     (binderId: string, pageId: string, slotId: string) => {
       const target = binders.find((binder) => binder.id === binderId);
-      setBinders((prev) =>
+      commit((prev) =>
         prev.map((binder) =>
           binder.id === binderId
             ? {
@@ -293,7 +451,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       );
       if (target && !target.isExample) persist(() => repo.deleteSlot(slotId));
     },
-    [binders, persist],
+    [binders, commit, persist],
   );
 
   const value = useMemo<BinderStore>(
@@ -310,8 +468,15 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       addPage,
       updatePage,
       removePage,
+      reorderPages,
       upsertSlot,
+      moveSlot,
+      swapSlots,
       removeSlot,
+      undo,
+      redo,
+      canUndo: history.past.length > 0,
+      canRedo: history.future.length > 0,
     }),
     [
       binders,
@@ -324,8 +489,15 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       addPage,
       updatePage,
       removePage,
+      reorderPages,
       upsertSlot,
+      moveSlot,
+      swapSlots,
       removeSlot,
+      undo,
+      redo,
+      history.past.length,
+      history.future.length,
     ],
   );
 

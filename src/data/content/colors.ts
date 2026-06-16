@@ -14,8 +14,10 @@
  */
 
 import {
+  ART,
   JUMBO,
   VUNION,
+  artPanel,
   card,
   defineCard,
   insert,
@@ -87,7 +89,18 @@ export const binders: ContentModule['binders'] = [
         ],
         { title: 'Ignition', rows: 3, cols: 3, backgroundColor: ASH_MAT },
       ),
-      // P2 — 3×4, the Charmander line on a warm mat, framed by flame inserts.
+      // P2 — an "art panel" page: a fire oil-painting fills the top 2×3 as a full-bleed
+      // artwork insert, with a row of flame cards beneath it.
+      page(
+        [
+          artPanel(0, 0, ART.fire, { rowSpan: 2, colSpan: 3 }),
+          card(2, 0, 'base1-4'),
+          card(2, 1, 'base1-12'),
+          card(2, 2, 'sv03.5-199'),
+        ],
+        { title: 'Fire, in oils', rows: 3, cols: 3, backgroundColor: ASH_MAT },
+      ),
+      // P3 — 3×4, the Charmander line on a warm mat, framed by flame inserts.
       page(
         [
           insert(0, 0, FLAME),

@@ -11,6 +11,8 @@
  */
 
 import {
+  ART,
+  artPanel,
   card,
   insert,
   jumbo,
@@ -230,7 +232,18 @@ export const binders: ContentModule['binders'] = [
           // (2,2) intentionally empty
         ],
       },
-      // 2 — tonal tide page: blues woven with cards, a wide insert and lots of negative space.
+      // 2 — art panel page: a stormy-sea oil painting fills the top 2×3 as a full-bleed
+      // artwork insert, with a row of cool-blue cards beneath.
+      page(
+        [
+          artPanel(0, 0, ART.oceanWide, { rowSpan: 2, colSpan: 3 }),
+          card(2, 0, 'base1-2'),
+          card(2, 1, 'swsh7-172'),
+          card(2, 2, 'cel25-3'),
+        ],
+        { title: 'The sea, in oils', rows: 3, cols: 3, backgroundColor: '#0E1620' },
+      ),
+      // 3 — tonal tide page: blues woven with cards, a wide insert and lots of negative space.
       page(
         [
           insert(0, 0, '#9BB7D4'),

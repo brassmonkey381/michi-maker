@@ -52,6 +52,22 @@ export function artwork(row: number, col: number, cardId: string, opts?: SpanOpt
   return card(row, col, cardId, { ...opts, type: 'artwork' });
 }
 
+/**
+ * A custom-image artwork panel (a playground / pasted image rather than a catalogue card).
+ * Cover-fits its footprint, so it can take any shape — use `ART.*` for the playground art.
+ */
+export function artPanel(row: number, col: number, imageUrl: string, opts?: SpanOpts): DemoSlot {
+  return {
+    id: uid('slot'),
+    row,
+    col,
+    rowSpan: opts?.rowSpan ?? 1,
+    colSpan: opts?.colSpan ?? 1,
+    type: 'artwork',
+    imageUrl,
+  };
+}
+
 /** A tonal insert (negative-space filler) using a hex colour. */
 export function insert(row: number, col: number, color: string, opts?: SpanOpts): DemoSlot {
   return {
@@ -120,6 +136,7 @@ export function vunion(
  * module so content authors and the editor UI share one source of truth.
  */
 export { VUNION, JUMBO } from '@/data/cardSizing';
+export { ART } from '@/data/artworkLibrary';
 
 /** A page of slots. Title/background optional; grid defaults to 3×3. */
 export function page(

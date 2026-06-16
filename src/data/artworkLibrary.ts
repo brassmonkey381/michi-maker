@@ -113,6 +113,20 @@ export const ARTWORK_LIBRARY: ArtworkAsset[] = [
   },
 ];
 
+const urlById = (id: string) => ARTWORK_LIBRARY.find((a) => a.id === id)?.url ?? '';
+
+/** Friendly handles for the playground art, for use when authoring example binders. */
+export const ART = {
+  fire: urlById('art-fire-flames'),
+  fireEngine: urlById('art-fire-engine'),
+  forest: urlById('art-forest-pines'),
+  sunset: urlById('art-sunset-met'),
+  sunsetSky: urlById('art-sunset-gap'),
+  storm: urlById('art-storm-spirits'),
+  oceanWide: urlById('art-ocean-backhuysen'),
+  oceanTall: urlById('art-ocean-rembrandt'),
+} as const;
+
 /** The aspect bucket a slot footprint falls into (cover-fit "fits" any, but this sorts best matches first). */
 export function slotAspect(rows: number, cols: number): ArtAspect {
   return cols > rows ? 'landscape' : rows > cols ? 'portrait' : 'square';

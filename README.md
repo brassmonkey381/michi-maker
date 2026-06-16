@@ -4,11 +4,11 @@ Build **digital "michi binders"** — aesthetically curated Pokémon card layout
 
 Most collection apps organize cards by number or set. poke-michi is about *composition*: arranging cards into visually cohesive pages the way collectors do with the [Michi Method](https://woahpoke.com/michi-method/) — anchor layouts, single-Pokémon pages, color-themed spreads, artist pages, and full-page artwork, with intentional negative space and cards that span multiple pockets. Card metadata (sets, packs, illustrators, species) is sourced from [The Art of Pokémon](https://www.artofpkm.com/pokemon).
 
-> **Status:** early build. You can browse premade example binders, view/edit them on a 3×3
-> canvas (multi-slot spans, negative space, page navigation), create your own, and browse the
-> card catalogue — all running today with **no backend required** (binders live in an in-memory
-> store seeded with examples; see `src/store/binders.tsx`). Wiring this store to the Supabase
-> backend, plus auth and real card ingestion, is next. See the [Roadmap](#roadmap).
+> **Status:** early build, runs today with **no backend required**. Browse seven premade example
+> binders built from real official TCG card art (via [TCGdex](https://tcgdex.dev/)), view/edit them
+> on a 3×3 canvas (multi-slot spans, negative space, page navigation), create your own, and browse
+> the ~58-card catalogue. Binders live in an in-memory store (`src/store/binders.tsx`) that also
+> persists to Supabase when it's configured. See the [Roadmap](#roadmap).
 
 ## Tech stack
 
@@ -121,7 +121,7 @@ poke-michi/
 - [x] App scaffold (Expo Router, TypeScript, theming) for web/iOS/Android
 - [x] Supabase schema + Row Level Security for binders, pages, and slots
 - [x] Typed Supabase client and domain types
-- [x] Binders list + 4 premade example binders to view
+- [x] Binders list + seven example binders built from real TCG art (TCGdex)
 - [x] Binder viewer & editor — 3×3 canvas, multi-slot spans, negative space, multi-page
 - [x] Card browser (sample catalogue)
 - [x] Wire the binder store to Supabase (optimistic writes, anonymous session) — local mode still works

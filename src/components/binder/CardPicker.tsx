@@ -1,9 +1,10 @@
 import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { VUNION_SETS } from '@/data/cardSizing';
+import { ARTWORK_LIBRARY, domainOf, slotAspect } from '@/data/artworkLibrary';
 import { CARDS, CARDS_BY_ID } from '@/data/sampleData';
 import type { DemoPage, DemoSlot } from '@/data/binderTypes';
 
@@ -20,8 +21,8 @@ const INSERT_TONES: { label: string; color: string }[] = [
 
 /**
  * Placement footprints. A real card is portrait (63×88), an aspect only square blocks
- * (1×1, 2×2, 3×3) preserve — so only those carry cards. Non-square shapes carry tonal
- * inserts (a solid colour has no aspect to distort), per woahpoke.com/michi-method.
+ * (1×1, 2×2, 3×3) preserve — so only those carry cards. Artwork panels + tonal inserts can
+ * take any shape (they're chosen/cropped to fit), per woahpoke.com/michi-method.
  */
 const SHAPES: { label: string; rows: number; cols: number }[] = [
   { label: '1×1', rows: 1, cols: 1 },
@@ -37,18 +38,16 @@ const SHAPES: { label: string; rows: number; cols: number }[] = [
 
 interface CardPickerProps {
   visible: boolean;
-  /** The page being edited (for fit checks). */
   page: DemoPage | null;
-  /** The target pocket (top-left cell). */
   cell: { row: number; col: number } | null;
-  /** The existing slot at the target cell, if any. */
   slot?: DemoSlot | null;
+  /** A theme keyword guessed from the binder, used to seed the artwork search. */
+  themeHint?: string;
   onClose: () => void;
-  /** Place a framed card (footprint comes from its kind: standard 1×1 / jumbo 2×2). */
   onPickCard: (cardId: string) => void;
-  /** Place a V-UNION's four pieces into the 2×2 starting at the target cell. */
   onPickVUnion: (pieces: readonly string[]) => void;
-  /** Fill the pocket with a tonal colour insert of the given size (negative space). */
+  /** Place a custom artwork image (playground art or a pasted URL) at the chosen shape. */
+  onPickArtwork: (imageUrl: string, rowSpan: number, colSpan: number) => void;
   onPickInsert: (color: string, rowSpan: number, colSpan: number) => void;
   onClear: () => void;
 }
@@ -61,30 +60,39 @@ export function CardPicker({
   page,
   cell,
   slot,
+  themeHint,
   onClose,
   onPickCard,
   onPickVUnion,
+  onPickArtwork,
   onPickInsert,
   onClear,
 }: CardPickerProps) {
-  // The chosen footprint gates everything. It can only be a shape that fits on the page
-  // starting at this pocket and extending right/down. Defaults to the pocket's current size.
   const [shape, setShape] = useState({ rows: 1, cols: 1 });
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setShape(slot ? { rows: slot.rowSpan, cols: slot.colSpan } : { rows: 1, cols: 1 });
   }, [cell?.row, cell?.col, slot?.id, slot?.rowSpan, slot?.colSpan]);
 
+  const [query, setQuery] = useState(themeHint ?? '');
+  const [urlInput, setUrlInput] = useState('');
+
   const fits = (rows: number, cols: number) =>
     !!cell && !!page && cell.row + rows <= page.rows && cell.col + cols <= page.cols;
 
   const is = (rows: number, cols: number) => shape.rows === rows && shape.cols === cols;
-  // Framed cards only exist at their real, undistorted footprint: standard = 1×1, jumbo = 2×2.
   const framedCards = is(1, 1) ? STANDARD_CARDS : is(2, 2) ? JUMBO_CARDS : [];
   const showVUnion = is(2, 2);
-  const noCardForShape = framedCards.length === 0 && !showVUnion;
   const sizeLabel = `${shape.rows}×${shape.cols}`;
 
+  // Artwork suggestions: theme-filtered, with art that matches this slot's aspect first.
+  const q = query.trim().toLowerCase();
+  const targetAspect = slotAspect(shape.rows, shape.cols);
+  const artwork = ARTWORK_LIBRARY.filter(
+    (a) => !q || a.title.toLowerCase().includes(q) || a.themes.some((t) => t.includes(q)),
+  ).sort((a, b) => (a.aspect === targetAspect ? 0 : 1) - (b.aspect === targetAspect ? 0 : 1));
+
+  const urlValid = /^https?:\/\/\S+$/i.test(urlInput.trim());
   const title = slot ? 'Edit pocket' : 'Add to pocket';
 
   return (
@@ -118,7 +126,7 @@ export function CardPicker({
             })}
           </View>
 
-          <ScrollView contentContainerStyle={styles.scroll}>
+          <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
             {/* Framed cards that physically match this shape (1×1 standard, 2×2 jumbo). */}
             {framedCards.length > 0 ? (
               <>
@@ -150,7 +158,6 @@ export function CardPicker({
               </>
             ) : null}
 
-            {/* V-UNION (only at 2×2). */}
             {showVUnion ? (
               <>
                 <Text style={styles.sectionLabel}>V-UNION · 2×2 of 4 pieces</Text>
@@ -175,10 +182,69 @@ export function CardPicker({
               </>
             ) : null}
 
-            {noCardForShape ? (
+            {/* Artwork panels — themed art that fits the chosen shape (cropped to cover). */}
+            <Text style={styles.sectionLabel}>Artwork panel · {sizeLabel}</Text>
+            <View style={styles.controlsRow}>
+              <TextInput
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Search art (e.g. fire, ocean)"
+                placeholderTextColor="#aaa"
+                style={styles.input}
+              />
+            </View>
+            <View style={styles.grid}>
+              {artwork.map((art) => {
+                const selected = slot?.type === 'artwork' && slot?.imageUrl === art.url;
+                return (
+                  <Pressable
+                    key={art.id}
+                    style={[styles.artThumb, selected && styles.thumbSelected]}
+                    onPress={() => onPickArtwork(art.url, shape.rows, shape.cols)}>
+                    <View style={styles.artImageWrap}>
+                      <Image source={{ uri: art.url }} style={styles.thumbImage} contentFit="cover" />
+                      <View style={[styles.tag, !art.licenseClear && styles.tagWarn]}>
+                        <Text style={styles.tagText}>{art.licenseClear ? art.license : '⚠ review'}</Text>
+                      </View>
+                    </View>
+                    <Text numberOfLines={1} style={styles.thumbName}>
+                      {art.title}
+                    </Text>
+                    <Text numberOfLines={1} style={styles.source}>
+                      {art.sourceDomain}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+              {artwork.length === 0 ? (
+                <Text style={styles.hint}>No art matches “{query}”. Paste a URL below.</Text>
+              ) : null}
+            </View>
+
+            {/* Paste your own art (any source). Provenance is derived from the URL for cleanup. */}
+            <View style={styles.controlsRow}>
+              <TextInput
+                value={urlInput}
+                onChangeText={setUrlInput}
+                placeholder="Paste image URL…"
+                placeholderTextColor="#aaa"
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={[styles.input, styles.inputGrow]}
+              />
+              <Pressable
+                disabled={!urlValid}
+                onPress={() => {
+                  onPickArtwork(urlInput.trim(), shape.rows, shape.cols);
+                  setUrlInput('');
+                }}
+                style={[styles.addBtn, !urlValid && styles.disabled]}>
+                <Text style={styles.addBtnText}>Add</Text>
+              </Pressable>
+            </View>
+            {urlInput.trim() ? (
               <Text style={styles.hint}>
-                No real card is {sizeLabel} (cards are 1×1, jumbo/V-UNION are 2×2). Fill this
-                shape with a tonal insert below.
+                From {domainOf(urlInput)} — saved as-is; check you have the right to use it.
               </Text>
             ) : null}
 
@@ -217,16 +283,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 24,
-    maxHeight: '82%',
+    maxHeight: '85%',
   },
-  handle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#d4d4d4',
-    marginBottom: 8,
-  },
+  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#d4d4d4', marginBottom: 8 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   close: { fontSize: 16, fontWeight: '600', color: '#3B82F6' },
   controlsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' },
@@ -236,17 +295,24 @@ const styles = StyleSheet.create({
   spanChipText: { fontSize: 13, color: '#333' },
   spanChipTextActive: { color: '#fff', fontWeight: '600' },
   disabled: { opacity: 0.3 },
-  hint: { fontSize: 12, color: '#999', marginTop: 12, lineHeight: 17 },
+  hint: { fontSize: 12, color: '#999', marginTop: 4, marginBottom: 4, lineHeight: 17, width: '100%' },
+  input: {
+    borderWidth: 1,
+    borderColor: '#e0e0e3',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    fontSize: 14,
+    color: '#222',
+    minWidth: 200,
+  },
+  inputGrow: { flex: 1, minWidth: 160 },
+  addBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8, backgroundColor: '#3B82F6' },
+  addBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   insertRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 8 },
   insertSwatch: { width: 28, height: 28, borderRadius: 7, borderWidth: 1, borderColor: 'rgba(128,128,128,0.35)' },
   insertSwatchActive: { borderWidth: 3, borderColor: '#3B82F6' },
-  emptyBtn: {
-    marginLeft: 'auto',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    backgroundColor: '#fdeaea',
-  },
+  emptyBtn: { marginLeft: 'auto', paddingVertical: 5, paddingHorizontal: 10, borderRadius: 8, backgroundColor: '#fdeaea' },
   emptyText: { fontSize: 13, color: '#c0392b', fontWeight: '600' },
   scroll: { paddingBottom: 16 },
   sectionLabel: {
@@ -260,8 +326,10 @@ const styles = StyleSheet.create({
   },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   thumb: { width: 70, borderRadius: 8, padding: 3 },
+  artThumb: { width: 86, borderRadius: 8, padding: 3 },
   thumbSelected: { backgroundColor: '#e8f0fe' },
   thumbImageWrap: { width: '100%', aspectRatio: 63 / 88, borderRadius: 6, overflow: 'hidden' },
+  artImageWrap: { width: '100%', aspectRatio: 1, borderRadius: 6, overflow: 'hidden', backgroundColor: '#11111a' },
   thumbImage: { width: '100%', height: '100%' },
   tag: {
     position: 'absolute',
@@ -272,6 +340,8 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: 'rgba(0,0,0,0.6)',
   },
+  tagWarn: { backgroundColor: 'rgba(192,57,43,0.85)' },
   tagText: { color: '#fff', fontSize: 7, fontWeight: '700', letterSpacing: 0.4 },
   thumbName: { fontSize: 11, textAlign: 'center', marginTop: 3, color: '#444' },
+  source: { fontSize: 9, textAlign: 'center', color: '#aaa' },
 });

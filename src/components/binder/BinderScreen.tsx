@@ -105,11 +105,23 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     closePicker();
   };
 
+  const handlePickArtwork = (imageUrl: string, rowSpan: number, colSpan: number) => {
+    if (!pickerCell) return;
+    store.upsertSlot(binder.id, page.id, { ...pickerCell, type: 'artwork', imageUrl, rowSpan, colSpan });
+    closePicker();
+  };
+
   const handlePickInsert = (insertColor: string, rowSpan: number, colSpan: number) => {
     if (!pickerCell) return;
     store.upsertSlot(binder.id, page.id, { ...pickerCell, type: 'insert', insertColor, rowSpan, colSpan });
     closePicker();
   };
+
+  // Guess a theme keyword from the binder to seed the artwork search.
+  const themeHint =
+    ['fire', 'water', 'ocean', 'grass', 'forest', 'electric', 'storm', 'sunset', 'gold', 'psychic', 'dragon', 'ice'].find(
+      (k) => binder.title.toLowerCase().includes(k),
+    ) ?? '';
 
   const handleClear = () => {
     if (pickerCell && slotAtCell) store.removeSlot(binder.id, page.id, slotAtCell.id);
@@ -333,8 +345,10 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           cell={pickerCell}
           slot={slotAtCell}
           onClose={closePicker}
+          themeHint={themeHint}
           onPickCard={handlePickCard}
           onPickVUnion={handlePickVUnion}
+          onPickArtwork={handlePickArtwork}
           onPickInsert={handlePickInsert}
           onClear={handleClear}
         />

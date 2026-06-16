@@ -42,10 +42,15 @@ export interface DemoSlot {
   /** How many cells the slot spans. 1 = a single pocket. */
   rowSpan: number;
   colSpan: number;
-  /** 'card' / 'artwork' reference a card; 'insert' uses insertColor. Empty = no slot. */
+  /**
+   * 'card' references a `cardId`. 'artwork' is a full-bleed image: either a `cardId` or a
+   * custom `imageUrl` (a user-supplied / playground art panel). 'insert' uses `insertColor`.
+   */
   type: Exclude<BinderSlotType, 'empty'>;
   cardId?: string;
   insertColor?: string;
+  /** Custom artwork image (used by 'artwork' slots that aren't a catalogue card). */
+  imageUrl?: string;
 }
 
 export interface DemoPage {

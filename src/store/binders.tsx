@@ -51,6 +51,7 @@ export interface SlotInput {
   type?: DemoSlot['type'];
   cardId?: string;
   insertColor?: string;
+  imageUrl?: string;
 }
 
 interface BinderStore {
@@ -299,6 +300,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
             type: input.type ?? existing.type,
             cardId: input.cardId ?? existing.cardId,
             insertColor: input.insertColor ?? existing.insertColor,
+            imageUrl: input.imageUrl ?? existing.imageUrl,
           }
         : {
             id: uuidv4(),
@@ -309,6 +311,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
             type: input.type ?? 'card',
             cardId: input.cardId,
             insertColor: input.insertColor,
+            imageUrl: input.imageUrl,
           };
 
       // When the placed slot spans more than one pocket, clear any *other* slots whose cells

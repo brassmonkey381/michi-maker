@@ -281,6 +281,15 @@ function SlotContent({ slot, radius, small }: { slot: DemoSlot; radius: number; 
     );
   }
 
+  // A custom artwork panel — a pasted / playground image, sized to fill the slot.
+  if (slot.type === 'artwork' && slot.imageUrl) {
+    return (
+      <View style={[styles.fill, styles.artworkPanel, { borderRadius: radius }]}>
+        <Image source={{ uri: slot.imageUrl }} style={styles.fill} contentFit="cover" />
+      </View>
+    );
+  }
+
   const cardData = slot.cardId ? CARDS_BY_ID[slot.cardId] : undefined;
   if (!cardData) {
     return (
@@ -378,6 +387,9 @@ const styles = StyleSheet.create({
   insert: {
     borderWidth: 1,
     borderColor: BinderSurface.insertBorder,
+  },
+  artworkPanel: {
+    backgroundColor: '#11111a',
   },
   insertHighlight: {
     position: 'absolute',

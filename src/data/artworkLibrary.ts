@@ -31,28 +31,6 @@ export interface ArtworkAsset {
 const WM = 'commons.wikimedia.org';
 
 export const ARTWORK_LIBRARY: ArtworkAsset[] = [
-  // Control samples — reliable, CORS-friendly hosts. If these load but the Wikimedia art
-  // below does not, the issue is reaching Wikimedia from your environment, not the feature.
-  {
-    id: 'art-sample-square',
-    url: 'https://picsum.photos/seed/michi-square/600/600',
-    title: 'Sample (loads-test)',
-    themes: ['sample', 'test'],
-    aspect: 'square',
-    sourceDomain: 'picsum.photos',
-    license: 'Lorem Picsum (CC0)',
-    licenseClear: true,
-  },
-  {
-    id: 'art-sample-wide',
-    url: 'https://picsum.photos/seed/michi-wide/800/450',
-    title: 'Sample wide (loads-test)',
-    themes: ['sample', 'test'],
-    aspect: 'landscape',
-    sourceDomain: 'picsum.photos',
-    license: 'Lorem Picsum (CC0)',
-    licenseClear: true,
-  },
   {
     id: 'art-fire-flames',
     url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Fighting_the_Flames%2C_Fire_Fire.jpg/1280px-Fighting_the_Flames%2C_Fire_Fire.jpg',

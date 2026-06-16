@@ -5,9 +5,14 @@
  * ingestion script uses — see scripts/ingest.mjs and docs/DATA-MODEL.md), so the examples
  * render genuine card images with no backend configured. Card ids are TCGdex ids, so a
  * binder built here references cards the same way an ingested catalogue would.
+ *
+ * The example binders themselves live in per-theme modules under ./content (so they can be
+ * authored independently). This file holds the base card catalogue and merges in any extra
+ * cards the content modules declare.
  */
 
-import { type DemoBinder, type DemoCard, type DemoSlot, uid } from '@/data/binderTypes';
+import { type DemoCard } from '@/data/binderTypes';
+import { CONTENT_BINDERS, CONTENT_CARDS } from '@/data/content';
 
 const RAW: Omit<DemoCard, 'orientation'>[] = [
   // --- Base Set (1999) ---
@@ -77,234 +82,26 @@ const RAW: Omit<DemoCard, 'orientation'>[] = [
   { id: 'cel25-22', name: 'Lugia', pokemon: 'Lugia', setName: 'Celebrations', illustrator: 'Kouki Saitou', imageUrl: 'https://assets.tcgdex.net/en/swsh/cel25/22/high.webp', dominantColor: '#C8D6E5' },
 ];
 
-export const CARDS: DemoCard[] = RAW.map((card) => ({ ...card, orientation: 'portrait' }));
+const BASE_CARDS: DemoCard[] = RAW.map((card) => ({ ...card, orientation: 'portrait' }));
+
+/**
+ * The full catalogue: the base cards above plus any extra cards declared by content modules,
+ * de-duped by id (the first occurrence wins, so the base catalogue is canonical).
+ */
+export const CARDS: DemoCard[] = (() => {
+  const seen = new Set<string>();
+  const out: DemoCard[] = [];
+  for (const card of [...BASE_CARDS, ...CONTENT_CARDS]) {
+    if (seen.has(card.id)) continue;
+    seen.add(card.id);
+    out.push(card);
+  }
+  return out;
+})();
 
 export const CARDS_BY_ID: Record<string, DemoCard> = Object.fromEntries(
   CARDS.map((card) => [card.id, card]),
 );
 
-// --- example binders -------------------------------------------------------
-
-type SlotOpts = Partial<Pick<DemoSlot, 'rowSpan' | 'colSpan' | 'type'>>;
-
-const card = (row: number, col: number, cardId: string, opts?: SlotOpts): DemoSlot => ({
-  id: uid('slot'),
-  row,
-  col,
-  rowSpan: opts?.rowSpan ?? 1,
-  colSpan: opts?.colSpan ?? 1,
-  type: opts?.type ?? 'card',
-  cardId,
-});
-
-export const SAMPLE_BINDERS: DemoBinder[] = [
-  {
-    id: 'example-base-set',
-    title: 'Base Set holos',
-    description: 'Nine of the 1999 Base Set holos, dark mat to make the foils pop.',
-    layoutStyle: 'themed_story',
-    isExample: true,
-    coverCardId: 'base1-4',
-    pages: [
-      {
-        id: uid('page'),
-        title: 'The classics',
-        rows: 3,
-        cols: 3,
-        backgroundColor: '#141A24',
-        slots: [
-          card(0, 0, 'base1-1'),
-          card(0, 1, 'base1-2'),
-          card(0, 2, 'base1-4'),
-          card(1, 0, 'base1-6'),
-          card(1, 1, 'base1-8'),
-          card(1, 2, 'base1-10'),
-          card(2, 0, 'base1-11'),
-          card(2, 1, 'base1-15'),
-          card(2, 2, 'base1-16'),
-        ],
-      },
-    ],
-  },
-  {
-    id: 'example-eeveelutions',
-    title: 'The Eeveelutions',
-    description: 'Eevee anchored in the centre, the eight evolutions around it (Evolving Skies).',
-    layoutStyle: 'themed_story',
-    isExample: true,
-    coverCardId: 'swsh7-215',
-    pages: [
-      {
-        id: uid('page'),
-        title: 'One of each',
-        rows: 3,
-        cols: 3,
-        backgroundColor: '#1C1726',
-        slots: [
-          card(0, 0, 'swsh7-172'),
-          card(0, 1, 'swsh7-177'),
-          card(0, 2, 'swsh7-169'),
-          card(1, 0, 'swsh7-179'),
-          card(1, 1, 'swsh7-125'),
-          card(1, 2, 'swsh7-215'),
-          card(2, 0, 'swsh7-167'),
-          card(2, 1, 'swsh7-175'),
-          card(2, 2, 'swsh7-184'),
-        ],
-      },
-    ],
-  },
-  {
-    id: 'example-kanto-151',
-    title: 'Kanto starters · 151',
-    description: 'Full evolution lines, then the special-illustration chase cards.',
-    layoutStyle: 'themed_story',
-    isExample: true,
-    coverCardId: 'sv03.5-199',
-    pages: [
-      {
-        id: uid('page'),
-        title: 'Evolution lines',
-        rows: 3,
-        cols: 3,
-        backgroundColor: '#F3ECDD',
-        slots: [
-          card(0, 0, 'sv03.5-001'),
-          card(0, 1, 'sv03.5-004'),
-          card(0, 2, 'sv03.5-007'),
-          card(1, 0, 'sv03.5-002'),
-          card(1, 1, 'sv03.5-005'),
-          card(1, 2, 'sv03.5-008'),
-          card(2, 0, 'sv03.5-003'),
-          card(2, 1, 'sv03.5-006'),
-          card(2, 2, 'sv03.5-009'),
-        ],
-      },
-      {
-        id: uid('page'),
-        title: 'Special illustrations',
-        rows: 3,
-        cols: 3,
-        backgroundColor: '#F3ECDD',
-        slots: [
-          card(0, 0, 'sv03.5-166'),
-          card(0, 1, 'sv03.5-168'),
-          card(0, 2, 'sv03.5-170'),
-          card(1, 0, 'sv03.5-198'),
-          card(1, 1, 'sv03.5-199'),
-          card(1, 2, 'sv03.5-200'),
-          // (2,0) empty
-          card(2, 1, 'sv03.5-173'),
-          // (2,2) empty
-        ],
-      },
-    ],
-  },
-  {
-    id: 'example-charizard-anchor',
-    title: 'Charizard, anchored',
-    description: 'A 2×2 hero spanning four pockets, with fiery accents around it.',
-    layoutStyle: 'anchor',
-    isExample: true,
-    coverCardId: 'sv03.5-199',
-    pages: [
-      {
-        id: uid('page'),
-        title: 'Hot corner',
-        rows: 3,
-        cols: 3,
-        backgroundColor: '#1B1410',
-        slots: [
-          card(0, 0, 'sv03.5-199', { rowSpan: 2, colSpan: 2, type: 'artwork' }),
-          card(0, 2, 'sv03.5-004'),
-          card(1, 2, 'sv03.5-005'),
-          card(2, 0, 'base1-12'),
-          card(2, 1, 'swsh7-169'),
-          card(2, 2, 'base1-4'),
-        ],
-      },
-    ],
-  },
-  {
-    id: 'example-celebrations',
-    title: 'Legends of Celebrations',
-    description: 'A legendary grid from the 25th-anniversary set, Mew at the centre.',
-    layoutStyle: 'themed_story',
-    isExample: true,
-    coverCardId: 'cel25-22',
-    pages: [
-      {
-        id: uid('page'),
-        title: 'Box legendaries',
-        rows: 3,
-        cols: 3,
-        backgroundColor: '#10141C',
-        slots: [
-          card(0, 0, 'cel25-1'),
-          card(0, 1, 'cel25-22'),
-          card(0, 2, 'cel25-2'),
-          card(1, 0, 'cel25-3'),
-          card(1, 1, 'cel25-11'),
-          card(1, 2, 'cel25-17'),
-          card(2, 0, 'cel25-20'),
-          card(2, 1, 'cel25-4'),
-          card(2, 2, 'cel25-10'),
-        ],
-      },
-    ],
-  },
-  {
-    id: 'example-pikachu',
-    title: 'Pikachu, many ways',
-    description: 'One Pikachu across eras, with the bottom row left as breathing room.',
-    layoutStyle: 'single_pokemon',
-    isExample: true,
-    coverCardId: 'sv03.5-173',
-    pages: [
-      {
-        id: uid('page'),
-        title: 'Same face, new art',
-        rows: 3,
-        cols: 3,
-        backgroundColor: '#FBF4D6',
-        slots: [
-          card(0, 0, 'base1-58'),
-          card(0, 1, 'sv03.5-025'),
-          card(0, 2, 'sv03.5-173'),
-          card(1, 0, 'cel25-5'),
-          card(1, 1, 'cel25-6'),
-          card(1, 2, 'cel25-8'),
-          // row 2 intentionally empty
-        ],
-      },
-    ],
-  },
-  {
-    id: 'example-ocean-blues',
-    title: 'Ocean blues',
-    description: 'A cool-blue palette with two pockets left empty for breathing room.',
-    layoutStyle: 'color_theme',
-    isExample: true,
-    coverCardId: 'base1-2',
-    pages: [
-      {
-        id: uid('page'),
-        title: 'Blue hour',
-        rows: 3,
-        cols: 3,
-        backgroundColor: '#E7F1F8',
-        slots: [
-          card(0, 0, 'base1-2'),
-          card(0, 1, 'cel25-3'),
-          card(0, 2, 'swsh7-172'),
-          card(1, 0, 'sv03.5-170'),
-          // (1,1) intentionally empty
-          card(1, 2, 'swsh7-175'),
-          card(2, 0, 'cel25-22'),
-          card(2, 1, 'cel25-4'),
-          // (2,2) intentionally empty
-        ],
-      },
-    ],
-  },
-];
+/** The premade example binders, assembled from the per-theme modules in ./content. */
+export const SAMPLE_BINDERS = CONTENT_BINDERS;

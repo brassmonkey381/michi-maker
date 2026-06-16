@@ -18,13 +18,17 @@ const INSERT_TONES: { label: string; color: string }[] = [
   { label: 'Charcoal', color: '#2A2A30' },
 ];
 
-/** Insert (non-card) sizes, per the michi-method formats (woahpoke.com/michi-method). */
-const INSERT_SIZES: { label: string; rows: number; cols: number }[] = [
+/** Placement footprints, per the michi-method formats (woahpoke.com/michi-method). */
+const SHAPES: { label: string; rows: number; cols: number }[] = [
   { label: '1×1', rows: 1, cols: 1 },
   { label: '1×2', rows: 1, cols: 2 },
   { label: '2×1', rows: 2, cols: 1 },
   { label: '2×2', rows: 2, cols: 2 },
-  { label: 'Full', rows: 3, cols: 3 },
+  { label: '1×3', rows: 1, cols: 3 },
+  { label: '3×1', rows: 3, cols: 1 },
+  { label: '2×3', rows: 2, cols: 3 },
+  { label: '3×2', rows: 3, cols: 2 },
+  { label: '3×3', rows: 3, cols: 3 },
 ];
 
 interface CardPickerProps {
@@ -36,10 +40,12 @@ interface CardPickerProps {
   /** The existing slot at the target cell, if any. */
   slot?: DemoSlot | null;
   onClose: () => void;
-  /** Place a card; its footprint is decided by the card's kind (standard 1×1 / jumbo 2×2). */
+  /** Place a framed card (footprint comes from its kind: standard 1×1 / jumbo 2×2). */
   onPickCard: (cardId: string) => void;
   /** Place a V-UNION's four pieces into the 2×2 starting at the target cell. */
   onPickVUnion: (pieces: readonly string[]) => void;
+  /** Place a card's art as a full-bleed artwork panel of the given size. */
+  onPickArtwork: (cardId: string, rowSpan: number, colSpan: number) => void;
   /** Fill the pocket with a tonal colour insert of the given size (negative space). */
   onPickInsert: (color: string, rowSpan: number, colSpan: number) => void;
   onClear: () => void;
@@ -56,27 +62,29 @@ export function CardPicker({
   onClose,
   onPickCard,
   onPickVUnion,
+  onPickArtwork,
   onPickInsert,
   onClear,
 }: CardPickerProps) {
-  // What footprints can be placed at this pocket?
-  const editingBig = !!slot && (slot.rowSpan > 1 || slot.colSpan > 1);
-  const fits = (rows: number, cols: number) =>
-    !!cell && !!page && cell.row + rows <= page.rows && cell.col + cols <= page.cols;
-  // A 1×1 standard card fits unless the pocket is a big (jumbo) one — then only jumbo-shaped
-  // pieces are allowed (shape must match the pocket).
-  const allowStandard = !editingBig;
-  const allowTwoByTwo = fits(2, 2);
-
-  // Insert size selector (defaults to the pocket's current footprint).
-  const [insert, setInsert] = useState({ rows: 1, cols: 1 });
+  // The chosen footprint gates everything. It can only be a shape that fits on the page
+  // starting at this pocket and extending right/down. Defaults to the pocket's current size.
+  const [shape, setShape] = useState({ rows: 1, cols: 1 });
   useEffect(() => {
-    // Default the insert size to the pocket's current footprint when the target changes.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setInsert(slot ? { rows: slot.rowSpan, cols: slot.colSpan } : { rows: 1, cols: 1 });
+    setShape(slot ? { rows: slot.rowSpan, cols: slot.colSpan } : { rows: 1, cols: 1 });
   }, [cell?.row, cell?.col, slot?.id, slot?.rowSpan, slot?.colSpan]);
 
-  const title = slot ? (editingBig ? 'Edit jumbo pocket' : 'Edit pocket') : 'Add to pocket';
+  const fits = (rows: number, cols: number) =>
+    !!cell && !!page && cell.row + rows <= page.rows && cell.col + cols <= page.cols;
+
+  const is = (rows: number, cols: number) => shape.rows === rows && shape.cols === cols;
+  // Framed cards only exist at their real footprint: standard = 1×1, jumbo = 2×2.
+  const framedCards = is(1, 1) ? STANDARD_CARDS : is(2, 2) ? JUMBO_CARDS : [];
+  const showVUnion = is(2, 2);
+  const isMultiCell = shape.rows > 1 || shape.cols > 1;
+  const sizeLabel = `${shape.rows}×${shape.cols}`;
+
+  const title = slot ? 'Edit pocket' : 'Add to pocket';
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -91,120 +99,128 @@ export function CardPicker({
             </Pressable>
           </View>
 
+          {/* Shape selector — sizes that don't fit from this pocket are disabled. */}
           <View style={styles.controlsRow}>
-            <Text style={styles.controlsLabel}>Insert</Text>
-            {INSERT_SIZES.map((size) => {
-              const enabled = fits(size.rows, size.cols);
-              const active = insert.rows === size.rows && insert.cols === size.cols;
+            <Text style={styles.controlsLabel}>Shape</Text>
+            {SHAPES.map((s) => {
+              const enabled = fits(s.rows, s.cols);
+              const active = is(s.rows, s.cols);
               return (
                 <Pressable
-                  key={size.label}
+                  key={s.label}
                   disabled={!enabled}
-                  onPress={() => setInsert({ rows: size.rows, cols: size.cols })}
+                  onPress={() => setShape({ rows: s.rows, cols: s.cols })}
                   style={[styles.spanChip, active && styles.spanChipActive, !enabled && styles.disabled]}>
-                  <Text style={[styles.spanChipText, active && styles.spanChipTextActive]}>
-                    {size.label}
-                  </Text>
+                  <Text style={[styles.spanChipText, active && styles.spanChipTextActive]}>{s.label}</Text>
                 </Pressable>
               );
             })}
           </View>
-          <View style={styles.controlsRow}>
-            {INSERT_TONES.map((tone) => {
-              const active = slot?.type === 'insert' && slot.insertColor === tone.color;
-              return (
-                <Pressable
-                  key={tone.color}
-                  accessibilityLabel={`${tone.label} insert`}
-                  onPress={() => onPickInsert(tone.color, insert.rows, insert.cols)}
-                  style={[styles.insertSwatch, { backgroundColor: tone.color }, active && styles.insertSwatchActive]}
-                />
-              );
-            })}
-            <Pressable onPress={onClear} style={styles.emptyBtn}>
-              <Text style={styles.emptyText}>Leave empty</Text>
-            </Pressable>
-          </View>
 
           <ScrollView contentContainerStyle={styles.scroll}>
-            {/* Standard cards (1×1). */}
-            <Text style={styles.sectionLabel}>
-              Cards{allowStandard ? '' : ' — clear the jumbo pocket first'}
-            </Text>
-            <View style={styles.grid}>
-              {STANDARD_CARDS.map((card) => {
-                const selected = slot?.cardId === card.id;
-                return (
-                  <Pressable
-                    key={card.id}
-                    disabled={!allowStandard}
-                    style={[styles.thumb, selected && styles.thumbSelected, !allowStandard && styles.disabled]}
-                    onPress={() => onPickCard(card.id)}>
-                    <View style={[styles.thumbImageWrap, { backgroundColor: `${card.dominantColor}22` }]}>
-                      <Image source={{ uri: card.imageUrl }} style={styles.thumbImage} contentFit="contain" />
-                    </View>
-                    <Text numberOfLines={1} style={styles.thumbName}>
-                      {card.name}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+            {/* Framed cards that physically match this shape. */}
+            {framedCards.length > 0 ? (
+              <>
+                <Text style={styles.sectionLabel}>Cards · {sizeLabel}</Text>
+                <View style={styles.grid}>
+                  {framedCards.map((card) => {
+                    const selected = slot?.type === 'card' && slot?.cardId === card.id;
+                    const jumbo = card.kind === 'jumbo';
+                    return (
+                      <Pressable
+                        key={card.id}
+                        style={[styles.thumb, selected && styles.thumbSelected]}
+                        onPress={() => onPickCard(card.id)}>
+                        <View
+                          style={[
+                            styles.thumbImageWrap,
+                            jumbo && styles.squareWrap,
+                            { backgroundColor: `${card.dominantColor}22` },
+                          ]}>
+                          <Image source={{ uri: card.imageUrl }} style={styles.thumbImage} contentFit="contain" />
+                          {jumbo ? (
+                            <View style={styles.tag}>
+                              <Text style={styles.tagText}>JUMBO</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                        <Text numberOfLines={1} style={styles.thumbName}>
+                          {card.name}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </>
+            ) : null}
 
-            {/* Jumbo cards (2×2). */}
-            <Text style={styles.sectionLabel}>
-              Jumbo · 2×2{allowTwoByTwo ? '' : ' — needs a free 2×2'}
-            </Text>
-            <View style={styles.grid}>
-              {JUMBO_CARDS.map((card) => {
-                const selected = slot?.cardId === card.id;
-                return (
-                  <Pressable
-                    key={card.id}
-                    disabled={!allowTwoByTwo}
-                    style={[styles.thumb, selected && styles.thumbSelected, !allowTwoByTwo && styles.disabled]}
-                    onPress={() => onPickCard(card.id)}>
-                    <View style={[styles.thumbImageWrap, styles.jumboWrap, { backgroundColor: `${card.dominantColor}33` }]}>
-                      <Image source={{ uri: card.imageUrl }} style={styles.thumbImage} contentFit="contain" />
-                      <View style={styles.tag}>
-                        <Text style={styles.tagText}>JUMBO</Text>
-                      </View>
-                    </View>
-                    <Text numberOfLines={1} style={styles.thumbName}>
-                      {card.name}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+            {/* V-UNION (only at 2×2). */}
+            {showVUnion ? (
+              <>
+                <Text style={styles.sectionLabel}>V-UNION · 2×2 of 4 pieces</Text>
+                <View style={styles.grid}>
+                  {VUNION_SETS.map((set) => {
+                    const tl = CARDS_BY_ID[set.pieces[0]];
+                    return (
+                      <Pressable key={set.key} style={styles.thumb} onPress={() => onPickVUnion(set.pieces)}>
+                        <View style={[styles.thumbImageWrap, styles.squareWrap, { backgroundColor: `${tl?.dominantColor ?? '#888'}33` }]}>
+                          {tl ? <Image source={{ uri: tl.imageUrl }} style={styles.thumbImage} contentFit="cover" /> : null}
+                          <View style={styles.tag}>
+                            <Text style={styles.tagText}>V-UNION</Text>
+                          </View>
+                        </View>
+                        <Text numberOfLines={1} style={styles.thumbName}>
+                          {set.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </>
+            ) : null}
 
-            {/* V-UNION (four pieces → 2×2). */}
-            <Text style={styles.sectionLabel}>
-              V-UNION · 2×2 of 4 pieces{allowTwoByTwo ? '' : ' — needs a free 2×2'}
-            </Text>
-            <View style={styles.grid}>
-              {VUNION_SETS.map((set) => {
-                const tl = CARDS_BY_ID[set.pieces[0]];
+            {/* Artwork panels — a card's art as a full-bleed panel at the chosen multi-cell shape. */}
+            {isMultiCell ? (
+              <>
+                <Text style={styles.sectionLabel}>Artwork panel · {sizeLabel}</Text>
+                <View style={styles.grid}>
+                  {STANDARD_CARDS.map((card) => {
+                    const selected = slot?.type === 'artwork' && slot?.cardId === card.id;
+                    return (
+                      <Pressable
+                        key={card.id}
+                        style={[styles.thumb, selected && styles.thumbSelected]}
+                        onPress={() => onPickArtwork(card.id, shape.rows, shape.cols)}>
+                        <View style={[styles.thumbImageWrap, styles.squareWrap, { backgroundColor: `${card.dominantColor}33` }]}>
+                          <Image source={{ uri: card.imageUrl }} style={styles.thumbImage} contentFit="cover" />
+                        </View>
+                        <Text numberOfLines={1} style={styles.thumbName}>
+                          {card.name}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </>
+            ) : null}
+
+            {/* Tonal inserts at the chosen shape. */}
+            <Text style={styles.sectionLabel}>Insert · {sizeLabel}</Text>
+            <View style={styles.insertRow}>
+              {INSERT_TONES.map((tone) => {
+                const active = slot?.type === 'insert' && slot.insertColor === tone.color;
                 return (
                   <Pressable
-                    key={set.key}
-                    disabled={!allowTwoByTwo}
-                    style={[styles.thumb, !allowTwoByTwo && styles.disabled]}
-                    onPress={() => onPickVUnion(set.pieces)}>
-                    <View style={[styles.thumbImageWrap, styles.jumboWrap, { backgroundColor: `${tl?.dominantColor ?? '#888'}33` }]}>
-                      {tl ? (
-                        <Image source={{ uri: tl.imageUrl }} style={styles.thumbImage} contentFit="cover" />
-                      ) : null}
-                      <View style={styles.tag}>
-                        <Text style={styles.tagText}>V-UNION</Text>
-                      </View>
-                    </View>
-                    <Text numberOfLines={1} style={styles.thumbName}>
-                      {set.label}
-                    </Text>
-                  </Pressable>
+                    key={tone.color}
+                    accessibilityLabel={`${tone.label} insert`}
+                    onPress={() => onPickInsert(tone.color, shape.rows, shape.cols)}
+                    style={[styles.insertSwatch, { backgroundColor: tone.color }, active && styles.insertSwatchActive]}
+                  />
                 );
               })}
+              <Pressable onPress={onClear} style={styles.emptyBtn}>
+                <Text style={styles.emptyText}>Leave empty</Text>
+              </Pressable>
             </View>
           </ScrollView>
         </View>
@@ -242,13 +258,8 @@ const styles = StyleSheet.create({
   spanChipText: { fontSize: 13, color: '#333' },
   spanChipTextActive: { color: '#fff', fontWeight: '600' },
   disabled: { opacity: 0.3 },
-  insertSwatch: {
-    width: 26,
-    height: 26,
-    borderRadius: 7,
-    borderWidth: 1,
-    borderColor: 'rgba(128,128,128,0.35)',
-  },
+  insertRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 8 },
+  insertSwatch: { width: 28, height: 28, borderRadius: 7, borderWidth: 1, borderColor: 'rgba(128,128,128,0.35)' },
   insertSwatchActive: { borderWidth: 3, borderColor: '#3B82F6' },
   emptyBtn: {
     marginLeft: 'auto',
@@ -272,7 +283,7 @@ const styles = StyleSheet.create({
   thumb: { width: 70, borderRadius: 8, padding: 3 },
   thumbSelected: { backgroundColor: '#e8f0fe' },
   thumbImageWrap: { width: '100%', aspectRatio: 63 / 88, borderRadius: 6, overflow: 'hidden' },
-  jumboWrap: { aspectRatio: 1 },
+  squareWrap: { aspectRatio: 1 },
   thumbImage: { width: '100%', height: '100%' },
   tag: {
     position: 'absolute',

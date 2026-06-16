@@ -250,6 +250,28 @@ function DraggableSlot({
   );
 }
 
+/** A custom artwork panel image, with a visible fallback if the URL fails to load. */
+function ArtworkImage({ uri, radius, small }: { uri: string; radius: number; small: boolean }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return (
+      <View style={[styles.fill, styles.artworkPanel, styles.artworkFallback, { borderRadius: radius }]}>
+        {!small ? <Text style={styles.artworkFallbackText}>image didn’t load</Text> : null}
+      </View>
+    );
+  }
+  return (
+    <View style={[styles.fill, styles.artworkPanel, { borderRadius: radius }]}>
+      <Image
+        source={{ uri }}
+        style={styles.fill}
+        contentFit="cover"
+        onError={() => setFailed(true)}
+      />
+    </View>
+  );
+}
+
 /** A small corner badge marking a card's real-world size class (jumbo / V-UNION). */
 function KindBadge({ kind, small }: { kind?: DemoCard['kind']; small: boolean }) {
   if (small || (kind !== 'jumbo' && kind !== 'vunion')) return null;
@@ -283,11 +305,7 @@ function SlotContent({ slot, radius, small }: { slot: DemoSlot; radius: number; 
 
   // A custom artwork panel — a pasted / playground image, sized to fill the slot.
   if (slot.type === 'artwork' && slot.imageUrl) {
-    return (
-      <View style={[styles.fill, styles.artworkPanel, { borderRadius: radius }]}>
-        <Image source={{ uri: slot.imageUrl }} style={styles.fill} contentFit="cover" />
-      </View>
-    );
+    return <ArtworkImage uri={slot.imageUrl} radius={radius} small={small} />;
   }
 
   const cardData = slot.cardId ? CARDS_BY_ID[slot.cardId] : undefined;
@@ -390,6 +408,16 @@ const styles = StyleSheet.create({
   },
   artworkPanel: {
     backgroundColor: '#11111a',
+  },
+  artworkFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  artworkFallbackText: {
+    color: '#8a8a96',
+    fontSize: 10,
+    textAlign: 'center',
+    paddingHorizontal: 4,
   },
   insertHighlight: {
     position: 'absolute',

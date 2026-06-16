@@ -4,7 +4,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 
 import { ThemedText } from '@/components/themed-text';
 import { VUNION_SETS } from '@/data/cardSizing';
-import { ARTWORK_LIBRARY, domainOf, slotAspect } from '@/data/artworkLibrary';
+import { ARTWORK_LIBRARY, domainOf, slotAspect, type ArtworkAsset } from '@/data/artworkLibrary';
 import { CARDS, CARDS_BY_ID } from '@/data/sampleData';
 import type { DemoPage, DemoSlot } from '@/data/binderTypes';
 
@@ -194,28 +194,14 @@ export function CardPicker({
               />
             </View>
             <View style={styles.grid}>
-              {artwork.map((art) => {
-                const selected = slot?.type === 'artwork' && slot?.imageUrl === art.url;
-                return (
-                  <Pressable
-                    key={art.id}
-                    style={[styles.artThumb, selected && styles.thumbSelected]}
-                    onPress={() => onPickArtwork(art.url, shape.rows, shape.cols)}>
-                    <View style={styles.artImageWrap}>
-                      <Image source={{ uri: art.url }} style={styles.thumbImage} contentFit="cover" />
-                      <View style={[styles.tag, !art.licenseClear && styles.tagWarn]}>
-                        <Text style={styles.tagText}>{art.licenseClear ? art.license : '⚠ review'}</Text>
-                      </View>
-                    </View>
-                    <Text numberOfLines={1} style={styles.thumbName}>
-                      {art.title}
-                    </Text>
-                    <Text numberOfLines={1} style={styles.source}>
-                      {art.sourceDomain}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+              {artwork.map((art) => (
+                <ArtThumb
+                  key={art.id}
+                  art={art}
+                  selected={slot?.type === 'artwork' && slot?.imageUrl === art.url}
+                  onPress={() => onPickArtwork(art.url, shape.rows, shape.cols)}
+                />
+              ))}
               {artwork.length === 0 ? (
                 <Text style={styles.hint}>No art matches “{query}”. Paste a URL below.</Text>
               ) : null}
@@ -270,6 +256,46 @@ export function CardPicker({
         </View>
       </View>
     </Modal>
+  );
+}
+
+/** An artwork suggestion thumbnail, with a visible fallback if the image fails to load. */
+function ArtThumb({
+  art,
+  selected,
+  onPress,
+}: {
+  art: ArtworkAsset;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <Pressable style={[styles.artThumb, selected && styles.thumbSelected]} onPress={onPress}>
+      <View style={styles.artImageWrap}>
+        {failed ? (
+          <View style={styles.artFail}>
+            <Text style={styles.artFailText}>no image</Text>
+          </View>
+        ) : (
+          <Image
+            source={{ uri: art.url }}
+            style={styles.thumbImage}
+            contentFit="cover"
+            onError={() => setFailed(true)}
+          />
+        )}
+        <View style={[styles.tag, !art.licenseClear && styles.tagWarn]}>
+          <Text style={styles.tagText}>{art.licenseClear ? art.license : '⚠ review'}</Text>
+        </View>
+      </View>
+      <Text numberOfLines={1} style={styles.thumbName}>
+        {art.title}
+      </Text>
+      <Text numberOfLines={1} style={styles.source}>
+        {art.sourceDomain}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -330,6 +356,8 @@ const styles = StyleSheet.create({
   thumbSelected: { backgroundColor: '#e8f0fe' },
   thumbImageWrap: { width: '100%', aspectRatio: 63 / 88, borderRadius: 6, overflow: 'hidden' },
   artImageWrap: { width: '100%', aspectRatio: 1, borderRadius: 6, overflow: 'hidden', backgroundColor: '#11111a' },
+  artFail: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  artFailText: { color: '#8a8a96', fontSize: 9 },
   thumbImage: { width: '100%', height: '100%' },
   tag: {
     position: 'absolute',

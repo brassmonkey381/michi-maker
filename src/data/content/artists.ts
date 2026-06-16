@@ -1,21 +1,26 @@
 /**
  * Content module: Artist spotlight binders.
  *
- * Each binder is a curated gallery of ONE illustrator — michi-styled, full-page artwork
- * heroes with a few framed accents and intentional negative space. Mats are chosen to
- * flatter the art: warm cream for Arita's painterly classics, gallery-dark for 5ban's
- * sleek digital work, and a soft botanical wash for Nishida's pastel illustrations.
+ * Each binder is a curated gallery of ONE illustrator — michi-styled as a real
+ * one-pocket salon hang: standard cards are framed at their true 1×1 footprint,
+ * floated in generous negative space, with tonal `insert`s sized to real michi
+ * insert formats (1×1, 1×2 / 2×1, 2×2, or a full-page 3×3 wash). One illustrator
+ * may get a single oversized JUMBO hero when the jumbo art is genuinely theirs.
  *
- * Helpers in ./_helpers (card / artwork / insert / defineCard / page). Card ids reference
- * the shared TCGdex catalogue in ../sampleData; a few illustrator-matched cards are added
- * here via defineCard.
+ * Mats are chosen to flatter the art: warm gallery-dark for Arita's painterly
+ * classics, a deeper gallery-black for 5ban's sleek digital work, and soft
+ * botanical / rose washes for Nishida's pastel illustrations.
+ *
+ * Helpers in ./_helpers (card / jumbo / insert / page). Card ids reference the
+ * shared TCGdex catalogue in ../sampleData; jumbo ids come from `JUMBO`.
  */
 
 import {
-  artwork,
   card,
   insert,
+  jumbo,
   page,
+  JUMBO,
   type ContentModule,
 } from '@/data/content/_helpers';
 
@@ -35,71 +40,71 @@ export const cards: ContentModule['cards'] = [];
 
 export const binders: ContentModule['binders'] = [
   // ===================================================================
-  // 1. Mitsuhiro Arita — the painter of the classics (warm cream gallery)
+  // 1. Mitsuhiro Arita — the painter of the classics (warm gallery)
   // ===================================================================
   {
     id: 'example-arita-spotlight',
     title: 'Arita — Painter of the Classics',
     description:
-      "A gallery for Mitsuhiro Arita, whose brush gave the original sets their soul. Warm cream mats let the painterly Base Set heroes breathe.",
+      "A gallery for Mitsuhiro Arita, whose brush gave the original sets their soul. Warm dark mats and wide margins let the painterly Base Set heroes breathe.",
     layoutStyle: 'artist',
     isExample: true,
     coverCardId: 'base1-4',
     pages: [
-      // Cover plate: full-bleed Charizard hero with a sliver of cream beside it.
+      // Plate I — the JUMBO Charizard hero, an oversized 2×2 plate, with a single
+      // 1×1 Gyarados accent and a tall tonal column of negative space.
       page(
         [
-          artwork(0, 0, 'base1-4', { rowSpan: 3, colSpan: 2 }),
-          insert(0, 2, CREAM),
-          card(1, 2, 'base1-58'),
-          insert(2, 2, CREAM),
+          jumbo(0, 0, JUMBO.charizard),
+          insert(0, 2, GALLERY_WARM, { rowSpan: 3 }),
+          card(2, 0, 'base1-6'),
         ],
-        { title: 'Plate I — Charizard', rows: 3, cols: 3, backgroundColor: GALLERY_WARM },
+        { title: 'Plate I — Charizard, jumbo', rows: 3, cols: 3, backgroundColor: GALLERY_WARM },
       ),
-      // Full-page Venusaur spread — the art is the whole page.
-      page([artwork(0, 0, 'base1-15', { rowSpan: 3, colSpan: 3 })], {
-        title: 'Plate II — Venusaur',
-        rows: 3,
-        cols: 3,
-        backgroundColor: GALLERY_WARM,
-      }),
-      // Diptych: two 2×2 painterly heroes facing each other across cream.
+      // Plate II — Venusaur centred on a wide wall, framed at true size with deep
+      // margins (full-page tonal washes above and below, single card floating).
       page(
         [
-          artwork(0, 0, 'base1-6', { rowSpan: 2, colSpan: 2 }),
-          artwork(2, 2, 'base1-4', { rowSpan: 2, colSpan: 2 }),
-          insert(0, 3, CREAM),
-          insert(3, 0, CREAM),
+          insert(0, 0, GALLERY_WARM, { colSpan: 3 }),
+          card(1, 1, 'base1-15'),
+          insert(2, 0, GALLERY_WARM, { colSpan: 3 }),
         ],
-        { title: 'Plate III — Water & Fire', rows: 4, cols: 4, backgroundColor: CREAM },
+        { title: 'Plate II — Venusaur, framed', rows: 3, cols: 3, backgroundColor: GALLERY_WARM },
       ),
-      // The mascot, centred and framed, floated on parchment with deep margins.
+      // Plate III — Water & Fire diptych: two framed 1×1 heroes facing across a
+      // 3×2 band of cream.
       page(
         [
-          insert(0, 0, PARCHMENT),
+          card(1, 0, 'base1-6'),
+          insert(0, 1, CREAM, { rowSpan: 3, colSpan: 2 }),
+          card(1, 3, 'base1-4'),
+        ],
+        { title: 'Plate III — Water & Fire', rows: 3, cols: 4, backgroundColor: CREAM },
+      ),
+      // Plate IV — the mascot, centred and framed, floated on parchment with a
+      // full 1×3 insert above and below for deep, even margins.
+      page(
+        [
+          insert(0, 0, PARCHMENT, { colSpan: 3 }),
           card(1, 1, 'base1-58'),
-          insert(2, 2, PARCHMENT),
+          insert(2, 0, PARCHMENT, { colSpan: 3 }),
         ],
         { title: 'Plate IV — Pikachu, framed', rows: 3, cols: 3, backgroundColor: CREAM },
       ),
-      // The starters return — Arita's modern 151 reprints, two big heroes.
+      // Plate V — Kanto, revisited: Arita's modern 151 reprints hung as a small
+      // row of framed cards with tonal air between them.
       page(
         [
-          artwork(0, 0, 'sv03.5-200', { rowSpan: 3, colSpan: 2 }),
-          card(0, 2, 'sv03.5-170'),
-          insert(1, 2, CREAM),
-          artwork(2, 2, 'sv03.5-170'),
+          card(1, 0, 'sv03.5-170'),
+          insert(1, 1, GALLERY_WARM),
+          card(1, 2, 'sv03.5-200'),
+          insert(1, 3, GALLERY_WARM),
+          card(1, 4, 'cel25-5'),
         ],
-        { title: 'Plate V — Kanto, revisited', rows: 3, cols: 3, backgroundColor: GALLERY_WARM },
+        { title: 'Plate V — Kanto, revisited', rows: 3, cols: 5, backgroundColor: GALLERY_WARM },
       ),
-      // Anniversary Pikachu — a single full-bleed celebration.
-      page([artwork(0, 0, 'cel25-5', { rowSpan: 3, colSpan: 3 })], {
-        title: 'Plate VI — 25 Years',
-        rows: 3,
-        cols: 3,
-        backgroundColor: GALLERY_WARM,
-      }),
-      // Closing wall: a salon hang of his catalogue, framed small with air between.
+      // Plate VI — the Arita Wall: a salon hang of his catalogue, framed small
+      // with generous negative space between each plate.
       page(
         [
           card(0, 0, 'base1-4'),
@@ -111,7 +116,7 @@ export const binders: ContentModule['binders'] = [
           card(2, 2, 'sv03.5-170'),
           card(2, 4, 'sv03.5-200'),
         ],
-        { title: 'Plate VII — The Arita Wall', rows: 3, cols: 5, backgroundColor: CREAM },
+        { title: 'Plate VI — The Arita Wall', rows: 3, cols: 5, backgroundColor: CREAM },
       ),
     ],
   },
@@ -123,72 +128,83 @@ export const binders: ContentModule['binders'] = [
     id: 'example-5ban-spotlight',
     title: '5ban Graphics — Chromatic Craft',
     description:
-      'A dark gallery for 5ban Graphics — the studio behind the holographic eeveelution V cards and Sinnoh legendaries. Black mats make the foil-rendered art glow.',
+      'A dark gallery for 5ban Graphics — the studio behind the holographic eeveelution V cards and Sinnoh legendaries. Black mats and wide margins make the foil-rendered art glow.',
     layoutStyle: 'artist',
     isExample: true,
     coverCardId: 'swsh7-179',
     pages: [
-      // Title wall: a 2×2 Espeon hero, an accent V, and one tonal insert.
+      // Hall I — Espeon V, framed and centred on black with a full tonal wash
+      // above and below for deep gallery margins.
       page(
         [
-          artwork(0, 0, 'swsh7-179', { rowSpan: 2, colSpan: 2 }),
-          card(0, 2, 'swsh7-172'),
-          insert(1, 2, GALLERY_DARK),
+          insert(0, 0, GALLERY_DARK, { colSpan: 3 }),
+          card(1, 1, 'swsh7-179'),
+          insert(2, 0, GALLERY_DARK, { colSpan: 3 }),
         ],
         { title: 'Hall I — Espeon V', rows: 3, cols: 3, backgroundColor: GALLERY_DARK },
       ),
-      // The eeveelution V wall — 5ban's four full-bleed V heroes, symmetric on black.
+      // Hall II — the eeveelution V wall: 5ban's four framed V heroes hung in a
+      // salon block, separated by a full 1×3 band of tonal air.
       page(
         [
-          artwork(0, 0, 'swsh7-172'),
+          card(0, 0, 'swsh7-172'),
           insert(0, 1, GALLERY_DARK),
-          artwork(0, 2, 'swsh7-177'),
-          artwork(1, 0, 'swsh7-169'),
-          insert(1, 1, GALLERY_DARK),
-          artwork(1, 2, 'swsh7-179'),
+          card(0, 2, 'swsh7-177'),
+          insert(1, 0, GALLERY_DARK, { colSpan: 3 }),
+          card(2, 0, 'swsh7-169'),
+          insert(2, 1, GALLERY_DARK),
+          card(2, 2, 'swsh7-179'),
         ],
-        { title: 'Hall II — The Eeveelution V Wall', rows: 2, cols: 3, backgroundColor: GALLERY_DARK },
+        { title: 'Hall II — The Eeveelution V Wall', rows: 3, cols: 3, backgroundColor: GALLERY_DARK },
       ),
-      // Vaporeon, full-page — a single immersive spread.
-      page([artwork(0, 0, 'swsh7-172', { rowSpan: 3, colSpan: 3 })], {
-        title: 'Hall III — Vaporeon V',
-        rows: 3,
-        cols: 3,
-        backgroundColor: GALLERY_DARK,
-      }),
-      // Sinnoh dragons: Palkia & Dialga as facing 2×2 heroes on slate.
+      // Hall III — Vaporeon V, a single framed card centred and ringed by tonal
+      // slate inserts, the gallery's quiet centre.
       page(
         [
-          artwork(0, 0, 'cel25-4', { rowSpan: 2, colSpan: 2 }),
-          artwork(2, 2, 'cel25-20', { rowSpan: 2, colSpan: 2 }),
-          insert(0, 3, SLATE),
-          insert(3, 0, SLATE),
+          insert(0, 0, SLATE, { colSpan: 3 }),
+          insert(1, 0, SLATE),
+          card(1, 1, 'swsh7-172'),
+          insert(1, 2, SLATE),
+          insert(2, 0, SLATE, { colSpan: 3 }),
         ],
-        { title: 'Hall IV — Palkia & Dialga', rows: 4, cols: 4, backgroundColor: SLATE },
+        { title: 'Hall III — Vaporeon V', rows: 3, cols: 3, backgroundColor: SLATE },
       ),
-      // Venusaur ex — a wide hero with a column of framed eeveelution V accents.
+      // Hall IV — Sinnoh dragons: Palkia & Dialga framed and facing across a 3×2
+      // band of slate.
       page(
         [
-          artwork(0, 0, 'sv03.5-003', { rowSpan: 3, colSpan: 2 }),
+          card(1, 0, 'cel25-4'),
+          insert(0, 1, SLATE, { rowSpan: 3, colSpan: 2 }),
+          card(1, 3, 'cel25-20'),
+        ],
+        { title: 'Hall IV — Palkia & Dialga', rows: 3, cols: 4, backgroundColor: SLATE },
+      ),
+      // Hall V — Venusaur ex, framed, with a column of framed eeveelution V
+      // accents down one side and a tall tonal column of air between.
+      page(
+        [
+          card(0, 0, 'sv03.5-003'),
+          insert(0, 1, GALLERY_DARK, { rowSpan: 3 }),
           card(0, 2, 'swsh7-169'),
           card(1, 2, 'swsh7-177'),
           card(2, 2, 'swsh7-172'),
         ],
         { title: 'Hall V — Venusaur ex', rows: 3, cols: 3, backgroundColor: GALLERY_DARK },
       ),
-      // Closing salon: 5ban's catalogue hung small — four V's, Venusaur ex, two dragons.
+      // Hall VI — the full set: 5ban's catalogue hung small in a salon grid, four
+      // V's, Venusaur ex's dragons and a Vaporeon, with tonal air between.
       page(
         [
           card(0, 0, 'swsh7-172'),
-          card(0, 1, 'swsh7-177'),
-          card(0, 2, 'swsh7-169'),
-          card(0, 3, 'swsh7-179'),
-          card(1, 0, 'sv03.5-003'),
-          card(1, 1, 'cel25-4'),
-          insert(1, 2, GALLERY_DARK),
-          card(1, 3, 'cel25-20'),
+          card(0, 2, 'swsh7-177'),
+          card(0, 4, 'swsh7-169'),
+          insert(1, 1, GALLERY_DARK),
+          insert(1, 3, GALLERY_DARK),
+          card(2, 0, 'swsh7-179'),
+          card(2, 2, 'cel25-4'),
+          card(2, 4, 'cel25-20'),
         ],
-        { title: 'Hall VI — The Full Set', rows: 2, cols: 4, backgroundColor: GALLERY_DARK },
+        { title: 'Hall VI — The Full Set', rows: 3, cols: 5, backgroundColor: GALLERY_DARK },
       ),
     ],
   },
@@ -200,66 +216,76 @@ export const binders: ContentModule['binders'] = [
     id: 'example-nishida-spotlight',
     title: 'Nishida — Soft Light',
     description:
-      "A pastel gallery for Yuu Nishida, whose illustrations bathe Pokémon in gentle, naturalistic light. Botanical and rose mats keep the mood quiet.",
+      "A pastel gallery for Yuu Nishida, whose illustrations bathe Pokémon in gentle, naturalistic light. Botanical and rose mats with airy margins keep the mood quiet.",
     layoutStyle: 'artist',
     isExample: true,
     coverCardId: 'cel25-11',
     pages: [
-      // Opening: Mew, full-bleed and dreamlike, with a rose sliver beside it.
+      // Room I — Mew, framed and centred on rose, with a full tonal wash above
+      // and below for soft, deep margins.
       page(
         [
-          artwork(0, 0, 'cel25-11', { rowSpan: 3, colSpan: 2 }),
-          insert(0, 2, ROSE_MIST),
-          card(1, 2, 'swsh7-184'),
-          insert(2, 2, ROSE_MIST),
+          insert(0, 0, ROSE_MIST, { colSpan: 3 }),
+          card(1, 1, 'cel25-11'),
+          insert(2, 0, ROSE_MIST, { colSpan: 3 }),
         ],
         { title: 'Room I — Mew', rows: 3, cols: 3, backgroundColor: ROSE_MIST },
       ),
-      // Sylveon V — a single full-page spread, all softness.
-      page([artwork(0, 0, 'swsh7-184', { rowSpan: 3, colSpan: 3 })], {
-        title: 'Room II — Sylveon V',
-        rows: 3,
-        cols: 3,
-        backgroundColor: ROSE_MIST,
-      }),
-      // The Kanto-grass diptych — Bulbasaur grows into Ivysaur, facing, on leaf-green.
+      // Room II — Sylveon V, a single framed card centred and ringed by soft rose
+      // inserts, all softness.
       page(
         [
-          artwork(0, 0, 'sv03.5-001', { rowSpan: 2, colSpan: 2 }),
-          artwork(2, 2, 'sv03.5-002', { rowSpan: 2, colSpan: 2 }),
-          insert(0, 3, LEAF_MIST),
-          insert(3, 0, LEAF_MIST),
+          insert(0, 0, ROSE_MIST, { colSpan: 3 }),
+          insert(1, 0, ROSE_MIST),
+          card(1, 1, 'swsh7-184'),
+          insert(1, 2, ROSE_MIST),
+          insert(2, 0, ROSE_MIST, { colSpan: 3 }),
         ],
-        { title: 'Room III — Bulbasaur & Ivysaur', rows: 4, cols: 4, backgroundColor: LEAF_MIST },
+        { title: 'Room II — Sylveon V', rows: 3, cols: 3, backgroundColor: ROSE_MIST },
       ),
-      // A framed Bulbasaur, centred on a wide botanical wall with deep margins.
+      // Room III — the Kanto-grass diptych: Bulbasaur grows into Ivysaur, two
+      // framed cards facing across a 3×2 band of leaf-green.
       page(
         [
-          insert(0, 0, LEAF_MIST),
+          card(1, 0, 'sv03.5-001'),
+          insert(0, 1, LEAF_MIST, { rowSpan: 3, colSpan: 2 }),
+          card(1, 3, 'sv03.5-002'),
+        ],
+        { title: 'Room III — Bulbasaur & Ivysaur', rows: 3, cols: 4, backgroundColor: LEAF_MIST },
+      ),
+      // Room IV — a framed Bulbasaur, centred on a wide botanical wall with a full
+      // tonal wash above and below for deep margins.
+      page(
+        [
+          insert(0, 0, LEAF_MIST, { colSpan: 3 }),
           card(1, 1, 'sv03.5-001'),
-          insert(2, 2, LEAF_MIST),
+          insert(2, 0, LEAF_MIST, { colSpan: 3 }),
         ],
         { title: 'Room IV — Bulbasaur, framed', rows: 3, cols: 3, backgroundColor: LEAF_MIST },
       ),
-      // Mew again, full-page — the gallery's quiet heart.
-      page([artwork(0, 0, 'cel25-11', { rowSpan: 3, colSpan: 3 })], {
-        title: 'Room V — Mew, alone',
-        rows: 3,
-        cols: 3,
-        backgroundColor: ROSE_MIST,
-      }),
-      // Closing wall: Nishida's small cast hung with generous air.
+      // Room V — Mew again, framed and centred, ringed by even rose inserts — the
+      // gallery's quiet heart.
+      page(
+        [
+          insert(0, 0, ROSE_MIST, { colSpan: 3 }),
+          insert(1, 0, ROSE_MIST),
+          card(1, 1, 'cel25-11'),
+          insert(1, 2, ROSE_MIST),
+          insert(2, 0, ROSE_MIST, { colSpan: 3 }),
+        ],
+        { title: 'Room V — Mew, alone', rows: 3, cols: 3, backgroundColor: ROSE_MIST },
+      ),
+      // Room VI — the Soft Wall: Nishida's small cast hung in a salon grid with
+      // generous tonal air, separated by a full 1×3 band of rose.
       page(
         [
           card(0, 0, 'cel25-11'),
           insert(0, 1, ROSE_MIST),
           card(0, 2, 'swsh7-184'),
-          insert(1, 0, ROSE_MIST),
-          card(1, 1, 'sv03.5-001'),
-          insert(1, 2, ROSE_MIST),
-          card(2, 0, 'sv03.5-002'),
+          insert(1, 0, ROSE_MIST, { colSpan: 3 }),
+          card(2, 0, 'sv03.5-001'),
           insert(2, 1, ROSE_MIST),
-          artwork(2, 2, 'swsh7-184'),
+          card(2, 2, 'sv03.5-002'),
         ],
         { title: 'Room VI — The Soft Wall', rows: 3, cols: 3, backgroundColor: ROSE_MIST },
       ),

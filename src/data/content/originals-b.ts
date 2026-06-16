@@ -3,9 +3,23 @@
  *
  * These reference cards already in the bundled catalogue (src/data/sampleData.ts), so
  * `cards` is empty. Content unit "Expand originals B" grows these into multi-page binders.
+ *
+ * Card-size realism: every standard card is exactly one pocket (1×1). Oversized promos use
+ * `jumbo(...)` (a real 2×2 footprint, auto-badged "JUMBO"), and V-UNIONs use `...vunion(...)`
+ * (four real piece-cards tiling a 2×2). Negative space is tonal `insert`s sized to real michi
+ * insert formats (1×1, 1×2/2×1, 2×2, or full-page 3×3) plus deliberately empty pockets.
  */
 
-import { artwork, card, insert, page, type ContentModule } from '@/data/content/_helpers';
+import {
+  card,
+  insert,
+  jumbo,
+  page,
+  vunion,
+  JUMBO,
+  VUNION,
+  type ContentModule,
+} from '@/data/content/_helpers';
 
 export const cards: ContentModule['cards'] = [];
 
@@ -38,10 +52,10 @@ export const binders: ContentModule['binders'] = [
           card(2, 2, 'cel25-10'),
         ],
       },
-      // 2 — Lugia anchor: a 2×2 hero with a quiet wing of accents.
+      // 2 — Lugia, the jumbo box-art hero: an oversized 2×2 promo with a quiet wing of accents.
       page(
         [
-          artwork(0, 0, 'cel25-22', { rowSpan: 2, colSpan: 2 }),
+          jumbo(0, 0, JUMBO.lugia),
           card(0, 2, 'cel25-3'),
           card(1, 2, 'cel25-4'),
           insert(2, 0, '#1C2330'),
@@ -50,45 +64,43 @@ export const binders: ContentModule['binders'] = [
         ],
         { title: 'Lugia, guardian of the sea', rows: 3, cols: 3, backgroundColor: '#10141C' },
       ),
-      // 3 — Ho-Oh anchor: warm legend on a charcoal mat, balanced top-right.
+      // 3 — Ho-Oh anchor: warm legend framed 1×1 on a charcoal mat with a tall tonal margin.
       page(
         [
           card(0, 0, 'cel25-17'),
           card(0, 1, 'cel25-19'),
-          artwork(0, 2, 'cel25-1', { rowSpan: 2, colSpan: 1 }),
-          insert(1, 0, '#1B1410'),
+          card(0, 2, 'cel25-1'),
+          insert(1, 0, '#1B1410', { rowSpan: 2, colSpan: 1 }),
           card(1, 1, 'cel25-2'),
-          // (2,0) and (2,1) left empty — embers settling.
+          // (1,2) and (2,1) left empty — embers settling.
           card(2, 2, 'cel25-17'),
         ],
         { title: 'Ho-Oh, rainbow wing', rows: 3, cols: 3, backgroundColor: '#1B1410' },
       ),
-      // 4 — Mew full-page hero: one card centred on a wide mat, single accent.
+      // 4 — Mewtwo, the jumbo altar: an oversized 2×2 promo centred between tonal margins.
       page(
         [
-          insert(0, 0, '#191320'),
-          artwork(0, 1, 'cel25-11', { rowSpan: 3, colSpan: 2 }),
-          insert(0, 3, '#191320'),
-          card(1, 0, 'cel25-12'),
-          // (1,3), (2,0) left empty for stillness around the altar.
-          card(2, 3, 'cel25-4'),
+          insert(0, 0, '#191320', { rowSpan: 3, colSpan: 1 }),
+          jumbo(0, 1, JUMBO.mewtwo),
+          insert(0, 3, '#191320', { rowSpan: 3, colSpan: 1 }),
+          card(2, 1, 'cel25-11'),
+          card(2, 2, 'cel25-12'),
         ],
-        { title: 'Mew, at the centre', rows: 3, cols: 4, backgroundColor: '#1C1726' },
+        { title: 'Mewtwo, at the altar', rows: 3, cols: 4, backgroundColor: '#1C1726' },
       ),
-      // 5 — cosmic dragon spread: the creation/tao quartet on a 4×4 slate canvas.
+      // 5 — Mewtwo V-UNION spread: four real pieces tiling a 2×2, with a constellation of accents.
       page(
         [
-          artwork(0, 0, 'cel25-2', { rowSpan: 2, colSpan: 2 }),
-          artwork(0, 2, 'cel25-10', { rowSpan: 2, colSpan: 2 }),
-          insert(2, 0, '#10141C'),
-          card(2, 1, 'cel25-20'),
-          card(2, 2, 'cel25-4'),
-          insert(2, 3, '#10141C'),
-          // bottom-left/right (3,0)(3,3) left empty; constellation in the gutter.
-          card(3, 1, 'cel25-3'),
-          card(3, 2, 'cel25-22'),
+          ...vunion(0, 0, VUNION.mewtwo),
+          insert(0, 2, '#10141C', { rowSpan: 2, colSpan: 1 }),
+          card(0, 3, 'cel25-10'),
+          card(1, 3, 'cel25-2'),
+          card(2, 0, 'cel25-20'),
+          card(2, 1, 'cel25-4'),
+          card(2, 2, 'cel25-3'),
+          card(2, 3, 'cel25-22'),
         ],
-        { title: 'Dragons & cosmos', rows: 4, cols: 4, backgroundColor: '#10141C' },
+        { title: 'Mewtwo, four faces', rows: 3, cols: 4, backgroundColor: '#10141C' },
       ),
       // 6 — slate color page: shared cool palette with tonal negative space.
       page(
@@ -111,7 +123,7 @@ export const binders: ContentModule['binders'] = [
     id: 'example-pikachu',
     title: 'Pikachu, many ways',
     description:
-      'One Pikachu across the eras — gallery row, era heroes, a warm-yellow color page, and the two V variants.',
+      'One Pikachu across the eras — gallery row, era heroes, a warm-yellow color page, and the V-UNION quartet.',
     layoutStyle: 'single_pokemon',
     isExample: true,
     coverCardId: 'sv03.5-173',
@@ -133,28 +145,30 @@ export const binders: ContentModule['binders'] = [
           // row 2 intentionally empty
         ],
       },
-      // 2 — the 1999 hero: a 2×2 Base Set Pikachu, alone on cream.
+      // 2 — the jumbo Pikachu: an oversized 2×2 promo, alone on cream with a tonal wing.
       page(
         [
-          artwork(0, 0, 'base1-58', { rowSpan: 2, colSpan: 2 }),
-          insert(0, 2, '#F3E6B0'),
-          // (1,2) left empty
+          jumbo(0, 0, JUMBO.pikachu),
+          insert(0, 2, '#F3E6B0', { rowSpan: 2, colSpan: 1 }),
           // (2,0)(2,1) left empty — lots of breathing room below the hero.
           card(2, 2, 'sv03.5-025'),
         ],
-        { title: 'First print, 1999', rows: 3, cols: 3, backgroundColor: '#FBF4D6' },
+        { title: 'Big and bold', rows: 3, cols: 3, backgroundColor: '#FBF4D6' },
       ),
-      // 3 — modern hero: the 151 promo Pikachu spanning four pockets.
+      // 3 — era heroes: 1999, 151 and Celebrations Pikachus, each framed 1×1 on cream.
       page(
         [
-          card(0, 0, 'sv03.5-025'),
+          card(0, 0, 'base1-58'),
           insert(0, 1, '#F7EFC8'),
-          card(0, 2, 'cel25-5'),
-          card(1, 0, 'base1-58'),
-          artwork(1, 1, 'sv03.5-173', { rowSpan: 2, colSpan: 2 }),
+          card(0, 2, 'sv03.5-025'),
+          card(1, 0, 'cel25-5'),
+          card(1, 1, 'sv03.5-173'),
+          card(1, 2, 'cel25-6'),
           // (2,0) left empty
+          card(2, 1, 'sv03.5-025'),
+          // (2,2) left empty
         ],
-        { title: 'A modern classic', rows: 3, cols: 3, backgroundColor: '#FBF4D6' },
+        { title: 'A face for every era', rows: 3, cols: 3, backgroundColor: '#FBF4D6' },
       ),
       // 4 — warm-yellow color page: gold tonal inserts, deliberate empty pockets.
       page(
@@ -171,20 +185,20 @@ export const binders: ContentModule['binders'] = [
         ],
         { title: 'Warm yellow', rows: 3, cols: 4, backgroundColor: '#FFF8E0' },
       ),
-      // 5 — Pikachu V spread: the two aky CG Works variants, framed.
+      // 5 — Pikachu V-UNION spread: the four real pieces tiling a 2×2, framed by accents.
       page(
         [
-          insert(0, 0, '#F3E6B0'),
-          card(0, 1, 'cel25-6'),
-          card(0, 2, 'cel25-8'),
-          insert(0, 3, '#E7F1F8'),
-          card(1, 0, 'cel25-5'),
-          artwork(1, 1, 'cel25-8', { rowSpan: 2, colSpan: 2 }),
-          card(1, 3, 'base1-58'),
+          ...vunion(0, 0, VUNION.pikachu),
+          insert(0, 2, '#F3E6B0'),
+          card(0, 3, 'cel25-6'),
+          insert(1, 2, '#E7F1F8'),
+          card(1, 3, 'cel25-8'),
           card(2, 0, 'sv03.5-173'),
+          card(2, 1, 'base1-58'),
+          card(2, 2, 'cel25-5'),
           insert(2, 3, '#F3E6B0'),
         ],
-        { title: 'Flying & surfing V', rows: 3, cols: 4, backgroundColor: '#FBF4D6' },
+        { title: 'Four-piece union', rows: 3, cols: 4, backgroundColor: '#FBF4D6' },
       ),
     ],
   },
@@ -192,7 +206,7 @@ export const binders: ContentModule['binders'] = [
     id: 'example-ocean-blues',
     title: 'Ocean blues',
     description:
-      'A cool-blue palette study — tonal tide pages, a Kyogre full-page swell, and water-type anchors with deliberate gaps.',
+      'A cool-blue palette study — tonal tide pages, jumbo water heroes, a Greninja V-UNION, and anchors with deliberate gaps.',
     layoutStyle: 'color_theme',
     isExample: true,
     coverCardId: 'base1-2',
@@ -216,25 +230,24 @@ export const binders: ContentModule['binders'] = [
           // (2,2) intentionally empty
         ],
       },
-      // 2 — tonal tide page: three blues woven with cards, lots of negative space.
+      // 2 — tonal tide page: blues woven with cards, a wide insert and lots of negative space.
       page(
         [
           insert(0, 0, '#9BB7D4'),
           card(0, 1, 'swsh7-172'),
-          insert(0, 2, '#E7F1F8'),
-          insert(0, 3, '#2B6FB0'),
+          insert(0, 2, '#E7F1F8', { rowSpan: 1, colSpan: 2 }),
           card(1, 0, 'cel25-3'),
-          insert(1, 1, '#E7F1F8'),
-          insert(1, 2, '#9BB7D4'),
+          insert(1, 1, '#9BB7D4'),
+          insert(1, 2, '#2B6FB0'),
           card(1, 3, 'swsh7-175'),
           // entire bottom row empty — the shallows.
         ],
         { title: 'Shades of tide', rows: 3, cols: 4, backgroundColor: '#DCE9F4' },
       ),
-      // 3 — Blastoise anchor: a 2×2 hero on a deep mat with cool accents.
+      // 3 — Blastoise, the jumbo deep-water hero: an oversized 2×2 promo with cool accents.
       page(
         [
-          artwork(0, 0, 'base1-2', { rowSpan: 2, colSpan: 2 }),
+          jumbo(0, 0, JUMBO.blastoise),
           card(0, 2, 'sv03.5-170'),
           insert(1, 2, '#1C2A3A'),
           insert(2, 0, '#16202C'),
@@ -243,34 +256,36 @@ export const binders: ContentModule['binders'] = [
         ],
         { title: 'Blastoise, the depths', rows: 3, cols: 3, backgroundColor: '#10141C' },
       ),
-      // 4 — Kyogre full-page swell: one big artwork, two quiet accents.
+      // 4 — Lugia, the jumbo swell: an oversized 2×2 promo against a full-height tonal margin.
       page(
         [
-          artwork(0, 0, 'cel25-3', { rowSpan: 3, colSpan: 2 }),
-          insert(0, 2, '#1C2A3A'),
+          jumbo(0, 0, JUMBO.lugia),
+          insert(0, 2, '#1C2A3A', { rowSpan: 3, colSpan: 1 }),
           card(0, 3, 'cel25-22'),
-          insert(1, 2, '#16202C'),
-          insert(1, 3, '#1C2A3A'),
-          card(2, 2, 'cel25-4'),
+          card(1, 3, 'cel25-3'),
+          card(2, 0, 'sv03.5-170'),
+          card(2, 1, 'cel25-4'),
           // (2,3) left empty — open water.
         ],
-        { title: 'Kyogre, the great swell', rows: 3, cols: 4, backgroundColor: '#0E1620' },
+        { title: 'Lugia, the great swell', rows: 3, cols: 4, backgroundColor: '#0E1620' },
       ),
-      // 5 — water anchors: Lugia & Kyogre paired across a 4×4 cream-blue canvas.
+      // 5 — Greninja V-UNION spread: four real pieces tiling a 2×2 across a cream-blue canvas.
       page(
         [
-          artwork(0, 0, 'cel25-22', { rowSpan: 2, colSpan: 2 }),
+          ...vunion(0, 0, VUNION.greninja),
           insert(0, 2, '#C7DBEC'),
           card(0, 3, 'swsh7-172'),
           card(1, 2, 'sv03.5-170'),
           insert(1, 3, '#9BB7D4'),
           insert(2, 0, '#C7DBEC'),
           card(2, 1, 'swsh7-175'),
-          artwork(2, 2, 'cel25-3', { rowSpan: 2, colSpan: 2 }),
-          card(3, 0, 'base1-2'),
-          // (3,1) left empty — foam.
+          card(2, 2, 'cel25-3'),
+          card(2, 3, 'base1-2'),
+          card(3, 0, 'cel25-22'),
+          card(3, 1, 'sv03.5-200'),
+          insert(3, 2, '#9BB7D4', { rowSpan: 1, colSpan: 2 }),
         ],
-        { title: 'Sea legends', rows: 4, cols: 4, backgroundColor: '#E7F1F8' },
+        { title: 'Greninja, sea legends', rows: 4, cols: 4, backgroundColor: '#E7F1F8' },
       ),
       // 6 — palest color page: near-monochrome tonal study with breathing room.
       page(

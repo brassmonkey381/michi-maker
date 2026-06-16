@@ -1,21 +1,27 @@
 /**
  * Content module: Color-theme study binders.
  *
- * Three palette-driven michi studies. Each leans on tonal `insert` slots (negative-space
- * fillers in the page's palette) plus intentional empty pockets to tie a page together, with
- * a single 2×2 `artwork` hero anchoring the binder. The palette should read unmistakably on
- * every page: cards sharing a hue + matching `insert` tones + a tuned mat `backgroundColor`.
+ * Three palette-driven michi studies. Each composition is built for *card-size realism*:
+ * every standard card fills exactly one pocket (1×1). Oversized footprints are reserved for
+ * the two real-world cases the catalogue models — a `jumbo` (2×2 oversized card) and a
+ * `vunion` (four real pieces tiling a 2×2) — and are used only where the palette matches.
+ * Pages lean on tonal `insert` slots (negative-space fillers, which MAY span) plus intentional
+ * empty pockets so the palette reads unmistakably on every page: cards sharing a hue + matching
+ * `insert` tones + a tuned mat `backgroundColor`.
  *
  * All card ids referenced here already exist in the base catalogue (see src/data/sampleData.ts);
  * a couple of palette-matched extras are declared below via `defineCard`.
  */
 
 import {
-  artwork,
+  JUMBO,
+  VUNION,
   card,
   defineCard,
   insert,
+  jumbo,
   page,
+  vunion,
   type ContentModule,
 } from '@/data/content/_helpers';
 
@@ -57,21 +63,22 @@ const PARCH_MAT = '#FBF4D6';
 
 export const binders: ContentModule['binders'] = [
   // ────────────────────────────────────────────────────────────────────────
-  // 1. Fire & sunset
+  // 1. Fire & sunset  — reds/oranges; a Charizard JUMBO is the only oversized card.
   // ────────────────────────────────────────────────────────────────────────
   {
     id: 'example-fire-sunset',
     title: 'Fire & sunset',
     description:
-      'Embers, flame and crimson — a warm study that burns from a single Charizard hero out to dusk.',
+      'Embers, flame and crimson — a warm study that burns from a Charizard jumbo out to dusk.',
     layoutStyle: 'color_theme',
     isExample: true,
     coverCardId: 'base1-4',
     pages: [
-      // P1 — 3×3, the hero. A 2×2 Charizard anchors the top-left, embers trail beside it.
+      // P1 — 3×3, the hero. A real oversized Charizard jumbo fills the top-left 2×2,
+      // embers and two framed cards trailing down the right edge.
       page(
         [
-          artwork(0, 0, 'base1-4', { rowSpan: 2, colSpan: 2 }),
+          jumbo(0, 0, JUMBO.charizard),
           insert(0, 2, EMBER),
           card(1, 2, 'base1-12'),
           insert(2, 0, CRIMSON),
@@ -97,7 +104,7 @@ export const binders: ContentModule['binders'] = [
         ],
         { title: 'The Charmander line', rows: 3, cols: 4, backgroundColor: BLUSH_MAT },
       ),
-      // P3 — 4×3, a vertical crimson stripe down the middle column.
+      // P3 — 4×3, a vertical crimson stripe down the middle column, framed cards either side.
       page(
         [
           card(0, 0, 'base1-14'),
@@ -112,16 +119,19 @@ export const binders: ContentModule['binders'] = [
         ],
         { title: 'Crimson spine', rows: 4, cols: 3, backgroundColor: ASH_MAT },
       ),
-      // P4 — 3×3, Ho-Oh hero spanning the centre 2×2, dawn light around it.
+      // P4 — 3×3, the Ho-Oh "rainbow wing" — framed 1×1 cards with flame radiating out.
+      // No oversized card here: every pocket is a 1×1 card or a tonal insert.
       page(
         [
           card(0, 0, 'base1-4'),
           insert(0, 1, FLAME),
           card(0, 2, 'sv03.5-006'),
           insert(1, 0, EMBER),
-          // (1,1)..(2,2) is the hero block
-          artwork(1, 1, 'cel25-1', { rowSpan: 2, colSpan: 2 }),
+          card(1, 1, 'cel25-1'),
+          insert(1, 2, EMBER),
           card(2, 0, 'swsh7-169'),
+          insert(2, 1, CRIMSON),
+          card(2, 2, 'base1-12'),
         ],
         { title: 'Rainbow wing', rows: 3, cols: 3, backgroundColor: ASH_MAT },
       ),
@@ -165,7 +175,8 @@ export const binders: ContentModule['binders'] = [
   },
 
   // ────────────────────────────────────────────────────────────────────────
-  // 2. Forest greens
+  // 2. Forest greens — no green jumbo or V-UNION exists, so this binder is
+  //    entirely 1×1 standard cards, green tonal inserts, and negative space.
   // ────────────────────────────────────────────────────────────────────────
   {
     id: 'example-forest-greens',
@@ -176,15 +187,18 @@ export const binders: ContentModule['binders'] = [
     isExample: true,
     coverCardId: 'base1-15',
     pages: [
-      // P1 — 3×3, Venusaur hero 2×2 in the canopy.
+      // P1 — 3×3, Venusaur framed at the heart of the canopy, lime and leaf around it.
       page(
         [
           insert(0, 0, LIME),
           card(0, 1, 'sv03.5-166'),
           // (0,2) empty
           card(1, 0, 'sv03.5-001'),
-          artwork(1, 1, 'base1-15', { rowSpan: 2, colSpan: 2 }),
+          card(1, 1, 'base1-15'),
+          insert(1, 2, LEAF),
           insert(2, 0, LEAF),
+          card(2, 1, 'sv03.5-002'),
+          // (2,2) empty
         ],
         { title: 'Canopy', rows: 3, cols: 3, backgroundColor: PINE_MAT },
       ),
@@ -220,14 +234,18 @@ export const binders: ContentModule['binders'] = [
         ],
         { title: 'Undergrowth', rows: 4, cols: 3, backgroundColor: PINE_MAT },
       ),
-      // P4 — 3×3, Rayquaza hero spanning the top 2×2 (emerald legend).
+      // P4 — 3×3, the emerald legends — M Rayquaza and Xerneas framed (1×1 each),
+      // lime and fern threading between them. No oversized card: no green jumbo exists.
       page(
         [
-          artwork(0, 0, 'cel25-13', { rowSpan: 2, colSpan: 2 }),
-          insert(0, 2, LIME),
-          card(1, 2, 'cel25-12'),
-          card(2, 0, 'swsh7-167'),
-          insert(2, 1, FERN),
+          card(0, 0, 'cel25-13'),
+          insert(0, 1, LIME),
+          card(0, 2, 'cel25-12'),
+          insert(1, 0, FERN),
+          card(1, 1, 'swsh7-167'),
+          insert(1, 2, FERN),
+          card(2, 0, 'sv03.5-166'),
+          insert(2, 1, LEAF),
           // (2,2) empty
         ],
         { title: 'Sky serpent', rows: 3, cols: 3, backgroundColor: PINE_MAT },
@@ -272,7 +290,8 @@ export const binders: ContentModule['binders'] = [
   },
 
   // ────────────────────────────────────────────────────────────────────────
-  // 3. Gold & legend
+  // 3. Gold & legend — gilded palette: Lugia & Mewtwo JUMBOs and a Zacian
+  //    V-UNION (gold/teal) sit alongside framed 1×1 legends.
   // ────────────────────────────────────────────────────────────────────────
   {
     id: 'example-gold-legend',
@@ -283,11 +302,10 @@ export const binders: ContentModule['binders'] = [
     isExample: true,
     coverCardId: 'cel25-22',
     pages: [
-      // P1 — 3×3, Lugia hero 2×2, gilded accents above.
+      // P1 — 3×3, a Lugia jumbo fills the top-left 2×2; gilded accents down the right.
       page(
         [
-          // (0,0)/(0,1)/(1,0)/(1,1) is the hero
-          artwork(0, 0, 'cel25-22', { rowSpan: 2, colSpan: 2 }),
+          jumbo(0, 0, JUMBO.lugia),
           insert(0, 2, GOLD),
           card(1, 2, 'cel25-5'),
           insert(2, 0, AMBER),
@@ -314,31 +332,38 @@ export const binders: ContentModule['binders'] = [
         ],
         { title: 'Pikachu, gilded', rows: 3, cols: 4, backgroundColor: PARCH_MAT },
       ),
-      // P3 — 4×3, a column of legends with an amber spine.
+      // P3 — 4×4, the Zacian V-UNION (gold/teal) tiles the top-left 2×2 as four real
+      // pieces; framed legends and an amber spine fill the rest.
       page(
         [
-          card(0, 0, 'cel25-22'),
-          insert(0, 1, AMBER),
-          card(0, 2, 'cel25-1'),
-          insert(1, 1, GOLD),
+          ...vunion(0, 0, VUNION.zacian),
+          insert(0, 2, AMBER),
+          card(0, 3, 'cel25-1'),
+          insert(1, 2, GOLD),
+          card(1, 3, 'cel25-22'),
+          card(2, 0, 'cel25-2'),
           insert(2, 1, IVORY),
-          card(3, 0, 'cel25-2'),
-          insert(3, 1, AMBER),
-          card(3, 2, 'base1-16'),
+          card(2, 2, 'base1-16'),
+          insert(2, 3, AMBER),
+          insert(3, 0, AMBER),
+          card(3, 1, 'cel25-11'),
+          insert(3, 2, GOLD),
+          card(3, 3, 'sv03.5-173'),
         ],
-        { title: 'Treasury', rows: 4, cols: 3, backgroundColor: NIGHT_MAT },
+        { title: 'Treasury', rows: 4, cols: 4, backgroundColor: NIGHT_MAT },
       ),
-      // P4 — 3×3, Ho-Oh hero spanning the centre 2×2.
+      // P4 — 3×3, a Mewtwo jumbo anchors the centre-bottom 2×2; gilded cards above it.
       page(
         [
           card(0, 0, 'cel25-5'),
           insert(0, 1, GOLD),
-          // (0,2) empty
+          card(0, 2, 'base1-16'),
           insert(1, 0, AMBER),
-          artwork(1, 1, 'cel25-1', { rowSpan: 2, colSpan: 2 }),
-          card(2, 0, 'base1-16'),
+          // (1,1)..(2,2) is the Mewtwo jumbo
+          jumbo(1, 1, JUMBO.mewtwo),
+          card(2, 0, 'cel25-1'),
         ],
-        { title: 'Phoenix gold', rows: 3, cols: 3, backgroundColor: NIGHT_MAT },
+        { title: 'Psychic gold', rows: 3, cols: 3, backgroundColor: NIGHT_MAT },
       ),
       // P5 — 4×4, the full treasury spread — gold woven through the legends.
       page(

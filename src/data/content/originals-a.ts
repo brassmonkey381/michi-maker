@@ -1,12 +1,23 @@
 /**
  * Original example binders, part A: Base Set, Eeveelutions, Kanto 151, Charizard anchor.
  *
- * Every card referenced here already lives in the bundled catalogue (src/data/sampleData.ts),
- * so `cards` stays empty. Content unit "Expand originals A" grows these into rich,
- * multi-page michi binders (4–8 pages each) with negative space and 2×2 hero spans.
+ * Every standard card referenced here already lives in the bundled catalogue
+ * (src/data/sampleData.ts), so `cards` stays empty. Sizes are card-size realistic:
+ * every standard card is exactly 1×1 (one pocket), oversized promos use `jumbo` (2×2),
+ * and V-UNIONs use `vunion` (four real piece-cards tiling a 2×2). Tonal `insert`s and
+ * intentional empty pockets carry the michi negative space.
  */
 
-import { artwork, card, insert, page, type ContentModule } from '@/data/content/_helpers';
+import {
+  JUMBO,
+  VUNION,
+  card,
+  insert,
+  jumbo,
+  page,
+  vunion,
+  type ContentModule,
+} from '@/data/content/_helpers';
 
 export const cards: ContentModule['cards'] = [];
 
@@ -14,7 +25,7 @@ export const binders: ContentModule['binders'] = [
   {
     id: 'example-base-set',
     title: 'Base Set holos',
-    description: 'The 1999 Base Set foils — a Charizard anchor, a dark foil wall, and a cream Sugimori page.',
+    description: 'The 1999 Base Set foils — a Blastoise jumbo anchor, a dark foil wall, and a cream Sugimori page.',
     layoutStyle: 'themed_story',
     isExample: true,
     coverCardId: 'base1-4',
@@ -38,17 +49,17 @@ export const binders: ContentModule['binders'] = [
           card(2, 2, 'base1-16'),
         ],
       },
-      // Page 2 — Charizard hero anchor (2×2 full-bleed) with foil accents + empty pockets.
+      // Page 2 — Blastoise jumbo hero (real oversized promo, 2×2) with foil accents + air.
       page(
         [
-          artwork(0, 0, 'base1-4', { rowSpan: 2, colSpan: 2 }),
+          jumbo(0, 0, JUMBO.blastoise),
           card(0, 2, 'base1-2'),
           // (1,2) intentionally empty — let the hero breathe.
           card(2, 0, 'base1-6'),
           // (2,1) empty
           card(2, 2, 'base1-10'),
         ],
-        { title: 'Charizard, anchored', backgroundColor: '#1B1410' },
+        { title: 'Blastoise, anchored', backgroundColor: '#10141C' },
       ),
       // Page 3 — the foil wall: a packed grid of holos on the darkest mat.
       page(
@@ -80,19 +91,23 @@ export const binders: ContentModule['binders'] = [
         ],
         { title: 'Sugimori, on cream', backgroundColor: '#F3ECDD' },
       ),
-      // Page 5 — a single full-page Charizard spread (whole 3×3) for a closer.
+      // Page 5 — Charizard closer: a single 1×1 focal card afloat in deliberate empty space.
       page(
         [
-          artwork(0, 0, 'base1-4', { rowSpan: 3, colSpan: 3 }),
+          // (0,*) empty top band.
+          insert(1, 0, '#1B1410'),
+          card(1, 1, 'base1-4'),
+          insert(1, 2, '#1B1410'),
+          // (2,*) empty bottom band — embers settling.
         ],
-        { title: 'Full bleed', backgroundColor: '#1B1410' },
+        { title: 'One last holo', backgroundColor: '#1B1410' },
       ),
     ],
   },
   {
     id: 'example-eeveelutions',
     title: 'The Eeveelutions',
-    description: 'Eevee and its evolutions — one of each, per-evolution anchors, and a cool-vs-warm split.',
+    description: 'Eevee and its evolutions — one of each, an Umbreon jumbo anchor, and a cool-vs-warm split.',
     layoutStyle: 'themed_story',
     isExample: true,
     coverCardId: 'swsh7-215',
@@ -116,10 +131,10 @@ export const binders: ContentModule['binders'] = [
           card(2, 2, 'swsh7-184'),
         ],
       },
-      // Page 2 — Umbreon VMAX hero anchor (2×2 full-bleed) on a moonlit mat.
+      // Page 2 — Umbreon jumbo hero (real oversized promo, 2×2) on a moonlit mat.
       page(
         [
-          artwork(0, 0, 'swsh7-215', { rowSpan: 2, colSpan: 2 }),
+          jumbo(0, 0, JUMBO.umbreon),
           card(0, 2, 'swsh7-184'),
           // (1,2) empty
           // (2,0) empty
@@ -181,7 +196,7 @@ export const binders: ContentModule['binders'] = [
   {
     id: 'example-kanto-151',
     title: 'Kanto starters · 151',
-    description: 'Full evolution lines, the SIR chases, starter-line anchors, and a Pikachu/Mew page.',
+    description: 'Full evolution lines, the SIR chases, a Charizard jumbo anchor, and a Pikachu V-UNION page.',
     layoutStyle: 'themed_story',
     isExample: true,
     coverCardId: 'sv03.5-199',
@@ -224,10 +239,10 @@ export const binders: ContentModule['binders'] = [
           // (2,2) empty
         ],
       },
-      // Page 3 — Charizard ex full-page hero (2×2) closing the fire line.
+      // Page 3 — Charizard jumbo hero (real oversized promo, 2×2) closing the fire line.
       page(
         [
-          artwork(0, 0, 'sv03.5-199', { rowSpan: 2, colSpan: 2 }),
+          jumbo(0, 0, JUMBO.charizard),
           card(0, 2, 'sv03.5-004'),
           card(1, 2, 'sv03.5-005'),
           card(2, 0, 'sv03.5-006'),
@@ -251,18 +266,17 @@ export const binders: ContentModule['binders'] = [
         ],
         { title: 'Starts & finishes', backgroundColor: '#FBF4D6' },
       ),
-      // Page 5 — Pikachu & Mew page: two icons, lots of pastel air.
+      // Page 5 — Pikachu V-UNION page: four real piece-cards tile the 2×2 hero, Mew alongside.
       page(
         [
-          insert(0, 0, '#E7F1F8'),
-          card(0, 1, 'sv03.5-025'),
-          insert(0, 2, '#E7F1F8'),
-          // (1,*) empty band
-          insert(2, 0, '#F7E9F0'),
-          card(2, 1, 'sv03.5-150'),
-          insert(2, 2, '#F7E9F0'),
+          ...vunion(0, 0, VUNION.pikachu),
+          // (0,2) empty
+          card(1, 2, 'sv03.5-150'),
+          insert(2, 0, '#E7F1F8'),
+          insert(2, 1, '#F7E9F0'),
+          insert(2, 2, '#E7F1F8'),
         ],
-        { title: 'Pikachu & Mew', backgroundColor: '#E7F1F8' },
+        { title: 'Pikachu V-UNION & Mew', backgroundColor: '#E7F1F8' },
       ),
       // Page 6 — the chase wall: every SIR together on a dark mat to finish.
       page(
@@ -284,12 +298,12 @@ export const binders: ContentModule['binders'] = [
   {
     id: 'example-charizard-anchor',
     title: 'Charizard, anchored',
-    description: 'A 2×2 hero, a Charmander→Charizard evolution anchor, and a fiery color page.',
+    description: 'A jumbo Charizard hero, a Charmander→Charizard evolution line, and a fiery color page.',
     layoutStyle: 'anchor',
     isExample: true,
     coverCardId: 'sv03.5-199',
     pages: [
-      // Page 1 — kept: hot corner.
+      // Page 1 — hot corner: the Charizard jumbo (real oversized promo, 2×2) anchors the corner.
       {
         id: 'page-charizard-anchor-1',
         title: 'Hot corner',
@@ -297,7 +311,7 @@ export const binders: ContentModule['binders'] = [
         cols: 3,
         backgroundColor: '#1B1410',
         slots: [
-          card(0, 0, 'sv03.5-199', { rowSpan: 2, colSpan: 2, type: 'artwork' }),
+          jumbo(0, 0, JUMBO.charizard),
           card(0, 2, 'sv03.5-004'),
           card(1, 2, 'sv03.5-005'),
           card(2, 0, 'base1-12'),
@@ -305,15 +319,18 @@ export const binders: ContentModule['binders'] = [
           card(2, 2, 'base1-4'),
         ],
       },
-      // Page 2 — the evolution line: Charmander → Charmeleon → Charizard, top row, hero below.
+      // Page 2 — the evolution line: Charmander → Charmeleon → Charizard, then 1×1 focal cards.
       page(
         [
           card(0, 0, 'sv03.5-004'),
           card(0, 1, 'sv03.5-005'),
           card(0, 2, 'sv03.5-006'),
-          artwork(1, 0, 'sv03.5-199', { rowSpan: 2, colSpan: 2 }),
+          // (1,0) empty
+          card(1, 1, 'sv03.5-199'),
           // (1,2) empty
-          card(2, 2, 'base1-4'),
+          // (2,0) empty
+          card(2, 1, 'base1-4'),
+          // (2,2) empty
         ],
         { title: 'The line', backgroundColor: '#1B1410' },
       ),
@@ -333,10 +350,15 @@ export const binders: ContentModule['binders'] = [
         ],
         { title: 'All fire', backgroundColor: '#241406' },
       ),
-      // Page 4 — full-page Charizard spread (whole 3×3).
+      // Page 4 — Charizard jumbo spread: the oversized promo fills a 2×2 hero, inserts framing.
       page(
         [
-          artwork(0, 0, 'base1-4', { rowSpan: 3, colSpan: 3 }),
+          jumbo(0, 0, JUMBO.charizard),
+          insert(0, 2, '#1B1410'),
+          insert(1, 2, '#1B1410'),
+          insert(2, 0, '#1B1410'),
+          insert(2, 1, '#1B1410'),
+          insert(2, 2, '#1B1410'),
         ],
         { title: 'Full bleed', backgroundColor: '#1B1410' },
       ),

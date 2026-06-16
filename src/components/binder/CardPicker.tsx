@@ -20,20 +20,26 @@ const INSERT_TONES: { label: string; color: string }[] = [
 ];
 
 /**
- * Placement footprints. A real card is portrait (63×88), an aspect only square blocks
- * (1×1, 2×2, 3×3) preserve — so only those carry cards. Artwork panels + tonal inserts can
- * take any shape (they're chosen/cropped to fit), per woahpoke.com/michi-method.
+ * Placement footprints, with their real Michi-method print sizes. The michi insert grid is a
+ * consistent 7cm × 9.5cm per cell (so 1×2 = the "2-horizontal" 14×9.5cm insert, 2×2 = the
+ * 4-card 14×19cm insert, 3×3 = the full-page 21×28.5cm). A real card is portrait (63×88), an
+ * aspect only square blocks (1×1, 2×2, 3×3) preserve — so only those carry cards; artwork
+ * panels + tonal inserts take any shape (cropped/chosen to fit). See woahpoke.com/michi-method.
  */
-const SHAPES: { label: string; rows: number; cols: number }[] = [
-  { label: '1×1', rows: 1, cols: 1 },
-  { label: '1×2', rows: 1, cols: 2 },
-  { label: '2×1', rows: 2, cols: 1 },
-  { label: '2×2', rows: 2, cols: 2 },
-  { label: '1×3', rows: 1, cols: 3 },
-  { label: '3×1', rows: 3, cols: 1 },
-  { label: '2×3', rows: 2, cols: 3 },
-  { label: '3×2', rows: 3, cols: 2 },
-  { label: '3×3', rows: 3, cols: 3 },
+const CELL_W_CM = 7;
+const CELL_H_CM = 9.5;
+const cm = (rows: number, cols: number) => `${cols * CELL_W_CM}×${rows * CELL_H_CM}cm`;
+
+const SHAPES: { label: string; rows: number; cols: number; size: string }[] = [
+  { label: '1×1', rows: 1, cols: 1, size: cm(1, 1) },
+  { label: '1×2', rows: 1, cols: 2, size: cm(1, 2) },
+  { label: '2×1', rows: 2, cols: 1, size: cm(2, 1) },
+  { label: '2×2', rows: 2, cols: 2, size: cm(2, 2) },
+  { label: '1×3', rows: 1, cols: 3, size: cm(1, 3) },
+  { label: '3×1', rows: 3, cols: 1, size: cm(3, 1) },
+  { label: '2×3', rows: 2, cols: 3, size: cm(2, 3) },
+  { label: '3×2', rows: 3, cols: 2, size: cm(3, 2) },
+  { label: '3×3', rows: 3, cols: 3, size: cm(3, 3) },
 ];
 
 interface CardPickerProps {
@@ -108,8 +114,8 @@ export function CardPicker({
             </Pressable>
           </View>
 
-          {/* Shape selector — sizes that don't fit from this pocket are disabled. */}
-          <View style={styles.controlsRow}>
+          {/* Shape selector — real Michi print sizes; shapes that don't fit here are disabled. */}
+          <View style={styles.shapeRow}>
             <Text style={styles.controlsLabel}>Shape</Text>
             {SHAPES.map((s) => {
               const enabled = fits(s.rows, s.cols);
@@ -119,8 +125,9 @@ export function CardPicker({
                   key={s.label}
                   disabled={!enabled}
                   onPress={() => setShape({ rows: s.rows, cols: s.cols })}
-                  style={[styles.spanChip, active && styles.spanChipActive, !enabled && styles.disabled]}>
+                  style={[styles.shapeChip, active && styles.spanChipActive, !enabled && styles.disabled]}>
                   <Text style={[styles.spanChipText, active && styles.spanChipTextActive]}>{s.label}</Text>
+                  <Text style={[styles.shapeSize, active && styles.shapeSizeActive]}>{s.size}</Text>
                 </Pressable>
               );
             })}
@@ -320,6 +327,17 @@ const styles = StyleSheet.create({
   spanChipActive: { backgroundColor: '#3B82F6' },
   spanChipText: { fontSize: 13, color: '#333' },
   spanChipTextActive: { color: '#fff', fontWeight: '600' },
+  shapeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' },
+  shapeChip: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f3',
+    alignItems: 'center',
+    minWidth: 58,
+  },
+  shapeSize: { fontSize: 9, color: '#8a8a93', marginTop: 1 },
+  shapeSizeActive: { color: '#dbe7ff' },
   disabled: { opacity: 0.3 },
   hint: { fontSize: 12, color: '#999', marginTop: 4, marginBottom: 4, lineHeight: 17, width: '100%' },
   input: {

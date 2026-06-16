@@ -20,7 +20,32 @@ import { useBinders } from '@/store/binders';
 import { useTheme } from '@/hooks/use-theme';
 import { MICHI_LAYOUT_STYLES } from '@/types/domain';
 
-const BG_SWATCHES = ['#FFFFFF', '#F3EEE6', '#EAF3F8', '#FBF6EC', '#F7E9F0', '#1B1410', '#101418'];
+const BG_SWATCHES = [
+  // Light / cream / pastel mats
+  '#FFFFFF',
+  '#F3ECDD',
+  '#FBF4D6',
+  '#E7F1F8',
+  '#F7E9F0',
+  '#F5EFE6',
+  '#F3EEE6',
+  '#EAF3F8',
+  // Tonal mids
+  '#D9C7B0',
+  '#A7B5C2',
+  // Dark mats
+  '#141A24',
+  '#1B1410',
+  '#10141C',
+  '#1C1726',
+];
+
+const PAGE_SIZES: { label: string; rows: number; cols: number }[] = [
+  { label: '3×3', rows: 3, cols: 3 },
+  { label: '3×4', rows: 3, cols: 4 },
+  { label: '4×3', rows: 4, cols: 3 },
+  { label: '4×4', rows: 4, cols: 4 },
+];
 
 interface BinderScreenProps {
   binderId: string;
@@ -64,6 +89,12 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const handleSetSpan = (rowSpan: number, colSpan: number) => {
     if (!pickerCell) return;
     store.upsertSlot(binder.id, page.id, { ...pickerCell, rowSpan, colSpan });
+  };
+
+  const handlePickInsert = (insertColor: string) => {
+    if (!pickerCell) return;
+    store.upsertSlot(binder.id, page.id, { ...pickerCell, type: 'insert', insertColor });
+    closePicker();
   };
 
   const handleClear = () => {
@@ -175,6 +206,27 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                 </View>
 
                 <ThemedText type="small" themeColor="textSecondary" style={styles.fieldLabel}>
+                  Page size
+                </ThemedText>
+                <View style={styles.chipRow}>
+                  {PAGE_SIZES.map((size) => {
+                    const active = page.rows === size.rows && page.cols === size.cols;
+                    return (
+                      <Pressable
+                        key={size.label}
+                        onPress={() =>
+                          store.updatePage(binder.id, page.id, { rows: size.rows, cols: size.cols })
+                        }
+                        style={[styles.chip, active && styles.chipActive]}>
+                        <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                          {size.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                <ThemedText type="small" themeColor="textSecondary" style={styles.fieldLabel}>
                   Page background
                 </ThemedText>
                 <View style={styles.swatchRow}>
@@ -229,6 +281,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           onClose={closePicker}
           onPickCard={handlePickCard}
           onSetSpan={handleSetSpan}
+          onPickInsert={handlePickInsert}
           onClear={handleClear}
         />
       </ThemedView>

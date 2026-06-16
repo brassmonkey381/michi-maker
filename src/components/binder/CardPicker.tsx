@@ -10,6 +10,22 @@ const SPANS: { label: string; rowSpan: number; colSpan: number }[] = [
   { label: '1×2', rowSpan: 1, colSpan: 2 },
   { label: '2×1', rowSpan: 2, colSpan: 1 },
   { label: '2×2', rowSpan: 2, colSpan: 2 },
+  { label: '1×3', rowSpan: 1, colSpan: 3 },
+  { label: '3×1', rowSpan: 3, colSpan: 1 },
+  { label: '2×3', rowSpan: 2, colSpan: 3 },
+  { label: '3×2', rowSpan: 3, colSpan: 2 },
+  { label: 'Full page', rowSpan: 3, colSpan: 3 },
+];
+
+/** Tasteful tonal inserts for filling a pocket with negative space. */
+const INSERT_TONES: { label: string; color: string }[] = [
+  { label: 'Cream', color: '#F3ECDD' },
+  { label: 'Sand', color: '#E4D5BB' },
+  { label: 'Slate', color: '#5C6B7A' },
+  { label: 'Dusk', color: '#3B3A52' },
+  { label: 'Blush', color: '#E9CBD1' },
+  { label: 'Sky', color: '#C7DBE8' },
+  { label: 'Charcoal', color: '#2A2A30' },
 ];
 
 interface CardPickerProps {
@@ -19,6 +35,8 @@ interface CardPickerProps {
   onClose: () => void;
   onPickCard: (cardId: string) => void;
   onSetSpan: (rowSpan: number, colSpan: number) => void;
+  /** Fill the pocket with a tonal colour insert (negative space). */
+  onPickInsert: (color: string) => void;
   onClear: () => void;
 }
 
@@ -28,8 +46,10 @@ export function CardPicker({
   onClose,
   onPickCard,
   onSetSpan,
+  onPickInsert,
   onClear,
 }: CardPickerProps) {
+  const activeInsert = slot?.type === 'insert' ? slot.insertColor : undefined;
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.backdrop}>
@@ -64,6 +84,28 @@ export function CardPicker({
               </Pressable>
             </View>
           )}
+
+          <View style={styles.controlsRow}>
+            <Text style={styles.controlsLabel}>Insert</Text>
+            {INSERT_TONES.map((tone) => {
+              const active = activeInsert === tone.color;
+              return (
+                <Pressable
+                  key={tone.color}
+                  accessibilityLabel={`${tone.label} insert`}
+                  onPress={() => onPickInsert(tone.color)}
+                  style={[
+                    styles.insertSwatch,
+                    { backgroundColor: tone.color },
+                    active && styles.insertSwatchActive,
+                  ]}
+                />
+              );
+            })}
+            <Pressable onPress={onClear} style={styles.emptyBtn}>
+              <Text style={styles.emptyText}>Leave empty</Text>
+            </Pressable>
+          </View>
 
           <ScrollView contentContainerStyle={styles.grid}>
             {CARDS.map((card) => {
@@ -169,6 +211,29 @@ const styles = StyleSheet.create({
   clearText: {
     fontSize: 13,
     color: '#c0392b',
+    fontWeight: '600',
+  },
+  insertSwatch: {
+    width: 26,
+    height: 26,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: 'rgba(128,128,128,0.35)',
+  },
+  insertSwatchActive: {
+    borderWidth: 3,
+    borderColor: '#3B82F6',
+  },
+  emptyBtn: {
+    marginLeft: 'auto',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f3',
+  },
+  emptyText: {
+    fontSize: 13,
+    color: '#555',
     fontWeight: '600',
   },
   grid: {

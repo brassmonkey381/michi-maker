@@ -1,5 +1,13 @@
 import { Image } from 'expo-image';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  type SharedValue,
+} from 'react-native-reanimated';
 
 import { BinderSurface, Radii, Shadows, SlotBackingFallback } from '@/constants/theme';
 import { CARDS_BY_ID } from '@/data/sampleData';
@@ -15,7 +23,17 @@ interface BinderGridProps {
   selectedSlotId?: string | null;
   onSlotPress?: (slot: DemoSlot) => void;
   onCellPress?: (row: number, col: number) => void;
+  /** Drag-and-drop: a slot was dropped with its top-left over (toRow, toCol). */
+  onDropSlot?: (slotId: string, toRow: number, toCol: number) => void;
 }
+
+type BoxStyle = {
+  position: 'absolute';
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
 
 /** Append ~13% alpha to a #rrggbb colour for a soft slot backing. */
 function tint(hex?: string): string {
@@ -34,6 +52,7 @@ export function BinderGrid({
   selectedSlotId,
   onSlotPress,
   onCellPress,
+  onDropSlot,
 }: BinderGridProps) {
   const small = width < 220;
   const pad = small ? 6 : 12;
@@ -46,13 +65,23 @@ export function BinderGrid({
   const cellH = cellW * CARD_ASPECT;
   const innerH = cellH * page.rows + gap * (page.rows - 1);
 
-  const box = (row: number, col: number, rowSpan: number, colSpan: number) => ({
-    position: 'absolute' as const,
+  const box = (row: number, col: number, rowSpan: number, colSpan: number): BoxStyle => ({
+    position: 'absolute',
     left: col * (cellW + gap),
     top: row * (cellH + gap),
     width: colSpan * cellW + (colSpan - 1) * gap,
     height: rowSpan * cellH + (rowSpan - 1) * gap,
   });
+
+  // Shared drag state: which slot is lifted, and its live translation. Only one drags at a time.
+  const dragX = useSharedValue(0);
+  const dragY = useSharedValue(0);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const dragged = dragId ? page.slots.find((s) => s.id === dragId) : undefined;
+
+  const ghostStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: dragX.value }, { translateY: dragY.value }, { scale: 1.06 }],
+  }));
 
   const occupied = occupiedCells(page);
   const emptyCells: { row: number; col: number }[] = [];
@@ -96,8 +125,8 @@ export function BinderGrid({
         {/* Placed slots. */}
         {page.slots.map((slot) => {
           const selected = editable && slot.id === selectedSlotId;
+          const style = box(slot.row, slot.col, slot.rowSpan, slot.colSpan);
           const content = <SlotContent slot={slot} radius={slotRadius} small={small} />;
-          const style = [box(slot.row, slot.col, slot.rowSpan, slot.colSpan)];
           if (!editable) {
             return (
               <View key={slot.id} style={style}>
@@ -106,16 +135,118 @@ export function BinderGrid({
             );
           }
           return (
-            <Pressable
+            <DraggableSlot
               key={slot.id}
-              style={[style, selected && { ...styles.selected, borderRadius: slotRadius + 2 }]}
-              onPress={() => onSlotPress?.(slot)}>
+              slot={slot}
+              boxStyle={style}
+              selected={selected}
+              slotRadius={slotRadius}
+              dimmed={slot.id === dragId}
+              cellW={cellW}
+              cellH={cellH}
+              gap={gap}
+              dragX={dragX}
+              dragY={dragY}
+              onSetDragId={setDragId}
+              onTap={onSlotPress}
+              onDropSlot={onDropSlot}>
               {content}
-            </Pressable>
+            </DraggableSlot>
           );
         })}
+
+        {/* Floating ghost of the slot being dragged (rendered above everything). */}
+        {dragged ? (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              box(dragged.row, dragged.col, dragged.rowSpan, dragged.colSpan),
+              styles.ghost,
+              ghostStyle,
+            ]}>
+            <SlotContent slot={dragged} radius={slotRadius} small={small} />
+          </Animated.View>
+        ) : null}
       </View>
     </View>
+  );
+}
+
+interface DraggableSlotProps {
+  slot: DemoSlot;
+  boxStyle: BoxStyle;
+  selected: boolean;
+  slotRadius: number;
+  dimmed: boolean;
+  cellW: number;
+  cellH: number;
+  gap: number;
+  dragX: SharedValue<number>;
+  dragY: SharedValue<number>;
+  onSetDragId: (id: string | null) => void;
+  onTap?: (slot: DemoSlot) => void;
+  onDropSlot?: (slotId: string, toRow: number, toCol: number) => void;
+  children: React.ReactNode;
+}
+
+function DraggableSlot({
+  slot,
+  boxStyle,
+  selected,
+  slotRadius,
+  dimmed,
+  cellW,
+  cellH,
+  gap,
+  dragX,
+  dragY,
+  onSetDragId,
+  onTap,
+  onDropSlot,
+  children,
+}: DraggableSlotProps) {
+  const gesture = useMemo(() => {
+    const stepX = cellW + gap;
+    const stepY = cellH + gap;
+    const pan = Gesture.Pan()
+      .activeOffsetX([-8, 8])
+      .activeOffsetY([-8, 8])
+      .onBegin(() => {
+        dragX.value = 0;
+        dragY.value = 0;
+      })
+      .onStart(() => {
+        runOnJS(onSetDragId)(slot.id);
+      })
+      .onUpdate((e) => {
+        dragX.value = e.translationX;
+        dragY.value = e.translationY;
+      })
+      .onEnd((e) => {
+        const targetCol = Math.round((slot.col * stepX + e.translationX) / stepX);
+        const targetRow = Math.round((slot.row * stepY + e.translationY) / stepY);
+        if (onDropSlot) runOnJS(onDropSlot)(slot.id, targetRow, targetCol);
+      })
+      .onFinalize(() => {
+        runOnJS(onSetDragId)(null);
+      });
+    const tap = Gesture.Tap().onEnd(() => {
+      if (onTap) runOnJS(onTap)(slot);
+    });
+    return Gesture.Exclusive(pan, tap);
+  }, [slot, cellW, cellH, gap, dragX, dragY, onSetDragId, onTap, onDropSlot]);
+
+  return (
+    <GestureDetector gesture={gesture}>
+      <View
+        style={[
+          boxStyle,
+          dimmed && styles.dimmed,
+          selected && { ...styles.selected, borderRadius: slotRadius + 2 },
+        ]}>
+        {children}
+      </View>
+    </GestureDetector>
   );
 }
 
@@ -221,6 +352,17 @@ const styles = StyleSheet.create({
   addPlus: {
     fontSize: 22,
     color: 'rgba(128,128,128,0.7)',
+  },
+  dimmed: {
+    opacity: 0.22,
+  },
+  ghost: {
+    zIndex: 50,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 12,
   },
   fill: {
     width: '100%',

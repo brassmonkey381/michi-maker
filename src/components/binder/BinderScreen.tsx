@@ -13,9 +13,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BinderGrid } from '@/components/binder/BinderGrid';
 import { CardPicker } from '@/components/binder/CardPicker';
+import { PageStrip } from '@/components/binder/PageStrip';
 import { layoutLabel } from '@/components/binder/BinderThumb';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { slotCells } from '@/data/binderTypes';
+import { footprintForKind } from '@/data/cardSizing';
+import { CARDS_BY_ID } from '@/data/sampleData';
 import { useBinders } from '@/store/binders';
 import { useTheme } from '@/hooks/use-theme';
 import { MICHI_LAYOUT_STYLES } from '@/types/domain';
@@ -80,26 +84,60 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
 
   const closePicker = () => setPickerCell(null);
 
+  // Placing a card: its footprint comes from its real-world kind (standard 1×1, jumbo 2×2),
+  // so a piece's shape always matches its pocket.
   const handlePickCard = (cardId: string) => {
     if (!pickerCell) return;
-    store.upsertSlot(binder.id, page.id, { ...pickerCell, cardId, type: 'card' });
+    const { rows, cols } = footprintForKind(CARDS_BY_ID[cardId]?.kind);
+    store.upsertSlot(binder.id, page.id, {
+      ...pickerCell,
+      cardId,
+      type: 'card',
+      rowSpan: rows,
+      colSpan: cols,
+    });
     closePicker();
   };
 
-  const handleSetSpan = (rowSpan: number, colSpan: number) => {
+  const handlePickVUnion = (pieces: readonly string[]) => {
     if (!pickerCell) return;
-    store.upsertSlot(binder.id, page.id, { ...pickerCell, rowSpan, colSpan });
+    store.placeVUnion(binder.id, page.id, pickerCell.row, pickerCell.col, pieces);
+    closePicker();
   };
 
-  const handlePickInsert = (insertColor: string) => {
+  const handlePickInsert = (insertColor: string, rowSpan: number, colSpan: number) => {
     if (!pickerCell) return;
-    store.upsertSlot(binder.id, page.id, { ...pickerCell, type: 'insert', insertColor });
+    store.upsertSlot(binder.id, page.id, { ...pickerCell, type: 'insert', insertColor, rowSpan, colSpan });
     closePicker();
   };
 
   const handleClear = () => {
     if (pickerCell && slotAtCell) store.removeSlot(binder.id, page.id, slotAtCell.id);
     closePicker();
+  };
+
+  // Drag-and-drop: drop a slot onto a target cell. Same-footprint occupant → swap; empty →
+  // move; otherwise moveSlot no-ops and the card springs back.
+  const handleDropSlot = (slotId: string, toRow: number, toCol: number) => {
+    const moving = page.slots.find((s) => s.id === slotId);
+    if (!moving) return;
+    const r = Math.max(0, Math.min(toRow, page.rows - moving.rowSpan));
+    const c = Math.max(0, Math.min(toCol, page.cols - moving.colSpan));
+    if (r === moving.row && c === moving.col) return;
+    const occupant = page.slots.find(
+      (s) => s.id !== slotId && slotCells(s).includes(`${r},${c}`),
+    );
+    if (
+      occupant &&
+      occupant.row === r &&
+      occupant.col === c &&
+      occupant.rowSpan === moving.rowSpan &&
+      occupant.colSpan === moving.colSpan
+    ) {
+      store.swapSlots(binder.id, page.id, slotId, occupant.id);
+    } else {
+      store.moveSlot(binder.id, page.id, slotId, r, c);
+    }
   };
 
   return (
@@ -166,6 +204,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                 selectedSlotId={slotAtCell?.id}
                 onCellPress={(row, col) => setPickerCell({ row, col })}
                 onSlotPress={(slot) => setPickerCell({ row: slot.row, col: slot.col })}
+                onDropSlot={handleDropSlot}
               />
               {page.title ? (
                 <ThemedText type="small" themeColor="textSecondary" style={styles.pageTitle}>
@@ -184,7 +223,20 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                   </ThemedView>
                 )}
 
+                {/* Page filmstrip — tap to jump, drag to reorder. */}
+                <PageStrip
+                  pages={binder.pages}
+                  currentIndex={idx}
+                  onSelect={setPageIndex}
+                  onReorder={(from, to) => {
+                    store.reorderPages(binder.id, from, to);
+                    setPageIndex(to);
+                  }}
+                />
+
                 <View style={styles.btnRow}>
+                  <PillButton label="↶ Undo" onPress={store.undo} disabled={!store.canUndo} />
+                  <PillButton label="↷ Redo" onPress={store.redo} disabled={!store.canRedo} />
                   <PillButton label="+ Page" onPress={() => store.addPage(binder.id)} />
                   {binder.pages.length > 1 && (
                     <PillButton
@@ -277,10 +329,12 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
 
         <CardPicker
           visible={pickerCell != null}
+          page={page}
+          cell={pickerCell}
           slot={slotAtCell}
           onClose={closePicker}
           onPickCard={handlePickCard}
-          onSetSpan={handleSetSpan}
+          onPickVUnion={handlePickVUnion}
           onPickInsert={handlePickInsert}
           onClear={handleClear}
         />
@@ -311,18 +365,22 @@ function PillButton({
   label,
   onPress,
   tone = 'default',
+  disabled = false,
 }: {
   label: string;
   onPress: () => void;
   tone?: 'default' | 'danger';
+  disabled?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       style={({ pressed }) => [
         styles.pill,
         tone === 'danger' && styles.pillDanger,
         pressed && styles.pressed,
+        disabled && styles.pillDisabled,
       ]}>
       <Text style={[styles.pillText, tone === 'danger' && styles.pillTextDanger]}>{label}</Text>
     </Pressable>
@@ -390,6 +448,7 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 13, color: '#333' },
   chipTextActive: { color: '#fff', fontWeight: '600' },
   pill: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, backgroundColor: '#f0f0f3' },
+  pillDisabled: { opacity: 0.4 },
   pillDanger: { backgroundColor: '#fdeaea' },
   pillText: { fontSize: 14, fontWeight: '600', color: '#333' },
   pillTextDanger: { color: '#c0392b' },

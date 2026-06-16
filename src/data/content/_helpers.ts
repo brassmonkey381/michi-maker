@@ -116,25 +116,10 @@ export function vunion(
 }
 
 /**
- * Verified V-UNION piece ids (TCGdex SWSH Black Star Promos, `swshp`), in
- * [topLeft, topRight, bottomLeft, bottomRight] order for `vunion(...)`.
+ * V-UNION piece id tuples and jumbo card ids — re-exported from the shared card-sizing
+ * module so content authors and the editor UI share one source of truth.
  */
-export const VUNION = {
-  mewtwo: ['swshp-SWSH159', 'swshp-SWSH160', 'swshp-SWSH161', 'swshp-SWSH162'],
-  greninja: ['swshp-SWSH155', 'swshp-SWSH156', 'swshp-SWSH157', 'swshp-SWSH158'],
-  zacian: ['swshp-SWSH163', 'swshp-SWSH164', 'swshp-SWSH165', 'swshp-SWSH166'],
-  pikachu: ['swshp-SWSH139', 'swshp-SWSH140', 'swshp-SWSH141', 'swshp-SWSH142'],
-} as const satisfies Record<string, readonly [string, string, string, string]>;
-
-/** Jumbo (oversized) card ids in the catalogue — reference these from `jumbo(...)`. */
-export const JUMBO = {
-  charizard: 'jumbo-charizard',
-  pikachu: 'jumbo-pikachu',
-  mewtwo: 'jumbo-mewtwo',
-  lugia: 'jumbo-lugia',
-  umbreon: 'jumbo-umbreon',
-  blastoise: 'jumbo-blastoise',
-} as const;
+export { VUNION, JUMBO } from '@/data/cardSizing';
 
 /** A page of slots. Title/background optional; grid defaults to 3×3. */
 export function page(

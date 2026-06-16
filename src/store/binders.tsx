@@ -69,6 +69,7 @@ interface BinderStore {
   removePage: (binderId: string, pageId: string) => void;
   reorderPages: (binderId: string, fromIndex: number, toIndex: number) => void;
   upsertSlot: (binderId: string, pageId: string, slot: SlotInput) => void;
+  placeVUnion: (binderId: string, pageId: string, row: number, col: number, pieces: readonly string[]) => void;
   moveSlot: (binderId: string, pageId: string, slotId: string, toRow: number, toCol: number) => void;
   swapSlots: (binderId: string, pageId: string, slotIdA: string, slotIdB: string) => void;
   removeSlot: (binderId: string, pageId: string, slotId: string) => void;
@@ -352,6 +353,63 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   );
 
   /**
+   * Place a V-UNION as four 1×1 piece-cards filling the 2×2 block whose top-left is (row,col).
+   * Requires a 2×2 to fit in bounds; clears any slots already overlapping those four cells.
+   */
+  const placeVUnion = useCallback(
+    (binderId: string, pageId: string, row: number, col: number, pieces: readonly string[]) => {
+      const target = binders.find((binder) => binder.id === binderId);
+      const page = target?.pages.find((p) => p.id === pageId);
+      if (!target || !page || pieces.length < 4) return;
+      if (row < 0 || col < 0 || row + 2 > page.rows || col + 2 > page.cols) return;
+
+      const positions: [number, number][] = [
+        [row, col],
+        [row, col + 1],
+        [row + 1, col],
+        [row + 1, col + 1],
+      ];
+      const coverCells = new Set(positions.map(([r, c]) => `${r},${c}`));
+      const newSlots: DemoSlot[] = positions.map(([r, c], i) => ({
+        id: uuidv4(),
+        row: r,
+        col: c,
+        rowSpan: 1,
+        colSpan: 1,
+        type: 'card',
+        cardId: pieces[i],
+      }));
+      const removed = page.slots.filter((s) => slotCells(s).some((cell) => coverCells.has(cell)));
+
+      commit((prev) =>
+        prev.map((binder) =>
+          binder.id === binderId
+            ? {
+                ...binder,
+                pages: binder.pages.map((p) =>
+                  p.id === pageId
+                    ? {
+                        ...p,
+                        slots: [
+                          ...p.slots.filter((s) => !removed.some((r2) => r2.id === s.id)),
+                          ...newSlots,
+                        ],
+                      }
+                    : p,
+                ),
+              }
+            : binder,
+        ),
+      );
+      if (!target.isExample) {
+        for (const s of removed) persist(() => repo.deleteSlot(s.id));
+        for (const s of newSlots) persist(() => repo.upsertSlot(pageId, s));
+      }
+    },
+    [binders, commit, persist],
+  );
+
+  /**
    * Move a slot to a new top-left cell (drag-and-drop). Clamps so the slot's footprint stays
    * in bounds; refuses (no-op) if the destination would overlap another slot — the caller
    * (the drag UI) decides whether to snap back or `swapSlots` instead.
@@ -470,6 +528,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       removePage,
       reorderPages,
       upsertSlot,
+      placeVUnion,
       moveSlot,
       swapSlots,
       removeSlot,
@@ -491,6 +550,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       removePage,
       reorderPages,
       upsertSlot,
+      placeVUnion,
       moveSlot,
       swapSlots,
       removeSlot,

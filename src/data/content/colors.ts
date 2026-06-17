@@ -215,6 +215,16 @@ export const binders: ContentModule['binders'] = [
         ],
         { title: 'Canopy', rows: 3, cols: 3, backgroundColor: PINE_MAT },
       ),
+      // art panel page: a pine-forest oil painting as a 2×3 insert over a row of greens.
+      page(
+        [
+          artPanel(0, 0, ART.forest, { rowSpan: 2, colSpan: 3 }),
+          card(2, 0, 'sv03.5-001'),
+          card(2, 1, 'base1-15'),
+          card(2, 2, 'swsh7-167'),
+        ],
+        { title: 'Forest, in oils', rows: 3, cols: 3, backgroundColor: PINE_MAT },
+      ),
       // P2 — 3×4, the Bulbasaur evolution line on sage, lime accents at the corners.
       page(
         [
@@ -326,6 +336,16 @@ export const binders: ContentModule['binders'] = [
           // (2,2) empty
         ],
         { title: 'Silver wing, gold light', rows: 3, cols: 3, backgroundColor: NIGHT_MAT },
+      ),
+      // art panel page: a sunset-sky oil painting as a 2×3 insert over gilded legends.
+      page(
+        [
+          artPanel(0, 0, ART.sunset, { rowSpan: 2, colSpan: 3 }),
+          card(2, 0, 'cel25-22'),
+          card(2, 1, 'cel25-5'),
+          card(2, 2, 'base1-58'),
+        ],
+        { title: 'Gold hour', rows: 3, cols: 3, backgroundColor: NIGHT_MAT },
       ),
       // P2 — 3×4, Pikachu across eras on parchment, framed in gold.
       page(

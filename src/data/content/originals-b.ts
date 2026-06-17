@@ -54,6 +54,16 @@ export const binders: ContentModule['binders'] = [
           card(2, 2, 'cel25-10'),
         ],
       },
+      // art panel page: a tempest oil painting as a 2×3 insert over the cosmic dragons.
+      page(
+        [
+          artPanel(0, 0, ART.storm, { rowSpan: 2, colSpan: 3 }),
+          card(2, 0, 'cel25-10'),
+          card(2, 1, 'cel25-2'),
+          card(2, 2, 'cel25-20'),
+        ],
+        { title: 'Tempest, in oils', rows: 3, cols: 3, backgroundColor: '#10141C' },
+      ),
       // 2 — Lugia, the jumbo box-art hero: an oversized 2×2 promo with a quiet wing of accents.
       page(
         [

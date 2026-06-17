@@ -9,14 +9,29 @@
 
 import type { DemoBinder, DemoCard } from '@/data/binderTypes';
 
+import * as artistFeature from './artist-feature';
 import * as artists from './artists';
 import * as classics from './classics';
 import * as colors from './colors';
 import * as originalsA from './originals-a';
 import * as originalsB from './originals-b';
 import * as spotlight from './spotlight';
+import * as starters from './starters';
+import * as trainer from './trainer';
 
-const MODULES = [originalsA, originalsB, classics, artists, colors, spotlight];
+// The three brief-driven feature binders lead the home screen (display order = module order):
+// Base Set starters, the Misty trainer study, and the Arita single-illustrator gallery.
+const MODULES = [
+  starters,
+  trainer,
+  artistFeature,
+  originalsA,
+  originalsB,
+  classics,
+  artists,
+  colors,
+  spotlight,
+];
 
 export const CONTENT_CARDS: DemoCard[] = MODULES.flatMap((module) => module.cards);
 

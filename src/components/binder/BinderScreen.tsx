@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BinderGrid } from '@/components/binder/BinderGrid';
 import { CardPicker } from '@/components/binder/CardPicker';
 import { PageStrip } from '@/components/binder/PageStrip';
+import { SliceStudio } from '@/components/binder/SliceStudio';
 import { layoutLabel } from '@/components/binder/BinderThumb';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -64,6 +65,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const [editing, setEditing] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
   const [pickerCell, setPickerCell] = useState<{ row: number; col: number } | null>(null);
+  const [studio, setStudio] = useState<
+    { rows: number; cols: number; row: number; col: number; imageUrl?: string } | null
+  >(null);
 
   const binder = store.getBinder(binderId);
 
@@ -114,6 +118,12 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const handlePickSlicedArtwork = (imageUrl: string, rows: number, cols: number) => {
     if (!pickerCell) return;
     store.placeSlicedArtwork(binder.id, page.id, pickerCell.row, pickerCell.col, rows, cols, imageUrl);
+    closePicker();
+  };
+
+  const handleOpenStudio = (imageUrl: string | undefined, rows: number, cols: number) => {
+    if (!pickerCell) return;
+    setStudio({ rows, cols, row: pickerCell.row, col: pickerCell.col, imageUrl });
     closePicker();
   };
 
@@ -356,9 +366,23 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           onPickVUnion={handlePickVUnion}
           onPickArtwork={handlePickArtwork}
           onPickSlicedArtwork={handlePickSlicedArtwork}
+          onOpenSliceStudio={handleOpenStudio}
           onPickInsert={handlePickInsert}
           onClear={handleClear}
         />
+
+        {studio && (
+          <SliceStudio
+            rows={studio.rows}
+            cols={studio.cols}
+            imageUrl={studio.imageUrl}
+            onPlace={(panels) => {
+              store.placeArtPanels(binder.id, page.id, studio.row, studio.col, panels);
+              setStudio(null);
+            }}
+            onClose={() => setStudio(null)}
+          />
+        )}
       </ThemedView>
     </Modal>
   );

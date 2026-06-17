@@ -54,6 +54,16 @@ export interface SlotInput {
   imageUrl?: string;
 }
 
+/** One panel from the slice studio: a grid region of an image plus its crop. */
+export interface ArtPanelInput {
+  r: number;
+  c: number;
+  rs: number;
+  cs: number;
+  imageUrl: string;
+  crop: { x: number; y: number; w: number; h: number };
+}
+
 interface BinderStore {
   binders: DemoBinder[];
   exampleBinders: DemoBinder[];
@@ -79,6 +89,13 @@ interface BinderStore {
     rows: number,
     cols: number,
     imageUrl: string,
+  ) => void;
+  placeArtPanels: (
+    binderId: string,
+    pageId: string,
+    baseRow: number,
+    baseCol: number,
+    panels: ArtPanelInput[],
   ) => void;
   moveSlot: (binderId: string, pageId: string, slotId: string, toRow: number, toCol: number) => void;
   swapSlots: (binderId: string, pageId: string, slotIdA: string, slotIdB: string) => void;
@@ -489,6 +506,67 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   );
 
   /**
+   * Place explicit artwork panels (from the slice studio) at a base offset — each panel keeps
+   * its footprint and crop. Panels that would fall outside the page are skipped; overlaps cleared.
+   */
+  const placeArtPanels = useCallback(
+    (binderId: string, pageId: string, baseRow: number, baseCol: number, panels: ArtPanelInput[]) => {
+      const target = binders.find((binder) => binder.id === binderId);
+      const page = target?.pages.find((p) => p.id === pageId);
+      if (!target || !page) return;
+
+      const coverCells = new Set<string>();
+      const newSlots: DemoSlot[] = [];
+      for (const panel of panels) {
+        const r = baseRow + panel.r;
+        const c = baseCol + panel.c;
+        if (r < 0 || c < 0 || r + panel.rs > page.rows || c + panel.cs > page.cols) continue;
+        for (let i = 0; i < panel.rs; i += 1) {
+          for (let j = 0; j < panel.cs; j += 1) coverCells.add(`${r + i},${c + j}`);
+        }
+        newSlots.push({
+          id: uuidv4(),
+          row: r,
+          col: c,
+          rowSpan: panel.rs,
+          colSpan: panel.cs,
+          type: 'artwork',
+          imageUrl: panel.imageUrl,
+          imageCrop: panel.crop,
+        });
+      }
+      if (newSlots.length === 0) return;
+      const removed = page.slots.filter((s) => slotCells(s).some((cell) => coverCells.has(cell)));
+
+      commit((prev) =>
+        prev.map((binder) =>
+          binder.id === binderId
+            ? {
+                ...binder,
+                pages: binder.pages.map((p) =>
+                  p.id === pageId
+                    ? {
+                        ...p,
+                        slots: [
+                          ...p.slots.filter((s) => !removed.some((r2) => r2.id === s.id)),
+                          ...newSlots,
+                        ],
+                      }
+                    : p,
+                ),
+              }
+            : binder,
+        ),
+      );
+      if (!target.isExample) {
+        for (const s of removed) persist(() => repo.deleteSlot(s.id));
+        for (const s of newSlots) persist(() => repo.upsertSlot(pageId, s));
+      }
+    },
+    [binders, commit, persist],
+  );
+
+  /**
    * Move a slot to a new top-left cell (drag-and-drop). Clamps so the slot's footprint stays
    * in bounds; refuses (no-op) if the destination would overlap another slot — the caller
    * (the drag UI) decides whether to snap back or `swapSlots` instead.
@@ -609,6 +687,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       upsertSlot,
       placeVUnion,
       placeSlicedArtwork,
+      placeArtPanels,
       moveSlot,
       swapSlots,
       removeSlot,
@@ -632,6 +711,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       upsertSlot,
       placeVUnion,
       placeSlicedArtwork,
+      placeArtPanels,
       moveSlot,
       swapSlots,
       removeSlot,

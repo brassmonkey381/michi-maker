@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { VUNION_SETS } from '@/data/cardSizing';
 import { ARTWORK_LIBRARY, domainOf, slotAspect, type ArtworkAsset } from '@/data/artworkLibrary';
 import { artSearchProvider, isArtSearchConfigured, searchArt } from '@/data/artSearch';
+import { useSavedArt } from '@/data/savedArt';
 import { CARDS, CARDS_BY_ID } from '@/data/sampleData';
 import type { DemoPage, DemoSlot } from '@/data/binderTypes';
 
@@ -57,6 +58,8 @@ interface CardPickerProps {
   onPickArtwork: (imageUrl: string, rowSpan: number, colSpan: number) => void;
   /** Slice an image across the rows×cols block — each pocket shows its piece. */
   onPickSlicedArtwork: (imageUrl: string, rows: number, cols: number) => void;
+  /** Open the slice studio for the current pocket at the given grid. */
+  onOpenSliceStudio: (imageUrl: string | undefined, rows: number, cols: number) => void;
   onPickInsert: (color: string, rowSpan: number, colSpan: number) => void;
   onClear: () => void;
 }
@@ -75,9 +78,11 @@ export function CardPicker({
   onPickVUnion,
   onPickArtwork,
   onPickSlicedArtwork,
+  onOpenSliceStudio,
   onPickInsert,
   onClear,
 }: CardPickerProps) {
+  const savedArt = useSavedArt();
   const [shape, setShape] = useState({ rows: 1, cols: 1 });
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -106,9 +111,9 @@ export function CardPicker({
   // Artwork suggestions: theme-filtered, with art that matches this slot's aspect first.
   const q = query.trim().toLowerCase();
   const targetAspect = slotAspect(shape.rows, shape.cols);
-  const library = ARTWORK_LIBRARY.filter(
-    (a) => !q || a.title.toLowerCase().includes(q) || a.themes.some((t) => t.includes(q)),
-  ).sort((a, b) => (a.aspect === targetAspect ? 0 : 1) - (b.aspect === targetAspect ? 0 : 1));
+  const library = [...savedArt, ...ARTWORK_LIBRARY]
+    .filter((a) => !q || a.title.toLowerCase().includes(q) || a.themes.some((t) => t.includes(q)))
+    .sort((a, b) => (a.aspect === targetAspect ? 0 : 1) - (b.aspect === targetAspect ? 0 : 1));
 
   // Live, orientation-matched results from the configured image API (debounced).
   const [live, setLive] = useState<ArtworkAsset[]>([]);
@@ -267,8 +272,13 @@ export function CardPicker({
                 onChangeText={setQuery}
                 placeholder="Search art (e.g. fire, ocean)"
                 placeholderTextColor="#aaa"
-                style={styles.input}
+                style={[styles.input, styles.inputGrow]}
               />
+              <Pressable
+                onPress={() => onOpenSliceStudio(slot?.imageUrl, shape.rows, shape.cols)}
+                style={styles.studioBtn}>
+                <Text style={styles.studioBtnText}>✂ Slice studio</Text>
+              </Pressable>
             </View>
             {!isArtSearchConfigured ? (
               <Text style={styles.hint}>
@@ -446,6 +456,8 @@ const styles = StyleSheet.create({
   },
   artHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   artMeta: { fontSize: 10, color: '#3B82F6', fontWeight: '600' },
+  studioBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#14131A' },
+  studioBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   thumb: { width: 70, borderRadius: 8, padding: 3 },
   artThumb: { width: 86, borderRadius: 8, padding: 3 },

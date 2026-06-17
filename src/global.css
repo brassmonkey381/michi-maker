@@ -7,3 +7,19 @@
   --font-rounded: 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif;
   --font-serif: Georgia, 'Times New Roman', serif;
 }
+
+/*
+ * On web, images and many elements are natively draggable — that starts a browser image-drag
+ * (the "no-drop" cursor) and steals the gesture from react-native-gesture-handler, breaking the
+ * binder's drag-to-move and the slice-studio canvas pan. Disable native dragging so those
+ * gestures receive the mouse drag instead.
+ */
+img,
+[draggable='true'] {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+  user-select: none;
+}

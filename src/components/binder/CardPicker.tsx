@@ -5,6 +5,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { ThemedText } from '@/components/themed-text';
 import { VUNION_SETS } from '@/data/cardSizing';
 import { ARTWORK_LIBRARY, domainOf, slotAspect, type ArtworkAsset } from '@/data/artworkLibrary';
+import { artSearchProvider, isArtSearchConfigured, searchArt } from '@/data/artSearch';
 import { CARDS, CARDS_BY_ID } from '@/data/sampleData';
 import type { DemoPage, DemoSlot } from '@/data/binderTypes';
 
@@ -94,9 +95,43 @@ export function CardPicker({
   // Artwork suggestions: theme-filtered, with art that matches this slot's aspect first.
   const q = query.trim().toLowerCase();
   const targetAspect = slotAspect(shape.rows, shape.cols);
-  const artwork = ARTWORK_LIBRARY.filter(
+  const library = ARTWORK_LIBRARY.filter(
     (a) => !q || a.title.toLowerCase().includes(q) || a.themes.some((t) => t.includes(q)),
   ).sort((a, b) => (a.aspect === targetAspect ? 0 : 1) - (b.aspect === targetAspect ? 0 : 1));
+
+  // Live, orientation-matched results from the configured image API (debounced).
+  const [live, setLive] = useState<ArtworkAsset[]>([]);
+  const [searching, setSearching] = useState(false);
+  useEffect(() => {
+    if (!isArtSearchConfigured) return;
+    let active = true;
+    const term = query.trim();
+    const handle = setTimeout(() => {
+      if (!term) {
+        if (active) setLive([]);
+        return;
+      }
+      if (active) setSearching(true);
+      searchArt(term, targetAspect).then((results) => {
+        if (active) {
+          setLive(results);
+          setSearching(false);
+        }
+      });
+    }, 350);
+    return () => {
+      active = false;
+      clearTimeout(handle);
+    };
+  }, [query, targetAspect]);
+
+  // Live results (fresh, aspect-matched) first, then the bundled library — de-duped by URL.
+  const seenArt = new Set<string>();
+  const artwork = [...live, ...library].filter((a) => {
+    if (seenArt.has(a.url)) return false;
+    seenArt.add(a.url);
+    return true;
+  });
 
   const urlValid = /^https?:\/\/\S+$/i.test(urlInput.trim());
   const title = slot ? 'Edit pocket' : 'Add to pocket';
@@ -190,7 +225,12 @@ export function CardPicker({
             ) : null}
 
             {/* Artwork panels — themed art that fits the chosen shape (cropped to cover). */}
-            <Text style={styles.sectionLabel}>Artwork panel · {sizeLabel}</Text>
+            <View style={styles.artHeader}>
+              <Text style={styles.sectionLabel}>Artwork panel · {sizeLabel}</Text>
+              {isArtSearchConfigured ? (
+                <Text style={styles.artMeta}>{searching ? 'searching…' : `via ${artSearchProvider}`}</Text>
+              ) : null}
+            </View>
             <View style={styles.controlsRow}>
               <TextInput
                 value={query}
@@ -200,6 +240,12 @@ export function CardPicker({
                 style={styles.input}
               />
             </View>
+            {!isArtSearchConfigured ? (
+              <Text style={styles.hint}>
+                Live art search is off — add EXPO_PUBLIC_PEXELS_KEY or EXPO_PUBLIC_PIXABAY_KEY to
+                .env to auto-suggest themed art. Showing the bundled library for now.
+              </Text>
+            ) : null}
             <View style={styles.grid}>
               {artwork.map((art) => (
                 <ArtThumb
@@ -368,6 +414,8 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 6,
   },
+  artHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  artMeta: { fontSize: 10, color: '#3B82F6', fontWeight: '600' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   thumb: { width: 70, borderRadius: 8, padding: 3 },
   artThumb: { width: 86, borderRadius: 8, padding: 3 },

@@ -71,6 +71,15 @@ interface BinderStore {
   reorderPages: (binderId: string, fromIndex: number, toIndex: number) => void;
   upsertSlot: (binderId: string, pageId: string, slot: SlotInput) => void;
   placeVUnion: (binderId: string, pageId: string, row: number, col: number, pieces: readonly string[]) => void;
+  placeSlicedArtwork: (
+    binderId: string,
+    pageId: string,
+    row: number,
+    col: number,
+    rows: number,
+    cols: number,
+    imageUrl: string,
+  ) => void;
   moveSlot: (binderId: string, pageId: string, slotId: string, toRow: number, toCol: number) => void;
   swapSlots: (binderId: string, pageId: string, slotIdA: string, slotIdB: string) => void;
   removeSlot: (binderId: string, pageId: string, slotId: string) => void;
@@ -413,6 +422,73 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   );
 
   /**
+   * Slice one image across an `rows`×`cols` block of pockets: each cell becomes its own 1×1
+   * artwork slot showing that fraction of the image, so it reads as a sliced scene with binder
+   * gaps between the pieces. Each piece is a normal slot (draggable/editable). Clears overlaps.
+   */
+  const placeSlicedArtwork = useCallback(
+    (
+      binderId: string,
+      pageId: string,
+      row: number,
+      col: number,
+      rows: number,
+      cols: number,
+      imageUrl: string,
+    ) => {
+      const target = binders.find((binder) => binder.id === binderId);
+      const page = target?.pages.find((p) => p.id === pageId);
+      if (!target || !page) return;
+      if (row < 0 || col < 0 || row + rows > page.rows || col + cols > page.cols) return;
+
+      const coverCells = new Set<string>();
+      const newSlots: DemoSlot[] = [];
+      for (let i = 0; i < rows; i += 1) {
+        for (let j = 0; j < cols; j += 1) {
+          coverCells.add(`${row + i},${col + j}`);
+          newSlots.push({
+            id: uuidv4(),
+            row: row + i,
+            col: col + j,
+            rowSpan: 1,
+            colSpan: 1,
+            type: 'artwork',
+            imageUrl,
+            imageCrop: { x: j / cols, y: i / rows, w: 1 / cols, h: 1 / rows },
+          });
+        }
+      }
+      const removed = page.slots.filter((s) => slotCells(s).some((cell) => coverCells.has(cell)));
+
+      commit((prev) =>
+        prev.map((binder) =>
+          binder.id === binderId
+            ? {
+                ...binder,
+                pages: binder.pages.map((p) =>
+                  p.id === pageId
+                    ? {
+                        ...p,
+                        slots: [
+                          ...p.slots.filter((s) => !removed.some((r2) => r2.id === s.id)),
+                          ...newSlots,
+                        ],
+                      }
+                    : p,
+                ),
+              }
+            : binder,
+        ),
+      );
+      if (!target.isExample) {
+        for (const s of removed) persist(() => repo.deleteSlot(s.id));
+        for (const s of newSlots) persist(() => repo.upsertSlot(pageId, s));
+      }
+    },
+    [binders, commit, persist],
+  );
+
+  /**
    * Move a slot to a new top-left cell (drag-and-drop). Clamps so the slot's footprint stays
    * in bounds; refuses (no-op) if the destination would overlap another slot — the caller
    * (the drag UI) decides whether to snap back or `swapSlots` instead.
@@ -532,6 +608,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       reorderPages,
       upsertSlot,
       placeVUnion,
+      placeSlicedArtwork,
       moveSlot,
       swapSlots,
       removeSlot,
@@ -554,6 +631,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       reorderPages,
       upsertSlot,
       placeVUnion,
+      placeSlicedArtwork,
       moveSlot,
       swapSlots,
       removeSlot,

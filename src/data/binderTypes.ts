@@ -51,6 +51,11 @@ export interface DemoSlot {
   insertColor?: string;
   /** Custom artwork image (used by 'artwork' slots that aren't a catalogue card). */
   imageUrl?: string;
+  /**
+   * For a sliced artwork (a full image spread across several pockets): the sub-rectangle of
+   * `imageUrl` this slot shows, as fractions 0–1 of the whole image. Absent ⇒ show the whole.
+   */
+  imageCrop?: { x: number; y: number; w: number; h: number };
 }
 
 export interface DemoPage {

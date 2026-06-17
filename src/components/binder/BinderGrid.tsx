@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type DimensionValue } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -250,8 +250,22 @@ function DraggableSlot({
   );
 }
 
-/** A custom artwork panel image, with a visible fallback if the URL fails to load. */
-function ArtworkImage({ uri, radius, small }: { uri: string; radius: number; small: boolean }) {
+/**
+ * A custom artwork panel image, with a visible fallback if the URL fails to load. When `crop`
+ * is given (a sliced artwork), the image is sized to the whole grid and offset so this slot
+ * shows just its sub-rectangle — so one image reads as a sliced scene across the pockets.
+ */
+function ArtworkImage({
+  uri,
+  radius,
+  small,
+  crop,
+}: {
+  uri: string;
+  radius: number;
+  small: boolean;
+  crop?: DemoSlot['imageCrop'];
+}) {
   const [failed, setFailed] = useState(false);
   if (failed) {
     return (
@@ -260,14 +274,18 @@ function ArtworkImage({ uri, radius, small }: { uri: string; radius: number; sma
       </View>
     );
   }
+  const imgStyle = crop
+    ? {
+        position: 'absolute' as const,
+        width: `${100 / crop.w}%` as DimensionValue,
+        height: `${100 / crop.h}%` as DimensionValue,
+        left: `${(-crop.x / crop.w) * 100}%` as DimensionValue,
+        top: `${(-crop.y / crop.h) * 100}%` as DimensionValue,
+      }
+    : styles.fill;
   return (
     <View style={[styles.fill, styles.artworkPanel, { borderRadius: radius }]}>
-      <Image
-        source={{ uri }}
-        style={styles.fill}
-        contentFit="cover"
-        onError={() => setFailed(true)}
-      />
+      <Image source={{ uri }} style={imgStyle} contentFit="cover" onError={() => setFailed(true)} />
     </View>
   );
 }
@@ -303,9 +321,10 @@ function SlotContent({ slot, radius, small }: { slot: DemoSlot; radius: number; 
     );
   }
 
-  // A custom artwork panel — a pasted / playground image, sized to fill the slot.
+  // A custom artwork panel — a pasted / playground image, sized to fill the slot (or a slice
+  // of a larger image when imageCrop is set).
   if (slot.type === 'artwork' && slot.imageUrl) {
-    return <ArtworkImage uri={slot.imageUrl} radius={radius} small={small} />;
+    return <ArtworkImage uri={slot.imageUrl} radius={radius} small={small} crop={slot.imageCrop} />;
   }
 
   const cardData = slot.cardId ? CARDS_BY_ID[slot.cardId] : undefined;

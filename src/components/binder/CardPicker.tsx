@@ -55,6 +55,8 @@ interface CardPickerProps {
   onPickVUnion: (pieces: readonly string[]) => void;
   /** Place a custom artwork image (playground art or a pasted URL) at the chosen shape. */
   onPickArtwork: (imageUrl: string, rowSpan: number, colSpan: number) => void;
+  /** Slice an image across the rows×cols block — each pocket shows its piece. */
+  onPickSlicedArtwork: (imageUrl: string, rows: number, cols: number) => void;
   onPickInsert: (color: string, rowSpan: number, colSpan: number) => void;
   onClear: () => void;
 }
@@ -72,6 +74,7 @@ export function CardPicker({
   onPickCard,
   onPickVUnion,
   onPickArtwork,
+  onPickSlicedArtwork,
   onPickInsert,
   onClear,
 }: CardPickerProps) {
@@ -83,6 +86,7 @@ export function CardPicker({
 
   const [query, setQuery] = useState(themeHint ?? '');
   const [urlInput, setUrlInput] = useState('');
+  const [sliced, setSliced] = useState(false);
 
   const fits = (rows: number, cols: number) =>
     !!cell && !!page && cell.row + rows <= page.rows && cell.col + cols <= page.cols;
@@ -91,6 +95,13 @@ export function CardPicker({
   const framedCards = is(1, 1) ? STANDARD_CARDS : is(2, 2) ? JUMBO_CARDS : [];
   const showVUnion = is(2, 2);
   const sizeLabel = `${shape.rows}×${shape.cols}`;
+  const isMultiCell = shape.rows > 1 || shape.cols > 1;
+
+  // Place a chosen artwork: as one panel, or sliced across the block when the toggle is on.
+  const placeArt = (url: string) =>
+    sliced && isMultiCell
+      ? onPickSlicedArtwork(url, shape.rows, shape.cols)
+      : onPickArtwork(url, shape.rows, shape.cols);
 
   // Artwork suggestions: theme-filtered, with art that matches this slot's aspect first.
   const q = query.trim().toLowerCase();
@@ -231,6 +242,25 @@ export function CardPicker({
                 <Text style={styles.artMeta}>{searching ? 'searching…' : `via ${artSearchProvider}`}</Text>
               ) : null}
             </View>
+            {/* Whole vs sliced: a multi-cell artwork can fill one panel or cut across the pockets. */}
+            {isMultiCell ? (
+              <View style={styles.controlsRow}>
+                <Text style={styles.controlsLabel}>Layout</Text>
+                <Pressable
+                  onPress={() => setSliced(false)}
+                  style={[styles.spanChip, !sliced && styles.spanChipActive]}>
+                  <Text style={[styles.spanChipText, !sliced && styles.spanChipTextActive]}>Whole</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setSliced(true)}
+                  style={[styles.spanChip, sliced && styles.spanChipActive]}>
+                  <Text style={[styles.spanChipText, sliced && styles.spanChipTextActive]}>Sliced</Text>
+                </Pressable>
+                <Text style={styles.artMeta}>
+                  {sliced ? `${shape.rows * shape.cols} pieces` : 'one panel'}
+                </Text>
+              </View>
+            ) : null}
             <View style={styles.controlsRow}>
               <TextInput
                 value={query}
@@ -252,7 +282,7 @@ export function CardPicker({
                   key={art.id}
                   art={art}
                   selected={slot?.type === 'artwork' && slot?.imageUrl === art.url}
-                  onPress={() => onPickArtwork(art.url, shape.rows, shape.cols)}
+                  onPress={() => placeArt(art.url)}
                 />
               ))}
               {artwork.length === 0 ? (
@@ -274,7 +304,7 @@ export function CardPicker({
               <Pressable
                 disabled={!urlValid}
                 onPress={() => {
-                  onPickArtwork(urlInput.trim(), shape.rows, shape.cols);
+                  placeArt(urlInput.trim());
                   setUrlInput('');
                 }}
                 style={[styles.addBtn, !urlValid && styles.disabled]}>

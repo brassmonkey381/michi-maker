@@ -111,6 +111,12 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     closePicker();
   };
 
+  const handlePickSlicedArtwork = (imageUrl: string, rows: number, cols: number) => {
+    if (!pickerCell) return;
+    store.placeSlicedArtwork(binder.id, page.id, pickerCell.row, pickerCell.col, rows, cols, imageUrl);
+    closePicker();
+  };
+
   const handlePickInsert = (insertColor: string, rowSpan: number, colSpan: number) => {
     if (!pickerCell) return;
     store.upsertSlot(binder.id, page.id, { ...pickerCell, type: 'insert', insertColor, rowSpan, colSpan });
@@ -349,6 +355,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           onPickCard={handlePickCard}
           onPickVUnion={handlePickVUnion}
           onPickArtwork={handlePickArtwork}
+          onPickSlicedArtwork={handlePickSlicedArtwork}
           onPickInsert={handlePickInsert}
           onClear={handleClear}
         />

@@ -53,8 +53,9 @@ export function artwork(row: number, col: number, cardId: string, opts?: SpanOpt
 }
 
 /**
- * A custom-image artwork panel (a playground / pasted image rather than a catalogue card).
- * Cover-fits its footprint, so it can take any shape — use `ART.*` for the playground art.
+ * A custom-image artwork panel (a render / pasted image rather than a catalogue card).
+ * Cover-fits its footprint, so it can take any shape — pair with `pokemonArt(dex)` for a render,
+ * or use `sliceRegion(...)` to cut one image into a clean pocket-puzzle.
  */
 export function artPanel(row: number, col: number, imageUrl: string, opts?: SpanOpts): DemoSlot {
   return {
@@ -178,7 +179,6 @@ export function vunion(
  * module so content authors and the editor UI share one source of truth.
  */
 export { VUNION, JUMBO } from '@/data/cardSizing';
-export { ART } from '@/data/artworkLibrary';
 
 /** A page of slots. Title/background optional; grid defaults to 3×3. */
 export function page(

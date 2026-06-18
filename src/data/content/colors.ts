@@ -14,7 +14,6 @@
  */
 
 import {
-  ART,
   JUMBO,
   VUNION,
   artPanel,
@@ -23,6 +22,8 @@ import {
   insert,
   jumbo,
   page,
+  pokemonArt,
+  sliceRegion,
   vunion,
   type ContentModule,
 } from '@/data/content/_helpers';
@@ -89,16 +90,17 @@ export const binders: ContentModule['binders'] = [
         ],
         { title: 'Ignition', rows: 3, cols: 3, backgroundColor: ASH_MAT },
       ),
-      // P2 — an "art panel" page: a fire oil-painting fills the top 2×3 as a full-bleed
-      // artwork insert, with a row of flame cards beneath it.
+      // P2 — render page: a Charizard pocket-puzzle with a Moltres column fills the top 2×3,
+      // with a row of flame cards beneath it.
       page(
         [
-          artPanel(0, 0, ART.fire, { rowSpan: 2, colSpan: 3 }),
+          ...sliceRegion(0, 0, 2, 2, pokemonArt(6)),
+          artPanel(0, 2, pokemonArt(146), { rowSpan: 2, colSpan: 1 }),
           card(2, 0, 'base1-4'),
           card(2, 1, 'base1-12'),
           card(2, 2, 'sv03.5-199'),
         ],
-        { title: 'Fire, in oils', rows: 3, cols: 3, backgroundColor: ASH_MAT },
+        { title: 'Fire incarnate', rows: 3, cols: 3, backgroundColor: ASH_MAT },
       ),
       // P3 — 3×4, the Charmander line on a warm mat, framed by flame inserts.
       page(
@@ -215,15 +217,16 @@ export const binders: ContentModule['binders'] = [
         ],
         { title: 'Canopy', rows: 3, cols: 3, backgroundColor: PINE_MAT },
       ),
-      // art panel page: a pine-forest oil painting as a 2×3 insert over a row of greens.
+      // render page: a Venusaur pocket-puzzle with a Sceptile column over a row of greens.
       page(
         [
-          artPanel(0, 0, ART.forest, { rowSpan: 2, colSpan: 3 }),
+          ...sliceRegion(0, 0, 2, 2, pokemonArt(3)),
+          artPanel(0, 2, pokemonArt(254), { rowSpan: 2, colSpan: 1 }),
           card(2, 0, 'sv03.5-001'),
           card(2, 1, 'base1-15'),
           card(2, 2, 'swsh7-167'),
         ],
-        { title: 'Forest, in oils', rows: 3, cols: 3, backgroundColor: PINE_MAT },
+        { title: 'The canopy kings', rows: 3, cols: 3, backgroundColor: PINE_MAT },
       ),
       // P2 — 3×4, the Bulbasaur evolution line on sage, lime accents at the corners.
       page(
@@ -337,15 +340,16 @@ export const binders: ContentModule['binders'] = [
         ],
         { title: 'Silver wing, gold light', rows: 3, cols: 3, backgroundColor: NIGHT_MAT },
       ),
-      // art panel page: a sunset-sky oil painting as a 2×3 insert over gilded legends.
+      // render page: a Ho-Oh pocket-puzzle with a Lugia column over gilded legends.
       page(
         [
-          artPanel(0, 0, ART.sunset, { rowSpan: 2, colSpan: 3 }),
+          ...sliceRegion(0, 0, 2, 2, pokemonArt(250)),
+          artPanel(0, 2, pokemonArt(249), { rowSpan: 2, colSpan: 1 }),
           card(2, 0, 'cel25-22'),
           card(2, 1, 'cel25-5'),
           card(2, 2, 'base1-58'),
         ],
-        { title: 'Gold hour', rows: 3, cols: 3, backgroundColor: NIGHT_MAT },
+        { title: 'The tower duo', rows: 3, cols: 3, backgroundColor: NIGHT_MAT },
       ),
       // P2 — 3×4, Pikachu across eras on parchment, framed in gold.
       page(

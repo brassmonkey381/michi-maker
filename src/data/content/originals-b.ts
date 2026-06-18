@@ -11,12 +11,13 @@
  */
 
 import {
-  ART,
   artPanel,
   card,
   insert,
   jumbo,
   page,
+  pokemonArt,
+  sliceRegion,
   vunion,
   JUMBO,
   VUNION,
@@ -54,15 +55,16 @@ export const binders: ContentModule['binders'] = [
           card(2, 2, 'cel25-10'),
         ],
       },
-      // art panel page: a tempest oil painting as a 2×3 insert over the cosmic dragons.
+      // render page: a Rayquaza pocket-puzzle with a Lugia column, over the cosmic dragons.
       page(
         [
-          artPanel(0, 0, ART.storm, { rowSpan: 2, colSpan: 3 }),
+          ...sliceRegion(0, 0, 2, 2, pokemonArt(384)),
+          artPanel(0, 2, pokemonArt(249), { rowSpan: 2, colSpan: 1 }),
           card(2, 0, 'cel25-10'),
           card(2, 1, 'cel25-2'),
           card(2, 2, 'cel25-20'),
         ],
-        { title: 'Tempest, in oils', rows: 3, cols: 3, backgroundColor: '#10141C' },
+        { title: 'The cosmic dragons', rows: 3, cols: 3, backgroundColor: '#10141C' },
       ),
       // 2 — Lugia, the jumbo box-art hero: an oversized 2×2 promo with a quiet wing of accents.
       page(
@@ -242,16 +244,17 @@ export const binders: ContentModule['binders'] = [
           // (2,2) intentionally empty
         ],
       },
-      // 2 — art panel page: a stormy-sea oil painting fills the top 2×3 as a full-bleed
-      // artwork insert, with a row of cool-blue cards beneath.
+      // 2 — render page: a Gyarados pocket-puzzle with a Lapras column fills the top 2×3,
+      // with a row of cool-blue cards beneath.
       page(
         [
-          artPanel(0, 0, ART.oceanWide, { rowSpan: 2, colSpan: 3 }),
+          ...sliceRegion(0, 0, 2, 2, pokemonArt(130)),
+          artPanel(0, 2, pokemonArt(131), { rowSpan: 2, colSpan: 1 }),
           card(2, 0, 'base1-2'),
           card(2, 1, 'swsh7-172'),
           card(2, 2, 'cel25-3'),
         ],
-        { title: 'The sea, in oils', rows: 3, cols: 3, backgroundColor: '#0E1620' },
+        { title: 'The deep', rows: 3, cols: 3, backgroundColor: '#0E1620' },
       ),
       // 3 — tonal tide page: blues woven with cards, a wide insert and lots of negative space.
       page(

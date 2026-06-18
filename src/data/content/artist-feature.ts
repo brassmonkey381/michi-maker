@@ -19,11 +19,11 @@
  */
 
 import {
+  ART,
   artPanel,
   card,
   defineCard,
   page,
-  pokemonArt,
   sliceRegion,
   type ContentModule,
 } from '@/data/content/_helpers';
@@ -211,72 +211,72 @@ export const binders: ContentModule['binders'] = [
     id: 'example-arita',
     title: 'Arita — Fire & Dragons',
     description:
-      "A single-illustrator gallery for Mitsuhiro Arita — the painter of the Base Set Charizard — hung to one element: fire & dragons. Charizard, Gyarados, Moltres, Dragonite, Ho-Oh and more, floated on warm mats over flame-and-scale renders sliced across the pockets.",
+      "A single-illustrator gallery for Mitsuhiro Arita — the painter of the Base Set Charizard — hung to one element: fire & dragons. Charizard, Gyarados, Moltres, Dragonite, Ho-Oh and more, floated on warm mats over fire, storm and sea prints sliced across the pockets.",
     layoutStyle: 'artist',
     isExample: true,
     coverCardId: 'base1-4',
     pages: [
-      // Plate I — Born of fire. The Charmander line (top) · a 2×2 Charizard puzzle + Charmander column. 3 / 6.
+      // Plate I — Born of fire. The Charmander line (top) · a 2×2 Red-Fuji block + a fireworks column. 3 / 6.
       page(
         [
           card(0, 0, 'base1-46'),
           card(0, 1, 'base1-24'),
           card(0, 2, 'base1-4'),
-          ...sliceRegion(1, 0, 2, 2, pokemonArt(6)),
-          artPanel(1, 2, pokemonArt(4), { rowSpan: 2, colSpan: 1 }),
+          ...sliceRegion(1, 0, 2, 2, ART.redFuji),
+          artPanel(1, 2, ART.edoFireworks, { rowSpan: 2, colSpan: 1 }),
         ],
         { title: 'Plate I — Born of Fire', backgroundColor: EMBER_DARK },
       ),
-      // Plate II — Serpents & seas. A 2×2 Gyarados puzzle + a Dragonair accent + 4 cards. 4 / 5.
+      // Plate II — Serpents & seas. A 2×2 Great-Wave block + a rain accent + 4 cards. 4 / 5.
       page(
         [
-          ...sliceRegion(0, 0, 2, 2, pokemonArt(130)),
+          ...sliceRegion(0, 0, 2, 2, ART.greatWave),
           card(0, 2, 'base1-6'),
           card(1, 2, 'hgss1-4'),
-          artPanel(2, 0, pokemonArt(148)),
+          artPanel(2, 0, ART.edoRain),
           card(2, 1, 'base1-18'),
           card(2, 2, 'hgss4-62'),
         ],
         { title: 'Plate II — Serpents & Seas', backgroundColor: GALLERY_WARM },
       ),
-      // Plate III — The birds of flame. A 2×2 Moltres puzzle + a Ho-Oh accent + 4 cards. 4 / 5.
+      // Plate III — The birds of flame. A 2×2 sunset-sky block + a fireworks accent + 4 cards. 4 / 5.
       page(
         [
-          ...sliceRegion(0, 0, 2, 2, pokemonArt(146)),
+          ...sliceRegion(0, 0, 2, 2, ART.edoSky),
           card(0, 2, 'base3-12'),
           card(1, 2, 'pop5-1'),
-          artPanel(2, 0, pokemonArt(250)),
+          artPanel(2, 0, ART.edoFireworks),
           card(2, 1, 'base3-27'),
           card(2, 2, 'xy7-15'),
         ],
         { title: 'Plate III — Birds of Flame', backgroundColor: EMBER_DARK },
       ),
-      // Plate IV — Dragons ascendant. One big merged Rayquaza hero (2×2) + a Dragonite accent + 4 cards. 4 / 5.
+      // Plate IV — Dragons ascendant. A big thunderstorm block (2×2) + a moonlit accent + 4 cards. 4 / 5.
       page(
         [
-          artPanel(0, 0, pokemonArt(384), { rowSpan: 2, colSpan: 2 }),
+          ...sliceRegion(0, 0, 2, 2, ART.lightning),
           card(0, 2, 'dp6-2'),
           card(1, 2, 'xyp-XY64'),
-          artPanel(2, 0, pokemonArt(149)),
+          artPanel(2, 0, ART.edoMoon),
           card(2, 1, 'ex3-10'),
           card(2, 2, 'ex16-94'),
         ],
         { title: 'Plate IV — Dragons Ascendant', backgroundColor: GALLERY_WARM },
       ),
-      // Plate V — Fire kin. A 2×2 Arcanine puzzle + a Ninetales accent + 4 cards. 4 / 5.
+      // Plate V — Fire kin. A 2×2 fireworks block + a Red-Fuji accent + 4 cards. 4 / 5.
       page(
         [
-          ...sliceRegion(0, 0, 2, 2, pokemonArt(59)),
+          ...sliceRegion(0, 0, 2, 2, ART.edoFireworks),
           card(0, 2, 'bw4-12'),
           card(1, 2, 'sm3-28'),
-          artPanel(2, 0, pokemonArt(38)),
+          artPanel(2, 0, ART.redFuji),
           card(2, 1, 'xyp-XY74'),
           card(2, 2, 'lc-3'),
         ],
         { title: 'Plate V — Fire Kin', backgroundColor: NIGHT_WARM },
       ),
-      // Plate VI — The Arita fire wall. Six framed Arita classics (top two rows) over a row of three
-      // of his beasts as render pockets: Charizard · Reshiram · Salamence. 6 / 3.
+      // Plate VI — The Arita fire wall. Six framed Arita classics (top two rows) over a Red-Fuji
+      // banner across the bottom. 6 / 3.
       page(
         [
           card(0, 0, 'base1-4'),
@@ -285,9 +285,7 @@ export const binders: ContentModule['binders'] = [
           card(1, 0, 'base3-12'),
           card(1, 1, 'base1-6'),
           card(1, 2, 'bw4-12'),
-          artPanel(2, 0, pokemonArt(6)),
-          artPanel(2, 1, pokemonArt(643)),
-          artPanel(2, 2, pokemonArt(373)),
+          ...sliceRegion(2, 0, 1, 3, ART.redFuji),
         ],
         { title: 'Plate VI — The Arita Fire Wall', backgroundColor: EMBER_DARK },
       ),

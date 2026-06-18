@@ -4,13 +4,13 @@
  * Nine pages, one per evolution stage in dex order (Bulbasaur → Venusaur, Charmander →
  * Charizard, Squirtle → Blastoise). Each page is a 3×3 grid that features exactly ONE
  * Pokémon: its pockets hold real cards of that Pokémon across sets and eras, anchored by the
- * 1999 Base Set card, sat in a clean block; the remaining pockets are that Pokémon's official
- * render placed by URL via the slice method — a 2×2 pocket-puzzle (`sliceRegion`), a merged hero
- * panel (a spanning `artPanel`), or a single accent pocket of a related stage. No paintings.
+ * 1999 Base Set card, sat in a clean block; the remaining pockets are type-themed hand-drawn
+ * ukiyo-e (a green/forest print for grass, Red Fuji / fireworks for fire, the Great Wave / rain
+ * for water) sliced across a clean 2×2 block or column (`sliceRegion`) — art and cards never overlap.
  *
  * Composition discipline (verified per page):
- *   - Every page is 3×3 with AT MOST 6 card pockets; the rest are render pockets (≥3 art).
- *   - Render art fills clean rectangles only — no card is ever laid over a sliced/merged render.
+ *   - Every page is 3×3 with AT MOST 6 card pockets; the rest are themed-art pockets (≥3 art).
+ *   - Art fills clean rectangles only — no card is ever laid over a sliced image.
  *   - No slot overlaps another; no pocket is left empty.
  *
  * Cards already in the base catalogue (src/data/sampleData.ts) are referenced by id and need
@@ -19,19 +19,19 @@
  */
 
 import {
+  ART,
   artPanel,
   card,
   defineCard,
   page,
-  pokemonArt,
   sliceRegion,
   type ContentModule,
 } from '@/data/content/_helpers';
 
 // --- page mats -------------------------------------------------------------
-// Cards sit in a clean block; the rest of each page is that Pokémon's official render placed by
-// URL + the slice method — sliced into a 2×2 pocket-puzzle, merged into a hero panel, or a single
-// accent pocket of a related stage. Deep, type-tinted mats frame the art and make the cards pop.
+// The cards carry the Pokémon; the empty pockets are filled with type-themed hand-drawn ukiyo-e
+// (green/forest prints for grass, Red-Fuji/fireworks for fire, Great-Wave/rain for water) sliced
+// into a 2×2 block or column. Deep, type-tinted mats frame the art and make the cards pop.
 const PINE_MAT = '#10180F'; // grass — deep pine
 const ASH_MAT = '#141A24'; // fire — cool ash
 const EMBER_MAT = '#1B1410'; // fire — warm ember
@@ -335,16 +335,16 @@ export const binders: ContentModule['binders'] = [
     id: 'example-base-starters',
     title: 'Base Set starters',
     description:
-      'The three Kanto starter lines — one page per stage, each species across the eras with its 1999 Base Set card, set into that Pokémon’s official art sliced across the empty pockets.',
+      'The three Kanto starter lines — one page per stage, each species across the eras with its 1999 Base Set card, set into type-themed hand-drawn ukiyo-e sliced across the pockets.',
     layoutStyle: 'single_pokemon',
     isExample: true,
     coverCardId: 'base1-4',
     pages: [
-      // ── GRASS LINE ─────────────────────────────────────────────────────────
-      // P1 — Bulbasaur. A 2×2 Bulbasaur pocket-puzzle (top-left) + 5 cards. 5 cards / 4 art.
+      // ── GRASS LINE ── green/forest prints ───────────────────────────────────
+      // P1 — Bulbasaur. A 2×2 watermill (greenery) block + 5 cards. 5 cards / 4 art.
       page(
         [
-          ...sliceRegion(0, 0, 2, 2, pokemonArt(1)),
+          ...sliceRegion(0, 0, 2, 2, ART.watermill),
           card(0, 2, 'base1-44'),
           card(1, 2, 'sv03.5-001'),
           card(2, 0, 'det1-1'),
@@ -353,22 +353,22 @@ export const binders: ContentModule['binders'] = [
         ],
         { title: 'Bulbasaur · seed', backgroundColor: PINE_MAT },
       ),
-      // P2 — Ivysaur. A 2×2 Ivysaur puzzle + a Bulbasaur (pre-evo) accent + 4 cards. 4 / 5.
+      // P2 — Ivysaur. A 2×2 grove block + a willow accent + 4 cards. 4 / 5.
       page(
         [
-          ...sliceRegion(0, 0, 2, 2, pokemonArt(2)),
+          ...sliceRegion(0, 0, 2, 2, ART.edoForest),
           card(0, 2, 'base1-30'),
           card(1, 2, 'sv03.5-167'),
-          artPanel(2, 0, pokemonArt(1)),
+          artPanel(2, 0, ART.edoWillow),
           card(2, 1, 'bw5-2'),
           card(2, 2, 'pop2-7'),
         ],
         { title: 'Ivysaur · bud', backgroundColor: PINE_MAT },
       ),
-      // P3 — Venusaur. A 2×2 Venusaur puzzle + 5 cards. 5 / 4.
+      // P3 — Venusaur. A 2×2 summer-garden block + 5 cards. 5 / 4.
       page(
         [
-          ...sliceRegion(0, 0, 2, 2, pokemonArt(3)),
+          ...sliceRegion(0, 0, 2, 2, ART.edoGreen),
           card(0, 2, 'base1-15'),
           card(1, 2, 'base4-18'),
           card(2, 0, 'pl3-13'),
@@ -377,11 +377,11 @@ export const binders: ContentModule['binders'] = [
         ],
         { title: 'Venusaur · bloom', backgroundColor: PINE_MAT },
       ),
-      // ── FIRE LINE ──────────────────────────────────────────────────────────
-      // P4 — Charmander. A 2×2 Charmander puzzle + 5 cards. 5 / 4.
+      // ── FIRE LINE ── Red Fuji / fireworks / storm ───────────────────────────
+      // P4 — Charmander. A 2×2 Red-Fuji block + 5 cards. 5 / 4.
       page(
         [
-          ...sliceRegion(0, 0, 2, 2, pokemonArt(4)),
+          ...sliceRegion(0, 0, 2, 2, ART.redFuji),
           card(0, 2, 'base1-46'),
           card(1, 2, 'sv03.5-004'),
           card(2, 0, 'det1-4'),
@@ -390,20 +390,20 @@ export const binders: ContentModule['binders'] = [
         ],
         { title: 'Charmander · spark', backgroundColor: EMBER_MAT },
       ),
-      // P5 — Charmeleon. One big merged Charmeleon hero (3×2) + the line down the right. 3 / 6.
+      // P5 — Charmeleon. A tall fireworks hero (3×2) + the line down the right. 3 / 6.
       page(
         [
-          artPanel(0, 0, pokemonArt(5), { rowSpan: 3, colSpan: 2 }),
+          ...sliceRegion(0, 0, 3, 2, ART.edoFireworks),
           card(0, 2, 'base1-24'),
           card(1, 2, 'sv03.5-169'),
           card(2, 2, 'swsh4-24'),
         ],
         { title: 'Charmeleon · flare', backgroundColor: ASH_MAT },
       ),
-      // P6 — Charizard. A 2×2 Charizard puzzle + 5 cards. 5 / 4.
+      // P6 — Charizard. A 2×2 thunderstorm block + 5 cards. 5 / 4.
       page(
         [
-          ...sliceRegion(0, 0, 2, 2, pokemonArt(6)),
+          ...sliceRegion(0, 0, 2, 2, ART.lightning),
           card(0, 2, 'base1-4'),
           card(1, 2, 'base4-4'),
           card(2, 0, 'sv03.5-006'),
@@ -412,23 +412,23 @@ export const binders: ContentModule['binders'] = [
         ],
         { title: 'Charizard · blaze', backgroundColor: EMBER_MAT },
       ),
-      // ── WATER LINE ─────────────────────────────────────────────────────────
-      // P7 — Squirtle. A 2×2 Squirtle puzzle + a Wartortle (next-stage) accent + 4 cards. 4 / 5.
+      // ── WATER LINE ── Great Wave / sea / rain ───────────────────────────────
+      // P7 — Squirtle. A 2×2 Great-Wave block + a sea-coast accent + 4 cards. 4 / 5.
       page(
         [
-          ...sliceRegion(0, 0, 2, 2, pokemonArt(7)),
+          ...sliceRegion(0, 0, 2, 2, ART.greatWave),
           card(0, 2, 'base1-63'),
           card(1, 2, 'sv03.5-007'),
-          artPanel(2, 0, pokemonArt(8)),
+          artPanel(2, 0, ART.edoSea),
           card(2, 1, 'bw7-29'),
           card(2, 2, 'ex4-46'),
         ],
         { title: 'Squirtle · trickle', backgroundColor: NAVY_MAT },
       ),
-      // P8 — Wartortle. A 2×2 Wartortle puzzle + 5 cards. 5 / 4.
+      // P8 — Wartortle. A 2×2 rain-shower block + 5 cards. 5 / 4.
       page(
         [
-          ...sliceRegion(0, 0, 2, 2, pokemonArt(8)),
+          ...sliceRegion(0, 0, 2, 2, ART.edoRain),
           card(0, 2, 'base1-42'),
           card(1, 2, 'sv03.5-008'),
           card(2, 0, 'sv03.5-171'),
@@ -437,8 +437,7 @@ export const binders: ContentModule['binders'] = [
         ],
         { title: 'Wartortle · current', backgroundColor: NAVY_MAT },
       ),
-      // P9 — Blastoise. 6 cards (top two rows) over the whole line as render pockets:
-      // Squirtle → Wartortle → Blastoise. 6 / 3.
+      // P9 — Blastoise. 6 cards (top two rows) over a Great-Wave banner across the bottom. 6 / 3.
       page(
         [
           card(0, 0, 'base1-2'),
@@ -447,9 +446,7 @@ export const binders: ContentModule['binders'] = [
           card(1, 0, 'pl1-2'),
           card(1, 1, 'dp3-2'),
           card(1, 2, 'bw7-31'),
-          artPanel(2, 0, pokemonArt(7)),
-          artPanel(2, 1, pokemonArt(8)),
-          artPanel(2, 2, pokemonArt(9)),
+          ...sliceRegion(2, 0, 1, 3, ART.greatWave),
         ],
         { title: 'Blastoise · torrent', backgroundColor: NAVY_MAT },
       ),

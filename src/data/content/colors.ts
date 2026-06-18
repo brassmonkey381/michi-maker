@@ -14,6 +14,7 @@
  */
 
 import {
+  ART,
   JUMBO,
   VUNION,
   artPanel,
@@ -22,7 +23,6 @@ import {
   insert,
   jumbo,
   page,
-  pokemonArt,
   sliceRegion,
   vunion,
   type ContentModule,
@@ -90,12 +90,12 @@ export const binders: ContentModule['binders'] = [
         ],
         { title: 'Ignition', rows: 3, cols: 3, backgroundColor: ASH_MAT },
       ),
-      // P2 — render page: a Charizard pocket-puzzle with a Moltres column fills the top 2×3,
+      // P2 — art page: a Red-Fuji block with a fireworks column fills the top 2×3,
       // with a row of flame cards beneath it.
       page(
         [
-          ...sliceRegion(0, 0, 2, 2, pokemonArt(6)),
-          artPanel(0, 2, pokemonArt(146), { rowSpan: 2, colSpan: 1 }),
+          ...sliceRegion(0, 0, 2, 2, ART.redFuji),
+          artPanel(0, 2, ART.edoFireworks, { rowSpan: 2, colSpan: 1 }),
           card(2, 0, 'base1-4'),
           card(2, 1, 'base1-12'),
           card(2, 2, 'sv03.5-199'),
@@ -217,11 +217,11 @@ export const binders: ContentModule['binders'] = [
         ],
         { title: 'Canopy', rows: 3, cols: 3, backgroundColor: PINE_MAT },
       ),
-      // render page: a Venusaur pocket-puzzle with a Sceptile column over a row of greens.
+      // art page: a watermill block with a grove column over a row of greens.
       page(
         [
-          ...sliceRegion(0, 0, 2, 2, pokemonArt(3)),
-          artPanel(0, 2, pokemonArt(254), { rowSpan: 2, colSpan: 1 }),
+          ...sliceRegion(0, 0, 2, 2, ART.watermill),
+          artPanel(0, 2, ART.edoForest, { rowSpan: 2, colSpan: 1 }),
           card(2, 0, 'sv03.5-001'),
           card(2, 1, 'base1-15'),
           card(2, 2, 'swsh7-167'),
@@ -340,11 +340,11 @@ export const binders: ContentModule['binders'] = [
         ],
         { title: 'Silver wing, gold light', rows: 3, cols: 3, backgroundColor: NIGHT_MAT },
       ),
-      // render page: a Ho-Oh pocket-puzzle with a Lugia column over gilded legends.
+      // art page: a Red-Fuji block (gold light) with a moonlit column over gilded legends.
       page(
         [
-          ...sliceRegion(0, 0, 2, 2, pokemonArt(250)),
-          artPanel(0, 2, pokemonArt(249), { rowSpan: 2, colSpan: 1 }),
+          ...sliceRegion(0, 0, 2, 2, ART.redFuji),
+          artPanel(0, 2, ART.edoMoon, { rowSpan: 2, colSpan: 1 }),
           card(2, 0, 'cel25-22'),
           card(2, 1, 'cel25-5'),
           card(2, 2, 'base1-58'),

@@ -11,12 +11,12 @@
  */
 
 import {
+  ART,
   artPanel,
   card,
   insert,
   jumbo,
   page,
-  pokemonArt,
   sliceRegion,
   vunion,
   JUMBO,
@@ -55,11 +55,11 @@ export const binders: ContentModule['binders'] = [
           card(2, 2, 'cel25-10'),
         ],
       },
-      // render page: a Rayquaza pocket-puzzle with a Lugia column, over the cosmic dragons.
+      // art page: a thunderstorm block with a moonlit-water column, over the cosmic dragons.
       page(
         [
-          ...sliceRegion(0, 0, 2, 2, pokemonArt(384)),
-          artPanel(0, 2, pokemonArt(249), { rowSpan: 2, colSpan: 1 }),
+          ...sliceRegion(0, 0, 2, 2, ART.lightning),
+          artPanel(0, 2, ART.edoMoon, { rowSpan: 2, colSpan: 1 }),
           card(2, 0, 'cel25-10'),
           card(2, 1, 'cel25-2'),
           card(2, 2, 'cel25-20'),
@@ -244,12 +244,12 @@ export const binders: ContentModule['binders'] = [
           // (2,2) intentionally empty
         ],
       },
-      // 2 — render page: a Gyarados pocket-puzzle with a Lapras column fills the top 2×3,
+      // 2 — art page: a Great-Wave block with a sea-coast column fills the top 2×3,
       // with a row of cool-blue cards beneath.
       page(
         [
-          ...sliceRegion(0, 0, 2, 2, pokemonArt(130)),
-          artPanel(0, 2, pokemonArt(131), { rowSpan: 2, colSpan: 1 }),
+          ...sliceRegion(0, 0, 2, 2, ART.greatWave),
+          artPanel(0, 2, ART.edoSea, { rowSpan: 2, colSpan: 1 }),
           card(2, 0, 'base1-2'),
           card(2, 1, 'swsh7-172'),
           card(2, 2, 'cel25-3'),

@@ -5,9 +5,9 @@
  * follows the michi method, tuned to the brief's strict per-page rules:
  *   - Every page is a 3×3 grid.
  *   - At most SIX pockets hold Pokémon `card`s, sat in a clean block.
- *   - Every remaining pocket is art placed by URL via the slice method: one of her signature
- *     water Pokémon as a 2×2 pocket-puzzle (`sliceRegion`) plus a second species merged into a
- *     2×1 panel or single accent — art and cards never overlap (≥3 art per page). No paintings.
+ *   - Every remaining pocket is water-themed hand-drawn ukiyo-e (the Great Wave, a sea coast,
+ *     a rain shower, moonlit water) sliced into a 2×2 block or a column — art and cards never
+ *     overlap (≥3 art per page).
  *
  * No slot overlaps another and every footprint sits inside the 3×3 grid (verified per page).
  *
@@ -18,16 +18,16 @@
  */
 
 import {
+  ART,
   artPanel,
   card,
   defineCard,
   page,
-  pokemonArt,
   sliceRegion,
   type ContentModule,
 } from '@/data/content/_helpers';
 
-// Cool-blue michi mats — deep cerulean inks that frame her sliced/merged water-Pokémon renders.
+// Cool-blue michi mats — deep cerulean inks that frame the hand-drawn sea prints in her pockets.
 const ABYSS = '#10141C'; // near-black cerulean — makes the holos pop
 const TIDE = '#1C2A3A'; // deep gym-pool blue
 
@@ -246,40 +246,40 @@ export const binders: ContentModule['binders'] = [
     title: 'Misty',
     description:
       'A water-blue michi binder for the Cerulean Gym leader — her classic Gym-era team and the ' +
-      'modern Destined Rivals line, each page set into one of her signature Pokémon sliced across the pockets.',
+      'modern Destined Rivals line, each page set into a hand-drawn sea print sliced across the pockets.',
     layoutStyle: 'trainer',
     isExample: true,
     coverCardId: 'gym1-18',
     pages: [
-      // ── p1 · Cerulean Gym (cover) — 3 cards (top) · 2×2 Starmie puzzle + a Staryu column. 3 / 6.
+      // ── p1 · Cerulean Gym (cover) — 3 cards (top) · a Great-Wave block + a rain column. 3 / 6.
       page(
         [
           card(0, 0, 'gym1-18'),
           card(0, 1, 'gym1-56'),
           card(0, 2, 'gym1-90'),
-          ...sliceRegion(1, 0, 2, 2, pokemonArt(121)),
-          artPanel(1, 2, pokemonArt(120), { rowSpan: 2, colSpan: 1 }),
+          ...sliceRegion(1, 0, 2, 2, ART.greatWave),
+          artPanel(1, 2, ART.edoRain, { rowSpan: 2, colSpan: 1 }),
         ],
         { title: 'Misty · Cerulean Gym', backgroundColor: ABYSS },
       ),
 
-      // ── p2 · The Cerulean Gym — 2×2 Tentacruel puzzle + a Tentacool accent + the jellyfish line. 4 / 5.
+      // ── p2 · The Cerulean Gym — a sea-coast block + a moonlit-water accent + the jellyfish line. 4 / 5.
       page(
         [
-          ...sliceRegion(0, 0, 2, 2, pokemonArt(73)),
+          ...sliceRegion(0, 0, 2, 2, ART.edoSea),
           card(0, 2, 'gym1-9'),
           card(1, 2, 'gym1-10'),
-          artPanel(2, 0, pokemonArt(72)),
+          artPanel(2, 0, ART.edoMoon),
           card(2, 1, 'gym1-32'),
           card(2, 2, 'gym1-29'),
         ],
         { title: 'The Cerulean Gym', backgroundColor: TIDE },
       ),
 
-      // ── p3 · Misty's team — a 2×2 Psyduck puzzle + 5 cards. 5 / 4.
+      // ── p3 · Misty's team — a 2×2 rain-shower block + 5 cards. 5 / 4.
       page(
         [
-          ...sliceRegion(0, 0, 2, 2, pokemonArt(54)),
+          ...sliceRegion(0, 0, 2, 2, ART.edoRain),
           card(0, 2, 'gym1-54'),
           card(1, 2, 'gym2-12'),
           card(2, 0, 'gym1-31'),
@@ -289,52 +289,52 @@ export const binders: ContentModule['binders'] = [
         { title: "Misty's team", backgroundColor: ABYSS },
       ),
 
-      // ── p4 · Starmie & Staryu — a 2×2 Starmie puzzle + a Staryu accent + 4 cards. 4 / 5.
+      // ── p4 · Starmie & Staryu — a Great-Wave block + a sea-coast accent + 4 cards. 4 / 5.
       page(
         [
-          ...sliceRegion(0, 0, 2, 2, pokemonArt(121)),
+          ...sliceRegion(0, 0, 2, 2, ART.greatWave),
           card(0, 2, 'gym1-90'),
           card(1, 2, 'gym1-56'),
-          artPanel(2, 0, pokemonArt(120)),
+          artPanel(2, 0, ART.edoSea),
           card(2, 1, 'sv10-046'),
           card(2, 2, 'sv10-047'),
         ],
         { title: 'Starmie & Staryu', backgroundColor: TIDE },
       ),
 
-      // ── p5 · Gyarados — 3 cards (top) · 2×2 Gyarados puzzle + a Magikarp (pre-evo) column. 3 / 6.
+      // ── p5 · Gyarados — 3 cards (top) · a moonlit-water block + a snow column. 3 / 6.
       page(
         [
           card(0, 0, 'gym2-13'),
           card(0, 1, 'sv10-048'),
           card(0, 2, 'sv10-049'),
-          ...sliceRegion(1, 0, 2, 2, pokemonArt(130)),
-          artPanel(1, 2, pokemonArt(129), { rowSpan: 2, colSpan: 1 }),
+          ...sliceRegion(1, 0, 2, 2, ART.edoMoon),
+          artPanel(1, 2, ART.edoSnow, { rowSpan: 2, colSpan: 1 }),
         ],
         { title: 'Gyarados', backgroundColor: ABYSS },
       ),
 
-      // ── p6 · Modern Misty · Destined Rivals — a 2×2 Lapras puzzle + a Psyduck accent + 4 cards. 4 / 5.
+      // ── p6 · Modern Misty · Destined Rivals — a sea-coast block + a rain accent + 4 cards. 4 / 5.
       page(
         [
-          ...sliceRegion(0, 0, 2, 2, pokemonArt(131)),
+          ...sliceRegion(0, 0, 2, 2, ART.edoSea),
           card(0, 2, 'sv10-045'),
           card(1, 2, 'sv10-046'),
-          artPanel(2, 0, pokemonArt(54)),
+          artPanel(2, 0, ART.edoRain),
           card(2, 1, 'sv10-047'),
           card(2, 2, 'sv10-050'),
         ],
         { title: 'Modern Misty · Destined Rivals', backgroundColor: TIDE },
       ),
 
-      // ── p7 · The deep end (close) — 3 cards (top) · 2×2 Seadra puzzle + a Seaking column. 3 / 6.
+      // ── p7 · The deep end (close) — 3 cards (top) · a Great-Wave block + a moonlit column. 3 / 6.
       page(
         [
           card(0, 0, 'gym1-86'),
           card(0, 1, 'gym1-30'),
           card(0, 2, 'gym1-55'),
-          ...sliceRegion(1, 0, 2, 2, pokemonArt(117)),
-          artPanel(1, 2, pokemonArt(119), { rowSpan: 2, colSpan: 1 }),
+          ...sliceRegion(1, 0, 2, 2, ART.greatWave),
+          artPanel(1, 2, ART.edoMoon, { rowSpan: 2, colSpan: 1 }),
         ],
         { title: 'The deep end', backgroundColor: TIDE },
       ),

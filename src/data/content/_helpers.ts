@@ -179,6 +179,7 @@ export function vunion(
  * module so content authors and the editor UI share one source of truth.
  */
 export { VUNION, JUMBO } from '@/data/cardSizing';
+export { ART } from '@/data/artworkLibrary';
 
 /** A page of slots. Title/background optional; grid defaults to 3×3. */
 export function page(

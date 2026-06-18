@@ -1,12 +1,13 @@
 /**
- * Playground artwork library — themed art the editor can suggest as pocket filler.
+ * Playground artwork library — themed, hand-drawn art the editor can suggest as pocket filler,
+ * and that the example binders slice into their pages.
  *
- * The art is official **Pokémon renders** (the Sugimori-style artwork from the PokéAPI sprite
- * CDN on GitHub — stable, CORS/hotlink-friendly, transparent PNG). They match the app's vibe and
- * slice cleanly into pockets. Because the renders are Nintendo / Game Freak / TPCi IP they are
- * NOT license-clear (`licenseClear: false`) — fine for a personal fan project, but flagged so the
- * set can be audited before anything ships. Art a user pastes in via the editor is likewise not
- * license-clear by default — see `domainOf()` / the editor's "paste URL" flow, which tags it.
+ * The set is **Japanese ukiyo-e woodblock prints** (Hokusai & Hiroshige) — flat, bold, illustrated
+ * scenery that reads as hand-drawn cartoon art and is the aesthetic ancestor of anime/Pokémon art.
+ * Each is **public domain** (the artists died well over a century ago) and served from Wikimedia
+ * Commons via `Special:FilePath` (a hash-free, stable redirect — verified to resolve to image/jpeg).
+ * Pick by `themes` + `aspect`: landscape prints fill wide banners/2×2 blocks, portrait prints fill
+ * tall columns. Art a user pastes in via the editor is tagged `licenseClear:false` for review.
  */
 
 export type ArtAspect = 'landscape' | 'portrait' | 'square';
@@ -25,36 +26,76 @@ export interface ArtworkAsset {
   licenseClear: boolean;
 }
 
-const POKEAPI = 'raw.githubusercontent.com';
-/** Official-artwork render for a National-Dex number (transparent PNG, square). */
-const dex = (n: number) =>
-  `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${n}.png`;
+const WM = 'commons.wikimedia.org';
+/** A Commons file by name, as a stable hash-free hotlink (1024px wide). */
+const fp = (file: string) => `https://commons.wikimedia.org/wiki/Special:FilePath/${file}?width=1024`;
 
-const render = (id: string, n: number, title: string, themes: string[]): ArtworkAsset => ({
+const print = (
+  id: string,
+  file: string,
+  title: string,
+  themes: string[],
+  aspect: ArtAspect,
+): ArtworkAsset => ({
   id,
-  url: dex(n),
+  url: fp(file),
   title,
   themes,
-  aspect: 'square',
-  sourceDomain: POKEAPI,
-  license: 'Pokémon © Nintendo / Game Freak / TPCi',
-  licenseClear: false,
+  aspect,
+  sourceDomain: WM,
+  license: 'Public domain',
+  licenseClear: true,
 });
 
 export const ARTWORK_LIBRARY: ArtworkAsset[] = [
-  render('art-charizard', 6, 'Charizard', ['fire', 'warm', 'red', 'orange', 'dragon']),
-  render('art-gyarados', 130, 'Gyarados', ['water', 'ocean', 'blue', 'sea', 'dragon']),
-  render('art-venusaur', 3, 'Venusaur', ['grass', 'forest', 'green', 'nature']),
-  render('art-pikachu', 25, 'Pikachu', ['electric', 'yellow', 'gold', 'bright']),
-  render('art-jolteon', 135, 'Jolteon', ['electric', 'yellow', 'storm', 'bright']),
-  render('art-mewtwo', 150, 'Mewtwo', ['psychic', 'purple', 'legend', 'cosmic']),
-  render('art-mew', 151, 'Mew', ['psychic', 'pink', 'fairy', 'soft']),
-  render('art-rayquaza', 384, 'Rayquaza', ['dragon', 'green', 'sky', 'storm', 'legend']),
-  render('art-hooh', 250, 'Ho-Oh', ['fire', 'gold', 'legend', 'sunset', 'rainbow']),
-  render('art-umbreon', 197, 'Umbreon', ['dark', 'night', 'black', 'moon']),
-  render('art-glaceon', 471, 'Glaceon', ['ice', 'water', 'blue', 'frost', 'cool']),
-  render('art-sylveon', 700, 'Sylveon', ['fairy', 'pink', 'soft', 'pastel']),
+  // Landscape (wide) — for banners and 2×2 blocks.
+  print('art-great-wave', 'The_Great_Wave_off_Kanagawa.jpg', 'The Great Wave off Kanagawa — Hokusai',
+    ['ocean', 'water', 'wave', 'blue', 'sea', 'storm'], 'landscape'),
+  print('art-red-fuji', 'Red_Fuji_southern_wind_clear_morning.jpg', 'Fine Wind, Clear Morning (Red Fuji) — Hokusai',
+    ['fire', 'red', 'warm', 'sunrise', 'sunset', 'mountain', 'gold'], 'landscape'),
+  print('art-lightning', 'Lightnings_below_the_summit.jpg', 'Thunderstorm Beneath the Summit — Hokusai',
+    ['storm', 'dark', 'dragon', 'electric', 'night', 'black', 'psychic'], 'landscape'),
+  print('art-watermill', 'Watermill_at_Onden.jpg', 'Watermill at Onden — Hokusai',
+    ['grass', 'forest', 'green', 'water', 'nature'], 'landscape'),
+  // Portrait (tall) — for columns and accents. (Hiroshige, "One Hundred Famous Views of Edo".)
+  print('art-edo-rain', '100_views_edo_058.jpg', 'Sudden Shower over Shin-Ōhashi (rain) — Hiroshige',
+    ['rain', 'water', 'blue', 'mist', 'storm'], 'portrait'),
+  print('art-edo-sea', '100_views_edo_039.jpg', 'A coast of Edo (sea) — Hiroshige',
+    ['ocean', 'water', 'sea', 'blue', 'spring'], 'portrait'),
+  print('art-edo-moon', '100_views_edo_038.jpg', 'Moon over the river — Hiroshige',
+    ['night', 'moon', 'water', 'blue', 'gold', 'legend'], 'portrait'),
+  print('art-edo-snow', '100_views_edo_111.jpg', 'Snow at Edo (winter) — Hiroshige',
+    ['snow', 'white', 'ice', 'cool', 'winter'], 'portrait'),
+  print('art-edo-green', '100_views_edo_065.jpg', 'A garden of Edo (summer green) — Hiroshige',
+    ['grass', 'green', 'forest', 'garden', 'summer'], 'portrait'),
+  print('art-edo-sky', '100_views_edo_048.jpg', 'A sky over Edo — Hiroshige',
+    ['sky', 'sunset', 'warm', 'gold', 'summer'], 'portrait'),
+  print('art-edo-willow', '100_views_edo_069.jpg', 'Willows in the rain — Hiroshige',
+    ['grass', 'green', 'willow', 'rain', 'water'], 'portrait'),
+  print('art-edo-forest', '100_views_edo_026.jpg', 'A grove of Edo — Hiroshige',
+    ['grass', 'forest', 'green', 'nature', 'garden'], 'portrait'),
+  print('art-edo-fireworks', '100_views_edo_098.jpg', 'Fireworks at Ryōgoku — Hiroshige',
+    ['fire', 'fireworks', 'night', 'warm', 'red', 'festival', 'gold'], 'portrait'),
 ];
+
+const urlById = (id: string) => ARTWORK_LIBRARY.find((a) => a.id === id)?.url ?? '';
+
+/** Friendly handles for the themed art, for use when authoring example binders. */
+export const ART = {
+  greatWave: urlById('art-great-wave'),
+  redFuji: urlById('art-red-fuji'),
+  lightning: urlById('art-lightning'),
+  watermill: urlById('art-watermill'),
+  edoRain: urlById('art-edo-rain'),
+  edoSea: urlById('art-edo-sea'),
+  edoMoon: urlById('art-edo-moon'),
+  edoSnow: urlById('art-edo-snow'),
+  edoGreen: urlById('art-edo-green'),
+  edoSky: urlById('art-edo-sky'),
+  edoWillow: urlById('art-edo-willow'),
+  edoForest: urlById('art-edo-forest'),
+  edoFireworks: urlById('art-edo-fireworks'),
+} as const;
 
 /** The aspect bucket a slot footprint falls into (cover-fit "fits" any, but this sorts best matches first). */
 export function slotAspect(rows: number, cols: number): ArtAspect {

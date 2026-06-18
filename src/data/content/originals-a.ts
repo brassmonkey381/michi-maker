@@ -9,12 +9,15 @@
  */
 
 import {
+  ART,
   JUMBO,
   VUNION,
+  artPanel,
   card,
   insert,
   jumbo,
   page,
+  sliceRegion,
   vunion,
   type ContentModule,
 } from '@/data/content/_helpers';
@@ -49,14 +52,14 @@ export const binders: ContentModule['binders'] = [
           card(2, 2, 'base1-16'),
         ],
       },
-      // Page 2 — Blastoise jumbo hero (real oversized promo, 2×2) with foil accents + air.
+      // Page 2 — Blastoise jumbo hero (real oversized promo, 2×2) with foil accents + sea art.
       page(
         [
           jumbo(0, 0, JUMBO.blastoise),
           card(0, 2, 'base1-2'),
-          // (1,2) intentionally empty — let the hero breathe.
+          artPanel(1, 2, ART.greatWave),
           card(2, 0, 'base1-6'),
-          // (2,1) empty
+          artPanel(2, 1, ART.edoSea),
           card(2, 2, 'base1-10'),
         ],
         { title: 'Blastoise, anchored', backgroundColor: '#10141C' },
@@ -91,13 +94,13 @@ export const binders: ContentModule['binders'] = [
         ],
         { title: 'Sugimori, on cream', backgroundColor: '#F3ECDD' },
       ),
-      // Page 5 — Charizard closer: a single 1×1 focal card afloat in deliberate empty space.
+      // Page 5 — Charizard closer: the focal holo flanked by flame art, empty bands above/below.
       page(
         [
           // (0,*) empty top band.
-          insert(1, 0, '#1B1410'),
+          artPanel(1, 0, ART.redFuji),
           card(1, 1, 'base1-4'),
-          insert(1, 2, '#1B1410'),
+          artPanel(1, 2, ART.edoFireworks),
           // (2,*) empty bottom band — embers settling.
         ],
         { title: 'One last holo', backgroundColor: '#1B1410' },
@@ -131,13 +134,13 @@ export const binders: ContentModule['binders'] = [
           card(2, 2, 'swsh7-184'),
         ],
       },
-      // Page 2 — Umbreon jumbo hero (real oversized promo, 2×2) on a moonlit mat.
+      // Page 2 — Umbreon jumbo hero (real oversized promo, 2×2) on a moonlit mat, moon art beside it.
       page(
         [
           jumbo(0, 0, JUMBO.umbreon),
           card(0, 2, 'swsh7-184'),
-          // (1,2) empty
-          // (2,0) empty
+          artPanel(1, 2, ART.edoMoon),
+          artPanel(2, 0, ART.edoSnow),
           card(2, 1, 'swsh7-167'),
           card(2, 2, 'swsh7-179'),
         ],
@@ -158,33 +161,28 @@ export const binders: ContentModule['binders'] = [
         ],
         { title: 'Eevee, the origin', backgroundColor: '#1C1726' },
       ),
-      // Page 4 — cool vs warm: a 3×4 split, cool evolutions left, warm right, tonal seam.
+      // Page 4 — cool vs warm: a 3×4 split, cool evolutions left, warm right, with an art seam
+      // down the middle — a frost column meeting a flame column.
       page(
         [
-          // Cool column block.
           card(0, 0, 'swsh7-177'),
           card(1, 0, 'swsh7-169'),
           card(2, 0, 'swsh7-179'),
-          insert(0, 1, '#243042'),
-          insert(1, 1, '#243042'),
-          insert(2, 1, '#243042'),
-          // Warm column block.
-          insert(0, 2, '#3A2420'),
-          insert(1, 2, '#3A2420'),
-          insert(2, 2, '#3A2420'),
+          ...sliceRegion(0, 1, 3, 1, ART.edoSnow),
+          ...sliceRegion(0, 2, 3, 1, ART.edoFireworks),
           card(0, 3, 'swsh7-172'),
           card(1, 3, 'swsh7-175'),
           card(2, 3, 'swsh7-167'),
         ],
         { title: 'Cool / warm', rows: 3, cols: 4, backgroundColor: '#141A24' },
       ),
-      // Page 5 — Sylveon/Glaceon pairing with deliberate empty pockets.
+      // Page 5 — four corner cards with a moonlit art band threaded through the centre.
       page(
         [
           card(0, 0, 'swsh7-184'),
           // (0,1) empty
           card(0, 2, 'swsh7-177'),
-          // (1,*) empty centre band — negative space.
+          ...sliceRegion(1, 0, 1, 3, ART.edoMoon),
           card(2, 0, 'swsh7-175'),
           // (2,1) empty
           card(2, 2, 'swsh7-167'),
@@ -239,46 +237,43 @@ export const binders: ContentModule['binders'] = [
           // (2,2) empty
         ],
       },
-      // Page 3 — Charizard jumbo hero (real oversized promo, 2×2) closing the fire line.
+      // Page 3 — Charizard jumbo hero (real oversized promo, 2×2) closing the fire line, ember art below.
       page(
         [
           jumbo(0, 0, JUMBO.charizard),
           card(0, 2, 'sv03.5-004'),
           card(1, 2, 'sv03.5-005'),
           card(2, 0, 'sv03.5-006'),
-          // (2,1) empty
+          artPanel(2, 1, ART.redFuji),
           card(2, 2, 'sv03.5-198'),
         ],
         { title: 'Charizard ex', backgroundColor: '#1B1410' },
       ),
-      // Page 4 — starter trio anchors on a soft cream mat, each line led by its starter.
+      // Page 4 — starter trio anchors (starters above, finals below) split by a garden art band.
       page(
         [
           card(0, 0, 'sv03.5-001'),
           card(0, 1, 'sv03.5-004'),
           card(0, 2, 'sv03.5-007'),
-          insert(1, 0, '#E7D8B8'),
-          insert(1, 1, '#E7D8B8'),
-          insert(1, 2, '#E7D8B8'),
+          ...sliceRegion(1, 0, 1, 3, ART.edoGreen),
           card(2, 0, 'sv03.5-003'),
           card(2, 1, 'sv03.5-006'),
           card(2, 2, 'sv03.5-009'),
         ],
         { title: 'Starts & finishes', backgroundColor: '#FBF4D6' },
       ),
-      // Page 5 — Pikachu V-UNION page: four real piece-cards tile the 2×2 hero, Mew alongside.
+      // Page 5 — Pikachu V-UNION page: four real piece-cards tile the 2×2 hero, Mew alongside,
+      // a thunderstorm band crackling across the bottom.
       page(
         [
           ...vunion(0, 0, VUNION.pikachu),
-          // (0,2) empty
+          artPanel(0, 2, ART.edoSky),
           card(1, 2, 'sv03.5-150'),
-          insert(2, 0, '#E7F1F8'),
-          insert(2, 1, '#F7E9F0'),
-          insert(2, 2, '#E7F1F8'),
+          ...sliceRegion(2, 0, 1, 3, ART.lightning),
         ],
         { title: 'Pikachu V-UNION & Mew', backgroundColor: '#E7F1F8' },
       ),
-      // Page 6 — the chase wall: every SIR together on a dark mat to finish.
+      // Page 6 — the chase wall: every SIR together on a dark mat, the Charizard ex flanked by flame art.
       page(
         [
           card(0, 0, 'sv03.5-166'),
@@ -287,9 +282,9 @@ export const binders: ContentModule['binders'] = [
           card(1, 0, 'sv03.5-173'),
           card(1, 1, 'sv03.5-198'),
           card(1, 2, 'sv03.5-200'),
-          // (2,0) empty
+          artPanel(2, 0, ART.redFuji),
           card(2, 1, 'sv03.5-199'),
-          // (2,2) empty
+          artPanel(2, 2, ART.edoFireworks),
         ],
         { title: 'The chase wall', backgroundColor: '#10141C' },
       ),
@@ -319,7 +314,8 @@ export const binders: ContentModule['binders'] = [
           card(2, 2, 'base1-4'),
         ],
       },
-      // Page 2 — the evolution line: Charmander → Charmeleon → Charizard, then 1×1 focal cards.
+      // Page 2 — the evolution line: Charmander → Charmeleon → Charizard, the foot of the page
+      // banked with flame art (empty mid-sides keep the line breathing).
       page(
         [
           card(0, 0, 'sv03.5-004'),
@@ -328,37 +324,35 @@ export const binders: ContentModule['binders'] = [
           // (1,0) empty
           card(1, 1, 'sv03.5-199'),
           // (1,2) empty
-          // (2,0) empty
+          artPanel(2, 0, ART.redFuji),
           card(2, 1, 'base1-4'),
-          // (2,2) empty
+          artPanel(2, 2, ART.edoFireworks),
         ],
         { title: 'The line', backgroundColor: '#1B1410' },
       ),
-      // Page 3 — fiery color page: warm holos + warm tonal inserts, matching mat.
+      // Page 3 — fiery color page: warm holos woven with a cross of flame art on a matching mat.
       // base1-4 Charizard, base1-12 Ninetales, base1-14 Raichu — all warm-toned.
       page(
         [
           card(0, 0, 'base1-4'),
-          insert(0, 1, '#3A2008'),
+          artPanel(0, 1, ART.redFuji),
           card(0, 2, 'base1-12'),
-          insert(1, 0, '#3A2008'),
+          artPanel(1, 0, ART.edoFireworks),
           card(1, 1, 'sv03.5-006'),
-          insert(1, 2, '#3A2008'),
+          artPanel(1, 2, ART.edoFireworks),
           card(2, 0, 'base1-14'),
-          insert(2, 1, '#3A2008'),
+          artPanel(2, 1, ART.redFuji),
           card(2, 2, 'sv03.5-004'),
         ],
         { title: 'All fire', backgroundColor: '#241406' },
       ),
-      // Page 4 — Charizard jumbo spread: the oversized promo fills a 2×2 hero, inserts framing.
+      // Page 4 — Charizard jumbo spread: the oversized promo fills a 2×2 hero, wrapped in flame art
+      // (a fireworks column up the right, a Red-Fuji banner across the foot).
       page(
         [
           jumbo(0, 0, JUMBO.charizard),
-          insert(0, 2, '#1B1410'),
-          insert(1, 2, '#1B1410'),
-          insert(2, 0, '#1B1410'),
-          insert(2, 1, '#1B1410'),
-          insert(2, 2, '#1B1410'),
+          ...sliceRegion(0, 2, 2, 1, ART.edoFireworks),
+          ...sliceRegion(2, 0, 1, 3, ART.redFuji),
         ],
         { title: 'Full bleed', backgroundColor: '#1B1410' },
       ),

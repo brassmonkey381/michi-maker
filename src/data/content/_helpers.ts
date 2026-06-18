@@ -68,6 +68,48 @@ export function artPanel(row: number, col: number, imageUrl: string, opts?: Span
   };
 }
 
+/**
+ * Official Pokémon artwork (the Sugimori-style render) for a National-Dex number, served from
+ * the PokéAPI sprite CDN on GitHub — stable, CORS/hotlink-friendly, transparent PNG. Used as
+ * theme-matched art to slice across a page's pockets (e.g. a Squirtle page → `pokemonArt(7)`).
+ */
+export function pokemonArt(dex: number): string {
+  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${dex}.png`;
+}
+
+/**
+ * Slice ONE image across a clean rectangular region — `rows`×`cols` pockets whose top-left cell
+ * is (row, col) — returning a 1×1 `artwork` tile per cell, each showing its sub-rectangle of the
+ * image. The whole image lives inside the region (a wide image across a 1×3 banner reads as one
+ * picture cut into three; a tall one down a 3×1 column, etc.), with binder gaps between pieces.
+ * This is exactly what the Slice Studio produces (`placeSlicedArtwork`): the region must hold
+ * only art (don't overlap cards) so nothing is laid over the picture.
+ */
+export function sliceRegion(
+  row: number,
+  col: number,
+  rows: number,
+  cols: number,
+  imageUrl: string,
+): DemoSlot[] {
+  const tiles: DemoSlot[] = [];
+  for (let i = 0; i < rows; i += 1) {
+    for (let j = 0; j < cols; j += 1) {
+      tiles.push({
+        id: uid('slot'),
+        row: row + i,
+        col: col + j,
+        rowSpan: 1,
+        colSpan: 1,
+        type: 'artwork',
+        imageUrl,
+        imageCrop: { x: j / cols, y: i / rows, w: 1 / cols, h: 1 / rows },
+      });
+    }
+  }
+  return tiles;
+}
+
 /** A tonal insert (negative-space filler) using a hex colour. */
 export function insert(row: number, col: number, color: string, opts?: SpanOpts): DemoSlot {
   return {

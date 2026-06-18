@@ -4,10 +4,10 @@
  * A single curated "michi" binder built around the trainer character Misty. Page layout
  * follows the michi method, tuned to the brief's strict per-page rules:
  *   - Every page is a 3×3 grid.
- *   - At most SIX pockets hold Pokémon `card`s.
- *   - At least THREE pockets are full-bleed `artPanel` artwork — all water-themed, drawn
- *     from the playground art library (ART.oceanWide / ART.oceanTall).
- *   - The remaining pockets are left out of `slots` entirely → negative space (the michi way).
+ *   - At most SIX pockets hold Pokémon `card`s, sat in a clean block.
+ *   - Every remaining pocket is art placed by URL via the slice method: one of her signature
+ *     water Pokémon as a 2×2 pocket-puzzle (`sliceRegion`) plus a second species merged into a
+ *     2×1 panel or single accent — art and cards never overlap (≥3 art per page). No paintings.
  *
  * No slot overlaps another and every footprint sits inside the 3×3 grid (verified per page).
  *
@@ -22,15 +22,14 @@ import {
   card,
   defineCard,
   page,
-  ART,
+  pokemonArt,
+  sliceRegion,
   type ContentModule,
 } from '@/data/content/_helpers';
 
-// Cool-blue michi mats — deep cerulean inks for the canvas, frost tones for the breathers.
+// Cool-blue michi mats — deep cerulean inks that frame her sliced/merged water-Pokémon renders.
 const ABYSS = '#10141C'; // near-black cerulean — makes the holos pop
 const TIDE = '#1C2A3A'; // deep gym-pool blue
-const FROST = '#E7F1F8'; // pale frosted glass
-const MIST = '#DCE9F4'; // soft sea-mist
 
 // Every card referenced by this binder, declared with verified TCGdex art.
 export const cards: ContentModule['cards'] = [
@@ -247,103 +246,95 @@ export const binders: ContentModule['binders'] = [
     title: 'Misty',
     description:
       'A water-blue michi binder for the Cerulean Gym leader — her classic Gym-era team and the ' +
-      'modern Destined Rivals line, framed by ocean-storm art and cool negative space.',
+      'modern Destined Rivals line, each page set into one of her signature Pokémon sliced across the pockets.',
     layoutStyle: 'trainer',
     isExample: true,
     coverCardId: 'gym1-18',
     pages: [
-      // ── p1 · Cerulean Gym (cover) — 3 cards, 3 art (oceanWide banner) ───────
-      // row0: trainer card + Starmie · row1: Staryu · row2: wide ocean banner.
+      // ── p1 · Cerulean Gym (cover) — 3 cards (top) · 2×2 Starmie puzzle + a Staryu column. 3 / 6.
       page(
         [
           card(0, 0, 'gym1-18'),
-          card(0, 2, 'gym1-56'),
-          card(1, 1, 'gym1-90'),
-          artPanel(2, 0, ART.oceanWide, { colSpan: 3 }),
-          // (0,1),(1,0),(1,2) empty — breathing room around the leader.
+          card(0, 1, 'gym1-56'),
+          card(0, 2, 'gym1-90'),
+          ...sliceRegion(1, 0, 2, 2, pokemonArt(121)),
+          artPanel(1, 2, pokemonArt(120), { rowSpan: 2, colSpan: 1 }),
         ],
         { title: 'Misty · Cerulean Gym', backgroundColor: ABYSS },
       ),
 
-      // ── p2 · The Cerulean Gym — 4 cards, 3 art (tall ocean column) ──────────
-      // cols 0–1 hold the jellyfish line; col 2 is a full-height ocean panel.
+      // ── p2 · The Cerulean Gym — 2×2 Tentacruel puzzle + a Tentacool accent + the jellyfish line. 4 / 5.
       page(
         [
-          card(0, 0, 'gym1-9'),
-          card(0, 1, 'gym1-10'),
-          card(1, 0, 'gym1-32'),
-          card(1, 1, 'gym1-29'),
-          artPanel(0, 2, ART.oceanTall, { rowSpan: 3 }),
-          // (2,0),(2,1) empty.
+          ...sliceRegion(0, 0, 2, 2, pokemonArt(73)),
+          card(0, 2, 'gym1-9'),
+          card(1, 2, 'gym1-10'),
+          artPanel(2, 0, pokemonArt(72)),
+          card(2, 1, 'gym1-32'),
+          card(2, 2, 'gym1-29'),
         ],
         { title: 'The Cerulean Gym', backgroundColor: TIDE },
       ),
 
-      // ── p3 · Misty's team — 5 cards, 3 art (oceanWide footer) ───────────────
-      // top two rows: her amphibians & seals; bottom row a wide ocean banner.
+      // ── p3 · Misty's team — a 2×2 Psyduck puzzle + 5 cards. 5 / 4.
       page(
         [
-          card(0, 0, 'gym1-54'),
-          card(0, 1, 'gym2-12'),
-          card(0, 2, 'gym1-31'),
-          card(1, 0, 'gym1-53'),
-          card(1, 1, 'gym2-54'),
-          artPanel(2, 0, ART.oceanWide, { colSpan: 3 }),
-          // (1,2) empty.
+          ...sliceRegion(0, 0, 2, 2, pokemonArt(54)),
+          card(0, 2, 'gym1-54'),
+          card(1, 2, 'gym2-12'),
+          card(2, 0, 'gym1-31'),
+          card(2, 1, 'gym1-53'),
+          card(2, 2, 'gym2-54'),
         ],
         { title: "Misty's team", backgroundColor: ABYSS },
       ),
 
-      // ── p4 · Starmie & Staryu — 4 cards, 3 art (tall ocean column) ──────────
-      // classic (top) over modern (bottom) pairings; col 2 a full-height panel.
+      // ── p4 · Starmie & Staryu — a 2×2 Starmie puzzle + a Staryu accent + 4 cards. 4 / 5.
       page(
         [
-          card(0, 0, 'gym1-90'),
-          card(0, 1, 'gym1-56'),
-          card(1, 0, 'sv10-046'),
-          card(1, 1, 'sv10-047'),
-          artPanel(0, 2, ART.oceanTall, { rowSpan: 3 }),
-          // (2,0),(2,1) empty.
+          ...sliceRegion(0, 0, 2, 2, pokemonArt(121)),
+          card(0, 2, 'gym1-90'),
+          card(1, 2, 'gym1-56'),
+          artPanel(2, 0, pokemonArt(120)),
+          card(2, 1, 'sv10-046'),
+          card(2, 2, 'sv10-047'),
         ],
-        { title: 'Starmie & Staryu', backgroundColor: FROST },
+        { title: 'Starmie & Staryu', backgroundColor: TIDE },
       ),
 
-      // ── p5 · Gyarados — 3 cards, 3 art (oceanWide footer) ───────────────────
-      // Magikarp → Gyarados (classic & modern) over a churning ocean banner.
+      // ── p5 · Gyarados — 3 cards (top) · 2×2 Gyarados puzzle + a Magikarp (pre-evo) column. 3 / 6.
       page(
         [
           card(0, 0, 'gym2-13'),
-          card(0, 2, 'sv10-048'),
-          card(1, 1, 'sv10-049'),
-          artPanel(2, 0, ART.oceanWide, { colSpan: 3 }),
-          // (0,1),(1,0),(1,2) empty.
+          card(0, 1, 'sv10-048'),
+          card(0, 2, 'sv10-049'),
+          ...sliceRegion(1, 0, 2, 2, pokemonArt(130)),
+          artPanel(1, 2, pokemonArt(129), { rowSpan: 2, colSpan: 1 }),
         ],
         { title: 'Gyarados', backgroundColor: ABYSS },
       ),
 
-      // ── p6 · Modern Misty · Destined Rivals — 4 cards, 3 art (tall column) ──
-      // col 0 a full-height ocean panel; cols 1–2 the 2025 line.
+      // ── p6 · Modern Misty · Destined Rivals — a 2×2 Lapras puzzle + a Psyduck accent + 4 cards. 4 / 5.
       page(
         [
-          artPanel(0, 0, ART.oceanTall, { rowSpan: 3 }),
-          card(0, 1, 'sv10-045'),
-          card(0, 2, 'sv10-046'),
-          card(1, 1, 'sv10-047'),
-          card(1, 2, 'sv10-050'),
-          // (2,1),(2,2) empty.
+          ...sliceRegion(0, 0, 2, 2, pokemonArt(131)),
+          card(0, 2, 'sv10-045'),
+          card(1, 2, 'sv10-046'),
+          artPanel(2, 0, pokemonArt(54)),
+          card(2, 1, 'sv10-047'),
+          card(2, 2, 'sv10-050'),
         ],
-        { title: 'Modern Misty · Destined Rivals', backgroundColor: MIST },
+        { title: 'Modern Misty · Destined Rivals', backgroundColor: TIDE },
       ),
 
-      // ── p7 · The deep end (close) — 3 cards, 3 art (oceanWide footer) ───────
-      // Horsea + the Goldeen line drift over a final wide ocean banner.
+      // ── p7 · The deep end (close) — 3 cards (top) · 2×2 Seadra puzzle + a Seaking column. 3 / 6.
       page(
         [
           card(0, 0, 'gym1-86'),
-          card(1, 1, 'gym1-30'),
-          card(1, 2, 'gym1-55'),
-          artPanel(2, 0, ART.oceanWide, { colSpan: 3 }),
-          // (0,1),(0,2),(1,0) empty.
+          card(0, 1, 'gym1-30'),
+          card(0, 2, 'gym1-55'),
+          ...sliceRegion(1, 0, 2, 2, pokemonArt(117)),
+          artPanel(1, 2, pokemonArt(119), { rowSpan: 2, colSpan: 1 }),
         ],
         { title: 'The deep end', backgroundColor: TIDE },
       ),

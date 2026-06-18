@@ -3,15 +3,15 @@
  *
  * Nine pages, one per evolution stage in dex order (Bulbasaur → Venusaur, Charmander →
  * Charizard, Squirtle → Blastoise). Each page is a 3×3 grid that features exactly ONE
- * Pokémon: its pockets hold real cards of that Pokémon across sets and eras, anchored by
- * the 1999 Base Set card, and the rest of the page is given to type-themed full-bleed art
- * panels (grass → forest, fire → flame/sunset, water → ocean) and intentional empty space.
+ * Pokémon: its pockets hold real cards of that Pokémon across sets and eras, anchored by the
+ * 1999 Base Set card, sat in a clean block; the remaining pockets are that Pokémon's official
+ * render placed by URL via the slice method — a 2×2 pocket-puzzle (`sliceRegion`), a merged hero
+ * panel (a spanning `artPanel`), or a single accent pocket of a related stage. No paintings.
  *
  * Composition discipline (verified per page):
- *   - Every page is 3×3 with AT MOST 6 card pockets and AT LEAST 3 artwork cells.
- *   - Card pockets are always 1×1; art panels span for composition (a colSpan:3 banner is
- *     three artwork cells; an oceanTall portrait is a 2×1, etc.).
- *   - No slot overlaps another; pockets left out of `slots` are negative space.
+ *   - Every page is 3×3 with AT MOST 6 card pockets; the rest are render pockets (≥3 art).
+ *   - Render art fills clean rectangles only — no card is ever laid over a sliced/merged render.
+ *   - No slot overlaps another; no pocket is left empty.
  *
  * Cards already in the base catalogue (src/data/sampleData.ts) are referenced by id and need
  * no declaration; the Base Set evolutions and a few era accents are declared below via
@@ -19,29 +19,23 @@
  */
 
 import {
-  ART,
   artPanel,
   card,
   defineCard,
   page,
+  pokemonArt,
+  sliceRegion,
   type ContentModule,
 } from '@/data/content/_helpers';
 
 // --- page mats -------------------------------------------------------------
-
-// Grass — cream paper & deep pine, sage for the lighter spreads.
-const CREAM_MAT = '#EFF3E7';
-const PINE_MAT = '#10180F';
-const SAGE_MAT = '#E6EFE0';
-
-// Fire — ash & ember darks that flatter the holo Charizards, a warm blush for the kit.
-const ASH_MAT = '#141A24';
-const EMBER_MAT = '#1B1410';
-const BLUSH_MAT = '#FBE7DD';
-
-// Water — deep navy & a pale tide blue.
-const NAVY_MAT = '#10141C';
-const TIDE_MAT = '#E7F1F8';
+// Cards sit in a clean block; the rest of each page is that Pokémon's official render placed by
+// URL + the slice method — sliced into a 2×2 pocket-puzzle, merged into a hero panel, or a single
+// accent pocket of a related stage. Deep, type-tinted mats frame the art and make the cards pop.
+const PINE_MAT = '#10180F'; // grass — deep pine
+const ASH_MAT = '#141A24'; // fire — cool ash
+const EMBER_MAT = '#1B1410'; // fire — warm ember
+const NAVY_MAT = '#10141C'; // water — deep navy
 
 // Cards not already in the bundled catalogue. (Existing ids — sv03.5-001/166/002/004/005/006/
 // 007/008/009/168/170/171/199/200, base1-2/4/15 — are reused freely with no declaration.)
@@ -341,125 +335,110 @@ export const binders: ContentModule['binders'] = [
     id: 'example-base-starters',
     title: 'Base Set starters',
     description:
-      'The three Kanto starter lines — one page per stage, each species across the eras with its 1999 Base Set card, set against type-themed art.',
+      'The three Kanto starter lines — one page per stage, each species across the eras with its 1999 Base Set card, set into that Pokémon’s official art sliced across the empty pockets.',
     layoutStyle: 'single_pokemon',
     isExample: true,
     coverCardId: 'base1-4',
     pages: [
       // ── GRASS LINE ─────────────────────────────────────────────────────────
-      // P1 — Bulbasaur. 5 cards across the top, a forest banner grounding the page.
-      // cards: 5 · artwork: 3 (banner) · empty: 1 → (0,1)
+      // P1 — Bulbasaur. A 2×2 Bulbasaur pocket-puzzle (top-left) + 5 cards. 5 cards / 4 art.
       page(
         [
-          card(0, 0, 'base1-44'),
-          card(0, 2, 'sv03.5-001'),
-          card(1, 0, 'det1-1'),
-          card(1, 1, 'sv03.5-166'),
-          card(1, 2, 'bw5-1'),
-          artPanel(2, 0, ART.forest, { colSpan: 3 }),
-          // (0,1) empty
+          ...sliceRegion(0, 0, 2, 2, pokemonArt(1)),
+          card(0, 2, 'base1-44'),
+          card(1, 2, 'sv03.5-001'),
+          card(2, 0, 'det1-1'),
+          card(2, 1, 'sv03.5-166'),
+          card(2, 2, 'bw5-1'),
         ],
-        { title: 'Bulbasaur · seed', rows: 3, cols: 3, backgroundColor: CREAM_MAT },
+        { title: 'Bulbasaur · seed', backgroundColor: PINE_MAT },
       ),
-      // P2 — Ivysaur. A forest banner up top; the line beneath it with breathing room.
-      // cards: 4 · artwork: 3 (banner) · empty: 2 → (1,1),(2,2)
+      // P2 — Ivysaur. A 2×2 Ivysaur puzzle + a Bulbasaur (pre-evo) accent + 4 cards. 4 / 5.
       page(
         [
-          artPanel(0, 0, ART.forest, { colSpan: 3 }),
-          card(1, 0, 'base1-30'),
+          ...sliceRegion(0, 0, 2, 2, pokemonArt(2)),
+          card(0, 2, 'base1-30'),
           card(1, 2, 'sv03.5-167'),
-          card(2, 0, 'bw5-2'),
-          card(2, 1, 'pop2-7'),
-          // (1,1),(2,2) empty
+          artPanel(2, 0, pokemonArt(1)),
+          card(2, 1, 'bw5-2'),
+          card(2, 2, 'pop2-7'),
         ],
-        { title: 'Ivysaur · bud', rows: 3, cols: 3, backgroundColor: PINE_MAT },
+        { title: 'Ivysaur · bud', backgroundColor: PINE_MAT },
       ),
-      // P3 — Venusaur. A forest column down the right; the bloom anchored left.
-      // cards: 5 · artwork: 3 (2×1 column + 1×1) · empty: 1 → (2,1)
+      // P3 — Venusaur. A 2×2 Venusaur puzzle + 5 cards. 5 / 4.
       page(
         [
-          card(0, 0, 'base1-15'),
-          card(0, 1, 'base4-18'),
-          artPanel(0, 2, ART.forest, { rowSpan: 2, colSpan: 1 }),
-          card(1, 0, 'pl3-13'),
-          card(1, 1, 'bw5-3'),
-          card(2, 0, 'dp3-20'),
-          artPanel(2, 2, ART.forest, { colSpan: 1 }),
-          // (2,1) empty
+          ...sliceRegion(0, 0, 2, 2, pokemonArt(3)),
+          card(0, 2, 'base1-15'),
+          card(1, 2, 'base4-18'),
+          card(2, 0, 'pl3-13'),
+          card(2, 1, 'bw5-3'),
+          card(2, 2, 'dp3-20'),
         ],
-        { title: 'Venusaur · bloom', rows: 3, cols: 3, backgroundColor: SAGE_MAT },
+        { title: 'Venusaur · bloom', backgroundColor: PINE_MAT },
       ),
       // ── FIRE LINE ──────────────────────────────────────────────────────────
-      // P4 — Charmander. A sunset banner over the hatchling and its eras.
-      // cards: 5 · artwork: 3 (banner) · empty: 1 → (1,1)
+      // P4 — Charmander. A 2×2 Charmander puzzle + 5 cards. 5 / 4.
       page(
         [
-          artPanel(0, 0, ART.sunset, { colSpan: 3 }),
-          card(1, 0, 'base1-46'),
+          ...sliceRegion(0, 0, 2, 2, pokemonArt(4)),
+          card(0, 2, 'base1-46'),
           card(1, 2, 'sv03.5-004'),
           card(2, 0, 'det1-4'),
           card(2, 1, 'sm3-18'),
           card(2, 2, 'swsh4-23'),
-          // (1,1) empty
         ],
-        { title: 'Charmander · spark', rows: 3, cols: 3, backgroundColor: BLUSH_MAT },
+        { title: 'Charmander · spark', backgroundColor: EMBER_MAT },
       ),
-      // P5 — Charmeleon. A fire painting fills the left 3×2; the line stacks down the right.
-      // cards: 3 · artwork: 6 (3×2 block) · empty: 0
+      // P5 — Charmeleon. One big merged Charmeleon hero (3×2) + the line down the right. 3 / 6.
       page(
         [
-          artPanel(0, 0, ART.fire, { rowSpan: 3, colSpan: 2 }),
+          artPanel(0, 0, pokemonArt(5), { rowSpan: 3, colSpan: 2 }),
           card(0, 2, 'base1-24'),
           card(1, 2, 'sv03.5-169'),
           card(2, 2, 'swsh4-24'),
         ],
-        { title: 'Charmeleon · flare', rows: 3, cols: 3, backgroundColor: ASH_MAT },
+        { title: 'Charmeleon · flare', backgroundColor: ASH_MAT },
       ),
-      // P6 — Charizard. The holo on ember black, a fire column blazing up the right.
-      // cards: 5 · artwork: 3 (3×1 column) · empty: 1 → (2,1)
+      // P6 — Charizard. A 2×2 Charizard puzzle + 5 cards. 5 / 4.
       page(
         [
-          card(0, 0, 'base1-4'),
-          card(0, 1, 'base4-4'),
-          artPanel(0, 2, ART.fireEngine, { rowSpan: 3, colSpan: 1 }),
-          card(1, 0, 'sv03.5-006'),
-          card(1, 1, 'ecard1-6'),
-          card(2, 0, 'sv03.5-168'),
-          // (2,1) empty
+          ...sliceRegion(0, 0, 2, 2, pokemonArt(6)),
+          card(0, 2, 'base1-4'),
+          card(1, 2, 'base4-4'),
+          card(2, 0, 'sv03.5-006'),
+          card(2, 1, 'ecard1-6'),
+          card(2, 2, 'sv03.5-168'),
         ],
-        { title: 'Charizard · blaze', rows: 3, cols: 3, backgroundColor: EMBER_MAT },
+        { title: 'Charizard · blaze', backgroundColor: EMBER_MAT },
       ),
       // ── WATER LINE ─────────────────────────────────────────────────────────
-      // P7 — Squirtle. A wide ocean banner up top; the line beneath on tide blue.
-      // cards: 4 · artwork: 3 (banner) · empty: 2 → (1,1),(2,2)
+      // P7 — Squirtle. A 2×2 Squirtle puzzle + a Wartortle (next-stage) accent + 4 cards. 4 / 5.
       page(
         [
-          artPanel(0, 0, ART.oceanWide, { colSpan: 3 }),
-          card(1, 0, 'base1-63'),
+          ...sliceRegion(0, 0, 2, 2, pokemonArt(7)),
+          card(0, 2, 'base1-63'),
           card(1, 2, 'sv03.5-007'),
-          card(2, 0, 'bw7-29'),
-          card(2, 1, 'ex4-46'),
-          // (1,1),(2,2) empty
+          artPanel(2, 0, pokemonArt(8)),
+          card(2, 1, 'bw7-29'),
+          card(2, 2, 'ex4-46'),
         ],
-        { title: 'Squirtle · trickle', rows: 3, cols: 3, backgroundColor: TIDE_MAT },
+        { title: 'Squirtle · trickle', backgroundColor: NAVY_MAT },
       ),
-      // P8 — Wartortle. A tall ocean portrait down the left; the line to its right.
-      // cards: 5 · artwork: 2 (2×1) + 1 (1×1) = 3 · empty: 1 → (2,2)
+      // P8 — Wartortle. A 2×2 Wartortle puzzle + 5 cards. 5 / 4.
       page(
         [
-          artPanel(0, 0, ART.oceanTall, { rowSpan: 2, colSpan: 1 }),
-          card(0, 1, 'base1-42'),
-          card(0, 2, 'sv03.5-008'),
-          card(1, 1, 'sv03.5-171'),
-          card(1, 2, 'bw7-30'),
-          artPanel(2, 0, ART.oceanWide, { colSpan: 1 }),
-          card(2, 1, 'base4-63'),
-          // (2,2) empty
+          ...sliceRegion(0, 0, 2, 2, pokemonArt(8)),
+          card(0, 2, 'base1-42'),
+          card(1, 2, 'sv03.5-008'),
+          card(2, 0, 'sv03.5-171'),
+          card(2, 1, 'bw7-30'),
+          card(2, 2, 'base4-63'),
         ],
-        { title: 'Wartortle · current', rows: 3, cols: 3, backgroundColor: NAVY_MAT },
+        { title: 'Wartortle · current', backgroundColor: NAVY_MAT },
       ),
-      // P9 — Blastoise. An ocean banner grounds the page; the cannon-shell across the top.
-      // cards: 6 · artwork: 3 (banner) · empty: 0
+      // P9 — Blastoise. 6 cards (top two rows) over the whole line as render pockets:
+      // Squirtle → Wartortle → Blastoise. 6 / 3.
       page(
         [
           card(0, 0, 'base1-2'),
@@ -468,9 +447,11 @@ export const binders: ContentModule['binders'] = [
           card(1, 0, 'pl1-2'),
           card(1, 1, 'dp3-2'),
           card(1, 2, 'bw7-31'),
-          artPanel(2, 0, ART.oceanWide, { colSpan: 3 }),
+          artPanel(2, 0, pokemonArt(7)),
+          artPanel(2, 1, pokemonArt(8)),
+          artPanel(2, 2, pokemonArt(9)),
         ],
-        { title: 'Blastoise · torrent', rows: 3, cols: 3, backgroundColor: NAVY_MAT },
+        { title: 'Blastoise · torrent', backgroundColor: NAVY_MAT },
       ),
     ],
   },

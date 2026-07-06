@@ -10,8 +10,10 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { BinderSurface, Radii, Shadows, SlotBackingFallback } from '@/constants/theme';
-import { resolveCard } from '@/data/cardResolver';
+import { resolveCardWith } from '@/data/cardResolver';
 import { occupiedCells, type DemoCard, type DemoPage, type DemoSlot } from '@/data/binderTypes';
+import { useCatalog } from '@/hooks/use-catalog';
+import type { Catalog } from '@/lib/catalog';
 
 const CARD_ASPECT = 88 / 63; // height / width of a standard card
 
@@ -54,6 +56,10 @@ export function BinderGrid({
   onCellPress,
   onDropSlot,
 }: BinderGridProps) {
+  // Subscribe to the shared catalog so this grid re-renders (and re-resolves its card slots)
+  // when the catalog finishes loading. Passed down to SlotContent so the resolution is a tracked
+  // dependency — reading the module snapshot directly would be invisible to the React Compiler.
+  const { catalog } = useCatalog();
   const small = width < 220;
   const pad = small ? 6 : 12;
   const gap = small ? 3 : 6;
@@ -126,7 +132,7 @@ export function BinderGrid({
         {page.slots.map((slot) => {
           const selected = editable && slot.id === selectedSlotId;
           const style = box(slot.row, slot.col, slot.rowSpan, slot.colSpan);
-          const content = <SlotContent slot={slot} radius={slotRadius} small={small} />;
+          const content = <SlotContent slot={slot} radius={slotRadius} small={small} catalog={catalog} />;
           if (!editable) {
             return (
               <View key={slot.id} style={style}>
@@ -164,7 +170,7 @@ export function BinderGrid({
               styles.ghost,
               ghostStyle,
             ]}>
-            <SlotContent slot={dragged} radius={slotRadius} small={small} />
+            <SlotContent slot={dragged} radius={slotRadius} small={small} catalog={catalog} />
           </Animated.View>
         ) : null}
       </View>
@@ -308,7 +314,17 @@ function KindBadge({ kind, small }: { kind?: DemoCard['kind']; small: boolean })
   );
 }
 
-function SlotContent({ slot, radius, small }: { slot: DemoSlot; radius: number; small: boolean }) {
+function SlotContent({
+  slot,
+  radius,
+  small,
+  catalog,
+}: {
+  slot: DemoSlot;
+  radius: number;
+  small: boolean;
+  catalog: Catalog | null;
+}) {
   if (slot.type === 'insert') {
     // Tonal negative-space filler: solid colour with a soft top inner highlight
     // so it reads as an intentional, slightly raised tile.
@@ -335,7 +351,7 @@ function SlotContent({ slot, radius, small }: { slot: DemoSlot; radius: number; 
     return <ArtworkImage uri={slot.imageUrl} radius={radius} small={small} crop={slot.imageCrop} />;
   }
 
-  const cardData = resolveCard(slot.cardId);
+  const cardData = resolveCardWith(catalog, slot.cardId);
   if (!cardData) {
     return (
       <View style={[styles.fill, styles.missing, { borderRadius: radius }]}>

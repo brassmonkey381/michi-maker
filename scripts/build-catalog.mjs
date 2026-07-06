@@ -62,6 +62,10 @@ function main() {
       card.image = `/card-imgs/${card.id}.jpg`;
       rewritten += 1;
 
+      // Drop fields the app never reads — trims catalog.json ~30% for a faster fetch + parse.
+      delete card.set_url_name;
+      delete card.product_url;
+
       // JUMBO (2×2): the dedicated 'Jumbo Cards' set is the reliable signal. (A name regex
       // like /jumbo|oversized/ only mis-flags standard cards such as the Item "Jumbo Ice
       // Cream" — every real oversized card lives in the 'Jumbo Cards' set.)

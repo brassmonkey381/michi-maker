@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
+  InteractionManager,
   Modal,
   Pressable,
   ScrollView,
@@ -19,8 +20,9 @@ import { layoutLabel } from '@/components/binder/BinderThumb';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { slotCells } from '@/data/binderTypes';
+import { prefetchCatalog } from '@/lib/catalog';
 import { footprintForKind } from '@/data/cardSizing';
-import { CARDS_BY_ID } from '@/data/sampleData';
+import { resolveCard } from '@/data/cardResolver';
 import { useBinders } from '@/store/binders';
 import { useTheme } from '@/hooks/use-theme';
 import { MICHI_LAYOUT_STYLES } from '@/types/domain';
@@ -69,6 +71,16 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     { rows: number; cols: number; row: number; col: number; imageUrl?: string } | null
   >(null);
 
+  // Warm the 9.87MB catalog off the editor's first-paint critical path: kick off the
+  // load-once fetch/parse only once mount interactions have settled. The persistently
+  // mounted CardPicker's useCatalog(visible) subscribes to the same load-once promise,
+  // so this shares one fetch. runAfterInteractions resolves promptly on web (no native
+  // interaction queue), which is the intended short-delay fallback.
+  useEffect(() => {
+    const handle = InteractionManager.runAfterInteractions(() => prefetchCatalog());
+    return () => handle.cancel();
+  }, []);
+
   const binder = store.getBinder(binderId);
 
   if (!binder) {
@@ -92,7 +104,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // so a piece's shape always matches its pocket.
   const handlePickCard = (cardId: string) => {
     if (!pickerCell) return;
-    const { rows, cols } = footprintForKind(CARDS_BY_ID[cardId]?.kind);
+    const { rows, cols } = footprintForKind(resolveCard(cardId)?.kind);
     store.upsertSlot(binder.id, page.id, {
       ...pickerCell,
       cardId,

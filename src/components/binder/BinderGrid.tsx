@@ -10,7 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { BinderSurface, Radii, Shadows, SlotBackingFallback } from '@/constants/theme';
-import { CARDS_BY_ID } from '@/data/sampleData';
+import { resolveCard } from '@/data/cardResolver';
 import { occupiedCells, type DemoCard, type DemoPage, type DemoSlot } from '@/data/binderTypes';
 
 const CARD_ASPECT = 88 / 63; // height / width of a standard card
@@ -285,7 +285,15 @@ function ArtworkImage({
     : styles.fill;
   return (
     <View style={[styles.fill, styles.artworkPanel, { borderRadius: radius }]}>
-      <Image source={{ uri }} style={imgStyle} contentFit="cover" onError={() => setFailed(true)} />
+      <Image
+        source={{ uri }}
+        style={imgStyle}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+        recyclingKey={uri}
+        transition={120}
+        onError={() => setFailed(true)}
+      />
     </View>
   );
 }
@@ -327,7 +335,7 @@ function SlotContent({ slot, radius, small }: { slot: DemoSlot; radius: number; 
     return <ArtworkImage uri={slot.imageUrl} radius={radius} small={small} crop={slot.imageCrop} />;
   }
 
-  const cardData = slot.cardId ? CARDS_BY_ID[slot.cardId] : undefined;
+  const cardData = resolveCard(slot.cardId);
   if (!cardData) {
     return (
       <View style={[styles.fill, styles.missing, { borderRadius: radius }]}>
@@ -347,6 +355,9 @@ function SlotContent({ slot, radius, small }: { slot: DemoSlot; radius: number; 
           source={{ uri: cardData.imageUrl }}
           style={styles.fill}
           contentFit={spanning ? 'cover' : 'contain'}
+          cachePolicy="memory-disk"
+          recyclingKey={cardData.id}
+          transition={120}
         />
         <KindBadge kind={cardData.kind} small={small} />
       </View>
@@ -358,7 +369,14 @@ function SlotContent({ slot, radius, small }: { slot: DemoSlot; radius: number; 
   return (
     <View style={[styles.fill, styles.cardFrame, { borderRadius: radius }]}>
       <View style={[styles.fill, { backgroundColor: tint(cardData.dominantColor) }]}>
-        <Image source={{ uri: cardData.imageUrl }} style={styles.fill} contentFit="contain" />
+        <Image
+          source={{ uri: cardData.imageUrl }}
+          style={styles.fill}
+          contentFit="contain"
+          cachePolicy="memory-disk"
+          recyclingKey={cardData.id}
+          transition={120}
+        />
         {/* Diagonal foil sheen: two translucent rotated bars layered as plain Views. */}
         <View pointerEvents="none" style={styles.foil}>
           <View style={[styles.foilBar, styles.foilBarA]} />

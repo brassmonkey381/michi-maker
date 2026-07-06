@@ -1,14 +1,15 @@
 import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { CatalogBrowser } from '@/components/binder/CatalogBrowser';
 import { ThemedText } from '@/components/themed-text';
-import { VUNION_SETS } from '@/data/cardSizing';
 import { ARTWORK_LIBRARY, domainOf, slotAspect, type ArtworkAsset } from '@/data/artworkLibrary';
 import { artSearchProvider, isArtSearchConfigured, searchArt } from '@/data/artSearch';
 import { useSavedArt } from '@/data/savedArt';
-import { CARDS, CARDS_BY_ID } from '@/data/sampleData';
-import type { DemoPage, DemoSlot } from '@/data/binderTypes';
+import type { DemoCard, DemoPage, DemoSlot } from '@/data/binderTypes';
+import { catalogCardToDemoCard } from '@/lib/catalog';
+import { useCatalog } from '@/hooks/use-catalog';
 
 /** Tasteful tonal inserts for filling a pocket with negative space. */
 const INSERT_TONES: { label: string; color: string }[] = [
@@ -64,9 +65,6 @@ interface CardPickerProps {
   onClear: () => void;
 }
 
-const STANDARD_CARDS = CARDS.filter((c) => c.kind !== 'jumbo' && c.kind !== 'vunion');
-const JUMBO_CARDS = CARDS.filter((c) => c.kind === 'jumbo');
-
 export function CardPicker({
   visible,
   page,
@@ -83,6 +81,10 @@ export function CardPicker({
   onClear,
 }: CardPickerProps) {
   const savedArt = useSavedArt();
+  // Subscribe only while the sheet is open: the persistently-mounted picker must not
+  // force the 9.87MB catalog fetch on binder-open. The background prefetch (BinderScreen)
+  // warms the shared load-once promise; opening the sheet just subscribes to it.
+  const { catalog, error: catalogError } = useCatalog(visible);
   const [shape, setShape] = useState({ rows: 1, cols: 1 });
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -97,10 +99,19 @@ export function CardPicker({
     !!cell && !!page && cell.row + rows <= page.rows && cell.col + cols <= page.cols;
 
   const is = (rows: number, cols: number) => shape.rows === rows && shape.cols === cols;
-  const framedCards = is(1, 1) ? STANDARD_CARDS : is(2, 2) ? JUMBO_CARDS : [];
+
+  // Everything is sourced from the ~28k-card catalog: 1×1 standard cards via the live
+  // Series → Set → Card browse (<CatalogBrowser>), jumbo (2×2) cards via `listJumbo()`, and
+  // V-UNION sets via `vunionGroups()`. Until the catalog resolves, the 2×2 + V-UNION sections
+  // render empty (the sheet shows a loading/empty state — no crash, no bundled fallback).
+  const jumboCards = is(2, 2) && catalog ? catalog.listJumbo().map(catalogCardToDemoCard) : [];
+  const vunionGroups = is(2, 2) && catalog ? catalog.vunionGroups() : [];
   const showVUnion = is(2, 2);
   const sizeLabel = `${shape.rows}×${shape.cols}`;
   const isMultiCell = shape.rows > 1 || shape.cols > 1;
+  // In 1×1 mode with a loaded catalog we show the full virtualized browse — give the sheet a
+  // definite height so its FlatList gets a bounded viewport to scroll within.
+  const browseMode = is(1, 1) && !!catalog;
 
   // Place a chosen artwork: as one panel, or sliced across the block when the toggle is on.
   const placeArt = (url: string) =>
@@ -124,7 +135,10 @@ export function CardPicker({
     const term = query.trim();
     const handle = setTimeout(() => {
       if (!term) {
-        if (active) setLive([]);
+        if (active) {
+          setLive([]);
+          setSearching(false);
+        }
         return;
       }
       if (active) setSearching(true);
@@ -152,11 +166,149 @@ export function CardPicker({
   const urlValid = /^https?:\/\/\S+$/i.test(urlInput.trim());
   const title = slot ? 'Edit pocket' : 'Add to pocket';
 
+  // A bundled DemoCard thumbnail (jumbo grid + the catalog-unavailable 1×1 fallback).
+  const renderCardThumb = (card: DemoCard) => {
+    const selected = slot?.type === 'card' && slot?.cardId === card.id;
+    const jumbo = card.kind === 'jumbo';
+    const tintBg = card.dominantColor ? `${card.dominantColor}22` : '#f0f0f3';
+    return (
+      <Pressable
+        key={card.id}
+        style={[styles.thumb, selected && styles.thumbSelected]}
+        onPress={() => onPickCard(card.id)}>
+        <View style={[styles.thumbImageWrap, { backgroundColor: tintBg }]}>
+          <Image
+            source={{ uri: card.imageUrl }}
+            style={styles.thumbImage}
+            contentFit="contain"
+            cachePolicy="memory-disk"
+            recyclingKey={card.id}
+            transition={100}
+          />
+          {jumbo ? (
+            <View style={styles.tag}>
+              <Text style={styles.tagText}>JUMBO</Text>
+            </View>
+          ) : null}
+        </View>
+        <Text numberOfLines={1} style={styles.thumbName}>
+          {card.name}
+        </Text>
+      </Pressable>
+    );
+  };
+
+  // Artwork-panel search/paste/slice + tonal inserts. Shared verbatim between the 1×1 browse
+  // footer and the multi-cell ScrollView so those flows stay exactly as they were.
+  const renderArtworkAndInsert = () => (
+    <>
+      {/* Artwork panels — themed art that fits the chosen shape (cropped to cover). */}
+      <View style={styles.artHeader}>
+        <Text style={styles.sectionLabel}>Artwork panel · {sizeLabel}</Text>
+        {isArtSearchConfigured ? (
+          <Text style={styles.artMeta}>{searching ? 'searching…' : `via ${artSearchProvider}`}</Text>
+        ) : null}
+      </View>
+      {/* Whole vs sliced: a multi-cell artwork can fill one panel or cut across the pockets. */}
+      {isMultiCell ? (
+        <View style={styles.controlsRow}>
+          <Text style={styles.controlsLabel}>Layout</Text>
+          <Pressable onPress={() => setSliced(false)} style={[styles.spanChip, !sliced && styles.spanChipActive]}>
+            <Text style={[styles.spanChipText, !sliced && styles.spanChipTextActive]}>Whole</Text>
+          </Pressable>
+          <Pressable onPress={() => setSliced(true)} style={[styles.spanChip, sliced && styles.spanChipActive]}>
+            <Text style={[styles.spanChipText, sliced && styles.spanChipTextActive]}>Sliced</Text>
+          </Pressable>
+          <Text style={styles.artMeta}>{sliced ? `${shape.rows * shape.cols} pieces` : 'one panel'}</Text>
+        </View>
+      ) : null}
+      <View style={styles.controlsRow}>
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search art (e.g. fire, ocean)"
+          placeholderTextColor="#aaa"
+          style={[styles.input, styles.inputGrow]}
+        />
+        <Pressable
+          onPress={() => onOpenSliceStudio(slot?.imageUrl, shape.rows, shape.cols)}
+          style={styles.studioBtn}>
+          <Text style={styles.studioBtnText}>✂ Slice studio</Text>
+        </Pressable>
+      </View>
+      {!isArtSearchConfigured ? (
+        <Text style={styles.hint}>
+          Live art search is off — add EXPO_PUBLIC_PEXELS_KEY or EXPO_PUBLIC_PIXABAY_KEY to .env to
+          auto-suggest themed art. Showing the bundled library for now.
+        </Text>
+      ) : null}
+      <View style={styles.grid}>
+        {artwork.map((art) => (
+          <ArtThumb
+            key={art.id}
+            art={art}
+            selected={slot?.type === 'artwork' && slot?.imageUrl === art.url}
+            onPress={() => placeArt(art.url)}
+          />
+        ))}
+        {artwork.length === 0 ? (
+          <Text style={styles.hint}>No art matches “{query}”. Paste a URL below.</Text>
+        ) : null}
+      </View>
+
+      {/* Paste your own art (any source). Provenance is derived from the URL for cleanup. */}
+      <View style={styles.controlsRow}>
+        <TextInput
+          value={urlInput}
+          onChangeText={setUrlInput}
+          placeholder="Paste image URL…"
+          placeholderTextColor="#aaa"
+          autoCapitalize="none"
+          autoCorrect={false}
+          style={[styles.input, styles.inputGrow]}
+        />
+        <Pressable
+          disabled={!urlValid}
+          onPress={() => {
+            placeArt(urlInput.trim());
+            setUrlInput('');
+          }}
+          style={[styles.addBtn, !urlValid && styles.disabled]}>
+          <Text style={styles.addBtnText}>Add</Text>
+        </Pressable>
+      </View>
+      {urlInput.trim() ? (
+        <Text style={styles.hint}>
+          From {domainOf(urlInput)} — saved as-is; check you have the right to use it.
+        </Text>
+      ) : null}
+
+      {/* Tonal inserts at the chosen shape — solid colour, so any shape is fine. */}
+      <Text style={styles.sectionLabel}>Insert · {sizeLabel}</Text>
+      <View style={styles.insertRow}>
+        {INSERT_TONES.map((tone) => {
+          const active = slot?.type === 'insert' && slot.insertColor === tone.color;
+          return (
+            <Pressable
+              key={tone.color}
+              accessibilityLabel={`${tone.label} insert`}
+              onPress={() => onPickInsert(tone.color, shape.rows, shape.cols)}
+              style={[styles.insertSwatch, { backgroundColor: tone.color }, active && styles.insertSwatchActive]}
+            />
+          );
+        })}
+        <Pressable onPress={onClear} style={styles.emptyBtn}>
+          <Text style={styles.emptyText}>Leave empty</Text>
+        </Pressable>
+      </View>
+    </>
+  );
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <Pressable style={styles.backdropFill} onPress={onClose} />
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, browseMode && styles.sheetTall]}>
           <View style={styles.handle} />
           <View style={styles.header}>
             <ThemedText type="subtitle">{title}</ThemedText>
@@ -184,168 +336,89 @@ export function CardPicker({
             })}
           </View>
 
-          <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-            {/* Framed cards that physically match this shape (1×1 standard, 2×2 jumbo). */}
-            {framedCards.length > 0 ? (
-              <>
-                <Text style={styles.sectionLabel}>Cards · {sizeLabel}</Text>
-                <View style={styles.grid}>
-                  {framedCards.map((card) => {
-                    const selected = slot?.type === 'card' && slot?.cardId === card.id;
-                    const jumbo = card.kind === 'jumbo';
-                    return (
-                      <Pressable
-                        key={card.id}
-                        style={[styles.thumb, selected && styles.thumbSelected]}
-                        onPress={() => onPickCard(card.id)}>
-                        <View style={[styles.thumbImageWrap, { backgroundColor: `${card.dominantColor}22` }]}>
-                          <Image source={{ uri: card.imageUrl }} style={styles.thumbImage} contentFit="contain" />
-                          {jumbo ? (
-                            <View style={styles.tag}>
-                              <Text style={styles.tagText}>JUMBO</Text>
+          {is(1, 1) && catalog ? (
+            // 1×1: the full Series → Set → Card browse. Its FlatList is the primary scroller
+            // (artwork + insert live in the footer) so we never nest a VirtualizedList.
+            <CatalogBrowser
+              // Remount per pocket so browse position / search / filters don't leak
+              // from one pocket to the next when both stay 1×1.
+              key={`${cell?.row ?? 'x'}-${cell?.col ?? 'x'}-${slot?.id ?? 'new'}`}
+              catalog={catalog}
+              selectedCardId={slot?.type === 'card' ? slot.cardId : undefined}
+              onPickCard={onPickCard}
+              footer={renderArtworkAndInsert()}
+            />
+          ) : (
+            <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+              {/* 1×1 with no catalog yet: bundled cards (error) or a spinner (still loading). */}
+              {is(1, 1) ? (
+                <>
+                  <Text style={styles.sectionLabel}>Cards · {sizeLabel}</Text>
+                  {catalogError ? (
+                    <Text style={styles.hint}>
+                      Card search is unavailable right now — check your connection and reopen this
+                      pocket to try again.
+                    </Text>
+                  ) : (
+                    <ActivityIndicator style={styles.loading} />
+                  )}
+                </>
+              ) : null}
+
+              {/* Jumbo cards physically match a 2×2 pocket — sourced from the catalog. */}
+              {jumboCards.length > 0 ? (
+                <>
+                  <Text style={styles.sectionLabel}>Cards · {sizeLabel}</Text>
+                  <View style={styles.grid}>{jumboCards.map(renderCardThumb)}</View>
+                </>
+              ) : null}
+
+              {showVUnion ? (
+                <>
+                  <Text style={styles.sectionLabel}>V-UNION · 2×2 of 4 pieces</Text>
+                  {vunionGroups.length > 0 ? (
+                    <View style={styles.grid}>
+                      {vunionGroups.map((group) => {
+                        const tl = catalog?.getCard(group.pieces[0]);
+                        const tlCard = tl ? catalogCardToDemoCard(tl) : undefined;
+                        return (
+                          <Pressable
+                            key={group.pieces.join('-')}
+                            style={styles.thumb}
+                            onPress={() => onPickVUnion(group.pieces)}>
+                            <View style={styles.thumbImageWrap}>
+                              {tlCard ? (
+                                <Image
+                                  source={{ uri: tlCard.imageUrl }}
+                                  style={styles.thumbImage}
+                                  contentFit="contain"
+                                  cachePolicy="memory-disk"
+                                  recyclingKey={group.pieces[0]}
+                                  transition={100}
+                                />
+                              ) : null}
+                              <View style={styles.tag}>
+                                <Text style={styles.tagText}>V-UNION</Text>
+                              </View>
                             </View>
-                          ) : null}
-                        </View>
-                        <Text numberOfLines={1} style={styles.thumbName}>
-                          {card.name}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </>
-            ) : null}
-
-            {showVUnion ? (
-              <>
-                <Text style={styles.sectionLabel}>V-UNION · 2×2 of 4 pieces</Text>
-                <View style={styles.grid}>
-                  {VUNION_SETS.map((set) => {
-                    const tl = CARDS_BY_ID[set.pieces[0]];
-                    return (
-                      <Pressable key={set.key} style={styles.thumb} onPress={() => onPickVUnion(set.pieces)}>
-                        <View style={[styles.thumbImageWrap, { backgroundColor: `${tl?.dominantColor ?? '#888'}33` }]}>
-                          {tl ? <Image source={{ uri: tl.imageUrl }} style={styles.thumbImage} contentFit="contain" /> : null}
-                          <View style={styles.tag}>
-                            <Text style={styles.tagText}>V-UNION</Text>
-                          </View>
-                        </View>
-                        <Text numberOfLines={1} style={styles.thumbName}>
-                          {set.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </>
-            ) : null}
-
-            {/* Artwork panels — themed art that fits the chosen shape (cropped to cover). */}
-            <View style={styles.artHeader}>
-              <Text style={styles.sectionLabel}>Artwork panel · {sizeLabel}</Text>
-              {isArtSearchConfigured ? (
-                <Text style={styles.artMeta}>{searching ? 'searching…' : `via ${artSearchProvider}`}</Text>
+                            <Text numberOfLines={1} style={styles.thumbName}>
+                              {group.label}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  ) : (
+                    <Text style={styles.hint}>
+                      {catalog ? 'No V-UNION sets available.' : 'Loading V-UNION sets…'}
+                    </Text>
+                  )}
+                </>
               ) : null}
-            </View>
-            {/* Whole vs sliced: a multi-cell artwork can fill one panel or cut across the pockets. */}
-            {isMultiCell ? (
-              <View style={styles.controlsRow}>
-                <Text style={styles.controlsLabel}>Layout</Text>
-                <Pressable
-                  onPress={() => setSliced(false)}
-                  style={[styles.spanChip, !sliced && styles.spanChipActive]}>
-                  <Text style={[styles.spanChipText, !sliced && styles.spanChipTextActive]}>Whole</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => setSliced(true)}
-                  style={[styles.spanChip, sliced && styles.spanChipActive]}>
-                  <Text style={[styles.spanChipText, sliced && styles.spanChipTextActive]}>Sliced</Text>
-                </Pressable>
-                <Text style={styles.artMeta}>
-                  {sliced ? `${shape.rows * shape.cols} pieces` : 'one panel'}
-                </Text>
-              </View>
-            ) : null}
-            <View style={styles.controlsRow}>
-              <TextInput
-                value={query}
-                onChangeText={setQuery}
-                placeholder="Search art (e.g. fire, ocean)"
-                placeholderTextColor="#aaa"
-                style={[styles.input, styles.inputGrow]}
-              />
-              <Pressable
-                onPress={() => onOpenSliceStudio(slot?.imageUrl, shape.rows, shape.cols)}
-                style={styles.studioBtn}>
-                <Text style={styles.studioBtnText}>✂ Slice studio</Text>
-              </Pressable>
-            </View>
-            {!isArtSearchConfigured ? (
-              <Text style={styles.hint}>
-                Live art search is off — add EXPO_PUBLIC_PEXELS_KEY or EXPO_PUBLIC_PIXABAY_KEY to
-                .env to auto-suggest themed art. Showing the bundled library for now.
-              </Text>
-            ) : null}
-            <View style={styles.grid}>
-              {artwork.map((art) => (
-                <ArtThumb
-                  key={art.id}
-                  art={art}
-                  selected={slot?.type === 'artwork' && slot?.imageUrl === art.url}
-                  onPress={() => placeArt(art.url)}
-                />
-              ))}
-              {artwork.length === 0 ? (
-                <Text style={styles.hint}>No art matches “{query}”. Paste a URL below.</Text>
-              ) : null}
-            </View>
 
-            {/* Paste your own art (any source). Provenance is derived from the URL for cleanup. */}
-            <View style={styles.controlsRow}>
-              <TextInput
-                value={urlInput}
-                onChangeText={setUrlInput}
-                placeholder="Paste image URL…"
-                placeholderTextColor="#aaa"
-                autoCapitalize="none"
-                autoCorrect={false}
-                style={[styles.input, styles.inputGrow]}
-              />
-              <Pressable
-                disabled={!urlValid}
-                onPress={() => {
-                  placeArt(urlInput.trim());
-                  setUrlInput('');
-                }}
-                style={[styles.addBtn, !urlValid && styles.disabled]}>
-                <Text style={styles.addBtnText}>Add</Text>
-              </Pressable>
-            </View>
-            {urlInput.trim() ? (
-              <Text style={styles.hint}>
-                From {domainOf(urlInput)} — saved as-is; check you have the right to use it.
-              </Text>
-            ) : null}
-
-            {/* Tonal inserts at the chosen shape — solid colour, so any shape is fine. */}
-            <Text style={styles.sectionLabel}>Insert · {sizeLabel}</Text>
-            <View style={styles.insertRow}>
-              {INSERT_TONES.map((tone) => {
-                const active = slot?.type === 'insert' && slot.insertColor === tone.color;
-                return (
-                  <Pressable
-                    key={tone.color}
-                    accessibilityLabel={`${tone.label} insert`}
-                    onPress={() => onPickInsert(tone.color, shape.rows, shape.cols)}
-                    style={[styles.insertSwatch, { backgroundColor: tone.color }, active && styles.insertSwatchActive]}
-                  />
-                );
-              })}
-              <Pressable onPress={onClear} style={styles.emptyBtn}>
-                <Text style={styles.emptyText}>Leave empty</Text>
-              </Pressable>
-            </View>
-          </ScrollView>
+              {renderArtworkAndInsert()}
+            </ScrollView>
+          )}
         </View>
       </View>
     </Modal>
@@ -375,6 +448,9 @@ function ArtThumb({
             source={{ uri: art.url }}
             style={styles.thumbImage}
             contentFit="cover"
+            cachePolicy="memory-disk"
+            recyclingKey={art.id}
+            transition={100}
             onError={() => setFailed(true)}
           />
         )}
@@ -404,6 +480,9 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     maxHeight: '85%',
   },
+  // A definite height (not just maxHeight) so the browse FlatList gets a bounded viewport.
+  sheetTall: { height: '85%' },
+  loading: { marginVertical: 24 },
   handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#d4d4d4', marginBottom: 8 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   close: { fontSize: 16, fontWeight: '600', color: '#3B82F6' },

@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useEffect, useState, type ReactNode } from 'react';
+import { InteractionManager, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BinderScreen } from '@/components/binder/BinderScreen';
@@ -7,6 +7,8 @@ import { BinderThumb } from '@/components/binder/BinderThumb';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useCatalog } from '@/hooks/use-catalog';
+import { prefetchCatalog } from '@/lib/catalog';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useBinders } from '@/store/binders';
 
@@ -14,6 +16,20 @@ export default function BindersScreen() {
   const store = useBinders();
   const { width } = useWindowDimensions();
   const [openId, setOpenId] = useState<string | null>(null);
+
+  // The generated example binders reference catalog-only card ids, so their thumbnails only
+  // resolve once the shared catalog has loaded. Kick the load-once fetch off the home screen's
+  // first-paint critical path (runAfterInteractions), then flip `warm` so useCatalog subscribes
+  // to the same promise — its resolution re-renders this screen so the covers fill in.
+  const [warm, setWarm] = useState(false);
+  useEffect(() => {
+    const handle = InteractionManager.runAfterInteractions(() => {
+      prefetchCatalog();
+      setWarm(true);
+    });
+    return () => handle.cancel();
+  }, []);
+  useCatalog(warm); // subscribe (once warmed) so a resolved catalog triggers a re-render
 
   const contentWidth = Math.min(width, MaxContentWidth) - Spacing.four * 2;
   const columns = contentWidth > 520 ? 3 : 2;

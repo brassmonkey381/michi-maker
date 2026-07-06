@@ -1,0 +1,425 @@
+/**
+ * Catalog data-access layer.
+ *
+ * Reads a taxonomy-rich `catalog.json` (card names, set/series structure, and a local
+ * image path per card) and exposes it behind the `Catalog` interface. All data-shape
+ * knowledge (raw snake_case → camelCase normalization, Map-backed lookups) lives here,
+ * so a later Supabase-backed source is a swap in `loadCatalog` + `catalogConfig.ts`.
+ *
+ * Ported from the sibling tcgscan-expo app's src/lib/cards.ts. This variant drops the
+ * price join (michi-maker doesn't price cards) and adds `catalogCardToDemoCard`, which
+ * adapts a CatalogCard into the binder editor's `DemoCard` view-model.
+ */
+import type { CardKind, DemoCard } from '@/data/binderTypes';
+import { browseUrl, resolveImageUrl } from '@/lib/catalogConfig';
+
+/** A single card from the catalog. `id` is the catalog's stable card id (string). */
+export interface CatalogCard {
+  id: string;
+  name: string;
+  number: string; // collector number, e.g. "065/102" ("" for code cards)
+  rarity: string;
+  cardType: string[];
+  setId: string;
+  setName: string;
+  setCode: string;
+  seriesId: string; // series name doubles as its id
+  releaseDate: string; // ISO yyyy-mm-dd or ""
+  image: string; // local image path (e.g. /card-imgs/…)
+  kind: CardKind; // derived footprint: 'standard' | 'jumbo' | 'vunion' (see build-catalog.mjs)
+}
+
+/**
+ * A V-UNION set: four 1×1 catalog pieces that tile a 2×2 block, in
+ * [topLeft, topRight, bottomLeft, bottomRight] order.
+ */
+export interface VUnionGroup {
+  base: string; // Pokémon base name, e.g. "Mewtwo"
+  label: string; // display label, e.g. "Mewtwo V-UNION"
+  pieces: [string, string, string, string]; // catalog card ids, TL, TR, BL, BR
+}
+
+export interface CatalogSet {
+  id: string;
+  name: string;
+  code: string;
+  seriesId: string;
+  cardCount: number;
+  coverUri?: string; // official set logo, else undefined (blank tile)
+  releaseDate: string; // set launch (earliest card release_date), yyyy-mm-dd or ""
+  lastPrinted: string; // latest card release_date in the set
+}
+
+export interface CatalogSeries {
+  id: string; // == name
+  name: string;
+  setIds: string[];
+  cardCount: number;
+  coverUri?: string; // official series logo, else undefined (blank tile)
+  releaseDate: string; // newest set's release (for recency sort), yyyy-mm-dd or ""
+  firstDate: string; // oldest set's release
+}
+
+export interface Catalog {
+  listSeries(): CatalogSeries[];
+  getSeries(seriesId: string): CatalogSeries | undefined;
+  listSets(seriesId: string): CatalogSet[];
+  getSet(setId: string): CatalogSet | undefined;
+  listCards(setId: string): CatalogCard[];
+  getCard(cardId: string): CatalogCard | undefined;
+  /** Every jumbo (oversized, 2×2) card in the catalog. */
+  listJumbo(): CatalogCard[];
+  /** The V-UNION groups (each four 1×1 pieces tiling a 2×2). */
+  vunionGroups(): VUnionGroup[];
+  search(query: string, limit?: number): CatalogCard[];
+  searchSeries(query: string, limit?: number): CatalogSeries[];
+  searchSets(query: string, limit?: number): CatalogSet[];
+  readonly cardCount: number;
+}
+
+// ---- raw catalog.json shapes (snake_case, as emitted by the pipeline) --------
+
+export interface RawCard {
+  id: string;
+  name: string;
+  number?: string;
+  rarity?: string;
+  card_type?: string[];
+  set_id?: number | string;
+  set_name?: string;
+  set_code?: string;
+  series?: string;
+  release_date?: string;
+  image?: string;
+  kind?: string; // 'standard' | 'jumbo' | 'vunion' (emitted by build-catalog.mjs)
+}
+export interface RawSet {
+  id: number | string;
+  name: string;
+  code?: string;
+  series?: string;
+  card_count?: number;
+  logo?: string; // set-art logo URL, if matched
+  symbol?: string;
+}
+export interface RawSeries {
+  name: string;
+  set_ids: (number | string)[];
+  card_count?: number;
+  logo?: string; // series logo URL, if available
+}
+export interface RawVUnionGroup {
+  base?: string;
+  label?: string;
+  pieces?: string[];
+}
+export interface RawCatalog {
+  cards: Record<string, RawCard>;
+  sets: Record<string, RawSet>;
+  series: Record<string, RawSeries>;
+  vunionGroups?: RawVUnionGroup[];
+}
+
+/** Coerce a raw kind string into a valid CardKind, defaulting to 'standard'. */
+function normalizeKind(raw?: string): CardKind {
+  return raw === 'jumbo' || raw === 'vunion' ? raw : 'standard';
+}
+
+/** Sort key for collector numbers: "12/102" -> 12, "SWSH045" -> 45, "" -> ∞. */
+function numberKey(n: string): number {
+  const m = n.match(/\d+/);
+  return m ? parseInt(m[0], 10) : Number.MAX_SAFE_INTEGER;
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** yyyy-mm-dd -> "Mar 2022" (or "" for empty). */
+export function formatSetDate(iso: string): string {
+  if (!iso) return '';
+  const [y, m] = iso.split('-');
+  return `${MONTHS[parseInt(m, 10) - 1] ?? ''} ${y}`.trim();
+}
+
+/** A series' active-years label from its first/last set, e.g. "2016–2018" or "2016". */
+export function seriesDateRange(s: { firstDate: string; releaseDate: string }): string {
+  const y1 = s.firstDate.slice(0, 4);
+  const y2 = s.releaseDate.slice(0, 4);
+  if (!y1) return y2;
+  if (!y2 || y1 === y2) return y1;
+  return `${y1}–${y2}`;
+}
+
+/** Newest release first; empty dates sink to the bottom; ties broken by name. */
+function byReleaseDesc(a: { releaseDate: string; name: string }, b: { releaseDate: string; name: string }): number {
+  return (b.releaseDate || '').localeCompare(a.releaseDate || '') || a.name.localeCompare(b.name);
+}
+
+class LocalCatalog implements Catalog {
+  private readonly cards = new Map<string, CatalogCard>();
+  private readonly cardsBySet = new Map<string, CatalogCard[]>();
+  private readonly sets = new Map<string, CatalogSet>();
+  private readonly series = new Map<string, CatalogSeries>();
+  private readonly all: CatalogCard[] = [];
+  private readonly jumbo: CatalogCard[] = [];
+  private readonly vunion: VUnionGroup[] = [];
+  // Parallel search index: card names pre-lowercased once so name search doesn't
+  // re-lowercase ~28k strings on every keystroke.
+  private readonly searchIndex: { card: CatalogCard; lc: string }[] = [];
+
+  constructor(raw: RawCatalog) {
+    for (const raw_c of Object.values(raw.cards)) {
+      const card: CatalogCard = {
+        id: String(raw_c.id),
+        name: raw_c.name ?? '',
+        number: raw_c.number ?? '',
+        rarity: raw_c.rarity ?? '',
+        cardType: raw_c.card_type ?? [],
+        setId: String(raw_c.set_id ?? ''),
+        setName: raw_c.set_name ?? '',
+        setCode: raw_c.set_code ?? '',
+        seriesId: raw_c.series ?? '',
+        releaseDate: raw_c.release_date ?? '',
+        image: raw_c.image ?? '',
+        kind: normalizeKind(raw_c.kind),
+      };
+      this.cards.set(card.id, card);
+      this.all.push(card);
+      if (card.kind === 'jumbo') this.jumbo.push(card);
+      this.searchIndex.push({ card, lc: card.name.toLowerCase() });
+      let bucket = this.cardsBySet.get(card.setId);
+      if (!bucket) this.cardsBySet.set(card.setId, (bucket = []));
+      bucket.push(card);
+    }
+
+    // V-UNION groups: keep only well-formed groups whose four piece ids all resolve.
+    for (const g of raw.vunionGroups ?? []) {
+      const pieces = g.pieces ?? [];
+      if (pieces.length !== 4) continue;
+      if (!pieces.every((id) => this.cards.has(String(id)))) continue;
+      const base = g.base ?? '';
+      this.vunion.push({
+        base,
+        label: g.label ?? `${base} V-UNION`,
+        pieces: pieces.map(String) as [string, string, string, string],
+      });
+    }
+
+    for (const raw_s of Object.values(raw.sets)) {
+      const id = String(raw_s.id);
+      const cards = this.cardsBySet.get(id) ?? [];
+      const dates = cards.map((c) => c.releaseDate).filter(Boolean).sort(); // yyyy-mm-dd sorts lexically
+      this.sets.set(id, {
+        id,
+        name: raw_s.name ?? id,
+        code: raw_s.code ?? '',
+        seriesId: raw_s.series ?? '',
+        cardCount: raw_s.card_count ?? cards.length,
+        coverUri: raw_s.logo, // official set logo if matched, else blank
+        releaseDate: dates[0] ?? '',
+        lastPrinted: dates[dates.length - 1] ?? '',
+      });
+    }
+
+    for (const raw_series of Object.values(raw.series)) {
+      const setIds = (raw_series.set_ids ?? []).map(String);
+      const setsInSeries = setIds
+        .map((sid) => this.sets.get(sid))
+        .filter((s): s is CatalogSet => Boolean(s));
+      const setDates = setsInSeries
+        .map((s) => s.releaseDate)
+        .filter((d): d is string => Boolean(d))
+        .sort();
+      this.series.set(raw_series.name, {
+        id: raw_series.name,
+        name: raw_series.name,
+        setIds,
+        cardCount: raw_series.card_count ?? 0,
+        coverUri: raw_series.logo, // dedicated series-art image, else blank
+        firstDate: setDates[0] ?? '',
+        releaseDate: setDates[setDates.length - 1] ?? '',
+      });
+    }
+  }
+
+  get cardCount(): number {
+    return this.all.length;
+  }
+
+  listSeries(): CatalogSeries[] {
+    return [...this.series.values()].sort(byReleaseDesc);
+  }
+
+  getSeries(seriesId: string): CatalogSeries | undefined {
+    return this.series.get(seriesId);
+  }
+
+  listSets(seriesId: string): CatalogSet[] {
+    const series = this.series.get(seriesId);
+    if (!series) return [];
+    return series.setIds
+      .map((id) => this.sets.get(id))
+      .filter((s): s is CatalogSet => Boolean(s))
+      .sort(byReleaseDesc);
+  }
+
+  getSet(setId: string): CatalogSet | undefined {
+    return this.sets.get(setId);
+  }
+
+  listCards(setId: string): CatalogCard[] {
+    return [...(this.cardsBySet.get(setId) ?? [])].sort(
+      (a, b) => numberKey(a.number) - numberKey(b.number) || a.name.localeCompare(b.name),
+    );
+  }
+
+  getCard(cardId: string): CatalogCard | undefined {
+    return this.cards.get(cardId);
+  }
+
+  listJumbo(): CatalogCard[] {
+    return [...this.jumbo].sort(
+      (a, b) => a.name.localeCompare(b.name) || numberKey(a.number) - numberKey(b.number),
+    );
+  }
+
+  vunionGroups(): VUnionGroup[] {
+    return [...this.vunion];
+  }
+
+  search(query: string, limit = 60): CatalogCard[] {
+    // Full scan over the pre-lowercased index (cheap at ~28k): prefix matches rank
+    // first and are never dropped by an early break — we only stop once we already
+    // have a full page of prefix hits. `contains` is capped so it can't grow unbounded.
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    const starts: CatalogCard[] = [];
+    const contains: CatalogCard[] = [];
+    for (const { card, lc } of this.searchIndex) {
+      const idx = lc.indexOf(q);
+      if (idx < 0) continue;
+      if (idx === 0) {
+        starts.push(card);
+        if (starts.length >= limit) break;
+      } else if (contains.length < limit) {
+        contains.push(card);
+      }
+    }
+    return [...starts, ...contains].slice(0, limit);
+  }
+
+  searchSeries(query: string, limit = 6): CatalogSeries[] {
+    return matchByName([...this.series.values()], (s) => s.name, query, limit);
+  }
+
+  searchSets(query: string, limit = 12): CatalogSet[] {
+    // match a set by its own name or its series name (so "swor" surfaces sets too)
+    return matchByName([...this.sets.values()], (s) => `${s.name} ${s.seriesId}`, query, limit, (s) => s.name);
+  }
+}
+
+/**
+ * Prefix-boosted substring match: items whose (rank) text starts with the query
+ * come first, then substring hits — capped at `limit`. `rankText` defaults to
+ * `text`; pass a narrower one when `text` includes extra searchable context.
+ */
+function matchByName<T>(
+  items: T[],
+  text: (t: T) => string,
+  query: string,
+  limit: number,
+  rankText?: (t: T) => string,
+): T[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  const rank = rankText ?? text;
+  const starts: T[] = [];
+  const contains: T[] = [];
+  for (const item of items) {
+    const hay = text(item).toLowerCase();
+    if (!hay.includes(q)) continue;
+    if (rank(item).toLowerCase().startsWith(q)) starts.push(item);
+    else contains.push(item);
+    if (starts.length + contains.length >= limit * 3) break; // bound work on huge lists
+  }
+  return [...starts, ...contains].slice(0, limit);
+}
+
+/**
+ * Adapt a CatalogCard into the binder editor's `DemoCard` view-model.
+ *
+ * The catalog (ported from TCGScan) lacks a per-card Pokémon name, illustrator, and
+ * dominant colour, so those DemoCard fields are left undefined. The image path is
+ * routed through the config seam (`resolveImageUrl`) so a native/CDN origin swap stays
+ * centralized. The card's derived footprint (`kind`) is carried through so jumbo/V-UNION
+ * pieces render at the right size in the editor.
+ */
+export function catalogCardToDemoCard(c: CatalogCard): DemoCard {
+  return {
+    id: c.id,
+    name: c.name,
+    setName: c.setName,
+    imageUrl: resolveImageUrl(c.image),
+    orientation: 'portrait',
+    kind: c.kind,
+    // pokemon / illustrator / dominantColor: not present in the TCGScan catalog.
+  };
+}
+
+async function loadCatalogFrom(base: string): Promise<Catalog> {
+  const res = await fetch(`${base}/catalog.json`);
+  if (!res.ok) throw new Error(`Failed to load catalog.json (${res.status})`);
+  return new LocalCatalog((await res.json()) as RawCatalog);
+}
+
+let cache: Promise<Catalog> | null = null;
+let loaded: Catalog | null = null;
+
+/**
+ * Shared, load-once catalog: the fetch + parse happens exactly once app-wide
+ * (module-level promise cache), regardless of how many callers await it.
+ */
+export function loadCatalog(): Promise<Catalog> {
+  if (!cache) {
+    cache = loadCatalogFrom(browseUrl)
+      .then((c) => {
+        loaded = c; // publish a synchronous snapshot for non-async callers (see getLoadedCatalog)
+        return c;
+      })
+      .catch((e) => {
+        cache = null; // don't poison the cache — let a later mount retry the fetch
+        throw e;
+      });
+  }
+  return cache;
+}
+
+/** Alias of {@link loadCatalog} — the shared, load-once catalog promise. */
+export function getCatalog(): Promise<Catalog> {
+  return loadCatalog();
+}
+
+/**
+ * Fire-and-forget, low-priority warm of the shared catalog. Kicks off the load-once
+ * fetch/parse without making any caller await it, and swallows errors (on failure
+ * `loadCatalog` already clears its cache so a later `useCatalog` mount retries).
+ *
+ * Use this to warm the 9.87MB catalog shortly after the editor opens, off the
+ * first-paint critical path — `useCatalog` then subscribes to the same promise, so
+ * the prefetch and every subscriber share exactly one fetch.
+ */
+export function prefetchCatalog(): void {
+  loadCatalog().catch(() => {
+    // Swallowed on purpose: this is a background warm, not a subscriber. A later
+    // useCatalog mount surfaces the error and retries the (now-cleared) cache.
+  });
+}
+
+/**
+ * Synchronous access to the catalog *iff* it has already resolved, else `null`.
+ * Lets render-path code (e.g. resolving a slot's card id) read the catalog without
+ * awaiting — callers must handle the `null` (still-loading) case with a fallback.
+ * Does NOT kick off a load; pair with `useCatalog`/`loadCatalog` to trigger the fetch.
+ */
+export function getLoadedCatalog(): Catalog | null {
+  return loaded;
+}

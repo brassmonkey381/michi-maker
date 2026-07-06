@@ -39,6 +39,10 @@ yarn-error.*
 supabase/.branches
 supabase/.temp
 
+# Generated catalog artifacts (large; served statically, fetched by URL)
+/public/browse/
+/public/card-imgs/
+
 # typescript
 *.tsbuildinfo
 

@@ -2,36 +2,19 @@
  * Aggregates every content module into flat card + binder lists.
  *
  * Each module under this folder exports `cards` and `binders` (see ./_helpers `ContentModule`).
- * `src/data/sampleData.ts` merges `CONTENT_CARDS` into the catalogue and exposes
- * `CONTENT_BINDERS` as the app's example binders. The module order here is the display order
- * of the example binders on the home screen.
+ * `src/data/sampleData.ts` exposes `CONTENT_BINDERS` as the app's example binders. The module
+ * order here is the display order of the example binders on the home screen.
+ *
+ * The only remaining module is `generated` — the catalog-driven example binders (produced by
+ * scripts/build-example-binders.mjs). The pre-catalog hand-authored ukiyo-e modules were removed
+ * once every binder resolved cards from the runtime catalog.
  */
 
 import type { DemoBinder, DemoCard } from '@/data/binderTypes';
 
-import * as artistFeature from './artist-feature';
-import * as artists from './artists';
-import * as classics from './classics';
-import * as colors from './colors';
-import * as originalsA from './originals-a';
-import * as originalsB from './originals-b';
-import * as spotlight from './spotlight';
-import * as starters from './starters';
-import * as trainer from './trainer';
+import * as generated from './generated';
 
-// The three brief-driven feature binders lead the home screen (display order = module order):
-// Base Set starters, the Misty trainer study, and the Arita single-illustrator gallery.
-const MODULES = [
-  starters,
-  trainer,
-  artistFeature,
-  originalsA,
-  originalsB,
-  classics,
-  artists,
-  colors,
-  spotlight,
-];
+const MODULES = [generated];
 
 export const CONTENT_CARDS: DemoCard[] = MODULES.flatMap((module) => module.cards);
 

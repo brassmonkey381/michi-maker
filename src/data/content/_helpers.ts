@@ -1,9 +1,9 @@
 /**
  * Stable, read-only helpers for the content modules in this folder.
  *
- * Each content module (originals-a, classics, artists, …) exports `cards` and `binders`
- * arrays built with these helpers. `src/data/content/index.ts` aggregates them, and
- * `src/data/sampleData.ts` merges them into the app's catalogue + example binders.
+ * Each content module (currently just `generated`) exports `cards` and `binders` arrays
+ * built with these helpers. `src/data/content/index.ts` aggregates them, and
+ * `src/data/sampleData.ts` surfaces them as the app's example binders.
  *
  * Author binders by composing pages of slots:
  *   - `card(row, col, id, opts?)`    → a framed card in a pocket
@@ -174,11 +174,6 @@ export function vunion(
   ];
 }
 
-/**
- * V-UNION piece id tuples and jumbo card ids — re-exported from the shared card-sizing
- * module so content authors and the editor UI share one source of truth.
- */
-export { VUNION, JUMBO } from '@/data/cardSizing';
 export { ART } from '@/data/artworkLibrary';
 
 /** A page of slots. Title/background optional; grid defaults to 3×3. */

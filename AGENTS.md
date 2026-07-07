@@ -14,6 +14,11 @@ poke-michi lets collectors build **digital "michi binders"** — aesthetically c
 card layouts (anchor pages, single-Pokémon pages, color-themed spreads, artist pages, etc.)
 for web, iOS, and Android from one codebase. See `README.md` and `docs/DATA-MODEL.md`.
 
+**Card data (catalog, images, prices, similarity) comes from the shared tcgscan-data
+Supabase server — read `docs/DATA-SERVER.md` FIRST for the integration points, pending
+handoff items, and what must never be resurrected locally.** That server is owned by a
+different session/repo; this app is a pure consumer.
+
 ## Conventions
 
 - **Routing:** file-based via Expo Router. Routes live in `src/app/`. The `@/` alias maps to `src/`.

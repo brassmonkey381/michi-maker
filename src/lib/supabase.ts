@@ -25,6 +25,9 @@ export const supabase: SupabaseClient<Database> | null = isSupabaseConfigured
         persistSession: true,
         // Only the web build resolves the auth redirect from the URL.
         detectSessionInUrl: Platform.OS === 'web',
+        // PKCE so the native OAuth / email-link flows exchange a `code` for a session
+        // (the code verifier is kept in the auth storage above). See src/store/auth.tsx.
+        flowType: 'pkce',
       },
     })
   : null;

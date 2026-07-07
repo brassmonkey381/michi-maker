@@ -6,8 +6,8 @@
  * the bundled example binders never reach this module.
  *
  * RLS requires a session, so reads/writes are scoped to the signed-in user automatically.
- * `ensureSession()` signs in anonymously when there's no session, so the app works before
- * any auth UI exists (enable "Anonymous sign-ins" in your Supabase Auth settings).
+ * The session (guest or real account) is established by the auth store (src/store/auth.tsx);
+ * this module assumes one exists and simply reads/writes the current user's rows.
  */
 
 import { requireSupabase } from '@/lib/supabase';
@@ -126,22 +126,6 @@ function mapBinder(row: BinderRowIn): DemoBinder {
     coverCardId: row.cover_card_id ?? undefined,
     pages,
   };
-}
-
-// --- session ---------------------------------------------------------------
-
-export async function ensureSession(): Promise<void> {
-  const supabase = requireSupabase();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (session) return;
-  const { error } = await supabase.auth.signInAnonymously();
-  if (error) {
-    throw new Error(
-      `anonymous sign-in failed (${error.message}). Enable "Anonymous sign-ins" in Supabase Auth settings.`,
-    );
-  }
 }
 
 // --- reads -----------------------------------------------------------------

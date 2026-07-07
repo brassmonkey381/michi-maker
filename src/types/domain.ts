@@ -15,11 +15,9 @@ export type MichiLayoutStyle = PublicSchema['Enums']['michi_layout_style'];
 export type BinderSlotType = PublicSchema['Enums']['binder_slot_type'];
 export type CardOrientation = PublicSchema['Enums']['card_orientation'];
 
-// Reference data
-export type Pokemon = PublicSchema['Tables']['pokemon']['Row'];
-export type Illustrator = PublicSchema['Tables']['illustrators']['Row'];
-export type CardSet = PublicSchema['Tables']['card_sets']['Row'];
-export type Card = PublicSchema['Tables']['cards']['Row'];
+// Reference data (pokemon, illustrators, sets, cards) lives in the shared tcgscan-data
+// server and is consumed over HTTP — see src/lib/catalog.ts and docs/DATA-SERVER.md. It is
+// intentionally NOT part of this project's schema, so there are no entity types for it here.
 
 // User data
 export type Profile = PublicSchema['Tables']['profiles']['Row'];

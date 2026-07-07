@@ -1,294 +1,352 @@
 /**
- * Database types for the Supabase `public` schema.
+ * Database types for the Supabase `public` schema of the tcgscan-michi-maker project.
  *
- * This file is hand-written to match supabase/migrations, so the client is fully typed
- * out of the box. Once your project is linked you should regenerate it from the live
- * schema so it never drifts:
- *
+ * Generated from the live schema — regenerate after any migration so it never drifts:
  *   npx supabase gen types typescript --linked > src/types/database.ts
- *
- * See supabase/README.md.
+ * (or use the Supabase MCP `generate_typescript_types` tool). This project holds only the
+ * app's user data; all card/catalog data comes from the separate tcgscan-data server.
  */
 
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
-export interface Database {
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   public: {
     Tables: {
-      pokemon: {
-        Row: {
-          id: string;
-          dex_number: number | null;
-          name_en: string;
-          name_ja: string | null;
-          sprite_url: string | null;
-          created_at: string;
-        };
-        Insert: {
-          id: string;
-          dex_number?: number | null;
-          name_en: string;
-          name_ja?: string | null;
-          sprite_url?: string | null;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          dex_number?: number | null;
-          name_en?: string;
-          name_ja?: string | null;
-          sprite_url?: string | null;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
-      illustrators: {
-        Row: { id: string; name: string; created_at: string };
-        Insert: { id: string; name: string; created_at?: string };
-        Update: { id?: string; name?: string; created_at?: string };
-        Relationships: [];
-      };
-      card_sets: {
-        Row: {
-          id: string;
-          name: string;
-          series: string | null;
-          release_date: string | null;
-          symbol_url: string | null;
-          created_at: string;
-        };
-        Insert: {
-          id: string;
-          name: string;
-          series?: string | null;
-          release_date?: string | null;
-          symbol_url?: string | null;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          name?: string;
-          series?: string | null;
-          release_date?: string | null;
-          symbol_url?: string | null;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
-      cards: {
-        Row: {
-          id: string;
-          name: string;
-          set_id: string | null;
-          illustrator_id: string | null;
-          pokemon_id: string | null;
-          number: string | null;
-          rarity: string | null;
-          orientation: Database['public']['Enums']['card_orientation'];
-          image_url: string | null;
-          image_small_url: string | null;
-          dominant_color: string | null;
-          source_url: string | null;
-          created_at: string;
-        };
-        Insert: {
-          id: string;
-          name: string;
-          set_id?: string | null;
-          illustrator_id?: string | null;
-          pokemon_id?: string | null;
-          number?: string | null;
-          rarity?: string | null;
-          orientation?: Database['public']['Enums']['card_orientation'];
-          image_url?: string | null;
-          image_small_url?: string | null;
-          dominant_color?: string | null;
-          source_url?: string | null;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          name?: string;
-          set_id?: string | null;
-          illustrator_id?: string | null;
-          pokemon_id?: string | null;
-          number?: string | null;
-          rarity?: string | null;
-          orientation?: Database['public']['Enums']['card_orientation'];
-          image_url?: string | null;
-          image_small_url?: string | null;
-          dominant_color?: string | null;
-          source_url?: string | null;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
-      profiles: {
-        Row: {
-          id: string;
-          username: string | null;
-          display_name: string | null;
-          avatar_url: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id: string;
-          username?: string | null;
-          display_name?: string | null;
-          avatar_url?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          username?: string | null;
-          display_name?: string | null;
-          avatar_url?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Relationships: [];
-      };
-      binders: {
-        Row: {
-          id: string;
-          owner_id: string;
-          title: string;
-          description: string | null;
-          layout_style: Database['public']['Enums']['michi_layout_style'];
-          cover_card_id: string | null;
-          is_public: boolean;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          owner_id?: string;
-          title: string;
-          description?: string | null;
-          layout_style?: Database['public']['Enums']['michi_layout_style'];
-          cover_card_id?: string | null;
-          is_public?: boolean;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          owner_id?: string;
-          title?: string;
-          description?: string | null;
-          layout_style?: Database['public']['Enums']['michi_layout_style'];
-          cover_card_id?: string | null;
-          is_public?: boolean;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Relationships: [];
-      };
       binder_pages: {
         Row: {
-          id: string;
-          binder_id: string;
-          position: number;
-          title: string | null;
-          rows: number;
-          cols: number;
-          background_color: string | null;
-          notes: string | null;
-          created_at: string;
-          updated_at: string;
-        };
+          background_color: string | null
+          binder_id: string
+          cols: number
+          created_at: string
+          id: string
+          notes: string | null
+          position: number
+          rows: number
+          title: string | null
+          updated_at: string
+        }
         Insert: {
-          id?: string;
-          binder_id: string;
-          position?: number;
-          title?: string | null;
-          rows?: number;
-          cols?: number;
-          background_color?: string | null;
-          notes?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
+          background_color?: string | null
+          binder_id: string
+          cols?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          position?: number
+          rows?: number
+          title?: string | null
+          updated_at?: string
+        }
         Update: {
-          id?: string;
-          binder_id?: string;
-          position?: number;
-          title?: string | null;
-          rows?: number;
-          cols?: number;
-          background_color?: string | null;
-          notes?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Relationships: [];
-      };
+          background_color?: string | null
+          binder_id?: string
+          cols?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          position?: number
+          rows?: number
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "binder_pages_binder_id_fkey"
+            columns: ["binder_id"]
+            isOneToOne: false
+            referencedRelation: "binders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       binder_slots: {
         Row: {
-          id: string;
-          page_id: string;
-          row_index: number;
-          col_index: number;
-          row_span: number;
-          col_span: number;
-          slot_type: Database['public']['Enums']['binder_slot_type'];
-          card_id: string | null;
-          insert_image_url: string | null;
-          orientation: Database['public']['Enums']['card_orientation'];
-          notes: string | null;
-          created_at: string;
-          updated_at: string;
-        };
+          card_id: string | null
+          col_index: number
+          col_span: number
+          created_at: string
+          id: string
+          insert_image_url: string | null
+          notes: string | null
+          orientation: Database["public"]["Enums"]["card_orientation"]
+          page_id: string
+          row_index: number
+          row_span: number
+          slot_type: Database["public"]["Enums"]["binder_slot_type"]
+          updated_at: string
+        }
         Insert: {
-          id?: string;
-          page_id: string;
-          row_index: number;
-          col_index: number;
-          row_span?: number;
-          col_span?: number;
-          slot_type?: Database['public']['Enums']['binder_slot_type'];
-          card_id?: string | null;
-          insert_image_url?: string | null;
-          orientation?: Database['public']['Enums']['card_orientation'];
-          notes?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
+          card_id?: string | null
+          col_index: number
+          col_span?: number
+          created_at?: string
+          id?: string
+          insert_image_url?: string | null
+          notes?: string | null
+          orientation?: Database["public"]["Enums"]["card_orientation"]
+          page_id: string
+          row_index: number
+          row_span?: number
+          slot_type?: Database["public"]["Enums"]["binder_slot_type"]
+          updated_at?: string
+        }
         Update: {
-          id?: string;
-          page_id?: string;
-          row_index?: number;
-          col_index?: number;
-          row_span?: number;
-          col_span?: number;
-          slot_type?: Database['public']['Enums']['binder_slot_type'];
-          card_id?: string | null;
-          insert_image_url?: string | null;
-          orientation?: Database['public']['Enums']['card_orientation'];
-          notes?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Relationships: [];
-      };
-    };
-    Views: Record<string, never>;
-    Functions: Record<string, never>;
+          card_id?: string | null
+          col_index?: number
+          col_span?: number
+          created_at?: string
+          id?: string
+          insert_image_url?: string | null
+          notes?: string | null
+          orientation?: Database["public"]["Enums"]["card_orientation"]
+          page_id?: string
+          row_index?: number
+          row_span?: number
+          slot_type?: Database["public"]["Enums"]["binder_slot_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "binder_slots_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "binder_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      binders: {
+        Row: {
+          cover_card_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_public: boolean
+          layout_style: Database["public"]["Enums"]["michi_layout_style"]
+          owner_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          cover_card_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          layout_style?: Database["public"]["Enums"]["michi_layout_style"]
+          owner_id?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          cover_card_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          layout_style?: Database["public"]["Enums"]["michi_layout_style"]
+          owner_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id: string
+          updated_at?: string
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
     Enums: {
+      binder_slot_type: "card" | "insert" | "artwork" | "empty"
+      card_orientation: "portrait" | "landscape"
       michi_layout_style:
-        | 'anchor'
-        | 'single_pokemon'
-        | 'themed_story'
-        | 'artist'
-        | 'trainer'
-        | 'full_page_spread'
-        | 'color_theme'
-        | 'freeform';
-      binder_slot_type: 'card' | 'insert' | 'artwork' | 'empty';
-      card_orientation: 'portrait' | 'landscape';
-    };
-    CompositeTypes: Record<string, never>;
-  };
+        | "anchor"
+        | "single_pokemon"
+        | "themed_story"
+        | "artist"
+        | "trainer"
+        | "full_page_spread"
+        | "color_theme"
+        | "freeform"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
 }
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      binder_slot_type: ["card", "insert", "artwork", "empty"],
+      card_orientation: ["portrait", "landscape"],
+      michi_layout_style: [
+        "anchor",
+        "single_pokemon",
+        "themed_story",
+        "artist",
+        "trainer",
+        "full_page_spread",
+        "color_theme",
+        "freeform",
+      ],
+    },
+  },
+} as const

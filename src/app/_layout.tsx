@@ -5,6 +5,7 @@ import { Platform, useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import AppTabs from '@/components/app-tabs';
+import { AuthProvider } from '@/store/auth';
 import { BinderProvider } from '@/store/binders';
 
 export default function TabLayout() {
@@ -24,10 +25,12 @@ export default function TabLayout() {
     // page reordering) to receive touches — required on web and native.
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <BinderProvider>
-          <AnimatedSplashOverlay />
-          <AppTabs />
-        </BinderProvider>
+        <AuthProvider>
+          <BinderProvider>
+            <AnimatedSplashOverlay />
+            <AppTabs />
+          </BinderProvider>
+        </AuthProvider>
       </ThemeProvider>
     </GestureHandlerRootView>
   );

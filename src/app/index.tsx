@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AccountButton } from '@/components/auth/AccountButton';
 import { BinderScreen } from '@/components/binder/BinderScreen';
 import { BinderThumb } from '@/components/binder/BinderThumb';
 import { ThemedText } from '@/components/themed-text';
@@ -45,9 +46,12 @@ export default function BindersScreen() {
                 Build digital michi binders{isSupabaseConfigured ? '' : ' · Local mode'}
               </ThemedText>
             </View>
-            <Pressable onPress={handleNew} style={({ pressed }) => [styles.newBtn, pressed && styles.pressed]}>
-              <Text style={styles.newBtnText}>+ New</Text>
-            </Pressable>
+            <View style={styles.headerActions}>
+              <AccountButton />
+              <Pressable onPress={handleNew} style={({ pressed }) => [styles.newBtn, pressed && styles.pressed]}>
+                <Text style={styles.newBtnText}>+ New</Text>
+              </Pressable>
+            </View>
           </View>
 
           <Section title="Your binders">
@@ -122,6 +126,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.four,
     gap: Spacing.three,
   },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   h1: { fontSize: 34, lineHeight: 40 },
   newBtn: {
     backgroundColor: '#3B82F6',

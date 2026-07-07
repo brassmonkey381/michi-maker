@@ -19,6 +19,11 @@ Supabase server — read `docs/DATA-SERVER.md` FIRST for the integration points,
 handoff items, and what must never be resurrected locally.** That server is owned by a
 different session/repo; this app is a pure consumer.
 
+**Monetization / printing / marketing copy:** before touching anything that sells a
+service, adds a public gallery, or puts franchise names in copy/SEO/screenshots, read
+`docs/LEGAL-IP-PRINTING.md` — it records the IP risk posture we're deliberately
+maintaining around Pokémon/Nintendo and TCGPlayer.
+
 ## Conventions
 
 - **Routing:** file-based via Expo Router. Routes live in `src/app/`. The `@/` alias maps to `src/`.

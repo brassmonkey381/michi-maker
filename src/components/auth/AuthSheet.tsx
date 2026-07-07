@@ -383,7 +383,7 @@ function PrimaryButton({ label, busy, onPress }: { label: string; busy: boolean;
       disabled={busy}
       style={({ pressed }) => [styles.primaryBtn, (pressed || busy) && styles.pressed]}>
       {busy ? (
-        <ActivityIndicator color={Palette.white} />
+        <ActivityIndicator color={Palette.accentText} />
       ) : (
         <ThemedText style={styles.primaryBtnText}>{label}</ThemedText>
       )}
@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 48,
   },
-  primaryBtnText: { color: Palette.white, fontWeight: Weight.bold, fontSize: FontSize.md },
+  primaryBtnText: { color: Palette.accentText, fontWeight: Weight.bold, fontSize: FontSize.md },
   oauthBtn: {
     borderWidth: 1,
     borderRadius: Radius.pill,
@@ -510,7 +510,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { color: Palette.white, fontWeight: Weight.bold, fontSize: FontSize.lg },
+  avatarText: { color: Palette.accentText, fontWeight: Weight.bold, fontSize: FontSize.lg },
   label: { marginBottom: -Spacing.two },
   signOut: {
     borderRadius: Radius.pill,

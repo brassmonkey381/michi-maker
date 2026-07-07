@@ -767,7 +767,7 @@ const styles = StyleSheet.create({
   actionBtns: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   actionBtn: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: Radius.pill, backgroundColor: Palette.accent },
   actionBtnDanger: { backgroundColor: Palette.dangerBg },
-  actionBtnText: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.white },
+  actionBtnText: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.accentText },
   actionBtnTextDanger: { color: Palette.dangerAlt },
   deleteBinder: { marginTop: 20, alignItems: 'center', paddingVertical: 10 },
   deleteBinderText: { color: Palette.dangerAlt, fontSize: FontSize.control, fontWeight: Weight.semibold },

@@ -57,12 +57,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { color: Palette.white, fontWeight: Weight.bold, fontSize: FontSize.md },
+  avatarText: { color: Palette.accentText, fontWeight: Weight.bold, fontSize: FontSize.md },
   pill: {
     backgroundColor: Palette.accent,
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
     borderRadius: Radius.pill,
   },
-  pillText: { color: Palette.white },
+  pillText: { color: Palette.accentText },
 });

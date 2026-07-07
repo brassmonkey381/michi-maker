@@ -7,7 +7,8 @@ import { mkdirSync } from 'node:fs';
 const SCRATCH = 'C:/Users/Brian/AppData/Local/Temp/claude/C--Users-Brian-source-repos-poke-michi/dced3129-7ca3-4c03-a98f-9e372f418d5b/scratchpad';
 const OUT = `${SCRATCH}/${process.argv[2] ?? 'shots'}`;
 mkdirSync(OUT, { recursive: true });
-const URL = 'http://localhost:8081';
+const variant = process.argv[3];
+const URL = `http://localhost:8081${variant ? `/?variant=${variant}` : ''}`;
 
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 2 });

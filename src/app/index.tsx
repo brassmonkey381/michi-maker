@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     borderRadius: Radius.pill,
   },
-  newBtnText: { color: Palette.white, fontWeight: Weight.bold, fontSize: FontSize.control },
+  newBtnText: { color: Palette.accentText, fontWeight: Weight.bold, fontSize: FontSize.control },
   pressed: { opacity: 0.7 },
   section: { marginBottom: Spacing.five },
   sectionHeader: {

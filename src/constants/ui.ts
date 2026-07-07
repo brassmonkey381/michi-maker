@@ -16,7 +16,7 @@ export const pillChip = StyleSheet.create({
   base: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: Radius.pill, backgroundColor: Palette.panel },
   active: { backgroundColor: Palette.accent },
   text: { fontSize: FontSize.label, color: Palette.ink2 },
-  textActive: { color: Palette.white, fontWeight: Weight.semibold },
+  textActive: { color: Palette.accentText, fontWeight: Weight.semibold },
 });
 
 /** Flat (small-radius) chip — CardPicker span/shape chips. */
@@ -24,7 +24,7 @@ export const flatChip = StyleSheet.create({
   base: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: Radius.control, backgroundColor: Palette.panel },
   active: { backgroundColor: Palette.accent },
   text: { fontSize: FontSize.label, color: Palette.ink2 },
-  textActive: { color: Palette.white, fontWeight: Weight.semibold },
+  textActive: { color: Palette.accentText, fontWeight: Weight.semibold },
 });
 
 /** Neutral/primary control button — SliceStudio toolbar buttons. */
@@ -32,7 +32,7 @@ export const controlButton = StyleSheet.create({
   base: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: Radius.control, backgroundColor: Palette.panel },
   primary: { backgroundColor: Palette.accent },
   text: { fontSize: FontSize.body, fontWeight: Weight.semibold, color: Palette.ink2 },
-  primaryText: { color: Palette.white },
+  primaryText: { color: Palette.accentText },
 });
 
 /** Dark "studio" launch button — CardPicker + ArtUploadButton (web). */

@@ -2,6 +2,7 @@ import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { ArtUploadButton } from '@/components/binder/ArtUploadButton';
 import { CatalogBrowser } from '@/components/binder/CatalogBrowser';
 import { ThemedText } from '@/components/themed-text';
 import { domainOf, slotAspect, type ArtworkAsset } from '@/data/artworkLibrary';
@@ -63,6 +64,9 @@ interface CardPickerProps {
   onOpenSliceStudio: (imageUrl: string | undefined, rows: number, cols: number) => void;
   onPickInsert: (color: string, rowSpan: number, colSpan: number) => void;
   onClear: () => void;
+  /** "Keep adding" mode: after placing a card the sheet stays open and jumps to the next pocket. */
+  keepAdding: boolean;
+  onToggleKeepAdding: () => void;
 }
 
 export function CardPicker({
@@ -79,6 +83,8 @@ export function CardPicker({
   onOpenSliceStudio,
   onPickInsert,
   onClear,
+  keepAdding,
+  onToggleKeepAdding,
 }: CardPickerProps) {
   const savedArt = useSavedArt();
   // Subscribe only while the sheet is open: the persistently-mounted picker must not
@@ -93,6 +99,7 @@ export function CardPicker({
 
   const [query, setQuery] = useState(themeHint ?? '');
   const [urlInput, setUrlInput] = useState('');
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [sliced, setSliced] = useState(false);
 
   const fits = (rows: number, cols: number) =>
@@ -257,7 +264,7 @@ export function CardPicker({
         ) : null}
       </View>
 
-      {/* Paste your own art (any source). Provenance is derived from the URL for cleanup. */}
+      {/* Paste a URL or upload your own image. Uploads go to your binder-art bucket and persist. */}
       <View style={styles.controlsRow}>
         <TextInput
           value={urlInput}
@@ -268,6 +275,7 @@ export function CardPicker({
           autoCorrect={false}
           style={[styles.input, styles.inputGrow]}
         />
+        <ArtUploadButton onUploaded={(url) => placeArt(url)} onError={setUploadError} />
         <Pressable
           disabled={!urlValid}
           onPress={() => {
@@ -278,7 +286,9 @@ export function CardPicker({
           <Text style={styles.addBtnText}>Add</Text>
         </Pressable>
       </View>
-      {urlInput.trim() ? (
+      {uploadError ? (
+        <Text style={[styles.hint, styles.errorHint]}>{uploadError}</Text>
+      ) : urlInput.trim() ? (
         <Text style={styles.hint}>
           From {domainOf(urlInput)} — saved as-is; check you have the right to use it.
         </Text>
@@ -312,7 +322,19 @@ export function CardPicker({
         <View style={[styles.sheet, browseMode && styles.sheetTall]}>
           <View style={styles.handle} />
           <View style={styles.header}>
-            <ThemedText type="subtitle">{title}</ThemedText>
+            <ThemedText type="subtitle" style={styles.headerTitle}>
+              {title}
+            </ThemedText>
+            <Pressable
+              onPress={onToggleKeepAdding}
+              hitSlop={8}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: keepAdding }}
+              style={[styles.keepAdding, keepAdding && styles.keepAddingOn]}>
+              <Text style={[styles.keepAddingText, keepAdding && styles.keepAddingTextOn]}>
+                {keepAdding ? '✓ Keep adding' : 'Keep adding'}
+              </Text>
+            </Pressable>
             <Pressable onPress={onClose} hitSlop={12}>
               <Text style={styles.close}>Done</Text>
             </Pressable>
@@ -341,9 +363,10 @@ export function CardPicker({
             // 1×1: the full Series → Set → Card browse. Its FlatList is the primary scroller
             // (artwork + insert live in the footer) so we never nest a VirtualizedList.
             <CatalogBrowser
-              // Remount per pocket so browse position / search / filters don't leak
-              // from one pocket to the next when both stay 1×1.
-              key={`${cell?.row ?? 'x'}-${cell?.col ?? 'x'}-${slot?.id ?? 'new'}`}
+              // Remount per pocket so browse position / search / filters don't leak from one
+              // pocket to the next — but in "keep adding" mode hold one browse across pockets so
+              // you can rattle through the same set filling pockets without it resetting.
+              key={keepAdding ? 'fill-session' : `${cell?.row ?? 'x'}-${cell?.col ?? 'x'}-${slot?.id ?? 'new'}`}
               catalog={catalog}
               selectedCardId={slot?.type === 'card' ? slot.cardId : undefined}
               onPickCard={onPickCard}
@@ -485,7 +508,17 @@ const styles = StyleSheet.create({
   sheetTall: { height: '85%' },
   loading: { marginVertical: 24 },
   handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#d4d4d4', marginBottom: 8 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
+  headerTitle: { flex: 1 },
+  keepAdding: {
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: '#f0f0f3',
+  },
+  keepAddingOn: { backgroundColor: '#3B82F6' },
+  keepAddingText: { fontSize: 12, fontWeight: '700', color: '#666' },
+  keepAddingTextOn: { color: '#fff' },
   close: { fontSize: 16, fontWeight: '600', color: '#3B82F6' },
   controlsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' },
   controlsLabel: { fontSize: 13, color: '#666', marginRight: 2 },
@@ -506,6 +539,7 @@ const styles = StyleSheet.create({
   shapeSizeActive: { color: '#dbe7ff' },
   disabled: { opacity: 0.3 },
   hint: { fontSize: 12, color: '#999', marginTop: 4, marginBottom: 4, lineHeight: 17, width: '100%' },
+  errorHint: { color: '#c0392b' },
   input: {
     borderWidth: 1,
     borderColor: '#e0e0e3',

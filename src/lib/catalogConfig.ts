@@ -46,6 +46,20 @@ export function resolveImageUrl(path: string): string {
 }
 
 /**
+ * Image tiers, keyed by a card's stable id — deterministic bucket paths, so a card's image can
+ * be shown WITHOUT loading the ~25 MB catalog.json first:
+ *   - 245 → `card-thumbs/245/<id>.webp` (grids / binder covers; complete for every card)
+ *   - 640 → `card-thumbs/640/<id>.webp` (binder-page view; may be missing for some cards)
+ *   - 'full' → `card-imgs/<id>.jpg` (full size; the safe fallback if a webp tier 404s)
+ * Requires `imgBase` (EXPO_PUBLIC_CATALOG_IMG_BASE) to point at the bucket's public root.
+ */
+export function cardThumbUrl(id: string, tier: 245 | 640 | 'full'): string {
+  if (!id) return '';
+  if (tier === 'full') return `${imgBase}/card-imgs/${id}.jpg`;
+  return `${imgBase}/card-thumbs/${tier}/${id}.webp`;
+}
+
+/**
  * The data server's REST (PostgREST) endpoint + publishable key — for dynamic
  * queries the static catalog can't answer (e.g. the find_similar embedding RPC).
  * The URL derives from the browse origin when it's absolute; both are

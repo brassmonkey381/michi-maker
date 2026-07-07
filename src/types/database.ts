@@ -77,6 +77,8 @@ export type Database = {
           col_span: number
           created_at: string
           id: string
+          image_crop: Json | null
+          image_url: string | null
           insert_image_url: string | null
           notes: string | null
           orientation: Database["public"]["Enums"]["card_orientation"]
@@ -92,6 +94,8 @@ export type Database = {
           col_span?: number
           created_at?: string
           id?: string
+          image_crop?: Json | null
+          image_url?: string | null
           insert_image_url?: string | null
           notes?: string | null
           orientation?: Database["public"]["Enums"]["card_orientation"]
@@ -107,6 +111,8 @@ export type Database = {
           col_span?: number
           created_at?: string
           id?: string
+          image_crop?: Json | null
+          image_url?: string | null
           insert_image_url?: string | null
           notes?: string | null
           orientation?: Database["public"]["Enums"]["card_orientation"]

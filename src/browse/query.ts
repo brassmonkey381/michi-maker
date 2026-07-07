@@ -11,7 +11,7 @@
  *
  * EXTRACTION-READY (shared-browse): pure functions, no app imports — the card
  * shape and the price lookup are injected. This module is the seam that will
- * move to the shared tcgscan-ui package consumed by both michi-maker and
+ * move to the shared tcgscan-browse package consumed by both michi-maker and
  * tcgscan-app, so keep it dependency-free.
  */
 

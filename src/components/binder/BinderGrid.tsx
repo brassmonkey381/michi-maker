@@ -1,11 +1,13 @@
 import { Image } from 'expo-image';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type DimensionValue } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
+  withRepeat,
+  withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
 
@@ -13,6 +15,7 @@ import { BinderSurface, Radii, Shadows, SlotBackingFallback } from '@/constants/
 import { resolveCardWith } from '@/data/cardResolver';
 import { occupiedCells, type DemoCard, type DemoPage, type DemoSlot } from '@/data/binderTypes';
 import { useCatalog } from '@/hooks/use-catalog';
+import { cardThumbUrl } from '@/lib/catalogConfig';
 import type { Catalog } from '@/lib/catalog';
 
 const CARD_ASPECT = 88 / 63; // height / width of a standard card
@@ -27,6 +30,8 @@ interface BinderGridProps {
   onCellPress?: (row: number, col: number) => void;
   /** Drag-and-drop: a slot was dropped with its top-left over (toRow, toCol). */
   onDropSlot?: (slotId: string, toRow: number, toCol: number) => void;
+  /** Drag-to-resize: the selected slot's footprint changed to rowSpan×colSpan (top-left fixed). */
+  onResizeSlot?: (row: number, col: number, rowSpan: number, colSpan: number) => void;
 }
 
 type BoxStyle = {
@@ -37,16 +42,6 @@ type BoxStyle = {
   height: number;
 };
 
-/** Append ~13% alpha to a #rrggbb colour for a soft slot backing. */
-function tint(hex?: string): string {
-  return hex && /^#[0-9a-f]{6}$/i.test(hex) ? `${hex}22` : SlotBackingFallback;
-}
-
-/** A slightly stronger ~33% alpha tint, used as the full-bleed backing behind spanning art. */
-function tintStrong(hex?: string): string {
-  return hex && /^#[0-9a-f]{6}$/i.test(hex) ? `${hex}55` : SlotBackingFallback;
-}
-
 export function BinderGrid({
   page,
   width,
@@ -55,11 +50,12 @@ export function BinderGrid({
   onSlotPress,
   onCellPress,
   onDropSlot,
+  onResizeSlot,
 }: BinderGridProps) {
-  // Subscribe to the shared catalog so this grid re-renders (and re-resolves its card slots)
-  // when the catalog finishes loading. Passed down to SlotContent so the resolution is a tracked
-  // dependency — reading the module snapshot directly would be invisible to the React Compiler.
-  const { catalog } = useCatalog();
+  // Passive catalog subscription: card *images* come from the id directly (cardThumbUrl), so the
+  // grid never forces the ~25 MB catalog load just to render — covers paint immediately. When the
+  // catalog is already loaded (editor/picker), we use it only to enrich (the jumbo/V-UNION badge).
+  const { catalog } = useCatalog(false);
   const small = width < 220;
   const pad = small ? 6 : 12;
   const gap = small ? 3 : 6;
@@ -84,6 +80,12 @@ export function BinderGrid({
   const dragY = useSharedValue(0);
   const [dragId, setDragId] = useState<string | null>(null);
   const dragged = dragId ? page.slots.find((s) => s.id === dragId) : undefined;
+
+  // The slot currently showing a resize handle (edit mode, selected, and not being dragged).
+  const resizeSlot =
+    editable && selectedSlotId && !dragId
+      ? page.slots.find((s) => s.id === selectedSlotId)
+      : undefined;
 
   const ghostStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: dragX.value }, { translateY: dragY.value }, { scale: 1.06 }],
@@ -173,8 +175,107 @@ export function BinderGrid({
             <SlotContent slot={dragged} radius={slotRadius} small={small} catalog={catalog} />
           </Animated.View>
         ) : null}
+
+        {/* Drag-to-resize handle on the selected slot (edit mode). */}
+        {onResizeSlot && resizeSlot ? (
+          <ResizeOverlay
+            key={`resize-${resizeSlot.id}`}
+            slot={resizeSlot}
+            cellW={cellW}
+            cellH={cellH}
+            gap={gap}
+            rows={page.rows}
+            cols={page.cols}
+            radius={slotRadius}
+            onResizeSlot={onResizeSlot}
+          />
+        ) : null}
       </View>
     </View>
+  );
+}
+
+/**
+ * A live, snapped resize handle for the selected slot. The slot's top-left stays fixed; dragging
+ * the bottom-right knob previews the new footprint (snapped to whole cells) and commits on release.
+ */
+function ResizeOverlay({
+  slot,
+  cellW,
+  cellH,
+  gap,
+  rows,
+  cols,
+  radius,
+  onResizeSlot,
+}: {
+  slot: DemoSlot;
+  cellW: number;
+  cellH: number;
+  gap: number;
+  rows: number;
+  cols: number;
+  radius: number;
+  onResizeSlot: (row: number, col: number, rowSpan: number, colSpan: number) => void;
+}) {
+  const tx = useSharedValue(0);
+  const ty = useSharedValue(0);
+  const stepX = cellW + gap;
+  const stepY = cellH + gap;
+  const maxCols = cols - slot.col;
+  const maxRows = rows - slot.row;
+
+  const spanFor = (translation: number, step: number, span: number, max: number) => {
+    'worklet';
+    const next = span + Math.round(translation / step);
+    return next < 1 ? 1 : next > max ? max : next;
+  };
+
+  const sizeStyle = useAnimatedStyle(() => {
+    const cs = spanFor(tx.value, stepX, slot.colSpan, maxCols);
+    const rs = spanFor(ty.value, stepY, slot.rowSpan, maxRows);
+    return {
+      width: cs * cellW + (cs - 1) * gap,
+      height: rs * cellH + (rs - 1) * gap,
+    };
+  });
+
+  const pan = useMemo(
+    () =>
+      Gesture.Pan()
+        .onBegin(() => {
+          tx.value = 0;
+          ty.value = 0;
+        })
+        .onUpdate((e) => {
+          tx.value = e.translationX;
+          ty.value = e.translationY;
+        })
+        .onEnd(() => {
+          const cs = spanFor(tx.value, stepX, slot.colSpan, maxCols);
+          const rs = spanFor(ty.value, stepY, slot.rowSpan, maxRows);
+          runOnJS(onResizeSlot)(slot.row, slot.col, rs, cs);
+        })
+        .onFinalize(() => {
+          tx.value = 0;
+          ty.value = 0;
+        }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [slot.row, slot.col, slot.rowSpan, slot.colSpan, stepX, stepY, maxCols, maxRows],
+  );
+
+  return (
+    <Animated.View
+      pointerEvents="box-none"
+      style={[
+        styles.resizeOverlay,
+        { left: slot.col * stepX, top: slot.row * stepY, borderRadius: radius },
+        sizeStyle,
+      ]}>
+      <GestureDetector gesture={pan}>
+        <View style={styles.resizeHandle} />
+      </GestureDetector>
+    </Animated.View>
   );
 }
 
@@ -345,14 +446,14 @@ function SlotContent({
     );
   }
 
-  // A custom artwork panel — a pasted / playground image, sized to fill the slot (or a slice
+  // A custom artwork panel — a pasted / uploaded image, sized to fill the slot (or a slice
   // of a larger image when imageCrop is set).
   if (slot.type === 'artwork' && slot.imageUrl) {
     return <ArtworkImage uri={slot.imageUrl} radius={radius} small={small} crop={slot.imageCrop} />;
   }
 
-  const cardData = resolveCardWith(catalog, slot.cardId);
-  if (!cardData) {
+  const id = slot.cardId;
+  if (!id) {
     return (
       <View style={[styles.fill, styles.missing, { borderRadius: radius }]}>
         <Text style={styles.missingText}>?</Text>
@@ -360,47 +461,96 @@ function SlotContent({
     );
   }
 
+  // The image comes from the id directly (no catalog needed). The catalog, when already loaded,
+  // only enriches the size badge — so covers paint immediately even before it's available.
+  const kind = resolveCardWith(catalog, id)?.kind;
+
   if (slot.type === 'artwork') {
     // Full-bleed hero art. A spanning slot (>1 cell) covers its box edge-to-edge so a
     // 2×2 reads as one big picture; a single 1×1 stays framed/contained. No card frame.
     const spanning = slot.rowSpan > 1 || slot.colSpan > 1;
     return (
-      <View
-        style={[styles.fill, { borderRadius: radius, backgroundColor: tintStrong(cardData.dominantColor) }]}>
-        <Image
-          source={{ uri: cardData.imageUrl }}
-          style={styles.fill}
-          contentFit={spanning ? 'cover' : 'contain'}
-          cachePolicy="memory-disk"
-          recyclingKey={cardData.id}
-          transition={120}
-        />
-        <KindBadge kind={cardData.kind} small={small} />
+      <View style={[styles.fill, { borderRadius: radius, backgroundColor: SlotBackingFallback }]}>
+        <CardImage key={id} id={id} radius={radius} small={small} contentFit={spanning ? 'cover' : 'contain'} />
+        <KindBadge kind={kind} small={small} />
       </View>
     );
   }
 
-  // 'card' — framed like a card in a pocket, with a faint dominant-colour backing
-  // and a subtle diagonal foil sheen layered on top.
+  // 'card' — framed like a card in a pocket, with a subtle diagonal foil sheen layered on top.
   return (
     <View style={[styles.fill, styles.cardFrame, { borderRadius: radius }]}>
-      <View style={[styles.fill, { backgroundColor: tint(cardData.dominantColor) }]}>
-        <Image
-          source={{ uri: cardData.imageUrl }}
-          style={styles.fill}
-          contentFit="contain"
-          cachePolicy="memory-disk"
-          recyclingKey={cardData.id}
-          transition={120}
-        />
+      <View style={[styles.fill, { backgroundColor: SlotBackingFallback }]}>
+        <CardImage key={id} id={id} radius={radius} small={small} contentFit="contain" />
         {/* Diagonal foil sheen: two translucent rotated bars layered as plain Views. */}
         <View pointerEvents="none" style={styles.foil}>
           <View style={[styles.foilBar, styles.foilBarA]} />
           <View style={[styles.foilBar, styles.foilBarB]} />
         </View>
-        <KindBadge kind={cardData.kind} small={small} />
+        <KindBadge kind={kind} small={small} />
       </View>
     </View>
+  );
+}
+
+/**
+ * A card image resolved from its id — no catalog required. Uses the 245px tier for small grids
+ * and 640px for the larger binder-page view, falling back to the full jpg if a webp tier 404s.
+ * A shimmering skeleton shows until the image loads, so a pocket never reads as blank/broken.
+ */
+function CardImage({
+  id,
+  radius,
+  small,
+  contentFit,
+}: {
+  id: string;
+  radius: number;
+  small: boolean;
+  contentFit: 'cover' | 'contain';
+}) {
+  const [stage, setStage] = useState<'tier' | 'full' | 'failed'>('tier');
+  const [loaded, setLoaded] = useState(false);
+  const tier: 245 | 640 = small ? 245 : 640;
+  const uri = stage === 'full' ? cardThumbUrl(id, 'full') : cardThumbUrl(id, tier);
+
+  if (stage === 'failed') {
+    return (
+      <View style={[styles.fill, styles.missing, { borderRadius: radius }]}>
+        <Text style={styles.missingText}>?</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.fill}>
+      <Image
+        source={{ uri }}
+        style={styles.fill}
+        contentFit={contentFit}
+        cachePolicy="memory-disk"
+        recyclingKey={`${id}-${stage}`}
+        transition={150}
+        onLoad={() => setLoaded(true)}
+        onError={() => setStage((s) => (s === 'tier' ? 'full' : 'failed'))}
+      />
+      {!loaded ? <Skeleton radius={radius} /> : null}
+    </View>
+  );
+}
+
+/** A soft pulsing placeholder shown over a slot while its image loads. */
+function Skeleton({ radius }: { radius: number }) {
+  const opacity = useSharedValue(0.45);
+  useEffect(() => {
+    opacity.value = withRepeat(withTiming(0.85, { duration: 750 }), -1, true);
+  }, [opacity]);
+  const animated = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[styles.skeleton, { borderRadius: radius }, animated]}
+    />
   );
 }
 
@@ -504,10 +654,35 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: BinderSurface.selection,
   },
+  resizeOverlay: {
+    position: 'absolute',
+    zIndex: 40,
+    borderWidth: 2,
+    borderColor: BinderSurface.selection,
+  },
+  resizeHandle: {
+    position: 'absolute',
+    right: -11,
+    bottom: -11,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: BinderSurface.selection,
+    borderWidth: 2,
+    borderColor: '#ffffff',
+  },
   missing: {
     backgroundColor: '#ececec',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  skeleton: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(150,150,150,0.20)',
   },
   missingText: {
     fontSize: 20,

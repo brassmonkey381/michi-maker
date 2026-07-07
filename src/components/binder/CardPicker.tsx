@@ -37,16 +37,23 @@ const CELL_W_CM = 7;
 const CELL_H_CM = 9.5;
 const cm = (rows: number, cols: number) => `${cols * CELL_W_CM}×${rows * CELL_H_CM}cm`;
 
-const SHAPES: { label: string; rows: number; cols: number; size: string }[] = [
-  { label: '1×1', rows: 1, cols: 1, size: cm(1, 1) },
-  { label: '1×2', rows: 1, cols: 2, size: cm(1, 2) },
-  { label: '2×1', rows: 2, cols: 1, size: cm(2, 1) },
-  { label: '2×2', rows: 2, cols: 2, size: cm(2, 2) },
-  { label: '1×3', rows: 1, cols: 3, size: cm(1, 3) },
-  { label: '3×1', rows: 3, cols: 1, size: cm(3, 1) },
-  { label: '2×3', rows: 2, cols: 3, size: cm(2, 3) },
-  { label: '3×2', rows: 3, cols: 2, size: cm(3, 2) },
-  { label: '3×3', rows: 3, cols: 3, size: cm(3, 3) },
+const SHAPES: { label: string; name: string; rows: number; cols: number; size: string }[] = [
+  { label: '1×1', name: 'Single', rows: 1, cols: 1, size: cm(1, 1) },
+  { label: '1×2', name: '1×2', rows: 1, cols: 2, size: cm(1, 2) },
+  { label: '2×1', name: '2×1', rows: 2, cols: 1, size: cm(2, 1) },
+  { label: '2×2', name: '2×2', rows: 2, cols: 2, size: cm(2, 2) },
+  { label: '1×3', name: '1×3', rows: 1, cols: 3, size: cm(1, 3) },
+  { label: '3×1', name: '3×1', rows: 3, cols: 1, size: cm(3, 1) },
+  { label: '2×3', name: '2×3', rows: 2, cols: 3, size: cm(2, 3) },
+  { label: '3×2', name: '3×2', rows: 3, cols: 2, size: cm(3, 2) },
+  { label: '3×3', name: 'Full page', rows: 3, cols: 3, size: cm(3, 3) },
+];
+
+type PickerTab = 'cards' | 'artwork' | 'insert';
+const TABS: { id: PickerTab; label: string }[] = [
+  { id: 'cards', label: 'Cards' },
+  { id: 'artwork', label: 'Artwork' },
+  { id: 'insert', label: 'Insert' },
 ];
 
 interface CardPickerProps {
@@ -104,11 +111,25 @@ export function CardPicker({
   const [urlInput, setUrlInput] = useState('');
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [sliced, setSliced] = useState(false);
+  const [tab, setTab] = useState<PickerTab>('cards');
 
   const fits = (rows: number, cols: number) =>
     !!cell && !!page && cell.row + rows <= page.rows && cell.col + cols <= page.cols;
 
   const is = (rows: number, cols: number) => shape.rows === rows && shape.cols === cols;
+
+  // Default the tab to the pocket's existing content type when editing an occupied slot.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTab(slot?.type === 'artwork' ? 'artwork' : slot?.type === 'insert' ? 'insert' : 'cards');
+  }, [cell?.row, cell?.col, slot?.id, slot?.type]);
+
+  // Cards only exist at 1×1 (standard) or 2×2 (jumbo / V-UNION); coerce to a card-capable
+  // shape when switching to the Cards tab from a non-square artwork/insert shape.
+  const selectTab = (next: PickerTab) => {
+    if (next === 'cards' && !(is(1, 1) || is(2, 2))) setShape({ rows: 1, cols: 1 });
+    setTab(next);
+  };
 
   // Everything is sourced from the ~28k-card catalog: 1×1 standard cards via the live
   // Series → Set → Card browse (<CatalogBrowser>), jumbo (2×2) cards via `listJumbo()`, and
@@ -119,9 +140,9 @@ export function CardPicker({
   const showVUnion = is(2, 2);
   const sizeLabel = `${shape.rows}×${shape.cols}`;
   const isMultiCell = shape.rows > 1 || shape.cols > 1;
-  // In 1×1 mode with a loaded catalog we show the full virtualized browse — give the sheet a
-  // definite height so its FlatList gets a bounded viewport to scroll within.
-  const browseMode = is(1, 1) && !!catalog;
+  // In the Cards tab at 1×1 with a loaded catalog we show the full virtualized browse — give the
+  // sheet a definite height so its FlatList gets a bounded viewport to scroll within.
+  const browseMode = tab === 'cards' && is(1, 1) && !!catalog;
 
   // Place a chosen artwork: as one panel, or sliced across the block when the toggle is on.
   const placeArt = (url: string) =>
@@ -209,17 +230,14 @@ export function CardPicker({
     );
   };
 
-  // Artwork-panel search/paste/slice + tonal inserts. Shared verbatim between the 1×1 browse
-  // footer and the multi-cell ScrollView so those flows stay exactly as they were.
-  const renderArtworkAndInsert = () => (
+  // The Artwork tab: search / paste / upload / slice a picture to fill the pocket(s).
+  const renderArtwork = () => (
     <>
-      {/* Artwork panels — themed art that fits the chosen shape (cropped to cover). */}
-      <View style={styles.artHeader}>
-        <Text style={styles.sectionLabel}>Artwork panel · {sizeLabel}</Text>
-        {isArtSearchConfigured ? (
-          <Text style={styles.artMeta}>{searching ? 'searching…' : `via ${artSearchProvider}`}</Text>
-        ) : null}
-      </View>
+      {isArtSearchConfigured ? (
+        <Text style={[styles.artMeta, styles.artMetaRow]}>
+          {searching ? 'searching…' : `via ${artSearchProvider}`}
+        </Text>
+      ) : null}
       {/* Whole vs sliced: a multi-cell artwork can fill one panel or cut across the pockets. */}
       {isMultiCell ? (
         <View style={styles.controlsRow}>
@@ -249,8 +267,7 @@ export function CardPicker({
       </View>
       {!isArtSearchConfigured ? (
         <Text style={styles.hint}>
-          Live art search is off — add EXPO_PUBLIC_PEXELS_KEY or EXPO_PUBLIC_PIXABAY_KEY to .env to
-          auto-suggest themed art. For now, paste an image URL below or save art from the Slice Studio.
+          Paste an image URL below, or open the Slice Studio to add and frame your own art.
         </Text>
       ) : null}
       <View style={styles.grid}>
@@ -262,7 +279,7 @@ export function CardPicker({
             onPress={() => placeArt(art.url)}
           />
         ))}
-        {artwork.length === 0 ? (
+        {artwork.length === 0 && query.trim() ? (
           <Text style={styles.hint}>No art matches “{query}”. Paste a URL below.</Text>
         ) : null}
       </View>
@@ -296,9 +313,13 @@ export function CardPicker({
           From {domainOf(urlInput)} — saved as-is; check you have the right to use it.
         </Text>
       ) : null}
+    </>
+  );
 
-      {/* Tonal inserts at the chosen shape — solid colour, so any shape is fine. */}
-      <Text style={styles.sectionLabel}>Insert · {sizeLabel}</Text>
+  // The Insert tab: a tonal negative-space tile, or leave the pocket empty.
+  const renderInsert = () => (
+    <>
+      <Text style={styles.sectionLabel}>Tonal insert · {sizeLabel}</Text>
       <View style={styles.insertRow}>
         {INSERT_TONES.map((tone) => {
           const active = slot?.type === 'insert' && slot.insertColor === tone.color;
@@ -311,10 +332,10 @@ export function CardPicker({
             />
           );
         })}
-        <Pressable onPress={onClear} style={styles.emptyBtn}>
-          <Text style={styles.emptyText}>Leave empty</Text>
-        </Pressable>
       </View>
+      <Pressable onPress={onClear} style={styles.emptyBtn}>
+        <Text style={styles.emptyText}>Leave empty</Text>
+      </Pressable>
     </>
   );
 
@@ -343,107 +364,130 @@ export function CardPicker({
             </Pressable>
           </View>
 
-          {/* Shape selector — real Michi print sizes; shapes that don't fit here are disabled. */}
+          {/* Content type — decide *what* goes in the pocket first. */}
+          <View style={styles.segmentRow}>
+            {TABS.map((t) => {
+              const active = tab === t.id;
+              return (
+                <Pressable
+                  key={t.id}
+                  onPress={() => selectTab(t.id)}
+                  style={[styles.segment, active && styles.segmentActive]}>
+                  <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{t.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* Shape selector — contextual: cards only fit Single/Jumbo; art & inserts take any shape. */}
           <View style={styles.shapeRow}>
-            <Text style={styles.controlsLabel}>Shape</Text>
-            {SHAPES.map((s) => {
+            <Text style={styles.controlsLabel}>{tab === 'cards' ? 'Size' : 'Shape'}</Text>
+            {(tab === 'cards'
+              ? SHAPES.filter((s) => (s.rows === 1 && s.cols === 1) || (s.rows === 2 && s.cols === 2))
+              : SHAPES
+            ).map((s) => {
               const enabled = fits(s.rows, s.cols);
               const active = is(s.rows, s.cols);
+              const label = tab === 'cards' && s.rows === 2 ? 'Jumbo' : s.name;
               return (
                 <Pressable
                   key={s.label}
                   disabled={!enabled}
                   onPress={() => setShape({ rows: s.rows, cols: s.cols })}
                   style={[styles.shapeChip, active && flatChip.active, !enabled && styles.disabled]}>
-                  <Text style={[flatChip.text, active && flatChip.textActive]}>{s.label}</Text>
+                  <Text style={[flatChip.text, active && flatChip.textActive]}>{label}</Text>
                   <Text style={[styles.shapeSize, active && styles.shapeSizeActive]}>{s.size}</Text>
                 </Pressable>
               );
             })}
           </View>
 
-          {is(1, 1) && catalog ? (
-            // 1×1: the full Series → Set → Card browse. Its FlatList is the primary scroller
-            // (artwork + insert live in the footer) so we never nest a VirtualizedList.
-            <CatalogBrowser
-              // Remount per pocket so browse position / search / filters don't leak from one
-              // pocket to the next — but in "keep adding" mode hold one browse across pockets so
-              // you can rattle through the same set filling pockets without it resetting.
-              key={keepAdding ? 'fill-session' : `${cell?.row ?? 'x'}-${cell?.col ?? 'x'}-${slot?.id ?? 'new'}`}
-              catalog={catalog}
-              selectedCardId={slot?.type === 'card' ? slot.cardId : undefined}
-              onPickCard={onPickCard}
-              footer={renderArtworkAndInsert()}
-            />
-          ) : (
-            <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-              {/* 1×1 with no catalog yet: bundled cards (error) or a spinner (still loading). */}
-              {is(1, 1) ? (
-                <>
-                  <Text style={styles.sectionLabel}>Cards · {sizeLabel}</Text>
-                  {catalogError ? (
+          {tab === 'cards' ? (
+            is(1, 1) && catalog ? (
+              // 1×1: the full Series → Set → Card browse (its FlatList is the primary scroller).
+              <CatalogBrowser
+                // Remount per pocket so browse position / search / filters don't leak between
+                // pockets — but in "keep adding" mode hold one browse so you can rattle through a
+                // set filling pockets without it resetting.
+                key={keepAdding ? 'fill-session' : `${cell?.row ?? 'x'}-${cell?.col ?? 'x'}-${slot?.id ?? 'new'}`}
+                catalog={catalog}
+                selectedCardId={slot?.type === 'card' ? slot.cardId : undefined}
+                onPickCard={onPickCard}
+                footer={null}
+              />
+            ) : (
+              <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+                {/* 1×1 with no catalog yet: an error, or a spinner while it loads. */}
+                {is(1, 1) ? (
+                  catalogError ? (
                     <Text style={styles.hint}>
                       Card search is unavailable right now — check your connection and reopen this
                       pocket to try again.
                     </Text>
                   ) : (
                     <ActivityIndicator style={styles.loading} />
-                  )}
-                </>
-              ) : null}
+                  )
+                ) : null}
 
-              {/* Jumbo cards physically match a 2×2 pocket — sourced from the catalog. */}
-              {jumboCards.length > 0 ? (
-                <>
-                  <Text style={styles.sectionLabel}>Cards · {sizeLabel}</Text>
-                  <View style={styles.grid}>{jumboCards.map(renderCardThumb)}</View>
-                </>
-              ) : null}
+                {/* Jumbo cards physically match a 2×2 pocket — sourced from the catalog. */}
+                {jumboCards.length > 0 ? (
+                  <>
+                    <Text style={styles.sectionLabel}>Jumbo cards · {sizeLabel}</Text>
+                    <View style={styles.grid}>{jumboCards.map(renderCardThumb)}</View>
+                  </>
+                ) : null}
 
-              {showVUnion ? (
-                <>
-                  <Text style={styles.sectionLabel}>V-UNION · 2×2 of 4 pieces</Text>
-                  {vunionGroups.length > 0 ? (
-                    <View style={styles.grid}>
-                      {vunionGroups.map((group) => {
-                        const tl = catalog?.getCard(group.pieces[0]);
-                        const tlCard = tl ? catalogCardToDemoCard(tl) : undefined;
-                        return (
-                          <Pressable
-                            key={group.pieces.join('-')}
-                            style={styles.thumb}
-                            onPress={() => onPickVUnion(group.pieces)}>
-                            <View style={styles.thumbImageWrap}>
-                              {tlCard ? (
-                                <Image
-                                  source={{ uri: tlCard.imageUrl }}
-                                  style={styles.thumbImage}
-                                  contentFit="contain"
-                                  cachePolicy="memory-disk"
-                                  recyclingKey={group.pieces[0]}
-                                  transition={100}
-                                />
-                              ) : null}
-                              <View style={styles.tag}>
-                                <Text style={styles.tagText}>V-UNION</Text>
+                {showVUnion ? (
+                  <>
+                    <Text style={styles.sectionLabel}>V-UNION · 2×2 of 4 pieces</Text>
+                    {vunionGroups.length > 0 ? (
+                      <View style={styles.grid}>
+                        {vunionGroups.map((group) => {
+                          const tl = catalog?.getCard(group.pieces[0]);
+                          const tlCard = tl ? catalogCardToDemoCard(tl) : undefined;
+                          return (
+                            <Pressable
+                              key={group.pieces.join('-')}
+                              style={styles.thumb}
+                              onPress={() => onPickVUnion(group.pieces)}>
+                              <View style={styles.thumbImageWrap}>
+                                {tlCard ? (
+                                  <Image
+                                    source={{ uri: tlCard.imageUrl }}
+                                    style={styles.thumbImage}
+                                    contentFit="contain"
+                                    cachePolicy="memory-disk"
+                                    recyclingKey={group.pieces[0]}
+                                    transition={100}
+                                  />
+                                ) : null}
+                                <View style={styles.tag}>
+                                  <Text style={styles.tagText}>V-UNION</Text>
+                                </View>
                               </View>
-                            </View>
-                            <Text numberOfLines={1} style={styles.thumbName}>
-                              {group.label}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  ) : (
-                    <Text style={styles.hint}>
-                      {catalog ? 'No V-UNION sets available.' : 'Loading V-UNION sets…'}
-                    </Text>
-                  )}
-                </>
-              ) : null}
-
-              {renderArtworkAndInsert()}
+                              <Text numberOfLines={1} style={styles.thumbName}>
+                                {group.label}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    ) : (
+                      <Text style={styles.hint}>
+                        {catalog ? 'No V-UNION sets available.' : 'Loading V-UNION sets…'}
+                      </Text>
+                    )}
+                  </>
+                ) : null}
+              </ScrollView>
+            )
+          ) : tab === 'artwork' ? (
+            <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+              {renderArtwork()}
+            </ScrollView>
+          ) : (
+            <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+              {renderInsert()}
             </ScrollView>
           )}
         </View>
@@ -525,6 +569,17 @@ const styles = StyleSheet.create({
   close: { fontSize: FontSize.md, fontWeight: Weight.semibold, color: Palette.accent },
   controlsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' },
   controlsLabel: { fontSize: FontSize.label, color: Palette.muted, marginRight: 2 },
+  segmentRow: { flexDirection: 'row', gap: 6, marginBottom: 12 },
+  segment: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 9,
+    borderRadius: Radius.control,
+    backgroundColor: Palette.panel,
+  },
+  segmentActive: { backgroundColor: Palette.accent },
+  segmentText: { fontSize: FontSize.body, fontWeight: Weight.semibold, color: Palette.ink2 },
+  segmentTextActive: { color: Palette.accentText },
   shapeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' },
   shapeChip: {
     paddingVertical: 4,
@@ -555,7 +610,7 @@ const styles = StyleSheet.create({
   insertRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 8 },
   insertSwatch: { width: 28, height: 28, borderRadius: 7, borderWidth: 1, borderColor: Palette.swatchBorder },
   insertSwatchActive: { borderWidth: 3, borderColor: Palette.accent },
-  emptyBtn: { marginLeft: 'auto', paddingVertical: 5, paddingHorizontal: 10, borderRadius: Radius.control, backgroundColor: Palette.dangerBg },
+  emptyBtn: { alignSelf: 'flex-start', marginTop: 12, paddingVertical: 8, paddingHorizontal: 16, borderRadius: Radius.control, backgroundColor: Palette.dangerBg },
   emptyText: { fontSize: FontSize.label, color: Palette.dangerAlt, fontWeight: Weight.semibold },
   scroll: { paddingBottom: 16 },
   sectionLabel: {
@@ -567,8 +622,8 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 6,
   },
-  artHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   artMeta: { fontSize: FontSize.xs, color: Palette.accent, fontWeight: Weight.semibold },
+  artMetaRow: { alignSelf: 'flex-end', marginBottom: 4 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   thumb: { width: 70, borderRadius: Radius.control, padding: 3 },
   artThumb: { width: 86, borderRadius: Radius.control, padding: 3 },

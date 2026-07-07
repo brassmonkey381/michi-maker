@@ -21,6 +21,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { slotCells } from '@/data/binderTypes';
 import { prefetchCatalog } from '@/lib/catalog';
+import { binderValue, formatUsd, pageValue, usePriceSummary } from '@/lib/prices';
 import { footprintForKind } from '@/data/cardSizing';
 import { resolveCard } from '@/data/cardResolver';
 import { useBinders } from '@/store/binders';
@@ -81,6 +82,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     return () => handle.cancel();
   }, []);
 
+  // Latest card values (shared load-once fetch) for the fun running totals.
+  const priceSummary = usePriceSummary();
+
   const binder = store.getBinder(binderId);
 
   if (!binder) {
@@ -94,6 +98,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const idx = Math.min(pageIndex, binder.pages.length - 1);
   const page = binder.pages[idx];
   const pageWidth = Math.min(width - 32, 460);
+  // Running totals — decoration only: '' until the summary loads or when no card has a price.
+  const pageTotal = priceSummary ? formatUsd(pageValue(page, priceSummary)) : '';
+  const binderTotal = priceSummary ? formatUsd(binderValue(binder, priceSummary)) : '';
   const slotAtCell = pickerCell
     ? (page.slots.find((s) => s.row === pickerCell.row && s.col === pickerCell.col) ?? null)
     : null;
@@ -215,6 +222,13 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                   {layoutLabel(binder.layoutStyle)}
                 </ThemedText>
               </ThemedView>
+              {binderTotal ? (
+                <ThemedView type="backgroundElement" style={styles.badge}>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {pageTotal ? `Page ${pageTotal} · ` : ''}Binder {binderTotal}
+                  </ThemedText>
+                </ThemedView>
+              ) : null}
               <View style={styles.pageNav}>
                 <NavArrow label="‹" disabled={idx <= 0} onPress={() => setPageIndex(idx - 1)} color={theme.text} />
                 <ThemedText type="small" themeColor="textSecondary">

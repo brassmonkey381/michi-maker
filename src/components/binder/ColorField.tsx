@@ -9,6 +9,7 @@
 import { useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 
+import { FontSize, Radius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
@@ -45,13 +46,13 @@ export function ColorField({ value, onChange }: { value?: string; onChange: (hex
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  preview: { width: 40, height: 40, borderRadius: 8, borderWidth: 1 },
+  preview: { width: 40, height: 40, borderRadius: Radius.control, borderWidth: 1 },
   input: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: Radius.control,
     paddingHorizontal: 10,
     paddingVertical: 8,
-    fontSize: 15,
+    fontSize: FontSize.control,
   },
 });

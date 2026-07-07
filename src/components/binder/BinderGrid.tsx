@@ -11,7 +11,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
-import { BinderSurface, Radii, Shadows, SlotBackingFallback } from '@/constants/theme';
+import { BinderSurface, FontSize, Palette, Radii, Radius, Shadows, SlotBackingFallback, Weight } from '@/constants/theme';
 import { resolveCardWith } from '@/data/cardResolver';
 import { occupiedCells, type DemoCard, type DemoPage, type DemoSlot } from '@/data/binderTypes';
 import { useCatalog } from '@/hooks/use-catalog';
@@ -434,7 +434,7 @@ function SlotContent({
         style={[
           styles.fill,
           styles.insert,
-          { borderRadius: radius, backgroundColor: slot.insertColor ?? '#dddddd' },
+          { borderRadius: radius, backgroundColor: slot.insertColor ?? Palette.hairlineStrong },
         ]}>
         <View
           style={[
@@ -575,20 +575,20 @@ const styles = StyleSheet.create({
   addCell: {
     borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: 'rgba(128,128,128,0.5)',
+    borderColor: Palette.grayBorder50,
     alignItems: 'center',
     justifyContent: 'center',
   },
   addPlus: {
-    fontSize: 22,
-    color: 'rgba(128,128,128,0.7)',
+    fontSize: FontSize.title,
+    color: Palette.grayBorder70,
   },
   dimmed: {
     opacity: 0.22,
   },
   ghost: {
     zIndex: 50,
-    shadowColor: '#000',
+    shadowColor: Palette.black,
     shadowOpacity: 0.3,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 6 },
@@ -610,15 +610,15 @@ const styles = StyleSheet.create({
     borderColor: BinderSurface.insertBorder,
   },
   artworkPanel: {
-    backgroundColor: '#11111a',
+    backgroundColor: Palette.chromeDeep,
   },
   artworkFallback: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   artworkFallbackText: {
-    color: '#8a8a96',
-    fontSize: 10,
+    color: Palette.onDarkMuted,
+    fontSize: FontSize.xs,
     textAlign: 'center',
     paddingHorizontal: 4,
   },
@@ -669,10 +669,10 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     backgroundColor: BinderSurface.selection,
     borderWidth: 2,
-    borderColor: '#ffffff',
+    borderColor: Palette.white,
   },
   missing: {
-    backgroundColor: '#ececec',
+    backgroundColor: Palette.hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -682,11 +682,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(150,150,150,0.20)',
+    backgroundColor: Palette.skeletonFill,
   },
   missingText: {
-    fontSize: 20,
-    color: '#9a9a9a',
+    fontSize: FontSize.h2,
+    color: Palette.onDark,
   },
   badge: {
     position: 'absolute',
@@ -694,13 +694,13 @@ const styles = StyleSheet.create({
     left: 4,
     paddingHorizontal: 5,
     paddingVertical: 2,
-    borderRadius: 4,
-    backgroundColor: 'rgba(0,0,0,0.62)',
+    borderRadius: Radius.sm,
+    backgroundColor: Palette.scrim62,
   },
   badgeText: {
-    color: '#ffffff',
-    fontSize: 9,
-    fontWeight: '700',
+    color: Palette.white,
+    fontSize: FontSize.micro,
+    fontWeight: Weight.bold,
     letterSpacing: 0.5,
   },
 });

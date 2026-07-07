@@ -9,6 +9,7 @@ import { useRef, useState, type ChangeEvent } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { uploadArtImage } from '@/lib/uploadArt';
+import { studioButton } from '@/constants/ui';
 
 export interface ArtUploadButtonProps {
   onUploaded: (url: string) => void;
@@ -46,15 +47,13 @@ export function ArtUploadButton({ onUploaded, onError }: ArtUploadButtonProps) {
       <Pressable
         onPress={() => inputRef.current?.click()}
         disabled={busy}
-        style={({ pressed }) => [styles.btn, (busy || pressed) && styles.pressed]}>
-        <Text style={styles.text}>{busy ? 'Uploading…' : '⬆ Upload'}</Text>
+        style={({ pressed }) => [studioButton.base, (busy || pressed) && styles.pressed]}>
+        <Text style={studioButton.text}>{busy ? 'Uploading…' : '⬆ Upload'}</Text>
       </Pressable>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  btn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#14131A' },
-  text: { color: '#fff', fontWeight: '700', fontSize: 13 },
   pressed: { opacity: 0.7 },
 });

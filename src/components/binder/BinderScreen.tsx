@@ -22,6 +22,8 @@ import { SliceStudio } from '@/components/binder/SliceStudio';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
+import { pillChip } from '@/constants/ui';
 import { firstFreePlacement, occupiedCells, slotCells, type DemoSlot } from '@/data/binderTypes';
 import { prefetchCatalog } from '@/lib/catalog';
 import { binderValue, formatUsd, pageValue, usePriceSummary } from '@/lib/prices';
@@ -460,8 +462,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                         onPress={() =>
                           store.updatePage(binder.id, page.id, { rows: size.rows, cols: size.cols })
                         }
-                        style={[styles.chip, active && styles.chipActive]}>
-                        <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                        style={[pillChip.base, active && pillChip.active]}>
+                        <Text style={[pillChip.text, active && pillChip.textActive]}>
                           {size.label}
                         </Text>
                       </Pressable>
@@ -695,7 +697,7 @@ function PillButton({
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  dismiss: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' },
+  dismiss: { flex: 1, backgroundColor: Palette.scrim30 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -704,13 +706,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 12,
   },
-  headerAction: { fontSize: 16, fontWeight: '600' },
-  headerPrimary: { color: '#3B82F6' },
-  titleText: { flex: 1, textAlign: 'center', fontSize: 22, lineHeight: 28 },
+  headerAction: { fontSize: FontSize.md, fontWeight: Weight.semibold },
+  headerPrimary: { color: Palette.accent },
+  titleText: { flex: 1, textAlign: 'center', fontSize: FontSize.title, lineHeight: 28 },
   titleInput: {
     flex: 1,
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: FontSize.lg,
+    fontWeight: Weight.semibold,
     textAlign: 'center',
     borderBottomWidth: 1,
     paddingVertical: 4,
@@ -722,9 +724,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 4,
   },
-  badge: { paddingVertical: 3, paddingHorizontal: 10, borderRadius: 999 },
+  badge: { paddingVertical: 3, paddingHorizontal: 10, borderRadius: Radius.pill },
   pageNav: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  navArrow: { fontSize: 26, lineHeight: 28, fontWeight: '600' },
+  navArrow: { fontSize: FontSize.nav, lineHeight: 28, fontWeight: Weight.semibold },
   navDisabled: { opacity: 0.3 },
   description: { marginTop: 10, textAlign: 'center' },
   topDescInput: { marginTop: 8 },
@@ -738,22 +740,18 @@ const styles = StyleSheet.create({
   fieldLabel: { marginTop: 12, marginBottom: 2 },
   detailInput: {
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: Radius.control,
     paddingHorizontal: 10,
     paddingVertical: 8,
-    fontSize: 15,
+    fontSize: FontSize.control,
   },
   detailMultiline: { minHeight: 56, textAlignVertical: 'top' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, backgroundColor: '#f0f0f3' },
-  chipActive: { backgroundColor: '#3B82F6' },
-  chipText: { fontSize: 13, color: '#333' },
-  chipTextActive: { color: '#fff', fontWeight: '600' },
-  pill: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, backgroundColor: '#f0f0f3' },
+  pill: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: Radius.pill, backgroundColor: Palette.panel },
   pillDisabled: { opacity: 0.4 },
-  pillDanger: { backgroundColor: '#fdeaea' },
-  pillText: { fontSize: 14, fontWeight: '600', color: '#333' },
-  pillTextDanger: { color: '#c0392b' },
+  pillDanger: { backgroundColor: Palette.dangerBg },
+  pillText: { fontSize: FontSize.body, fontWeight: Weight.semibold, color: Palette.ink2 },
+  pillTextDanger: { color: Palette.dangerAlt },
   pressed: { opacity: 0.7 },
   actionBar: {
     flexDirection: 'row',
@@ -762,15 +760,15 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
     padding: 10,
-    borderRadius: 14,
+    borderRadius: Radius.actionBar,
     marginBottom: 6,
   },
   actionHint: { flexShrink: 1 },
   actionBtns: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  actionBtn: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, backgroundColor: '#3B82F6' },
-  actionBtnDanger: { backgroundColor: '#fdeaea' },
-  actionBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
-  actionBtnTextDanger: { color: '#c0392b' },
+  actionBtn: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: Radius.pill, backgroundColor: Palette.accent },
+  actionBtnDanger: { backgroundColor: Palette.dangerBg },
+  actionBtnText: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.accentText },
+  actionBtnTextDanger: { color: Palette.dangerAlt },
   deleteBinder: { marginTop: 20, alignItems: 'center', paddingVertical: 10 },
-  deleteBinderText: { color: '#c0392b', fontSize: 15, fontWeight: '600' },
+  deleteBinderText: { color: Palette.dangerAlt, fontSize: FontSize.control, fontWeight: Weight.semibold },
 });

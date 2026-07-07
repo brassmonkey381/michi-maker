@@ -7,22 +7,14 @@ import '@/global.css';
 
 import { Platform } from 'react-native';
 
-export const Colors = {
-  light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
-  },
-  dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
-  },
-} as const;
+import { activeVariant } from '@/constants/variants';
+
+/**
+ * Scheme-aware colour roles for the ACTIVE theme variation (see
+ * `constants/variants.ts`). Resolved once at module load; `useTheme()` indexes
+ * this by the current light/dark scheme.
+ */
+export const Colors = activeVariant.colors;
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
@@ -93,29 +85,54 @@ export const Shadows = {
 
 /**
  * The "michi" binder palette — the tonal mat, pocket outlines, inner shadows and
- * the translucent foil overlays. All values are pre-baked rgba strings so they can
- * be layered as plain Views (no gradient library, works on web + native).
+ * the translucent foil overlays (per active variation). Layered as plain Views
+ * (no gradient library, works on web + native).
  */
-export const BinderSurface = {
-  /** Page background when a page doesn't specify its own colour. */
-  mat: '#fbfaf7',
-  /** Empty pocket fill — a touch darker than the mat so it reads as a recess. */
-  pocketFill: 'rgba(120, 116, 108, 0.05)',
-  /** Pocket outline. */
-  pocketBorder: 'rgba(120, 116, 108, 0.20)',
-  /** Faint inner-shadow line drawn at the top of an empty pocket. */
-  pocketInnerShadow: 'rgba(80, 76, 70, 0.07)',
-  /** Card pocket "mat" frame behind a placed card. */
-  cardFrame: '#ffffff',
-  cardFrameBorder: 'rgba(40, 34, 28, 0.12)',
-  /** Diagonal foil sheen drawn over placed cards. */
-  foilSheen: 'rgba(255, 255, 255, 0.16)',
-  /** Soft inner highlight along the top of a tonal insert. */
-  insertHighlight: 'rgba(255, 255, 255, 0.22)',
-  insertBorder: 'rgba(0, 0, 0, 0.05)',
-  /** Selection ring in the editor. */
-  selection: '#3B82F6',
-} as const;
+export const BinderSurface = activeVariant.surface;
 
 /** Default backing tint applied to a slot when a card has no dominantColor. */
-export const SlotBackingFallback = '#f1f1f1';
+export const SlotBackingFallback = activeVariant.slotBacking;
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────
+ * Semantic design tokens for the ACTIVE variation (see `constants/variants.ts`).
+ *
+ * `Palette` = accent / status / surface / text-ramp / dark-chrome colours, plus
+ * `surface` (raised card/sheet bg) and `accentText` (text on the accent).
+ * `Radius` = control/surface corner radii (distinct from the binder-page `Radii`).
+ *
+ * Semantic tokens (`panel`, the `ink*` text ramp, `surface`, …) let a dark
+ * variation like "Dark Vault" restyle the whole editor by value alone — no
+ * per-component branching.
+ * ─────────────────────────────────────────────────────────────────────────
+ */
+export const Palette = activeVariant.palette;
+
+export const Radius = activeVariant.radius;
+
+/** Font weights as strings (RN renders string/number weights identically). */
+export const Weight = {
+  regular: '400',
+  medium: '500',
+  semibold: '600',
+  bold: '700',
+} as const;
+
+/** The type scale in use across the app, named. */
+export const FontSize = {
+  tag: 7,
+  micro: 9,
+  xs: 10,
+  sm: 11,
+  base: 12,
+  label: 13,
+  body: 14,
+  control: 15,
+  md: 16,
+  lg: 18,
+  h2: 20,
+  title: 22,
+  nav: 26,
+  display: 34,
+  hero: 48,
+} as const;

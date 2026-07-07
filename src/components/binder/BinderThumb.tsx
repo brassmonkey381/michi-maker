@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { BinderGrid } from '@/components/binder/BinderGrid';
 import { ThemedText } from '@/components/themed-text';
+import { Radius } from '@/constants/theme';
 import type { DemoBinder } from '@/data/binderTypes';
 
 interface BinderThumbProps {
@@ -36,7 +37,7 @@ const styles = StyleSheet.create({
     opacity: 0.75,
   },
   placeholder: {
-    borderRadius: 16,
+    borderRadius: Radius.lg,
     backgroundColor: 'rgba(128,128,128,0.12)',
   },
   title: {

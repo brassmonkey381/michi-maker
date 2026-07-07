@@ -26,11 +26,9 @@ import {
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Radii, Spacing } from '@/constants/theme';
+import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth, type OAuthProvider } from '@/store/auth';
-
-const PRIMARY = '#3B82F6';
 
 export function AuthSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const auth = useAuth();
@@ -214,7 +212,7 @@ function AuthForm({ onClose, upgrade }: { onClose: () => void; upgrade: boolean 
             <Pressable onPress={() => setIsCreate((v) => !v)} style={styles.switchRow}>
               <ThemedText type="small" themeColor="textSecondary">
                 {isCreate ? 'Already have an account? ' : "New here? "}
-                <ThemedText type="smallBold" style={{ color: PRIMARY }}>
+                <ThemedText type="smallBold" style={{ color: Palette.accent }}>
                   {isCreate ? 'Sign in' : 'Create one'}
                 </ThemedText>
               </ThemedText>
@@ -326,7 +324,7 @@ function ProfileView({ onClose }: { onClose: () => void }) {
       </View>
 
       <View style={styles.profileRow}>
-        <View style={[styles.avatar, { backgroundColor: PRIMARY }]}>
+        <View style={[styles.avatar, { backgroundColor: Palette.accent }]}>
           <ThemedText style={styles.avatarText}>{initial}</ThemedText>
         </View>
         <View style={styles.flex}>
@@ -385,7 +383,7 @@ function PrimaryButton({ label, busy, onPress }: { label: string; busy: boolean;
       disabled={busy}
       style={({ pressed }) => [styles.primaryBtn, (pressed || busy) && styles.pressed]}>
       {busy ? (
-        <ActivityIndicator color="#fff" />
+        <ActivityIndicator color={Palette.accentText} />
       ) : (
         <ThemedText style={styles.primaryBtnText}>{label}</ThemedText>
       )}
@@ -420,7 +418,7 @@ function OAuthButton({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: Palette.scrim45,
   },
   center: {
     flex: 1,
@@ -466,11 +464,11 @@ const styles = StyleSheet.create({
     borderRadius: Radii.slot,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two + 2,
-    fontSize: 16,
+    fontSize: FontSize.md,
   },
   codeInput: {
     letterSpacing: 6,
-    fontSize: 22,
+    fontSize: FontSize.title,
     textAlign: 'center',
   },
   switchRow: { alignItems: 'center', paddingVertical: Spacing.one },
@@ -482,23 +480,23 @@ const styles = StyleSheet.create({
   },
   divider: { flex: 1, height: StyleSheet.hairlineWidth },
   primaryBtn: {
-    backgroundColor: PRIMARY,
-    borderRadius: 999,
+    backgroundColor: Palette.accent,
+    borderRadius: Radius.pill,
     paddingVertical: Spacing.three,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,
   },
-  primaryBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  primaryBtnText: { color: Palette.accentText, fontWeight: Weight.bold, fontSize: FontSize.md },
   oauthBtn: {
     borderWidth: 1,
-    borderRadius: 999,
+    borderRadius: Radius.pill,
     paddingVertical: Spacing.three,
     alignItems: 'center',
   },
   pressed: { opacity: 0.7 },
-  error: { color: '#DC2626', lineHeight: 20 },
-  info: { color: '#059669', lineHeight: 20 },
+  error: { color: Palette.danger, lineHeight: 20 },
+  info: { color: Palette.success, lineHeight: 20 },
   flex: { flex: 1 },
   profileRow: {
     flexDirection: 'row',
@@ -508,16 +506,16 @@ const styles = StyleSheet.create({
   avatar: {
     width: 44,
     height: 44,
-    borderRadius: 999,
+    borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { color: '#fff', fontWeight: '700', fontSize: 18 },
+  avatarText: { color: Palette.accentText, fontWeight: Weight.bold, fontSize: FontSize.lg },
   label: { marginBottom: -Spacing.two },
   signOut: {
-    borderRadius: 999,
+    borderRadius: Radius.pill,
     paddingVertical: Spacing.three,
     alignItems: 'center',
   },
-  signOutText: { color: '#DC2626' },
+  signOutText: { color: Palette.danger },
 });

@@ -9,11 +9,9 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AuthSheet } from '@/components/auth/AuthSheet';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useAuth } from '@/store/auth';
-
-const PRIMARY = '#3B82F6';
 
 export function AccountButton() {
   const auth = useAuth();
@@ -33,7 +31,7 @@ export function AccountButton() {
         accessibilityLabel="Account"
         style={({ pressed }) => pressed && styles.pressed}>
         {auth.isSignedIn ? (
-          <View style={[styles.avatar, { backgroundColor: PRIMARY }]}>
+          <View style={[styles.avatar, { backgroundColor: Palette.accent }]}>
             <ThemedText style={styles.avatarText}>{initial}</ThemedText>
           </View>
         ) : (
@@ -55,16 +53,16 @@ const styles = StyleSheet.create({
   avatar: {
     width: 36,
     height: 36,
-    borderRadius: 999,
+    borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  avatarText: { color: Palette.accentText, fontWeight: Weight.bold, fontSize: FontSize.md },
   pill: {
-    backgroundColor: PRIMARY,
+    backgroundColor: Palette.accent,
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
-    borderRadius: 999,
+    borderRadius: Radius.pill,
   },
-  pillText: { color: '#fff' },
+  pillText: { color: Palette.accentText },
 });

@@ -5,9 +5,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AccountButton } from '@/components/auth/AccountButton';
 import { BinderScreen } from '@/components/binder/BinderScreen';
 import { BinderThumb } from '@/components/binder/BinderThumb';
+import { SettingsButton } from '@/components/settings/SettingsSheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, FontSize, MaxContentWidth, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { useImageManifest } from '@/lib/catalogConfig';
 import { useBinders } from '@/store/binders';
 
 export default function BindersScreen() {
@@ -16,9 +18,15 @@ export default function BindersScreen() {
   const [openId, setOpenId] = useState<string | null>(null);
 
   // Note: we deliberately do NOT load the catalog here. Binder covers resolve their image
-  // straight from the card id (cardThumbUrl → card-thumbs/245/<id>.webp), so the home screen
-  // paints images immediately without waiting on the ~25 MB catalog.json. The catalog only
-  // loads when the editor/picker opens (names, set browse, jumbo/V-UNION grouping).
+  // straight from the card id (cardThumbUrl), so the home screen paints images immediately
+  // without waiting on the ~25 MB catalog.json. The catalog only loads when the editor/picker
+  // opens (names, set browse, jumbo/V-UNION grouping).
+  //
+  // Hosted images are content-hashed, so cardThumbUrl resolves ids through the lite image
+  // manifest — hydrate it here (instant from the AsyncStorage cache, then a background
+  // refresh) so covers repaint with their hashed URLs. Static/dev mode is a no-op (covers
+  // fall back to the flat convention path).
+  useImageManifest();
 
   const contentWidth = Math.min(width, MaxContentWidth) - Spacing.four * 2;
   const columns = contentWidth > 520 ? 3 : 2;
@@ -38,7 +46,10 @@ export default function BindersScreen() {
             <ThemedText type="title" style={styles.h1}>
               poke-michi
             </ThemedText>
-            <AccountButton />
+            <View style={styles.headerActions}>
+              <SettingsButton />
+              <AccountButton />
+            </View>
           </View>
 
           <Section
@@ -132,14 +143,15 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.four,
     gap: Spacing.three,
   },
-  h1: { fontSize: 34, lineHeight: 40 },
+  h1: { fontSize: FontSize.display, lineHeight: 40 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   newBtn: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: Palette.accent,
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
-    borderRadius: 999,
+    borderRadius: Radius.pill,
   },
-  newBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  newBtnText: { color: Palette.accentText, fontWeight: Weight.bold, fontSize: FontSize.control },
   pressed: { opacity: 0.7 },
   section: { marginBottom: Spacing.five },
   sectionHeader: {
@@ -150,6 +162,6 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { textTransform: 'uppercase', letterSpacing: 0.5 },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  empty: { padding: Spacing.four, borderRadius: 16 },
+  empty: { padding: Spacing.four, borderRadius: Radius.lg },
   emptyText: { lineHeight: 20 },
 });

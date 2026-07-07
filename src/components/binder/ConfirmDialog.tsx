@@ -7,7 +7,7 @@ import { Modal, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Radii, Spacing } from '@/constants/theme';
+import { FontSize, Palette, Radii, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export interface ConfirmSpec {
@@ -71,25 +71,25 @@ export function ConfirmDialog({ spec, onClose }: { spec: ConfirmSpec | null; onC
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: Palette.scrim45,
     alignItems: 'center',
     justifyContent: 'center',
     padding: Spacing.four,
   },
   cardWrap: { width: '100%', maxWidth: 360 },
   card: { borderRadius: Radii.page, padding: Spacing.four, gap: Spacing.three },
-  title: { fontSize: 20, lineHeight: 26 },
+  title: { fontSize: FontSize.h2, lineHeight: 26 },
   message: { lineHeight: 20 },
   row: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.two, marginTop: Spacing.one },
   btn: {
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.four,
-    borderRadius: 999,
+    borderRadius: Radius.pill,
     borderWidth: 1,
     borderColor: 'transparent',
   },
-  btnPrimary: { backgroundColor: '#3B82F6' },
-  btnDanger: { backgroundColor: '#DC2626' },
-  btnFilledText: { color: '#fff' },
+  btnPrimary: { backgroundColor: Palette.accent },
+  btnDanger: { backgroundColor: Palette.danger },
+  btnFilledText: { color: Palette.accentText },
   pressed: { opacity: 0.7 },
 });

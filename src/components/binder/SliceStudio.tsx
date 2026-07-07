@@ -18,6 +18,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ArtUploadButton } from '@/components/binder/ArtUploadButton';
 import { ThemedText } from '@/components/themed-text';
+import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
+import { pillChip, controlButton } from '@/constants/ui';
 import { domainOf, type ArtAspect } from '@/data/artworkLibrary';
 import { uid } from '@/data/binderTypes';
 import { addSavedArt } from '@/data/savedArt';
@@ -334,7 +336,7 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
               value={urlInput}
               onChangeText={setUrlInput}
               placeholder="Paste image URL…"
-              placeholderTextColor="#999"
+              placeholderTextColor={Palette.muted3}
               autoCapitalize="none"
               autoCorrect={false}
               style={styles.input}
@@ -447,20 +449,20 @@ function Btn({
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [
-        styles.btn,
-        kind === 'primary' && styles.btnPrimary,
+        controlButton.base,
+        kind === 'primary' && controlButton.primary,
         pressed && styles.pressed,
         disabled && styles.disabled,
       ]}>
-      <Text style={[styles.btnText, kind === 'primary' && styles.btnPrimaryText]}>{label}</Text>
+      <Text style={[controlButton.text, kind === 'primary' && controlButton.primaryText]}>{label}</Text>
     </Pressable>
   );
 }
 
 function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={[styles.chip, active && styles.chipActive]}>
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+    <Pressable onPress={onPress} style={[pillChip.base, active && pillChip.active]}>
+      <Text style={[pillChip.text, active && pillChip.textActive]}>{label}</Text>
     </Pressable>
   );
 }
@@ -474,47 +476,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
-  headerAction: { fontSize: 16, fontWeight: '600', color: '#333' },
-  primary: { color: '#3B82F6' },
+  headerAction: { fontSize: FontSize.md, fontWeight: Weight.semibold, color: Palette.ink2 },
+  primary: { color: Palette.accent },
   disabled: { opacity: 0.4 },
   scroll: { padding: 16, gap: 10 },
   toolbar: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
-  tLabel: { fontSize: 13, color: '#666', marginRight: 2 },
+  tLabel: { fontSize: FontSize.label, color: Palette.muted, marginRight: 2 },
   input: {
     flex: 1,
     minWidth: 160,
     borderWidth: 1,
-    borderColor: '#e0e0e3',
-    borderRadius: 8,
+    borderColor: Palette.controlBorder,
+    borderRadius: Radius.control,
     paddingHorizontal: 10,
     paddingVertical: 8,
-    fontSize: 14,
-    color: '#222',
+    fontSize: FontSize.body,
+    color: Palette.ink,
   },
-  btn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, backgroundColor: '#f0f0f3' },
-  btnPrimary: { backgroundColor: '#3B82F6' },
-  btnText: { fontSize: 14, fontWeight: '600', color: '#333' },
-  btnPrimaryText: { color: '#fff' },
   pressed: { opacity: 0.7 },
-  chip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, backgroundColor: '#f0f0f3' },
-  chipActive: { backgroundColor: '#3B82F6' },
-  chipText: { fontSize: 13, color: '#333' },
-  chipTextActive: { color: '#fff', fontWeight: '600' },
   bodyRow: { flexDirection: 'row', gap: 16, marginTop: 6 },
   bodyCol: { flexDirection: 'column', gap: 16, marginTop: 6 },
   canvasWrap: { alignItems: 'center', flexShrink: 1 },
-  canvas: { backgroundColor: '#14131A', borderRadius: 12, overflow: 'hidden' },
-  empty: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#14131A', borderRadius: 12 },
-  emptyText: { color: '#8a8a96', fontSize: 13 },
-  pieceClip: { overflow: 'hidden', borderRadius: 6, backgroundColor: '#0d0d12' },
-  pieceSelected: { borderWidth: 2, borderColor: '#3B82F6' },
-  hint: { marginTop: 8, fontSize: 12, color: '#888', textAlign: 'center' },
-  guide: { backgroundColor: '#f6f6f8', borderRadius: 12, padding: 14 },
+  canvas: { backgroundColor: Palette.chrome, borderRadius: Radius.panel, overflow: 'hidden' },
+  empty: { alignItems: 'center', justifyContent: 'center', backgroundColor: Palette.chrome, borderRadius: Radius.panel },
+  emptyText: { color: Palette.onDarkMuted, fontSize: FontSize.label },
+  pieceClip: { overflow: 'hidden', borderRadius: Radius.thumb, backgroundColor: Palette.chromeDeepest },
+  pieceSelected: { borderWidth: 2, borderColor: Palette.accent },
+  hint: { marginTop: 8, fontSize: FontSize.base, color: Palette.muted2, textAlign: 'center' },
+  guide: { backgroundColor: Palette.panelAlt, borderRadius: Radius.panel, padding: 14 },
   guideSide: { width: 248 },
   guideBottom: { width: '100%' },
-  guideTitle: { fontSize: 13, fontWeight: '700', color: '#444', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
+  guideTitle: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.ink3, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
   guideRow: { marginBottom: 8 },
-  guideKeys: { fontSize: 12, fontWeight: '700', color: '#3B82F6' },
-  guideAction: { fontSize: 12, color: '#555' },
-  guideNote: { fontSize: 11, color: '#999', marginTop: 6, lineHeight: 16 },
+  guideKeys: { fontSize: FontSize.base, fontWeight: Weight.bold, color: Palette.accent },
+  guideAction: { fontSize: FontSize.base, color: Palette.ink4 },
+  guideNote: { fontSize: FontSize.sm, color: Palette.muted3, marginTop: 6, lineHeight: 16 },
 });

@@ -77,6 +77,8 @@ export interface DemoBinder {
   /** Premade, read-only-by-default reference binders ship with the app. */
   isExample: boolean;
   coverCardId?: string;
+  /** When true, anyone with the link can view this binder (see the `/binder/[id]` route). */
+  isPublic?: boolean;
   pages: DemoPage[];
 }
 
@@ -200,6 +202,7 @@ export function cloneBinder(binder: DemoBinder, overrides?: Partial<DemoBinder>)
     ...binder,
     id: uuidv4(),
     isExample: false,
+    isPublic: false, // a copy is private until the new owner shares it
     pages: binder.pages.map((page) => ({
       ...page,
       id: uuidv4(),

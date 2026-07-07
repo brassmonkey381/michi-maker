@@ -18,14 +18,16 @@ import { CardPicker } from '@/components/binder/CardPicker';
 import { ColorField } from '@/components/binder/ColorField';
 import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
 import { PageStrip } from '@/components/binder/PageStrip';
+import { ShareSheet } from '@/components/binder/ShareSheet';
 import { SliceStudio } from '@/components/binder/SliceStudio';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
+import { Palette, Radius, Spacing, Weight, FontSize } from '@/constants/theme';
 import { pillChip } from '@/constants/ui';
 import { firstFreePlacement, occupiedCells, slotCells, type DemoSlot } from '@/data/binderTypes';
 import { prefetchCatalog } from '@/lib/catalog';
+import { isSupabaseConfigured } from '@/lib/env';
 import { binderValue, formatUsd, pageValue, usePriceSummary } from '@/lib/prices';
 import { footprintForKind } from '@/data/cardSizing';
 import { resolveCard } from '@/data/cardResolver';
@@ -60,6 +62,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // "Keep adding" fast-fill: after placing a card the picker stays open and jumps to the next pocket.
   const [keepAdding, setKeepAdding] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
   const [toast, setToast] = useState<ToastSpec | null>(null);
   const toastId = useRef(0);
 
@@ -289,14 +292,21 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               </ThemedText>
             )}
             {canEdit ? (
-              <Pressable
-                onPress={() => {
-                  setEditing((e) => !e);
-                  setSelectedSlotId(null);
-                }}
-                hitSlop={10}>
-                <Text style={[styles.headerAction, styles.headerPrimary]}>{editing ? 'Done' : 'Edit'}</Text>
-              </Pressable>
+              <View style={styles.headerRight}>
+                {isSupabaseConfigured ? (
+                  <Pressable onPress={() => setShareOpen(true)} hitSlop={10}>
+                    <Text style={[styles.headerAction, { color: theme.text }]}>Share</Text>
+                  </Pressable>
+                ) : null}
+                <Pressable
+                  onPress={() => {
+                    setEditing((e) => !e);
+                    setSelectedSlotId(null);
+                  }}
+                  hitSlop={10}>
+                  <Text style={[styles.headerAction, styles.headerPrimary]}>{editing ? 'Done' : 'Edit'}</Text>
+                </Pressable>
+              </View>
             ) : (
               <Pressable onPress={handleDuplicate} hitSlop={10}>
                 <Text style={[styles.headerAction, styles.headerPrimary]}>Duplicate</Text>
@@ -542,6 +552,13 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
 
         <Toast spec={toast} onDismiss={() => setToast(null)} />
         <ConfirmDialog spec={confirm} onClose={() => setConfirm(null)} />
+        <ShareSheet
+          visible={shareOpen}
+          binderId={binder.id}
+          isPublic={!!binder.isPublic}
+          onClose={() => setShareOpen(false)}
+          onSetPublic={(v) => store.updateBinder(binder.id, { isPublic: v })}
+        />
       </ThemedView>
     </Modal>
   );
@@ -652,6 +669,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   headerAction: { fontSize: FontSize.md, fontWeight: Weight.semibold },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   headerPrimary: { color: Palette.accent },
   titleText: { flex: 1, textAlign: 'center', fontSize: FontSize.title, lineHeight: 28 },
   titleInput: {

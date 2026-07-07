@@ -8,7 +8,6 @@ import { BinderThumb } from '@/components/binder/BinderThumb';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-import { useCatalog } from '@/hooks/use-catalog';
 import { useBinders } from '@/store/binders';
 
 export default function BindersScreen() {
@@ -16,11 +15,10 @@ export default function BindersScreen() {
   const { width } = useWindowDimensions();
   const [openId, setOpenId] = useState<string | null>(null);
 
-  // The example binders reference catalog card ids, so their thumbnails resolve only once the
-  // shared catalog has loaded. Subscribe immediately: useCatalog() kicks off the load-once fetch
-  // and re-renders this screen when it resolves, so the covers fill in on the home page itself
-  // (not only after opening a binder). The 9.87MB parse runs after first paint, off the critical path.
-  useCatalog();
+  // Note: we deliberately do NOT load the catalog here. Binder covers resolve their image
+  // straight from the card id (cardThumbUrl → card-thumbs/245/<id>.webp), so the home screen
+  // paints images immediately without waiting on the ~25 MB catalog.json. The catalog only
+  // loads when the editor/picker opens (names, set browse, jumbo/V-UNION grouping).
 
   const contentWidth = Math.min(width, MaxContentWidth) - Spacing.four * 2;
   const columns = contentWidth > 520 ? 3 : 2;

@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 
-import { getCatalog, getLoadedCatalog, type Catalog } from '@/lib/catalog';
+import { getCatalog, getLoadedCatalog, subscribeCatalog, type Catalog } from '@/lib/catalog';
 
 /**
  * Load state for the shared catalog. The underlying fetch/parse is a load-once
@@ -14,46 +14,38 @@ export interface UseCatalog {
 }
 
 /**
- * Subscribe to the shared browse catalog. `catalog` is null until it resolves.
+ * Subscribe to the shared browse catalog. `catalog` is null until it resolves, then updates
+ * reactively for every consumer — via `useSyncExternalStore` over the module snapshot — the
+ * moment it loads, whoever kicked off the load.
  *
- * `enabled` (default `true`) gates whether this hook *forces* the fetch: pass `false`
- * to subscribe cheaply (pick up an already-loaded snapshot) without kicking off the
- * 9.87MB load. A persistently-mounted consumer can pass `enabled` = its own
- * visibility so the load isn't forced until it's actually shown — the deliberate
- * background `prefetchCatalog()` warms the shared promise off the critical path.
+ * `enabled` (default `true`) gates whether this hook *forces* the 25 MB fetch. Pass `false` to
+ * subscribe cheaply: the hook still re-renders when the catalog becomes available (e.g. a
+ * background `prefetchCatalog()` or another screen loaded it), but it never initiates the load
+ * itself. Rendering that only needs card *images* doesn't need the catalog at all (image URLs
+ * are derived from the card id — see `cardThumbUrl`), so those consumers pass `false`.
  */
 export function useCatalog(enabled = true): UseCatalog {
-  // Seed synchronously from the load-once snapshot: if the catalog already resolved,
-  // this mount starts non-null with no loading flash (and avoids a setState in the
-  // effect body). Otherwise we subscribe to the shared promise below.
-  const [catalog, setCatalog] = useState<Catalog | null>(() => getLoadedCatalog());
+  // Reactive snapshot of the load-once catalog: updates for enabled AND passive consumers
+  // when the catalog publishes, without either of them forcing the fetch.
+  const catalog = useSyncExternalStore(subscribeCatalog, getLoadedCatalog, getLoadedCatalog);
   const [error, setError] = useState<Error | null>(null);
-  const [loading, setLoading] = useState<boolean>(() => getLoadedCatalog() === null);
 
   useEffect(() => {
-    if (catalog) return; // already loaded — nothing to await
-    // Subscribe-only when disabled: don't force the 9.87MB fetch. The mount-time seed
-    // (getLoadedCatalog) already adopted any resolved catalog; if a background prefetch
-    // resolves later, this re-runs and picks it up once `enabled` flips true.
-    if (!enabled) return;
+    if (catalog || !enabled) return; // loaded already, or subscribe-only: don't force the fetch
     let cancelled = false;
     getCatalog()
-      .then((c) => {
-        if (cancelled) return;
-        setCatalog(c);
-        setError(null);
+      .then(() => {
+        if (!cancelled) setError(null);
       })
       .catch((e: unknown) => {
-        if (cancelled) return;
-        setError(e instanceof Error ? e : new Error(String(e)));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setError(e instanceof Error ? e : new Error(String(e)));
       });
     return () => {
       cancelled = true;
     };
   }, [catalog, enabled]);
 
+  // Derived: we're loading while enabled, not yet resolved, and no error has surfaced.
+  const loading = enabled && !catalog && !error;
   return { catalog, loading, error };
 }

@@ -16,6 +16,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ArtUploadButton } from '@/components/binder/ArtUploadButton';
 import { ThemedText } from '@/components/themed-text';
 import { domainOf, type ArtAspect } from '@/data/artworkLibrary';
 import { uid } from '@/data/binderTypes';
@@ -337,6 +338,13 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
               autoCapitalize="none"
               autoCorrect={false}
               style={styles.input}
+            />
+            <ArtUploadButton
+              onUploaded={(url) => {
+                setImageUrl(url);
+                setFailed(false);
+                setUrlInput('');
+              }}
             />
             <Btn label="Load" onPress={loadUrl} kind="primary" />
           </View>

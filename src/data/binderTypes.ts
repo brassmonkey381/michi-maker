@@ -176,6 +176,24 @@ export function canPlaceSlot(
   return candidateCells(candidate).every((key) => !taken.has(key));
 }
 
+/**
+ * The first cell (reading order, top-left→bottom-right) where a `rowSpan`×`colSpan` footprint
+ * fits on the page without overlapping any slot (except `ignoreId`). Returns null if none fits.
+ */
+export function firstFreePlacement(
+  page: DemoPage,
+  rowSpan: number,
+  colSpan: number,
+  ignoreId?: string,
+): { row: number; col: number } | null {
+  for (let row = 0; row <= page.rows - rowSpan; row += 1) {
+    for (let col = 0; col <= page.cols - colSpan; col += 1) {
+      if (canPlaceSlot(page, { row, col, rowSpan, colSpan }, ignoreId)) return { row, col };
+    }
+  }
+  return null;
+}
+
 /** Deep-clone a binder, assigning fresh (persistable) UUID ids — used to remix an example. */
 export function cloneBinder(binder: DemoBinder, overrides?: Partial<DemoBinder>): DemoBinder {
   return {

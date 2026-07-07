@@ -56,6 +56,9 @@ function slotRow(slot: DemoSlot, pageId: string): Tables['binder_slots']['Insert
     card_id: slot.cardId ?? null,
     // No dedicated insert-colour column yet; stash it here (inserts aren't user-created yet).
     insert_image_url: slot.insertColor ?? null,
+    // Custom artwork (uploaded or pasted) + its slice crop, so it survives reload.
+    image_url: slot.imageUrl ?? null,
+    image_crop: slot.imageCrop ?? null,
   };
 }
 
@@ -70,6 +73,8 @@ interface SlotRowIn {
   slot_type: string;
   card_id: string | null;
   insert_image_url: string | null;
+  image_url: string | null;
+  image_crop: { x: number; y: number; w: number; h: number } | null;
 }
 
 interface PageRowIn {
@@ -102,6 +107,8 @@ function mapSlot(row: SlotRowIn): DemoSlot {
     type: row.slot_type as DemoSlot['type'],
     cardId: row.card_id ?? undefined,
     insertColor: row.insert_image_url ?? undefined,
+    imageUrl: row.image_url ?? undefined,
+    imageCrop: row.image_crop ?? undefined,
   };
 }
 

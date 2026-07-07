@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   InteractionManager,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,11 +15,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BinderGrid } from '@/components/binder/BinderGrid';
 import { CardPicker } from '@/components/binder/CardPicker';
+import { ColorField } from '@/components/binder/ColorField';
+import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
 import { PageStrip } from '@/components/binder/PageStrip';
 import { SliceStudio } from '@/components/binder/SliceStudio';
+import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { slotCells } from '@/data/binderTypes';
+import { firstFreePlacement, occupiedCells, slotCells, type DemoSlot } from '@/data/binderTypes';
 import { prefetchCatalog } from '@/lib/catalog';
 import { binderValue, formatUsd, pageValue, usePriceSummary } from '@/lib/prices';
 import { footprintForKind } from '@/data/cardSizing';
@@ -49,6 +53,13 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const [studio, setStudio] = useState<
     { rows: number; cols: number; row: number; col: number; imageUrl?: string } | null
   >(null);
+  // The pocket selected for quick actions (action bar + resize handle); distinct from pickerCell.
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  // "Keep adding" fast-fill: after placing a card the picker stays open and jumps to the next pocket.
+  const [keepAdding, setKeepAdding] = useState(false);
+  const [confirm, setConfirm] = useState<ConfirmSpec | null>(null);
+  const [toast, setToast] = useState<ToastSpec | null>(null);
+  const toastId = useRef(0);
 
   // Warm the 9.87MB catalog off the editor's first-paint critical path: kick off the
   // load-once fetch/parse only once mount interactions have settled. The persistently
@@ -92,21 +103,100 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     if (copy) onOpenBinder?.(copy.id);
   };
 
+  const selectedSlot = selectedSlotId
+    ? (page.slots.find((s) => s.id === selectedSlotId) ?? null)
+    : null;
+
+  const showToast = (message: string, withUndo = false) => {
+    toastId.current += 1;
+    setToast(
+      withUndo
+        ? { id: toastId.current, message, actionLabel: 'Undo', onAction: store.undo }
+        : { id: toastId.current, message },
+    );
+  };
+
+  // Change page and drop any pocket selection (selection is per-page).
+  const changePage = (i: number) => {
+    setSelectedSlotId(null);
+    setPageIndex(Math.max(0, Math.min(i, binder.pages.length - 1)));
+  };
+
   const closePicker = () => setPickerCell(null);
 
+  // Tapping a filled pocket selects it (for the action bar + resize handle); tapping an empty
+  // pocket opens the picker to add. Selecting never opens the sheet.
+  const handleSelectSlot = (slot: DemoSlot) => setSelectedSlotId(slot.id);
+  const handleAddCell = (row: number, col: number) => {
+    setSelectedSlotId(null);
+    setPickerCell({ row, col });
+  };
+
+  // Drag-to-resize commit: re-place the slot at its fixed top-left with the new footprint.
+  const handleResizeSlot = (row: number, col: number, rowSpan: number, colSpan: number) => {
+    store.upsertSlot(binder.id, page.id, { row, col, rowSpan, colSpan });
+  };
+
+  // The next empty pocket in reading order, treating the just-placed footprint as filled.
+  const nextEmptyCell = (r: number, c: number, fr: number, fc: number) => {
+    const occ = occupiedCells(page);
+    for (let i = 0; i < fr; i += 1) for (let j = 0; j < fc; j += 1) occ.add(`${r + i},${c + j}`);
+    for (let rr = 0; rr < page.rows; rr += 1) {
+      for (let cc = 0; cc < page.cols; cc += 1) {
+        if (!occ.has(`${rr},${cc}`)) return { row: rr, col: cc };
+      }
+    }
+    return null;
+  };
+
   // Placing a card: its footprint comes from its real-world kind (standard 1×1, jumbo 2×2),
-  // so a piece's shape always matches its pocket.
+  // so a piece's shape always matches its pocket. In "keep adding" mode the sheet stays open
+  // and advances to the next empty pocket until the page is full.
   const handlePickCard = (cardId: string) => {
     if (!pickerCell) return;
     const { rows, cols } = footprintForKind(resolveCard(cardId)?.kind);
-    store.upsertSlot(binder.id, page.id, {
-      ...pickerCell,
-      cardId,
-      type: 'card',
-      rowSpan: rows,
-      colSpan: cols,
-    });
+    const { row, col } = pickerCell;
+    store.upsertSlot(binder.id, page.id, { row, col, cardId, type: 'card', rowSpan: rows, colSpan: cols });
+    if (keepAdding) {
+      const next = nextEmptyCell(row, col, rows, cols);
+      if (next) {
+        setPickerCell(next);
+        return;
+      }
+    }
     closePicker();
+  };
+
+  const replaceSelected = () => {
+    if (!selectedSlot) return;
+    setPickerCell({ row: selectedSlot.row, col: selectedSlot.col });
+  };
+
+  const duplicateSelected = () => {
+    if (!selectedSlot) return;
+    const dest = firstFreePlacement(page, selectedSlot.rowSpan, selectedSlot.colSpan);
+    if (!dest) {
+      showToast('No empty pocket to duplicate into');
+      return;
+    }
+    store.upsertSlot(binder.id, page.id, {
+      row: dest.row,
+      col: dest.col,
+      rowSpan: selectedSlot.rowSpan,
+      colSpan: selectedSlot.colSpan,
+      type: selectedSlot.type,
+      cardId: selectedSlot.cardId,
+      insertColor: selectedSlot.insertColor,
+      imageUrl: selectedSlot.imageUrl,
+    });
+    showToast('Duplicated');
+  };
+
+  const removeSelected = () => {
+    if (!selectedSlot) return;
+    store.removeSlot(binder.id, page.id, selectedSlot.id);
+    setSelectedSlotId(null);
+    showToast('Pocket cleared', true);
   };
 
   const handlePickVUnion = (pieces: readonly string[]) => {
@@ -197,7 +287,12 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               </ThemedText>
             )}
             {canEdit ? (
-              <Pressable onPress={() => setEditing((e) => !e)} hitSlop={10}>
+              <Pressable
+                onPress={() => {
+                  setEditing((e) => !e);
+                  setSelectedSlotId(null);
+                }}
+                hitSlop={10}>
                 <Text style={[styles.headerAction, styles.headerPrimary]}>{editing ? 'Done' : 'Edit'}</Text>
               </Pressable>
             ) : (
@@ -239,14 +334,14 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                 </ThemedView>
               ) : null}
               <View style={styles.pageNav}>
-                <NavArrow label="‹" disabled={idx <= 0} onPress={() => setPageIndex(idx - 1)} color={theme.text} />
+                <NavArrow label="‹" disabled={idx <= 0} onPress={() => changePage(idx - 1)} color={theme.text} />
                 <ThemedText type="small" themeColor="textSecondary">
                   Page {idx + 1} / {binder.pages.length}
                 </ThemedText>
                 <NavArrow
                   label="›"
                   disabled={idx >= binder.pages.length - 1}
-                  onPress={() => setPageIndex(idx + 1)}
+                  onPress={() => changePage(idx + 1)}
                   color={theme.text}
                 />
               </View>
@@ -296,12 +391,23 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                 page={page}
                 width={pageWidth}
                 editable={editing}
-                selectedSlotId={slotAtCell?.id}
-                onCellPress={(row, col) => setPickerCell({ row, col })}
-                onSlotPress={(slot) => setPickerCell({ row: slot.row, col: slot.col })}
+                selectedSlotId={selectedSlotId}
+                onCellPress={handleAddCell}
+                onSlotPress={handleSelectSlot}
                 onDropSlot={handleDropSlot}
+                onResizeSlot={handleResizeSlot}
               />
             </View>
+
+            {/* Quick actions for the selected pocket (edit mode). */}
+            {editing && selectedSlot && !pickerCell ? (
+              <SlotActionBar
+                onReplace={replaceSelected}
+                onDuplicate={duplicateSelected}
+                onRemove={removeSelected}
+                onDeselect={() => setSelectedSlotId(null)}
+              />
+            ) : null}
 
             {editing && (
               <View style={styles.editPanel}>
@@ -309,10 +415,10 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                 <PageStrip
                   pages={binder.pages}
                   currentIndex={idx}
-                  onSelect={setPageIndex}
+                  onSelect={changePage}
                   onReorder={(from, to) => {
                     store.reorderPages(binder.id, from, to);
-                    setPageIndex(to);
+                    changePage(to);
                   }}
                 />
 
@@ -324,10 +430,19 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                     <PillButton
                       label="Delete page"
                       tone="danger"
-                      onPress={() => {
-                        store.removePage(binder.id, page.id);
-                        setPageIndex(0);
-                      }}
+                      onPress={() =>
+                        setConfirm({
+                          title: 'Delete this page?',
+                          message: 'The page and everything on it will be removed.',
+                          confirmLabel: 'Delete page',
+                          destructive: true,
+                          onConfirm: () => {
+                            store.removePage(binder.id, page.id);
+                            changePage(0);
+                            showToast('Page deleted', true);
+                          },
+                        })
+                      }
                     />
                   )}
                   <PillButton label="Duplicate" onPress={handleDuplicate} />
@@ -367,10 +482,18 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
 
                 {!binder.isExample && (
                   <Pressable
-                    onPress={() => {
-                      store.deleteBinder(binder.id);
-                      onClose();
-                    }}
+                    onPress={() =>
+                      setConfirm({
+                        title: 'Delete this binder?',
+                        message: 'This binder and all its pages will be permanently deleted.',
+                        confirmLabel: 'Delete binder',
+                        destructive: true,
+                        onConfirm: () => {
+                          store.deleteBinder(binder.id);
+                          onClose();
+                        },
+                      })
+                    }
                     style={styles.deleteBinder}>
                     <Text style={styles.deleteBinderText}>Delete binder</Text>
                   </Pressable>
@@ -394,6 +517,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           onOpenSliceStudio={handleOpenStudio}
           onPickInsert={handlePickInsert}
           onClear={handleClear}
+          keepAdding={keepAdding}
+          onToggleKeepAdding={() => setKeepAdding((v) => !v)}
         />
 
         {studio && (
@@ -408,8 +533,119 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
             onClose={() => setStudio(null)}
           />
         )}
+
+        {/* Web keyboard shortcuts (edit mode; disabled while a sheet is open). */}
+        <EditorKeyboardShortcuts
+          enabled={editing && !pickerCell && !studio && !confirm}
+          onUndo={store.undo}
+          onRedo={store.redo}
+          onDelete={removeSelected}
+          onPrevPage={() => changePage(idx - 1)}
+          onNextPage={() => changePage(idx + 1)}
+        />
+
+        <Toast spec={toast} onDismiss={() => setToast(null)} />
+        <ConfirmDialog spec={confirm} onClose={() => setConfirm(null)} />
       </ThemedView>
     </Modal>
+  );
+}
+
+/**
+ * Installs web keyboard shortcuts for the editor while `enabled`: ⌘/Ctrl+Z undo, ⇧⌘Z / Ctrl+Y
+ * redo, Delete/Backspace to clear the selected pocket, ←/→ to change pages. No-op on native and
+ * while typing in a field. A component (not an inline effect) so its hook order stays stable.
+ */
+function EditorKeyboardShortcuts({
+  enabled,
+  onUndo,
+  onRedo,
+  onDelete,
+  onPrevPage,
+  onNextPage,
+}: {
+  enabled: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
+  onDelete: () => void;
+  onPrevPage: () => void;
+  onNextPage: () => void;
+}) {
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !enabled || typeof window === 'undefined') return;
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return;
+      const meta = e.metaKey || e.ctrlKey;
+      const key = e.key.toLowerCase();
+      if (meta && key === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) onRedo();
+        else onUndo();
+      } else if (meta && key === 'y') {
+        e.preventDefault();
+        onRedo();
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        onDelete();
+      } else if (e.key === 'ArrowLeft') {
+        onPrevPage();
+      } else if (e.key === 'ArrowRight') {
+        onNextPage();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [enabled, onUndo, onRedo, onDelete, onPrevPage, onNextPage]);
+  return null;
+}
+
+/** Quick-action toolbar for the selected pocket (edit mode). */
+function SlotActionBar({
+  onReplace,
+  onDuplicate,
+  onRemove,
+  onDeselect,
+}: {
+  onReplace: () => void;
+  onDuplicate: () => void;
+  onRemove: () => void;
+  onDeselect: () => void;
+}) {
+  return (
+    <ThemedView type="backgroundElement" style={styles.actionBar}>
+      <ThemedText type="small" themeColor="textSecondary" style={styles.actionHint}>
+        Pocket · drag ▢ to resize
+      </ThemedText>
+      <View style={styles.actionBtns}>
+        <ActionButton label="Replace" onPress={onReplace} />
+        <ActionButton label="Duplicate" onPress={onDuplicate} />
+        <ActionButton label="Remove" tone="danger" onPress={onRemove} />
+        <ActionButton label="Done" onPress={onDeselect} />
+      </View>
+    </ThemedView>
+  );
+}
+
+function ActionButton({
+  label,
+  onPress,
+  tone = 'default',
+}: {
+  label: string;
+  onPress: () => void;
+  tone?: 'default' | 'danger';
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.actionBtn,
+        tone === 'danger' && styles.actionBtnDanger,
+        pressed && styles.pressed,
+      ]}>
+      <Text style={[styles.actionBtnText, tone === 'danger' && styles.actionBtnTextDanger]}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -454,39 +690,6 @@ function PillButton({
       ]}>
       <Text style={[styles.pillText, tone === 'danger' && styles.pillTextDanger]}>{label}</Text>
     </Pressable>
-  );
-}
-
-const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
-
-/** A #hex colour field with a live preview swatch. Keyed by page so it re-inits per page. */
-function ColorField({ value, onChange }: { value?: string; onChange: (hex: string) => void }) {
-  const theme = useTheme();
-  const [text, setText] = useState(value ?? '');
-
-  const handleChange = (raw: string) => {
-    let next = raw.trim();
-    if (next && !next.startsWith('#')) next = `#${next}`;
-    setText(next);
-    if (HEX_RE.test(next)) onChange(next);
-  };
-
-  const preview = HEX_RE.test(text.trim()) ? text.trim() : (value ?? 'transparent');
-
-  return (
-    <View style={styles.colorRow}>
-      <View style={[styles.colorPreview, { backgroundColor: preview, borderColor: theme.backgroundSelected }]} />
-      <TextInput
-        value={text}
-        onChangeText={handleChange}
-        placeholder="#RRGGBB"
-        placeholderTextColor={theme.textSecondary}
-        autoCapitalize="none"
-        autoCorrect={false}
-        maxLength={7}
-        style={[styles.colorInput, { color: theme.text, borderColor: theme.backgroundSelected }]}
-      />
-    </View>
   );
 }
 
@@ -541,16 +744,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   detailMultiline: { minHeight: 56, textAlignVertical: 'top' },
-  colorRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  colorPreview: { width: 40, height: 40, borderRadius: 8, borderWidth: 1 },
-  colorInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    fontSize: 15,
-  },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, backgroundColor: '#f0f0f3' },
   chipActive: { backgroundColor: '#3B82F6' },
@@ -562,6 +755,22 @@ const styles = StyleSheet.create({
   pillText: { fontSize: 14, fontWeight: '600', color: '#333' },
   pillTextDanger: { color: '#c0392b' },
   pressed: { opacity: 0.7 },
+  actionBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
+    padding: 10,
+    borderRadius: 14,
+    marginBottom: 6,
+  },
+  actionHint: { flexShrink: 1 },
+  actionBtns: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  actionBtn: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, backgroundColor: '#3B82F6' },
+  actionBtnDanger: { backgroundColor: '#fdeaea' },
+  actionBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  actionBtnTextDanger: { color: '#c0392b' },
   deleteBinder: { marginTop: 20, alignItems: 'center', paddingVertical: 10 },
   deleteBinderText: { color: '#c0392b', fontSize: 15, fontWeight: '600' },
 });

@@ -396,6 +396,20 @@ async function loadCatalogFrom(base: string): Promise<Catalog> {
 
 let cache: Promise<Catalog> | null = null;
 let loaded: Catalog | null = null;
+const subscribers = new Set<() => void>();
+
+/**
+ * Subscribe to catalog-loaded notifications. The callback fires once, when the shared
+ * catalog finishes loading (i.e. when `getLoadedCatalog()` flips from null to the catalog).
+ * Lets components reactively pick up the catalog *without* forcing the fetch themselves
+ * (see `useCatalog(false)`). Returns an unsubscribe function.
+ */
+export function subscribeCatalog(callback: () => void): () => void {
+  subscribers.add(callback);
+  return () => {
+    subscribers.delete(callback);
+  };
+}
 
 /**
  * Shared, load-once catalog: the fetch + parse happens exactly once app-wide
@@ -406,6 +420,7 @@ export function loadCatalog(): Promise<Catalog> {
     cache = loadCatalogFrom(browseUrl)
       .then((c) => {
         loaded = c; // publish a synchronous snapshot for non-async callers (see getLoadedCatalog)
+        subscribers.forEach((cb) => cb());
         return c;
       })
       .catch((e) => {

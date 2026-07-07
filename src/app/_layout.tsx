@@ -4,7 +4,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Platform, useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import { VariantSwitcher } from '@/components/dev/VariantSwitcher';
 import { AuthProvider } from '@/store/auth';
 import { BinderProvider } from '@/store/binders';
 
@@ -29,7 +28,6 @@ export default function TabLayout() {
           <BinderProvider>
             <AnimatedSplashOverlay />
             <Slot />
-            <VariantSwitcher />
           </BinderProvider>
         </AuthProvider>
       </ThemeProvider>

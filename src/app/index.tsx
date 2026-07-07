@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AccountButton } from '@/components/auth/AccountButton';
 import { BinderScreen } from '@/components/binder/BinderScreen';
 import { BinderThumb } from '@/components/binder/BinderThumb';
+import { SettingsButton } from '@/components/settings/SettingsSheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, FontSize, MaxContentWidth, Palette, Radius, Spacing, Weight } from '@/constants/theme';
@@ -38,7 +39,10 @@ export default function BindersScreen() {
             <ThemedText type="title" style={styles.h1}>
               poke-michi
             </ThemedText>
-            <AccountButton />
+            <View style={styles.headerActions}>
+              <SettingsButton />
+              <AccountButton />
+            </View>
           </View>
 
           <Section
@@ -133,6 +137,7 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   h1: { fontSize: FontSize.display, lineHeight: 40 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   newBtn: {
     backgroundColor: Palette.accent,
     paddingVertical: Spacing.two,

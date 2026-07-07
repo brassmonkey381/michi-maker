@@ -217,11 +217,11 @@ export const VARIANTS = {
 
 export type VariantId = keyof typeof VARIANTS;
 
-export const VARIANT_LIST: { id: VariantId; label: string }[] = [
-  { id: 'neutral', label: 'Gallery Neutral' },
-  { id: 'vintage', label: 'Warm Vintage' },
-  { id: 'pop', label: 'Poké-Pop' },
-  { id: 'vault', label: 'Dark Vault' },
+export const VARIANT_LIST: { id: VariantId; label: string; desc: string }[] = [
+  { id: 'neutral', label: 'Gallery Neutral', desc: 'Clean & bright' },
+  { id: 'vintage', label: 'Warm Vintage', desc: 'Cream & kraft' },
+  { id: 'pop', label: 'Poké-Pop', desc: 'Vivid & rounded' },
+  { id: 'vault', label: 'Dark Vault', desc: 'Dark & premium' },
 ];
 
 const STORAGE_KEY = 'michi-variant';

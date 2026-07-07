@@ -119,3 +119,119 @@ export const BinderSurface = {
 
 /** Default backing tint applied to a slot when a card has no dominantColor. */
 export const SlotBackingFallback = '#f1f1f1';
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────
+ * Design tokens (Phase 1 — the de-facto palette + scales, named in one place).
+ *
+ * Every value here equals a literal that was previously hardcoded across the
+ * components, so migrating a literal → token is pixel-identical. `Palette` is
+ * the single surface a future theme *variation* swaps (see the redesign plan):
+ * change a value here and every consumer updates.
+ *
+ * NOTE: the existing scheme-aware `Colors` (5 roles) stay the source of truth
+ * for light/dark text+background. `Palette` holds the accent/danger/surface/
+ * text-ramp/dark-chrome values that today render the same in both schemes.
+ * ─────────────────────────────────────────────────────────────────────────
+ */
+export const Palette = {
+  // Brand / accent
+  accent: '#3B82F6',
+  accentText: '#ffffff',
+  accentSoft: '#7EB2FF',
+  link: '#3c87f7',
+  selectionSoft: '#e8f0fe',
+  selectionTint: '#dbe7ff',
+
+  // Neutrals & surfaces (light-locked today)
+  white: '#ffffff',
+  black: '#000000',
+  panel: '#f0f0f3',
+  panelAlt: '#f6f6f8',
+  controlBorder: '#e0e0e3',
+  handle: '#d4d4d4',
+  hairline: '#ececec',
+  hairlineStrong: '#dddddd',
+
+  // Text ramp on light (strongest → faintest)
+  ink: '#222222',
+  ink2: '#333333',
+  ink3: '#444444',
+  ink4: '#555555',
+  muted: '#666666',
+  muted2: '#888888',
+  muted3: '#999999',
+  muted4: '#aaaaaa',
+
+  // Text on dark chrome
+  onDark: '#9a9a9a',
+  onDarkMuted: '#8a8a96',
+  onDarkMuted2: '#8a8a93',
+
+  // Status
+  danger: '#DC2626',
+  dangerAlt: '#c0392b',
+  dangerBg: '#fdeaea',
+  success: '#059669',
+
+  // Dark chrome (intentionally scheme-independent)
+  chrome: '#14131A',
+  chromeDeep: '#11111a',
+  chromeDeepest: '#0d0d12',
+  toast: '#222228',
+
+  // Overlays / scrims
+  scrim30: 'rgba(0,0,0,0.3)',
+  scrim40: 'rgba(0,0,0,0.4)',
+  scrim45: 'rgba(0,0,0,0.45)',
+  scrim60: 'rgba(0,0,0,0.6)',
+  scrim62: 'rgba(0,0,0,0.62)',
+
+  // Hairline/tint borders
+  swatchBorder: 'rgba(128,128,128,0.35)',
+  grayBorder50: 'rgba(128,128,128,0.5)',
+  grayBorder70: 'rgba(128,128,128,0.7)',
+  skeletonFill: 'rgba(150,150,150,0.20)',
+  tagWarn: 'rgba(192,57,43,0.85)',
+} as const;
+
+/** Corner radii for controls/surfaces (distinct from the binder-page `Radii`). */
+export const Radius = {
+  xs: 2, // drag handle
+  tag: 3,
+  sm: 4,
+  thumb: 6,
+  control: 8, // chips, buttons, inputs
+  panel: 12, // canvas, guide cards
+  actionBar: 14,
+  lg: 16, // empty-state card
+  sheet: 20, // bottom-sheet top corners
+  pill: 999,
+} as const;
+
+/** Font weights as strings (RN renders string/number weights identically). */
+export const Weight = {
+  regular: '400',
+  medium: '500',
+  semibold: '600',
+  bold: '700',
+} as const;
+
+/** The type scale in use across the app, named. */
+export const FontSize = {
+  tag: 7,
+  micro: 9,
+  xs: 10,
+  sm: 11,
+  base: 12,
+  label: 13,
+  body: 14,
+  control: 15,
+  md: 16,
+  lg: 18,
+  h2: 20,
+  title: 22,
+  nav: 26,
+  display: 34,
+  hero: 48,
+} as const;

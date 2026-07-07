@@ -12,6 +12,8 @@ import { useSavedArt } from '@/data/savedArt';
 import type { DemoCard, DemoPage, DemoSlot } from '@/data/binderTypes';
 import { catalogCardToDemoCard } from '@/lib/catalog';
 import { useCatalog } from '@/hooks/use-catalog';
+import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
+import { flatChip, studioButton } from '@/constants/ui';
 
 /** Tasteful tonal inserts for filling a pocket with negative space. */
 const INSERT_TONES: { label: string; color: string }[] = [
@@ -179,7 +181,7 @@ export function CardPicker({
   const renderCardThumb = (card: DemoCard) => {
     const selected = slot?.type === 'card' && slot?.cardId === card.id;
     const jumbo = card.kind === 'jumbo';
-    const tintBg = card.dominantColor ? `${card.dominantColor}22` : '#f0f0f3';
+    const tintBg = card.dominantColor ? `${card.dominantColor}22` : Palette.panel;
     return (
       <Pressable
         key={card.id}
@@ -222,11 +224,11 @@ export function CardPicker({
       {isMultiCell ? (
         <View style={styles.controlsRow}>
           <Text style={styles.controlsLabel}>Layout</Text>
-          <Pressable onPress={() => setSliced(false)} style={[styles.spanChip, !sliced && styles.spanChipActive]}>
-            <Text style={[styles.spanChipText, !sliced && styles.spanChipTextActive]}>Whole</Text>
+          <Pressable onPress={() => setSliced(false)} style={[flatChip.base, !sliced && flatChip.active]}>
+            <Text style={[flatChip.text, !sliced && flatChip.textActive]}>Whole</Text>
           </Pressable>
-          <Pressable onPress={() => setSliced(true)} style={[styles.spanChip, sliced && styles.spanChipActive]}>
-            <Text style={[styles.spanChipText, sliced && styles.spanChipTextActive]}>Sliced</Text>
+          <Pressable onPress={() => setSliced(true)} style={[flatChip.base, sliced && flatChip.active]}>
+            <Text style={[flatChip.text, sliced && flatChip.textActive]}>Sliced</Text>
           </Pressable>
           <Text style={styles.artMeta}>{sliced ? `${shape.rows * shape.cols} pieces` : 'one panel'}</Text>
         </View>
@@ -236,13 +238,13 @@ export function CardPicker({
           value={query}
           onChangeText={setQuery}
           placeholder="Search art (e.g. fire, ocean)"
-          placeholderTextColor="#aaa"
+          placeholderTextColor={Palette.muted4}
           style={[styles.input, styles.inputGrow]}
         />
         <Pressable
           onPress={() => onOpenSliceStudio(slot?.imageUrl, shape.rows, shape.cols)}
-          style={styles.studioBtn}>
-          <Text style={styles.studioBtnText}>✂ Slice studio</Text>
+          style={studioButton.base}>
+          <Text style={studioButton.text}>✂ Slice studio</Text>
         </Pressable>
       </View>
       {!isArtSearchConfigured ? (
@@ -271,7 +273,7 @@ export function CardPicker({
           value={urlInput}
           onChangeText={setUrlInput}
           placeholder="Paste image URL…"
-          placeholderTextColor="#aaa"
+          placeholderTextColor={Palette.muted4}
           autoCapitalize="none"
           autoCorrect={false}
           style={[styles.input, styles.inputGrow]}
@@ -352,8 +354,8 @@ export function CardPicker({
                   key={s.label}
                   disabled={!enabled}
                   onPress={() => setShape({ rows: s.rows, cols: s.cols })}
-                  style={[styles.shapeChip, active && styles.spanChipActive, !enabled && styles.disabled]}>
-                  <Text style={[styles.spanChipText, active && styles.spanChipTextActive]}>{s.label}</Text>
+                  style={[styles.shapeChip, active && flatChip.active, !enabled && styles.disabled]}>
+                  <Text style={[flatChip.text, active && flatChip.textActive]}>{s.label}</Text>
                   <Text style={[styles.shapeSize, active && styles.shapeSizeActive]}>{s.size}</Text>
                 </Pressable>
               );
@@ -494,12 +496,12 @@ function ArtThumb({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
+  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: Palette.scrim40 },
   backdropFill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   sheet: {
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: Palette.white,
+    borderTopLeftRadius: Radius.sheet,
+    borderTopRightRadius: Radius.sheet,
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 24,
@@ -508,79 +510,73 @@ const styles = StyleSheet.create({
   // A definite height (not just maxHeight) so the browse FlatList gets a bounded viewport.
   sheetTall: { height: '85%' },
   loading: { marginVertical: 24 },
-  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#d4d4d4', marginBottom: 8 },
+  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: Radius.xs, backgroundColor: Palette.handle, marginBottom: 8 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
   headerTitle: { flex: 1 },
   keepAdding: {
     paddingVertical: 5,
     paddingHorizontal: 10,
-    borderRadius: 999,
-    backgroundColor: '#f0f0f3',
+    borderRadius: Radius.pill,
+    backgroundColor: Palette.panel,
   },
-  keepAddingOn: { backgroundColor: '#3B82F6' },
-  keepAddingText: { fontSize: 12, fontWeight: '700', color: '#666' },
-  keepAddingTextOn: { color: '#fff' },
-  close: { fontSize: 16, fontWeight: '600', color: '#3B82F6' },
+  keepAddingOn: { backgroundColor: Palette.accent },
+  keepAddingText: { fontSize: FontSize.base, fontWeight: Weight.bold, color: Palette.muted },
+  keepAddingTextOn: { color: Palette.white },
+  close: { fontSize: FontSize.md, fontWeight: Weight.semibold, color: Palette.accent },
   controlsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' },
-  controlsLabel: { fontSize: 13, color: '#666', marginRight: 2 },
-  spanChip: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: 8, backgroundColor: '#f0f0f3' },
-  spanChipActive: { backgroundColor: '#3B82F6' },
-  spanChipText: { fontSize: 13, color: '#333' },
-  spanChipTextActive: { color: '#fff', fontWeight: '600' },
+  controlsLabel: { fontSize: FontSize.label, color: Palette.muted, marginRight: 2 },
   shapeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' },
   shapeChip: {
     paddingVertical: 4,
     paddingHorizontal: 8,
-    borderRadius: 8,
-    backgroundColor: '#f0f0f3',
+    borderRadius: Radius.control,
+    backgroundColor: Palette.panel,
     alignItems: 'center',
     minWidth: 58,
   },
-  shapeSize: { fontSize: 9, color: '#8a8a93', marginTop: 1 },
-  shapeSizeActive: { color: '#dbe7ff' },
+  shapeSize: { fontSize: FontSize.micro, color: Palette.onDarkMuted2, marginTop: 1 },
+  shapeSizeActive: { color: Palette.selectionTint },
   disabled: { opacity: 0.3 },
-  hint: { fontSize: 12, color: '#999', marginTop: 4, marginBottom: 4, lineHeight: 17, width: '100%' },
-  errorHint: { color: '#c0392b' },
+  hint: { fontSize: FontSize.base, color: Palette.muted3, marginTop: 4, marginBottom: 4, lineHeight: 17, width: '100%' },
+  errorHint: { color: Palette.dangerAlt },
   input: {
     borderWidth: 1,
-    borderColor: '#e0e0e3',
-    borderRadius: 8,
+    borderColor: Palette.controlBorder,
+    borderRadius: Radius.control,
     paddingHorizontal: 10,
     paddingVertical: 7,
-    fontSize: 14,
-    color: '#222',
+    fontSize: FontSize.body,
+    color: Palette.ink,
     minWidth: 200,
   },
   inputGrow: { flex: 1, minWidth: 160 },
-  addBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8, backgroundColor: '#3B82F6' },
-  addBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  addBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: Radius.control, backgroundColor: Palette.accent },
+  addBtnText: { color: Palette.white, fontWeight: Weight.bold, fontSize: FontSize.body },
   insertRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 8 },
-  insertSwatch: { width: 28, height: 28, borderRadius: 7, borderWidth: 1, borderColor: 'rgba(128,128,128,0.35)' },
-  insertSwatchActive: { borderWidth: 3, borderColor: '#3B82F6' },
-  emptyBtn: { marginLeft: 'auto', paddingVertical: 5, paddingHorizontal: 10, borderRadius: 8, backgroundColor: '#fdeaea' },
-  emptyText: { fontSize: 13, color: '#c0392b', fontWeight: '600' },
+  insertSwatch: { width: 28, height: 28, borderRadius: 7, borderWidth: 1, borderColor: Palette.swatchBorder },
+  insertSwatchActive: { borderWidth: 3, borderColor: Palette.accent },
+  emptyBtn: { marginLeft: 'auto', paddingVertical: 5, paddingHorizontal: 10, borderRadius: Radius.control, backgroundColor: Palette.dangerBg },
+  emptyText: { fontSize: FontSize.label, color: Palette.dangerAlt, fontWeight: Weight.semibold },
   scroll: { paddingBottom: 16 },
   sectionLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#888',
+    fontSize: FontSize.base,
+    fontWeight: Weight.bold,
+    color: Palette.muted2,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginTop: 12,
     marginBottom: 6,
   },
   artHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
-  artMeta: { fontSize: 10, color: '#3B82F6', fontWeight: '600' },
-  studioBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#14131A' },
-  studioBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  artMeta: { fontSize: FontSize.xs, color: Palette.accent, fontWeight: Weight.semibold },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  thumb: { width: 70, borderRadius: 8, padding: 3 },
-  artThumb: { width: 86, borderRadius: 8, padding: 3 },
-  thumbSelected: { backgroundColor: '#e8f0fe' },
-  thumbImageWrap: { width: '100%', aspectRatio: 63 / 88, borderRadius: 6, overflow: 'hidden' },
-  artImageWrap: { width: '100%', aspectRatio: 1, borderRadius: 6, overflow: 'hidden', backgroundColor: '#11111a' },
+  thumb: { width: 70, borderRadius: Radius.control, padding: 3 },
+  artThumb: { width: 86, borderRadius: Radius.control, padding: 3 },
+  thumbSelected: { backgroundColor: Palette.selectionSoft },
+  thumbImageWrap: { width: '100%', aspectRatio: 63 / 88, borderRadius: Radius.thumb, overflow: 'hidden' },
+  artImageWrap: { width: '100%', aspectRatio: 1, borderRadius: Radius.thumb, overflow: 'hidden', backgroundColor: Palette.chromeDeep },
   artFail: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  artFailText: { color: '#8a8a96', fontSize: 9 },
+  artFailText: { color: Palette.onDarkMuted, fontSize: FontSize.micro },
   thumbImage: { width: '100%', height: '100%' },
   tag: {
     position: 'absolute',
@@ -588,11 +584,11 @@ const styles = StyleSheet.create({
     left: 3,
     paddingHorizontal: 4,
     paddingVertical: 1,
-    borderRadius: 3,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: Radius.tag,
+    backgroundColor: Palette.scrim60,
   },
-  tagWarn: { backgroundColor: 'rgba(192,57,43,0.85)' },
-  tagText: { color: '#fff', fontSize: 7, fontWeight: '700', letterSpacing: 0.4 },
-  thumbName: { fontSize: 11, textAlign: 'center', marginTop: 3, color: '#444' },
-  source: { fontSize: 9, textAlign: 'center', color: '#aaa' },
+  tagWarn: { backgroundColor: Palette.tagWarn },
+  tagText: { color: Palette.white, fontSize: FontSize.tag, fontWeight: Weight.bold, letterSpacing: 0.4 },
+  thumbName: { fontSize: FontSize.sm, textAlign: 'center', marginTop: 3, color: Palette.ink3 },
+  source: { fontSize: FontSize.micro, textAlign: 'center', color: Palette.muted4 },
 });

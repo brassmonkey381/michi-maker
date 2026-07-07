@@ -7,7 +7,7 @@ import { BinderScreen } from '@/components/binder/BinderScreen';
 import { BinderThumb } from '@/components/binder/BinderThumb';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, FontSize, MaxContentWidth, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { useBinders } from '@/store/binders';
 
 export default function BindersScreen() {
@@ -132,14 +132,14 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.four,
     gap: Spacing.three,
   },
-  h1: { fontSize: 34, lineHeight: 40 },
+  h1: { fontSize: FontSize.display, lineHeight: 40 },
   newBtn: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: Palette.accent,
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
-    borderRadius: 999,
+    borderRadius: Radius.pill,
   },
-  newBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  newBtnText: { color: Palette.white, fontWeight: Weight.bold, fontSize: FontSize.control },
   pressed: { opacity: 0.7 },
   section: { marginBottom: Spacing.five },
   sectionHeader: {
@@ -150,6 +150,6 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { textTransform: 'uppercase', letterSpacing: 0.5 },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  empty: { padding: Spacing.four, borderRadius: 16 },
+  empty: { padding: Spacing.four, borderRadius: Radius.lg },
   emptyText: { lineHeight: 20 },
 });

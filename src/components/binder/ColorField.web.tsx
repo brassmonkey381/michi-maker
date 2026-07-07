@@ -11,8 +11,9 @@ import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { Palette, Radius } from '@/constants/theme';
 
-const DEFAULT = '#ffffff';
+const DEFAULT = Palette.white;
 const toHex6 = (value?: string) =>
   value && /^#[0-9a-fA-F]{6}$/.test(value) ? value.toLowerCase() : DEFAULT;
 
@@ -53,7 +54,7 @@ const inputStyle = {
   padding: 0,
   border: 'none',
   background: 'transparent',
-  borderRadius: 8,
+  borderRadius: Radius.control,
   cursor: 'pointer',
 } as const;
 

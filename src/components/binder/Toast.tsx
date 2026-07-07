@@ -8,6 +8,7 @@ import { useEffect } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { Palette, Radius } from '@/constants/theme';
 
 export interface ToastSpec {
   /** Bumped on every show so repeated identical messages still re-trigger. */
@@ -65,14 +66,14 @@ const styles = StyleSheet.create({
     maxWidth: 420,
     paddingVertical: 12,
     paddingHorizontal: 18,
-    borderRadius: 999,
-    backgroundColor: '#222228',
-    shadowColor: '#000',
+    borderRadius: Radius.pill,
+    backgroundColor: Palette.toast,
+    shadowColor: Palette.black,
     shadowOpacity: 0.28,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
-  message: { color: '#fff', flexShrink: 1 },
-  action: { color: '#7EB2FF' },
+  message: { color: Palette.white, flexShrink: 1 },
+  action: { color: Palette.accentSoft },
 });

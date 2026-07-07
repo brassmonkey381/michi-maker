@@ -4,6 +4,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 
 import { BinderGrid } from '@/components/binder/BinderGrid';
+import { FontSize, Palette, Weight } from '@/constants/theme';
 import type { DemoPage } from '@/data/binderTypes';
 
 const ITEM_W = 66; // width of each page thumbnail (incl. its margin step)
@@ -101,7 +102,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'transparent',
   },
-  thumbCurrent: { borderColor: '#3B82F6' },
-  num: { fontSize: 11, color: '#888', marginTop: 2, fontWeight: '600' },
-  numCurrent: { color: '#3B82F6' },
+  thumbCurrent: { borderColor: Palette.accent },
+  num: { fontSize: FontSize.sm, color: Palette.muted2, marginTop: 2, fontWeight: Weight.semibold },
+  numCurrent: { color: Palette.accent },
 });

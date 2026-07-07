@@ -39,6 +39,7 @@ import {
 } from '@/data/binderTypes';
 import { SAMPLE_BINDERS } from '@/data/sampleData';
 import { isSupabaseConfigured } from '@/lib/env';
+import { useAuth } from '@/store/auth';
 
 const CLOUD = isSupabaseConfigured;
 const HISTORY_LIMIT = 50;
@@ -118,17 +119,25 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   const [history, setHistory] = useState<History>({ past: [], present: SAMPLE_BINDERS, future: [] });
   const [loading, setLoading] = useState<boolean>(CLOUD);
 
+  // The auth store owns the session. We load the signed-in user's binders and reload whenever
+  // the user identity changes (sign in / out / new guest). A guest → account *upgrade* keeps
+  // the same user id, so those binders stay put without a reload.
+  const { ready: authReady, user } = useAuth();
+  const userId = user?.id ?? null;
+
   const binders = history.present;
 
-  // Load user binders from Supabase once (examples stay bundled/local). This is not an
+  // Load user binders for the current user (examples stay bundled/local). This isn't an
   // undoable edit, so it replaces `present` without touching the history stacks.
   useEffect(() => {
     if (!CLOUD) return;
+    if (!authReady) return; // wait for the session to settle before loading
     let active = true;
     (async () => {
+      setLoading(true);
       try {
-        await repo.ensureSession();
-        const userBinders = await repo.fetchUserBinders();
+        // No session (guest sign-in unavailable, or signed out): show examples only.
+        const userBinders = userId ? await repo.fetchUserBinders() : [];
         if (active) {
           setHistory((h) => ({ ...h, present: [...SAMPLE_BINDERS, ...userBinders] }));
         }
@@ -143,7 +152,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, []);
+  }, [authReady, userId]);
 
   /** Apply an immutable update to the binders, recording it on the undo stack. */
   const commit = useCallback((updater: (prev: DemoBinder[]) => DemoBinder[]) => {

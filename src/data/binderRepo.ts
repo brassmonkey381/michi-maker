@@ -6,8 +6,8 @@
  * the bundled example binders never reach this module.
  *
  * RLS requires a session, so reads/writes are scoped to the signed-in user automatically.
- * `ensureSession()` signs in anonymously when there's no session, so the app works before
- * any auth UI exists (enable "Anonymous sign-ins" in your Supabase Auth settings).
+ * The session (guest or real account) is established by the auth store (src/store/auth.tsx);
+ * this module assumes one exists and simply reads/writes the current user's rows.
  */
 
 import { requireSupabase } from '@/lib/supabase';
@@ -37,6 +37,7 @@ function pageRow(page: DemoPage, binderId: string, position: number): Tables['bi
     binder_id: binderId,
     position,
     title: page.title ?? null,
+    notes: page.description ?? null,
     rows: page.rows,
     cols: page.cols,
     background_color: page.backgroundColor ?? null,
@@ -74,6 +75,7 @@ interface SlotRowIn {
 interface PageRowIn {
   id: string;
   title: string | null;
+  notes: string | null;
   rows: number;
   cols: number;
   background_color: string | null;
@@ -108,6 +110,7 @@ function mapPage(row: PageRowIn): DemoPage {
   return {
     id: row.id,
     title: row.title ?? undefined,
+    description: row.notes ?? undefined,
     rows: row.rows,
     cols: row.cols,
     backgroundColor: row.background_color ?? undefined,
@@ -126,22 +129,6 @@ function mapBinder(row: BinderRowIn): DemoBinder {
     coverCardId: row.cover_card_id ?? undefined,
     pages,
   };
-}
-
-// --- session ---------------------------------------------------------------
-
-export async function ensureSession(): Promise<void> {
-  const supabase = requireSupabase();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (session) return;
-  const { error } = await supabase.auth.signInAnonymously();
-  if (error) {
-    throw new Error(
-      `anonymous sign-in failed (${error.message}). Enable "Anonymous sign-ins" in Supabase Auth settings.`,
-    );
-  }
 }
 
 // --- reads -----------------------------------------------------------------
@@ -206,6 +193,7 @@ export async function updatePage(id: string, patch: Partial<DemoPage>): Promise<
   const supabase = requireSupabase();
   const row: PageUpdate = {};
   if (patch.title !== undefined) row.title = patch.title ?? null;
+  if (patch.description !== undefined) row.notes = patch.description ?? null;
   if (patch.rows !== undefined) row.rows = patch.rows;
   if (patch.cols !== undefined) row.cols = patch.cols;
   if (patch.backgroundColor !== undefined) row.background_color = patch.backgroundColor ?? null;

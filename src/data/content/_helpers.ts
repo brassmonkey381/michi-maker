@@ -174,8 +174,6 @@ export function vunion(
   ];
 }
 
-export { ART } from '@/data/artworkLibrary';
-
 /** A page of slots. Title/background optional; grid defaults to 3×3. */
 export function page(
   slots: DemoSlot[],

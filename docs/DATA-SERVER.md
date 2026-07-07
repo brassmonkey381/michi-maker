@@ -30,11 +30,13 @@ Catalog cards carry size tiers: `image_small` (245px webp — grids use it),
    binder-page image in `src/data/cardResolver.ts` (`catalogCardToDemoCard`) to
    prefer `imageMedium ?? image`. Grids (245) and the action modal (full) are
    already tiered. Do NOT flip early — missing files don't fall back.
-3. **Auth + saved binders**: `supabase/migrations/` has the binder/profile
-   schema but NO live project exists yet. Create the app's own Supabase project
-   (the TCGScan org is available; projects can move between orgs later). Do NOT
-   put user tables in the shared tcgscan-data project — it is public-read
-   reference data with service-role-only writes.
+3. **Auth + saved binders** — ✅ DONE (2026-07-07). The app now has its own
+   Supabase project, **tcgscan-michi-maker** (org "TCGScan", ref
+   `piikwvntldytjejxmcla`), holding only user data (profiles/binders/pages/slots)
+   under RLS. Full auth (email+password, email code, Google/Apple, guest+upgrade)
+   is wired — see `docs/AUTH.md` for the remaining dashboard config (enable OAuth
+   providers, add redirect URLs, flip the anonymous toggle). User tables were
+   deliberately kept OUT of the shared tcgscan-data project.
 4. **Shared browse package (`tcgscan-ui`)**: `src/browse/*` is deliberately
    app-import-free — the plan is to extract it (plus `CatalogBrowser`) into a
    shared package consumed by this app and `tcgscan-app`, with app-specific

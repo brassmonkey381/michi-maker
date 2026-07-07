@@ -4,7 +4,7 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, Text
 
 import { CatalogBrowser } from '@/components/binder/CatalogBrowser';
 import { ThemedText } from '@/components/themed-text';
-import { ARTWORK_LIBRARY, domainOf, slotAspect, type ArtworkAsset } from '@/data/artworkLibrary';
+import { domainOf, slotAspect, type ArtworkAsset } from '@/data/artworkLibrary';
 import { artSearchProvider, isArtSearchConfigured, searchArt } from '@/data/artSearch';
 import { useSavedArt } from '@/data/savedArt';
 import type { DemoCard, DemoPage, DemoSlot } from '@/data/binderTypes';
@@ -119,10 +119,11 @@ export function CardPicker({
       ? onPickSlicedArtwork(url, shape.rows, shape.cols)
       : onPickArtwork(url, shape.rows, shape.cols);
 
-  // Artwork suggestions: theme-filtered, with art that matches this slot's aspect first.
+  // Artwork suggestions come from art saved this session (Slice Studio / pasted), theme-filtered,
+  // with art that matches this slot's aspect first. Live Pexels/Pixabay results are merged below.
   const q = query.trim().toLowerCase();
   const targetAspect = slotAspect(shape.rows, shape.cols);
-  const library = [...savedArt, ...ARTWORK_LIBRARY]
+  const library = savedArt
     .filter((a) => !q || a.title.toLowerCase().includes(q) || a.themes.some((t) => t.includes(q)))
     .sort((a, b) => (a.aspect === targetAspect ? 0 : 1) - (b.aspect === targetAspect ? 0 : 1));
 
@@ -239,7 +240,7 @@ export function CardPicker({
       {!isArtSearchConfigured ? (
         <Text style={styles.hint}>
           Live art search is off — add EXPO_PUBLIC_PEXELS_KEY or EXPO_PUBLIC_PIXABAY_KEY to .env to
-          auto-suggest themed art. Showing the bundled library for now.
+          auto-suggest themed art. For now, paste an image URL below or save art from the Slice Studio.
         </Text>
       ) : null}
       <View style={styles.grid}>

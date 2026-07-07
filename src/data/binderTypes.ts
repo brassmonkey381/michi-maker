@@ -61,6 +61,8 @@ export interface DemoSlot {
 export interface DemoPage {
   id: string;
   title?: string;
+  /** Free-text page description (persisted to binder_pages.notes). */
+  description?: string;
   rows: number;
   cols: number;
   backgroundColor?: string;

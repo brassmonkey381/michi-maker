@@ -6,33 +6,35 @@ migrations and seed data; the live schema should always match what's here.
 ```
 supabase/
 ├── migrations/
-│   └── 20260615120000_init_schema.sql   # tables, enums, triggers, RLS, grants
-├── seed.sql                             # tiny sample catalogue for local dev
-└── README.md                            # you are here
+│   └── 20260707055603_init_user_schema.sql   # tables, enums, triggers, RLS, grants
+├── seed.sql                                  # no-op placeholder (nothing to seed)
+└── README.md                                 # you are here
 ```
+
+The live project is **tcgscan-michi-maker** (org "TCGScan", ref `piikwvntldytjejxmcla`).
 
 ## What's in the schema
 
-Two layers (full details in [../docs/DATA-MODEL.md](../docs/DATA-MODEL.md)):
+This project holds **only user data** — `profiles`, `binders`, `binder_pages`, `binder_slots`,
+owned by a signed-in user and protected by Row Level Security (full details in
+[../docs/DATA-MODEL.md](../docs/DATA-MODEL.md)).
 
-- **Reference data** — `pokemon`, `illustrators`, `card_sets`, `cards`. Global and read-only to
-  clients; written only by the ingestion pipeline running as the `service_role`.
-- **User data** — `profiles`, `binders`, `binder_pages`, `binder_slots`. Owned by a signed-in
-  user and protected by Row Level Security.
+Reference/catalogue data (pokemon, illustrators, sets, cards, images, prices, embeddings) is **not**
+here — it lives in the shared **tcgscan-data** server and is consumed read-only over HTTP (see
+[../docs/DATA-SERVER.md](../docs/DATA-SERVER.md)). Binder slots reference a card by its source id as
+plain `text` (no FK), so binders save independently of catalogue completeness.
 
 ## How the app persists binders
 
-When the app has Supabase credentials, the binder store (`src/store/binders.tsx`) loads and saves
-*user* binders through `src/data/binderRepo.ts`. Every table has RLS, so this needs a session — and
-there's no auth UI yet — so the repo signs in **anonymously** on first load.
+The auth store (`src/store/auth.tsx`) owns the Supabase session; the binder store
+(`src/store/binders.tsx`) loads and saves *user* binders for the current user through
+`src/data/binderRepo.ts`. Every table has RLS, so writes are scoped to `auth.uid()` automatically.
+The bundled example binders are local to the app and are never written to the database.
 
-**Enable it:** Dashboard → Authentication → Sign In / Providers → **Anonymous** sign-ins. Without it
-the app stays usable but shows only the bundled example binders (user binders won't load or save).
-The example binders are local to the app and are never written to the database.
-
-> Migration `20260615130000_decouple_card_refs.sql` drops the FK from `binder_slots.card_id` /
-> `binders.cover_card_id` to `cards`, so binders can reference cards from any source (the app's
-> sample set or TCGdex) that isn't necessarily ingested yet.
+**Auth methods:** email + password, a 6-digit email code (OTP), and Google / Apple OAuth, plus an
+optional anonymous **guest** mode that can be upgraded to a real account keeping the same user id
+(so a guest's binders carry over). See [../docs/AUTH.md](../docs/AUTH.md) for the required dashboard
+configuration (enabling providers, redirect URLs, and the anonymous toggle).
 
 ## First-time setup
 

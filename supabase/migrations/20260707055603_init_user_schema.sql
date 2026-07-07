@@ -1,15 +1,14 @@
--- poke-michi — initial schema
+-- tcgscan-michi-maker — initial schema (user-data layer only)
 --
--- Two layers of data:
---   1. Reference data (pokemon, illustrators, card_sets, cards) — global, read-only to
---      clients, written only by the ingestion pipeline running as the service_role
---      (which bypasses RLS). Sourced from https://www.artofpkm.com/pokemon.
---   2. User data (profiles, binders, binder_pages, binder_slots) — owned by a signed-in
---      user and protected by row level security.
+-- This project holds ONLY the app's own user data. All card/catalog reference data
+-- (pokemon, illustrators, sets, cards, images, prices, embeddings) lives in the shared
+-- tcgscan-data project and is consumed read-only over HTTP — it is deliberately NOT
+-- resurrected here (see docs/DATA-SERVER.md). Binder slots reference a card by its source
+-- id as plain text (no FK), so binders can be saved independently of catalogue completeness.
 --
--- RLS conventions follow Supabase guidance: RLS is enabled on every table in `public`,
--- write policies are scoped `to authenticated` with an ownership predicate, and UPDATE
--- policies declare both USING and WITH CHECK so a row's owner cannot be reassigned.
+-- RLS conventions (Supabase guidance): RLS on every public table; write policies scoped
+-- `to authenticated` with an ownership predicate; UPDATE policies declare both USING and
+-- WITH CHECK so a row's owner cannot be reassigned.
 
 -- ---------------------------------------------------------------------------
 -- Enums
@@ -29,62 +28,13 @@ create type public.michi_layout_style as enum (
 
 -- What occupies a single position on a binder page.
 create type public.binder_slot_type as enum (
-  'card',     -- a real card from the reference catalogue
+  'card',     -- a real card from the reference catalogue (tcgscan-data)
   'insert',   -- a custom insert printed on cardstock
   'artwork',  -- artwork spanning one or more pockets
   'empty'     -- intentional negative space
 );
 
 create type public.card_orientation as enum ('portrait', 'landscape');
-
--- ---------------------------------------------------------------------------
--- Reference data (catalogue)
--- ---------------------------------------------------------------------------
-
-create table public.pokemon (
-  id          text primary key,            -- slug, e.g. 'bulbasaur'
-  dex_number  integer,
-  name_en     text not null,
-  name_ja     text,
-  sprite_url  text,
-  created_at  timestamptz not null default now()
-);
-
-create table public.illustrators (
-  id          text primary key,            -- slug, e.g. 'mitsuhiro-arita'
-  name        text not null,
-  created_at  timestamptz not null default now()
-);
-
-create table public.card_sets (
-  id            text primary key,          -- slug / set code, e.g. 'sv1'
-  name          text not null,
-  series        text,
-  release_date  date,
-  symbol_url    text,
-  created_at    timestamptz not null default now()
-);
-
-create table public.cards (
-  id              text primary key,        -- stable source id, e.g. 'sv1-001'
-  name            text not null,
-  set_id          text references public.card_sets(id) on delete set null,
-  illustrator_id  text references public.illustrators(id) on delete set null,
-  pokemon_id      text references public.pokemon(id) on delete set null,
-  number          text,
-  rarity          text,
-  orientation     public.card_orientation not null default 'portrait',
-  image_url       text,
-  image_small_url text,
-  dominant_color  text,                    -- hex, powers colour-theme layouts
-  source_url      text,
-  created_at      timestamptz not null default now()
-);
-
-create index cards_set_id_idx on public.cards (set_id);
-create index cards_illustrator_id_idx on public.cards (illustrator_id);
-create index cards_pokemon_id_idx on public.cards (pokemon_id);
-create index cards_dominant_color_idx on public.cards (dominant_color);
 
 -- ---------------------------------------------------------------------------
 -- User data
@@ -105,7 +55,8 @@ create table public.binders (
   title         text not null,
   description   text,
   layout_style  public.michi_layout_style not null default 'freeform',
-  cover_card_id text references public.cards(id) on delete set null,
+  -- Card source id from the tcgscan-data catalogue (plain text, no FK — see header).
+  cover_card_id text,
   is_public     boolean not null default false,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now()
@@ -141,7 +92,8 @@ create table public.binder_slots (
   row_span         integer not null default 1 check (row_span >= 1),
   col_span         integer not null default 1 check (col_span >= 1),
   slot_type        public.binder_slot_type not null default 'card',
-  card_id          text references public.cards(id) on delete set null,
+  -- Card source id from the tcgscan-data catalogue (plain text, no FK — see header).
+  card_id          text,
   insert_image_url text,
   orientation      public.card_orientation not null default 'portrait',
   notes            text,
@@ -186,9 +138,9 @@ create trigger binder_slots_set_updated_at
   before update on public.binder_slots
   for each row execute function public.set_updated_at();
 
--- Create a profile row automatically when a new auth user signs up.
--- Display fields are prefilled from user metadata for convenience only — metadata is
--- user-editable and is never used for authorization.
+-- Create a profile row automatically when a new auth user signs up (including anonymous
+-- users). Display fields are prefilled from user metadata for convenience only — metadata
+-- is user-editable and is never used for authorization.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -218,25 +170,10 @@ create trigger on_auth_user_created
 -- Row level security
 -- ---------------------------------------------------------------------------
 
-alter table public.pokemon       enable row level security;
-alter table public.illustrators  enable row level security;
-alter table public.card_sets     enable row level security;
-alter table public.cards         enable row level security;
 alter table public.profiles      enable row level security;
 alter table public.binders       enable row level security;
 alter table public.binder_pages  enable row level security;
 alter table public.binder_slots  enable row level security;
-
--- Reference data: readable by everyone, writable only by the service_role (no write
--- policies are defined, and the service_role bypasses RLS).
-create policy "Pokemon are readable by everyone"
-  on public.pokemon for select to anon, authenticated using (true);
-create policy "Illustrators are readable by everyone"
-  on public.illustrators for select to anon, authenticated using (true);
-create policy "Card sets are readable by everyone"
-  on public.card_sets for select to anon, authenticated using (true);
-create policy "Cards are readable by everyone"
-  on public.cards for select to anon, authenticated using (true);
 
 -- Profiles: public read, owner-only write.
 create policy "Profiles are viewable by everyone"
@@ -348,9 +285,6 @@ create policy "Owners can delete slots"
 -- ---------------------------------------------------------------------------
 -- Grants (Data API access). RLS still governs which rows are visible.
 -- ---------------------------------------------------------------------------
-
-grant select on public.pokemon, public.illustrators, public.card_sets, public.cards
-  to anon, authenticated;
 
 grant select on public.profiles to anon, authenticated;
 grant insert, update on public.profiles to authenticated;

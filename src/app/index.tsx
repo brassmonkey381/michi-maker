@@ -2,13 +2,13 @@ import { useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AccountButton } from '@/components/auth/AccountButton';
 import { BinderScreen } from '@/components/binder/BinderScreen';
 import { BinderThumb } from '@/components/binder/BinderThumb';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useCatalog } from '@/hooks/use-catalog';
-import { isSupabaseConfigured } from '@/lib/env';
 import { useBinders } from '@/store/binders';
 
 export default function BindersScreen() {
@@ -37,20 +37,21 @@ export default function BindersScreen() {
       <SafeAreaView style={styles.flex} edges={['top']}>
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.headerRow}>
-            <View style={styles.flex}>
-              <ThemedText type="title" style={styles.h1}>
-                poke-michi
-              </ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                Build digital michi binders{isSupabaseConfigured ? '' : ' · Local mode'}
-              </ThemedText>
-            </View>
-            <Pressable onPress={handleNew} style={({ pressed }) => [styles.newBtn, pressed && styles.pressed]}>
-              <Text style={styles.newBtnText}>+ New</Text>
-            </Pressable>
+            <ThemedText type="title" style={styles.h1}>
+              poke-michi
+            </ThemedText>
+            <AccountButton />
           </View>
 
-          <Section title="Your binders">
+          <Section
+            title="Your binders"
+            action={
+              <Pressable
+                onPress={handleNew}
+                style={({ pressed }) => [styles.newBtn, pressed && styles.pressed]}>
+                <Text style={styles.newBtnText}>+ New</Text>
+              </Pressable>
+            }>
             {store.userBinders.length === 0 ? (
               <ThemedView type="backgroundElement" style={styles.empty}>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.emptyText}>
@@ -94,12 +95,23 @@ export default function BindersScreen() {
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({
+  title,
+  action,
+  children,
+}: {
+  title: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <View style={styles.section}>
-      <ThemedText type="smallBold" style={styles.sectionTitle}>
-        {title}
-      </ThemedText>
+      <View style={styles.sectionHeader}>
+        <ThemedText type="smallBold" style={styles.sectionTitle}>
+          {title}
+        </ThemedText>
+        {action}
+      </View>
       {children}
     </View>
   );
@@ -117,7 +129,7 @@ const styles = StyleSheet.create({
   },
   headerRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: Spacing.four,
     gap: Spacing.three,
@@ -132,7 +144,13 @@ const styles = StyleSheet.create({
   newBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   pressed: { opacity: 0.7 },
   section: { marginBottom: Spacing.five },
-  sectionTitle: { marginBottom: Spacing.three, textTransform: 'uppercase', letterSpacing: 0.5 },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.three,
+  },
+  sectionTitle: { textTransform: 'uppercase', letterSpacing: 0.5 },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   empty: { padding: Spacing.four, borderRadius: 16 },
   emptyText: { lineHeight: 20 },

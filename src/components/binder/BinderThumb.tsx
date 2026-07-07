@@ -16,17 +16,17 @@ export function BinderThumb({ binder, width, onPress }: BinderThumbProps) {
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [{ width }, pressed && styles.pressed]}>
-      {firstPage ? (
-        <BinderGrid page={firstPage} width={width} />
-      ) : (
-        <View style={[styles.placeholder, { width, height: width * 1.2 }]} />
-      )}
       <ThemedText type="smallBold" numberOfLines={1} style={styles.title}>
         {binder.title}
       </ThemedText>
       <ThemedText type="small" themeColor="textSecondary" style={styles.meta}>
         {pageCount} {pageCount === 1 ? 'page' : 'pages'}
       </ThemedText>
+      {firstPage ? (
+        <BinderGrid page={firstPage} width={width} />
+      ) : (
+        <View style={[styles.placeholder, { width, height: width * 1.2 }]} />
+      )}
     </Pressable>
   );
 }
@@ -40,9 +40,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(128,128,128,0.12)',
   },
   title: {
-    marginTop: 8,
+    marginBottom: 2,
   },
   meta: {
-    marginTop: 2,
+    marginBottom: 8,
   },
 });

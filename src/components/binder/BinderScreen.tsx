@@ -208,6 +208,27 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           </View>
 
           <ScrollView contentContainerStyle={styles.scroll}>
+            {/* Binder description — just under the title */}
+            {editing ? (
+              <TextInput
+                value={binder.description ?? ''}
+                onChangeText={(description) => store.updateBinder(binder.id, { description })}
+                placeholder="Add a binder description…"
+                placeholderTextColor={theme.textSecondary}
+                multiline
+                style={[
+                  styles.detailInput,
+                  styles.detailMultiline,
+                  styles.topDescInput,
+                  { color: theme.text, borderColor: theme.backgroundSelected },
+                ]}
+              />
+            ) : binder.description ? (
+              <ThemedText type="small" themeColor="textSecondary" style={styles.description}>
+                {binder.description}
+              </ThemedText>
+            ) : null}
+
             {/* Meta + page navigation */}
             <View style={styles.metaRow}>
               {binderTotal ? (
@@ -231,10 +252,42 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               </View>
             </View>
 
-            {binder.description ? (
-              <ThemedText type="small" themeColor="textSecondary" style={styles.description}>
-                {binder.description}
-              </ThemedText>
+            {/* Page title + description — just above the page */}
+            {editing ? (
+              <View style={styles.pageDetails}>
+                <TextInput
+                  value={page.title ?? ''}
+                  onChangeText={(title) => store.updatePage(binder.id, page.id, { title })}
+                  placeholder={`Page ${idx + 1} title`}
+                  placeholderTextColor={theme.textSecondary}
+                  style={[styles.detailInput, { color: theme.text, borderColor: theme.backgroundSelected }]}
+                />
+                <TextInput
+                  value={page.description ?? ''}
+                  onChangeText={(description) => store.updatePage(binder.id, page.id, { description })}
+                  placeholder="Page description"
+                  placeholderTextColor={theme.textSecondary}
+                  multiline
+                  style={[
+                    styles.detailInput,
+                    styles.detailMultiline,
+                    { color: theme.text, borderColor: theme.backgroundSelected },
+                  ]}
+                />
+              </View>
+            ) : page.title || page.description ? (
+              <View style={styles.pageDetailsRead}>
+                {page.title ? (
+                  <ThemedText type="smallBold" style={styles.pageTitle}>
+                    {page.title}
+                  </ThemedText>
+                ) : null}
+                {page.description ? (
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.pageDescription}>
+                    {page.description}
+                  </ThemedText>
+                ) : null}
+              </View>
             ) : null}
 
             {/* The page */}
@@ -248,16 +301,6 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                 onSlotPress={(slot) => setPickerCell({ row: slot.row, col: slot.col })}
                 onDropSlot={handleDropSlot}
               />
-              {page.title ? (
-                <ThemedText type="smallBold" style={styles.pageTitle}>
-                  {page.title}
-                </ThemedText>
-              ) : null}
-              {page.description ? (
-                <ThemedText type="small" themeColor="textSecondary" style={styles.pageDescription}>
-                  {page.description}
-                </ThemedText>
-              ) : null}
             </View>
 
             {editing && (
@@ -289,51 +332,6 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                   )}
                   <PillButton label="Duplicate" onPress={handleDuplicate} />
                 </View>
-
-                {/* Binder details */}
-                <ThemedText type="small" themeColor="textSecondary" style={styles.fieldLabel}>
-                  Binder description
-                </ThemedText>
-                <TextInput
-                  value={binder.description ?? ''}
-                  onChangeText={(description) => store.updateBinder(binder.id, { description })}
-                  placeholder="What ties this binder together?"
-                  placeholderTextColor={theme.textSecondary}
-                  multiline
-                  style={[
-                    styles.detailInput,
-                    styles.detailMultiline,
-                    { color: theme.text, borderColor: theme.backgroundSelected },
-                  ]}
-                />
-
-                {/* Page details */}
-                <ThemedText type="small" themeColor="textSecondary" style={styles.fieldLabel}>
-                  Page {idx + 1} title
-                </ThemedText>
-                <TextInput
-                  value={page.title ?? ''}
-                  onChangeText={(title) => store.updatePage(binder.id, page.id, { title })}
-                  placeholder="Page title"
-                  placeholderTextColor={theme.textSecondary}
-                  style={[styles.detailInput, { color: theme.text, borderColor: theme.backgroundSelected }]}
-                />
-
-                <ThemedText type="small" themeColor="textSecondary" style={styles.fieldLabel}>
-                  Page {idx + 1} description
-                </ThemedText>
-                <TextInput
-                  value={page.description ?? ''}
-                  onChangeText={(description) => store.updatePage(binder.id, page.id, { description })}
-                  placeholder="Notes about this page"
-                  placeholderTextColor={theme.textSecondary}
-                  multiline
-                  style={[
-                    styles.detailInput,
-                    styles.detailMultiline,
-                    { color: theme.text, borderColor: theme.backgroundSelected },
-                  ]}
-                />
 
                 <ThemedText type="small" themeColor="textSecondary" style={styles.fieldLabel}>
                   Page size
@@ -526,8 +524,11 @@ const styles = StyleSheet.create({
   navArrow: { fontSize: 26, lineHeight: 28, fontWeight: '600' },
   navDisabled: { opacity: 0.3 },
   description: { marginTop: 10, textAlign: 'center' },
+  topDescInput: { marginTop: 8 },
+  pageDetails: { gap: 8, marginTop: 12 },
+  pageDetailsRead: { alignItems: 'center', marginTop: 8 },
   pageWrap: { alignItems: 'center', marginVertical: 18 },
-  pageTitle: { marginTop: 10, textAlign: 'center' },
+  pageTitle: { textAlign: 'center' },
   pageDescription: { marginTop: 4, textAlign: 'center' },
   editPanel: { gap: 8 },
   btnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

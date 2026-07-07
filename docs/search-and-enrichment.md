@@ -11,6 +11,13 @@ seam** already reserved in `CatalogBrowser.tsx`.
 > the catalog data layer **and** a data-driven facet framework, so here it's a plug-in, not
 > a build-from-scratch.
 
+> ⚠️ **Location note (2026-07-07):** the browse UI referenced throughout this doc —
+> `CatalogBrowser`, its `FACETS` array + extension seam, the query grammar — was extracted
+> into the shared **`tcgscan-browse`** package (`github:brassmonkey381/tcgscan-browse`; see
+> `docs/DATA-SERVER.md` item 5). New facets are now added *in that package*, not in a local
+> `src/components/binder/CatalogBrowser.tsx` (which no longer exists here). The app-side seam
+> is `src/lib/catalog.ts` / `catalogConfig.ts`.
+
 ## What the enrichment delivers (vs `docs/DATASET-ENRICHMENT.md`)
 
 New per-card fields now present in the pipeline `catalog.json` (all additive, all optional):

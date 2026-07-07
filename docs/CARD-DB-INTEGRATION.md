@@ -1,5 +1,11 @@
 # Card DB Integration — Scope
 
+> ⚠️ **Location note (2026-07-07):** the browse components described below (e.g.
+> `CatalogBrowser`) were later extracted into the shared **`tcgscan-browse`** package
+> (`github:brassmonkey381/tcgscan-browse`; see `docs/DATA-SERVER.md` item 5). Paths like
+> `src/components/binder/CatalogBrowser.tsx` are historical — that file now lives in the
+> package. The app keeps thin shims (`src/lib/catalog.ts`, `catalogConfig.ts`, `prices.ts`).
+
 Integrating the **TCGScan** 25k-card catalog into **michi-maker**, with a path to production Supabase.
 
 Source repos:

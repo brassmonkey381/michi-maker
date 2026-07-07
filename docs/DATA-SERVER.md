@@ -7,14 +7,19 @@ and are owned by the data/training session — this app is a pure consumer.
 
 ## Integration points (all shipped)
 
+The browse kit itself now lives in the shared **`tcgscan-browse`** package (see
+item 5); the app-side seams below are the shims that configure and consume it.
+
 | Concern | Where |
 |---|---|
-| Catalog + images + art origin | `src/lib/catalogConfig.ts` — `EXPO_PUBLIC_CATALOG_BROWSE_URL`, `_IMG_BASE` (see `.env.example`) |
-| Prices (latest values) | `src/lib/prices.ts` — `prices-summary.json` from the browse bucket; binder/page value badges in `BinderScreen` |
-| Search grammar + "?" manual | `src/browse/query.ts` — `QUERY_MANUAL` must be updated when new fields become searchable |
-| Find similar (embeddings RPC) | `src/lib/similar.ts` — needs `EXPO_PUBLIC_CATALOG_API_KEY` (publishable) |
-| Card action modal | `src/components/binder/CardActionModal.tsx` (place/replace/similar/view-set) |
-| Session browse state | `src/browse/state.ts` |
+| Catalog + images + art origin | `src/lib/catalogConfig.ts` (app shim) — `EXPO_PUBLIC_CATALOG_BROWSE_URL`, `_IMG_BASE` (see `.env.example`); `configureBrowse()`s the package |
+| Catalog data access | `src/lib/catalog.ts` (app shim) — re-exports the package client + keeps the `DemoCard` adapter |
+| Prices (latest values) | `src/lib/prices.ts` (app shim) — re-exports the package price client; keeps binder/page value totals (badges in `BinderScreen`) |
+| Search grammar + "?" manual | `tcgscan-browse` package (`query.ts`) — `QUERY_MANUAL` must be updated there when new fields become searchable |
+| Find similar (embeddings RPC) | `tcgscan-browse` package — needs `EXPO_PUBLIC_CATALOG_API_KEY` (publishable), injected via `catalogConfig.ts` |
+| Card action modal | `tcgscan-browse` package (`CardActionModal`) — place/replace/similar/view-set; app-specific actions injected via props |
+| Catalog browser UI | `tcgscan-browse` package (`CatalogBrowser`) — imported by `src/components/binder/CardPicker.tsx` |
+| Session browse state | `tcgscan-browse` package (`state.ts`) |
 
 Catalog cards carry size tiers: `image_small` (245px webp — grids use it),
 `image_medium` (640px webp), `image` (full, served from our bucket;
@@ -22,9 +27,10 @@ Catalog cards carry size tiers: `image_small` (245px webp — grids use it),
 
 ## Pending items this session may pick up
 
-1. **Vercel prod env vars** — before the next `npm run deploy`, set the three
-   `EXPO_PUBLIC_CATALOG_*` values (in `.env.example`) in the Vercel dashboard,
-   or the deployed app points at local paths that no longer exist.
+1. **Vercel prod env vars** — ✅ DONE (2026-07-07). The three
+   `EXPO_PUBLIC_CATALOG_*` values (in `.env.example`) are set in the Vercel
+   dashboard, so prod no longer points at local paths. Re-check them if the
+   browse/img/API endpoints ever move.
 2. **Binder pages → 640 tier** — ✅ effectively DONE (2026-07-07). Binder covers now
    resolve their image straight from the card id via `cardThumbUrl(id, tier)`
    (`src/lib/catalogConfig.ts`): `card-thumbs/245/<id>.webp` for grids/covers,
@@ -49,11 +55,16 @@ Catalog cards carry size tiers: `image_small` (245px webp — grids use it),
    is wired — see `docs/AUTH.md` for the remaining dashboard config (enable OAuth
    providers, add redirect URLs, flip the anonymous toggle). User tables were
    deliberately kept OUT of the shared tcgscan-data project.
-5. **Shared browse package (`tcgscan-browse`)**: `src/browse/*` is deliberately
-   app-import-free — the plan is to extract it (plus `CatalogBrowser`) into a
-   shared package consumed by this app and `tcgscan-app`, with app-specific
-   actions (find-similar, portfolio-add) injected via props. Coordinate with
-   the data/training session before starting this.
+5. **Shared browse package (`tcgscan-browse`)** — ✅ DONE (2026-07-07). The
+   browse kit (`CatalogBrowser`, `CardActionModal`, query grammar + manual,
+   catalog/prices/similarity clients, session browse state) was extracted
+   verbatim into `github:brassmonkey381/tcgscan-browse` (MIT) and this app now
+   consumes it (see commit `07e66ec`). App-side shims are the seam:
+   `src/lib/catalogConfig.ts` reads `EXPO_PUBLIC_*` env and `configureBrowse()`s
+   the package (node_modules can't see Expo's inlined env); `src/lib/catalog.ts`
+   keeps the `DemoCard` adapter; `src/lib/prices.ts` keeps binder/page totals.
+   App-specific actions are injected via props. Remaining: have `tcgscan-app`
+   consume the same package.
 
 ## Retired (do not resurrect)
 

@@ -29,6 +29,9 @@ import {
   View,
 } from 'react-native';
 
+import { describeQuery, parseQuery, QUERY_HINT, QUERY_MANUAL, runQuery } from '@/browse/query';
+import { browseState } from '@/browse/state';
+import { CardActionModal } from '@/components/binder/CardActionModal';
 import {
   formatSetDate,
   seriesDateRange,
@@ -38,6 +41,8 @@ import {
   type CatalogSet,
 } from '@/lib/catalog';
 import { resolveImageUrl } from '@/lib/catalogConfig';
+import { formatUsd, usePriceSummary } from '@/lib/prices';
+import { findSimilar, similarAvailable } from '@/lib/similar';
 
 /** Cap flat search results so a broad query can't build an unbounded grid. */
 const SEARCH_LIMIT = 200;
@@ -174,18 +179,45 @@ interface CatalogBrowserProps {
  * the card-list and search-result levels only.
  */
 export function CatalogBrowser({ catalog, selectedCardId, onPickCard, footer }: CatalogBrowserProps) {
-  const [cardQuery, setCardQuery] = useState('');
+  // Hydrate from the session browse state so reopening the picker restores the
+  // last search/drill-down/similar view (one search often feeds several pockets).
+  const [cardQuery, setCardQuery] = useState(browseState.cardQuery);
   // Debounce so a keystroke doesn't scan ~28k names synchronously.
-  const [cardQueryDebounced, setCardQueryDebounced] = useState('');
+  const [cardQueryDebounced, setCardQueryDebounced] = useState(browseState.cardQuery);
   useEffect(() => {
     const handle = setTimeout(() => setCardQueryDebounced(cardQuery), 250);
     return () => clearTimeout(handle);
   }, [cardQuery]);
 
-  const [seriesId, setSeriesId] = useState<string | null>(null);
-  const [setId, setSetId] = useState<string | null>(null);
-  const [selection, setSelection] = useState<FacetSelection>({});
+  const [seriesId, setSeriesId] = useState<string | null>(browseState.seriesId);
+  const [setId, setSetId] = useState<string | null>(browseState.setId);
+  const [selection, setSelection] = useState<FacetSelection>(browseState.selection);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  // "Find similar" mode: results of the data server's embedding RPC for one card.
+  const [similarTo, setSimilarTo] = useState<{ id: string; name: string } | null>(
+    browseState.similarTo,
+  );
+  const [similarCards, setSimilarCards] = useState<CatalogCard[]>(browseState.similarCards);
+
+  // Write every change back so the next mount resumes here.
+  useEffect(() => {
+    Object.assign(browseState, {
+      cardQuery,
+      seriesId,
+      setId,
+      selection,
+      similarTo,
+      similarCards,
+    });
+  }, [cardQuery, seriesId, setId, selection, similarTo, similarCards]);
+  // Tapping a card opens the action sheet (place/replace, find similar, view set)
+  // instead of silently replacing the pocket's occupant.
+  const [actionCard, setActionCard] = useState<CatalogCard | null>(null);
+
+  // Headline card values (load-once) — powers >$N queries, sort:value, and value labels.
+  const priceSummary = usePriceSummary();
+  const priceOf = (id: string) => priceSummary?.[id]?.cur ?? 0;
 
   // Measured content width → dense column count. 0 until the first layout pass.
   const [containerWidth, setContainerWidth] = useState(0);
@@ -198,24 +230,33 @@ export function CatalogBrowser({ catalog, selectedCardId, onPickCard, footer }: 
 
   const q = cardQueryDebounced.trim();
   const searching = q.length > 0;
-  const level: 'search' | 'cards' | 'sets' | 'series' = searching
+  const level: 'search' | 'similar' | 'cards' | 'sets' | 'series' = searching
     ? 'search'
-    : setId
-      ? 'cards'
-      : seriesId
-        ? 'sets'
-        : 'series';
-  const isCardLevel = level === 'cards' || level === 'search';
+    : similarTo
+      ? 'similar'
+      : setId
+        ? 'cards'
+        : seriesId
+          ? 'sets'
+          : 'series';
+  const isCardLevel = level === 'cards' || level === 'search' || level === 'similar';
 
   const series = useMemo(() => catalog.listSeries(), [catalog]);
   const sets = useMemo(() => (seriesId ? catalog.listSets(seriesId) : []), [catalog, seriesId]);
 
-  // Cards currently in view, before facet filtering: search results, or the set's cards.
+  // The parsed search-box query (grammar: words, key:value fields, price bounds, sort).
+  const parsed = useMemo(() => parseQuery(q), [q]);
+
+  // Cards currently in view, before facet filtering: ranked full-corpus search results
+  // (bare words match name/artist/set/series/rarity/type/stage — name hits rank first),
+  // similar-mode results, or the set's cards.
   const viewCards = useMemo<CatalogCard[]>(() => {
-    if (searching) return catalog.search(q, SEARCH_LIMIT);
+    if (searching) return runQuery(catalog.listAll(), parsed, priceOf, SEARCH_LIMIT);
+    if (similarTo) return similarCards;
     if (setId) return catalog.listCards(setId);
     return [];
-  }, [catalog, searching, q, setId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catalog, searching, parsed, setId, similarTo, similarCards, priceSummary]);
 
   // Facets that actually have ≥2 distinct values in the cards in view get a chip row.
   const facetOptions = useMemo(
@@ -262,36 +303,60 @@ export function CatalogBrowser({ catalog, selectedCardId, onPickCard, footer }: 
     prefetchedKey.current = viewKey;
     const uris = filteredCards
       .slice(0, PREFETCH_COUNT)
-      .map((c) => resolveImageUrl(c.image))
+      .map((c) => resolveImageUrl(c.imageSmall ?? c.image))
       .filter(Boolean);
     if (uris.length > 0) Image.prefetch(uris, 'memory-disk').catch(() => {});
   }, [isCardLevel, viewKey, filteredCards]);
 
   // Navigation handlers clear facet selection so a stale filter can't hide the next
   // level's cards (avoids a set-state-in-effect on every level change).
+  const clearSimilar = () => {
+    setSimilarTo(null);
+    setSimilarCards([]);
+  };
   const openSeries = (id: string) => {
     clearFilters();
+    clearSimilar();
     setSeriesId(id);
     setSetId(null);
   };
   const openSet = (id: string) => {
     clearFilters();
+    clearSimilar();
     setSetId(id);
   };
   const goSeriesRoot = () => {
     clearFilters();
+    clearSimilar();
     setSeriesId(null);
     setSetId(null);
   };
   const goSets = () => {
     clearFilters();
+    clearSimilar();
     setSetId(null);
   };
   const onChangeQuery = (text: string) => {
     // Only reset facets when entering/leaving search (empty ↔ non-empty), not on every
     // keystroke — so you can type a query, apply facet chips, then refine the text.
     if (cardQuery.trim().length === 0 !== (text.trim().length === 0)) clearFilters();
+    if (text.trim().length > 0) clearSimilar(); // typing a query leaves similar mode
     setCardQuery(text);
+  };
+
+  /** "Find similar" — embedding search on the data server, results shown in the grid. */
+  const openSimilar = (card: CatalogCard) => {
+    setCardQuery('');
+    setCardQueryDebounced('');
+    clearFilters();
+    setSimilarTo({ id: card.id, name: card.name });
+    setSimilarCards([]);
+    findSimilar(card.id, 24).then((hits) => {
+      const cards = hits
+        .map((h) => catalog.getCard(h.id))
+        .filter((c): c is CatalogCard => Boolean(c));
+      setSimilarCards(cards);
+    });
   };
 
   const toggleFacetValue = (key: string, value: string) =>
@@ -305,6 +370,9 @@ export function CatalogBrowser({ catalog, selectedCardId, onPickCard, footer }: 
 
   const currentSeries = seriesId ? catalog.getSeries(seriesId) : undefined;
   const currentSet = setId ? catalog.getSet(setId) : undefined;
+  // The card already in the pocket that opened this picker (if any) — offered as
+  // a one-tap "find similar to what's here" jump.
+  const occupant = selectedCardId ? catalog.getCard(selectedCardId) : undefined;
 
   const crumbs: Crumb[] = [{ label: 'Series', onPress: seriesId ? goSeriesRoot : undefined }];
   if (currentSeries) {
@@ -335,12 +403,15 @@ export function CatalogBrowser({ catalog, selectedCardId, onPickCard, footer }: 
       return <TextRow title={s.name} meta={meta} coverUri={s.coverUri} onPress={() => openSet(s.id)} />;
     }
     const c = item.card;
+    const value = priceOf(c.id);
     return (
       <CardTile
         card={c}
         width={tileW}
         selected={c.id === selectedCardId}
-        onPress={() => onPickCard(c.id)}
+        onPress={() => setActionCard(c)}
+        // value replaces the name line when sorting by value (keeps row geometry fixed)
+        label={parsed.sort === 'value' && value > 0 ? formatUsd(value) : c.name}
       />
     );
   };
@@ -357,24 +428,54 @@ export function CatalogBrowser({ catalog, selectedCardId, onPickCard, footer }: 
     <View style={styles.browser} onLayout={onLayout}>
       <View style={styles.controls}>
         <Text style={styles.sectionLabel}>Cards · 1×1</Text>
-        <TextInput
-          value={cardQuery}
-          onChangeText={onChangeQuery}
-          placeholder={`Search ${catalog.cardCount.toLocaleString()} cards by name…`}
-          placeholderTextColor="#aaa"
-          autoCorrect={false}
-          clearButtonMode="while-editing"
-          style={styles.search}
-        />
+        <View style={styles.searchRow}>
+          <TextInput
+            value={cardQuery}
+            onChangeText={onChangeQuery}
+            placeholder={`Search ${catalog.cardCount.toLocaleString()} cards — ${QUERY_HINT}`}
+            placeholderTextColor="#aaa"
+            autoCorrect={false}
+            clearButtonMode="while-editing"
+            style={[styles.search, styles.searchFlex]}
+          />
+          <Pressable
+            onPress={() => setHelpOpen((v) => !v)}
+            style={[styles.helpBtn, helpOpen && styles.helpBtnOn]}
+            hitSlop={6}
+            accessibilityLabel="Search syntax help">
+            <Text style={[styles.helpBtnText, helpOpen && styles.helpBtnTextOn]}>?</Text>
+          </Pressable>
+        </View>
+        {helpOpen ? <SearchManual onClose={() => setHelpOpen(false)} /> : null}
+        {occupant && similarAvailable() && similarTo?.id !== occupant.id ? (
+          <Pressable style={styles.pocketSimilar} onPress={() => openSimilar(occupant)}>
+            <Text style={styles.pocketSimilarText} numberOfLines={1}>
+              ≈ Find similar to “{occupant.name}” (in this pocket)
+            </Text>
+          </Pressable>
+        ) : null}
         {searching ? (
           <View style={styles.metaRow}>
+            {/* Echo the PARSED query, not the raw text — the user sees exactly how
+                their input was interpreted and can tweak it precisely. */}
             <Text style={styles.meta} numberOfLines={1}>
               {filteredCards.length === viewCards.length
                 ? `${viewCards.length} result${viewCards.length === 1 ? '' : 's'}`
                 : `${filteredCards.length} of ${viewCards.length}`}
-              {viewCards.length >= SEARCH_LIMIT ? '+' : ''} for “{q}”
+              {viewCards.length >= SEARCH_LIMIT ? '+' : ''} · {describeQuery(parsed, viewCards)}
             </Text>
             <Pressable onPress={() => onChangeQuery('')} hitSlop={8}>
+              <Text style={styles.clear}>Clear</Text>
+            </Pressable>
+          </View>
+        ) : similarTo ? (
+          <View style={styles.metaRow}>
+            <Text style={styles.meta} numberOfLines={1}>
+              {similarCards.length > 0
+                ? `${filteredCards.length} cards similar to “${similarTo.name}”`
+                : `Finding cards similar to “${similarTo.name}”…`}
+            </Text>
+            <Pressable onPress={clearSimilar} hitSlop={8}>
               <Text style={styles.clear}>Clear</Text>
             </Pressable>
           </View>
@@ -418,13 +519,51 @@ export function CatalogBrowser({ catalog, selectedCardId, onPickCard, footer }: 
           <Text style={styles.empty}>
             {searching
               ? `No cards match “${q}”.`
-              : level === 'cards'
-                ? 'No cards in this set.'
-                : 'Nothing here.'}
+              : level === 'similar'
+                ? similarCards.length === 0 && similarTo
+                  ? 'Searching…'
+                  : 'No similar cards found.'
+                : level === 'cards'
+                  ? 'No cards in this set.'
+                  : 'Nothing here.'}
           </Text>
         }
         ListFooterComponent={<View style={styles.footer}>{footer}</View>}
       />
+
+      {actionCard ? (
+        <CardActionModal
+          card={actionCard}
+          occupant={occupant}
+          value={priceOf(actionCard.id)}
+          onPlace={() => {
+            setActionCard(null);
+            onPickCard(actionCard.id);
+          }}
+          onSimilar={
+            similarAvailable()
+              ? () => {
+                  setActionCard(null);
+                  openSimilar(actionCard);
+                }
+              : undefined
+          }
+          onViewSet={
+            actionCard.setId
+              ? () => {
+                  setActionCard(null);
+                  setCardQuery('');
+                  setCardQueryDebounced('');
+                  clearSimilar();
+                  clearFilters();
+                  setSeriesId(actionCard.seriesId || null);
+                  setSetId(actionCard.setId);
+                }
+              : undefined
+          }
+          onClose={() => setActionCard(null)}
+        />
+      ) : null}
     </View>
   );
 }
@@ -476,13 +615,17 @@ function CardTile({
   width,
   selected,
   onPress,
+  label,
 }: {
   card: CatalogCard;
   width: number;
   selected: boolean;
   onPress: () => void;
+  /** Text under the thumb; defaults to the card name (value when sorting by value). */
+  label?: string;
 }) {
-  const uri = resolveImageUrl(card.image);
+  // Grid tier: the 245px webp (~20KB) when the card has one; full-size fallback.
+  const uri = resolveImageUrl(card.imageSmall ?? card.image);
   return (
     <Pressable style={[styles.cardTile, { width }, selected && styles.cardTileSelected]} onPress={onPress}>
       <View style={styles.cardImageWrap}>
@@ -502,9 +645,35 @@ function CardTile({
         )}
       </View>
       <Text style={styles.cardName} numberOfLines={1}>
-        {card.name}
+        {label ?? card.name}
       </Text>
     </Pressable>
+  );
+}
+
+/** The "?" panel: the search grammar manual (content lives in browse/query.ts,
+ *  shared with the sibling app; this just renders it compactly). */
+function SearchManual({ onClose }: { onClose: () => void }) {
+  return (
+    <View style={styles.manual}>
+      <View style={styles.manualHeader}>
+        <Text style={styles.manualTitle}>Search syntax</Text>
+        <Pressable onPress={onClose} hitSlop={8}>
+          <Text style={styles.clear}>Close</Text>
+        </Pressable>
+      </View>
+      {QUERY_MANUAL.map((section) => (
+        <View key={section.title} style={styles.manualSection}>
+          <Text style={styles.manualSectionTitle}>{section.title}</Text>
+          {section.rows.map(([code, description]) => (
+            <View key={code} style={styles.manualRow}>
+              <Text style={styles.manualCode}>{code}</Text>
+              <Text style={styles.manualDesc}>{description}</Text>
+            </View>
+          ))}
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -629,6 +798,56 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#222',
   },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  searchFlex: { flex: 1 },
+  pocketSimilar: {
+    borderWidth: 1,
+    borderColor: '#3B82F655',
+    backgroundColor: '#3B82F60F',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  pocketSimilarText: { fontSize: 12, fontWeight: '600', color: '#2a5db0' },
+  helpBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: '#e0e0e3',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  helpBtnOn: { backgroundColor: '#3B82F6', borderColor: '#3B82F6' },
+  helpBtnText: { fontSize: 14, fontWeight: '700', color: '#888' },
+  helpBtnTextOn: { color: '#fff' },
+  // search manual panel
+  manual: {
+    borderWidth: 1,
+    borderColor: '#e8e8ec',
+    borderRadius: 10,
+    padding: 10,
+    gap: 8,
+    backgroundColor: '#fafafc',
+  },
+  manualHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  manualTitle: { fontSize: 13, fontWeight: '700', color: '#444' },
+  manualSection: { gap: 3 },
+  manualSectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#999',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  manualRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
+  manualCode: {
+    fontFamily: 'monospace',
+    fontSize: 12,
+    color: '#2a5db0',
+    minWidth: 118,
+  },
+  manualDesc: { flex: 1, fontSize: 12, color: '#666', lineHeight: 16 },
   metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   meta: { fontSize: 12, color: '#999', flexShrink: 1 },
   clear: { fontSize: 13, fontWeight: '600', color: '#3B82F6' },

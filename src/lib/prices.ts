@@ -22,15 +22,26 @@ export interface PriceSummaryEntry {
 export type PriceSummary = Record<string, PriceSummaryEntry>;
 
 let loadPromise: Promise<PriceSummary> | null = null;
+let snapshot: PriceSummary | null = null;
 
 /** Load-once summary fetch (shared by every subscriber). */
 export function getPriceSummary(): Promise<PriceSummary> {
   if (!loadPromise) {
     loadPromise = fetch(`${browseUrl}/prices-summary.json`)
       .then((res) => (res.ok ? (res.json() as Promise<PriceSummary>) : {}))
-      .catch(() => ({}));
+      .catch(() => ({}))
+      .then((s: PriceSummary) => {
+        snapshot = s;
+        return s;
+      });
   }
   return loadPromise;
+}
+
+/** Synchronous view of the summary once loaded (null before). Lets pure helpers
+ *  (e.g. the CatalogBrowser value facet) read prices without threading state. */
+export function priceSnapshot(): PriceSummary | null {
+  return snapshot;
 }
 
 /** The summary map, or null while loading. Never throws — {} on failure. */

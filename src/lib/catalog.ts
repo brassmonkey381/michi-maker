@@ -25,8 +25,15 @@ export interface CatalogCard {
   setCode: string;
   seriesId: string; // series name doubles as its id
   releaseDate: string; // ISO yyyy-mm-dd or ""
-  image: string; // local image path (e.g. /card-imgs/…)
-  kind: CardKind; // derived footprint: 'standard' | 'jumbo' | 'vunion' (see build-catalog.mjs)
+  image: string; // full-size image URL (data-server bucket, CDN fallback)
+  kind: CardKind; // derived footprint: 'standard' | 'jumbo' | 'vunion'
+  // enrichment (present in the hosted catalog; '' / [] when absent)
+  illustrator: string;
+  types: string[]; // TCG energy types, e.g. ["Fire"]
+  stage: string; // Basic | Stage1 | Stage2 | VMAX | …
+  // size tiers (245px / 640px webp), when generated for this card
+  imageSmall?: string;
+  imageMedium?: string;
 }
 
 /**
@@ -67,6 +74,8 @@ export interface Catalog {
   getSet(setId: string): CatalogSet | undefined;
   listCards(setId: string): CatalogCard[];
   getCard(cardId: string): CatalogCard | undefined;
+  /** Every card (stable order) — for structured queries that scan the corpus. */
+  listAll(): CatalogCard[];
   /** Every jumbo (oversized, 2×2) card in the catalog. */
   listJumbo(): CatalogCard[];
   /** The V-UNION groups (each four 1×1 pieces tiling a 2×2). */
@@ -91,7 +100,12 @@ export interface RawCard {
   series?: string;
   release_date?: string;
   image?: string;
-  kind?: string; // 'standard' | 'jumbo' | 'vunion' (emitted by build-catalog.mjs)
+  kind?: string; // 'standard' | 'jumbo' | 'vunion'
+  illustrator?: string;
+  types?: string[];
+  stage?: string;
+  image_small?: string; // 245px webp tier (data server)
+  image_medium?: string; // 640px webp tier (data server)
 }
 export interface RawSet {
   id: number | string;
@@ -181,6 +195,11 @@ class LocalCatalog implements Catalog {
         releaseDate: raw_c.release_date ?? '',
         image: raw_c.image ?? '',
         kind: normalizeKind(raw_c.kind),
+        illustrator: raw_c.illustrator ?? '',
+        types: raw_c.types ?? [],
+        stage: raw_c.stage ?? '',
+        imageSmall: raw_c.image_small,
+        imageMedium: raw_c.image_medium,
       };
       this.cards.set(card.id, card);
       this.all.push(card);
@@ -274,6 +293,10 @@ class LocalCatalog implements Catalog {
 
   getCard(cardId: string): CatalogCard | undefined {
     return this.cards.get(cardId);
+  }
+
+  listAll(): CatalogCard[] {
+    return this.all;
   }
 
   listJumbo(): CatalogCard[] {

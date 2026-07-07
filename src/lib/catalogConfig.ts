@@ -44,3 +44,21 @@ export function resolveImageUrl(path: string): string {
   if (/^https?:\/\//i.test(path)) return path;
   return `${imgBase}${path}`;
 }
+
+/**
+ * The data server's REST (PostgREST) endpoint + publishable key — for dynamic
+ * queries the static catalog can't answer (e.g. the find_similar embedding RPC).
+ * The URL derives from the browse origin when it's absolute; both are
+ * overridable. Empty when running purely on local static files.
+ */
+export const catalogApiUrl: string =
+  process.env.EXPO_PUBLIC_CATALOG_API_URL ??
+  (() => {
+    try {
+      return `${new URL(browseUrl).origin}/rest/v1`;
+    } catch {
+      return '';
+    }
+  })();
+
+export const catalogApiKey: string = process.env.EXPO_PUBLIC_CATALOG_API_KEY ?? '';

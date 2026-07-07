@@ -2,8 +2,9 @@ import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { CatalogBrowser } from 'tcgscan-browse';
+
 import { ArtUploadButton } from '@/components/binder/ArtUploadButton';
-import { CatalogBrowser } from '@/components/binder/CatalogBrowser';
 import { ThemedText } from '@/components/themed-text';
 import { domainOf, slotAspect, type ArtworkAsset } from '@/data/artworkLibrary';
 import { artSearchProvider, isArtSearchConfigured, searchArt } from '@/data/artSearch';

@@ -398,18 +398,12 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                 onSlotPress={handleSelectSlot}
                 onDropSlot={handleDropSlot}
                 onResizeSlot={handleResizeSlot}
+                onReplaceSlot={replaceSelected}
+                onDuplicateSlot={duplicateSelected}
+                onRemoveSlot={removeSelected}
+                onDeselectSlot={() => setSelectedSlotId(null)}
               />
             </View>
-
-            {/* Quick actions for the selected pocket (edit mode). */}
-            {editing && selectedSlot && !pickerCell ? (
-              <SlotActionBar
-                onReplace={replaceSelected}
-                onDuplicate={duplicateSelected}
-                onRemove={removeSelected}
-                onDeselect={() => setSelectedSlotId(null)}
-              />
-            ) : null}
 
             {editing && (
               <View style={styles.editPanel}>
@@ -602,55 +596,6 @@ function EditorKeyboardShortcuts({
   return null;
 }
 
-/** Quick-action toolbar for the selected pocket (edit mode). */
-function SlotActionBar({
-  onReplace,
-  onDuplicate,
-  onRemove,
-  onDeselect,
-}: {
-  onReplace: () => void;
-  onDuplicate: () => void;
-  onRemove: () => void;
-  onDeselect: () => void;
-}) {
-  return (
-    <ThemedView type="backgroundElement" style={styles.actionBar}>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.actionHint}>
-        Pocket · drag ▢ to resize
-      </ThemedText>
-      <View style={styles.actionBtns}>
-        <ActionButton label="Replace" onPress={onReplace} />
-        <ActionButton label="Duplicate" onPress={onDuplicate} />
-        <ActionButton label="Remove" tone="danger" onPress={onRemove} />
-        <ActionButton label="Done" onPress={onDeselect} />
-      </View>
-    </ThemedView>
-  );
-}
-
-function ActionButton({
-  label,
-  onPress,
-  tone = 'default',
-}: {
-  label: string;
-  onPress: () => void;
-  tone?: 'default' | 'danger';
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.actionBtn,
-        tone === 'danger' && styles.actionBtnDanger,
-        pressed && styles.pressed,
-      ]}>
-      <Text style={[styles.actionBtnText, tone === 'danger' && styles.actionBtnTextDanger]}>{label}</Text>
-    </Pressable>
-  );
-}
-
 function NavArrow({
   label,
   disabled,
@@ -753,22 +698,6 @@ const styles = StyleSheet.create({
   pillText: { fontSize: FontSize.body, fontWeight: Weight.semibold, color: Palette.ink2 },
   pillTextDanger: { color: Palette.dangerAlt },
   pressed: { opacity: 0.7 },
-  actionBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: 8,
-    padding: 10,
-    borderRadius: Radius.actionBar,
-    marginBottom: 6,
-  },
-  actionHint: { flexShrink: 1 },
-  actionBtns: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  actionBtn: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: Radius.pill, backgroundColor: Palette.accent },
-  actionBtnDanger: { backgroundColor: Palette.dangerBg },
-  actionBtnText: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.accentText },
-  actionBtnTextDanger: { color: Palette.dangerAlt },
   deleteBinder: { marginTop: 20, alignItems: 'center', paddingVertical: 10 },
   deleteBinderText: { color: Palette.dangerAlt, fontSize: FontSize.control, fontWeight: Weight.semibold },
 });

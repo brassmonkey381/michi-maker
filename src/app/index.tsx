@@ -9,6 +9,7 @@ import { SettingsButton } from '@/components/settings/SettingsSheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, FontSize, MaxContentWidth, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { useImageManifest } from '@/lib/catalogConfig';
 import { useBinders } from '@/store/binders';
 
 export default function BindersScreen() {
@@ -17,9 +18,15 @@ export default function BindersScreen() {
   const [openId, setOpenId] = useState<string | null>(null);
 
   // Note: we deliberately do NOT load the catalog here. Binder covers resolve their image
-  // straight from the card id (cardThumbUrl → card-thumbs/245/<id>.webp), so the home screen
-  // paints images immediately without waiting on the ~25 MB catalog.json. The catalog only
-  // loads when the editor/picker opens (names, set browse, jumbo/V-UNION grouping).
+  // straight from the card id (cardThumbUrl), so the home screen paints images immediately
+  // without waiting on the ~25 MB catalog.json. The catalog only loads when the editor/picker
+  // opens (names, set browse, jumbo/V-UNION grouping).
+  //
+  // Hosted images are content-hashed, so cardThumbUrl resolves ids through the lite image
+  // manifest — hydrate it here (instant from the AsyncStorage cache, then a background
+  // refresh) so covers repaint with their hashed URLs. Static/dev mode is a no-op (covers
+  // fall back to the flat convention path).
+  useImageManifest();
 
   const contentWidth = Math.min(width, MaxContentWidth) - Spacing.four * 2;
   const columns = contentWidth > 520 ? 3 : 2;

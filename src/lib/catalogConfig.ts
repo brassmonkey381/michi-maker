@@ -10,7 +10,16 @@
  * ⚠️ NATIVE: a bare `/browse` path has no origin on iOS/Android — set
  * EXPO_PUBLIC_CATALOG_BROWSE_URL to an absolute URL for native builds.
  */
-import { cardThumbUrl, configureBrowse, getApiKey, getApiUrl, resolveImageUrl } from 'tcgscan-browse';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  cardThumbUrl,
+  configureBrowse,
+  getApiKey,
+  getApiUrl,
+  hydrateImageManifest,
+  resolveImageUrl,
+  useImageManifest,
+} from 'tcgscan-browse';
 
 /** Base URL the catalog JSON (and prices/alternates) are served from. */
 export const browseUrl: string = process.env.EXPO_PUBLIC_CATALOG_BROWSE_URL ?? '/browse';
@@ -25,9 +34,16 @@ configureBrowse({
   imgBase,
   apiUrl: process.env.EXPO_PUBLIC_CATALOG_API_URL,
   apiKey: process.env.EXPO_PUBLIC_CATALOG_API_KEY ?? '',
+  // Persist the content-hashed image manifest across launches so the home
+  // screen resolves covers (cardThumbUrl) instantly without the ~25MB catalog.
+  // AsyncStorage is async KV, which is exactly the ManifestCache shape.
+  cache: {
+    getItem: (k) => AsyncStorage.getItem(k),
+    setItem: (k, v) => AsyncStorage.setItem(k, v),
+  },
 });
 
-export { cardThumbUrl, resolveImageUrl };
+export { cardThumbUrl, resolveImageUrl, hydrateImageManifest, useImageManifest };
 
 /** PostgREST endpoint + publishable key (resolved by the package config). */
 export const catalogApiUrl: string = getApiUrl();

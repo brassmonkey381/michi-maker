@@ -2,18 +2,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { BinderGrid } from '@/components/binder/BinderGrid';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import type { DemoBinder } from '@/data/binderTypes';
-import { MICHI_LAYOUT_STYLES, type MichiLayoutStyle } from '@/types/domain';
-
-const LAYOUT_LABELS: Record<MichiLayoutStyle, string> = MICHI_LAYOUT_STYLES.reduce(
-  (acc, style) => ({ ...acc, [style.value]: style.label }),
-  {} as Record<MichiLayoutStyle, string>,
-);
-
-export function layoutLabel(style: MichiLayoutStyle): string {
-  return LAYOUT_LABELS[style] ?? style;
-}
 
 interface BinderThumbProps {
   binder: DemoBinder;
@@ -35,16 +24,9 @@ export function BinderThumb({ binder, width, onPress }: BinderThumbProps) {
       <ThemedText type="smallBold" numberOfLines={1} style={styles.title}>
         {binder.title}
       </ThemedText>
-      <View style={styles.metaRow}>
-        <ThemedView type="backgroundElement" style={styles.badge}>
-          <ThemedText type="small" themeColor="textSecondary">
-            {layoutLabel(binder.layoutStyle)}
-          </ThemedText>
-        </ThemedView>
-        <ThemedText type="small" themeColor="textSecondary">
-          {pageCount} {pageCount === 1 ? 'page' : 'pages'}
-        </ThemedText>
-      </View>
+      <ThemedText type="small" themeColor="textSecondary" style={styles.meta}>
+        {pageCount} {pageCount === 1 ? 'page' : 'pages'}
+      </ThemedText>
     </Pressable>
   );
 }
@@ -60,16 +42,7 @@ const styles = StyleSheet.create({
   title: {
     marginTop: 8,
   },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  meta: {
     marginTop: 2,
-    gap: 8,
-  },
-  badge: {
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    borderRadius: 999,
   },
 });

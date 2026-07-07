@@ -37,6 +37,7 @@ function pageRow(page: DemoPage, binderId: string, position: number): Tables['bi
     binder_id: binderId,
     position,
     title: page.title ?? null,
+    notes: page.description ?? null,
     rows: page.rows,
     cols: page.cols,
     background_color: page.backgroundColor ?? null,
@@ -74,6 +75,7 @@ interface SlotRowIn {
 interface PageRowIn {
   id: string;
   title: string | null;
+  notes: string | null;
   rows: number;
   cols: number;
   background_color: string | null;
@@ -108,6 +110,7 @@ function mapPage(row: PageRowIn): DemoPage {
   return {
     id: row.id,
     title: row.title ?? undefined,
+    description: row.notes ?? undefined,
     rows: row.rows,
     cols: row.cols,
     backgroundColor: row.background_color ?? undefined,
@@ -190,6 +193,7 @@ export async function updatePage(id: string, patch: Partial<DemoPage>): Promise<
   const supabase = requireSupabase();
   const row: PageUpdate = {};
   if (patch.title !== undefined) row.title = patch.title ?? null;
+  if (patch.description !== undefined) row.notes = patch.description ?? null;
   if (patch.rows !== undefined) row.rows = patch.rows;
   if (patch.cols !== undefined) row.cols = patch.cols;
   if (patch.backgroundColor !== undefined) row.background_color = patch.backgroundColor ?? null;

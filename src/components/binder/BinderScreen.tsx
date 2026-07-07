@@ -16,7 +16,6 @@ import { BinderGrid } from '@/components/binder/BinderGrid';
 import { CardPicker } from '@/components/binder/CardPicker';
 import { PageStrip } from '@/components/binder/PageStrip';
 import { SliceStudio } from '@/components/binder/SliceStudio';
-import { layoutLabel } from '@/components/binder/BinderThumb';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { slotCells } from '@/data/binderTypes';
@@ -26,27 +25,6 @@ import { footprintForKind } from '@/data/cardSizing';
 import { resolveCard } from '@/data/cardResolver';
 import { useBinders } from '@/store/binders';
 import { useTheme } from '@/hooks/use-theme';
-import { MICHI_LAYOUT_STYLES } from '@/types/domain';
-
-const BG_SWATCHES = [
-  // Light / cream / pastel mats
-  '#FFFFFF',
-  '#F3ECDD',
-  '#FBF4D6',
-  '#E7F1F8',
-  '#F7E9F0',
-  '#F5EFE6',
-  '#F3EEE6',
-  '#EAF3F8',
-  // Tonal mids
-  '#D9C7B0',
-  '#A7B5C2',
-  // Dark mats
-  '#141A24',
-  '#1B1410',
-  '#10141C',
-  '#1C1726',
-];
 
 const PAGE_SIZES: { label: string; rows: number; cols: number }[] = [
   { label: '3×3', rows: 3, cols: 3 },
@@ -104,6 +82,15 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const slotAtCell = pickerCell
     ? (page.slots.find((s) => s.row === pickerCell.row && s.col === pickerCell.col) ?? null)
     : null;
+
+  // Example binders are read-only: they can't be edited in place, only duplicated into the
+  // user's own binders (where the copy is fully editable).
+  const canEdit = !binder.isExample;
+
+  const handleDuplicate = () => {
+    const copy = store.duplicateBinder(binder.id);
+    if (copy) onOpenBinder?.(copy.id);
+  };
 
   const closePicker = () => setPickerCell(null);
 
@@ -209,19 +196,20 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                 {binder.title}
               </ThemedText>
             )}
-            <Pressable onPress={() => setEditing((e) => !e)} hitSlop={10}>
-              <Text style={[styles.headerAction, styles.headerPrimary]}>{editing ? 'Done' : 'Edit'}</Text>
-            </Pressable>
+            {canEdit ? (
+              <Pressable onPress={() => setEditing((e) => !e)} hitSlop={10}>
+                <Text style={[styles.headerAction, styles.headerPrimary]}>{editing ? 'Done' : 'Edit'}</Text>
+              </Pressable>
+            ) : (
+              <Pressable onPress={handleDuplicate} hitSlop={10}>
+                <Text style={[styles.headerAction, styles.headerPrimary]}>Duplicate</Text>
+              </Pressable>
+            )}
           </View>
 
           <ScrollView contentContainerStyle={styles.scroll}>
             {/* Meta + page navigation */}
             <View style={styles.metaRow}>
-              <ThemedView type="backgroundElement" style={styles.badge}>
-                <ThemedText type="small" themeColor="textSecondary">
-                  {layoutLabel(binder.layoutStyle)}
-                </ThemedText>
-              </ThemedView>
               {binderTotal ? (
                 <ThemedView type="backgroundElement" style={styles.badge}>
                   <ThemedText type="small" themeColor="textSecondary">
@@ -261,22 +249,19 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                 onDropSlot={handleDropSlot}
               />
               {page.title ? (
-                <ThemedText type="small" themeColor="textSecondary" style={styles.pageTitle}>
+                <ThemedText type="smallBold" style={styles.pageTitle}>
                   {page.title}
+                </ThemedText>
+              ) : null}
+              {page.description ? (
+                <ThemedText type="small" themeColor="textSecondary" style={styles.pageDescription}>
+                  {page.description}
                 </ThemedText>
               ) : null}
             </View>
 
             {editing && (
               <View style={styles.editPanel}>
-                {!binder.isExample ? null : (
-                  <ThemedView type="backgroundElement" style={styles.exampleBanner}>
-                    <ThemedText type="small" themeColor="textSecondary" style={styles.flex}>
-                      Example binder — edits are local. Duplicate to keep your own copy.
-                    </ThemedText>
-                  </ThemedView>
-                )}
-
                 {/* Page filmstrip — tap to jump, drag to reorder. */}
                 <PageStrip
                   pages={binder.pages}
@@ -302,14 +287,53 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                       }}
                     />
                   )}
-                  <PillButton
-                    label="Duplicate"
-                    onPress={() => {
-                      const copy = store.duplicateBinder(binder.id);
-                      if (copy) onOpenBinder?.(copy.id);
-                    }}
-                  />
+                  <PillButton label="Duplicate" onPress={handleDuplicate} />
                 </View>
+
+                {/* Binder details */}
+                <ThemedText type="small" themeColor="textSecondary" style={styles.fieldLabel}>
+                  Binder description
+                </ThemedText>
+                <TextInput
+                  value={binder.description ?? ''}
+                  onChangeText={(description) => store.updateBinder(binder.id, { description })}
+                  placeholder="What ties this binder together?"
+                  placeholderTextColor={theme.textSecondary}
+                  multiline
+                  style={[
+                    styles.detailInput,
+                    styles.detailMultiline,
+                    { color: theme.text, borderColor: theme.backgroundSelected },
+                  ]}
+                />
+
+                {/* Page details */}
+                <ThemedText type="small" themeColor="textSecondary" style={styles.fieldLabel}>
+                  Page {idx + 1} title
+                </ThemedText>
+                <TextInput
+                  value={page.title ?? ''}
+                  onChangeText={(title) => store.updatePage(binder.id, page.id, { title })}
+                  placeholder="Page title"
+                  placeholderTextColor={theme.textSecondary}
+                  style={[styles.detailInput, { color: theme.text, borderColor: theme.backgroundSelected }]}
+                />
+
+                <ThemedText type="small" themeColor="textSecondary" style={styles.fieldLabel}>
+                  Page {idx + 1} description
+                </ThemedText>
+                <TextInput
+                  value={page.description ?? ''}
+                  onChangeText={(description) => store.updatePage(binder.id, page.id, { description })}
+                  placeholder="Notes about this page"
+                  placeholderTextColor={theme.textSecondary}
+                  multiline
+                  style={[
+                    styles.detailInput,
+                    styles.detailMultiline,
+                    { color: theme.text, borderColor: theme.backgroundSelected },
+                  ]}
+                />
 
                 <ThemedText type="small" themeColor="textSecondary" style={styles.fieldLabel}>
                   Page size
@@ -335,36 +359,13 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                 <ThemedText type="small" themeColor="textSecondary" style={styles.fieldLabel}>
                   Page background
                 </ThemedText>
-                <View style={styles.swatchRow}>
-                  {BG_SWATCHES.map((color) => (
-                    <Pressable
-                      key={color}
-                      onPress={() => store.updatePage(binder.id, page.id, { backgroundColor: color })}
-                      style={[
-                        styles.swatch,
-                        { backgroundColor: color },
-                        page.backgroundColor === color && styles.swatchActive,
-                      ]}
-                    />
-                  ))}
-                </View>
-
-                <ThemedText type="small" themeColor="textSecondary" style={styles.fieldLabel}>
-                  Layout style
-                </ThemedText>
-                <View style={styles.chipRow}>
-                  {MICHI_LAYOUT_STYLES.map((style) => {
-                    const active = binder.layoutStyle === style.value;
-                    return (
-                      <Pressable
-                        key={style.value}
-                        onPress={() => store.updateBinder(binder.id, { layoutStyle: style.value })}
-                        style={[styles.chip, active && styles.chipActive]}>
-                        <Text style={[styles.chipText, active && styles.chipTextActive]}>{style.label}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
+                <ColorField
+                  key={page.id}
+                  value={page.backgroundColor}
+                  onChange={(backgroundColor) =>
+                    store.updatePage(binder.id, page.id, { backgroundColor })
+                  }
+                />
 
                 {!binder.isExample && (
                   <Pressable
@@ -458,6 +459,39 @@ function PillButton({
   );
 }
 
+const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+
+/** A #hex colour field with a live preview swatch. Keyed by page so it re-inits per page. */
+function ColorField({ value, onChange }: { value?: string; onChange: (hex: string) => void }) {
+  const theme = useTheme();
+  const [text, setText] = useState(value ?? '');
+
+  const handleChange = (raw: string) => {
+    let next = raw.trim();
+    if (next && !next.startsWith('#')) next = `#${next}`;
+    setText(next);
+    if (HEX_RE.test(next)) onChange(next);
+  };
+
+  const preview = HEX_RE.test(text.trim()) ? text.trim() : (value ?? 'transparent');
+
+  return (
+    <View style={styles.colorRow}>
+      <View style={[styles.colorPreview, { backgroundColor: preview, borderColor: theme.backgroundSelected }]} />
+      <TextInput
+        value={text}
+        onChangeText={handleChange}
+        placeholder="#RRGGBB"
+        placeholderTextColor={theme.textSecondary}
+        autoCapitalize="none"
+        autoCorrect={false}
+        maxLength={7}
+        style={[styles.colorInput, { color: theme.text, borderColor: theme.backgroundSelected }]}
+      />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   dismiss: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' },
@@ -493,26 +527,29 @@ const styles = StyleSheet.create({
   navDisabled: { opacity: 0.3 },
   description: { marginTop: 10, textAlign: 'center' },
   pageWrap: { alignItems: 'center', marginVertical: 18 },
-  pageTitle: { marginTop: 10 },
+  pageTitle: { marginTop: 10, textAlign: 'center' },
+  pageDescription: { marginTop: 4, textAlign: 'center' },
   editPanel: { gap: 8 },
-  exampleBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 4,
-  },
   btnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   fieldLabel: { marginTop: 12, marginBottom: 2 },
-  swatchRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  swatch: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+  detailInput: {
     borderWidth: 1,
-    borderColor: 'rgba(128,128,128,0.35)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 15,
   },
-  swatchActive: { borderWidth: 3, borderColor: '#3B82F6' },
+  detailMultiline: { minHeight: 56, textAlignVertical: 'top' },
+  colorRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  colorPreview: { width: 40, height: 40, borderRadius: 8, borderWidth: 1 },
+  colorInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 15,
+  },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, backgroundColor: '#f0f0f3' },
   chipActive: { backgroundColor: '#3B82F6' },

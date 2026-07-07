@@ -1,10 +1,9 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, Slot, ThemeProvider } from 'expo-router';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Platform, useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
 import { AuthProvider } from '@/store/auth';
 import { BinderProvider } from '@/store/binders';
 
@@ -28,7 +27,7 @@ export default function TabLayout() {
         <AuthProvider>
           <BinderProvider>
             <AnimatedSplashOverlay />
-            <AppTabs />
+            <Slot />
           </BinderProvider>
         </AuthProvider>
       </ThemeProvider>

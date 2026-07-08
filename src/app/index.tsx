@@ -4,6 +4,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDim
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AccountButton } from '@/components/auth/AccountButton';
+import { GuestBanner } from '@/components/auth/GuestBanner';
 import { BinderActionsMenu } from '@/components/binder/BinderActionsMenu';
 import { BinderCarousel } from '@/components/binder/BinderCarousel';
 import { BinderThumb } from '@/components/binder/BinderThumb';
@@ -123,6 +124,8 @@ export default function BindersScreen() {
               <AccountButton />
             </View>
           </View>
+
+          <GuestBanner />
 
           <Section
             title="Your binders"

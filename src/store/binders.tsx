@@ -176,11 +176,19 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  /** Run a persistence op in cloud mode; never let a failed write crash the UI. */
-  const persist = useCallback((op: () => Promise<void>) => {
-    if (!CLOUD) return;
-    op().catch((error) => console.error(`[poke-michi] persist failed: ${(error as Error).message}`));
-  }, []);
+  /**
+   * Run a persistence op in cloud mode; never let a failed write crash the UI. When there's no
+   * session (e.g. anonymous sign-in unavailable) writes would all fail RLS, so we skip them
+   * entirely — the guest banner tells the user their work isn't saving — rather than firing a
+   * stream of scary errors. Genuine failures (with a session) log a soft warning, not an error.
+   */
+  const persist = useCallback(
+    (op: () => Promise<void>) => {
+      if (!CLOUD || !user) return;
+      op().catch((error) => console.warn(`[poke-michi] cloud save failed: ${(error as Error).message}`));
+    },
+    [user],
+  );
 
   /**
    * Re-sync Supabase after an undo/redo. Incremental writers persist forward edits, but a

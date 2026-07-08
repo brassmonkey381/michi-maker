@@ -176,27 +176,53 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const undo = useCallback(() => {
-    setHistory((h) => {
-      if (h.past.length === 0) return h;
-      const previous = h.past[h.past.length - 1];
-      return { past: h.past.slice(0, -1), present: previous, future: [h.present, ...h.future] };
-    });
-  }, []);
-
-  const redo = useCallback(() => {
-    setHistory((h) => {
-      if (h.future.length === 0) return h;
-      const [next, ...rest] = h.future;
-      return { past: [...h.past, h.present], present: next, future: rest };
-    });
-  }, []);
-
   /** Run a persistence op in cloud mode; never let a failed write crash the UI. */
   const persist = useCallback((op: () => Promise<void>) => {
     if (!CLOUD) return;
     op().catch((error) => console.error(`[poke-michi] persist failed: ${(error as Error).message}`));
   }, []);
+
+  /**
+   * Re-sync Supabase after an undo/redo. Incremental writers persist forward edits, but a
+   * snapshot swap can revert/restore arbitrary content, so for each user binder that changed
+   * between the two snapshots we replace its whole persisted state; binders that disappeared
+   * (undo of a create / redo of a delete) are deleted. `replaceBinder` is idempotent, so a
+   * StrictMode double-invoke of the updater below is harmless.
+   */
+  const syncChanged = useCallback(
+    (from: DemoBinder[], to: DemoBinder[]) => {
+      if (!CLOUD) return;
+      const fromById = new Map(from.map((b) => [b.id, b]));
+      const toIds = new Set(to.map((b) => b.id));
+      for (const b of to) {
+        if (b.isExample) continue;
+        if (fromById.get(b.id) !== b) persist(() => repo.replaceBinder(b)); // new or content-changed
+      }
+      for (const b of from) {
+        if (b.isExample) continue;
+        if (!toIds.has(b.id)) persist(() => repo.deleteBinder(b.id)); // removed by the undo/redo
+      }
+    },
+    [persist],
+  );
+
+  const undo = useCallback(() => {
+    setHistory((h) => {
+      if (h.past.length === 0) return h;
+      const previous = h.past[h.past.length - 1];
+      syncChanged(h.present, previous);
+      return { past: h.past.slice(0, -1), present: previous, future: [h.present, ...h.future] };
+    });
+  }, [syncChanged]);
+
+  const redo = useCallback(() => {
+    setHistory((h) => {
+      if (h.future.length === 0) return h;
+      const [next, ...rest] = h.future;
+      syncChanged(h.present, next);
+      return { past: [...h.past, h.present], present: next, future: rest };
+    });
+  }, [syncChanged]);
 
   const getBinder = useCallback(
     (id: string) => binders.find((binder) => binder.id === id),
@@ -323,10 +349,9 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       const [moved] = pages.splice(fromIndex, 1);
       pages.splice(toIndex, 0, moved);
       commit((prev) => prev.map((binder) => (binder.id === binderId ? { ...binder, pages } : binder)));
-      // Page-order persistence to Supabase (the `position` column) is a follow-up; local
-      // reorder is immediate. In cloud mode the new order is held in memory this session.
+      if (!target.isExample) persist(() => repo.reorderPages(binderId, pages.map((p) => p.id)));
     },
-    [binders, commit],
+    [binders, commit, persist],
   );
 
   const upsertSlot = useCallback(

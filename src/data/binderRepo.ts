@@ -263,3 +263,56 @@ export async function deleteSlot(id: string): Promise<void> {
   const { error } = await supabase.from('binder_slots').delete().eq('id', id);
   if (error) throw new Error(`delete slot: ${error.message}`);
 }
+
+/**
+ * Replace a binder's entire persisted state with the given snapshot — used to re-sync a binder
+ * after an undo/redo (which move between whole-state snapshots that the incremental writers can't
+ * express). Upserts the binder row (so it also *restores* a binder an undo brings back), then
+ * wipes its pages (slots cascade) and re-inserts the current pages + slots. Idempotent: replacing
+ * to the same snapshot twice yields the same result, so it's safe to call more than once.
+ */
+export async function replaceBinder(binder: DemoBinder): Promise<void> {
+  const supabase = requireSupabase();
+  const { error: bErr } = await supabase.from('binders').upsert(binderRow(binder), { onConflict: 'id' });
+  if (bErr) throw new Error(`replace binder: ${bErr.message}`);
+
+  const { error: delErr } = await supabase.from('binder_pages').delete().eq('binder_id', binder.id);
+  if (delErr) throw new Error(`replace pages (delete): ${delErr.message}`);
+
+  if (binder.pages.length > 0) {
+    const pages = binder.pages.map((page, index) => pageRow(page, binder.id, index));
+    const { error: pErr } = await supabase.from('binder_pages').insert(pages);
+    if (pErr) throw new Error(`replace pages (insert): ${pErr.message}`);
+
+    const slots = binder.pages.flatMap((page) => page.slots.map((slot) => slotRow(slot, page.id)));
+    if (slots.length > 0) {
+      const { error: sErr } = await supabase.from('binder_slots').insert(slots);
+      if (sErr) throw new Error(`replace slots: ${sErr.message}`);
+    }
+  }
+}
+
+/**
+ * Persist a page reordering by writing the new `position` of each page. Done in two phases —
+ * park every page at a distinct negative position, then set the final 0..n-1 — so the
+ * `unique(binder_id, position)` constraint is never violated mid-update. `orderedPageIds` is the
+ * binder's full page list in its new order.
+ */
+export async function reorderPages(binderId: string, orderedPageIds: string[]): Promise<void> {
+  const supabase = requireSupabase();
+  const park = await Promise.all(
+    orderedPageIds.map((id, i) =>
+      supabase.from('binder_pages').update({ position: -(i + 1) }).eq('id', id).eq('binder_id', binderId),
+    ),
+  );
+  const parkErr = park.find((r) => r.error);
+  if (parkErr?.error) throw new Error(`reorder pages (park): ${parkErr.error.message}`);
+
+  const set = await Promise.all(
+    orderedPageIds.map((id, i) =>
+      supabase.from('binder_pages').update({ position: i }).eq('id', id).eq('binder_id', binderId),
+    ),
+  );
+  const setErr = set.find((r) => r.error);
+  if (setErr?.error) throw new Error(`reorder pages (set): ${setErr.error.message}`);
+}

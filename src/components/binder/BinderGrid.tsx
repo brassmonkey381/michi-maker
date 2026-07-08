@@ -12,7 +12,8 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { BinderSurface, FontSize, Palette, Radii, Radius, Shadows, SlotBackingFallback, Weight } from '@/constants/theme';
-import { resolveCardWith } from '@/data/cardResolver';
+import { resolveCardWith, resolveCatalogCardWith } from '@/data/cardResolver';
+import { formatCaption, type CaptionFieldKey } from '@/data/cardCaption';
 import { occupiedCells, type DemoCard, type DemoPage, type DemoSlot } from '@/data/binderTypes';
 import { useCatalog } from '@/hooks/use-catalog';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
@@ -25,6 +26,8 @@ interface BinderGridProps {
   /** Outer page width in px (padding is added internally). */
   width: number;
   editable?: boolean;
+  /** Metadata fields to show as a caption under each card. Empty/undefined ⇒ no captions. */
+  captionFields?: CaptionFieldKey[];
   selectedSlotId?: string | null;
   onSlotPress?: (slot: DemoSlot) => void;
   onCellPress?: (row: number, col: number) => void;
@@ -51,6 +54,7 @@ export function BinderGrid({
   page,
   width,
   editable = false,
+  captionFields = [],
   selectedSlotId,
   onSlotPress,
   onCellPress,
@@ -64,24 +68,34 @@ export function BinderGrid({
   // Passive catalog subscription: card *images* come from the id directly (cardThumbUrl), so the
   // grid never forces the ~25 MB catalog load just to render — covers paint immediately. When the
   // catalog is already loaded (editor/picker), we use it only to enrich (the jumbo/V-UNION badge).
-  const { catalog } = useCatalog(false);
+  // Captions, though, need real metadata (name/set/rarity/…), so turning them on forces the load.
+  const captionOn = captionFields.length > 0;
+  const { catalog } = useCatalog(captionOn);
   const small = width < 220;
   const pad = small ? 6 : 12;
   const gap = small ? 3 : 6;
   const radius = small ? Radii.pageSmall : Radii.page;
   const slotRadius = small ? Radii.slotSmall : Radii.slot;
+  // Strip reserved under each card for its labels (0 when off). Fits ~two lines of small text;
+  // the card keeps its aspect and the caption sits in this strip directly below it.
+  const captionH = captionOn ? (small ? 30 : 34) : 0;
 
   const innerW = width - pad * 2;
   const cellW = (innerW - gap * (page.cols - 1)) / page.cols;
   const cellH = cellW * CARD_ASPECT;
-  const innerH = cellH * page.rows + gap * (page.rows - 1);
+  // Vertical step includes the caption strip so every row reserves room for its labels. A card
+  // box keeps the card's own height (cellH); spanning cards absorb the intermediate strips + gaps
+  // so a 2×2 still reads as one rectangle, with its single caption below the whole thing.
+  const colStep = cellW + gap;
+  const rowStep = cellH + gap + captionH;
+  const innerH = (cellH + captionH) * page.rows + gap * (page.rows - 1);
 
   const box = (row: number, col: number, rowSpan: number, colSpan: number): BoxStyle => ({
     position: 'absolute',
-    left: col * (cellW + gap),
-    top: row * (cellH + gap),
+    left: col * colStep,
+    top: row * rowStep,
     width: colSpan * cellW + (colSpan - 1) * gap,
-    height: rowSpan * cellH + (rowSpan - 1) * gap,
+    height: rowSpan * cellH + (rowSpan - 1) * (gap + captionH),
   });
 
   // Shared drag state: which slot is lifted, and its live translation. Only one drags at a time.
@@ -162,6 +176,7 @@ export function BinderGrid({
               cellW={cellW}
               cellH={cellH}
               gap={gap}
+              captionH={captionH}
               dragX={dragX}
               dragY={dragY}
               onSetDragId={setDragId}
@@ -171,6 +186,27 @@ export function BinderGrid({
             </DraggableSlot>
           );
         })}
+
+        {/* Metadata captions under each card — an independent layer so it doesn't disturb the
+            draggable slot wrappers. Only cards (slots with a cardId) get a caption. */}
+        {captionOn &&
+          page.slots.map((slot) => {
+            if (!slot.cardId) return null;
+            const b = box(slot.row, slot.col, slot.rowSpan, slot.colSpan);
+            return (
+              <SlotCaption
+                key={`cap-${slot.id}`}
+                cardId={slot.cardId}
+                catalog={catalog}
+                fields={captionFields}
+                left={b.left}
+                top={b.top + b.height}
+                width={b.width}
+                height={captionH}
+                small={small}
+              />
+            );
+          })}
 
         {/* Floating ghost of the slot being dragged (rendered above everything). */}
         {dragged ? (
@@ -193,6 +229,7 @@ export function BinderGrid({
             cellW={cellW}
             cellH={cellH}
             gap={gap}
+            captionH={captionH}
             rows={page.rows}
             cols={page.cols}
             radius={slotRadius}
@@ -208,6 +245,7 @@ export function BinderGrid({
             cellW={cellW}
             cellH={cellH}
             gap={gap}
+            captionH={captionH}
             innerW={innerW}
             onReplace={onReplaceSlot}
             onDuplicate={onDuplicateSlot}
@@ -231,6 +269,7 @@ function SlotToolbar({
   cellW,
   cellH,
   gap,
+  captionH,
   innerW,
   onReplace,
   onDuplicate,
@@ -241,6 +280,7 @@ function SlotToolbar({
   cellW: number;
   cellH: number;
   gap: number;
+  captionH: number;
   innerW: number;
   onReplace?: () => void;
   onDuplicate?: () => void;
@@ -249,7 +289,7 @@ function SlotToolbar({
 }) {
   const [size, setSize] = useState({ w: 0, h: 0 });
   const stepX = cellW + gap;
-  const stepY = cellH + gap;
+  const stepY = cellH + gap + captionH;
   const slotLeft = slot.col * stepX;
   const slotTop = slot.row * stepY;
   const slotW = slot.colSpan * cellW + (slot.colSpan - 1) * gap;
@@ -299,6 +339,7 @@ function ResizeOverlay({
   cellW,
   cellH,
   gap,
+  captionH,
   rows,
   cols,
   radius,
@@ -308,6 +349,7 @@ function ResizeOverlay({
   cellW: number;
   cellH: number;
   gap: number;
+  captionH: number;
   rows: number;
   cols: number;
   radius: number;
@@ -316,7 +358,7 @@ function ResizeOverlay({
   const tx = useSharedValue(0);
   const ty = useSharedValue(0);
   const stepX = cellW + gap;
-  const stepY = cellH + gap;
+  const stepY = cellH + gap + captionH;
   const maxCols = cols - slot.col;
   const maxRows = rows - slot.row;
 
@@ -331,7 +373,7 @@ function ResizeOverlay({
     const rs = spanFor(ty.value, stepY, slot.rowSpan, maxRows);
     return {
       width: cs * cellW + (cs - 1) * gap,
-      height: rs * cellH + (rs - 1) * gap,
+      height: rs * cellH + (rs - 1) * (gap + captionH),
     };
   });
 
@@ -383,6 +425,7 @@ interface DraggableSlotProps {
   cellW: number;
   cellH: number;
   gap: number;
+  captionH: number;
   dragX: SharedValue<number>;
   dragY: SharedValue<number>;
   onSetDragId: (id: string | null) => void;
@@ -400,6 +443,7 @@ function DraggableSlot({
   cellW,
   cellH,
   gap,
+  captionH,
   dragX,
   dragY,
   onSetDragId,
@@ -409,7 +453,7 @@ function DraggableSlot({
 }: DraggableSlotProps) {
   const gesture = useMemo(() => {
     const stepX = cellW + gap;
-    const stepY = cellH + gap;
+    const stepY = cellH + gap + captionH;
     const pan = Gesture.Pan()
       .activeOffsetX([-8, 8])
       .activeOffsetY([-8, 8])
@@ -436,7 +480,7 @@ function DraggableSlot({
       if (onTap) runOnJS(onTap)(slot);
     });
     return Gesture.Exclusive(pan, tap);
-  }, [slot, cellW, cellH, gap, dragX, dragY, onSetDragId, onTap, onDropSlot]);
+  }, [slot, cellW, cellH, gap, captionH, dragX, dragY, onSetDragId, onTap, onDropSlot]);
 
   return (
     <GestureDetector gesture={gesture}>
@@ -594,6 +638,45 @@ function SlotContent({
           <View style={[styles.foilBar, styles.foilBarB]} />
         </View>
         <KindBadge kind={kind} small={small} />
+      </View>
+    </View>
+  );
+}
+
+/**
+ * The metadata caption strip beneath a card: the enabled fields (in canonical order) joined by
+ * " * ", read straight from the catalog's `CatalogCard`. Rendered on a subtle scrim pill — like
+ * the size badge — so it stays legible over any page background. Renders nothing until the
+ * catalog resolves the card or when no enabled field has a value.
+ */
+function SlotCaption({
+  cardId,
+  catalog,
+  fields,
+  left,
+  top,
+  width,
+  height,
+  small,
+}: {
+  cardId: string;
+  catalog: Catalog | null;
+  fields: CaptionFieldKey[];
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  small: boolean;
+}) {
+  const card = resolveCatalogCardWith(catalog, cardId);
+  const text = card ? formatCaption(card, fields) : '';
+  if (!text) return null;
+  return (
+    <View pointerEvents="none" style={[styles.caption, { left, top, width, height }]}>
+      <View style={styles.captionPill}>
+        <Text numberOfLines={2} style={[styles.captionText, small && styles.captionTextSmall]}>
+          {text}
+        </Text>
       </View>
     </View>
   );
@@ -835,6 +918,31 @@ const styles = StyleSheet.create({
   missingText: {
     fontSize: FontSize.h2,
     color: Palette.onDark,
+  },
+  caption: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 3,
+    paddingHorizontal: 2,
+  },
+  captionPill: {
+    maxWidth: '100%',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: Radius.sm,
+    backgroundColor: Palette.scrim62,
+  },
+  captionText: {
+    color: Palette.white,
+    fontSize: FontSize.xs,
+    lineHeight: 13,
+    fontWeight: Weight.medium,
+    textAlign: 'center',
+  },
+  captionTextSmall: {
+    fontSize: FontSize.micro,
+    lineHeight: 11,
   },
   badge: {
     position: 'absolute',

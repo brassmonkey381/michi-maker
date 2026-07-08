@@ -13,7 +13,7 @@
  * helpers must keep their neutral fallback for that field.
  */
 import type { DemoCard } from '@/data/binderTypes';
-import { catalogCardToDemoCard, getLoadedCatalog, type Catalog } from '@/lib/catalog';
+import { catalogCardToDemoCard, getLoadedCatalog, type Catalog, type CatalogCard } from '@/lib/catalog';
 
 /**
  * Resolve a slot's card id to a `DemoCard`, or `undefined` if the catalog can't resolve it.
@@ -39,4 +39,19 @@ export function resolveCardWith(
   if (!catalog || !cardId) return undefined;
   const card = catalog.getCard(cardId);
   return card ? catalogCardToDemoCard(card) : undefined;
+}
+
+/**
+ * Reactive resolver to the *raw* `CatalogCard` (every metadata field), used by the caption
+ * feature. Unlike {@link resolveCardWith} — which adapts to the lossy `DemoCard` view-model —
+ * this returns the full catalog record so a caption can read rarity/series/illustrator/etc.
+ * directly, without widening `DemoCard`. Returns `undefined` while the catalog is still null
+ * or the id is unknown.
+ */
+export function resolveCatalogCardWith(
+  catalog: Catalog | null,
+  cardId: string | null | undefined,
+): CatalogCard | undefined {
+  if (!catalog || !cardId) return undefined;
+  return catalog.getCard(cardId);
 }

@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BinderGrid } from '@/components/binder/BinderGrid';
+import { CaptionControls } from '@/components/binder/CaptionControls';
 import { CardPicker } from '@/components/binder/CardPicker';
 import { ColorField } from '@/components/binder/ColorField';
 import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
@@ -25,6 +26,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Palette, Radius, Spacing, Weight, FontSize } from '@/constants/theme';
 import { pillChip } from '@/constants/ui';
 import { firstFreePlacement, occupiedCells, slotCells, type DemoSlot } from '@/data/binderTypes';
+import { DEFAULT_CAPTION_FIELDS, type CaptionFieldKey } from '@/data/cardCaption';
 import { isSupabaseConfigured } from '@/lib/env';
 import { binderValue, formatUsd, pageValue, usePriceSummary } from '@/lib/prices';
 import { footprintForKind } from '@/data/cardSizing';
@@ -59,6 +61,12 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   // "Keep adding" fast-fill: after placing a card the picker stays open and jumps to the next pocket.
   const [keepAdding, setKeepAdding] = useState(false);
+  // Card labels: master on/off plus the selected metadata fields (display order is fixed in
+  // cardCaption.ts, so the toggle order here doesn't matter). Captions show only when both on.
+  const [labelsOn, setLabelsOn] = useState(false);
+  const [labelFields, setLabelFields] = useState<CaptionFieldKey[]>(DEFAULT_CAPTION_FIELDS);
+  const toggleLabelField = (key: CaptionFieldKey) =>
+    setLabelFields((cur) => (cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key]));
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [toast, setToast] = useState<ToastSpec | null>(null);
@@ -353,6 +361,14 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               </View>
             </View>
 
+            {/* Card labels — show metadata under each card, and pick which fields. */}
+            <CaptionControls
+              enabled={labelsOn}
+              onToggle={() => setLabelsOn((v) => !v)}
+              fields={labelFields}
+              onToggleField={toggleLabelField}
+            />
+
             {/* Page title + description — just above the page */}
             {editing ? (
               <View style={styles.pageDetails}>
@@ -397,6 +413,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                 page={page}
                 width={pageWidth}
                 editable={editing}
+                captionFields={labelsOn ? labelFields : []}
                 selectedSlotId={selectedSlotId}
                 onCellPress={handleAddCell}
                 onSlotPress={handleSelectSlot}

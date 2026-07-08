@@ -15,11 +15,13 @@ import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View, u
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BinderGrid } from '@/components/binder/BinderGrid';
+import { CaptionControls } from '@/components/binder/CaptionControls';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, MaxContentWidth, Palette, Spacing } from '@/constants/theme';
 import { fetchBinder } from '@/data/binderRepo';
 import type { DemoBinder } from '@/data/binderTypes';
+import { DEFAULT_CAPTION_FIELDS, type CaptionFieldKey } from '@/data/cardCaption';
 import { isSupabaseConfigured } from '@/lib/env';
 
 type State = { status: 'loading' } | { status: 'ok'; binder: DemoBinder } | { status: 'missing' };
@@ -118,6 +120,12 @@ function Viewer({
   const page = binder.pages[pageIndex];
   const count = binder.pages.length;
 
+  // Card labels: master on/off + selected fields (display order fixed in cardCaption.ts).
+  const [labelsOn, setLabelsOn] = useState(false);
+  const [labelFields, setLabelFields] = useState<CaptionFieldKey[]>(DEFAULT_CAPTION_FIELDS);
+  const toggleLabelField = (key: CaptionFieldKey) =>
+    setLabelFields((cur) => (cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key]));
+
   return (
     <ScrollView contentContainerStyle={styles.scroll}>
       <ThemedText type="subtitle" style={styles.title}>
@@ -145,8 +153,20 @@ function Viewer({
         </ThemedText>
       ) : null}
 
+      <CaptionControls
+        enabled={labelsOn}
+        onToggle={() => setLabelsOn((v) => !v)}
+        fields={labelFields}
+        onToggleField={toggleLabelField}
+      />
+
       <View style={styles.pageWrap}>
-        <BinderGrid page={page} width={pageWidth} editable={false} />
+        <BinderGrid
+          page={page}
+          width={pageWidth}
+          editable={false}
+          captionFields={labelsOn ? labelFields : []}
+        />
       </View>
 
       <Link href="/" asChild>

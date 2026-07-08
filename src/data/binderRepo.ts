@@ -239,6 +239,19 @@ export async function deletePage(id: string): Promise<void> {
 
 export async function upsertSlot(pageId: string, slot: DemoSlot): Promise<void> {
   const supabase = requireSupabase();
+  // Clear any *other* slot sitting at this slot's top-left cell first — a stale row left by a
+  // racing/failed prior write. Otherwise inserting a new-id slot there hits the
+  // unique(page_id,row_index,col_index) constraint ("...binder_slots_page_id_row_index_col_index_key").
+  // Makes the write idempotent w.r.t. the cell and self-heals any local↔DB divergence.
+  const { error: clearErr } = await supabase
+    .from('binder_slots')
+    .delete()
+    .eq('page_id', pageId)
+    .eq('row_index', slot.row)
+    .eq('col_index', slot.col)
+    .neq('id', slot.id);
+  if (clearErr) throw new Error(`clear slot cell: ${clearErr.message}`);
+
   const { error } = await supabase
     .from('binder_slots')
     .upsert(slotRow(slot, pageId), { onConflict: 'id' });

@@ -476,13 +476,24 @@ function ArtworkImage({
       </View>
     );
   }
-  const imgStyle = crop
+  // A crop is only usable if every field is finite; a degenerate crop (w/h ≈ 0 from a bad
+  // slice) would make `100 / w` size the image to hundreds of thousands of px and freeze the
+  // page, so clamp the divisor to a sane minimum (max ~20× the pocket).
+  const validCrop =
+    crop &&
+    Number.isFinite(crop.w) &&
+    Number.isFinite(crop.h) &&
+    Number.isFinite(crop.x) &&
+    Number.isFinite(crop.y);
+  const cw = validCrop ? Math.min(1, Math.max(0.05, crop!.w)) : 1;
+  const ch = validCrop ? Math.min(1, Math.max(0.05, crop!.h)) : 1;
+  const imgStyle = validCrop
     ? {
         position: 'absolute' as const,
-        width: `${100 / crop.w}%` as DimensionValue,
-        height: `${100 / crop.h}%` as DimensionValue,
-        left: `${(-crop.x / crop.w) * 100}%` as DimensionValue,
-        top: `${(-crop.y / crop.h) * 100}%` as DimensionValue,
+        width: `${100 / cw}%` as DimensionValue,
+        height: `${100 / ch}%` as DimensionValue,
+        left: `${(-crop!.x / cw) * 100}%` as DimensionValue,
+        top: `${(-crop!.y / ch) * 100}%` as DimensionValue,
       }
     : styles.fill;
   return (

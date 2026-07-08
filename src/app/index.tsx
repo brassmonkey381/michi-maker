@@ -177,7 +177,7 @@ export default function BindersScreen() {
             <BinderCarousel binders={store.exampleBinders} onOpen={setOpenId} />
           </Section>
 
-          <HomeBrowse />
+          <HomeBrowse onOpenBinder={setOpenId} />
         </ScrollView>
       </SafeAreaView>
 

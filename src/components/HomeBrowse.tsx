@@ -2,23 +2,70 @@
  * A collapsible "Browse all cards" section for the home screen. Collapsed by default so the
  * home page never pays the ~25 MB catalog load or renders any card images on first paint —
  * `useCatalog(open)` only forces the load once the section is expanded. Mounts the shared
- * `CatalogBrowser` (series → set → card, search, facets) in a fixed-height panel so its inner
+ * `CardBrowse` (series → set → card, search, facets) in a fixed-height panel so its inner
  * FlatList gets a bounded, scrollable viewport inside the home ScrollView.
+ *
+ * On home there's no pocket to place into, so instead of a functionless "Place in pocket" the
+ * card tap offers **Add to a binder…** — a chooser that drops the card into an existing binder's
+ * first free pocket (or a brand-new binder).
  */
-import { useState } from 'react';
+import { type CardAction, type CardActionsFactory } from 'tcgscan-browse';
+import { useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
+import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
 import { CardBrowse } from '@/components/binder/CardBrowse';
+import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing } from '@/constants/theme';
 import { useCatalog } from '@/hooks/use-catalog';
+import { useBinders } from '@/store/binders';
 
-export function HomeBrowse() {
+export function HomeBrowse({ onOpenBinder }: { onOpenBinder?: (id: string) => void }) {
   const [open, setOpen] = useState(false);
   // Only subscribes-and-loads the catalog when expanded; collapsed is a no-op for page load.
   const { catalog, error } = useCatalog(open);
   const { height } = useWindowDimensions();
   const panelHeight = Math.max(460, Math.round(height * 0.7));
+
+  const store = useBinders();
+  const [addCardId, setAddCardId] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastSpec | null>(null);
+  const toastId = useRef(0);
+
+  const showAdded = (binderId: string, title: string) => {
+    toastId.current += 1;
+    setToast({
+      id: toastId.current,
+      message: `Added to ${title}`,
+      ...(onOpenBinder ? { actionLabel: 'Open', onAction: () => onOpenBinder(binderId) } : {}),
+    });
+  };
+
+  // Tap a card → offer "Add to a binder…" first, then the browser's own Find similar / View set.
+  const cardActions: CardActionsFactory = (_card, builtins) => {
+    const add: CardAction = {
+      key: 'add',
+      kind: 'primary',
+      label: 'Add to a binder…',
+      onPress: (c) => setAddCardId(c.id),
+    };
+    return [add, builtins.findSimilar, builtins.viewSet].filter(Boolean) as CardAction[];
+  };
+
+  const addToExisting = (binderId: string) => {
+    if (!addCardId) return;
+    const title = store.getBinder(binderId)?.title ?? 'binder';
+    store.addCardToBinder(binderId, addCardId);
+    setAddCardId(null);
+    showAdded(binderId, title);
+  };
+  const addToNew = () => {
+    if (!addCardId) return;
+    const binder = store.createBinderWithCard(addCardId);
+    setAddCardId(null);
+    showAdded(binder.id, binder.title);
+  };
 
   return (
     <View style={styles.section}>
@@ -38,9 +85,7 @@ export function HomeBrowse() {
       {open ? (
         <View style={[styles.panel, { height: panelHeight }]}>
           {catalog ? (
-            // On home, browsing is exploration — placing a card needs a binder, so onPickCard is
-            // omitted (a no-op). Find similar / View set in the card menu still work.
-            <CardBrowse catalog={catalog} />
+            <CardBrowse catalog={catalog} cardActions={cardActions} />
           ) : (
             <View style={styles.center}>
               {error ? (
@@ -54,6 +99,16 @@ export function HomeBrowse() {
           )}
         </View>
       ) : null}
+
+      {addCardId ? (
+        <AddToBinderSheet
+          binders={store.userBinders}
+          onPick={addToExisting}
+          onNew={addToNew}
+          onClose={() => setAddCardId(null)}
+        />
+      ) : null}
+      <Toast spec={toast} onDismiss={() => setToast(null)} />
     </View>
   );
 }

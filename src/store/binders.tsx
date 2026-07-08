@@ -30,6 +30,7 @@ import {
   canPlaceSlot,
   cloneBinder,
   emptyPage,
+  firstFreePlacement,
   slotCells,
   uuidv4,
   type DemoBinder,
@@ -73,6 +74,8 @@ interface BinderStore {
   loading: boolean;
   getBinder: (id: string) => DemoBinder | undefined;
   createBinder: (init?: Partial<DemoBinder>) => DemoBinder;
+  /** Create a fresh binder seeded with one card in its first pocket (atomic). */
+  createBinderWithCard: (cardId: string) => DemoBinder;
   duplicateBinder: (id: string) => DemoBinder | undefined;
   updateBinder: (id: string, patch: Partial<DemoBinder>) => void;
   deleteBinder: (id: string) => void;
@@ -81,6 +84,12 @@ interface BinderStore {
   removePage: (binderId: string, pageId: string) => void;
   reorderPages: (binderId: string, fromIndex: number, toIndex: number) => void;
   upsertSlot: (binderId: string, pageId: string, slot: SlotInput) => void;
+  /**
+   * Drop a card into a binder's first free 1×1 pocket (scanning pages in order; appends a new
+   * page if every page is full). Atomic — one history entry. Returns the page index it landed on,
+   * or null if the binder can't be found.
+   */
+  addCardToBinder: (binderId: string, cardId: string) => { pageIndex: number } | null;
   placeVUnion: (binderId: string, pageId: string, row: number, col: number, pieces: readonly string[]) => void;
   placeSlicedArtwork: (
     binderId: string,
@@ -209,6 +218,15 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       return binder;
     },
     [commit, persist],
+  );
+
+  const createBinderWithCard = useCallback(
+    (cardId: string) => {
+      const slot: DemoSlot = { id: uuidv4(), row: 0, col: 0, rowSpan: 1, colSpan: 1, type: 'card', cardId };
+      const page: DemoPage = { ...emptyPage(3, 3), slots: [slot] };
+      return createBinder({ title: 'New binder', pages: [page] });
+    },
+    [createBinder],
   );
 
   const duplicateBinder = useCallback(
@@ -386,6 +404,61 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         for (const removedId of removedSlotIds) persist(() => repo.deleteSlot(removedId));
         persist(() => repo.upsertSlot(pageId, slot));
       }
+    },
+    [binders, commit, persist],
+  );
+
+  const addCardToBinder = useCallback(
+    (binderId: string, cardId: string) => {
+      const target = binders.find((b) => b.id === binderId);
+      if (!target) return null;
+
+      // First page (in order) with a free single pocket.
+      let pageIndex = -1;
+      let cell: { row: number; col: number } | null = null;
+      for (let i = 0; i < target.pages.length; i += 1) {
+        const spot = firstFreePlacement(target.pages[i], 1, 1);
+        if (spot) {
+          pageIndex = i;
+          cell = spot;
+          break;
+        }
+      }
+
+      const makeSlot = (row: number, col: number): DemoSlot => ({
+        id: uuidv4(),
+        row,
+        col,
+        rowSpan: 1,
+        colSpan: 1,
+        type: 'card',
+        cardId,
+      });
+
+      let pages: DemoPage[];
+      let landedPage: DemoPage;
+      let newSlot: DemoSlot;
+      let appendedPage = false;
+
+      if (pageIndex >= 0 && cell) {
+        newSlot = makeSlot(cell.row, cell.col);
+        pages = target.pages.map((p, i) => (i === pageIndex ? { ...p, slots: [...p.slots, newSlot] } : p));
+        landedPage = pages[pageIndex];
+      } else {
+        // Every page is full → append a fresh page and place at its top-left.
+        appendedPage = true;
+        pageIndex = target.pages.length;
+        newSlot = makeSlot(0, 0);
+        landedPage = { ...emptyPage(3, 3, `Page ${target.pages.length + 1}`), slots: [newSlot] };
+        pages = [...target.pages, landedPage];
+      }
+
+      commit((prev) => prev.map((b) => (b.id === binderId ? { ...b, pages } : b)));
+      if (!target.isExample) {
+        if (appendedPage) persist(() => repo.insertPage(binderId, landedPage, pageIndex));
+        persist(() => repo.upsertSlot(landedPage.id, newSlot));
+      }
+      return { pageIndex };
     },
     [binders, commit, persist],
   );
@@ -686,6 +759,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       loading,
       getBinder,
       createBinder,
+      createBinderWithCard,
       duplicateBinder,
       updateBinder,
       deleteBinder,
@@ -694,6 +768,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       removePage,
       reorderPages,
       upsertSlot,
+      addCardToBinder,
       placeVUnion,
       placeSlicedArtwork,
       placeArtPanels,
@@ -710,6 +785,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       loading,
       getBinder,
       createBinder,
+      createBinderWithCard,
       duplicateBinder,
       updateBinder,
       deleteBinder,
@@ -718,6 +794,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       removePage,
       reorderPages,
       upsertSlot,
+      addCardToBinder,
       placeVUnion,
       placeSlicedArtwork,
       placeArtPanels,

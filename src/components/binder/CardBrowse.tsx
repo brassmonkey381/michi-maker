@@ -10,7 +10,7 @@
  * for the selected highlight). To reset browse state (e.g. per pocket) pass a React `key` on the
  * element — it remounts this wrapper and the browser inside it.
  */
-import { CatalogBrowser } from 'tcgscan-browse';
+import { CatalogBrowser, type CardActionsFactory } from 'tcgscan-browse';
 
 import type { Catalog } from '@/lib/catalog';
 
@@ -23,16 +23,21 @@ export function CardBrowse({
   catalog,
   onPickCard,
   selectedCardId,
+  cardActions,
 }: {
   catalog: Catalog;
   onPickCard?: (cardId: string) => void;
   selectedCardId?: string;
+  /** Per-card tap actions. When set, replaces the default "Place in pocket" sheet — home uses
+   *  this to offer "Add to a binder…" instead of a functionless place. */
+  cardActions?: CardActionsFactory;
 }) {
   return (
     <CatalogBrowser
       catalog={catalog}
       selectedCardId={selectedCardId}
       onPickCard={onPickCard ?? (() => {})}
+      cardActions={cardActions}
       footer={null}
       cardTileWidth={CARD_BROWSE_TILE_WIDTH}
       taxTileHeight={CARD_BROWSE_TAX_TILE_HEIGHT}

@@ -45,6 +45,9 @@
  * ─────────────────────────────────────────────────────────────────────────────────────────────
  */
 
+/** Which reference table a rarity belongs to (used to section the in-app explainer). */
+export type RarityGroup = 'main' | 'secret' | 'special';
+
 /** One reference-table row: the full English↔Japanese correspondence for a rarity. */
 export interface RarityEntry {
   /** Catalog `rarity` string this row matches, lowercased. '' ⇒ documentation-only alias. */
@@ -55,33 +58,35 @@ export interface RarityEntry {
   symbol: string;
   /** Concise Japanese rarity code — what we display. */
   jp: string;
+  /** Reference-table grouping: main set / secret & alt-art / specialized & historical. */
+  group: RarityGroup;
 }
 
 /** The full mapping table (source of truth; the lookup map below is derived from it). */
 export const RARITY_TABLE: readonly RarityEntry[] = [
   // main set
-  { catalog: 'common', tier: 'Common', symbol: '●', jp: 'C' },
-  { catalog: 'uncommon', tier: 'Uncommon', symbol: '◆', jp: 'U' },
-  { catalog: 'rare', tier: 'Rare', symbol: '★', jp: 'R' },
-  { catalog: 'holo rare', tier: 'Rare (Holo)', symbol: '★', jp: 'R' },
-  { catalog: 'double rare', tier: 'Double Rare', symbol: '★★', jp: 'RR' },
-  { catalog: 'triple rare', tier: 'Triple Rare', symbol: '★★★', jp: 'RRR' },
-  { catalog: 'ace spec rare', tier: 'ACE SPEC', symbol: 'ACE SPEC', jp: 'ACE' },
-  { catalog: 'rare ace', tier: 'ACE SPEC', symbol: 'ACE SPEC', jp: 'ACE' },
+  { catalog: 'common', tier: 'Common', symbol: '●', jp: 'C', group: 'main' },
+  { catalog: 'uncommon', tier: 'Uncommon', symbol: '◆', jp: 'U', group: 'main' },
+  { catalog: 'rare', tier: 'Rare', symbol: '★', jp: 'R', group: 'main' },
+  { catalog: 'holo rare', tier: 'Rare (Holo)', symbol: '★', jp: 'R', group: 'main' },
+  { catalog: 'double rare', tier: 'Double Rare', symbol: '★★', jp: 'RR', group: 'main' },
+  { catalog: 'triple rare', tier: 'Triple Rare', symbol: '★★★', jp: 'RRR', group: 'main' },
+  { catalog: 'ace spec rare', tier: 'ACE SPEC', symbol: 'ACE SPEC', jp: 'ACE', group: 'main' },
+  { catalog: 'rare ace', tier: 'ACE SPEC', symbol: 'ACE SPEC', jp: 'ACE', group: 'main' },
   // secret / alternate art
-  { catalog: 'illustration rare', tier: 'Illustration Rare', symbol: '★ (gold)', jp: 'AR' },
-  { catalog: 'ultra rare', tier: 'Ultra Rare', symbol: '★★ (white)', jp: 'SR' },
-  { catalog: 'special illustration rare', tier: 'Special Illustration Rare', symbol: '★★ (gold)', jp: 'SAR' },
-  { catalog: 'hyper rare', tier: 'Hyper Rare', symbol: '★★★ (gold)', jp: 'UR' },
+  { catalog: 'illustration rare', tier: 'Illustration Rare', symbol: '★ (gold)', jp: 'AR', group: 'secret' },
+  { catalog: 'ultra rare', tier: 'Ultra Rare', symbol: '★★ (white)', jp: 'SR', group: 'secret' },
+  { catalog: 'special illustration rare', tier: 'Special Illustration Rare', symbol: '★★ (gold)', jp: 'SAR', group: 'secret' },
+  { catalog: 'hyper rare', tier: 'Hyper Rare', symbol: '★★★ (gold)', jp: 'UR', group: 'secret' },
   // specialized / historical
-  { catalog: 'shiny rare', tier: 'Shiny Rare', symbol: '★ (silver)', jp: 'S' },
-  { catalog: 'shiny holo rare', tier: 'Shiny Rare', symbol: '★ (silver)', jp: 'S' },
-  { catalog: 'shiny ultra rare', tier: 'Shiny Ultra Rare', symbol: '★★ (silver)', jp: 'SSR' },
-  { catalog: 'rainbow rare', tier: 'Rainbow Rare', symbol: 'rainbow ★', jp: 'HR' },
-  { catalog: 'amazing rare', tier: 'Amazing Rare', symbol: '"A" block', jp: 'A' },
-  { catalog: 'radiant rare', tier: 'Radiant Rare', symbol: '—', jp: 'K' },
-  { catalog: 'prism rare', tier: 'Prism Rare', symbol: '◇', jp: 'PR' },
-  { catalog: 'promo', tier: 'Promo', symbol: '★ + PROMO', jp: 'PROMO' },
+  { catalog: 'shiny rare', tier: 'Shiny Rare', symbol: '★ (silver)', jp: 'S', group: 'special' },
+  { catalog: 'shiny holo rare', tier: 'Shiny Rare', symbol: '★ (silver)', jp: 'S', group: 'special' },
+  { catalog: 'shiny ultra rare', tier: 'Shiny Ultra Rare', symbol: '★★ (silver)', jp: 'SSR', group: 'special' },
+  { catalog: 'rainbow rare', tier: 'Rainbow Rare', symbol: 'rainbow ★', jp: 'HR', group: 'special' },
+  { catalog: 'amazing rare', tier: 'Amazing Rare', symbol: '"A" block', jp: 'A', group: 'special' },
+  { catalog: 'radiant rare', tier: 'Radiant Rare', symbol: '—', jp: 'K', group: 'special' },
+  { catalog: 'prism rare', tier: 'Prism Rare', symbol: '◇', jp: 'PR', group: 'special' },
+  { catalog: 'promo', tier: 'Promo', symbol: '★ + PROMO', jp: 'PROMO', group: 'special' },
 ];
 
 /** Lookup derived from {@link RARITY_TABLE}: lowercased catalog string → Japanese code. */

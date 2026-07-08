@@ -18,7 +18,7 @@ import { BinderGrid } from '@/components/binder/BinderGrid';
 import { CaptionControls } from '@/components/binder/CaptionControls';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { FontSize, MaxContentWidth, Palette, Spacing } from '@/constants/theme';
+import { BinderPageMaxWidth, FontSize, MaxContentWidth, Palette, Spacing } from '@/constants/theme';
 import { fetchBinder } from '@/data/binderRepo';
 import type { DemoBinder } from '@/data/binderTypes';
 import { DEFAULT_CAPTION_FIELDS, type CaptionFieldKey } from '@/data/cardCaption';
@@ -29,7 +29,7 @@ type State = { status: 'loading' } | { status: 'ok'; binder: DemoBinder } | { st
 export default function PublicBinderScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { width } = useWindowDimensions();
-  const pageWidth = Math.min(width - 32, 460);
+  const pageWidth = Math.min(width - 32, BinderPageMaxWidth);
   const [state, setState] = useState<State>({ status: 'loading' });
   const [pageIndex, setPageIndex] = useState(0);
 

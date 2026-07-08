@@ -30,7 +30,9 @@ export default function BindersScreen() {
   useImageManifest();
 
   const contentWidth = Math.min(width, MaxContentWidth) - Spacing.four * 2;
-  const columns = contentWidth > 520 ? 3 : 2;
+  // Fewer, larger binder tiles: 2-up on tablet/desktop (bigger covers + cards), 1-up only on
+  // very narrow phones. (Was 3-up > 520, which made the covers small on the web layout.)
+  const columns = contentWidth < 340 ? 1 : 2;
   const gap = Spacing.three;
   const tileWidth = (contentWidth - gap * (columns - 1)) / columns;
 

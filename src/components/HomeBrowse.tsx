@@ -40,7 +40,13 @@ export function HomeBrowse() {
           {catalog ? (
             // On home, browsing is exploration — placing a card needs a binder, so onPickCard
             // is a no-op for now (Find similar / View set in the card menu still work).
-            <CatalogBrowser catalog={catalog} onPickCard={() => {}} footer={null} />
+            <CatalogBrowser
+              catalog={catalog}
+              onPickCard={() => {}}
+              footer={null}
+              cardTileWidth={140}
+              taxTileHeight={180}
+            />
           ) : (
             <View style={styles.center}>
               {error ? (

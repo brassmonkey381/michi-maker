@@ -23,7 +23,7 @@ import { SliceStudio } from '@/components/binder/SliceStudio';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Palette, Radius, Spacing, Weight, FontSize } from '@/constants/theme';
+import { BinderPageMaxWidth, Palette, Radius, Spacing, Weight, FontSize } from '@/constants/theme';
 import { pillChip } from '@/constants/ui';
 import { firstFreePlacement, occupiedCells, slotCells, type DemoSlot } from '@/data/binderTypes';
 import { DEFAULT_CAPTION_FIELDS, type CaptionFieldKey } from '@/data/cardCaption';
@@ -93,7 +93,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
 
   const idx = Math.min(pageIndex, binder.pages.length - 1);
   const page = binder.pages[idx];
-  const pageWidth = Math.min(width - 32, 460);
+  const pageWidth = Math.min(width - 32, BinderPageMaxWidth);
   // Running totals — decoration only: '' until the summary loads or when no card has a price.
   const pageTotal = priceSummary ? formatUsd(pageValue(page, priceSummary)) : '';
   const binderTotal = priceSummary ? formatUsd(binderValue(binder, priceSummary)) : '';

@@ -55,6 +55,9 @@ export const Spacing = {
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
+/** Max on-screen width of a rendered binder page (the grid + its cards scale to this). The
+ *  viewer caps at this on wide screens; narrow screens fall back to the available width. */
+export const BinderPageMaxWidth = 560;
 
 /**
  * Corner radii used across the binder surface. The grid scales these down for

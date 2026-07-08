@@ -8,7 +8,7 @@
  */
 import '@/lib/catalogConfig';
 
-import { resolveImageUrl, type CatalogCard } from 'tcgscan-browse';
+import { cardThumbUrl, type CatalogCard } from 'tcgscan-browse';
 
 import type { DemoCard } from '@/data/binderTypes';
 
@@ -34,16 +34,17 @@ export {
 
 /**
  * Adapt a CatalogCard into the binder editor's `DemoCard` view-model. The image
- * path routes through the shared config seam (`resolveImageUrl`) so origin
- * swaps stay centralized; the derived footprint (`kind`) carries through so
- * jumbo/V-UNION pieces render at the right size in the editor.
+ * resolves by id via the shared image manifest (`cardThumbUrl`, 640px binder
+ * tier) — the catalog no longer carries per-card image URLs; the derived
+ * footprint (`kind`) carries through so jumbo/V-UNION pieces render at the right
+ * size in the editor.
  */
 export function catalogCardToDemoCard(c: CatalogCard): DemoCard {
   return {
     id: c.id,
     name: c.name,
     setName: c.setName,
-    imageUrl: resolveImageUrl(c.image),
+    imageUrl: cardThumbUrl(c.id, 640),
     orientation: 'portrait',
     kind: c.kind,
     // pokemon / illustrator / dominantColor: not carried into the editor view-model.

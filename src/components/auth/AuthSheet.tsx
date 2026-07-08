@@ -45,7 +45,7 @@ export function AuthSheet({ visible, onClose }: { visible: boolean; onClose: () 
               {auth.isSignedIn ? (
                 <ProfileView onClose={onClose} />
               ) : (
-                <AuthForm onClose={onClose} upgrade={auth.isGuest} />
+                <AuthForm onClose={onClose} isGuest={auth.isGuest} />
               )}
             </ThemedView>
           </Pressable>
@@ -61,7 +61,7 @@ export function AuthSheet({ visible, onClose }: { visible: boolean; onClose: () 
 
 type Method = 'password' | 'code';
 
-function AuthForm({ onClose, upgrade }: { onClose: () => void; upgrade: boolean }) {
+function AuthForm({ onClose, isGuest }: { onClose: () => void; isGuest: boolean }) {
   const auth = useAuth();
   const theme = useTheme();
 
@@ -76,9 +76,10 @@ function AuthForm({ onClose, upgrade }: { onClose: () => void; upgrade: boolean 
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
-  // A guest upgrade must preserve the user id, so email codes (which switch users) aren't
-  // offered there — only password + OAuth linking, which keep binders.
-  const allowCode = !upgrade;
+  // Creating an account *as a guest* links to the current id to keep binders, and email codes
+  // switch users (losing them) — so hide the code method only in that one case. Signing in
+  // (existing account) always allows the code method.
+  const allowCode = !(isCreate && isGuest);
 
   const run = async (fn: () => Promise<{ error: string | null; needsEmailConfirmation?: boolean }>) => {
     setBusy(true);
@@ -105,9 +106,12 @@ function AuthForm({ onClose, upgrade }: { onClose: () => void; upgrade: boolean 
       setError('Enter your email and a password.');
       return;
     }
-    if (upgrade) return run(() => auth.linkEmailPassword(email, password));
-    if (isCreate) return run(() => auth.signUpWithPassword(email, password, displayName || undefined));
-    return run(() => auth.signInWithPassword(email, password));
+    if (isCreate) {
+      // Guests link (keep binders); a signed-out user makes a fresh account.
+      if (isGuest) return run(() => auth.linkEmailPassword(email, password));
+      return run(() => auth.signUpWithPassword(email, password, displayName || undefined));
+    }
+    return run(() => auth.signInWithPassword(email, password)); // sign in to an existing account
   };
 
   const submitCode = () => {
@@ -130,7 +134,7 @@ function AuthForm({ onClose, upgrade }: { onClose: () => void; upgrade: boolean 
   };
 
   const oauth = (provider: OAuthProvider) =>
-    run(() => (upgrade ? auth.linkOAuth(provider) : auth.signInWithOAuth(provider)));
+    run(() => (isCreate && isGuest ? auth.linkOAuth(provider) : auth.signInWithOAuth(provider)));
 
   const inputStyle = [styles.input, { color: theme.text, borderColor: theme.backgroundSelected }];
   const placeholder = theme.textSecondary;
@@ -139,7 +143,7 @@ function AuthForm({ onClose, upgrade }: { onClose: () => void; upgrade: boolean 
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.form}>
       <View style={styles.headerRow}>
         <ThemedText type="subtitle" style={styles.heading}>
-          {upgrade ? 'Save your binders' : isCreate ? 'Create account' : 'Welcome back'}
+          {isCreate ? 'Create account' : 'Welcome back'}
         </ThemedText>
         <Pressable onPress={onClose} hitSlop={12} accessibilityLabel="Close">
           <ThemedText type="small" themeColor="textSecondary">
@@ -148,8 +152,10 @@ function AuthForm({ onClose, upgrade }: { onClose: () => void; upgrade: boolean 
         </Pressable>
       </View>
       <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-        {upgrade
-          ? 'Add a way to sign back in — your current binders come with you.'
+        {isCreate
+          ? isGuest
+            ? 'The binders you’ve made come with you.'
+            : 'Create an account to sync your binders across devices.'
           : 'Sign in to sync your michi binders across devices.'}
       </ThemedText>
 
@@ -190,11 +196,11 @@ function AuthForm({ onClose, upgrade }: { onClose: () => void; upgrade: boolean 
             placeholder="Password"
             placeholderTextColor={placeholder}
             secureTextEntry
-            autoComplete={isCreate || upgrade ? 'new-password' : 'current-password'}
+            autoComplete={isCreate ? 'new-password' : 'current-password'}
             value={password}
             onChangeText={setPassword}
           />
-          {(isCreate || upgrade) && (
+          {isCreate && (
             <TextInput
               style={inputStyle}
               placeholder="Display name (optional)"
@@ -204,20 +210,18 @@ function AuthForm({ onClose, upgrade }: { onClose: () => void; upgrade: boolean 
             />
           )}
           <PrimaryButton
-            label={upgrade ? 'Create account' : isCreate ? 'Create account' : 'Sign in'}
+            label={isCreate ? 'Create account' : 'Sign in'}
             busy={busy}
             onPress={submitPassword}
           />
-          {!upgrade && (
-            <Pressable onPress={() => setIsCreate((v) => !v)} style={styles.switchRow}>
-              <ThemedText type="small" themeColor="textSecondary">
-                {isCreate ? 'Already have an account? ' : "New here? "}
-                <ThemedText type="smallBold" style={{ color: Palette.accent }}>
-                  {isCreate ? 'Sign in' : 'Create one'}
-                </ThemedText>
+          <Pressable onPress={() => setIsCreate((v) => !v)} style={styles.switchRow}>
+            <ThemedText type="small" themeColor="textSecondary">
+              {isCreate ? 'Already have an account? ' : 'New here? '}
+              <ThemedText type="smallBold" style={{ color: Palette.accent }}>
+                {isCreate ? 'Sign in' : 'Create one'}
               </ThemedText>
-            </Pressable>
-          )}
+            </ThemedText>
+          </Pressable>
         </>
       ) : (
         <>
@@ -270,6 +274,26 @@ function AuthForm({ onClose, upgrade }: { onClose: () => void; upgrade: boolean 
 
       <OAuthButton label="Continue with Google" onPress={() => oauth('google')} disabled={busy} />
       <OAuthButton label="Continue with Apple" onPress={() => oauth('apple')} disabled={busy} />
+
+      {/* When there's no session at all (signed out), let the user keep building without an
+          account. Guests are already in a session, so they don't need this. */}
+      {!isGuest && (
+        <Pressable
+          onPress={() =>
+            run(async () => {
+              const r = await auth.continueAsGuest();
+              return r;
+            })
+          }
+          style={styles.switchRow}>
+          <ThemedText type="small" themeColor="textSecondary">
+            Just exploring?{' '}
+            <ThemedText type="smallBold" style={{ color: Palette.accent }}>
+              Continue as a guest
+            </ThemedText>
+          </ThemedText>
+        </Pressable>
+      )}
 
       {error && (
         <ThemedText type="small" style={styles.error}>

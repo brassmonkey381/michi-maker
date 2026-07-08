@@ -16,6 +16,7 @@
  * `ready` immediately true) so the app runs in local mode exactly as before.
  */
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session, User } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
@@ -56,6 +57,11 @@ const NOT_CONFIGURED: AuthResult = {
   error: 'Cloud features are not configured (no Supabase credentials).',
 };
 
+// Remembers that the user *explicitly* signed out, so the bootstrap doesn't silently drop them
+// back into an anonymous guest session on the next load (that's what made sign-out feel like a
+// trap). Cleared whenever a session is (re-)established — a real sign-in or "continue as guest".
+const OPTED_OUT_KEY = 'michi.auth.signedOut';
+
 interface AuthStore {
   /** True once the initial session check (and guest bootstrap) has settled. */
   ready: boolean;
@@ -78,6 +84,8 @@ interface AuthStore {
   linkEmailPassword: (email: string, password: string) => Promise<AuthResult>;
   /** Upgrade the current guest by linking a Google/Apple identity (keeps binders). */
   linkOAuth: (provider: OAuthProvider) => Promise<AuthResult>;
+  /** Start (or restart) an anonymous guest session on demand — used after an explicit sign-out. */
+  continueAsGuest: () => Promise<AuthResult>;
   updateProfile: (patch: Partial<Pick<Profile, 'username' | 'display_name' | 'avatar_url'>>) => Promise<AuthResult>;
   signOut: () => Promise<void>;
 }
@@ -121,6 +129,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const sub = supabase.auth.onAuthStateChange((_event, next) => {
       if (!active) return;
       setSession(next);
+      // In a session (signed in, or continued as guest) → clear the explicit-sign-out flag and
+      // any "anonymous unavailable" state.
+      if (next) {
+        setAnonymousUnavailable(false);
+        void AsyncStorage.removeItem(OPTED_OUT_KEY);
+      }
       void loadProfile(next?.user?.id ?? null);
     });
 
@@ -129,16 +143,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data } = await supabase.auth.getSession();
         if (!active) return;
         if (!data.session) {
-          // No session yet — become a guest so binders can save right away.
-          const { error } = await supabase.auth.signInAnonymously();
-          if (error && active) {
-            // Anonymous sign-ins are likely disabled in the dashboard. Stay signed-out;
-            // the app still runs and the user can sign in for real.
-            setAnonymousUnavailable(true);
-            console.warn(
-              `[poke-michi] anonymous guest sign-in unavailable (${error.message}). ` +
-                'Enable "Anonymous sign-ins" in Supabase Auth settings, or have users sign in.',
-            );
+          // No session. A brand-new visitor becomes a guest so binders save right away — but if
+          // they *chose* to sign out, we leave them signed out (the home banner offers Sign in /
+          // Continue as guest) instead of forcing them back into anonymous.
+          const optedOut = (await AsyncStorage.getItem(OPTED_OUT_KEY)) === '1';
+          if (!optedOut && active) {
+            const { error } = await supabase.auth.signInAnonymously();
+            if (error && active) {
+              // Anonymous sign-ins are likely disabled in the dashboard. Stay signed-out; the
+              // app still runs and the user can sign in for real.
+              setAnonymousUnavailable(true);
+              console.warn(
+                `[poke-michi] anonymous guest sign-in unavailable (${error.message}). ` +
+                  'Enable "Anonymous sign-ins" in Supabase Auth settings, or have users sign in.',
+              );
+            }
           }
         }
       } catch (error) {
@@ -297,17 +316,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [user],
   );
 
+  const continueAsGuest = useCallback(async (): Promise<AuthResult> => {
+    if (!supabase) return NOT_CONFIGURED;
+    await AsyncStorage.removeItem(OPTED_OUT_KEY);
+    const { error } = await supabase.auth.signInAnonymously();
+    if (error) {
+      setAnonymousUnavailable(true);
+      return { error: msg(error) };
+    }
+    return OK; // onAuthStateChange adopts the new guest session
+  }, []);
+
   const signOut = useCallback(async () => {
     if (!supabase) return;
+    // Remember the explicit sign-out so bootstrap doesn't re-mint a guest on reload — the user
+    // lands signed-out (with the Sign in / Continue-as-guest banner), not trapped as anonymous.
+    await AsyncStorage.setItem(OPTED_OUT_KEY, '1');
     await supabase.auth.signOut();
-    // onAuthStateChange clears the session; a fresh guest is minted on next launch/bootstrap.
-    // Re-bootstrap a guest now so the app stays usable without a reload.
-    bootstrapped.current = false;
+    // onAuthStateChange clears the session; no automatic anonymous re-sign-in.
     setSession(null);
     setProfile(null);
-    const { error } = await supabase.auth.signInAnonymously();
-    if (error) setAnonymousUnavailable(true);
-    bootstrapped.current = true;
   }, []);
 
   const isGuest = !!user?.is_anonymous;
@@ -329,6 +357,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signInWithOAuth,
       linkEmailPassword,
       linkOAuth,
+      continueAsGuest,
       updateProfile,
       signOut,
     }),
@@ -347,6 +376,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signInWithOAuth,
       linkEmailPassword,
       linkOAuth,
+      continueAsGuest,
       updateProfile,
       signOut,
     ],

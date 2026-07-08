@@ -1,20 +1,19 @@
 /**
- * Public, read-only binder viewer — the target of a shared link (`/binder/[id]`).
+ * Binder route (`/binder/[id]`) — the single addressable surface for a binder.
  *
- * Fetches the binder by id straight from Supabase. RLS returns it to the owner, or to
- * ANYONE (including a signed-out visitor) when it's flagged public — so a shared link
- * opens without an account. Private / missing binders show a friendly not-available state.
- *
- * This is the app's only addressable route beyond home; the owner's editing flow stays a
- * modal on `/`. Card images resolve from their ids (no catalog needed), so a shared page
- * paints without the ~25 MB catalog.
+ * Resolves the binder locally first (your own binders + the bundled examples, held in the store):
+ *  - your binder → the full editor (`BinderScreen`)
+ *  - an example  → the editor in read-only / Duplicate mode
+ * Falling back to Supabase for a shared link to someone ELSE's public binder → a read-only viewer.
+ * Card images resolve from ids (no catalog needed), so a shared page paints without the catalog.
  */
-import { Link, useLocalSearchParams } from 'expo-router';
+import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BinderGrid } from '@/components/binder/BinderGrid';
+import { BinderScreen } from '@/components/binder/BinderScreen';
 import { CaptionControls } from '@/components/binder/CaptionControls';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -23,11 +22,44 @@ import { fetchBinder } from '@/data/binderRepo';
 import type { DemoBinder } from '@/data/binderTypes';
 import { DEFAULT_CAPTION_FIELDS, type CaptionFieldKey } from '@/data/cardCaption';
 import { isSupabaseConfigured } from '@/lib/env';
+import { useBinders } from '@/store/binders';
+
+export default function BinderRoute() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const store = useBinders();
+  const goHome = () => (router.canGoBack() ? router.back() : router.replace('/'));
+
+  const local = id ? store.getBinder(id) : undefined;
+  if (local) {
+    // Your binder → editable; an example → read-only + Duplicate (BinderScreen handles both).
+    return (
+      <BinderScreen
+        binderId={local.id}
+        onClose={goHome}
+        onOpenBinder={(bid) => router.replace(`/binder/${bid}`)}
+      />
+    );
+  }
+
+  // Not in the store: either the owner's binders are still loading, or it's a shared link to
+  // someone else's public binder — fetch it read-only.
+  if (store.loading) {
+    return (
+      <ThemedView style={styles.container}>
+        <SafeAreaView style={[styles.flex, styles.center]} edges={['top']}>
+          <ActivityIndicator />
+        </SafeAreaView>
+      </ThemedView>
+    );
+  }
+  return <PublicViewer id={id} />;
+}
 
 type State = { status: 'loading' } | { status: 'ok'; binder: DemoBinder } | { status: 'missing' };
 
-export default function PublicBinderScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+/** Read-only viewer for a shared link (a public binder that isn't in your local store). */
+function PublicViewer({ id }: { id?: string }) {
   const { width } = useWindowDimensions();
   const pageWidth = Math.min(width - 32, BinderPageMaxWidth);
   const [state, setState] = useState<State>({ status: 'loading' });

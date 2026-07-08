@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { useRef, useState, type ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -5,7 +6,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AccountButton } from '@/components/auth/AccountButton';
 import { BinderActionsMenu } from '@/components/binder/BinderActionsMenu';
 import { BinderCarousel } from '@/components/binder/BinderCarousel';
-import { BinderScreen } from '@/components/binder/BinderScreen';
 import { BinderThumb } from '@/components/binder/BinderThumb';
 import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
 import { ShareSheet } from '@/components/binder/ShareSheet';
@@ -21,8 +21,9 @@ import { useBinders } from '@/store/binders';
 
 export default function BindersScreen() {
   const store = useBinders();
+  const router = useRouter();
+  const openBinder = (id: string) => router.push(`/binder/${id}`);
   const { width } = useWindowDimensions();
-  const [openId, setOpenId] = useState<string | null>(null);
   // Filter Your Binders by title once the library grows — so finding one doesn't mean scrolling.
   const [binderQuery, setBinderQuery] = useState('');
   // Per-binder ⋯ management (rename / duplicate / share / delete) without opening the editor.
@@ -58,7 +59,7 @@ export default function BindersScreen() {
 
   const handleNew = () => {
     const binder = store.createBinder({ title: 'New binder' });
-    setOpenId(binder.id);
+    openBinder(binder.id);
   };
 
   // Show the filter once there are enough binders that scanning gets tedious.
@@ -163,7 +164,7 @@ export default function BindersScreen() {
                         key={binder.id}
                         binder={binder}
                         width={tileWidth}
-                        onPress={() => setOpenId(binder.id)}
+                        onPress={() => openBinder(binder.id)}
                         accessory={<MenuButton onPress={() => setMenuId(binder.id)} />}
                       />
                     ))}
@@ -174,16 +175,12 @@ export default function BindersScreen() {
           </Section>
 
           <Section title="Example binders">
-            <BinderCarousel binders={store.exampleBinders} onOpen={setOpenId} />
+            <BinderCarousel binders={store.exampleBinders} onOpen={openBinder} />
           </Section>
 
-          <HomeBrowse onOpenBinder={setOpenId} />
+          <HomeBrowse onOpenBinder={openBinder} />
         </ScrollView>
       </SafeAreaView>
-
-      {openId && (
-        <BinderScreen binderId={openId} onClose={() => setOpenId(null)} onOpenBinder={setOpenId} />
-      )}
 
       {menuBinder && (
         <BinderActionsMenu

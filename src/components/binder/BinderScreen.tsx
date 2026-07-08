@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -85,9 +84,18 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
 
   if (!binder) {
     return (
-      <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-        <Pressable style={styles.dismiss} onPress={onClose} />
-      </Modal>
+      <ThemedView style={styles.flex}>
+        <SafeAreaView style={styles.flex} edges={['top']}>
+          <View style={styles.header}>
+            <Pressable onPress={onClose} hitSlop={10}>
+              <Text style={[styles.headerAction, { color: theme.text }]}>Close</Text>
+            </Pressable>
+          </View>
+          <View style={styles.notFound}>
+            <ThemedText type="subtitle">Binder not found</ThemedText>
+          </View>
+        </SafeAreaView>
+      </ThemedView>
     );
   }
 
@@ -272,9 +280,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   };
 
   return (
-    <Modal visible animationType="slide" onRequestClose={onClose}>
-      <ThemedView style={styles.flex}>
-        <SafeAreaView style={styles.flex} edges={['top']}>
+    <ThemedView style={styles.flex}>
+      <SafeAreaView style={styles.flex} edges={['top']}>
           {/* Header */}
           <View style={styles.header}>
             <Pressable onPress={onClose} hitSlop={10}>
@@ -571,7 +578,6 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           onSetPublic={(v) => store.updateBinder(binder.id, { isPublic: v })}
         />
       </ThemedView>
-    </Modal>
   );
 }
 
@@ -671,6 +677,7 @@ function PillButton({
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   dismiss: { flex: 1, backgroundColor: Palette.scrim30 },
+  notFound: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -57,7 +57,7 @@ const RARITY_SECTIONS: { group: RarityGroup; rows: { jp: string; desc: string }[
 });
 
 export function LabelsHelp({ onClose }: { onClose: () => void }) {
-  const [tab, setTab] = useState<TabId>('rarity');
+  const [tab, setTab] = useState<TabId>('fields');
 
   return (
     <View style={styles.panel}>

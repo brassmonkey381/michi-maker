@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AccountButton } from '@/components/auth/AccountButton';
@@ -18,6 +18,8 @@ export default function BindersScreen() {
   const store = useBinders();
   const { width } = useWindowDimensions();
   const [openId, setOpenId] = useState<string | null>(null);
+  // Filter Your Binders by title once the library grows — so finding one doesn't mean scrolling.
+  const [binderQuery, setBinderQuery] = useState('');
 
   // Note: we deliberately do NOT load the catalog here. Binder covers resolve their image
   // straight from the card id (cardThumbUrl), so the home screen paints images immediately
@@ -41,6 +43,14 @@ export default function BindersScreen() {
     const binder = store.createBinder({ title: 'New binder' });
     setOpenId(binder.id);
   };
+
+  // Show the filter once there are enough binders that scanning gets tedious.
+  const showBinderSearch = store.userBinders.length >= 4;
+  const q = binderQuery.trim().toLowerCase();
+  const visibleBinders =
+    showBinderSearch && q
+      ? store.userBinders.filter((b) => b.title.toLowerCase().includes(q))
+      : store.userBinders;
 
   return (
     <ThemedView style={styles.container}>
@@ -73,16 +83,35 @@ export default function BindersScreen() {
                 </ThemedText>
               </ThemedView>
             ) : (
-              <View style={[styles.grid, { gap }]}>
-                {store.userBinders.map((binder) => (
-                  <BinderThumb
-                    key={binder.id}
-                    binder={binder}
-                    width={tileWidth}
-                    onPress={() => setOpenId(binder.id)}
+              <>
+                {showBinderSearch ? (
+                  <TextInput
+                    value={binderQuery}
+                    onChangeText={setBinderQuery}
+                    placeholder={`Search your ${store.userBinders.length} binders…`}
+                    placeholderTextColor={Palette.muted}
+                    autoCorrect={false}
+                    clearButtonMode="while-editing"
+                    style={styles.binderSearch}
                   />
-                ))}
-              </View>
+                ) : null}
+                {visibleBinders.length === 0 ? (
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.noMatch}>
+                    No binders match “{binderQuery.trim()}”.
+                  </ThemedText>
+                ) : (
+                  <View style={[styles.grid, { gap }]}>
+                    {visibleBinders.map((binder) => (
+                      <BinderThumb
+                        key={binder.id}
+                        binder={binder}
+                        width={tileWidth}
+                        onPress={() => setOpenId(binder.id)}
+                      />
+                    ))}
+                  </View>
+                )}
+              </>
             )}
           </Section>
 
@@ -161,4 +190,15 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   empty: { padding: Spacing.four, borderRadius: Radius.lg },
   emptyText: { lineHeight: 20 },
+  binderSearch: {
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
+    borderRadius: Radius.control,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    fontSize: FontSize.control,
+    color: Palette.ink,
+    marginBottom: Spacing.three,
+  },
+  noMatch: { paddingVertical: Spacing.three },
 });

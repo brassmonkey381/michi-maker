@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AccountButton } from '@/components/auth/AccountButton';
+import { BinderCarousel } from '@/components/binder/BinderCarousel';
 import { BinderScreen } from '@/components/binder/BinderScreen';
 import { BinderThumb } from '@/components/binder/BinderThumb';
 import { HomeBrowse } from '@/components/HomeBrowse';
@@ -86,16 +87,7 @@ export default function BindersScreen() {
           </Section>
 
           <Section title="Example binders">
-            <View style={[styles.grid, { gap }]}>
-              {store.exampleBinders.map((binder) => (
-                <BinderThumb
-                  key={binder.id}
-                  binder={binder}
-                  width={tileWidth}
-                  onPress={() => setOpenId(binder.id)}
-                />
-              ))}
-            </View>
+            <BinderCarousel binders={store.exampleBinders} onOpen={setOpenId} />
           </Section>
 
           <HomeBrowse />

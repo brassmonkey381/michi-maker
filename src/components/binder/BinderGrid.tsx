@@ -15,7 +15,7 @@ import { BinderSurface, FontSize, Palette, Radii, Radius, Shadows, SlotBackingFa
 import { resolveCardWith } from '@/data/cardResolver';
 import { occupiedCells, type DemoCard, type DemoPage, type DemoSlot } from '@/data/binderTypes';
 import { useCatalog } from '@/hooks/use-catalog';
-import { cardThumbUrl } from '@/lib/catalogConfig';
+import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 import type { Catalog } from '@/lib/catalog';
 
 const CARD_ASPECT = 88 / 63; // height / width of a standard card
@@ -615,10 +615,23 @@ function CardImage({
   small: boolean;
   contentFit: 'cover' | 'contain';
 }) {
+  // Subscribe to the content-hashed image manifest so this re-renders when it hydrates.
+  const manifestReady = useImageManifest();
   const [stage, setStage] = useState<'tier' | 'full' | 'failed'>('tier');
   const [loaded, setLoaded] = useState(false);
   const tier: 245 | 640 = small ? 245 : 640;
   const uri = stage === 'full' ? cardThumbUrl(id, 'full') : cardThumbUrl(id, tier);
+
+  // On a cold load the covers render BEFORE the manifest hydrates, so cardThumbUrl returns a
+  // fallback that 404s and latches this to 'failed'. When the manifest lands (or the card id
+  // changes) the id now resolves to a real hashed URL — retry from the top so it recovers
+  // without needing a remount (previously the cover stayed broken until the binder was opened).
+  /* eslint-disable react-hooks/set-state-in-effect -- deliberate retry on manifest/id change */
+  useEffect(() => {
+    setStage('tier');
+    setLoaded(false);
+  }, [manifestReady, id]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (stage === 'failed') {
     return (

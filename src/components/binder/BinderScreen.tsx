@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  InteractionManager,
   Modal,
   Platform,
   Pressable,
@@ -26,7 +25,6 @@ import { ThemedView } from '@/components/themed-view';
 import { Palette, Radius, Spacing, Weight, FontSize } from '@/constants/theme';
 import { pillChip } from '@/constants/ui';
 import { firstFreePlacement, occupiedCells, slotCells, type DemoSlot } from '@/data/binderTypes';
-import { prefetchCatalog } from '@/lib/catalog';
 import { isSupabaseConfigured } from '@/lib/env';
 import { binderValue, formatUsd, pageValue, usePriceSummary } from '@/lib/prices';
 import { footprintForKind } from '@/data/cardSizing';
@@ -66,15 +64,11 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const [toast, setToast] = useState<ToastSpec | null>(null);
   const toastId = useRef(0);
 
-  // Warm the 9.87MB catalog off the editor's first-paint critical path: kick off the
-  // load-once fetch/parse only once mount interactions have settled. The persistently
-  // mounted CardPicker's useCatalog(visible) subscribes to the same load-once promise,
-  // so this shares one fetch. runAfterInteractions resolves promptly on web (no native
-  // interaction queue), which is the intended short-delay fallback.
-  useEffect(() => {
-    const handle = InteractionManager.runAfterInteractions(() => prefetchCatalog());
-    return () => handle.cancel();
-  }, []);
+  // NOTE: we deliberately do NOT prefetch the ~27MB catalog here. Viewing/editing a binder
+  // never needs it — card images resolve from the id (cardThumbUrl), and only the badge
+  // enrichment reads it passively. The catalog's synchronous JSON.parse freezes the main
+  // thread for seconds, so we defer it to when the user actually browses cards: the
+  // CardPicker's useCatalog(visible) loads it on open. Opening/creating a binder stays instant.
 
   // Latest card values (shared load-once fetch) for the fun running totals.
   const priceSummary = usePriceSummary();

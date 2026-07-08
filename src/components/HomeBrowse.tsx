@@ -5,10 +5,10 @@
  * `CatalogBrowser` (series → set → card, search, facets) in a fixed-height panel so its inner
  * FlatList gets a bounded, scrollable viewport inside the home ScrollView.
  */
-import { CatalogBrowser } from 'tcgscan-browse';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
+import { CardBrowse } from '@/components/binder/CardBrowse';
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing } from '@/constants/theme';
 import { useCatalog } from '@/hooks/use-catalog';
@@ -38,15 +38,9 @@ export function HomeBrowse() {
       {open ? (
         <View style={[styles.panel, { height: panelHeight }]}>
           {catalog ? (
-            // On home, browsing is exploration — placing a card needs a binder, so onPickCard
-            // is a no-op for now (Find similar / View set in the card menu still work).
-            <CatalogBrowser
-              catalog={catalog}
-              onPickCard={() => {}}
-              footer={null}
-              cardTileWidth={140}
-              taxTileHeight={180}
-            />
+            // On home, browsing is exploration — placing a card needs a binder, so onPickCard is
+            // omitted (a no-op). Find similar / View set in the card menu still work.
+            <CardBrowse catalog={catalog} />
           ) : (
             <View style={styles.center}>
               {error ? (

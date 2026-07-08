@@ -2,9 +2,8 @@ import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { CatalogBrowser } from 'tcgscan-browse';
-
 import { ArtUploadButton } from '@/components/binder/ArtUploadButton';
+import { CardBrowse } from '@/components/binder/CardBrowse';
 import { ThemedText } from '@/components/themed-text';
 import { domainOf, slotAspect, type ArtworkAsset } from '@/data/artworkLibrary';
 import { artSearchProvider, isArtSearchConfigured, searchArt } from '@/data/artSearch';
@@ -405,15 +404,14 @@ export function CardPicker({
           {tab === 'cards' ? (
             is(1, 1) && catalog ? (
               // 1×1: the full Series → Set → Card browse (its FlatList is the primary scroller).
-              <CatalogBrowser
-                // Remount per pocket so browse position / search / filters don't leak between
-                // pockets — but in "keep adding" mode hold one browse so you can rattle through a
-                // set filling pockets without it resetting.
+              // Remount per pocket so browse position / search / filters don't leak between
+              // pockets — but in "keep adding" mode hold one browse so you can rattle through a
+              // set filling pockets without it resetting.
+              <CardBrowse
                 key={keepAdding ? 'fill-session' : `${cell?.row ?? 'x'}-${cell?.col ?? 'x'}-${slot?.id ?? 'new'}`}
                 catalog={catalog}
                 selectedCardId={slot?.type === 'card' ? slot.cardId : undefined}
                 onPickCard={onPickCard}
-                footer={null}
               />
             ) : (
               <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">

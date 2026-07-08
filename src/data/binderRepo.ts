@@ -21,13 +21,14 @@ type PageUpdate = Tables['binder_pages']['Update'];
 // --- view-model -> row (writes) -------------------------------------------
 
 function binderRow(binder: DemoBinder): Tables['binders']['Insert'] {
-  // owner_id is omitted so the DB default (auth.uid()) applies; is_public defaults false.
+  // owner_id is omitted so the DB default (auth.uid()) applies.
   return {
     id: binder.id,
     title: binder.title,
     description: binder.description ?? null,
     layout_style: binder.layoutStyle,
     cover_card_id: binder.coverCardId ?? null,
+    is_public: binder.isPublic ?? false,
   };
 }
 
@@ -94,6 +95,7 @@ interface BinderRowIn {
   description: string | null;
   layout_style: MichiLayoutStyle;
   cover_card_id: string | null;
+  is_public: boolean;
   binder_pages: PageRowIn[] | null;
 }
 
@@ -134,6 +136,7 @@ function mapBinder(row: BinderRowIn): DemoBinder {
     layoutStyle: row.layout_style,
     isExample: false,
     coverCardId: row.cover_card_id ?? undefined,
+    isPublic: row.is_public,
     pages,
   };
 }
@@ -149,6 +152,24 @@ export async function fetchUserBinders(): Promise<DemoBinder[]> {
     .order('position', { referencedTable: 'binder_pages', ascending: true });
   if (error) throw new Error(`load binders: ${error.message}`);
   return ((data ?? []) as unknown as BinderRowIn[]).map(mapBinder);
+}
+
+/**
+ * Fetch a single binder (with pages + slots) by id, for the public `/binder/[id]` viewer.
+ * RLS returns the row to the owner, or to *anyone* (incl. anonymous) when it is public —
+ * so this resolves for a shared link without a session. Returns null when the binder
+ * doesn't exist or isn't visible to the caller (private + not owner).
+ */
+export async function fetchBinder(id: string): Promise<DemoBinder | null> {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from('binders')
+    .select('*, binder_pages(*, binder_slots(*))')
+    .eq('id', id)
+    .order('position', { referencedTable: 'binder_pages', ascending: true })
+    .maybeSingle();
+  if (error) throw new Error(`load binder: ${error.message}`);
+  return data ? mapBinder(data as unknown as BinderRowIn) : null;
 }
 
 // --- writes ----------------------------------------------------------------
@@ -179,6 +200,7 @@ export async function updateBinder(id: string, patch: Partial<DemoBinder>): Prom
   if (patch.description !== undefined) row.description = patch.description ?? null;
   if (patch.layoutStyle !== undefined) row.layout_style = patch.layoutStyle;
   if (patch.coverCardId !== undefined) row.cover_card_id = patch.coverCardId ?? null;
+  if (patch.isPublic !== undefined) row.is_public = patch.isPublic;
   if (Object.keys(row).length === 0) return;
   const { error } = await supabase.from('binders').update(row).eq('id', id);
   if (error) throw new Error(`update binder: ${error.message}`);

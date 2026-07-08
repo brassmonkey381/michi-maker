@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AccountButton } from '@/components/auth/AccountButton';
 import { BinderScreen } from '@/components/binder/BinderScreen';
 import { BinderThumb } from '@/components/binder/BinderThumb';
+import { HomeBrowse } from '@/components/HomeBrowse';
 import { SettingsButton } from '@/components/settings/SettingsSheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -94,6 +95,8 @@ export default function BindersScreen() {
               ))}
             </View>
           </Section>
+
+          <HomeBrowse />
         </ScrollView>
       </SafeAreaView>
 

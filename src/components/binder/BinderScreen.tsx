@@ -18,14 +18,16 @@ import { CardPicker } from '@/components/binder/CardPicker';
 import { ColorField } from '@/components/binder/ColorField';
 import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
 import { PageStrip } from '@/components/binder/PageStrip';
+import { ShareSheet } from '@/components/binder/ShareSheet';
 import { SliceStudio } from '@/components/binder/SliceStudio';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
+import { Palette, Radius, Spacing, Weight, FontSize } from '@/constants/theme';
 import { pillChip } from '@/constants/ui';
 import { firstFreePlacement, occupiedCells, slotCells, type DemoSlot } from '@/data/binderTypes';
 import { prefetchCatalog } from '@/lib/catalog';
+import { isSupabaseConfigured } from '@/lib/env';
 import { binderValue, formatUsd, pageValue, usePriceSummary } from '@/lib/prices';
 import { footprintForKind } from '@/data/cardSizing';
 import { resolveCard } from '@/data/cardResolver';
@@ -60,6 +62,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // "Keep adding" fast-fill: after placing a card the picker stays open and jumps to the next pocket.
   const [keepAdding, setKeepAdding] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
   const [toast, setToast] = useState<ToastSpec | null>(null);
   const toastId = useRef(0);
 
@@ -289,14 +292,21 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               </ThemedText>
             )}
             {canEdit ? (
-              <Pressable
-                onPress={() => {
-                  setEditing((e) => !e);
-                  setSelectedSlotId(null);
-                }}
-                hitSlop={10}>
-                <Text style={[styles.headerAction, styles.headerPrimary]}>{editing ? 'Done' : 'Edit'}</Text>
-              </Pressable>
+              <View style={styles.headerRight}>
+                {isSupabaseConfigured ? (
+                  <Pressable onPress={() => setShareOpen(true)} hitSlop={10}>
+                    <Text style={[styles.headerAction, { color: theme.text }]}>Share</Text>
+                  </Pressable>
+                ) : null}
+                <Pressable
+                  onPress={() => {
+                    setEditing((e) => !e);
+                    setSelectedSlotId(null);
+                  }}
+                  hitSlop={10}>
+                  <Text style={[styles.headerAction, styles.headerPrimary]}>{editing ? 'Done' : 'Edit'}</Text>
+                </Pressable>
+              </View>
             ) : (
               <Pressable onPress={handleDuplicate} hitSlop={10}>
                 <Text style={[styles.headerAction, styles.headerPrimary]}>Duplicate</Text>
@@ -398,18 +408,12 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                 onSlotPress={handleSelectSlot}
                 onDropSlot={handleDropSlot}
                 onResizeSlot={handleResizeSlot}
+                onReplaceSlot={replaceSelected}
+                onDuplicateSlot={duplicateSelected}
+                onRemoveSlot={removeSelected}
+                onDeselectSlot={() => setSelectedSlotId(null)}
               />
             </View>
-
-            {/* Quick actions for the selected pocket (edit mode). */}
-            {editing && selectedSlot && !pickerCell ? (
-              <SlotActionBar
-                onReplace={replaceSelected}
-                onDuplicate={duplicateSelected}
-                onRemove={removeSelected}
-                onDeselect={() => setSelectedSlotId(null)}
-              />
-            ) : null}
 
             {editing && (
               <View style={styles.editPanel}>
@@ -548,6 +552,13 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
 
         <Toast spec={toast} onDismiss={() => setToast(null)} />
         <ConfirmDialog spec={confirm} onClose={() => setConfirm(null)} />
+        <ShareSheet
+          visible={shareOpen}
+          binderId={binder.id}
+          isPublic={!!binder.isPublic}
+          onClose={() => setShareOpen(false)}
+          onSetPublic={(v) => store.updateBinder(binder.id, { isPublic: v })}
+        />
       </ThemedView>
     </Modal>
   );
@@ -600,55 +611,6 @@ function EditorKeyboardShortcuts({
     return () => window.removeEventListener('keydown', handler);
   }, [enabled, onUndo, onRedo, onDelete, onPrevPage, onNextPage]);
   return null;
-}
-
-/** Quick-action toolbar for the selected pocket (edit mode). */
-function SlotActionBar({
-  onReplace,
-  onDuplicate,
-  onRemove,
-  onDeselect,
-}: {
-  onReplace: () => void;
-  onDuplicate: () => void;
-  onRemove: () => void;
-  onDeselect: () => void;
-}) {
-  return (
-    <ThemedView type="backgroundElement" style={styles.actionBar}>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.actionHint}>
-        Pocket · drag ▢ to resize
-      </ThemedText>
-      <View style={styles.actionBtns}>
-        <ActionButton label="Replace" onPress={onReplace} />
-        <ActionButton label="Duplicate" onPress={onDuplicate} />
-        <ActionButton label="Remove" tone="danger" onPress={onRemove} />
-        <ActionButton label="Done" onPress={onDeselect} />
-      </View>
-    </ThemedView>
-  );
-}
-
-function ActionButton({
-  label,
-  onPress,
-  tone = 'default',
-}: {
-  label: string;
-  onPress: () => void;
-  tone?: 'default' | 'danger';
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.actionBtn,
-        tone === 'danger' && styles.actionBtnDanger,
-        pressed && styles.pressed,
-      ]}>
-      <Text style={[styles.actionBtnText, tone === 'danger' && styles.actionBtnTextDanger]}>{label}</Text>
-    </Pressable>
-  );
 }
 
 function NavArrow({
@@ -707,6 +669,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   headerAction: { fontSize: FontSize.md, fontWeight: Weight.semibold },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   headerPrimary: { color: Palette.accent },
   titleText: { flex: 1, textAlign: 'center', fontSize: FontSize.title, lineHeight: 28 },
   titleInput: {
@@ -753,22 +716,6 @@ const styles = StyleSheet.create({
   pillText: { fontSize: FontSize.body, fontWeight: Weight.semibold, color: Palette.ink2 },
   pillTextDanger: { color: Palette.dangerAlt },
   pressed: { opacity: 0.7 },
-  actionBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: 8,
-    padding: 10,
-    borderRadius: Radius.actionBar,
-    marginBottom: 6,
-  },
-  actionHint: { flexShrink: 1 },
-  actionBtns: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  actionBtn: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: Radius.pill, backgroundColor: Palette.accent },
-  actionBtnDanger: { backgroundColor: Palette.dangerBg },
-  actionBtnText: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.accentText },
-  actionBtnTextDanger: { color: Palette.dangerAlt },
   deleteBinder: { marginTop: 20, alignItems: 'center', paddingVertical: 10 },
   deleteBinderText: { color: Palette.dangerAlt, fontSize: FontSize.control, fontWeight: Weight.semibold },
 });

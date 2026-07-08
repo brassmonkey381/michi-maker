@@ -32,6 +32,11 @@ interface BinderGridProps {
   onDropSlot?: (slotId: string, toRow: number, toCol: number) => void;
   /** Drag-to-resize: the selected slot's footprint changed to rowSpan×colSpan (top-left fixed). */
   onResizeSlot?: (row: number, col: number, rowSpan: number, colSpan: number) => void;
+  /** Selected-pocket actions, shown in a toolbar anchored to the slot (edit mode). */
+  onReplaceSlot?: () => void;
+  onDuplicateSlot?: () => void;
+  onRemoveSlot?: () => void;
+  onDeselectSlot?: () => void;
 }
 
 type BoxStyle = {
@@ -51,6 +56,10 @@ export function BinderGrid({
   onCellPress,
   onDropSlot,
   onResizeSlot,
+  onReplaceSlot,
+  onDuplicateSlot,
+  onRemoveSlot,
+  onDeselectSlot,
 }: BinderGridProps) {
   // Passive catalog subscription: card *images* come from the id directly (cardThumbUrl), so the
   // grid never forces the ~25 MB catalog load just to render — covers paint immediately. When the
@@ -190,8 +199,94 @@ export function BinderGrid({
             onResizeSlot={onResizeSlot}
           />
         ) : null}
+
+        {/* Quick-action toolbar anchored to the selected pocket (edit mode). */}
+        {onReplaceSlot && resizeSlot ? (
+          <SlotToolbar
+            key={`toolbar-${resizeSlot.id}`}
+            slot={resizeSlot}
+            cellW={cellW}
+            cellH={cellH}
+            gap={gap}
+            innerW={innerW}
+            onReplace={onReplaceSlot}
+            onDuplicate={onDuplicateSlot}
+            onRemove={onRemoveSlot}
+            onDeselect={onDeselectSlot}
+          />
+        ) : null}
       </View>
     </View>
+  );
+}
+
+/**
+ * A compact action toolbar that floats over the selected pocket — Replace,
+ * Duplicate, Remove and a deselect ✕ — so the actions live *at* the object
+ * instead of below the whole grid. Sits above the slot (or just inside its top
+ * when there's no room above), centred and clamped to the grid width.
+ */
+function SlotToolbar({
+  slot,
+  cellW,
+  cellH,
+  gap,
+  innerW,
+  onReplace,
+  onDuplicate,
+  onRemove,
+  onDeselect,
+}: {
+  slot: DemoSlot;
+  cellW: number;
+  cellH: number;
+  gap: number;
+  innerW: number;
+  onReplace?: () => void;
+  onDuplicate?: () => void;
+  onRemove?: () => void;
+  onDeselect?: () => void;
+}) {
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  const stepX = cellW + gap;
+  const stepY = cellH + gap;
+  const slotLeft = slot.col * stepX;
+  const slotTop = slot.row * stepY;
+  const slotW = slot.colSpan * cellW + (slot.colSpan - 1) * gap;
+  const centerX = slotLeft + slotW / 2;
+
+  const left = Math.max(0, Math.min(centerX - size.w / 2, innerW - size.w));
+  const aboveTop = slotTop - size.h - 8;
+  const top = aboveTop < 0 ? slotTop + 8 : aboveTop;
+
+  return (
+    <View
+      onLayout={(e) => {
+        const { width, height } = e.nativeEvent.layout;
+        setSize((s) => (s.w === width && s.h === height ? s : { w: width, h: height }));
+      }}
+      style={[styles.slotToolbar, { left, top, opacity: size.w ? 1 : 0 }]}>
+      <ToolButton label="Replace" onPress={onReplace} />
+      <ToolButton label="Duplicate" onPress={onDuplicate} />
+      <ToolButton label="Remove" tone="danger" onPress={onRemove} />
+      <ToolButton label="✕" onPress={onDeselect} />
+    </View>
+  );
+}
+
+function ToolButton({
+  label,
+  onPress,
+  tone = 'default',
+}: {
+  label: string;
+  onPress?: () => void;
+  tone?: 'default' | 'danger';
+}) {
+  return (
+    <Pressable onPress={onPress} hitSlop={6} style={({ pressed }) => [styles.toolBtn, pressed && styles.dimmed]}>
+      <Text style={[styles.toolBtnText, tone === 'danger' && styles.toolBtnTextDanger]}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -670,6 +765,35 @@ const styles = StyleSheet.create({
     backgroundColor: BinderSurface.selection,
     borderWidth: 2,
     borderColor: Palette.white,
+  },
+  slotToolbar: {
+    position: 'absolute',
+    zIndex: 60,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 4,
+    paddingVertical: 3,
+    borderRadius: Radius.pill,
+    backgroundColor: Palette.chrome,
+    shadowColor: Palette.black,
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  toolBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.pill,
+  },
+  toolBtnText: {
+    color: Palette.white,
+    fontSize: FontSize.label,
+    fontWeight: Weight.semibold,
+  },
+  toolBtnTextDanger: {
+    color: Palette.danger,
   },
   missing: {
     backgroundColor: Palette.hairline,

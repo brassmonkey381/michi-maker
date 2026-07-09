@@ -256,6 +256,21 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     closePicker();
   };
 
+  // Batch "Add all to a binder" (multi-select): add each card to the next free 1×1 pocket
+  // (addCardToBinder), collect any that don't fit, then report the result in one toast.
+  const handlePickCards = (cardIds: string[]) => {
+    let added = 0;
+    let failed = 0;
+    for (const id of cardIds) {
+      if (store.addCardToBinder(binder.id, id)) added += 1;
+      else failed += 1;
+    }
+    closePicker();
+    if (failed === 0) showToast(`Added ${added} card${added === 1 ? '' : 's'}`);
+    else if (added === 0) showToast(`Couldn't add ${failed} — no room in this binder`);
+    else showToast(`Added ${added}, ${failed} didn't fit`);
+  };
+
   const handlePickArtwork = (imageUrl: string, rowSpan: number, colSpan: number) => {
     if (!pickerCell) return;
     store.upsertSlot(binder.id, page.id, { ...pickerCell, type: 'artwork', imageUrl, rowSpan, colSpan });
@@ -661,6 +676,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           themeHint={themeHint}
           onPickCard={handlePickCard}
           onPickVUnion={handlePickVUnion}
+          onPickCards={handlePickCards}
           onPickArtwork={handlePickArtwork}
           onPickSlicedArtwork={handlePickSlicedArtwork}
           onOpenSliceStudio={handleOpenStudio}

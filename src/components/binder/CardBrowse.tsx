@@ -22,11 +22,17 @@ export const CARD_BROWSE_TAX_TILE_HEIGHT = 180;
 export function CardBrowse({
   catalog,
   onPickCard,
+  onPickVUnion,
+  onPickCards,
   selectedCardId,
   cardActions,
 }: {
   catalog: Catalog;
   onPickCard?: (cardId: string) => void;
+  /** Place an assembled V-UNION (Size=V-UNION group tiles). */
+  onPickVUnion?: (pieces: readonly string[]) => void;
+  /** Batch-place the multi-selected ids ("Add all to a binder"). */
+  onPickCards?: (cardIds: string[]) => void;
   selectedCardId?: string;
   /** Per-card tap actions. When set, replaces the default "Place in pocket" sheet — home uses
    *  this to offer "Add to a binder…" instead of a functionless place. */
@@ -37,6 +43,8 @@ export function CardBrowse({
       catalog={catalog}
       selectedCardId={selectedCardId}
       onPickCard={onPickCard ?? (() => {})}
+      onPickVUnion={onPickVUnion}
+      onPickCards={onPickCards}
       cardActions={cardActions}
       footer={null}
       cardTileWidth={CARD_BROWSE_TILE_WIDTH}

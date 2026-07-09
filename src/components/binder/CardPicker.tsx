@@ -8,8 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { domainOf, slotAspect, type ArtworkAsset } from '@/data/artworkLibrary';
 import { artSearchProvider, isArtSearchConfigured, searchArt } from '@/data/artSearch';
 import { useSavedArt } from '@/data/savedArt';
-import type { DemoCard, DemoPage, DemoSlot } from '@/data/binderTypes';
-import { catalogCardToDemoCard } from '@/lib/catalog';
+import type { DemoPage, DemoSlot } from '@/data/binderTypes';
 import { useCatalog } from '@/hooks/use-catalog';
 import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
 import { flatChip, studioButton } from '@/constants/ui';
@@ -65,6 +64,8 @@ interface CardPickerProps {
   onClose: () => void;
   onPickCard: (cardId: string) => void;
   onPickVUnion: (pieces: readonly string[]) => void;
+  /** Batch-add the multi-selected cards to the binder ("Add all to a binder"). */
+  onPickCards?: (cardIds: string[]) => void;
   /** Place a custom artwork image (playground art or a pasted URL) at the chosen shape. */
   onPickArtwork: (imageUrl: string, rowSpan: number, colSpan: number) => void;
   /** Slice an image across the rows×cols block — each pocket shows its piece. */
@@ -87,6 +88,7 @@ export function CardPicker({
   onClose,
   onPickCard,
   onPickVUnion,
+  onPickCards,
   onPickArtwork,
   onPickSlicedArtwork,
   onOpenSliceStudio,
@@ -137,18 +139,13 @@ export function CardPicker({
     setTab(next);
   };
 
-  // Everything is sourced from the ~28k-card catalog: 1×1 standard cards via the live
-  // Series → Set → Card browse (<CatalogBrowser>), jumbo (2×2) cards via `listJumbo()`, and
-  // V-UNION sets via `vunionGroups()`. Until the catalog resolves, the 2×2 + V-UNION sections
-  // render empty (the sheet shows a loading/empty state — no crash, no bundled fallback).
-  const jumboCards = is(2, 2) && catalog ? catalog.listJumbo().map(catalogCardToDemoCard) : [];
-  const vunionGroups = is(2, 2) && catalog ? catalog.vunionGroups() : [];
-  const showVUnion = is(2, 2);
+  // Cards come from the unified Series → Set → Card browse (<CatalogBrowser>). Size (standard /
+  // jumbo / V-UNION) is a FILTER inside that browse now — no separate 1×1/2×2 mode. Placement
+  // footprints derive from the card's kind at drop time (BinderScreen.footprintForKind), so the
+  // browse stays one list. The sheet gets a definite height so its FlatList has a bounded viewport.
   const sizeLabel = `${shape.rows}×${shape.cols}`;
   const isMultiCell = shape.rows > 1 || shape.cols > 1;
-  // In the Cards tab at 1×1 with a loaded catalog we show the full virtualized browse — give the
-  // sheet a definite height so its FlatList gets a bounded viewport to scroll within.
-  const browseMode = tab === 'cards' && is(1, 1) && !!catalog;
+  const browseMode = tab === 'cards' && !!catalog;
 
   // Place a chosen artwork: as one panel, or sliced across the block when the toggle is on.
   const placeArt = (url: string) =>
@@ -203,38 +200,6 @@ export function CardPicker({
 
   const urlValid = /^https?:\/\/\S+$/i.test(urlInput.trim());
   const title = slot ? 'Edit pocket' : 'Add to pocket';
-
-  // A bundled DemoCard thumbnail (jumbo grid + the catalog-unavailable 1×1 fallback).
-  const renderCardThumb = (card: DemoCard) => {
-    const selected = slot?.type === 'card' && slot?.cardId === card.id;
-    const jumbo = card.kind === 'jumbo';
-    const tintBg = card.dominantColor ? `${card.dominantColor}22` : Palette.panel;
-    return (
-      <Pressable
-        key={card.id}
-        style={[styles.thumb, selected && styles.thumbSelected]}
-        onPress={() => onPickCard(card.id)}>
-        <View style={[styles.thumbImageWrap, { backgroundColor: tintBg }]}>
-          <Image
-            source={{ uri: card.imageUrl }}
-            style={styles.thumbImage}
-            contentFit="contain"
-            cachePolicy="memory-disk"
-            recyclingKey={card.id}
-            transition={100}
-          />
-          {jumbo ? (
-            <View style={styles.tag}>
-              <Text style={styles.tagText}>JUMBO</Text>
-            </View>
-          ) : null}
-        </View>
-        <Text numberOfLines={1} style={styles.thumbName}>
-          {card.name}
-        </Text>
-      </Pressable>
-    );
-  };
 
   // The Artwork tab: search / paste / upload / slice a picture to fill the pocket(s).
   const renderArtwork = () => (
@@ -385,105 +350,55 @@ export function CardPicker({
             })}
           </View>
 
-          {/* Shape selector — contextual: cards only fit Single/Jumbo; art & inserts take any shape. */}
-          <View style={styles.shapeRow}>
-            <Text style={styles.controlsLabel}>{tab === 'cards' ? 'Size' : 'Shape'}</Text>
-            {(tab === 'cards'
-              ? SHAPES.filter((s) => (s.rows === 1 && s.cols === 1) || (s.rows === 2 && s.cols === 2))
-              : SHAPES
-            ).map((s) => {
-              const enabled = fits(s.rows, s.cols);
-              const active = is(s.rows, s.cols);
-              const label = tab === 'cards' && s.rows === 2 ? 'Jumbo' : s.name;
-              return (
-                <Pressable
-                  key={s.label}
-                  disabled={!enabled}
-                  onPress={() => setShape({ rows: s.rows, cols: s.cols })}
-                  style={[styles.shapeChip, active && flatChip.active, !enabled && styles.disabled]}>
-                  <Text style={[flatChip.text, active && flatChip.textActive]}>{label}</Text>
-                  <Text style={[styles.shapeSize, active && styles.shapeSizeActive]}>{s.size}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          {/* Shape selector — artwork & inserts take any shape. Cards no longer pick a shape here:
+              the browse is unified and Size (Standard / Jumbo / V-UNION) is a filter within it;
+              the placed footprint derives from the card's kind at drop time. */}
+          {tab !== 'cards' ? (
+            <View style={styles.shapeRow}>
+              <Text style={styles.controlsLabel}>Shape</Text>
+              {SHAPES.map((s) => {
+                const enabled = fits(s.rows, s.cols);
+                const active = is(s.rows, s.cols);
+                return (
+                  <Pressable
+                    key={s.label}
+                    disabled={!enabled}
+                    onPress={() => setShape({ rows: s.rows, cols: s.cols })}
+                    style={[styles.shapeChip, active && flatChip.active, !enabled && styles.disabled]}>
+                    <Text style={[flatChip.text, active && flatChip.textActive]}>{s.name}</Text>
+                    <Text style={[styles.shapeSize, active && styles.shapeSizeActive]}>{s.size}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
 
           {tab === 'cards' ? (
-            is(1, 1) && catalog ? (
-              // 1×1: the full Series → Set → Card browse (its FlatList is the primary scroller).
-              // Remount per pocket so browse position / search / filters don't leak between
-              // pockets — but in "keep adding" mode hold one browse so you can rattle through a
-              // set filling pockets without it resetting.
+            catalog ? (
+              // The unified Series → Set → Card browse (its FlatList is the primary scroller).
+              // Size (Standard / Jumbo / V-UNION) is a filter inside it; V-UNION shows assembled
+              // group tiles. Remount per pocket so browse position / search / filters don't leak
+              // between pockets — but in "keep adding" mode hold one browse so you can rattle
+              // through a set filling pockets without it resetting.
               <CardBrowse
                 key={keepAdding ? 'fill-session' : `${cell?.row ?? 'x'}-${cell?.col ?? 'x'}-${slot?.id ?? 'new'}`}
                 catalog={catalog}
                 selectedCardId={slot?.type === 'card' ? slot.cardId : undefined}
                 onPickCard={onPickCard}
+                onPickVUnion={onPickVUnion}
+                onPickCards={onPickCards}
               />
             ) : (
               <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-                {/* 1×1 with no catalog yet: an error, or a spinner while it loads. */}
-                {is(1, 1) ? (
-                  catalogError ? (
-                    <Text style={styles.hint}>
-                      Card search is unavailable right now — check your connection and reopen this
-                      pocket to try again.
-                    </Text>
-                  ) : (
-                    <ActivityIndicator style={styles.loading} />
-                  )
-                ) : null}
-
-                {/* Jumbo cards physically match a 2×2 pocket — sourced from the catalog. */}
-                {jumboCards.length > 0 ? (
-                  <>
-                    <Text style={styles.sectionLabel}>Jumbo cards · {sizeLabel}</Text>
-                    <View style={styles.grid}>{jumboCards.map(renderCardThumb)}</View>
-                  </>
-                ) : null}
-
-                {showVUnion ? (
-                  <>
-                    <Text style={styles.sectionLabel}>V-UNION · 2×2 of 4 pieces</Text>
-                    {vunionGroups.length > 0 ? (
-                      <View style={styles.grid}>
-                        {vunionGroups.map((group) => {
-                          const tl = catalog?.getCard(group.pieces[0]);
-                          const tlCard = tl ? catalogCardToDemoCard(tl) : undefined;
-                          return (
-                            <Pressable
-                              key={group.pieces.join('-')}
-                              style={styles.thumb}
-                              onPress={() => onPickVUnion(group.pieces)}>
-                              <View style={styles.thumbImageWrap}>
-                                {tlCard ? (
-                                  <Image
-                                    source={{ uri: tlCard.imageUrl }}
-                                    style={styles.thumbImage}
-                                    contentFit="contain"
-                                    cachePolicy="memory-disk"
-                                    recyclingKey={group.pieces[0]}
-                                    transition={100}
-                                  />
-                                ) : null}
-                                <View style={styles.tag}>
-                                  <Text style={styles.tagText}>V-UNION</Text>
-                                </View>
-                              </View>
-                              <Text numberOfLines={1} style={styles.thumbName}>
-                                {group.label}
-                              </Text>
-                            </Pressable>
-                          );
-                        })}
-                      </View>
-                    ) : (
-                      <Text style={styles.hint}>
-                        {catalog ? 'No V-UNION sets available.' : 'Loading V-UNION sets…'}
-                      </Text>
-                    )}
-                  </>
-                ) : null}
+                {/* No catalog yet: an error, or a spinner while it loads. */}
+                {catalogError ? (
+                  <Text style={styles.hint}>
+                    Card search is unavailable right now — check your connection and reopen this
+                    pocket to try again.
+                  </Text>
+                ) : (
+                  <ActivityIndicator style={styles.loading} />
+                )}
               </ScrollView>
             )
           ) : tab === 'artwork' ? (

@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { type SharedValue, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 
 import { BinderGrid, type BinderGridHandle } from '@/components/binder/BinderGrid';
 import { CaptionControls } from '@/components/binder/CaptionControls';
@@ -74,6 +75,14 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const curRef = useRef<BinderGridHandle>(null);
   const nextRef = useRef<BinderGridHandle>(null);
   const toastId = useRef(0);
+
+  // Which spread column (0 prev · 1 current · 2 next) has an active drag, so it renders ABOVE
+  // its neighbours — otherwise a card dragged onto the next page paints behind it. Driven by a
+  // shared value (set from the drag callbacks) so lifting the column never re-renders mid-drag
+  // and cancels the gesture. -1 = no drag.
+  const dragCol = useSharedValue(-1);
+  // The current column is inline here; the neighbours build their own from dragCol (below).
+  const curColStyle = useAnimatedStyle(() => ({ zIndex: dragCol.value === 1 ? 30 : 1 }));
 
   // NOTE: we deliberately do NOT prefetch the ~27MB catalog here. Viewing/editing a binder
   // never needs it — card images resolve from the id (cardThumbUrl), and only the badge
@@ -330,6 +339,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // localX/localY: the drop point in the SOURCE grid's inner-content coords (see BinderGrid's
   // onCrossDrop). Convert via that grid to window coords, then resolve the page + cell.
   const handleCrossDrop = (fromPageId: string, slotId: string, localX: number, localY: number) => {
+    dragCol.value = -1; // drag ended → drop the column back to its normal stacking
     const win = sourceRefFor(fromPageId).current?.localToWindow(localX, localY);
     if (!win) return; // source grid not measured yet → springs back
     const hit = resolveSpreadHit(win.x, win.y);
@@ -484,10 +494,15 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                     label={prevPage ? `‹ Page ${idx}` : ''}
                     onFocus={() => changePage(idx - 1)}
                     captionFields={labelsOn ? labelFields : []}
+                    dragCol={dragCol}
+                    columnIndex={0}
                     onCrossDrop={(slotId, x, y) => prevPage && handleCrossDrop(prevPage.id, slotId, x, y)}
-                    onDragStart={remeasureSpread}
+                    onDragStart={() => {
+                      remeasureSpread();
+                      dragCol.value = 0;
+                    }}
                   />
-                  <View style={styles.neighbor}>
+                  <Animated.View style={[styles.neighbor, curColStyle]}>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.neighborLabel}>
                       Page {idx + 1}
                     </ThemedText>
@@ -501,14 +516,17 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                       onCellPress={handleAddCell}
                       onSlotPress={handleSelectSlot}
                       onCrossDrop={(slotId, x, y) => handleCrossDrop(page.id, slotId, x, y)}
-                      onDragStart={remeasureSpread}
+                      onDragStart={() => {
+                        remeasureSpread();
+                        dragCol.value = 1;
+                      }}
                       onResizeSlot={handleResizeSlot}
                       onReplaceSlot={replaceSelected}
                       onDuplicateSlot={duplicateSelected}
                       onRemoveSlot={removeSelected}
                       onDeselectSlot={() => setSelectedSlotId(null)}
                     />
-                  </View>
+                  </Animated.View>
                   <SpreadNeighbor
                     gridRef={nextRef}
                     page={nextPage}
@@ -516,8 +534,13 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                     label={nextPage ? `Page ${idx + 2} ›` : ''}
                     onFocus={() => changePage(idx + 1)}
                     captionFields={labelsOn ? labelFields : []}
+                    dragCol={dragCol}
+                    columnIndex={2}
                     onCrossDrop={(slotId, x, y) => nextPage && handleCrossDrop(nextPage.id, slotId, x, y)}
-                    onDragStart={remeasureSpread}
+                    onDragStart={() => {
+                      remeasureSpread();
+                      dragCol.value = 2;
+                    }}
                   />
                 </View>
               ) : (
@@ -749,6 +772,8 @@ function SpreadNeighbor({
   label,
   onFocus,
   captionFields,
+  dragCol,
+  columnIndex,
   onCrossDrop,
   onDragStart,
 }: {
@@ -758,12 +783,17 @@ function SpreadNeighbor({
   label: string;
   onFocus: () => void;
   captionFields: CaptionFieldKey[];
+  /** Shared "which column is dragging" value + this column's index, so a card dragged out of
+   *  this page lifts the whole column above its neighbours (z-index) without a re-render. */
+  dragCol: SharedValue<number>;
+  columnIndex: number;
   onCrossDrop: (slotId: string, localX: number, localY: number) => void;
   onDragStart: () => void;
 }) {
+  const columnStyle = useAnimatedStyle(() => ({ zIndex: dragCol.value === columnIndex ? 30 : 1 }));
   if (!page) return <View style={{ width }} />;
   return (
-    <View style={styles.neighbor}>
+    <Animated.View style={[styles.neighbor, columnStyle]}>
       <Pressable onPress={onFocus} hitSlop={6} accessibilityLabel={label}>
         <ThemedText type="small" themeColor="textSecondary" style={styles.neighborLabel} numberOfLines={1}>
           {label}
@@ -780,7 +810,7 @@ function SpreadNeighbor({
           onDragStart={onDragStart}
         />
       </View>
-    </View>
+    </Animated.View>
   );
 }
 

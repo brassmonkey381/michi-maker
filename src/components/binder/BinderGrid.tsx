@@ -40,9 +40,10 @@ interface BinderGridProps {
   onDuplicateSlot?: () => void;
   onRemoveSlot?: () => void;
   onDeselectSlot?: () => void;
-  /** Cross-page drag: report the drop's absolute screen coords so the editor resolves which
-   *  page + cell it landed on (the multi-page spread). Replaces onDropSlot's local target. */
-  onCrossDrop?: (slotId: string, absoluteX: number, absoluteY: number) => void;
+  /** Cross-page drag: report the drop point (the dragged card's centre) in THIS grid's
+   *  inner-content coords. The editor maps it to window coords via the source grid's
+   *  localToWindow and hit-tests every page in one frame. Replaces onDropSlot's local target. */
+  onCrossDrop?: (slotId: string, localX: number, localY: number) => void;
   /** Fired when a slot drag begins — lets the editor re-measure sibling grids for hit-testing. */
   onDragStart?: () => void;
 }
@@ -50,8 +51,12 @@ interface BinderGridProps {
 export interface BinderGridHandle {
   /** Re-read this grid's window position — call at drag start, before any hitTest. */
   remeasure: () => void;
-  /** Map absolute screen coords to a cell in this grid, or null if the point is outside it. */
-  hitTest: (absoluteX: number, absoluteY: number) => { row: number; col: number } | null;
+  /** Map window coords to a cell in this grid, or null if the point is outside it. */
+  hitTest: (windowX: number, windowY: number) => { row: number; col: number } | null;
+  /** Map a point in this grid's inner-content coords to window coords (same frame hitTest
+   *  reads), or null if the grid hasn't been measured yet. Lets the editor turn a drop
+   *  reported in the *source* grid's coords into a point it can hit-test every page with. */
+  localToWindow: (localX: number, localY: number) => { x: number; y: number } | null;
 }
 
 type BoxStyle = {
@@ -125,15 +130,22 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
         rootRef.current?.measureInWindow((x, y) => {
           originRef.current = { x, y };
         }),
-      hitTest: (absoluteX, absoluteY) => {
+      hitTest: (windowX, windowY) => {
         const origin = originRef.current;
-        if (!origin) return null;
-        const localX = absoluteX - origin.x - pad;
-        const localY = absoluteY - origin.y - pad;
+        // Reject unmeasured grids and non-finite coords — otherwise a NaN slips past the
+        // bounds check below (NaN comparisons are all false) and returns a bogus hit.
+        if (!origin || !Number.isFinite(windowX) || !Number.isFinite(windowY)) return null;
+        const localX = windowX - origin.x - pad;
+        const localY = windowY - origin.y - pad;
         if (localX < 0 || localY < 0 || localX > innerW || localY > innerH) return null;
         const col = Math.max(0, Math.min(page.cols - 1, Math.floor(localX / colStep)));
         const row = Math.max(0, Math.min(page.rows - 1, Math.floor(localY / rowStep)));
         return { row, col };
+      },
+      localToWindow: (localX, localY) => {
+        const origin = originRef.current;
+        if (!origin) return null;
+        return { x: origin.x + pad + localX, y: origin.y + pad + localY };
       },
     }),
     [pad, innerW, innerH, colStep, rowStep, page.cols, page.rows],
@@ -518,10 +530,17 @@ function DraggableSlot({
         dragY.value = e.translationY;
       })
       .onEnd((e) => {
-        // In the spread, the editor resolves which page + cell (absolute coords); otherwise the
-        // drop stays within this grid (translation-based target).
+        // In the spread, report the dragged card's CENTRE in this grid's inner-content coords
+        // (start position + translation) — the editor resolves the page + cell from there, all
+        // in one measured frame. Otherwise the drop stays within this grid (translation target).
         if (onCrossDrop) {
-          runOnJS(onCrossDrop)(slot.id, e.absoluteX, e.absoluteY);
+          const centerX =
+            slot.col * stepX + (slot.colSpan * cellW + (slot.colSpan - 1) * gap) / 2 + e.translationX;
+          const centerY =
+            slot.row * stepY +
+            (slot.rowSpan * cellH + (slot.rowSpan - 1) * (gap + captionH)) / 2 +
+            e.translationY;
+          runOnJS(onCrossDrop)(slot.id, centerX, centerY);
         } else if (onDropSlot) {
           const targetCol = Math.round((slot.col * stepX + e.translationX) / stepX);
           const targetRow = Math.round((slot.row * stepY + e.translationY) / stepY);

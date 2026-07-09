@@ -307,23 +307,32 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const handleDropSlot = (slotId: string, toRow: number, toCol: number) =>
     handleDropOnPage(page.id, slotId, toRow, toCol);
 
-  // Spread cross-page drag: re-measure the grids at drag start, then on drop resolve the pointer's
-  // absolute coords to a page + cell and move within a page or across pages.
+  // Spread cross-page drag: re-measure the grids at drag start, then on drop convert the reported
+  // drop point (source-grid-local) into the shared window frame and resolve a page + cell. Keeping
+  // the drop point and every page's bounds in ONE measured frame is what makes it reliable — the
+  // earlier version mixed the gesture's screen coords with measured origins and misfired.
   const remeasureSpread = () => {
     prevRef.current?.remeasure();
     curRef.current?.remeasure();
     nextRef.current?.remeasure();
   };
-  const resolveSpreadHit = (absX: number, absY: number) => {
+  // The grid a drag started in — its localToWindow maps the drop point into the hit-test frame.
+  const sourceRefFor = (pageId: string) =>
+    pageId === prevPage?.id ? prevRef : pageId === nextPage?.id ? nextRef : curRef;
+  const resolveSpreadHit = (winX: number, winY: number) => {
     const check = (pg: DemoPage | null, r: typeof curRef) => {
       if (!pg) return null;
-      const cell = r.current?.hitTest(absX, absY);
+      const cell = r.current?.hitTest(winX, winY);
       return cell ? { pageId: pg.id, row: cell.row, col: cell.col } : null;
     };
     return check(prevPage, prevRef) ?? check(page, curRef) ?? check(nextPage, nextRef);
   };
-  const handleCrossDrop = (fromPageId: string, slotId: string, absX: number, absY: number) => {
-    const hit = resolveSpreadHit(absX, absY);
+  // localX/localY: the drop point in the SOURCE grid's inner-content coords (see BinderGrid's
+  // onCrossDrop). Convert via that grid to window coords, then resolve the page + cell.
+  const handleCrossDrop = (fromPageId: string, slotId: string, localX: number, localY: number) => {
+    const win = sourceRefFor(fromPageId).current?.localToWindow(localX, localY);
+    if (!win) return; // source grid not measured yet → springs back
+    const hit = resolveSpreadHit(win.x, win.y);
     if (!hit) return; // dropped outside any visible page → springs back
     if (hit.pageId === fromPageId) handleDropOnPage(fromPageId, slotId, hit.row, hit.col);
     else store.moveSlotAcrossPages(binder.id, fromPageId, slotId, hit.pageId, hit.row, hit.col);
@@ -749,7 +758,7 @@ function SpreadNeighbor({
   label: string;
   onFocus: () => void;
   captionFields: CaptionFieldKey[];
-  onCrossDrop: (slotId: string, absoluteX: number, absoluteY: number) => void;
+  onCrossDrop: (slotId: string, localX: number, localY: number) => void;
   onDragStart: () => void;
 }) {
   if (!page) return <View style={{ width }} />;

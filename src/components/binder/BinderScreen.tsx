@@ -24,7 +24,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BinderPageMaxWidth, Palette, Radius, Spacing, Weight, FontSize } from '@/constants/theme';
 import { pillChip } from '@/constants/ui';
-import { firstFreePlacement, occupiedCells, slotCells, type DemoSlot } from '@/data/binderTypes';
+import { firstFreePlacement, occupiedCells, slotCells, type DemoPage, type DemoSlot } from '@/data/binderTypes';
 import { DEFAULT_CAPTION_FIELDS, type CaptionFieldKey } from '@/data/cardCaption';
 import { isSupabaseConfigured } from '@/lib/env';
 import { binderValue, formatUsd, pageValue, usePriceSummary } from '@/lib/prices';
@@ -102,6 +102,17 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const idx = Math.min(pageIndex, binder.pages.length - 1);
   const page = binder.pages[idx];
   const pageWidth = Math.min(width - 32, BinderPageMaxWidth);
+
+  // Wide screens in edit mode show the previous + next pages beside the current one (a "spread"),
+  // so cards can be dragged between pages. Narrow screens keep the single-page view.
+  const available = width - 32;
+  const spreadGap = 12;
+  const showSpread = editing && available >= 900 && binder.pages.length > 1;
+  const spreadWidth = showSpread
+    ? Math.min(Math.floor((available - spreadGap * 2) / 3), BinderPageMaxWidth)
+    : pageWidth;
+  const prevPage = idx > 0 ? binder.pages[idx - 1] : null;
+  const nextPage = idx < binder.pages.length - 1 ? binder.pages[idx + 1] : null;
   // Running totals — decoration only: '' until the summary loads or when no card has a price.
   const pageTotal = priceSummary ? formatUsd(pageValue(page, priceSummary)) : '';
   const binderTotal = priceSummary ? formatUsd(binderValue(binder, priceSummary)) : '';
@@ -426,23 +437,62 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               </View>
             ) : null}
 
-            {/* The page */}
+            {/* The page (or a prev · current · next spread on wide edit screens) */}
             <View style={styles.pageWrap}>
-              <BinderGrid
-                page={page}
-                width={pageWidth}
-                editable={editing}
-                captionFields={labelsOn ? labelFields : []}
-                selectedSlotId={selectedSlotId}
-                onCellPress={handleAddCell}
-                onSlotPress={handleSelectSlot}
-                onDropSlot={handleDropSlot}
-                onResizeSlot={handleResizeSlot}
-                onReplaceSlot={replaceSelected}
-                onDuplicateSlot={duplicateSelected}
-                onRemoveSlot={removeSelected}
-                onDeselectSlot={() => setSelectedSlotId(null)}
-              />
+              {showSpread ? (
+                <View style={[styles.spreadRow, { gap: spreadGap }]}>
+                  <SpreadNeighbor
+                    page={prevPage}
+                    width={spreadWidth}
+                    label={prevPage ? `‹ Page ${idx}` : ''}
+                    onFocus={() => changePage(idx - 1)}
+                    captionFields={labelsOn ? labelFields : []}
+                  />
+                  <View style={styles.neighbor}>
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.neighborLabel}>
+                      Page {idx + 1}
+                    </ThemedText>
+                    <BinderGrid
+                      page={page}
+                      width={spreadWidth}
+                      editable={editing}
+                      captionFields={labelsOn ? labelFields : []}
+                      selectedSlotId={selectedSlotId}
+                      onCellPress={handleAddCell}
+                      onSlotPress={handleSelectSlot}
+                      onDropSlot={handleDropSlot}
+                      onResizeSlot={handleResizeSlot}
+                      onReplaceSlot={replaceSelected}
+                      onDuplicateSlot={duplicateSelected}
+                      onRemoveSlot={removeSelected}
+                      onDeselectSlot={() => setSelectedSlotId(null)}
+                    />
+                  </View>
+                  <SpreadNeighbor
+                    page={nextPage}
+                    width={spreadWidth}
+                    label={nextPage ? `Page ${idx + 2} ›` : ''}
+                    onFocus={() => changePage(idx + 1)}
+                    captionFields={labelsOn ? labelFields : []}
+                  />
+                </View>
+              ) : (
+                <BinderGrid
+                  page={page}
+                  width={pageWidth}
+                  editable={editing}
+                  captionFields={labelsOn ? labelFields : []}
+                  selectedSlotId={selectedSlotId}
+                  onCellPress={handleAddCell}
+                  onSlotPress={handleSelectSlot}
+                  onDropSlot={handleDropSlot}
+                  onResizeSlot={handleResizeSlot}
+                  onReplaceSlot={replaceSelected}
+                  onDuplicateSlot={duplicateSelected}
+                  onRemoveSlot={removeSelected}
+                  onDeselectSlot={() => setSelectedSlotId(null)}
+                />
+              )}
             </View>
 
             {editing && (
@@ -642,6 +692,37 @@ function EditorKeyboardShortcuts({
   return null;
 }
 
+/**
+ * A previous/next page beside the current one in the wide-screen edit spread. Tap to make it the
+ * current page; its cards render (read-only for now) so you can see and reach into it. An empty
+ * View keeps the current page centred when there's no neighbour on that side.
+ */
+function SpreadNeighbor({
+  page,
+  width,
+  label,
+  onFocus,
+  captionFields,
+}: {
+  page: DemoPage | null;
+  width: number;
+  label: string;
+  onFocus: () => void;
+  captionFields: CaptionFieldKey[];
+}) {
+  if (!page) return <View style={{ width }} />;
+  return (
+    <Pressable onPress={onFocus} style={styles.neighbor} accessibilityLabel={label}>
+      <ThemedText type="small" themeColor="textSecondary" style={styles.neighborLabel} numberOfLines={1}>
+        {label}
+      </ThemedText>
+      <View pointerEvents="none" style={styles.neighborGrid}>
+        <BinderGrid page={page} width={width} editable={false} captionFields={captionFields} />
+      </View>
+    </Pressable>
+  );
+}
+
 function NavArrow({
   label,
   disabled,
@@ -726,6 +807,10 @@ const styles = StyleSheet.create({
   pageDetails: { gap: 8, marginTop: 12 },
   pageDetailsRead: { alignItems: 'center', marginTop: 8 },
   pageWrap: { alignItems: 'center', marginVertical: 18 },
+  spreadRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center' },
+  neighbor: { alignItems: 'center' },
+  neighborLabel: { marginBottom: 6 },
+  neighborGrid: { opacity: 0.82 },
   pageTitle: { textAlign: 'center' },
   pageDescription: { marginTop: 4, textAlign: 'center' },
   editPanel: { gap: 8 },

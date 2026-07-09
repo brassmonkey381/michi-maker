@@ -118,6 +118,18 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     if (copy) onOpenBinder?.(copy.id);
   };
 
+  // In-editor "Duplicate" clones the *current page* (right after it) and jumps to the copy.
+  // Set the index directly (not via changePage, which would clamp against the stale page count
+  // before the new page lands) — the render clamps `pageIndex` to bounds once it does.
+  const handleDuplicatePage = () => {
+    const result = store.duplicatePage(binder.id, page.id);
+    if (result) {
+      setSelectedSlotId(null);
+      setPageIndex(result.pageIndex);
+      showToast('Page duplicated');
+    }
+  };
+
   const selectedSlot = selectedSlotId
     ? (page.slots.find((s) => s.id === selectedSlotId) ?? null)
     : null;
@@ -469,7 +481,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                       }
                     />
                   )}
-                  <PillButton label="Duplicate" onPress={handleDuplicate} />
+                  <PillButton label="Duplicate page" onPress={handleDuplicatePage} />
                 </View>
 
                 <ThemedText type="small" themeColor="textSecondary" style={styles.fieldLabel}>

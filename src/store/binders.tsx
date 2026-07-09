@@ -80,6 +80,9 @@ interface BinderStore {
   updateBinder: (id: string, patch: Partial<DemoBinder>) => void;
   deleteBinder: (id: string) => void;
   addPage: (binderId: string) => void;
+  /** Clone a page (new ids for the page + every slot) and insert it right after the original.
+   *  Returns the new page's index, or null if the binder/page can't be found. */
+  duplicatePage: (binderId: string, pageId: string) => { pageIndex: number } | null;
   updatePage: (binderId: string, pageId: string, patch: Partial<DemoPage>) => void;
   removePage: (binderId: string, pageId: string) => void;
   reorderPages: (binderId: string, fromIndex: number, toIndex: number) => void;
@@ -304,6 +307,32 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         ),
       );
       if (!target.isExample) persist(() => repo.insertPage(binderId, page, target.pages.length));
+    },
+    [binders, commit, persist],
+  );
+
+  const duplicatePage = useCallback(
+    (binderId: string, pageId: string) => {
+      const target = binders.find((binder) => binder.id === binderId);
+      const srcIndex = target ? target.pages.findIndex((p) => p.id === pageId) : -1;
+      if (!target || srcIndex < 0) return null;
+      const src = target.pages[srcIndex];
+      const copy: DemoPage = {
+        ...src,
+        id: uuidv4(),
+        title: src.title ? `${src.title} copy` : undefined,
+        slots: src.slots.map((slot) => ({ ...slot, id: uuidv4() })),
+      };
+      const pages = [
+        ...target.pages.slice(0, srcIndex + 1),
+        copy,
+        ...target.pages.slice(srcIndex + 1),
+      ];
+      commit((prev) => prev.map((binder) => (binder.id === binderId ? { ...binder, pages } : binder)));
+      // Inserting mid-list shifts page positions, so persist the whole binder (replaceBinder
+      // rewrites pages + slots with correct positions — avoids the unique(position) dance).
+      if (!target.isExample) persist(() => repo.replaceBinder({ ...target, pages }));
+      return { pageIndex: srcIndex + 1 };
     },
     [binders, commit, persist],
   );
@@ -797,6 +826,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       updateBinder,
       deleteBinder,
       addPage,
+      duplicatePage,
       updatePage,
       removePage,
       reorderPages,
@@ -823,6 +853,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       updateBinder,
       deleteBinder,
       addPage,
+      duplicatePage,
       updatePage,
       removePage,
       reorderPages,

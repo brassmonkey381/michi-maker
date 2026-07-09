@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useRef, useState, type ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { sendBrowseCommand } from 'tcgscan-browse';
 
 import { AccountButton } from '@/components/auth/AccountButton';
 import { GuestBanner } from '@/components/auth/GuestBanner';
@@ -36,6 +37,25 @@ export default function BindersScreen() {
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(null);
   const [toast, setToast] = useState<ToastSpec | null>(null);
   const toastId = useRef(0);
+
+  // The "Browse all cards" browser is controlled here so the Recent & Upcoming feed can
+  // open it and drive it (Find similar / View set) to show results.
+  const [browseOpen, setBrowseOpen] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const browseY = useRef(0);
+  const revealBrowse = () => {
+    setBrowseOpen(true);
+    // Let the expand lay out before scrolling to it.
+    setTimeout(() => scrollRef.current?.scrollTo({ y: browseY.current, animated: true }), 60);
+  };
+  const driveSimilar = (cardId: string) => {
+    sendBrowseCommand({ type: 'similar', cardId });
+    revealBrowse();
+  };
+  const driveViewSet = (cardId: string) => {
+    sendBrowseCommand({ type: 'viewSet', cardId });
+    revealBrowse();
+  };
   const showToast = (message: string) => {
     toastId.current += 1;
     setToast({ id: toastId.current, message });
@@ -116,7 +136,7 @@ export default function BindersScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.flex} edges={['top']}>
-        <ScrollView contentContainerStyle={styles.scroll}>
+        <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll}>
           <View style={styles.headerRow}>
             <ThemedText type="title" style={styles.h1}>
               poke-michi
@@ -129,7 +149,7 @@ export default function BindersScreen() {
 
           <GuestBanner />
 
-          <HomeRecent />
+          <HomeRecent onFindSimilar={driveSimilar} onViewSet={driveViewSet} />
 
           <Section
             title="Your binders"
@@ -185,7 +205,9 @@ export default function BindersScreen() {
             <BinderCarousel binders={store.exampleBinders} onOpen={openBinder} />
           </Section>
 
-          <HomeBrowse onOpenBinder={openBinder} />
+          <View onLayout={(e) => (browseY.current = e.nativeEvent.layout.y)}>
+            <HomeBrowse open={browseOpen} onOpenChange={setBrowseOpen} onOpenBinder={openBinder} />
+          </View>
         </ScrollView>
       </SafeAreaView>
 

@@ -21,8 +21,20 @@ import { FontSize, Palette, Radius, Spacing } from '@/constants/theme';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useBinders } from '@/store/binders';
 
-export function HomeBrowse({ onOpenBinder }: { onOpenBinder?: (id: string) => void }) {
-  const [open, setOpen] = useState(false);
+export function HomeBrowse({
+  onOpenBinder,
+  open: openProp,
+  onOpenChange,
+}: {
+  onOpenBinder?: (id: string) => void;
+  /** Controlled expansion — pass with `onOpenChange` so a sibling (the recent feed) can
+   *  open this browser to show Find-similar / View-set results. Uncontrolled if omitted. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const [openState, setOpenState] = useState(false);
+  const open = openProp ?? openState;
+  const setOpen = (next: boolean) => (onOpenChange ?? setOpenState)(next);
   // Only subscribes-and-loads the catalog when expanded; collapsed is a no-op for page load.
   const { catalog, error } = useCatalog(open);
   const { height } = useWindowDimensions();
@@ -70,7 +82,7 @@ export function HomeBrowse({ onOpenBinder }: { onOpenBinder?: (id: string) => vo
   return (
     <View style={styles.section}>
       <Pressable
-        onPress={() => setOpen((o) => !o)}
+        onPress={() => setOpen(!open)}
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
         style={styles.header}>

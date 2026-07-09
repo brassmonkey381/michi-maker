@@ -12,6 +12,7 @@ import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDial
 import { ShareSheet } from '@/components/binder/ShareSheet';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { HomeBrowse } from '@/components/HomeBrowse';
+import { HomeRecent } from '@/components/HomeRecent';
 import { SettingsButton } from '@/components/settings/SettingsSheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -40,10 +41,11 @@ export default function BindersScreen() {
     setToast({ id: toastId.current, message });
   };
 
-  // Note: we deliberately do NOT load the catalog here. Binder covers resolve their image
-  // straight from the card id (cardThumbUrl), so the home screen paints images immediately
-  // without waiting on the ~25 MB catalog.json. The catalog only loads when the editor/picker
-  // opens (names, set browse, jumbo/V-UNION grouping).
+  // Note: the binder sections here deliberately do NOT depend on the catalog. Binder covers
+  // resolve their image straight from the card id (cardThumbUrl), so they paint immediately
+  // without waiting on the ~10 MB catalog.json. (The <HomeRecent> feed below DOES force the
+  // catalog load, but off this first-paint path — covers show first, the feed pops in when
+  // the catalog resolves.)
   //
   // Hosted images are content-hashed, so cardThumbUrl resolves ids through the lite image
   // manifest — hydrate it here (instant from the AsyncStorage cache, then a background
@@ -126,6 +128,8 @@ export default function BindersScreen() {
           </View>
 
           <GuestBanner />
+
+          <HomeRecent />
 
           <Section
             title="Your binders"

@@ -259,16 +259,11 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // Batch "Add all to a binder" (multi-select): add each card to the next free 1×1 pocket
   // (addCardToBinder), collect any that don't fit, then report the result in one toast.
   const handlePickCards = (cardIds: string[]) => {
-    let added = 0;
-    let failed = 0;
-    for (const id of cardIds) {
-      if (store.addCardToBinder(binder.id, id)) added += 1;
-      else failed += 1;
-    }
+    // One batch pass — each card lands in the next free pocket (pages appended as needed), so they
+    // never collide on a cell. A per-card loop re-read stale state and 409'd on every card but the first.
+    const { added } = store.addCardsToBinder(binder.id, cardIds);
     closePicker();
-    if (failed === 0) showToast(`Added ${added} card${added === 1 ? '' : 's'}`);
-    else if (added === 0) showToast(`Couldn't add ${failed} — no room in this binder`);
-    else showToast(`Added ${added}, ${failed} didn't fit`);
+    if (added > 0) showToast(`Added ${added} card${added === 1 ? '' : 's'}`);
   };
 
   const handlePickArtwork = (imageUrl: string, rowSpan: number, colSpan: number) => {

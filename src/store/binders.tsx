@@ -95,6 +95,9 @@ interface BinderStore {
    * or null if the binder can't be found.
    */
   addCardToBinder: (binderId: string, cardId: string) => { pageIndex: number } | null;
+  /** Batch-add many cards, each to the next free 1×1 pocket (appending pages as needed), in ONE
+   *  commit + persist pass — avoids the stale-closure re-placement that a per-card loop hits. */
+  addCardsToBinder: (binderId: string, cardIds: string[]) => { added: number };
   placeVUnion: (binderId: string, pageId: string, row: number, col: number, pieces: readonly string[]) => void;
   placeSlicedArtwork: (
     binderId: string,
@@ -536,6 +539,67 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     [binders, commit, persist],
   );
 
+  const addCardsToBinder = useCallback(
+    (binderId: string, cardIds: string[]) => {
+      const target = binders.find((b) => b.id === binderId);
+      if (!target || cardIds.length === 0) return { added: 0 };
+
+      // Evolve ONE working copy so each card lands in the NEXT free cell. A per-card loop over
+      // addCardToBinder reads stale closure state every iteration, so every card resolves to the
+      // same "first free" cell → identical (page_id,row,col) with different ids → 409 on upsert.
+      const pages: DemoPage[] = target.pages.map((p) => ({ ...p, slots: [...p.slots] }));
+      const firstAppended = pages.length; // pages at this index and beyond are newly appended
+      const placed: { pageId: string; slot: DemoSlot }[] = [];
+
+      for (const cardId of cardIds) {
+        let pageIndex = -1;
+        let cell: { row: number; col: number } | null = null;
+        for (let i = 0; i < pages.length; i += 1) {
+          const spot = firstFreePlacement(pages[i], 1, 1);
+          if (spot) {
+            pageIndex = i;
+            cell = spot;
+            break;
+          }
+        }
+        if (pageIndex < 0 || !cell) {
+          // Every page is full → append a fresh page and start at its top-left.
+          pages.push(emptyPage(3, 3, `Page ${pages.length + 1}`));
+          pageIndex = pages.length - 1;
+          cell = { row: 0, col: 0 };
+        }
+        const slot: DemoSlot = {
+          id: uuidv4(),
+          row: cell.row,
+          col: cell.col,
+          rowSpan: 1,
+          colSpan: 1,
+          type: 'card',
+          cardId,
+        };
+        pages[pageIndex] = { ...pages[pageIndex], slots: [...pages[pageIndex].slots, slot] };
+        placed.push({ pageId: pages[pageIndex].id, slot });
+      }
+
+      commit((prev) => prev.map((b) => (b.id === binderId ? { ...b, pages } : b)));
+      if (!target.isExample) {
+        // One ordered op: create any appended pages FIRST (FK), then the slots (distinct cells,
+        // so no unique-constraint collision). persist() is fire-and-forget and unordered, so the
+        // page→slot ordering must live inside a single awaited op.
+        persist(async () => {
+          for (let i = firstAppended; i < pages.length; i += 1) {
+            await repo.insertPage(binderId, pages[i], i);
+          }
+          for (const { pageId, slot } of placed) {
+            await repo.upsertSlot(pageId, slot);
+          }
+        });
+      }
+      return { added: cardIds.length };
+    },
+    [binders, commit, persist],
+  );
+
   /**
    * Place a V-UNION as four 1×1 piece-cards filling the 2×2 block whose top-left is (row,col).
    * Requires a 2×2 to fit in bounds; clears any slots already overlapping those four cells.
@@ -900,6 +964,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       reorderPages,
       upsertSlot,
       addCardToBinder,
+      addCardsToBinder,
       placeVUnion,
       placeSlicedArtwork,
       placeArtPanels,
@@ -928,6 +993,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       reorderPages,
       upsertSlot,
       addCardToBinder,
+      addCardsToBinder,
       placeVUnion,
       placeSlicedArtwork,
       placeArtPanels,

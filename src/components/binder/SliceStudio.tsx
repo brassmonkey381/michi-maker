@@ -43,8 +43,9 @@ const ART_WINDOW: Win = { x: 0.06, y: 0.11, w: 0.88, h: 0.42 };
 const OVER = 0.85;
 const clampAxis = (v: number, size: number) => clamp(v, -OVER * size, 1 - size + OVER * size);
 
-/** A curated gallery of official Pokémon illustration — a great source to drag art from (web). */
+/** External galleries to drag art from (web) — a curated official set + Pinterest's broad feed. */
 const ART_OF_PKM_URL = 'https://www.artofpkm.com/artwork/all';
+const PINTEREST_URL = 'https://www.pinterest.com/ideas/pokemon-pictures/931192954917/';
 
 // Whether Shift/Ctrl is held (web), for multi-select. A plain module flag (not a React ref)
 // so the gesture/tap callbacks can read it without tripping the no-refs-in-render rule.
@@ -149,9 +150,9 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
     setUrlInput('');
   }, []);
 
-  const openArtOfPkm = useCallback(() => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') window.open(ART_OF_PKM_URL, '_blank', 'noopener');
-    else void Linking.openURL(ART_OF_PKM_URL);
+  const openGallery = useCallback((url: string) => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') window.open(url, '_blank', 'noopener');
+    else void Linking.openURL(url);
   }, []);
 
   // Web: drop an image (or its URL) dragged from anywhere — e.g. an Art of Pokémon tab — onto the
@@ -425,7 +426,8 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
           {/* Toolbar */}
           <View style={styles.toolbar}>
             <Btn label="🎴 Card art" onPress={() => setCardPickOpen(true)} kind="primary" />
-            <Btn label="Art of Pokémon ↗" onPress={openArtOfPkm} />
+            <Btn label="Art of Pokémon ↗" onPress={() => openGallery(ART_OF_PKM_URL)} />
+            <Btn label="Pinterest ↗" onPress={() => openGallery(PINTEREST_URL)} />
             <ArtUploadButton onUploaded={loadImage} />
             <TextInput
               value={urlInput}
@@ -440,8 +442,8 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
           </View>
           {Platform.OS === 'web' ? (
             <Text style={styles.dragHint}>
-              Tip: open “Art of Pokémon ↗” in another tab and drag any image straight onto this
-              window to load it.
+              Tip: open “Art of Pokémon ↗” or “Pinterest ↗” in another tab and drag any image
+              straight onto this window to load it.
             </Text>
           ) : null}
           <View style={styles.toolbar}>

@@ -320,10 +320,15 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // drop point (source-grid-local) into the shared window frame and resolve a page + cell. Keeping
   // the drop point and every page's bounds in ONE measured frame is what makes it reliable — the
   // earlier version mixed the gesture's screen coords with measured origins and misfired.
-  const remeasureSpread = () => {
+  // A drag started in `col` (0 prev · 1 current · 2 next): re-measure every grid so the drop
+  // hit-test has fresh bounds, and lift that column above its neighbours. Defined as a plain
+  // function (not an inline JSX arrow) so mutating the `dragCol` shared value — which the column
+  // z-index styles read — doesn't trip react-hooks/immutability.
+  const startColumnDrag = (col: number) => {
     prevRef.current?.remeasure();
     curRef.current?.remeasure();
     nextRef.current?.remeasure();
+    dragCol.value = col;
   };
   // The grid a drag started in — its localToWindow maps the drop point into the hit-test frame.
   const sourceRefFor = (pageId: string) =>
@@ -497,10 +502,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                     dragCol={dragCol}
                     columnIndex={0}
                     onCrossDrop={(slotId, x, y) => prevPage && handleCrossDrop(prevPage.id, slotId, x, y)}
-                    onDragStart={() => {
-                      remeasureSpread();
-                      dragCol.value = 0;
-                    }}
+                    onDragStart={() => startColumnDrag(0)}
                   />
                   <Animated.View style={[styles.neighbor, curColStyle]}>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.neighborLabel}>
@@ -516,10 +518,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                       onCellPress={handleAddCell}
                       onSlotPress={handleSelectSlot}
                       onCrossDrop={(slotId, x, y) => handleCrossDrop(page.id, slotId, x, y)}
-                      onDragStart={() => {
-                        remeasureSpread();
-                        dragCol.value = 1;
-                      }}
+                      onDragStart={() => startColumnDrag(1)}
                       onResizeSlot={handleResizeSlot}
                       onReplaceSlot={replaceSelected}
                       onDuplicateSlot={duplicateSelected}
@@ -537,10 +536,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                     dragCol={dragCol}
                     columnIndex={2}
                     onCrossDrop={(slotId, x, y) => nextPage && handleCrossDrop(nextPage.id, slotId, x, y)}
-                    onDragStart={() => {
-                      remeasureSpread();
-                      dragCol.value = 2;
-                    }}
+                    onDragStart={() => startColumnDrag(2)}
                   />
                 </View>
               ) : (

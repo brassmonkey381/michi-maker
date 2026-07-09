@@ -56,6 +56,11 @@ export interface DemoSlot {
    * `imageUrl` this slot shows, as fractions 0–1 of the whole image. Absent ⇒ show the whole.
    */
   imageCrop?: { x: number; y: number; w: number; h: number };
+  /**
+   * How the artwork fills its pocket footprint. 'cover' (default) fills edge-to-edge, cropping
+   * overflow; 'contain' shows the whole image at its original aspect, letterboxed — nothing cropped.
+   */
+  imageFit?: 'cover' | 'contain';
 }
 
 export interface DemoPage {

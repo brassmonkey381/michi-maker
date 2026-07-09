@@ -64,6 +64,8 @@ export interface ArtPanelInput {
   cs: number;
   imageUrl: string;
   crop: { x: number; y: number; w: number; h: number };
+  /** 'cover' (fill, crop overflow) or 'contain' (whole image, original aspect). Default 'cover'. */
+  fit?: 'cover' | 'contain';
 }
 
 interface BinderStore {
@@ -686,6 +688,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
           type: 'artwork',
           imageUrl: panel.imageUrl,
           imageCrop: panel.crop,
+          imageFit: panel.fit ?? 'cover',
         });
       }
       if (newSlots.length === 0) return;

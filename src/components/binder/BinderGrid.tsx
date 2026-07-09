@@ -580,11 +580,13 @@ function ArtworkImage({
   radius,
   small,
   crop,
+  fit = 'cover',
 }: {
   uri: string;
   radius: number;
   small: boolean;
   crop?: DemoSlot['imageCrop'];
+  fit?: DemoSlot['imageFit'];
 }) {
   const [failed, setFailed] = useState(false);
   if (failed) {
@@ -594,10 +596,13 @@ function ArtworkImage({
       </View>
     );
   }
+  // 'contain' shows the whole image at its original aspect (letterboxed) — no crop windowing.
+  const contain = fit === 'contain';
   // A crop is only usable if every field is finite; a degenerate crop (w/h ≈ 0 from a bad
   // slice) would make `100 / w` size the image to hundreds of thousands of px and freeze the
   // page, so clamp the divisor to a sane minimum (max ~20× the pocket).
   const validCrop =
+    !contain &&
     crop &&
     Number.isFinite(crop.w) &&
     Number.isFinite(crop.h) &&
@@ -619,7 +624,7 @@ function ArtworkImage({
       <Image
         source={{ uri }}
         style={imgStyle}
-        contentFit="cover"
+        contentFit={contain ? 'contain' : 'cover'}
         cachePolicy="memory-disk"
         recyclingKey={uri}
         transition={120}
@@ -673,7 +678,7 @@ function SlotContent({
   // A custom artwork panel — a pasted / uploaded image, sized to fill the slot (or a slice
   // of a larger image when imageCrop is set).
   if (slot.type === 'artwork' && slot.imageUrl) {
-    return <ArtworkImage uri={slot.imageUrl} radius={radius} small={small} crop={slot.imageCrop} />;
+    return <ArtworkImage uri={slot.imageUrl} radius={radius} small={small} crop={slot.imageCrop} fit={slot.imageFit} />;
   }
 
   const id = slot.cardId;

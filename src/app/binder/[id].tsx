@@ -193,12 +193,18 @@ function Viewer({
       />
 
       <View style={styles.pageWrap}>
-        <BinderGrid
-          page={page}
-          width={pageWidth}
-          editable={false}
-          captionFields={labelsOn ? labelFields : []}
-        />
+        {page ? (
+          <BinderGrid
+            page={page}
+            width={pageWidth}
+            editable={false}
+            captionFields={labelsOn ? labelFields : []}
+          />
+        ) : (
+          <ThemedText type="small" themeColor="textSecondary" style={styles.missText}>
+            This binder doesn’t have any pages yet.
+          </ThemedText>
+        )}
       </View>
 
       <Link href="/" asChild>

@@ -35,6 +35,14 @@ const CARD_ASPECT = 88 / 63;
 const GAP = 6;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
+/** Rough illustration window of a standard (non-full-art) Pokémon card, as fractions of the full
+ *  card image — the starting crop for "Just the art". Pan/zoom to fine-tune per card. */
+const ART_WINDOW: Win = { x: 0.06, y: 0.11, w: 0.88, h: 0.42 };
+/** How far the crop window may travel past the image edge, as a fraction of the window. Lets you
+ *  pan art partly out of frame — and pan at all when not zoomed in — while keeping ≥15% overlapping. */
+const OVER = 0.85;
+const clampAxis = (v: number, size: number) => clamp(v, -OVER * size, 1 - size + OVER * size);
+
 /** A curated gallery of official Pokémon illustration — a great source to drag art from (web). */
 const ART_OF_PKM_URL = 'https://www.artofpkm.com/artwork/all';
 
@@ -123,6 +131,9 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
   const [imageUrl, setImageUrl] = useState(initUrl ?? '');
   const [urlInput, setUrlInput] = useState('');
   const [win, setWin] = useState<Win>({ x: 0, y: 0, w: 1, h: 1 });
+  // How the art fills its pocket(s): 'cover' fills edge-to-edge (crop overflow, pan/zoom to frame),
+  // 'contain' shows the whole image at its original aspect (letterboxed, nothing cropped).
+  const [fit, setFit] = useState<'cover' | 'contain'>('cover');
   const [panels, setPanels] = useState<Panel[]>(() => makeGrid(initRows, initCols));
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sliced, setSliced] = useState(true);
@@ -194,8 +205,8 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
       if (!canvasW || !canvasH) return;
       setWin((prev) => ({
         ...prev,
-        x: clamp(prev.x - (dx / canvasW) * prev.w, 0, 1 - prev.w),
-        y: clamp(prev.y - (dy / canvasH) * prev.h, 0, 1 - prev.h),
+        x: clampAxis(prev.x - (dx / canvasW) * prev.w, prev.w),
+        y: clampAxis(prev.y - (dy / canvasH) * prev.h, prev.h),
       }));
     },
     [canvasW, canvasH],
@@ -208,8 +219,8 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
       return {
         w,
         h,
-        x: clamp(prev.x + (prev.w - w) / 2, 0, 1 - w),
-        y: clamp(prev.y + (prev.h - h) / 2, 0, 1 - h),
+        x: clampAxis(prev.x + (prev.w - w) / 2, w),
+        y: clampAxis(prev.y + (prev.h - h) / 2, h),
       };
     });
   }, []);
@@ -286,6 +297,18 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
     setWin({ x: 0, y: 0, w: 1, h: 1 });
   }, [rows, cols]);
 
+  const setFitMode = useCallback((mode: 'cover' | 'contain') => {
+    setFit(mode);
+    if (mode === 'contain') setWin({ x: 0, y: 0, w: 1, h: 1 }); // whole image, no windowing
+  }, []);
+
+  // Quick-crop to a card's illustration: fill mode + the standard art window, then pan/zoom to taste.
+  const justTheArt = useCallback(() => {
+    setFit('cover');
+    setSliced(true);
+    setWin(ART_WINDOW);
+  }, []);
+
   const loadUrl = useCallback(() => {
     const u = urlInput.trim();
     if (!/^https?:\/\/\S+$/i.test(u)) return;
@@ -312,6 +335,11 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
 
   const place = useCallback(() => {
     if (!imageUrl) return;
+    if (fit === 'contain') {
+      // Original aspect: one panel spanning the whole grid footprint, whole image, no crop.
+      onPlace([{ r: 0, c: 0, rs: rows, cs: cols, imageUrl, crop: { x: 0, y: 0, w: 1, h: 1 }, fit: 'contain' }]);
+      return;
+    }
     const out: ArtPanelInput[] = panels.map((p) => ({
       r: p.r,
       c: p.c,
@@ -319,9 +347,10 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
       cs: p.cs,
       imageUrl,
       crop: panelCrop(p, rows, cols, win),
+      fit: 'cover',
     }));
     onPlace(out);
-  }, [imageUrl, panels, rows, cols, win, onPlace]);
+  }, [imageUrl, fit, panels, rows, cols, win, onPlace]);
 
   // Web: keyboard shortcuts + tracking Shift/Ctrl for multi-select.
   useEffect(() => {
@@ -427,12 +456,22 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
             ))}
           </View>
           <View style={styles.toolbar}>
+            <Text style={styles.tLabel}>Fit</Text>
+            <Chip label="Scale to fit" active={fit === 'cover'} onPress={() => setFitMode('cover')} />
+            <Chip label="Original aspect" active={fit === 'contain'} onPress={() => setFitMode('contain')} />
+            <Btn label="Just the art" onPress={justTheArt} disabled={!imageUrl} />
+          </View>
+          <Text style={styles.dragHint}>
+            Scale to fit fills the pocket edge-to-edge (crops the overflow — drag to reframe).
+            Original aspect keeps the whole image, nothing cropped.
+          </Text>
+          <View style={styles.toolbar}>
             <Text style={styles.tLabel}>View</Text>
             <Chip label="Whole" active={!sliced} onPress={() => setSliced(false)} />
             <Chip label="Sliced" active={sliced} onPress={() => setSliced(true)} />
             <Text style={styles.tLabel}>Zoom</Text>
-            <Btn label="−" onPress={() => zoomBy(1 / 0.85)} />
-            <Btn label="+" onPress={() => zoomBy(0.85)} />
+            <Btn label="−" onPress={() => zoomBy(1 / 0.85)} disabled={fit === 'contain'} />
+            <Btn label="+" onPress={() => zoomBy(0.85)} disabled={fit === 'contain'} />
           </View>
           <View style={styles.toolbar}>
             <Btn label="Merge" onPress={merge} disabled={selected.size < 2} />
@@ -454,6 +493,16 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
                     {failed ? (
                       <View style={[styles.empty, StyleSheet.absoluteFill]}>
                         <Text style={styles.emptyText}>image didn’t load</Text>
+                      </View>
+                    ) : fit === 'contain' ? (
+                      // Original aspect — the whole image, letterboxed into the pocket footprint.
+                      <View style={[StyleSheet.absoluteFill, styles.pieceClip]}>
+                        <Image
+                          source={{ uri: imageUrl }}
+                          style={StyleSheet.absoluteFill}
+                          contentFit="contain"
+                          onError={() => setFailed(true)}
+                        />
                       </View>
                     ) : !sliced ? (
                       // Whole preview — one image showing the current window.

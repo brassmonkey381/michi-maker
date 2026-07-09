@@ -18,6 +18,9 @@ export function AccountButton() {
   const [open, setOpen] = useState(false);
 
   if (!isSupabaseConfigured) return null;
+  // With no session at all, the home guest banner already carries a "Sign in" — don't show a
+  // second one up here. Guests (who have a session, and no banner) keep the header pill.
+  if (!auth.user) return null;
 
   const initial = (auth.profile?.display_name || auth.user?.email || '?')
     .trim()

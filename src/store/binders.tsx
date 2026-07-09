@@ -112,6 +112,15 @@ interface BinderStore {
   ) => void;
   moveSlot: (binderId: string, pageId: string, slotId: string, toRow: number, toCol: number) => void;
   swapSlots: (binderId: string, pageId: string, slotIdA: string, slotIdB: string) => void;
+  /** Move (or same-footprint-swap) a slot from one page to another — dragging across the spread. */
+  moveSlotAcrossPages: (
+    binderId: string,
+    fromPageId: string,
+    slotId: string,
+    toPageId: string,
+    toRow: number,
+    toCol: number,
+  ) => void;
   removeSlot: (binderId: string, pageId: string, slotId: string) => void;
   undo: () => void;
   redo: () => void;
@@ -791,6 +800,62 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     [binders, commit, persist],
   );
 
+  /**
+   * Move a slot from one page to another (drag across the edit spread). If the destination cell
+   * holds a same-footprint occupant, the two swap pages; if it's free, the slot moves; otherwise
+   * it's a no-op (the drag springs back). Both pages change, so it persists via replaceBinder.
+   */
+  const moveSlotAcrossPages = useCallback(
+    (
+      binderId: string,
+      fromPageId: string,
+      slotId: string,
+      toPageId: string,
+      toRow: number,
+      toCol: number,
+    ) => {
+      if (fromPageId === toPageId) return;
+      const target = binders.find((b) => b.id === binderId);
+      const fromPage = target?.pages.find((p) => p.id === fromPageId);
+      const toPage = target?.pages.find((p) => p.id === toPageId);
+      const slot = fromPage?.slots.find((s) => s.id === slotId);
+      if (!target || !fromPage || !toPage || !slot) return;
+      if (slot.rowSpan > toPage.rows || slot.colSpan > toPage.cols) return; // can't fit
+
+      const row = Math.max(0, Math.min(toRow, toPage.rows - slot.rowSpan));
+      const col = Math.max(0, Math.min(toCol, toPage.cols - slot.colSpan));
+      const occupant = toPage.slots.find((s) => slotCells(s).includes(`${row},${col}`));
+
+      let fromSlots: DemoSlot[];
+      let toSlots: DemoSlot[];
+      if (
+        occupant &&
+        occupant.row === row &&
+        occupant.col === col &&
+        occupant.rowSpan === slot.rowSpan &&
+        occupant.colSpan === slot.colSpan
+      ) {
+        // Same-footprint swap across pages: each takes the other's cell.
+        const movedSlot = { ...slot, row, col };
+        const movedOccupant = { ...occupant, row: slot.row, col: slot.col };
+        fromSlots = fromPage.slots.map((s) => (s.id === slot.id ? movedOccupant : s));
+        toSlots = toPage.slots.map((s) => (s.id === occupant.id ? movedSlot : s));
+      } else {
+        // Move into a free footprint on the destination page.
+        if (!canPlaceSlot(toPage, { row, col, rowSpan: slot.rowSpan, colSpan: slot.colSpan })) return;
+        fromSlots = fromPage.slots.filter((s) => s.id !== slot.id);
+        toSlots = [...toPage.slots, { ...slot, row, col }];
+      }
+
+      const pages = target.pages.map((p) =>
+        p.id === fromPageId ? { ...p, slots: fromSlots } : p.id === toPageId ? { ...p, slots: toSlots } : p,
+      );
+      commit((prev) => prev.map((b) => (b.id === binderId ? { ...b, pages } : b)));
+      if (!target.isExample) persist(() => repo.replaceBinder({ ...target, pages }));
+    },
+    [binders, commit, persist],
+  );
+
   const removeSlot = useCallback(
     (binderId: string, pageId: string, slotId: string) => {
       const target = binders.find((binder) => binder.id === binderId);
@@ -837,6 +902,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       placeArtPanels,
       moveSlot,
       swapSlots,
+      moveSlotAcrossPages,
       removeSlot,
       undo,
       redo,
@@ -864,6 +930,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       placeArtPanels,
       moveSlot,
       swapSlots,
+      moveSlotAcrossPages,
       removeSlot,
       undo,
       redo,

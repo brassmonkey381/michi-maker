@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { useEffect, useMemo, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type DimensionValue } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -40,6 +40,18 @@ interface BinderGridProps {
   onDuplicateSlot?: () => void;
   onRemoveSlot?: () => void;
   onDeselectSlot?: () => void;
+  /** Cross-page drag: report the drop's absolute screen coords so the editor resolves which
+   *  page + cell it landed on (the multi-page spread). Replaces onDropSlot's local target. */
+  onCrossDrop?: (slotId: string, absoluteX: number, absoluteY: number) => void;
+  /** Fired when a slot drag begins — lets the editor re-measure sibling grids for hit-testing. */
+  onDragStart?: () => void;
+}
+
+export interface BinderGridHandle {
+  /** Re-read this grid's window position — call at drag start, before any hitTest. */
+  remeasure: () => void;
+  /** Map absolute screen coords to a cell in this grid, or null if the point is outside it. */
+  hitTest: (absoluteX: number, absoluteY: number) => { row: number; col: number } | null;
 }
 
 type BoxStyle = {
@@ -50,21 +62,26 @@ type BoxStyle = {
   height: number;
 };
 
-export function BinderGrid({
-  page,
-  width,
-  editable = false,
-  captionFields = [],
-  selectedSlotId,
-  onSlotPress,
-  onCellPress,
-  onDropSlot,
-  onResizeSlot,
-  onReplaceSlot,
-  onDuplicateSlot,
-  onRemoveSlot,
-  onDeselectSlot,
-}: BinderGridProps) {
+export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function BinderGrid(
+  {
+    page,
+    width,
+    editable = false,
+    captionFields = [],
+    selectedSlotId,
+    onSlotPress,
+    onCellPress,
+    onDropSlot,
+    onResizeSlot,
+    onReplaceSlot,
+    onDuplicateSlot,
+    onRemoveSlot,
+    onDeselectSlot,
+    onCrossDrop,
+    onDragStart,
+  }: BinderGridProps,
+  ref,
+) {
   // Passive catalog subscription: card *images* come from the id directly (cardThumbUrl), so the
   // grid never forces the ~25 MB catalog load just to render — covers paint immediately. When the
   // catalog is already loaded (editor/picker), we use it only to enrich (the jumbo/V-UNION badge).
@@ -98,6 +115,30 @@ export function BinderGrid({
     height: rowSpan * cellH + (rowSpan - 1) * (gap + captionH),
   });
 
+  // Window-position measurement so the editor can hit-test a cross-page drop against this grid.
+  const rootRef = useRef<View>(null);
+  const originRef = useRef<{ x: number; y: number } | null>(null);
+  useImperativeHandle(
+    ref,
+    () => ({
+      remeasure: () =>
+        rootRef.current?.measureInWindow((x, y) => {
+          originRef.current = { x, y };
+        }),
+      hitTest: (absoluteX, absoluteY) => {
+        const origin = originRef.current;
+        if (!origin) return null;
+        const localX = absoluteX - origin.x - pad;
+        const localY = absoluteY - origin.y - pad;
+        if (localX < 0 || localY < 0 || localX > innerW || localY > innerH) return null;
+        const col = Math.max(0, Math.min(page.cols - 1, Math.floor(localX / colStep)));
+        const row = Math.max(0, Math.min(page.rows - 1, Math.floor(localY / rowStep)));
+        return { row, col };
+      },
+    }),
+    [pad, innerW, innerH, colStep, rowStep, page.cols, page.rows],
+  );
+
   // Shared drag state: which slot is lifted, and its live translation. Only one drags at a time.
   const dragX = useSharedValue(0);
   const dragY = useSharedValue(0);
@@ -124,6 +165,7 @@ export function BinderGrid({
 
   return (
     <View
+      ref={rootRef}
       style={[
         styles.page,
         { width, padding: pad, borderRadius: radius, backgroundColor: page.backgroundColor ?? BinderSurface.mat },
@@ -142,8 +184,8 @@ export function BinderGrid({
           );
         })}
 
-        {/* Empty-cell tap targets (edit mode only). */}
-        {editable &&
+        {/* Empty-cell tap targets (edit mode only; neighbours in the spread omit onCellPress). */}
+        {editable && onCellPress &&
           emptyCells.map(({ row, col }) => (
             <Pressable
               key={`add-${row}-${col}`}
@@ -181,7 +223,9 @@ export function BinderGrid({
               dragY={dragY}
               onSetDragId={setDragId}
               onTap={onSlotPress}
-              onDropSlot={onDropSlot}>
+              onDropSlot={onDropSlot}
+              onCrossDrop={onCrossDrop}
+              onDragStart={onDragStart}>
               {content}
             </DraggableSlot>
           );
@@ -256,7 +300,7 @@ export function BinderGrid({
       </View>
     </View>
   );
-}
+});
 
 /**
  * A compact action toolbar that floats over the selected pocket — Replace,
@@ -431,6 +475,8 @@ interface DraggableSlotProps {
   onSetDragId: (id: string | null) => void;
   onTap?: (slot: DemoSlot) => void;
   onDropSlot?: (slotId: string, toRow: number, toCol: number) => void;
+  onCrossDrop?: (slotId: string, absoluteX: number, absoluteY: number) => void;
+  onDragStart?: () => void;
   children: React.ReactNode;
 }
 
@@ -449,6 +495,8 @@ function DraggableSlot({
   onSetDragId,
   onTap,
   onDropSlot,
+  onCrossDrop,
+  onDragStart,
   children,
 }: DraggableSlotProps) {
   const gesture = useMemo(() => {
@@ -463,15 +511,22 @@ function DraggableSlot({
       })
       .onStart(() => {
         runOnJS(onSetDragId)(slot.id);
+        if (onDragStart) runOnJS(onDragStart)();
       })
       .onUpdate((e) => {
         dragX.value = e.translationX;
         dragY.value = e.translationY;
       })
       .onEnd((e) => {
-        const targetCol = Math.round((slot.col * stepX + e.translationX) / stepX);
-        const targetRow = Math.round((slot.row * stepY + e.translationY) / stepY);
-        if (onDropSlot) runOnJS(onDropSlot)(slot.id, targetRow, targetCol);
+        // In the spread, the editor resolves which page + cell (absolute coords); otherwise the
+        // drop stays within this grid (translation-based target).
+        if (onCrossDrop) {
+          runOnJS(onCrossDrop)(slot.id, e.absoluteX, e.absoluteY);
+        } else if (onDropSlot) {
+          const targetCol = Math.round((slot.col * stepX + e.translationX) / stepX);
+          const targetRow = Math.round((slot.row * stepY + e.translationY) / stepY);
+          runOnJS(onDropSlot)(slot.id, targetRow, targetCol);
+        }
       })
       .onFinalize(() => {
         runOnJS(onSetDragId)(null);
@@ -480,7 +535,7 @@ function DraggableSlot({
       if (onTap) runOnJS(onTap)(slot);
     });
     return Gesture.Exclusive(pan, tap);
-  }, [slot, cellW, cellH, gap, captionH, dragX, dragY, onSetDragId, onTap, onDropSlot]);
+  }, [slot, cellW, cellH, gap, captionH, dragX, dragY, onSetDragId, onTap, onDropSlot, onCrossDrop, onDragStart]);
 
   return (
     <GestureDetector gesture={gesture}>

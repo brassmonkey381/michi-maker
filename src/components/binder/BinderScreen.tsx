@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import {
   Platform,
   Pressable,
@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BinderGrid } from '@/components/binder/BinderGrid';
+import { BinderGrid, type BinderGridHandle } from '@/components/binder/BinderGrid';
 import { CaptionControls } from '@/components/binder/CaptionControls';
 import { CardPicker } from '@/components/binder/CardPicker';
 import { ColorField } from '@/components/binder/ColorField';
@@ -69,6 +69,10 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [toast, setToast] = useState<ToastSpec | null>(null);
+  // Handles to the three grids in the wide-screen edit spread, for cross-page drag hit-testing.
+  const prevRef = useRef<BinderGridHandle>(null);
+  const curRef = useRef<BinderGridHandle>(null);
+  const nextRef = useRef<BinderGridHandle>(null);
   const toastId = useRef(0);
 
   // NOTE: we deliberately do NOT prefetch the ~27MB catalog here. Viewing/editing a binder
@@ -278,17 +282,16 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     closePicker();
   };
 
-  // Drag-and-drop: drop a slot onto a target cell. Same-footprint occupant → swap; empty →
-  // move; otherwise moveSlot no-ops and the card springs back.
-  const handleDropSlot = (slotId: string, toRow: number, toCol: number) => {
-    const moving = page.slots.find((s) => s.id === slotId);
-    if (!moving) return;
-    const r = Math.max(0, Math.min(toRow, page.rows - moving.rowSpan));
-    const c = Math.max(0, Math.min(toCol, page.cols - moving.colSpan));
+  // Drag-and-drop onto a target cell of `pageId`: same-footprint occupant → swap; empty → move;
+  // otherwise it springs back. Shared by the single-page editor and every page in the spread.
+  const handleDropOnPage = (pageId: string, slotId: string, toRow: number, toCol: number) => {
+    const pg = binder.pages.find((p) => p.id === pageId);
+    const moving = pg?.slots.find((s) => s.id === slotId);
+    if (!pg || !moving) return;
+    const r = Math.max(0, Math.min(toRow, pg.rows - moving.rowSpan));
+    const c = Math.max(0, Math.min(toCol, pg.cols - moving.colSpan));
     if (r === moving.row && c === moving.col) return;
-    const occupant = page.slots.find(
-      (s) => s.id !== slotId && slotCells(s).includes(`${r},${c}`),
-    );
+    const occupant = pg.slots.find((s) => s.id !== slotId && slotCells(s).includes(`${r},${c}`));
     if (
       occupant &&
       occupant.row === r &&
@@ -296,10 +299,34 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
       occupant.rowSpan === moving.rowSpan &&
       occupant.colSpan === moving.colSpan
     ) {
-      store.swapSlots(binder.id, page.id, slotId, occupant.id);
+      store.swapSlots(binder.id, pageId, slotId, occupant.id);
     } else {
-      store.moveSlot(binder.id, page.id, slotId, r, c);
+      store.moveSlot(binder.id, pageId, slotId, r, c);
     }
+  };
+  const handleDropSlot = (slotId: string, toRow: number, toCol: number) =>
+    handleDropOnPage(page.id, slotId, toRow, toCol);
+
+  // Spread cross-page drag: re-measure the grids at drag start, then on drop resolve the pointer's
+  // absolute coords to a page + cell and move within a page or across pages.
+  const remeasureSpread = () => {
+    prevRef.current?.remeasure();
+    curRef.current?.remeasure();
+    nextRef.current?.remeasure();
+  };
+  const resolveSpreadHit = (absX: number, absY: number) => {
+    const check = (pg: DemoPage | null, r: typeof curRef) => {
+      if (!pg) return null;
+      const cell = r.current?.hitTest(absX, absY);
+      return cell ? { pageId: pg.id, row: cell.row, col: cell.col } : null;
+    };
+    return check(prevPage, prevRef) ?? check(page, curRef) ?? check(nextPage, nextRef);
+  };
+  const handleCrossDrop = (fromPageId: string, slotId: string, absX: number, absY: number) => {
+    const hit = resolveSpreadHit(absX, absY);
+    if (!hit) return; // dropped outside any visible page → springs back
+    if (hit.pageId === fromPageId) handleDropOnPage(fromPageId, slotId, hit.row, hit.col);
+    else store.moveSlotAcrossPages(binder.id, fromPageId, slotId, hit.pageId, hit.row, hit.col);
   };
 
   return (
@@ -442,17 +469,21 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               {showSpread ? (
                 <View style={[styles.spreadRow, { gap: spreadGap }]}>
                   <SpreadNeighbor
+                    gridRef={prevRef}
                     page={prevPage}
                     width={spreadWidth}
                     label={prevPage ? `‹ Page ${idx}` : ''}
                     onFocus={() => changePage(idx - 1)}
                     captionFields={labelsOn ? labelFields : []}
+                    onCrossDrop={(slotId, x, y) => prevPage && handleCrossDrop(prevPage.id, slotId, x, y)}
+                    onDragStart={remeasureSpread}
                   />
                   <View style={styles.neighbor}>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.neighborLabel}>
                       Page {idx + 1}
                     </ThemedText>
                     <BinderGrid
+                      ref={curRef}
                       page={page}
                       width={spreadWidth}
                       editable={editing}
@@ -460,7 +491,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                       selectedSlotId={selectedSlotId}
                       onCellPress={handleAddCell}
                       onSlotPress={handleSelectSlot}
-                      onDropSlot={handleDropSlot}
+                      onCrossDrop={(slotId, x, y) => handleCrossDrop(page.id, slotId, x, y)}
+                      onDragStart={remeasureSpread}
                       onResizeSlot={handleResizeSlot}
                       onReplaceSlot={replaceSelected}
                       onDuplicateSlot={duplicateSelected}
@@ -469,11 +501,14 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                     />
                   </View>
                   <SpreadNeighbor
+                    gridRef={nextRef}
                     page={nextPage}
                     width={spreadWidth}
                     label={nextPage ? `Page ${idx + 2} ›` : ''}
                     onFocus={() => changePage(idx + 1)}
                     captionFields={labelsOn ? labelFields : []}
+                    onCrossDrop={(slotId, x, y) => nextPage && handleCrossDrop(nextPage.id, slotId, x, y)}
+                    onDragStart={remeasureSpread}
                   />
                 </View>
               ) : (
@@ -693,33 +728,50 @@ function EditorKeyboardShortcuts({
 }
 
 /**
- * A previous/next page beside the current one in the wide-screen edit spread. Tap to make it the
- * current page; its cards render (read-only for now) so you can see and reach into it. An empty
- * View keeps the current page centred when there's no neighbour on that side.
+ * A previous/next page beside the current one in the wide-screen edit spread. Its cards are
+ * draggable (drag one onto the current page to move it, or reach a card in from the current page),
+ * but it has no add/resize chrome — tap its label to make it the current page. An empty View keeps
+ * the current page centred when there's no neighbour on that side.
  */
 function SpreadNeighbor({
+  gridRef,
   page,
   width,
   label,
   onFocus,
   captionFields,
+  onCrossDrop,
+  onDragStart,
 }: {
+  gridRef: RefObject<BinderGridHandle | null>;
   page: DemoPage | null;
   width: number;
   label: string;
   onFocus: () => void;
   captionFields: CaptionFieldKey[];
+  onCrossDrop: (slotId: string, absoluteX: number, absoluteY: number) => void;
+  onDragStart: () => void;
 }) {
   if (!page) return <View style={{ width }} />;
   return (
-    <Pressable onPress={onFocus} style={styles.neighbor} accessibilityLabel={label}>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.neighborLabel} numberOfLines={1}>
-        {label}
-      </ThemedText>
-      <View pointerEvents="none" style={styles.neighborGrid}>
-        <BinderGrid page={page} width={width} editable={false} captionFields={captionFields} />
+    <View style={styles.neighbor}>
+      <Pressable onPress={onFocus} hitSlop={6} accessibilityLabel={label}>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.neighborLabel} numberOfLines={1}>
+          {label}
+        </ThemedText>
+      </Pressable>
+      <View style={styles.neighborGrid}>
+        <BinderGrid
+          ref={gridRef}
+          page={page}
+          width={width}
+          editable
+          captionFields={captionFields}
+          onCrossDrop={onCrossDrop}
+          onDragStart={onDragStart}
+        />
       </View>
-    </Pressable>
+    </View>
   );
 }
 
@@ -810,7 +862,7 @@ const styles = StyleSheet.create({
   spreadRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center' },
   neighbor: { alignItems: 'center' },
   neighborLabel: { marginBottom: 6 },
-  neighborGrid: { opacity: 0.82 },
+  neighborGrid: { opacity: 0.92 },
   pageTitle: { textAlign: 'center' },
   pageDescription: { marginTop: 4, textAlign: 'center' },
   editPanel: { gap: 8 },

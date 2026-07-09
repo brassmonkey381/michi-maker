@@ -116,11 +116,12 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const page = binder.pages[idx];
   const pageWidth = Math.min(width - 32, BinderPageMaxWidth);
 
-  // Wide screens in edit mode show the previous + next pages beside the current one (a "spread"),
-  // so cards can be dragged between pages. Narrow screens keep the single-page view.
+  // Wide screens show the previous + next pages beside the current one (a "spread") — both when
+  // editing (drag cards between pages) and when inspecting (see 3 pages at once, tap a neighbour
+  // to flip to it). Narrow screens keep the single-page view + the page filmstrip below.
   const available = width - 32;
   const spreadGap = 12;
-  const showSpread = editing && available >= 900 && binder.pages.length > 1;
+  const showSpread = available >= 900 && binder.pages.length > 1;
   const spreadWidth = showSpread
     ? Math.min(Math.floor((available - spreadGap * 2) / 3), BinderPageMaxWidth)
     : pageWidth;
@@ -508,6 +509,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                     width={spreadWidth}
                     label={prevPage ? `‹ Page ${idx}` : ''}
                     onFocus={() => changePage(idx - 1)}
+                    editable={editing}
                     captionFields={labelsOn ? labelFields : []}
                     dragCol={dragCol}
                     columnIndex={0}
@@ -542,6 +544,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                     width={spreadWidth}
                     label={nextPage ? `Page ${idx + 2} ›` : ''}
                     onFocus={() => changePage(idx + 1)}
+                    editable={editing}
                     captionFields={labelsOn ? labelFields : []}
                     dragCol={dragCol}
                     columnIndex={2}
@@ -568,19 +571,26 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               )}
             </View>
 
+            {/* Page filmstrip — tap a thumbnail to flip to it. Shown while inspecting AND editing;
+                long-press-drag to reorder is enabled only when editing. */}
+            {binder.pages.length > 1 ? (
+              <PageStrip
+                pages={binder.pages}
+                currentIndex={idx}
+                onSelect={changePage}
+                onReorder={
+                  editing
+                    ? (from, to) => {
+                        store.reorderPages(binder.id, from, to);
+                        changePage(to);
+                      }
+                    : undefined
+                }
+              />
+            ) : null}
+
             {editing && (
               <View style={styles.editPanel}>
-                {/* Page filmstrip — tap to jump, drag to reorder. */}
-                <PageStrip
-                  pages={binder.pages}
-                  currentIndex={idx}
-                  onSelect={changePage}
-                  onReorder={(from, to) => {
-                    store.reorderPages(binder.id, from, to);
-                    changePage(to);
-                  }}
-                />
-
                 <View style={styles.btnRow}>
                   <PillButton label="↶ Undo" onPress={store.undo} disabled={!store.canUndo} />
                   <PillButton label="↷ Redo" onPress={store.redo} disabled={!store.canRedo} />
@@ -778,6 +788,7 @@ function SpreadNeighbor({
   width,
   label,
   onFocus,
+  editable,
   captionFields,
   dragCol,
   columnIndex,
@@ -789,6 +800,8 @@ function SpreadNeighbor({
   width: number;
   label: string;
   onFocus: () => void;
+  /** Editing → the grid is a drag source/target; inspecting → it's read-only and tapping it flips. */
+  editable: boolean;
   captionFields: CaptionFieldKey[];
   /** Shared "which column is dragging" value + this column's index, so a card dragged out of
    *  this page lifts the whole column above its neighbours (z-index) without a re-render. */
@@ -799,6 +812,17 @@ function SpreadNeighbor({
 }) {
   const columnStyle = useAnimatedStyle(() => ({ zIndex: dragCol.value === columnIndex ? 30 : 1 }));
   if (!page) return <View style={{ width }} />;
+  const grid = (
+    <BinderGrid
+      ref={gridRef}
+      page={page}
+      width={width}
+      editable={editable}
+      captionFields={captionFields}
+      onCrossDrop={editable ? onCrossDrop : undefined}
+      onDragStart={editable ? onDragStart : undefined}
+    />
+  );
   return (
     <Animated.View style={[styles.neighbor, columnStyle]}>
       <Pressable onPress={onFocus} hitSlop={6} accessibilityLabel={label}>
@@ -806,17 +830,15 @@ function SpreadNeighbor({
           {label}
         </ThemedText>
       </Pressable>
-      <View style={styles.neighborGrid}>
-        <BinderGrid
-          ref={gridRef}
-          page={page}
-          width={width}
-          editable
-          captionFields={captionFields}
-          onCrossDrop={onCrossDrop}
-          onDragStart={onDragStart}
-        />
-      </View>
+      {/* Inspecting: the whole neighbour page is a tap target that flips to it. Editing: it must
+          stay a drag surface, so only the label above flips. */}
+      {editable ? (
+        <View style={styles.neighborGrid}>{grid}</View>
+      ) : (
+        <Pressable style={styles.neighborGrid} onPress={onFocus} accessibilityLabel={label}>
+          {grid}
+        </Pressable>
+      )}
     </Animated.View>
   );
 }

@@ -14,10 +14,11 @@ interface PageStripProps {
   pages: DemoPage[];
   currentIndex: number;
   onSelect: (index: number) => void;
-  onReorder: (from: number, to: number) => void;
+  /** Omit to make the strip read-only (tap to jump only) — e.g. when inspecting a binder. */
+  onReorder?: (from: number, to: number) => void;
 }
 
-/** Horizontal filmstrip of page thumbnails: tap to jump, long-press then drag to reorder. */
+/** Horizontal filmstrip of page thumbnails: tap to jump, and (when editable) long-press-drag to reorder. */
 export function PageStrip({ pages, currentIndex, onSelect, onReorder }: PageStripProps) {
   if (pages.length <= 1) return null;
   return (
@@ -46,7 +47,7 @@ interface PageThumbProps {
   count: number;
   current: boolean;
   onSelect: (index: number) => void;
-  onReorder: (from: number, to: number) => void;
+  onReorder?: (from: number, to: number) => void;
 }
 
 function PageThumb({ page, index, count, current, onSelect, onReorder }: PageThumbProps) {
@@ -54,6 +55,9 @@ function PageThumb({ page, index, count, current, onSelect, onReorder }: PageThu
   const lifted = useSharedValue(0);
 
   const gesture = useMemo(() => {
+    const tap = Gesture.Tap().onEnd(() => runOnJS(onSelect)(index));
+    // Read-only strip (inspecting): tap-to-jump only, no drag-to-reorder.
+    if (!onReorder) return tap;
     const pan = Gesture.Pan()
       // Long-press to lift, so horizontal scrolling of the strip still works normally.
       .activateAfterLongPress(220)
@@ -71,7 +75,6 @@ function PageThumb({ page, index, count, current, onSelect, onReorder }: PageThu
         tx.value = 0;
         lifted.value = 0;
       });
-    const tap = Gesture.Tap().onEnd(() => runOnJS(onSelect)(index));
     return Gesture.Exclusive(pan, tap);
   }, [index, count, onReorder, onSelect, tx, lifted]);
 

@@ -1,6 +1,8 @@
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -17,17 +19,24 @@ import { runOnJS } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ArtUploadButton } from '@/components/binder/ArtUploadButton';
+import { CardBrowse } from '@/components/binder/CardBrowse';
 import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
 import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
 import { pillChip, controlButton } from '@/constants/ui';
 import { domainOf, type ArtAspect } from '@/data/artworkLibrary';
 import { uid } from '@/data/binderTypes';
 import { addSavedArt } from '@/data/savedArt';
+import { useCatalog } from '@/hooks/use-catalog';
+import { cardThumbUrl } from '@/lib/catalogConfig';
 import type { ArtPanelInput } from '@/store/binders';
 
 const CARD_ASPECT = 88 / 63;
 const GAP = 6;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+/** A curated gallery of official Pokémon illustration — a great source to drag art from (web). */
+const ART_OF_PKM_URL = 'https://www.artofpkm.com/artwork/all';
 
 // Whether Shift/Ctrl is held (web), for multi-select. A plain module flag (not a React ref)
 // so the gesture/tap callbacks can read it without tripping the no-refs-in-render rule.
@@ -48,6 +57,7 @@ interface Win {
 }
 
 const GRID_SIZES = [
+  { label: '1×1', rows: 1, cols: 1 },
   { label: '2×2', rows: 2, cols: 2 },
   { label: '3×3', rows: 3, cols: 3 },
   { label: '3×4', rows: 3, cols: 4 },
@@ -118,6 +128,59 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
   const [sliced, setSliced] = useState(true);
   const [failed, setFailed] = useState(false);
   const [savedNote, setSavedNote] = useState(false);
+  // Pick official card art from the catalog as the source image (then crop/zoom to the art).
+  const [cardPickOpen, setCardPickOpen] = useState(false);
+  const { catalog } = useCatalog(cardPickOpen);
+  const [dropActive, setDropActive] = useState(false);
+  const loadImage = useCallback((url: string) => {
+    setImageUrl(url);
+    setFailed(false);
+    setUrlInput('');
+  }, []);
+
+  const openArtOfPkm = useCallback(() => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') window.open(ART_OF_PKM_URL, '_blank', 'noopener');
+    else void Linking.openURL(ART_OF_PKM_URL);
+  }, []);
+
+  // Web: drop an image (or its URL) dragged from anywhere — e.g. an Art of Pokémon tab — onto the
+  // studio to load it. The studio is a full-screen modal, so a drop while it's open is for us.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const onDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      setDropActive(true);
+    };
+    const onDragLeave = (e: DragEvent) => {
+      if (e.relatedTarget === null) setDropActive(false);
+    };
+    const onDrop = (e: DragEvent) => {
+      e.preventDefault();
+      setDropActive(false);
+      const dt = e.dataTransfer;
+      if (!dt) return;
+      let url = (dt.getData('text/uri-list') || dt.getData('text/plain') || '').trim();
+      if (!/^https?:\/\//i.test(url)) {
+        const html = dt.getData('text/html');
+        const m = html ? html.match(/<img[^>]+src=["']([^"']+)["']/i) : null;
+        url = m ? m[1] : '';
+      }
+      if (/^https?:\/\//i.test(url)) {
+        loadImage(url);
+        return;
+      }
+      const file = dt.files && dt.files[0];
+      if (file && file.type.startsWith('image/')) loadImage(URL.createObjectURL(file));
+    };
+    document.addEventListener('dragover', onDragOver);
+    document.addEventListener('dragleave', onDragLeave);
+    document.addEventListener('drop', onDrop);
+    return () => {
+      document.removeEventListener('dragover', onDragOver);
+      document.removeEventListener('dragleave', onDragLeave);
+      document.removeEventListener('drop', onDrop);
+    };
+  }, [loadImage]);
 
   // Canvas size: fit a page-shaped grid into the available area.
   const guideW = wide ? 248 : 0;
@@ -332,24 +395,26 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
         <ScrollView contentContainerStyle={styles.scroll}>
           {/* Toolbar */}
           <View style={styles.toolbar}>
+            <Btn label="🎴 Card art" onPress={() => setCardPickOpen(true)} kind="primary" />
+            <Btn label="Art of Pokémon ↗" onPress={openArtOfPkm} />
+            <ArtUploadButton onUploaded={loadImage} />
             <TextInput
               value={urlInput}
               onChangeText={setUrlInput}
-              placeholder="Paste image URL…"
+              placeholder="…or paste an image URL"
               placeholderTextColor={Palette.muted3}
               autoCapitalize="none"
               autoCorrect={false}
               style={styles.input}
             />
-            <ArtUploadButton
-              onUploaded={(url) => {
-                setImageUrl(url);
-                setFailed(false);
-                setUrlInput('');
-              }}
-            />
-            <Btn label="Load" onPress={loadUrl} kind="primary" />
+            <Btn label="Load" onPress={loadUrl} />
           </View>
+          {Platform.OS === 'web' ? (
+            <Text style={styles.dragHint}>
+              Tip: open “Art of Pokémon ↗” in another tab and drag any image straight onto this
+              window to load it.
+            </Text>
+          ) : null}
           <View style={styles.toolbar}>
             <Text style={styles.tLabel}>Grid</Text>
             {GRID_SIZES.map((g) => (
@@ -381,7 +446,7 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
             <View style={styles.canvasWrap}>
               {!imageUrl ? (
                 <View style={[styles.canvas, { width: canvasW, height: canvasH }, styles.empty]}>
-                  <Text style={styles.emptyText}>Paste an image URL above to begin</Text>
+                  <Text style={styles.emptyText}>Pick card art, upload, or paste a URL to begin</Text>
                 </View>
               ) : (
                 <GestureDetector gesture={gesture}>
@@ -428,6 +493,41 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
             {guide}
           </View>
         </ScrollView>
+
+        {dropActive ? (
+          <View pointerEvents="none" style={styles.dropOverlay}>
+            <Text style={styles.dropOverlayText}>Drop image to load</Text>
+          </View>
+        ) : null}
+
+        {cardPickOpen ? (
+          <Modal visible transparent animationType="slide" onRequestClose={() => setCardPickOpen(false)}>
+            <View style={styles.cardPickBackdrop}>
+              <Pressable style={StyleSheet.absoluteFill} onPress={() => setCardPickOpen(false)} />
+              <ThemedView type="backgroundElement" style={styles.cardPickSheet}>
+                <View style={styles.cardPickHeader}>
+                  <ThemedText type="subtitle">Choose card art</ThemedText>
+                  <Pressable onPress={() => setCardPickOpen(false)} hitSlop={10}>
+                    <Text style={[styles.headerAction, styles.primary]}>Close</Text>
+                  </Pressable>
+                </View>
+                {catalog ? (
+                  <CardBrowse
+                    catalog={catalog}
+                    onPickCard={(id) => {
+                      loadImage(cardThumbUrl(id, 'full'));
+                      setCardPickOpen(false);
+                    }}
+                  />
+                ) : (
+                  <View style={styles.cardPickLoading}>
+                    <ActivityIndicator />
+                  </View>
+                )}
+              </ThemedView>
+            </View>
+          </Modal>
+        ) : null}
       </SafeAreaView>
     </Modal>
   );
@@ -511,4 +611,29 @@ const styles = StyleSheet.create({
   guideKeys: { fontSize: FontSize.base, fontWeight: Weight.bold, color: Palette.accent },
   guideAction: { fontSize: FontSize.base, color: Palette.ink4 },
   guideNote: { fontSize: FontSize.sm, color: Palette.muted3, marginTop: 6, lineHeight: 16 },
+  cardPickBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: Palette.scrim40 },
+  cardPickSheet: {
+    height: '82%',
+    borderTopLeftRadius: Radius.sheet,
+    borderTopRightRadius: Radius.sheet,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+  },
+  cardPickHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  cardPickLoading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  dragHint: { fontSize: FontSize.sm, color: Palette.muted3, lineHeight: 16 },
+  dropOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Palette.scrim40,
+    borderWidth: 3,
+    borderColor: Palette.accent,
+    borderStyle: 'dashed',
+  },
+  dropOverlayText: { color: Palette.white, fontSize: FontSize.h2, fontWeight: Weight.bold },
 });

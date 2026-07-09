@@ -117,15 +117,22 @@ export function CardPicker({
 
   const is = (rows: number, cols: number) => shape.rows === rows && shape.cols === cols;
 
-  // Default the tab to the pocket's existing content type when editing an occupied slot.
+  // Default the tab to the pocket's existing content type when editing an occupied slot. Artwork
+  // is edited in the Slice Studio (opened on demand), so it never becomes a resident tab here.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTab(slot?.type === 'artwork' ? 'artwork' : slot?.type === 'insert' ? 'insert' : 'cards');
+    setTab(slot?.type === 'insert' ? 'insert' : 'cards');
   }, [cell?.row, cell?.col, slot?.id, slot?.type]);
 
   // Cards only exist at 1×1 (standard) or 2×2 (jumbo / V-UNION); coerce to a card-capable
   // shape when switching to the Cards tab from a non-square artwork/insert shape.
   const selectTab = (next: PickerTab) => {
+    if (next === 'artwork') {
+      // "Artwork" goes straight to the Slice Studio (card art / drag-in / upload + crop) — no
+      // intermediate search-and-load step.
+      onOpenSliceStudio(slot?.imageUrl, shape.rows, shape.cols);
+      return;
+    }
     if (next === 'cards' && !(is(1, 1) || is(2, 2))) setShape({ rows: 1, cols: 1 });
     setTab(next);
   };

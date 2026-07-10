@@ -19,12 +19,13 @@ import { ColorField } from '@/components/binder/ColorField';
 import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
 import { ShareSheet } from '@/components/binder/ShareSheet';
 import { SliceStudio } from '@/components/binder/SliceStudio';
+import { SlotMultiActions } from '@/components/binder/SlotMultiActions';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Palette, Radius, Spacing, Weight, FontSize } from '@/constants/theme';
 import { pillChip } from '@/constants/ui';
-import { firstFreePlacement, occupiedCells, slotCells, type DemoPage, type DemoSlot } from '@/data/binderTypes';
+import { firstFreePlacement, occupiedCells, slotCells, uuidv4, type DemoPage, type DemoSlot } from '@/data/binderTypes';
 import type { CaptionFieldKey } from '@/data/cardCaption';
 import { isSupabaseConfigured } from '@/lib/env';
 import { binderValue, formatUsd, pageValue, usePriceSummary } from '@/lib/prices';
@@ -58,6 +59,13 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   >(null);
   // The pocket selected for quick actions (action bar + resize handle); distinct from pickerCell.
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  // Ctrl/Cmd multi-select (web): a set of pocket ids highlighted together; releasing the modifier
+  // opens the bulk-action modal. `modifierHeld` is read at click time; `multiIdsRef` lets the
+  // key-up handler read the latest selection without re-subscribing.
+  const [multiIds, setMultiIds] = useState<Set<string>>(new Set());
+  const [multiActionsOpen, setMultiActionsOpen] = useState(false);
+  const modifierHeld = useRef(false);
+  const multiIdsRef = useRef(multiIds);
   // "Keep adding" fast-fill: after placing a card the picker stays open and jumps to the next pocket.
   const [keepAdding, setKeepAdding] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(null);
@@ -83,6 +91,33 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
 
   // Latest card values (shared load-once fetch) for the fun running totals.
   const priceSummary = usePriceSummary();
+
+  // Mirror the multi-selection into a ref so the key-up handler (subscribed once per edit toggle)
+  // reads the latest set without re-subscribing.
+  useEffect(() => {
+    multiIdsRef.current = multiIds;
+  }, [multiIds]);
+
+  // Web: track the Ctrl/Cmd modifier so a click can extend a multi-selection, and pop the bulk
+  // action modal when it's released with pockets selected. Gated to edit mode.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !editing || typeof window === 'undefined') return;
+    const isMod = (e: KeyboardEvent) => e.key === 'Control' || e.key === 'Meta';
+    const down = (e: KeyboardEvent) => {
+      if (isMod(e)) modifierHeld.current = true;
+    };
+    const up = (e: KeyboardEvent) => {
+      if (!isMod(e)) return;
+      modifierHeld.current = false;
+      if (multiIdsRef.current.size > 0) setMultiActionsOpen(true);
+    };
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    return () => {
+      window.removeEventListener('keydown', down);
+      window.removeEventListener('keyup', up);
+    };
+  }, [editing]);
 
   const binder = store.getBinder(binderId);
 
@@ -152,19 +187,38 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     );
   };
 
+  const clearMulti = () => setMultiIds((cur) => (cur.size ? new Set() : cur));
+
   // Change page and drop any pocket selection (selection is per-page).
   const changePage = (i: number) => {
     setSelectedSlotId(null);
+    clearMulti();
     setPageIndex(Math.max(0, Math.min(i, binder.pages.length - 1)));
   };
 
   const closePicker = () => setPickerCell(null);
 
   // Tapping a filled pocket selects it (for the action bar + resize handle); tapping an empty
-  // pocket opens the picker to add. Selecting never opens the sheet.
-  const handleSelectSlot = (slot: DemoSlot) => setSelectedSlotId(slot.id);
+  // pocket opens the picker to add. Ctrl/Cmd-click instead toggles the pocket in a multi-selection
+  // (seeding from any single selection so it extends). Selecting never opens the sheet.
+  const handleSelectSlot = (slot: DemoSlot) => {
+    if (modifierHeld.current) {
+      setMultiIds((cur) => {
+        const next = new Set(cur);
+        if (next.size === 0 && selectedSlotId) next.add(selectedSlotId);
+        if (next.has(slot.id)) next.delete(slot.id);
+        else next.add(slot.id);
+        return next;
+      });
+      setSelectedSlotId(null);
+      return;
+    }
+    clearMulti();
+    setSelectedSlotId(slot.id);
+  };
   const handleAddCell = (row: number, col: number) => {
     setSelectedSlotId(null);
+    clearMulti();
     setPickerCell({ row, col });
   };
 
@@ -233,6 +287,50 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     store.removeSlot(binder.id, page.id, selectedSlot.id);
     setSelectedSlotId(null);
     showToast('Pocket cleared', true);
+  };
+
+  // --- Bulk actions on the Ctrl/Cmd multi-selection ---
+  const closeMultiActions = () => {
+    setMultiActionsOpen(false);
+    clearMulti();
+  };
+
+  const removeMany = () => {
+    const ids = [...multiIds];
+    for (const id of ids) store.removeSlot(binder.id, page.id, id);
+    closeMultiActions();
+    if (ids.length) showToast(`Cleared ${ids.length} pocket${ids.length === 1 ? '' : 's'}`, true);
+  };
+
+  const duplicateMany = () => {
+    // Compute every destination up front against an evolving page copy, so the copies land in
+    // DISTINCT free pockets (a naive loop would re-find the same "first free" cell — the collision
+    // that 409'd batch-add). Then place them. Stops early if the page runs out of room.
+    const chosen = page.slots.filter((s) => multiIds.has(s.id));
+    const working: DemoPage = { ...page, slots: [...page.slots] };
+    const dests: { slot: DemoSlot; row: number; col: number }[] = [];
+    for (const slot of chosen) {
+      const dest = firstFreePlacement(working, slot.rowSpan, slot.colSpan);
+      if (!dest) break;
+      working.slots.push({ ...slot, id: uuidv4(), row: dest.row, col: dest.col });
+      dests.push({ slot, row: dest.row, col: dest.col });
+    }
+    for (const { slot, row, col } of dests) {
+      store.upsertSlot(binder.id, page.id, {
+        row,
+        col,
+        rowSpan: slot.rowSpan,
+        colSpan: slot.colSpan,
+        type: slot.type,
+        cardId: slot.cardId,
+        insertColor: slot.insertColor,
+        imageUrl: slot.imageUrl,
+      });
+    }
+    closeMultiActions();
+    const n = dests.length;
+    const short = chosen.length - n;
+    showToast(short > 0 ? `Duplicated ${n}, ${short} didn’t fit` : `Duplicated ${n}`);
   };
 
   const handlePickVUnion = (pieces: readonly string[]) => {
@@ -387,6 +485,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         editable
         captionFields={captionFields}
         selectedSlotId={selectedSlotId}
+        multiSelectedIds={multiIds}
         onCellPress={handleAddCell}
         onSlotPress={handleSelectSlot}
         onResizeSlot={handleResizeSlot}
@@ -436,6 +535,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                   onPress={() => {
                     setEditing((e) => !e);
                     setSelectedSlotId(null);
+                    clearMulti();
+                    setMultiActionsOpen(false);
                   }}
                   hitSlop={10}>
                   <Text style={[styles.headerAction, styles.headerPrimary]}>{editing ? 'Done' : 'Edit'}</Text>
@@ -653,6 +754,14 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
 
         <Toast spec={toast} onDismiss={() => setToast(null)} />
         <ConfirmDialog spec={confirm} onClose={() => setConfirm(null)} />
+        {multiActionsOpen ? (
+          <SlotMultiActions
+            count={multiIds.size}
+            onDuplicate={duplicateMany}
+            onRemove={removeMany}
+            onClose={closeMultiActions}
+          />
+        ) : null}
         <ShareSheet
           visible={shareOpen}
           binderId={binder.id}

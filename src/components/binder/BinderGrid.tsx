@@ -29,6 +29,8 @@ interface BinderGridProps {
   /** Metadata fields to show as a caption under each card. Empty/undefined ⇒ no captions. */
   captionFields?: CaptionFieldKey[];
   selectedSlotId?: string | null;
+  /** Extra slots shown highlighted (Ctrl/Cmd multi-select) — a border only, no per-slot toolbar. */
+  multiSelectedIds?: ReadonlySet<string> | null;
   onSlotPress?: (slot: DemoSlot) => void;
   onCellPress?: (row: number, col: number) => void;
   /** Drag-and-drop: a slot was dropped with its top-left over (toRow, toCol). */
@@ -74,6 +76,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
     editable = false,
     captionFields = [],
     selectedSlotId,
+    multiSelectedIds,
     onSlotPress,
     onCellPress,
     onDropSlot,
@@ -209,7 +212,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
 
         {/* Placed slots. */}
         {page.slots.map((slot) => {
-          const selected = editable && slot.id === selectedSlotId;
+          const selected =
+            editable && (slot.id === selectedSlotId || !!multiSelectedIds?.has(slot.id));
           const style = box(slot.row, slot.col, slot.rowSpan, slot.colSpan);
           const content = <SlotContent slot={slot} radius={slotRadius} small={small} catalog={catalog} />;
           if (!editable) {

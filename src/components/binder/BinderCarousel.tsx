@@ -3,7 +3,7 @@
  * single row so the home page stays short and the sections below it are reachable. Native swipe
  * (paging) plus prev/next arrows that wrap around, so you can page left/right endlessly.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -22,9 +22,12 @@ import type { DemoBinder } from '@/data/binderTypes';
 export function BinderCarousel({
   binders,
   onOpen,
+  accessory,
 }: {
   binders: DemoBinder[];
   onOpen: (id: string) => void;
+  /** Optional trailing control per tile (e.g. the ⋯ actions button for your own binders). */
+  accessory?: (binder: DemoBinder) => ReactNode;
 }) {
   const [width, setWidth] = useState(0);
   const [page, setPage] = useState(0);
@@ -90,6 +93,7 @@ export function BinderCarousel({
                   binder={binder}
                   width={tileWidth}
                   onPress={() => onOpen(binder.id)}
+                  accessory={accessory?.(binder)}
                 />
               ))}
             </View>

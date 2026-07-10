@@ -10,8 +10,8 @@
  *   - edit            → an editable <BinderGrid> wired for slot editing + cross-page drag, and
  *                       `onReorderPages` enables drag-to-reorder in the filmstrip.
  */
-import { useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from 'react-native-reanimated';
 
 import { CaptionControls } from '@/components/binder/CaptionControls';
@@ -85,6 +85,29 @@ export function BinderPages({
   const prevPage = idx > 0 ? binder.pages[idx - 1] : null;
   const nextPage = idx < count - 1 ? binder.pages[idx + 1] : null;
 
+  // Web: flip pages with the mouse wheel while hovering the page area. Consumes the wheel only
+  // when there's a page to move to in that direction — at the first/last page it falls through to
+  // the normal vertical scroll, so you can still reach the rest of the editor.
+  const pageWrapRef = useRef<View>(null);
+  useEffect(() => {
+    if (Platform.OS !== 'web' || count <= 1 || typeof window === 'undefined') return;
+    const el = pageWrapRef.current as unknown as HTMLElement | null;
+    if (!el) return;
+    let cooldown = -Infinity;
+    const onWheel = (e: WheelEvent) => {
+      const delta = Math.abs(e.deltaX) >= Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      if (Math.abs(delta) < 2) return;
+      const next = idx + (delta > 0 ? 1 : -1);
+      if (next < 0 || next >= count) return; // at an edge → let the editor scroll
+      e.preventDefault();
+      if (e.timeStamp - cooldown < 300) return; // one page per gesture, not per event
+      cooldown = e.timeStamp;
+      onPageChange(next);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [idx, count, onPageChange]);
+
   return (
     <>
       {/* Meta + page navigation */}
@@ -130,7 +153,7 @@ export function BinderPages({
         ) : null)}
 
       {/* The page — a prev · current · next spread on wide screens, else the single page. */}
-      <View style={styles.pageWrap}>
+      <View ref={pageWrapRef} style={styles.pageWrap}>
         {!page ? (
           <ThemedText type="small" themeColor="textSecondary">
             This binder doesn’t have any pages yet.

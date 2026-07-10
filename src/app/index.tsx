@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { sendBrowseCommand } from 'tcgscan-browse';
 
@@ -8,7 +8,6 @@ import { AccountButton } from '@/components/auth/AccountButton';
 import { GuestBanner } from '@/components/auth/GuestBanner';
 import { BinderActionsMenu } from '@/components/binder/BinderActionsMenu';
 import { BinderCarousel } from '@/components/binder/BinderCarousel';
-import { BinderThumb } from '@/components/binder/BinderThumb';
 import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
 import { ShareSheet } from '@/components/binder/ShareSheet';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
@@ -27,7 +26,6 @@ export default function BindersScreen() {
   const store = useBinders();
   const router = useRouter();
   const openBinder = (id: string) => router.push(`/binder/${id}`);
-  const { width } = useWindowDimensions();
   // Filter Your Binders by title once the library grows — so finding one doesn't mean scrolling.
   const [binderQuery, setBinderQuery] = useState('');
   // Per-binder ⋯ management (rename / duplicate / share / delete) without opening the editor.
@@ -74,12 +72,6 @@ export default function BindersScreen() {
   // fall back to the flat convention path).
   useImageManifest();
 
-  const contentWidth = Math.min(width, MaxContentWidth) - Spacing.four * 2;
-  // Fewer, larger binder tiles: 2-up on tablet/desktop (bigger covers + cards), 1-up only on
-  // very narrow phones. (Was 3-up > 520, which made the covers small on the web layout.)
-  const columns = contentWidth < 340 ? 1 : 2;
-  const gap = Spacing.three;
-  const tileWidth = (contentWidth - gap * (columns - 1)) / columns;
 
   const handleNew = () => {
     const binder = store.createBinder({ title: 'New binder' });
@@ -186,17 +178,11 @@ export default function BindersScreen() {
                     No binders match “{binderQuery.trim()}”.
                   </ThemedText>
                 ) : (
-                  <View style={[styles.grid, { gap }]}>
-                    {visibleBinders.map((binder) => (
-                      <BinderThumb
-                        key={binder.id}
-                        binder={binder}
-                        width={tileWidth}
-                        onPress={() => openBinder(binder.id)}
-                        accessory={<MenuButton onPress={() => setMenuId(binder.id)} />}
-                      />
-                    ))}
-                  </View>
+                  <BinderCarousel
+                    binders={visibleBinders}
+                    onOpen={openBinder}
+                    accessory={(binder) => <MenuButton onPress={() => setMenuId(binder.id)} />}
+                  />
                 )}
               </>
             )}

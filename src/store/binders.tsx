@@ -71,6 +71,7 @@ export interface ArtPanelInput {
 interface BinderStore {
   binders: DemoBinder[];
   exampleBinders: DemoBinder[];
+  featuredBinders: DemoBinder[];
   userBinders: DemoBinder[];
   /** True while user binders are loading from Supabase (always false in local mode). */
   loading: boolean;
@@ -948,7 +949,8 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   const value = useMemo<BinderStore>(
     () => ({
       binders,
-      exampleBinders: binders.filter((binder) => binder.isExample),
+      exampleBinders: binders.filter((binder) => binder.isExample && !binder.isFeatured),
+      featuredBinders: binders.filter((binder) => binder.isFeatured),
       userBinders: binders.filter((binder) => !binder.isExample),
       loading,
       getBinder,

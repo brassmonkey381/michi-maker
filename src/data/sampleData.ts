@@ -12,7 +12,7 @@
  * `SAMPLE_BINDERS` are the generated example binders.
  */
 
-import { type DemoCard } from '@/data/binderTypes';
+import { type DemoBinder, type DemoCard } from '@/data/binderTypes';
 import { CONTENT_BINDERS, CONTENT_CARDS } from '@/data/content';
 
 /**
@@ -35,5 +35,20 @@ export const CARDS_BY_ID: Record<string, DemoCard> = Object.fromEntries(
   CARDS.map((card) => [card.id, card]),
 );
 
-/** The premade example binders, assembled from the per-theme modules in ./content. */
-export const SAMPLE_BINDERS = CONTENT_BINDERS;
+/**
+ * A few bundled binders are surfaced as community "Featured" picks — same read-only binders, but
+ * attributed to an author display name and shown in the Featured carousel instead of Examples.
+ * Scaffolding until real user-featured binders land (swap this for a fetched list + a profile
+ * join then). Keyed by index into CONTENT_BINDERS; featured binders drop out of the Examples
+ * section — see the store's `featuredBinders` / `exampleBinders` getters.
+ */
+const FEATURED_AUTHORS: Record<number, string> = {
+  3: 'woahpoke', // The Grail Wall
+  4: 'dollarbin.dan', // Dollar-Bin Holos
+  5: 'artvariants', // Same Art, Different Set
+};
+
+/** The premade binders: examples + a few author-attributed Featured picks (see above). */
+export const SAMPLE_BINDERS: DemoBinder[] = CONTENT_BINDERS.map((binder, i) =>
+  FEATURED_AUTHORS[i] ? { ...binder, isFeatured: true, authorName: FEATURED_AUTHORS[i] } : binder,
+);

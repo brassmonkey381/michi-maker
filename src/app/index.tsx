@@ -202,6 +202,12 @@ export default function BindersScreen() {
             )}
           </HomeSection>
 
+          {store.featuredBinders.length > 0 ? (
+            <HomeSection title="Featured binders">
+              <BinderCarousel binders={store.featuredBinders} onOpen={openBinder} />
+            </HomeSection>
+          ) : null}
+
           <HomeSection title="Example binders">
             <BinderCarousel binders={store.exampleBinders} onOpen={openBinder} />
           </HomeSection>

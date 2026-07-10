@@ -81,6 +81,10 @@ export interface DemoBinder {
   layoutStyle: MichiLayoutStyle;
   /** Premade, read-only-by-default reference binders ship with the app. */
   isExample: boolean;
+  /** A curated community "Featured" binder — shown in the Featured section (still read-only). */
+  isFeatured?: boolean;
+  /** The author's display name, shown on Featured binders. One day this links to their profile. */
+  authorName?: string;
   coverCardId?: string;
   /** When true, anyone with the link can view this binder (see the `/binder/[id]` route). */
   isPublic?: boolean;

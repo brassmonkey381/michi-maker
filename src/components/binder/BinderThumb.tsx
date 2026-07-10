@@ -26,7 +26,8 @@ export function BinderThumb({ binder, width, onPress, accessory }: BinderThumbPr
         </ThemedText>
         {accessory}
       </View>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.meta}>
+      <ThemedText type="small" themeColor="textSecondary" style={styles.meta} numberOfLines={1}>
+        {binder.authorName ? `by ${binder.authorName} · ` : ''}
         {pageCount} {pageCount === 1 ? 'page' : 'pages'}
       </ThemedText>
       {firstPage ? (

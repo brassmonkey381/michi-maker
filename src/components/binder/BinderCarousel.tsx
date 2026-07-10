@@ -3,10 +3,11 @@
  * single row so the home page stays short and the sections below it are reachable. Native swipe
  * (paging) plus prev/next arrows that wrap around, so you can page left/right endlessly.
  */
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -28,6 +29,7 @@ export function BinderCarousel({
   const [width, setWidth] = useState(0);
   const [page, setPage] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
+  const containerRef = useRef<View>(null);
   const gap = Spacing.three;
   const tileWidth = width > 0 ? (width - gap) / 2 : 0;
 
@@ -47,8 +49,31 @@ export function BinderCarousel({
     if (width > 0) setPage(Math.round(e.nativeEvent.contentOffset.x / width));
   };
 
+  // Web: page the carousel with the mouse wheel (vertical or horizontal). We consume the wheel
+  // (preventDefault) only while there's a page to move to in that direction — at either end the
+  // wheel falls through to the page, so you never get trapped. One page per wheel gesture/notch.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || pageCount <= 1 || width === 0) return;
+    const el = containerRef.current as unknown as HTMLElement | null;
+    if (!el) return;
+    let cooldown = -Infinity;
+    const onWheel = (e: WheelEvent) => {
+      const delta = Math.abs(e.deltaX) >= Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      if (Math.abs(delta) < 2) return;
+      const next = page + (delta > 0 ? 1 : -1);
+      if (next < 0 || next >= pageCount) return; // at an edge → let the page scroll
+      e.preventDefault();
+      if (e.timeStamp - cooldown < 300) return; // one page per gesture, not per event
+      cooldown = e.timeStamp;
+      scrollRef.current?.scrollTo({ x: next * width, animated: true });
+      setPage(next);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [page, pageCount, width]);
+
   return (
-    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+    <View ref={containerRef} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
       <ScrollView
         ref={scrollRef}
         horizontal

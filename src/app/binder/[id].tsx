@@ -14,13 +14,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BinderGrid } from '@/components/binder/BinderGrid';
 import { BinderScreen } from '@/components/binder/BinderScreen';
-import { CaptionControls } from '@/components/binder/CaptionControls';
+import { BinderPages } from '@/components/binder/BinderPages';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BinderPageMaxWidth, FontSize, MaxContentWidth, Palette, Spacing } from '@/constants/theme';
+import { FontSize, MaxContentWidth, Palette, Spacing } from '@/constants/theme';
 import { fetchBinder } from '@/data/binderRepo';
 import type { DemoBinder } from '@/data/binderTypes';
-import { DEFAULT_CAPTION_FIELDS, type CaptionFieldKey } from '@/data/cardCaption';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useBinders } from '@/store/binders';
 
@@ -61,7 +60,7 @@ type State = { status: 'loading' } | { status: 'ok'; binder: DemoBinder } | { st
 /** Read-only viewer for a shared link (a public binder that isn't in your local store). */
 function PublicViewer({ id }: { id?: string }) {
   const { width } = useWindowDimensions();
-  const pageWidth = Math.min(width - 32, BinderPageMaxWidth);
+  const availableWidth = width - 32;
   const [state, setState] = useState<State>({ status: 'loading' });
   const [pageIndex, setPageIndex] = useState(0);
 
@@ -130,7 +129,7 @@ function PublicViewer({ id }: { id?: string }) {
             binder={state.binder}
             pageIndex={Math.min(pageIndex, state.binder.pages.length - 1)}
             onPage={setPageIndex}
-            pageWidth={pageWidth}
+            availableWidth={availableWidth}
           />
         )}
       </SafeAreaView>
@@ -142,22 +141,13 @@ function Viewer({
   binder,
   pageIndex,
   onPage,
-  pageWidth,
+  availableWidth,
 }: {
   binder: DemoBinder;
   pageIndex: number;
   onPage: (i: number) => void;
-  pageWidth: number;
+  availableWidth: number;
 }) {
-  const page = binder.pages[pageIndex];
-  const count = binder.pages.length;
-
-  // Card labels: master on/off + selected fields (display order fixed in cardCaption.ts).
-  const [labelsOn, setLabelsOn] = useState(false);
-  const [labelFields, setLabelFields] = useState<CaptionFieldKey[]>(DEFAULT_CAPTION_FIELDS);
-  const toggleLabelField = (key: CaptionFieldKey) =>
-    setLabelFields((cur) => (cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key]));
-
   return (
     <ScrollView contentContainerStyle={styles.scroll}>
       <ThemedText type="subtitle" style={styles.title}>
@@ -169,43 +159,17 @@ function Viewer({
         </ThemedText>
       ) : null}
 
-      {count > 1 ? (
-        <View style={styles.pageNav}>
-          <NavArrow label="‹" disabled={pageIndex === 0} onPress={() => onPage(pageIndex - 1)} />
-          <ThemedText type="smallBold">
-            Page {pageIndex + 1} / {count}
-          </ThemedText>
-          <NavArrow label="›" disabled={pageIndex >= count - 1} onPress={() => onPage(pageIndex + 1)} />
-        </View>
-      ) : null}
-
-      {page?.title ? (
-        <ThemedText type="smallBold" style={styles.pageTitle}>
-          {page.title}
-        </ThemedText>
-      ) : null}
-
-      <CaptionControls
-        enabled={labelsOn}
-        onToggle={() => setLabelsOn((v) => !v)}
-        fields={labelFields}
-        onToggleField={toggleLabelField}
-      />
-
-      <View style={styles.pageWrap}>
-        {page ? (
-          <BinderGrid
-            page={page}
-            width={pageWidth}
-            editable={false}
-            captionFields={labelsOn ? labelFields : []}
-          />
-        ) : (
-          <ThemedText type="small" themeColor="textSecondary" style={styles.missText}>
-            This binder doesn’t have any pages yet.
-          </ThemedText>
+      {/* The same page-browsing surface the owner sees — read-only here. */}
+      <BinderPages
+        binder={binder}
+        pageIndex={pageIndex}
+        onPageChange={onPage}
+        availableWidth={availableWidth}
+        editable={false}
+        renderGrid={({ page, width, captionFields }) => (
+          <BinderGrid page={page} width={width} editable={false} captionFields={captionFields} />
         )}
-      </View>
+      />
 
       <Link href="/" asChild>
         <Pressable style={styles.madeWith} hitSlop={8}>
@@ -218,13 +182,6 @@ function Viewer({
   );
 }
 
-function NavArrow({ label, disabled, onPress }: { label: string; disabled: boolean; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} disabled={disabled} hitSlop={10} style={disabled && styles.navDisabled}>
-      <ThemedText style={styles.navArrow}>{label}</ThemedText>
-    </Pressable>
-  );
-}
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -245,11 +202,6 @@ const styles = StyleSheet.create({
   },
   title: { textAlign: 'center', fontSize: FontSize.nav, lineHeight: 34 },
   description: { textAlign: 'center', marginTop: Spacing.two, maxWidth: 520 },
-  pageNav: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, marginTop: Spacing.three },
-  navArrow: { fontSize: FontSize.nav, lineHeight: 28, fontWeight: '600' },
-  navDisabled: { opacity: 0.3 },
-  pageTitle: { marginTop: Spacing.three, textAlign: 'center' },
-  pageWrap: { marginTop: Spacing.four },
   madeWith: { marginTop: Spacing.five },
   madeWithText: { textAlign: 'center' },
 });

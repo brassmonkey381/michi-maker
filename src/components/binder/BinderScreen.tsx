@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Platform,
   Pressable,
@@ -10,23 +10,22 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { type SharedValue, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import { useSharedValue } from 'react-native-reanimated';
 
 import { BinderGrid, type BinderGridHandle } from '@/components/binder/BinderGrid';
-import { CaptionControls } from '@/components/binder/CaptionControls';
 import { CardPicker } from '@/components/binder/CardPicker';
+import { BinderPages, type GridRole } from '@/components/binder/BinderPages';
 import { ColorField } from '@/components/binder/ColorField';
 import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
-import { PageStrip } from '@/components/binder/PageStrip';
 import { ShareSheet } from '@/components/binder/ShareSheet';
 import { SliceStudio } from '@/components/binder/SliceStudio';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BinderPageMaxWidth, Palette, Radius, Spacing, Weight, FontSize } from '@/constants/theme';
+import { Palette, Radius, Spacing, Weight, FontSize } from '@/constants/theme';
 import { pillChip } from '@/constants/ui';
 import { firstFreePlacement, occupiedCells, slotCells, type DemoPage, type DemoSlot } from '@/data/binderTypes';
-import { DEFAULT_CAPTION_FIELDS, type CaptionFieldKey } from '@/data/cardCaption';
+import type { CaptionFieldKey } from '@/data/cardCaption';
 import { isSupabaseConfigured } from '@/lib/env';
 import { binderValue, formatUsd, pageValue, usePriceSummary } from '@/lib/prices';
 import { footprintForKind } from '@/data/cardSizing';
@@ -61,12 +60,6 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   // "Keep adding" fast-fill: after placing a card the picker stays open and jumps to the next pocket.
   const [keepAdding, setKeepAdding] = useState(false);
-  // Card labels: master on/off plus the selected metadata fields (display order is fixed in
-  // cardCaption.ts, so the toggle order here doesn't matter). Captions show only when both on.
-  const [labelsOn, setLabelsOn] = useState(false);
-  const [labelFields, setLabelFields] = useState<CaptionFieldKey[]>(DEFAULT_CAPTION_FIELDS);
-  const toggleLabelField = (key: CaptionFieldKey) =>
-    setLabelFields((cur) => (cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key]));
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [toast, setToast] = useState<ToastSpec | null>(null);
@@ -81,8 +74,6 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // shared value (set from the drag callbacks) so lifting the column never re-renders mid-drag
   // and cancels the gesture. -1 = no drag.
   const dragCol = useSharedValue(-1);
-  // The current column is inline here; the neighbours build their own from dragCol (below).
-  const curColStyle = useAnimatedStyle(() => ({ zIndex: dragCol.value === 1 ? 30 : 1 }));
 
   // NOTE: we deliberately do NOT prefetch the ~27MB catalog here. Viewing/editing a binder
   // never needs it — card images resolve from the id (cardThumbUrl), and only the badge
@@ -114,17 +105,10 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
 
   const idx = Math.min(pageIndex, binder.pages.length - 1);
   const page = binder.pages[idx];
-  const pageWidth = Math.min(width - 32, BinderPageMaxWidth);
-
-  // Wide screens show the previous + next pages beside the current one (a "spread") — both when
-  // editing (drag cards between pages) and when inspecting (see 3 pages at once, tap a neighbour
-  // to flip to it). Narrow screens keep the single-page view + the page filmstrip below.
+  // Usable content width — BinderPages owns the spread/single layout; it just needs the breakpoint.
   const available = width - 32;
-  const spreadGap = 12;
-  const showSpread = available >= 900 && binder.pages.length > 1;
-  const spreadWidth = showSpread
-    ? Math.min(Math.floor((available - spreadGap * 2) / 3), BinderPageMaxWidth)
-    : pageWidth;
+  // prev/next are kept here for the cross-page drag hit-test (resolveSpreadHit below); the spread
+  // layout that shows them lives in BinderPages.
   const prevPage = idx > 0 ? binder.pages[idx - 1] : null;
   const nextPage = idx < binder.pages.length - 1 ? binder.pages[idx + 1] : null;
   // Running totals — decoration only: '' until the summary loads or when no card has a price.
@@ -364,6 +348,62 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     else store.moveSlotAcrossPages(binder.id, fromPageId, slotId, hit.pageId, hit.row, hit.col);
   };
 
+  // Build the grid for one slot of the shared BinderPages layout. Inspecting → read-only. Editing →
+  // wire slot editing + cross-page drag; neighbours are drag-only surfaces (no per-slot editing),
+  // the current page and the single (narrow) view are fully editable. Refs stay here so the drag
+  // hit-test above (localToWindow / resolveSpreadHit) keeps measuring these exact grids.
+  const renderGrid = ({
+    page: p,
+    width,
+    role,
+    captionFields,
+  }: {
+    page: DemoPage;
+    width: number;
+    role: GridRole;
+    captionFields: CaptionFieldKey[];
+  }) => {
+    if (!editing) {
+      return <BinderGrid page={p} width={width} editable={false} captionFields={captionFields} />;
+    }
+    if (role === 'prev' || role === 'next') {
+      return (
+        <BinderGrid
+          ref={role === 'prev' ? prevRef : nextRef}
+          page={p}
+          width={width}
+          editable
+          captionFields={captionFields}
+          onCrossDrop={(slotId, x, y) => handleCrossDrop(p.id, slotId, x, y)}
+          onDragStart={() => startColumnDrag(role === 'prev' ? 0 : 2)}
+        />
+      );
+    }
+    return (
+      <BinderGrid
+        ref={role === 'current' ? curRef : undefined}
+        page={p}
+        width={width}
+        editable
+        captionFields={captionFields}
+        selectedSlotId={selectedSlotId}
+        onCellPress={handleAddCell}
+        onSlotPress={handleSelectSlot}
+        onResizeSlot={handleResizeSlot}
+        onReplaceSlot={replaceSelected}
+        onDuplicateSlot={duplicateSelected}
+        onRemoveSlot={removeSelected}
+        onDeselectSlot={() => setSelectedSlotId(null)}
+        {...(role === 'current'
+          ? {
+              onCrossDrop: (slotId: string, x: number, y: number) => handleCrossDrop(p.id, slotId, x, y),
+              onDragStart: () => startColumnDrag(1),
+            }
+          : { onDropSlot: handleDropSlot })}
+      />
+    );
+  };
+
   return (
     <ThemedView style={styles.flex}>
       <SafeAreaView style={styles.flex} edges={['top']}>
@@ -430,164 +470,61 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               </ThemedText>
             ) : null}
 
-            {/* Meta + page navigation */}
-            <View style={styles.metaRow}>
-              {binderTotal ? (
-                <ThemedView type="backgroundElement" style={styles.badge}>
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {pageTotal ? `Page ${pageTotal} · ` : ''}Binder {binderTotal}
-                  </ThemedText>
-                </ThemedView>
-              ) : null}
-              <View style={styles.pageNav}>
-                <NavArrow label="‹" disabled={idx <= 0} onPress={() => changePage(idx - 1)} color={theme.text} />
-                <ThemedText type="small" themeColor="textSecondary">
-                  Page {idx + 1} / {binder.pages.length}
-                </ThemedText>
-                <NavArrow
-                  label="›"
-                  disabled={idx >= binder.pages.length - 1}
-                  onPress={() => changePage(idx + 1)}
-                  color={theme.text}
-                />
-              </View>
-            </View>
-
-            {/* Card labels — show metadata under each card, and pick which fields. */}
-            <CaptionControls
-              enabled={labelsOn}
-              onToggle={() => setLabelsOn((v) => !v)}
-              fields={labelFields}
-              onToggleField={toggleLabelField}
-            />
-
-            {/* Page title + description — just above the page */}
-            {editing ? (
-              <View style={styles.pageDetails}>
-                <TextInput
-                  value={page.title ?? ''}
-                  onChangeText={(title) => store.updatePage(binder.id, page.id, { title })}
-                  placeholder={`Page ${idx + 1} title`}
-                  placeholderTextColor={theme.textSecondary}
-                  style={[styles.detailInput, { color: theme.text, borderColor: theme.backgroundSelected }]}
-                />
-                <TextInput
-                  value={page.description ?? ''}
-                  onChangeText={(description) => store.updatePage(binder.id, page.id, { description })}
-                  placeholder="Page description"
-                  placeholderTextColor={theme.textSecondary}
-                  multiline
-                  style={[
-                    styles.detailInput,
-                    styles.detailMultiline,
-                    { color: theme.text, borderColor: theme.backgroundSelected },
-                  ]}
-                />
-              </View>
-            ) : page.title || page.description ? (
-              <View style={styles.pageDetailsRead}>
-                {page.title ? (
-                  <ThemedText type="smallBold" style={styles.pageTitle}>
-                    {page.title}
-                  </ThemedText>
-                ) : null}
-                {page.description ? (
-                  <ThemedText type="small" themeColor="textSecondary" style={styles.pageDescription}>
-                    {page.description}
-                  </ThemedText>
-                ) : null}
-              </View>
-            ) : null}
-
-            {/* The page (or a prev · current · next spread on wide edit screens) */}
-            <View style={styles.pageWrap}>
-              {showSpread ? (
-                <View style={[styles.spreadRow, { gap: spreadGap }]}>
-                  <SpreadNeighbor
-                    gridRef={prevRef}
-                    page={prevPage}
-                    width={spreadWidth}
-                    label={prevPage ? `‹ Page ${idx}` : ''}
-                    onFocus={() => changePage(idx - 1)}
-                    editable={editing}
-                    captionFields={labelsOn ? labelFields : []}
-                    dragCol={dragCol}
-                    columnIndex={0}
-                    onCrossDrop={(slotId, x, y) => prevPage && handleCrossDrop(prevPage.id, slotId, x, y)}
-                    onDragStart={() => startColumnDrag(0)}
-                  />
-                  <Animated.View style={[styles.neighbor, curColStyle]}>
-                    <ThemedText type="small" themeColor="textSecondary" style={styles.neighborLabel}>
-                      Page {idx + 1}
+            {/* One shared page-browsing surface — arrows · prev·current·next spread · filmstrip ·
+                Card labels — identical to the public viewer. Only what each grid *does* differs by
+                mode, injected through renderGrid; edit adds the value badge, page-detail inputs and
+                filmstrip reordering. */}
+            <BinderPages
+              binder={binder}
+              pageIndex={idx}
+              onPageChange={changePage}
+              availableWidth={available}
+              editable={editing}
+              dragCol={dragCol}
+              onReorderPages={
+                editing
+                  ? (from, to) => {
+                      store.reorderPages(binder.id, from, to);
+                      changePage(to);
+                    }
+                  : undefined
+              }
+              metaBadge={
+                binderTotal ? (
+                  <ThemedView type="backgroundElement" style={styles.badge}>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {pageTotal ? `Page ${pageTotal} · ` : ''}Binder {binderTotal}
                     </ThemedText>
-                    <BinderGrid
-                      ref={curRef}
-                      page={page}
-                      width={spreadWidth}
-                      editable={editing}
-                      captionFields={labelsOn ? labelFields : []}
-                      selectedSlotId={selectedSlotId}
-                      onCellPress={handleAddCell}
-                      onSlotPress={handleSelectSlot}
-                      onCrossDrop={(slotId, x, y) => handleCrossDrop(page.id, slotId, x, y)}
-                      onDragStart={() => startColumnDrag(1)}
-                      onResizeSlot={handleResizeSlot}
-                      onReplaceSlot={replaceSelected}
-                      onDuplicateSlot={duplicateSelected}
-                      onRemoveSlot={removeSelected}
-                      onDeselectSlot={() => setSelectedSlotId(null)}
+                  </ThemedView>
+                ) : null
+              }
+              pageHeader={
+                editing ? (
+                  <View style={styles.pageDetails}>
+                    <TextInput
+                      value={page.title ?? ''}
+                      onChangeText={(title) => store.updatePage(binder.id, page.id, { title })}
+                      placeholder={`Page ${idx + 1} title`}
+                      placeholderTextColor={theme.textSecondary}
+                      style={[styles.detailInput, { color: theme.text, borderColor: theme.backgroundSelected }]}
                     />
-                  </Animated.View>
-                  <SpreadNeighbor
-                    gridRef={nextRef}
-                    page={nextPage}
-                    width={spreadWidth}
-                    label={nextPage ? `Page ${idx + 2} ›` : ''}
-                    onFocus={() => changePage(idx + 1)}
-                    editable={editing}
-                    captionFields={labelsOn ? labelFields : []}
-                    dragCol={dragCol}
-                    columnIndex={2}
-                    onCrossDrop={(slotId, x, y) => nextPage && handleCrossDrop(nextPage.id, slotId, x, y)}
-                    onDragStart={() => startColumnDrag(2)}
-                  />
-                </View>
-              ) : (
-                <BinderGrid
-                  page={page}
-                  width={pageWidth}
-                  editable={editing}
-                  captionFields={labelsOn ? labelFields : []}
-                  selectedSlotId={selectedSlotId}
-                  onCellPress={handleAddCell}
-                  onSlotPress={handleSelectSlot}
-                  onDropSlot={handleDropSlot}
-                  onResizeSlot={handleResizeSlot}
-                  onReplaceSlot={replaceSelected}
-                  onDuplicateSlot={duplicateSelected}
-                  onRemoveSlot={removeSelected}
-                  onDeselectSlot={() => setSelectedSlotId(null)}
-                />
-              )}
-            </View>
-
-            {/* Page filmstrip — tap a thumbnail to flip to it. Shown while inspecting AND editing;
-                long-press-drag to reorder is enabled only when editing. */}
-            {binder.pages.length > 1 ? (
-              <PageStrip
-                pages={binder.pages}
-                currentIndex={idx}
-                onSelect={changePage}
-                onReorder={
-                  editing
-                    ? (from, to) => {
-                        store.reorderPages(binder.id, from, to);
-                        changePage(to);
-                      }
-                    : undefined
-                }
-              />
-            ) : null}
+                    <TextInput
+                      value={page.description ?? ''}
+                      onChangeText={(description) => store.updatePage(binder.id, page.id, { description })}
+                      placeholder="Page description"
+                      placeholderTextColor={theme.textSecondary}
+                      multiline
+                      style={[
+                        styles.detailInput,
+                        styles.detailMultiline,
+                        { color: theme.text, borderColor: theme.backgroundSelected },
+                      ]}
+                    />
+                  </View>
+                ) : undefined
+              }
+              renderGrid={renderGrid}
+            />
 
             {editing && (
               <View style={styles.editPanel}>
@@ -782,85 +719,6 @@ function EditorKeyboardShortcuts({
  * but it has no add/resize chrome — tap its label to make it the current page. An empty View keeps
  * the current page centred when there's no neighbour on that side.
  */
-function SpreadNeighbor({
-  gridRef,
-  page,
-  width,
-  label,
-  onFocus,
-  editable,
-  captionFields,
-  dragCol,
-  columnIndex,
-  onCrossDrop,
-  onDragStart,
-}: {
-  gridRef: RefObject<BinderGridHandle | null>;
-  page: DemoPage | null;
-  width: number;
-  label: string;
-  onFocus: () => void;
-  /** Editing → the grid is a drag source/target; inspecting → it's read-only and tapping it flips. */
-  editable: boolean;
-  captionFields: CaptionFieldKey[];
-  /** Shared "which column is dragging" value + this column's index, so a card dragged out of
-   *  this page lifts the whole column above its neighbours (z-index) without a re-render. */
-  dragCol: SharedValue<number>;
-  columnIndex: number;
-  onCrossDrop: (slotId: string, localX: number, localY: number) => void;
-  onDragStart: () => void;
-}) {
-  const columnStyle = useAnimatedStyle(() => ({ zIndex: dragCol.value === columnIndex ? 30 : 1 }));
-  if (!page) return <View style={{ width }} />;
-  const grid = (
-    <BinderGrid
-      ref={gridRef}
-      page={page}
-      width={width}
-      editable={editable}
-      captionFields={captionFields}
-      onCrossDrop={editable ? onCrossDrop : undefined}
-      onDragStart={editable ? onDragStart : undefined}
-    />
-  );
-  return (
-    <Animated.View style={[styles.neighbor, columnStyle]}>
-      <Pressable onPress={onFocus} hitSlop={6} accessibilityLabel={label}>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.neighborLabel} numberOfLines={1}>
-          {label}
-        </ThemedText>
-      </Pressable>
-      {/* Inspecting: the whole neighbour page is a tap target that flips to it. Editing: it must
-          stay a drag surface, so only the label above flips. */}
-      {editable ? (
-        <View style={styles.neighborGrid}>{grid}</View>
-      ) : (
-        <Pressable style={styles.neighborGrid} onPress={onFocus} accessibilityLabel={label}>
-          {grid}
-        </Pressable>
-      )}
-    </Animated.View>
-  );
-}
-
-function NavArrow({
-  label,
-  disabled,
-  onPress,
-  color,
-}: {
-  label: string;
-  disabled: boolean;
-  onPress: () => void;
-  color: string;
-}) {
-  return (
-    <Pressable onPress={onPress} disabled={disabled} hitSlop={8} style={disabled && styles.navDisabled}>
-      <Text style={[styles.navArrow, { color }]}>{label}</Text>
-    </Pressable>
-  );
-}
-
 function PillButton({
   label,
   onPress,
@@ -912,27 +770,10 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   scroll: { paddingHorizontal: 16, paddingBottom: 48 },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 4,
-  },
   badge: { paddingVertical: 3, paddingHorizontal: 10, borderRadius: Radius.pill },
-  pageNav: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  navArrow: { fontSize: FontSize.nav, lineHeight: 28, fontWeight: Weight.semibold },
-  navDisabled: { opacity: 0.3 },
   description: { marginTop: 10, textAlign: 'center' },
   topDescInput: { marginTop: 8 },
   pageDetails: { gap: 8, marginTop: 12 },
-  pageDetailsRead: { alignItems: 'center', marginTop: 8 },
-  pageWrap: { alignItems: 'center', marginVertical: 18 },
-  spreadRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center' },
-  neighbor: { alignItems: 'center' },
-  neighborLabel: { marginBottom: 6 },
-  neighborGrid: { opacity: 0.92 },
-  pageTitle: { textAlign: 'center' },
-  pageDescription: { marginTop: 4, textAlign: 'center' },
   editPanel: { gap: 8 },
   btnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   fieldLabel: { marginTop: 12, marginBottom: 2 },

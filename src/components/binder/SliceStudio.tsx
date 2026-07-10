@@ -43,9 +43,11 @@ const ART_WINDOW: Win = { x: 0.06, y: 0.11, w: 0.88, h: 0.42 };
 const OVER = 0.85;
 const clampAxis = (v: number, size: number) => clamp(v, -OVER * size, 1 - size + OVER * size);
 
-/** External galleries to drag art from (web) — a curated official set + Pinterest's broad feed. */
+/** External galleries to drag art from (web) — a curated official set, Pinterest's broad feed, and
+ *  the official Pokémon Center card-sleeve art. */
 const ART_OF_PKM_URL = 'https://www.artofpkm.com/artwork/all';
 const PINTEREST_URL = 'https://www.pinterest.com/ideas/pokemon-pictures/931192954917/';
+const POKEMON_CENTER_SLEEVES_URL = 'https://www.pokemoncenter.com/category/card-sleeves';
 
 // Whether Shift/Ctrl is held (web), for multi-select. A plain module flag (not a React ref)
 // so the gesture/tap callbacks can read it without tripping the no-refs-in-render rule.
@@ -428,6 +430,7 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
             <Btn label="🎴 Card art" onPress={() => setCardPickOpen(true)} kind="primary" />
             <Btn label="Art of Pokémon ↗" onPress={() => openGallery(ART_OF_PKM_URL)} />
             <Btn label="Pinterest ↗" onPress={() => openGallery(PINTEREST_URL)} />
+            <Btn label="Card sleeves ↗" onPress={() => openGallery(POKEMON_CENTER_SLEEVES_URL)} />
             <ArtUploadButton onUploaded={loadImage} />
             <TextInput
               value={urlInput}

@@ -13,21 +13,28 @@ import { rarityCode } from '@/data/rarityCode';
 export type CaptionFieldKey =
   | 'series'
   | 'set'
-  | 'name'
   | 'artist'
-  | 'rarity'
   | 'rarityCode'
-  | 'type'
   | 'number'
   | 'stage'
-  | 'setCode'
   | 'released';
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** yyyy-mm-dd -> "Mar 15, 2022" (full date); "" for empty/partial. */
+function formatFullDate(iso: string): string {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return '';
+  const month = MONTHS[parseInt(m[2], 10) - 1];
+  if (!month) return '';
+  return `${month} ${parseInt(m[3], 10)}, ${m[1]}`;
+}
+
 /**
- * The caption fields in their canonical *display* order — series → set → name → artist →
- * rarity → … — each with a chip label and an accessor pulling its value off a `CatalogCard`
- * ('' when the field is absent/empty for that card). Display order is fixed here regardless of
- * the order the user toggles fields on.
+ * The caption fields in their canonical *display* order — series → set → artist → rarity code →
+ * … — each with a chip label and an accessor pulling its value off a `CatalogCard` ('' when the
+ * field is absent/empty for that card). Display order is fixed here regardless of the order the
+ * user toggles fields on.
  */
 export const CAPTION_FIELDS: {
   key: CaptionFieldKey;
@@ -36,15 +43,11 @@ export const CAPTION_FIELDS: {
 }[] = [
   { key: 'series', label: 'Series', get: (c) => c.seriesId },
   { key: 'set', label: 'Set', get: (c) => c.setName },
-  { key: 'name', label: 'Name', get: (c) => c.name },
   { key: 'artist', label: 'Artist', get: (c) => c.illustrator },
-  { key: 'rarity', label: 'Rarity', get: (c) => c.rarity },
   { key: 'rarityCode', label: 'Rarity code', get: (c) => rarityCode(c.rarity) },
-  { key: 'type', label: 'Type', get: (c) => c.types.join('/') },
   { key: 'number', label: 'Number', get: (c) => c.number },
   { key: 'stage', label: 'Stage', get: (c) => c.stage },
-  { key: 'setCode', label: 'Set code', get: (c) => c.setCode },
-  { key: 'released', label: 'Released', get: (c) => (c.releaseDate ? c.releaseDate.slice(0, 4) : '') },
+  { key: 'released', label: 'Released', get: (c) => formatFullDate(c.releaseDate) },
 ];
 
 /** Fields shown by default the first time captions are switched on. */

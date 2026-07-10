@@ -22,15 +22,11 @@ const TABS: { id: TabId; label: string }[] = [
 const FIELD_HELP: Record<CaptionFieldKey, string> = {
   series: 'Series / era the card belongs to',
   set: 'Set name',
-  name: 'Card name',
   artist: 'Illustrator',
-  rarity: 'Full rarity name (e.g. “Holo Rare”)',
   rarityCode: 'Short rarity code — see the Rarity codes tab',
-  type: 'Energy type(s)',
   number: 'Collector number (e.g. 004/102)',
   stage: 'Evolution stage (Basic, Stage 1, …)',
-  setCode: 'Set abbreviation',
-  released: 'Release year',
+  released: 'Full release date (e.g. Mar 15, 2022)',
 };
 
 const GROUP_TITLES: Record<RarityGroup, string> = {

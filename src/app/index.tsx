@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useRef, useState, type ReactNode } from 'react';
+import { useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { sendBrowseCommand } from 'tcgscan-browse';
@@ -14,6 +14,7 @@ import { ShareSheet } from '@/components/binder/ShareSheet';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { HomeBrowse } from '@/components/HomeBrowse';
 import { HomeRecent } from '@/components/HomeRecent';
+import { HomeSection } from '@/components/HomeSection';
 import { SettingsButton } from '@/components/settings/SettingsSheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -151,7 +152,7 @@ export default function BindersScreen() {
 
           <HomeRecent onFindSimilar={driveSimilar} onViewSet={driveViewSet} />
 
-          <Section
+          <HomeSection
             title="Your binders"
             action={
               <Pressable
@@ -199,11 +200,11 @@ export default function BindersScreen() {
                 )}
               </>
             )}
-          </Section>
+          </HomeSection>
 
-          <Section title="Example binders">
+          <HomeSection title="Example binders">
             <BinderCarousel binders={store.exampleBinders} onOpen={openBinder} />
-          </Section>
+          </HomeSection>
 
           <View onLayout={(e) => (browseY.current = e.nativeEvent.layout.y)}>
             <HomeBrowse open={browseOpen} onOpenChange={setBrowseOpen} onOpenBinder={openBinder} />
@@ -298,28 +299,6 @@ function RenameDialog({
   );
 }
 
-function Section({
-  title,
-  action,
-  children,
-}: {
-  title: string;
-  action?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <ThemedText type="smallBold" style={styles.sectionTitle}>
-          {title}
-        </ThemedText>
-        {action}
-      </View>
-      {children}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1 },
   flex: { flex: 1 },
@@ -347,14 +326,6 @@ const styles = StyleSheet.create({
   },
   newBtnText: { color: Palette.accentText, fontWeight: Weight.bold, fontSize: FontSize.control },
   pressed: { opacity: 0.7 },
-  section: { marginBottom: Spacing.five },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.three,
-  },
-  sectionTitle: { textTransform: 'uppercase', letterSpacing: 0.5 },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   empty: { padding: Spacing.four, borderRadius: Radius.lg },
   emptyText: { lineHeight: 20 },

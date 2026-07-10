@@ -12,10 +12,9 @@
  * `onFindSimilar` / `onViewSet` bubble a tapped card's id up so the home screen can drive
  * the "Browse all cards" browser below (see index.tsx).
  */
-import { View } from 'react-native';
 import { RecentProducts } from 'tcgscan-browse';
 
-import { Spacing } from '@/constants/theme';
+import { HomeSection } from '@/components/HomeSection';
 import { useCatalog } from '@/hooks/use-catalog';
 
 export function HomeRecent({
@@ -29,12 +28,15 @@ export function HomeRecent({
   // Render nothing (no gap, no spinner) until the catalog resolves.
   if (!catalog) return null;
   return (
-    <View style={{ marginBottom: Spacing.five }}>
+    // A collapsible section like the rest of the home screen. The shared header supplies the title
+    // + disclosure, so the feed's own header is suppressed (title="").
+    <HomeSection title="Recent & Upcoming">
       <RecentProducts
         catalog={catalog}
+        title=""
         onFindSimilar={(card) => onFindSimilar?.(card.id)}
         onViewSet={(card) => onViewSet?.(card.id)}
       />
-    </View>
+    </HomeSection>
   );
 }

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSharedValue } from 'react-native-reanimated';
+import { sendBrowseCommand, similarAvailable } from 'tcgscan-browse';
 
 import { BinderGrid, type BinderGridHandle } from '@/components/binder/BinderGrid';
 import { CardPicker } from '@/components/binder/CardPicker';
@@ -331,6 +332,26 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     const n = dests.length;
     const short = chosen.length - n;
     showToast(short > 0 ? `Duplicated ${n}, ${short} didn’t fit` : `Duplicated ${n}`);
+  };
+
+  // Card ids of the selected pockets (card slots only) — the seed for "Find similar to all".
+  const selectedCardIds = () =>
+    page.slots
+      .filter((s) => multiIds.has(s.id) && s.type === 'card' && s.cardId)
+      .map((s) => s.cardId as string);
+
+  const findSimilarToAll = () => {
+    const cardIds = selectedCardIds();
+    if (cardIds.length === 0) return;
+    const chosen0 = page.slots.find((s) => multiIds.has(s.id));
+    // Queue the multi-similar search, then open the picker: its CatalogBrowser flushes this
+    // pending command on mount and shows cards similar to the whole selection, ready to place.
+    sendBrowseCommand({ type: 'similarMany', cardIds });
+    const cell = firstFreePlacement(page, 1, 1) ?? (chosen0 ? { row: chosen0.row, col: chosen0.col } : null);
+    setMultiActionsOpen(false);
+    clearMulti();
+    setSelectedSlotId(null);
+    if (cell) setPickerCell(cell);
   };
 
   const handlePickVUnion = (pieces: readonly string[]) => {
@@ -759,6 +780,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
             count={multiIds.size}
             onDuplicate={duplicateMany}
             onRemove={removeMany}
+            onFindSimilar={
+              similarAvailable() && selectedCardIds().length > 0 ? findSimilarToAll : undefined
+            }
             onClose={closeMultiActions}
           />
         ) : null}

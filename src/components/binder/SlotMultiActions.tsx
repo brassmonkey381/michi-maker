@@ -14,11 +14,15 @@ export function SlotMultiActions({
   count,
   onDuplicate,
   onRemove,
+  onFindSimilar,
   onClose,
 }: {
   count: number;
   onDuplicate: () => void;
   onRemove: () => void;
+  /** Provided only when similarity search is available and ≥1 card is selected — shows a
+   *  "Find similar to all" action that opens the card browse seeded with the selection. */
+  onFindSimilar?: () => void;
   /** Dismiss without acting (drops the selection). */
   onClose: () => void;
 }) {
@@ -33,10 +37,24 @@ export function SlotMultiActions({
             <ThemedText type="subtitle" style={styles.title}>
               {label}
             </ThemedText>
+            {onFindSimilar ? (
+              <Pressable
+                onPress={onFindSimilar}
+                style={({ pressed }) => [styles.btn, styles.btnPrimary, pressed && styles.pressed]}>
+                <ThemedText type="smallBold" style={styles.btnFilledText}>
+                  ≈ Find similar to all
+                </ThemedText>
+              </Pressable>
+            ) : null}
             <Pressable
               onPress={onDuplicate}
-              style={({ pressed }) => [styles.btn, styles.btnPrimary, pressed && styles.pressed]}>
-              <ThemedText type="smallBold" style={styles.btnFilledText}>
+              style={({ pressed }) => [
+                styles.btn,
+                onFindSimilar ? styles.btnOutline : styles.btnPrimary,
+                onFindSimilar ? { borderColor: theme.backgroundSelected } : null,
+                pressed && styles.pressed,
+              ]}>
+              <ThemedText type="smallBold" style={onFindSimilar ? undefined : styles.btnFilledText}>
                 Duplicate
               </ThemedText>
             </Pressable>

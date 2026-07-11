@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BinderGrid } from '@/components/binder/BinderGrid';
 import { BinderScreen } from '@/components/binder/BinderScreen';
 import { BinderPages } from '@/components/binder/BinderPages';
+import { LikeButton } from '@/components/binder/LikeButton';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, MaxContentWidth, Palette, Spacing } from '@/constants/theme';
@@ -148,6 +149,7 @@ function Viewer({
   onPage: (i: number) => void;
   availableWidth: number;
 }) {
+  const [needAccount, setNeedAccount] = useState(false);
   return (
     <ScrollView contentContainerStyle={styles.scroll}>
       <ThemedText type="subtitle" style={styles.title}>
@@ -156,6 +158,15 @@ function Viewer({
       {binder.description ? (
         <ThemedText type="small" themeColor="textSecondary" style={styles.description}>
           {binder.description}
+        </ThemedText>
+      ) : null}
+
+      <View style={styles.likeRow}>
+        <LikeButton binderId={binder.id} onNeedsAccount={() => setNeedAccount(true)} />
+      </View>
+      {needAccount ? (
+        <ThemedText type="small" themeColor="textSecondary" style={styles.likeHint}>
+          Sign in with an account to like this binder.
         </ThemedText>
       ) : null}
 
@@ -202,6 +213,8 @@ const styles = StyleSheet.create({
   },
   title: { textAlign: 'center', fontSize: FontSize.nav, lineHeight: 34 },
   description: { textAlign: 'center', marginTop: Spacing.two, maxWidth: 520 },
+  likeRow: { marginTop: Spacing.three, alignItems: 'center' },
+  likeHint: { marginTop: Spacing.two, textAlign: 'center' },
   madeWith: { marginTop: Spacing.five },
   madeWithText: { textAlign: 'center' },
 });

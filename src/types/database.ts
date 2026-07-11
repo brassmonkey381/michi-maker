@@ -23,6 +23,32 @@ export type Database = {
   }
   public: {
     Tables: {
+      binder_likes: {
+        Row: {
+          binder_id: string
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          binder_id: string
+          created_at?: string
+          user_id?: string
+        }
+        Update: {
+          binder_id?: string
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "binder_likes_binder_id_fkey"
+            columns: ["binder_id"]
+            isOneToOne: false
+            referencedRelation: "binders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       binder_pages: {
         Row: {
           background_color: string | null
@@ -30,6 +56,7 @@ export type Database = {
           cols: number
           created_at: string
           id: string
+          is_public: boolean
           notes: string | null
           position: number
           rows: number
@@ -42,6 +69,7 @@ export type Database = {
           cols?: number
           created_at?: string
           id?: string
+          is_public?: boolean
           notes?: string | null
           position?: number
           rows?: number
@@ -54,6 +82,7 @@ export type Database = {
           cols?: number
           created_at?: string
           id?: string
+          is_public?: boolean
           notes?: string | null
           position?: number
           rows?: number
@@ -177,6 +206,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          is_public: boolean
           updated_at: string
           username: string | null
         }
@@ -185,6 +215,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id: string
+          is_public?: boolean
           updated_at?: string
           username?: string | null
         }
@@ -193,6 +224,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          is_public?: boolean
           updated_at?: string
           username?: string | null
         }
@@ -203,7 +235,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      binder_like_count: { Args: { p_binder_id: string }; Returns: number }
+      featured_binders: {
+        Args: { p_limit?: number }
+        Returns: {
+          author_name: string
+          binder_id: string
+          like_count: number
+        }[]
+      }
     }
     Enums: {
       binder_slot_type: "card" | "insert" | "artwork" | "empty"

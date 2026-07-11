@@ -42,6 +42,7 @@ function pageRow(page: DemoPage, binderId: string, position: number): Tables['bi
     rows: page.rows,
     cols: page.cols,
     background_color: page.backgroundColor ?? null,
+    is_public: page.isPublic ?? true,
   };
 }
 
@@ -87,6 +88,7 @@ interface PageRowIn {
   rows: number;
   cols: number;
   background_color: string | null;
+  is_public: boolean;
   position: number;
   binder_slots: SlotRowIn[] | null;
 }
@@ -126,6 +128,7 @@ function mapPage(row: PageRowIn): DemoPage {
     rows: row.rows,
     cols: row.cols,
     backgroundColor: row.background_color ?? undefined,
+    isPublic: row.is_public,
     slots,
   };
 }
@@ -229,6 +232,7 @@ export async function updatePage(id: string, patch: Partial<DemoPage>): Promise<
   if (patch.rows !== undefined) row.rows = patch.rows;
   if (patch.cols !== undefined) row.cols = patch.cols;
   if (patch.backgroundColor !== undefined) row.background_color = patch.backgroundColor ?? null;
+  if (patch.isPublic !== undefined) row.is_public = patch.isPublic;
   if (Object.keys(row).length === 0) return;
   const { error } = await supabase.from('binder_pages').update(row).eq('id', id);
   if (error) throw new Error(`update page: ${error.message}`);
@@ -318,4 +322,127 @@ export async function reorderPages(binderId: string, orderedPageIds: string[]): 
   );
   const setErr = set.find((r) => r.error);
   if (setErr?.error) throw new Error(`reorder pages (set): ${setErr.error.message}`);
+}
+
+// --- likes -----------------------------------------------------------------
+
+/** One person who liked a binder (for the owner's "who liked" list). */
+export interface Liker {
+  userId: string;
+  /** null when the liker's profile is private (shown as "Someone" in the UI). */
+  displayName: string | null;
+  createdAt: string;
+}
+
+/**
+ * Total likes for a binder. Goes through the `binder_like_count` RPC (SECURITY DEFINER) so it
+ * works for anonymous public viewers, who can't read individual `binder_likes` rows under RLS.
+ */
+export async function fetchLikeCount(binderId: string): Promise<number> {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase.rpc('binder_like_count', { p_binder_id: binderId });
+  if (error) throw new Error(`like count: ${error.message}`);
+  return (data as number | null) ?? 0;
+}
+
+/** Whether `userId` has already liked this binder (RLS lets a user read their own like row). */
+export async function hasLiked(binderId: string, userId: string): Promise<boolean> {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from('binder_likes')
+    .select('binder_id')
+    .eq('binder_id', binderId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) throw new Error(`like state: ${error.message}`);
+  return !!data;
+}
+
+/** Like a binder as the current user. `user_id`/`created_at` default in the DB (auth.uid()/now()). */
+export async function likeBinder(binderId: string): Promise<void> {
+  const supabase = requireSupabase();
+  const { error } = await supabase.from('binder_likes').insert({ binder_id: binderId });
+  if (error) throw new Error(`like: ${error.message}`);
+}
+
+/** Remove the current user's like from a binder. */
+export async function unlikeBinder(binderId: string, userId: string): Promise<void> {
+  const supabase = requireSupabase();
+  const { error } = await supabase
+    .from('binder_likes')
+    .delete()
+    .eq('binder_id', binderId)
+    .eq('user_id', userId);
+  if (error) throw new Error(`unlike: ${error.message}`);
+}
+
+/**
+ * Everyone who liked a binder, most recent first — for the owner's "who liked" view (RLS lets the
+ * owner read all like rows on their own binder). Resolves each liker's display name in a second
+ * query; a liker whose profile is private surfaces as `null` (the UI shows "Someone").
+ */
+export async function fetchLikers(binderId: string): Promise<Liker[]> {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from('binder_likes')
+    .select('user_id, created_at')
+    .eq('binder_id', binderId)
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(`likers: ${error.message}`);
+  const rows = (data ?? []) as { user_id: string; created_at: string }[];
+  if (rows.length === 0) return [];
+
+  const ids = [...new Set(rows.map((r) => r.user_id))];
+  const { data: profs, error: pErr } = await supabase
+    .from('profiles')
+    .select('id, display_name, is_public')
+    .in('id', ids);
+  if (pErr) throw new Error(`likers profiles: ${pErr.message}`);
+  const byId = new Map(
+    ((profs ?? []) as { id: string; display_name: string | null; is_public: boolean }[]).map((p) => [p.id, p]),
+  );
+  return rows.map((r) => {
+    const p = byId.get(r.user_id);
+    return {
+      userId: r.user_id,
+      displayName: p && p.is_public ? (p.display_name ?? null) : null,
+      createdAt: r.created_at,
+    };
+  });
+}
+
+/**
+ * Featured binders: the top public binders by likes received in the last rolling 3 days. The
+ * `featured_binders` RPC (SECURITY DEFINER, excludes private profiles) returns the ranking; we
+ * then load those binders' pages/slots via the public read path and re-attach each one's author
+ * name + like count, preserving the RPC's order. Returns [] when nothing qualifies.
+ */
+export async function fetchFeaturedBinders(limit = 12): Promise<DemoBinder[]> {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase.rpc('featured_binders', { p_limit: limit });
+  if (error) throw new Error(`featured: ${error.message}`);
+  const rows = (data ?? []) as { binder_id: string; like_count: number; author_name: string | null }[];
+  if (rows.length === 0) return [];
+
+  const ids = rows.map((r) => r.binder_id);
+  const { data: binders, error: bErr } = await supabase
+    .from('binders')
+    .select('*, binder_pages(*, binder_slots(*))')
+    .in('id', ids)
+    .order('position', { referencedTable: 'binder_pages', ascending: true });
+  if (bErr) throw new Error(`featured binders: ${bErr.message}`);
+  const byId = new Map(((binders ?? []) as unknown as BinderRowIn[]).map((b) => [b.id, b]));
+
+  return rows.flatMap((r) => {
+    const row = byId.get(r.binder_id);
+    if (!row) return []; // vanished/hidden between the ranking and the fetch
+    return [
+      {
+        ...mapBinder(row),
+        isFeatured: true,
+        authorName: r.author_name ?? undefined,
+        likeCount: Number(r.like_count),
+      },
+    ];
+  });
 }

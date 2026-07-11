@@ -145,6 +145,9 @@ const BinderContext = createContext<BinderStore | null>(null);
 export function BinderProvider({ children }: { children: ReactNode }) {
   const [history, setHistory] = useState<History>({ past: [], present: SAMPLE_BINDERS, future: [] });
   const [loading, setLoading] = useState<boolean>(CLOUD);
+  // Featured = the top public binders by likes in the last rolling 3 days, fetched live from the
+  // backend (empty in local mode, or when nothing qualifies → the Featured section stays hidden).
+  const [featured, setFeatured] = useState<DemoBinder[]>([]);
 
   // The auth store owns the session. We load the signed-in user's binders and reload whenever
   // the user identity changes (sign in / out / new guest). A guest → account *upgrade* keeps
@@ -174,6 +177,25 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         );
       } finally {
         if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [authReady, userId]);
+
+  // Load the Featured ranking (public 3-day-likes leaderboard). It's public data, but wait for the
+  // session to settle so the Supabase client is ready. Reloads on identity change so a viewer's own
+  // likes are reflected next time they land home. Failures degrade to an empty (hidden) section.
+  useEffect(() => {
+    if (!CLOUD || !authReady) return;
+    let active = true;
+    (async () => {
+      try {
+        const rows = await repo.fetchFeaturedBinders();
+        if (active) setFeatured(rows);
+      } catch (error) {
+        console.warn(`[poke-michi] featured load failed: ${(error as Error).message}`);
       }
     })();
     return () => {
@@ -949,8 +971,8 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   const value = useMemo<BinderStore>(
     () => ({
       binders,
-      exampleBinders: binders.filter((binder) => binder.isExample && !binder.isFeatured),
-      featuredBinders: binders.filter((binder) => binder.isFeatured),
+      exampleBinders: binders.filter((binder) => binder.isExample),
+      featuredBinders: featured,
       userBinders: binders.filter((binder) => !binder.isExample),
       loading,
       getBinder,
@@ -981,6 +1003,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     }),
     [
       binders,
+      featured,
       loading,
       getBinder,
       createBinder,

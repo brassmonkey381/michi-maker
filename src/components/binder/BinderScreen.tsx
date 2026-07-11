@@ -4,6 +4,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   useWindowDimensions,
@@ -18,6 +19,7 @@ import { CardPicker } from '@/components/binder/CardPicker';
 import { BinderPages, type GridRole } from '@/components/binder/BinderPages';
 import { ColorField } from '@/components/binder/ColorField';
 import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
+import { LikersSheet } from '@/components/binder/LikersSheet';
 import { ShareSheet } from '@/components/binder/ShareSheet';
 import { SliceStudio } from '@/components/binder/SliceStudio';
 import { SlotMultiActions } from '@/components/binder/SlotMultiActions';
@@ -27,6 +29,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Palette, Radius, Spacing, Weight, FontSize } from '@/constants/theme';
 import { pillChip } from '@/constants/ui';
 import { firstFreePlacement, occupiedCells, slotCells, uuidv4, type DemoPage, type DemoSlot } from '@/data/binderTypes';
+import { fetchLikeCount } from '@/data/binderRepo';
 import type { CaptionFieldKey } from '@/data/cardCaption';
 import { isSupabaseConfigured } from '@/lib/env';
 import { binderValue, formatUsd, pageValue, usePriceSummary } from '@/lib/prices';
@@ -72,6 +75,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [toast, setToast] = useState<ToastSpec | null>(null);
+  // Likes this binder has received (owner view). Fetched on open; tapping opens the likers list.
+  const [likeCount, setLikeCount] = useState<number | null>(null);
+  const [likesOpen, setLikesOpen] = useState(false);
   // Handles to the three grids in the wide-screen edit spread, for cross-page drag hit-testing.
   const prevRef = useRef<BinderGridHandle>(null);
   const curRef = useRef<BinderGridHandle>(null);
@@ -121,6 +127,24 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   }, [editing]);
 
   const binder = store.getBinder(binderId);
+
+  // Load the like count for the owner's own (non-example) binder. Keyed on id + example-ness
+  // (both stable across edits) so ordinary editing doesn't refetch it.
+  useEffect(() => {
+    // Examples/local binders never show the chip (gated on canEdit below), so there's no stale
+    // count to clear here — only fetch for a real cloud binder, and set state in the callback.
+    if (!isSupabaseConfigured || !binder || binder.isExample) return;
+    let active = true;
+    fetchLikeCount(binder.id)
+      .then((n) => {
+        if (active) setLikeCount(n);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [binderId, binder?.isExample]);
 
   if (!binder) {
     return (
@@ -547,6 +571,16 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
             )}
             {canEdit ? (
               <View style={styles.headerRight}>
+                {isSupabaseConfigured && likeCount !== null ? (
+                  <Pressable
+                    onPress={() => setLikesOpen(true)}
+                    hitSlop={8}
+                    accessibilityLabel="See who liked this binder"
+                    style={styles.likeChip}>
+                    <Text style={styles.likeChipHeart}>♥</Text>
+                    <Text style={styles.likeChipText}>{likeCount}</Text>
+                  </Pressable>
+                ) : null}
                 {isSupabaseConfigured ? (
                   <Pressable onPress={() => setShareOpen(true)} hitSlop={10}>
                     <Text style={[styles.headerAction, { color: theme.text }]}>Share</Text>
@@ -708,6 +742,24 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                   }
                 />
 
+                {isSupabaseConfigured ? (
+                  <View style={styles.pageVisRow}>
+                    <View style={styles.pageVisText}>
+                      <ThemedText type="smallBold">Page visibility</ThemedText>
+                      <ThemedText type="small" themeColor="textSecondary">
+                        {(page.isPublic ?? true)
+                          ? 'Public — shown to anyone viewing this binder.'
+                          : 'Private — hidden from public viewers; only you see it.'}
+                      </ThemedText>
+                    </View>
+                    <Switch
+                      value={page.isPublic ?? true}
+                      onValueChange={(v) => store.updatePage(binder.id, page.id, { isPublic: v })}
+                      trackColor={{ true: Palette.accent, false: theme.backgroundSelected }}
+                    />
+                  </View>
+                ) : null}
+
                 {!binder.isExample && (
                   <Pressable
                     onPress={() =>
@@ -793,6 +845,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           onClose={() => setShareOpen(false)}
           onSetPublic={(v) => store.updateBinder(binder.id, { isPublic: v })}
         />
+        <LikersSheet visible={likesOpen} binderId={binder.id} onClose={() => setLikesOpen(false)} />
       </ThemedView>
   );
 }
@@ -893,6 +946,17 @@ const styles = StyleSheet.create({
   headerAction: { fontSize: FontSize.md, fontWeight: Weight.semibold },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   headerPrimary: { color: Palette.accent },
+  likeChip: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  likeChipHeart: { color: Palette.accent, fontSize: FontSize.md, lineHeight: 18 },
+  likeChipText: { color: Palette.ink2, fontSize: FontSize.control, fontWeight: Weight.semibold },
+  pageVisRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.three,
+    marginTop: Spacing.three,
+  },
+  pageVisText: { flex: 1, gap: 2 },
   titleText: { flex: 1, textAlign: 'center', fontSize: FontSize.title, lineHeight: 28 },
   titleInput: {
     flex: 1,

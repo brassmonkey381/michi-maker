@@ -5,7 +5,7 @@
  * reload on web, where the token styles are resolved at load).
  */
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Switch, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -18,6 +18,7 @@ import {
   type VariantId,
 } from '@/constants/variants';
 import { useTheme } from '@/hooks/use-theme';
+import { useAuth } from '@/store/auth';
 
 /** Gear entry point for the home header. Owns the sheet's open state. */
 export function SettingsButton() {
@@ -39,6 +40,17 @@ export function SettingsButton() {
 function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const theme = useTheme();
   const current = activeVariantId();
+  const { user, profile, updateProfile } = useAuth();
+  // Optimistic mirror of the profile's public flag so the switch responds instantly.
+  const [publicProfile, setPublicProfile] = useState<boolean | null>(null);
+  const profilePublic = publicProfile ?? profile?.is_public ?? true;
+
+  const toggleProfilePublic = (v: boolean) => {
+    setPublicProfile(v);
+    void updateProfile({ is_public: v }).then((r) => {
+      if (r.error) setPublicProfile(!v); // revert on failure
+    });
+  };
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -85,6 +97,29 @@ function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => 
                 );
               })}
             </View>
+
+            {user ? (
+              <>
+                <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
+                  PRIVACY
+                </ThemedText>
+                <View style={styles.privacyRow}>
+                  <View style={styles.privacyText}>
+                    <ThemedText type="smallBold">Public profile</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {profilePublic
+                        ? 'Your public binders can be shared and featured.'
+                        : 'Private — every one of your binders is hidden from everyone but you.'}
+                    </ThemedText>
+                  </View>
+                  <Switch
+                    value={profilePublic}
+                    onValueChange={toggleProfilePublic}
+                    trackColor={{ true: Palette.accent, false: theme.backgroundSelected }}
+                  />
+                </View>
+              </>
+            ) : null}
           </ThemedView>
         </Pressable>
       </Pressable>
@@ -133,6 +168,14 @@ const styles = StyleSheet.create({
   },
   optionText: { flex: 1 },
   check: { color: Palette.accent, fontSize: FontSize.md, fontWeight: Weight.bold },
+  privacyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.three,
+    marginTop: Spacing.one,
+  },
+  privacyText: { flex: 1, gap: 2 },
 
   preview: {
     flexDirection: 'row',

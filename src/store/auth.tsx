@@ -86,7 +86,9 @@ interface AuthStore {
   linkOAuth: (provider: OAuthProvider) => Promise<AuthResult>;
   /** Start (or restart) an anonymous guest session on demand — used after an explicit sign-out. */
   continueAsGuest: () => Promise<AuthResult>;
-  updateProfile: (patch: Partial<Pick<Profile, 'username' | 'display_name' | 'avatar_url'>>) => Promise<AuthResult>;
+  updateProfile: (
+    patch: Partial<Pick<Profile, 'username' | 'display_name' | 'avatar_url' | 'is_public'>>,
+  ) => Promise<AuthResult>;
   signOut: () => Promise<void>;
 }
 
@@ -299,7 +301,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateProfile = useCallback(
     async (
-      patch: Partial<Pick<Profile, 'username' | 'display_name' | 'avatar_url'>>,
+      patch: Partial<Pick<Profile, 'username' | 'display_name' | 'avatar_url' | 'is_public'>>,
     ): Promise<AuthResult> => {
       if (!supabase) return NOT_CONFIGURED;
       if (!user) return { error: 'You need to be signed in to edit your profile.' };

@@ -71,6 +71,11 @@ export interface DemoPage {
   rows: number;
   cols: number;
   backgroundColor?: string;
+  /**
+   * Whether the page is visible to public viewers of a public binder. Absent ⇒ public (the DB
+   * default). A private page is hidden from everyone but the owner even inside a public binder.
+   */
+  isPublic?: boolean;
   slots: DemoSlot[];
 }
 
@@ -88,6 +93,10 @@ export interface DemoBinder {
   coverCardId?: string;
   /** When true, anyone with the link can view this binder (see the `/binder/[id]` route). */
   isPublic?: boolean;
+  /** Total likes this binder has received. Populated for Featured + when viewing a public binder. */
+  likeCount?: number;
+  /** Whether the current signed-in viewer has liked this binder. */
+  likedByMe?: boolean;
   pages: DemoPage[];
 }
 

@@ -42,7 +42,7 @@ export function AutoFillSheet({
   const [error, setError] = useState<string | null>(null);
 
   const seed = catalog && seedCardId ? resolveCatalogCardWith(catalog, seedCardId) : undefined;
-  const methods = seed ? availableMethods(seed) : [];
+  const methods = seed && catalog ? availableMethods(seed, catalog) : [];
   const emptyCount = page.rows * page.cols - occupiedCells(page).size;
 
   const run = async (method: ComposeMethod) => {

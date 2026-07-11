@@ -19,8 +19,17 @@ import { findSimilar, similarAvailable } from 'tcgscan-browse';
 
 import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { occupiedCells, type DemoPage } from '@/data/binderTypes';
+import { hasToken } from '@/data/nameMatch';
+import { partnersFor } from '@/data/pokemonPartners';
+import { trainerFor } from '@/data/trainerPartners';
 
-export type ComposeMethod = 'sameArtist' | 'samePokemon' | 'evolutionLine' | 'moreLikeThis';
+export type ComposeMethod =
+  | 'sameArtist'
+  | 'samePokemon'
+  | 'evolutionLine'
+  | 'moreLikeThis'
+  | 'trainerPage'
+  | 'pokemonFriends';
 
 export interface ComposePlacement {
   row: number;
@@ -49,6 +58,16 @@ export const COMPOSE_METHODS: {
     description: 'Its family, reading Basic → final stage across the page.',
   },
   {
+    key: 'pokemonFriends',
+    label: 'Friends & partners',
+    description: 'Pokémon this one is known to pair with — duos, TAG TEAMs, lore.',
+  },
+  {
+    key: 'trainerPage',
+    label: 'Trainer page',
+    description: 'Their signature partner, canonical team, and trainer cards together.',
+  },
+  {
     key: 'sameArtist',
     label: 'Same artist',
     description: 'More cards illustrated by the same artist, sampled across eras.',
@@ -56,11 +75,14 @@ export const COMPOSE_METHODS: {
 ];
 
 /** Which methods make sense for this seed (e.g. no artist page when illustrator is unknown). */
-export function availableMethods(seed: CatalogCard): ComposeMethod[] {
+export function availableMethods(seed: CatalogCard, catalog: Catalog): ComposeMethod[] {
   const out: ComposeMethod[] = [];
   if (similarAvailable()) out.push('moreLikeThis');
-  if (speciesOf(seed)) out.push('samePokemon');
+  const species = speciesOf(seed);
+  if (species) out.push('samePokemon');
   if (seed.evolutionLine.length > 1) out.push('evolutionLine');
+  if (species && partnersFor(species, catalog).length > 0) out.push('pokemonFriends');
+  if (trainerFor(seed.name)) out.push('trainerPage');
   if (seed.illustrator.trim()) out.push('sameArtist');
   return out;
 }
@@ -192,6 +214,25 @@ function interleaveBy(cards: CatalogCard[], keyFn: (c: CatalogCard) => string): 
   return out;
 }
 
+/**
+ * Share `total` picks across ordered buckets (earlier buckets absorb the remainder), then
+ * backfill any shortfall from the leftovers — so one huge bucket can't starve the others.
+ */
+function allocateAcross(buckets: CatalogCard[][], total: number): CatalogCard[] {
+  const nonEmpty = buckets.filter((b) => b.length > 0);
+  if (nonEmpty.length === 0) return [];
+  const base = Math.floor(total / nonEmpty.length);
+  const remainder = total % nonEmpty.length;
+  const picked: CatalogCard[] = [];
+  const leftovers: CatalogCard[] = [];
+  nonEmpty.forEach((bucket, i) => {
+    const quota = base + (i < remainder ? 1 : 0);
+    picked.push(...bucket.slice(0, quota));
+    leftovers.push(...bucket.slice(quota));
+  });
+  return [...picked, ...leftovers].slice(0, total);
+}
+
 /** Zip candidates onto cells. */
 function place(cells: { row: number; col: number }[], cards: CatalogCard[]): ComposePlacement[] {
   return cells.slice(0, cards.length).map((cell, i) => ({ ...cell, cardId: cards[i].id }));
@@ -234,6 +275,63 @@ export async function composePage(
     return place(cells, varietyRank(filterAndDedupe(cards, page)).slice(0, cells.length));
   }
 
+  if (method === 'pokemonFriends') {
+    // The seed's canonical companions: curated duos/groups + species proven to share card art
+    // with it (multi-Pokémon names — a "Gengar & Mimikyu" print shows both). One bucket per
+    // partner species (curated partners lead), pockets shared across them.
+    const species = speciesOf(seed);
+    if (!species) return [];
+    const partners = partnersFor(species, catalog);
+    if (partners.length === 0) return [];
+    const deduped = filterAndDedupe(
+      catalog.listAll().filter((c) => partners.some((p) => hasToken(c.name, p))),
+      page,
+    );
+    const buckets = partners.map((p) => varietyRank(deduped.filter((c) => hasToken(c.name, p))));
+    // A tag-team print matches two partners — drop repeats introduced by the per-partner split.
+    const seen = new Set<string>();
+    const unique = allocateAcross(buckets, cells.length * 2).filter((c) => {
+      if (seen.has(c.id)) return false;
+      seen.add(c.id);
+      return true;
+    });
+    return place(cells, unique.slice(0, cells.length));
+  }
+
+  if (method === 'trainerPage') {
+    // The trainer's world on one page: signature partner(s) first, their other trainer-named
+    // cards (supporters, owned prints), and the rest of the canonical team — pockets shared
+    // across the three groups so no single one dominates.
+    const trainer = trainerFor(seed.name);
+    if (!trainer) return [];
+    const tokens = trainer.tokens ?? [trainer.name.toLowerCase()];
+    const isTrainerCard = (c: CatalogCard) => {
+      const n = c.name.toLowerCase();
+      return tokens.some((t) => n === t || hasToken(n, t));
+    };
+    const sigOf = (c: CatalogCard) => trainer.signature.find((s) => hasToken(c.name, s));
+    const teamOf = (c: CatalogCard) => trainer.pokemon.find((s) => hasToken(c.name, s));
+
+    const signature: CatalogCard[] = [];
+    const trainerCards: CatalogCard[] = [];
+    const team: CatalogCard[] = [];
+    for (const c of filterAndDedupe(catalog.listAll(), page)) {
+      // Owned prints like "Cynthia's Garchomp" count as signature/team — the Pokémon is the art.
+      if (sigOf(c)) signature.push(c);
+      else if (isTrainerCard(c)) trainerCards.push(c);
+      else if (teamOf(c)) team.push(c);
+    }
+    const ordered = allocateAcross(
+      [
+        interleaveBy(varietyRank(signature), (c) => sigOf(c) ?? ''),
+        varietyRank(trainerCards),
+        interleaveBy(varietyRank(team), (c) => teamOf(c) ?? ''),
+      ],
+      cells.length,
+    );
+    return place(cells, ordered);
+  }
+
   // evolutionLine — family members ordered Basic → final; column-major cells make the page
   // read left → right through the stages. Within a stage, variety-ranked.
   const family = seed.evolutionLine;
@@ -262,20 +360,13 @@ export async function composePage(
   // otherwise a popular basic (Eevee has 100+ prints) fills every cell and the evolutions
   // never appear. Within a stage, interleave by species (Vaporeon/Jolteon/… all get a look),
   // then variety-rank across eras. Any shortfall backfills from the leftover pool.
-  const base = Math.floor(cells.length / stages.length);
-  const remainder = cells.length % stages.length;
   const speciesOfMember = (c: CatalogCard) => {
     const n = c.name.toLowerCase();
     return family.find((s) => n.includes(s)) ?? '';
   };
-  const picked: CatalogCard[] = [];
-  const leftovers: CatalogCard[] = [];
-  stages.forEach((s, i) => {
-    const quota = base + (i < remainder ? 1 : 0);
-    const ranked = interleaveBy(varietyRank(byStage.get(s)!), speciesOfMember);
-    picked.push(...ranked.slice(0, quota));
-    leftovers.push(...ranked.slice(quota));
-  });
-  const ordered = [...picked, ...leftovers];
-  return place(cells, ordered.slice(0, cells.length));
+  const ordered = allocateAcross(
+    stages.map((s) => interleaveBy(varietyRank(byStage.get(s)!), speciesOfMember)),
+    cells.length,
+  );
+  return place(cells, ordered);
 }

@@ -11,7 +11,7 @@
  */
 import { type CardAction, type CardActionsFactory } from 'tcgscan-browse';
 import { useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
 import { CardBrowse } from '@/components/binder/CardBrowse';
@@ -36,7 +36,7 @@ export function HomeBrowse({
   const open = openProp ?? openState;
   const setOpen = (next: boolean) => (onOpenChange ?? setOpenState)(next);
   // Only subscribes-and-loads the catalog when expanded; collapsed is a no-op for page load.
-  const { catalog, error, status, progress } = useCatalog(open);
+  const { catalog } = useCatalog(open);
   const { height } = useWindowDimensions();
   const panelHeight = Math.max(460, Math.round(height * 0.7));
 
@@ -96,26 +96,9 @@ export function HomeBrowse({
 
       {open ? (
         <View style={[styles.panel, { height: panelHeight }]}>
-          {catalog ? (
-            <CardBrowse catalog={catalog} cardActions={cardActions} />
-          ) : (
-            <View style={styles.center}>
-              {error ? (
-                <ThemedText type="small" themeColor="textSecondary">
-                  Card catalog is unavailable right now.
-                </ThemedText>
-              ) : (
-                <>
-                  <ActivityIndicator />
-                  <ThemedText type="small" themeColor="textSecondary" style={styles.loadingText}>
-                    {status === 'parsing'
-                      ? `Preparing cards… ${Math.round(progress * 100)}%`
-                      : 'Loading cards…'}
-                  </ThemedText>
-                </>
-              )}
-            </View>
-          )}
+          {/* Rendered even before the catalog loads: CatalogBrowser runs cold (server search) so
+              browsing is instant, then swaps to on-device once the catalog is in memory. */}
+          <CardBrowse catalog={catalog} cardActions={cardActions} />
         </View>
       ) : null}
 
@@ -151,6 +134,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingTop: Spacing.two,
   },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  loadingText: { marginTop: Spacing.two },
 });

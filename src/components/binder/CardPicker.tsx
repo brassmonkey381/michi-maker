@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ArtUploadButton } from '@/components/binder/ArtUploadButton';
 import { CardBrowse } from '@/components/binder/CardBrowse';
@@ -101,8 +101,7 @@ export function CardPicker({
   // Subscribe only while the sheet is open: the persistently-mounted picker must not
   // force the 9.87MB catalog fetch on binder-open. The background prefetch (BinderScreen)
   // warms the shared load-once promise; opening the sheet just subscribes to it.
-  const { catalog, error: catalogError, status: catalogStatus, progress: catalogProgress } =
-    useCatalog(visible);
+  const { catalog } = useCatalog(visible);
   const [shape, setShape] = useState({ rows: 1, cols: 1 });
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -146,7 +145,7 @@ export function CardPicker({
   // browse stays one list. The sheet gets a definite height so its FlatList has a bounded viewport.
   const sizeLabel = `${shape.rows}×${shape.cols}`;
   const isMultiCell = shape.rows > 1 || shape.cols > 1;
-  const browseMode = tab === 'cards' && !!catalog;
+  const browseMode = tab === 'cards';
 
   // Place a chosen artwork: as one panel, or sliced across the block when the toggle is on.
   const placeArt = (url: string) =>
@@ -375,40 +374,21 @@ export function CardPicker({
           ) : null}
 
           {tab === 'cards' ? (
-            catalog ? (
-              // The unified Series → Set → Card browse (its FlatList is the primary scroller).
-              // Size (Standard / Jumbo / V-UNION) is a filter inside it; V-UNION shows assembled
-              // group tiles. Remount per pocket so browse position / search / filters don't leak
-              // between pockets — but in "keep adding" mode hold one browse so you can rattle
-              // through a set filling pockets without it resetting.
-              <CardBrowse
-                key={keepAdding ? 'fill-session' : `${cell?.row ?? 'x'}-${cell?.col ?? 'x'}-${slot?.id ?? 'new'}`}
-                catalog={catalog}
-                selectedCardId={slot?.type === 'card' ? slot.cardId : undefined}
-                onPickCard={onPickCard}
-                onPickVUnion={onPickVUnion}
-                onPickCards={onPickCards}
-              />
-            ) : (
-              <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-                {/* No catalog yet: an error, or a spinner while it loads. */}
-                {catalogError ? (
-                  <Text style={styles.hint}>
-                    Card search is unavailable right now — check your connection and reopen this
-                    pocket to try again.
-                  </Text>
-                ) : (
-                  <View style={styles.loading}>
-                    <ActivityIndicator />
-                    <Text style={styles.loadingText}>
-                      {catalogStatus === 'parsing'
-                        ? `Preparing cards… ${Math.round(catalogProgress * 100)}%`
-                        : 'Loading cards…'}
-                    </Text>
-                  </View>
-                )}
-              </ScrollView>
-            )
+            // The unified Series → Set → Card browse (its FlatList is the primary scroller).
+            // Rendered even while the catalog loads: CatalogBrowser runs COLD (server search) so
+            // you can search instantly, then swaps to on-device once the catalog is in memory.
+            // Size (Standard / Jumbo / V-UNION) is a filter inside it; V-UNION shows assembled
+            // group tiles. Remount per pocket so browse position / search / filters don't leak
+            // between pockets — but in "keep adding" mode hold one browse so you can rattle
+            // through a set filling pockets without it resetting.
+            <CardBrowse
+              key={keepAdding ? 'fill-session' : `${cell?.row ?? 'x'}-${cell?.col ?? 'x'}-${slot?.id ?? 'new'}`}
+              catalog={catalog}
+              selectedCardId={slot?.type === 'card' ? slot.cardId : undefined}
+              onPickCard={onPickCard}
+              onPickVUnion={onPickVUnion}
+              onPickCards={onPickCards}
+            />
           ) : tab === 'artwork' ? (
             <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
               {renderArtwork()}
@@ -481,8 +461,6 @@ const styles = StyleSheet.create({
   },
   // A definite height (not just maxHeight) so the browse FlatList gets a bounded viewport.
   sheetTall: { height: '85%' },
-  loading: { marginVertical: 24, alignItems: 'center', gap: 8 },
-  loadingText: { fontSize: FontSize.sm, color: Palette.muted3 },
   handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: Radius.xs, backgroundColor: Palette.handle, marginBottom: 8 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
   headerTitle: { flex: 1 },

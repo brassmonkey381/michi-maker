@@ -27,7 +27,8 @@ export function CardBrowse({
   selectedCardId,
   cardActions,
 }: {
-  catalog: Catalog;
+  /** Null while the catalog is still loading — CatalogBrowser then runs cold (server search). */
+  catalog: Catalog | null;
   onPickCard?: (cardId: string) => void;
   /** Place an assembled V-UNION (Size=V-UNION group tiles). */
   onPickVUnion?: (pieces: readonly string[]) => void;

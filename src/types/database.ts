@@ -200,6 +200,32 @@ export type Database = {
         }
         Relationships: []
       }
+      profile_upvotes: {
+        Row: {
+          created_at: string
+          profile_id: string
+          voter_id: string
+        }
+        Insert: {
+          created_at?: string
+          profile_id: string
+          voter_id?: string
+        }
+        Update: {
+          created_at?: string
+          profile_id?: string
+          voter_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_upvotes_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -242,6 +268,17 @@ export type Database = {
           author_name: string
           binder_id: string
           like_count: number
+        }[]
+      }
+      profile_upvote_count: { Args: { p_profile_id: string }; Returns: number }
+      search_profiles: {
+        Args: { p_query?: string; p_limit?: number }
+        Returns: {
+          id: string
+          display_name: string
+          username: string
+          avatar_url: string
+          upvotes: number
         }[]
       }
     }

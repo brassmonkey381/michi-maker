@@ -183,6 +183,23 @@ export async function fetchBinder(id: string): Promise<DemoBinder | null> {
   return data ? mapBinder(data as unknown as BinderRowIn) : null;
 }
 
+/**
+ * A specific owner's PUBLIC binders — for their public profile page. RLS also requires the owner's
+ * profile to be public, so a private profile yields nothing here even with a direct owner id.
+ */
+export async function fetchPublicBinders(ownerId: string): Promise<DemoBinder[]> {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from('binders')
+    .select('*, binder_pages(*, binder_slots(*))')
+    .eq('owner_id', ownerId)
+    .eq('is_public', true)
+    .order('created_at', { ascending: true })
+    .order('position', { referencedTable: 'binder_pages', ascending: true });
+  if (error) throw new Error(`load public binders: ${error.message}`);
+  return ((data ?? []) as unknown as BinderRowIn[]).map(mapBinder);
+}
+
 // --- writes ----------------------------------------------------------------
 
 export async function insertBinder(binder: DemoBinder): Promise<void> {

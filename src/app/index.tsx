@@ -14,6 +14,7 @@ import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { HomeBrowse } from '@/components/HomeBrowse';
 import { HomeRecent } from '@/components/HomeRecent';
 import { HomeSection } from '@/components/HomeSection';
+import { PeopleButton } from '@/components/people/PeopleButton';
 import { SettingsButton } from '@/components/settings/SettingsSheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -135,6 +136,7 @@ export default function BindersScreen() {
               poke-michi
             </ThemedText>
             <View style={styles.headerActions}>
+              <PeopleButton />
               <SettingsButton />
               <AccountButton />
             </View>

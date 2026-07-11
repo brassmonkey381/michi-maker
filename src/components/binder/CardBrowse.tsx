@@ -10,9 +10,21 @@
  * for the selected highlight). To reset browse state (e.g. per pocket) pass a React `key` on the
  * element — it remounts this wrapper and the browser inside it.
  */
+import { Platform } from 'react-native';
+
 import { CatalogBrowser, type CardActionsFactory } from 'tcgscan-browse';
 
 import type { Catalog } from '@/lib/catalog';
+
+/**
+ * Dev/QA override: append `?coldsearch` to the URL (web) to force the COLD path — the kit
+ * searches via the server's search_cards RPC as if the catalog weren't loaded yet, so you can
+ * test server search without racing the (fast, cached) catalog load. Off unless the param is set.
+ */
+const FORCE_COLD =
+  Platform.OS === 'web' &&
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).has('coldsearch');
 
 /** Target card-thumbnail width (px) — larger ⇒ fewer, bigger cards (≈ binder size). */
 export const CARD_BROWSE_TILE_WIDTH = 140;
@@ -41,7 +53,7 @@ export function CardBrowse({
 }) {
   return (
     <CatalogBrowser
-      catalog={catalog}
+      catalog={FORCE_COLD ? null : catalog}
       selectedCardId={selectedCardId}
       onPickCard={onPickCard ?? (() => {})}
       onPickVUnion={onPickVUnion}

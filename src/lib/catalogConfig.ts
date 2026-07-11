@@ -21,6 +21,8 @@ import {
   useImageManifest,
 } from 'tcgscan-browse';
 
+import { gatedCatalogSource } from '@/lib/catalogSource';
+
 /** Base URL the catalog JSON (and prices/alternates) are served from. */
 export const browseUrl: string = process.env.EXPO_PUBLIC_CATALOG_BROWSE_URL ?? '/browse';
 
@@ -41,6 +43,8 @@ configureBrowse({
     getItem: (k) => AsyncStorage.getItem(k),
     setItem: (k, v) => AsyncStorage.setItem(k, v),
   },
+  // Gated catalog (encrypted, session-keyed) with public fallback — see lib/catalogSource.ts.
+  catalogSource: gatedCatalogSource,
 });
 
 export { cardThumbUrl, resolveImageUrl, hydrateImageManifest, useImageManifest };

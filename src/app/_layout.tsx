@@ -4,6 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Platform, useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import { UsernameGate } from '@/components/auth/UsernameGate';
 import { AuthProvider } from '@/store/auth';
 import { BinderProvider } from '@/store/binders';
 
@@ -28,6 +29,8 @@ export default function TabLayout() {
           <BinderProvider>
             <AnimatedSplashOverlay />
             <Slot />
+            {/* Blocks any real account with no @username yet — required, immutable, once per account. */}
+            <UsernameGate />
           </BinderProvider>
         </AuthProvider>
       </ThemeProvider>

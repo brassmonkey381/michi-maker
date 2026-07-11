@@ -87,8 +87,10 @@ interface AuthStore {
   /** Start (or restart) an anonymous guest session on demand — used after an explicit sign-out. */
   continueAsGuest: () => Promise<AuthResult>;
   updateProfile: (
-    patch: Partial<Pick<Profile, 'username' | 'display_name' | 'avatar_url' | 'is_public'>>,
+    patch: Partial<Pick<Profile, 'display_name' | 'avatar_url' | 'is_public'>>,
   ) => Promise<AuthResult>;
+  /** Claim a permanent, unique @username (only when none is set yet — usernames are immutable). */
+  claimUsername: (username: string) => Promise<AuthResult>;
   signOut: () => Promise<void>;
 }
 
@@ -301,7 +303,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateProfile = useCallback(
     async (
-      patch: Partial<Pick<Profile, 'username' | 'display_name' | 'avatar_url' | 'is_public'>>,
+      patch: Partial<Pick<Profile, 'display_name' | 'avatar_url' | 'is_public'>>,
     ): Promise<AuthResult> => {
       if (!supabase) return NOT_CONFIGURED;
       if (!user) return { error: 'You need to be signed in to edit your profile.' };
@@ -312,6 +314,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .select('*')
         .maybeSingle();
       if (error) return { error: msg(error) };
+      if (data) setProfile(data as Profile);
+      return OK;
+    },
+    [user],
+  );
+
+  // Claim a permanent @username. Enforced 3–20 chars of [a-z0-9_] (matches the DB CHECK), and
+  // rejected if already taken; the DB unique index + immutability trigger are the source of truth.
+  const claimUsername = useCallback(
+    async (username: string): Promise<AuthResult> => {
+      if (!supabase) return NOT_CONFIGURED;
+      if (!user) return { error: 'You need to be signed in to pick a username.' };
+      const uname = username.trim().toLowerCase();
+      if (!/^[a-z0-9_]{3,20}$/.test(uname)) {
+        return { error: 'Usernames are 3–20 characters — lowercase letters, numbers, or underscores.' };
+      }
+      // Best-effort availability check; the unique index is authoritative on the write below.
+      const { data: taken } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', uname)
+        .neq('id', user.id)
+        .maybeSingle();
+      if (taken) return { error: 'That username is taken. Try another.' };
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ username: uname })
+        .eq('id', user.id)
+        .select('*')
+        .maybeSingle();
+      if (error) {
+        const m = error.message.toLowerCase();
+        if (m.includes('duplicate') || m.includes('unique')) return { error: 'That username is taken. Try another.' };
+        if (m.includes('cannot be changed')) return { error: 'Your username is already set and can’t be changed.' };
+        return { error: msg(error) };
+      }
       if (data) setProfile(data as Profile);
       return OK;
     },
@@ -361,6 +400,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       linkOAuth,
       continueAsGuest,
       updateProfile,
+      claimUsername,
       signOut,
     }),
     [
@@ -380,6 +420,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       linkOAuth,
       continueAsGuest,
       updateProfile,
+      claimUsername,
       signOut,
     ],
   );

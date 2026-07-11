@@ -69,6 +69,7 @@ function AuthForm({ onClose, isGuest }: { onClose: () => void; isGuest: boolean 
   const [isCreate, setIsCreate] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [code, setCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
@@ -106,12 +107,50 @@ function AuthForm({ onClose, isGuest }: { onClose: () => void; isGuest: boolean 
       setError('Enter your email and a password.');
       return;
     }
-    if (isCreate) {
-      // Guests link (keep binders); a signed-out user makes a fresh account.
-      if (isGuest) return run(() => auth.linkEmailPassword(email, password));
-      return run(() => auth.signUpWithPassword(email, password, displayName || undefined));
+    if (!isCreate) {
+      return run(() => auth.signInWithPassword(email, password)); // sign in to an existing account
     }
-    return run(() => auth.signInWithPassword(email, password)); // sign in to an existing account
+    // Creating an account requires a permanent @username.
+    const uname = username.trim().toLowerCase();
+    if (!/^[a-z0-9_]{3,20}$/.test(uname)) {
+      setError('Pick a username: 3–20 characters — lowercase letters, numbers, or underscores.');
+      return;
+    }
+    void createWithUsername(uname);
+  };
+
+  // Create the account (guests link to keep binders; signed-out users make a fresh one), then claim
+  // the username. If the username turns out to be taken, the account still exists, so we close and
+  // let the app-wide UsernameGate prompt for a different one rather than stranding a half-made state.
+  const createWithUsername = async (uname: string) => {
+    setBusy(true);
+    setError(null);
+    setInfo(null);
+    try {
+      if (isGuest) {
+        const r = await auth.linkEmailPassword(email, password);
+        if (r.error) {
+          setError(r.error);
+          return;
+        }
+      } else {
+        const r = await auth.signUpWithPassword(email, password, displayName || undefined);
+        if (r.error) {
+          setError(r.error);
+          return;
+        }
+        if (r.needsEmailConfirmation) {
+          setInfo(`Check ${email.trim()} to confirm your account — you’ll set @${uname} right after.`);
+          return; // no session yet; the gate claims the username once they confirm + sign in
+        }
+      }
+      // A session exists now → claim the username, then close (gate re-prompts if it was taken).
+      const c = await auth.claimUsername(uname);
+      if (c.error) setError(c.error);
+      onClose();
+    } finally {
+      setBusy(false);
+    }
   };
 
   const submitCode = () => {
@@ -201,13 +240,25 @@ function AuthForm({ onClose, isGuest }: { onClose: () => void; isGuest: boolean 
             onChangeText={setPassword}
           />
           {isCreate && (
-            <TextInput
-              style={inputStyle}
-              placeholder="Display name (optional)"
-              placeholderTextColor={placeholder}
-              value={displayName}
-              onChangeText={setDisplayName}
-            />
+            <>
+              <TextInput
+                style={inputStyle}
+                placeholder="username (permanent)"
+                placeholderTextColor={placeholder}
+                autoCapitalize="none"
+                autoCorrect={false}
+                maxLength={20}
+                value={username}
+                onChangeText={setUsername}
+              />
+              <TextInput
+                style={inputStyle}
+                placeholder="Display name (optional)"
+                placeholderTextColor={placeholder}
+                value={displayName}
+                onChangeText={setDisplayName}
+              />
+            </>
           )}
           <PrimaryButton
             label={isCreate ? 'Create account' : 'Sign in'}
@@ -356,10 +407,19 @@ function ProfileView({ onClose }: { onClose: () => void }) {
             {auth.profile?.display_name || 'Collector'}
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-            {email || 'Signed in'}
+            {auth.profile?.username ? `@${auth.profile.username}` : email || 'Signed in'}
           </ThemedText>
         </View>
       </View>
+
+      {auth.profile?.username ? (
+        <View style={styles.readonlyField}>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.label}>
+            Username (permanent)
+          </ThemedText>
+          <ThemedText type="smallBold">@{auth.profile.username}</ThemedText>
+        </View>
+      ) : null}
 
       <ThemedText type="small" themeColor="textSecondary" style={styles.label}>
         Display name
@@ -536,6 +596,7 @@ const styles = StyleSheet.create({
   },
   avatarText: { color: Palette.accentText, fontWeight: Weight.bold, fontSize: FontSize.lg },
   label: { marginBottom: -Spacing.two },
+  readonlyField: { gap: 2 },
   signOut: {
     borderRadius: Radius.pill,
     paddingVertical: Spacing.three,

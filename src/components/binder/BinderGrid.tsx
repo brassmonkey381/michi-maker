@@ -638,6 +638,10 @@ function ArtworkImage({
         cachePolicy="memory-disk"
         recyclingKey={uri}
         transition={120}
+        // Web: kill the browser's native image-drag ghost so a card can't be "dragged" outside
+        // edit mode. Edit-mode reordering uses a gesture-handler pan, not native <img> drag, so
+        // it's unaffected. No-op on native.
+        draggable={false}
         onError={() => setFailed(true)}
       />
     </View>
@@ -824,6 +828,9 @@ function CardImage({
         cachePolicy="memory-disk"
         recyclingKey={`${id}-${stage}`}
         transition={150}
+        // Web: disable native <img> dragging so cards can't be dragged outside edit mode (edit
+        // mode moves them via a gesture pan, not native drag). No-op on native.
+        draggable={false}
         onLoad={() => setLoaded(true)}
         onError={() => setStage((s) => (s === 'tier' ? 'full' : 'failed'))}
       />

@@ -54,7 +54,13 @@ export const Spacing = {
 } as const;
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
+/** Readable column for prose and forms (descriptions, empty states, auth). Text wider than
+ *  this gets hard to read, so it stays capped even inside a wide shell. */
 export const MaxContentWidth = 800;
+/** Shell width for VISUAL surfaces (home sections, binder viewer, profiles). This is a
+ *  gallery app — grids/carousels/spreads use the extra room to show more art; prose inside
+ *  a wide shell should still cap itself at MaxContentWidth. */
+export const MaxContentWidthWide = 1440;
 /** Max on-screen width of a rendered binder page (the grid + its cards scale to this). The
  *  viewer caps at this on wide screens; narrow screens fall back to the available width. */
 export const BinderPageMaxWidth = 560;

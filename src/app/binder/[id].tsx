@@ -18,7 +18,7 @@ import { BinderPages } from '@/components/binder/BinderPages';
 import { LikeButton } from '@/components/binder/LikeButton';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { FontSize, MaxContentWidth, Palette, Spacing } from '@/constants/theme';
+import { FontSize, MaxContentWidthWide, Palette, Spacing } from '@/constants/theme';
 import { fetchBinder } from '@/data/binderRepo';
 import type { DemoBinder } from '@/data/binderTypes';
 import { isSupabaseConfigured } from '@/lib/env';
@@ -61,7 +61,11 @@ type State = { status: 'loading' } | { status: 'ok'; binder: DemoBinder } | { st
 /** Read-only viewer for a shared link (a public binder that isn't in your local store). */
 function PublicViewer({ id }: { id?: string }) {
   const { width } = useWindowDimensions();
-  const availableWidth = width - 32;
+  // Clamp to the scroll shell's usable width (max width minus its padding) — the window can be
+  // wider than the shell, and BinderPages sizes the wide-screen spread from this number. On a
+  // desktop this now crosses the ≥900 spread breakpoint, so shared binders get the full
+  // prev · current · next spread instead of a single page.
+  const availableWidth = Math.min(width, MaxContentWidthWide) - Spacing.four * 2;
   const [state, setState] = useState<State>({ status: 'loading' });
   const [pageIndex, setPageIndex] = useState(0);
 
@@ -207,7 +211,8 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
     paddingBottom: Spacing.six,
     width: '100%',
-    maxWidth: MaxContentWidth,
+    // Wide shell so desktop viewers get the prev·current·next spread; prose below caps itself.
+    maxWidth: MaxContentWidthWide,
     alignSelf: 'center',
     alignItems: 'center',
   },

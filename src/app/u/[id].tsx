@@ -13,7 +13,7 @@ import { BinderCarousel } from '@/components/binder/BinderCarousel';
 import { UpvoteButton } from '@/components/people/UpvoteButton';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { FontSize, MaxContentWidth, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { fetchPublicBinders } from '@/data/binderRepo';
 import type { DemoBinder } from '@/data/binderTypes';
 import { fetchProfile, type PublicProfile } from '@/data/profileRepo';
@@ -162,7 +162,8 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
     paddingBottom: Spacing.six,
     width: '100%',
-    maxWidth: MaxContentWidth,
+    // Wide shell — the public-binders carousel adds columns on desktop to showcase the art.
+    maxWidth: MaxContentWidthWide,
     alignSelf: 'center',
     alignItems: 'center',
   },

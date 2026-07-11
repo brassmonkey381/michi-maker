@@ -18,7 +18,7 @@ import { PeopleButton } from '@/components/people/PeopleButton';
 import { SettingsButton } from '@/components/settings/SettingsSheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, FontSize, MaxContentWidth, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { BottomTabInset, FontSize, MaxContentWidth, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useImageManifest } from '@/lib/catalogConfig';
 import { useBinders } from '@/store/binders';
@@ -300,7 +300,9 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
     paddingBottom: BottomTabInset + Spacing.six,
     width: '100%',
-    maxWidth: MaxContentWidth,
+    // Wide shell: the binder carousels / browse grids use the room to show more art. Prose
+    // inside still caps itself at MaxContentWidth so line lengths stay readable.
+    maxWidth: MaxContentWidthWide,
     alignSelf: 'center',
   },
   headerRow: {
@@ -321,7 +323,8 @@ const styles = StyleSheet.create({
   newBtnText: { color: Palette.accentText, fontWeight: Weight.bold, fontSize: FontSize.control },
   pressed: { opacity: 0.7 },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  empty: { padding: Spacing.four, borderRadius: Radius.lg },
+  // Prose stays readable inside the wide shell.
+  empty: { padding: Spacing.four, borderRadius: Radius.lg, maxWidth: MaxContentWidth },
   emptyText: { lineHeight: 20 },
   binderSearch: {
     borderWidth: 1,
@@ -332,6 +335,7 @@ const styles = StyleSheet.create({
     fontSize: FontSize.control,
     color: Palette.ink,
     marginBottom: Spacing.three,
+    maxWidth: 480,
   },
   noMatch: { paddingVertical: Spacing.three },
   menuBtn: {

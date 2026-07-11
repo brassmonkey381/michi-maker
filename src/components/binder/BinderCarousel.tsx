@@ -1,7 +1,11 @@
 /**
- * A horizontal, 2-up carousel of binder thumbnails. Collapses a long list (examples) into a
+ * A horizontal carousel of binder thumbnails. Collapses a long list (examples) into a
  * single row so the home page stays short and the sections below it are reachable. Native swipe
  * (paging) plus prev/next arrows that wrap around, so you can page left/right endlessly.
+ *
+ * Responsive: the number of tiles per page derives from the measured width — 2-up on a phone,
+ * growing to 5-up on a wide desktop — so wide screens showcase more art instead of leaving
+ * dead space. (This is the one binder-grid surface shared by home, Featured, and profiles.)
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
@@ -34,12 +38,18 @@ export function BinderCarousel({
   const scrollRef = useRef<ScrollView>(null);
   const containerRef = useRef<View>(null);
   const gap = Spacing.three;
-  const tileWidth = width > 0 ? (width - gap) / 2 : 0;
 
-  // Pages of two — each page is exactly the container width so paging snaps cleanly.
+  // Tiles per page from the measured width: aim for ~300px tiles, between 2 (phone) and 5
+  // (wide desktop). Each page is exactly the container width so paging snaps cleanly.
+  const perPage = width > 0 ? Math.max(2, Math.min(5, Math.floor((width + gap) / (300 + gap)))) : 2;
+  const tileWidth = width > 0 ? (width - gap * (perPage - 1)) / perPage : 0;
+
   const pages: DemoBinder[][] = [];
-  for (let i = 0; i < binders.length; i += 2) pages.push(binders.slice(i, i + 2));
+  for (let i = 0; i < binders.length; i += perPage) pages.push(binders.slice(i, i + perPage));
   const pageCount = pages.length;
+
+  // A resize (or rotation) can shrink the page count below the current index — clamp it.
+  const safePage = Math.min(page, Math.max(0, pageCount - 1));
 
   const goTo = (p: number) => {
     if (pageCount === 0) return;
@@ -63,7 +73,7 @@ export function BinderCarousel({
     const onWheel = (e: WheelEvent) => {
       const delta = Math.abs(e.deltaX) >= Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
       if (Math.abs(delta) < 2) return;
-      const next = page + (delta > 0 ? 1 : -1);
+      const next = safePage + (delta > 0 ? 1 : -1);
       if (next < 0 || next >= pageCount) return; // at an edge → let the page scroll
       e.preventDefault();
       if (e.timeStamp - cooldown < 300) return; // one page per gesture, not per event
@@ -73,7 +83,7 @@ export function BinderCarousel({
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [page, pageCount, width]);
+  }, [safePage, pageCount, width]);
 
   return (
     <View ref={containerRef} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
@@ -102,11 +112,11 @@ export function BinderCarousel({
 
       {pageCount > 1 ? (
         <>
-          <Arrow dir="prev" onPress={() => goTo(page - 1)} />
-          <Arrow dir="next" onPress={() => goTo(page + 1)} />
+          <Arrow dir="prev" onPress={() => goTo(safePage - 1)} />
+          <Arrow dir="next" onPress={() => goTo(safePage + 1)} />
           <View style={styles.dots}>
             {pages.map((_, i) => (
-              <View key={i} style={[styles.dot, i === page && styles.dotActive]} />
+              <View key={i} style={[styles.dot, i === safePage && styles.dotActive]} />
             ))}
           </View>
         </>

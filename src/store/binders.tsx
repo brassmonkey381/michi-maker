@@ -21,6 +21,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -157,19 +158,25 @@ export function BinderProvider({ children }: { children: ReactNode }) {
 
   const binders = history.present;
 
-  // Load user binders for the current user (examples stay bundled/local). This isn't an
-  // undoable edit, so it replaces `present` without touching the history stacks.
+  // Load user binders for the current user (examples stay bundled/local). On EVERY identity
+  // change we fully reset the history — present AND the undo/redo stacks — so no binder or
+  // snapshot from a previous account survives in memory. That carryover was the source of the
+  // cross-account duplication bug: a lingering binder (or an undo that re-persisted one) would be
+  // written back under whatever account was signed in next, reusing the same id under a new owner.
   useEffect(() => {
     if (!CLOUD) return;
     if (!authReady) return; // wait for the session to settle before loading
     let active = true;
     (async () => {
       setLoading(true);
+      // Reset to examples-only immediately so the previous account's binders (and its undo
+      // history) can't be seen or re-persisted during the switch.
+      setHistory({ past: [], present: [...SAMPLE_BINDERS], future: [] });
       try {
         // No session (guest sign-in unavailable, or signed out): show examples only.
         const userBinders = userId ? await repo.fetchUserBinders() : [];
         if (active) {
-          setHistory((h) => ({ ...h, present: [...SAMPLE_BINDERS, ...userBinders] }));
+          setHistory({ past: [], present: [...SAMPLE_BINDERS, ...userBinders], future: [] });
         }
       } catch (error) {
         console.warn(
@@ -229,6 +236,46 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     },
     [user],
   );
+
+  /**
+   * When a guest upgrades to a permanent account *in place* (same uid, anonymous → real), re-create
+   * every one of their binders under BRAND-NEW ids (binder + pages + slots), then delete the old
+   * rows. This guarantees an account's binders never share an id with the guest identity they came
+   * from, so a stale/reused guest session can never collide with them. Insert-then-delete per binder
+   * keeps it safe: a failure mid-way leaves the original intact (a duplicate at worst, never a loss).
+   */
+  const migrateOwnBindersToFreshIds = useCallback(() => {
+    setHistory((h) => {
+      const mine = h.present.filter((b) => !b.isExample);
+      if (mine.length === 0) return h;
+      const examples = h.present.filter((b) => b.isExample);
+      const fresh = mine.map((b) => cloneBinder(b, { isPublic: b.isPublic }));
+      mine.forEach((old, i) => {
+        const nu = fresh[i];
+        persist(async () => {
+          await repo.insertBinder(nu);
+          await repo.deleteBinder(old.id);
+        });
+      });
+      // A fresh identity for a fresh account: drop the undo history along with the old ids.
+      return { past: [], present: [...examples, ...fresh], future: [] };
+    });
+  }, [persist]);
+
+  // Fire that migration exactly on the in-place guest→account upgrade. A plain sign-in to a
+  // *different* existing account changes the uid and must NOT drag the guest's binders along, so
+  // we require the uid to be unchanged across the anonymous→permanent flip.
+  const prevAuth = useRef<{ uid: string | null; anon: boolean | null }>({ uid: null, anon: null });
+  useEffect(() => {
+    if (!CLOUD || !authReady) return;
+    const uid = user?.id ?? null;
+    const anon = user ? !!user.is_anonymous : null;
+    const prev = prevAuth.current;
+    prevAuth.current = { uid, anon };
+    if (prev.uid && prev.uid === uid && prev.anon === true && anon === false) {
+      migrateOwnBindersToFreshIds();
+    }
+  }, [user, authReady, migrateOwnBindersToFreshIds]);
 
   /**
    * Re-sync Supabase after an undo/redo. Incremental writers persist forward edits, but a

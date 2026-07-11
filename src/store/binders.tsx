@@ -174,7 +174,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       setHistory({ past: [], present: [...SAMPLE_BINDERS], future: [] });
       try {
         // No session (guest sign-in unavailable, or signed out): show examples only.
-        const userBinders = userId ? await repo.fetchUserBinders() : [];
+        const userBinders = userId ? await repo.fetchUserBinders(userId) : [];
         if (active) {
           setHistory({ past: [], present: [...SAMPLE_BINDERS, ...userBinders], future: [] });
         }

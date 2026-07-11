@@ -149,11 +149,16 @@ function mapBinder(row: BinderRowIn): DemoBinder {
 
 // --- reads -----------------------------------------------------------------
 
-export async function fetchUserBinders(): Promise<DemoBinder[]> {
+export async function fetchUserBinders(ownerId: string): Promise<DemoBinder[]> {
   const supabase = requireSupabase();
+  // MUST filter by owner explicitly. The binders table has TWO permissive SELECT policies —
+  // "owner can view" OR "public is viewable" — so an unfiltered select returns the caller's own
+  // binders *plus every public binder in the system*. Without this eq(), another user's public
+  // binder leaks into this user's "Your binders" list (the "same binder under both accounts" bug).
   const { data, error } = await supabase
     .from('binders')
     .select('*, binder_pages(*, binder_slots(*))')
+    .eq('owner_id', ownerId)
     .order('created_at', { ascending: true })
     .order('position', { referencedTable: 'binder_pages', ascending: true });
   if (error) throw new Error(`load binders: ${error.message}`);

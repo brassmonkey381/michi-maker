@@ -6,7 +6,7 @@
  *
  * Forces the catalog load on open (like the CardPicker) — composition scans real metadata.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -17,6 +17,7 @@ import {
   COMPOSE_METHODS,
   availableMethods,
   composePage,
+  loadPartnerData,
   type ComposeMethod,
   type ComposePlacement,
 } from '@/data/pageComposer';
@@ -40,9 +41,23 @@ export function AutoFillSheet({
   const { catalog } = useCatalog(visible);
   const [busy, setBusy] = useState<ComposeMethod | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Trainer/partner tables come from the tcgscan-data server — load them alongside the catalog
+  // so availableMethods sees them (load-once; instant after the first open).
+  const [partnersReady, setPartnersReady] = useState(false);
+  useEffect(() => {
+    if (!visible) return;
+    let active = true;
+    loadPartnerData().then(() => {
+      if (active) setPartnersReady(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, [visible]);
 
+  const ready = !!catalog && partnersReady;
   const seed = catalog && seedCardId ? resolveCatalogCardWith(catalog, seedCardId) : undefined;
-  const methods = seed && catalog ? availableMethods(seed, catalog) : [];
+  const methods = seed && catalog && ready ? availableMethods(seed, catalog) : [];
   const emptyCount = page.rows * page.cols - occupiedCells(page).size;
 
   const run = async (method: ComposeMethod) => {
@@ -78,7 +93,7 @@ export function AutoFillSheet({
               </Pressable>
             </View>
 
-            {!catalog ? (
+            {!ready ? (
               <View style={styles.center}>
                 <ActivityIndicator />
                 <ThemedText type="small" themeColor="textSecondary">

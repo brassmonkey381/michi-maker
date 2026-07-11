@@ -20,8 +20,16 @@ import { findSimilar, similarAvailable } from 'tcgscan-browse';
 import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { occupiedCells, type DemoPage } from '@/data/binderTypes';
 import { hasToken } from '@/data/nameMatch';
-import { partnersFor } from '@/data/pokemonPartners';
-import { trainerFor } from '@/data/trainerPartners';
+import { loadPokemonPartners, partnersFor } from '@/data/pokemonPartners';
+import { loadTrainerPartners, trainerFor } from '@/data/trainerPartners';
+
+/**
+ * Kick off (or await) the upstream partner tables (tcgscan-data). Load-once; the AutoFill
+ * sheet awaits this before computing which methods a seed supports.
+ */
+export function loadPartnerData(): Promise<void> {
+  return Promise.all([loadTrainerPartners(), loadPokemonPartners()]).then(() => undefined);
+}
 
 export type ComposeMethod =
   | 'sameArtist'

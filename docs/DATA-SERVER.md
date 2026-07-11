@@ -17,6 +17,7 @@ item 5); the app-side seams below are the shims that configure and consume it.
 | Prices (latest values) | `src/lib/prices.ts` (app shim) — re-exports the package price client; keeps binder/page value totals (badges in `BinderScreen`) |
 | Search grammar + "?" manual | `tcgscan-browse` package (`query.ts`) — `QUERY_MANUAL` must be updated there when new fields become searchable |
 | Find similar (embeddings RPC) | `tcgscan-browse` package — needs `EXPO_PUBLIC_CATALOG_API_KEY` (publishable), injected via `catalogConfig.ts` |
+| Trainer/Pokémon partner tables (✨ Fill composer) | `src/data/trainerPartners.ts` / `pokemonPartners.ts` — load-once REST fetch of `trainer_partners` / `pokemon_partner_groups` (curated rows live in tcgscan-data `supabase/migrations/20260711_19_partner_tables.sql`); TAG-TEAM co-appearances stay name-parsed client-side |
 | Card action modal | `tcgscan-browse` package (`CardActionModal`) — place/replace/similar/view-set; app-specific actions injected via props |
 | Catalog browser UI | `tcgscan-browse` package (`CatalogBrowser`) — imported by `src/components/binder/CardPicker.tsx` |
 | Session browse state | `tcgscan-browse` package (`state.ts`) |

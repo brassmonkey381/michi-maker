@@ -1,71 +1,53 @@
 /**
  * Pokémon → partner-Pokémon knowledge, from two sources:
  *
- *  1. `POKEMON_PARTNERS` — curated groups of species that canonically belong together
- *     (version-mascot duos/trios, counterpart pairs, famous rivalries/friendships).
- *  2. Card-name co-appearances — a multi-Pokémon card name is PROOF those species share the
- *     card's art ("Gengar & Mimikyu-GX" definitely shows both), so TAG TEAM / duo prints are
- *     parsed as associations for free. `speciesInName` extracts every species a name mentions.
+ *  1. Curated groups served by the shared tcgscan-data server (`pokemon_partner_groups` table —
+ *     see tcgscan-data supabase/migrations/20260711_19_partner_tables.sql): species that
+ *     canonically belong together (mascot duos, counterpart pairs, legendary trios/quartets).
+ *  2. Card-name co-appearances, parsed locally — a multi-Pokémon card name is PROOF those
+ *     species share the card's art ("Gengar & Mimikyu-GX" definitely shows both), so TAG TEAM /
+ *     duo prints are parsed as associations for free and stay correct as the catalog grows.
  *
- * Like trainerPartners, this is deliberately plain data + pure functions — slated to move
- * upstream into the tcgscan-data server (`pokemon_partners` + a parsed `card_species` table);
- * keep it JSON-serializable.
+ * Groups use the same load-once + sync-snapshot pattern as trainerPartners; fails soft to
+ * empty (the Friends method just doesn't appear).
  */
+import { getApiKey, getApiUrl } from 'tcgscan-browse';
+
 import { hasToken } from '@/data/nameMatch';
 import type { Catalog, CatalogCard } from '@/lib/catalog';
 
-/** Curated groups — every member is associated with every other member of its group. */
-export const POKEMON_PARTNERS: string[][] = [
-  // mascots & famous friendships / rivalries
-  ['pikachu', 'eevee'],
-  ['pikachu', 'meowth'],
-  ['pikachu', 'togepi'],
-  ['gengar', 'mimikyu'],
-  ['jigglypuff', 'clefairy'],
-  ['plusle', 'minun'],
-  ['pichu', 'pikachu', 'raichu'],
-  ['mew', 'mewtwo'],
-  ['nidoran♀', 'nidoran♂', 'nidoqueen', 'nidoking'],
-  ['zangoose', 'seviper'],
-  ['sawk', 'throh'],
-  ['heatmor', 'durant'],
-  ['mawile', 'sableye'],
-  ['solrock', 'lunatone'],
-  ['illumise', 'volbeat'],
-  ['gothitelle', 'reuniclus'],
-  ['escavalier', 'accelgor'],
-  ['slowpoke', 'shellder', 'slowbro', 'slowking'],
-  ['remoraid', 'mantine', 'octillery'],
-  ['falinks', 'copperajah'],
-  ['charizard', 'blastoise', 'venusaur'],
-  ['tyranitar', 'salamence', 'metagross', 'garchomp', 'hydreigon', 'dragapult'],
-  // legendary duos / trios / quartets
-  ['latias', 'latios'],
-  ['lugia', 'ho-oh'],
-  ['articuno', 'zapdos', 'moltres'],
-  ['raikou', 'entei', 'suicune'],
-  ['groudon', 'kyogre', 'rayquaza'],
-  ['regirock', 'regice', 'registeel', 'regigigas', 'regieleki', 'regidrago'],
-  ['dialga', 'palkia', 'giratina', 'arceus'],
-  ['uxie', 'mesprit', 'azelf'],
-  ['reshiram', 'zekrom', 'kyurem'],
-  ['cobalion', 'terrakion', 'virizion', 'keldeo'],
-  ['tornadus', 'thundurus', 'landorus', 'enamorus'],
-  ['xerneas', 'yveltal', 'zygarde'],
-  ['solgaleo', 'lunala', 'necrozma', 'cosmog', 'cosmoem'],
-  ['tapu koko', 'tapu lele', 'tapu bulu', 'tapu fini'],
-  ['zacian', 'zamazenta', 'eternatus'],
-  ['glastrier', 'spectrier', 'calyrex'],
-  ['koraidon', 'miraidon'],
-  ['ogerpon', 'terapagos'],
-  ['ting-lu', 'chien-pao', 'wo-chien', 'chi-yu'],
-];
+let loadPromise: Promise<void> | null = null;
+let partnerGroups: string[][] = [];
+
+/** Load-once fetch of the pokemon_partner_groups table (shared by every caller). */
+export function loadPokemonPartners(): Promise<void> {
+  if (!loadPromise) {
+    loadPromise = (async () => {
+      try {
+        const res = await fetch(`${getApiUrl()}/pokemon_partner_groups?select=members&order=id`, {
+          headers: { apikey: getApiKey() },
+        });
+        if (!res.ok) return;
+        const rows = (await res.json()) as { members: string[] | null }[];
+        partnerGroups = rows.map((r) => r.members ?? []).filter((m) => m.length > 1);
+      } catch {
+        // fail-soft: curated groups stay empty (name-parsed co-appearances still work)
+      }
+    })();
+  }
+  return loadPromise;
+}
+
+/** The loaded groups (empty until loadPokemonPartners resolves). */
+export function partnerGroupsSnapshot(): string[][] {
+  return partnerGroups;
+}
 
 /** Curated partners of a species (lowercase), excluding itself. */
 export function curatedPartners(species: string): string[] {
   const s = species.toLowerCase();
   const out = new Set<string>();
-  for (const group of POKEMON_PARTNERS) {
+  for (const group of partnerGroups) {
     if (group.includes(s)) {
       for (const member of group) if (member !== s) out.add(member);
     }
@@ -75,20 +57,22 @@ export function curatedPartners(species: string): string[] {
 
 /**
  * Species vocabulary for name parsing, built from the catalog's evolution-line enrichment
- * (every family member of every card) plus the curated groups. Built once per catalog.
+ * (every family member of every card) plus the curated groups. Cached per catalog + groups
+ * snapshot (the groups arrive async, so the cache invalidates when they land).
  */
-const vocabCache = new WeakMap<Catalog, string[]>();
+let vocabCache: { catalog: Catalog; groups: string[][]; vocab: string[] } | null = null;
 export function speciesVocab(catalog: Catalog): string[] {
-  const cached = vocabCache.get(catalog);
-  if (cached) return cached;
+  if (vocabCache && vocabCache.catalog === catalog && vocabCache.groups === partnerGroups) {
+    return vocabCache.vocab;
+  }
   const set = new Set<string>();
   for (const card of catalog.listAll()) {
     for (const species of card.evolutionLine) set.add(species.toLowerCase());
   }
-  for (const group of POKEMON_PARTNERS) for (const s of group) set.add(s);
+  for (const group of partnerGroups) for (const s of group) set.add(s);
   // Longest-first so compound names ("mr. mime", "tapu koko") win before their fragments.
   const vocab = [...set].sort((a, b) => b.length - a.length);
-  vocabCache.set(catalog, vocab);
+  vocabCache = { catalog, groups: partnerGroups, vocab };
   return vocab;
 }
 

@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSharedValue } from 'react-native-reanimated';
 import { sendBrowseCommand, similarAvailable } from 'tcgscan-browse';
 
+import { AutoFillSheet } from '@/components/binder/AutoFillSheet';
 import { BinderGrid, type BinderGridHandle } from '@/components/binder/BinderGrid';
 import { CardPicker } from '@/components/binder/CardPicker';
 import { BinderPages, type GridRole } from '@/components/binder/BinderPages';
@@ -31,6 +32,7 @@ import { pillChip } from '@/constants/ui';
 import { firstFreePlacement, occupiedCells, slotCells, uuidv4, type DemoPage, type DemoSlot } from '@/data/binderTypes';
 import { fetchLikeCount } from '@/data/binderRepo';
 import type { CaptionFieldKey } from '@/data/cardCaption';
+import type { ComposePlacement } from '@/data/pageComposer';
 import { isSupabaseConfigured } from '@/lib/env';
 import { binderValue, formatUsd, pageValue, usePriceSummary } from '@/lib/prices';
 import { footprintForKind } from '@/data/cardSizing';
@@ -63,6 +65,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   >(null);
   // The pocket selected for quick actions (action bar + resize handle); distinct from pickerCell.
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  // "✨ Fill page" sheet (auto-curate around the selected card).
+  const [autoFillOpen, setAutoFillOpen] = useState(false);
   // Ctrl/Cmd multi-select (web): a set of pocket ids highlighted together; releasing the modifier
   // opens the bulk-action modal. `modifierHeld` is read at click time; `multiIdsRef` lets the
   // key-up handler read the latest selection without re-subscribing.
@@ -314,6 +318,16 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     showToast('Pocket cleared', true);
   };
 
+  // ✨ Fill page: place the composer's picks (one commit → one Undo) and report the result.
+  const handleAutoFillPlaced = (placements: ComposePlacement[], methodLabel: string) => {
+    const { placed } = store.placeCards(binder.id, page.id, placements);
+    setSelectedSlotId(null);
+    showToast(
+      placed > 0 ? `Filled ${placed} pocket${placed === 1 ? '' : 's'} · ${methodLabel}` : 'Nothing placed',
+      placed > 0,
+    );
+  };
+
   // --- Bulk actions on the Ctrl/Cmd multi-selection ---
   const closeMultiActions = () => {
     setMultiActionsOpen(false);
@@ -538,6 +552,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         onDuplicateSlot={duplicateSelected}
         onRemoveSlot={removeSelected}
         onDeselectSlot={() => setSelectedSlotId(null)}
+        onAutoFillSlot={() => setAutoFillOpen(true)}
         {...(role === 'current'
           ? {
               onCrossDrop: (slotId: string, x: number, y: number) => handleCrossDrop(p.id, slotId, x, y),
@@ -800,6 +815,14 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           onClear={handleClear}
           keepAdding={keepAdding}
           onToggleKeepAdding={() => setKeepAdding((v) => !v)}
+        />
+
+        <AutoFillSheet
+          visible={autoFillOpen}
+          seedCardId={selectedSlot?.cardId ?? null}
+          page={page}
+          onClose={() => setAutoFillOpen(false)}
+          onPlaced={handleAutoFillPlaced}
         />
 
         {studio && (

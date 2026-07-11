@@ -43,6 +43,8 @@ interface BinderGridProps {
   onDuplicateSlot?: () => void;
   onRemoveSlot?: () => void;
   onDeselectSlot?: () => void;
+  /** "✨ Fill page" — auto-curate the page around the selected card (card slots only). */
+  onAutoFillSlot?: () => void;
   /** Cross-page drag: report the drop point (the dragged card's centre) in THIS grid's
    *  inner-content coords. The editor maps it to window coords via the source grid's
    *  localToWindow and hit-tests every page in one frame. Replaces onDropSlot's local target. */
@@ -86,6 +88,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
     onDuplicateSlot,
     onRemoveSlot,
     onDeselectSlot,
+    onAutoFillSlot,
     onCrossDrop,
     onDragStart,
   }: BinderGridProps,
@@ -317,6 +320,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
             onDuplicate={onDuplicateSlot}
             onRemove={onRemoveSlot}
             onDeselect={onDeselectSlot}
+            onAutoFill={resizeSlot.cardId ? onAutoFillSlot : undefined}
           />
         ) : null}
       </View>
@@ -341,6 +345,7 @@ function SlotToolbar({
   onDuplicate,
   onRemove,
   onDeselect,
+  onAutoFill,
 }: {
   slot: DemoSlot;
   cellW: number;
@@ -352,6 +357,7 @@ function SlotToolbar({
   onDuplicate?: () => void;
   onRemove?: () => void;
   onDeselect?: () => void;
+  onAutoFill?: () => void;
 }) {
   const [size, setSize] = useState({ w: 0, h: 0 });
   const stepX = cellW + gap;
@@ -374,6 +380,7 @@ function SlotToolbar({
       style={[styles.slotToolbar, { left, top, opacity: size.w ? 1 : 0 }]}>
       <ToolButton label="Replace" onPress={onReplace} />
       <ToolButton label="Duplicate" onPress={onDuplicate} />
+      {onAutoFill ? <ToolButton label="✨ Fill" onPress={onAutoFill} /> : null}
       <ToolButton label="Remove" tone="danger" onPress={onRemove} />
       <ToolButton label="✕" onPress={onDeselect} />
     </View>

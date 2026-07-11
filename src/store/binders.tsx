@@ -32,6 +32,7 @@ import {
   cloneBinder,
   emptyPage,
   firstFreePlacement,
+  occupiedCells,
   slotCells,
   uuidv4,
   type DemoBinder,
@@ -100,6 +101,14 @@ interface BinderStore {
   /** Batch-add many cards, each to the next free 1×1 pocket (appending pages as needed), in ONE
    *  commit + persist pass — avoids the stale-closure re-placement that a per-card loop hits. */
   addCardsToBinder: (binderId: string, cardIds: string[]) => { added: number };
+  /** Batch-place 1×1 cards at explicit page cells (the page composer's output) in ONE commit —
+   *  a single history entry so the whole auto-fill undoes at once. Cells already occupied are
+   *  skipped. Returns how many were placed. */
+  placeCards: (
+    binderId: string,
+    pageId: string,
+    placements: { row: number; col: number; cardId: string }[],
+  ) => { placed: number };
   placeVUnion: (binderId: string, pageId: string, row: number, col: number, pieces: readonly string[]) => void;
   placeSlicedArtwork: (
     binderId: string,
@@ -670,6 +679,60 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     [binders, commit, persist],
   );
 
+  const placeCards = useCallback(
+    (
+      binderId: string,
+      pageId: string,
+      placements: { row: number; col: number; cardId: string }[],
+    ) => {
+      const target = binders.find((b) => b.id === binderId);
+      const page = target?.pages.find((p) => p.id === pageId);
+      if (!target || !page || placements.length === 0) return { placed: 0 };
+
+      // Only genuinely free, in-bounds cells — the composer targets empties, but the page may
+      // have changed since it computed them; skipping keeps the write conflict-free.
+      const occupied = occupiedCells(page);
+      const newSlots: DemoSlot[] = [];
+      for (const p of placements) {
+        if (p.row < 0 || p.col < 0 || p.row >= page.rows || p.col >= page.cols) continue;
+        const key = `${p.row},${p.col}`;
+        if (occupied.has(key)) continue;
+        occupied.add(key);
+        newSlots.push({
+          id: uuidv4(),
+          row: p.row,
+          col: p.col,
+          rowSpan: 1,
+          colSpan: 1,
+          type: 'card',
+          cardId: p.cardId,
+        });
+      }
+      if (newSlots.length === 0) return { placed: 0 };
+
+      commit((prev) =>
+        prev.map((b) =>
+          b.id === binderId
+            ? {
+                ...b,
+                pages: b.pages.map((pg) =>
+                  pg.id === pageId ? { ...pg, slots: [...pg.slots, ...newSlots] } : pg,
+                ),
+              }
+            : b,
+        ),
+      );
+      if (!target.isExample) {
+        // Distinct cells → each upsert is independent; order within the batch doesn't matter.
+        persist(async () => {
+          for (const slot of newSlots) await repo.upsertSlot(pageId, slot);
+        });
+      }
+      return { placed: newSlots.length };
+    },
+    [binders, commit, persist],
+  );
+
   /**
    * Place a V-UNION as four 1×1 piece-cards filling the 2×2 block whose top-left is (row,col).
    * Requires a 2×2 to fit in bounds; clears any slots already overlapping those four cells.
@@ -1036,6 +1099,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       upsertSlot,
       addCardToBinder,
       addCardsToBinder,
+      placeCards,
       placeVUnion,
       placeSlicedArtwork,
       placeArtPanels,
@@ -1066,6 +1130,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       upsertSlot,
       addCardToBinder,
       addCardsToBinder,
+      placeCards,
       placeVUnion,
       placeSlicedArtwork,
       placeArtPanels,

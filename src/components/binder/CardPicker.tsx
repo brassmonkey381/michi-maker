@@ -101,7 +101,8 @@ export function CardPicker({
   // Subscribe only while the sheet is open: the persistently-mounted picker must not
   // force the 9.87MB catalog fetch on binder-open. The background prefetch (BinderScreen)
   // warms the shared load-once promise; opening the sheet just subscribes to it.
-  const { catalog, error: catalogError } = useCatalog(visible);
+  const { catalog, error: catalogError, status: catalogStatus, progress: catalogProgress } =
+    useCatalog(visible);
   const [shape, setShape] = useState({ rows: 1, cols: 1 });
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -397,7 +398,14 @@ export function CardPicker({
                     pocket to try again.
                   </Text>
                 ) : (
-                  <ActivityIndicator style={styles.loading} />
+                  <View style={styles.loading}>
+                    <ActivityIndicator />
+                    <Text style={styles.loadingText}>
+                      {catalogStatus === 'parsing'
+                        ? `Preparing cards… ${Math.round(catalogProgress * 100)}%`
+                        : 'Loading cards…'}
+                    </Text>
+                  </View>
                 )}
               </ScrollView>
             )
@@ -473,7 +481,8 @@ const styles = StyleSheet.create({
   },
   // A definite height (not just maxHeight) so the browse FlatList gets a bounded viewport.
   sheetTall: { height: '85%' },
-  loading: { marginVertical: 24 },
+  loading: { marginVertical: 24, alignItems: 'center', gap: 8 },
+  loadingText: { fontSize: FontSize.sm, color: Palette.muted3 },
   handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: Radius.xs, backgroundColor: Palette.handle, marginBottom: 8 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
   headerTitle: { flex: 1 },

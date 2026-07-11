@@ -18,6 +18,7 @@ import { occupiedCells, type DemoCard, type DemoPage, type DemoSlot } from '@/da
 import { useCatalog } from '@/hooks/use-catalog';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 import type { Catalog } from '@/lib/catalog';
+import { getPriceSummary, priceSnapshot, type PriceSummary } from '@/lib/prices';
 
 const CARD_ASPECT = 88 / 63; // height / width of a standard card
 
@@ -96,6 +97,10 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   // Captions, though, need real metadata (name/set/rarity/…), so turning them on forces the load.
   const captionOn = captionFields.length > 0;
   const { catalog } = useCatalog(captionOn);
+  // The price caption reads from a separate per-card summary (~2.7MB) — load it only when the
+  // Price label is actually turned on, so a plain binder view never pulls it.
+  const priceOn = captionFields.includes('price');
+  const priceSummary = usePriceSummaryWhen(priceOn);
   const small = width < 220;
   const pad = small ? 6 : 12;
   const gap = small ? 3 : 6;
@@ -259,6 +264,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
                 cardId={slot.cardId}
                 catalog={catalog}
                 fields={captionFields}
+                price={priceSummary?.[slot.cardId]?.cur}
                 left={b.left}
                 top={b.top + b.height}
                 width={b.width}
@@ -736,6 +742,7 @@ function SlotCaption({
   cardId,
   catalog,
   fields,
+  price,
   left,
   top,
   width,
@@ -745,6 +752,7 @@ function SlotCaption({
   cardId: string;
   catalog: Catalog | null;
   fields: CaptionFieldKey[];
+  price?: number;
   left: number;
   top: number;
   width: number;
@@ -752,7 +760,7 @@ function SlotCaption({
   small: boolean;
 }) {
   const card = resolveCatalogCardWith(catalog, cardId);
-  const text = card ? formatCaption(card, fields) : '';
+  const text = card ? formatCaption(card, fields, { price }) : '';
   if (!text) return null;
   return (
     <View pointerEvents="none" style={[styles.caption, { left, top, width, height }]}>
@@ -822,6 +830,26 @@ function CardImage({
       {!loaded ? <Skeleton radius={radius} /> : null}
     </View>
   );
+}
+
+/**
+ * Latest price summary, loaded lazily and only while `enabled` (the Price caption is on). Seeds
+ * from any already-loaded snapshot so re-mounts are instant, and updates once the fetch resolves
+ * so captions fill in without a manual refresh. Never throws — pricing stays optional decoration.
+ */
+function usePriceSummaryWhen(enabled: boolean): PriceSummary | null {
+  const [summary, setSummary] = useState<PriceSummary | null>(() => priceSnapshot());
+  useEffect(() => {
+    if (!enabled || summary) return;
+    let mounted = true;
+    getPriceSummary().then((s) => {
+      if (mounted) setSummary(s);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [enabled, summary]);
+  return summary;
 }
 
 /** A soft pulsing placeholder shown over a slot while its image loads. */

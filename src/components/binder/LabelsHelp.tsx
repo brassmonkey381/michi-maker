@@ -27,6 +27,7 @@ const FIELD_HELP: Record<CaptionFieldKey, string> = {
   number: 'Collector number (e.g. 004/102)',
   stage: 'Evolution stage (Basic, Stage 1, …)',
   released: 'Full release date (e.g. Mar 15, 2022)',
+  price: 'Latest market value (USD)',
 };
 
 const GROUP_TITLES: Record<RarityGroup, string> = {

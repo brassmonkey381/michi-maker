@@ -36,7 +36,7 @@ export function HomeBrowse({
   const open = openProp ?? openState;
   const setOpen = (next: boolean) => (onOpenChange ?? setOpenState)(next);
   // Only subscribes-and-loads the catalog when expanded; collapsed is a no-op for page load.
-  const { catalog, error } = useCatalog(open);
+  const { catalog, error, status, progress } = useCatalog(open);
   const { height } = useWindowDimensions();
   const panelHeight = Math.max(460, Math.round(height * 0.7));
 
@@ -105,7 +105,14 @@ export function HomeBrowse({
                   Card catalog is unavailable right now.
                 </ThemedText>
               ) : (
-                <ActivityIndicator />
+                <>
+                  <ActivityIndicator />
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.loadingText}>
+                    {status === 'parsing'
+                      ? `Preparing cards… ${Math.round(progress * 100)}%`
+                      : 'Loading cards…'}
+                  </ThemedText>
+                </>
               )}
             </View>
           )}
@@ -145,4 +152,5 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.two,
   },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  loadingText: { marginTop: Spacing.two },
 });

@@ -1,6 +1,13 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
-import { getCatalog, getLoadedCatalog, subscribeCatalog, type Catalog } from '@/lib/catalog';
+import {
+  getCatalog,
+  getLoadedCatalog,
+  subscribeCatalog,
+  useCatalogStatus,
+  type Catalog,
+  type CatalogStatus,
+} from '@/lib/catalog';
 
 /**
  * Load state for the shared catalog. The underlying fetch/parse is a load-once
@@ -11,6 +18,10 @@ export interface UseCatalog {
   catalog: Catalog | null;
   loading: boolean;
   error: Error | null;
+  /** Load phase (downloading → parsing → ready) for progress UI. */
+  status: CatalogStatus;
+  /** Build progress 0→1 while the in-memory index is being built (status 'parsing'). */
+  progress: number;
 }
 
 /**
@@ -28,6 +39,7 @@ export function useCatalog(enabled = true): UseCatalog {
   // Reactive snapshot of the load-once catalog: updates for enabled AND passive consumers
   // when the catalog publishes, without either of them forcing the fetch.
   const catalog = useSyncExternalStore(subscribeCatalog, getLoadedCatalog, getLoadedCatalog);
+  const { status, progress } = useCatalogStatus();
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
@@ -47,5 +59,5 @@ export function useCatalog(enabled = true): UseCatalog {
 
   // Derived: we're loading while enabled, not yet resolved, and no error has surfaced.
   const loading = enabled && !catalog && !error;
-  return { catalog, loading, error };
+  return { catalog, loading, error, status, progress };
 }

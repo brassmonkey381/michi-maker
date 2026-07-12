@@ -13,6 +13,7 @@ import { ShareSheet } from '@/components/binder/ShareSheet';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { HomeBrowse } from '@/components/HomeBrowse';
 import { HomeRecent } from '@/components/HomeRecent';
+import { HomeSealed } from '@/components/HomeSealed';
 import { HomeSection } from '@/components/HomeSection';
 import { PeopleButton } from '@/components/people/PeopleButton';
 import { SettingsButton } from '@/components/settings/SettingsSheet';
@@ -144,6 +145,10 @@ export default function BindersScreen() {
 
           <GuestBanner />
 
+          {/* Catalog-free sealed carousel: renders for everyone (guests included). */}
+          <HomeSealed />
+
+          {/* Needs the full catalog → renders only once a signed-in user's catalog loads. */}
           <HomeRecent onFindSimilar={driveSimilar} onViewSet={driveViewSet} />
 
           <HomeSection

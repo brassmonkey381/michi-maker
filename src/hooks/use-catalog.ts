@@ -8,6 +8,8 @@ import {
   type Catalog,
   type CatalogStatus,
 } from '@/lib/catalog';
+import { isSupabaseConfigured } from '@/lib/supabase';
+import { useAuth } from '@/store/auth';
 
 /**
  * Load state for the shared catalog. The underlying fetch/parse is a load-once
@@ -42,8 +44,16 @@ export function useCatalog(enabled = true): UseCatalog {
   const { status, progress } = useCatalogStatus();
   const [error, setError] = useState<Error | null>(null);
 
+  // TIER GATE (DATA-PROTECTION-PLAN): the full offline catalog is a signed-up perk. Guests
+  // never request it — they browse via server search (cold mode) and binder images resolve
+  // by id (cardThumbUrl), no catalog needed. Local/static mode (no Supabase) keeps loading
+  // from the local /browse files as before.
+  const { ready, isSignedIn } = useAuth();
+  const tierAllowed = !isSupabaseConfigured || (ready && isSignedIn);
+  const wantLoad = enabled && tierAllowed;
+
   useEffect(() => {
-    if (catalog || !enabled) return; // loaded already, or subscribe-only: don't force the fetch
+    if (catalog || !wantLoad) return; // loaded already, or subscribe-only/guest: don't force
     let cancelled = false;
     getCatalog()
       .then(() => {
@@ -55,9 +65,9 @@ export function useCatalog(enabled = true): UseCatalog {
     return () => {
       cancelled = true;
     };
-  }, [catalog, enabled]);
+  }, [catalog, wantLoad]);
 
-  // Derived: we're loading while enabled, not yet resolved, and no error has surfaced.
-  const loading = enabled && !catalog && !error;
+  // Derived: we're loading while a load is actually wanted, not yet resolved, and no error.
+  const loading = wantLoad && !catalog && !error;
   return { catalog, loading, error, status, progress };
 }

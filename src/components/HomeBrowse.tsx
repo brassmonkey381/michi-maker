@@ -54,7 +54,8 @@ export function HomeBrowse({
     });
   };
 
-  // Tap a card → offer "Add to a binder…" first, then the browser's own Find similar / View set.
+  // Tap a card → offer "Add to a binder…" first, then the browser's own similarity actions
+  // (More/Less like this appear only mid-similarity-session) and View set.
   const cardActions: CardActionsFactory = (_card, builtins) => {
     const add: CardAction = {
       key: 'add',
@@ -62,7 +63,13 @@ export function HomeBrowse({
       label: 'Add to a binder…',
       onPress: (c) => setAddCardId(c.id),
     };
-    return [add, builtins.findSimilar, builtins.viewSet].filter(Boolean) as CardAction[];
+    return [
+      add,
+      builtins.moreLikeThis,
+      builtins.lessLikeThis,
+      builtins.findSimilar,
+      builtins.viewSet,
+    ].filter(Boolean) as CardAction[];
   };
 
   const addToExisting = (binderId: string) => {

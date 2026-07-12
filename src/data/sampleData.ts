@@ -36,19 +36,19 @@ export const CARDS_BY_ID: Record<string, DemoCard> = Object.fromEntries(
 );
 
 /**
- * A few bundled binders are surfaced as community "Featured" picks — same read-only binders, but
- * attributed to an author display name and shown in the Featured carousel instead of Examples.
- * Scaffolding until real user-featured binders land (swap this for a fetched list + a profile
- * join then). Keyed by index into CONTENT_BINDERS; featured binders drop out of the Examples
- * section — see the store's `featuredBinders` / `exampleBinders` getters.
+ * A few bundled binders carry an author display name (former "Featured" scaffolding — real
+ * Featured is now the likes-driven DB ranking; these attributed samples show in Examples with
+ * their author line). Keyed by binder id so module order can change freely.
  */
-const FEATURED_AUTHORS: Record<number, string> = {
-  3: 'woahpoke', // The Grail Wall
-  4: 'dollarbin.dan', // Dollar-Bin Holos
-  5: 'artvariants', // Same Art, Different Set
+const FEATURED_AUTHORS: Record<string, string> = {
+  'gen-grail-wall': 'woahpoke', // The Grail Wall
+  'gen-dollar-bin-holos': 'dollarbin.dan', // Dollar-Bin Holos
+  'gen-reprints-doppelgangers': 'artvariants', // Same Art, Different Set
 };
 
-/** The premade binders: examples + a few author-attributed Featured picks (see above). */
-export const SAMPLE_BINDERS: DemoBinder[] = CONTENT_BINDERS.map((binder, i) =>
-  FEATURED_AUTHORS[i] ? { ...binder, isFeatured: true, authorName: FEATURED_AUTHORS[i] } : binder,
+/** The premade binders: examples + a few author-attributed picks (see above). */
+export const SAMPLE_BINDERS: DemoBinder[] = CONTENT_BINDERS.map((binder) =>
+  FEATURED_AUTHORS[binder.id]
+    ? { ...binder, isFeatured: true, authorName: FEATURED_AUTHORS[binder.id] }
+    : binder,
 );

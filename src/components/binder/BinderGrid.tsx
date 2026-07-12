@@ -804,6 +804,17 @@ function CardImage({
   const manifestReady = useImageManifest();
   const [stage, setStage] = useState<'tier' | 'full' | 'failed'>('tier');
   const [loaded, setLoaded] = useState(false);
+  // HOLD until the manifest lands (or a grace timeout for static/offline mode, where images.json
+  // never resolves). Loading before it lands fires convention-path 404s that burn the tier→full
+  // retry budget and race the manifest's mid-flight URL swap — cards latched on "?" until reload.
+  // With the manifest in hand the FIRST attempt is already the right URL (hashed tier, or the
+  // TCGPlayer CDN for cards the pipeline hasn't mirrored yet — e.g. upcoming sets).
+  const [graceOver, setGraceOver] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setGraceOver(true), 4000);
+    return () => clearTimeout(t);
+  }, []);
+  const canLoad = manifestReady || graceOver;
   const tier: 245 | 640 = small ? 245 : 640;
   const uri = stage === 'full' ? cardThumbUrl(id, 'full') : cardThumbUrl(id, tier);
 
@@ -826,9 +837,23 @@ function CardImage({
     );
   }
 
+  if (!canLoad) {
+    return (
+      <View style={styles.fill}>
+        <Skeleton radius={radius} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.fill}>
       <Image
+        // Keyed by the resolved URI: when the image manifest lands mid-load the uri SWAPS
+        // (flat convention path → hashed/CDN). Without a remount, the aborted first request's
+        // stale onError fires into the new render and marches tier→full→failed while the good
+        // response lands in a dead component — cards stuck on "?" until reload. A fresh
+        // instance per uri means stale callbacks die with the old one.
+        key={uri}
         source={{ uri }}
         style={styles.fill}
         contentFit={contentFit}

@@ -8,10 +8,12 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { SignInPerk } from '@/components/auth/SignInPerk';
 import { LabelsHelp } from '@/components/binder/LabelsHelp';
 import { FontSize, Palette, Spacing, Weight } from '@/constants/theme';
 import { pillChip } from '@/constants/ui';
 import { CAPTION_FIELDS, type CaptionFieldKey } from '@/data/cardCaption';
+import { useCatalog } from '@/hooks/use-catalog';
 
 export function CaptionControls({
   enabled,
@@ -25,6 +27,9 @@ export function CaptionControls({
   onToggleField: (key: CaptionFieldKey) => void;
 }) {
   const [helpOpen, setHelpOpen] = useState(false);
+  // Card labels read real metadata from the catalog, which is a signed-in perk (guests browse in
+  // cold mode). Subscribe-only here — turning labels on is what forces the load, in BinderGrid.
+  const { guestGated } = useCatalog(false);
 
   return (
     <View style={styles.wrap}>
@@ -43,7 +48,9 @@ export function CaptionControls({
         </Pressable>
       </View>
 
-      {enabled ? (
+      {enabled && guestGated ? (
+        <SignInPerk message="Card labels read live card data — sign in (free) to see set, rarity, price and more under each card." />
+      ) : enabled ? (
         <View style={styles.fieldRow}>
           {CAPTION_FIELDS.map((f) => {
             const on = fields.includes(f.key);

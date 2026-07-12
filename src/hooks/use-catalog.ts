@@ -24,6 +24,12 @@ export interface UseCatalog {
   status: CatalogStatus;
   /** Build progress 0→1 while the in-memory index is being built (status 'parsing'). */
   progress: number;
+  /**
+   * True when the catalog won't load because the viewer isn't signed in (guest / signed-out in
+   * cloud mode — the tier gate below). Catalog-dependent features should show a "sign in to use
+   * this" note instead of a spinner that never resolves.
+   */
+  guestGated: boolean;
 }
 
 /**
@@ -51,6 +57,7 @@ export function useCatalog(enabled = true): UseCatalog {
   const { ready, isSignedIn } = useAuth();
   const tierAllowed = !isSupabaseConfigured || (ready && isSignedIn);
   const wantLoad = enabled && tierAllowed;
+  const guestGated = isSupabaseConfigured && ready && !isSignedIn && !catalog;
 
   useEffect(() => {
     if (catalog || !wantLoad) return; // loaded already, or subscribe-only/guest: don't force
@@ -69,5 +76,5 @@ export function useCatalog(enabled = true): UseCatalog {
 
   // Derived: we're loading while a load is actually wanted, not yet resolved, and no error.
   const loading = wantLoad && !catalog && !error;
-  return { catalog, loading, error, status, progress };
+  return { catalog, loading, error, status, progress, guestGated };
 }

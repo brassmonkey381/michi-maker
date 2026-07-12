@@ -9,6 +9,7 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, View } from 'react-native';
 
+import { SignInPerk } from '@/components/auth/SignInPerk';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing } from '@/constants/theme';
@@ -38,7 +39,7 @@ export function AutoFillSheet({
   /** Deliver the composed placements (the parent owns the store write + toast). */
   onPlaced: (placements: ComposePlacement[], methodLabel: string) => void;
 }) {
-  const { catalog } = useCatalog(visible);
+  const { catalog, guestGated } = useCatalog(visible);
   const [busy, setBusy] = useState<ComposeMethod | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Trainer/partner tables come from the tcgscan-data server — load them alongside the catalog
@@ -93,7 +94,11 @@ export function AutoFillSheet({
               </Pressable>
             </View>
 
-            {!ready ? (
+            {guestGated ? (
+              // The composer scans the full catalog, which is a signed-in perk — say so instead
+              // of showing a spinner that would never resolve for a guest.
+              <SignInPerk message="Auto-fill curates pages from the full card catalog — sign in (free) to use it." />
+            ) : !ready ? (
               <View style={styles.center}>
                 <ActivityIndicator />
                 <ThemedText type="small" themeColor="textSecondary">

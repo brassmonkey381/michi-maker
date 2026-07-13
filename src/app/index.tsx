@@ -15,7 +15,6 @@ import { HomeBrowse } from '@/components/HomeBrowse';
 import { HomeRecent } from '@/components/HomeRecent';
 import { HomeSealed } from '@/components/HomeSealed';
 import { HomeSection } from '@/components/HomeSection';
-import { HomeSets } from '@/components/HomeSets';
 import { PeopleButton } from '@/components/people/PeopleButton';
 import { SettingsButton } from '@/components/settings/SettingsSheet';
 import { ThemedText } from '@/components/themed-text';
@@ -154,10 +153,8 @@ export default function BindersScreen() {
           {/* Catalog-free sealed carousel: renders for everyone (guests included). */}
           <HomeSealed />
 
-          {/* Recent & upcoming SETS, catalog-free — the guest/cold fallback for the slot below.
-              Exactly one of these two renders: HomeSets until the catalog is loaded, then
-              HomeRecent (richer: card montages + upcoming/released card strips) replaces it. */}
-          <HomeSets onOpenSet={driveViewSetById} />
+          {/* Recent & Upcoming — ONE feed for every auth state (the kit's RecentProducts runs
+              catalog-free for guests/cold and from the catalog when signed-in). */}
           <HomeRecent
             onFindSimilar={driveSimilar}
             onViewSet={driveViewSet}

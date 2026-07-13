@@ -1,18 +1,20 @@
 /**
- * "Recent & Upcoming" — the newest and not-yet-released Pokémon sets, shown at the top
- * of the home screen. A thin wrapper over the shared `RecentProducts` feed that forces
- * the catalog load.
+ * "Recent & Upcoming" — the newest and not-yet-released sets + card strips, at the top of the
+ * home screen. A thin wrapper over the shared `RecentProducts` feed, which is the SINGLE
+ * implementation for every auth state:
  *
- * Note: the rest of the home screen deliberately stays catalog-free (binder covers
- * resolve straight from card ids), but this feed needs set + card data, so it calls
- * `useCatalog(true)`. That's off the first-paint path — covers still paint immediately
- * and the feed pops in once the catalog resolves; until then this renders nothing (no
- * spinner, no layout jump).
+ *  - signed-in (catalog loaded)  → the feed reads from the in-memory catalog.
+ *  - guest / cold start          → `catalog` is null and the feed fetches its own slim data
+ *                                  from the public cards/sets tables — SAME three carousels.
  *
- * `onFindSimilar` / `onViewSet` bubble a tapped card's id up so the home screen can drive
- * the "Browse all cards" browser below (see index.tsx).
+ * Don't add a parallel guest-only feed here — that's how the earlier HomeSets duplicate
+ * happened. Anything the feed needs should go into the kit's RecentProducts.
+ *
+ * `useCatalog(true)` asks for the catalog when the tier allows (signed-in); for guests it's a
+ * cheap subscribe. `onFindSimilar` / `onViewSet` / `onOpenSet` bubble up so the home screen can
+ * drive the "Browse all cards" browser below (see index.tsx).
  */
-import { RecentProducts, type CatalogSet } from 'tcgscan-browse';
+import { RecentProducts } from 'tcgscan-browse';
 
 import { HomeSection } from '@/components/HomeSection';
 import { useCatalog } from '@/hooks/use-catalog';
@@ -28,8 +30,6 @@ export function HomeRecent({
   onOpenSet?: (setId: string, series: string) => void;
 }) {
   const { catalog } = useCatalog(true);
-  // Render nothing (no gap, no spinner) until the catalog resolves.
-  if (!catalog) return null;
   return (
     // A collapsible section like the rest of the home screen. The shared header supplies the title
     // + disclosure, so the feed's own header is suppressed (title="").
@@ -39,7 +39,7 @@ export function HomeRecent({
         title=""
         onFindSimilar={(card) => onFindSimilar?.(card.id)}
         onViewSet={(card) => onViewSet?.(card.id)}
-        onOpenSet={(set: CatalogSet) => onOpenSet?.(set.id, set.seriesId)}
+        onOpenSet={(set) => onOpenSet?.(set.id, set.seriesId)}
       />
     </HomeSection>
   );

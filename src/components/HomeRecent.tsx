@@ -12,7 +12,7 @@
  * `onFindSimilar` / `onViewSet` bubble a tapped card's id up so the home screen can drive
  * the "Browse all cards" browser below (see index.tsx).
  */
-import { RecentProducts } from 'tcgscan-browse';
+import { RecentProducts, type CatalogSet } from 'tcgscan-browse';
 
 import { HomeSection } from '@/components/HomeSection';
 import { useCatalog } from '@/hooks/use-catalog';
@@ -20,9 +20,12 @@ import { useCatalog } from '@/hooks/use-catalog';
 export function HomeRecent({
   onFindSimilar,
   onViewSet,
+  onOpenSet,
 }: {
   onFindSimilar?: (cardId: string) => void;
   onViewSet?: (cardId: string) => void;
+  /** Open a whole set (from a set tile tap) in the home browser below. */
+  onOpenSet?: (setId: string, series: string) => void;
 }) {
   const { catalog } = useCatalog(true);
   // Render nothing (no gap, no spinner) until the catalog resolves.
@@ -36,6 +39,7 @@ export function HomeRecent({
         title=""
         onFindSimilar={(card) => onFindSimilar?.(card.id)}
         onViewSet={(card) => onViewSet?.(card.id)}
+        onOpenSet={(set: CatalogSet) => onOpenSet?.(set.id, set.seriesId)}
       />
     </HomeSection>
   );

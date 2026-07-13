@@ -77,6 +77,9 @@ interface CardPickerProps {
   /** "Keep adding" mode: after placing a card the sheet stays open and jumps to the next pocket. */
   keepAdding: boolean;
   onToggleKeepAdding: () => void;
+  /** One-shot "find similar to all" seed (binder multi-select → this picker). Applied on the
+   *  card browser's mount; bypasses the broadcast command bus so it can't be intercepted. */
+  initialSimilar?: string[];
 }
 
 export function CardPicker({
@@ -96,6 +99,7 @@ export function CardPicker({
   onClear,
   keepAdding,
   onToggleKeepAdding,
+  initialSimilar,
 }: CardPickerProps) {
   const savedArt = useSavedArt();
   // Subscribe only while the sheet is open: the persistently-mounted picker must not
@@ -388,6 +392,7 @@ export function CardPicker({
               onPickCard={onPickCard}
               onPickVUnion={onPickVUnion}
               onPickCards={onPickCards}
+              initialSimilar={initialSimilar}
             />
           ) : tab === 'artwork' ? (
             <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">

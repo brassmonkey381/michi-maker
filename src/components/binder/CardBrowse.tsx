@@ -38,6 +38,7 @@ export function CardBrowse({
   onPickCards,
   selectedCardId,
   cardActions,
+  initialSimilar,
 }: {
   /** Null while the catalog is still loading — CatalogBrowser then runs cold (server search). */
   catalog: Catalog | null;
@@ -50,6 +51,10 @@ export function CardBrowse({
   /** Per-card tap actions. When set, replaces the default "Place in pocket" sheet — home uses
    *  this to offer "Add to a binder…" instead of a functionless place. */
   cardActions?: CardActionsFactory;
+  /** One-shot "find similar to all" seed run on mount (binder multi-select). Passed straight to
+   *  CatalogBrowser as an explicit prop so it survives the per-pocket remount and isn't stolen by
+   *  another mounted browser via the command bus. */
+  initialSimilar?: string[];
 }) {
   return (
     <CatalogBrowser
@@ -59,6 +64,7 @@ export function CardBrowse({
       onPickVUnion={onPickVUnion}
       onPickCards={onPickCards}
       cardActions={cardActions}
+      initialSimilar={initialSimilar}
       footer={null}
       cardTileWidth={CARD_BROWSE_TILE_WIDTH}
       taxTileHeight={CARD_BROWSE_TAX_TILE_HEIGHT}

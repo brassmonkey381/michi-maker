@@ -158,7 +158,11 @@ export default function BindersScreen() {
               Exactly one of these two renders: HomeSets until the catalog is loaded, then
               HomeRecent (richer: card montages + upcoming/released card strips) replaces it. */}
           <HomeSets onOpenSet={driveViewSetById} />
-          <HomeRecent onFindSimilar={driveSimilar} onViewSet={driveViewSet} />
+          <HomeRecent
+            onFindSimilar={driveSimilar}
+            onViewSet={driveViewSet}
+            onOpenSet={driveViewSetById}
+          />
 
           <HomeSection
             title="Your binders"

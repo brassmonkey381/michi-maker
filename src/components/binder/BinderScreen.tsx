@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSharedValue } from 'react-native-reanimated';
-import { sendBrowseCommand, similarAvailable } from 'tcgscan-browse';
+import { similarAvailable } from 'tcgscan-browse';
 
 import { AutoFillSheet } from '@/components/binder/AutoFillSheet';
 import { BinderGrid, type BinderGridHandle } from '@/components/binder/BinderGrid';
@@ -60,6 +60,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const [editing, setEditing] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
   const [pickerCell, setPickerCell] = useState<{ row: number; col: number } | null>(null);
+  // "Find similar to all" seed handed to the picker's card browser as an explicit prop (not via
+  // the broadcast command bus, which a second mounted browser would steal — see kit initialSimilar).
+  const [similarSeed, setSimilarSeed] = useState<string[] | null>(null);
   const [studio, setStudio] = useState<
     { rows: number; cols: number; row: number; col: number; imageUrl?: string } | null
   >(null);
@@ -225,7 +228,10 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     setPageIndex(Math.max(0, Math.min(i, binder.pages.length - 1)));
   };
 
-  const closePicker = () => setPickerCell(null);
+  const closePicker = () => {
+    setPickerCell(null);
+    setSimilarSeed(null); // consume the one-shot seed so a later normal open doesn't re-run it
+  };
 
   // Tapping a filled pocket selects it (for the action bar + resize handle); tapping an empty
   // pocket opens the picker to add. Ctrl/Cmd-click instead toggles the pocket in a multi-selection
@@ -382,9 +388,10 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     const cardIds = selectedCardIds();
     if (cardIds.length === 0) return;
     const chosen0 = page.slots.find((s) => multiIds.has(s.id));
-    // Queue the multi-similar search, then open the picker: its CatalogBrowser flushes this
-    // pending command on mount and shows cards similar to the whole selection, ready to place.
-    sendBrowseCommand({ type: 'similarMany', cardIds });
+    // Hand the seed to the picker as an explicit prop, then open it: the picker's CatalogBrowser
+    // runs the multi-similar search on mount. A fresh array each call re-triggers it (kit
+    // initialSimilar is ref-guarded). Not the command bus — the home browser would intercept that.
+    setSimilarSeed(cardIds);
     const cell = firstFreePlacement(page, 1, 1) ?? (chosen0 ? { row: chosen0.row, col: chosen0.col } : null);
     setMultiActionsOpen(false);
     clearMulti();
@@ -815,6 +822,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           onClear={handleClear}
           keepAdding={keepAdding}
           onToggleKeepAdding={() => setKeepAdding((v) => !v)}
+          initialSimilar={similarSeed ?? undefined}
         />
 
         <AutoFillSheet

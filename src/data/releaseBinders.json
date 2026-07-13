@@ -82,7 +82,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704858"
+            "cardId": "704842"
           },
           {
             "id": "rel-pitch-black-chase_p0_r2c2",
@@ -91,7 +91,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704855"
+            "cardId": "704843"
           }
         ]
       },
@@ -107,7 +107,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704842"
+            "cardId": "704844"
           },
           {
             "id": "rel-pitch-black-chase_p1_r0c1",
@@ -116,7 +116,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704843"
+            "cardId": "704845"
           },
           {
             "id": "rel-pitch-black-chase_p1_r0c2",
@@ -125,7 +125,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704844"
+            "cardId": "704846"
           },
           {
             "id": "rel-pitch-black-chase_p1_r1c0",
@@ -134,7 +134,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704845"
+            "cardId": "704847"
           },
           {
             "id": "rel-pitch-black-chase_p1_r1c1",
@@ -143,7 +143,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704846"
+            "cardId": "704848"
           },
           {
             "id": "rel-pitch-black-chase_p1_r1c2",
@@ -152,7 +152,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704847"
+            "cardId": "704849"
           },
           {
             "id": "rel-pitch-black-chase_p1_r2c0",
@@ -161,7 +161,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704848"
+            "cardId": "704850"
           },
           {
             "id": "rel-pitch-black-chase_p1_r2c1",
@@ -170,7 +170,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704849"
+            "cardId": "704851"
           },
           {
             "id": "rel-pitch-black-chase_p1_r2c2",
@@ -179,7 +179,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704850"
+            "cardId": "704852"
           }
         ]
       },
@@ -195,7 +195,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704851"
+            "cardId": "704853"
           },
           {
             "id": "rel-pitch-black-chase_p2_r0c1",
@@ -204,7 +204,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704852"
+            "cardId": "704854"
           },
           {
             "id": "rel-pitch-black-chase_p2_r0c2",
@@ -213,7 +213,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704853"
+            "cardId": "704855"
           },
           {
             "id": "rel-pitch-black-chase_p2_r1c0",
@@ -222,7 +222,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704854"
+            "cardId": "704856"
           },
           {
             "id": "rel-pitch-black-chase_p2_r1c1",
@@ -231,7 +231,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704856"
+            "cardId": "704857"
           },
           {
             "id": "rel-pitch-black-chase_p2_r1c2",
@@ -240,7 +240,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704857"
+            "cardId": "704858"
           },
           {
             "id": "rel-pitch-black-chase_p2_r2c0",
@@ -267,14 +267,14 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704865"
+            "cardId": "704861"
           }
         ]
       },
       {
         "id": "rel-pitch-black-chase_p3",
         "rows": 3,
-        "cols": 4,
+        "cols": 3,
         "slots": [
           {
             "id": "rel-pitch-black-chase_p3_r0c0",
@@ -283,7 +283,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704761"
+            "cardId": "704862"
           },
           {
             "id": "rel-pitch-black-chase_p3_r0c1",
@@ -292,7 +292,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704765"
+            "cardId": "704863"
           },
           {
             "id": "rel-pitch-black-chase_p3_r0c2",
@@ -301,16 +301,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704773"
-          },
-          {
-            "id": "rel-pitch-black-chase_p3_r0c3",
-            "row": 0,
-            "col": 3,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "card",
-            "cardId": "704784"
+            "cardId": "704864"
           },
           {
             "id": "rel-pitch-black-chase_p3_r1c0",
@@ -319,7 +310,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704788"
+            "cardId": "704865"
           },
           {
             "id": "rel-pitch-black-chase_p3_r1c1",
@@ -328,7 +319,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704795"
+            "cardId": "704866"
           },
           {
             "id": "rel-pitch-black-chase_p3_r1c2",
@@ -337,16 +328,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704802"
-          },
-          {
-            "id": "rel-pitch-black-chase_p3_r1c3",
-            "row": 1,
-            "col": 3,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "card",
-            "cardId": "704805"
+            "cardId": "704867"
           },
           {
             "id": "rel-pitch-black-chase_p3_r2c0",
@@ -355,7 +337,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704812"
+            "cardId": "704868"
           },
           {
             "id": "rel-pitch-black-chase_p3_r2c1",
@@ -364,7 +346,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704822"
+            "cardId": "704869"
           },
           {
             "id": "rel-pitch-black-chase_p3_r2c2",
@@ -373,16 +355,104 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704866"
+            "cardId": "704870"
+          }
+        ]
+      },
+      {
+        "id": "rel-pitch-black-chase_p4",
+        "rows": 3,
+        "cols": 4,
+        "slots": [
+          {
+            "id": "rel-pitch-black-chase_p4_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704761"
           },
           {
-            "id": "rel-pitch-black-chase_p3_r2c3",
-            "row": 2,
+            "id": "rel-pitch-black-chase_p4_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704765"
+          },
+          {
+            "id": "rel-pitch-black-chase_p4_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704773"
+          },
+          {
+            "id": "rel-pitch-black-chase_p4_r0c3",
+            "row": 0,
             "col": 3,
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704868"
+            "cardId": "704784"
+          },
+          {
+            "id": "rel-pitch-black-chase_p4_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704788"
+          },
+          {
+            "id": "rel-pitch-black-chase_p4_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704795"
+          },
+          {
+            "id": "rel-pitch-black-chase_p4_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704802"
+          },
+          {
+            "id": "rel-pitch-black-chase_p4_r1c3",
+            "row": 1,
+            "col": 3,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704805"
+          },
+          {
+            "id": "rel-pitch-black-chase_p4_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704812"
+          },
+          {
+            "id": "rel-pitch-black-chase_p4_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704822"
           }
         ]
       }
@@ -550,7 +620,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704813"
+            "cardId": "704849"
           },
           {
             "id": "rel-pitch-black-showcase_p1_r2c1",
@@ -559,7 +629,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704816"
+            "cardId": "704859"
           },
           {
             "id": "rel-pitch-black-showcase_p1_r2c2",
@@ -568,7 +638,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704840"
+            "cardId": "704874"
           }
         ]
       },
@@ -1396,6 +1466,1849 @@
             "colSpan": 1,
             "type": "card",
             "cardId": "704841"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rel-30th-celebration-chase",
+    "title": "30th Celebration: Chase Board",
+    "description": "The anniversary special (September) — nineteen cards, and the ones to hunt: the Futuristic Rare Mewtwo ex and Mew ex crowns, the Illustration Rare quartet, and every anniversary ex. One page of history in the making.",
+    "layoutStyle": "anchor",
+    "isExample": true,
+    "coverCardId": "696688",
+    "pages": [
+      {
+        "id": "rel-30th-celebration-chase_p0",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "rel-30th-celebration-chase_p0_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696688"
+          },
+          {
+            "id": "rel-30th-celebration-chase_p0_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696683"
+          },
+          {
+            "id": "rel-30th-celebration-chase_p0_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696684"
+          },
+          {
+            "id": "rel-30th-celebration-chase_p0_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696685"
+          },
+          {
+            "id": "rel-30th-celebration-chase_p0_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696687"
+          },
+          {
+            "id": "rel-30th-celebration-chase_p0_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696686"
+          },
+          {
+            "id": "rel-30th-celebration-chase_p0_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696676"
+          },
+          {
+            "id": "rel-30th-celebration-chase_p0_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696834"
+          },
+          {
+            "id": "rel-30th-celebration-chase_p0_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696677"
+          }
+        ]
+      },
+      {
+        "id": "rel-30th-celebration-chase_p1",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "rel-30th-celebration-chase_p1_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696835"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rel-30th-celebration-showcase",
+    "title": "30th Celebration: Anniversary Showcase",
+    "description": "Thirty years in one spread: the Eevee line's base-and-ex pairs, the anniversary exes and Illustration Rares, and Mew & Mewtwo closing the celebration the way they opened 1996.",
+    "layoutStyle": "themed_story",
+    "isExample": true,
+    "coverCardId": "696832",
+    "pages": [
+      {
+        "id": "rel-30th-celebration-showcase_p0",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "rel-30th-celebration-showcase_p0_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696832"
+          },
+          {
+            "id": "rel-30th-celebration-showcase_p0_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696833"
+          },
+          {
+            "id": "rel-30th-celebration-showcase_p0_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696678"
+          },
+          {
+            "id": "rel-30th-celebration-showcase_p0_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696834"
+          },
+          {
+            "id": "rel-30th-celebration-showcase_p0_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696679"
+          },
+          {
+            "id": "rel-30th-celebration-showcase_p0_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696835"
+          }
+        ]
+      },
+      {
+        "id": "rel-30th-celebration-showcase_p1",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "rel-30th-celebration-showcase_p1_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696676"
+          },
+          {
+            "id": "rel-30th-celebration-showcase_p1_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696677"
+          },
+          {
+            "id": "rel-30th-celebration-showcase_p1_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696683"
+          },
+          {
+            "id": "rel-30th-celebration-showcase_p1_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696684"
+          },
+          {
+            "id": "rel-30th-celebration-showcase_p1_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696685"
+          },
+          {
+            "id": "rel-30th-celebration-showcase_p1_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696686"
+          },
+          {
+            "id": "rel-30th-celebration-showcase_p1_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696687"
+          },
+          {
+            "id": "rel-30th-celebration-showcase_p1_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696688"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rel-30th-celebration-bulk",
+    "title": "30th Celebration: Every Last Card",
+    "description": "A nineteen-card set is one you can actually COMPLETE — here are the commons and promo prints that finish it, organized by type. Fill the chase pages, then close the book with these.",
+    "layoutStyle": "color_theme",
+    "isExample": true,
+    "coverCardId": "696680",
+    "pages": [
+      {
+        "id": "rel-30th-celebration-bulk_p0",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "rel-30th-celebration-bulk_p0_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696680"
+          },
+          {
+            "id": "rel-30th-celebration-bulk_p0_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696681"
+          },
+          {
+            "id": "rel-30th-celebration-bulk_p0_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696682"
+          },
+          {
+            "id": "rel-30th-celebration-bulk_p0_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696831"
+          },
+          {
+            "id": "rel-30th-celebration-bulk_p0_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696832"
+          },
+          {
+            "id": "rel-30th-celebration-bulk_p0_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696833"
+          },
+          {
+            "id": "rel-30th-celebration-bulk_p0_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696830"
+          },
+          {
+            "id": "rel-30th-celebration-bulk_p0_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696678"
+          },
+          {
+            "id": "rel-30th-celebration-bulk_p0_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "696679"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rel-chaos-rising-chase",
+    "title": "Chaos Rising: Chase Board",
+    "description": "Still ripping ME04? Every hit in one place: the Mega Hyper Rare crown centered on page one, the Special Illustration Rares, the Illustration Rare wall, and the ex board — duplicate it and track your pulls.",
+    "layoutStyle": "anchor",
+    "isExample": true,
+    "coverCardId": "693517",
+    "pages": [
+      {
+        "id": "rel-chaos-rising-chase_p0",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "rel-chaos-rising-chase_p0_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693517"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p0_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693513"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p0_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693510"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p0_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693465"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p0_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693518"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p0_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693451"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p0_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693542"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p0_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693462"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p0_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693489"
+          }
+        ]
+      },
+      {
+        "id": "rel-chaos-rising-chase_p1",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "rel-chaos-rising-chase_p1_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693491"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p1_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693446"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p1_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693564"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p1_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693467"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p1_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693471"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p1_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693524"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p1_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693546"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p1_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693553"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p1_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693560"
+          }
+        ]
+      },
+      {
+        "id": "rel-chaos-rising-chase_p2",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "rel-chaos-rising-chase_p2_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693454"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p2_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693520"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p2_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693516"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p2_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693512"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p2_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693498"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p2_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693469"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p2_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693509"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p2_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693464"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p2_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693450"
+          }
+        ]
+      },
+      {
+        "id": "rel-chaos-rising-chase_p3",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "rel-chaos-rising-chase_p3_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693480"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p3_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693482"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p3_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693501"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p3_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693533"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p3_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693535"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p3_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693541"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p3_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693548"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p3_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693551"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p3_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693554"
+          }
+        ]
+      },
+      {
+        "id": "rel-chaos-rising-chase_p4",
+        "rows": 3,
+        "cols": 4,
+        "slots": [
+          {
+            "id": "rel-chaos-rising-chase_p4_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693453"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p4_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693519"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p4_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693515"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p4_r0c3",
+            "row": 0,
+            "col": 3,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693511"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p4_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693497"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p4_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693514"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p4_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693504"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p4_r1c3",
+            "row": 1,
+            "col": 3,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693468"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p4_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693508"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p4_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693463"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rel-chaos-rising-showcase",
+    "title": "Chaos Rising: Mega Showcase",
+    "description": "The set’s identity: five Mega Evolutions climbing their rarity ladders one per row (base ex → secret prints), the Dragon-type stars that give ME04 its bite, and the AZ / Emma / Roxie supporter story beside their full-art selves.",
+    "layoutStyle": "themed_story",
+    "isExample": true,
+    "coverCardId": "693515",
+    "pages": [
+      {
+        "id": "rel-chaos-rising-showcase_p0",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "rel-chaos-rising-showcase_p0_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693515"
+          },
+          {
+            "id": "rel-chaos-rising-showcase_p0_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693516"
+          },
+          {
+            "id": "rel-chaos-rising-showcase_p0_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693517"
+          },
+          {
+            "id": "rel-chaos-rising-showcase_p0_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693511"
+          },
+          {
+            "id": "rel-chaos-rising-showcase_p0_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693512"
+          },
+          {
+            "id": "rel-chaos-rising-showcase_p0_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693513"
+          },
+          {
+            "id": "rel-chaos-rising-showcase_p0_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693508"
+          },
+          {
+            "id": "rel-chaos-rising-showcase_p0_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693509"
+          },
+          {
+            "id": "rel-chaos-rising-showcase_p0_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693510"
+          }
+        ]
+      },
+      {
+        "id": "rel-chaos-rising-showcase_p1",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "rel-chaos-rising-showcase_p1_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693519"
+          },
+          {
+            "id": "rel-chaos-rising-showcase_p1_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693514"
+          },
+          {
+            "id": "rel-chaos-rising-showcase_p1_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693520"
+          },
+          {
+            "id": "rel-chaos-rising-showcase_p1_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693518"
+          },
+          {
+            "id": "rel-chaos-rising-showcase_p1_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693546"
+          },
+          {
+            "id": "rel-chaos-rising-showcase_p1_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693453"
+          },
+          {
+            "id": "rel-chaos-rising-showcase_p1_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693497"
+          },
+          {
+            "id": "rel-chaos-rising-showcase_p1_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693504"
+          },
+          {
+            "id": "rel-chaos-rising-showcase_p1_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693468"
+          }
+        ]
+      },
+      {
+        "id": "rel-chaos-rising-showcase_p2",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "rel-chaos-rising-showcase_p2_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693449"
+          },
+          {
+            "id": "rel-chaos-rising-showcase_p2_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693450"
+          },
+          {
+            "id": "rel-chaos-rising-showcase_p2_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693479"
+          },
+          {
+            "id": "rel-chaos-rising-showcase_p2_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693480"
+          },
+          {
+            "id": "rel-chaos-rising-showcase_p2_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693540"
+          },
+          {
+            "id": "rel-chaos-rising-showcase_p2_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693541"
+          },
+          {
+            "id": "rel-chaos-rising-showcase_p2_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693532"
+          },
+          {
+            "id": "rel-chaos-rising-showcase_p2_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693533"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rel-chaos-rising-bulk",
+    "title": "Chaos Rising: Beautiful Bulk",
+    "description": "Seventy-six commons, uncommons and rares, color-blocked by energy type — the binder that makes a stack of ME04 bulk look like a curated collection instead of a shoebox.",
+    "layoutStyle": "color_theme",
+    "isExample": true,
+    "coverCardId": "693539",
+    "pages": [
+      {
+        "id": "rel-chaos-rising-bulk_p0",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "rel-chaos-rising-bulk_p0_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693539"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p0_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693528"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p0_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693472"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p0_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693503"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p0_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693488"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p0_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693490"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p0_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693456"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p0_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693448"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p0_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693562"
+          }
+        ]
+      },
+      {
+        "id": "rel-chaos-rising-bulk_p1",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "rel-chaos-rising-bulk_p1_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693494"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p1_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693474"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p1_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693475"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p1_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693476"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p1_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693477"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p1_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693483"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p1_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693521"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p1_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693531"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p1_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693556"
+          }
+        ]
+      },
+      {
+        "id": "rel-chaos-rising-bulk_p2",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "rel-chaos-rising-bulk_p2_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693536"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p2_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693563"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p2_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693565"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p2_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693493"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p2_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693470"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p2_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693538"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p2_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693549"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p2_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693544"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p2_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693557"
+          }
+        ]
+      },
+      {
+        "id": "rel-chaos-rising-bulk_p3",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "rel-chaos-rising-bulk_p3_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693492"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p3_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693543"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p3_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693558"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p3_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693526"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p3_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693500"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p3_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693484"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p3_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693457"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p3_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693473"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p3_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693505"
+          }
+        ]
+      },
+      {
+        "id": "rel-chaos-rising-bulk_p4",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "rel-chaos-rising-bulk_p4_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693561"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p4_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693502"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p4_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693459"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p4_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693461"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p4_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693537"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p4_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693460"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p4_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693550"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p4_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693530"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p4_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693478"
+          }
+        ]
+      },
+      {
+        "id": "rel-chaos-rising-bulk_p5",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "rel-chaos-rising-bulk_p5_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693452"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p5_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693466"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p5_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693455"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p5_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693523"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p5_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693522"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p5_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693485"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p5_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693486"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p5_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693507"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p5_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693487"
+          }
+        ]
+      },
+      {
+        "id": "rel-chaos-rising-bulk_p6",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "rel-chaos-rising-bulk_p6_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693445"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p6_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693481"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p6_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693552"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p6_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693529"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p6_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693559"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p6_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693525"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p6_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693496"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p6_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693545"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p6_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693495"
+          }
+        ]
+      },
+      {
+        "id": "rel-chaos-rising-bulk_p7",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "rel-chaos-rising-bulk_p7_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693449"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p7_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693479"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p7_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693532"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p7_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693540"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p7_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693499"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p7_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693547"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p7_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693555"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p7_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693444"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p7_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693447"
+          }
+        ]
+      },
+      {
+        "id": "rel-chaos-rising-bulk_p8",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "rel-chaos-rising-bulk_p8_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693534"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p8_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693458"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p8_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693506"
+          },
+          {
+            "id": "rel-chaos-rising-bulk_p8_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693527"
           }
         ]
       }

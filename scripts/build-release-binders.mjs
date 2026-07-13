@@ -2,25 +2,26 @@
 /**
  * Build the "upcoming release" example binders → src/data/releaseBinders.json.
  *
- * The release-day hook: three binders a collector would want PREPPED before they even open
- * packs of a new set —
+ * The release-day hook: for each configured set, up to three binders a collector would want
+ * PREPPED before opening packs —
  *
- *   1. Chase Board      — the hits: the crown secret rare centered on page 1, the
- *                         illustration-rare wall, the ex board. (hero / anchor pages)
- *   2. Set Showcase     — what makes THIS set special: its Mega rarity ladders, its story
- *                         characters with their base print next to the secret-rare version,
- *                         partner Pokémon. (themed_story)
- *   3. Beautiful Bulk   — every common/uncommon/plain-rare, color-blocked by energy type so
- *                         opening piles of bulk still fills something that looks curated.
+ *   1. Chase Board      — the hits: the crown rarity centered on page 1, then the rest of the
+ *                         hit tiers in prestige order. (hero / anchor pages)
+ *   2. Set Showcase     — what makes THIS set special: Mega rarity ladders when the set has
+ *                         Megas (one species per row, base → secret prints), or configured
+ *                         species ladders (e.g. an anniversary set's Eevee-line base|ex pairs);
+ *                         a "stars" page; and the story page pairing each named character's
+ *                         base print with their secret-rare self. (themed_story)
+ *   3. Beautiful Bulk   — every common/uncommon/rare, color-blocked by energy type so opening
+ *                         piles of bulk still fills something that looks curated.
  *
  * Card pool comes LIVE from the tcgscan-data PostgREST API (public-read `cards` table,
- * publishable key from .env) — no dependency on the gated catalog blob. Slot images resolve
- * at runtime by id (cardThumbUrl → hashed tier, falling back to the TCGPlayer CDN for cards
- * the pipeline hasn't mirrored yet — which is exactly the state of an upcoming set).
+ * publishable key from .env) — no dependency on the gated catalog. Slot images resolve at
+ * runtime by id (hashed tier → TCGPlayer CDN fallback for unmirrored cards).
  *
- * Per-release knobs live in SET_CONFIG; the archetype builders are rule-driven (rarity
- * ladder, name/species matching, type blocks) so pointing at the next set mostly works.
- * Run: `node scripts/build-release-binders.mjs`, then commit the JSON.
+ * Per-release knobs live in SET_CONFIGS (one entry per set, display order); the builders are
+ * rule-driven and degrade gracefully (empty pages/binders are dropped), so tiny promo sets
+ * work too. Run: `node scripts/build-release-binders.mjs`, then commit the JSON.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -30,37 +31,90 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
 const OUT = join(ROOT, 'src', 'data', 'releaseBinders.json');
 
-// ---- per-release configuration ---------------------------------------------
-const SET_CONFIG = {
-  setId: 24688, // ME05: Pitch Black (releases 2026-07-17)
-  keyPrefix: 'pitch-black',
-  releaseLabel: 'July 17',
-  chase: {
-    title: 'Pitch Black: Chase Board',
-    description:
-      'Releases July 17 — prep this before you open a single pack. Every hit worth pulling from ME05: the Mega Hyper Rare Mega Darkrai crowning page one, the full Illustration Rare wall, and the ex board. Duplicate it and check them off as you rip.',
-    layoutStyle: 'anchor',
+// ---- per-release configuration (display order) -------------------------------
+const SET_CONFIGS = [
+  {
+    setId: 24688, // ME05: Pitch Black — releases 2026-07-17
+    keyPrefix: 'pitch-black',
+    chase: {
+      title: 'Pitch Black: Chase Board',
+      description:
+        'Releases July 17 — prep this before you open a single pack. Every hit worth pulling from ME05: the Mega Hyper Rare Mega Darkrai crowning page one, the full Illustration Rare wall, and the ex board. Duplicate it and check them off as you rip.',
+      layoutStyle: 'anchor',
+    },
+    showcase: {
+      title: 'Pitch Black: Mega Showcase',
+      description:
+        'What makes this set special: Mega Evolution rarity ladders (Double Rare → Ultra Rare → Special Illustration Rare, one Mega per row), the Darkness-type stars, and the Gladion / Gwynn / Rust Syndicate storyline — each character beside their secret-rare self, Silvally beside its partner.',
+      layoutStyle: 'themed_story',
+    },
+    bulk: {
+      title: 'Pitch Black: Beautiful Bulk',
+      description:
+        'The other 74 cards deserve a home too. Every common, uncommon and rare, color-blocked by energy type so page after page of "bulk" reads as one organized, intentional collection. The reward for actually opening packs.',
+      layoutStyle: 'color_theme',
+    },
+    storyNames: ["gladion's final battle", 'gwynn', 'rust syndicate grunt'],
+    partnerName: 'silvally',
+    extraStoryName: 'dark bell',
+    starTypes: ['Darkness'],
   },
-  showcase: {
-    title: 'Pitch Black: Mega Showcase',
-    description:
-      'What makes this set special: Mega Evolution rarity ladders (Double Rare → Ultra Rare → Special Illustration Rare, one Mega per row), the Darkness-type stars, and the Gladion / Gwynn / Rust Syndicate storyline — each character beside their secret-rare self, Silvally beside its partner.',
-    layoutStyle: 'themed_story',
+  {
+    setId: 24722, // ME: 30th Celebration — releases 2026-09
+    keyPrefix: '30th-celebration',
+    chase: {
+      title: '30th Celebration: Chase Board',
+      description:
+        'The anniversary special (September) — nineteen cards, and the ones to hunt: the Futuristic Rare Mewtwo ex and Mew ex crowns, the Illustration Rare quartet, and every anniversary ex. One page of history in the making.',
+      layoutStyle: 'anchor',
+    },
+    showcase: {
+      title: '30th Celebration: Anniversary Showcase',
+      description:
+        "Thirty years in one spread: the Eevee line's base-and-ex pairs, the anniversary exes and Illustration Rares, and Mew & Mewtwo closing the celebration the way they opened 1996.",
+      layoutStyle: 'themed_story',
+    },
+    bulk: {
+      title: '30th Celebration: Every Last Card',
+      description:
+        'A nineteen-card set is one you can actually COMPLETE — here are the commons and promo prints that finish it, organized by type. Fill the chase pages, then close the book with these.',
+      layoutStyle: 'color_theme',
+    },
+    storyNames: [],
+    partnerName: '',
+    extraStoryName: '',
+    starTypes: [],
+    speciesLadders: ['eevee', 'espeon', 'umbreon'],
   },
-  bulk: {
-    title: 'Pitch Black: Beautiful Bulk',
-    description:
-      'The other 74 cards deserve a home too. Every common, uncommon and rare, color-blocked by energy type so page after page of "bulk" reads as one organized, intentional collection. The reward for actually opening packs.',
-    layoutStyle: 'color_theme',
+  {
+    setId: 24655, // ME04: Chaos Rising — released 2026-05
+    keyPrefix: 'chaos-rising',
+    chase: {
+      title: 'Chaos Rising: Chase Board',
+      description:
+        'Still ripping ME04? Every hit in one place: the Mega Hyper Rare crown centered on page one, the Special Illustration Rares, the Illustration Rare wall, and the ex board — duplicate it and track your pulls.',
+      layoutStyle: 'anchor',
+    },
+    showcase: {
+      title: 'Chaos Rising: Mega Showcase',
+      description:
+        'The set’s identity: five Mega Evolutions climbing their rarity ladders one per row (base ex → secret prints), the Dragon-type stars that give ME04 its bite, and the AZ / Emma / Roxie supporter story beside their full-art selves.',
+      layoutStyle: 'themed_story',
+    },
+    bulk: {
+      title: 'Chaos Rising: Beautiful Bulk',
+      description:
+        'Seventy-six commons, uncommons and rares, color-blocked by energy type — the binder that makes a stack of ME04 bulk look like a curated collection instead of a shoebox.',
+      layoutStyle: 'color_theme',
+    },
+    storyNames: ["az's tranquility", 'emma', "roxie's performance", 'philippe'],
+    partnerName: '',
+    extraStoryName: '',
+    starTypes: ['Dragon'],
   },
-  // Story characters (base print + secret prints get paired on the showcase page).
-  storyNames: ["gladion's final battle", 'gwynn', 'rust syndicate grunt'],
-  // Partner pairs shown together on the story page: [base name, partner note].
-  partnerName: 'silvally',
-  extraStoryName: 'dark bell',
-};
+];
 
-// ---- fetch the pool ---------------------------------------------------------
+// ---- fetch ---------------------------------------------------------------------
 const env = Object.fromEntries(
   readFileSync(join(ROOT, '.env'), 'utf8')
     .split('\n')
@@ -70,24 +124,62 @@ const env = Object.fromEntries(
 const API_KEY = env.EXPO_PUBLIC_CATALOG_API_KEY;
 const API_URL = `${new URL(env.EXPO_PUBLIC_CATALOG_BROWSE_URL).origin}/rest/v1`;
 
-const res = await fetch(
-  `${API_URL}/cards?set_id=eq.${SET_CONFIG.setId}&select=id,name,number,rarity,types,card_type&order=number`,
-  { headers: { apikey: API_KEY } },
-);
-if (!res.ok) throw new Error(`cards fetch ${res.status}: ${await res.text()}`);
-const pool = await res.json();
-if (pool.length === 0) throw new Error('empty pool — wrong set id?');
+async function fetchPool(setId) {
+  const res = await fetch(
+    `${API_URL}/cards?set_id=eq.${setId}&select=id,name,number,rarity,types,card_type&order=number`,
+    { headers: { apikey: API_KEY } },
+  );
+  if (!res.ok) throw new Error(`cards fetch ${res.status}: ${await res.text()}`);
+  return res.json();
+}
 
-// ---- helpers ----------------------------------------------------------------
+// ---- helpers ---------------------------------------------------------------------
 const num = (c) => parseInt(String(c.number).split('/')[0], 10) || 0;
 const byNum = (a, b) => num(a) - num(b);
 const lc = (s) => (s ?? '').toLowerCase();
-const ofRarity = (r) => pool.filter((c) => c.rarity === r).sort(byNum);
 const isPokemon = (c) => (c.card_type ?? []).includes('Pokemon');
-const isSupporter = (c) => (c.card_type ?? []).includes('Supporter');
-
-/** Species key for grouping mega prints: "Mega Darkrai ex" → "darkrai". */
 const megaSpecies = (c) => lc(c.name).replace(/^mega\s+/, '').replace(/\s+ex$/, '').trim();
+
+/** Bulk (non-hit) rarities; everything else is a chase tier. */
+const BULK_RARITIES = new Set(['Common', 'Uncommon', 'Rare', 'None', '']);
+/** Hit tiers in prestige order; unlisted hit rarities append by scarcity (count asc). */
+const PRESTIGE = [
+  'Mega Hyper Rare',
+  'Futuristic Rare',
+  'Hyper Rare',
+  'Special Illustration Rare',
+  'Illustration Rare',
+  'Ultra Rare',
+  'Double Rare',
+  'ACE SPEC Rare',
+];
+
+/** The set's printed base size — the collector-number denominator ("008/084" → 84). */
+function baseSize(pool) {
+  const counts = new Map();
+  for (const c of pool) {
+    const d = parseInt(String(c.number).split('/')[1], 10);
+    if (Number.isFinite(d)) counts.set(d, (counts.get(d) ?? 0) + 1);
+  }
+  let best = Number.MAX_SAFE_INTEGER;
+  let bestN = 0;
+  for (const [d, n] of counts) if (n > bestN) [best, bestN] = [d, n];
+  return bestN > 0 ? best : Number.MAX_SAFE_INTEGER;
+}
+
+/** Hit tiers present in the pool, prestige order first, unknown tiers by scarcity. */
+function hitTiers(pool) {
+  const present = new Map();
+  for (const c of pool) {
+    if (BULK_RARITIES.has(c.rarity ?? '')) continue;
+    present.set(c.rarity, (present.get(c.rarity) ?? 0) + 1);
+  }
+  const known = PRESTIGE.filter((r) => present.has(r));
+  const unknown = [...present.keys()]
+    .filter((r) => !PRESTIGE.includes(r))
+    .sort((a, b) => present.get(a) - present.get(b));
+  return [...known, ...unknown];
+}
 
 function slot(binderId, pageIdx, row, col, cardId) {
   return { id: `${binderId}_p${pageIdx}_r${row}c${col}`, row, col, rowSpan: 1, colSpan: 1, type: 'card', cardId: String(cardId) };
@@ -99,7 +191,7 @@ function page(binderId, pageIdx, ids, { rows = 3, cols = 3, center = false } = {
   if (center && ids.length > 0) {
     const mid = Math.floor((rows * cols) / 2);
     order = [];
-    let ring = 1; // ids[0] goes to the middle; the rest fill around it in reading order
+    let ring = 1;
     for (let i = 0; i < rows * cols && order.length < ids.length; i += 1) {
       order.push(i === mid ? ids[0] : ids[ring++]);
       if (ring > ids.length - 1 && i >= mid) break;
@@ -113,104 +205,107 @@ function page(binderId, pageIdx, ids, { rows = 3, cols = 3, center = false } = {
 const id = (c) => String(c.id);
 const firstCover = (pages) => pages[0]?.slots.find((s) => s.cardId)?.cardId;
 
+function makeBinder(key, meta, pages) {
+  const kept = pages.filter((p) => p.slots.length > 0);
+  if (kept.length === 0) return null;
+  return { id: key, ...meta, isExample: true, coverCardId: firstCover(kept), pages: kept };
+}
+
 // ---- 1) Chase Board ----------------------------------------------------------
-function chaseBoard() {
-  const key = `rel-${SET_CONFIG.keyPrefix}-chase`;
-  const mhr = ofRarity('Mega Hyper Rare');
-  const sirs = ofRarity('Special Illustration Rare');
-  const irs = ofRarity('Illustration Rare');
-  const urs = ofRarity('Ultra Rare');
-  const drs = ofRarity('Double Rare');
+function chaseBoard(cfg, pool) {
+  const key = `rel-${cfg.keyPrefix}-chase`;
+  const tiers = hitTiers(pool);
+  if (tiers.length === 0) return null;
+  const byTier = (r) => pool.filter((c) => c.rarity === r).sort(byNum);
+  const ordered = tiers.flatMap(byTier);
+  if (ordered.length === 0) return null;
 
-  const crown = mhr[0] ?? sirs[0];
-  const crownSpecies = crown ? megaSpecies(crown) : '';
-  // Ring around the crown: every SIR, then the URs that echo the crown/SIR Pokémon.
-  const sirSpecies = new Set(sirs.filter(isPokemon).map(megaSpecies));
-  const echoes = urs
-    .filter((c) => isPokemon(c) && (megaSpecies(c) === crownSpecies || sirSpecies.has(megaSpecies(c))))
-    .sort((a, b) => (megaSpecies(a) === crownSpecies ? -1 : 0) - (megaSpecies(b) === crownSpecies ? -1 : 0) || byNum(a, b));
-  const p1Ids = [crown, ...sirs.filter((c) => c !== crown), ...echoes].filter(Boolean).slice(0, 9).map(id);
-  const usedUr = new Set(echoes.slice(0, Math.max(0, 9 - 1 - sirs.length)).map(id));
-
-  const p2Ids = irs.slice(0, 9).map(id);
-
-  const restIr = irs.slice(9);
-  const pokemonUr = urs.filter((c) => isPokemon(c) && !usedUr.has(id(c)));
-  const supporterUr = urs.filter(isSupporter);
-  const p3 = [...restIr, ...pokemonUr, ...supporterUr].slice(0, 9);
-  p3.forEach((c) => usedUr.add(id(c)));
-  const p3Ids = p3.map(id);
-
-  // ex board: every Double Rare + the prettiest unused Supporter full-arts to square it off.
-  const fill = supporterUr.filter((c) => !usedUr.has(id(c)));
-  const p4Ids = [...drs, ...fill].slice(0, 12).map(id);
-
-  const bid = key;
-  const pages = [
-    page(bid, 0, p1Ids, { center: true }),
-    page(bid, 1, p2Ids),
-    page(bid, 2, p3Ids),
-    page(bid, 3, p4Ids, { rows: 3, cols: 4 }),
-  ].filter((p) => p.slots.length > 0);
-  return { id: bid, ...SET_CONFIG.chase, isExample: true, coverCardId: firstCover(pages), pages };
+  // P1: the crown (first card of the rarest tier) centered, ringed by the next 8 hits.
+  const pages = [page(key, 0, ordered.slice(0, 9).map(id), { center: true })];
+  // Then the rest of the hits, 9 per page (a 3×4 final page when it tidies the remainder).
+  let rest = ordered.slice(9);
+  let p = 1;
+  while (rest.length > 0) {
+    const take = rest.length > 9 && rest.length <= 12 ? 12 : 9;
+    pages.push(page(key, p, rest.slice(0, take).map(id), take === 12 ? { rows: 3, cols: 4 } : {}));
+    rest = rest.slice(take);
+    p += 1;
+  }
+  return makeBinder(key, cfg.chase, pages);
 }
 
 // ---- 2) Set Showcase ---------------------------------------------------------
-function setShowcase() {
-  const key = `rel-${SET_CONFIG.keyPrefix}-showcase`;
-  const bid = key;
+function setShowcase(cfg, pool) {
+  const key = `rel-${cfg.keyPrefix}-showcase`;
+  const used = new Set();
+  const pages = [];
+  let p = 0;
+
+  // P1 — ladders: one species per ROW, its prints ordered by number (base → secret).
+  // Megas when the set has them; else the configured species (anniversary lines etc.).
   const megas = pool.filter((c) => /^mega\s/i.test(c.name)).sort(byNum);
-
-  // P1 — Mega rarity ladders: one Mega per ROW, its prints ordered by rarity/number
-  // (base Double Rare → Ultra Rare → Special Illustration Rare). Rows = species with the
-  // most prints (the set's flagship Megas).
-  const bySpecies = new Map();
-  for (const c of megas) {
-    const k = megaSpecies(c);
-    (bySpecies.get(k) ?? bySpecies.set(k, []).get(k)).push(c);
+  let ladders = [];
+  if (megas.length > 0) {
+    const bySpecies = new Map();
+    for (const c of megas) {
+      const k = megaSpecies(c);
+      (bySpecies.get(k) ?? bySpecies.set(k, []).get(k)).push(c);
+    }
+    ladders = [...bySpecies.values()].sort((a, b) => b.length - a.length || num(a[0]) - num(b[0]));
+  } else if (cfg.speciesLadders?.length) {
+    ladders = cfg.speciesLadders
+      .map((sp) => pool.filter((c) => lc(c.name).includes(sp)).sort(byNum))
+      .filter((l) => l.length > 0);
   }
-  const ladders = [...bySpecies.values()]
-    .map((prints) => prints.sort(byNum))
-    .sort((a, b) => b.length - a.length || num(a[0]) - num(b[0]));
-  const p1Ids = ladders.filter((l) => l.length >= 3).slice(0, 3).flatMap((l) => l.slice(0, 3).map(id));
+  const ladderIds = ladders.filter((l) => l.length >= 2).slice(0, 3).flatMap((l) => {
+    const row = l.slice(0, 3);
+    row.forEach((c) => used.add(id(c)));
+    return row.map(id);
+  });
+  if (ladderIds.length > 0) pages.push(page(key, p++, ladderIds));
 
-  // P2 — the rest of the Megas + the set's dark-type stars + its special energies.
-  const usedP1 = new Set(p1Ids);
-  const restMegas = megas.filter((c) => !usedP1.has(id(c)));
-  const darkStars = pool
-    .filter((c) => isPokemon(c) && (c.types ?? []).includes('Darkness') && !/common|uncommon/i.test(c.rarity) && !/^mega\s/i.test(c.name) && num(c) <= 84)
-    .sort(byNum);
-  const energies = pool.filter((c) => (c.card_type ?? []).includes('Energy')).sort(byNum);
-  const p2Ids = [...restMegas, ...darkStars, ...energies].slice(0, 9).map(id);
-
-  // P3 — the story: each named character's base print beside their secret-rare prints,
-  // then the partner Pokémon pair (base + Illustration Rare), then the extra story card.
-  const prints = (name) => pool.filter((c) => lc(c.name) === lc(name)).sort(byNum);
-  const p3 = [];
-  for (const name of SET_CONFIG.storyNames) p3.push(...prints(name).slice(0, 2));
-  p3.push(...prints(SET_CONFIG.partnerName).slice(0, 2));
-  p3.push(...prints(SET_CONFIG.extraStoryName).slice(0, 1));
-  const p3Ids = p3.slice(0, 9).map(id);
-
-  const pages = [page(bid, 0, p1Ids), page(bid, 1, p2Ids), page(bid, 2, p3Ids)].filter(
-    (p) => p.slots.length > 0,
+  // P2 — the stars: leftover ladder species prints, the configured star types' non-bulk cards,
+  // special energies, then any remaining hits — the set's identity in one page.
+  const isBulk = (c) => BULK_RARITIES.has(c.rarity ?? '');
+  const starTyped = pool.filter(
+    (c) => isPokemon(c) && !isBulk(c) && (c.types ?? []).some((t) => (cfg.starTypes ?? []).includes(t)),
   );
-  return { id: bid, ...SET_CONFIG.showcase, isExample: true, coverCardId: firstCover(pages), pages };
+  const energies = pool.filter((c) => (c.card_type ?? []).includes('Energy') && !isBulk(c));
+  const leftoverMegas = megas.filter((c) => !used.has(id(c)));
+  const remainingHits = pool.filter((c) => !isBulk(c) && isPokemon(c)).sort(byNum);
+  const stars = [];
+  for (const c of [...leftoverMegas, ...starTyped, ...energies, ...remainingHits]) {
+    if (used.has(id(c)) || stars.includes(id(c))) continue;
+    stars.push(id(c));
+    if (stars.length === 9) break;
+  }
+  stars.forEach((sid) => used.add(sid));
+  if (stars.length > 0) pages.push(page(key, p++, stars));
+
+  // P3 — the story: each named character's base print beside their secret prints, then the
+  // partner Pokémon pair, then the extra story card.
+  const prints = (name) => pool.filter((c) => lc(c.name) === lc(name)).sort(byNum);
+  const story = [];
+  for (const name of cfg.storyNames ?? []) story.push(...prints(name).slice(0, 2));
+  if (cfg.partnerName) story.push(...prints(cfg.partnerName).slice(0, 2));
+  if (cfg.extraStoryName) story.push(...prints(cfg.extraStoryName).slice(0, 1));
+  const storyIds = story.slice(0, 9).map(id);
+  if (storyIds.length > 0) pages.push(page(key, p++, storyIds));
+
+  return makeBinder(key, cfg.showcase, pages);
 }
 
 // ---- 3) Beautiful Bulk ---------------------------------------------------------
-function beautifulBulk() {
-  const key = `rel-${SET_CONFIG.keyPrefix}-bulk`;
-  const bid = key;
-  const bulk = pool.filter((c) => ['Common', 'Uncommon', 'Rare'].includes(c.rarity) && num(c) <= 84);
+function beautifulBulk(cfg, pool) {
+  const key = `rel-${cfg.keyPrefix}-bulk`;
+  const base = baseSize(pool);
+  const bulk = pool.filter((c) => BULK_RARITIES.has(c.rarity ?? '') && num(c) <= base);
+  if (bulk.length === 0) return null;
 
-  // Color blocks: Pokémon grouped by their energy type (set's dominant type first), then the
-  // trainer cards (Supporter → Item → Tool → Stadium), then Energy. Number order within each.
   const typeCount = new Map();
   for (const c of bulk) for (const t of c.types ?? []) typeCount.set(t, (typeCount.get(t) ?? 0) + 1);
   const typeOrder = [...typeCount.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t);
   const trainerOrder = ['Supporter', 'Item', 'Tool', 'Stadium', 'Energy'];
-
   const blockKey = (c) => {
     const t = (c.types ?? [])[0];
     if (t) return typeOrder.indexOf(t);
@@ -221,17 +316,26 @@ function beautifulBulk() {
 
   const pages = [];
   for (let p = 0; p * 9 < ordered.length; p += 1) {
-    pages.push(page(bid, p, ordered.slice(p * 9, p * 9 + 9).map(id)));
+    pages.push(page(key, p, ordered.slice(p * 9, p * 9 + 9).map(id)));
   }
-  return { id: bid, ...SET_CONFIG.bulk, isExample: true, coverCardId: firstCover(pages), pages };
+  return makeBinder(key, cfg.bulk, pages);
 }
 
 // ---- assemble ------------------------------------------------------------------
-const binders = [chaseBoard(), setShowcase(), beautifulBulk()];
+const binders = [];
+for (const cfg of SET_CONFIGS) {
+  const pool = await fetchPool(cfg.setId);
+  if (pool.length === 0) {
+    console.warn(`  !! empty pool for set ${cfg.setId} — skipped`);
+    continue;
+  }
+  for (const b of [chaseBoard(cfg, pool), setShowcase(cfg, pool), beautifulBulk(cfg, pool)]) {
+    if (b) binders.push(b);
+  }
+}
 writeFileSync(OUT, JSON.stringify(binders, null, 2) + '\n');
 
-console.log(`Pool: ${pool.length} cards (set ${SET_CONFIG.setId})`);
 for (const b of binders) {
   const cards = b.pages.reduce((n, pg) => n + pg.slots.length, 0);
-  console.log(`  ${b.id.padEnd(30)} ${String(b.pages.length).padStart(2)} pages, ${String(cards).padStart(3)} cards  cover=${b.coverCardId}`);
+  console.log(`  ${b.id.padEnd(34)} ${String(b.pages.length).padStart(2)} pages, ${String(cards).padStart(3)} cards  cover=${b.coverCardId}`);
 }

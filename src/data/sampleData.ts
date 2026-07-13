@@ -36,19 +36,15 @@ export const CARDS_BY_ID: Record<string, DemoCard> = Object.fromEntries(
 );
 
 /**
- * A few bundled binders carry an author display name (former "Featured" scaffolding — real
- * Featured is now the likes-driven DB ranking; these attributed samples show in Examples with
- * their author line). Keyed by binder id so module order can change freely.
+ * Every bundled example binder is authored by the official michi-maker account — the same
+ * profile that exists in the backend (@michimaker, "michi-maker Official"), so the author line
+ * on example thumbs matches a real, searchable profile. (The earlier fake community authors
+ * were scaffolding from before real profiles existed.)
  */
-const FEATURED_AUTHORS: Record<string, string> = {
-  'gen-grail-wall': 'woahpoke', // The Grail Wall
-  'gen-dollar-bin-holos': 'dollarbin.dan', // Dollar-Bin Holos
-  'gen-reprints-doppelgangers': 'artvariants', // Same Art, Different Set
-};
+const OFFICIAL_AUTHOR = 'michi-maker Official';
 
-/** The premade binders: examples + a few author-attributed picks (see above). */
-export const SAMPLE_BINDERS: DemoBinder[] = CONTENT_BINDERS.map((binder) =>
-  FEATURED_AUTHORS[binder.id]
-    ? { ...binder, isFeatured: true, authorName: FEATURED_AUTHORS[binder.id] }
-    : binder,
-);
+/** The premade binders, all attributed to the official account. */
+export const SAMPLE_BINDERS: DemoBinder[] = CONTENT_BINDERS.map((binder) => ({
+  ...binder,
+  authorName: OFFICIAL_AUTHOR,
+}));

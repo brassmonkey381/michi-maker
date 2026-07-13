@@ -278,16 +278,17 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
             );
           })}
 
-        {/* Source attribution under custom artwork — one credit per distinct image (its
-            bottom-right-most piece), so a scene sliced across many pockets reads as a single
-            citation. Derived from the stored source URL; slices are never re-hosted. */}
+        {/* Source attribution under custom artwork — every piece carries its credit, so a
+            sliced scene labels each pocket. Derived from the stored source URL; slices are
+            never re-hosted. */}
         {captionOn &&
-          artCreditSlots(page.slots).map((slot) => {
+          page.slots.map((slot) => {
+            if (slot.type !== 'artwork' || !slot.imageUrl || slot.cardId) return null;
             const b = box(slot.row, slot.col, slot.rowSpan, slot.colSpan);
             return (
               <ArtCaption
                 key={`art-cap-${slot.id}`}
-                url={slot.imageUrl!}
+                url={slot.imageUrl}
                 left={b.left}
                 top={b.top + b.height}
                 width={b.width}
@@ -854,21 +855,6 @@ function SlotCaption({
       </View>
     </View>
   );
-}
-
-/**
- * For each distinct custom artwork image on the page, the slot that carries its source credit —
- * the bottom-right-most piece, so a sliced scene gets exactly one caption, not one per pocket.
- */
-function artCreditSlots(slots: DemoSlot[]): DemoSlot[] {
-  const rank = (s: DemoSlot) => (s.row + s.rowSpan) * 100 + (s.col + s.colSpan);
-  const byUrl = new Map<string, DemoSlot>();
-  for (const s of slots) {
-    if (s.type !== 'artwork' || !s.imageUrl || s.cardId) continue;
-    const prev = byUrl.get(s.imageUrl);
-    if (!prev || rank(s) > rank(prev)) byUrl.set(s.imageUrl, s);
-  }
-  return [...byUrl.values()];
 }
 
 /** The attribution strip beneath a custom artwork panel — mirrors SlotCaption's styling. */

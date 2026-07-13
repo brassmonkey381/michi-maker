@@ -110,10 +110,20 @@ export function BinderPages({
 
   return (
     <>
-      {/* Meta + page navigation */}
+      {/* One meta row: value badge · Card-labels controls · page navigation. Everything that
+          describes "what you're looking at" sits on a single organised line (the labels' field
+          chips wrap below the toggle inside the centre slot when switched on). */}
       <View style={styles.metaRow}>
-        <View style={styles.metaLeft}>{metaBadge}</View>
-        <View style={styles.pageNav}>
+        <View style={styles.metaSide}>{metaBadge}</View>
+        <View style={styles.metaCenter}>
+          <CaptionControls
+            enabled={labelsOn}
+            onToggle={() => setLabelsOn((v) => !v)}
+            fields={labelFields}
+            onToggleField={toggleLabelField}
+          />
+        </View>
+        <View style={[styles.metaSide, styles.pageNav]}>
           <NavArrow label="‹" disabled={idx <= 0} onPress={() => onPageChange(idx - 1)} color={theme.text} />
           <ThemedText type="small" themeColor="textSecondary">
             Page {idx + 1} / {count}
@@ -126,14 +136,6 @@ export function BinderPages({
           />
         </View>
       </View>
-
-      {/* Card labels — show metadata under each card, and pick which fields. */}
-      <CaptionControls
-        enabled={labelsOn}
-        onToggle={() => setLabelsOn((v) => !v)}
-        fields={labelFields}
-        onToggleField={toggleLabelField}
-      />
 
       {/* Per-page title/description — caller override (edit inputs) or read-only. */}
       {pageHeader ??
@@ -284,9 +286,17 @@ function NavArrow({
 }
 
 const styles = StyleSheet.create({
-  metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
-  metaLeft: { flexShrink: 1 },
-  pageNav: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginTop: 6,
+  },
+  // Equal-width sides keep the labels toggle truly centred regardless of badge/nav width.
+  metaSide: { flex: 1, minWidth: 96 },
+  metaCenter: { flexShrink: 1, alignItems: 'center' },
+  pageNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 12 },
   navArrow: { fontSize: FontSize.nav, lineHeight: 28, fontWeight: Weight.semibold },
   navDisabled: { opacity: 0.3 },
   pageDetailsRead: { alignItems: 'center', marginTop: 8 },

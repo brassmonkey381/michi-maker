@@ -584,7 +584,14 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                 onChangeText={(title) => store.updateBinder(binder.id, { title })}
                 placeholder="Binder title"
                 placeholderTextColor={theme.textSecondary}
-                style={[styles.titleInput, { color: theme.text, borderColor: theme.backgroundSelected }]}
+                style={[
+                  styles.titleInput,
+                  {
+                    color: theme.text,
+                    borderColor: theme.backgroundSelected,
+                    backgroundColor: theme.backgroundElement,
+                  },
+                ]}
               />
             ) : (
               <ThemedText type="subtitle" numberOfLines={1} style={styles.titleText}>
@@ -627,20 +634,16 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           </View>
 
           <ScrollView contentContainerStyle={styles.scroll}>
-            {/* Binder description — just under the title */}
+            {/* Binder description — just under the title. Compact + width-capped so it reads as
+                one detail field, not a page-wide text area. */}
             {editing ? (
-              <TextInput
+              <LabeledInput
+                label="Binder description"
                 value={binder.description ?? ''}
                 onChangeText={(description) => store.updateBinder(binder.id, { description })}
-                placeholder="Add a binder description…"
-                placeholderTextColor={theme.textSecondary}
+                placeholder="What is this binder about?"
                 multiline
-                style={[
-                  styles.detailInput,
-                  styles.detailMultiline,
-                  styles.topDescInput,
-                  { color: theme.text, borderColor: theme.backgroundSelected },
-                ]}
+                style={styles.binderDescField}
               />
             ) : binder.description ? (
               <ThemedText type="small" themeColor="textSecondary" style={styles.description}>
@@ -679,24 +682,20 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               pageHeader={
                 editing ? (
                   <View style={styles.pageDetails}>
-                    <TextInput
+                    <LabeledInput
+                      label={`Page ${idx + 1} title`}
                       value={page.title ?? ''}
                       onChangeText={(title) => store.updatePage(binder.id, page.id, { title })}
-                      placeholder={`Page ${idx + 1} title`}
-                      placeholderTextColor={theme.textSecondary}
-                      style={[styles.detailInput, { color: theme.text, borderColor: theme.backgroundSelected }]}
+                      placeholder="Untitled page"
+                      style={styles.pageTitleField}
                     />
-                    <TextInput
+                    <LabeledInput
+                      label={`Page ${idx + 1} description`}
                       value={page.description ?? ''}
                       onChangeText={(description) => store.updatePage(binder.id, page.id, { description })}
-                      placeholder="Page description"
-                      placeholderTextColor={theme.textSecondary}
+                      placeholder="What's on this page?"
                       multiline
-                      style={[
-                        styles.detailInput,
-                        styles.detailMultiline,
-                        { color: theme.text, borderColor: theme.backgroundSelected },
-                      ]}
+                      style={styles.pageDescField}
                     />
                   </View>
                 ) : undefined
@@ -705,82 +704,94 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
             />
 
             {editing && (
-              <View style={styles.editPanel}>
-                <View style={styles.btnRow}>
-                  <PillButton label="↶ Undo" onPress={store.undo} disabled={!store.canUndo} />
-                  <PillButton label="↷ Redo" onPress={store.redo} disabled={!store.canRedo} />
-                  <PillButton label="+ Page" onPress={() => store.addPage(binder.id)} />
-                  {binder.pages.length > 1 && (
-                    <PillButton
-                      label="Delete page"
-                      tone="danger"
-                      onPress={() =>
-                        setConfirm({
-                          title: 'Delete this page?',
-                          message: 'The page and everything on it will be removed.',
-                          confirmLabel: 'Delete page',
-                          destructive: true,
-                          onConfirm: () => {
-                            store.removePage(binder.id, page.id);
-                            changePage(0);
-                            showToast('Page deleted', true);
-                          },
-                        })
-                      }
-                    />
-                  )}
-                  <PillButton label="Duplicate page" onPress={handleDuplicatePage} />
-                </View>
+              <>
+                {/* One organized card for the page-level tools, width-matched to the detail
+                    fields above so the edit chrome reads as a single column, not scattered rows. */}
+                <ThemedView type="backgroundElement" style={styles.editPanel}>
+                  <ThemedText type="smallBold" themeColor="textSecondary" style={styles.editPanelTitle}>
+                    Editing tools
+                  </ThemedText>
 
-                <ThemedText type="small" themeColor="textSecondary" style={styles.fieldLabel}>
-                  Page size
-                </ThemedText>
-                <View style={styles.chipRow}>
-                  {PAGE_SIZES.map((size) => {
-                    const active = page.rows === size.rows && page.cols === size.cols;
-                    return (
-                      <Pressable
-                        key={size.label}
+                  <View style={styles.btnRow}>
+                    <PillButton label="↶ Undo" onPress={store.undo} disabled={!store.canUndo} />
+                    <PillButton label="↷ Redo" onPress={store.redo} disabled={!store.canRedo} />
+                    <PillButton label="+ Page" onPress={() => store.addPage(binder.id)} />
+                    <PillButton label="Duplicate page" onPress={handleDuplicatePage} />
+                    {binder.pages.length > 1 && (
+                      <PillButton
+                        label="Delete page"
+                        tone="danger"
                         onPress={() =>
-                          store.updatePage(binder.id, page.id, { rows: size.rows, cols: size.cols })
+                          setConfirm({
+                            title: 'Delete this page?',
+                            message: 'The page and everything on it will be removed.',
+                            confirmLabel: 'Delete page',
+                            destructive: true,
+                            onConfirm: () => {
+                              store.removePage(binder.id, page.id);
+                              changePage(0);
+                              showToast('Page deleted', true);
+                            },
+                          })
                         }
-                        style={[pillChip.base, active && pillChip.active]}>
-                        <Text style={[pillChip.text, active && pillChip.textActive]}>
-                          {size.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-
-                <ThemedText type="small" themeColor="textSecondary" style={styles.fieldLabel}>
-                  Page background
-                </ThemedText>
-                <ColorField
-                  key={page.id}
-                  value={page.backgroundColor}
-                  onChange={(backgroundColor) =>
-                    store.updatePage(binder.id, page.id, { backgroundColor })
-                  }
-                />
-
-                {isSupabaseConfigured ? (
-                  <View style={styles.pageVisRow}>
-                    <View style={styles.pageVisText}>
-                      <ThemedText type="smallBold">Page visibility</ThemedText>
-                      <ThemedText type="small" themeColor="textSecondary">
-                        {(page.isPublic ?? true)
-                          ? 'Public — shown to anyone viewing this binder.'
-                          : 'Private — hidden from public viewers; only you see it.'}
-                      </ThemedText>
-                    </View>
-                    <Switch
-                      value={page.isPublic ?? true}
-                      onValueChange={(v) => store.updatePage(binder.id, page.id, { isPublic: v })}
-                      trackColor={{ true: Palette.accent, false: theme.backgroundSelected }}
-                    />
+                      />
+                    )}
                   </View>
-                ) : null}
+
+                  <View style={styles.inlineRow}>
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
+                      Page size
+                    </ThemedText>
+                    {PAGE_SIZES.map((size) => {
+                      const active = page.rows === size.rows && page.cols === size.cols;
+                      return (
+                        <Pressable
+                          key={size.label}
+                          onPress={() =>
+                            store.updatePage(binder.id, page.id, { rows: size.rows, cols: size.cols })
+                          }
+                          style={[pillChip.base, active && pillChip.active]}>
+                          <Text style={[pillChip.text, active && pillChip.textActive]}>
+                            {size.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                    <ThemedText
+                      type="small"
+                      themeColor="textSecondary"
+                      style={[styles.inlineLabel, styles.inlineLabelGap]}>
+                      Background
+                    </ThemedText>
+                    <View style={styles.colorFieldBox}>
+                      <ColorField
+                        key={page.id}
+                        value={page.backgroundColor}
+                        onChange={(backgroundColor) =>
+                          store.updatePage(binder.id, page.id, { backgroundColor })
+                        }
+                      />
+                    </View>
+                  </View>
+
+                  {isSupabaseConfigured ? (
+                    <View style={styles.pageVisRow}>
+                      <View style={styles.pageVisText}>
+                        <ThemedText type="smallBold">Page visibility</ThemedText>
+                        <ThemedText type="small" themeColor="textSecondary">
+                          {(page.isPublic ?? true)
+                            ? 'Public — shown to anyone viewing this binder.'
+                            : 'Private — hidden from public viewers; only you see it.'}
+                        </ThemedText>
+                      </View>
+                      <Switch
+                        value={page.isPublic ?? true}
+                        onValueChange={(v) => store.updatePage(binder.id, page.id, { isPublic: v })}
+                        trackColor={{ true: Palette.accent, false: theme.backgroundSelected }}
+                      />
+                    </View>
+                  ) : null}
+                </ThemedView>
 
                 {!binder.isExample && (
                   <Pressable
@@ -800,7 +811,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                     <Text style={styles.deleteBinderText}>Delete binder</Text>
                   </Pressable>
                 )}
-              </View>
+              </>
             )}
           </ScrollView>
         </SafeAreaView>
@@ -936,6 +947,50 @@ function EditorKeyboardShortcuts({
  * but it has no add/resize chrome — tap its label to make it the current page. An empty View keeps
  * the current page centred when there's no neighbour on that side.
  */
+/**
+ * A compact detail field: a tiny uppercase label floating over a small filled+bordered input,
+ * so every editable field reads unmistakably as editable while staying visually quiet. Used for
+ * the binder/page title–description fields, which used to be bare page-wide boxes.
+ */
+function LabeledInput({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  multiline = false,
+  style,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder?: string;
+  multiline?: boolean;
+  style?: object;
+}) {
+  const theme = useTheme();
+  return (
+    <View style={style}>
+      <Text style={[styles.fieldMiniLabel, { color: theme.textSecondary }]}>{label}</Text>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={theme.textSecondary}
+        multiline={multiline}
+        style={[
+          styles.fieldInput,
+          multiline && styles.fieldInputMulti,
+          {
+            color: theme.text,
+            borderColor: theme.backgroundSelected,
+            backgroundColor: theme.backgroundElement,
+          },
+        ]}
+      />
+    </View>
+  );
+}
+
 function PillButton({
   label,
   onPress,
@@ -991,29 +1046,62 @@ const styles = StyleSheet.create({
   titleText: { flex: 1, textAlign: 'center', fontSize: FontSize.title, lineHeight: 28 },
   titleInput: {
     flex: 1,
+    maxWidth: 420,
+    alignSelf: 'center',
     fontSize: FontSize.lg,
     fontWeight: Weight.semibold,
     textAlign: 'center',
-    borderBottomWidth: 1,
-    paddingVertical: 4,
+    borderWidth: 1,
+    borderRadius: Radius.control,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
   },
   scroll: { paddingHorizontal: 16, paddingBottom: 48 },
   badge: { paddingVertical: 3, paddingHorizontal: 10, borderRadius: Radius.pill },
-  description: { marginTop: 10, textAlign: 'center' },
-  topDescInput: { marginTop: 8 },
-  pageDetails: { gap: 8, marginTop: 12 },
-  editPanel: { gap: 8 },
-  btnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  fieldLabel: { marginTop: 12, marginBottom: 2 },
-  detailInput: {
+  description: { marginTop: 10, textAlign: 'center', maxWidth: 640, alignSelf: 'center' },
+  // Detail fields share one centred column (matches the edit-tools card) so the editable
+  // chrome reads as a single organised stack instead of page-wide boxes.
+  binderDescField: { width: '100%', maxWidth: 680, alignSelf: 'center', marginTop: 8 },
+  pageDetails: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    width: '100%',
+    maxWidth: 680,
+    alignSelf: 'center',
+    marginTop: 10,
+  },
+  pageTitleField: { flexGrow: 1, flexBasis: 200 },
+  pageDescField: { flexGrow: 2, flexBasis: 280 },
+  fieldMiniLabel: {
+    fontSize: FontSize.xs,
+    fontWeight: Weight.semibold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 3,
+  },
+  fieldInput: {
     borderWidth: 1,
     borderRadius: Radius.control,
     paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingVertical: 6,
     fontSize: FontSize.control,
   },
-  detailMultiline: { minHeight: 56, textAlignVertical: 'top' },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  fieldInputMulti: { minHeight: 36, textAlignVertical: 'top' },
+  editPanel: {
+    width: '100%',
+    maxWidth: 680,
+    alignSelf: 'center',
+    borderRadius: Radius.panel,
+    padding: 14,
+    gap: 10,
+  },
+  editPanelTitle: { textTransform: 'uppercase', letterSpacing: 0.5 },
+  btnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  inlineRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  inlineLabel: { marginRight: 2 },
+  inlineLabelGap: { marginLeft: 10 },
+  colorFieldBox: { width: 170 },
   pill: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: Radius.pill, backgroundColor: Palette.panel },
   pillDisabled: { opacity: 0.4 },
   pillDanger: { backgroundColor: Palette.dangerBg },

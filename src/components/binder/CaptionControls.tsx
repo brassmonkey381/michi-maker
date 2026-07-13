@@ -72,7 +72,7 @@ export function CaptionControls({
 }
 
 const styles = StyleSheet.create({
-  wrap: { alignItems: 'center', gap: Spacing.two, marginTop: Spacing.three },
+  wrap: { alignItems: 'center', gap: Spacing.two },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   fieldRow: {
     flexDirection: 'row',

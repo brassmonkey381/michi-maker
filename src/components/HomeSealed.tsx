@@ -28,7 +28,7 @@ export function HomeSealed() {
   if (products.length === 0) return null;
 
   return (
-    <HomeSection title="Sealed Products">
+    <HomeSection title="Sealed Products" collapsible={false}>
       <FlatList
         horizontal
         data={products}

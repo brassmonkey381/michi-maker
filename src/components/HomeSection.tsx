@@ -16,33 +16,46 @@ export function HomeSection({
   action,
   children,
   initiallyCollapsed = false,
+  collapsible = true,
 }: {
   title: string;
   action?: ReactNode;
   children: ReactNode;
   /** Start collapsed (e.g. a long secondary feed). Default: expanded. */
   initiallyCollapsed?: boolean;
+  /** Allow tapping the title to collapse the body. Default: true. Pass false for an
+   *  always-open section (no chevron, always shows its content). */
+  collapsible?: boolean;
 }) {
-  const [collapsed, setCollapsed] = useState(initiallyCollapsed);
+  const [collapsed, setCollapsed] = useState(collapsible && initiallyCollapsed);
   const theme = useTheme();
+  const open = collapsible ? !collapsed : true;
   return (
     <View style={styles.section}>
       <View style={styles.header}>
-        <Pressable
-          onPress={() => setCollapsed((c) => !c)}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={title}
-          accessibilityState={{ expanded: !collapsed }}
-          style={styles.titleTap}>
-          <Text style={[styles.chevron, { color: theme.textSecondary }]}>{collapsed ? '▸' : '▾'}</Text>
-          <ThemedText type="smallBold" style={styles.title} numberOfLines={1}>
-            {title}
-          </ThemedText>
-        </Pressable>
+        {collapsible ? (
+          <Pressable
+            onPress={() => setCollapsed((c) => !c)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={title}
+            accessibilityState={{ expanded: open }}
+            style={styles.titleTap}>
+            <Text style={[styles.chevron, { color: theme.textSecondary }]}>{open ? '▾' : '▸'}</Text>
+            <ThemedText type="smallBold" style={styles.title} numberOfLines={1}>
+              {title}
+            </ThemedText>
+          </Pressable>
+        ) : (
+          <View style={styles.titleTap}>
+            <ThemedText type="smallBold" style={styles.title} numberOfLines={1}>
+              {title}
+            </ThemedText>
+          </View>
+        )}
         {action}
       </View>
-      {collapsed ? null : children}
+      {open ? children : null}
     </View>
   );
 }

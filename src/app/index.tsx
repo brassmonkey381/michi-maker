@@ -58,6 +58,11 @@ export default function BindersScreen() {
     sendBrowseCommand({ type: 'viewSet', cardId });
     revealBrowse();
   };
+  // Sets carousel → open that set in the browser below (catalog-free command, works for guests).
+  const driveViewSetById = (setId: string, series: string) => {
+    sendBrowseCommand({ type: 'viewSetById', setId, seriesId: series || undefined });
+    revealBrowse();
+  };
   const showToast = (message: string) => {
     toastId.current += 1;
     setToast({ id: toastId.current, message });
@@ -152,7 +157,7 @@ export default function BindersScreen() {
           {/* Recent & upcoming SETS, catalog-free — the guest/cold fallback for the slot below.
               Exactly one of these two renders: HomeSets until the catalog is loaded, then
               HomeRecent (richer: card montages + upcoming/released card strips) replaces it. */}
-          <HomeSets />
+          <HomeSets onOpenSet={driveViewSetById} />
           <HomeRecent onFindSimilar={driveSimilar} onViewSet={driveViewSet} />
 
           <HomeSection

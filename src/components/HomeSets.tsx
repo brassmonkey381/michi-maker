@@ -14,7 +14,7 @@ import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
 import { FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { getApiKey, getApiUrl, productUrl } from 'tcgscan-browse';
+import { getApiKey, getApiUrl, setShopUrl } from 'tcgscan-browse';
 
 import { HomeSection } from '@/components/HomeSection';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
@@ -33,8 +33,8 @@ interface SetTile {
   cardCount: number;
   releaseDate: string; // yyyy-mm-dd (earliest card)
   upcoming: boolean;
-  /** Newest card id in the set — powers the "Shop →" link (stable product URL). */
-  shopCardId: string;
+  /** TCGPlayer set slug source (sets.url_name) — powers the "Shop →" link. */
+  urlName: string;
 }
 
 let cache: SetTile[] | null = null;
@@ -51,24 +51,24 @@ async function loadSetTiles(): Promise<SetTile[]> {
       const cutoff = new Date(Date.now() - MONTHS_BACK * 30 * 86400e3).toISOString().slice(0, 10);
 
       const cardsRes = await fetch(
-        `${apiUrl}/cards?select=id,set_id,release_date&release_date=gte.${cutoff}&order=release_date.desc&limit=4000`,
+        `${apiUrl}/cards?select=set_id,release_date&release_date=gte.${cutoff}&order=release_date.desc&limit=4000`,
         { headers: { apikey: apiKey } },
       );
       if (!cardsRes.ok) return [];
-      const cards = (await cardsRes.json()) as { id: string; set_id: number; release_date: string }[];
+      const cards = (await cardsRes.json()) as { set_id: number; release_date: string }[];
 
-      // Per set: earliest card date (the set's release) + the newest card id (shop link).
-      const bySet = new Map<number, { first: string; shopCardId: string }>();
+      // Per set: earliest card date = the set's release (rows are date-desc).
+      const bySet = new Map<number, { first: string }>();
       for (const c of cards) {
         const cur = bySet.get(c.set_id);
-        if (!cur) bySet.set(c.set_id, { first: c.release_date, shopCardId: c.id });
-        else if (c.release_date < cur.first) cur.first = c.release_date; // rows are date-desc
+        if (!cur) bySet.set(c.set_id, { first: c.release_date });
+        else if (c.release_date < cur.first) cur.first = c.release_date;
       }
       if (bySet.size === 0) return [];
 
       const setIds = [...bySet.keys()];
       const setsRes = await fetch(
-        `${apiUrl}/sets?select=id,name,series,logo_url,card_count&id=in.(${setIds.join(',')})`,
+        `${apiUrl}/sets?select=id,name,series,logo_url,card_count,url_name&id=in.(${setIds.join(',')})`,
         { headers: { apikey: apiKey } },
       );
       if (!setsRes.ok) return [];
@@ -78,6 +78,7 @@ async function loadSetTiles(): Promise<SetTile[]> {
         series: string | null;
         logo_url: string | null;
         card_count: number | null;
+        url_name: string | null;
       }[];
 
       const tiles: SetTile[] = sets.map((s) => {
@@ -90,7 +91,7 @@ async function loadSetTiles(): Promise<SetTile[]> {
           cardCount: s.card_count ?? 0,
           releaseDate: d.first,
           upcoming: d.first > today,
-          shopCardId: d.shopCardId,
+          urlName: s.url_name ?? '',
         };
       });
       // Upcoming first (soonest release leading), then released newest→oldest.
@@ -108,7 +109,7 @@ async function loadSetTiles(): Promise<SetTile[]> {
   return loadPromise;
 }
 
-export function HomeSets() {
+export function HomeSets({ onOpenSet }: { onOpenSet?: (setId: string, series: string) => void }) {
   // Only the cold/guest fallback: when the full catalog is loaded, HomeRecent renders the richer
   // feed (set tiles with card montages + card strips) in this same slot.
   const { catalog } = useCatalog(false);
@@ -133,7 +134,7 @@ export function HomeSets() {
         horizontal
         data={tiles}
         keyExtractor={(t) => String(t.id)}
-        renderItem={({ item }) => <SetTileView tile={item} />}
+        renderItem={({ item }) => <SetTileView tile={item} onOpenSet={onOpenSet} />}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.strip}
       />
@@ -141,14 +142,22 @@ export function HomeSets() {
   );
 }
 
-function SetTileView({ tile }: { tile: SetTile }) {
+function SetTileView({
+  tile,
+  onOpenSet,
+}: {
+  tile: SetTile;
+  onOpenSet?: (setId: string, series: string) => void;
+}) {
   const date = tile.releaseDate ? tile.releaseDate.slice(0, 7) : '';
+  const shop = setShopUrl(tile.urlName);
   return (
+    // Tile → open this set in the home card browser (catalog-free viewSetById command).
     <Pressable
       style={styles.tile}
-      onPress={() => Linking.openURL(productUrl(tile.shopCardId)).catch(() => {})}
-      accessibilityRole="link"
-      accessibilityLabel={`${tile.name}${tile.upcoming ? ' (upcoming)' : ''}`}>
+      onPress={() => onOpenSet?.(String(tile.id), tile.series)}
+      accessibilityRole="button"
+      accessibilityLabel={`Browse ${tile.name}${tile.upcoming ? ' (upcoming)' : ''}`}>
       <View style={styles.logoWrap}>
         {tile.logoUrl ? (
           <Image
@@ -176,7 +185,16 @@ function SetTileView({ tile }: { tile: SetTile }) {
       <Text style={styles.meta} numberOfLines={1}>
         {[date, tile.cardCount ? `${tile.cardCount} cards` : ''].filter(Boolean).join(' · ')}
       </Text>
-      <Text style={styles.link}>Shop →</Text>
+      {/* Shop → the set's TCGPlayer category page (separate tap target inside the tile). */}
+      {shop ? (
+        <Pressable
+          onPress={() => Linking.openURL(shop).catch(() => {})}
+          hitSlop={6}
+          accessibilityRole="link"
+          accessibilityLabel={`Shop ${tile.name} on TCGPlayer`}>
+          <Text style={styles.link}>Shop →</Text>
+        </Pressable>
+      ) : null}
     </Pressable>
   );
 }

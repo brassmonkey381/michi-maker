@@ -65,12 +65,6 @@ const ART_SOURCES: { title: string; blurb: string; url: string; dragFriendly: bo
     dragFriendly: true,
   },
   {
-    title: 'Wikimedia Commons · ukiyo-e',
-    url: 'https://commons.wikimedia.org/wiki/Category:Ukiyo-e',
-    blurb: 'Public-domain Japanese woodblock prints — great backdrops for themed spreads.',
-    dragFriendly: true,
-  },
-  {
     title: 'Pokémon Center card sleeves',
     url: 'https://www.pokemoncenter.com/category/card-sleeves',
     blurb: 'Official sleeve art — ready-made card-shaped designs.',
@@ -80,12 +74,6 @@ const ART_SOURCES: { title: string; blurb: string; url: string; dragFriendly: bo
     title: 'Pinterest',
     url: 'https://www.pinterest.com/ideas/pokemon-pictures/931192954917/',
     blurb: 'Broad fan-curated feed. Open a pin full-size before dragging it over.',
-    dragFriendly: false,
-  },
-  {
-    title: 'Zerochan',
-    url: 'https://www.zerochan.net/Pok%C3%A9mon',
-    blurb: 'High-res anime fan art. The site may block direct loading — save, then ⬆ Upload.',
     dragFriendly: false,
   },
   {

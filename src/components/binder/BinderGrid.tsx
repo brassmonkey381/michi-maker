@@ -12,6 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { BinderSurface, FontSize, Palette, Radii, Radius, Shadows, SlotBackingFallback, Weight } from '@/constants/theme';
+import { artAttribution } from '@/data/artworkLibrary';
 import { resolveCardWith, resolveCatalogCardWith } from '@/data/cardResolver';
 import { formatCaption, type CaptionFieldKey } from '@/data/cardCaption';
 import { occupiedCells, type DemoCard, type DemoPage, type DemoSlot } from '@/data/binderTypes';
@@ -268,6 +269,25 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
                 catalog={catalog}
                 fields={captionFields}
                 price={priceSummary?.[slot.cardId]?.cur}
+                left={b.left}
+                top={b.top + b.height}
+                width={b.width}
+                height={captionH}
+                small={small}
+              />
+            );
+          })}
+
+        {/* Source attribution under custom artwork — one credit per distinct image (its
+            bottom-right-most piece), so a scene sliced across many pockets reads as a single
+            citation. Derived from the stored source URL; slices are never re-hosted. */}
+        {captionOn &&
+          artCreditSlots(page.slots).map((slot) => {
+            const b = box(slot.row, slot.col, slot.rowSpan, slot.colSpan);
+            return (
+              <ArtCaption
+                key={`art-cap-${slot.id}`}
+                url={slot.imageUrl!}
                 left={b.left}
                 top={b.top + b.height}
                 width={b.width}
@@ -598,14 +618,22 @@ function ArtworkImage({
   small,
   crop,
   fit = 'cover',
+  transform,
 }: {
   uri: string;
   radius: number;
   small: boolean;
   crop?: DemoSlot['imageCrop'];
   fit?: DemoSlot['imageFit'];
+  transform?: DemoSlot['imageTransform'];
 }) {
   const [failed, setFailed] = useState(false);
+  // A rotated/flipped slice needs pixel math (a quarter turn swaps the element's width and
+  // height — percentages can't express that), so measure the slot box once. Untransformed
+  // slots keep the original percentage path untouched.
+  const [box, setBox] = useState<{ w: number; h: number } | null>(null);
+  const rot = transform?.rot ?? 0;
+  const flipped = Boolean(transform && (rot !== 0 || transform.flipH || transform.flipV));
   if (failed) {
     return (
       <View style={[styles.fill, styles.artworkPanel, styles.artworkFallback, { borderRadius: radius }]}>
@@ -625,32 +653,67 @@ function ArtworkImage({
     Number.isFinite(crop.h) &&
     Number.isFinite(crop.x) &&
     Number.isFinite(crop.y);
-  const cw = validCrop ? Math.min(1, Math.max(0.05, crop!.w)) : 1;
-  const ch = validCrop ? Math.min(1, Math.max(0.05, crop!.h)) : 1;
-  const imgStyle = validCrop
-    ? {
-        position: 'absolute' as const,
-        width: `${100 / cw}%` as DimensionValue,
-        height: `${100 / ch}%` as DimensionValue,
-        left: `${(-crop!.x / cw) * 100}%` as DimensionValue,
-        top: `${(-crop!.y / ch) * 100}%` as DimensionValue,
-      }
-    : styles.fill;
+  const cw = validCrop ? Math.max(0.05, crop!.w) : 1;
+  const ch = validCrop ? Math.max(0.05, crop!.h) : 1;
+  let imgStyle: object;
+  let contentFit: 'cover' | 'contain' | 'fill' = contain ? 'contain' : 'cover';
+  if (flipped && validCrop && box) {
+    // Pixel path: the full (transformed) image spans boxW/cw × boxH/ch, offset so this slot
+    // shows its window; the quarter-turn element is laid out pre-rotation and centre-rotated
+    // into place. Transformed slices come from the Slice Studio with aspect-true windows, so
+    // 'fill' is exact (mirrors SliceStudio's SourceImage).
+    const W = box.w / cw;
+    const H = box.h / ch;
+    const left = -(crop!.x / cw) * box.w;
+    const top = -(crop!.y / ch) * box.h;
+    const quarter = rot === 90 || rot === 270;
+    imgStyle = {
+      position: 'absolute' as const,
+      width: quarter ? H : W,
+      height: quarter ? W : H,
+      left: quarter ? left + (W - H) / 2 : left,
+      top: quarter ? top + (H - W) / 2 : top,
+      transform: [
+        { rotate: `${rot}deg` },
+        { scaleX: transform?.flipH ? -1 : 1 },
+        { scaleY: transform?.flipV ? -1 : 1 },
+      ],
+    };
+    contentFit = 'fill';
+  } else {
+    imgStyle = validCrop
+      ? {
+          position: 'absolute' as const,
+          width: `${100 / cw}%` as DimensionValue,
+          height: `${100 / ch}%` as DimensionValue,
+          left: `${(-crop!.x / cw) * 100}%` as DimensionValue,
+          top: `${(-crop!.y / ch) * 100}%` as DimensionValue,
+        }
+      : styles.fill;
+  }
   return (
-    <View style={[styles.fill, styles.artworkPanel, { borderRadius: radius }]}>
-      <Image
-        source={{ uri }}
-        style={imgStyle}
-        contentFit={contain ? 'contain' : 'cover'}
-        cachePolicy="memory-disk"
-        recyclingKey={uri}
-        transition={120}
-        // Web: kill the browser's native image-drag ghost so a card can't be "dragged" outside
-        // edit mode. Edit-mode reordering uses a gesture-handler pan, not native <img> drag, so
-        // it's unaffected. No-op on native.
-        draggable={false}
-        onError={() => setFailed(true)}
-      />
+    <View
+      style={[styles.fill, styles.artworkPanel, { borderRadius: radius }]}
+      onLayout={
+        flipped
+          ? (e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })
+          : undefined
+      }>
+      {flipped && !box ? null : (
+        <Image
+          source={{ uri }}
+          style={imgStyle}
+          contentFit={contentFit}
+          cachePolicy="memory-disk"
+          recyclingKey={uri}
+          transition={120}
+          // Web: kill the browser's native image-drag ghost so a card can't be "dragged" outside
+          // edit mode. Edit-mode reordering uses a gesture-handler pan, not native <img> drag, so
+          // it's unaffected. No-op on native.
+          draggable={false}
+          onError={() => setFailed(true)}
+        />
+      )}
     </View>
   );
 }
@@ -699,7 +762,16 @@ function SlotContent({
   // A custom artwork panel — a pasted / uploaded image, sized to fill the slot (or a slice
   // of a larger image when imageCrop is set).
   if (slot.type === 'artwork' && slot.imageUrl) {
-    return <ArtworkImage uri={slot.imageUrl} radius={radius} small={small} crop={slot.imageCrop} fit={slot.imageFit} />;
+    return (
+      <ArtworkImage
+        uri={slot.imageUrl}
+        radius={radius}
+        small={small}
+        crop={slot.imageCrop}
+        fit={slot.imageFit}
+        transform={slot.imageTransform}
+      />
+    );
   }
 
   const id = slot.cardId;
@@ -778,6 +850,48 @@ function SlotCaption({
       <View style={styles.captionPill}>
         <Text numberOfLines={2} style={[styles.captionText, small && styles.captionTextSmall]}>
           {text}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+/**
+ * For each distinct custom artwork image on the page, the slot that carries its source credit —
+ * the bottom-right-most piece, so a sliced scene gets exactly one caption, not one per pocket.
+ */
+function artCreditSlots(slots: DemoSlot[]): DemoSlot[] {
+  const rank = (s: DemoSlot) => (s.row + s.rowSpan) * 100 + (s.col + s.colSpan);
+  const byUrl = new Map<string, DemoSlot>();
+  for (const s of slots) {
+    if (s.type !== 'artwork' || !s.imageUrl || s.cardId) continue;
+    const prev = byUrl.get(s.imageUrl);
+    if (!prev || rank(s) > rank(prev)) byUrl.set(s.imageUrl, s);
+  }
+  return [...byUrl.values()];
+}
+
+/** The attribution strip beneath a custom artwork panel — mirrors SlotCaption's styling. */
+function ArtCaption({
+  url,
+  left,
+  top,
+  width,
+  height,
+  small,
+}: {
+  url: string;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  small: boolean;
+}) {
+  return (
+    <View pointerEvents="none" style={[styles.caption, { left, top, width, height }]}>
+      <View style={styles.captionPill}>
+        <Text numberOfLines={2} style={[styles.captionText, small && styles.captionTextSmall]}>
+          {`art · ${artAttribution(url)}`}
         </Text>
       </View>
     </View>

@@ -62,6 +62,7 @@ function slotRow(slot: DemoSlot, pageId: string): Tables['binder_slots']['Insert
     image_url: slot.imageUrl ?? null,
     image_crop: slot.imageCrop ?? null,
     image_fit: slot.imageFit ?? null,
+    image_transform: slot.imageTransform ?? null,
   };
 }
 
@@ -79,6 +80,7 @@ interface SlotRowIn {
   image_url: string | null;
   image_crop: { x: number; y: number; w: number; h: number } | null;
   image_fit: string | null;
+  image_transform: DemoSlot['imageTransform'] | null;
 }
 
 interface PageRowIn {
@@ -116,6 +118,7 @@ function mapSlot(row: SlotRowIn): DemoSlot {
     imageUrl: row.image_url ?? undefined,
     imageCrop: row.image_crop ?? undefined,
     imageFit: (row.image_fit as DemoSlot['imageFit']) ?? undefined,
+    imageTransform: row.image_transform ?? undefined,
   };
 }
 

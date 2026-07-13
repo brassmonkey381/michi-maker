@@ -108,6 +108,7 @@ export type Database = {
           id: string
           image_crop: Json | null
           image_fit: string | null
+          image_transform: Json | null
           image_url: string | null
           insert_image_url: string | null
           notes: string | null
@@ -126,6 +127,7 @@ export type Database = {
           id?: string
           image_crop?: Json | null
           image_fit?: string | null
+          image_transform?: Json | null
           image_url?: string | null
           insert_image_url?: string | null
           notes?: string | null
@@ -144,6 +146,7 @@ export type Database = {
           id?: string
           image_crop?: Json | null
           image_fit?: string | null
+          image_transform?: Json | null
           image_url?: string | null
           insert_image_url?: string | null
           notes?: string | null

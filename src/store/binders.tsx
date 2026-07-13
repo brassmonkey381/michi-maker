@@ -38,6 +38,7 @@ import {
   type DemoBinder,
   type DemoPage,
   type DemoSlot,
+  type ImageTransform,
   type MichiLayoutStyle,
 } from '@/data/binderTypes';
 import { SAMPLE_BINDERS } from '@/data/sampleData';
@@ -68,6 +69,8 @@ export interface ArtPanelInput {
   crop: { x: number; y: number; w: number; h: number };
   /** 'cover' (fill, crop overflow) or 'contain' (whole image, original aspect). Default 'cover'. */
   fit?: 'cover' | 'contain';
+  /** Rotation / mirror applied before the crop window. Absent ⇒ as-is. */
+  transform?: ImageTransform;
 }
 
 interface BinderStore {
@@ -886,6 +889,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
           imageUrl: panel.imageUrl,
           imageCrop: panel.crop,
           imageFit: panel.fit ?? 'cover',
+          imageTransform: panel.transform,
         });
       }
       if (newSlots.length === 0) return;

@@ -20,6 +20,18 @@ export type { BinderSlotType, CardOrientation, MichiLayoutStyle };
  */
 export type CardKind = 'standard' | 'jumbo' | 'vunion';
 
+/**
+ * A lossless orientation transform applied to a custom artwork image at render time —
+ * quarter-turn rotation plus mirror flips. The source image is never re-encoded; slices
+ * are just (url, crop, transform) triples, so the original stays intact.
+ */
+export type ImageTransform = {
+  /** Clockwise quarter turns. */
+  rot: 0 | 90 | 180 | 270;
+  flipH?: boolean;
+  flipV?: boolean;
+};
+
 export interface DemoCard {
   id: string;
   name: string;
@@ -61,6 +73,8 @@ export interface DemoSlot {
    * overflow; 'contain' shows the whole image at its original aspect, letterboxed — nothing cropped.
    */
   imageFit?: 'cover' | 'contain';
+  /** Rotation / mirror applied to `imageUrl` before the crop window. Absent ⇒ as-is. */
+  imageTransform?: ImageTransform;
 }
 
 export interface DemoPage {

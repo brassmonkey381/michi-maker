@@ -1,7 +1,8 @@
 import { Image } from 'expo-image';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Image as RNImage,
   Linking,
   Modal,
   Platform,
@@ -12,7 +13,6 @@ import {
   TextInput,
   useWindowDimensions,
   View,
-  type DimensionValue,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
@@ -25,7 +25,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
 import { pillChip, controlButton } from '@/constants/ui';
 import { domainOf, type ArtAspect } from '@/data/artworkLibrary';
-import { uid } from '@/data/binderTypes';
+import { uid, type ImageTransform } from '@/data/binderTypes';
 import { addSavedArt } from '@/data/savedArt';
 import { useCatalog } from '@/hooks/use-catalog';
 import { cardThumbUrl } from '@/lib/catalogConfig';
@@ -33,7 +33,10 @@ import type { ArtPanelInput } from '@/store/binders';
 
 const CARD_ASPECT = 88 / 63;
 const GAP = 6;
+const MAX_GRID = 6;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+type Rot = ImageTransform['rot'];
 
 /** Rough illustration window of a standard (non-full-art) Pokémon card, as fractions of the full
  *  card image — the starting crop for "Just the art". Pan/zoom to fine-tune per card. */
@@ -43,11 +46,55 @@ const ART_WINDOW: Win = { x: 0.06, y: 0.11, w: 0.88, h: 0.42 };
 const OVER = 0.85;
 const clampAxis = (v: number, size: number) => clamp(v, -OVER * size, 1 - size + OVER * size);
 
-/** External galleries to drag art from (web) — a curated official set, Pinterest's broad feed, and
- *  the official Pokémon Center card-sleeve art. */
-const ART_OF_PKM_URL = 'https://www.artofpkm.com/artwork/all';
-const PINTEREST_URL = 'https://www.pinterest.com/ideas/pokemon-pictures/931192954917/';
-const POKEMON_CENTER_SLEEVES_URL = 'https://www.pokemoncenter.com/category/card-sleeves';
+/**
+ * External galleries to pull art from — one modal instead of a button per site. `dragFriendly`
+ * marks hosts whose images reliably load when dragged/pasted straight into the studio; the rest
+ * often block hotlinking (403 → blank pocket), so the modal steers those users to save + Upload.
+ */
+const ART_SOURCES: { title: string; blurb: string; url: string; dragFriendly: boolean }[] = [
+  {
+    title: 'Art of Pokémon',
+    url: 'https://www.artofpkm.com/artwork/all',
+    blurb: 'Curated official artwork, browsable by artist and era.',
+    dragFriendly: true,
+  },
+  {
+    title: 'Bulbagarden Archives',
+    url: 'https://archives.bulbagarden.net/wiki/Main_Page',
+    blurb: 'The Bulbapedia media library — official art, set logos, and scans for every Pokémon.',
+    dragFriendly: true,
+  },
+  {
+    title: 'Wikimedia Commons · ukiyo-e',
+    url: 'https://commons.wikimedia.org/wiki/Category:Ukiyo-e',
+    blurb: 'Public-domain Japanese woodblock prints — great backdrops for themed spreads.',
+    dragFriendly: true,
+  },
+  {
+    title: 'Pokémon Center card sleeves',
+    url: 'https://www.pokemoncenter.com/category/card-sleeves',
+    blurb: 'Official sleeve art — ready-made card-shaped designs.',
+    dragFriendly: true,
+  },
+  {
+    title: 'Pinterest',
+    url: 'https://www.pinterest.com/ideas/pokemon-pictures/931192954917/',
+    blurb: 'Broad fan-curated feed. Open a pin full-size before dragging it over.',
+    dragFriendly: false,
+  },
+  {
+    title: 'Zerochan',
+    url: 'https://www.zerochan.net/Pok%C3%A9mon',
+    blurb: 'High-res anime fan art. The site may block direct loading — save, then ⬆ Upload.',
+    dragFriendly: false,
+  },
+  {
+    title: 'DeviantArt',
+    url: 'https://www.deviantart.com/search?q=pokemon',
+    blurb: 'Fan art in every style. May block direct loading — save, then ⬆ Upload.',
+    dragFriendly: false,
+  },
+];
 
 // Whether Shift/Ctrl is held (web), for multi-select. A plain module flag (not a React ref)
 // so the gesture/tap callbacks can read it without tripping the no-refs-in-render rule.
@@ -79,13 +126,15 @@ const GRID_SIZES = [
 const GUIDE: { keys: string; action: string }[] = [
   { keys: 'Drag canvas', action: 'Pan / reframe the image' },
   { keys: '+ / −  (or scroll)', action: 'Zoom in / out' },
+  { keys: 'R  ·  ⟲ ⟳', action: 'Rotate 90°' },
+  { keys: 'Flip ↔ / ↕', action: 'Mirror the image' },
   { keys: 'Click a piece', action: 'Select it' },
   { keys: 'Shift / Ctrl-click', action: 'Add to selection (web)' },
   { keys: 'M  ·  Merge', action: 'Join selected into one panel' },
   { keys: 'B  ·  Split', action: 'Break a panel into pieces' },
   { keys: 'Esc', action: 'Clear selection' },
-  { keys: 'Grid', action: 'Choose 2×2 … 4×4' },
-  { keys: 'Whole / Sliced', action: 'Preview mode' },
+  { keys: 'Grid', action: 'Presets, or step rows/cols to 6×6' },
+  { keys: 'Whole / Sliced', action: 'Preview = exactly what Place places' },
   { keys: 'Save', action: 'Add image to your library (this session)' },
   { keys: 'Place', action: 'Drop the panels into the binder' },
 ];
@@ -107,14 +156,69 @@ function panelCrop(p: Panel, rows: number, cols: number, win: Win): Win {
   };
 }
 
-function cropStyle(crop: Win) {
-  return {
+/**
+ * The source image drawn inside one clip box (a slice piece, or the whole canvas): sized so the
+ * FULL image spans `1/crop.w × 1/crop.h` of the box and offset so the box shows just its window,
+ * with the rotation/flip transform applied around the centre. All in px (the caller knows its
+ * box), because percentage boxes can't express a quarter-turn's width/height swap.
+ *
+ * When `exact` (natural size known ⇒ the window was built aspect-true) the image fills its box
+ * with 'fill' — no hidden cropping, letterbox regions simply fall outside the image box. Without
+ * it we fall back to the legacy cover/contain behaviour.
+ */
+function SourceImage({
+  uri,
+  boxW,
+  boxH,
+  crop,
+  rot,
+  flipH,
+  flipV,
+  exact,
+  fallbackFit,
+  onError,
+}: {
+  uri: string;
+  boxW: number;
+  boxH: number;
+  crop: Win;
+  rot: Rot;
+  flipH: boolean;
+  flipV: boolean;
+  exact: boolean;
+  fallbackFit: 'cover' | 'contain';
+  onError: () => void;
+}) {
+  const cw = Math.max(0.02, crop.w);
+  const ch = Math.max(0.02, crop.h);
+  const W = boxW / cw;
+  const H = boxH / ch;
+  const left = -(crop.x / cw) * boxW;
+  const top = -(crop.y / ch) * boxH;
+  // A quarter turn swaps the element's width/height; lay it out pre-rotation and let the
+  // centre-anchored rotate land it exactly on the intended (left, top, W, H) box.
+  const quarter = rot === 90 || rot === 270;
+  const style = {
     position: 'absolute' as const,
-    width: `${100 / crop.w}%` as DimensionValue,
-    height: `${100 / crop.h}%` as DimensionValue,
-    left: `${(-crop.x / crop.w) * 100}%` as DimensionValue,
-    top: `${(-crop.y / crop.h) * 100}%` as DimensionValue,
+    width: quarter ? H : W,
+    height: quarter ? W : H,
+    left: quarter ? left + (W - H) / 2 : left,
+    top: quarter ? top + (H - W) / 2 : top,
+    transform: [
+      { rotate: `${rot}deg` },
+      { scaleX: flipH ? -1 : 1 },
+      { scaleY: flipV ? -1 : 1 },
+    ],
   };
+  return (
+    <Image
+      source={{ uri }}
+      style={style}
+      contentFit={exact ? 'fill' : fallbackFit}
+      draggable={false}
+      onError={onError}
+    />
+  );
 }
 
 interface SliceStudioProps {
@@ -126,7 +230,7 @@ interface SliceStudioProps {
 }
 
 export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl, onPlace, onClose }: SliceStudioProps) {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const wide = width > 760;
 
   const [rows, setRows] = useState(initRows);
@@ -142,6 +246,15 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
   const [sliced, setSliced] = useState(true);
   const [failed, setFailed] = useState(false);
   const [savedNote, setSavedNote] = useState(false);
+  // The source image's natural pixel size (via Image.getSize) — the key to true-aspect windows
+  // (no accidental stretching) and to rotation. Null until it resolves; everything falls back.
+  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
+  // Lossless orientation: quarter-turn rotation + mirror flips, applied at render time only —
+  // the original image is never modified.
+  const [rot, setRot] = useState<Rot>(0);
+  const [flipH, setFlipH] = useState(false);
+  const [flipV, setFlipV] = useState(false);
+  const [sourcesOpen, setSourcesOpen] = useState(false);
   // Pick official card art from the catalog as the source image (then crop/zoom to the art).
   const [cardPickOpen, setCardPickOpen] = useState(false);
   const { catalog } = useCatalog(cardPickOpen);
@@ -150,12 +263,35 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
     setImageUrl(url);
     setFailed(false);
     setUrlInput('');
+    setRot(0);
+    setFlipH(false);
+    setFlipV(false);
   }, []);
 
   const openGallery = useCallback((url: string) => {
     if (Platform.OS === 'web' && typeof window !== 'undefined') window.open(url, '_blank', 'noopener');
     else void Linking.openURL(url);
   }, []);
+
+  // Resolve the image's natural size — re-runs per source. getSize failing (odd host / blob
+  // quirk) just leaves `natural` null and the studio behaves like before this feature.
+  /* eslint-disable react-hooks/set-state-in-effect -- reset + async resolve per source image */
+  useEffect(() => {
+    setNatural(null);
+    if (!imageUrl) return;
+    let stale = false;
+    RNImage.getSize(
+      imageUrl,
+      (w, h) => {
+        if (!stale && w > 0 && h > 0) setNatural({ w, h });
+      },
+      () => {},
+    );
+    return () => {
+      stale = true;
+    };
+  }, [imageUrl]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Web: drop an image (or its URL) dragged from anywhere — e.g. an Art of Pokémon tab — onto the
   // studio to load it. The studio is a full-screen modal, so a drop while it's open is for us.
@@ -196,15 +332,56 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
     };
   }, [loadImage]);
 
-  // Canvas size: fit a page-shaped grid into the available area.
+  // Workspace: fill what the viewport allows — capped by BOTH width and height so the whole
+  // page-shaped grid stays on screen below the toolbars (vs the old fixed 460px cap).
   const guideW = wide ? 248 : 0;
-  const canvasW = Math.min(width - guideW - 48, 460);
-  const cellW = (canvasW - GAP * (cols - 1)) / cols;
+  const availW = Math.max(240, Math.min(width - guideW - 48, 900));
+  const availH = Math.max(300, height - 360);
+  const cellW = Math.min(
+    (availW - GAP * (cols - 1)) / cols,
+    (availH - GAP * (rows - 1)) / rows / CARD_ASPECT,
+  );
   const cellH = cellW * CARD_ASPECT;
+  const canvasW = cellW * cols + GAP * (cols - 1);
   const canvasH = cellH * rows + GAP * (rows - 1);
+
+  // --- true-aspect crop windows -------------------------------------------------------------
+  // The window lives in fractions of the (rotated) image. `ratio` is the h-per-w a window needs
+  // for its content to render true-to-aspect on this canvas; 0 while the natural size is unknown.
+  const natT = useMemo(
+    () => (natural ? (rot === 90 || rot === 270 ? { w: natural.h, h: natural.w } : natural) : null),
+    [natural, rot],
+  );
+  const ratio = natT && canvasW > 0 && canvasH > 0 ? (canvasH / canvasW) * (natT.w / natT.h) : 0;
+  /** Largest true-aspect window fully inside the image — "Scale to fit"'s starting frame. */
+  const coverWin = useMemo<Win>(() => {
+    if (!ratio) return { x: 0, y: 0, w: 1, h: 1 };
+    const w = Math.min(1, 1 / ratio);
+    const h = w * ratio;
+    return { x: (1 - w) / 2, y: (1 - h) / 2, w, h };
+  }, [ratio]);
+  /** Smallest true-aspect window CONTAINING the whole image — "Original aspect" (letterboxed). */
+  const containWin = useMemo<Win>(() => {
+    if (!ratio) return { x: 0, y: 0, w: 1, h: 1 };
+    const w = Math.max(1, 1 / ratio);
+    const h = w * ratio;
+    return { x: (1 - w) / 2, y: (1 - h) / 2, w, h };
+  }, [ratio]);
+
+  // Re-frame when the source, rotation, fit mode, or canvas aspect changes. 'contain' pins the
+  // window to the whole image; 'cover' starts from the best-fill frame (then pan/zoom freely).
+  const skipSnap = useRef(false);
+  useEffect(() => {
+    if (skipSnap.current) {
+      skipSnap.current = false;
+      return;
+    }
+    setWin(fit === 'contain' ? containWin : coverWin);
+  }, [fit, containWin, coverWin]);
 
   const panBy = useCallback(
     (dx: number, dy: number) => {
+      if (fit === 'contain') return; // whole image, locked frame
       if (!canvasW || !canvasH) return;
       setWin((prev) => ({
         ...prev,
@@ -212,21 +389,42 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
         y: clampAxis(prev.y - (dy / canvasH) * prev.h, prev.h),
       }));
     },
-    [canvasW, canvasH],
+    [fit, canvasW, canvasH],
   );
 
-  const zoomBy = useCallback((factor: number) => {
-    setWin((prev) => {
-      const w = clamp(prev.w * factor, 0.18, 1);
-      const h = clamp(prev.h * factor, 0.18, 1);
-      return {
-        w,
-        h,
-        x: clampAxis(prev.x + (prev.w - w) / 2, w),
-        y: clampAxis(prev.y + (prev.h - h) / 2, h),
-      };
-    });
-  }, []);
+  const zoomBy = useCallback(
+    (factor: number) => {
+      if (fit === 'contain') return;
+      setWin((prev) => {
+        // Uniform scale so the window keeps its true aspect. Zoom-in floor ~1/8 of the image;
+        // zoom-out ceiling a bit past "whole image" so you can frame with a margin.
+        const maxW = ratio ? containWin.w * 1.35 : 1;
+        const maxH = ratio ? containWin.h * 1.35 : 1;
+        const s = clamp(
+          factor,
+          0.12 / Math.max(prev.w, prev.h),
+          Math.min(maxW / prev.w, maxH / prev.h),
+        );
+        const w = prev.w * s;
+        const h = prev.h * s;
+        return {
+          w,
+          h,
+          x: clampAxis(prev.x + (prev.w - w) / 2, w),
+          y: clampAxis(prev.y + (prev.h - h) / 2, h),
+        };
+      });
+    },
+    [fit, ratio, containWin],
+  );
+
+  const rotate = useCallback(
+    (dir: 1 | -1) => {
+      if (!natural) return; // the width/height swap needs the natural size to render correctly
+      setRot((r) => ((((r + dir * 90) % 360) + 360) % 360) as Rot);
+    },
+    [natural],
+  );
 
   const selectAt = useCallback(
     (x: number, y: number) => {
@@ -288,37 +486,42 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
   }, [selected]);
 
   const setGrid = useCallback((r: number, c: number) => {
-    setRows(r);
-    setCols(c);
-    setPanels(makeGrid(r, c));
+    const nr = clamp(r, 1, MAX_GRID);
+    const nc = clamp(c, 1, MAX_GRID);
+    setRows(nr);
+    setCols(nc);
+    setPanels(makeGrid(nr, nc));
     setSelected(new Set());
   }, []);
 
   const reset = useCallback(() => {
     setPanels(makeGrid(rows, cols));
     setSelected(new Set());
-    setWin({ x: 0, y: 0, w: 1, h: 1 });
-  }, [rows, cols]);
-
-  const setFitMode = useCallback((mode: 'cover' | 'contain') => {
-    setFit(mode);
-    if (mode === 'contain') setWin({ x: 0, y: 0, w: 1, h: 1 }); // whole image, no windowing
-  }, []);
+    setRot(0);
+    setFlipH(false);
+    setFlipV(false);
+    setWin(fit === 'contain' ? containWin : coverWin);
+  }, [rows, cols, fit, containWin, coverWin]);
 
   // Quick-crop to a card's illustration: fill mode + the standard art window, then pan/zoom to taste.
   const justTheArt = useCallback(() => {
+    if (fit !== 'cover') skipSnap.current = true; // the mode-change snap would clobber this frame
     setFit('cover');
     setSliced(true);
-    setWin(ART_WINDOW);
-  }, []);
+    if (ratio) {
+      // Keep the art window's width and centre; correct its height to true aspect.
+      const h = ART_WINDOW.w * ratio;
+      setWin({ x: ART_WINDOW.x, w: ART_WINDOW.w, h, y: ART_WINDOW.y + ART_WINDOW.h / 2 - h / 2 });
+    } else {
+      setWin(ART_WINDOW);
+    }
+  }, [fit, ratio]);
 
   const loadUrl = useCallback(() => {
     const u = urlInput.trim();
     if (!/^https?:\/\/\S+$/i.test(u)) return;
-    setImageUrl(u);
-    setFailed(false);
-    setUrlInput('');
-  }, [urlInput]);
+    loadImage(u);
+  }, [urlInput, loadImage]);
 
   const save = useCallback(() => {
     if (!imageUrl) return;
@@ -338,9 +541,28 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
 
   const place = useCallback(() => {
     if (!imageUrl) return;
-    if (fit === 'contain') {
-      // Original aspect: one panel spanning the whole grid footprint, whole image, no crop.
-      onPlace([{ r: 0, c: 0, rs: rows, cs: cols, imageUrl, crop: { x: 0, y: 0, w: 1, h: 1 }, fit: 'contain' }]);
+    const transform: ImageTransform | undefined =
+      rot !== 0 || flipH || flipV
+        ? { rot, ...(flipH ? { flipH: true } : {}), ...(flipV ? { flipV: true } : {}) }
+        : undefined;
+    // WYSIWYG: the Whole view places ONE panel spanning the grid footprint showing the current
+    // frame; the Sliced view places one slot per piece. 'Original aspect' letterboxing is baked
+    // into the window — unless the natural size never resolved, where the legacy runtime-contain
+    // single panel is still the correct fallback.
+    if (!sliced) {
+      const legacyContain = fit === 'contain' && !ratio;
+      onPlace([
+        {
+          r: 0,
+          c: 0,
+          rs: rows,
+          cs: cols,
+          imageUrl,
+          crop: legacyContain ? { x: 0, y: 0, w: 1, h: 1 } : win,
+          fit: legacyContain ? 'contain' : 'cover',
+          transform,
+        },
+      ]);
       return;
     }
     const out: ArtPanelInput[] = panels.map((p) => ({
@@ -351,9 +573,10 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
       imageUrl,
       crop: panelCrop(p, rows, cols, win),
       fit: 'cover',
+      transform,
     }));
     onPlace(out);
-  }, [imageUrl, fit, panels, rows, cols, win, onPlace]);
+  }, [imageUrl, rot, flipH, flipV, sliced, fit, ratio, panels, rows, cols, win, onPlace]);
 
   // Web: keyboard shortcuts + tracking Shift/Ctrl for multi-select.
   useEffect(() => {
@@ -363,9 +586,13 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
     };
     const down = (e: KeyboardEvent) => {
       sync(e);
+      // Don't hijack typing in the URL field (an "m" there must not merge panels).
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
       const k = e.key.toLowerCase();
       if (k === 'm') merge();
       else if (k === 'b') split();
+      else if (k === 'r') rotate(1);
       else if (e.key === 'Escape') setSelected(new Set());
       else if (e.key === '+' || e.key === '=') zoomBy(0.85);
       else if (e.key === '-' || e.key === '_') zoomBy(1 / 0.85);
@@ -376,7 +603,21 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
       window.removeEventListener('keydown', down);
       window.removeEventListener('keyup', sync);
     };
-  }, [merge, split, zoomBy]);
+  }, [merge, split, rotate, zoomBy]);
+
+  // Web: scroll wheel over the canvas zooms (the guide promised it; now it's true).
+  const canvasWrapRef = useRef<View | null>(null);
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !imageUrl) return;
+    const node = canvasWrapRef.current as unknown as HTMLElement | null;
+    if (!node || typeof node.addEventListener !== 'function') return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      zoomBy(e.deltaY > 0 ? 1 / 0.9 : 0.9);
+    };
+    node.addEventListener('wheel', onWheel, { passive: false });
+    return () => node.removeEventListener('wheel', onWheel);
+  }, [zoomBy, imageUrl]);
 
   const gesture = useMemo(() => {
     const pan = Gesture.Pan().onChange((e) => {
@@ -428,9 +669,7 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
           {/* Toolbar */}
           <View style={styles.toolbar}>
             <Btn label="🎴 Card art" onPress={() => setCardPickOpen(true)} kind="primary" />
-            <Btn label="Art of Pokémon ↗" onPress={() => openGallery(ART_OF_PKM_URL)} />
-            <Btn label="Pinterest ↗" onPress={() => openGallery(PINTEREST_URL)} />
-            <Btn label="Card sleeves ↗" onPress={() => openGallery(POKEMON_CENTER_SLEEVES_URL)} />
+            <Btn label="🖼 Art sources ↗" onPress={() => setSourcesOpen(true)} />
             <ArtUploadButton onUploaded={loadImage} />
             <TextInput
               value={urlInput}
@@ -445,8 +684,8 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
           </View>
           {Platform.OS === 'web' ? (
             <Text style={styles.dragHint}>
-              Tip: open “Art of Pokémon ↗” or “Pinterest ↗” in another tab and drag any image
-              straight onto this window to load it.
+              Tip: open any gallery from “Art sources ↗” in another tab and drag an image straight
+              onto this window to load it.
             </Text>
           ) : null}
           <View style={styles.toolbar}>
@@ -459,16 +698,24 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
                 onPress={() => setGrid(g.rows, g.cols)}
               />
             ))}
+            <Text style={styles.tLabel}>
+              {rows}×{cols}
+            </Text>
+            <Btn label="Rows −" onPress={() => setGrid(rows - 1, cols)} disabled={rows <= 1} />
+            <Btn label="Rows +" onPress={() => setGrid(rows + 1, cols)} disabled={rows >= MAX_GRID} />
+            <Btn label="Cols −" onPress={() => setGrid(rows, cols - 1)} disabled={cols <= 1} />
+            <Btn label="Cols +" onPress={() => setGrid(rows, cols + 1)} disabled={cols >= MAX_GRID} />
           </View>
           <View style={styles.toolbar}>
             <Text style={styles.tLabel}>Fit</Text>
-            <Chip label="Scale to fit" active={fit === 'cover'} onPress={() => setFitMode('cover')} />
-            <Chip label="Original aspect" active={fit === 'contain'} onPress={() => setFitMode('contain')} />
+            <Chip label="Scale to fit" active={fit === 'cover'} onPress={() => setFit('cover')} />
+            <Chip label="Original aspect" active={fit === 'contain'} onPress={() => setFit('contain')} />
             <Btn label="Just the art" onPress={justTheArt} disabled={!imageUrl} />
           </View>
           <Text style={styles.dragHint}>
-            Scale to fit fills the pocket edge-to-edge (crops the overflow — drag to reframe).
-            Original aspect keeps the whole image, nothing cropped.
+            Scale to fit frames a window of the image (pan / zoom / scroll to reframe). Original
+            aspect always shows the whole image, letterboxed. Both work Whole or Sliced — and your
+            original image is never modified, only windowed.
           </Text>
           <View style={styles.toolbar}>
             <Text style={styles.tLabel}>View</Text>
@@ -477,6 +724,12 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
             <Text style={styles.tLabel}>Zoom</Text>
             <Btn label="−" onPress={() => zoomBy(1 / 0.85)} disabled={fit === 'contain'} />
             <Btn label="+" onPress={() => zoomBy(0.85)} disabled={fit === 'contain'} />
+            <Text style={styles.tLabel}>Rotate</Text>
+            <Btn label="⟲" onPress={() => rotate(-1)} disabled={!natural} />
+            <Btn label="⟳" onPress={() => rotate(1)} disabled={!natural} />
+            {rot !== 0 ? <Text style={styles.tLabel}>{rot}°</Text> : null}
+            <Chip label="Flip ↔" active={flipH} onPress={() => setFlipH((v) => !v)} />
+            <Chip label="Flip ↕" active={flipV} onPress={() => setFlipV((v) => !v)} />
           </View>
           <View style={styles.toolbar}>
             <Btn label="Merge" onPress={merge} disabled={selected.size < 2} />
@@ -487,7 +740,7 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
 
           <View style={wide ? styles.bodyRow : styles.bodyCol}>
             {/* Canvas */}
-            <View style={styles.canvasWrap}>
+            <View ref={canvasWrapRef} style={styles.canvasWrap}>
               {!imageUrl ? (
                 <View style={[styles.canvas, { width: canvasW, height: canvasH }, styles.empty]}>
                   <Text style={styles.emptyText}>Pick card art, upload, or paste a URL to begin</Text>
@@ -499,40 +752,44 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
                       <View style={[styles.empty, StyleSheet.absoluteFill]}>
                         <Text style={styles.emptyText}>image didn’t load</Text>
                       </View>
-                    ) : fit === 'contain' ? (
-                      // Original aspect — the whole image, letterboxed into the pocket footprint.
-                      <View style={[StyleSheet.absoluteFill, styles.pieceClip]}>
-                        <Image
-                          source={{ uri: imageUrl }}
-                          style={StyleSheet.absoluteFill}
-                          contentFit="contain"
-                          onError={() => setFailed(true)}
-                        />
-                      </View>
-                    ) : !sliced ? (
-                      // Whole preview — one image showing the current window.
-                      <View style={[StyleSheet.absoluteFill, styles.pieceClip]}>
-                        <Image
-                          source={{ uri: imageUrl }}
-                          style={cropStyle(win)}
-                          contentFit="cover"
-                          onError={() => setFailed(true)}
-                        />
-                      </View>
-                    ) : (
+                    ) : sliced ? (
+                      // Sliced preview — one clip box per piece, regardless of fit mode.
                       panels.map((p) => {
                         const sel = selected.has(p.id);
+                        const b = box(p);
                         return (
-                          <View key={p.id} style={[box(p), styles.pieceClip, sel && styles.pieceSelected]}>
-                            <Image
-                              source={{ uri: imageUrl }}
-                              style={cropStyle(panelCrop(p, rows, cols, win))}
-                              contentFit="cover"
+                          <View key={p.id} style={[b, styles.pieceClip, sel && styles.pieceSelected]}>
+                            <SourceImage
+                              uri={imageUrl}
+                              boxW={b.width}
+                              boxH={b.height}
+                              crop={panelCrop(p, rows, cols, win)}
+                              rot={rot}
+                              flipH={flipH}
+                              flipV={flipV}
+                              exact={Boolean(ratio)}
+                              fallbackFit="cover"
                               onError={() => setFailed(true)}
                             />
                           </View>
                         );
                       })
+                    ) : (
+                      // Whole preview — one image showing the current window.
+                      <View style={[StyleSheet.absoluteFill, styles.pieceClip]}>
+                        <SourceImage
+                          uri={imageUrl}
+                          boxW={canvasW}
+                          boxH={canvasH}
+                          crop={win}
+                          rot={rot}
+                          flipH={flipH}
+                          flipV={flipV}
+                          exact={Boolean(ratio)}
+                          fallbackFit={fit === 'contain' ? 'contain' : 'cover'}
+                          onError={() => setFailed(true)}
+                        />
+                      </View>
                     )}
                   </View>
                 </GestureDetector>
@@ -540,7 +797,7 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
               <Text style={styles.hint}>
                 {selected.size > 0
                   ? `${selected.size} selected — Merge to join, Split to break`
-                  : 'Drag to pan · click a piece to select'}
+                  : 'Drag to pan · scroll to zoom · click a piece to select'}
               </Text>
             </View>
 
@@ -552,6 +809,44 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
           <View pointerEvents="none" style={styles.dropOverlay}>
             <Text style={styles.dropOverlayText}>Drop image to load</Text>
           </View>
+        ) : null}
+
+        {sourcesOpen ? (
+          <Modal visible transparent animationType="fade" onRequestClose={() => setSourcesOpen(false)}>
+            <View style={styles.sourcesBackdrop}>
+              <Pressable style={StyleSheet.absoluteFill} onPress={() => setSourcesOpen(false)} />
+              <ThemedView type="backgroundElement" style={styles.sourcesCard}>
+                <View style={styles.cardPickHeader}>
+                  <ThemedText type="subtitle">Art sources</ThemedText>
+                  <Pressable onPress={() => setSourcesOpen(false)} hitSlop={10}>
+                    <Text style={[styles.headerAction, styles.primary]}>Close</Text>
+                  </Pressable>
+                </View>
+                <ScrollView contentContainerStyle={styles.sourcesList}>
+                  {ART_SOURCES.map((s) => (
+                    <Pressable key={s.title} style={styles.sourceRow} onPress={() => openGallery(s.url)}>
+                      <View style={styles.sourceRowHead}>
+                        <Text style={styles.sourceTitle}>{s.title} ↗</Text>
+                        <Text
+                          style={[
+                            styles.sourceTag,
+                            s.dragFriendly ? styles.sourceTagGood : styles.sourceTagWarn,
+                          ]}>
+                          {s.dragFriendly ? 'drag-drop OK' : 'may block hotlinks'}
+                        </Text>
+                      </View>
+                      <Text style={styles.sourceBlurb}>{s.blurb}</Text>
+                    </Pressable>
+                  ))}
+                  <Text style={styles.guideNote}>
+                    Open a source in its own tab, then drag any image straight onto the studio to
+                    load it. If a host blocks direct loading, save the image and ⬆ Upload it
+                    instead — uploads are stored with your binder, so they never break.
+                  </Text>
+                </ScrollView>
+              </ThemedView>
+            </View>
+          </Modal>
         ) : null}
 
         {cardPickOpen ? (
@@ -675,6 +970,36 @@ const styles = StyleSheet.create({
   },
   cardPickHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   cardPickLoading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  sourcesBackdrop: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Palette.scrim40,
+    padding: 24,
+  },
+  sourcesCard: {
+    width: '100%',
+    maxWidth: 520,
+    maxHeight: '80%',
+    borderRadius: Radius.sheet,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  sourcesList: { gap: 10, paddingBottom: 12 },
+  sourceRow: {
+    borderWidth: 1,
+    borderColor: Palette.controlBorder,
+    borderRadius: Radius.control,
+    padding: 12,
+    gap: 4,
+  },
+  sourceRowHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  sourceTitle: { fontSize: FontSize.md, fontWeight: Weight.semibold, color: Palette.accent },
+  sourceTag: { fontSize: FontSize.xs, fontWeight: Weight.semibold },
+  sourceTagGood: { color: Palette.accent },
+  sourceTagWarn: { color: Palette.muted2 },
+  sourceBlurb: { fontSize: FontSize.sm, color: Palette.ink4, lineHeight: 17 },
   dragHint: { fontSize: FontSize.sm, color: Palette.muted3, lineHeight: 16 },
   dropOverlay: {
     position: 'absolute',

@@ -125,22 +125,23 @@ export function availableMethods(seed: CatalogCard, catalog: Catalog): ComposeMe
 
 /**
  * Per-energy-type styling: soft tonal insert colours (light → deeper, echoing the card frame
- * palette) for the Color-Themed method, and a scenery search query for the Full-Page Spread.
+ * palette) for the Color-Themed method, and a theme word for the Full-Page Spread's art search
+ * (expanded to iconic species by artSearch's THEME_SPECIES — official art, not stock photos).
  * The card FRAME is coloured by its energy type, so type is a faithful colour-palette proxy
  * until per-card dominant-colour enrichment lands upstream.
  */
 const TYPE_STYLES: Record<string, { tones: string[]; scenery: string }> = {
-  Grass: { tones: ['#E3EEDA', '#C4DCB0', '#9CC584'], scenery: 'lush green forest leaves' },
-  Fire: { tones: ['#FAE0D2', '#F4BCA0', '#EC9273'], scenery: 'glowing embers flames' },
-  Water: { tones: ['#DCEAF7', '#B4D3EE', '#86B8E2'], scenery: 'ocean waves blue water' },
-  Lightning: { tones: ['#FBF2CC', '#F6E4A0', '#EFD16F'], scenery: 'lightning storm night sky' },
-  Psychic: { tones: ['#EBDFF3', '#D4BCE7', '#B994D8'], scenery: 'purple nebula galaxy' },
-  Fighting: { tones: ['#F1E3D3', '#E0C5A5', '#CBA377'], scenery: 'desert canyon red rock' },
-  Darkness: { tones: ['#DCDFE4', '#AEB4BF', '#767E8C'], scenery: 'dark night sky stars' },
-  Metal: { tones: ['#EBEDEF', '#D2D7DC', '#B3BAC3'], scenery: 'brushed steel silver texture' },
-  Fairy: { tones: ['#FAE2EA', '#F4C0D3', '#EC9CBB'], scenery: 'pink cherry blossom' },
-  Dragon: { tones: ['#F0E6CC', '#E0D0A0', '#CBB373'], scenery: 'golden clouds sunset sky' },
-  Colorless: { tones: ['#F3F2EF', '#E3E1DB', '#CFCCC4'], scenery: 'soft white clouds sky' },
+  Grass: { tones: ['#E3EEDA', '#C4DCB0', '#9CC584'], scenery: 'forest' },
+  Fire: { tones: ['#FAE0D2', '#F4BCA0', '#EC9273'], scenery: 'fire' },
+  Water: { tones: ['#DCEAF7', '#B4D3EE', '#86B8E2'], scenery: 'ocean' },
+  Lightning: { tones: ['#FBF2CC', '#F6E4A0', '#EFD16F'], scenery: 'lightning' },
+  Psychic: { tones: ['#EBDFF3', '#D4BCE7', '#B994D8'], scenery: 'psychic' },
+  Fighting: { tones: ['#F1E3D3', '#E0C5A5', '#CBA377'], scenery: 'fighting' },
+  Darkness: { tones: ['#DCDFE4', '#AEB4BF', '#767E8C'], scenery: 'night' },
+  Metal: { tones: ['#EBEDEF', '#D2D7DC', '#B3BAC3'], scenery: 'metal' },
+  Fairy: { tones: ['#FAE2EA', '#F4C0D3', '#EC9CBB'], scenery: 'fairy' },
+  Dragon: { tones: ['#F0E6CC', '#E0D0A0', '#CBB373'], scenery: 'dragon' },
+  Colorless: { tones: ['#F3F2EF', '#E3E1DB', '#CFCCC4'], scenery: 'sky' },
 };
 
 // Decorations that appear alongside a species in card names ("Pikachu ex", "Radiant Greninja",
@@ -337,13 +338,18 @@ export async function composePage(
   }
 
   if (method === 'fullPageSpread') {
-    // One theme-matched artwork flows across EVERY empty pocket (each gets its window of the
-    // whole image — the sliceRegion crop math), so the cards already placed (the seed and any
-    // neighbours) read as accents sitting inside the scene.
-    const style = TYPE_STYLES[seed.types[0] ?? ''];
-    const query = style?.scenery ?? `${speciesOf(seed) || 'watercolor'} nature scenery`;
-    const art = await searchArt(query, pageAspect(page));
-    const image = art.find((a) => a.licenseClear) ?? art[0];
+    // One artwork flows across EVERY empty pocket (each gets its window of the whole image —
+    // the sliceRegion crop math), so the cards already placed (the seed and any neighbours)
+    // read as accents sitting inside the scene. Art comes from the bundled Art of Pokémon
+    // library: the seed's own species first, its energy-type theme as the fallback.
+    const aspect = pageAspect(page);
+    const species = speciesOf(seed);
+    let art = species ? await searchArt(species, aspect) : [];
+    if (art.length === 0) {
+      const style = TYPE_STYLES[seed.types[0] ?? ''];
+      art = await searchArt(style?.scenery ?? 'sky', aspect);
+    }
+    const image = art[0];
     if (!image) return [];
     return cells.map((cell) => ({
       ...cell,

@@ -104,13 +104,21 @@ interface BinderStore {
   /** Batch-add many cards, each to the next free 1×1 pocket (appending pages as needed), in ONE
    *  commit + persist pass — avoids the stale-closure re-placement that a per-card loop hits. */
   addCardsToBinder: (binderId: string, cardIds: string[]) => { added: number };
-  /** Batch-place 1×1 cards at explicit page cells (the page composer's output) in ONE commit —
-   *  a single history entry so the whole auto-fill undoes at once. Cells already occupied are
-   *  skipped. Returns how many were placed. */
+  /** Batch-place 1×1 pockets at explicit page cells (the page composer's output) in ONE commit —
+   *  a single history entry so the whole auto-fill undoes at once. Each placement is a card, a
+   *  tonal insert, or an artwork slice (exactly one of cardId / insertColor / imageUrl). Cells
+   *  already occupied are skipped. Returns how many were placed. */
   placeCards: (
     binderId: string,
     pageId: string,
-    placements: { row: number; col: number; cardId: string }[],
+    placements: {
+      row: number;
+      col: number;
+      cardId?: string;
+      insertColor?: string;
+      imageUrl?: string;
+      imageCrop?: { x: number; y: number; w: number; h: number };
+    }[],
   ) => { placed: number };
   placeVUnion: (binderId: string, pageId: string, row: number, col: number, pieces: readonly string[]) => void;
   placeSlicedArtwork: (
@@ -686,7 +694,14 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     (
       binderId: string,
       pageId: string,
-      placements: { row: number; col: number; cardId: string }[],
+      placements: {
+        row: number;
+        col: number;
+        cardId?: string;
+        insertColor?: string;
+        imageUrl?: string;
+        imageCrop?: { x: number; y: number; w: number; h: number };
+      }[],
     ) => {
       const target = binders.find((b) => b.id === binderId);
       const page = target?.pages.find((p) => p.id === pageId);
@@ -698,6 +713,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       const newSlots: DemoSlot[] = [];
       for (const p of placements) {
         if (p.row < 0 || p.col < 0 || p.row >= page.rows || p.col >= page.cols) continue;
+        if (!p.cardId && !p.insertColor && !p.imageUrl) continue;
         const key = `${p.row},${p.col}`;
         if (occupied.has(key)) continue;
         occupied.add(key);
@@ -707,8 +723,11 @@ export function BinderProvider({ children }: { children: ReactNode }) {
           col: p.col,
           rowSpan: 1,
           colSpan: 1,
-          type: 'card',
+          type: p.cardId ? 'card' : p.imageUrl ? 'artwork' : 'insert',
           cardId: p.cardId,
+          insertColor: p.insertColor,
+          imageUrl: p.imageUrl,
+          imageCrop: p.imageCrop,
         });
       }
       if (newSlots.length === 0) return { placed: 0 };

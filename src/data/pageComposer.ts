@@ -2,22 +2,28 @@
  * Page composer — auto-curates a binder page around a SEED card, michi-method style.
  *
  * Each method takes the seed + the loaded catalog + the current page and returns placements
- * for the page's EMPTY pockets (existing cards, the seed included, are never touched):
+ * for the page's EMPTY pockets (existing cards, the seed included, are never touched). The
+ * seven documented michi methods (woahpoke.com/michi-method) all have a composer:
  *
- *  - sameArtist    → the seed illustrator's other work, spread across eras (Card Artist method)
- *  - samePokemon   → the seed's species across sets/art styles (Single Pokémon method)
- *  - evolutionLine → the seed's evolution family, arranged to read Basic → final stage
- *                    (Themed/Story method)
- *  - moreLikeThis  → visually similar cards via the embedding RPC, framing the seed
- *                    (Anchor method)
+ *  - moreLikeThis   → visually similar cards via the embedding RPC, framing the seed (Anchor)
+ *  - samePokemon    → the seed's species across sets/art styles (Single Pokémon)
+ *  - evolutionLine  → the seed's evolution family, reading Basic → final stage (Themed/Story)
+ *  - sameArtist     → the seed illustrator's other work, spread across eras (Card Artist)
+ *  - trainerPage    → a trainer's partner/team/supporter world (Trainer)
+ *  - colorTheme     → the seed's energy colour across eras + tonal inserts (Color-Themed)
+ *  - fullPageSpread → one theme-matched artwork sliced across every empty pocket, the placed
+ *                     cards reading as accents inside it (Full-Page Spread)
+ *  (+ pokemonFriends — curated duos/TAG-TEAM lore, our extra beyond the canonical seven.)
  *
- * Selection is deterministic (except the RPC ranking): only standard 1×1 cards, no card already
- * on the page, no duplicate (name, set) print twice, and "variety ranking" — candidates are
- * round-robined across series so a page samples eras/styles instead of dumping one set's run.
+ * Selection is deterministic (except the RPC ranking / art search): only standard 1×1 cards,
+ * no card already on the page, no duplicate (name, set) print twice, and "variety ranking" —
+ * candidates are round-robined across series so a page samples eras/styles instead of dumping
+ * one set's run.
  */
 import { findSimilar, similarAvailable } from 'tcgscan-browse';
 
 import type { Catalog, CatalogCard } from '@/lib/catalog';
+import { isArtSearchConfigured, searchArt } from '@/data/artSearch';
 import { occupiedCells, type DemoPage } from '@/data/binderTypes';
 import { hasToken } from '@/data/nameMatch';
 import { loadPokemonPartners, partnersFor } from '@/data/pokemonPartners';
@@ -37,12 +43,22 @@ export type ComposeMethod =
   | 'evolutionLine'
   | 'moreLikeThis'
   | 'trainerPage'
-  | 'pokemonFriends';
+  | 'pokemonFriends'
+  | 'colorTheme'
+  | 'fullPageSpread';
 
+/**
+ * One filled pocket: a card, a tonal insert (Color-Themed), or an artwork slice
+ * (Full-Page Spread). Exactly one of cardId / insertColor / imageUrl is set.
+ */
 export interface ComposePlacement {
   row: number;
   col: number;
-  cardId: string;
+  cardId?: string;
+  insertColor?: string;
+  imageUrl?: string;
+  /** Sub-rectangle of `imageUrl` this pocket shows (fractions 0–1 of the whole image). */
+  imageCrop?: { x: number; y: number; w: number; h: number };
 }
 
 export const COMPOSE_METHODS: {
@@ -80,6 +96,16 @@ export const COMPOSE_METHODS: {
     label: 'Same artist',
     description: 'More cards illustrated by the same artist, sampled across eras.',
   },
+  {
+    key: 'colorTheme',
+    label: 'Color theme',
+    description: 'Cards sharing this one’s energy colour, with tonal inserts for cohesion.',
+  },
+  {
+    key: 'fullPageSpread',
+    label: 'Full-page spread',
+    description: 'One theme-matched artwork flows across every empty pocket — your cards become the accents.',
+  },
 ];
 
 /** Which methods make sense for this seed (e.g. no artist page when illustrator is unknown). */
@@ -92,8 +118,30 @@ export function availableMethods(seed: CatalogCard, catalog: Catalog): ComposeMe
   if (species && partnersFor(species, catalog).length > 0) out.push('pokemonFriends');
   if (trainerFor(seed.name)) out.push('trainerPage');
   if (seed.illustrator.trim()) out.push('sameArtist');
+  if (seed.types.length > 0 && TYPE_STYLES[seed.types[0]]) out.push('colorTheme');
+  if (isArtSearchConfigured) out.push('fullPageSpread');
   return out;
 }
+
+/**
+ * Per-energy-type styling: soft tonal insert colours (light → deeper, echoing the card frame
+ * palette) for the Color-Themed method, and a scenery search query for the Full-Page Spread.
+ * The card FRAME is coloured by its energy type, so type is a faithful colour-palette proxy
+ * until per-card dominant-colour enrichment lands upstream.
+ */
+const TYPE_STYLES: Record<string, { tones: string[]; scenery: string }> = {
+  Grass: { tones: ['#E3EEDA', '#C4DCB0', '#9CC584'], scenery: 'lush green forest leaves' },
+  Fire: { tones: ['#FAE0D2', '#F4BCA0', '#EC9273'], scenery: 'glowing embers flames' },
+  Water: { tones: ['#DCEAF7', '#B4D3EE', '#86B8E2'], scenery: 'ocean waves blue water' },
+  Lightning: { tones: ['#FBF2CC', '#F6E4A0', '#EFD16F'], scenery: 'lightning storm night sky' },
+  Psychic: { tones: ['#EBDFF3', '#D4BCE7', '#B994D8'], scenery: 'purple nebula galaxy' },
+  Fighting: { tones: ['#F1E3D3', '#E0C5A5', '#CBA377'], scenery: 'desert canyon red rock' },
+  Darkness: { tones: ['#DCDFE4', '#AEB4BF', '#767E8C'], scenery: 'dark night sky stars' },
+  Metal: { tones: ['#EBEDEF', '#D2D7DC', '#B3BAC3'], scenery: 'brushed steel silver texture' },
+  Fairy: { tones: ['#FAE2EA', '#F4C0D3', '#EC9CBB'], scenery: 'pink cherry blossom' },
+  Dragon: { tones: ['#F0E6CC', '#E0D0A0', '#CBB373'], scenery: 'golden clouds sunset sky' },
+  Colorless: { tones: ['#F3F2EF', '#E3E1DB', '#CFCCC4'], scenery: 'soft white clouds sky' },
+};
 
 // Decorations that appear alongside a species in card names ("Pikachu ex", "Radiant Greninja",
 // "Dark Alakazam"); stripped when falling back to name-based species extraction.
@@ -246,6 +294,13 @@ function place(cells: { row: number; col: number }[], cards: CatalogCard[]): Com
   return cells.slice(0, cards.length).map((cell, i) => ({ ...cell, cardId: cards[i].id }));
 }
 
+/** The page's overall shape (pockets are card-aspect, 63×88), for matching artwork. */
+function pageAspect(page: DemoPage): 'landscape' | 'portrait' | 'square' {
+  const w = page.cols * 63;
+  const h = page.rows * 88;
+  return w > h * 1.1 ? 'landscape' : h > w * 1.1 ? 'portrait' : 'square';
+}
+
 /**
  * Compose placements for the page's empty pockets. Async because `moreLikeThis` calls the
  * similarity RPC; the other methods scan the loaded catalog synchronously. Returns [] when the
@@ -267,6 +322,63 @@ export async function composePage(
       .map((h) => catalog.getCard(h.id))
       .filter((c): c is CatalogCard => !!c);
     return place(cells, filterAndDedupe(cards, page).slice(0, cells.length));
+  }
+
+  if (method === 'fullPageSpread') {
+    // One theme-matched artwork flows across EVERY empty pocket (each gets its window of the
+    // whole image — the sliceRegion crop math), so the cards already placed (the seed and any
+    // neighbours) read as accents sitting inside the scene.
+    const style = TYPE_STYLES[seed.types[0] ?? ''];
+    const query = style?.scenery ?? `${speciesOf(seed) || 'watercolor'} nature scenery`;
+    const art = await searchArt(query, pageAspect(page));
+    const image = art.find((a) => a.licenseClear) ?? art[0];
+    if (!image) return [];
+    return cells.map((cell) => ({
+      ...cell,
+      imageUrl: image.url,
+      imageCrop: {
+        x: cell.col / page.cols,
+        y: cell.row / page.rows,
+        w: 1 / page.cols,
+        h: 1 / page.rows,
+      },
+    }));
+  }
+
+  if (method === 'colorTheme') {
+    // The seed's energy colour across eras. A few pockets become tonal inserts — the michi
+    // negative-space look — and any card shortfall falls back to inserts too, so the page
+    // always reads finished.
+    const type = seed.types[0] ?? '';
+    const style = TYPE_STYLES[type];
+    if (!style) return [];
+    const cards = varietyRank(
+      filterAndDedupe(
+        catalog.listAll().filter((c) => c.types.includes(type)),
+        page,
+      ),
+    );
+    // Deliberate tonal inserts: ~1 per 4 pockets, scattered (never the first pocket, which
+    // usually neighbours the seed).
+    const insertCount = Math.min(3, Math.floor(cells.length / 4));
+    const insertAt = new Set<number>();
+    for (let k = 1; k <= insertCount; k += 1) {
+      insertAt.add(Math.round((k * cells.length) / (insertCount + 1)));
+    }
+    const placements: ComposePlacement[] = [];
+    let cardIdx = 0;
+    let tone = 0;
+    for (let i = 0; i < cells.length; i += 1) {
+      if (insertAt.has(i) || cardIdx >= cards.length) {
+        placements.push({ ...cells[i], insertColor: style.tones[tone % style.tones.length] });
+        tone += 1;
+      } else {
+        placements.push({ ...cells[i], cardId: cards[cardIdx].id });
+        cardIdx += 1;
+      }
+    }
+    // All inserts and no cards would be an empty-looking page — bail to "nothing found".
+    return cardIdx > 0 ? placements : [];
   }
 
   if (method === 'sameArtist') {

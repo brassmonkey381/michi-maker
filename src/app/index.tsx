@@ -12,6 +12,7 @@ import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDial
 import { ShareSheet } from '@/components/binder/ShareSheet';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { HomeBrowse } from '@/components/HomeBrowse';
+import { HomeCollection } from '@/components/HomeCollection';
 import { HomeRecent } from '@/components/HomeRecent';
 import { HomeSealed } from '@/components/HomeSealed';
 import { HomeSection } from '@/components/HomeSection';
@@ -204,6 +205,10 @@ export default function BindersScreen() {
               </>
             )}
           </HomeSection>
+
+          {/* My collection — the tcgscan-fed inventory; appears with the first scan/import
+              and updates live. Tapping a card runs Find-similar in the browser below. */}
+          <HomeCollection onFindSimilar={driveSimilar} />
 
           {store.featuredBinders.length > 0 ? (
             <HomeSection title="Featured binders">

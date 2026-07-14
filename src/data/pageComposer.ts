@@ -144,10 +144,11 @@ const TYPE_STYLES: Record<string, { tones: string[]; scenery: string }> = {
 };
 
 // Decorations that appear alongside a species in card names ("Pikachu ex", "Radiant Greninja",
-// "Dark Alakazam"); stripped when falling back to name-based species extraction.
+// "Mega Charizard Y", "Dark Alakazam"); stripped when falling back to name-based species
+// extraction. 'x'/'y' are the Mega form suffixes (no species is named a bare X or Y).
 const NAME_DECORATIONS = new Set([
   'ex', 'gx', 'v', 'vmax', 'vstar', 'v-union', 'break', 'prime', 'radiant', 'shining',
-  'dark', 'light', 'delta', 'star', 'lv.x',
+  'dark', 'light', 'delta', 'star', 'lv.x', 'mega', 'm', 'x', 'y',
 ]);
 
 /**
@@ -199,15 +200,21 @@ function idsOnPage(page: DemoPage): Set<string> {
 
 /**
  * Base candidate filter: standard footprint only (jumbo/V-UNION need multi-pocket handling the
- * composer doesn't attempt), a real image-worthy card, not already on the page, and each
- * (name, set) print at most once across the result.
+ * composer doesn't attempt), a real image-worthy card, not already on the page, each
+ * (name, set) print at most once across the result — and, when `pool` is given ("fill from my
+ * collection"), only cards the user owns.
  */
-function filterAndDedupe(candidates: CatalogCard[], page: DemoPage): CatalogCard[] {
+function filterAndDedupe(
+  candidates: CatalogCard[],
+  page: DemoPage,
+  pool?: ReadonlySet<string> | null,
+): CatalogCard[] {
   const onPage = idsOnPage(page);
   const seenPrint = new Set<string>();
   const out: CatalogCard[] = [];
   for (const c of candidates) {
     if (c.kind !== 'standard') continue;
+    if (pool && !pool.has(c.id)) continue;
     if (onPage.has(c.id)) continue;
     const print = `${c.name.toLowerCase()}|${c.setId}`;
     if (seenPrint.has(print)) continue;
@@ -311,17 +318,22 @@ export async function composePage(
   seed: CatalogCard,
   catalog: Catalog,
   page: DemoPage,
+  /** "Fill from my collection": when given, every card candidate must be one of these ids
+   *  (the user's `user_cards`). Artwork slices and tonal inserts aren't cards — unaffected. */
+  pool?: ReadonlySet<string> | null,
 ): Promise<ComposePlacement[]> {
   const cells = method === 'evolutionLine' ? emptyCellsColMajor(page) : emptyCellsRowMajor(page);
   if (cells.length === 0) return [];
 
   if (method === 'moreLikeThis') {
-    // Ask for extra hits: some resolve to jumbo/V-UNION or cards already placed and get filtered.
-    const hits = await findSimilar(seed.id, cells.length * 3 + 8);
+    // Ask for extra hits: some resolve to jumbo/V-UNION or cards already placed and get
+    // filtered. A pool run casts a much wider net — the owned subset of a global ranking is
+    // sparse, so rank deep and keep whichever owned cards surface.
+    const hits = await findSimilar(seed.id, pool ? 200 : cells.length * 3 + 8);
     const cards = hits
       .map((h) => catalog.getCard(h.id))
       .filter((c): c is CatalogCard => !!c);
-    return place(cells, filterAndDedupe(cards, page).slice(0, cells.length));
+    return place(cells, filterAndDedupe(cards, page, pool).slice(0, cells.length));
   }
 
   if (method === 'fullPageSpread') {
@@ -356,6 +368,7 @@ export async function composePage(
       filterAndDedupe(
         catalog.listAll().filter((c) => c.types.includes(type)),
         page,
+        pool,
       ),
     );
     // Deliberate tonal inserts: ~1 per 4 pockets, scattered (never the first pocket, which
@@ -385,14 +398,14 @@ export async function composePage(
     const artist = seed.illustrator.trim().toLowerCase();
     if (!artist) return [];
     const cards = catalog.listAll().filter((c) => c.illustrator.trim().toLowerCase() === artist);
-    return place(cells, varietyRank(filterAndDedupe(cards, page)).slice(0, cells.length));
+    return place(cells, varietyRank(filterAndDedupe(cards, page, pool)).slice(0, cells.length));
   }
 
   if (method === 'samePokemon') {
     const species = speciesOf(seed);
     if (!species) return [];
     const cards = catalog.listAll().filter((c) => c.name.toLowerCase().includes(species));
-    return place(cells, varietyRank(filterAndDedupe(cards, page)).slice(0, cells.length));
+    return place(cells, varietyRank(filterAndDedupe(cards, page, pool)).slice(0, cells.length));
   }
 
   if (method === 'pokemonFriends') {
@@ -406,6 +419,7 @@ export async function composePage(
     const deduped = filterAndDedupe(
       catalog.listAll().filter((c) => partners.some((p) => hasToken(c.name, p))),
       page,
+      pool,
     );
     const buckets = partners.map((p) => varietyRank(deduped.filter((c) => hasToken(c.name, p))));
     // A tag-team print matches two partners — drop repeats introduced by the per-partner split.
@@ -435,7 +449,7 @@ export async function composePage(
     const signature: CatalogCard[] = [];
     const trainerCards: CatalogCard[] = [];
     const team: CatalogCard[] = [];
-    for (const c of filterAndDedupe(catalog.listAll(), page)) {
+    for (const c of filterAndDedupe(catalog.listAll(), page, pool)) {
       // Owned prints like "Cynthia's Garchomp" count as signature/team — the Pokémon is the art.
       if (sigOf(c)) signature.push(c);
       else if (isTrainerCard(c)) trainerCards.push(c);
@@ -459,7 +473,7 @@ export async function composePage(
   const members = catalog
     .listAll()
     .filter((c) => family.some((s) => c.name.toLowerCase().includes(s)));
-  const deduped = filterAndDedupe(members, page);
+  const deduped = filterAndDedupe(members, page, pool);
   const stageOf = (c: CatalogCard) => {
     // Prefer the card's own stage index; fall back to its species' position in the family.
     if (c.evolutionStage > 0) return c.evolutionStage;

@@ -7,13 +7,15 @@
  * Forces the catalog load on open (like the CardPicker) — composition scans real metadata.
  */
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing } from '@/constants/theme';
+import { pillChip } from '@/constants/ui';
 import { occupiedCells, type DemoPage } from '@/data/binderTypes';
+import { fetchUserCards } from '@/data/collectionRepo';
 import {
   COMPOSE_METHODS,
   availableMethods,
@@ -24,6 +26,10 @@ import {
 } from '@/data/pageComposer';
 import { resolveCatalogCardWith } from '@/data/cardResolver';
 import { useCatalog } from '@/hooks/use-catalog';
+import { isSupabaseConfigured } from '@/lib/env';
+
+// Session-remembered preference: once a collector fills from their collection, keep doing so.
+let fromCollectionPref = false;
 
 export function AutoFillSheet({
   visible,
@@ -45,12 +51,30 @@ export function AutoFillSheet({
   // Trainer/partner tables come from the tcgscan-data server — load them alongside the catalog
   // so availableMethods sees them (load-once; instant after the first open).
   const [partnersReady, setPartnersReady] = useState(false);
+  // "Fill from my collection": the user's inventory ids (tcgscan-fed user_cards). The toggle
+  // only appears when the inventory has cards; the choice sticks for the session.
+  const [ownedIds, setOwnedIds] = useState<Set<string> | null>(null);
+  const [fromCollection, setFromCollection] = useState(fromCollectionPref);
+  const toggleFromCollection = () =>
+    setFromCollection((v) => {
+      fromCollectionPref = !v;
+      return !v;
+    });
   useEffect(() => {
     if (!visible) return;
     let active = true;
     loadPartnerData().then(() => {
       if (active) setPartnersReady(true);
     });
+    if (isSupabaseConfigured) {
+      fetchUserCards()
+        .then((rows) => {
+          if (active) setOwnedIds(new Set(rows.map((r) => r.cardId)));
+        })
+        .catch(() => {
+          if (active) setOwnedIds(new Set());
+        });
+    }
     return () => {
       active = false;
     };
@@ -61,14 +85,19 @@ export function AutoFillSheet({
   const methods = seed && catalog && ready ? availableMethods(seed, catalog) : [];
   const emptyCount = page.rows * page.cols - occupiedCells(page).size;
 
+  const poolActive = fromCollection && !!ownedIds && ownedIds.size > 0;
   const run = async (method: ComposeMethod) => {
     if (!seed || !catalog || busy) return;
     setBusy(method);
     setError(null);
     try {
-      const placements = await composePage(method, seed, catalog, page);
+      const placements = await composePage(method, seed, catalog, page, poolActive ? ownedIds : null);
       if (placements.length === 0) {
-        setError('Nothing suitable found for this method — try another.');
+        setError(
+          poolActive
+            ? 'None of your collection fits this method — try another, or fill from the whole catalog.'
+            : 'Nothing suitable found for this method — try another.',
+        );
         return;
       }
       onPlaced(placements, COMPOSE_METHODS.find((m) => m.key === method)?.label ?? method);
@@ -116,6 +145,17 @@ export function AutoFillSheet({
                   fills the {emptyCount} empty pocket{emptyCount === 1 ? '' : 's'}, keeps what’s
                   already placed. Undo reverses the whole fill.
                 </ThemedText>
+
+                {/* Restrict every method to cards the user owns (the tcgscan-fed inventory). */}
+                {ownedIds && ownedIds.size > 0 ? (
+                  <Pressable
+                    onPress={toggleFromCollection}
+                    style={[pillChip.base, styles.poolChip, poolActive && pillChip.active]}>
+                    <Text style={[pillChip.text, poolActive && pillChip.textActive]}>
+                      {poolActive ? '✓ ' : ''}From my collection ({ownedIds.size})
+                    </Text>
+                  </Pressable>
+                ) : null}
 
                 {emptyCount === 0 ? (
                   <ThemedText type="small" themeColor="textSecondary">
@@ -171,6 +211,7 @@ const styles = StyleSheet.create({
   title: { fontSize: FontSize.h2, lineHeight: 26 },
   sub: { lineHeight: 20 },
   center: { paddingVertical: Spacing.four, alignItems: 'center', gap: Spacing.two },
+  poolChip: { alignSelf: 'flex-start' },
   method: {
     flexDirection: 'row',
     alignItems: 'center',

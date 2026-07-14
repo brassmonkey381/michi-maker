@@ -84,7 +84,7 @@ export function LikersSheet({
                 {likers.map((l) => (
                   <View key={l.userId} style={styles.row}>
                     <ThemedText type="smallBold" numberOfLines={1} style={styles.name}>
-                      {l.displayName || 'Someone'}
+                      {l.username ? `@${l.username}` : 'Someone'}
                     </ThemedText>
                     <ThemedText type="small" themeColor="textSecondary">
                       {timeAgo(l.createdAt)}

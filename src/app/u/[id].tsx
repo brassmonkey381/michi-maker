@@ -68,7 +68,9 @@ export default function ProfileRoute() {
 
   const name =
     state.status === 'ok'
-      ? state.profile.displayName || state.profile.username || 'Unnamed collector'
+      ? state.profile.username
+        ? `@${state.profile.username}`
+        : 'Unnamed collector'
       : '';
 
   // Nice browser-tab title on web.
@@ -109,16 +111,13 @@ export default function ProfileRoute() {
         ) : (
           <ScrollView contentContainerStyle={styles.scroll}>
             <View style={styles.avatar}>
-              <ThemedText style={styles.avatarText}>{name.trim().charAt(0).toUpperCase()}</ThemedText>
+              <ThemedText style={styles.avatarText}>
+                {(state.profile.username || '?').trim().charAt(0).toUpperCase()}
+              </ThemedText>
             </View>
             <ThemedText type="subtitle" style={styles.name}>
               {name}
             </ThemedText>
-            {state.profile.username ? (
-              <ThemedText type="small" themeColor="textSecondary">
-                @{state.profile.username}
-              </ThemedText>
-            ) : null}
 
             <View style={styles.upvoteRow}>
               <UpvoteButton profileId={state.profile.id} onNeedsAccount={() => setNeedAccount(true)} />

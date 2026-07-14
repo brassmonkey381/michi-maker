@@ -70,7 +70,6 @@ function AuthForm({ onClose, isGuest }: { onClose: () => void; isGuest: boolean 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
-  const [displayName, setDisplayName] = useState('');
   const [code, setCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -134,7 +133,7 @@ function AuthForm({ onClose, isGuest }: { onClose: () => void; isGuest: boolean 
           return;
         }
       } else {
-        const r = await auth.signUpWithPassword(email, password, displayName || undefined);
+        const r = await auth.signUpWithPassword(email, password);
         if (r.error) {
           setError(r.error);
           return;
@@ -240,25 +239,16 @@ function AuthForm({ onClose, isGuest }: { onClose: () => void; isGuest: boolean 
             onChangeText={setPassword}
           />
           {isCreate && (
-            <>
-              <TextInput
-                style={inputStyle}
-                placeholder="username (permanent)"
-                placeholderTextColor={placeholder}
-                autoCapitalize="none"
-                autoCorrect={false}
-                maxLength={20}
-                value={username}
-                onChangeText={setUsername}
-              />
-              <TextInput
-                style={inputStyle}
-                placeholder="Display name (optional)"
-                placeholderTextColor={placeholder}
-                value={displayName}
-                onChangeText={setDisplayName}
-              />
-            </>
+            <TextInput
+              style={inputStyle}
+              placeholder="username (permanent)"
+              placeholderTextColor={placeholder}
+              autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={20}
+              value={username}
+              onChangeText={setUsername}
+            />
           )}
           <PrimaryButton
             label={isCreate ? 'Create account' : 'Sign in'}
@@ -366,24 +356,10 @@ function AuthForm({ onClose, isGuest }: { onClose: () => void; isGuest: boolean 
 
 function ProfileView({ onClose }: { onClose: () => void }) {
   const auth = useAuth();
-  const theme = useTheme();
-  const [displayName, setDisplayName] = useState(auth.profile?.display_name ?? '');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
 
   const email = auth.user?.email ?? '';
-  const initial = (auth.profile?.display_name || email || '?').trim().charAt(0).toUpperCase();
-
-  const save = async () => {
-    setBusy(true);
-    setError(null);
-    setSaved(false);
-    const r = await auth.updateProfile({ display_name: displayName.trim() || null });
-    setBusy(false);
-    if (r.error) setError(r.error);
-    else setSaved(true);
-  };
+  const username = auth.profile?.username ?? null;
+  const initial = (username || email || '?').trim().charAt(0).toUpperCase();
 
   return (
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.form}>
@@ -404,37 +380,22 @@ function ProfileView({ onClose }: { onClose: () => void }) {
         </View>
         <View style={styles.flex}>
           <ThemedText type="smallBold" numberOfLines={1}>
-            {auth.profile?.display_name || 'Collector'}
+            {username ? `@${username}` : 'Collector'}
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-            {auth.profile?.username ? `@${auth.profile.username}` : email || 'Signed in'}
+            {email || 'Signed in'}
           </ThemedText>
         </View>
       </View>
 
-      {auth.profile?.username ? (
+      {username ? (
         <View style={styles.readonlyField}>
           <ThemedText type="small" themeColor="textSecondary" style={styles.label}>
             Username (permanent)
           </ThemedText>
-          <ThemedText type="smallBold">@{auth.profile.username}</ThemedText>
+          <ThemedText type="smallBold">@{username}</ThemedText>
         </View>
       ) : null}
-
-      <ThemedText type="small" themeColor="textSecondary" style={styles.label}>
-        Display name
-      </ThemedText>
-      <TextInput
-        style={[styles.input, { color: theme.text, borderColor: theme.backgroundSelected }]}
-        placeholder="Your name"
-        placeholderTextColor={theme.textSecondary}
-        value={displayName}
-        onChangeText={(t) => {
-          setDisplayName(t);
-          setSaved(false);
-        }}
-      />
-      <PrimaryButton label={saved ? 'Saved' : 'Save'} busy={busy} onPress={save} />
 
       <Pressable
         onPress={async () => {
@@ -446,12 +407,6 @@ function ProfileView({ onClose }: { onClose: () => void }) {
           Sign out
         </ThemedText>
       </Pressable>
-
-      {error && (
-        <ThemedText type="small" style={styles.error}>
-          {error}
-        </ThemedText>
-      )}
     </ScrollView>
   );
 }

@@ -354,8 +354,8 @@ export async function reorderPages(binderId: string, orderedPageIds: string[]): 
 /** One person who liked a binder (for the owner's "who liked" list). */
 export interface Liker {
   userId: string;
-  /** null when the liker's profile is private (shown as "Someone" in the UI). */
-  displayName: string | null;
+  /** null when the liker's profile is private or has no username (shown as "Someone"). */
+  username: string | null;
   createdAt: string;
 }
 
@@ -403,7 +403,7 @@ export async function unlikeBinder(binderId: string, userId: string): Promise<vo
 
 /**
  * Everyone who liked a binder, most recent first — for the owner's "who liked" view (RLS lets the
- * owner read all like rows on their own binder). Resolves each liker's display name in a second
+ * owner read all like rows on their own binder). Resolves each liker's username in a second
  * query; a liker whose profile is private surfaces as `null` (the UI shows "Someone").
  */
 export async function fetchLikers(binderId: string): Promise<Liker[]> {
@@ -420,17 +420,17 @@ export async function fetchLikers(binderId: string): Promise<Liker[]> {
   const ids = [...new Set(rows.map((r) => r.user_id))];
   const { data: profs, error: pErr } = await supabase
     .from('profiles')
-    .select('id, display_name, is_public')
+    .select('id, username, is_public')
     .in('id', ids);
   if (pErr) throw new Error(`likers profiles: ${pErr.message}`);
   const byId = new Map(
-    ((profs ?? []) as { id: string; display_name: string | null; is_public: boolean }[]).map((p) => [p.id, p]),
+    ((profs ?? []) as { id: string; username: string | null; is_public: boolean }[]).map((p) => [p.id, p]),
   );
   return rows.map((r) => {
     const p = byId.get(r.user_id);
     return {
       userId: r.user_id,
-      displayName: p && p.is_public ? (p.display_name ?? null) : null,
+      username: p && p.is_public ? (p.username ?? null) : null,
       createdAt: r.created_at,
     };
   });

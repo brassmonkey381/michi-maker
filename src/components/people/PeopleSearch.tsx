@@ -105,8 +105,8 @@ export function PeopleSearch({ visible, onClose }: { visible: boolean; onClose: 
                 </ThemedText>
               ) : (
                 results.map((p) => {
-                  const name = p.displayName || p.username || 'Unnamed collector';
-                  const initial = name.trim().charAt(0).toUpperCase();
+                  const name = p.username ? `@${p.username}` : 'Unnamed collector';
+                  const initial = (p.username || '?').trim().charAt(0).toUpperCase();
                   return (
                     <View key={p.id} style={styles.row}>
                       <Pressable style={styles.rowMain} onPress={() => open(p.id)} hitSlop={4}>
@@ -117,11 +117,6 @@ export function PeopleSearch({ visible, onClose }: { visible: boolean; onClose: 
                           <ThemedText type="smallBold" numberOfLines={1}>
                             {name}
                           </ThemedText>
-                          {p.username ? (
-                            <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-                              @{p.username}
-                            </ThemedText>
-                          ) : null}
                         </View>
                       </Pressable>
                       <UpvoteButton

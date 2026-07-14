@@ -22,7 +22,7 @@ export function AccountButton() {
   // second one up here. Guests (who have a session, and no banner) keep the header pill.
   if (!auth.user) return null;
 
-  const initial = (auth.profile?.display_name || auth.user?.email || '?')
+  const initial = (auth.profile?.username || auth.user?.email || '?')
     .trim()
     .charAt(0)
     .toUpperCase();

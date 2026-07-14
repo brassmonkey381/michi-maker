@@ -37,11 +37,11 @@ export const CARDS_BY_ID: Record<string, DemoCard> = Object.fromEntries(
 
 /**
  * Every bundled example binder is authored by the official michi-maker account — the same
- * profile that exists in the backend (@michimaker, "michi-maker Official"), so the author line
- * on example thumbs matches a real, searchable profile. (The earlier fake community authors
- * were scaffolding from before real profiles existed.)
+ * profile that exists in the backend (@michimaker), so the author line on example thumbs
+ * matches a real, searchable profile. Usernames are the one public name (display names are
+ * retired), so this is the bare username exactly as the featured/search RPCs return it.
  */
-const OFFICIAL_AUTHOR = 'michi-maker Official';
+const OFFICIAL_AUTHOR = 'michimaker';
 
 /** The premade binders, all attributed to the official account. */
 export const SAMPLE_BINDERS: DemoBinder[] = CONTENT_BINDERS.map((binder) => ({

@@ -75,7 +75,7 @@ interface AuthStore {
   /** True when anonymous sign-in is unavailable (toggle off) and no one is signed in. */
   anonymousUnavailable: boolean;
 
-  signUpWithPassword: (email: string, password: string, displayName?: string) => Promise<AuthResult>;
+  signUpWithPassword: (email: string, password: string) => Promise<AuthResult>;
   signInWithPassword: (email: string, password: string) => Promise<AuthResult>;
   sendEmailCode: (email: string) => Promise<AuthResult>;
   verifyEmailCode: (email: string, token: string) => Promise<AuthResult>;
@@ -87,7 +87,7 @@ interface AuthStore {
   /** Start (or restart) an anonymous guest session on demand — used after an explicit sign-out. */
   continueAsGuest: () => Promise<AuthResult>;
   updateProfile: (
-    patch: Partial<Pick<Profile, 'display_name' | 'avatar_url' | 'is_public'>>,
+    patch: Partial<Pick<Profile, 'avatar_url' | 'is_public'>>,
   ) => Promise<AuthResult>;
   /** Claim a permanent, unique @username (only when none is set yet — usernames are immutable). */
   claimUsername: (username: string) => Promise<AuthResult>;
@@ -197,14 +197,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // --- email / password -----------------------------------------------------
 
   const signUpWithPassword = useCallback(
-    async (email: string, password: string, displayName?: string): Promise<AuthResult> => {
+    async (email: string, password: string): Promise<AuthResult> => {
       if (!supabase) return NOT_CONFIGURED;
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
           emailRedirectTo: authRedirectUrl(),
-          data: displayName ? { display_name: displayName.trim() } : undefined,
         },
       });
       if (error) return { error: msg(error) };
@@ -303,7 +302,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateProfile = useCallback(
     async (
-      patch: Partial<Pick<Profile, 'display_name' | 'avatar_url' | 'is_public'>>,
+      patch: Partial<Pick<Profile, 'avatar_url' | 'is_public'>>,
     ): Promise<AuthResult> => {
       if (!supabase) return NOT_CONFIGURED;
       if (!user) return { error: 'You need to be signed in to edit your profile.' };

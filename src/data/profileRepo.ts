@@ -7,10 +7,9 @@
  */
 import { requireSupabase } from '@/lib/supabase';
 
-/** A profile as it appears in people search / lists. */
+/** A profile as it appears in people search / lists. The @username is the one public name. */
 export interface PersonResult {
   id: string;
-  displayName: string | null;
   username: string | null;
   avatarUrl: string | null;
   upvotes: number;
@@ -19,15 +18,14 @@ export interface PersonResult {
 /** A public profile's own detail (for the profile page). */
 export interface PublicProfile {
   id: string;
-  displayName: string | null;
   username: string | null;
   avatarUrl: string | null;
   isPublic: boolean;
 }
 
 /**
- * Search public profiles by display name / username, ranked by upvotes. Empty query → top profiles.
- * Private + nameless (guest) profiles are excluded by the RPC.
+ * Search public profiles by username, ranked by upvotes. Empty query → top profiles.
+ * Private + username-less (guest) profiles are excluded by the RPC.
  */
 export async function searchProfiles(query: string, limit = 30): Promise<PersonResult[]> {
   const supabase = requireSupabase();
@@ -35,13 +33,11 @@ export async function searchProfiles(query: string, limit = 30): Promise<PersonR
   if (error) throw new Error(`search profiles: ${error.message}`);
   return ((data ?? []) as {
     id: string;
-    display_name: string | null;
     username: string | null;
     avatar_url: string | null;
     upvotes: number;
   }[]).map((r) => ({
     id: r.id,
-    displayName: r.display_name,
     username: r.username,
     avatarUrl: r.avatar_url,
     upvotes: Number(r.upvotes) || 0,
@@ -53,14 +49,13 @@ export async function fetchProfile(id: string): Promise<PublicProfile | null> {
   const supabase = requireSupabase();
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, display_name, username, avatar_url, is_public')
+    .select('id, username, avatar_url, is_public')
     .eq('id', id)
     .maybeSingle();
   if (error) throw new Error(`load profile: ${error.message}`);
   if (!data) return null;
   return {
     id: data.id,
-    displayName: data.display_name,
     username: data.username,
     avatarUrl: data.avatar_url,
     isPublic: data.is_public,

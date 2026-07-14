@@ -208,7 +208,7 @@ export default function BindersScreen() {
 
           {/* My collection — the tcgscan-fed inventory; appears with the first scan/import
               and updates live. Tap to multi-select, then place the picks into a binder. */}
-          <HomeCollection onToast={showToast} />
+          <HomeCollection onToast={showToast} onOpenBinder={openBinder} />
 
           {store.featuredBinders.length > 0 ? (
             <HomeSection title="Featured binders">

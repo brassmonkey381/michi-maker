@@ -15,6 +15,7 @@ import { Image } from 'expo-image';
 import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { BuildBinderSheet } from '@/components/BuildBinderSheet';
 import { HomeSection } from '@/components/HomeSection';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -28,7 +29,13 @@ import { useBinders } from '@/store/binders';
 const TILE_W = 96;
 const CARD_ASPECT = 88 / 63;
 
-export function HomeCollection({ onToast }: { onToast?: (message: string) => void }) {
+export function HomeCollection({
+  onToast,
+  onOpenBinder,
+}: {
+  onToast?: (message: string) => void;
+  onOpenBinder?: (binderId: string) => void;
+}) {
   const { user } = useAuth();
   const [cards, setCards] = useState<UserCard[] | null>(null);
 
@@ -51,15 +58,17 @@ export function HomeCollection({ onToast }: { onToast?: (message: string) => voi
   }, [userId]);
 
   if (!cards || cards.length === 0) return null; // appears with the first scan/import
-  return <CollectionStrip cards={cards} onToast={onToast} />;
+  return <CollectionStrip cards={cards} onToast={onToast} onOpenBinder={onOpenBinder} />;
 }
 
 function CollectionStrip({
   cards,
   onToast,
+  onOpenBinder,
 }: {
   cards: UserCard[];
   onToast?: (message: string) => void;
+  onOpenBinder?: (binderId: string) => void;
 }) {
   const store = useBinders();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -101,6 +110,8 @@ function CollectionStrip({
   const copies = cards.reduce((n, c) => n + c.quantity, 0);
   const available = cards.reduce((n, c) => n + freeOf(c), 0);
   const headline = `${copies} card${copies === 1 ? '' : 's'} · ${available} available to place`;
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const freeIds = cards.filter((c) => freeOf(c) > 0).map((c) => c.cardId);
 
   const toggle = (cardId: string) =>
     setSelected((cur) => {
@@ -172,9 +183,18 @@ function CollectionStrip({
     <HomeSection
       title="My collection"
       action={
-        <ThemedText type="small" themeColor="textSecondary">
-          {headline}
-        </ThemedText>
+        <View style={styles.headerAction}>
+          <ThemedText type="small" themeColor="textSecondary">
+            {headline}
+          </ThemedText>
+          {freeIds.length > 0 ? (
+            <Pressable
+              onPress={() => setWizardOpen(true)}
+              style={({ pressed }) => [styles.buildChip, pressed && styles.pressed]}>
+              <Text style={styles.buildChipText}>✨ Build binder</Text>
+            </Pressable>
+          ) : null}
+        </View>
       }>
       <FlatList
         horizontal
@@ -252,6 +272,16 @@ function CollectionStrip({
           </Pressable>
         </Modal>
       ) : null}
+
+      <BuildBinderSheet
+        visible={wizardOpen}
+        freeIds={freeIds}
+        onClose={() => setWizardOpen(false)}
+        onBuilt={(binderId, pageCount) => {
+          onToast?.(`Built ${pageCount} page${pageCount === 1 ? '' : 's'} from your collection`);
+          onOpenBinder?.(binderId);
+        }}
+      />
 
       {chooser === 'reclaim' ? (
         <Modal visible transparent animationType="fade" onRequestClose={() => setChooser(null)}>
@@ -390,6 +420,14 @@ const styles = StyleSheet.create({
   actionBtnText: { color: Palette.accentText, fontSize: FontSize.control, fontWeight: Weight.semibold },
   reclaimBtn: { backgroundColor: Palette.panel },
   reclaimBtnText: { color: Palette.ink2, fontSize: FontSize.control, fontWeight: Weight.semibold },
+  headerAction: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  buildChip: {
+    backgroundColor: Palette.accent,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: 5,
+  },
+  buildChipText: { color: Palette.accentText, fontSize: FontSize.sm, fontWeight: Weight.semibold },
   backdrop: {
     flex: 1,
     backgroundColor: Palette.scrim45,

@@ -95,10 +95,44 @@ Nothing on the tcgscan side blocks on these — once rows land, michi iterates i
 
 ## Checklist for the tcgscan session
 
-- [ ] Confirm the card-id contract (Q1–Q3 above) — reply into this doc or the shared repo.
-- [ ] Point tcgscan-app auth at `piikwvntldytjejxmcla` (publishable key from the user).
-      Existing tcgscan-only accounts (if any real ones exist) need a migration or
-      re-registration decision.
-- [ ] Write scans into `user_cards` with `source = 'scan'` using the upsert pattern above.
-- [ ] Optional: `increment_user_card(p_card_id text, p_delta int)` RPC if atomic bumps are
-      preferred — add it as a migration in THIS repo (poke-michi/supabase/migrations).
+- [x] Confirm the card-id contract (Q1–Q3 above) — see replies below.
+- [x] Point tcgscan-app auth at `piikwvntldytjejxmcla`. Done: app-backend `.env` now targets
+      this project. Old standalone project `thirerjgjfequwiyonph` had **0 rows / 1 test
+      account** → retired, no data migration; the one test login just re-registers here.
+- [x] Write scans into `user_cards` with `source = 'scan'` — done via the RPC below, called on
+      every portfolio add/remove/edit (not just scans; manual adds feed it too).
+- [x] `increment_user_card` RPC added as a migration in this repo
+      (`supabase/migrations/20260714120100_increment_user_card.sql`).
+
+## ✅ tcgscan session replies (2026-07-14)
+
+**Card-id contract**
+1. **Yes** — the shipping classifiers (`v2-e85` default, `v2-e12`) are trained on the
+   **productId corpus**, so a scan match *is* the TCGPlayer product id; it joins `cards` in
+   tcgscan-data as-is. The only exception is the legacy `v1` set (path-keyed ids), and
+   portfolio-add is already **hidden** when v1 is selected — so nothing non-productId can
+   reach `user_cards`.
+2. **Never written.** Auto-add only fires on a confident match (top-1 ≥ the 0.8 similarity
+   gate); anything below is dropped. No guesses reach the table.
+3. Id space is **TCGPlayer EN productIds**. Printing (Normal/Holofoil/Reverse) is tracked as a
+   field *within* one productId, not a distinct id, so **variants collapse to the base
+   `card_id`** — exactly as intended (condition = wear). JP isn't in this id space → N/A.
+
+**What tcgscan built (Path A — one identity, one backend)**
+- tcgscan-app's own private user tables (`saved_cards`, `collections`, `portfolio_entries`)
+  were **recreated in this project** via `20260714120000_tcgscan_app_tables.sql` (owner-only
+  RLS, in `supabase_realtime`, **no** `set_updated_at` trigger — the client owns `updated_at`
+  for its last-write-wins sync). One deliberate schema fix vs. the old project: `id` /
+  `collection_id` are **text**, not uuid (the client mints `col-…`/`lot-…` ids).
+- `portfolio_entries` is tcgscan's **source of truth**; `user_cards` is a flattened rollup fed
+  **additively** (`increment_user_card`, ±delta on add/remove/edit) so it coexists with your
+  future CSV import on the shared table without clobbering rows.
+- **`source`** is `'scan'` for all tcgscan writes in v1 (the app is the scanner). A precise
+  scan-vs-manual split would need a `source` column on `portfolio_entries` — noted as a later
+  refinement if you care about the distinction.
+
+**Two things that still need michi-side / dashboard action** (GoTrue config, not SQL/MCP):
+- Add tcgscan's redirect URLs to this project's **Auth → URL Configuration**:
+  `https://idontgitit.com` (web) and `tcgscanexpo://auth-callback` (native deep link).
+- The `increment_user_card` / table migrations were authored here but applying them to the
+  live project needs your go-ahead (a production DDL deploy).

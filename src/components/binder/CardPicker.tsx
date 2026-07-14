@@ -10,6 +10,7 @@ import { artSearchProvider, isArtSearchConfigured, searchArt } from '@/data/artS
 import { useSavedArt } from '@/data/savedArt';
 import type { DemoPage, DemoSlot } from '@/data/binderTypes';
 import { useCatalog } from '@/hooks/use-catalog';
+import type { CatalogCard } from '@/lib/catalog';
 import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
 import { flatChip, studioButton } from '@/constants/ui';
 
@@ -62,10 +63,10 @@ interface CardPickerProps {
   /** A theme keyword guessed from the binder, used to seed the artwork search. */
   themeHint?: string;
   onClose: () => void;
-  onPickCard: (cardId: string) => void;
+  onPickCard: (cardId: string, card?: CatalogCard) => void;
   onPickVUnion: (pieces: readonly string[]) => void;
   /** Batch-add the multi-selected cards to the binder ("Add all to a binder"). */
-  onPickCards?: (cardIds: string[]) => void;
+  onPickCards?: (cardIds: string[], cards?: CatalogCard[]) => void;
   /** Place a custom artwork image (playground art or a pasted URL) at the chosen shape. */
   onPickArtwork: (imageUrl: string, rowSpan: number, colSpan: number) => void;
   /** Slice an image across the rows×cols block — each pocket shows its piece. */

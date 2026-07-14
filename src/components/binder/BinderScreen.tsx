@@ -36,6 +36,7 @@ import type { ComposePlacement } from '@/data/pageComposer';
 import { isSupabaseConfigured } from '@/lib/env';
 import { footprintForKind } from '@/data/cardSizing';
 import { resolveCard } from '@/data/cardResolver';
+import type { CatalogCard } from '@/lib/catalog';
 import { useBinders } from '@/store/binders';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -269,10 +270,12 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
 
   // Placing a card: its footprint comes from its real-world kind (standard 1×1, jumbo 2×2),
   // so a piece's shape always matches its pocket. In "keep adding" mode the sheet stays open
-  // and advances to the next empty pocket until the page is full.
-  const handlePickCard = (cardId: string) => {
+  // and advances to the next empty pocket until the page is full. The browser passes the full
+  // card along; for guests (no catalog → resolveCard misses) that carried kind is what keeps a
+  // jumbo landing as 2×2 instead of collapsing to 1×1.
+  const handlePickCard = (cardId: string, card?: CatalogCard) => {
     if (!pickerCell) return;
-    const { rows, cols } = footprintForKind(resolveCard(cardId)?.kind);
+    const { rows, cols } = footprintForKind(card?.kind ?? resolveCard(cardId)?.kind);
     const { row, col } = pickerCell;
     store.upsertSlot(binder.id, page.id, { row, col, cardId, type: 'card', rowSpan: rows, colSpan: cols });
     if (keepAdding) {

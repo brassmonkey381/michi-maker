@@ -207,8 +207,8 @@ export default function BindersScreen() {
           </HomeSection>
 
           {/* My collection — the tcgscan-fed inventory; appears with the first scan/import
-              and updates live. Tapping a card runs Find-similar in the browser below. */}
-          <HomeCollection onFindSimilar={driveSimilar} />
+              and updates live. Tap to multi-select, then place the picks into a binder. */}
+          <HomeCollection onToast={showToast} />
 
           {store.featuredBinders.length > 0 ? (
             <HomeSection title="Featured binders">

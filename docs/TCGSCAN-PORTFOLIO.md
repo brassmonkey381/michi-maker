@@ -131,6 +131,19 @@ Nothing on the tcgscan side blocks on these — once rows land, michi iterates i
   scan-vs-manual split would need a `source` column on `portfolio_entries` — noted as a later
   refinement if you care about the distinction.
 
+## ⚠️ 2026-07-14 (later): the rollup is now TRIGGER-maintained — remove your RPC calls
+
+Deleting a whole collection cascade-deleted its `portfolio_entries` server-side, so the client
+never fired the decrements and michi kept ghost cards. Fix (michi migration
+`20260714190000_user_cards_portfolio_sync.sql`, applied): row triggers on `portfolio_entries`
+now maintain the `user_cards` rollup for EVERY insert/update/delete — including cascades and
+offline-sync upserts — and the existing rollup was rebuilt from `portfolio_entries`.
+
+**Action for tcgscan-app: STOP calling `increment_user_card` when portfolio entries change —
+the trigger already applies the delta, so your call would double-count.** The RPC itself stays
+(michi's own writers use it), it just must not be driven from portfolio mutations anymore.
+Nothing else changes on your side: keep writing `portfolio_entries` exactly as you do.
+
 **Two things that still need michi-side / dashboard action** (GoTrue config, not SQL/MCP):
 - Add tcgscan's redirect URLs to this project's **Auth → URL Configuration**:
   `https://idontgitit.com` (web) and `tcgscanexpo://auth-callback` (native deep link).

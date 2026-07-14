@@ -12,10 +12,11 @@
 import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { uuidv4, type DemoPage, type DemoSlot } from '@/data/binderTypes';
 import { speciesOf } from '@/data/pageComposer';
+import { formatUsd, type PriceSummary } from '@/lib/prices';
 
 export interface WizardProposal {
   key: string;
-  kind: 'evolution' | 'species' | 'artist' | 'set' | 'type';
+  kind: 'chase' | 'evolution' | 'species' | 'artist' | 'set' | 'type';
   /** Page title (also the picker row's headline). */
   title: string;
   /** One-line description for the picker row. */
@@ -29,6 +30,7 @@ const PAGE_COLS = 3;
 const PAGE_CELLS = PAGE_ROWS * PAGE_COLS;
 /** Minimum cluster size per kind — below this a "page" reads as an accident, not a theme. */
 const MIN_SIZE: Record<WizardProposal['kind'], number> = {
+  chase: 3,
   evolution: 4,
   species: 4,
   artist: 5,
@@ -37,6 +39,7 @@ const MIN_SIZE: Record<WizardProposal['kind'], number> = {
 };
 /** Story-ish kinds outrank generic groupings when clusters compete for the same cards. */
 const KIND_PRIORITY: Record<WizardProposal['kind'], number> = {
+  chase: 6,
   evolution: 5,
   species: 4,
   artist: 3,
@@ -44,6 +47,8 @@ const KIND_PRIORITY: Record<WizardProposal['kind'], number> = {
   type: 1,
 };
 const MAX_THEME_PAGES = 12;
+/** A card this valuable is a "hit" — the chase board claims hits before any theme cluster. */
+const CHASE_MIN_VALUE = 10;
 
 const cap = (s: string) => s.replace(/(^|\s)\w/g, (m) => m.toUpperCase());
 
@@ -62,14 +67,45 @@ interface Cluster {
 /**
  * Propose theme pages + a bulk sweep from the free inventory. `freeIds` are card ids with at
  * least one unplaced copy (one page pocket per distinct print, extra copies stay available).
+ * `prices` (the shared price summary) unlocks the CHASE BOARD: the most valuable hits claim
+ * page one before any theme cluster can bury them in bulk.
  */
 export function proposePages(
   freeIds: string[],
   catalog: Catalog,
+  prices?: PriceSummary | null,
 ): { proposals: WizardProposal[]; bulk: WizardProposal[] } {
   const cards = freeIds
     .map((id) => catalog.getCard(id))
     .filter((c): c is CatalogCard => !!c && c.kind === 'standard');
+
+  // Chase board first: every hit above the value floor, most valuable in the CENTRE pocket
+  // (the anchor-page crown), the rest ringed around it by value. Claimed cards are off the
+  // table for the theme clusters below — a $200 pull must never end up in "bulk".
+  const used = new Set<string>();
+  const chaseProposals: WizardProposal[] = [];
+  if (prices) {
+    const hits = cards
+      .map((c) => ({ c, v: prices[c.id]?.cur ?? 0 }))
+      .filter((x) => x.v >= CHASE_MIN_VALUE)
+      .sort((a, b) => b.v - a.v);
+    if (hits.length >= MIN_SIZE.chase) {
+      const top = hits.slice(0, PAGE_CELLS);
+      const ids = top.map((x) => x.c.id);
+      // Row-major cells; index 4 is the centre of a 3×3 — give it the crown when it exists.
+      const ordered =
+        ids.length >= 5 ? [...ids.slice(1, 5), ids[0], ...ids.slice(5)] : ids;
+      for (const id of ids) used.add(id);
+      const total = top.reduce((n, x) => n + x.v, 0);
+      chaseProposals.push({
+        key: 'chase',
+        kind: 'chase',
+        title: 'Chase board',
+        blurb: `Your ${ids.length} most valuable cards · ${formatUsd(total)} — crown in the centre.`,
+        cardIds: ordered,
+      });
+    }
+  }
 
   const clusters = new Map<string, Cluster>();
   const put = (c: CatalogCard, cluster: Omit<Cluster, 'cards'>) => {
@@ -134,8 +170,7 @@ export function proposePages(
       b.cards.length - a.cards.length ||
       a.key.localeCompare(b.key),
   );
-  const used = new Set<string>();
-  const proposals: WizardProposal[] = [];
+  const proposals: WizardProposal[] = [...chaseProposals];
   for (const cluster of ranked) {
     if (proposals.length >= MAX_THEME_PAGES) break;
     const available = cluster.cards.filter((c) => !used.has(c.id));

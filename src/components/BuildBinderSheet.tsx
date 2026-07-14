@@ -16,6 +16,7 @@ import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
 import { buildPages, proposePages, type WizardProposal } from '@/data/binderWizard';
 import { useCatalog } from '@/hooks/use-catalog';
+import { usePriceSummary } from '@/lib/prices';
 import { useBinders } from '@/store/binders';
 
 export function BuildBinderSheet({
@@ -33,10 +34,14 @@ export function BuildBinderSheet({
 }) {
   const store = useBinders();
   const { catalog, guestGated } = useCatalog(visible);
+  // Prices power the Chase board (most-valuable-first page). The summary is a shared
+  // load-once fetch that resolves well before the catalog parse; if it ever fails the plan
+  // simply proposes without a chase page rather than blocking the wizard.
+  const priceSummary = usePriceSummary();
 
   const plan = useMemo(
-    () => (visible && catalog ? proposePages(freeIds, catalog) : null),
-    [visible, catalog, freeIds],
+    () => (visible && catalog ? proposePages(freeIds, catalog, priceSummary) : null),
+    [visible, catalog, priceSummary, freeIds],
   );
 
   // Ticked theme pages (default: all proposed) + the bulk sweep toggle.

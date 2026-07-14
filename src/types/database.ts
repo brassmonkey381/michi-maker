@@ -259,6 +259,39 @@ export type Database = {
         }
         Relationships: []
       }
+      user_cards: {
+        Row: {
+          acquired_at: string | null
+          card_id: string
+          condition: string
+          created_at: string
+          owner_id: string
+          quantity: number
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          acquired_at?: string | null
+          card_id: string
+          condition?: string
+          created_at?: string
+          owner_id: string
+          quantity?: number
+          source?: string
+          updated_at?: string
+        }
+        Update: {
+          acquired_at?: string | null
+          card_id?: string
+          condition?: string
+          created_at?: string
+          owner_id?: string
+          quantity?: number
+          source?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

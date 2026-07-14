@@ -20,6 +20,14 @@ tcgscan-app (scanner)  ──writes──▶  user_cards  ◀──reads──  
   It already owns the social layer: `profiles` (permanent immutable @usernames), binders,
   likes, upvotes. tcgscan-app should point its Supabase auth client at THIS project
   (URL + publishable key — ask the user for the keys; never a service key in app code).
+- **This is NOT a data port.** tcgscan-app keeps ALL of its rich operational data where it
+  lives today — raw scan events, capture images, classifier confidences, sessions, telemetry.
+  `user_cards` is only the thin CONCLUSION of scanning (card id + condition + quantity): the
+  interchange row michi needs, nothing more. One decision is yours to make: if your rich data
+  sits in a separate Supabase project behind per-user RLS, switching auth to the shared
+  project means your project stops recognising the JWTs — either move just the user-scoped
+  tables over, or configure your project to trust the shared project's tokens (third-party
+  auth). Device-local / non-user-gated data needs nothing.
 - **Same login everywhere:** one email/password/Google account works in both apps. Anonymous
   guest sign-in is enabled (do NOT enable CAPTCHA — it breaks silent guest sign-in).
   michi prompts for the permanent @username on first sign-in; tcgscan doesn't need to.

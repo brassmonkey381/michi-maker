@@ -34,7 +34,6 @@ import { fetchLikeCount } from '@/data/binderRepo';
 import type { CaptionFieldKey } from '@/data/cardCaption';
 import type { ComposePlacement } from '@/data/pageComposer';
 import { isSupabaseConfigured } from '@/lib/env';
-import { binderValue, formatUsd, pageValue, usePriceSummary } from '@/lib/prices';
 import { footprintForKind } from '@/data/cardSizing';
 import { resolveCard } from '@/data/cardResolver';
 import { useBinders } from '@/store/binders';
@@ -102,9 +101,6 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // enrichment reads it passively. The catalog's synchronous JSON.parse freezes the main
   // thread for seconds, so we defer it to when the user actually browses cards: the
   // CardPicker's useCatalog(visible) loads it on open. Opening/creating a binder stays instant.
-
-  // Latest card values (shared load-once fetch) for the fun running totals.
-  const priceSummary = usePriceSummary();
 
   // Mirror the multi-selection into a ref so the key-up handler (subscribed once per edit toggle)
   // reads the latest set without re-subscribing.
@@ -178,9 +174,6 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // layout that shows them lives in BinderPages.
   const prevPage = idx > 0 ? binder.pages[idx - 1] : null;
   const nextPage = idx < binder.pages.length - 1 ? binder.pages[idx + 1] : null;
-  // Running totals — decoration only: '' until the summary loads or when no card has a price.
-  const pageTotal = priceSummary ? formatUsd(pageValue(page, priceSummary)) : '';
-  const binderTotal = priceSummary ? formatUsd(binderValue(binder, priceSummary)) : '';
   const slotAtCell = pickerCell
     ? (page.slots.find((s) => s.row === pickerCell.row && s.col === pickerCell.col) ?? null)
     : null;
@@ -670,15 +663,6 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                     }
                   : undefined
               }
-              metaBadge={
-                binderTotal ? (
-                  <ThemedView type="backgroundElement" style={styles.badge}>
-                    <ThemedText type="small" themeColor="textSecondary">
-                      {pageTotal ? `Page ${pageTotal} · ` : ''}Binder {binderTotal}
-                    </ThemedText>
-                  </ThemedView>
-                ) : null
-              }
               pageHeader={
                 editing ? (
                   <View style={styles.pageDetails}>
@@ -1057,7 +1041,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   scroll: { paddingHorizontal: 16, paddingBottom: 48 },
-  badge: { paddingVertical: 3, paddingHorizontal: 10, borderRadius: Radius.pill },
   description: { marginTop: 10, textAlign: 'center', maxWidth: 640, alignSelf: 'center' },
   // Detail fields share one centred column (matches the edit-tools card) so the editable
   // chrome reads as a single organised stack instead of page-wide boxes.

@@ -11,16 +11,15 @@
  *                       `onReorderPages` enables drag-to-reorder in the filmstrip.
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from 'react-native-reanimated';
 
 import { CaptionControls } from '@/components/binder/CaptionControls';
 import { PageStrip } from '@/components/binder/PageStrip';
 import { ThemedText } from '@/components/themed-text';
-import { BinderPageMaxWidth, FontSize, Weight } from '@/constants/theme';
+import { BinderPageMaxWidth } from '@/constants/theme';
 import { DEFAULT_CAPTION_FIELDS, type CaptionFieldKey } from '@/data/cardCaption';
 import type { DemoBinder, DemoPage } from '@/data/binderTypes';
-import { useTheme } from '@/hooks/use-theme';
 
 /** Which slot a rendered grid occupies — lets the caller wire the right handlers/refs per grid. */
 export type GridRole = 'single' | 'prev' | 'current' | 'next';
@@ -43,8 +42,6 @@ export interface BinderPagesProps {
   }) => ReactNode;
   /** Enables drag-to-reorder in the filmstrip (edit only). Omit → tap-to-jump only. */
   onReorderPages?: (from: number, to: number) => void;
-  /** Optional content shown left of the arrows (e.g. a running-value badge). */
-  metaBadge?: ReactNode;
   /** Optional override for the per-page title/description area (edit passes text inputs here);
    *  omit to show the page's title/description read-only. */
   pageHeader?: ReactNode;
@@ -61,11 +58,9 @@ export function BinderPages({
   editable,
   renderGrid,
   onReorderPages,
-  metaBadge,
   pageHeader,
   dragCol,
 }: BinderPagesProps) {
-  const theme = useTheme();
   const [labelsOn, setLabelsOn] = useState(false);
   const [labelFields, setLabelFields] = useState<CaptionFieldKey[]>(DEFAULT_CAPTION_FIELDS);
   const toggleLabelField = (key: CaptionFieldKey) =>
@@ -110,33 +105,6 @@ export function BinderPages({
 
   return (
     <>
-      {/* One meta row: value badge · Card-labels controls · page navigation. Everything that
-          describes "what you're looking at" sits on a single organised line (the labels' field
-          chips wrap below the toggle inside the centre slot when switched on). */}
-      <View style={styles.metaRow}>
-        <View style={styles.metaSide}>{metaBadge}</View>
-        <View style={styles.metaCenter}>
-          <CaptionControls
-            enabled={labelsOn}
-            onToggle={() => setLabelsOn((v) => !v)}
-            fields={labelFields}
-            onToggleField={toggleLabelField}
-          />
-        </View>
-        <View style={[styles.metaSide, styles.pageNav]}>
-          <NavArrow label="‹" disabled={idx <= 0} onPress={() => onPageChange(idx - 1)} color={theme.text} />
-          <ThemedText type="small" themeColor="textSecondary">
-            Page {idx + 1} / {count}
-          </ThemedText>
-          <NavArrow
-            label="›"
-            disabled={idx >= count - 1}
-            onPress={() => onPageChange(idx + 1)}
-            color={theme.text}
-          />
-        </View>
-      </View>
-
       {/* Per-page title/description — caller override (edit inputs) or read-only. */}
       {pageHeader ??
         (page && (page.title || page.description) ? (
@@ -153,6 +121,17 @@ export function BinderPages({
             ) : null}
           </View>
         ) : null)}
+
+      {/* Card labels — show metadata under each card, and pick which fields. Page flipping is
+          the filmstrip / mouse wheel / neighbour taps / arrow keys — no ‹ m/n › readout. */}
+      <View style={styles.labelsRow}>
+        <CaptionControls
+          enabled={labelsOn}
+          onToggle={() => setLabelsOn((v) => !v)}
+          fields={labelFields}
+          onToggleField={toggleLabelField}
+        />
+      </View>
 
       {/* The page — a prev · current · next spread on wide screens, else the single page. */}
       <View ref={pageWrapRef} style={styles.pageWrap}>
@@ -267,38 +246,8 @@ function SpreadColumn({
   );
 }
 
-function NavArrow({
-  label,
-  disabled,
-  onPress,
-  color,
-}: {
-  label: string;
-  disabled: boolean;
-  onPress: () => void;
-  color: string;
-}) {
-  return (
-    <Pressable onPress={onPress} disabled={disabled} hitSlop={8} style={disabled && styles.navDisabled}>
-      <Text style={[styles.navArrow, { color }]}>{label}</Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-    marginTop: 6,
-  },
-  // Equal-width sides keep the labels toggle truly centred regardless of badge/nav width.
-  metaSide: { flex: 1, minWidth: 96 },
-  metaCenter: { flexShrink: 1, alignItems: 'center' },
-  pageNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 12 },
-  navArrow: { fontSize: FontSize.nav, lineHeight: 28, fontWeight: Weight.semibold },
-  navDisabled: { opacity: 0.3 },
+  labelsRow: { alignItems: 'center', marginTop: 10 },
   pageDetailsRead: { alignItems: 'center', marginTop: 8 },
   pageWrap: { alignItems: 'center', marginVertical: 18 },
   spreadRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center' },

@@ -536,6 +536,33 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         />
       );
     }
+    if (role === 'partner') {
+      // The facing page of a double-sided spread — fully interactive: tapping a pocket makes
+      // this page the active one (same spread stays on screen, so it's seamless) and performs
+      // the tap. It's always the page directly before/after the active page, so it reuses the
+      // prev/next refs and the existing cross-page drag machinery.
+      const isPrev = p.id === prevPage?.id;
+      const pIdx = binder.pages.findIndex((pg) => pg.id === p.id);
+      return (
+        <BinderGrid
+          ref={isPrev ? prevRef : nextRef}
+          page={p}
+          width={width}
+          editable
+          captionFields={captionFields}
+          onCellPress={(row, col) => {
+            changePage(pIdx);
+            setPickerCell({ row, col });
+          }}
+          onSlotPress={(slot) => {
+            changePage(pIdx);
+            setSelectedSlotId(slot.id);
+          }}
+          onCrossDrop={(slotId, x, y) => handleCrossDrop(p.id, slotId, x, y)}
+          onDragStart={() => startColumnDrag(isPrev ? 0 : 2)}
+        />
+      );
+    }
     return (
       <BinderGrid
         ref={role === 'current' ? curRef : undefined}

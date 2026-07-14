@@ -11,18 +11,25 @@
  *                       `onReorderPages` enables drag-to-reorder in the filmstrip.
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from 'react-native-reanimated';
 
 import { CaptionControls } from '@/components/binder/CaptionControls';
 import { PageStrip } from '@/components/binder/PageStrip';
 import { ThemedText } from '@/components/themed-text';
 import { BinderPageMaxWidth } from '@/constants/theme';
+import { pillChip } from '@/constants/ui';
 import { DEFAULT_CAPTION_FIELDS, type CaptionFieldKey } from '@/data/cardCaption';
 import type { DemoBinder, DemoPage } from '@/data/binderTypes';
 
-/** Which slot a rendered grid occupies — lets the caller wire the right handlers/refs per grid. */
-export type GridRole = 'single' | 'prev' | 'current' | 'next';
+/** Which slot a rendered grid occupies — lets the caller wire the right handlers/refs per grid.
+ *  'partner' is the facing page of a double-sided spread: fully interactive in edit mode (the
+ *  first touch makes it the active page), read-only otherwise. */
+export type GridRole = 'single' | 'prev' | 'current' | 'next' | 'partner';
+
+// Session-wide preference: real binders are double-sided, so remember the reader's choice
+// across binder opens (module state, like the browse state — deliberately not persisted).
+let doubleSidedPref = false;
 
 export interface BinderPagesProps {
   binder: DemoBinder;
@@ -66,19 +73,35 @@ export function BinderPages({
   const toggleLabelField = (key: CaptionFieldKey) =>
     setLabelFields((cur) => (cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key]));
   const captionFields = labelsOn ? labelFields : [];
+  // Double-sided: pages pair like a physical binder — page 1 alone (the cover face), then
+  // 2·3 facing, 4·5, … Both sides of the open spread are shown (and edited) together.
+  const [doubleSided, setDoubleSided] = useState(doubleSidedPref);
+  const toggleDoubleSided = () =>
+    setDoubleSided((v) => {
+      doubleSidedPref = !v;
+      return !v;
+    });
 
   const count = binder.pages.length;
   const idx = Math.max(0, Math.min(pageIndex, count - 1));
   const page = binder.pages[idx];
 
   const spreadGap = 12;
-  const showSpread = availableWidth >= 900 && count > 1;
+  const showSpread = !doubleSided && availableWidth >= 900 && count > 1;
   const pageWidth = Math.min(availableWidth, BinderPageMaxWidth);
   const spreadWidth = showSpread
     ? Math.min(Math.floor((availableWidth - spreadGap * 2) / 3), BinderPageMaxWidth)
     : pageWidth;
   const prevPage = idx > 0 ? binder.pages[idx - 1] : null;
   const nextPage = idx < count - 1 ? binder.pages[idx + 1] : null;
+
+  // The open double-sided spread around the active page: [cover] alone, then [odd, odd+1].
+  const bookGap = 16;
+  const bookW = Math.min(Math.floor((availableWidth - bookGap) / 2), BinderPageMaxWidth);
+  const spreadLeftIdx = idx === 0 ? -1 : idx % 2 === 1 ? idx : idx - 1;
+  const spreadRightIdx = idx === 0 ? 0 : spreadLeftIdx + 1 < count ? spreadLeftIdx + 1 : -1;
+  const leftPage = spreadLeftIdx >= 0 ? binder.pages[spreadLeftIdx] : null;
+  const rightPage = spreadRightIdx >= 0 ? binder.pages[spreadRightIdx] : null;
 
   // Web: flip pages with the mouse wheel while hovering the page area. Consumes the wheel only
   // when there's a page to move to in that direction — at the first/last page it falls through to
@@ -89,10 +112,14 @@ export function BinderPages({
     const el = pageWrapRef.current as unknown as HTMLElement | null;
     if (!el) return;
     let cooldown = -Infinity;
+    // Double-sided flips by SPREAD: cover → [1·2] → [3·4] → …; single mode flips by page.
+    const leftOfSpread = idx === 0 ? 0 : idx % 2 === 1 ? idx : idx - 1;
+    const forward = doubleSided ? (idx === 0 ? 1 : leftOfSpread + 2) : idx + 1;
+    const backward = doubleSided ? (leftOfSpread === 0 ? -1 : Math.max(0, leftOfSpread - 2)) : idx - 1;
     const onWheel = (e: WheelEvent) => {
       const delta = Math.abs(e.deltaX) >= Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
       if (Math.abs(delta) < 2) return;
-      const next = idx + (delta > 0 ? 1 : -1);
+      const next = delta > 0 ? forward : backward;
       if (next < 0 || next >= count) return; // at an edge → let the editor scroll
       e.preventDefault();
       if (e.timeStamp - cooldown < 300) return; // one page per gesture, not per event
@@ -101,7 +128,7 @@ export function BinderPages({
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [idx, count, onPageChange]);
+  }, [idx, count, doubleSided, onPageChange]);
 
   return (
     <>
@@ -122,15 +149,24 @@ export function BinderPages({
           </View>
         ) : null)}
 
-      {/* Card labels — show metadata under each card, and pick which fields. Page flipping is
-          the filmstrip / mouse wheel / neighbour taps / arrow keys — no ‹ m/n › readout. */}
+      {/* View controls: double-sided (book spreads) + card labels. Page flipping is the
+          filmstrip / mouse wheel / neighbour taps / arrow keys — no ‹ m/n › readout. */}
       <View style={styles.labelsRow}>
-        <CaptionControls
-          enabled={labelsOn}
-          onToggle={() => setLabelsOn((v) => !v)}
-          fields={labelFields}
-          onToggleField={toggleLabelField}
-        />
+        <View style={styles.viewToggles}>
+          <Pressable
+            onPress={toggleDoubleSided}
+            style={[pillChip.base, doubleSided && pillChip.active]}>
+            <Text style={[pillChip.text, doubleSided && pillChip.textActive]}>
+              {doubleSided ? '✓ Double-sided' : 'Double-sided'}
+            </Text>
+          </Pressable>
+          <CaptionControls
+            enabled={labelsOn}
+            onToggle={() => setLabelsOn((v) => !v)}
+            fields={labelFields}
+            onToggleField={toggleLabelField}
+          />
+        </View>
       </View>
 
       {/* The page — a prev · current · next spread on wide screens, else the single page. */}
@@ -139,6 +175,49 @@ export function BinderPages({
           <ThemedText type="small" themeColor="textSecondary">
             This binder doesn’t have any pages yet.
           </ThemedText>
+        ) : doubleSided ? (
+          // The open book: left/right facing pages (the cover face sits alone on the right).
+          // The non-active side is a full 'partner' surface; its label focuses it.
+          <View style={[styles.spreadRow, { gap: bookGap }]}>
+            <SpreadColumn
+              page={leftPage}
+              width={bookW}
+              label={leftPage ? `Page ${spreadLeftIdx + 1}` : ''}
+              onFocus={
+                leftPage && spreadLeftIdx !== idx ? () => onPageChange(spreadLeftIdx) : undefined
+              }
+              editable={editable}
+              dragCol={dragCol}
+              columnIndex={0}>
+              {leftPage
+                ? renderGrid({
+                    page: leftPage,
+                    width: bookW,
+                    role: spreadLeftIdx === idx ? 'current' : 'partner',
+                    captionFields,
+                  })
+                : null}
+            </SpreadColumn>
+            <SpreadColumn
+              page={rightPage}
+              width={bookW}
+              label={rightPage ? `Page ${spreadRightIdx + 1}` : ''}
+              onFocus={
+                rightPage && spreadRightIdx !== idx ? () => onPageChange(spreadRightIdx) : undefined
+              }
+              editable={editable}
+              dragCol={dragCol}
+              columnIndex={2}>
+              {rightPage
+                ? renderGrid({
+                    page: rightPage,
+                    width: bookW,
+                    role: spreadRightIdx === idx ? 'current' : 'partner',
+                    captionFields,
+                  })
+                : null}
+            </SpreadColumn>
+          </View>
         ) : showSpread ? (
           <View style={[styles.spreadRow, { gap: spreadGap }]}>
             <SpreadColumn
@@ -248,6 +327,7 @@ function SpreadColumn({
 
 const styles = StyleSheet.create({
   labelsRow: { alignItems: 'center', marginTop: 10 },
+  viewToggles: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   pageDetailsRead: { alignItems: 'center', marginTop: 8 },
   pageWrap: { alignItems: 'center', marginVertical: 18 },
   spreadRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center' },

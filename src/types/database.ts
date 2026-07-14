@@ -105,6 +105,7 @@ export type Database = {
           col_index: number
           col_span: number
           created_at: string
+          from_collection: boolean | null
           id: string
           image_crop: Json | null
           image_fit: string | null
@@ -124,6 +125,7 @@ export type Database = {
           col_index: number
           col_span?: number
           created_at?: string
+          from_collection?: boolean | null
           id?: string
           image_crop?: Json | null
           image_fit?: string | null
@@ -143,6 +145,7 @@ export type Database = {
           col_index?: number
           col_span?: number
           created_at?: string
+          from_collection?: boolean | null
           id?: string
           image_crop?: Json | null
           image_fit?: string | null

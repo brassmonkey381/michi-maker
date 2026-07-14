@@ -91,7 +91,12 @@ export function AutoFillSheet({
     setBusy(method);
     setError(null);
     try {
-      const placements = await composePage(method, seed, catalog, page, poolActive ? ownedIds : null);
+      let placements = await composePage(method, seed, catalog, page, poolActive ? ownedIds : null);
+      // Pool fills consume owned copies — tag card pockets with collection provenance so the
+      // (free/owned) inventory accounting and Reclaim see them.
+      if (poolActive) {
+        placements = placements.map((p) => (p.cardId ? { ...p, fromCollection: true } : p));
+      }
       if (placements.length === 0) {
         setError(
           poolActive

@@ -102,8 +102,13 @@ interface BinderStore {
    */
   addCardToBinder: (binderId: string, cardId: string) => { pageIndex: number } | null;
   /** Batch-add many cards, each to the next free 1×1 pocket (appending pages as needed), in ONE
-   *  commit + persist pass — avoids the stale-closure re-placement that a per-card loop hits. */
-  addCardsToBinder: (binderId: string, cardIds: string[]) => { added: number };
+   *  commit + persist pass — avoids the stale-closure re-placement that a per-card loop hits.
+   *  `fromCollection` marks the pockets as consuming owned copies (My-collection provenance). */
+  addCardsToBinder: (
+    binderId: string,
+    cardIds: string[],
+    opts?: { fromCollection?: boolean },
+  ) => { added: number };
   /** Batch-place 1×1 pockets at explicit page cells (the page composer's output) in ONE commit —
    *  a single history entry so the whole auto-fill undoes at once. Each placement is a card, a
    *  tonal insert, or an artwork slice (exactly one of cardId / insertColor / imageUrl). Cells
@@ -118,6 +123,8 @@ interface BinderStore {
       insertColor?: string;
       imageUrl?: string;
       imageCrop?: { x: number; y: number; w: number; h: number };
+      /** This pocket consumes an owned copy (fill-from-my-collection provenance). */
+      fromCollection?: boolean;
     }[],
   ) => { placed: number };
   placeVUnion: (binderId: string, pageId: string, row: number, col: number, pieces: readonly string[]) => void;
@@ -630,7 +637,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   );
 
   const addCardsToBinder = useCallback(
-    (binderId: string, cardIds: string[]) => {
+    (binderId: string, cardIds: string[], opts?: { fromCollection?: boolean }) => {
       const target = binders.find((b) => b.id === binderId);
       if (!target || cardIds.length === 0) return { added: 0 };
 
@@ -666,6 +673,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
           colSpan: 1,
           type: 'card',
           cardId,
+          fromCollection: opts?.fromCollection || undefined,
         };
         pages[pageIndex] = { ...pages[pageIndex], slots: [...pages[pageIndex].slots, slot] };
         placed.push({ pageId: pages[pageIndex].id, slot });
@@ -701,6 +709,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         insertColor?: string;
         imageUrl?: string;
         imageCrop?: { x: number; y: number; w: number; h: number };
+        fromCollection?: boolean;
       }[],
     ) => {
       const target = binders.find((b) => b.id === binderId);
@@ -728,6 +737,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
           insertColor: p.insertColor,
           imageUrl: p.imageUrl,
           imageCrop: p.imageCrop,
+          fromCollection: (p.cardId && p.fromCollection) || undefined,
         });
       }
       if (newSlots.length === 0) return { placed: 0 };

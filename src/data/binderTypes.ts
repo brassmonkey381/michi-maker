@@ -75,6 +75,13 @@ export interface DemoSlot {
   imageFit?: 'cover' | 'contain';
   /** Rotation / mirror applied to `imageUrl` before the crop window. Absent ⇒ as-is. */
   imageTransform?: ImageTransform;
+  /**
+   * True when this pocket was filled FROM the owner's card inventory ("My collection" /
+   * fill-from-my-collection) — it consumes one owned copy in the (free/owned) accounting and
+   * can be reclaimed. Absent/false ⇒ placed from general browsing (aspirational; doesn't
+   * touch the inventory).
+   */
+  fromCollection?: boolean;
 }
 
 export interface DemoPage {

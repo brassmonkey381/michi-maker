@@ -59,6 +59,8 @@ export interface ComposePlacement {
   imageUrl?: string;
   /** Sub-rectangle of `imageUrl` this pocket shows (fractions 0–1 of the whole image). */
   imageCrop?: { x: number; y: number; w: number; h: number };
+  /** Set by the caller on pool ("from my collection") fills: the pocket consumes an owned copy. */
+  fromCollection?: boolean;
 }
 
 export const COMPOSE_METHODS: {

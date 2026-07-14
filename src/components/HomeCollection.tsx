@@ -22,7 +22,6 @@ import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/t
 import { fetchUserCards, subscribeUserCards, type UserCard } from '@/data/collectionRepo';
 import { isSupabaseConfigured } from '@/lib/env';
 import { cardThumbUrl } from '@/lib/catalogConfig';
-import { formatUsd, usePriceSummary } from '@/lib/prices';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
 
@@ -55,7 +54,6 @@ export function HomeCollection({ onToast }: { onToast?: (message: string) => voi
   return <CollectionStrip cards={cards} onToast={onToast} />;
 }
 
-/** Split out so the price summary (a ~MB shared fetch) only loads once rows actually exist. */
 function CollectionStrip({
   cards,
   onToast,
@@ -64,43 +62,45 @@ function CollectionStrip({
   onToast?: (message: string) => void;
 }) {
   const store = useBinders();
-  const priceSummary = usePriceSummary();
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [chooserOpen, setChooserOpen] = useState(false);
+  // Which chooser is open: pick a binder to ADD the placeable selection to, or to RECLAIM the
+  // single selected card from.
+  const [chooser, setChooser] = useState<'add' | 'reclaim' | null>(null);
   // "+ New binder": the freshly created binder isn't in the store snapshot this render closed
   // over, so the add is parked here and fires once the binder shows up in userBinders.
   const [pendingAdd, setPendingAdd] = useState<{ binderId: string; ids: string[] } | null>(null);
+  /* eslint-disable react-hooks/set-state-in-effect -- one-shot deferred store write, then cleared */
   useEffect(() => {
     if (!pendingAdd) return;
     if (!store.userBinders.some((b) => b.id === pendingAdd.binderId)) return;
-    const { added } = store.addCardsToBinder(pendingAdd.binderId, pendingAdd.ids);
+    const { added } = store.addCardsToBinder(pendingAdd.binderId, pendingAdd.ids, {
+      fromCollection: true,
+    });
     setPendingAdd(null);
     if (added > 0) onToast?.(`Added ${added} card${added === 1 ? '' : 's'} to your new binder`);
   }, [pendingAdd, store, onToast]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
-  // How many copies of each card already sit in the user's binders (any slot referencing it).
+  // How many owned copies of each card sit in binders — only pockets placed FROM the
+  // collection count (slot.fromCollection); cards added through general browsing are
+  // aspirational and don't consume owned copies.
   const placedCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const binder of store.userBinders) {
       for (const page of binder.pages) {
         for (const slot of page.slots) {
-          if (slot.cardId) counts.set(slot.cardId, (counts.get(slot.cardId) ?? 0) + 1);
+          if (slot.cardId && slot.fromCollection)
+            counts.set(slot.cardId, (counts.get(slot.cardId) ?? 0) + 1);
         }
       }
     }
     return counts;
   }, [store.userBinders]);
 
+  const freeOf = (c: UserCard) => Math.max(0, c.quantity - (placedCounts.get(c.cardId) ?? 0));
   const copies = cards.reduce((n, c) => n + c.quantity, 0);
-  const value = priceSummary
-    ? cards.reduce((sum, c) => sum + c.quantity * (priceSummary[c.cardId]?.cur ?? 0), 0)
-    : 0;
-  const headline = [
-    `${copies} card${copies === 1 ? '' : 's'}`,
-    value > 0 ? formatUsd(value) : '',
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  const available = cards.reduce((n, c) => n + freeOf(c), 0);
+  const headline = `${copies} card${copies === 1 ? '' : 's'} · ${available} available to place`;
 
   const toggle = (cardId: string) =>
     setSelected((cur) => {
@@ -110,21 +110,62 @@ function CollectionStrip({
       return next;
     });
 
+  // Only cards with a free copy can be placed — an exhausted (0/n) selection is reclaim-only.
+  const placeableIds = [...selected].filter((id) => {
+    const card = cards.find((c) => c.cardId === id);
+    return card ? freeOf(card) > 0 : false;
+  });
+  // Reclaim works on exactly one selected card that has copies sitting in binders.
+  const reclaimId =
+    selected.size === 1 && (placedCounts.get([...selected][0]) ?? 0) > 0 ? [...selected][0] : null;
+  /** Binders holding collection-sourced copies of the reclaim card, with how many each. */
+  const reclaimSources = reclaimId
+    ? store.userBinders
+        .map((b) => ({
+          binder: b,
+          count: b.pages.reduce(
+            (n, p) =>
+              n + p.slots.filter((s) => s.cardId === reclaimId && s.fromCollection).length,
+            0,
+          ),
+        }))
+        .filter((r) => r.count > 0)
+    : [];
+
   const addTo = (binderId: string) => {
-    const ids = [...selected];
-    setChooserOpen(false);
+    const ids = placeableIds;
+    setChooser(null);
     setSelected(new Set());
-    const { added } = store.addCardsToBinder(binderId, ids);
+    const { added } = store.addCardsToBinder(binderId, ids, { fromCollection: true });
     const title = store.userBinders.find((b) => b.id === binderId)?.title ?? 'binder';
     if (added > 0) onToast?.(`Added ${added} card${added === 1 ? '' : 's'} to ${title}`);
   };
 
   const addToNew = () => {
-    const ids = [...selected];
-    setChooserOpen(false);
+    const ids = placeableIds;
+    setChooser(null);
     setSelected(new Set());
     const binder = store.createBinder({ title: 'My collection picks' });
     setPendingAdd({ binderId: binder.id, ids });
+  };
+
+  /** Take one copy of the selected card back out of `binderId` (its last placed pocket). */
+  const reclaimFrom = (binderId: string) => {
+    const cardId = reclaimId;
+    setChooser(null);
+    setSelected(new Set());
+    if (!cardId) return;
+    const binder = store.userBinders.find((b) => b.id === binderId);
+    if (!binder) return;
+    for (let pi = binder.pages.length - 1; pi >= 0; pi -= 1) {
+      const page = binder.pages[pi];
+      const slot = [...page.slots].reverse().find((s) => s.cardId === cardId && s.fromCollection);
+      if (slot) {
+        store.removeSlot(binder.id, page.id, slot.id);
+        onToast?.(`Reclaimed from ${binder.title} — 1 more available to place`);
+        return;
+      }
+    }
   };
 
   return (
@@ -154,13 +195,27 @@ function CollectionStrip({
 
       {selected.size > 0 ? (
         <View style={styles.actionRow}>
-          <Pressable
-            onPress={() => setChooserOpen(true)}
-            style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}>
-            <Text style={styles.actionBtnText}>
-              Add {selected.size} to binder ▸
-            </Text>
-          </Pressable>
+          {placeableIds.length > 0 ? (
+            <Pressable
+              onPress={() => setChooser('add')}
+              style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}>
+              <Text style={styles.actionBtnText}>
+                Add {placeableIds.length} to binder ▸
+              </Text>
+            </Pressable>
+          ) : null}
+          {reclaimId ? (
+            <Pressable
+              onPress={() => setChooser('reclaim')}
+              style={({ pressed }) => [styles.actionBtn, styles.reclaimBtn, pressed && styles.pressed]}>
+              <Text style={styles.reclaimBtnText}>Reclaim ▸</Text>
+            </Pressable>
+          ) : null}
+          {placeableIds.length === 0 && !reclaimId ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              No free copies to place.
+            </ThemedText>
+          ) : null}
           <Pressable onPress={() => setSelected(new Set())} hitSlop={8}>
             <ThemedText type="small" themeColor="textSecondary">
               Clear
@@ -169,13 +224,13 @@ function CollectionStrip({
         </View>
       ) : null}
 
-      {chooserOpen ? (
-        <Modal visible transparent animationType="fade" onRequestClose={() => setChooserOpen(false)}>
-          <Pressable style={styles.backdrop} onPress={() => setChooserOpen(false)}>
+      {chooser === 'add' ? (
+        <Modal visible transparent animationType="fade" onRequestClose={() => setChooser(null)}>
+          <Pressable style={styles.backdrop} onPress={() => setChooser(null)}>
             <Pressable onPress={(e) => e.stopPropagation()} style={styles.chooserWrap}>
               <ThemedView type="backgroundElement" style={styles.chooser}>
                 <ThemedText type="smallBold" style={styles.chooserTitle}>
-                  Add {selected.size} card{selected.size === 1 ? '' : 's'} to…
+                  Add {placeableIds.length} card{placeableIds.length === 1 ? '' : 's'} to…
                 </ThemedText>
                 {store.userBinders.map((b) => (
                   <Pressable
@@ -192,6 +247,33 @@ function CollectionStrip({
                   style={({ pressed }) => [styles.chooserRow, pressed && styles.pressed]}>
                   <Text style={styles.chooserNew}>+ New binder</Text>
                 </Pressable>
+              </ThemedView>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      ) : null}
+
+      {chooser === 'reclaim' ? (
+        <Modal visible transparent animationType="fade" onRequestClose={() => setChooser(null)}>
+          <Pressable style={styles.backdrop} onPress={() => setChooser(null)}>
+            <Pressable onPress={(e) => e.stopPropagation()} style={styles.chooserWrap}>
+              <ThemedView type="backgroundElement" style={styles.chooser}>
+                <ThemedText type="smallBold" style={styles.chooserTitle}>
+                  Reclaim one copy from…
+                </ThemedText>
+                {reclaimSources.map(({ binder, count }) => (
+                  <Pressable
+                    key={binder.id}
+                    onPress={() => reclaimFrom(binder.id)}
+                    style={({ pressed }) => [styles.chooserRow, pressed && styles.pressed]}>
+                    <ThemedText type="small" numberOfLines={1}>
+                      {binder.title}
+                      <ThemedText type="small" themeColor="textSecondary">
+                        {'  '}· {count} placed
+                      </ThemedText>
+                    </ThemedText>
+                  </Pressable>
+                ))}
               </ThemedView>
             </Pressable>
           </Pressable>
@@ -306,6 +388,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
   },
   actionBtnText: { color: Palette.accentText, fontSize: FontSize.control, fontWeight: Weight.semibold },
+  reclaimBtn: { backgroundColor: Palette.panel },
+  reclaimBtnText: { color: Palette.ink2, fontSize: FontSize.control, fontWeight: Weight.semibold },
   backdrop: {
     flex: 1,
     backgroundColor: Palette.scrim45,

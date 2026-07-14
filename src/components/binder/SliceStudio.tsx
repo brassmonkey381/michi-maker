@@ -1,7 +1,6 @@
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Image as RNImage,
   Linking,
   Modal,
@@ -848,19 +847,16 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
                     <Text style={[styles.headerAction, styles.primary]}>Close</Text>
                   </Pressable>
                 </View>
-                {catalog ? (
-                  <CardBrowse
-                    catalog={catalog}
-                    onPickCard={(id) => {
-                      loadImage(cardThumbUrl(id, 'full'));
-                      setCardPickOpen(false);
-                    }}
-                  />
-                ) : (
-                  <View style={styles.cardPickLoading}>
-                    <ActivityIndicator />
-                  </View>
-                )}
+                {/* Rendered even without the catalog: CatalogBrowser runs cold (server search +
+                    taxonomy drill-down) for guests — a `catalog ?` gate here left guests staring
+                    at a spinner that never resolved (the catalog is a signed-in perk). */}
+                <CardBrowse
+                  catalog={catalog}
+                  onPickCard={(id) => {
+                    loadImage(cardThumbUrl(id, 'full'));
+                    setCardPickOpen(false);
+                  }}
+                />
               </ThemedView>
             </View>
           </Modal>
@@ -957,7 +953,6 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   cardPickHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  cardPickLoading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   sourcesBackdrop: {
     flex: 1,
     alignItems: 'center',

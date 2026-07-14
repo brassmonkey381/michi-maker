@@ -571,26 +571,11 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
             <Pressable onPress={onClose} hitSlop={10}>
               <Text style={[styles.headerAction, { color: theme.text }]}>Close</Text>
             </Pressable>
-            {editing ? (
-              <TextInput
-                value={binder.title}
-                onChangeText={(title) => store.updateBinder(binder.id, { title })}
-                placeholder="Binder title"
-                placeholderTextColor={theme.textSecondary}
-                style={[
-                  styles.titleInput,
-                  {
-                    color: theme.text,
-                    borderColor: theme.backgroundSelected,
-                    backgroundColor: theme.backgroundElement,
-                  },
-                ]}
-              />
-            ) : (
-              <ThemedText type="subtitle" numberOfLines={1} style={styles.titleText}>
-                {binder.title}
-              </ThemedText>
-            )}
+            {/* The title is edited in the detail fields below (same width as the description);
+                the header always shows it read-only, updating live as you type. */}
+            <ThemedText type="subtitle" numberOfLines={1} style={styles.titleText}>
+              {binder.title || (editing ? 'Untitled binder' : '')}
+            </ThemedText>
             {canEdit ? (
               <View style={styles.headerRight}>
                 {isSupabaseConfigured && likeCount !== null ? (
@@ -627,17 +612,24 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           </View>
 
           <ScrollView contentContainerStyle={styles.scroll}>
-            {/* Binder description — just under the title. Compact + width-capped so it reads as
-                one detail field, not a page-wide text area. */}
+            {/* Binder title + description — one compact, equal-width pair of detail fields just
+                under the header (the header shows the title read-only). */}
             {editing ? (
-              <LabeledInput
-                label="Binder description"
-                value={binder.description ?? ''}
-                onChangeText={(description) => store.updateBinder(binder.id, { description })}
-                placeholder="What is this binder about?"
-                multiline
-                style={styles.binderDescField}
-              />
+              <View style={styles.binderFields}>
+                <LabeledInput
+                  label="Binder title"
+                  value={binder.title}
+                  onChangeText={(title) => store.updateBinder(binder.id, { title })}
+                  placeholder="Binder title"
+                />
+                <LabeledInput
+                  label="Binder description"
+                  value={binder.description ?? ''}
+                  onChangeText={(description) => store.updateBinder(binder.id, { description })}
+                  placeholder="What is this binder about?"
+                  multiline
+                />
+              </View>
             ) : binder.description ? (
               <ThemedText type="small" themeColor="textSecondary" style={styles.description}>
                 {binder.description}
@@ -1028,23 +1020,11 @@ const styles = StyleSheet.create({
   },
   pageVisText: { flex: 1, gap: 2 },
   titleText: { flex: 1, textAlign: 'center', fontSize: FontSize.title, lineHeight: 28 },
-  titleInput: {
-    flex: 1,
-    maxWidth: 420,
-    alignSelf: 'center',
-    fontSize: FontSize.lg,
-    fontWeight: Weight.semibold,
-    textAlign: 'center',
-    borderWidth: 1,
-    borderRadius: Radius.control,
-    paddingVertical: 5,
-    paddingHorizontal: 12,
-  },
   scroll: { paddingHorizontal: 16, paddingBottom: 48 },
   description: { marginTop: 10, textAlign: 'center', maxWidth: 640, alignSelf: 'center' },
   // Detail fields share one centred column (matches the edit-tools card) so the editable
   // chrome reads as a single organised stack instead of page-wide boxes.
-  binderDescField: { width: '100%', maxWidth: 680, alignSelf: 'center', marginTop: 8 },
+  binderFields: { width: '100%', maxWidth: 680, alignSelf: 'center', gap: 10, marginTop: 8 },
   pageDetails: {
     flexDirection: 'row',
     flexWrap: 'wrap',

@@ -25,6 +25,8 @@ export function PageStrip({ pages, currentIndex, onSelect, onReorder }: PageStri
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
+      // flexGrow centres the strip under the page when it's narrower than the screen, while a
+      // long strip still scrolls normally from its left edge.
       contentContainerStyle={styles.row}>
       {pages.map((page, index) => (
         <PageThumb
@@ -97,7 +99,14 @@ function PageThumb({ page, index, count, current, onSelect, onReorder }: PageThu
 }
 
 const styles = StyleSheet.create({
-  row: { gap: 8, paddingVertical: 6, paddingHorizontal: 2, alignItems: 'flex-start' },
+  row: {
+    gap: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 2,
+    alignItems: 'flex-start',
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
   thumb: { width: THUMB_W, alignItems: 'center' },
   thumbInner: {
     borderRadius: 10,

@@ -117,7 +117,7 @@ const GUIDE: { keys: string; action: string }[] = [
   { keys: 'Flip ↔ / ↕', action: 'Mirror the image' },
   { keys: 'Click a piece', action: 'Select it' },
   { keys: 'Shift / Ctrl-click', action: 'Add to selection (web)' },
-  { keys: 'M  ·  Merge', action: 'Join selected into one panel' },
+  { keys: 'M  ·  Merge', action: 'Join a sideways pair (inside-edge pockets only)' },
   { keys: 'B  ·  Split', action: 'Break a panel into pieces' },
   { keys: 'Esc', action: 'Clear selection' },
   { keys: 'Grid', action: 'Presets, or step rows/cols to 6×6' },
@@ -212,11 +212,19 @@ interface SliceStudioProps {
   rows: number;
   cols: number;
   imageUrl?: string;
+  /**
+   * Region-relative column indices where a merged 1×2 piece is physically insertable — the
+   * destination page's inside-edge pocket pairs (binderPhysics) shifted by the placement's
+   * base column. Merge is limited to exactly these: side-load pockets can't take vertical or
+   * 3+-wide pieces, and a folded pair only slides into pockets opening along the same inside
+   * edge. Omitted/empty ⇒ merging is unavailable.
+   */
+  pairStarts?: number[];
   onPlace: (panels: ArtPanelInput[]) => void;
   onClose: () => void;
 }
 
-export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl, onPlace, onClose }: SliceStudioProps) {
+export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl, pairStarts, onPlace, onClose }: SliceStudioProps) {
   const { width, height } = useWindowDimensions();
   const wide = width > 760;
 
@@ -450,10 +458,28 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
         (p) => p.r < maxR && p.r + p.rs > minR && p.c < maxC && p.c + p.cs > minC,
       );
       if (selCells !== bboxCells || overlaps) return ps; // selection isn't a clean rectangle
+      // SIDE-LOAD physics: a merged piece must be a folded 1×2 sitting on an inside-edge
+      // pocket pair — anything else can't be inserted (and would be re-split at place time).
+      if (maxR - minR !== 1 || maxC - minC !== 2 || !(pairStarts ?? []).includes(minC)) return ps;
       return [...others, { id: uid('panel'), r: minR, c: minC, rs: maxR - minR, cs: maxC - minC }];
     });
     setSelected(new Set());
-  }, [selected]);
+  }, [selected, pairStarts]);
+
+  // Would merging the current selection produce a physically insertable piece? Drives the
+  // Merge button state + the hint line, mirroring the guard inside merge().
+  const mergeLegal = useMemo(() => {
+    if (selected.size < 2) return false;
+    const chosen = panels.filter((p) => selected.has(p.id));
+    if (chosen.length < 2) return false;
+    const minR = Math.min(...chosen.map((p) => p.r));
+    const maxR = Math.max(...chosen.map((p) => p.r + p.rs));
+    const minC = Math.min(...chosen.map((p) => p.c));
+    const maxC = Math.max(...chosen.map((p) => p.c + p.cs));
+    const selCells = chosen.reduce((n, p) => n + p.rs * p.cs, 0);
+    if (selCells !== (maxR - minR) * (maxC - minC)) return false;
+    return maxR - minR === 1 && maxC - minC === 2 && (pairStarts ?? []).includes(minC);
+  }, [selected, panels, pairStarts]);
 
   const split = useCallback(() => {
     setPanels((ps) => {
@@ -719,7 +745,7 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
             <Chip label="Flip ↕" active={flipV} onPress={() => setFlipV((v) => !v)} />
           </View>
           <View style={styles.toolbar}>
-            <Btn label="Merge" onPress={merge} disabled={selected.size < 2} />
+            <Btn label="Merge" onPress={merge} disabled={!mergeLegal} />
             <Btn label="Split" onPress={split} disabled={selected.size === 0} />
             <Btn label="Reset" onPress={reset} />
             <Btn label={savedNote ? 'Saved ✓' : 'Save to library'} onPress={save} disabled={!imageUrl} />
@@ -782,9 +808,11 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
                 </GestureDetector>
               )}
               <Text style={styles.hint}>
-                {selected.size > 0
-                  ? `${selected.size} selected — Merge to join, Split to break`
-                  : 'Drag to pan · scroll to zoom · click a piece to select'}
+                {selected.size >= 2 && !mergeLegal
+                  ? 'Merged pieces must be a sideways PAIR on an inside-edge opening — fold down the middle, slide into both pockets'
+                  : selected.size > 0
+                    ? `${selected.size} selected — Merge to join, Split to break`
+                    : 'Drag to pan · scroll to zoom · click a piece to select'}
               </Text>
             </View>
 

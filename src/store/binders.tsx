@@ -27,6 +27,7 @@ import {
 } from 'react';
 
 import * as repo from '@/data/binderRepo';
+import { legalizeArtPanels, pageSide } from '@/data/binderPhysics';
 import {
   canPlaceSlot,
   cloneBinder,
@@ -892,12 +893,17 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   /**
    * Place explicit artwork panels (from the slice studio) at a base offset — each panel keeps
    * its footprint and crop. Panels that would fall outside the page are skipped; overlaps cleared.
+   * Panels are first legalized for SIDE-LOAD physics (see binderPhysics): no vertical spans, at
+   * most a folded 1×2 on an inside-edge pocket pair — anything bigger is split into insertable
+   * pieces with proportional crops (the assembled picture is unchanged).
    */
   const placeArtPanels = useCallback(
-    (binderId: string, pageId: string, baseRow: number, baseCol: number, panels: ArtPanelInput[]) => {
+    (binderId: string, pageId: string, baseRow: number, baseCol: number, rawPanels: ArtPanelInput[]) => {
       const target = binders.find((binder) => binder.id === binderId);
-      const page = target?.pages.find((p) => p.id === pageId);
+      const pageIndex = target?.pages.findIndex((p) => p.id === pageId) ?? -1;
+      const page = pageIndex >= 0 ? target?.pages[pageIndex] : undefined;
       if (!target || !page) return;
+      const panels = legalizeArtPanels(baseCol, rawPanels, page.cols, pageSide(pageIndex));
 
       const coverCells = new Set<string>();
       const newSlots: DemoSlot[] = [];

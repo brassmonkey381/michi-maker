@@ -40,6 +40,7 @@ import {
   type DemoSlot,
 } from '@/data/binderTypes';
 import { fetchLikeCount } from '@/data/binderRepo';
+import { artPieceAllowed, insideEdgePairStarts, pageSide, REAL_PAGE_SIZES } from '@/data/binderPhysics';
 import type { CaptionFieldKey } from '@/data/cardCaption';
 import type { ComposePlacement } from '@/data/pageComposer';
 import { isSupabaseConfigured } from '@/lib/env';
@@ -49,12 +50,8 @@ import type { CatalogCard } from '@/lib/catalog';
 import { useBinders } from '@/store/binders';
 import { useTheme } from '@/hooks/use-theme';
 
-const PAGE_SIZES: { label: string; rows: number; cols: number }[] = [
-  { label: '3×3', rows: 3, cols: 3 },
-  { label: '3×4', rows: 3, cols: 4 },
-  { label: '4×3', rows: 4, cols: 3 },
-  { label: '4×4', rows: 4, cols: 4 },
-];
+// Real side-load page grids only — 4 rows × 3 columns doesn't exist physically (binderPhysics).
+const PAGE_SIZES = REAL_PAGE_SIZES;
 
 interface BinderScreenProps {
   binderId: string;
@@ -263,7 +260,16 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   };
 
   // Drag-to-resize commit: re-place the slot at its fixed top-left with the new footprint.
+  // Artwork obeys side-load physics — a piece can't grow into a shape that can't be inserted.
   const handleResizeSlot = (row: number, col: number, rowSpan: number, colSpan: number) => {
+    const resizing = page.slots.find((s) => s.row === row && s.col === col);
+    if (resizing?.type === 'artwork') {
+      const verdict = artPieceAllowed(col, rowSpan, colSpan, page.cols, pageSide(pageIndex));
+      if (!verdict.ok) {
+        showToast(verdict.reason ?? 'That art shape can’t be inserted into side-load pockets.');
+        return;
+      }
+    }
     store.upsertSlot(binder.id, page.id, { row, col, rowSpan, colSpan });
   };
 
@@ -446,7 +452,12 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
 
   const handlePickArtwork = (imageUrl: string, rowSpan: number, colSpan: number) => {
     if (!pickerCell) return;
-    store.upsertSlot(binder.id, page.id, { ...pickerCell, type: 'artwork', imageUrl, rowSpan, colSpan });
+    // Through placeArtPanels so side-load physics applies: a footprint that isn't a single
+    // insertable piece (1×1, or a folded 1×2 on an inside-edge pair) is split into legal
+    // pieces with proportional crops — the assembled picture looks the same.
+    store.placeArtPanels(binder.id, page.id, pickerCell.row, pickerCell.col, [
+      { r: 0, c: 0, rs: rowSpan, cs: colSpan, imageUrl, crop: { x: 0, y: 0, w: 1, h: 1 }, fit: 'cover' },
+    ]);
     closePicker();
   };
 
@@ -482,12 +493,23 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // Drag-and-drop onto a target cell of `pageId`: same-footprint occupant → swap; empty → move;
   // otherwise it springs back. Shared by the single-page editor and every page in the spread.
   const handleDropOnPage = (pageId: string, slotId: string, toRow: number, toCol: number) => {
-    const pg = binder.pages.find((p) => p.id === pageId);
+    const pgIndex = binder.pages.findIndex((p) => p.id === pageId);
+    const pg = pgIndex >= 0 ? binder.pages[pgIndex] : undefined;
     const moving = pg?.slots.find((s) => s.id === slotId);
     if (!pg || !moving) return;
     const r = Math.max(0, Math.min(toRow, pg.rows - moving.rowSpan));
     const c = Math.max(0, Math.min(toCol, pg.cols - moving.colSpan));
     if (r === moving.row && c === moving.col) return;
+    // A folded 2-wide art piece only re-inserts at an inside-edge pocket pair — which pair is
+    // legal depends on the TARGET page's side of the spine. (Legacy wider pieces are left
+    // grandfathered: moving them neither fixes nor worsens their physics.)
+    if (moving.type === 'artwork' && moving.colSpan === 2 && moving.rowSpan === 1) {
+      const verdict = artPieceAllowed(c, 1, 2, pg.cols, pageSide(pgIndex));
+      if (!verdict.ok) {
+        showToast(verdict.reason ?? 'That pocket pair doesn’t open along the same edge.');
+        return;
+      }
+    }
     const occupant = pg.slots.find((s) => s.id !== slotId && slotCells(s).includes(`${r},${c}`));
     if (
       occupant &&
@@ -888,6 +910,11 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
             rows={studio.rows}
             cols={studio.cols}
             imageUrl={studio.imageUrl}
+            // The destination page's inside-edge pocket pairs, shifted into the studio
+            // region's frame — the only columns where a merged 1×2 piece can be inserted.
+            pairStarts={insideEdgePairStarts(page.cols, pageSide(pageIndex))
+              .map((s) => s - studio.col)
+              .filter((rel) => rel >= 0 && rel + 2 <= studio.cols)}
             onPlace={(panels) => {
               store.placeArtPanels(binder.id, page.id, studio.row, studio.col, panels);
               setStudio(null);

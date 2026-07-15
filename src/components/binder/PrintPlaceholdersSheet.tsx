@@ -17,7 +17,8 @@ import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
 import type { DemoBinder } from '@/data/binderTypes';
 import { fetchUserCards } from '@/data/collectionRepo';
-import { buildPlaceholderPdf, placeholderTiles, sheetsFor } from '@/data/placeholderPdf';
+import { createWebArtLoader } from '@/data/fillSheetArt';
+import { buildPlaceholderPdf, collectFillTiles, sheetsFor } from '@/data/placeholderPdf';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useEntitlement } from '@/hooks/use-entitlement';
 import { useAuth } from '@/store/auth';
@@ -57,20 +58,25 @@ export function PrintPlaceholdersSheet({
   }, [isSignedIn]);
 
   const effectiveOwned = colorOwned ? (ownedIds ?? undefined) : undefined;
-  const tiles = useMemo(
-    () => (catalog ? placeholderTiles(binder, catalog, effectiveOwned) : null),
+  const collected = useMemo(
+    () => (catalog ? collectFillTiles(binder, catalog, effectiveOwned) : null),
     [binder, catalog, effectiveOwned],
   );
-  const sheets = tiles ? sheetsFor(tiles.length) : 0;
-  const ownedCount = tiles ? tiles.filter((t) => t.owned).length : 0;
+  const counts = collected?.counts ?? null;
+  const sheets = counts ? sheetsFor(counts.total) : 0;
+  const ownedCount = counts?.ownedCards ?? 0;
 
   const download = async () => {
-    if (!catalog || !tiles || tiles.length === 0 || busy) return;
+    if (!catalog || !counts || counts.total === 0 || busy) return;
     setBusy(true);
     setError(null);
     try {
-      const bytes = await buildPlaceholderPdf(binder, catalog, { ownedIds: effectiveOwned });
-      const filename = `${binder.title.replace(/[^\w\- ]+/g, '').trim() || 'binder'} placeholders.pdf`;
+      const bytes = await buildPlaceholderPdf(binder, catalog, {
+        ownedIds: effectiveOwned,
+        // Art pixels: direct CORS fetch → art-proxy edge fn fallback → webp/canvas convert.
+        loadImage: createWebArtLoader(),
+      });
+      const filename = `${binder.title.replace(/[^\w\- ]+/g, '').trim() || 'binder'} fill sheets.pdf`;
       // Web: a plain blob download. (Native share-sheet export can come later.)
       const blob = new Blob([bytes as BlobPart], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
@@ -95,7 +101,7 @@ export function PrintPlaceholdersSheet({
           <ThemedView type="backgroundElement" style={styles.card}>
             <View style={styles.header}>
               <ThemedText type="subtitle" style={styles.title}>
-                🖨 Print placeholders
+                🖨 Print fill sheets
               </ThemedText>
               <Pressable onPress={onClose} hitSlop={8}>
                 <ThemedText type="link" themeColor="textSecondary">
@@ -114,10 +120,11 @@ export function PrintPlaceholdersSheet({
             ) : (
               <>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-                  A print-ready PDF with one gray placeholder card per pocket — real card size
-                  (2.5″ × 3.5″), labeled with its binder page + row/column and the card’s name,
-                  set, and number. Print at 100%, cut along the guides, and every pocket tells
-                  you which card it’s waiting for.
+                  A print-ready PDF of this binder’s pages as cut-ready fill sheets — card
+                  placeholders (labeled with pocket + name/set/number), the binder’s ART pieces
+                  (gap-compensated so pictures stay continuous across pocket dividers), and
+                  color inserts. Every piece is real card size (2.5″ × 3.5″): print at 100%,
+                  cut along the guides, slide in.
                 </ThemedText>
 
                 {!catalog && loading ? (
@@ -129,10 +136,25 @@ export function PrintPlaceholdersSheet({
                   </View>
                 ) : null}
 
-                {tiles ? (
+                {counts ? (
                   <ThemedText type="small" themeColor="textSecondary">
-                    <ThemedText type="smallBold">{tiles.length}</ThemedText> placeholder
-                    {tiles.length === 1 ? '' : 's'} across{' '}
+                    <ThemedText type="smallBold">{counts.cards}</ThemedText> card placeholder
+                    {counts.cards === 1 ? '' : 's'}
+                    {counts.art > 0 ? (
+                      <>
+                        {' · '}
+                        <ThemedText type="smallBold">{counts.art}</ThemedText> art piece
+                        {counts.art === 1 ? '' : 's'}
+                      </>
+                    ) : null}
+                    {counts.inserts > 0 ? (
+                      <>
+                        {' · '}
+                        <ThemedText type="smallBold">{counts.inserts}</ThemedText> insert
+                        {counts.inserts === 1 ? '' : 's'}
+                      </>
+                    ) : null}
+                    {' across '}
                     <ThemedText type="smallBold">{sheets}</ThemedText> sheet
                     {sheets === 1 ? '' : 's'} (plus a cover with print instructions).
                     {colorOwned && ownedCount > 0
@@ -140,7 +162,7 @@ export function PrintPlaceholdersSheet({
                       : ''}
                   </ThemedText>
                 ) : null}
-                {ownedIds && ownedIds.size > 0 && tiles && tiles.length > 0 ? (
+                {ownedIds && ownedIds.size > 0 && counts && counts.total > 0 ? (
                   <Pressable
                     onPress={() => setColorOwned((v) => !v)}
                     accessibilityRole="checkbox"
@@ -155,19 +177,19 @@ export function PrintPlaceholdersSheet({
                     </ThemedText>
                   </Pressable>
                 ) : null}
-                {tiles && tiles.length === 0 ? (
+                {counts && counts.total === 0 ? (
                   <ThemedText type="small" themeColor="textSecondary">
-                    This binder has no cards in its pockets yet — nothing to print.
+                    This binder’s pockets are empty — nothing to print yet.
                   </ThemedText>
                 ) : null}
 
                 {unlocked ? (
                   <Pressable
                     onPress={download}
-                    disabled={busy || !tiles || tiles.length === 0}
+                    disabled={busy || !counts || counts.total === 0}
                     style={({ pressed }) => [
                       styles.btn,
-                      (pressed || busy || !tiles || tiles.length === 0) && styles.dim,
+                      (pressed || busy || !counts || counts.total === 0) && styles.dim,
                     ]}>
                     {busy ? (
                       <ActivityIndicator color={Palette.accentText} />

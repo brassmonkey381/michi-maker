@@ -122,7 +122,8 @@ Nothing on the tcgscan side blocks on these — once rows land, michi iterates i
 - tcgscan-app's own private user tables (`saved_cards`, `collections`, `portfolio_entries`)
   were **recreated in this project** via `20260714120000_tcgscan_app_tables.sql` (owner-only
   RLS, in `supabase_realtime`, **no** `set_updated_at` trigger — the client owns `updated_at`
-  for its last-write-wins sync). One deliberate schema fix vs. the old project: `id` /
+  for its last-write-wins sync). Update 2026-07-15: michi now READS `collections` +
+  `portfolio_entries` (owner-only, never writes) to group "My collection" by portfolio. One deliberate schema fix vs. the old project: `id` /
   `collection_id` are **text**, not uuid (the client mints `col-…`/`lot-…` ids).
 - `portfolio_entries` is tcgscan's **source of truth**; `user_cards` is a flattened rollup fed
   **additively** (`increment_user_card`, ±delta on add/remove/edit) so it coexists with your

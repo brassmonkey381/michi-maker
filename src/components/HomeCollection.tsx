@@ -12,8 +12,19 @@
  * without the big catalog. The header shows count + total value once the price summary resolves.
  */
 import { Image } from 'expo-image';
-import { useEffect, useMemo, useState } from 'react';
-import { FlatList, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Modal,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { BuildBinderSheet } from '@/components/BuildBinderSheet';
 import { HomeSection } from '@/components/HomeSection';
@@ -603,7 +614,11 @@ function CollectionStrip({
   );
 }
 
-/** One horizontal strip of tiles — the building block of every view mode. */
+/**
+ * One strip of tiles — the building block of every view mode. A paging CAROUSEL when the tiles
+ * overflow the width (‹ › arrows that wrap, dots, wheel paging on web — the BinderCarousel
+ * pattern); a plain row when everything fits.
+ */
 function TileStrip({
   cards,
   placedCounts,
@@ -615,23 +630,101 @@ function TileStrip({
   selected: Set<string>;
   onPress: (card: UserCard) => void;
 }) {
+  const [width, setWidth] = useState(0);
+  const [page, setPage] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
+  const containerRef = useRef<View>(null);
+  const gap = Spacing.two;
+
+  // Whole tiles per page from the measured width; each page spans exactly the container so
+  // paging snaps cleanly.
+  const perPage = width > 0 ? Math.max(2, Math.floor((width + gap) / (TILE_W + gap))) : 2;
+  const pages: UserCard[][] = [];
+  for (let i = 0; i < cards.length; i += perPage) pages.push(cards.slice(i, i + perPage));
+  const pageCount = pages.length;
+  const safePage = Math.min(page, Math.max(0, pageCount - 1));
+
+  const goTo = (p: number) => {
+    if (pageCount === 0) return;
+    const next = ((p % pageCount) + pageCount) % pageCount; // wrap both directions
+    scrollRef.current?.scrollTo({ x: next * width, animated: true });
+    setPage(next);
+  };
+
+  const onMomentumEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (width > 0) setPage(Math.round(e.nativeEvent.contentOffset.x / width));
+  };
+
+  // Web: wheel pages the strip; at either end it falls through to normal page scroll.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || pageCount <= 1 || width === 0) return;
+    const el = containerRef.current as unknown as HTMLElement | null;
+    if (!el) return;
+    let cooldown = -Infinity;
+    const onWheel = (e: WheelEvent) => {
+      const delta = Math.abs(e.deltaX) >= Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      if (Math.abs(delta) < 2) return;
+      const next = safePage + (delta > 0 ? 1 : -1);
+      if (next < 0 || next >= pageCount) return;
+      e.preventDefault();
+      if (e.timeStamp - cooldown < 300) return;
+      cooldown = e.timeStamp;
+      scrollRef.current?.scrollTo({ x: next * width, animated: true });
+      setPage(next);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [safePage, pageCount, width]);
+
   return (
-    <FlatList
-      horizontal
-      data={cards}
-      extraData={[selected, placedCounts]}
-      keyExtractor={(c) => `${c.cardId}|${c.condition}`}
-      renderItem={({ item }) => (
-        <CardTile
-          card={item}
-          placed={placedCounts.get(item.cardId) ?? 0}
-          selected={selected.has(item.cardId)}
-          onPress={() => onPress(item)}
-        />
-      )}
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.strip}
-    />
+    <View ref={containerRef} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={onMomentumEnd}
+        scrollEventThrottle={16}>
+        {width > 0 &&
+          pages.map((pg, pi) => (
+            <View key={pi} style={[styles.carouselPage, { width, gap }]}>
+              {pg.map((item) => (
+                <CardTile
+                  key={`${item.cardId}|${item.condition}`}
+                  card={item}
+                  placed={placedCounts.get(item.cardId) ?? 0}
+                  selected={selected.has(item.cardId)}
+                  onPress={() => onPress(item)}
+                />
+              ))}
+            </View>
+          ))}
+      </ScrollView>
+
+      {pageCount > 1 ? (
+        <>
+          <Pressable
+            onPress={() => goTo(safePage - 1)}
+            hitSlop={8}
+            accessibilityLabel="Previous cards"
+            style={[styles.carouselArrow, styles.carouselArrowLeft]}>
+            <Text style={styles.carouselArrowText}>‹</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => goTo(safePage + 1)}
+            hitSlop={8}
+            accessibilityLabel="More cards"
+            style={[styles.carouselArrow, styles.carouselArrowRight]}>
+            <Text style={styles.carouselArrowText}>›</Text>
+          </Pressable>
+          <View style={styles.carouselDots}>
+            {pages.map((_, i) => (
+              <View key={i} style={[styles.carouselDot, i === safePage && styles.carouselDotActive]} />
+            ))}
+          </View>
+        </>
+      ) : null}
+    </View>
   );
 }
 
@@ -801,7 +894,24 @@ function CardTile({
 }
 
 const styles = StyleSheet.create({
-  strip: { gap: Spacing.two, paddingVertical: Spacing.one },
+  carouselPage: { flexDirection: 'row', paddingVertical: Spacing.one },
+  carouselArrow: {
+    position: 'absolute',
+    top: '50%',
+    marginTop: -22,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Palette.scrim40,
+  },
+  carouselArrowLeft: { left: 2 },
+  carouselArrowRight: { right: 2 },
+  carouselArrowText: { color: Palette.white, fontSize: FontSize.nav, lineHeight: 28, fontWeight: Weight.semibold },
+  carouselDots: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.one, marginTop: 2 },
+  carouselDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Palette.hairlineStrong },
+  carouselDotActive: { backgroundColor: Palette.accent },
   tile: { width: TILE_W },
   pressed: { opacity: 0.8 },
   imageWrap: {

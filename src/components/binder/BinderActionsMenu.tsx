@@ -15,6 +15,7 @@ export function BinderActionsMenu({
   onRename,
   onDuplicate,
   onShare,
+  onPrint,
   onDelete,
   onClose,
 }: {
@@ -23,6 +24,8 @@ export function BinderActionsMenu({
   onRename: () => void;
   onDuplicate: () => void;
   onShare: () => void;
+  /** Open the "Print placeholders" PDF sheet. Omit to hide the row. */
+  onPrint?: () => void;
   onDelete: () => void;
   onClose: () => void;
 }) {
@@ -37,6 +40,7 @@ export function BinderActionsMenu({
             <Row label="Rename" onPress={onRename} />
             <Row label="Duplicate" onPress={onDuplicate} />
             {canShare ? <Row label="Share" onPress={onShare} /> : null}
+            {onPrint ? <Row label="Print placeholders" onPress={onPrint} /> : null}
             <Row label="Delete" tone="danger" onPress={onDelete} />
             <Pressable onPress={onClose} style={styles.cancel} hitSlop={6}>
               <Text style={styles.cancelText}>Cancel</Text>

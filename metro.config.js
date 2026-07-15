@@ -25,4 +25,15 @@ config.resolver.blockList = config.resolver.blockList
   ? [].concat(config.resolver.blockList, blockClaude, blockPublicAssets)
   : [blockClaude, ...blockPublicAssets];
 
+// pdf-lib ships an ES build (`module: es/index.js`) whose `import { __extends } from "tslib"`
+// breaks under Metro's ESM interop ("Cannot destructure '__extends' of 'tslib.default'").
+// Steer the bare `pdf-lib` import to its CJS build, which requires tslib the plain way.
+const defaultResolveRequest = config.resolver.resolveRequest;
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (moduleName === 'pdf-lib') {
+    return context.resolveRequest(context, 'pdf-lib/cjs/index.js', platform);
+  }
+  return (defaultResolveRequest ?? context.resolveRequest)(context, moduleName, platform);
+};
+
 module.exports = config;

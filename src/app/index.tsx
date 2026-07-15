@@ -10,6 +10,7 @@ import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
 import { BinderActionsMenu } from '@/components/binder/BinderActionsMenu';
 import { BinderCarousel } from '@/components/binder/BinderCarousel';
 import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
+import { PrintPlaceholdersSheet } from '@/components/binder/PrintPlaceholdersSheet';
 import { ShareSheet } from '@/components/binder/ShareSheet';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { HomeBrowse } from '@/components/HomeBrowse';
@@ -38,6 +39,7 @@ export default function BindersScreen() {
   const [renameId, setRenameId] = useState<string | null>(null);
   const [renameText, setRenameText] = useState('');
   const [shareId, setShareId] = useState<string | null>(null);
+  const [printId, setPrintId] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(null);
   const [toast, setToast] = useState<ToastSpec | null>(null);
   const toastId = useRef(0);
@@ -133,6 +135,7 @@ export default function BindersScreen() {
 
   const menuBinder = menuId ? store.userBinders.find((b) => b.id === menuId) : null;
   const shareBinder = shareId ? store.getBinder(shareId) : null;
+  const printBinder = printId ? store.getBinder(printId) : null;
 
   const startRename = () => {
     if (!menuBinder) return;
@@ -153,6 +156,10 @@ export default function BindersScreen() {
   };
   const shareFromMenu = () => {
     if (menuBinder) setShareId(menuBinder.id);
+    setMenuId(null);
+  };
+  const printFromMenu = () => {
+    if (menuBinder) setPrintId(menuBinder.id);
     setMenuId(null);
   };
   const deleteFromMenu = () => {
@@ -276,6 +283,7 @@ export default function BindersScreen() {
           onRename={startRename}
           onDuplicate={duplicateFromMenu}
           onShare={shareFromMenu}
+          onPrint={printFromMenu}
           onDelete={deleteFromMenu}
           onClose={() => setMenuId(null)}
         />
@@ -297,6 +305,13 @@ export default function BindersScreen() {
           onSetPublic={(v) => store.updateBinder(shareBinder.id, { isPublic: v })}
         />
       )}
+      {printBinder ? (
+        <PrintPlaceholdersSheet
+          binder={printBinder}
+          onClose={() => setPrintId(null)}
+          onDone={(sheets) => showToast(`Placeholder PDF downloaded (${sheets + 1} pages)`)}
+        />
+      ) : null}
       {addCardId ? (
         <AddToBinderSheet
           binders={store.userBinders}

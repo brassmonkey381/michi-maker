@@ -18,7 +18,7 @@ import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/t
 import type { DemoBinder } from '@/data/binderTypes';
 import { fetchUserCards } from '@/data/collectionRepo';
 import { createWebArtLoader } from '@/data/fillSheetArt';
-import { buildPlaceholderPdf, collectFillTiles, sheetsFor } from '@/data/placeholderPdf';
+import { buildPlaceholderPdf, collectFillTiles } from '@/data/placeholderPdf';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useEntitlement } from '@/hooks/use-entitlement';
 import { useAuth } from '@/store/auth';
@@ -63,7 +63,7 @@ export function PrintPlaceholdersSheet({
     [binder, catalog, effectiveOwned],
   );
   const counts = collected?.counts ?? null;
-  const sheets = counts ? sheetsFor(counts.total) : 0;
+  const sheets = counts?.sheets ?? 0;
   const ownedCount = counts?.ownedCards ?? 0;
 
   const download = async () => {

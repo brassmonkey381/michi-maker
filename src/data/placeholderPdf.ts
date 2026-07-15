@@ -38,6 +38,7 @@ import {
   StandardFonts,
 } from 'pdf-lib';
 
+import { insideEdgePairStarts, pageSide } from '@/data/binderPhysics';
 import type { DemoBinder, DemoSlot, ImageTransform } from '@/data/binderTypes';
 import type { ArtLoader, LoadedArt } from '@/data/fillSheetArt';
 
@@ -51,11 +52,20 @@ const CARD_H = 3.5 * PT;
 const POCKET_GAP = 0.125 * PT;
 const COLS = 3;
 const ROWS = 3;
-const GRID_W = COLS * CARD_W;
-const GRID_H = ROWS * CARD_H;
-const MARGIN_X = (SHEET_W - GRID_W) / 2; // 36 pt (0.5")
-const MARGIN_Y = (SHEET_H - GRID_H) / 2; // 18 pt (0.25")
-const TILES_PER_SHEET = COLS * ROWS;
+/**
+ * Sheet layout mirrors the binder page: columns sit at POCKET PITCH — the horizontal gap IS
+ * the physical webbing, so a folded 2-wide piece prints at its true assembled width
+ * (2 cards + the fold strip) and its art runs continuously across the fold. Vertical merges
+ * don't exist (side-load physics), so row spacing is just cutting room, kept smaller.
+ */
+const GAP_X = POCKET_GAP; // 9 pt (1/8")
+const GAP_Y = 6;
+const GRID_W = COLS * CARD_W + (COLS - 1) * GAP_X;
+const GRID_H = ROWS * CARD_H + (ROWS - 1) * GAP_Y;
+const MARGIN_X = (SHEET_W - GRID_W) / 2; // 27 pt (0.375")
+const MARGIN_Y = (SHEET_H - GRID_H) / 2; // 12 pt
+const colX = (c: number) => MARGIN_X + c * (CARD_W + GAP_X);
+const rowY = (r: number) => SHEET_H - MARGIN_Y - (r + 1) * CARD_H - r * GAP_Y;
 
 // ---- colors (ink-friendly grays; soft green for owned cards) ---------------
 const FILL = rgb(0.93, 0.93, 0.93);
@@ -98,10 +108,12 @@ export interface ArtTile {
   kind: 'art';
   page: number;
   row: number;
-  col: number;
+  col: number; // 1-indexed leftmost pocket of the piece
   group: ArtGroup;
-  i: number; // this piece's cell within the group
+  i: number; // this piece's top-left cell within the group
   j: number;
+  /** Pockets wide: 2 = a folded piece printed at true assembled width (art crosses the fold). */
+  w: 1 | 2;
 }
 
 export interface InsertTile {
@@ -120,6 +132,9 @@ export interface FillCounts {
   art: number;
   inserts: number;
   total: number;
+  /** Print sheets needed (excluding the cover) — from the packed layout, since folded
+   *  2-wide pieces can leave blanks at row breaks. */
+  sheets: number;
 }
 
 /** Card metadata lookup the builder needs — satisfied by the kit catalog's `getCard`. */
@@ -134,7 +149,7 @@ const transformKey = (t?: ImageTransform) => (t ? `${t.rot}|${t.flipH ? 1 : 0}|$
  * tile a rectangle with the same image+transform fall back to per-slot groups. 'contain'
  * slots always stand alone (they letterbox the whole image inside their own footprint).
  */
-function groupArt(slots: DemoSlot[]): ArtGroup[] {
+function groupArt(slots: DemoSlot[]): GroupedArt[] {
   const byKey = new Map<string, DemoSlot[]>();
   for (const s of slots) {
     if (s.imageFit === 'contain') {
@@ -146,7 +161,7 @@ function groupArt(slots: DemoSlot[]): ArtGroup[] {
     list.push(s);
     byKey.set(key, list);
   }
-  const groups: ArtGroup[] = [];
+  const groups: GroupedArt[] = [];
   for (const list of byKey.values()) {
     // Two placements of the SAME image on one page (e.g. a banner up top and a detail pocket
     // below) must not fuse — split the key-group into 4-adjacency connected components first,
@@ -156,6 +171,34 @@ function groupArt(slots: DemoSlot[]): ArtGroup[] {
     }
   }
   return groups;
+}
+
+/** A sampling region plus the slots that formed it — slot boundaries define the PHYSICAL
+ *  printed pieces (a merged 1×2 slot is one folded piece; separate slices stay separate). */
+interface GroupedArt {
+  group: ArtGroup;
+  slots: DemoSlot[];
+}
+
+/**
+ * The physical pieces one artwork slot prints as (slot-relative cells): 1×1 and merged 1×2
+ * slots ARE single pieces; legacy oversized slots subdivide per row — folded pairs wherever
+ * the footprint sits on an inside-edge pocket pair, singles elsewhere.
+ */
+function slotPieces(slot: DemoSlot, pairStarts: number[]): { i: number; j: number; w: 1 | 2 }[] {
+  if (slot.rowSpan === 1 && slot.colSpan <= 2) {
+    return [{ i: 0, j: 0, w: slot.colSpan === 2 ? 2 : 1 }];
+  }
+  const pieces: { i: number; j: number; w: 1 | 2 }[] = [];
+  for (let i = 0; i < slot.rowSpan; i += 1) {
+    let j = 0;
+    while (j < slot.colSpan) {
+      const pairHere = j + 1 < slot.colSpan && pairStarts.includes(slot.col + j);
+      pieces.push({ i, j, w: pairHere ? 2 : 1 });
+      j += pairHere ? 2 : 1;
+    }
+  }
+  return pieces;
 }
 
 /** Partition slots into connected components (slots touch when any of their cells are 4-adjacent). */
@@ -194,7 +237,7 @@ function connectedComponents(slots: DemoSlot[]): DemoSlot[][] {
  * cluster whose cells form a filled rectangle merges into one region; anything else prints
  * per-slot (each piece still uses its own exact crop, just without cross-slot gap comp).
  */
-function mergeComponent(list: DemoSlot[]): ArtGroup[] {
+function mergeComponent(list: DemoSlot[]): GroupedArt[] {
   const byGrid = new Map<string, DemoSlot[]>();
   for (const s of list) {
     const crop = s.imageCrop ?? { x: 0, y: 0, w: 1, h: 1 };
@@ -207,7 +250,7 @@ function mergeComponent(list: DemoSlot[]): ArtGroup[] {
     bucket.push(s);
     byGrid.set(key, bucket);
   }
-  const groups: ArtGroup[] = [];
+  const groups: GroupedArt[] = [];
   for (const cluster of byGrid.values()) {
     const cells = new Set<string>();
     let minR = Infinity, maxR = -1, minC = Infinity, maxC = -1;
@@ -228,20 +271,26 @@ function mergeComponent(list: DemoSlot[]): ArtGroup[] {
     const base = cluster[0];
     if (cells.size === R * C) {
       groups.push({
-        imageUrl: base.imageUrl!,
-        transform: base.imageTransform,
-        fit: base.imageFit === 'contain' ? 'contain' : 'cover',
-        row: minR, col: minC, R, C,
-        crop: { x: bx, y: by, w: bx2 - bx, h: by2 - by },
+        group: {
+          imageUrl: base.imageUrl!,
+          transform: base.imageTransform,
+          fit: base.imageFit === 'contain' ? 'contain' : 'cover',
+          row: minR, col: minC, R, C,
+          crop: { x: bx, y: by, w: bx2 - bx, h: by2 - by },
+        },
+        slots: cluster,
       });
     } else {
       for (const s of cluster) {
         groups.push({
-          imageUrl: s.imageUrl!,
-          transform: s.imageTransform,
-          fit: s.imageFit === 'contain' ? 'contain' : 'cover',
-          row: s.row, col: s.col, R: s.rowSpan, C: s.colSpan,
-          crop: s.imageCrop ?? { x: 0, y: 0, w: 1, h: 1 },
+          group: {
+            imageUrl: s.imageUrl!,
+            transform: s.imageTransform,
+            fit: s.imageFit === 'contain' ? 'contain' : 'cover',
+            row: s.row, col: s.col, R: s.rowSpan, C: s.colSpan,
+            crop: s.imageCrop ?? { x: 0, y: 0, w: 1, h: 1 },
+          },
+          slots: [s],
         });
       }
     }
@@ -262,12 +311,23 @@ export function collectFillTiles(
   const tiles: FillTile[] = [];
   binder.pages.forEach((page, pageIndex) => {
     const byCell = new Map<string, FillTile>();
-    for (const group of groupArt(page.slots.filter((s) => s.type === 'artwork' && s.imageUrl))) {
-      for (let i = 0; i < group.R; i += 1) {
-        for (let j = 0; j < group.C; j += 1) {
-          byCell.set(`${group.row + i},${group.col + j}`, {
-            kind: 'art', page: pageIndex + 1, row: group.row + i + 1, col: group.col + j + 1,
-            group, i, j,
+    // Printed art PIECES follow slot boundaries: a merged 1×2 slot is ONE folded piece
+    // (printed at true assembled width, art continuous across the fold); separate 1×1
+    // slices stay separate pieces. Legacy oversized slots subdivide into folded pairs at
+    // the page's inside-edge pockets + singles (side-load physics).
+    const pairStarts = insideEdgePairStarts(page.cols, pageSide(pageIndex));
+    for (const { group, slots } of groupArt(page.slots.filter((s) => s.type === 'artwork' && s.imageUrl))) {
+      for (const slot of slots) {
+        for (const piece of slotPieces(slot, pairStarts)) {
+          byCell.set(`${slot.row + piece.i},${slot.col + piece.j}`, {
+            kind: 'art',
+            page: pageIndex + 1,
+            row: slot.row + piece.i + 1,
+            col: slot.col + piece.j + 1,
+            group,
+            i: slot.row + piece.i - group.row,
+            j: slot.col + piece.j - group.col,
+            w: piece.w,
           });
         }
       }
@@ -308,13 +368,42 @@ export function collectFillTiles(
     art: tiles.filter((t) => t.kind === 'art').length,
     inserts: tiles.filter((t) => t.kind === 'insert').length,
     total: tiles.length,
+    sheets: packTiles(tiles).sheetCount,
   };
   return { tiles, counts };
 }
 
-/** Sheets the tile run needs (excluding the cover). */
-export function sheetsFor(tileCount: number): number {
-  return Math.ceil(tileCount / TILES_PER_SHEET);
+/** A tile placed on the print layout: which sheet, and its cell (2-wide pieces occupy 2 cols). */
+interface PlacedTile {
+  tile: FillTile;
+  sheet: number;
+  row: number; // 0..ROWS-1 within the sheet
+  col: number; // leftmost column
+}
+
+/**
+ * Pack tiles into sheet rows (reading order): 2-wide folded pieces can't straddle a row
+ * break, so a pair that doesn't fit the current row starts the next one (leaving a blank).
+ */
+function packTiles(tiles: FillTile[]): { placed: PlacedTile[]; sheetCount: number } {
+  const placed: PlacedTile[] = [];
+  let row = 0;
+  let col = 0;
+  for (const tile of tiles) {
+    const w = tile.kind === 'art' ? tile.w : 1;
+    if (col + w > COLS) {
+      col = 0;
+      row += 1;
+    }
+    placed.push({ tile, sheet: Math.floor(row / ROWS), row: row % ROWS, col });
+    col += w;
+    if (col >= COLS) {
+      col = 0;
+      row += 1;
+    }
+  }
+  const sheetCount = placed.length ? placed[placed.length - 1].sheet + 1 : 0;
+  return { placed, sheetCount };
 }
 
 // ---- text helpers -----------------------------------------------------------
@@ -412,38 +501,41 @@ export async function buildPlaceholderPdf(
 
   drawCover(doc.addPage([SHEET_W, SHEET_H]), sanitize(binder.title), counts, bold, regular);
 
-  for (let i = 0; i < tiles.length; i += TILES_PER_SHEET) {
+  const { placed, sheetCount } = packTiles(tiles);
+  for (let s = 0; s < sheetCount; s += 1) {
     const page = doc.addPage([SHEET_W, SHEET_H]);
-    const batch = tiles.slice(i, i + TILES_PER_SHEET);
-    batch.forEach((tile, j) => {
-      const col = j % COLS;
-      const row = Math.floor(j / COLS);
-      // PDF origin is bottom-left; tiles read top-left → bottom-right.
-      const x = MARGIN_X + col * CARD_W;
-      const y = SHEET_H - MARGIN_Y - (row + 1) * CARD_H;
+    const batch = placed.filter((p) => p.sheet === s);
+    for (const { tile, row, col } of batch) {
+      // Pocket-pitch layout: gaps between tiles mirror the binder page's webbing.
+      const x = colX(col);
+      const y = rowY(row);
       if (tile.kind === 'card') {
         drawCardTile(page, tile, x, y, bold, regular);
+        drawPieceOutline(page, x, y, CARD_W);
       } else if (tile.kind === 'insert') {
         page.drawRectangle({ x, y, width: CARD_W, height: CARD_H, color: hexColor(tile.color) });
         drawTag(page, `P${tile.page} · R${tile.row}C${tile.col} · insert ${tile.color}`, x, y, regular);
+        drawPieceOutline(page, x, y, CARD_W);
       } else {
+        const pieceW = tile.w * CARD_W + (tile.w - 1) * POCKET_GAP;
         const img = images.get(tile.group.imageUrl) ?? null;
         if (img) drawArtPiece(page, img, tile, x, y);
         else drawArtFallback(page, tile, x, y, bold, regular);
-        drawTag(page, `P${tile.page} · R${tile.row}C${tile.col}`, x, y, regular);
+        drawTag(page, `P${tile.page} · R${tile.row}C${tile.col}${tile.w === 2 ? ' · fold' : ''}`, x, y, regular);
+        drawPieceOutline(page, x, y, pieceW);
+        if (tile.w === 2) drawFoldTicks(page, x + CARD_W + POCKET_GAP / 2, y);
       }
-    });
-    // Cut grid + rulers LAST so the dashed lattice rides on top of every fill.
-    drawCutGrid(page);
+    }
     drawMarginRulers(page, regular);
-    const hosts = [...new Set(batch.filter((t): t is ArtTile => t.kind === 'art').map((t) => artHost(t.group.imageUrl)))]
-      .filter(Boolean);
+    const hosts = [...new Set(
+      batch.map((p) => p.tile).filter((t): t is ArtTile => t.kind === 'art').map((t) => artHost(t.group.imageUrl)),
+    )].filter(Boolean);
     const footer = [
-      `${sanitize(binder.title)} · sheet ${Math.floor(i / TILES_PER_SHEET) + 1} of ${sheetsFor(tiles.length)}`,
+      `${sanitize(binder.title)} · sheet ${s + 1} of ${sheetCount}`,
       'cards 2.5" × 3.5" (63.5 × 88.9 mm)',
       hosts.length ? `art: ${hosts.join(', ')}` : '',
     ].filter(Boolean).join(' · ');
-    drawCentered(page, footer, 6, regular, 7, MUTED);
+    drawCentered(page, footer, 3, regular, 7, MUTED);
   }
 
   return doc.save();
@@ -455,38 +547,44 @@ function hexColor(h: string) {
   return rgb(((v >> 16) & 255) / 255, ((v >> 8) & 255) / 255, (v & 255) / 255);
 }
 
-/** Edge-to-edge cut lines along every tile boundary — straight guillotine cuts. */
-function drawCutGrid(page: PDFPage) {
-  const line = (x1: number, y1: number, x2: number, y2: number) =>
-    page.drawLine({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, thickness: 0.5, color: GUIDE, dashArray: [3, 3] });
-  for (let c = 0; c <= COLS; c += 1) {
-    const x = MARGIN_X + c * CARD_W;
-    line(x, 0, x, SHEET_H);
-  }
-  for (let r = 0; r <= ROWS; r += 1) {
-    const y = SHEET_H - MARGIN_Y - r * CARD_H;
-    line(0, y, SHEET_W, y);
-  }
+/** Dashed cut outline around one piece — with pocket-pitch gaps, you cut on each piece's
+ *  own edge (no shared guillotine lines; folded pieces span their fold strip uncut). */
+function drawPieceOutline(page: PDFPage, x: number, y: number, width: number) {
+  page.drawRectangle({
+    x, y, width, height: CARD_H,
+    borderColor: GUIDE, borderWidth: 0.5, borderDashArray: [3, 3],
+  });
+}
+
+/** Fold marks on a 2-wide piece: short ticks at the fold line's top and bottom (kept out of
+ *  the art's middle). Fold here, then each half slides into its pocket. */
+function drawFoldTicks(page: PDFPage, foldX: number, y: number) {
+  const tick = (y1: number, y2: number) =>
+    page.drawLine({ start: { x: foldX, y: y1 }, end: { x: foldX, y: y2 }, thickness: 0.8, color: GUIDE, dashArray: [2, 2] });
+  tick(y, y + 12);
+  tick(y + CARD_H - 12, y + CARD_H);
 }
 
 /**
- * Cumulative-inch labels in the margins at every cut line — a printed ruler doubling as a
- * second scale check beyond the cover's calibration square.
+ * Cumulative-inch labels in the margins at every piece's leading edge (plus the far edge) —
+ * a printed ruler doubling as a second scale check beyond the cover's calibration square.
  */
 function drawMarginRulers(page: PDFPage, regular: PDFFont) {
-  const label = (n: number) => `${n % 1 === 0 ? n : n.toFixed(1)}"`;
-  for (let c = 0; c <= COLS; c += 1) {
-    const x = MARGIN_X + c * CARD_W;
-    const text = label((c * CARD_W) / PT);
+  const label = (n: number) => `${Number(n.toFixed(2))}"`;
+  const top = (x: number, inches: number) => {
+    const text = label(inches);
     const w = regular.widthOfTextAtSize(text, 6);
-    page.drawText(text, { x: x - w / 2, y: SHEET_H - MARGIN_Y + 5, size: 6, font: regular, color: MUTED });
-  }
-  for (let r = 0; r <= ROWS; r += 1) {
-    const y = SHEET_H - MARGIN_Y - r * CARD_H;
-    const text = label((r * CARD_H) / PT);
+    page.drawText(text, { x: x - w / 2, y: SHEET_H - MARGIN_Y + 4, size: 6, font: regular, color: MUTED });
+  };
+  const left = (y: number, inches: number) => {
+    const text = label(inches);
     const w = regular.widthOfTextAtSize(text, 6);
     page.drawText(text, { x: MARGIN_X - w - 4, y: y + 2, size: 6, font: regular, color: MUTED });
-  }
+  };
+  for (let c = 0; c < COLS; c += 1) top(colX(c), (c * (CARD_W + GAP_X)) / PT);
+  top(colX(COLS - 1) + CARD_W, (( (COLS - 1) * (CARD_W + GAP_X) + CARD_W) / PT));
+  for (let r = 0; r < ROWS; r += 1) left(rowY(r) + CARD_H, (r * (CARD_H + GAP_Y)) / PT);
+  left(rowY(ROWS - 1), (((ROWS - 1) * (CARD_H + GAP_Y) + CARD_H) / PT));
 }
 
 /** Discreet assembly tag on art/insert pieces (a future run could print these on the back). */
@@ -542,8 +640,9 @@ function drawCardTile(page: PDFPage, tile: CardTile, x: number, y: number, bold:
 
 /** Art piece whose image couldn't be fetched: a labeled gray tile instead of a hole. */
 function drawArtFallback(page: PDFPage, tile: ArtTile, x: number, y: number, bold: PDFFont, regular: PDFFont) {
-  const cx = x + CARD_W / 2;
-  page.drawRectangle({ x, y, width: CARD_W, height: CARD_H, color: FILL });
+  const pieceW = tile.w * CARD_W + (tile.w - 1) * POCKET_GAP;
+  const cx = x + pieceW / 2;
+  page.drawRectangle({ x, y, width: pieceW, height: CARD_H, color: FILL });
   drawCentered(page, 'art piece', y + CARD_H / 2 + 10, bold, 11, MUTED, cx);
   drawCentered(page, 'image unavailable', y + CARD_H / 2 - 4, regular, 9, MUTED, cx);
   drawCentered(page, sanitize(artHost(tile.group.imageUrl)), y + CARD_H / 2 - 18, regular, 8, MUTED, cx);
@@ -568,14 +667,17 @@ function drawArtPiece(page: PDFPage, img: EmbeddedArt, tile: ArtTile, tx: number
 
   // Group crop in transformed px.
   let sx = g.crop.x * Wt, sy = g.crop.y * Ht, sw = g.crop.w * Wt, sh = g.crop.h * Ht;
+  // Printed footprint: a folded 2-wide piece is its true assembled width — two cards PLUS
+  // the fold strip, with the art running continuously across the fold.
+  const pieceW = tile.w * CARD_W + (tile.w - 1) * POCKET_GAP;
 
   if (g.fit === 'contain') {
     // Letterbox the whole image inside this piece's footprint (single-slot groups only):
     // white backing, image centered at original aspect.
-    page.drawRectangle({ x: tx, y: ty, width: CARD_W, height: CARD_H, color: WHITE });
-    const s = Math.min(CARD_W / Wt, CARD_H / Ht);
+    page.drawRectangle({ x: tx, y: ty, width: pieceW, height: CARD_H, color: WHITE });
+    const s = Math.min(pieceW / Wt, CARD_H / Ht);
     const rw = Wt * s, rh = Ht * s;
-    drawTransformed(page, img, rot, t, tx + (CARD_W - rw) / 2, ty + (CARD_H - rh) / 2, rw, rh);
+    drawTransformed(page, img, rot, t, tx + (pieceW - rw) / 2, ty + (CARD_H - rh) / 2, rw, rh);
     return;
   }
 
@@ -586,13 +688,15 @@ function drawArtPiece(page: PDFPage, img: EmbeddedArt, tile: ArtTile, tx: number
   if (sw / sh > AR) { const nw = sh * AR; sx += (sw - nw) / 2; sw = nw; }
   else { const nh = sw / AR; sy += (sh - nh) / 2; sh = nh; }
   const s = physW / sw; // points per transformed px, uniform
-  // This piece's window origin (transformed px, top-origin) — offset by pocket pitch.
+  // This piece's window origin (transformed px, top-origin) — offset by pocket pitch. The
+  // window then runs CONTINUOUSLY for pieceW: for a folded pair that includes the fold strip
+  // (visible in the binder, bridging the webbing); the skip only happens BETWEEN pieces.
   const px = sx + (tile.j * (CARD_W + POCKET_GAP)) / s;
   const py = sy + (tile.i * (CARD_H + POCKET_GAP)) / s;
-  // Full transformed image rect on the page (the window lands exactly on this tile).
+  // Full transformed image rect on the page (the window lands exactly on this piece).
   const ox = tx - px * s;
   const oy = ty + CARD_H - (Ht - py) * s;
-  drawTransformed(page, img, rot, t, ox, oy, Wt * s, Ht * s, { x: tx, y: ty, w: CARD_W, h: CARD_H });
+  drawTransformed(page, img, rot, t, ox, oy, Wt * s, Ht * s, { x: tx, y: ty, w: pieceW, h: CARD_H });
 }
 
 /**
@@ -659,7 +763,7 @@ function drawCover(page: PDFPage, binderTitle: string, counts: FillCounts, bold:
   ].filter(Boolean);
   drawCentered(
     page,
-    `${parts.join(' · ')} · ${sheetsFor(counts.total)} sheet${sheetsFor(counts.total) === 1 ? '' : 's'}`,
+    `${parts.join(' · ')} · ${counts.sheets} sheet${counts.sheets === 1 ? '' : 's'}`,
     y,
     regular,
     11,
@@ -681,9 +785,9 @@ function drawCover(page: PDFPage, binderTitle: string, counts: FillCounts, bold:
   const steps = [
     'Print at 100% scale (“Actual size”) — NOT “Fit to page”.',
     'Check the calibration square below: it must measure exactly 1 inch (2.54 cm).',
-    'Cut along the dashed lines — every piece comes out at real card size, 2.5" × 3.5".',
-    'Slide each piece into the pocket printed on it (page, row, column — art pieces carry a corner tag).',
-    'When you get a real card, its placeholder tells you exactly which pocket it goes in — swap it in.',
+    'Cut along each piece’s dashed outline. Pieces sit at pocket pitch — the gaps between them mirror your binder page.',
+    'Wide art pieces span TWO pockets: fold at the tick marks (the art continues across the fold), then slide each half into its pocket pair.',
+    'Slide every piece into the pocket printed on it (page, row, column — art pieces carry a corner tag). When a real card arrives, its placeholder shows exactly which pocket to swap.',
   ];
   const left = MARGIN_X + 24;
   steps.forEach((text, i) => {

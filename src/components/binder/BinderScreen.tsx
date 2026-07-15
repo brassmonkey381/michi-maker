@@ -808,9 +808,14 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                       return (
                         <Pressable
                           key={size.label}
-                          onPress={() =>
-                            store.updatePage(binder.id, page.id, { rows: size.rows, cols: size.cols })
-                          }
+                          onPress={() => {
+                            // One pocket layout per binder (real pages don't mix) — the chip
+                            // re-sizes EVERY page, refusing when content would fall outside.
+                            const res = store.setBinderPageSize(binder.id, size.rows, size.cols);
+                            if (!res.ok && res.reason) showToast(res.reason);
+                            else if (res.ok && binder.pages.length > 1)
+                              showToast(`All ${binder.pages.length} pages set to ${size.label}`);
+                          }}
                           style={[pillChip.base, active && pillChip.active]}>
                           <Text style={[pillChip.text, active && pillChip.textActive]}>
                             {size.label}
@@ -912,9 +917,11 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
             imageUrl={studio.imageUrl}
             // The destination page's inside-edge pocket pairs, shifted into the studio
             // region's frame — the only columns where a merged 1×2 piece can be inserted.
-            pairStarts={insideEdgePairStarts(page.cols, pageSide(pageIndex))
-              .map((s) => s - studio.col)
-              .filter((rel) => rel >= 0 && rel + 2 <= studio.cols)}
+            // Deliberately UNFILTERED: the studio's grid is resizable after opening (a 1×1
+            // pocket often grows to 3×3 in-studio), so clamping against the INITIAL region
+            // size here permanently disabled Merge. Selection bounds inside the studio
+            // already keep merges within the live grid; negative offsets simply never match.
+            pairStarts={insideEdgePairStarts(page.cols, pageSide(pageIndex)).map((s) => s - studio.col)}
             onPlace={(panels) => {
               store.placeArtPanels(binder.id, page.id, studio.row, studio.col, panels);
               setStudio(null);

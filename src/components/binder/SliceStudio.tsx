@@ -606,8 +606,15 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
       if (k === 'm') merge();
       else if (k === 'b') split();
       else if (k === 'r') rotate(1);
-      else if (e.key === 'Escape') setSelected(new Set());
-      else if (e.key === '+' || e.key === '=') zoomBy(0.85);
+      else if (e.key === 'Escape') {
+        // Esc clears the selection — and must NOT also close the studio (the RN Modal listens
+        // for Escape too and would discard the whole framing session). Remember that this
+        // Escape was consumed so onRequestClose can swallow the Modal's close.
+        escapeConsumedAt.current = Date.now();
+        setSelected(new Set());
+        e.stopPropagation();
+        e.preventDefault();
+      } else if (e.key === '+' || e.key === '=') zoomBy(0.85);
       else if (e.key === '-' || e.key === '_') zoomBy(1 / 0.85);
     };
     window.addEventListener('keydown', down);
@@ -617,6 +624,14 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
       window.removeEventListener('keyup', sync);
     };
   }, [merge, split, rotate, zoomBy]);
+
+  // When Escape just cleared a selection, the Modal's own Escape handling must not ALSO close
+  // the studio (that would throw away the whole framing session). See the keydown handler.
+  const escapeConsumedAt = useRef(0);
+  const requestClose = useCallback(() => {
+    if (Date.now() - escapeConsumedAt.current < 600) return;
+    onClose();
+  }, [onClose]);
 
   // Web: scroll wheel over the canvas zooms (the guide promised it; now it's true).
   const canvasWrapRef = useRef<View | null>(null);
@@ -666,7 +681,7 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
   );
 
   return (
-    <Modal visible animationType="slide" onRequestClose={onClose}>
+    <Modal visible animationType="slide" onRequestClose={requestClose}>
       <SafeAreaView style={styles.flex} edges={['top']}>
         <View style={styles.header}>
           <Pressable onPress={onClose} hitSlop={10}>

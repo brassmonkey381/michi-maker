@@ -93,6 +93,8 @@ interface BinderStore {
    *  Returns the new page's index, or null if the binder/page can't be found. */
   duplicatePage: (binderId: string, pageId: string) => { pageIndex: number } | null;
   updatePage: (binderId: string, pageId: string, patch: Partial<DemoPage>) => void;
+  /** Uniform pocket layout for the whole binder; refuses when content would fall outside. */
+  setBinderPageSize: (binderId: string, rows: number, cols: number) => { ok: boolean; reason?: string };
   removePage: (binderId: string, pageId: string) => void;
   reorderPages: (binderId: string, fromIndex: number, toIndex: number) => void;
   upsertSlot: (binderId: string, pageId: string, slot: SlotInput) => void;
@@ -412,7 +414,9 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     (binderId: string) => {
       const target = binders.find((binder) => binder.id === binderId);
       if (!target) return;
-      const page = emptyPage(3, 3, `Page ${target.pages.length + 1}`);
+      // Real binders use ONE pocket layout throughout — new pages inherit the binder's size.
+      const last = target.pages[target.pages.length - 1];
+      const page = emptyPage(last?.rows ?? 3, last?.cols ?? 3, `Page ${target.pages.length + 1}`);
       commit((prev) =>
         prev.map((binder) =>
           binder.id === binderId ? { ...binder, pages: [...binder.pages, page] } : binder,
@@ -460,6 +464,41 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         ),
       );
       if (target && !target.isExample) persist(() => repo.updatePage(pageId, patch));
+    },
+    [binders, commit, persist],
+  );
+
+  /**
+   * Set the pocket layout for the WHOLE binder — real binders don't mix page sizes, so the
+   * size chips apply to every page at once. Refuses (naming the blocking page) when any slot
+   * would fall outside the new grid; the user clears/moves it first, nothing is destroyed.
+   */
+  const setBinderPageSize = useCallback(
+    (binderId: string, rows: number, cols: number): { ok: boolean; reason?: string } => {
+      const target = binders.find((binder) => binder.id === binderId);
+      if (!target) return { ok: false, reason: 'Binder not found.' };
+      for (let i = 0; i < target.pages.length; i += 1) {
+        const blocking = target.pages[i].slots.find(
+          (s) => s.row + s.rowSpan > rows || s.col + s.colSpan > cols,
+        );
+        if (blocking) {
+          return {
+            ok: false,
+            reason: `Page ${i + 1} has content that wouldn't fit ${rows}×${cols} — move or clear it first.`,
+          };
+        }
+      }
+      commit((prev) =>
+        prev.map((binder) =>
+          binder.id === binderId
+            ? { ...binder, pages: binder.pages.map((page) => ({ ...page, rows, cols })) }
+            : binder,
+        ),
+      );
+      if (!target.isExample) {
+        for (const p of target.pages) persist(() => repo.updatePage(p.id, { rows, cols }));
+      }
+      return { ok: true };
     },
     [binders, commit, persist],
   );
@@ -1133,6 +1172,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       addPage,
       duplicatePage,
       updatePage,
+      setBinderPageSize,
       removePage,
       reorderPages,
       upsertSlot,
@@ -1164,6 +1204,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       addPage,
       duplicatePage,
       updatePage,
+      setBinderPageSize,
       removePage,
       reorderPages,
       upsertSlot,

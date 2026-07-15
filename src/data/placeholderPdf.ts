@@ -30,9 +30,12 @@ const MARGIN_X = (SHEET_W - GRID_W) / 2; // 36 pt (0.5")
 const MARGIN_Y = (SHEET_H - GRID_H) / 2; // 18 pt (0.25")
 const TILES_PER_SHEET = COLS * ROWS;
 
-// ---- colors (ink-friendly grays) -------------------------------------------
+// ---- colors (ink-friendly grays; soft green for owned cards) ---------------
 const FILL = rgb(0.93, 0.93, 0.93);
 const BAND = rgb(0.82, 0.82, 0.82);
+const FILL_OWNED = rgb(0.87, 0.94, 0.87);
+const BAND_OWNED = rgb(0.71, 0.85, 0.71);
+const OWNED_INK = rgb(0.16, 0.42, 0.2);
 const INK = rgb(0.12, 0.12, 0.12);
 const MUTED = rgb(0.42, 0.42, 0.42);
 const GUIDE = rgb(0.7, 0.7, 0.7);
@@ -49,6 +52,8 @@ export interface PlaceholderTile {
   name: string;
   setName: string;
   number: string;
+  /** True when the owner already has a copy in their collection (tinted green on print). */
+  owned: boolean;
 }
 
 /** Card metadata lookup the builder needs — satisfied by the kit catalog's `getCard`. */
@@ -59,8 +64,13 @@ export interface CardMetaSource {
 /**
  * Flatten a binder into placeholder tiles: every `card` slot, page by page in reading order.
  * Artwork panels and tonal inserts aren't collectibles, so they don't get placeholders.
+ * `ownedIds` (card ids the user has in their collection) tints those tiles green.
  */
-export function placeholderTiles(binder: DemoBinder, cards: CardMetaSource): PlaceholderTile[] {
+export function placeholderTiles(
+  binder: DemoBinder,
+  cards: CardMetaSource,
+  ownedIds?: ReadonlySet<string>,
+): PlaceholderTile[] {
   const tiles: PlaceholderTile[] = [];
   binder.pages.forEach((page, pageIndex) => {
     const slots = [...page.slots]
@@ -76,6 +86,7 @@ export function placeholderTiles(binder: DemoBinder, cards: CardMetaSource): Pla
         name: card?.name ?? 'Unknown card',
         setName: card?.setName ?? '',
         number: card?.number ?? '',
+        owned: ownedIds?.has(slot.cardId!) ?? false,
       });
     }
   });
@@ -134,18 +145,22 @@ function drawCentered(page: PDFPage, text: string, y: number, font: PDFFont, siz
 }
 
 /** Build the full PDF: cover (instructions + calibration square) then the tile sheets. */
-export async function buildPlaceholderPdf(binder: DemoBinder, cards: CardMetaSource): Promise<Uint8Array> {
-  const tiles = placeholderTiles(binder, cards);
+export async function buildPlaceholderPdf(
+  binder: DemoBinder,
+  cards: CardMetaSource,
+  opts?: { ownedIds?: ReadonlySet<string> },
+): Promise<Uint8Array> {
+  const tiles = placeholderTiles(binder, cards, opts?.ownedIds);
+  const ownedCount = tiles.filter((t) => t.owned).length;
   const doc = await PDFDocument.create();
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
   const regular = await doc.embedFont(StandardFonts.Helvetica);
   doc.setTitle(`${sanitize(binder.title)} - placeholders`);
 
-  drawCover(doc.addPage([SHEET_W, SHEET_H]), sanitize(binder.title), tiles.length, bold, regular);
+  drawCover(doc.addPage([SHEET_W, SHEET_H]), sanitize(binder.title), tiles.length, ownedCount, bold, regular);
 
   for (let i = 0; i < tiles.length; i += TILES_PER_SHEET) {
     const page = doc.addPage([SHEET_W, SHEET_H]);
-    drawCutGrid(page);
     tiles.slice(i, i + TILES_PER_SHEET).forEach((tile, j) => {
       const col = j % COLS;
       const row = Math.floor(j / COLS);
@@ -154,6 +169,9 @@ export async function buildPlaceholderPdf(binder: DemoBinder, cards: CardMetaSou
       const y = SHEET_H - MARGIN_Y - (row + 1) * CARD_H;
       drawTile(page, tile, x, y, bold, regular);
     });
+    // Cut grid LAST so the dashed lines ride on top of the tile fills — a fully connected
+    // edge-to-edge lattice (drawn first, the fills covered every segment between tiles).
+    drawCutGrid(page);
     const footer = `${sanitize(binder.title)} · sheet ${Math.floor(i / TILES_PER_SHEET) + 1} of ${sheetsFor(tiles.length)}`;
     drawCentered(page, footer, 6, regular, 7, MUTED);
   }
@@ -181,11 +199,17 @@ function drawTile(page: PDFPage, tile: PlaceholderTile, x: number, y: number, bo
   const pad = 10;
   const innerW = CARD_W - pad * 2;
 
-  page.drawRectangle({ x, y, width: CARD_W, height: CARD_H, color: FILL });
+  page.drawRectangle({ x, y, width: CARD_W, height: CARD_H, color: tile.owned ? FILL_OWNED : FILL });
 
   // Location band — the "where does this go" headline.
   const bandH = 34;
-  page.drawRectangle({ x, y: y + CARD_H - bandH, width: CARD_W, height: bandH, color: BAND });
+  page.drawRectangle({
+    x,
+    y: y + CARD_H - bandH,
+    width: CARD_W,
+    height: bandH,
+    color: tile.owned ? BAND_OWNED : BAND,
+  });
   drawCentered(page, `PAGE ${tile.page}`, y + CARD_H - 15, bold, 11, INK, cx);
   const loc = `Row ${tile.row} · Col ${tile.col}${tile.span ? ` · ${tile.span}` : ''}`;
   drawCentered(page, loc, y + CARD_H - 28, regular, 8.5, INK, cx);
@@ -205,24 +229,39 @@ function drawTile(page: PDFPage, tile: PlaceholderTile, x: number, y: number, bo
     drawCentered(page, `#${sanitize(tile.number)}`, cursor - 2, regular, 9, MUTED, cx);
   }
 
-  // "Acquired" checkbox at the foot — tick it off as the real cards come in.
+  // Checkbox at the foot: owned cards print pre-checked ("owned" — go pull it from the
+  // collection); the rest print an empty "acquired" box to tick off as real cards come in.
   const boxSize = 9;
-  const label = 'acquired';
+  const label = tile.owned ? 'owned' : 'acquired';
+  const tone = tile.owned ? OWNED_INK : MUTED;
   const labelW = regular.widthOfTextAtSize(label, 8);
   const groupX = cx - (boxSize + 5 + labelW) / 2;
+  const boxY = y + 16;
   page.drawRectangle({
     x: groupX,
-    y: y + 16,
+    y: boxY,
     width: boxSize,
     height: boxSize,
-    borderColor: MUTED,
+    borderColor: tone,
     borderWidth: 0.8,
   });
-  page.drawText(label, { x: groupX + boxSize + 5, y: y + 17.5, size: 8, font: regular, color: MUTED });
+  if (tile.owned) {
+    // A drawn check mark — WinAnsi fonts have no ✓ glyph.
+    page.drawLine({ start: { x: groupX + 2, y: boxY + 4.5 }, end: { x: groupX + 3.8, y: boxY + 2.2 }, thickness: 1.1, color: tone });
+    page.drawLine({ start: { x: groupX + 3.8, y: boxY + 2.2 }, end: { x: groupX + 7.2, y: boxY + 7 }, thickness: 1.1, color: tone });
+  }
+  page.drawText(label, { x: groupX + boxSize + 5, y: boxY + 1.5, size: 8, font: regular, color: tone });
 }
 
 /** Cover sheet: what this is, how to print it true-to-size, and the 1-inch calibration square. */
-function drawCover(page: PDFPage, binderTitle: string, tileCount: number, bold: PDFFont, regular: PDFFont) {
+function drawCover(
+  page: PDFPage,
+  binderTitle: string,
+  tileCount: number,
+  ownedCount: number,
+  bold: PDFFont,
+  regular: PDFFont,
+) {
   let y = SHEET_H - 120;
   drawCentered(page, 'Binder placeholders', y, bold, 26);
   y -= 26;
@@ -236,6 +275,17 @@ function drawCover(page: PDFPage, binderTitle: string, tileCount: number, bold: 
     11,
     MUTED,
   );
+  if (ownedCount > 0) {
+    y -= 16;
+    drawCentered(
+      page,
+      `Green placeholders = the ${ownedCount} card${ownedCount === 1 ? '' : 's'} already in your collection; gray = still to hunt.`,
+      y,
+      regular,
+      10,
+      OWNED_INK,
+    );
+  }
 
   y -= 56;
   const steps = [

@@ -8,7 +8,7 @@
  * inline SignInPerk note, never a dead spinner). The PDF downloads in-browser on web; on
  * native we point at the web app for now (no share-sheet plumbing yet).
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
@@ -16,9 +16,11 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
 import type { DemoBinder } from '@/data/binderTypes';
+import { fetchUserCards } from '@/data/collectionRepo';
 import { buildPlaceholderPdf, placeholderTiles, sheetsFor } from '@/data/placeholderPdf';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useEntitlement } from '@/hooks/use-entitlement';
+import { useAuth } from '@/store/auth';
 
 export function PrintPlaceholdersSheet({
   binder,
@@ -33,21 +35,41 @@ export function PrintPlaceholdersSheet({
   const { catalog, guestGated, loading } = useCatalog(true);
   // The PDF download is a paid one-time unlock; the counts preview stays free as the teaser.
   const { unlocked, loading: entLoading } = useEntitlement('pdf_print');
+  const { isSignedIn } = useAuth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Cards the user owns (My collection) — owned placeholders print green when the toggle is
+  // on, so the cut sheet doubles as a pull-list (green = go grab it) + want-list (gray).
+  const [ownedIds, setOwnedIds] = useState<Set<string> | null>(null);
+  const [colorOwned, setColorOwned] = useState(true);
+  useEffect(() => {
+    if (!isSignedIn) return;
+    let live = true;
+    fetchUserCards()
+      .then((rows) => {
+        if (live) setOwnedIds(new Set(rows.filter((r) => r.quantity > 0).map((r) => r.cardId)));
+      })
+      .catch(() => {}); // no collection is fine — everything prints gray
+    return () => {
+      live = false;
+    };
+  }, [isSignedIn]);
+
+  const effectiveOwned = colorOwned ? (ownedIds ?? undefined) : undefined;
   const tiles = useMemo(
-    () => (catalog ? placeholderTiles(binder, catalog) : null),
-    [binder, catalog],
+    () => (catalog ? placeholderTiles(binder, catalog, effectiveOwned) : null),
+    [binder, catalog, effectiveOwned],
   );
   const sheets = tiles ? sheetsFor(tiles.length) : 0;
+  const ownedCount = tiles ? tiles.filter((t) => t.owned).length : 0;
 
   const download = async () => {
     if (!catalog || !tiles || tiles.length === 0 || busy) return;
     setBusy(true);
     setError(null);
     try {
-      const bytes = await buildPlaceholderPdf(binder, catalog);
+      const bytes = await buildPlaceholderPdf(binder, catalog, { ownedIds: effectiveOwned });
       const filename = `${binder.title.replace(/[^\w\- ]+/g, '').trim() || 'binder'} placeholders.pdf`;
       // Web: a plain blob download. (Native share-sheet export can come later.)
       const blob = new Blob([bytes as BlobPart], { type: 'application/pdf' });
@@ -113,7 +135,25 @@ export function PrintPlaceholdersSheet({
                     {tiles.length === 1 ? '' : 's'} across{' '}
                     <ThemedText type="smallBold">{sheets}</ThemedText> sheet
                     {sheets === 1 ? '' : 's'} (plus a cover with print instructions).
+                    {colorOwned && ownedCount > 0
+                      ? ` ${ownedCount} print${ownedCount === 1 ? 's' : ''} green — already in your collection.`
+                      : ''}
                   </ThemedText>
+                ) : null}
+                {ownedIds && ownedIds.size > 0 && tiles && tiles.length > 0 ? (
+                  <Pressable
+                    onPress={() => setColorOwned((v) => !v)}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: colorOwned }}
+                    style={styles.toggleRow}
+                    hitSlop={4}>
+                    <View style={[styles.toggleBox, colorOwned && styles.toggleBoxOn]}>
+                      {colorOwned ? <Text style={styles.toggleTick}>✓</Text> : null}
+                    </View>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      Color the cards I already own
+                    </ThemedText>
+                  </Pressable>
                 ) : null}
                 {tiles && tiles.length === 0 ? (
                   <ThemedText type="small" themeColor="textSecondary">
@@ -197,4 +237,16 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
     backgroundColor: Palette.panel,
   },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  toggleBox: {
+    width: 18,
+    height: 18,
+    borderRadius: Radius.xs,
+    borderWidth: 1.5,
+    borderColor: Palette.hairlineStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toggleBoxOn: { backgroundColor: Palette.accent, borderColor: Palette.accent },
+  toggleTick: { color: Palette.accentText, fontSize: 12, fontWeight: Weight.bold, lineHeight: 14 },
 });

@@ -18,6 +18,7 @@ import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/t
 import type { DemoBinder } from '@/data/binderTypes';
 import { buildPlaceholderPdf, placeholderTiles, sheetsFor } from '@/data/placeholderPdf';
 import { useCatalog } from '@/hooks/use-catalog';
+import { useEntitlement } from '@/hooks/use-entitlement';
 
 export function PrintPlaceholdersSheet({
   binder,
@@ -30,6 +31,8 @@ export function PrintPlaceholdersSheet({
   onDone?: (sheets: number) => void;
 }) {
   const { catalog, guestGated, loading } = useCatalog(true);
+  // The PDF download is a paid one-time unlock; the counts preview stays free as the teaser.
+  const { unlocked, loading: entLoading } = useEntitlement('pdf_print');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -118,19 +121,34 @@ export function PrintPlaceholdersSheet({
                   </ThemedText>
                 ) : null}
 
-                <Pressable
-                  onPress={download}
-                  disabled={busy || !tiles || tiles.length === 0}
-                  style={({ pressed }) => [
-                    styles.btn,
-                    (pressed || busy || !tiles || tiles.length === 0) && styles.dim,
-                  ]}>
-                  {busy ? (
-                    <ActivityIndicator color={Palette.accentText} />
-                  ) : (
-                    <Text style={styles.btnText}>Download PDF</Text>
-                  )}
-                </Pressable>
+                {unlocked ? (
+                  <Pressable
+                    onPress={download}
+                    disabled={busy || !tiles || tiles.length === 0}
+                    style={({ pressed }) => [
+                      styles.btn,
+                      (pressed || busy || !tiles || tiles.length === 0) && styles.dim,
+                    ]}>
+                    {busy ? (
+                      <ActivityIndicator color={Palette.accentText} />
+                    ) : (
+                      <Text style={styles.btnText}>Download PDF</Text>
+                    )}
+                  </Pressable>
+                ) : entLoading ? (
+                  <View style={styles.center}>
+                    <ActivityIndicator />
+                  </View>
+                ) : (
+                  // No dead purchase button while checkout isn't wired — an honest note instead.
+                  <View style={styles.lockedBox}>
+                    <ThemedText type="smallBold">🔒 One-time unlock</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
+                      Printable PDFs are a small one-time purchase — buy once, print any of your
+                      binders forever. Purchases aren’t open quite yet; check back soon.
+                    </ThemedText>
+                  </View>
+                )}
 
                 {error ? (
                   <ThemedText type="small" style={styles.error}>
@@ -171,4 +189,12 @@ const styles = StyleSheet.create({
   btnText: { color: Palette.accentText, fontSize: FontSize.md, fontWeight: Weight.semibold },
   dim: { opacity: 0.6 },
   error: { color: Palette.danger, lineHeight: 20 },
+  lockedBox: {
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
+    borderRadius: Radius.lg,
+    padding: Spacing.three,
+    gap: Spacing.one,
+    backgroundColor: Palette.panel,
+  },
 });

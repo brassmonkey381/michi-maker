@@ -233,6 +233,27 @@ export type Database = {
         }
         Relationships: []
       }
+      entitlements: {
+        Row: {
+          granted_at: string
+          product: string
+          source: string
+          user_id: string
+        }
+        Insert: {
+          granted_at?: string
+          product: string
+          source?: string
+          user_id: string
+        }
+        Update: {
+          granted_at?: string
+          product?: string
+          source?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       portfolio_entries: {
         Row: {
           added_at: string

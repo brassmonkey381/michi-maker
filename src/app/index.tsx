@@ -6,6 +6,7 @@ import { sendBrowseCommand } from 'tcgscan-browse';
 
 import { AccountButton } from '@/components/auth/AccountButton';
 import { GuestBanner } from '@/components/auth/GuestBanner';
+import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
 import { BinderActionsMenu } from '@/components/binder/BinderActionsMenu';
 import { BinderCarousel } from '@/components/binder/BinderCarousel';
 import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
@@ -21,6 +22,7 @@ import { SettingsButton } from '@/components/settings/SettingsSheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, FontSize, MaxContentWidth, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { pagesForCards } from '@/data/binderTypes';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useImageManifest } from '@/lib/catalogConfig';
 import { useBinders } from '@/store/binders';
@@ -73,6 +75,34 @@ export default function BindersScreen() {
   const showToast = (message: string) => {
     toastId.current += 1;
     setToast({ id: toastId.current, message });
+  };
+  const showAddedToast = (binderId: string, title: string) => {
+    toastId.current += 1;
+    setToast({
+      id: toastId.current,
+      message: `Added to ${title}`,
+      actionLabel: 'Open',
+      onAction: () => openBinder(binderId),
+    });
+  };
+
+  // Tapping a card in the Recent & Upcoming feed offers "Add to a binder…" — this holds the
+  // chosen card until the chooser sheet resolves it into an existing or brand-new binder.
+  const [addCardId, setAddCardId] = useState<string | null>(null);
+  const addToExistingBinder = (binderId: string) => {
+    if (!addCardId) return;
+    const title = store.getBinder(binderId)?.title ?? 'binder';
+    const { added } = store.addCardsToBinder(binderId, [addCardId]);
+    setAddCardId(null);
+    if (added > 0) showAddedToast(binderId, title);
+    else showToast('That binder is full');
+  };
+  const addToNewBinder = () => {
+    if (!addCardId) return;
+    // Atomic create-with-card — creating then adding would race the store snapshot.
+    const binder = store.createBinder({ title: 'New binder', pages: pagesForCards([addCardId]) });
+    setAddCardId(null);
+    showAddedToast(binder.id, binder.title);
   };
 
   // Note: the binder sections here deliberately do NOT depend on the catalog. Binder covers
@@ -167,6 +197,7 @@ export default function BindersScreen() {
             onFindSimilar={driveSimilar}
             onViewSet={driveViewSet}
             onOpenSet={driveViewSetById}
+            onAddToBinder={setAddCardId}
           />
 
           <HomeSection
@@ -266,6 +297,14 @@ export default function BindersScreen() {
           onSetPublic={(v) => store.updateBinder(shareBinder.id, { isPublic: v })}
         />
       )}
+      {addCardId ? (
+        <AddToBinderSheet
+          binders={store.userBinders}
+          onPick={addToExistingBinder}
+          onNew={addToNewBinder}
+          onClose={() => setAddCardId(null)}
+        />
+      ) : null}
       <ConfirmDialog spec={confirm} onClose={() => setConfirm(null)} />
       <Toast spec={toast} onDismiss={() => setToast(null)} />
     </ThemedView>

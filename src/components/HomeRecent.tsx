@@ -23,11 +23,14 @@ export function HomeRecent({
   onFindSimilar,
   onViewSet,
   onOpenSet,
+  onAddToBinder,
 }: {
   onFindSimilar?: (cardId: string) => void;
   onViewSet?: (cardId: string) => void;
   /** Open a whole set (from a set tile tap) in the home browser below. */
   onOpenSet?: (setId: string, series: string) => void;
+  /** Drop a tapped feed card into a binder — surfaced as "Add to a binder…". */
+  onAddToBinder?: (cardId: string) => void;
 }) {
   const { catalog } = useCatalog(true);
   return (
@@ -40,6 +43,7 @@ export function HomeRecent({
         onFindSimilar={(card) => onFindSimilar?.(card.id)}
         onViewSet={(card) => onViewSet?.(card.id)}
         onOpenSet={(set) => onOpenSet?.(set.id, set.seriesId)}
+        onAddToBinder={(card) => onAddToBinder?.(card.id)}
       />
     </HomeSection>
   );

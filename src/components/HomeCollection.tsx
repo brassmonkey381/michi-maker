@@ -28,6 +28,7 @@ import {
 
 import { BuildBinderSheet } from '@/components/BuildBinderSheet';
 import { HomeSection } from '@/components/HomeSection';
+import { ImportCsvSheet } from '@/components/ImportCsvSheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
@@ -87,7 +88,8 @@ export function HomeCollection({
     };
   }, [userId]);
 
-  if (!cards || cards.length === 0) return null; // appears with the first scan/import
+  if (!cards) return null;
+  if (cards.length === 0) return <EmptyCollection onToast={onToast} />;
   return (
     <CollectionStrip
       cards={cards}
@@ -96,6 +98,39 @@ export function HomeCollection({
       onFindSimilar={onFindSimilar}
       onViewSet={onViewSet}
     />
+  );
+}
+
+/**
+ * Signed-in but nothing owned yet: a slim on-ramp — scan with tcgscan, or bootstrap the
+ * collection from a CSV. (Guests see nothing here; realtime swaps this for the full strip
+ * the moment the first card lands.)
+ */
+function EmptyCollection({ onToast }: { onToast?: (message: string) => void }) {
+  const { isSignedIn } = useAuth();
+  const [importOpen, setImportOpen] = useState(false);
+  if (!isSignedIn) return null;
+  return (
+    <HomeSection title="My collection">
+      <View style={styles.emptyRow}>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.emptyRowText}>
+          Scan cards with tcgscan, or import a CSV (TCGPlayer collection exports work) to start
+          your collection.
+        </ThemedText>
+        <Pressable
+          onPress={() => setImportOpen(true)}
+          style={({ pressed }) => [styles.buildChip, pressed && styles.pressed]}>
+          <Text style={styles.buildChipText}>⬆ Import CSV</Text>
+        </Pressable>
+      </View>
+      <ImportCsvSheet
+        visible={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={(name, cardCount, copies) =>
+          onToast?.(`Imported ${copies} cop${copies === 1 ? 'y' : 'ies'} into “${name}”`)
+        }
+      />
+    </HomeSection>
   );
 }
 
@@ -185,6 +220,7 @@ function CollectionStrip({
   const available = cards.reduce((n, c) => n + freeOf(c), 0);
   const headline = `${copies} card${copies === 1 ? '' : 's'} · ${available} available to place`;
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const freeIds = cards.filter((c) => freeOf(c) > 0).map((c) => c.cardId);
 
   const toggle = (cardId: string) =>
@@ -370,6 +406,9 @@ function CollectionStrip({
           <Text style={[pillChip.text, multiMode && pillChip.textActive]}>
             {multiMode ? '✓ Select multiple' : '⊕ Select multiple'}
           </Text>
+        </Pressable>
+        <Pressable onPress={() => setImportOpen(true)} style={pillChip.base}>
+          <Text style={pillChip.text}>⬆ Import</Text>
         </Pressable>
         <TextInput
           value={query}
@@ -581,6 +620,15 @@ function CollectionStrip({
         onBuilt={(binderId, pageCount) => {
           onToast?.(`Built ${pageCount} page${pageCount === 1 ? '' : 's'} from your collection`);
           onOpenBinder?.(binderId);
+        }}
+      />
+
+      <ImportCsvSheet
+        visible={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={(name, cardCount, copies) => {
+          setPortfolios(null); // the new portfolio appears on the next Portfolios view
+          onToast?.(`Imported ${copies} cop${copies === 1 ? 'y' : 'ies'} into “${name}”`);
         }}
       />
 
@@ -1001,6 +1049,8 @@ const styles = StyleSheet.create({
     color: Palette.ink,
   },
   emptyNote: { paddingVertical: Spacing.two },
+  emptyRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.three },
+  emptyRowText: { flexShrink: 1, minWidth: 220 },
   groupSeries: { marginTop: Spacing.three },
   groupSet: { marginTop: Spacing.one },
   cardModalWrap: { width: '100%', maxWidth: 320 },

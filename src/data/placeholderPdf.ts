@@ -172,11 +172,34 @@ export async function buildPlaceholderPdf(
     // Cut grid LAST so the dashed lines ride on top of the tile fills — a fully connected
     // edge-to-edge lattice (drawn first, the fills covered every segment between tiles).
     drawCutGrid(page);
-    const footer = `${sanitize(binder.title)} · sheet ${Math.floor(i / TILES_PER_SHEET) + 1} of ${sheetsFor(tiles.length)}`;
+    drawMarginRulers(page, regular);
+    const footer = `${sanitize(binder.title)} · sheet ${Math.floor(i / TILES_PER_SHEET) + 1} of ${sheetsFor(tiles.length)} · cards 2.5" × 3.5" (63.5 × 88.9 mm)`;
     drawCentered(page, footer, 6, regular, 7, MUTED);
   }
 
   return doc.save();
+}
+
+/**
+ * Cumulative-inch labels in the margins at every cut line — top margin for the vertical
+ * cuts (0" / 2.5" / 5" / 7.5" from the grid's left edge), left margin for the horizontal
+ * cuts (0" / 3.5" / 7" / 10.5" from the grid's top). A printed ruler: measure any label
+ * against a real ruler to confirm the sheet came out at 100% scale before cutting.
+ */
+function drawMarginRulers(page: PDFPage, regular: PDFFont) {
+  const label = (n: number) => `${n % 1 === 0 ? n : n.toFixed(1)}"`;
+  for (let c = 0; c <= COLS; c += 1) {
+    const x = MARGIN_X + c * CARD_W;
+    const text = label((c * CARD_W) / PT);
+    const w = regular.widthOfTextAtSize(text, 6);
+    page.drawText(text, { x: x - w / 2, y: SHEET_H - MARGIN_Y + 5, size: 6, font: regular, color: MUTED });
+  }
+  for (let r = 0; r <= ROWS; r += 1) {
+    const y = SHEET_H - MARGIN_Y - r * CARD_H;
+    const text = label((r * CARD_H) / PT);
+    const w = regular.widthOfTextAtSize(text, 6);
+    page.drawText(text, { x: MARGIN_X - w - 4, y: y + 2, size: 6, font: regular, color: MUTED });
+  }
 }
 
 /** Edge-to-edge cut lines along every tile boundary — straight guillotine cuts. */

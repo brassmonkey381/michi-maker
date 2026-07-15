@@ -15,6 +15,7 @@ export function SlotMultiActions({
   onDuplicate,
   onRemove,
   onFindSimilar,
+  onAddToBinder,
   onClose,
 }: {
   count: number;
@@ -23,6 +24,8 @@ export function SlotMultiActions({
   /** Provided only when similarity search is available and ≥1 card is selected — shows a
    *  "Find similar to all" action that opens the card browse seeded with the selection. */
   onFindSimilar?: () => void;
+  /** Copy the selected cards into ANOTHER binder (provided when ≥1 card is selected). */
+  onAddToBinder?: () => void;
   /** Dismiss without acting (drops the selection). */
   onClose: () => void;
 }) {
@@ -37,11 +40,25 @@ export function SlotMultiActions({
             <ThemedText type="subtitle" style={styles.title}>
               {label}
             </ThemedText>
+            {onAddToBinder ? (
+              <Pressable
+                onPress={onAddToBinder}
+                style={({ pressed }) => [styles.btn, styles.btnPrimary, pressed && styles.pressed]}>
+                <ThemedText type="smallBold" style={styles.btnFilledText}>
+                  Add to another binder…
+                </ThemedText>
+              </Pressable>
+            ) : null}
             {onFindSimilar ? (
               <Pressable
                 onPress={onFindSimilar}
-                style={({ pressed }) => [styles.btn, styles.btnPrimary, pressed && styles.pressed]}>
-                <ThemedText type="smallBold" style={styles.btnFilledText}>
+                style={({ pressed }) => [
+                  styles.btn,
+                  onAddToBinder ? styles.btnOutline : styles.btnPrimary,
+                  onAddToBinder ? { borderColor: theme.backgroundSelected } : null,
+                  pressed && styles.pressed,
+                ]}>
+                <ThemedText type="smallBold" style={onAddToBinder ? undefined : styles.btnFilledText}>
                   ≈ Find similar to all
                 </ThemedText>
               </Pressable>
@@ -50,11 +67,13 @@ export function SlotMultiActions({
               onPress={onDuplicate}
               style={({ pressed }) => [
                 styles.btn,
-                onFindSimilar ? styles.btnOutline : styles.btnPrimary,
-                onFindSimilar ? { borderColor: theme.backgroundSelected } : null,
+                onFindSimilar || onAddToBinder ? styles.btnOutline : styles.btnPrimary,
+                onFindSimilar || onAddToBinder ? { borderColor: theme.backgroundSelected } : null,
                 pressed && styles.pressed,
               ]}>
-              <ThemedText type="smallBold" style={onFindSimilar ? undefined : styles.btnFilledText}>
+              <ThemedText
+                type="smallBold"
+                style={onFindSimilar || onAddToBinder ? undefined : styles.btnFilledText}>
                 Duplicate
               </ThemedText>
             </Pressable>

@@ -54,6 +54,13 @@ export default function BindersScreen() {
     sendBrowseCommand({ type: 'similar', cardId });
     revealBrowse();
   };
+  // Collection tiles: one card → plain similar; a multi-selection → similar-to-all.
+  const driveSimilarIds = (cardIds: string[]) => {
+    if (cardIds.length === 0) return;
+    if (cardIds.length === 1) sendBrowseCommand({ type: 'similar', cardId: cardIds[0] });
+    else sendBrowseCommand({ type: 'similarMany', cardIds });
+    revealBrowse();
+  };
   const driveViewSet = (cardId: string) => {
     sendBrowseCommand({ type: 'viewSet', cardId });
     revealBrowse();
@@ -208,7 +215,12 @@ export default function BindersScreen() {
 
           {/* My collection — the tcgscan-fed inventory; appears with the first scan/import
               and updates live. Tap to multi-select, then place the picks into a binder. */}
-          <HomeCollection onToast={showToast} onOpenBinder={openBinder} />
+          <HomeCollection
+            onToast={showToast}
+            onOpenBinder={openBinder}
+            onFindSimilar={driveSimilarIds}
+            onViewSet={driveViewSet}
+          />
 
           {store.featuredBinders.length > 0 ? (
             <HomeSection title="Featured binders">

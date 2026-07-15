@@ -13,28 +13,47 @@
  */
 import { Image } from 'expo-image';
 import { useEffect, useMemo, useState } from 'react';
-import { FlatList, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { BuildBinderSheet } from '@/components/BuildBinderSheet';
 import { HomeSection } from '@/components/HomeSection';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
-import { fetchUserCards, subscribeUserCards, type UserCard } from '@/data/collectionRepo';
+import { pillChip } from '@/constants/ui';
+import {
+  fetchPortfolioGroups,
+  fetchUserCards,
+  subscribeUserCards,
+  type PortfolioGroup,
+  type UserCard,
+} from '@/data/collectionRepo';
 import { isSupabaseConfigured } from '@/lib/env';
 import { cardThumbUrl } from '@/lib/catalogConfig';
+import { useCatalog } from '@/hooks/use-catalog';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
 
 const TILE_W = 96;
 const CARD_ASPECT = 88 / 63;
 
+/** How the collection is browsed: one carousel, a series→set drill, or by tcgscan portfolio. */
+type ViewMode = 'all' | 'sets' | 'portfolios';
+// Session-remembered preference, like the binder double-sided toggle.
+let viewModePref: ViewMode = 'all';
+
 export function HomeCollection({
   onToast,
   onOpenBinder,
+  onFindSimilar,
+  onViewSet,
 }: {
   onToast?: (message: string) => void;
   onOpenBinder?: (binderId: string) => void;
+  /** Drive the home browser: find-similar for one or many cards. */
+  onFindSimilar?: (cardIds: string[]) => void;
+  /** Drive the home browser: open this card's set. */
+  onViewSet?: (cardId: string) => void;
 }) {
   const { user } = useAuth();
   const [cards, setCards] = useState<UserCard[] | null>(null);
@@ -58,20 +77,64 @@ export function HomeCollection({
   }, [userId]);
 
   if (!cards || cards.length === 0) return null; // appears with the first scan/import
-  return <CollectionStrip cards={cards} onToast={onToast} onOpenBinder={onOpenBinder} />;
+  return (
+    <CollectionStrip
+      cards={cards}
+      onToast={onToast}
+      onOpenBinder={onOpenBinder}
+      onFindSimilar={onFindSimilar}
+      onViewSet={onViewSet}
+    />
+  );
 }
 
 function CollectionStrip({
   cards,
   onToast,
   onOpenBinder,
+  onFindSimilar,
+  onViewSet,
 }: {
   cards: UserCard[];
   onToast?: (message: string) => void;
   onOpenBinder?: (binderId: string) => void;
+  onFindSimilar?: (cardIds: string[]) => void;
+  onViewSet?: (cardId: string) => void;
 }) {
   const store = useBinders();
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Tap behaviour mirrors the card browser: a tap opens the card's ACTION MODAL; flip on
+  // "Select multiple" and taps toggle a selection for the bulk action bar instead.
+  const [multiMode, setMultiMode] = useState(false);
+  const [actionCard, setActionCard] = useState<UserCard | null>(null);
+  // Browse / search state: one carousel, the series→set drill, or by tcgscan portfolio.
+  const [mode, setMode] = useState<ViewMode>(viewModePref);
+  const switchMode = (m: ViewMode) =>
+    setMode(() => {
+      viewModePref = m; // session-sticky, mirrors the double-sided toggle pattern
+      return m;
+    });
+  const [query, setQuery] = useState('');
+  const q = query.trim().toLowerCase();
+  // The catalog powers name/set search, the Sets drill, and the action modal's metadata —
+  // loaded only when one of those is actually in play.
+  const { catalog } = useCatalog(mode === 'sets' || q.length > 0 || actionCard != null);
+  // tcgscan portfolios, fetched the first time that view opens.
+  const [portfolios, setPortfolios] = useState<PortfolioGroup[] | null>(null);
+  useEffect(() => {
+    if (mode !== 'portfolios' || portfolios) return;
+    let active = true;
+    fetchPortfolioGroups()
+      .then((g) => {
+        if (active) setPortfolios(g);
+      })
+      .catch(() => {
+        if (active) setPortfolios([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [mode, portfolios]);
   // Which chooser is open: pick a binder to ADD the placeable selection to, or to RECLAIM the
   // single selected card from.
   const [chooser, setChooser] = useState<'add' | 'reclaim' | null>(null);
@@ -120,6 +183,81 @@ function CollectionStrip({
       else next.add(cardId);
       return next;
     });
+
+  // A tap either opens the card's action modal (browser-style) or toggles the multi-selection.
+  const pressTile = (card: UserCard) => {
+    if (multiMode) toggle(card.cardId);
+    else setActionCard(card);
+  };
+
+  // Search filter — name/set/series come from the catalog once it's in (id matching works cold).
+  const filtered = useMemo(() => {
+    if (!q) return cards;
+    return cards.filter((c) => {
+      if (c.cardId.includes(q)) return true;
+      const cc = catalog?.getCard(c.cardId);
+      if (!cc) return false;
+      return (
+        cc.name.toLowerCase().includes(q) ||
+        cc.setName.toLowerCase().includes(q) ||
+        cc.seriesId.toLowerCase().includes(q)
+      );
+    });
+  }, [cards, q, catalog]);
+
+  // The series → set drill (needs the catalog for the grouping metadata).
+  const setGroups = useMemo(() => {
+    if (mode !== 'sets' || !catalog) return null;
+    const bySeries = new Map<
+      string,
+      { latest: string; sets: Map<string, { name: string; latest: string; cards: UserCard[] }> }
+    >();
+    for (const c of filtered) {
+      const cc = catalog.getCard(c.cardId);
+      const series = cc?.seriesId || 'Other';
+      const setKey = cc?.setId || 'other';
+      const rel = cc?.releaseDate || '';
+      let s = bySeries.get(series);
+      if (!s) {
+        s = { latest: '', sets: new Map() };
+        bySeries.set(series, s);
+      }
+      if (rel > s.latest) s.latest = rel;
+      let st = s.sets.get(setKey);
+      if (!st) {
+        st = { name: cc?.setName || 'Unknown set', latest: '', cards: [] };
+        s.sets.set(setKey, st);
+      }
+      if (rel > st.latest) st.latest = rel;
+      st.cards.push(c);
+    }
+    return [...bySeries.entries()]
+      .sort((a, b) => b[1].latest.localeCompare(a[1].latest))
+      .map(([series, s]) => ({
+        series,
+        sets: [...s.sets.values()].sort((a, b) => b.latest.localeCompare(a.latest)),
+      }));
+  }, [mode, catalog, filtered]);
+
+  // The by-portfolio view: each tcgscan collection's owned cards, plus an "unsorted" bucket
+  // for inventory that isn't in any portfolio (CSV imports, manual adds).
+  const portfolioGroups = useMemo(() => {
+    if (mode !== 'portfolios' || !portfolios) return null;
+    const byId = new Map(filtered.map((c) => [c.cardId, c]));
+    const claimed = new Set<string>();
+    const groups = portfolios
+      .map((p) => {
+        const members = [...p.quantities.keys()]
+          .map((id) => byId.get(id))
+          .filter((c): c is UserCard => !!c);
+        for (const m of members) claimed.add(m.cardId);
+        return { id: p.id, name: p.name, cards: members };
+      })
+      .filter((g) => g.cards.length > 0);
+    const unsorted = filtered.filter((c) => !claimed.has(c.cardId));
+    if (unsorted.length > 0) groups.push({ id: '__unsorted', name: 'Not in a portfolio', cards: unsorted });
+    return groups;
+  }, [mode, portfolios, filtered]);
 
   // Only cards with a free copy can be placed — an exhausted (0/n) selection is reclaim-only.
   const placeableIds = [...selected].filter((id) => {
@@ -196,22 +334,120 @@ function CollectionStrip({
           ) : null}
         </View>
       }>
-      <FlatList
-        horizontal
-        data={cards}
-        extraData={[selected, placedCounts]}
-        keyExtractor={(c) => `${c.cardId}|${c.condition}`}
-        renderItem={({ item }) => (
-          <CardTile
-            card={item}
-            placed={placedCounts.get(item.cardId) ?? 0}
-            selected={selected.has(item.cardId)}
-            onPress={() => toggle(item.cardId)}
+      {/* Browse controls: view mode · multi-select toggle · search. */}
+      <View style={styles.controlsRow}>
+        {(
+          [
+            ['all', 'All'],
+            ['sets', 'By set'],
+            ['portfolios', 'Portfolios'],
+          ] as const
+        ).map(([m, label]) => (
+          <Pressable
+            key={m}
+            onPress={() => switchMode(m)}
+            style={[pillChip.base, mode === m && pillChip.active]}>
+            <Text style={[pillChip.text, mode === m && pillChip.textActive]}>{label}</Text>
+          </Pressable>
+        ))}
+        <Pressable
+          onPress={() => {
+            setMultiMode((v) => !v);
+            setSelected(new Set());
+          }}
+          style={[pillChip.base, multiMode && pillChip.active]}>
+          <Text style={[pillChip.text, multiMode && pillChip.textActive]}>
+            {multiMode ? '✓ Select multiple' : '⊕ Select multiple'}
+          </Text>
+        </Pressable>
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search your cards…"
+          placeholderTextColor={Palette.muted3}
+          autoCorrect={false}
+          autoCapitalize="none"
+          style={styles.search}
+        />
+      </View>
+      {q && !catalog ? (
+        <ThemedText type="small" themeColor="textSecondary">
+          Loading card names for search…
+        </ThemedText>
+      ) : null}
+
+      {mode === 'all' ? (
+        filtered.length === 0 ? (
+          <ThemedText type="small" themeColor="textSecondary" style={styles.emptyNote}>
+            No cards match “{query.trim()}”.
+          </ThemedText>
+        ) : (
+          <TileStrip
+            cards={filtered}
+            placedCounts={placedCounts}
+            selected={selected}
+            onPress={pressTile}
           />
-        )}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.strip}
-      />
+        )
+      ) : null}
+
+      {mode === 'sets' ? (
+        !setGroups ? (
+          <ThemedText type="small" themeColor="textSecondary" style={styles.emptyNote}>
+            Loading set data…
+          </ThemedText>
+        ) : (
+          setGroups.map((sg) => (
+            <View key={sg.series}>
+              <ThemedText type="smallBold" style={styles.groupSeries}>
+                {sg.series}
+              </ThemedText>
+              {sg.sets.map((st) => (
+                <View key={`${sg.series}|${st.name}`}>
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.groupSet}>
+                    {st.name} · {st.cards.length}
+                  </ThemedText>
+                  <TileStrip
+                    cards={st.cards}
+                    placedCounts={placedCounts}
+                    selected={selected}
+                    onPress={pressTile}
+                  />
+                </View>
+              ))}
+            </View>
+          ))
+        )
+      ) : null}
+
+      {mode === 'portfolios' ? (
+        !portfolioGroups ? (
+          <ThemedText type="small" themeColor="textSecondary" style={styles.emptyNote}>
+            Loading your portfolios…
+          </ThemedText>
+        ) : portfolioGroups.length === 0 ? (
+          <ThemedText type="small" themeColor="textSecondary" style={styles.emptyNote}>
+            No portfolios yet — collections you make in tcgscan appear here.
+          </ThemedText>
+        ) : (
+          portfolioGroups.map((g) => (
+            <View key={g.id}>
+              <ThemedText type="smallBold" style={styles.groupSeries}>
+                {g.name}
+                <ThemedText type="small" themeColor="textSecondary">
+                  {'  '}· {g.cards.length} card{g.cards.length === 1 ? '' : 's'}
+                </ThemedText>
+              </ThemedText>
+              <TileStrip
+                cards={g.cards}
+                placedCounts={placedCounts}
+                selected={selected}
+                onPress={pressTile}
+              />
+            </View>
+          ))
+        )
+      ) : null}
 
       {selected.size > 0 ? (
         <View style={styles.actionRow}>
@@ -224,6 +460,18 @@ function CollectionStrip({
               </Text>
             </Pressable>
           ) : null}
+          {onFindSimilar ? (
+            <Pressable
+              onPress={() => {
+                const ids = [...selected];
+                setSelected(new Set());
+                setMultiMode(false);
+                onFindSimilar(ids);
+              }}
+              style={({ pressed }) => [styles.actionBtn, styles.reclaimBtn, pressed && styles.pressed]}>
+              <Text style={styles.reclaimBtnText}>≈ Find similar</Text>
+            </Pressable>
+          ) : null}
           {reclaimId ? (
             <Pressable
               onPress={() => setChooser('reclaim')}
@@ -231,7 +479,7 @@ function CollectionStrip({
               <Text style={styles.reclaimBtnText}>Reclaim ▸</Text>
             </Pressable>
           ) : null}
-          {placeableIds.length === 0 && !reclaimId ? (
+          {placeableIds.length === 0 && !reclaimId && !onFindSimilar ? (
             <ThemedText type="small" themeColor="textSecondary">
               No free copies to place.
             </ThemedText>
@@ -242,6 +490,48 @@ function CollectionStrip({
             </ThemedText>
           </Pressable>
         </View>
+      ) : null}
+
+      {actionCard ? (
+        <CollectionCardModal
+          card={actionCard}
+          free={freeOf(actionCard)}
+          placed={placedCounts.get(actionCard.cardId) ?? 0}
+          catalogCard={catalog?.getCard(actionCard.cardId)}
+          onAddToBinder={() => {
+            setSelected(new Set([actionCard.cardId]));
+            setActionCard(null);
+            setChooser('add');
+          }}
+          onFindSimilar={
+            onFindSimilar
+              ? () => {
+                  const id = actionCard.cardId;
+                  setActionCard(null);
+                  onFindSimilar([id]);
+                }
+              : undefined
+          }
+          onViewSet={
+            onViewSet
+              ? () => {
+                  const id = actionCard.cardId;
+                  setActionCard(null);
+                  onViewSet(id);
+                }
+              : undefined
+          }
+          onReclaim={
+            (placedCounts.get(actionCard.cardId) ?? 0) > 0
+              ? () => {
+                  setSelected(new Set([actionCard.cardId]));
+                  setActionCard(null);
+                  setChooser('reclaim');
+                }
+              : undefined
+          }
+          onClose={() => setActionCard(null)}
+        />
       ) : null}
 
       {chooser === 'add' ? (
@@ -310,6 +600,148 @@ function CollectionStrip({
         </Modal>
       ) : null}
     </HomeSection>
+  );
+}
+
+/** One horizontal strip of tiles — the building block of every view mode. */
+function TileStrip({
+  cards,
+  placedCounts,
+  selected,
+  onPress,
+}: {
+  cards: UserCard[];
+  placedCounts: Map<string, number>;
+  selected: Set<string>;
+  onPress: (card: UserCard) => void;
+}) {
+  return (
+    <FlatList
+      horizontal
+      data={cards}
+      extraData={[selected, placedCounts]}
+      keyExtractor={(c) => `${c.cardId}|${c.condition}`}
+      renderItem={({ item }) => (
+        <CardTile
+          card={item}
+          placed={placedCounts.get(item.cardId) ?? 0}
+          selected={selected.has(item.cardId)}
+          onPress={() => onPress(item)}
+        />
+      )}
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.strip}
+    />
+  );
+}
+
+/**
+ * The browser-style card sheet for a collection tile: image, metadata (once the catalog is in),
+ * inventory line, then Add to a binder… / ≈ Find similar / View set / Reclaim… / Cancel.
+ */
+function CollectionCardModal({
+  card,
+  free,
+  placed,
+  catalogCard,
+  onAddToBinder,
+  onFindSimilar,
+  onViewSet,
+  onReclaim,
+  onClose,
+}: {
+  card: UserCard;
+  free: number;
+  placed: number;
+  catalogCard?: { name: string; setName: string; number: string; rarity: string; stage: string } | null;
+  onAddToBinder: () => void;
+  onFindSimilar?: () => void;
+  onViewSet?: () => void;
+  onReclaim?: () => void;
+  onClose: () => void;
+}) {
+  const uri = cardThumbUrl(card.cardId, 245);
+  const meta = catalogCard
+    ? [catalogCard.setName, catalogCard.number].filter(Boolean).join(' · ')
+    : 'Loading card details…';
+  const sub = catalogCard
+    ? [catalogCard.rarity, catalogCard.stage].filter(Boolean).join(' · ')
+    : '';
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.backdrop} onPress={onClose}>
+        <Pressable onPress={(e) => e.stopPropagation()} style={styles.cardModalWrap}>
+          <ThemedView type="backgroundElement" style={styles.cardModal}>
+            <View style={styles.cardModalImageWrap}>
+              {uri ? (
+                <Image
+                  source={{ uri }}
+                  style={styles.cardModalImage}
+                  contentFit="contain"
+                  cachePolicy="memory-disk"
+                  transition={100}
+                  draggable={false}
+                />
+              ) : null}
+            </View>
+            <ThemedText type="smallBold" numberOfLines={1} style={styles.cardModalTitle}>
+              {catalogCard?.name ?? `Card ${card.cardId}`}
+            </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+              {meta}
+            </ThemedText>
+            {sub ? (
+              <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+                {sub}
+              </ThemedText>
+            ) : null}
+            <ThemedText type="small" themeColor="textSecondary">
+              You own {card.quantity} · {free} free to place
+              {placed > 0 ? ` · ${placed} in binders` : ''}
+            </ThemedText>
+
+            <Pressable
+              onPress={onAddToBinder}
+              disabled={free === 0}
+              style={({ pressed }) => [
+                styles.actionBtn,
+                styles.cardModalBtn,
+                (pressed || free === 0) && styles.pressed,
+              ]}>
+              <Text style={styles.actionBtnText}>
+                {free === 0 ? 'No free copies to place' : 'Add to a binder…'}
+              </Text>
+            </Pressable>
+            {onFindSimilar ? (
+              <Pressable
+                onPress={onFindSimilar}
+                style={({ pressed }) => [styles.cardModalSecondary, pressed && styles.pressed]}>
+                <Text style={styles.cardModalSecondaryText}>≈ Find similar</Text>
+              </Pressable>
+            ) : null}
+            {onViewSet ? (
+              <Pressable
+                onPress={onViewSet}
+                style={({ pressed }) => [styles.cardModalSecondary, pressed && styles.pressed]}>
+                <Text style={styles.cardModalSecondaryText}>View set</Text>
+              </Pressable>
+            ) : null}
+            {onReclaim ? (
+              <Pressable
+                onPress={onReclaim}
+                style={({ pressed }) => [styles.cardModalSecondary, pressed && styles.pressed]}>
+                <Text style={styles.cardModalSecondaryText}>Reclaim from a binder…</Text>
+              </Pressable>
+            ) : null}
+            <Pressable
+              onPress={onClose}
+              style={({ pressed }) => [styles.cardModalSecondary, pressed && styles.pressed]}>
+              <Text style={styles.cardModalCancel}>Cancel</Text>
+            </Pressable>
+          </ThemedView>
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -440,4 +872,40 @@ const styles = StyleSheet.create({
   chooserTitle: { marginBottom: Spacing.two },
   chooserRow: { paddingVertical: Spacing.two },
   chooserNew: { color: Palette.accent, fontSize: FontSize.control, fontWeight: Weight.semibold },
+  controlsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: Spacing.two,
+    marginBottom: Spacing.one,
+  },
+  search: {
+    flex: 1,
+    minWidth: 150,
+    borderWidth: 1,
+    borderColor: Palette.controlBorder,
+    borderRadius: Radius.control,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    fontSize: FontSize.control,
+    color: Palette.ink,
+  },
+  emptyNote: { paddingVertical: Spacing.two },
+  groupSeries: { marginTop: Spacing.three },
+  groupSet: { marginTop: Spacing.one },
+  cardModalWrap: { width: '100%', maxWidth: 320 },
+  cardModal: { borderRadius: Radii.page, padding: Spacing.four, gap: Spacing.two },
+  cardModalImageWrap: { alignItems: 'center' },
+  cardModalImage: { width: 180, height: 180 * CARD_ASPECT },
+  cardModalTitle: { marginTop: Spacing.one },
+  cardModalBtn: { alignItems: 'center', marginTop: Spacing.two },
+  cardModalSecondary: {
+    borderWidth: 1,
+    borderColor: Palette.controlBorder,
+    borderRadius: Radius.pill,
+    paddingVertical: Spacing.two,
+    alignItems: 'center',
+  },
+  cardModalSecondaryText: { color: Palette.accent, fontSize: FontSize.control, fontWeight: Weight.semibold },
+  cardModalCancel: { color: Palette.muted, fontSize: FontSize.control, fontWeight: Weight.semibold },
 });

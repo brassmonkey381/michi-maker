@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSharedValue } from 'react-native-reanimated';
 import { similarAvailable } from 'tcgscan-browse';
 
+import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
 import { AutoFillSheet } from '@/components/binder/AutoFillSheet';
 import { BinderGrid, type BinderGridHandle } from '@/components/binder/BinderGrid';
 import { CardPicker } from '@/components/binder/CardPicker';
@@ -29,7 +30,15 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Palette, Radius, Spacing, Weight, FontSize } from '@/constants/theme';
 import { pillChip } from '@/constants/ui';
-import { firstFreePlacement, occupiedCells, slotCells, uuidv4, type DemoPage, type DemoSlot } from '@/data/binderTypes';
+import {
+  firstFreePlacement,
+  occupiedCells,
+  pagesForCards,
+  slotCells,
+  uuidv4,
+  type DemoPage,
+  type DemoSlot,
+} from '@/data/binderTypes';
 import { fetchLikeCount } from '@/data/binderRepo';
 import type { CaptionFieldKey } from '@/data/cardCaption';
 import type { ComposePlacement } from '@/data/pageComposer';
@@ -80,6 +89,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // "Keep adding" fast-fill: after placing a card the picker stays open and jumps to the next pocket.
   const [keepAdding, setKeepAdding] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(null);
+  // Bulk multi-select "Add to another binder…" — the card ids awaiting a target binder.
+  const [addElsewhereIds, setAddElsewhereIds] = useState<string[] | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [toast, setToast] = useState<ToastSpec | null>(null);
   // Likes this binder has received (owner view). Fetched on open; tapping opens the likers list.
@@ -379,6 +390,28 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     page.slots
       .filter((s) => multiIds.has(s.id) && s.type === 'card' && s.cardId)
       .map((s) => s.cardId as string);
+
+  // Bulk "Add to another binder": copy the selected cards into a chosen (or new) binder.
+  const addSelectionToBinder = () => {
+    const cardIds = selectedCardIds();
+    setMultiActionsOpen(false);
+    clearMulti();
+    if (cardIds.length > 0) setAddElsewhereIds(cardIds);
+  };
+  const addElsewhereTo = (targetId: string) => {
+    if (!addElsewhereIds?.length) return;
+    const { added } = store.addCardsToBinder(targetId, addElsewhereIds);
+    const title = store.getBinder(targetId)?.title ?? 'binder';
+    setAddElsewhereIds(null);
+    if (added > 0) showToast(`Added ${added} card${added === 1 ? '' : 's'} to ${title}`);
+  };
+  const addElsewhereNew = () => {
+    if (!addElsewhereIds?.length) return;
+    const copy = store.createBinder({ title: 'New binder', pages: pagesForCards(addElsewhereIds) });
+    const count = addElsewhereIds.length;
+    setAddElsewhereIds(null);
+    showToast(`Added ${count} card${count === 1 ? '' : 's'} to ${copy.title}`);
+  };
 
   const findSimilarToAll = () => {
     const cardIds = selectedCardIds();
@@ -883,7 +916,16 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
             onFindSimilar={
               similarAvailable() && selectedCardIds().length > 0 ? findSimilarToAll : undefined
             }
+            onAddToBinder={selectedCardIds().length > 0 ? addSelectionToBinder : undefined}
             onClose={closeMultiActions}
+          />
+        ) : null}
+        {addElsewhereIds ? (
+          <AddToBinderSheet
+            binders={store.userBinders.filter((b) => b.id !== binder.id)}
+            onPick={addElsewhereTo}
+            onNew={addElsewhereNew}
+            onClose={() => setAddElsewhereIds(null)}
           />
         ) : null}
         <ShareSheet

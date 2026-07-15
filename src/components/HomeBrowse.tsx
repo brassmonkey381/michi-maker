@@ -18,6 +18,7 @@ import { CardBrowse } from '@/components/binder/CardBrowse';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing } from '@/constants/theme';
+import { pagesForCards } from '@/data/binderTypes';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useBinders } from '@/store/binders';
 
@@ -41,15 +42,18 @@ export function HomeBrowse({
   const panelHeight = Math.max(460, Math.round(height * 0.7));
 
   const store = useBinders();
-  const [addCardId, setAddCardId] = useState<string | null>(null);
+  // One or MANY cards headed for a binder: single-card taps queue [id]; the multi-select
+  // modal's "Add all to a binder" queues the whole selection (this was missing — home's
+  // multi-select had no add option while the editor picker's did).
+  const [addCardIds, setAddCardIds] = useState<string[] | null>(null);
   const [toast, setToast] = useState<ToastSpec | null>(null);
   const toastId = useRef(0);
 
-  const showAdded = (binderId: string, title: string) => {
+  const showAdded = (binderId: string, title: string, count: number) => {
     toastId.current += 1;
     setToast({
       id: toastId.current,
-      message: `Added to ${title}`,
+      message: count > 1 ? `Added ${count} cards to ${title}` : `Added to ${title}`,
       ...(onOpenBinder ? { actionLabel: 'Open', onAction: () => onOpenBinder(binderId) } : {}),
     });
   };
@@ -61,7 +65,7 @@ export function HomeBrowse({
       key: 'add',
       kind: 'primary',
       label: 'Add to a binder…',
-      onPress: (c) => setAddCardId(c.id),
+      onPress: (c) => setAddCardIds([c.id]),
     };
     return [
       add,
@@ -73,17 +77,19 @@ export function HomeBrowse({
   };
 
   const addToExisting = (binderId: string) => {
-    if (!addCardId) return;
+    if (!addCardIds?.length) return;
     const title = store.getBinder(binderId)?.title ?? 'binder';
-    store.addCardToBinder(binderId, addCardId);
-    setAddCardId(null);
-    showAdded(binderId, title);
+    const { added } = store.addCardsToBinder(binderId, addCardIds);
+    setAddCardIds(null);
+    if (added > 0) showAdded(binderId, title, added);
   };
   const addToNew = () => {
-    if (!addCardId) return;
-    const binder = store.createBinderWithCard(addCardId);
-    setAddCardId(null);
-    showAdded(binder.id, binder.title);
+    if (!addCardIds?.length) return;
+    // Atomic create-with-cards — creating then batch-adding would race the store snapshot.
+    const binder = store.createBinder({ title: 'New binder', pages: pagesForCards(addCardIds) });
+    const count = addCardIds.length;
+    setAddCardIds(null);
+    showAdded(binder.id, binder.title, count);
   };
 
   return (
@@ -105,16 +111,20 @@ export function HomeBrowse({
         <View style={[styles.panel, { height: panelHeight }]}>
           {/* Rendered even before the catalog loads: CatalogBrowser runs cold (server search) so
               browsing is instant, then swaps to on-device once the catalog is in memory. */}
-          <CardBrowse catalog={catalog} cardActions={cardActions} />
+          <CardBrowse
+            catalog={catalog}
+            cardActions={cardActions}
+            onPickCards={(cardIds) => setAddCardIds(cardIds)}
+          />
         </View>
       ) : null}
 
-      {addCardId ? (
+      {addCardIds ? (
         <AddToBinderSheet
           binders={store.userBinders}
           onPick={addToExisting}
           onNew={addToNew}
-          onClose={() => setAddCardId(null)}
+          onClose={() => setAddCardIds(null)}
         />
       ) : null}
       <Toast spec={toast} onDismiss={() => setToast(null)} />

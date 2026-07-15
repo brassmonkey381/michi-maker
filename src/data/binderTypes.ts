@@ -148,6 +148,28 @@ export function emptyPage(rows = 3, cols = 3, title?: string): DemoPage {
   return { id: uuidv4(), title, rows, cols, slots: [] };
 }
 
+/**
+ * Lay card ids into fresh 3×3 pages, row-major — an atomic payload for `createBinder({ pages })`
+ * (creating a binder then batch-adding races the store snapshot; this doesn't).
+ */
+export function pagesForCards(cardIds: string[]): DemoPage[] {
+  const pages: DemoPage[] = [];
+  for (let i = 0; i < cardIds.length; i += 9) {
+    const chunk = cardIds.slice(i, i + 9);
+    const slots: DemoSlot[] = chunk.map((cardId, j) => ({
+      id: uuidv4(),
+      row: Math.floor(j / 3),
+      col: j % 3,
+      rowSpan: 1,
+      colSpan: 1,
+      type: 'card',
+      cardId,
+    }));
+    pages.push({ id: uuidv4(), rows: 3, cols: 3, slots });
+  }
+  return pages;
+}
+
 /** Cells covered by a slot, as "row,col" keys (accounts for spans). */
 export function slotCells(slot: DemoSlot): string[] {
   const keys: string[] = [];

@@ -37,6 +37,41 @@ export async function fetchUserCards(): Promise<UserCard[]> {
   }));
 }
 
+/** One tcgscan portfolio (collection) and how many copies of each card it holds. */
+export interface PortfolioGroup {
+  id: string;
+  name: string;
+  quantities: Map<string, number>;
+}
+
+/**
+ * The user's tcgscan portfolios, for the "by portfolio" collection view. These are tcgscan-app's
+ * own tables living in the shared project — owner-only RLS, and michi only READS them (the
+ * user_cards rollup stays the write path; see docs/TCGSCAN-PORTFOLIO.md).
+ */
+export async function fetchPortfolioGroups(): Promise<PortfolioGroup[]> {
+  const supabase = requireSupabase();
+  const [cols, entries] = await Promise.all([
+    supabase.from('collections').select('id, name'),
+    supabase.from('portfolio_entries').select('collection_id, card_id, quantity'),
+  ]);
+  if (cols.error) throw new Error(`portfolios: ${cols.error.message}`);
+  if (entries.error) throw new Error(`portfolio entries: ${entries.error.message}`);
+  const groups = new Map<string, PortfolioGroup>();
+  for (const c of (cols.data ?? []) as { id: string; name: string }[]) {
+    groups.set(c.id, { id: c.id, name: c.name, quantities: new Map() });
+  }
+  for (const e of (entries.data ?? []) as {
+    collection_id: string;
+    card_id: string;
+    quantity: number;
+  }[]) {
+    const g = groups.get(e.collection_id);
+    if (g) g.quantities.set(e.card_id, (g.quantities.get(e.card_id) ?? 0) + e.quantity);
+  }
+  return [...groups.values()].filter((g) => g.quantities.size > 0);
+}
+
 /**
  * Live changes to the user's inventory (scan-to-screen): calls `onChange` on any insert /
  * update / delete of their rows. Returns an unsubscribe. The publication includes user_cards

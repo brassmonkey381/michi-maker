@@ -206,6 +206,83 @@ export type Database = {
         }
         Relationships: []
       }
+      collections: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      portfolio_entries: {
+        Row: {
+          added_at: string
+          card_id: string
+          collection_id: string
+          condition: string
+          id: string
+          purchase_date: string | null
+          purchase_price: number | null
+          quantity: number
+          updated_at: string
+          user_id: string
+          variant: string
+        }
+        Insert: {
+          added_at?: string
+          card_id: string
+          collection_id: string
+          condition: string
+          id: string
+          purchase_date?: string | null
+          purchase_price?: number | null
+          quantity?: number
+          updated_at?: string
+          user_id?: string
+          variant: string
+        }
+        Update: {
+          added_at?: string
+          card_id?: string
+          collection_id?: string
+          condition?: string
+          id?: string
+          purchase_date?: string | null
+          purchase_price?: number | null
+          quantity?: number
+          updated_at?: string
+          user_id?: string
+          variant?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_entries_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "collections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profile_upvotes: {
         Row: {
           created_at: string

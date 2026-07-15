@@ -45,3 +45,9 @@ create policy "scan-feedback select own" on storage.objects for select to authen
   using (
     bucket_id = 'scan-feedback' and (storage.foldername(name))[1] = (select auth.uid())::text
   );
+
+-- 2026-07-15: distinguish positive confirmations from corrections (both from photo
+-- uploads). confirm = user accepted a model candidate; correct = user searched the
+-- true card (model was wrong/unsure).
+alter table public.scan_feedback
+  add column source text check (source in ('confirm', 'correct'));

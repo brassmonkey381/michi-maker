@@ -20,6 +20,7 @@ import {
   Weight,
 } from '@/constants/theme';
 import { SAMPLE_BINDERS } from '@/data/sampleData';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { markLandingSeen } from '@/lib/landing';
 
 /**
@@ -38,6 +39,18 @@ const BINDERS_BY_ID = new Map(SAMPLE_BINDERS.map((b) => [b.id, b]));
  * body copy stays on the system sans like the rest of the app.
  */
 const BrandFont = Platform.select({ web: 'var(--font-brand)', default: 'serif' });
+
+/**
+ * The landing page's own surface language — "gallery studio": warm paper walls, mat-board
+ * cards, bronze craft accents, and one dark beat for the print payoff. Scoped here on
+ * purpose (the app keeps its variant tokens); the binder pages and the blue CTAs are the
+ * only saturated things on the page, so the card art stays the loudest voice.
+ */
+const Paper = { light: '#FAF6EF', dark: '#151310' };
+const Mat = { light: '#F0EADF', dark: '#211E18' };
+const Bronze = { light: '#8A6B45', dark: '#C99F6E' };
+/** The print band is the page's one dark moment, in both schemes. */
+const InkBand = { bg: '#1D1A15', title: '#F5EFE4', body: '#B3AA9A' };
 
 /** One page that tells a story at a glance: the rarity ladder, common → hyper. */
 const HERO_ID = 'gen-prismatic-rarity-ladder';
@@ -99,6 +112,10 @@ export default function WelcomeScreen() {
   const router = useRouter();
   const { width: windowW } = useWindowDimensions();
   const wide = windowW >= 920;
+  const dark = useColorScheme() === 'dark';
+  const paper = dark ? Paper.dark : Paper.light;
+  const mat = dark ? Mat.dark : Mat.light;
+  const bronze = dark ? Bronze.dark : Bronze.light;
 
   const scrollRef = useRef<ScrollView>(null);
   const galleryY = useRef(0);
@@ -129,7 +146,7 @@ export default function WelcomeScreen() {
   const thumbW = wide ? 300 : Math.min(windowW - Spacing.five * 2, 280);
 
   return (
-    <ThemedView style={styles.root}>
+    <ThemedView style={[styles.root, { backgroundColor: paper }]}>
       {Platform.OS === 'web' ? (
         <Head>
           <title>michi-maker: build beautiful Pokémon card binders</title>
@@ -165,7 +182,9 @@ export default function WelcomeScreen() {
             {/* ── Hero ────────────────────────────────────────────────── */}
             <View style={[styles.hero, wide && styles.heroWide]}>
               <View style={[styles.heroCopy, wide && styles.heroCopyWide]}>
-                <ThemedText style={styles.kicker}>THE MICHI METHOD, DIGITIZED</ThemedText>
+                <ThemedText style={[styles.kicker, { color: bronze }]}>
+                  THE MICHI METHOD, DIGITIZED
+                </ThemedText>
                 <ThemedText
                   style={[styles.h1, !wide && styles.h1Narrow]}
                   accessibilityRole="header">
@@ -222,30 +241,30 @@ export default function WelcomeScreen() {
               ) : null}
             </View>
 
-            {/* ── Why michi ───────────────────────────────────────────── */}
+            {/* ── Why michi — plain text columns on the paper, a bronze rule above each ── */}
             <View style={styles.cardRow}>
               {VALUE_PROPS.map((prop) => (
-                <ThemedView
-                  key={prop.title}
-                  type="backgroundElement"
-                  style={[styles.valueCard, wide && styles.cardThird]}>
-                  <ThemedText style={styles.cardTitle}>{prop.title}</ThemedText>
+                <View key={prop.title} style={[styles.valueCol, wide && styles.cardThird]}>
+                  <View style={[styles.rule, { backgroundColor: bronze }]} />
+                  <ThemedText style={styles.valueTitle}>{prop.title}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary" style={styles.cardBody}>
                     {prop.body}
                   </ThemedText>
-                </ThemedView>
+                </View>
               ))}
             </View>
 
             {/* ── The tools ───────────────────────────────────────────── */}
             <View style={styles.section}>
-              <ThemedText style={styles.kicker}>THE TOOLS</ThemedText>
+              <ThemedText style={[styles.kicker, { color: bronze }]}>THE TOOLS</ThemedText>
               <ThemedText style={styles.h2}>
                 Everything between “pile of cards” and “page you’re proud of.”
               </ThemedText>
               <View style={styles.cardRow}>
                 {FEATURES.map((f) => (
-                  <View key={f.title} style={[styles.featureCard, wide && styles.cardThird]}>
+                  <View
+                    key={f.title}
+                    style={[styles.featureCard, { backgroundColor: mat }, wide && styles.cardThird]}>
                     <ThemedText style={styles.cardTitle}>{f.title}</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.cardBody}>
                       {f.body}
@@ -259,28 +278,32 @@ export default function WelcomeScreen() {
               </ThemedText>
             </View>
 
-            {/* ── Print band ──────────────────────────────────────────── */}
-            <ThemedView type="backgroundElement" style={[styles.printBand, wide && styles.printBandWide]}>
+            {/* ── Print band — the page's one dark moment ─────────────── */}
+            <View style={[styles.printBand, wide && styles.printBandWide]}>
               <View style={styles.printStat}>
-                <ThemedText style={styles.printSize}>2.5″ × 3.5″</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
+                <ThemedText style={[styles.printSize, { color: InkBand.title }]}>
+                  2.5″ × 3.5″
+                </ThemedText>
+                <ThemedText type="small" style={{ color: InkBand.body }}>
                   true card size, at pocket pitch
                 </ThemedText>
               </View>
               <View style={styles.printCopy}>
-                <ThemedText style={styles.cardTitle}>The physical payoff</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary" style={styles.cardBody}>
+                <ThemedText style={[styles.cardTitle, { color: InkBand.title }]}>
+                  The physical payoff
+                </ThemedText>
+                <ThemedText type="small" style={[styles.cardBody, { color: InkBand.body }]}>
                   Export any binder as cut-ready fill sheets: placeholders for the hunt, your
                   real sliced art, inserts, and folded two-wide pieces whose art crosses the
                   fold. Print, cut, slide into pockets. The page on your shelf matches the page
                   on your screen.
                 </ThemedText>
               </View>
-            </ThemedView>
+            </View>
 
             {/* ── Gallery ─────────────────────────────────────────────── */}
             <View style={styles.section} onLayout={(e) => (galleryY.current = e.nativeEvent.layout.y)}>
-              <ThemedText style={styles.kicker}>OPEN A REAL BINDER</ThemedText>
+              <ThemedText style={[styles.kicker, { color: bronze }]}>OPEN A REAL BINDER</ThemedText>
               <ThemedText style={styles.h2}>These aren’t mockups.</ThemedText>
               <ThemedText type="small" themeColor="textSecondary" style={styles.sectionSub}>
                 Every example below is a live binder. Open one, flip its pages, then duplicate
@@ -376,7 +399,6 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     fontWeight: Weight.bold,
     letterSpacing: 2,
-    color: Palette.accent,
   },
   h1: { fontFamily: BrandFont, fontSize: 56, lineHeight: 62, fontWeight: '900' },
   h1Narrow: { fontSize: FontSize.display, lineHeight: 42 },
@@ -424,19 +446,18 @@ const styles = StyleSheet.create({
     marginTop: Spacing.four,
   },
   cardThird: { flexBasis: '31%', flexGrow: 1 },
-  valueCard: {
-    borderRadius: Radius.lg,
-    padding: Spacing.four,
+  valueCol: {
     gap: Spacing.two,
     width: '100%',
+    paddingVertical: Spacing.two,
   },
+  rule: { width: 36, height: 3, borderRadius: 2, marginBottom: Spacing.one },
+  valueTitle: { fontFamily: BrandFont, fontSize: FontSize.h2, fontWeight: Weight.bold, lineHeight: 28 },
   featureCard: {
-    borderRadius: Radius.lg,
+    borderRadius: 20,
     padding: Spacing.four,
     gap: Spacing.two,
     width: '100%',
-    borderWidth: 1,
-    borderColor: Palette.hairline,
   },
   cardTitle: { fontSize: FontSize.lg, fontWeight: Weight.bold, lineHeight: 24 },
   cardBody: { lineHeight: 21 },
@@ -455,9 +476,10 @@ const styles = StyleSheet.create({
 
   printBand: {
     marginTop: Spacing.six,
-    borderRadius: Radius.lg,
+    borderRadius: 24,
     padding: Spacing.five,
     gap: Spacing.four,
+    backgroundColor: InkBand.bg,
   },
   printBandWide: { flexDirection: 'row', alignItems: 'center' },
   printStat: { alignItems: 'flex-start', gap: Spacing.one, minWidth: 220 },

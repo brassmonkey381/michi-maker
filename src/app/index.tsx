@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,9 +26,13 @@ import { BottomTabInset, FontSize, MaxContentWidth, MaxContentWidthWide, Palette
 import { pagesForCards } from '@/data/binderTypes';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useImageManifest } from '@/lib/catalogConfig';
+import { shouldShowLanding } from '@/lib/landing';
 import { useBinders } from '@/store/binders';
 
 export default function BindersScreen() {
+  // First-time web visitors get the marketing page; any landing CTA sets the seen flag
+  // before navigating back here, so this evaluates once per mount and never loops.
+  const [showLanding] = useState(shouldShowLanding);
   const store = useBinders();
   const router = useRouter();
   const openBinder = (id: string) => router.push(`/binder/${id}`);
@@ -119,6 +123,7 @@ export default function BindersScreen() {
   // fall back to the flat convention path).
   useImageManifest();
 
+  if (showLanding) return <Redirect href="/welcome" />;
 
   const handleNew = () => {
     const binder = store.createBinder({ title: 'New binder' });

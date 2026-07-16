@@ -19,6 +19,7 @@ active while `expires_at` is NULL or in the future.
 | `tier_pro`  | PRO subscription — full print (1 included print/mo) + higher limits | `expires_at` per period |
 | `tier_vip`  | VIP subscription — unlimited + 5 included prints/mo + priority | `expires_at` per period |
 | `pdf_binder:<id>` | one-time single-binder fill-sheet PDF ($3.99 strawman) | future — no paid sample; the teaser is a free premade example sheet |
+| `tcgscan_pro` | **CROSS-APP** — TCGScan Pro (sold by the sibling app). Unlocks scan-powered michi features (Build-a-binder-from-your-collection) + drives the bundle cross-sell | read via `hasTcgscanPro()`; michi never resolves a tier from it. See **docs/SYNERGY.md** |
 
 Full print (`PrintPlaceholdersSheet` Download) unlocks for PRO/VIP **or** an active `pdf_print`
 row. The counts preview stays free as the teaser; only the Download is behind the unlock.

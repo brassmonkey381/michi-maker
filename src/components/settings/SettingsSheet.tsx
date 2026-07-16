@@ -9,6 +9,7 @@ import { useRouter, type Href } from 'expo-router';
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
+import { BundleOffer } from '@/components/monetization/BundleOffer';
 import { PlanUsageSection } from '@/components/monetization/TierUsage';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -151,6 +152,8 @@ function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => 
                   />
                 </View>
 
+                {/* Bundle cross-sell — only renders for a paying member who lacks TCGScan Pro. */}
+                <BundleOffer />
               </>
             ) : null}
 

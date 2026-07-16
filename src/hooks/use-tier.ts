@@ -14,6 +14,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import {
   hasFullPrint as computeFullPrint,
+  hasTcgscanPro as computeTcgscanPro,
   limitsForTier,
   resolveTier,
   type EntitlementRow,
@@ -27,6 +28,7 @@ interface TierState {
   uid: string;
   tier: Tier;
   hasFullPrint: boolean;
+  hasTcgscanPro: boolean;
 }
 
 export interface UseTier {
@@ -36,6 +38,8 @@ export interface UseTier {
   hasFullPrint: boolean;
   /** A paid subscriber (PRO or VIP). */
   isPaid: boolean;
+  /** CROSS-APP: holds an active TCGScan Pro grant (unlocks scan-powered features). */
+  hasTcgscanPro: boolean;
   /** True while the first query for the current identity is still in flight. */
   loading: boolean;
   refresh: () => void;
@@ -68,7 +72,12 @@ export function useTier(): UseTier {
         // Resolve against "now" here in the effect — never call the clock during render.
         const now = Date.now();
         const tier = resolveTier({ isSignedIn: true, rows }, now);
-        setState({ uid: user.id, tier, hasFullPrint: computeFullPrint(tier, rows, now) });
+        setState({
+          uid: user.id,
+          tier,
+          hasFullPrint: computeFullPrint(tier, rows, now),
+          hasTcgscanPro: computeTcgscanPro(rows, now),
+        });
       });
     return () => {
       live = false;
@@ -83,6 +92,7 @@ export function useTier(): UseTier {
     limits: limitsForTier(tier),
     hasFullPrint: known ? state!.hasFullPrint : false,
     isPaid: tier === 'pro' || tier === 'vip',
+    hasTcgscanPro: known ? state!.hasTcgscanPro : false,
     loading: !!supabase && isSignedIn && !!user && !known,
     refresh,
   };

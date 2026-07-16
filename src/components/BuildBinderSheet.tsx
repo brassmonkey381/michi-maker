@@ -11,6 +11,7 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
+import { TcgscanSynergyNote } from '@/components/monetization/BundleOffer';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
@@ -101,6 +102,8 @@ export function BuildBinderSheet({
                   Theme pages found in your unplaced cards. Untick any you don’t want. The
                   binder opens ready to rearrange, and Reclaim can take any card back out.
                 </ThemedText>
+
+                <TcgscanSynergyNote />
 
                 <ScrollView style={styles.list}>
                   {plan.proposals.map((p) => {

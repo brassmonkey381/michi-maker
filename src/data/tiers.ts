@@ -25,6 +25,13 @@ export const PRODUCTS = {
   tierPro: 'tier_pro',
   /** VIP subscription (entitlements.expires_at set per billing period). */
   tierVip: 'tier_vip',
+  /**
+   * CROSS-APP: TCGScan Pro. Sold by the sibling app (tcgscan / idontgitit.com) but written to
+   * this SAME shared `entitlements` ledger, so michi can read it to unlock scan-powered features
+   * here (e.g. "Build a binder from your collection"). See docs/SYNERGY.md. michi never sells or
+   * resolves a *tier* from it — it's a feature key checked directly via `hasTcgscanPro`.
+   */
+  tcgscanPro: 'tcgscan_pro',
 } as const;
 
 /** One entitlement row as the client reads it (owner-scoped by RLS). */
@@ -132,6 +139,19 @@ export function isActive(row: EntitlementRow, nowMs: number): boolean {
   if (!row.expires_at) return true;
   const end = Date.parse(row.expires_at);
   return Number.isNaN(end) ? true : end > nowMs;
+}
+
+/** Does the user hold an ACTIVE grant for `product`? (Direct product check, tier-independent.) */
+export function hasProduct(rows: EntitlementRow[], product: string, nowMs: number): boolean {
+  return rows.some((r) => r.product === product && isActive(r, nowMs));
+}
+
+/**
+ * CROSS-APP: does the user hold an active TCGScan Pro grant (bought in the sibling app, written
+ * to this shared ledger)? Gates scan-powered features here. See docs/SYNERGY.md.
+ */
+export function hasTcgscanPro(rows: EntitlementRow[], nowMs: number): boolean {
+  return hasProduct(rows, PRODUCTS.tcgscanPro, nowMs);
 }
 
 /**

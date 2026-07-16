@@ -18,6 +18,7 @@ import { RecentProducts } from 'tcgscan-browse';
 
 import { HomeSection } from '@/components/HomeSection';
 import { useCatalog } from '@/hooks/use-catalog';
+import { useBrowseTheme } from '@/lib/browseTheme';
 
 export function HomeRecent({
   onFindSimilar,
@@ -33,11 +34,13 @@ export function HomeRecent({
   onAddToBinder?: (cardId: string) => void;
 }) {
   const { catalog } = useCatalog(true);
+  const browseTheme = useBrowseTheme();
   return (
     // A collapsible section like the rest of the home screen. The shared header supplies the title
     // + disclosure, so the feed's own header is suppressed (title="").
     <HomeSection title="Recent & Upcoming">
       <RecentProducts
+        theme={browseTheme}
         catalog={catalog}
         title=""
         onFindSimilar={(card) => onFindSimilar?.(card.id)}

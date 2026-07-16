@@ -15,6 +15,7 @@ import { Platform } from 'react-native';
 import { CatalogBrowser, type CardActionsFactory } from 'tcgscan-browse';
 
 import type { Catalog, CatalogCard } from '@/lib/catalog';
+import { useBrowseTheme } from '@/lib/browseTheme';
 
 /**
  * Dev/QA override: append `?coldsearch` to the URL (web) to force the COLD path — the kit
@@ -56,8 +57,12 @@ export function CardBrowse({
    *  another mounted browser via the command bus. */
   initialSimilar?: string[];
 }) {
+  // App tokens → the kit's color contract, so the browser follows light/dark + variant
+  // instead of falling back to the kit's built-in light look.
+  const browseTheme = useBrowseTheme();
   return (
     <CatalogBrowser
+      theme={browseTheme}
       catalog={FORCE_COLD ? null : catalog}
       selectedCardId={selectedCardId}
       onPickCard={onPickCard ?? (() => {})}

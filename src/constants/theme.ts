@@ -7,7 +7,7 @@ import '@/global.css';
 
 import { Platform } from 'react-native';
 
-import { activeVariant } from '@/constants/variants';
+import { activePalette, activeVariant } from '@/constants/variants';
 
 /**
  * Scheme-aware colour roles for the ACTIVE theme variation (see
@@ -115,7 +115,9 @@ export const SlotBackingFallback = activeVariant.slotBacking;
  * per-component branching.
  * ─────────────────────────────────────────────────────────────────────────
  */
-export const Palette = activeVariant.palette;
+// Scheme-resolved at module load: dark schemes get the variant's `paletteDark` overrides
+// (surfaces, ink ramp, hairlines) so palette-styled chrome is readable in dark mode.
+export const Palette = activePalette;
 
 export const Radius = activeVariant.radius;
 

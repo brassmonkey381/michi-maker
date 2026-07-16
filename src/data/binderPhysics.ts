@@ -79,6 +79,26 @@ export function artPieceAllowed(
 }
 
 /**
+ * The side of the spine a page MUST sit on, dictated by its content — or null when either side
+ * works. Only one thing pins a page today: a folded 1×2 art piece on a 3-column page, which can
+ * only slide into the inside-edge pocket pair — column 0 on a left page, column 1 on a right
+ * page (insideEdgePairStarts). 4-column pages have symmetric pairs, so they're never pinned.
+ *
+ * Structural page edits (duplicate/delete/reorder) shift page indices and therefore sides; the
+ * store re-checks every page against this and inserts blank spacer pages where a pinned page
+ * would land on the wrong side.
+ */
+export function requiredPageSide(page: {
+  cols: number;
+  slots: { type: string; col: number; rowSpan: number; colSpan: number }[];
+}): PageSide | null {
+  if (page.cols !== 3) return null;
+  const fold = page.slots.find((s) => s.type === 'artwork' && s.rowSpan === 1 && s.colSpan === 2);
+  if (!fold) return null;
+  return fold.col === 0 ? 'left' : 'right';
+}
+
+/**
  * Split one art panel into physically insertable pieces: per row, greedy left→right, emitting
  * a folded 1×2 piece wherever the footprint sits on an inside-edge pair, 1×1 everywhere else.
  * Each piece's crop is the proportional window of the panel's crop, so the assembled picture

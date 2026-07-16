@@ -27,7 +27,7 @@ import {
 } from 'react';
 
 import * as repo from '@/data/binderRepo';
-import { legalizeArtPanels, pageSide } from '@/data/binderPhysics';
+import { legalizeArtPanels, pageSide, requiredPageSide } from '@/data/binderPhysics';
 import {
   canPlaceSlot,
   cloneBinder,
@@ -50,6 +50,29 @@ import { useAuth } from '@/store/auth';
 
 const CLOUD = isSupabaseConfigured;
 const HISTORY_LIMIT = 50;
+
+/**
+ * Insert blank spacer pages so every side-pinned page (binderPhysics.requiredPageSide — a page
+ * holding a folded 1×2 art piece on a 3-column grid) sits on the side of the spine its art
+ * demands. Binders are double-sided, so ANY structural edit that shifts page indices —
+ * duplicate, delete, reorder — flips the side of every page after it; running the result
+ * through this keeps the whole binder physically bindable, at the cost of an occasional
+ * visible blank page (which stays deletable: removing it re-runs this and only re-adds a
+ * blank if something still needs it).
+ */
+function withParitySpacers(pages: DemoPage[]): { pages: DemoPage[]; blanksInserted: number } {
+  let blanksInserted = 0;
+  const out: DemoPage[] = [];
+  for (const page of pages) {
+    const need = requiredPageSide(page);
+    if (need && pageSide(out.length) !== need) {
+      out.push(emptyPage(page.rows, page.cols));
+      blanksInserted += 1;
+    }
+    out.push(page);
+  }
+  return { pages: out, blanksInserted };
+}
 
 export interface SlotInput {
   row: number;
@@ -101,19 +124,26 @@ interface BinderStore {
   updateBinder: (id: string, patch: Partial<DemoBinder>) => void;
   deleteBinder: (id: string) => void;
   addPage: (binderId: string) => void;
-  /** Clone a page (new ids for the page + every slot) and insert it right after the original —
-   *  plus a blank spacer page first when a single insert would flip the page-side parity under
-   *  folded 1×2 art (see the double-sided note in binderPhysics). Returns the copy's index, or
-   *  null if the binder/page can't be found. */
+  /** Clone a page (new ids for the page + every slot) and insert it right after the original.
+   *  The result is re-spaced with blank pages wherever folded 1×2 art would land on the wrong
+   *  side of the spine (withParitySpacers). Returns the copy's index and how many blanks were
+   *  added, or null if the binder/page can't be found. */
   duplicatePage: (
     binderId: string,
     pageId: string,
-  ) => { pageIndex: number; spacerInserted: boolean } | null;
+  ) => { pageIndex: number; blanksInserted: number } | null;
   updatePage: (binderId: string, pageId: string, patch: Partial<DemoPage>) => void;
   /** Uniform pocket layout for the whole binder; refuses when content would fall outside. */
   setBinderPageSize: (binderId: string, rows: number, cols: number) => { ok: boolean; reason?: string };
-  removePage: (binderId: string, pageId: string) => void;
-  reorderPages: (binderId: string, fromIndex: number, toIndex: number) => void;
+  /** Delete a page; the remainder is re-spaced with blanks so later folded art keeps its side. */
+  removePage: (binderId: string, pageId: string) => { blanksInserted: number } | null;
+  /** Move a page; the result is re-spaced with blanks so all folded art keeps its side. Returns
+   *  the moved page's final index (spacers can shift it past the raw drop index). */
+  reorderPages: (
+    binderId: string,
+    fromIndex: number,
+    toIndex: number,
+  ) => { pageIndex: number; blanksInserted: number } | null;
   upsertSlot: (binderId: string, pageId: string, slot: SlotInput) => void;
   /**
    * Drop a card into a binder's first free 1×1 pocket (scanning pages in order; appends a new
@@ -476,27 +506,16 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         title: src.title ? `${src.title} copy` : undefined,
         slots: src.slots.map((slot) => ({ ...slot, id: uuidv4() })),
       };
-      // Binders are double-sided, and on 3-column pages the inside-edge pocket pair sits on a
-      // DIFFERENT column depending on the page's side of the spine (binderPhysics.pageSide —
-      // parity of the page index). Inserting ONE page flips the side of the copy and of every
-      // page after it, so any folded 1×2 art on those pages would land off its pocket pair.
-      // When that would happen, insert a blank spacer page before the copy: everything keeps
-      // its parity and every fold stays physically insertable.
-      const sideSensitive = (p: DemoPage) =>
-        p.cols === 3 && p.slots.some((s) => s.type === 'artwork' && s.rowSpan === 1 && s.colSpan === 2);
-      const needsSpacer =
-        sideSensitive(src) || target.pages.slice(srcIndex + 1).some(sideSensitive);
-      const inserted = needsSpacer ? [emptyPage(src.rows, src.cols), copy] : [copy];
-      const pages = [
+      const { pages, blanksInserted } = withParitySpacers([
         ...target.pages.slice(0, srcIndex + 1),
-        ...inserted,
+        copy,
         ...target.pages.slice(srcIndex + 1),
-      ];
+      ]);
       commit((prev) => prev.map((binder) => (binder.id === binderId ? { ...binder, pages } : binder)));
       // Inserting mid-list shifts page positions, so persist the whole binder (replaceBinder
       // rewrites pages + slots with correct positions — avoids the unique(position) dance).
       if (!target.isExample) persist(() => repo.replaceBinder({ ...target, pages }));
-      return { pageIndex: srcIndex + inserted.length, spacerInserted: needsSpacer };
+      return { pageIndex: pages.findIndex((p) => p.id === copy.id), blanksInserted };
     },
     [binders, commit, persist],
   );
@@ -552,25 +571,37 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   );
 
   const removePage = useCallback(
-    (binderId: string, pageId: string) => {
+    (binderId: string, pageId: string): { blanksInserted: number } | null => {
       const target = binders.find((binder) => binder.id === binderId);
-      if (!target || target.pages.length <= 1) return; // never leave a binder with zero pages
-      commit((prev) =>
-        prev.map((binder) =>
-          binder.id === binderId
-            ? { ...binder, pages: binder.pages.filter((page) => page.id !== pageId) }
-            : binder,
-        ),
+      if (!target || target.pages.length <= 1) return null; // never leave a binder with zero pages
+      // Removing one page flips the side of every page after it — re-space so folded art on
+      // those pages stays on its pocket pairs (a blank may reappear where the page was).
+      const { pages, blanksInserted } = withParitySpacers(
+        target.pages.filter((page) => page.id !== pageId),
       );
-      if (!target.isExample) persist(() => repo.deletePage(pageId));
+      commit((prev) =>
+        prev.map((binder) => (binder.id === binderId ? { ...binder, pages } : binder)),
+      );
+      if (!target.isExample) {
+        // A spacer changes page positions and adds rows — persist wholesale; a plain removal
+        // stays the cheap single delete.
+        persist(() =>
+          blanksInserted ? repo.replaceBinder({ ...target, pages }) : repo.deletePage(pageId),
+        );
+      }
+      return { blanksInserted };
     },
     [binders, commit, persist],
   );
 
   const reorderPages = useCallback(
-    (binderId: string, fromIndex: number, toIndex: number) => {
+    (
+      binderId: string,
+      fromIndex: number,
+      toIndex: number,
+    ): { pageIndex: number; blanksInserted: number } | null => {
       const target = binders.find((binder) => binder.id === binderId);
-      if (!target) return;
+      if (!target) return null;
       const count = target.pages.length;
       if (
         fromIndex === toIndex ||
@@ -579,13 +610,23 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         fromIndex >= count ||
         toIndex >= count
       ) {
-        return;
+        return null;
       }
-      const pages = [...target.pages];
-      const [moved] = pages.splice(fromIndex, 1);
-      pages.splice(toIndex, 0, moved);
+      const arr = [...target.pages];
+      const [moved] = arr.splice(fromIndex, 1);
+      arr.splice(toIndex, 0, moved);
+      // A move flips the side of the moved page (when from/to parity differ) and of every page
+      // in between — re-space so all folded art keeps its pocket-pair alignment.
+      const { pages, blanksInserted } = withParitySpacers(arr);
       commit((prev) => prev.map((binder) => (binder.id === binderId ? { ...binder, pages } : binder)));
-      if (!target.isExample) persist(() => repo.reorderPages(binderId, pages.map((p) => p.id)));
+      if (!target.isExample) {
+        persist(() =>
+          blanksInserted
+            ? repo.replaceBinder({ ...target, pages })
+            : repo.reorderPages(binderId, pages.map((p) => p.id)),
+        );
+      }
+      return { pageIndex: pages.findIndex((p) => p.id === moved.id), blanksInserted };
     },
     [binders, commit, persist],
   );

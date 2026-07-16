@@ -287,6 +287,13 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     if (copy) onOpenBinder?.(copy.id);
   };
 
+  // Structural page edits re-space the binder with blank pages when folded 1×2 art would land
+  // on the wrong side of the spine (see binderPhysics.requiredPageSide) — say so in the toast.
+  const parityNote = (base: string, blanks: number | undefined) =>
+    blanks
+      ? `${base}. ${blanks > 1 ? 'Blank pages were' : 'A blank page was'} added so folded art stays on its pocket pairs.`
+      : base;
+
   // In-editor "Duplicate" clones the *current page* (right after it) and jumps to the copy.
   // Set the index directly (not via changePage, which would clamp against the stale page count
   // before the new page lands) — the render clamps `pageIndex` to bounds once it does.
@@ -295,11 +302,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     if (result) {
       setSelectedSlotId(null);
       setPageIndex(result.pageIndex);
-      showToast(
-        result.spacerInserted
-          ? 'Page duplicated. A blank page was added so folded art stays on its pocket pairs.'
-          : 'Page duplicated',
-      );
+      showToast(parityNote('Page duplicated', result.blanksInserted));
     }
   };
 
@@ -785,9 +788,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                 confirmLabel: 'Delete page',
                 destructive: true,
                 onConfirm: () => {
-                  store.removePage(binder.id, page.id);
+                  const result = store.removePage(binder.id, page.id);
                   changePage(0);
-                  showToast('Page deleted', true);
+                  showToast(parityNote('Page deleted', result?.blanksInserted), true);
                 },
               })
             }
@@ -950,8 +953,12 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               onReorderPages={
                 editing
                   ? (from, to) => {
-                      store.reorderPages(binder.id, from, to);
-                      changePage(to);
+                      const result = store.reorderPages(binder.id, from, to);
+                      // Follow the moved page to where it actually landed — a parity spacer can
+                      // shift it past the raw drop index.
+                      changePage(result ? result.pageIndex : to);
+                      if (result?.blanksInserted)
+                        showToast(parityNote('Pages reordered', result.blanksInserted));
                     }
                   : undefined
               }

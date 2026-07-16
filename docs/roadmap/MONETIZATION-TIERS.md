@@ -92,13 +92,19 @@ Page counts below are DOUBLE-SIDED sheets (marketing language); the app counts s
 | Pages per binder | 6 sides | 20 double-sided | 20 double-sided | unlimited |
 | Card capacity (4×4) | ~96 | up to 1,920 | over 7,500 | unlimited |
 | Catalog browse/search | server search | full catalog | full | full |
-| ✨ Composer / auto-fill | — | 5 pages/mo | unlimited | unlimited |
+| ✨ Similarity matching + composer methods | — | INCLUDED (no quota) | INCLUDED + upgraded composers (coming soon) | INCLUDED + upgraded composers (coming soon) |
 | Slice Studio | ✓ | ✓ | ✓ | ✓ |
 | Art uploads kept (at a time) | — | 10 | 100 | unlimited |
-| My Collection sync (tcgscan) | — | ✓ | ✓ | ✓ |
-| CSV import | — | 1 portfolio | unlimited | unlimited |
+| Build from cards you really own (TCGScan sync) + binder progress | — | INCLUDED | INCLUDED | INCLUDED |
 | Fill-sheet PDF | — | example-sheet preview only | full binders, 1 print/mo included | full binders, 5 prints/mo included + first in line for print extras |
 | Public sharing / likes | view only | view only | share + like | share + like + featured eligibility boost |
+
+Owner decisions 2026-07-16 (sheet draft v4): the composer monthly QUOTA is dropped — similarity
+matching + composer methods are included at every signed-in tier, and PRO/VIP differentiate via
+UPGRADED binder composers when those ship. CSV import is off the comparison sheet entirely (it's
+a TCGScan-side concern). The real-collection row is a HIGHLIGHTED all-tier item and cross-sells
+the TCGScan partner app (inventory tracking, set analytics, historical price history) — see
+docs/SYNERGY.md for the cross-app entitlement (`tcgscan_pro`).
 
 Pricing (owner-set 2026-07-16): PRO $3.99/mo or **$39.99/yr (most popular)**; VIP $9.99/mo
 or **$99.99/yr (best value)**; one-time full-binder fill-sheet PDF $3.99. There is NO paid
@@ -106,7 +112,7 @@ sample PDF — the free preview is a premade EXAMPLE sheet (our cards, not their
 watermarked page of their binder. (Prices still live in the provider dashboard — the app
 never hardcodes price; fetch or link to a pricing page.)
 
-"Included prints per month" needs the same usage-metering build as the composer quota —
+"Included prints per month" is the one remaining metered quantity and needs a usage counter —
 until that exists, `fullPrint` alone gates the Download button for PRO/VIP.
 
 ## Enforcement points (where limits plug in)
@@ -114,7 +120,8 @@ until that exists, `fullPrint` alone gates the Download button for PRO/VIP.
 - Binder/page counts: `src/store/binders.tsx` `createBinder` / `addPage` / `duplicateBinder`
   — return a refusal the UI turns into an upgrade note (reuse the `SignInPerk` pattern with
   an "Upgrade" variant component).
-- Composer: `AutoFillSheet` entry point.
+- Composer: no gate — included at every signed-in tier (quota dropped 2026-07-16). The future
+  UPGRADED composers gate at their own entry points when they ship.
 - Print: `PrintPlaceholdersSheet` — tier logic (done) + the one-time per-binder path.
   The free teaser = counts preview (existing) + a premade EXAMPLE sheet PDF (static asset,
   our cards — no watermarking of the user's binder needed).

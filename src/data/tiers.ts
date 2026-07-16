@@ -53,7 +53,12 @@ export interface TierLimits {
    * Marketing talks in double-sided sheets, so "20 double-sided pages" = 40 here.
    */
   pagesPerBinder: number;
-  /** ✨ Composer / auto-fill pages per calendar month (metering not built yet — see roadmap). */
+  /**
+   * ✨ Composer / auto-fill pages per calendar month. Owner decision 2026-07-16: similarity
+   * matching + composer methods are INCLUDED at every signed-in tier (no monthly quota) —
+   * PRO/VIP differentiate via UPGRADED composers when those ship, not via metering. Kept as a
+   * number in case a quota ever returns; 0 = no composer (guests, who lack catalog access).
+   */
   composerPagesPerMonth: number;
   /** Uploaded art images KEPT in the account at a time (a retention cap, not a rate). */
   artUploads: number;
@@ -68,9 +73,9 @@ export interface TierLimits {
 }
 
 /**
- * STRAWMAN numbers from docs/roadmap/MONETIZATION-TIERS.md. Tune here in one place; the app
- * never hardcodes *price* (that lives in the payment provider dashboard) — only these caps.
- * Kept behind LIMITS_ENFORCED so they don't bite until pricing is live.
+ * OWNER-SET numbers (2026-07-16 — see docs/roadmap/MONETIZATION-TIERS.md). Tune here in one
+ * place; the app never hardcodes *price* (that lives in the payment provider dashboard) — only
+ * these caps. Kept behind LIMITS_ENFORCED so they don't bite until pricing is live.
  */
 export const TIER_LIMITS: Record<Tier, TierLimits> = {
   // Guest is NOT an advertised plan — a taste before the sign-in prompt (SignInPerk, not
@@ -87,7 +92,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
   free: {
     binders: 3,
     pagesPerBinder: 40,
-    composerPagesPerMonth: 5,
+    composerPagesPerMonth: Infinity,
     artUploads: 10,
     fullPrint: false,
     includedPrintsPerMonth: 0,

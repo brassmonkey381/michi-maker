@@ -1691,7 +1691,7 @@
   {
     "id": "ex-pitch-black-chase",
     "title": "ME: Pitch Black Chase",
-    "description": "All Pitch Black Illustration Rares and Special Illustration Rares, highlighted with other Pitch Black cards and art.",
+    "description": "All Pitch Black Illustration Rares and Special Illustration Rares, highlighted with other similar cards and custom art.",
     "layoutStyle": "freeform",
     "isExample": true,
     "pages": [
@@ -1708,8 +1708,15 @@
             "col": 0,
             "rowSpan": 1,
             "colSpan": 1,
-            "type": "card",
-            "cardId": "704871"
+            "type": "artwork",
+            "imageUrl": "https://piikwvntldytjejxmcla.supabase.co/storage/v1/object/public/binder-art/30f21f44-c88d-4bfa-9aa1-a563fc37ccae/987a81e6-41e0-4d38-8d7a-f410de49a609.png",
+            "imageCrop": {
+              "h": 0.30000000000000004,
+              "w": 0.29108506409776713,
+              "x": 0.0728224612097057,
+              "y": 0.3512185127674258
+            },
+            "imageFit": "cover"
           },
           {
             "id": "ex-pitch-black-chase_p0_r0c1",
@@ -1717,8 +1724,15 @@
             "col": 1,
             "rowSpan": 1,
             "colSpan": 1,
-            "type": "card",
-            "cardId": "704856"
+            "type": "artwork",
+            "imageUrl": "https://piikwvntldytjejxmcla.supabase.co/storage/v1/object/public/binder-art/30f21f44-c88d-4bfa-9aa1-a563fc37ccae/987a81e6-41e0-4d38-8d7a-f410de49a609.png",
+            "imageCrop": {
+              "h": 0.30000000000000004,
+              "w": 0.29108506409776713,
+              "x": 0.36390752530747283,
+              "y": 0.3512185127674258
+            },
+            "imageFit": "cover"
           },
           {
             "id": "ex-pitch-black-chase_p0_r0c2",
@@ -1726,8 +1740,15 @@
             "col": 2,
             "rowSpan": 1,
             "colSpan": 1,
-            "type": "card",
-            "cardId": "704858"
+            "type": "artwork",
+            "imageUrl": "https://piikwvntldytjejxmcla.supabase.co/storage/v1/object/public/binder-art/30f21f44-c88d-4bfa-9aa1-a563fc37ccae/987a81e6-41e0-4d38-8d7a-f410de49a609.png",
+            "imageCrop": {
+              "h": 0.30000000000000004,
+              "w": 0.29108506409776713,
+              "x": 0.65499258940524,
+              "y": 0.3512185127674258
+            },
+            "imageFit": "cover"
           },
           {
             "id": "ex-pitch-black-chase_p0_r1c0",
@@ -1745,11 +1766,38 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704872"
+            "cardId": "704856"
           },
           {
             "id": "ex-pitch-black-chase_p0_r1c2",
             "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704858"
+          },
+          {
+            "id": "ex-pitch-black-chase_p0_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704871"
+          },
+          {
+            "id": "ex-pitch-black-chase_p0_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704872"
+          },
+          {
+            "id": "ex-pitch-black-chase_p0_r2c2",
+            "row": 2,
             "col": 2,
             "rowSpan": 1,
             "colSpan": 1,
@@ -1764,6 +1812,70 @@
         "rows": 3,
         "cols": 3,
         "slots": [
+          {
+            "id": "ex-pitch-black-chase_p1_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://piikwvntldytjejxmcla.supabase.co/storage/v1/object/public/binder-art/30f21f44-c88d-4bfa-9aa1-a563fc37ccae/1b236dca-0c8b-4cf2-81c2-4083e0871a4a.png",
+            "imageCrop": {
+              "h": 0.3333333333333333,
+              "w": 0.31936553030303033,
+              "x": 0.020951704545454475,
+              "y": 0
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-pitch-black-chase_p1_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://piikwvntldytjejxmcla.supabase.co/storage/v1/object/public/binder-art/30f21f44-c88d-4bfa-9aa1-a563fc37ccae/1b236dca-0c8b-4cf2-81c2-4083e0871a4a.png",
+            "imageCrop": {
+              "h": 0.3333333333333333,
+              "w": 0.31936553030303033,
+              "x": 0.3403172348484848,
+              "y": 0
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-pitch-black-chase_p1_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://piikwvntldytjejxmcla.supabase.co/storage/v1/object/public/binder-art/30f21f44-c88d-4bfa-9aa1-a563fc37ccae/1b236dca-0c8b-4cf2-81c2-4083e0871a4a.png",
+            "imageCrop": {
+              "h": 0.3333333333333333,
+              "w": 0.31936553030303033,
+              "x": 0.6596827651515151,
+              "y": 0
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-pitch-black-chase_p1_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://piikwvntldytjejxmcla.supabase.co/storage/v1/object/public/binder-art/30f21f44-c88d-4bfa-9aa1-a563fc37ccae/1b236dca-0c8b-4cf2-81c2-4083e0871a4a.png",
+            "imageCrop": {
+              "h": 0.3333333333333333,
+              "w": 0.31936553030303033,
+              "x": 0.020951704545454475,
+              "y": 0.3333333333333333
+            },
+            "imageFit": "cover"
+          },
           {
             "id": "ex-pitch-black-chase_p1_r1c1",
             "row": 1,
@@ -1781,6 +1893,54 @@
             "colSpan": 1,
             "type": "card",
             "cardId": "704859"
+          },
+          {
+            "id": "ex-pitch-black-chase_p1_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://piikwvntldytjejxmcla.supabase.co/storage/v1/object/public/binder-art/30f21f44-c88d-4bfa-9aa1-a563fc37ccae/1b236dca-0c8b-4cf2-81c2-4083e0871a4a.png",
+            "imageCrop": {
+              "h": 0.3333333333333333,
+              "w": 0.31936553030303033,
+              "x": 0.020951704545454475,
+              "y": 0.6666666666666666
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-pitch-black-chase_p1_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://piikwvntldytjejxmcla.supabase.co/storage/v1/object/public/binder-art/30f21f44-c88d-4bfa-9aa1-a563fc37ccae/1b236dca-0c8b-4cf2-81c2-4083e0871a4a.png",
+            "imageCrop": {
+              "h": 0.3333333333333333,
+              "w": 0.31936553030303033,
+              "x": 0.3403172348484848,
+              "y": 0.6666666666666666
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-pitch-black-chase_p1_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://piikwvntldytjejxmcla.supabase.co/storage/v1/object/public/binder-art/30f21f44-c88d-4bfa-9aa1-a563fc37ccae/1b236dca-0c8b-4cf2-81c2-4083e0871a4a.png",
+            "imageCrop": {
+              "h": 0.3333333333333333,
+              "w": 0.31936553030303033,
+              "x": 0.6596827651515151,
+              "y": 0.6666666666666666
+            },
+            "imageFit": "cover"
           }
         ]
       },
@@ -1805,6 +1965,15 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
+            "cardId": "189275"
+          },
+          {
+            "id": "ex-pitch-black-chase_p2_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
             "cardId": "704862"
           },
           {
@@ -1824,11 +1993,76 @@
             "colSpan": 1,
             "type": "card",
             "cardId": "704860"
+          },
+          {
+            "id": "ex-pitch-black-chase_p2_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://piikwvntldytjejxmcla.supabase.co/storage/v1/object/public/binder-art/30f21f44-c88d-4bfa-9aa1-a563fc37ccae/0f9eeb15-41aa-4daf-a354-ac7dee229f90.png",
+            "imageCrop": {
+              "h": 0.33333333333333337,
+              "w": 0.3193655303030304,
+              "x": 0.6283285984848486,
+              "y": 0.3236653645833332
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-pitch-black-chase_p2_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://piikwvntldytjejxmcla.supabase.co/storage/v1/object/public/binder-art/30f21f44-c88d-4bfa-9aa1-a563fc37ccae/0f9eeb15-41aa-4daf-a354-ac7dee229f90.png",
+            "imageCrop": {
+              "h": 0.33333333333333337,
+              "w": 0.3193655303030304,
+              "x": -0.01040246212121225,
+              "y": 0.6569986979166667
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-pitch-black-chase_p2_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://piikwvntldytjejxmcla.supabase.co/storage/v1/object/public/binder-art/30f21f44-c88d-4bfa-9aa1-a563fc37ccae/0f9eeb15-41aa-4daf-a354-ac7dee229f90.png",
+            "imageCrop": {
+              "h": 0.33333333333333337,
+              "w": 0.3193655303030304,
+              "x": 0.3089630681818181,
+              "y": 0.6569986979166667
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-pitch-black-chase_p2_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://piikwvntldytjejxmcla.supabase.co/storage/v1/object/public/binder-art/30f21f44-c88d-4bfa-9aa1-a563fc37ccae/0f9eeb15-41aa-4daf-a354-ac7dee229f90.png",
+            "imageCrop": {
+              "h": 0.33333333333333337,
+              "w": 0.3193655303030304,
+              "x": 0.6283285984848486,
+              "y": 0.6569986979166667
+            },
+            "imageFit": "cover"
           }
         ]
       },
       {
         "id": "ex-pitch-black-chase_p3",
+        "title": "Page 6",
         "rows": 3,
         "cols": 3,
         "slots": [
@@ -1839,7 +2073,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704866"
+            "cardId": "133829"
           },
           {
             "id": "ex-pitch-black-chase_p3_r0c1",
@@ -1848,7 +2082,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704865"
+            "cardId": "126886"
           },
           {
             "id": "ex-pitch-black-chase_p3_r0c2",
@@ -1857,7 +2091,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704869"
+            "cardId": "234078"
           },
           {
             "id": "ex-pitch-black-chase_p3_r1c0",
@@ -1866,7 +2100,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704863"
+            "cardId": "632840"
           },
           {
             "id": "ex-pitch-black-chase_p3_r1c1",
@@ -1875,7 +2109,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704867"
+            "cardId": "704853"
           },
           {
             "id": "ex-pitch-black-chase_p3_r1c2",
@@ -1884,16 +2118,51 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704864"
+            "cardId": "704761"
+          },
+          {
+            "id": "ex-pitch-black-chase_p3_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "127010"
+          },
+          {
+            "id": "ex-pitch-black-chase_p3_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "127189"
+          },
+          {
+            "id": "ex-pitch-black-chase_p3_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "194932"
           }
         ]
       },
       {
         "id": "ex-pitch-black-chase_p4",
-        "title": "Page 4",
         "rows": 3,
         "cols": 3,
         "slots": [
+          {
+            "id": "ex-pitch-black-chase_p4_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704866"
+          },
           {
             "id": "ex-pitch-black-chase_p4_r0c1",
             "row": 0,
@@ -1901,7 +2170,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704870"
+            "cardId": "704865"
           },
           {
             "id": "ex-pitch-black-chase_p4_r0c2",
@@ -1910,7 +2179,34 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704876"
+            "cardId": "704869"
+          },
+          {
+            "id": "ex-pitch-black-chase_p4_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704863"
+          },
+          {
+            "id": "ex-pitch-black-chase_p4_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704867"
+          },
+          {
+            "id": "ex-pitch-black-chase_p4_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704864"
           },
           {
             "id": "ex-pitch-black-chase_p4_r2c0",
@@ -1919,7 +2215,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704875"
+            "cardId": "654457"
           },
           {
             "id": "ex-pitch-black-chase_p4_r2c1",
@@ -1928,7 +2224,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704868"
+            "cardId": "704832"
           },
           {
             "id": "ex-pitch-black-chase_p4_r2c2",
@@ -1937,24 +2233,124 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704854"
+            "cardId": "488078"
           }
         ]
       },
       {
         "id": "ex-pitch-black-chase_p5",
-        "title": "Page 6",
+        "title": "Page 4",
         "rows": 3,
         "cols": 3,
         "slots": [
+          {
+            "id": "ex-pitch-black-chase_p5_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://piikwvntldytjejxmcla.supabase.co/storage/v1/object/public/binder-art/30f21f44-c88d-4bfa-9aa1-a563fc37ccae/ce9a15ed-9443-4b02-91f4-04e783b3cec0.png",
+            "imageCrop": {
+              "h": 0.3333333333333333,
+              "w": 0.31935817805383027,
+              "x": 0.017080745341614783,
+              "y": 0.006696428571428575
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-pitch-black-chase_p5_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704870"
+          },
+          {
+            "id": "ex-pitch-black-chase_p5_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704876"
+          },
+          {
+            "id": "ex-pitch-black-chase_p5_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://piikwvntldytjejxmcla.supabase.co/storage/v1/object/public/binder-art/30f21f44-c88d-4bfa-9aa1-a563fc37ccae/ce9a15ed-9443-4b02-91f4-04e783b3cec0.png",
+            "imageCrop": {
+              "h": 0.3333333333333333,
+              "w": 0.31935817805383027,
+              "x": 0.017080745341614783,
+              "y": 0.34002976190476186
+            },
+            "imageFit": "cover"
+          },
           {
             "id": "ex-pitch-black-chase_p5_r1c1",
             "row": 1,
             "col": 1,
             "rowSpan": 1,
             "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://piikwvntldytjejxmcla.supabase.co/storage/v1/object/public/binder-art/30f21f44-c88d-4bfa-9aa1-a563fc37ccae/ce9a15ed-9443-4b02-91f4-04e783b3cec0.png",
+            "imageCrop": {
+              "h": 0.3333333333333333,
+              "w": 0.31935817805383027,
+              "x": 0.33643892339544507,
+              "y": 0.34002976190476186
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-pitch-black-chase_p5_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://piikwvntldytjejxmcla.supabase.co/storage/v1/object/public/binder-art/30f21f44-c88d-4bfa-9aa1-a563fc37ccae/ce9a15ed-9443-4b02-91f4-04e783b3cec0.png",
+            "imageCrop": {
+              "h": 0.3333333333333333,
+              "w": 0.31935817805383027,
+              "x": 0.6557971014492753,
+              "y": 0.34002976190476186
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-pitch-black-chase_p5_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
             "type": "card",
-            "cardId": "704853"
+            "cardId": "704875"
+          },
+          {
+            "id": "ex-pitch-black-chase_p5_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704868"
+          },
+          {
+            "id": "ex-pitch-black-chase_p5_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704854"
           }
         ]
       }

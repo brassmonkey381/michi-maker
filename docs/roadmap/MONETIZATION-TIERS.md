@@ -22,10 +22,16 @@ Steps 1, 2 (dormant), and 4 below are done and on `main`:
   pre-check, `duplicateBinder` + `addPage` internally) and surface `UpgradePerk` / toasts.
   All no-ops while `LIMITS_ENFORCED` is false.
 
-**Not done (next):** provider decision + checkout/webhook (step 3), composer **monthly-usage
-metering** (the quota needs a usage counter — table or RPC — not yet built; the limit number
-exists but isn't enforced), art-upload/CSV/sharing gates, and pricing/upgrade UI (step 5, pairs
-with LANDING-PAGE.md). Owner still to sign off on the strawman numbers before flipping the flag.
+**Also shipped (2026-07-16):** the public plan page at **`/subscriptions`** (renamed from
+/pricing, which now redirects) — the approved comparison-sheet layout (PlanComparison component,
+data in `src/data/subscriptions.ts`), plus **usage meters** on the Your-plan section: binders,
+artworks kept (live `saved_slices` count), and included prints used this month (new
+`print_events` ledger, migration `20260716220000_print_events.sql`, recorded on every fill-sheet
+download — advisory, client-reported).
+
+**Not done (next):** provider decision + checkout/webhook (step 3) — the /subscriptions CTAs
+reveal the honest coming-soon note until `CHECKOUT_OPEN` flips; included-prints ENFORCEMENT
+(ledger + meter exist, nothing blocks past the allocation yet); art-upload/sharing gates.
 
 ## Goal
 

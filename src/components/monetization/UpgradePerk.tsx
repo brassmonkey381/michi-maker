@@ -3,9 +3,9 @@
  * limit or paid feature blocks a signed-in (free/guest) user. Same rule as sign-in gating:
  * ALWAYS an inline, honest note, never a silent no-op or dead spinner.
  *
- * The button navigates to /pricing, which owns the plan story (and, while checkout is closed,
- * the honest "plans are coming soon" line). When checkout lands, /pricing's CTAs launch it —
- * this component doesn't change.
+ * The button navigates to /subscriptions, which owns the plan story (and, while checkout is
+ * closed, the honest "plans are coming soon" line). When checkout lands, /subscriptions' CTAs
+ * launch it — this component doesn't change.
  */
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -29,7 +29,7 @@ export function UpgradePerk({
           {message}
         </ThemedText>
         <Pressable
-          onPress={() => router.push('/pricing')}
+          onPress={() => router.push('/subscriptions')}
           hitSlop={6}
           style={({ pressed }) => [styles.btn, pressed && styles.pressed]}>
           <ThemedText type="smallBold" style={styles.btnText}>

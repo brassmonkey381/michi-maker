@@ -10,10 +10,13 @@
  *   includes. FLAG-FLIP NOTE: when LIMITS_ENFORCED goes true, switch the `caps` line to
  *   `useTier().limits` so live enforcement and the meters can never disagree.
  */
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing } from '@/constants/theme';
+import { countPrintsThisMonth } from '@/data/printRepo';
+import { countLiveSavedSlices } from '@/data/sliceRepo';
 import { TIER_LIMITS, type Tier } from '@/data/tiers';
 import { useTier } from '@/hooks/use-tier';
 import { useBinders } from '@/store/binders';
@@ -68,6 +71,29 @@ export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }
   // Planned caps, not live limits — see the header comment for the LIMITS_ENFORCED flip note.
   const caps = TIER_LIMITS[tier];
 
+  // Server-counted usage: artworks kept (live saved slices) + this month's fill-sheet prints.
+  // Meters appear once counted; a failed count just leaves that meter off (never a spinner).
+  const [artCount, setArtCount] = useState<number | null>(null);
+  const [printCount, setPrintCount] = useState<number | null>(null);
+  const isGuest = tier === 'guest';
+  useEffect(() => {
+    if (isGuest) return;
+    let live = true;
+    countLiveSavedSlices()
+      .then((n) => {
+        if (live) setArtCount(n);
+      })
+      .catch(() => {});
+    countPrintsThisMonth()
+      .then((n) => {
+        if (live) setPrintCount(n);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [isGuest, tier]);
+
   return (
     <View style={styles.section}>
       <View style={styles.planRow}>
@@ -88,15 +114,26 @@ export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }
       ) : (
         <>
           <TierUsage label="Binders" used={binderCount} limit={caps.binders} />
+          {artCount != null ? (
+            <TierUsage label="Artworks kept" used={artCount} limit={caps.artUploads} />
+          ) : null}
+          {printCount != null && caps.includedPrintsPerMonth > 0 ? (
+            <TierUsage
+              label="Included prints used this month"
+              used={printCount}
+              limit={caps.includedPrintsPerMonth}
+              note={
+                Number.isFinite(caps.includedPrintsPerMonth)
+                  ? 'Full-binder fill-sheet PDFs included with your plan each month.'
+                  : undefined
+              }
+            />
+          ) : null}
           <ThemedText type="small" themeColor="textSecondary" style={styles.included}>
-            Your plan includes{' '}
-            {Number.isFinite(caps.composerPagesPerMonth)
-              ? `${caps.composerPagesPerMonth} Composer pages a month`
-              : 'unlimited Composer pages'}{' '}
-            and{' '}
-            {Number.isFinite(caps.artUploads)
-              ? `${caps.artUploads} kept art uploads`
-              : 'unlimited art uploads'}
+            Your plan includes similarity matching and every composer method
+            {caps.includedPrintsPerMonth > 0 && Number.isFinite(caps.includedPrintsPerMonth)
+              ? `, plus ${caps.includedPrintsPerMonth} full-binder print${caps.includedPrintsPerMonth === 1 ? '' : 's'} a month`
+              : ''}
             .
           </ThemedText>
         </>

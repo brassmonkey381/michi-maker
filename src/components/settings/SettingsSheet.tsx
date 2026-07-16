@@ -128,7 +128,7 @@ function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => 
             <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
               PLAN
             </ThemedText>
-            <PlanUsageSection onManagePlan={() => go('/pricing' as Href)} />
+            <PlanUsageSection onManagePlan={() => go('/subscriptions' as Href)} />
 
             {user ? (
               <>
@@ -162,7 +162,7 @@ function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => 
                 [
                   { label: 'The Michi Method', href: '/michi-method' },
                   { label: 'How-to guides', href: '/learn' },
-                  { label: 'Pricing', href: '/pricing' },
+                  { label: 'Subscriptions', href: '/subscriptions' },
                   { label: 'Terms of Service', href: '/legal/terms' },
                   { label: 'Privacy Policy', href: '/legal/privacy' },
                 ] as { label: string; href: Href }[]

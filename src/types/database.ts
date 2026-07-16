@@ -257,6 +257,30 @@ export type Database = {
         }
         Relationships: []
       }
+      print_events: {
+        Row: {
+          binder_id: string | null
+          created_at: string
+          id: string
+          sheets: number | null
+          user_id: string
+        }
+        Insert: {
+          binder_id?: string | null
+          created_at?: string
+          id?: string
+          sheets?: number | null
+          user_id?: string
+        }
+        Update: {
+          binder_id?: string | null
+          created_at?: string
+          id?: string
+          sheets?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       portfolio_entries: {
         Row: {
           added_at: string

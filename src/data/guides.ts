@@ -105,7 +105,7 @@ export const GUIDE_LIST: Guide[] = [
         body: 'Placeholders hold the layout until the real card shows up. When one arrives, its placeholder tells you exactly which pocket to swap. The binder fills in over time without ever losing its composition.',
       },
     ],
-    tip: 'Full-binder PDF export is a paid unlock while the free preview shows a premade example sheet. See Pricing for what each plan includes.',
+    tip: 'Full-binder PDF export is a paid unlock while the free preview shows a premade example sheet. See Subscriptions for what each plan includes.',
     relatedSlugs: ['first-binder', 'slice-studio'],
   },
 ];

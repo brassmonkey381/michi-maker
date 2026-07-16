@@ -20,6 +20,7 @@ import type { DemoBinder } from '@/data/binderTypes';
 import { fetchUserCards } from '@/data/collectionRepo';
 import { createWebArtLoader } from '@/data/fillSheetArt';
 import { buildPlaceholderPdf, collectFillTiles } from '@/data/placeholderPdf';
+import { recordPrintEvent } from '@/data/printRepo';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useTier } from '@/hooks/use-tier';
 import { useAuth } from '@/store/auth';
@@ -87,6 +88,9 @@ export function PrintPlaceholdersSheet({
       a.download = filename;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
+      // Count against the plan's included monthly prints (advisory ledger; failure is fine —
+      // the meter just misses one, the user keeps their PDF).
+      recordPrintEvent(binder.id, sheets).catch(() => {});
       onDone?.(sheets);
       onClose();
     } catch (e) {

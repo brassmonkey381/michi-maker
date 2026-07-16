@@ -16,7 +16,7 @@ import { Breakpoints, Fonts, FontSize, Palette, Radius, Spacing, Weight } from '
 
 const ITEMS: { label: string; href: Href; match: (path: string) => boolean }[] = [
   { label: 'Home', href: '/', match: (p) => p === '/' },
-  { label: 'Pricing', href: '/pricing' as Href, match: (p) => p.startsWith('/pricing') },
+  { label: 'Subscriptions', href: '/subscriptions' as Href, match: (p) => p.startsWith('/subscriptions') || p.startsWith('/pricing') },
   { label: 'How-to', href: '/learn' as Href, match: (p) => p.startsWith('/learn') },
   { label: 'The Michi Method', href: '/michi-method', match: (p) => p.startsWith('/michi-method') },
 ];

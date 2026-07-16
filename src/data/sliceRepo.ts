@@ -65,6 +65,17 @@ export async function fetchSavedSlices(): Promise<SavedSlice[]> {
   return (data ?? []).map(toSlice);
 }
 
+/** Live (non-tombstoned) slices in the tray — the "artworks kept in your account" count. */
+export async function countLiveSavedSlices(): Promise<number> {
+  const supabase = requireSupabase();
+  const { count, error } = await supabase
+    .from('saved_slices')
+    .select('id', { count: 'exact', head: true })
+    .is('deleted_at', null);
+  if (error) throw error;
+  return count ?? 0;
+}
+
 export async function insertSavedSlices(slices: SavedSlice[]): Promise<void> {
   if (!slices.length) return;
   const supabase = requireSupabase();

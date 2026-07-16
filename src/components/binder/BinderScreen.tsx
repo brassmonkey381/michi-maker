@@ -29,7 +29,6 @@ import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Palette, Radius, Spacing, Weight, FontSize } from '@/constants/theme';
-import { pillChip } from '@/constants/ui';
 import {
   firstFreePlacement,
   occupiedCells,
@@ -796,24 +795,27 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
           Page size
         </ThemedText>
-        {PAGE_SIZES.map((size) => {
-          const active = page.rows === size.rows && page.cols === size.cols;
-          return (
-            <Pressable
-              key={size.label}
-              onPress={() => {
-                // One pocket layout per binder (real pages don't mix) — the chip re-sizes EVERY
-                // page, refusing when content would fall outside.
-                const res = store.setBinderPageSize(binder.id, size.rows, size.cols);
-                if (!res.ok && res.reason) showToast(res.reason);
-                else if (res.ok && binder.pages.length > 1)
-                  showToast(`All ${binder.pages.length} pages set to ${size.label}`);
-              }}
-              style={[pillChip.base, active && pillChip.active]}>
-              <Text style={[pillChip.text, active && pillChip.textActive]}>{size.label}</Text>
-            </Pressable>
-          );
-        })}
+        {/* Segmented control — same voice as the studio's fit/view toggles. */}
+        <View style={styles.segGroup}>
+          {PAGE_SIZES.map((size) => {
+            const active = page.rows === size.rows && page.cols === size.cols;
+            return (
+              <Pressable
+                key={size.label}
+                onPress={() => {
+                  // One pocket layout per binder (real pages don't mix) — the chip re-sizes EVERY
+                  // page, refusing when content would fall outside.
+                  const res = store.setBinderPageSize(binder.id, size.rows, size.cols);
+                  if (!res.ok && res.reason) showToast(res.reason);
+                  else if (res.ok && binder.pages.length > 1)
+                    showToast(`All ${binder.pages.length} pages set to ${size.label}`);
+                }}
+                style={[styles.seg, active && styles.segActive]}>
+                <Text style={[styles.segText, active && styles.segTextActive]}>{size.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
         <ThemedText
           type="small"
           themeColor="textSecondary"
@@ -887,12 +889,17 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                     setMultiActionsOpen(false);
                   }}
                   hitSlop={10}>
-                  <Text style={[styles.headerAction, styles.headerPrimary]}>{editing ? 'Done' : 'Edit'}</Text>
+                  {/* A filled pill so entering/leaving the workbench reads as a real mode change. */}
+                  <View style={styles.modeBtn}>
+                    <Text style={styles.modeBtnText}>{editing ? 'Done' : 'Edit'}</Text>
+                  </View>
                 </Pressable>
               </View>
             ) : (
               <Pressable onPress={handleDuplicate} hitSlop={10}>
-                <Text style={[styles.headerAction, styles.headerPrimary]}>Duplicate</Text>
+                <View style={styles.modeBtn}>
+                  <Text style={styles.modeBtnText}>Duplicate</Text>
+                </View>
               </Pressable>
             )}
           </View>
@@ -1235,12 +1242,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
     gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Palette.hairline,
   },
   headerAction: { fontSize: FontSize.md, fontWeight: Weight.semibold },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   headerPrimary: { color: Palette.accent },
+  // The Edit/Done mode toggle — filled pill, same voice as the studio's "Save slices".
+  modeBtn: { paddingVertical: 8, paddingHorizontal: 18, borderRadius: Radius.pill, backgroundColor: Palette.accent },
+  modeBtnText: { fontSize: FontSize.body, fontWeight: Weight.bold, color: Palette.accentText },
   likeChip: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   likeChipHeart: { color: Palette.accent, fontSize: FontSize.md, lineHeight: 18 },
   likeChipText: { color: Palette.ink2, fontSize: FontSize.control, fontWeight: Weight.semibold },
@@ -1298,6 +1310,19 @@ const styles = StyleSheet.create({
   editPanelTitle: { textTransform: 'uppercase', letterSpacing: 0.5 },
   btnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   inlineRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  // Segmented control (matches the studio's fit/view toggles).
+  segGroup: { flexDirection: 'row', alignItems: 'center', backgroundColor: Palette.panel, borderRadius: Radius.pill, padding: 2 },
+  seg: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: Radius.pill },
+  segActive: {
+    backgroundColor: Palette.surface,
+    shadowColor: '#000000',
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  segText: { fontSize: FontSize.label, color: Palette.muted, fontWeight: Weight.medium },
+  segTextActive: { color: Palette.ink, fontWeight: Weight.semibold },
   inlineLabel: { marginRight: 2 },
   inlineLabelGap: { marginLeft: 10 },
   colorFieldBox: { width: 170 },

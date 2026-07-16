@@ -42,13 +42,13 @@ export function HomeSection({
             accessibilityState={{ expanded: open }}
             style={styles.titleTap}>
             <Text style={[styles.chevron, { color: theme.textSecondary }]}>{open ? '▾' : '▸'}</Text>
-            <ThemedText type="smallBold" style={styles.title} numberOfLines={1}>
+            <ThemedText type="smallBold" themeColor="textSecondary" style={styles.title} numberOfLines={1}>
               {title}
             </ThemedText>
           </Pressable>
         ) : (
           <View style={styles.titleTap}>
-            <ThemedText type="smallBold" style={styles.title} numberOfLines={1}>
+            <ThemedText type="smallBold" themeColor="textSecondary" style={styles.title} numberOfLines={1}>
               {title}
             </ThemedText>
           </View>

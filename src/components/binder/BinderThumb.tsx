@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { BinderGrid } from '@/components/binder/BinderGrid';
 import { ThemedText } from '@/components/themed-text';
-import { Radius } from '@/constants/theme';
+import { Radii, Radius, Shadows } from '@/constants/theme';
 import type { DemoBinder } from '@/data/binderTypes';
 
 interface BinderThumbProps {
@@ -31,7 +31,11 @@ export function BinderThumb({ binder, width, onPress, accessory }: BinderThumbPr
         {pageCount} {pageCount === 1 ? 'page' : 'pages'}
       </ThemedText>
       {firstPage ? (
-        <BinderGrid page={firstPage} width={width} />
+        // The soft page shadow makes the binder page read as a physical object on the shelf —
+        // shared by every carousel (home, Featured, examples, profiles) for one consistent look.
+        <View style={styles.pageShadow}>
+          <BinderGrid page={firstPage} width={width} />
+        </View>
       ) : (
         <View style={[styles.placeholder, { width, height: width * 1.2 }]} />
       )}
@@ -43,6 +47,7 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.75,
   },
+  pageShadow: { borderRadius: Radii.page, ...Shadows.page },
   placeholder: {
     borderRadius: Radius.lg,
     backgroundColor: 'rgba(128,128,128,0.12)',

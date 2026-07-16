@@ -776,7 +776,17 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                   <View style={styles.btnRow}>
                     <PillButton label="↶ Undo" onPress={store.undo} disabled={!store.canUndo} />
                     <PillButton label="↷ Redo" onPress={store.redo} disabled={!store.canRedo} />
-                    <PillButton label="+ Page" onPress={() => store.addPage(binder.id)} />
+                    <PillButton
+                      label="+ Page"
+                      onPress={() =>
+                        store.pageLimitReached(binder.id)
+                          ? showToast(
+                              `You’ve reached the ${store.limits.pagesPerBinder}-page limit — upgrade for more.`,
+                              true,
+                            )
+                          : store.addPage(binder.id)
+                      }
+                    />
                     <PillButton label="Duplicate page" onPress={handleDuplicatePage} />
                     {binder.pages.length > 1 && (
                       <PillButton

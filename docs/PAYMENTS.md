@@ -1,39 +1,62 @@
 # Payments & entitlements
 
-Paid features are gated by the `entitlements` table (`supabase/migrations/20260715120000_entitlements.sql`):
-one row per `(user_id, product)`, owner-only SELECT via RLS, **no client write policies** —
-a grant can only come from the service role. The client checks ownership with the
-`useEntitlement(product)` hook and renders the locked/unlocked UI accordingly.
+Paid features are gated by the `entitlements` table (`supabase/migrations/20260715120000_entitlements.sql`
++ `20260715130000_entitlement_terms.sql`): one row per `(user_id, product)`, owner-only SELECT
+via RLS, **no client write policies** — a grant can only come from the service role. The client
+resolves an effective **tier** from these rows with the `useTier()` hook and renders locked/
+unlocked/upgrade UI accordingly. (`useEntitlement(product)` still exists for a single-product
+boolean check, but tier-aware surfaces should prefer `useTier`.)
 
-## Products
+## Tiers & products
 
-| key         | what it unlocks                                                        | where it's gated                       |
-| ----------- | ---------------------------------------------------------------------- | -------------------------------------- |
-| `pdf_print` | Placeholder-PDF downloads ("Print placeholders", any binder, forever) | `PrintPlaceholdersSheet` Download button |
+Tiers resolve from entitlement rows in `src/data/tiers.ts` (`resolveTier`): **vip > pro >
+free (signed-in) > guest**. Subscriptions carry an `expires_at` term (NULL = lifetime); a row is
+active while `expires_at` is NULL or in the future.
 
-The counts preview ("N placeholders across M sheets") stays free as the teaser; only the
-Download button is behind the unlock.
+| product key | what it is / unlocks | notes |
+| ----------- | -------------------- | ----- |
+| `pdf_print` | One-time LIFETIME full-print unlock (fill sheets, any binder, forever) | **GRANDFATHERED** — existing holders keep it |
+| `tier_pro`  | PRO subscription — full print + higher limits | `expires_at` per period |
+| `tier_vip`  | VIP subscription — unlimited + priority | `expires_at` per period |
+| `pdf_sample`, `pdf_binder:<id>` | one-time sample / single-binder PDF | future |
+
+Full print (`PrintPlaceholdersSheet` Download) unlocks for PRO/VIP **or** an active `pdf_print`
+row. The counts preview stays free as the teaser; only the Download is behind the unlock.
+
+### Tier limits (caps) are behind a feature flag
+
+`src/data/tiers.ts` also holds `TIER_LIMITS` (binder/page counts, composer quota, uploads) and a
+**master switch `LIMITS_ENFORCED` (currently `false`)**. While off, every cap reads as unlimited,
+so nothing new restricts users; the store already consults the limits (`useBinders().limits` /
+`atBinderLimit` / `pageLimitReached`) and the UI shows an inline `UpgradePerk` note when a cap is
+hit. Flip the switch to `true` **only after pricing/checkout is live and the numbers are signed
+off**. The print unlock is independent of this switch (it only ever grants access).
 
 ## Granting manually (today's path)
 
-Checkout isn't wired yet. To grant (or revoke) an unlock, run as service role
+Checkout isn't wired yet. To grant (or revoke) an unlock or a tier, run as service role
 (SQL editor / MCP):
 
 ```sql
--- grant
+-- look up a user id by email
+select id, email from auth.users where email = 'someone@example.com';
+
+-- grant a lifetime unlock (pdf_print)
 insert into public.entitlements (user_id, product, source)
 values ('<auth user id>', 'pdf_print', 'manual')
 on conflict (user_id, product) do nothing;
 
--- look up a user id by email
-select id, email from auth.users where email = 'someone@example.com';
+-- grant a PRO tier for 1 month (subscriptions carry a term; NULL expires_at = lifetime)
+insert into public.entitlements (user_id, product, source, expires_at)
+values ('<auth user id>', 'tier_pro', 'manual', now() + interval '1 month')
+on conflict (user_id, product) do update set expires_at = excluded.expires_at, source = excluded.source;
 
 -- revoke
-delete from public.entitlements where user_id = '<auth user id>' and product = 'pdf_print';
+delete from public.entitlements where user_id = '<auth user id>' and product = 'tier_pro';
 ```
 
-The sheet re-checks on open (the hook re-queries per identity/mount), so a fresh grant shows
-up the next time the user opens Print placeholders — no deploy needed.
+The client re-checks per identity/mount (and `useTier().refresh()` re-polls), so a fresh grant
+shows up next time the user opens the gated surface — no deploy needed.
 
 ## Wiring a payment provider (the open slot)
 
@@ -44,12 +67,15 @@ When a provider is chosen (Stripe or Lemon Squeezy were the candidates):
    Attach the Supabase user id — Stripe: `client_reference_id`; Lemon Squeezy:
    `checkout[custom][user_id]`.
 2. **Webhook edge function** (`supabase/functions/payments-webhook`): verify the provider
-   signature, then on the "checkout completed" event insert the entitlement **with the
-   service role client**:
-   `insert into entitlements (user_id, product, source) values (:uid, 'pdf_print', 'stripe')`.
-   Keep it idempotent (`on conflict do nothing`) — providers redeliver webhooks.
-3. **Client**: after returning from checkout, call the hook's `refresh()` (poll a few times —
-   webhooks lag checkout by seconds).
+   signature, then **with the service role client** upsert the entitlement.
+   - one-time (`pdf_print`): `insert … values (:uid, 'pdf_print', :source) on conflict do nothing`.
+   - subscription (`tier_pro`/`tier_vip`): on activation/renewal **upsert `expires_at`** to the
+     period end (`on conflict (user_id, product) do update set expires_at = excluded.expires_at`);
+     on cancellation either delete the row or set `expires_at` to the term end (it lapses on its own).
+   Keep it idempotent — providers redeliver webhooks.
+3. **Client**: after returning from checkout, call `useTier().refresh()` (poll a few times —
+   webhooks lag checkout by seconds). Replace the `UpgradePerk` "coming soon" toggle + the
+   `PrintPlaceholdersSheet` locked box with a real Buy/Upgrade launch into hosted checkout.
 4. Secrets go in Supabase function env (`supabase secrets set`), never in app code —
    same rule as the service key (see AGENTS.md).
 

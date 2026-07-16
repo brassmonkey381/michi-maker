@@ -235,18 +235,21 @@ export type Database = {
       }
       entitlements: {
         Row: {
+          expires_at: string | null
           granted_at: string
           product: string
           source: string
           user_id: string
         }
         Insert: {
+          expires_at?: string | null
           granted_at?: string
           product: string
           source?: string
           user_id: string
         }
         Update: {
+          expires_at?: string | null
           granted_at?: string
           product?: string
           source?: string

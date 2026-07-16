@@ -1,5 +1,32 @@
 # Monetization — Free / PRO / VIP tiers + print gating
 
+## STATUS — foundation SHIPPED (2026-07-15)
+
+Steps 1, 2 (dormant), and 4 below are done and on `main`:
+
+- **Schema:** `20260715130000_entitlement_terms.sql` adds `expires_at` (NULL = lifetime) +
+  documents the product vocabulary. **Must be applied to the live DB** (piikwvntldytjejxmcla)
+  before subscription rows are written — the client reads defensively (`select('*')`) so it
+  can't regress print if the column isn't there yet, but subscription terms need the column.
+- **Config:** `src/data/tiers.ts` — `Tier`, `PRODUCTS`, `TIER_LIMITS` (the strawman numbers),
+  `resolveTier` / `hasFullPrint` / `limitsForTier`, and the master switch
+  **`LIMITS_ENFORCED = false`** (permissive until pricing is live).
+- **Hook:** `src/hooks/use-tier.ts` — `useTier()` → `{ tier, limits, hasFullPrint, isPaid,
+  loading, refresh }`.
+- **Upgrade note:** `src/components/monetization/UpgradePerk.tsx` (SignInPerk sibling; honest
+  "coming soon" since checkout isn't wired).
+- **Print gate:** `PrintPlaceholdersSheet` now unlocks for PRO/VIP **or** grandfathered
+  `pdf_print` (live, not flag-gated — only ever adds access).
+- **Limit enforcement (dormant):** `useBinders()` exposes `tier` / `limits` / `binderCount` /
+  `atBinderLimit` / `pageLimitReached`; guards live in the store (`createBinder` paths via UI
+  pre-check, `duplicateBinder` + `addPage` internally) and surface `UpgradePerk` / toasts.
+  All no-ops while `LIMITS_ENFORCED` is false.
+
+**Not done (next):** provider decision + checkout/webhook (step 3), composer **monthly-usage
+metering** (the quota needs a usage counter — table or RPC — not yet built; the limit number
+exists but isn't enforced), art-upload/CSV/sharing gates, and pricing/upgrade UI (step 5, pairs
+with LANDING-PAGE.md). Owner still to sign off on the strawman numbers before flipping the flag.
+
 ## Goal
 
 Evolve the current single one-time unlock into a tier system:

@@ -43,6 +43,8 @@ import {
   type MichiLayoutStyle,
 } from '@/data/binderTypes';
 import { SAMPLE_BINDERS } from '@/data/sampleData';
+import { LIMITS_ENFORCED, type Tier, type TierLimits } from '@/data/tiers';
+import { useTier } from '@/hooks/use-tier';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useAuth } from '@/store/auth';
 
@@ -81,6 +83,16 @@ interface BinderStore {
   userBinders: DemoBinder[];
   /** True while user binders are loading from Supabase (always false in local mode). */
   loading: boolean;
+  /** The signed-in user's effective tier (guest / free / pro / vip). */
+  tier: Tier;
+  /** Active capability limits for that tier (permissive/unlimited while LIMITS_ENFORCED is off). */
+  limits: TierLimits;
+  /** Count of the user's own (non-example) binders. */
+  binderCount: number;
+  /** True when creating another binder would exceed the tier limit (always false while the flag is off). */
+  atBinderLimit: boolean;
+  /** True when adding a page to this binder would exceed the tier limit (always false while the flag is off). */
+  pageLimitReached: (binderId: string) => boolean;
   getBinder: (id: string) => DemoBinder | undefined;
   createBinder: (init?: Partial<DemoBinder>) => DemoBinder;
   /** Create a fresh binder seeded with one card in its first pocket (atomic). */
@@ -186,7 +198,22 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   const { ready: authReady, user } = useAuth();
   const userId = user?.id ?? null;
 
+  // Effective tier + limits gate binder/page creation. While LIMITS_ENFORCED is off, `limits`
+  // reads unlimited, so every guard below is a no-op and behaviour is unchanged.
+  const { tier, limits } = useTier();
+
   const binders = history.present;
+
+  const binderCount = binders.filter((b) => !b.isExample).length;
+  const atBinderLimit = LIMITS_ENFORCED && binderCount >= limits.binders;
+  const pageLimitReached = useCallback(
+    (binderId: string) => {
+      if (!LIMITS_ENFORCED) return false;
+      const target = binders.find((b) => b.id === binderId && !b.isExample);
+      return !!target && target.pages.length >= limits.pagesPerBinder;
+    },
+    [binders, limits.pagesPerBinder],
+  );
 
   // Load user binders for the current user (examples stay bundled/local). On EVERY identity
   // change we fully reset the history — present AND the undo/redo stacks — so no binder or
@@ -384,12 +411,14 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     (id: string) => {
       const source = binders.find((binder) => binder.id === id);
       if (!source) return undefined;
+      // Duplicating adds a binder — refuse past the tier limit (UI shows the upgrade note).
+      if (LIMITS_ENFORCED && binderCount >= limits.binders) return undefined;
       const copy = cloneBinder(source, { title: `${source.title} (copy)` });
       commit((prev) => [...prev, copy]);
       persist(() => repo.insertBinder(copy));
       return copy;
     },
-    [binders, commit, persist],
+    [binders, binderCount, limits.binders, commit, persist],
   );
 
   const updateBinder = useCallback(
@@ -414,6 +443,9 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     (binderId: string) => {
       const target = binders.find((binder) => binder.id === binderId);
       if (!target) return;
+      // Refuse past the tier's per-binder page limit (UI shows the upgrade note). Examples are
+      // never persisted, so leave their in-session editing unlimited.
+      if (LIMITS_ENFORCED && !target.isExample && target.pages.length >= limits.pagesPerBinder) return;
       // Real binders use ONE pocket layout throughout — new pages inherit the binder's size.
       const last = target.pages[target.pages.length - 1];
       const page = emptyPage(last?.rows ?? 3, last?.cols ?? 3, `Page ${target.pages.length + 1}`);
@@ -424,7 +456,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       );
       if (!target.isExample) persist(() => repo.insertPage(binderId, page, target.pages.length));
     },
-    [binders, commit, persist],
+    [binders, limits.pagesPerBinder, commit, persist],
   );
 
   const duplicatePage = useCallback(
@@ -1163,6 +1195,11 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       featuredBinders: featured,
       userBinders: binders.filter((binder) => !binder.isExample),
       loading,
+      tier,
+      limits,
+      binderCount,
+      atBinderLimit,
+      pageLimitReached,
       getBinder,
       createBinder,
       createBinderWithCard,
@@ -1195,6 +1232,11 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       binders,
       featured,
       loading,
+      tier,
+      limits,
+      binderCount,
+      atBinderLimit,
+      pageLimitReached,
       getBinder,
       createBinder,
       createBinderWithCard,

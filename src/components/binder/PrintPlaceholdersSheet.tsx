@@ -20,7 +20,7 @@ import { fetchUserCards } from '@/data/collectionRepo';
 import { createWebArtLoader } from '@/data/fillSheetArt';
 import { buildPlaceholderPdf, collectFillTiles } from '@/data/placeholderPdf';
 import { useCatalog } from '@/hooks/use-catalog';
-import { useEntitlement } from '@/hooks/use-entitlement';
+import { useTier } from '@/hooks/use-tier';
 import { useAuth } from '@/store/auth';
 
 export function PrintPlaceholdersSheet({
@@ -34,8 +34,9 @@ export function PrintPlaceholdersSheet({
   onDone?: (sheets: number) => void;
 }) {
   const { catalog, guestGated, loading } = useCatalog(true);
-  // The PDF download is a paid one-time unlock; the counts preview stays free as the teaser.
-  const { unlocked, loading: entLoading } = useEntitlement('pdf_print');
+  // Full print comes with PRO/VIP, or a one-time pdf_print unlock (grandfathered — existing
+  // holders keep it forever). The counts preview stays free as the teaser.
+  const { hasFullPrint: unlocked, loading: entLoading } = useTier();
   const { isSignedIn } = useAuth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -204,10 +205,10 @@ export function PrintPlaceholdersSheet({
                 ) : (
                   // No dead purchase button while checkout isn't wired — an honest note instead.
                   <View style={styles.lockedBox}>
-                    <ThemedText type="smallBold">🔒 One-time unlock</ThemedText>
+                    <ThemedText type="smallBold">🔒 Printing is a paid feature</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-                      Printable PDFs are a small one-time purchase — buy once, print any of your
-                      binders forever. Purchases aren’t open quite yet; check back soon.
+                      Full fill-sheet PDFs come with a PRO plan, or a small one-time unlock — print
+                      any of your binders forever. Purchases aren’t open quite yet; check back soon.
                     </ThemedText>
                   </View>
                 )}

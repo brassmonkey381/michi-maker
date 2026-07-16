@@ -18,6 +18,7 @@ import { HomeCollection } from '@/components/HomeCollection';
 import { HomeRecent } from '@/components/HomeRecent';
 import { HomeSealed } from '@/components/HomeSealed';
 import { HomeSection } from '@/components/HomeSection';
+import { UpgradePerk } from '@/components/monetization/UpgradePerk';
 import { PeopleButton } from '@/components/people/PeopleButton';
 import { SettingsButton } from '@/components/settings/SettingsSheet';
 import { ThemedText } from '@/components/themed-text';
@@ -105,6 +106,11 @@ export default function BindersScreen() {
   };
   const addToNewBinder = () => {
     if (!addCardId) return;
+    if (store.atBinderLimit) {
+      setAddCardId(null);
+      showToast('You’ve reached your binder limit — upgrade for more.');
+      return;
+    }
     // Atomic create-with-card — creating then adding would race the store snapshot.
     const binder = store.createBinder({ title: 'New binder', pages: pagesForCards([addCardId]) });
     setAddCardId(null);
@@ -126,6 +132,10 @@ export default function BindersScreen() {
   if (showLanding) return <Redirect href="/welcome" />;
 
   const handleNew = () => {
+    if (store.atBinderLimit) {
+      showToast('You’ve reached your binder limit — upgrade for more.');
+      return;
+    }
     const binder = store.createBinder({ title: 'New binder' });
     openBinder(binder.id);
   };
@@ -154,8 +164,8 @@ export default function BindersScreen() {
   };
   const duplicateFromMenu = () => {
     if (menuBinder) {
-      store.duplicateBinder(menuBinder.id);
-      showToast('Binder duplicated');
+      const copy = store.duplicateBinder(menuBinder.id);
+      showToast(copy ? 'Binder duplicated' : 'You’ve reached your binder limit — upgrade for more.');
     }
     setMenuId(null);
   };
@@ -230,6 +240,13 @@ export default function BindersScreen() {
               </ThemedView>
             ) : (
               <>
+                {store.atBinderLimit ? (
+                  <View style={styles.upgradeRow}>
+                    <UpgradePerk
+                      message={`You’ve reached your ${store.limits.binders}-binder limit. Upgrade for more room.`}
+                    />
+                  </View>
+                ) : null}
                 {showBinderSearch ? (
                   <TextInput
                     value={binderQuery}
@@ -429,6 +446,7 @@ const styles = StyleSheet.create({
     maxWidth: 480,
   },
   noMatch: { paddingVertical: Spacing.three },
+  upgradeRow: { marginBottom: Spacing.three },
   menuBtn: {
     width: 30,
     height: 30,

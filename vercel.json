@@ -1,5 +1,5 @@
 {
-  "buildCommand": "expo export -p web",
+  "buildCommand": "expo export -p web && node scripts/inject-meta.mjs",
   "outputDirectory": "dist",
   "devCommand": "expo",
   "cleanUrls": true,

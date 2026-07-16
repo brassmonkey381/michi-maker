@@ -1,4 +1,18 @@
+/*
+ * Brand display face for the landing page and other marketing surfaces (headings only —
+ * body copy stays on the system sans). Self-hosted from /public per the no-external-hosts
+ * rule; variable weight axis so one 66 KB file covers semibold→black. SIL OFL 1.1
+ * (public/fonts/OFL.txt).
+ */
+@font-face {
+  font-family: 'Fraunces';
+  src: url('/fonts/fraunces-latin-var.woff2') format('woff2');
+  font-weight: 100 1000;
+  font-display: swap;
+}
+
 :root {
+  --font-brand: Fraunces, Georgia, 'Times New Roman', serif;
   --font-display:
     Spline Sans, Inter, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji,
     Segoe UI Symbol, Noto Color Emoji;

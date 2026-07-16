@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BinderGrid } from '@/components/binder/BinderGrid';
 import { BinderThumb } from '@/components/binder/BinderThumb';
+import { LogoMark } from '@/components/brand/LogoMark';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import {
@@ -32,8 +33,16 @@ import { markLandingSeen } from '@/lib/landing';
 
 const BINDERS_BY_ID = new Map(SAMPLE_BINDERS.map((b) => [b.id, b]));
 
+/**
+ * The brand display face (Fraunces, loaded via global.css on web). Headings only —
+ * body copy stays on the system sans like the rest of the app.
+ */
+const BrandFont = Platform.select({ web: 'var(--font-brand)', default: 'serif' });
+
 /** One page that tells a story at a glance: the rarity ladder, common → hyper. */
 const HERO_ID = 'gen-prismatic-rarity-ladder';
+/** Wide screens get an OPEN SPREAD instead: facing pages are the whole point of this binder. */
+const SPREAD_ID = 'gen-vintage-vs-modern-grails';
 /** A curated spread of looks: grails, budget holos, vintage, completion, galleries. */
 const GALLERY_IDS = [
   'gen-grail-wall',
@@ -110,7 +119,12 @@ export default function WelcomeScreen() {
     (b): b is NonNullable<typeof b> => !!b,
   );
 
-  // The hero page render: big enough to read the cards, never wider than the phone.
+  // The hero: an open two-page spread when there's room for it (facing pages are the thing
+  // neither a card list nor a competitor wireframe can show), a single page otherwise.
+  const spreadBinder = BINDERS_BY_ID.get(SPREAD_ID);
+  const showSpread = windowW >= 1180 && !!spreadBinder && spreadBinder.pages.length >= 2;
+  const spreadPageW = Math.min(330, (windowW - 620) / 2);
+  // The single-page render: big enough to read the cards, never wider than the phone.
   const heroW = wide ? 420 : Math.min(windowW - Spacing.five * 2, 380);
   const thumbW = wide ? 300 : Math.min(windowW - Spacing.five * 2, 280);
 
@@ -123,6 +137,13 @@ export default function WelcomeScreen() {
             name="description"
             content="Compose curated Pokémon card binder pages: rarity ladders, color spreads, artist galleries. Print true-size fill sheets and build the real thing. Free while in beta."
           />
+          <meta property="og:title" content="michi-maker: build beautiful Pokémon card binders" />
+          <meta
+            property="og:description"
+            content="Compose curated Pokémon card binder pages: rarity ladders, color spreads, artist galleries. Print true-size fill sheets and build the real thing. Free while in beta."
+          />
+          <meta property="og:image" content="https://michi-maker.com/og.png" />
+          <meta name="twitter:card" content="summary_large_image" />
         </Head>
       ) : null}
       <SafeAreaView style={styles.root} edges={['top']}>
@@ -130,7 +151,10 @@ export default function WelcomeScreen() {
           {/* ── Nav ─────────────────────────────────────────────────────── */}
           <View style={styles.shell}>
             <View style={styles.nav}>
-              <ThemedText style={styles.wordmark}>michi-maker</ThemedText>
+              <View style={styles.brandRow}>
+                <LogoMark size={26} />
+                <ThemedText style={styles.wordmark}>michi-maker</ThemedText>
+              </View>
               <Pressable
                 onPress={enterApp}
                 style={({ pressed }) => [styles.navBtn, pressed && styles.pressed]}>
@@ -169,7 +193,24 @@ export default function WelcomeScreen() {
                 </ThemedText>
               </View>
 
-              {heroBinder?.pages[0] ? (
+              {showSpread && spreadBinder ? (
+                <View style={styles.heroArt}>
+                  <View style={[styles.heroTilt, Shadows.page]}>
+                    <View style={styles.spreadRow}>
+                      <BinderGrid page={spreadBinder.pages[0]} width={spreadPageW} />
+                      <View style={styles.spine}>
+                        {[0, 1, 2, 3].map((i) => (
+                          <View key={i} style={styles.ring} />
+                        ))}
+                      </View>
+                      <BinderGrid page={spreadBinder.pages[1]} width={spreadPageW} />
+                    </View>
+                  </View>
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.heroCaption}>
+                    “{spreadBinder.title}”, an open spread rendered live. Not a screenshot.
+                  </ThemedText>
+                </View>
+              ) : heroBinder?.pages[0] ? (
                 <View style={styles.heroArt}>
                   <View style={[styles.heroTilt, Shadows.page]}>
                     <BinderGrid page={heroBinder.pages[0]} width={heroW} />
@@ -306,7 +347,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: Spacing.three,
   },
-  wordmark: { fontSize: FontSize.h2, fontWeight: Weight.bold },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  wordmark: { fontFamily: BrandFont, fontSize: FontSize.h2, fontWeight: Weight.bold },
   navBtn: {
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
@@ -336,8 +378,8 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     color: Palette.accent,
   },
-  h1: { fontSize: FontSize.hero, lineHeight: 54, fontWeight: Weight.bold },
-  h1Narrow: { fontSize: FontSize.display, lineHeight: 40 },
+  h1: { fontFamily: BrandFont, fontSize: 56, lineHeight: 62, fontWeight: '900' },
+  h1Narrow: { fontSize: FontSize.display, lineHeight: 42 },
   heroSub: { fontSize: FontSize.md, lineHeight: 26, maxWidth: 560 },
   ctaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three, marginTop: Spacing.two },
   ctaPrimary: {
@@ -358,7 +400,22 @@ const styles = StyleSheet.create({
   betaNote: { marginTop: Spacing.one },
   heroArt: { alignItems: 'center', gap: Spacing.three },
   heroTilt: { transform: [{ rotate: '-1.5deg' }] },
-  heroCaption: { maxWidth: 420, textAlign: 'center' },
+  heroCaption: { maxWidth: 480, textAlign: 'center' },
+  spreadRow: { flexDirection: 'row', alignItems: 'center' },
+  spine: {
+    alignSelf: 'stretch',
+    width: 26,
+    alignItems: 'center',
+    justifyContent: 'space-evenly',
+    paddingVertical: Spacing.five,
+  },
+  ring: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: Palette.hairlineStrong,
+  },
 
   cardRow: {
     flexDirection: 'row',
@@ -386,8 +443,9 @@ const styles = StyleSheet.create({
 
   section: { marginTop: Spacing.six },
   h2: {
-    fontSize: FontSize.title,
-    lineHeight: 30,
+    fontFamily: BrandFont,
+    fontSize: 26,
+    lineHeight: 34,
     fontWeight: Weight.bold,
     marginTop: Spacing.two,
     maxWidth: MaxContentWidth,
@@ -403,7 +461,7 @@ const styles = StyleSheet.create({
   },
   printBandWide: { flexDirection: 'row', alignItems: 'center' },
   printStat: { alignItems: 'flex-start', gap: Spacing.one, minWidth: 220 },
-  printSize: { fontSize: FontSize.display, fontWeight: Weight.bold, lineHeight: 40 },
+  printSize: { fontFamily: BrandFont, fontSize: FontSize.display, fontWeight: '900', lineHeight: 40 },
   printCopy: { flex: 1, gap: Spacing.two, minWidth: 240 },
 
   galleryRow: { gap: Spacing.four, paddingTop: Spacing.four, paddingBottom: Spacing.two },

@@ -368,6 +368,7 @@ export type Database = {
           created_at: string
           crop: Json | null
           cs: number
+          deleted_at: string | null
           fit: string
           group_id: string | null
           id: string
@@ -381,6 +382,7 @@ export type Database = {
           created_at?: string
           crop?: Json | null
           cs?: number
+          deleted_at?: string | null
           fit?: string
           group_id?: string | null
           id?: string
@@ -394,6 +396,7 @@ export type Database = {
           created_at?: string
           crop?: Json | null
           cs?: number
+          deleted_at?: string | null
           fit?: string
           group_id?: string | null
           id?: string

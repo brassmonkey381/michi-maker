@@ -22,8 +22,9 @@ import { CardBrowse } from '@/components/binder/CardBrowse';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
+import { sheet } from '@/constants/ui';
 import { domainOf, type ArtAspect } from '@/data/artworkLibrary';
-import { uid, type ImageTransform } from '@/data/binderTypes';
+import { uid, uuidv4, type ImageTransform } from '@/data/binderTypes';
 import { addSavedArt } from '@/data/savedArt';
 import type { SavedSlice } from '@/data/savedSlices';
 import { useCatalog } from '@/hooks/use-catalog';
@@ -552,7 +553,9 @@ export function SliceStudio({ rows, cols, imageUrl: initUrl, pairStarts, onSaveS
     const groupId = uid('slicegrp');
     const label = domainOf(imageUrl);
     const slices: SavedSlice[] = panels.map((p) => ({
-      id: `slice-${uid('slice')}`,
+      // A real UUID — saved_slices.id is a Postgres uuid column, so a `slice-…` string id makes
+      // every insert fail (silently: the tray is optimistic) and nothing ever persists.
+      id: uuidv4(),
       imageUrl,
       crop: panelCrop(p, rows, cols, win),
       fit: 'cover',
@@ -836,9 +839,9 @@ export function SliceStudio({ rows, cols, imageUrl: initUrl, pairStarts, onSaveS
 
         {guideOpen ? (
           <Modal visible transparent animationType="fade" onRequestClose={() => setGuideOpen(false)}>
-            <View style={styles.sourcesBackdrop}>
+            <View style={sheet.dialogBackdrop}>
               <Pressable style={StyleSheet.absoluteFill} onPress={() => setGuideOpen(false)} />
-              <ThemedView type="backgroundElement" style={styles.sourcesCard}>
+              <ThemedView type="backgroundElement" style={[sheet.dialogCard, styles.sourcesCard]}>
                 <View style={styles.cardPickHeader}>
                   <ThemedText type="subtitle">Controls &amp; shortcuts</ThemedText>
                   <Pressable onPress={() => setGuideOpen(false)} hitSlop={10}>
@@ -865,9 +868,9 @@ export function SliceStudio({ rows, cols, imageUrl: initUrl, pairStarts, onSaveS
 
         {sourcesOpen ? (
           <Modal visible transparent animationType="fade" onRequestClose={() => setSourcesOpen(false)}>
-            <View style={styles.sourcesBackdrop}>
+            <View style={sheet.dialogBackdrop}>
               <Pressable style={StyleSheet.absoluteFill} onPress={() => setSourcesOpen(false)} />
-              <ThemedView type="backgroundElement" style={styles.sourcesCard}>
+              <ThemedView type="backgroundElement" style={[sheet.dialogCard, styles.sourcesCard]}>
                 <View style={styles.cardPickHeader}>
                   <ThemedText type="subtitle">Art sources</ThemedText>
                   <Pressable onPress={() => setSourcesOpen(false)} hitSlop={10}>
@@ -903,9 +906,9 @@ export function SliceStudio({ rows, cols, imageUrl: initUrl, pairStarts, onSaveS
 
         {cardPickOpen ? (
           <Modal visible transparent animationType="slide" onRequestClose={() => setCardPickOpen(false)}>
-            <View style={styles.cardPickBackdrop}>
+            <View style={sheet.bottomBackdrop}>
               <Pressable style={StyleSheet.absoluteFill} onPress={() => setCardPickOpen(false)} />
-              <ThemedView type="backgroundElement" style={styles.cardPickSheet}>
+              <ThemedView type="backgroundElement" style={[sheet.bottomSheet, styles.cardPickSheet]}>
                 <View style={styles.cardPickHeader}>
                   <ThemedText type="subtitle">Choose card art</ThemedText>
                   <Pressable onPress={() => setCardPickOpen(false)} hitSlop={10}>
@@ -1159,31 +1162,9 @@ const styles = StyleSheet.create({
   guideAction: { fontSize: FontSize.base, color: Palette.ink4 },
   guideNote: { fontSize: FontSize.sm, color: Palette.muted3, marginTop: 6, lineHeight: 16 },
 
-  cardPickBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: Palette.scrim40 },
-  cardPickSheet: {
-    height: '82%',
-    borderTopLeftRadius: Radius.sheet,
-    borderTopRightRadius: Radius.sheet,
-    paddingHorizontal: 16,
-    paddingTop: 10,
-  },
+  cardPickSheet: { height: '82%' },
   cardPickHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  sourcesBackdrop: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Palette.scrim40,
-    padding: 24,
-  },
-  sourcesCard: {
-    width: '100%',
-    maxWidth: 520,
-    maxHeight: '80%',
-    borderRadius: Radius.sheet,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
+  sourcesCard: { width: '100%', maxWidth: 520, maxHeight: '80%' },
   sourcesList: { gap: 10, paddingBottom: 12 },
   sourceRow: {
     borderWidth: 1,

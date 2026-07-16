@@ -48,7 +48,7 @@ import { resolveCard } from '@/data/cardResolver';
 import { addSavedSlices, useSavedSlicesSync, type SavedSlice } from '@/data/savedSlices';
 import { SliceTray, SliceThumb } from '@/components/binder/SliceTray';
 import type { CatalogCard } from '@/lib/catalog';
-import { useBinders } from '@/store/binders';
+import { isBlankPage, useBinders } from '@/store/binders';
 import { useTheme } from '@/hooks/use-theme';
 
 // Real side-load page grids only — 4 rows × 3 columns doesn't exist physically (binderPhysics).
@@ -794,6 +794,31 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                 },
               })
             }
+          />
+        )}
+        {binder.pages.some(isBlankPage) && (
+          <PillButton
+            label="Compact blanks"
+            onPress={() => {
+              const result = store.compactBlankPages(binder.id);
+              if (!result) return;
+              if (result.removed === 0) {
+                showToast(
+                  result.kept > 0
+                    ? 'Every blank page here keeps folded art on its pocket pairs.'
+                    : 'No blank pages to remove.',
+                );
+                return;
+              }
+              showToast(
+                `Removed ${result.removed} blank page${result.removed === 1 ? '' : 's'}${
+                  result.kept > 0
+                    ? `. ${result.kept === 1 ? 'One stays' : `${result.kept} stay`} to keep folded art aligned.`
+                    : ''
+                }`,
+                true,
+              );
+            }}
           />
         )}
       </View>

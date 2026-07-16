@@ -52,6 +52,15 @@ const CLOUD = isSupabaseConfigured;
 const HISTORY_LIMIT = 50;
 
 /**
+ * A page with nothing on it and nothing typed on it — what the parity pass inserts as a spacer,
+ * and the only thing "Compact blanks" will remove (a titled or described empty page is a page
+ * the user is keeping on purpose).
+ */
+export function isBlankPage(page: DemoPage): boolean {
+  return page.slots.length === 0 && !page.title && !page.description;
+}
+
+/**
  * Insert blank spacer pages so every side-pinned page (binderPhysics.requiredPageSide — a page
  * holding a folded 1×2 art piece on a 3-column grid) sits on the side of the spine its art
  * demands. Binders are double-sided, so ANY structural edit that shifts page indices —
@@ -144,6 +153,9 @@ interface BinderStore {
     fromIndex: number,
     toIndex: number,
   ) => { pageIndex: number; blanksInserted: number } | null;
+  /** Remove every blank page (no slots, no title/description) the parity pass doesn't still
+   *  need as a spacer. Returns how many were removed and how many blanks remain. */
+  compactBlankPages: (binderId: string) => { removed: number; kept: number } | null;
   upsertSlot: (binderId: string, pageId: string, slot: SlotInput) => void;
   /**
    * Drop a card into a binder's first free 1×1 pocket (scanning pages in order; appends a new
@@ -627,6 +639,26 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         );
       }
       return { pageIndex: pages.findIndex((p) => p.id === moved.id), blanksInserted };
+    },
+    [binders, commit, persist],
+  );
+
+  const compactBlankPages = useCallback(
+    (binderId: string): { removed: number; kept: number } | null => {
+      const target = binders.find((binder) => binder.id === binderId);
+      if (!target) return null;
+      // Drop every removable blank, then let the parity pass re-add ONLY the spacers folded art
+      // still needs — the minimal blank set falls out of the same rule that inserted them.
+      const kept = target.pages.filter((page) => !isBlankPage(page));
+      const { pages } = withParitySpacers(kept.length ? kept : [target.pages[0]]);
+      const removed = target.pages.length - pages.length;
+      const spacersKept = pages.filter(isBlankPage).length;
+      if (removed <= 0) return { removed: 0, kept: spacersKept };
+      commit((prev) =>
+        prev.map((binder) => (binder.id === binderId ? { ...binder, pages } : binder)),
+      );
+      if (!target.isExample) persist(() => repo.replaceBinder({ ...target, pages }));
+      return { removed, kept: spacersKept };
     },
     [binders, commit, persist],
   );
@@ -1269,6 +1301,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       setBinderPageSize,
       removePage,
       reorderPages,
+      compactBlankPages,
       upsertSlot,
       addCardToBinder,
       addCardsToBinder,
@@ -1306,6 +1339,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       setBinderPageSize,
       removePage,
       reorderPages,
+      compactBlankPages,
       upsertSlot,
       addCardToBinder,
       addCardsToBinder,

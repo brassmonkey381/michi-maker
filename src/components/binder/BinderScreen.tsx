@@ -228,30 +228,37 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     ? (page.slots.find((s) => s.row === pickerCell.row && s.col === pickerCell.col) ?? null)
     : null;
 
-  // The slice currently being placed (dragged wins over armed) and the pockets it may drop into.
+  // The slice currently being placed (dragged wins over armed) and the pockets it may drop
+  // into — computed for EVERY page in the visible spread (current + prev/next neighbours or the
+  // double-sided partner), so all reachable pockets light up, not just the active page's.
   const activeSlice = dragSlice ?? armedSlice;
-  const dropTargets = activeSlice ? computeDropTargets(activeSlice, page, idx) : undefined;
+  const sliceTargets = (pg: DemoPage | null, pgIndex: number) =>
+    activeSlice && pg ? computeDropTargets(activeSlice, pg, pgIndex) : undefined;
+  const dropTargets = sliceTargets(page, idx);
+  const prevDropTargets = sliceTargets(prevPage, idx - 1);
+  const nextDropTargets = sliceTargets(nextPage, idx + 1);
 
-  // Drop a saved slice into a pocket, re-checking side-load physics and occupancy (matches the
-  // highlighted targets). Placing keeps the slice in the tray, so it can fill more pockets.
-  const placeSliceAt = (slice: SavedSlice, row: number, col: number) => {
-    if (row + slice.rs > page.rows || col + slice.cs > page.cols) {
+  // Drop a saved slice into a pocket of any visible page, re-checking side-load physics and
+  // occupancy (matches the highlighted targets). Placing keeps the slice in the tray, so it can
+  // fill more pockets.
+  const placeSliceOnPage = (slice: SavedSlice, pg: DemoPage, pgIndex: number, row: number, col: number) => {
+    if (row + slice.rs > pg.rows || col + slice.cs > pg.cols) {
       showToast('That slice doesn’t fit there.');
       return;
     }
-    const verdict = artPieceAllowed(col, slice.rs, slice.cs, page.cols, pageSide(idx));
+    const verdict = artPieceAllowed(col, slice.rs, slice.cs, pg.cols, pageSide(pgIndex));
     if (!verdict.ok) {
       showToast(verdict.reason ?? 'That pocket doesn’t fit this slice.');
       return;
     }
-    const occupied = new Set(page.slots.flatMap((s) => slotCells(s)));
+    const occupied = new Set(pg.slots.flatMap((s) => slotCells(s)));
     for (let i = 0; i < slice.rs; i += 1)
       for (let j = 0; j < slice.cs; j += 1)
         if (occupied.has(`${row + i},${col + j}`)) {
           showToast('That pocket is already filled.');
           return;
         }
-    store.placeArtPanels(binder.id, page.id, row, col, [
+    store.placeArtPanels(binder.id, pg.id, row, col, [
       {
         r: 0,
         c: 0,
@@ -264,15 +271,24 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
       },
     ]);
   };
+  const placeSliceAt = (slice: SavedSlice, row: number, col: number) =>
+    placeSliceOnPage(slice, page, idx, row, col);
   const handleSliceDragStart = (slice: SavedSlice) => {
-    curRef.current?.remeasure(); // fresh grid bounds before the drop hit-test (scroll-safe)
+    // Fresh bounds for every visible grid before the drop hit-test (scroll-safe) — a tray slice
+    // can land on the neighbours too.
+    prevRef.current?.remeasure();
+    curRef.current?.remeasure();
+    nextRef.current?.remeasure();
     setArmedSlice(null);
     setDragSlice(slice);
   };
   const handleSliceDrop = (slice: SavedSlice, windowX: number, windowY: number) => {
     setDragSlice(null);
-    const cell = curRef.current?.hitTest(windowX, windowY);
-    if (cell) placeSliceAt(slice, cell.row, cell.col);
+    const hit = resolveSpreadHit(windowX, windowY);
+    if (!hit) return;
+    const pgIndex = binder.pages.findIndex((p) => p.id === hit.pageId);
+    if (pgIndex < 0) return;
+    placeSliceOnPage(slice, binder.pages[pgIndex], pgIndex, hit.row, hit.col);
   };
   // Open the studio to cut a fresh set of slices — page-sized, not tied to a pocket.
   const openStudioForPage = () =>
@@ -685,6 +701,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
       return <BinderGrid page={p} width={width} editable={false} captionFields={captionFields} />;
     }
     if (role === 'prev' || role === 'next') {
+      const nIdx = role === 'prev' ? idx - 1 : idx + 1;
       return (
         <BinderGrid
           ref={role === 'prev' ? prevRef : nextRef}
@@ -692,6 +709,12 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           width={width}
           editable
           captionFields={captionFields}
+          // A tray slice reaches the neighbours too: show its legal pockets here, and let an
+          // armed slice tap-place onto them (drags resolve via resolveSpreadHit regardless).
+          dropTargets={role === 'prev' ? prevDropTargets : nextDropTargets}
+          {...(armedSlice
+            ? { onCellPress: (row: number, col: number) => placeSliceOnPage(armedSlice, p, nIdx, row, col) }
+            : {})}
           onCrossDrop={(slotId, x, y) => handleCrossDrop(p.id, slotId, x, y)}
           onDragStart={() => startColumnDrag(role === 'prev' ? 0 : 2)}
         />
@@ -711,7 +734,14 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           width={width}
           editable
           captionFields={captionFields}
+          // The facing page is a first-class drop surface for tray slices too.
+          dropTargets={isPrev ? prevDropTargets : nextDropTargets}
           onCellPress={(row, col) => {
+            // An armed tray slice places here directly — without stealing the page focus.
+            if (armedSlice) {
+              placeSliceOnPage(armedSlice, p, pIdx, row, col);
+              return;
+            }
             changePage(pIdx);
             setPickerCell({ row, col });
           }}

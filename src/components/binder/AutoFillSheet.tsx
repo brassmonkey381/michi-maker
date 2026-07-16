@@ -12,8 +12,8 @@ import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'rea
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { FontSize, Palette, Radii, Radius, Spacing } from '@/constants/theme';
-import { pillChip } from '@/constants/ui';
+import { FontSize, Palette, Radius, Spacing } from '@/constants/theme';
+import { pillChip, sheet } from '@/constants/ui';
 import { occupiedCells, type DemoPage } from '@/data/binderTypes';
 import { fetchUserCards } from '@/data/collectionRepo';
 import {
@@ -114,9 +114,9 @@ export function AutoFillSheet({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
+      <Pressable style={sheet.dialogBackdrop} onPress={onClose}>
         <Pressable onPress={(e) => e.stopPropagation()} style={styles.cardWrap}>
-          <ThemedView type="backgroundElement" style={styles.card}>
+          <ThemedView type="backgroundElement" style={sheet.dialogCard}>
             <View style={styles.header}>
               <ThemedText type="subtitle" style={styles.title}>
                 ✨ Fill page
@@ -203,15 +203,7 @@ export function AutoFillSheet({
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: Palette.scrim45,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.four,
-  },
   cardWrap: { width: '100%', maxWidth: 420 },
-  card: { borderRadius: Radii.page, padding: Spacing.four, gap: Spacing.three },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: FontSize.h2, lineHeight: 26 },
   sub: { lineHeight: 20 },

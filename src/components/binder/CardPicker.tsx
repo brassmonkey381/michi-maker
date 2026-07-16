@@ -12,7 +12,7 @@ import type { DemoPage, DemoSlot } from '@/data/binderTypes';
 import { useCatalog } from '@/hooks/use-catalog';
 import type { CatalogCard } from '@/lib/catalog';
 import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
-import { flatChip, studioButton } from '@/constants/ui';
+import { flatChip, sheet, studioButton } from '@/constants/ui';
 
 /** Tasteful tonal inserts for filling a pocket with negative space. */
 const INSERT_TONES: { label: string; color: string }[] = [
@@ -317,10 +317,10 @@ export function CardPicker({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+      <View style={sheet.bottomBackdrop}>
         <Pressable style={styles.backdropFill} onPress={onClose} />
-        <View style={[styles.sheet, browseMode && styles.sheetTall]}>
-          <View style={styles.handle} />
+        <View style={[sheet.bottomSheet, browseMode && styles.sheetTall]}>
+          <View style={sheet.handle} />
           <View style={styles.header}>
             <ThemedText type="subtitle" style={styles.headerTitle}>
               {title}
@@ -454,20 +454,9 @@ function ArtThumb({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: Palette.scrim40 },
   backdropFill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  sheet: {
-    backgroundColor: Palette.surface,
-    borderTopLeftRadius: Radius.sheet,
-    borderTopRightRadius: Radius.sheet,
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 24,
-    maxHeight: '85%',
-  },
   // A definite height (not just maxHeight) so the browse FlatList gets a bounded viewport.
   sheetTall: { height: '85%' },
-  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: Radius.xs, backgroundColor: Palette.handle, marginBottom: 8 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
   headerTitle: { flex: 1 },
   keepAdding: {

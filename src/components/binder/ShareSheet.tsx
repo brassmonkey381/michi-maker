@@ -8,7 +8,8 @@ import { Modal, Platform, Pressable, Share, StyleSheet, Switch, View } from 'rea
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { FontSize, Palette, Radii, Radius, Spacing } from '@/constants/theme';
+import { FontSize, Palette, Radius, Spacing } from '@/constants/theme';
+import { sheet } from '@/constants/ui';
 import { useTheme } from '@/hooks/use-theme';
 import { binderShareUrl } from '@/lib/appUrl';
 
@@ -45,9 +46,9 @@ export function ShareSheet({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
+      <Pressable style={sheet.dialogBackdrop} onPress={onClose}>
         <Pressable onPress={(e) => e.stopPropagation()} style={styles.cardWrap}>
-          <ThemedView type="backgroundElement" style={styles.card}>
+          <ThemedView type="backgroundElement" style={sheet.dialogCard}>
             <View style={styles.header}>
               <ThemedText type="subtitle" style={styles.title}>
                 Share binder
@@ -97,15 +98,7 @@ export function ShareSheet({
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: Palette.scrim45,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.four,
-  },
   cardWrap: { width: '100%', maxWidth: 420 },
-  card: { borderRadius: Radii.page, padding: Spacing.four, gap: Spacing.three },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: FontSize.h2, lineHeight: 26 },
   toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.three },

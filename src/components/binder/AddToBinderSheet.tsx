@@ -8,6 +8,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { sheet } from '@/constants/ui';
 import type { DemoBinder } from '@/data/binderTypes';
 
 export function AddToBinderSheet({
@@ -23,10 +24,10 @@ export function AddToBinderSheet({
 }) {
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+      <View style={sheet.bottomBackdrop}>
         <Pressable style={styles.backdropFill} onPress={onClose} />
         <ThemedView type="backgroundElement" style={styles.sheet}>
-          <View style={styles.handle} />
+          <View style={sheet.handle} />
           <View style={styles.header}>
             <ThemedText type="subtitle" style={styles.title}>
               Add to a binder
@@ -66,17 +67,15 @@ export function AddToBinderSheet({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: Palette.scrim40 },
   backdropFill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   sheet: {
     borderTopLeftRadius: Radius.sheet,
     borderTopRightRadius: Radius.sheet,
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: Spacing.three,
     paddingTop: Spacing.two,
     paddingBottom: Spacing.four,
     maxHeight: '70%',
   },
-  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: Radius.xs, backgroundColor: Palette.handle, marginBottom: Spacing.two },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.three },
   title: { flex: 1 },
   close: { fontSize: FontSize.md, fontWeight: Weight.semibold, color: Palette.accent },

@@ -8,7 +8,8 @@ import { ActivityIndicator, Modal, Pressable, StyleSheet, View } from 'react-nat
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { FontSize, Palette, Radii, Spacing } from '@/constants/theme';
+import { FontSize, Palette, Spacing } from '@/constants/theme';
+import { sheet } from '@/constants/ui';
 import { fetchLikers, type Liker } from '@/data/binderRepo';
 
 /** "3 days ago" / "2 hours ago" / "just now" from an ISO timestamp. */
@@ -57,9 +58,9 @@ export function LikersSheet({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
+      <Pressable style={sheet.dialogBackdrop} onPress={onClose}>
         <Pressable onPress={(e) => e.stopPropagation()} style={styles.cardWrap}>
-          <ThemedView type="backgroundElement" style={styles.card}>
+          <ThemedView type="backgroundElement" style={[sheet.dialogCard, styles.cardMax]}>
             <View style={styles.header}>
               <ThemedText type="subtitle" style={styles.title}>
                 {likers ? `${likers.length} ${likers.length === 1 ? 'like' : 'likes'}` : 'Likes'}
@@ -101,15 +102,8 @@ export function LikersSheet({
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: Palette.scrim45,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.four,
-  },
   cardWrap: { width: '100%', maxWidth: 400 },
-  card: { borderRadius: Radii.page, padding: Spacing.four, gap: Spacing.three, maxHeight: '80%' },
+  cardMax: { maxHeight: '80%' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: FontSize.h2, lineHeight: 26 },
   center: { paddingVertical: Spacing.five, alignItems: 'center' },

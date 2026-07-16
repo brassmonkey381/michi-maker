@@ -5,11 +5,12 @@
  * reload on web, where the token styles are resolved at load).
  */
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Switch, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
+import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { sheet } from '@/constants/ui';
 import {
   VARIANTS,
   VARIANT_LIST,
@@ -54,9 +55,9 @@ function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => 
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
+      <Pressable style={sheet.dialogBackdrop} onPress={onClose}>
         <Pressable onPress={(e) => e.stopPropagation()} style={styles.cardWrap}>
-          <ThemedView type="backgroundElement" style={styles.card}>
+          <ThemedView type="backgroundElement" style={[sheet.dialogCard, styles.cardGap]}>
             <View style={styles.header}>
               <ThemedText type="subtitle" style={styles.title}>
                 Settings
@@ -72,28 +73,44 @@ function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => 
               APPEARANCE
             </ThemedText>
 
+            {/* The signature look leads; the alternates sit demoted under "More looks" —
+                one opinionated default, not four equals. */}
             <View style={styles.options}>
-              {VARIANT_LIST.map((v) => {
+              {VARIANT_LIST.map((v, i) => {
                 const active = v.id === current;
+                const hero = i === 0;
                 return (
-                  <Pressable
-                    key={v.id}
-                    onPress={() => setVariant(v.id)}
-                    accessibilityLabel={`Theme: ${v.label}`}
-                    style={({ pressed }) => [
-                      styles.option,
-                      { borderColor: active ? Palette.accent : theme.backgroundSelected },
-                      pressed && styles.pressed,
-                    ]}>
-                    <ThemePreview id={v.id} />
-                    <View style={styles.optionText}>
-                      <ThemedText type="smallBold">{v.label}</ThemedText>
-                      <ThemedText type="small" themeColor="textSecondary">
-                        {v.desc}
+                  <View key={v.id}>
+                    {i === 1 ? (
+                      <ThemedText type="small" themeColor="textSecondary" style={styles.moreLabel}>
+                        More looks
                       </ThemedText>
-                    </View>
-                    {active ? <ThemedText style={styles.check}>✓</ThemedText> : null}
-                  </Pressable>
+                    ) : null}
+                    <Pressable
+                      onPress={() => setVariant(v.id)}
+                      accessibilityLabel={`Theme: ${v.label}`}
+                      style={({ pressed }) => [
+                        styles.option,
+                        { borderColor: active ? Palette.accent : theme.backgroundSelected },
+                        pressed && styles.pressed,
+                      ]}>
+                      <ThemePreview id={v.id} />
+                      <View style={styles.optionText}>
+                        <View style={styles.optionTitleRow}>
+                          <ThemedText type="smallBold">{v.label}</ThemedText>
+                          {hero ? (
+                            <View style={styles.defaultTag}>
+                              <Text style={styles.defaultTagText}>DEFAULT</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                        <ThemedText type="small" themeColor="textSecondary">
+                          {v.desc}
+                        </ThemedText>
+                      </View>
+                      {active ? <ThemedText style={styles.check}>✓</ThemedText> : null}
+                    </Pressable>
+                  </View>
                 );
               })}
             </View>
@@ -144,15 +161,8 @@ const styles = StyleSheet.create({
   gear: { fontSize: FontSize.title, lineHeight: 28 },
   pressed: { opacity: 0.7 },
 
-  backdrop: {
-    flex: 1,
-    backgroundColor: Palette.scrim45,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.four,
-  },
   cardWrap: { width: '100%', maxWidth: 380 },
-  card: { borderRadius: Radii.page, padding: Spacing.four, gap: Spacing.two },
+  cardGap: { gap: Spacing.two },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: FontSize.h2, lineHeight: 26 },
   sectionLabel: { textTransform: 'uppercase', letterSpacing: 0.5, marginTop: Spacing.two },
@@ -167,6 +177,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   optionText: { flex: 1 },
+  optionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  moreLabel: { marginTop: Spacing.two, marginBottom: Spacing.one },
+  defaultTag: {
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: Radius.tag,
+    backgroundColor: Palette.panel,
+  },
+  defaultTagText: { fontSize: FontSize.micro, fontWeight: Weight.bold, letterSpacing: 0.5, color: Palette.muted },
   check: { color: Palette.accent, fontSize: FontSize.md, fontWeight: Weight.bold },
   privacyRow: {
     flexDirection: 'row',

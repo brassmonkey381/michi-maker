@@ -40,3 +40,31 @@ export const studioButton = StyleSheet.create({
   base: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: Radius.control, backgroundColor: Palette.chrome },
   text: { color: Palette.white, fontWeight: Weight.bold, fontSize: FontSize.label },
 });
+
+/**
+ * The ONE sheet/dialog scaffold, in two families — adopt these instead of redeclaring:
+ * `dialog*` = a centred card over a scrim (Share / Print / Likers / AutoFill / Settings).
+ * `bottom*` = a slide-up sheet with a grab handle (CardPicker / AddToBinder).
+ * Values match the previously-duplicated literals exactly, so adoption is pixel-identical.
+ */
+export const sheet = StyleSheet.create({
+  dialogBackdrop: {
+    flex: 1,
+    backgroundColor: Palette.scrim45,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  dialogCard: { borderRadius: 16, padding: 24, gap: 16 },
+  bottomBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: Palette.scrim40 },
+  bottomSheet: {
+    backgroundColor: Palette.surface,
+    borderTopLeftRadius: Radius.sheet,
+    borderTopRightRadius: Radius.sheet,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 24,
+    maxHeight: '85%',
+  },
+  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: Radius.xs, backgroundColor: Palette.handle, marginBottom: 8 },
+});

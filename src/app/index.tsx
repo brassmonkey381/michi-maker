@@ -208,6 +208,15 @@ export default function BindersScreen() {
             </View>
           </View>
 
+          <Pressable
+            onPress={() => router.push('/michi-method')}
+            hitSlop={6}
+            style={({ pressed }) => [styles.methodLink, pressed && styles.pressed]}>
+            <ThemedText type="small" themeColor="textSecondary">
+              ✨ New here? What’s the Michi Method?
+            </ThemedText>
+          </Pressable>
+
           <GuestBanner />
 
           {/* Catalog-free sealed carousel: renders for everyone (guests included). */}
@@ -421,6 +430,7 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   h1: { fontSize: FontSize.display, lineHeight: 40 },
+  methodLink: { alignSelf: 'flex-start', marginTop: -Spacing.two, marginBottom: Spacing.three },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   newBtn: {
     backgroundColor: Palette.accent,

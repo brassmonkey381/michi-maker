@@ -46,52 +46,43 @@ const GALLERY_IDS = [
 
 const VALUE_PROPS = [
   {
-    icon: '🎴',
     title: 'Composition, not cataloging',
-    body: 'Most binder apps sort your cards. michi-maker composes them — anchor pages, color spreads, rarity ladders, artist galleries. Every pocket placed on purpose.',
+    body: 'Most binder apps sort your cards. michi-maker composes them: anchor pages, color spreads, rarity ladders, artist galleries. Every pocket placed on purpose.',
   },
   {
-    icon: '📐',
     title: 'Real binder physics',
-    body: 'Pages come in real side-load sizes (3×3, 3×4, 4×4). Jumbo cards span four pockets, V-UNIONs assemble from their pieces, folded art crosses the fold — exactly like the binder on your shelf.',
+    body: 'Pages come in real side-load sizes (3×3, 3×4, 4×4). Jumbo cards span four pockets, V-UNIONs assemble from their pieces, and folded art crosses the fold, exactly like the binder on your shelf.',
   },
   {
-    icon: '🖨️',
     title: 'From screen to shelf',
-    body: 'Print cut-ready fill sheets at TRUE card size — 2.5″ × 3.5″ at pocket pitch — so the page you composed drops straight into real pockets. Most tools print undersized; we don’t.',
+    body: 'Print cut-ready fill sheets at true card size, 2.5″ × 3.5″ at pocket pitch, so the page you composed drops straight into real pockets. Most tools print undersized; we don’t.',
   },
 ] as const;
 
 const FEATURES = [
   {
-    icon: '✨',
     title: 'Composer',
-    body: 'Seed a pocket with one card and auto-curate the page around it — seven michi methods, from evolution lines and species pages to color runs.',
+    body: 'Seed a pocket with one card and auto-curate the page around it. Seven michi methods, from evolution lines and species pages to color runs.',
   },
   {
-    icon: '🔪',
     title: 'Slice Studio',
     body: 'Slice any artwork across pockets with aspect-true windows, rotation and flips. Merge pieces into folded pairs that span the fold of a real page.',
   },
   {
-    icon: '📖',
     title: 'Build-a-binder',
     body: 'Turn a pile of cards into story-first pages in one pass: chase boards, evolution lines, artist pages, set completions, type clusters.',
   },
   {
-    icon: '🗂️',
     title: 'My Collection',
-    body: 'Scans from the tcgscan app and CSV imports land here live. Fill binders from what you own — green for owned, gray for still hunting.',
+    body: 'Scans from the tcgscan app and CSV imports land here live. Fill binders from what you own: green for owned, gray for still hunting.',
   },
   {
-    icon: '🖨️',
     title: 'True-size printing',
     body: 'Fill sheets ship with placeholders, your real sliced art, and inserts. Gap compensation keeps mounted pictures reading continuous across pockets.',
   },
   {
-    icon: '🌍',
     title: 'Share your pages',
-    body: 'Publish binders at a permanent @username, collect likes, and climb the rolling featured leaderboard. Anyone can flip through — no account needed.',
+    body: 'Publish binders at a permanent @username, collect likes, and climb the rolling featured leaderboard. Anyone can flip through, no account needed.',
   },
 ] as const;
 
@@ -127,10 +118,10 @@ export default function WelcomeScreen() {
     <ThemedView style={styles.root}>
       {Platform.OS === 'web' ? (
         <Head>
-          <title>michi-maker — build beautiful Pokémon card binders</title>
+          <title>michi-maker: build beautiful Pokémon card binders</title>
           <meta
             name="description"
-            content="Compose curated Pokémon card binder pages — rarity ladders, color spreads, artist galleries — then print true-size fill sheets and build the real thing. Free while in beta."
+            content="Compose curated Pokémon card binder pages: rarity ladders, color spreads, artist galleries. Print true-size fill sheets and build the real thing. Free while in beta."
           />
         </Head>
       ) : null}
@@ -158,14 +149,14 @@ export default function WelcomeScreen() {
                 </ThemedText>
                 <ThemedText themeColor="textSecondary" style={styles.heroSub}>
                   michi-maker is a studio for curated Pokémon card binders. Compose anchor
-                  pages, rarity ladders, color spreads and artist galleries — then print
+                  pages, rarity ladders, color spreads and artist galleries, then print
                   true-size fill sheets and build the real thing.
                 </ThemedText>
                 <View style={styles.ctaRow}>
                   <Pressable
                     onPress={enterApp}
                     style={({ pressed }) => [styles.ctaPrimary, pressed && styles.pressed]}>
-                    <ThemedText style={styles.ctaPrimaryText}>Start building — free</ThemedText>
+                    <ThemedText style={styles.ctaPrimaryText}>Start building for free</ThemedText>
                   </Pressable>
                   <Pressable
                     onPress={scrollToGallery}
@@ -184,7 +175,7 @@ export default function WelcomeScreen() {
                     <BinderGrid page={heroBinder.pages[0]} width={heroW} />
                   </View>
                   <ThemedText type="small" themeColor="textSecondary" style={styles.heroCaption}>
-                    “{heroBinder.title}” — a real page, rendered live. Not a screenshot.
+                    “{heroBinder.title}”, a real page rendered live. Not a screenshot.
                   </ThemedText>
                 </View>
               ) : null}
@@ -197,7 +188,6 @@ export default function WelcomeScreen() {
                   key={prop.title}
                   type="backgroundElement"
                   style={[styles.valueCard, wide && styles.cardThird]}>
-                  <ThemedText style={styles.cardIcon}>{prop.icon}</ThemedText>
                   <ThemedText style={styles.cardTitle}>{prop.title}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary" style={styles.cardBody}>
                     {prop.body}
@@ -215,7 +205,6 @@ export default function WelcomeScreen() {
               <View style={styles.cardRow}>
                 {FEATURES.map((f) => (
                   <View key={f.title} style={[styles.featureCard, wide && styles.cardThird]}>
-                    <ThemedText style={styles.cardIcon}>{f.icon}</ThemedText>
                     <ThemedText style={styles.cardTitle}>{f.title}</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.cardBody}>
                       {f.body}
@@ -241,7 +230,7 @@ export default function WelcomeScreen() {
                 <ThemedText style={styles.cardTitle}>The physical payoff</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.cardBody}>
                   Export any binder as cut-ready fill sheets: placeholders for the hunt, your
-                  real sliced art, inserts — with folded two-wide pieces whose art crosses the
+                  real sliced art, inserts, and folded two-wide pieces whose art crosses the
                   fold. Print, cut, slide into pockets. The page on your shelf matches the page
                   on your screen.
                 </ThemedText>
@@ -278,14 +267,14 @@ export default function WelcomeScreen() {
               <Pressable
                 onPress={enterApp}
                 style={({ pressed }) => [styles.ctaPrimary, styles.ctaClosing, pressed && styles.pressed]}>
-                <ThemedText style={styles.ctaPrimaryText}>Start building — free</ThemedText>
+                <ThemedText style={styles.ctaPrimaryText}>Start building for free</ThemedText>
               </Pressable>
             </View>
 
             {/* ── Footer ──────────────────────────────────────────────── */}
             <View style={styles.footer}>
               <ThemedText type="small" themeColor="textSecondary" style={styles.footerText}>
-                michi-maker — made with a love for the craft.
+                michi-maker, made with a love for the craft.
               </ThemedText>
               <ThemedText type="small" themeColor="textSecondary" style={styles.footerText}>
                 Card images belong to their respective owners. michi-maker is a fan-made tool
@@ -392,7 +381,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Palette.hairline,
   },
-  cardIcon: { fontSize: FontSize.nav, lineHeight: 32 },
   cardTitle: { fontSize: FontSize.lg, fontWeight: Weight.bold, lineHeight: 24 },
   cardBody: { lineHeight: 21 },
 

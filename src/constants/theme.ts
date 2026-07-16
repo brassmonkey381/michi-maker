@@ -59,6 +59,11 @@ export const Spacing = {
 } as const;
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
+/**
+ * Responsive breakpoints (px). `rail` gates the wide-web left nav rail (matches the editor and
+ * spread's existing 900 threshold); `hero` is the landing page's open-spread width.
+ */
+export const Breakpoints = { rail: 900, hero: 1180 } as const;
 /** Readable column for prose and forms (descriptions, empty states, auth). Text wider than
  *  this gets hard to read, so it stays capped even inside a wide shell. */
 export const MaxContentWidth = 800;

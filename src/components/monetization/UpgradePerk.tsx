@@ -3,12 +3,11 @@
  * limit or paid feature blocks a signed-in (free/guest) user. Same rule as sign-in gating:
  * ALWAYS an inline, honest note, never a silent no-op or dead spinner.
  *
- * Checkout isn't wired yet (provider undecided — see docs/PAYMENTS.md), so the "Upgrade" button
- * can't take money; pressing it reveals an honest "plans are coming soon" line rather than a
- * dead-end purchase flow. When checkout lands, swap the toggle for a launch into hosted checkout
- * (carry the Supabase user id) — the surrounding gate logic doesn't change.
+ * The button navigates to /pricing, which owns the plan story (and, while checkout is closed,
+ * the honest "plans are coming soon" line). When checkout lands, /pricing's CTAs launch it —
+ * this component doesn't change.
  */
-import { useState } from 'react';
+import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -22,7 +21,7 @@ export function UpgradePerk({
   message: string;
   cta?: string;
 }) {
-  const [revealed, setRevealed] = useState(false);
+  const router = useRouter();
   return (
     <View style={styles.wrap}>
       <View style={styles.note}>
@@ -30,7 +29,7 @@ export function UpgradePerk({
           {message}
         </ThemedText>
         <Pressable
-          onPress={() => setRevealed(true)}
+          onPress={() => router.push('/pricing')}
           hitSlop={6}
           style={({ pressed }) => [styles.btn, pressed && styles.pressed]}>
           <ThemedText type="smallBold" style={styles.btnText}>
@@ -38,11 +37,6 @@ export function UpgradePerk({
           </ThemedText>
         </Pressable>
       </View>
-      {revealed ? (
-        <ThemedText type="small" themeColor="textSecondary" style={styles.soon}>
-          Paid plans aren’t open quite yet. Check back soon.
-        </ThemedText>
-      ) : null}
     </View>
   );
 }
@@ -69,5 +63,4 @@ const styles = StyleSheet.create({
   },
   btnText: { color: Palette.accentText, fontSize: FontSize.label },
   pressed: { opacity: 0.7 },
-  soon: { paddingHorizontal: Spacing.three, lineHeight: 18 },
 });

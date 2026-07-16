@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BinderGrid } from '@/components/binder/BinderGrid';
 import { BinderThumb } from '@/components/binder/BinderThumb';
 import { LogoMark } from '@/components/brand/LogoMark';
+import { FooterLinks } from '@/components/layout/SiteFooter';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import {
@@ -354,6 +355,7 @@ export default function WelcomeScreen() {
 
             {/* ── Footer ──────────────────────────────────────────────── */}
             <View style={styles.footer}>
+              <FooterLinks />
               <ThemedText type="small" themeColor="textSecondary" style={styles.footerText}>
                 michi-maker, made with a love for the craft.
               </ThemedText>

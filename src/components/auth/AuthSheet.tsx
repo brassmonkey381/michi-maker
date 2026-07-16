@@ -11,6 +11,7 @@
  * All Supabase calls go through the auth store (src/store/auth.tsx); this file is only UI.
  */
 
+import { useRouter, type Href } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -356,6 +357,7 @@ function AuthForm({ onClose, isGuest }: { onClose: () => void; isGuest: boolean 
 
 function ProfileView({ onClose }: { onClose: () => void }) {
   const auth = useAuth();
+  const router = useRouter();
 
   const email = auth.user?.email ?? '';
   const username = auth.profile?.username ?? null;
@@ -395,6 +397,20 @@ function ProfileView({ onClose }: { onClose: () => void }) {
           </ThemedText>
           <ThemedText type="smallBold">@{username}</ThemedText>
         </View>
+      ) : null}
+
+      {username && auth.user ? (
+        <Pressable
+          onPress={() => {
+            onClose();
+            router.push(`/u/${auth.user!.id}` as Href);
+          }}
+          style={({ pressed }) => [styles.profileLink, pressed && styles.pressed]}>
+          <ThemedText type="small">View public profile</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            ›
+          </ThemedText>
+        </Pressable>
       ) : null}
 
       <Pressable
@@ -534,6 +550,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   pressed: { opacity: 0.7 },
+  profileLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.two,
+    borderBottomWidth: 1,
+    borderBottomColor: Palette.hairline,
+  },
   error: { color: Palette.danger, lineHeight: 20 },
   info: { color: Palette.success, lineHeight: 20 },
   flex: { flex: 1 },

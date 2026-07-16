@@ -23,9 +23,8 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
 import { sheet } from '@/constants/ui';
-import { domainOf, type ArtAspect } from '@/data/artworkLibrary';
+import { domainOf } from '@/data/artworkLibrary';
 import { uid, uuidv4, type ImageTransform } from '@/data/binderTypes';
-import { addSavedArt } from '@/data/savedArt';
 import type { SavedSlice } from '@/data/savedSlices';
 import { useCatalog } from '@/hooks/use-catalog';
 import { cardThumbUrl } from '@/lib/catalogConfig';
@@ -107,11 +106,11 @@ const GUIDE: { keys: string; action: string }[] = [
   { keys: 'Flip ↔ / ↕', action: 'Mirror the image' },
   { keys: 'Click a piece', action: 'Select it' },
   { keys: 'Shift / Ctrl-click', action: 'Add to selection (web)' },
-  { keys: 'M  ·  Merge', action: 'Join a sideways pair (inside-edge pockets only)' },
+  { keys: 'M  ·  Merge', action: 'Join two side-by-side pieces into a folded 1×2' },
   { keys: 'B  ·  Split', action: 'Break a panel into pieces' },
+  { keys: 'Del  ·  Remove', action: 'Drop selected pieces (they won’t go to the tray)' },
   { keys: 'Esc', action: 'Clear selection' },
   { keys: 'Whole / Sliced', action: 'Preview the frame whole, or cut into pieces' },
-  { keys: 'Save', action: 'Add image to your library (this session)' },
   { keys: 'Save slices', action: 'Send the pieces to your slice tray' },
 ];
 
@@ -201,20 +200,12 @@ interface SliceStudioProps {
   rows: number;
   cols: number;
   imageUrl?: string;
-  /**
-   * Region-relative column indices where a merged 1×2 piece is physically insertable — the
-   * destination page's inside-edge pocket pairs (binderPhysics) shifted by the placement's
-   * base column. Merge is limited to exactly these: side-load pockets can't take vertical or
-   * 3+-wide pieces, and a folded pair only slides into pockets opening along the same inside
-   * edge. Omitted/empty ⇒ merging is unavailable.
-   */
-  pairStarts?: number[];
   /** Save the studio's pieces to the slice tray (instead of placing them straight into the binder). */
   onSaveSlices: (slices: SavedSlice[]) => void;
   onClose: () => void;
 }
 
-export function SliceStudio({ rows, cols, imageUrl: initUrl, pairStarts, onSaveSlices, onClose }: SliceStudioProps) {
+export function SliceStudio({ rows, cols, imageUrl: initUrl, onSaveSlices, onClose }: SliceStudioProps) {
   const { width, height } = useWindowDimensions();
 
   // The grid is fixed to the binder's page size (passed in); slicing across the page is the point,
@@ -229,7 +220,6 @@ export function SliceStudio({ rows, cols, imageUrl: initUrl, pairStarts, onSaveS
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sliced, setSliced] = useState(true);
   const [failed, setFailed] = useState(false);
-  const [savedNote, setSavedNote] = useState(false);
   // The source image's natural pixel size (via Image.getSize) — the key to true-aspect windows
   // (no accidental stretching) and to rotation. Null until it resolves; everything falls back.
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
@@ -449,13 +439,14 @@ export function SliceStudio({ rows, cols, imageUrl: initUrl, pairStarts, onSaveS
         (p) => p.r < maxR && p.r + p.rs > minR && p.c < maxC && p.c + p.cs > minC,
       );
       if (selCells !== bboxCells || overlaps) return ps; // selection isn't a clean rectangle
-      // SIDE-LOAD physics: a merged piece must be a folded 1×2 sitting on an inside-edge
-      // pocket pair — anything else can't be inserted (and would be re-split at place time).
-      if (maxR - minR !== 1 || maxC - minC !== 2 || !(pairStarts ?? []).includes(minC)) return ps;
+      // SIDE-LOAD physics caps a printable piece at a folded 1×2 — but WHERE that pair sits is
+      // a placement concern, not a studio one: any two side-by-side singles may merge here, and
+      // the pocket-pair rule is enforced when the slice is dropped onto a page.
+      if (maxR - minR !== 1 || maxC - minC !== 2) return ps;
       return [...others, { id: uid('panel'), r: minR, c: minC, rs: maxR - minR, cs: maxC - minC }];
     });
     setSelected(new Set());
-  }, [selected, pairStarts]);
+  }, [selected]);
 
   // Would merging the current selection produce a physically insertable piece? Drives the
   // Merge button state + the hint line, mirroring the guard inside merge().
@@ -469,8 +460,8 @@ export function SliceStudio({ rows, cols, imageUrl: initUrl, pairStarts, onSaveS
     const maxC = Math.max(...chosen.map((p) => p.c + p.cs));
     const selCells = chosen.reduce((n, p) => n + p.rs * p.cs, 0);
     if (selCells !== (maxR - minR) * (maxC - minC)) return false;
-    return maxR - minR === 1 && maxC - minC === 2 && (pairStarts ?? []).includes(minC);
-  }, [selected, panels, pairStarts]);
+    return maxR - minR === 1 && maxC - minC === 2;
+  }, [selected, panels]);
 
   // Split only means something when a selected panel is actually merged (spans >1 cell) — drives
   // whether the contextual Split action shows.
@@ -493,6 +484,13 @@ export function SliceStudio({ rows, cols, imageUrl: initUrl, pairStarts, onSaveS
       }
       return out;
     });
+    setSelected(new Set());
+  }, [selected]);
+
+  // Drop the selected pieces entirely — not every cut is tray-worthy (sky corners, empty
+  // margins), so "Save slices" only sends what's still on the canvas. Reset restores the grid.
+  const removePanels = useCallback(() => {
+    setPanels((ps) => ps.filter((p) => !selected.has(p.id)));
     setSelected(new Set());
   }, [selected]);
 
@@ -525,27 +523,11 @@ export function SliceStudio({ rows, cols, imageUrl: initUrl, pairStarts, onSaveS
     loadImage(u);
   }, [urlInput, loadImage]);
 
-  const save = useCallback(() => {
-    if (!imageUrl) return;
-    const aspect: ArtAspect = cols > rows ? 'landscape' : rows > cols ? 'portrait' : 'square';
-    addSavedArt({
-      id: `saved-${uid('art')}`,
-      url: imageUrl,
-      title: `${domainOf(imageUrl)} art`,
-      themes: ['saved'],
-      aspect,
-      sourceDomain: domainOf(imageUrl),
-      license: 'Unverified (review)',
-      licenseClear: false,
-    });
-    setSavedNote(true);
-  }, [imageUrl, rows, cols]);
-
   // Save the studio's pieces to the tray. Each grid piece (1×1, or a merged folded 1×2) becomes a
   // SavedSlice carrying its window of the image — the source is never re-encoded. Where each slice
   // legally fits is decided later, when it's dragged/tapped into a pocket.
   const saveSlices = useCallback(() => {
-    if (!imageUrl) return;
+    if (!imageUrl || !panels.length) return;
     const transform: ImageTransform | undefined =
       rot !== 0 || flipH || flipV
         ? { rot, ...(flipH ? { flipH: true } : {}), ...(flipV ? { flipV: true } : {}) }
@@ -583,6 +565,7 @@ export function SliceStudio({ rows, cols, imageUrl: initUrl, pairStarts, onSaveS
       if (k === 'm') merge();
       else if (k === 'b') split();
       else if (k === 'r') rotate(1);
+      else if (e.key === 'Delete' || e.key === 'Backspace') removePanels();
       else if (e.key === 'Escape') {
         // Esc clears the selection — and must NOT also close the studio (the RN Modal listens
         // for Escape too and would discard the whole framing session). Remember that this
@@ -600,7 +583,7 @@ export function SliceStudio({ rows, cols, imageUrl: initUrl, pairStarts, onSaveS
       window.removeEventListener('keydown', down);
       window.removeEventListener('keyup', sync);
     };
-  }, [merge, split, rotate, zoomBy]);
+  }, [merge, split, rotate, zoomBy, removePanels]);
 
   // When Escape just cleared a selection, the Modal's own Escape handling must not ALSO close
   // the studio (that would throw away the whole framing session). See the keydown handler.
@@ -673,9 +656,11 @@ export function SliceStudio({ rows, cols, imageUrl: initUrl, pairStarts, onSaveS
               style={styles.helpBtn}>
               <Text style={styles.helpBtnText}>?</Text>
             </Pressable>
-            <Pressable onPress={saveSlices} hitSlop={10} disabled={!hasImage}>
-              <View style={[styles.placeBtn, !hasImage && styles.disabled]}>
-                <Text style={styles.placeBtnText}>Save slices</Text>
+            <Pressable onPress={saveSlices} hitSlop={10} disabled={!hasImage || !panels.length}>
+              <View style={[styles.placeBtn, (!hasImage || !panels.length) && styles.disabled]}>
+                <Text style={styles.placeBtnText}>
+                  Save slices{hasImage && panels.length ? ` (${panels.length})` : ''}
+                </Text>
               </View>
             </Pressable>
           </View>
@@ -735,7 +720,6 @@ export function SliceStudio({ rows, cols, imageUrl: initUrl, pairStarts, onSaveS
               <View style={styles.grow} />
 
               <Ghost label="Reset" onPress={reset} />
-              <Ghost label={savedNote ? 'Saved ✓' : 'Save'} onPress={save} />
             </View>
           ) : null}
 
@@ -811,18 +795,19 @@ export function SliceStudio({ rows, cols, imageUrl: initUrl, pairStarts, onSaveS
               <View style={[styles.selBar, mergeLegal && styles.selBarLegal]}>
                 {mergeLegal ? (
                   <Text style={styles.selText}>
-                    A sideways pair on an inside-edge opening. Fold down the middle to join it.
+                    A sideways pair. Fold down the middle to join it into one 1×2 piece.
                   </Text>
                 ) : selCount >= 2 ? (
                   <Text style={styles.selWarn}>
-                    Merged pieces must be a sideways PAIR on an inside-edge opening. Fold down the
-                    middle, slide into both pockets.
+                    Merging needs exactly two side-by-side pieces in the same row (a folded 1×2
+                    is the widest a pocket pair can take).
                   </Text>
                 ) : (
                   <Text style={styles.selText}>1 piece selected.</Text>
                 )}
                 {mergeLegal ? <Btn label="⤶ Fold & merge" onPress={merge} kind="primary" /> : null}
                 {canSplit ? <Btn label="Split apart" onPress={split} /> : null}
+                <Btn label="Remove" onPress={removePanels} />
                 <Ghost label="Clear" onPress={() => setSelected(new Set())} />
               </View>
             ) : hasImage ? (

@@ -4,9 +4,12 @@
  * `constants/variants.ts`). Selecting a theme persists it and re-applies (a
  * reload on web, where the token styles are resolved at load).
  */
+import Constants from 'expo-constants';
+import { useRouter, type Href } from 'expo-router';
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
+import { PlanUsageSection } from '@/components/monetization/TierUsage';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
@@ -40,6 +43,12 @@ export function SettingsButton() {
 
 function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const theme = useTheme();
+  const router = useRouter();
+  // Close the sheet first so the modal never sits over the pushed route.
+  const go = (href: Href) => {
+    onClose();
+    router.push(href);
+  };
   const current = activeVariantId();
   const { user, profile, updateProfile } = useAuth();
   // Optimistic mirror of the profile's public flag so the switch responds instantly.
@@ -57,7 +66,8 @@ function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => 
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={sheet.dialogBackdrop} onPress={onClose}>
         <Pressable onPress={(e) => e.stopPropagation()} style={styles.cardWrap}>
-          <ThemedView type="backgroundElement" style={[sheet.dialogCard, styles.cardGap]}>
+          <ThemedView type="backgroundElement" style={[sheet.dialogCard, styles.cardGap, styles.cardMax]}>
+            <ScrollView contentContainerStyle={styles.scrollBody} showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
               <ThemedText type="subtitle" style={styles.title}>
                 Settings
@@ -115,6 +125,11 @@ function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => 
               })}
             </View>
 
+            <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
+              PLAN
+            </ThemedText>
+            <PlanUsageSection onManagePlan={() => go('/pricing' as Href)} />
+
             {user ? (
               <>
                 <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
@@ -135,8 +150,40 @@ function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => 
                     trackColor={{ true: Palette.accent, false: theme.backgroundSelected }}
                   />
                 </View>
+
               </>
             ) : null}
+
+            <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
+              ABOUT
+            </ThemedText>
+            <View style={styles.aboutList}>
+              {(
+                [
+                  { label: 'The Michi Method', href: '/michi-method' },
+                  { label: 'How-to guides', href: '/learn' },
+                  { label: 'Pricing', href: '/pricing' },
+                  { label: 'Terms of Service', href: '/legal/terms' },
+                  { label: 'Privacy Policy', href: '/legal/privacy' },
+                ] as { label: string; href: Href }[]
+              ).map((l) => (
+                <Pressable
+                  key={l.label}
+                  onPress={() => go(l.href)}
+                  style={({ pressed }) => [styles.aboutRow, pressed && styles.pressed]}>
+                  <ThemedText type="small">{l.label}</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    ›
+                  </ThemedText>
+                </Pressable>
+              ))}
+              {Constants.expoConfig?.version ? (
+                <ThemedText type="small" themeColor="textSecondary" style={styles.version}>
+                  michi-maker v{Constants.expoConfig.version}
+                </ThemedText>
+              ) : null}
+            </View>
+            </ScrollView>
           </ThemedView>
         </Pressable>
       </Pressable>
@@ -163,6 +210,18 @@ const styles = StyleSheet.create({
 
   cardWrap: { width: '100%', maxWidth: 380 },
   cardGap: { gap: Spacing.two },
+  cardMax: { maxHeight: '88%' },
+  scrollBody: { gap: Spacing.two },
+  aboutList: { marginTop: Spacing.one },
+  aboutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.two,
+    borderBottomWidth: 1,
+    borderBottomColor: Palette.hairline,
+  },
+  version: { fontSize: FontSize.xs, marginTop: Spacing.two },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: FontSize.h2, lineHeight: 26 },
   sectionLabel: { textTransform: 'uppercase', letterSpacing: 0.5, marginTop: Spacing.two },

@@ -39,7 +39,7 @@ import {
   type DemoSlot,
 } from '@/data/binderTypes';
 import { fetchLikeCount } from '@/data/binderRepo';
-import { artPieceAllowed, insideEdgePairStarts, pageSide, REAL_PAGE_SIZES } from '@/data/binderPhysics';
+import { artPieceAllowed, pageSide, REAL_PAGE_SIZES } from '@/data/binderPhysics';
 import type { CaptionFieldKey } from '@/data/cardCaption';
 import type { ComposePlacement } from '@/data/pageComposer';
 import { isSupabaseConfigured } from '@/lib/env';
@@ -295,7 +295,11 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     if (result) {
       setSelectedSlotId(null);
       setPageIndex(result.pageIndex);
-      showToast('Page duplicated');
+      showToast(
+        result.spacerInserted
+          ? 'Page duplicated. A blank page was added so folded art stays on its pocket pairs.'
+          : 'Page duplicated',
+      );
     }
   };
 
@@ -1049,12 +1053,11 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
 
         {studio && (
           <SliceStudio
-            // The studio slices the WHOLE page now, so its grid is the binder's page size and its
-            // merge frame starts at column 0 — the page's inside-edge pocket pairs directly.
+            // The studio slices the WHOLE page, so its grid is the binder's page size. Merging is
+            // position-free in the studio; pocket-pair physics applies when a slice is placed.
             rows={page.rows}
             cols={page.cols}
             imageUrl={studio.imageUrl}
-            pairStarts={insideEdgePairStarts(page.cols, pageSide(pageIndex))}
             onSaveSlices={(slices) => {
               addSavedSlices(slices);
               setStudio(null);

@@ -25,13 +25,12 @@ import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
 import { domainOf, type ArtAspect } from '@/data/artworkLibrary';
 import { uid, type ImageTransform } from '@/data/binderTypes';
 import { addSavedArt } from '@/data/savedArt';
+import type { SavedSlice } from '@/data/savedSlices';
 import { useCatalog } from '@/hooks/use-catalog';
 import { cardThumbUrl } from '@/lib/catalogConfig';
-import type { ArtPanelInput } from '@/store/binders';
 
 const CARD_ASPECT = 88 / 63;
 const GAP = 6;
-const MAX_GRID = 6;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 type Rot = ImageTransform['rot'];
@@ -99,15 +98,6 @@ interface Win {
   w: number;
   h: number;
 }
-
-const GRID_SIZES = [
-  { label: '1×1', rows: 1, cols: 1 },
-  { label: '2×2', rows: 2, cols: 2 },
-  { label: '3×3', rows: 3, cols: 3 },
-  { label: '3×4', rows: 3, cols: 4 },
-  { label: '4×3', rows: 4, cols: 3 },
-  { label: '4×4', rows: 4, cols: 4 },
-];
 
 const GUIDE: { keys: string; action: string }[] = [
   { keys: 'Drag canvas', action: 'Pan / reframe the image' },
@@ -219,22 +209,23 @@ interface SliceStudioProps {
    * edge. Omitted/empty ⇒ merging is unavailable.
    */
   pairStarts?: number[];
-  onPlace: (panels: ArtPanelInput[]) => void;
+  /** Save the studio's pieces to the slice tray (instead of placing them straight into the binder). */
+  onSaveSlices: (slices: SavedSlice[]) => void;
   onClose: () => void;
 }
 
-export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl, pairStarts, onPlace, onClose }: SliceStudioProps) {
+export function SliceStudio({ rows, cols, imageUrl: initUrl, pairStarts, onSaveSlices, onClose }: SliceStudioProps) {
   const { width, height } = useWindowDimensions();
 
-  const [rows, setRows] = useState(initRows);
-  const [cols, setCols] = useState(initCols);
+  // The grid is fixed to the binder's page size (passed in); slicing across the page is the point,
+  // so the studio no longer re-chooses a grid.
   const [imageUrl, setImageUrl] = useState(initUrl ?? '');
   const [urlInput, setUrlInput] = useState('');
   const [win, setWin] = useState<Win>({ x: 0, y: 0, w: 1, h: 1 });
   // How the art fills its pocket(s): 'cover' fills edge-to-edge (crop overflow, pan/zoom to frame),
   // 'contain' shows the whole image at its original aspect (letterboxed, nothing cropped).
   const [fit, setFit] = useState<'cover' | 'contain'>('cover');
-  const [panels, setPanels] = useState<Panel[]>(() => makeGrid(initRows, initCols));
+  const [panels, setPanels] = useState<Panel[]>(() => makeGrid(rows, cols));
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sliced, setSliced] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -505,15 +496,6 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
     setSelected(new Set());
   }, [selected]);
 
-  const setGrid = useCallback((r: number, c: number) => {
-    const nr = clamp(r, 1, MAX_GRID);
-    const nc = clamp(c, 1, MAX_GRID);
-    setRows(nr);
-    setCols(nc);
-    setPanels(makeGrid(nr, nc));
-    setSelected(new Set());
-  }, []);
-
   const reset = useCallback(() => {
     setPanels(makeGrid(rows, cols));
     setSelected(new Set());
@@ -559,44 +541,30 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
     setSavedNote(true);
   }, [imageUrl, rows, cols]);
 
-  const place = useCallback(() => {
+  // Save the studio's pieces to the tray. Each grid piece (1×1, or a merged folded 1×2) becomes a
+  // SavedSlice carrying its window of the image — the source is never re-encoded. Where each slice
+  // legally fits is decided later, when it's dragged/tapped into a pocket.
+  const saveSlices = useCallback(() => {
     if (!imageUrl) return;
     const transform: ImageTransform | undefined =
       rot !== 0 || flipH || flipV
         ? { rot, ...(flipH ? { flipH: true } : {}), ...(flipV ? { flipV: true } : {}) }
         : undefined;
-    // WYSIWYG: the Whole view places ONE panel spanning the grid footprint showing the current
-    // frame; the Sliced view places one slot per piece. 'Original aspect' letterboxing is baked
-    // into the window — unless the natural size never resolved, where the legacy runtime-contain
-    // single panel is still the correct fallback.
-    if (!sliced) {
-      const legacyContain = fit === 'contain' && !ratio;
-      onPlace([
-        {
-          r: 0,
-          c: 0,
-          rs: rows,
-          cs: cols,
-          imageUrl,
-          crop: legacyContain ? { x: 0, y: 0, w: 1, h: 1 } : win,
-          fit: legacyContain ? 'contain' : 'cover',
-          transform,
-        },
-      ]);
-      return;
-    }
-    const out: ArtPanelInput[] = panels.map((p) => ({
-      r: p.r,
-      c: p.c,
-      rs: p.rs,
-      cs: p.cs,
+    const groupId = uid('slicegrp');
+    const label = domainOf(imageUrl);
+    const slices: SavedSlice[] = panels.map((p) => ({
+      id: `slice-${uid('slice')}`,
       imageUrl,
       crop: panelCrop(p, rows, cols, win),
       fit: 'cover',
       transform,
+      rs: p.rs,
+      cs: p.cs,
+      groupId,
+      label,
     }));
-    onPlace(out);
-  }, [imageUrl, rot, flipH, flipV, sliced, fit, ratio, panels, rows, cols, win, onPlace]);
+    onSaveSlices(slices);
+  }, [imageUrl, rot, flipH, flipV, panels, rows, cols, win, onSaveSlices]);
 
   // Web: keyboard shortcuts + tracking Shift/Ctrl for multi-select.
   useEffect(() => {
@@ -703,9 +671,9 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
               style={styles.helpBtn}>
               <Text style={styles.helpBtnText}>?</Text>
             </Pressable>
-            <Pressable onPress={place} hitSlop={10} disabled={!hasImage}>
+            <Pressable onPress={saveSlices} hitSlop={10} disabled={!hasImage}>
               <View style={[styles.placeBtn, !hasImage && styles.disabled]}>
-                <Text style={styles.placeBtnText}>Place</Text>
+                <Text style={styles.placeBtnText}>Save slices</Text>
               </View>
             </Pressable>
           </View>
@@ -735,37 +703,6 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
               quiet. Grouped, hairline-separated clusters replace the old five stacked toolbars. */}
           {hasImage ? (
             <View style={styles.controlBar}>
-              <View style={styles.group}>
-                <View style={styles.segGroup}>
-                  {GRID_SIZES.map((g) => (
-                    <Seg
-                      key={g.label}
-                      label={g.label}
-                      active={rows === g.rows && cols === g.cols}
-                      onPress={() => setGrid(g.rows, g.cols)}
-                    />
-                  ))}
-                </View>
-                <Stepper
-                  label="R"
-                  value={rows}
-                  onDec={() => setGrid(rows - 1, cols)}
-                  onInc={() => setGrid(rows + 1, cols)}
-                  min={rows <= 1}
-                  max={rows >= MAX_GRID}
-                />
-                <Stepper
-                  label="C"
-                  value={cols}
-                  onDec={() => setGrid(rows, cols - 1)}
-                  onInc={() => setGrid(rows, cols + 1)}
-                  min={cols <= 1}
-                  max={cols >= MAX_GRID}
-                />
-              </View>
-
-              <View style={styles.divider} />
-
               <View style={styles.group}>
                 <View style={styles.segGroup}>
                   <Seg label="Scale to fit" active={fit === 'cover'} onPress={() => setFit('cover')} />
@@ -1058,32 +995,6 @@ function IconBtn({
   );
 }
 
-/** Rows / Cols fine-tune stepper (presets cover the common grids; this reaches up to 6×6). */
-function Stepper({
-  label,
-  value,
-  onDec,
-  onInc,
-  min,
-  max,
-}: {
-  label: string;
-  value: number;
-  onDec: () => void;
-  onInc: () => void;
-  min: boolean;
-  max: boolean;
-}) {
-  return (
-    <View style={styles.stepper}>
-      <Text style={styles.stepperLabel}>{label}</Text>
-      <IconBtn label="−" onPress={onDec} disabled={min} />
-      <Text style={styles.stepperVal}>{value}</Text>
-      <IconBtn label="+" onPress={onInc} disabled={max} />
-    </View>
-  );
-}
-
 /** A quiet text-only action (Reset / Save / Clear). */
 function Ghost({ label, onPress }: { label: string; onPress: () => void }) {
   return (
@@ -1193,11 +1104,6 @@ const styles = StyleSheet.create({
   iconBtnText: { fontSize: FontSize.control, fontWeight: Weight.semibold, color: Palette.ink2 },
   iconBtnTextActive: { color: Palette.accentText },
   rotDeg: { fontSize: FontSize.sm, color: Palette.muted, marginHorizontal: 2 },
-
-  // Rows / Cols steppers
-  stepper: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  stepperLabel: { fontSize: FontSize.sm, color: Palette.muted, fontWeight: Weight.semibold },
-  stepperVal: { fontSize: FontSize.label, color: Palette.ink, fontWeight: Weight.semibold, minWidth: 12, textAlign: 'center' },
 
   // Quiet text actions
   ghostBtn: { paddingVertical: 6, paddingHorizontal: 8 },

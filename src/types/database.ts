@@ -363,6 +363,48 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_slices: {
+        Row: {
+          created_at: string
+          crop: Json | null
+          cs: number
+          fit: string
+          group_id: string | null
+          id: string
+          image_url: string
+          label: string | null
+          owner_id: string
+          rs: number
+          transform: Json | null
+        }
+        Insert: {
+          created_at?: string
+          crop?: Json | null
+          cs?: number
+          fit?: string
+          group_id?: string | null
+          id?: string
+          image_url: string
+          label?: string | null
+          owner_id?: string
+          rs?: number
+          transform?: Json | null
+        }
+        Update: {
+          created_at?: string
+          crop?: Json | null
+          cs?: number
+          fit?: string
+          group_id?: string | null
+          id?: string
+          image_url?: string
+          label?: string | null
+          owner_id?: string
+          rs?: number
+          transform?: Json | null
+        }
+        Relationships: []
+      }
       user_cards: {
         Row: {
           acquired_at: string | null

@@ -52,6 +52,8 @@ interface BinderGridProps {
   onCrossDrop?: (slotId: string, localX: number, localY: number) => void;
   /** Fired when a slot drag begins — lets the editor re-measure sibling grids for hit-testing. */
   onDragStart?: () => void;
+  /** Footprints to highlight as legal drop targets while a slice is armed/dragged from the tray. */
+  dropTargets?: readonly { row: number; col: number; rs: number; cs: number }[];
 }
 
 export interface BinderGridHandle {
@@ -92,6 +94,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
     onAutoFillSlot,
     onCrossDrop,
     onDragStart,
+    dropTargets,
   }: BinderGridProps,
   ref,
 ) {
@@ -207,6 +210,15 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
             </View>
           );
         })}
+
+        {/* Legal drop-target highlights while a tray slice is armed/dragged (above pockets). */}
+        {dropTargets?.map((t) => (
+          <View
+            key={`drop-${t.row}-${t.col}-${t.rs}-${t.cs}`}
+            pointerEvents="none"
+            style={[box(t.row, t.col, t.rs, t.cs), styles.dropTarget, { borderRadius: slotRadius }]}
+          />
+        ))}
 
         {/* Empty-cell tap targets (edit mode only; neighbours in the spread omit onCellPress). */}
         {editable && onCellPress &&
@@ -1034,6 +1046,12 @@ const styles = StyleSheet.create({
   addPlus: {
     fontSize: FontSize.title,
     color: Palette.grayBorder70,
+  },
+  dropTarget: {
+    borderWidth: 2,
+    borderColor: Palette.accent,
+    backgroundColor: Palette.selectionSoft,
+    zIndex: 2,
   },
   dimmed: {
     opacity: 0.22,

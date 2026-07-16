@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useSharedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { similarAvailable } from 'tcgscan-browse';
 
 import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
@@ -46,12 +46,37 @@ import type { ComposePlacement } from '@/data/pageComposer';
 import { isSupabaseConfigured } from '@/lib/env';
 import { footprintForKind } from '@/data/cardSizing';
 import { resolveCard } from '@/data/cardResolver';
+import { addSavedSlices, useSavedSlicesSync, type SavedSlice } from '@/data/savedSlices';
+import { SliceTray, SliceThumb } from '@/components/binder/SliceTray';
 import type { CatalogCard } from '@/lib/catalog';
 import { useBinders } from '@/store/binders';
 import { useTheme } from '@/hooks/use-theme';
 
 // Real side-load page grids only — 4 rows × 3 columns doesn't exist physically (binderPhysics).
 const PAGE_SIZES = REAL_PAGE_SIZES;
+
+/** Every free footprint on `page` where `slice` legally fits (side-load physics) — the pockets
+ *  highlighted while a tray slice is armed or dragged, and the set drops are validated against. */
+function computeDropTargets(
+  slice: SavedSlice,
+  page: DemoPage,
+  pageIndex: number,
+): { row: number; col: number; rs: number; cs: number }[] {
+  const side = pageSide(pageIndex);
+  const occupied = new Set(page.slots.flatMap((s) => slotCells(s)));
+  const out: { row: number; col: number; rs: number; cs: number }[] = [];
+  for (let r = 0; r + slice.rs <= page.rows; r += 1) {
+    for (let c = 0; c + slice.cs <= page.cols; c += 1) {
+      let free = true;
+      for (let i = 0; i < slice.rs && free; i += 1)
+        for (let j = 0; j < slice.cs && free; j += 1)
+          if (occupied.has(`${r + i},${c + j}`)) free = false;
+      if (free && artPieceAllowed(c, slice.rs, slice.cs, page.cols, side).ok)
+        out.push({ row: r, col: c, rs: slice.rs, cs: slice.cs });
+    }
+  }
+  return out;
+}
 
 interface BinderScreenProps {
   binderId: string;
@@ -63,6 +88,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const store = useBinders();
   const theme = useTheme();
   const { width } = useWindowDimensions();
+  // Keep the saved-slice tray synced to the current (guest or signed-in) user while editing.
+  useSavedSlicesSync();
   const [editing, setEditing] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
   const [pickerCell, setPickerCell] = useState<{ row: number; col: number } | null>(null);
@@ -104,6 +131,19 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // shared value (set from the drag callbacks) so lifting the column never re-renders mid-drag
   // and cancels the gesture. -1 = no drag.
   const dragCol = useSharedValue(-1);
+
+  // Saved-slice placement: a slice is either "armed" by a tap (then a pocket tap drops it) or
+  // dragged; both surface the legal drop targets. The ghost shared values track the finger during
+  // a drag so the floating preview follows without re-rendering.
+  const [armedSlice, setArmedSlice] = useState<SavedSlice | null>(null);
+  const [dragSlice, setDragSlice] = useState<SavedSlice | null>(null);
+  const ghostOn = useSharedValue(0);
+  const ghostX = useSharedValue(0);
+  const ghostY = useSharedValue(0);
+  const ghostStyle = useAnimatedStyle(() => ({
+    opacity: ghostOn.value,
+    transform: [{ translateX: ghostX.value - 34 }, { translateY: ghostY.value - 24 }],
+  }));
 
   // NOTE: we deliberately do NOT prefetch the ~27MB catalog here. Viewing/editing a binder
   // never needs it — card images resolve from the id (cardThumbUrl), and only the badge
@@ -177,6 +217,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
 
   const idx = Math.min(pageIndex, binder.pages.length - 1);
   const page = binder.pages[idx];
+  // Enough room to sit the title fields and page tools side by side (else they stack).
+  const wideEditor = width >= 900;
   // Usable content width — BinderPages owns the spread/single layout; it just needs the breakpoint.
   const available = width - 32;
   // prev/next are kept here for the cross-page drag hit-test (resolveSpreadHit below); the spread
@@ -186,6 +228,56 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const slotAtCell = pickerCell
     ? (page.slots.find((s) => s.row === pickerCell.row && s.col === pickerCell.col) ?? null)
     : null;
+
+  // The slice currently being placed (dragged wins over armed) and the pockets it may drop into.
+  const activeSlice = dragSlice ?? armedSlice;
+  const dropTargets = activeSlice ? computeDropTargets(activeSlice, page, idx) : undefined;
+
+  // Drop a saved slice into a pocket, re-checking side-load physics and occupancy (matches the
+  // highlighted targets). Placing keeps the slice in the tray, so it can fill more pockets.
+  const placeSliceAt = (slice: SavedSlice, row: number, col: number) => {
+    if (row + slice.rs > page.rows || col + slice.cs > page.cols) {
+      showToast('That slice doesn’t fit there.');
+      return;
+    }
+    const verdict = artPieceAllowed(col, slice.rs, slice.cs, page.cols, pageSide(idx));
+    if (!verdict.ok) {
+      showToast(verdict.reason ?? 'That pocket doesn’t fit this slice.');
+      return;
+    }
+    const occupied = new Set(page.slots.flatMap((s) => slotCells(s)));
+    for (let i = 0; i < slice.rs; i += 1)
+      for (let j = 0; j < slice.cs; j += 1)
+        if (occupied.has(`${row + i},${col + j}`)) {
+          showToast('That pocket is already filled.');
+          return;
+        }
+    store.placeArtPanels(binder.id, page.id, row, col, [
+      {
+        r: 0,
+        c: 0,
+        rs: slice.rs,
+        cs: slice.cs,
+        imageUrl: slice.imageUrl,
+        crop: slice.crop ?? { x: 0, y: 0, w: 1, h: 1 },
+        fit: slice.fit ?? 'cover',
+        transform: slice.transform,
+      },
+    ]);
+  };
+  const handleSliceDragStart = (slice: SavedSlice) => {
+    curRef.current?.remeasure(); // fresh grid bounds before the drop hit-test (scroll-safe)
+    setArmedSlice(null);
+    setDragSlice(slice);
+  };
+  const handleSliceDrop = (slice: SavedSlice, windowX: number, windowY: number) => {
+    setDragSlice(null);
+    const cell = curRef.current?.hitTest(windowX, windowY);
+    if (cell) placeSliceAt(slice, cell.row, cell.col);
+  };
+  // Open the studio to cut a fresh set of slices — page-sized, not tied to a pocket.
+  const openStudioForPage = () =>
+    setStudio({ rows: page.rows, cols: page.cols, row: 0, col: 0, imageUrl: undefined });
 
   // Example binders are read-only: they can't be edited in place, only duplicated into the
   // user's own binders (where the copy is fully editable).
@@ -254,6 +346,11 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     setSelectedSlotId(slot.id);
   };
   const handleAddCell = (row: number, col: number) => {
+    // A slice armed from the tray drops here instead of opening the picker (tap-to-place).
+    if (armedSlice) {
+      placeSliceAt(armedSlice, row, col);
+      return;
+    }
     setSelectedSlotId(null);
     clearMulti();
     setPickerCell({ row, col });
@@ -623,7 +720,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     }
     return (
       <BinderGrid
-        ref={role === 'current' ? curRef : undefined}
+        // The active-page grid in both the spread ('current') and the narrow single view — curRef
+        // must point to it either way so a tray slice can hit-test its drop cell.
+        ref={curRef}
         page={p}
         width={width}
         editable
@@ -638,6 +737,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         onRemoveSlot={removeSelected}
         onDeselectSlot={() => setSelectedSlotId(null)}
         onAutoFillSlot={() => setAutoFillOpen(true)}
+        dropTargets={p.id === page.id ? dropTargets : undefined}
         {...(role === 'current'
           ? {
               onCrossDrop: (slotId: string, x: number, y: number) => handleCrossDrop(p.id, slotId, x, y),
@@ -647,6 +747,107 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
       />
     );
   };
+
+  // Page-level editing tools, sat beside the title/description fields at the top so the bottom of
+  // the editor is free for the slice tray.
+  const editToolsCard = (
+    <ThemedView type="backgroundElement" style={styles.editPanel}>
+      <ThemedText type="smallBold" themeColor="textSecondary" style={styles.editPanelTitle}>
+        Editing tools
+      </ThemedText>
+
+      <View style={styles.btnRow}>
+        <PillButton label="↶ Undo" onPress={store.undo} disabled={!store.canUndo} />
+        <PillButton label="↷ Redo" onPress={store.redo} disabled={!store.canRedo} />
+        <PillButton
+          label="+ Page"
+          onPress={() =>
+            store.pageLimitReached(binder.id)
+              ? showToast(
+                  `You’ve reached the ${store.limits.pagesPerBinder}-page limit — upgrade for more.`,
+                  true,
+                )
+              : store.addPage(binder.id)
+          }
+        />
+        <PillButton label="Duplicate page" onPress={handleDuplicatePage} />
+        {binder.pages.length > 1 && (
+          <PillButton
+            label="Delete page"
+            tone="danger"
+            onPress={() =>
+              setConfirm({
+                title: 'Delete this page?',
+                message: 'The page and everything on it will be removed.',
+                confirmLabel: 'Delete page',
+                destructive: true,
+                onConfirm: () => {
+                  store.removePage(binder.id, page.id);
+                  changePage(0);
+                  showToast('Page deleted', true);
+                },
+              })
+            }
+          />
+        )}
+      </View>
+
+      <View style={styles.inlineRow}>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
+          Page size
+        </ThemedText>
+        {PAGE_SIZES.map((size) => {
+          const active = page.rows === size.rows && page.cols === size.cols;
+          return (
+            <Pressable
+              key={size.label}
+              onPress={() => {
+                // One pocket layout per binder (real pages don't mix) — the chip re-sizes EVERY
+                // page, refusing when content would fall outside.
+                const res = store.setBinderPageSize(binder.id, size.rows, size.cols);
+                if (!res.ok && res.reason) showToast(res.reason);
+                else if (res.ok && binder.pages.length > 1)
+                  showToast(`All ${binder.pages.length} pages set to ${size.label}`);
+              }}
+              style={[pillChip.base, active && pillChip.active]}>
+              <Text style={[pillChip.text, active && pillChip.textActive]}>{size.label}</Text>
+            </Pressable>
+          );
+        })}
+        <ThemedText
+          type="small"
+          themeColor="textSecondary"
+          style={[styles.inlineLabel, styles.inlineLabelGap]}>
+          Background
+        </ThemedText>
+        <View style={styles.colorFieldBox}>
+          <ColorField
+            key={page.id}
+            value={page.backgroundColor}
+            onChange={(backgroundColor) => store.updatePage(binder.id, page.id, { backgroundColor })}
+          />
+        </View>
+      </View>
+
+      {isSupabaseConfigured ? (
+        <View style={styles.pageVisRow}>
+          <View style={styles.pageVisText}>
+            <ThemedText type="smallBold">Page visibility</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              {(page.isPublic ?? true)
+                ? 'Public — shown to anyone viewing this binder.'
+                : 'Private — hidden from public viewers; only you see it.'}
+            </ThemedText>
+          </View>
+          <Switch
+            value={page.isPublic ?? true}
+            onValueChange={(v) => store.updatePage(binder.id, page.id, { isPublic: v })}
+            trackColor={{ true: Palette.accent, false: theme.backgroundSelected }}
+          />
+        </View>
+      ) : null}
+    </ThemedView>
+  );
 
   return (
     <ThemedView style={styles.flex}>
@@ -697,23 +898,26 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           </View>
 
           <ScrollView contentContainerStyle={styles.scroll}>
-            {/* Binder title + description — one compact, equal-width pair of detail fields just
-                under the header (the header shows the title read-only). */}
+            {/* Editing: title/description fields and the page tools sit side by side at the top, so
+                the bottom of the editor stays clear for the slice tray. Stacks on narrow screens. */}
             {editing ? (
-              <View style={styles.binderFields}>
-                <LabeledInput
-                  label="Binder title"
-                  value={binder.title}
-                  onChangeText={(title) => store.updateBinder(binder.id, { title })}
-                  placeholder="Binder title"
-                />
-                <LabeledInput
-                  label="Binder description"
-                  value={binder.description ?? ''}
-                  onChangeText={(description) => store.updateBinder(binder.id, { description })}
-                  placeholder="What is this binder about?"
-                  multiline
-                />
+              <View style={[styles.editTopRow, wideEditor && styles.editTopRowWide]}>
+                <View style={styles.binderFields}>
+                  <LabeledInput
+                    label="Binder title"
+                    value={binder.title}
+                    onChangeText={(title) => store.updateBinder(binder.id, { title })}
+                    placeholder="Binder title"
+                  />
+                  <LabeledInput
+                    label="Binder description"
+                    value={binder.description ?? ''}
+                    onChangeText={(description) => store.updateBinder(binder.id, { description })}
+                    placeholder="What is this binder about?"
+                    multiline
+                  />
+                </View>
+                <View style={styles.editToolsCol}>{editToolsCard}</View>
               </View>
             ) : binder.description ? (
               <ThemedText type="small" themeColor="textSecondary" style={styles.description}>
@@ -766,109 +970,6 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
 
             {editing && (
               <>
-                {/* One organized card for the page-level tools, width-matched to the detail
-                    fields above so the edit chrome reads as a single column, not scattered rows. */}
-                <ThemedView type="backgroundElement" style={styles.editPanel}>
-                  <ThemedText type="smallBold" themeColor="textSecondary" style={styles.editPanelTitle}>
-                    Editing tools
-                  </ThemedText>
-
-                  <View style={styles.btnRow}>
-                    <PillButton label="↶ Undo" onPress={store.undo} disabled={!store.canUndo} />
-                    <PillButton label="↷ Redo" onPress={store.redo} disabled={!store.canRedo} />
-                    <PillButton
-                      label="+ Page"
-                      onPress={() =>
-                        store.pageLimitReached(binder.id)
-                          ? showToast(
-                              `You’ve reached the ${store.limits.pagesPerBinder}-page limit — upgrade for more.`,
-                              true,
-                            )
-                          : store.addPage(binder.id)
-                      }
-                    />
-                    <PillButton label="Duplicate page" onPress={handleDuplicatePage} />
-                    {binder.pages.length > 1 && (
-                      <PillButton
-                        label="Delete page"
-                        tone="danger"
-                        onPress={() =>
-                          setConfirm({
-                            title: 'Delete this page?',
-                            message: 'The page and everything on it will be removed.',
-                            confirmLabel: 'Delete page',
-                            destructive: true,
-                            onConfirm: () => {
-                              store.removePage(binder.id, page.id);
-                              changePage(0);
-                              showToast('Page deleted', true);
-                            },
-                          })
-                        }
-                      />
-                    )}
-                  </View>
-
-                  <View style={styles.inlineRow}>
-                    <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
-                      Page size
-                    </ThemedText>
-                    {PAGE_SIZES.map((size) => {
-                      const active = page.rows === size.rows && page.cols === size.cols;
-                      return (
-                        <Pressable
-                          key={size.label}
-                          onPress={() => {
-                            // One pocket layout per binder (real pages don't mix) — the chip
-                            // re-sizes EVERY page, refusing when content would fall outside.
-                            const res = store.setBinderPageSize(binder.id, size.rows, size.cols);
-                            if (!res.ok && res.reason) showToast(res.reason);
-                            else if (res.ok && binder.pages.length > 1)
-                              showToast(`All ${binder.pages.length} pages set to ${size.label}`);
-                          }}
-                          style={[pillChip.base, active && pillChip.active]}>
-                          <Text style={[pillChip.text, active && pillChip.textActive]}>
-                            {size.label}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                    <ThemedText
-                      type="small"
-                      themeColor="textSecondary"
-                      style={[styles.inlineLabel, styles.inlineLabelGap]}>
-                      Background
-                    </ThemedText>
-                    <View style={styles.colorFieldBox}>
-                      <ColorField
-                        key={page.id}
-                        value={page.backgroundColor}
-                        onChange={(backgroundColor) =>
-                          store.updatePage(binder.id, page.id, { backgroundColor })
-                        }
-                      />
-                    </View>
-                  </View>
-
-                  {isSupabaseConfigured ? (
-                    <View style={styles.pageVisRow}>
-                      <View style={styles.pageVisText}>
-                        <ThemedText type="smallBold">Page visibility</ThemedText>
-                        <ThemedText type="small" themeColor="textSecondary">
-                          {(page.isPublic ?? true)
-                            ? 'Public — shown to anyone viewing this binder.'
-                            : 'Private — hidden from public viewers; only you see it.'}
-                        </ThemedText>
-                      </View>
-                      <Switch
-                        value={page.isPublic ?? true}
-                        onValueChange={(v) => store.updatePage(binder.id, page.id, { isPublic: v })}
-                        trackColor={{ true: Palette.accent, false: theme.backgroundSelected }}
-                      />
-                    </View>
-                  ) : null}
-                </ThemedView>
-
                 {!binder.isExample && (
                   <Pressable
                     onPress={() =>
@@ -889,7 +990,26 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                 )}
               </>
             )}
+            {editing ? <View style={styles.traySpacer} /> : null}
           </ScrollView>
+
+          {editing ? (
+            <SliceTray
+              armedId={armedSlice?.id ?? null}
+              onArm={setArmedSlice}
+              onDragStart={handleSliceDragStart}
+              onDrop={handleSliceDrop}
+              onNew={openStudioForPage}
+              ghostOn={ghostOn}
+              ghostX={ghostX}
+              ghostY={ghostY}
+            />
+          ) : null}
+          {dragSlice ? (
+            <Animated.View pointerEvents="none" style={[styles.dragGhost, ghostStyle]}>
+              <SliceThumb slice={dragSlice} style={StyleSheet.absoluteFill} />
+            </Animated.View>
+          ) : null}
         </SafeAreaView>
 
         <CardPicker
@@ -922,19 +1042,16 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
 
         {studio && (
           <SliceStudio
-            rows={studio.rows}
-            cols={studio.cols}
+            // The studio slices the WHOLE page now, so its grid is the binder's page size and its
+            // merge frame starts at column 0 — the page's inside-edge pocket pairs directly.
+            rows={page.rows}
+            cols={page.cols}
             imageUrl={studio.imageUrl}
-            // The destination page's inside-edge pocket pairs, shifted into the studio
-            // region's frame — the only columns where a merged 1×2 piece can be inserted.
-            // Deliberately UNFILTERED: the studio's grid is resizable after opening (a 1×1
-            // pocket often grows to 3×3 in-studio), so clamping against the INITIAL region
-            // size here permanently disabled Merge. Selection bounds inside the studio
-            // already keep merges within the live grid; negative offsets simply never match.
-            pairStarts={insideEdgePairStarts(page.cols, pageSide(pageIndex)).map((s) => s - studio.col)}
-            onPlace={(panels) => {
-              store.placeArtPanels(binder.id, page.id, studio.row, studio.col, panels);
+            pairStarts={insideEdgePairStarts(page.cols, pageSide(pageIndex))}
+            onSaveSlices={(slices) => {
+              addSavedSlices(slices);
               setStudio(null);
+              showToast(`Saved ${slices.length} slice${slices.length === 1 ? '' : 's'} to your tray`);
             }}
             onClose={() => setStudio(null)}
           />
@@ -1140,7 +1257,12 @@ const styles = StyleSheet.create({
   description: { marginTop: 10, textAlign: 'center', maxWidth: 640, alignSelf: 'center' },
   // Detail fields share one centred column (matches the edit-tools card) so the editable
   // chrome reads as a single organised stack instead of page-wide boxes.
-  binderFields: { width: '100%', maxWidth: 680, alignSelf: 'center', gap: 10, marginTop: 8 },
+  // The top editing row: title/description fields beside the page tools (side by side when there's
+  // room, stacked otherwise), leaving the bottom of the editor free for the slice tray.
+  editTopRow: { width: '100%', maxWidth: 1120, alignSelf: 'center', marginTop: 8, gap: 12, flexDirection: 'column' },
+  editTopRowWide: { flexDirection: 'row', alignItems: 'flex-start' },
+  binderFields: { gap: 10, flexGrow: 1, flexBasis: 300, minWidth: 240 },
+  editToolsCol: { flexGrow: 1, flexBasis: 360, minWidth: 280 },
   pageDetails: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1169,8 +1291,6 @@ const styles = StyleSheet.create({
   fieldInputMulti: { minHeight: 36, textAlignVertical: 'top' },
   editPanel: {
     width: '100%',
-    maxWidth: 680,
-    alignSelf: 'center',
     borderRadius: Radius.panel,
     padding: 14,
     gap: 10,
@@ -1189,4 +1309,21 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.7 },
   deleteBinder: { marginTop: 20, alignItems: 'center', paddingVertical: 10 },
   deleteBinderText: { color: Palette.dangerAlt, fontSize: FontSize.control, fontWeight: Weight.semibold },
+  // Clearance so scrolled content isn't hidden behind the docked slice tray.
+  traySpacer: { height: 150 },
+  // Floating drag preview that follows the finger while a slice is dragged from the tray.
+  dragGhost: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 68,
+    height: 48,
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: Palette.accent,
+    backgroundColor: Palette.chromeDeepest,
+    zIndex: 100,
+    elevation: 12,
+  },
 });

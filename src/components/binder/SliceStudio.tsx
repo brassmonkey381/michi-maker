@@ -22,7 +22,6 @@ import { CardBrowse } from '@/components/binder/CardBrowse';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
-import { pillChip, controlButton } from '@/constants/ui';
 import { domainOf, type ArtAspect } from '@/data/artworkLibrary';
 import { uid, type ImageTransform } from '@/data/binderTypes';
 import { addSavedArt } from '@/data/savedArt';
@@ -226,7 +225,6 @@ interface SliceStudioProps {
 
 export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl, pairStarts, onPlace, onClose }: SliceStudioProps) {
   const { width, height } = useWindowDimensions();
-  const wide = width > 760;
 
   const [rows, setRows] = useState(initRows);
   const [cols, setCols] = useState(initCols);
@@ -250,6 +248,8 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
   const [flipH, setFlipH] = useState(false);
   const [flipV, setFlipV] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
+  // The controls/shortcuts reference now lives behind a header "?" (was a permanent right column).
+  const [guideOpen, setGuideOpen] = useState(false);
   // Pick official card art from the catalog as the source image (then crop/zoom to the art).
   const [cardPickOpen, setCardPickOpen] = useState(false);
   const { catalog } = useCatalog(cardPickOpen);
@@ -329,8 +329,8 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
 
   // Workspace: fill what the viewport allows — capped by BOTH width and height so the whole
   // page-shaped grid stays on screen below the toolbars (vs the old fixed 460px cap).
-  const guideW = wide ? 248 : 0;
-  const availW = Math.max(240, Math.min(width - guideW - 48, 900));
+  // The controls reference is now an on-demand overlay, so the canvas gets the full width.
+  const availW = Math.max(240, Math.min(width - 48, 960));
   const availH = Math.max(300, height - 360);
   const cellW = Math.min(
     (availW - GAP * (cols - 1)) / cols,
@@ -480,6 +480,13 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
     if (selCells !== (maxR - minR) * (maxC - minC)) return false;
     return maxR - minR === 1 && maxC - minC === 2 && (pairStarts ?? []).includes(minC);
   }, [selected, panels, pairStarts]);
+
+  // Split only means something when a selected panel is actually merged (spans >1 cell) — drives
+  // whether the contextual Split action shows.
+  const canSplit = useMemo(
+    () => panels.some((p) => selected.has(p.id) && (p.rs > 1 || p.cs > 1)),
+    [panels, selected],
+  );
 
   const split = useCallback(() => {
     setPanels((ps) => {
@@ -665,20 +672,20 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
     height: p.rs * cellH + (p.rs - 1) * GAP,
   });
 
-  const guide = (
-    <View style={[styles.guide, wide ? styles.guideSide : styles.guideBottom]}>
-      <Text style={styles.guideTitle}>Controls</Text>
-      {GUIDE.map((g) => (
-        <View key={g.keys} style={styles.guideRow}>
-          <Text style={styles.guideKeys}>{g.keys}</Text>
-          <Text style={styles.guideAction}>{g.action}</Text>
-        </View>
-      ))}
-      {Platform.OS !== 'web' ? (
-        <Text style={styles.guideNote}>Keyboard / Shift / Ctrl shortcuts are web-only — use the buttons on touch.</Text>
-      ) : null}
-    </View>
-  );
+  // When a legal sideways pair is selected, draw the crease down the middle of the pair so the
+  // "fold in half, slide a half into each pocket" gesture is visible on the canvas itself — the
+  // core craft move made tangible rather than buried in the shortcut list.
+  const foldHint = useMemo(() => {
+    if (!mergeLegal || !cellW) return null;
+    const chosen = panels.filter((p) => selected.has(p.id));
+    if (!chosen.length) return null;
+    const minC = Math.min(...chosen.map((p) => p.c));
+    const minR = Math.min(...chosen.map((p) => p.r));
+    return { left: minC * (cellW + GAP) + cellW + GAP / 2, top: minR * (cellH + GAP), height: cellH };
+  }, [mergeLegal, panels, selected, cellW, cellH]);
+
+  const hasImage = Boolean(imageUrl);
+  const selCount = selected.size;
 
   return (
     <Modal visible animationType="slide" onRequestClose={requestClose}>
@@ -688,150 +695,200 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
             <Text style={styles.headerAction}>Close</Text>
           </Pressable>
           <ThemedText type="subtitle">Slice studio</ThemedText>
-          <Pressable onPress={place} hitSlop={10} disabled={!imageUrl}>
-            <Text style={[styles.headerAction, styles.primary, !imageUrl && styles.disabled]}>Place</Text>
-          </Pressable>
+          <View style={styles.headerRight}>
+            <Pressable
+              onPress={() => setGuideOpen(true)}
+              hitSlop={10}
+              accessibilityLabel="Controls & shortcuts"
+              style={styles.helpBtn}>
+              <Text style={styles.helpBtnText}>?</Text>
+            </Pressable>
+            <Pressable onPress={place} hitSlop={10} disabled={!hasImage}>
+              <View style={[styles.placeBtn, !hasImage && styles.disabled]}>
+                <Text style={styles.placeBtnText}>Place</Text>
+              </View>
+            </Pressable>
+          </View>
         </View>
 
         <ScrollView contentContainerStyle={styles.scroll}>
-          {/* Toolbar */}
-          <View style={styles.toolbar}>
+          {/* Source — one calm row. Everything here is about GETTING an image in. */}
+          <View style={styles.sourceBar}>
             <Btn label="🎴 Card art" onPress={() => setCardPickOpen(true)} kind="primary" />
             <Btn label="🖼 Art sources ↗" onPress={() => setSourcesOpen(true)} />
             <ArtUploadButton onUploaded={loadImage} />
-            <TextInput
-              value={urlInput}
-              onChangeText={setUrlInput}
-              placeholder="…or paste an image URL"
-              placeholderTextColor={Palette.muted3}
-              autoCapitalize="none"
-              autoCorrect={false}
-              style={styles.input}
-            />
-            <Btn label="Load" onPress={loadUrl} />
-          </View>
-          {Platform.OS === 'web' ? (
-            <Text style={styles.dragHint}>
-              Tip: open any gallery from “Art sources ↗” in another tab and drag an image straight
-              onto this window to load it.
-            </Text>
-          ) : null}
-          <View style={styles.toolbar}>
-            <Text style={styles.tLabel}>Grid</Text>
-            {GRID_SIZES.map((g) => (
-              <Chip
-                key={g.label}
-                label={g.label}
-                active={rows === g.rows && cols === g.cols}
-                onPress={() => setGrid(g.rows, g.cols)}
+            <View style={styles.urlWrap}>
+              <TextInput
+                value={urlInput}
+                onChangeText={setUrlInput}
+                placeholder="…or paste an image URL"
+                placeholderTextColor={Palette.muted3}
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={styles.input}
               />
-            ))}
-            <Text style={styles.tLabel}>
-              {rows}×{cols}
-            </Text>
-            <Btn label="Rows −" onPress={() => setGrid(rows - 1, cols)} disabled={rows <= 1} />
-            <Btn label="Rows +" onPress={() => setGrid(rows + 1, cols)} disabled={rows >= MAX_GRID} />
-            <Btn label="Cols −" onPress={() => setGrid(rows, cols - 1)} disabled={cols <= 1} />
-            <Btn label="Cols +" onPress={() => setGrid(rows, cols + 1)} disabled={cols >= MAX_GRID} />
-          </View>
-          <View style={styles.toolbar}>
-            <Text style={styles.tLabel}>Fit</Text>
-            <Chip label="Scale to fit" active={fit === 'cover'} onPress={() => setFit('cover')} />
-            <Chip label="Original aspect" active={fit === 'contain'} onPress={() => setFit('contain')} />
-            <Btn label="Just the art" onPress={justTheArt} disabled={!imageUrl} />
-          </View>
-          <Text style={styles.dragHint}>
-            Scale to fit frames a window of the image (pan / zoom / scroll to reframe). Original
-            aspect always shows the whole image, letterboxed. Both work Whole or Sliced — and your
-            original image is never modified, only windowed.
-          </Text>
-          <View style={styles.toolbar}>
-            <Text style={styles.tLabel}>View</Text>
-            <Chip label="Whole" active={!sliced} onPress={() => setSliced(false)} />
-            <Chip label="Sliced" active={sliced} onPress={() => setSliced(true)} />
-            <Text style={styles.tLabel}>Zoom</Text>
-            <Btn label="−" onPress={() => zoomBy(1 / 0.85)} disabled={fit === 'contain'} />
-            <Btn label="+" onPress={() => zoomBy(0.85)} disabled={fit === 'contain'} />
-            <Text style={styles.tLabel}>Rotate</Text>
-            <Btn label="⟲" onPress={() => rotate(-1)} disabled={!natural} />
-            <Btn label="⟳" onPress={() => rotate(1)} disabled={!natural} />
-            {rot !== 0 ? <Text style={styles.tLabel}>{rot}°</Text> : null}
-            <Chip label="Flip ↔" active={flipH} onPress={() => setFlipH((v) => !v)} />
-            <Chip label="Flip ↕" active={flipV} onPress={() => setFlipV((v) => !v)} />
-          </View>
-          <View style={styles.toolbar}>
-            <Btn label="Merge" onPress={merge} disabled={!mergeLegal} />
-            <Btn label="Split" onPress={split} disabled={selected.size === 0} />
-            <Btn label="Reset" onPress={reset} />
-            <Btn label={savedNote ? 'Saved ✓' : 'Save to library'} onPress={save} disabled={!imageUrl} />
-          </View>
-
-          <View style={wide ? styles.bodyRow : styles.bodyCol}>
-            {/* Canvas */}
-            <View ref={canvasWrapRef} style={styles.canvasWrap}>
-              {!imageUrl ? (
-                <View style={[styles.canvas, { width: canvasW, height: canvasH }, styles.empty]}>
-                  <Text style={styles.emptyText}>Pick card art, upload, or paste a URL to begin</Text>
-                </View>
-              ) : (
-                <GestureDetector gesture={gesture}>
-                  <View style={[styles.canvas, { width: canvasW, height: canvasH }]}>
-                    {failed ? (
-                      <View style={[styles.empty, StyleSheet.absoluteFill]}>
-                        <Text style={styles.emptyText}>image didn’t load</Text>
-                      </View>
-                    ) : sliced ? (
-                      // Sliced preview — one clip box per piece, regardless of fit mode.
-                      panels.map((p) => {
-                        const sel = selected.has(p.id);
-                        const b = box(p);
-                        return (
-                          <View key={p.id} style={[b, styles.pieceClip, sel && styles.pieceSelected]}>
-                            <SourceImage
-                              uri={imageUrl}
-                              boxW={b.width}
-                              boxH={b.height}
-                              crop={panelCrop(p, rows, cols, win)}
-                              rot={rot}
-                              flipH={flipH}
-                              flipV={flipV}
-                              exact={Boolean(ratio)}
-                              fallbackFit="cover"
-                              onError={() => setFailed(true)}
-                            />
-                          </View>
-                        );
-                      })
-                    ) : (
-                      // Whole preview — one image showing the current window.
-                      <View style={[StyleSheet.absoluteFill, styles.pieceClip]}>
-                        <SourceImage
-                          uri={imageUrl}
-                          boxW={canvasW}
-                          boxH={canvasH}
-                          crop={win}
-                          rot={rot}
-                          flipH={flipH}
-                          flipV={flipV}
-                          exact={Boolean(ratio)}
-                          fallbackFit={fit === 'contain' ? 'contain' : 'cover'}
-                          onError={() => setFailed(true)}
-                        />
-                      </View>
-                    )}
-                  </View>
-                </GestureDetector>
-              )}
-              <Text style={styles.hint}>
-                {selected.size >= 2 && !mergeLegal
-                  ? 'Merged pieces must be a sideways PAIR on an inside-edge opening — fold down the middle, slide into both pockets'
-                  : selected.size > 0
-                    ? `${selected.size} selected — Merge to join, Split to break`
-                    : 'Drag to pan · scroll to zoom · click a piece to select'}
-              </Text>
+              <Btn label="Load" onPress={loadUrl} />
             </View>
+          </View>
 
-            {guide}
+          {/* Framing controls only exist once there's something to frame — the empty studio stays
+              quiet. Grouped, hairline-separated clusters replace the old five stacked toolbars. */}
+          {hasImage ? (
+            <View style={styles.controlBar}>
+              <View style={styles.group}>
+                <View style={styles.segGroup}>
+                  {GRID_SIZES.map((g) => (
+                    <Seg
+                      key={g.label}
+                      label={g.label}
+                      active={rows === g.rows && cols === g.cols}
+                      onPress={() => setGrid(g.rows, g.cols)}
+                    />
+                  ))}
+                </View>
+                <Stepper
+                  label="R"
+                  value={rows}
+                  onDec={() => setGrid(rows - 1, cols)}
+                  onInc={() => setGrid(rows + 1, cols)}
+                  min={rows <= 1}
+                  max={rows >= MAX_GRID}
+                />
+                <Stepper
+                  label="C"
+                  value={cols}
+                  onDec={() => setGrid(rows, cols - 1)}
+                  onInc={() => setGrid(rows, cols + 1)}
+                  min={cols <= 1}
+                  max={cols >= MAX_GRID}
+                />
+              </View>
+
+              <View style={styles.divider} />
+
+              <View style={styles.group}>
+                <View style={styles.segGroup}>
+                  <Seg label="Scale to fit" active={fit === 'cover'} onPress={() => setFit('cover')} />
+                  <Seg label="Original" active={fit === 'contain'} onPress={() => setFit('contain')} />
+                </View>
+                <IconBtn label="Just the art" onPress={justTheArt} />
+              </View>
+
+              <View style={styles.divider} />
+
+              <View style={styles.group}>
+                <IconBtn label="−" onPress={() => zoomBy(1 / 0.85)} disabled={fit === 'contain'} />
+                <IconBtn label="+" onPress={() => zoomBy(0.85)} disabled={fit === 'contain'} />
+                <IconBtn label="⟲" onPress={() => rotate(-1)} disabled={!natural} />
+                <IconBtn label="⟳" onPress={() => rotate(1)} disabled={!natural} />
+                {rot !== 0 ? <Text style={styles.rotDeg}>{rot}°</Text> : null}
+                <IconBtn label="↔" onPress={() => setFlipH((v) => !v)} active={flipH} />
+                <IconBtn label="↕" onPress={() => setFlipV((v) => !v)} active={flipV} />
+              </View>
+
+              <View style={styles.divider} />
+
+              <View style={styles.segGroup}>
+                <Seg label="Whole" active={!sliced} onPress={() => setSliced(false)} />
+                <Seg label="Sliced" active={sliced} onPress={() => setSliced(true)} />
+              </View>
+
+              <View style={styles.grow} />
+
+              <Ghost label="Reset" onPress={reset} />
+              <Ghost label={savedNote ? 'Saved ✓' : 'Save'} onPress={save} />
+            </View>
+          ) : null}
+
+          {/* Canvas — the hero. Full width now the guide column is gone. */}
+          <View ref={canvasWrapRef} style={styles.canvasWrap}>
+            {!hasImage ? (
+              <View style={[styles.canvas, { width: canvasW, height: canvasH }, styles.empty]}>
+                <Text style={styles.emptyTitle}>Bring in some art</Text>
+                <Text style={styles.emptySub}>Pick card art, upload, or paste a URL to begin.</Text>
+                {Platform.OS === 'web' ? (
+                  <Text style={styles.emptyDrag}>…or drag an image straight onto this window.</Text>
+                ) : null}
+              </View>
+            ) : (
+              <GestureDetector gesture={gesture}>
+                <View style={[styles.canvas, { width: canvasW, height: canvasH }]}>
+                  {failed ? (
+                    <View style={[styles.empty, StyleSheet.absoluteFill]}>
+                      <Text style={styles.emptySub}>image didn’t load</Text>
+                    </View>
+                  ) : sliced ? (
+                    // Sliced preview — one clip box per piece, regardless of fit mode.
+                    panels.map((p) => {
+                      const sel = selected.has(p.id);
+                      const b = box(p);
+                      return (
+                        <View key={p.id} style={[b, styles.pieceClip, sel && styles.pieceSelected]}>
+                          <SourceImage
+                            uri={imageUrl}
+                            boxW={b.width}
+                            boxH={b.height}
+                            crop={panelCrop(p, rows, cols, win)}
+                            rot={rot}
+                            flipH={flipH}
+                            flipV={flipV}
+                            exact={Boolean(ratio)}
+                            fallbackFit="cover"
+                            onError={() => setFailed(true)}
+                          />
+                        </View>
+                      );
+                    })
+                  ) : (
+                    // Whole preview — one image showing the current window.
+                    <View style={[StyleSheet.absoluteFill, styles.pieceClip]}>
+                      <SourceImage
+                        uri={imageUrl}
+                        boxW={canvasW}
+                        boxH={canvasH}
+                        crop={win}
+                        rot={rot}
+                        flipH={flipH}
+                        flipV={flipV}
+                        exact={Boolean(ratio)}
+                        fallbackFit={fit === 'contain' ? 'contain' : 'cover'}
+                        onError={() => setFailed(true)}
+                      />
+                    </View>
+                  )}
+                  {/* The fold crease — makes the "fold + slide into both pockets" move visible. */}
+                  {foldHint ? (
+                    <View
+                      pointerEvents="none"
+                      style={[styles.foldLine, { left: foldHint.left - 1, top: foldHint.top, height: foldHint.height }]}
+                    />
+                  ) : null}
+                </View>
+              </GestureDetector>
+            )}
+
+            {/* Contextual craft actions — only when there's a selection to act on. */}
+            {hasImage && selCount > 0 ? (
+              <View style={[styles.selBar, mergeLegal && styles.selBarLegal]}>
+                {mergeLegal ? (
+                  <Text style={styles.selText}>
+                    A sideways pair on an inside-edge opening — fold down the middle to join it.
+                  </Text>
+                ) : selCount >= 2 ? (
+                  <Text style={styles.selWarn}>
+                    Merged pieces must be a sideways PAIR on an inside-edge opening — fold down the
+                    middle, slide into both pockets.
+                  </Text>
+                ) : (
+                  <Text style={styles.selText}>1 piece selected.</Text>
+                )}
+                {mergeLegal ? <Btn label="⤶ Fold & merge" onPress={merge} kind="primary" /> : null}
+                {canSplit ? <Btn label="Split apart" onPress={split} /> : null}
+                <Ghost label="Clear" onPress={() => setSelected(new Set())} />
+              </View>
+            ) : hasImage ? (
+              <Text style={styles.hint}>Drag to pan · scroll to zoom · click a piece to select</Text>
+            ) : null}
           </View>
         </ScrollView>
 
@@ -839,6 +896,35 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
           <View pointerEvents="none" style={styles.dropOverlay}>
             <Text style={styles.dropOverlayText}>Drop image to load</Text>
           </View>
+        ) : null}
+
+        {guideOpen ? (
+          <Modal visible transparent animationType="fade" onRequestClose={() => setGuideOpen(false)}>
+            <View style={styles.sourcesBackdrop}>
+              <Pressable style={StyleSheet.absoluteFill} onPress={() => setGuideOpen(false)} />
+              <ThemedView type="backgroundElement" style={styles.sourcesCard}>
+                <View style={styles.cardPickHeader}>
+                  <ThemedText type="subtitle">Controls &amp; shortcuts</ThemedText>
+                  <Pressable onPress={() => setGuideOpen(false)} hitSlop={10}>
+                    <Text style={[styles.headerAction, styles.primary]}>Close</Text>
+                  </Pressable>
+                </View>
+                <ScrollView contentContainerStyle={styles.guideList}>
+                  {GUIDE.map((g) => (
+                    <View key={g.keys} style={styles.guideRow}>
+                      <Text style={styles.guideKeys}>{g.keys}</Text>
+                      <Text style={styles.guideAction}>{g.action}</Text>
+                    </View>
+                  ))}
+                  {Platform.OS !== 'web' ? (
+                    <Text style={styles.guideNote}>
+                      Keyboard / Shift / Ctrl shortcuts are web-only — use the buttons on touch.
+                    </Text>
+                  ) : null}
+                </ScrollView>
+              </ThemedView>
+            </View>
+          </Modal>
         ) : null}
 
         {sourcesOpen ? (
@@ -909,6 +995,7 @@ export function SliceStudio({ rows: initRows, cols: initCols, imageUrl: initUrl,
   );
 }
 
+/** A filled/neutral action button — source actions and the primary "Fold & merge". */
 function Btn({
   label,
   onPress,
@@ -925,68 +1012,248 @@ function Btn({
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [
-        controlButton.base,
-        kind === 'primary' && controlButton.primary,
+        styles.btn,
+        kind === 'primary' && styles.btnPrimary,
         pressed && styles.pressed,
         disabled && styles.disabled,
       ]}>
-      <Text style={[controlButton.text, kind === 'primary' && controlButton.primaryText]}>{label}</Text>
+      <Text style={[styles.btnText, kind === 'primary' && styles.btnPrimaryText]}>{label}</Text>
     </Pressable>
   );
 }
 
-function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+/** One cell of a segmented control (Grid presets, Fit, Whole/Sliced). */
+function Seg({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={[pillChip.base, active && pillChip.active]}>
-      <Text style={[pillChip.text, active && pillChip.textActive]}>{label}</Text>
+    <Pressable onPress={onPress} style={[styles.seg, active && styles.segActive]}>
+      <Text style={[styles.segText, active && styles.segTextActive]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** A compact framing control — zoom / rotate / flip / "Just the art". */
+function IconBtn({
+  label,
+  onPress,
+  disabled = false,
+  active = false,
+}: {
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  active?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.iconBtn,
+        active && styles.iconBtnActive,
+        pressed && styles.pressed,
+        disabled && styles.disabled,
+      ]}>
+      <Text style={[styles.iconBtnText, active && styles.iconBtnTextActive]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** Rows / Cols fine-tune stepper (presets cover the common grids; this reaches up to 6×6). */
+function Stepper({
+  label,
+  value,
+  onDec,
+  onInc,
+  min,
+  max,
+}: {
+  label: string;
+  value: number;
+  onDec: () => void;
+  onInc: () => void;
+  min: boolean;
+  max: boolean;
+}) {
+  return (
+    <View style={styles.stepper}>
+      <Text style={styles.stepperLabel}>{label}</Text>
+      <IconBtn label="−" onPress={onDec} disabled={min} />
+      <Text style={styles.stepperVal}>{value}</Text>
+      <IconBtn label="+" onPress={onInc} disabled={max} />
+    </View>
+  );
+}
+
+/** A quiet text-only action (Reset / Save / Clear). */
+function Ghost({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} hitSlop={6} style={({ pressed }) => [styles.ghostBtn, pressed && styles.pressed]}>
+      <Text style={styles.ghostText}>{label}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
+  flex: { flex: 1, backgroundColor: Palette.surface },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Palette.hairline,
   },
   headerAction: { fontSize: FontSize.md, fontWeight: Weight.semibold, color: Palette.ink2 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   primary: { color: Palette.accent },
   disabled: { opacity: 0.4 },
-  scroll: { padding: 16, gap: 10 },
-  toolbar: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
-  tLabel: { fontSize: FontSize.label, color: Palette.muted, marginRight: 2 },
+  helpBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Palette.controlBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  helpBtnText: { fontSize: FontSize.control, fontWeight: Weight.bold, color: Palette.muted, lineHeight: 18 },
+  placeBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    borderRadius: Radius.pill,
+    backgroundColor: Palette.accent,
+  },
+  placeBtnText: { fontSize: FontSize.body, fontWeight: Weight.bold, color: Palette.accentText },
+
+  scroll: { padding: 16, gap: 12 },
+  pressed: { opacity: 0.65 },
+
+  // Source row
+  sourceBar: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
+  urlWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minWidth: 220 },
   input: {
     flex: 1,
-    minWidth: 160,
+    minWidth: 140,
     borderWidth: 1,
     borderColor: Palette.controlBorder,
     borderRadius: Radius.control,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
     fontSize: FontSize.body,
     color: Palette.ink,
+    backgroundColor: Palette.surface,
   },
-  pressed: { opacity: 0.7 },
-  bodyRow: { flexDirection: 'row', gap: 16, marginTop: 6 },
-  bodyCol: { flexDirection: 'column', gap: 16, marginTop: 6 },
-  canvasWrap: { alignItems: 'center', flexShrink: 1 },
-  canvas: { backgroundColor: Palette.chrome, borderRadius: Radius.panel, overflow: 'hidden' },
-  empty: { alignItems: 'center', justifyContent: 'center', backgroundColor: Palette.chrome, borderRadius: Radius.panel },
-  emptyText: { color: Palette.onDarkMuted, fontSize: FontSize.label },
+
+  // Action buttons
+  btn: { paddingVertical: 9, paddingHorizontal: 14, borderRadius: Radius.control, backgroundColor: Palette.panel },
+  btnPrimary: { backgroundColor: Palette.accent },
+  btnText: { fontSize: FontSize.body, fontWeight: Weight.semibold, color: Palette.ink2 },
+  btnPrimaryText: { color: Palette.accentText },
+
+  // Consolidated control tray (was five stacked toolbars)
+  controlBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    padding: 10,
+    borderRadius: Radius.panel,
+    backgroundColor: Palette.panelAlt,
+  },
+  group: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  divider: { width: 1, height: 24, backgroundColor: Palette.hairlineStrong, marginHorizontal: 2 },
+  grow: { flexGrow: 1 },
+
+  // Segmented control
+  segGroup: { flexDirection: 'row', alignItems: 'center', backgroundColor: Palette.panel, borderRadius: Radius.pill, padding: 2 },
+  seg: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: Radius.pill },
+  segActive: {
+    backgroundColor: Palette.surface,
+    shadowColor: '#000000',
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  segText: { fontSize: FontSize.label, color: Palette.muted, fontWeight: Weight.medium },
+  segTextActive: { color: Palette.ink, fontWeight: Weight.semibold },
+
+  // Compact icon control (zoom / rotate / flip / "Just the art")
+  iconBtn: {
+    minWidth: 34,
+    height: 34,
+    paddingHorizontal: 10,
+    borderRadius: Radius.control,
+    backgroundColor: Palette.panel,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconBtnActive: { backgroundColor: Palette.accent },
+  iconBtnText: { fontSize: FontSize.control, fontWeight: Weight.semibold, color: Palette.ink2 },
+  iconBtnTextActive: { color: Palette.accentText },
+  rotDeg: { fontSize: FontSize.sm, color: Palette.muted, marginHorizontal: 2 },
+
+  // Rows / Cols steppers
+  stepper: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  stepperLabel: { fontSize: FontSize.sm, color: Palette.muted, fontWeight: Weight.semibold },
+  stepperVal: { fontSize: FontSize.label, color: Palette.ink, fontWeight: Weight.semibold, minWidth: 12, textAlign: 'center' },
+
+  // Quiet text actions
+  ghostBtn: { paddingVertical: 6, paddingHorizontal: 8 },
+  ghostText: { fontSize: FontSize.label, color: Palette.muted, fontWeight: Weight.semibold },
+
+  // Canvas (the hero)
+  canvasWrap: { alignItems: 'center', gap: 10, marginTop: 4 },
+  canvas: {
+    backgroundColor: Palette.chrome,
+    borderRadius: Radius.lg,
+    overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5,
+  },
+  empty: { alignItems: 'center', justifyContent: 'center', backgroundColor: Palette.chrome, borderRadius: Radius.lg, gap: 6, padding: 24 },
+  emptyTitle: { color: Palette.white, fontSize: FontSize.lg, fontWeight: Weight.semibold },
+  emptySub: { color: Palette.onDarkMuted, fontSize: FontSize.label, textAlign: 'center' },
+  emptyDrag: { color: Palette.onDarkMuted2, fontSize: FontSize.sm, marginTop: 4, textAlign: 'center' },
   pieceClip: { overflow: 'hidden', borderRadius: Radius.thumb, backgroundColor: Palette.chromeDeepest },
   pieceSelected: { borderWidth: 2, borderColor: Palette.accent },
-  hint: { marginTop: 8, fontSize: FontSize.base, color: Palette.muted2, textAlign: 'center' },
-  guide: { backgroundColor: Palette.panelAlt, borderRadius: Radius.panel, padding: 14 },
-  guideSide: { width: 248 },
-  guideBottom: { width: '100%' },
-  guideTitle: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.ink3, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
-  guideRow: { marginBottom: 8 },
+  foldLine: {
+    position: 'absolute',
+    width: 0,
+    borderLeftWidth: 2,
+    borderColor: Palette.white,
+    borderStyle: 'dashed',
+    zIndex: 5,
+  },
+  hint: { fontSize: FontSize.base, color: Palette.muted2, textAlign: 'center' },
+
+  // Contextual selection / merge action bar
+  selBar: {
+    width: '100%',
+    maxWidth: 680,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 10,
+    padding: 12,
+    borderRadius: Radius.panel,
+    backgroundColor: Palette.panelAlt,
+  },
+  selBarLegal: { backgroundColor: Palette.selectionSoft, borderWidth: 1, borderColor: Palette.accent },
+  selText: { fontSize: FontSize.body, color: Palette.ink3, flexShrink: 1 },
+  selWarn: { fontSize: FontSize.body, color: Palette.ink4, flexShrink: 1, lineHeight: 19 },
+
+  // Controls & shortcuts overlay (was a permanent right column)
+  guideList: { gap: 10, paddingBottom: 12 },
+  guideRow: { marginBottom: 4 },
   guideKeys: { fontSize: FontSize.base, fontWeight: Weight.bold, color: Palette.accent },
   guideAction: { fontSize: FontSize.base, color: Palette.ink4 },
   guideNote: { fontSize: FontSize.sm, color: Palette.muted3, marginTop: 6, lineHeight: 16 },
+
   cardPickBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: Palette.scrim40 },
   cardPickSheet: {
     height: '82%',

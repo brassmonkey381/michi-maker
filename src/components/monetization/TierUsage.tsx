@@ -15,10 +15,13 @@ import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing } from '@/constants/theme';
+import { fetchEntitlementDetails } from '@/data/entitlementRepo';
 import { countPrintsThisMonth } from '@/data/printRepo';
 import { countLiveSavedSlices } from '@/data/sliceRepo';
-import { TIER_LIMITS, type Tier } from '@/data/tiers';
+import { CHECKOUT_OPEN } from '@/data/subscriptions';
+import { isActive, PRODUCTS, TIER_LIMITS, type Tier } from '@/data/tiers';
 import { useTier } from '@/hooks/use-tier';
+import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
 
 const TIER_NAMES: Record<Tier, string> = {
@@ -64,9 +67,39 @@ export function TierUsage({
   );
 }
 
-/** The current plan + usage block (Settings PLAN section, /pricing YOUR PLAN section). */
+/** One label · value line of the subscription details list. */
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.detailRow}>
+      <ThemedText type="small" themeColor="textSecondary" style={styles.detailLabel}>
+        {label}
+      </ThemedText>
+      <ThemedText type="smallBold" style={styles.detailValue}>
+        {value}
+      </ThemedText>
+    </View>
+  );
+}
+
+/** Everything the details block shows — computed once per fetch (dates resolved in the effect,
+ *  never during render, per the react-hooks purity rule). */
+interface PlanDetails {
+  memberSince?: string;
+  /** "PRO member since" — the active subscription row's granted_at. */
+  planSince?: string;
+  /** Term end of the active subscription row (manual grants lapse; webhooks will extend). */
+  termEnds?: string;
+  daysLeft?: number;
+  /** The grant came from a manual SQL grant, not a checkout. */
+  manualGrant?: boolean;
+  /** Display lines for active lifetime unlocks (e.g. the grandfathered full-print unlock). */
+  unlocks: string[];
+}
+
+/** The current plan + usage block (Settings PLAN section, /subscriptions YOUR PLAN section). */
 export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }) {
   const { tier } = useTier();
+  const { user } = useAuth();
   const { binderCount } = useBinders();
   // Planned caps, not live limits — see the header comment for the LIMITS_ENFORCED flip note.
   const caps = TIER_LIMITS[tier];
@@ -75,10 +108,48 @@ export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }
   // Meters appear once counted; a failed count just leaves that meter off (never a spinner).
   const [artCount, setArtCount] = useState<number | null>(null);
   const [printCount, setPrintCount] = useState<number | null>(null);
+  const [details, setDetails] = useState<PlanDetails | null>(null);
   const isGuest = tier === 'guest';
+  const memberSinceIso = user?.created_at;
   useEffect(() => {
     if (isGuest) return;
     let live = true;
+    const fmt = (iso?: string | null) =>
+      iso
+        ? new Date(iso).toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+          })
+        : undefined;
+    fetchEntitlementDetails()
+      .then((rows) => {
+        if (!live) return;
+        const now = Date.now();
+        const activeRows = rows.filter((r) =>
+          isActive({ product: r.product, expires_at: r.expiresAt }, now),
+        );
+        const subProduct =
+          tier === 'vip' ? PRODUCTS.tierVip : tier === 'pro' ? PRODUCTS.tierPro : null;
+        const sub = subProduct ? activeRows.find((r) => r.product === subProduct) : undefined;
+        setDetails({
+          memberSince: fmt(memberSinceIso),
+          planSince: fmt(sub?.grantedAt),
+          termEnds: fmt(sub?.expiresAt),
+          daysLeft: sub?.expiresAt
+            ? Math.max(0, Math.ceil((Date.parse(sub.expiresAt) - now) / 86400000))
+            : undefined,
+          manualGrant: sub?.source === 'manual',
+          unlocks: activeRows
+            .filter((r) => r.product === PRODUCTS.pdfPrint)
+            .map((r) =>
+              r.grantedAt
+                ? `Full-print unlock · lifetime, since ${fmt(r.grantedAt)}`
+                : 'Full-print unlock · lifetime',
+            ),
+        });
+      })
+      .catch(() => {});
     countLiveSavedSlices()
       .then((n) => {
         if (live) setArtCount(n);
@@ -92,7 +163,7 @@ export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }
     return () => {
       live = false;
     };
-  }, [isGuest, tier]);
+  }, [isGuest, tier, memberSinceIso]);
 
   return (
     <View style={styles.section}>
@@ -113,6 +184,37 @@ export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }
         </ThemedText>
       ) : (
         <>
+          {details ? (
+            <View style={styles.detailList}>
+              {details.memberSince ? (
+                <DetailRow label="Member since" value={details.memberSince} />
+              ) : null}
+              {details.planSince ? (
+                <DetailRow label={`${TIER_NAMES[tier]} member since`} value={details.planSince} />
+              ) : null}
+              {details.termEnds ? (
+                <DetailRow
+                  label={CHECKOUT_OPEN ? 'Renews' : 'Current term ends'}
+                  value={
+                    details.daysLeft != null
+                      ? `${details.termEnds} · ${details.daysLeft} day${details.daysLeft === 1 ? '' : 's'} left`
+                      : details.termEnds
+                  }
+                />
+              ) : tier === 'free' ? (
+                <DetailRow label="Billing" value="None — Free is free forever" />
+              ) : null}
+              {details.unlocks.map((u) => (
+                <DetailRow key={u} label="One-time unlock" value={u} />
+              ))}
+              {details.termEnds && details.manualGrant && !CHECKOUT_OPEN ? (
+                <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
+                  Plans don’t auto-renew during the beta — your term was granted directly and is
+                  extended the same way. Automatic renewal arrives with checkout.
+                </ThemedText>
+              ) : null}
+            </View>
+          ) : null}
           <TierUsage label="Binders" used={binderCount} limit={caps.binders} />
           {artCount != null ? (
             <TierUsage label="Artworks kept" used={artCount} limit={caps.artUploads} />
@@ -158,6 +260,24 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.panel,
   },
   planChipText: { fontSize: FontSize.sm },
+  detailList: {
+    gap: Spacing.one,
+    borderRadius: Radius.control,
+    borderWidth: 1,
+    borderColor: Palette.hairline,
+    backgroundColor: Palette.panelAlt,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    marginBottom: Spacing.one,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: Spacing.three,
+  },
+  detailLabel: { fontSize: FontSize.sm },
+  detailValue: { fontSize: FontSize.sm, fontVariant: ['tabular-nums'], textAlign: 'right', flexShrink: 1 },
   meter: { gap: 4 },
   meterHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   meterLabel: { fontSize: FontSize.label },

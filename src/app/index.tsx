@@ -23,7 +23,7 @@ import { PeopleButton } from '@/components/people/PeopleButton';
 import { SettingsButton } from '@/components/settings/SettingsSheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, FontSize, MaxContentWidth, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { BottomTabInset, Fonts, FontSize, MaxContentWidth, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { pagesForCards } from '@/data/binderTypes';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useImageManifest } from '@/lib/catalogConfig';
@@ -429,7 +429,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.four,
     gap: Spacing.three,
   },
-  h1: { fontSize: FontSize.display, lineHeight: 40 },
+  h1: { fontFamily: Fonts?.brand, fontSize: FontSize.display, lineHeight: 40 },
   methodLink: { alignSelf: 'flex-start', marginTop: -Spacing.two, marginBottom: Spacing.three },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   newBtn: {

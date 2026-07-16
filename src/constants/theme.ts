@@ -28,18 +28,23 @@ export const Fonts = Platform.select({
     rounded: 'ui-rounded',
     /** iOS `UIFontDescriptorSystemDesignMonospaced` */
     mono: 'ui-monospace',
+    /** Brand display face — marquee headings only (wordmark, binder titles). Serif on native. */
+    brand: 'ui-serif',
   },
   default: {
     sans: 'normal',
     serif: 'serif',
     rounded: 'normal',
     mono: 'monospace',
+    brand: 'serif',
   },
   web: {
     sans: 'var(--font-display)',
     serif: 'var(--font-serif)',
     rounded: 'var(--font-rounded)',
     mono: 'var(--font-mono)',
+    /** Fraunces (global.css), matching the landing page's headings. */
+    brand: 'var(--font-brand)',
   },
 });
 

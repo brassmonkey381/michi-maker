@@ -28,7 +28,7 @@ import { SlotMultiActions } from '@/components/binder/SlotMultiActions';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Palette, Radius, Spacing, Weight, FontSize } from '@/constants/theme';
+import { Fonts, Palette, Radius, Spacing, Weight, FontSize } from '@/constants/theme';
 import {
   firstFreePlacement,
   occupiedCells,
@@ -1264,7 +1264,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.three,
   },
   pageVisText: { flex: 1, gap: 2 },
-  titleText: { flex: 1, textAlign: 'center', fontSize: FontSize.title, lineHeight: 28 },
+  titleText: { flex: 1, textAlign: 'center', fontFamily: Fonts?.brand, fontSize: FontSize.title, lineHeight: 28 },
   scroll: { paddingHorizontal: 16, paddingBottom: 48 },
   description: { marginTop: 10, textAlign: 'center', maxWidth: 640, alignSelf: 'center' },
   // Detail fields share one centred column (matches the edit-tools card) so the editable

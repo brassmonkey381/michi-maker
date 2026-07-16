@@ -286,14 +286,14 @@ function makeBinder({ key, title, description, layoutStyle, pages }) {
 
 const META = {
   'base-set-completion': { title: 'Base Set: All 102', description: 'The one that started it all. Every 1999 Base Set card in collector-number order, a full run from Alakazam #1 to the last common.', layoutStyle: 'freeform' },
-  'scarlet-violet-series-showcase': { title: 'Scarlet & Violet: One from Every Set', description: 'A tour of the whole Scarlet & Violet era — the opening card of every set, from the Base Set to White Flare, in release order.', layoutStyle: 'freeform' },
-  'prismatic-rarity-ladder': { title: 'Prismatic Evolutions: Common to Hyper', description: 'Climb the rarity ladder of one modern set — one standout card from each tier, common all the way up to the gold Hyper Rare.', layoutStyle: 'themed_story' },
-  'grail-wall': { title: 'The Grail Wall', description: "The heaviest hitters in the whole catalog by market price — a $10,000 Shadowless Charizard leads a wall of chase cards you'll probably never touch.", layoutStyle: 'full_page_spread' },
-  'dollar-bin-holos': { title: 'Dollar-Bin Holos', description: "Proof that a shiny binder doesn't need a big budget — Holo Rares you can grab for pocket change, cheapest first.", layoutStyle: 'freeform' },
-  'reprints-doppelgangers': { title: 'Same Art, Different Set', description: 'Doppelgangers — the same Pokémon artwork reprinted across sets. Each row is one card wearing different set symbols and numbers; read the bottom to tell them apart.', layoutStyle: 'themed_story' },
-  'vintage-vs-modern-grails': { title: '1999 vs Now: Grail Face-Off', description: "The WoTC old guard on one page, today's chase cards on the next — the priciest survivors of the first era against the newest heavy hitters.", layoutStyle: 'anchor' },
-  'sv-supporter-gallery': { title: 'The Support Cast', description: "No Pokémon allowed — a gallery of Scarlet & Violet's Supporter cards, the trainers and characters that run the deck, led by the priciest full-arts.", layoutStyle: 'freeform' },
-  'newest-era-mega-evolution': { title: 'Newest Era: Mega Evolution 01', description: 'Fresh off the press — the debut mainline set of the Mega Evolution era (Sept 2025), every available card in collector order.', layoutStyle: 'freeform' },
+  'scarlet-violet-series-showcase': { title: 'Scarlet & Violet: One from Every Set', description: 'A tour of the whole Scarlet & Violet era: the opening card of every set, from the Base Set to White Flare, in release order.', layoutStyle: 'freeform' },
+  'prismatic-rarity-ladder': { title: 'Prismatic Evolutions: Common to Hyper', description: 'Climb the rarity ladder of one modern set: one standout card from each tier, common all the way up to the gold Hyper Rare.', layoutStyle: 'themed_story' },
+  'grail-wall': { title: 'The Grail Wall', description: "The heaviest hitters in the whole catalog by market price. A $10,000 Shadowless Charizard leads a wall of chase cards you'll probably never touch.", layoutStyle: 'full_page_spread' },
+  'dollar-bin-holos': { title: 'Dollar-Bin Holos', description: "Proof that a shiny binder doesn't need a big budget: Holo Rares you can grab for pocket change, cheapest first.", layoutStyle: 'freeform' },
+  'reprints-doppelgangers': { title: 'Same Art, Different Set', description: 'Doppelgangers: the same Pokémon artwork reprinted across sets. Each row is one card wearing different set symbols and numbers; read the bottom to tell them apart.', layoutStyle: 'themed_story' },
+  'vintage-vs-modern-grails': { title: '1999 vs Now: Grail Face-Off', description: "The WoTC old guard on one page, today's chase cards on the next: the priciest survivors of the first era against the newest heavy hitters.", layoutStyle: 'anchor' },
+  'sv-supporter-gallery': { title: 'The Support Cast', description: "No Pokémon allowed: a gallery of Scarlet & Violet's Supporter cards, the trainers and characters that run the deck, led by the priciest full-arts.", layoutStyle: 'freeform' },
+  'newest-era-mega-evolution': { title: 'Newest Era: Mega Evolution 01', description: 'Fresh off the press: the debut mainline set of the Mega Evolution era (Sept 2025), every available card in collector order.', layoutStyle: 'freeform' },
 };
 
 const binders = [];

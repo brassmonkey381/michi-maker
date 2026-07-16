@@ -1,6 +1,14 @@
 import { Image } from 'expo-image';
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS, type SharedValue } from 'react-native-reanimated';
 
@@ -10,7 +18,7 @@ import { removeSavedSlice, useSavedSlices, type SavedSlice } from '@/data/savedS
 const POCKET_W = 63;
 const POCKET_H = 88;
 /** Thumbnail height for a 1-row slice; a folded 1×2 is twice as wide. */
-const THUMB_H = 64;
+const THUMB_H = 128;
 
 /**
  * The saved-slice tray — a collapsible strip docked at the bottom of the binder editor. Each slice
@@ -41,6 +49,39 @@ export function SliceTray({
 }) {
   const slices = useSavedSlices();
   const [open, setOpen] = useState(true);
+
+  // Carousel bookkeeping: where the strip is scrolled to, and how much there is. The arrows page
+  // by ~one viewport and only show when there is more content in that direction. Geometry lives
+  // in a ref (layout/content-size/scroll events interleave — reading it back from state races);
+  // state holds only the derived arrow visibility.
+  const scrollRef = useRef<ScrollView>(null);
+  const dims = useRef({ x: 0, viewport: 0, content: 0 });
+  const [canLeft, setCanLeft] = useState(false);
+  const [canRight, setCanRight] = useState(false);
+
+  const updateArrows = useCallback(() => {
+    const { x, viewport, content } = dims.current;
+    setCanLeft(x > 4);
+    setCanRight(viewport > 0 && x + viewport < content - 4);
+  }, []);
+  const onScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      dims.current.x = e.nativeEvent.contentOffset.x;
+      updateArrows();
+    },
+    [updateArrows]
+  );
+  const page = useCallback(
+    (dir: -1 | 1) => {
+      const { x, viewport, content } = dims.current;
+      const step = Math.max(viewport * 0.85, THUMB_H);
+      const next = Math.min(Math.max(0, content - viewport), Math.max(0, x + dir * step));
+      scrollRef.current?.scrollTo({ x: next, animated: true });
+      dims.current.x = next;
+      updateArrows();
+    },
+    [updateArrows]
+  );
 
   // Group the pieces cut from one artwork together, newest group first.
   const groups = useMemo(() => {
@@ -81,28 +122,61 @@ export function SliceTray({
             </Text>
           </View>
         ) : (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.strip}>
-            {groups.map((g) => (
-              <View key={g.key} style={styles.group}>
-                {g.items.map((slice) => (
-                  <SliceChip
-                    key={slice.id}
-                    slice={slice}
-                    armed={slice.id === armedId}
-                    onArm={onArm}
-                    onDragStart={onDragStart}
-                    onDrop={onDrop}
-                    ghostOn={ghostOn}
-                    ghostX={ghostX}
-                    ghostY={ghostY}
-                  />
-                ))}
-              </View>
-            ))}
-          </ScrollView>
+          <View style={styles.carousel}>
+            <ScrollView
+              ref={scrollRef}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              onScroll={onScroll}
+              scrollEventThrottle={16}
+              onLayout={(e) => {
+                dims.current.viewport = e.nativeEvent.layout.width;
+                updateArrows();
+              }}
+              onContentSizeChange={(w) => {
+                dims.current.content = w;
+                updateArrows();
+              }}
+              contentContainerStyle={styles.strip}>
+              {groups.map((g) => (
+                <View key={g.key} style={styles.group}>
+                  {g.items.map((slice) => (
+                    <SliceChip
+                      key={slice.id}
+                      slice={slice}
+                      armed={slice.id === armedId}
+                      onArm={onArm}
+                      onDragStart={onDragStart}
+                      onDrop={onDrop}
+                      ghostOn={ghostOn}
+                      ghostX={ghostX}
+                      ghostY={ghostY}
+                    />
+                  ))}
+                </View>
+              ))}
+            </ScrollView>
+            {canLeft ? (
+              <Pressable
+                onPress={() => page(-1)}
+                style={[styles.arrow, styles.arrowLeft]}
+                hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel="Scroll slices left">
+                <Text style={styles.arrowText}>‹</Text>
+              </Pressable>
+            ) : null}
+            {canRight ? (
+              <Pressable
+                onPress={() => page(1)}
+                style={[styles.arrow, styles.arrowRight]}
+                hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel="Scroll slices right">
+                <Text style={styles.arrowText}>›</Text>
+              </Pressable>
+            ) : null}
+          </View>
         )
       ) : null}
     </View>
@@ -231,8 +305,31 @@ const styles = StyleSheet.create({
   chevron: { fontSize: FontSize.md, color: Palette.muted },
   empty: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.three },
   emptyText: { fontSize: FontSize.sm, color: Palette.muted3, lineHeight: 17 },
+  carousel: { position: 'relative' },
   strip: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.three, gap: Spacing.three, flexDirection: 'row', alignItems: 'flex-start' },
   group: { flexDirection: 'row', gap: Spacing.two, alignItems: 'flex-start' },
+  arrow: {
+    position: 'absolute',
+    top: '50%',
+    marginTop: -22, // half the button height, minus the strip's bottom padding skew
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Palette.surface,
+    borderWidth: 1,
+    borderColor: Palette.controlBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    // Lift it off the artwork underneath.
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  arrowLeft: { left: Spacing.two },
+  arrowRight: { right: Spacing.two },
+  arrowText: { fontSize: 22, lineHeight: 24, color: Palette.ink2, fontWeight: Weight.bold, marginTop: -2 },
   chipWrap: { paddingTop: 6, paddingRight: 6 },
   chip: {
     borderRadius: Radius.thumb,

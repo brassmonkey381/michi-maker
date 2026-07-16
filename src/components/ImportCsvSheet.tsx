@@ -67,7 +67,7 @@ export function ImportCsvSheet({
           <ThemedView type="backgroundElement" style={styles.card}>
             <View style={styles.header}>
               <ThemedText type="subtitle" style={styles.title}>
-                ⬆ Import a CSV
+                Import a CSV
               </ThemedText>
               <Pressable onPress={onClose} hitSlop={8}>
                 <ThemedText type="link" themeColor="textSecondary">
@@ -77,12 +77,12 @@ export function ImportCsvSheet({
             </View>
 
             {guestGated ? (
-              <SignInPerk message="Importing reads the full card catalog to match your rows — sign in (free) to use it." />
+              <SignInPerk message="Importing reads the full card catalog to match your rows. Sign in (free) to use it." />
             ) : (
               <>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
                   Paste a TCGPlayer collection export, any CSV with a product-id or name column,
-                  or bare “productId,quantity” lines. The import becomes a portfolio — it shows
+                  or bare “productId,quantity” lines. The import becomes a portfolio. It shows
                   up in tcgscan too, and deleting it there removes these cards again.
                 </ThemedText>
 

@@ -58,13 +58,13 @@ const ART_SOURCES: { title: string; blurb: string; url: string; dragFriendly: bo
   {
     title: 'Bulbagarden Archives',
     url: 'https://archives.bulbagarden.net/wiki/Main_Page',
-    blurb: 'The Bulbapedia media library — official art, set logos, and scans for every Pokémon.',
+    blurb: 'The Bulbapedia media library: official art, set logos, and scans for every Pokémon.',
     dragFriendly: true,
   },
   {
     title: 'Pokémon Center card sleeves',
     url: 'https://www.pokemoncenter.com/category/card-sleeves',
-    blurb: 'Official sleeve art — ready-made card-shaped designs.',
+    blurb: 'Official sleeve art: ready-made card-shaped designs.',
     dragFriendly: true,
   },
   {
@@ -76,7 +76,7 @@ const ART_SOURCES: { title: string; blurb: string; url: string; dragFriendly: bo
   {
     title: 'DeviantArt',
     url: 'https://www.deviantart.com/search?q=pokemon',
-    blurb: 'Fan art in every style. May block direct loading — save, then ⬆ Upload.',
+    blurb: 'Fan art in every style. May block direct loading. Save it, then Upload.',
     dragFriendly: false,
   },
 ];
@@ -109,10 +109,9 @@ const GUIDE: { keys: string; action: string }[] = [
   { keys: 'M  ·  Merge', action: 'Join a sideways pair (inside-edge pockets only)' },
   { keys: 'B  ·  Split', action: 'Break a panel into pieces' },
   { keys: 'Esc', action: 'Clear selection' },
-  { keys: 'Grid', action: 'Presets, or step rows/cols to 6×6' },
-  { keys: 'Whole / Sliced', action: 'Preview = exactly what Place places' },
+  { keys: 'Whole / Sliced', action: 'Preview the frame whole, or cut into pieces' },
   { keys: 'Save', action: 'Add image to your library (this session)' },
-  { keys: 'Place', action: 'Drop the panels into the binder' },
+  { keys: 'Save slices', action: 'Send the pieces to your slice tray' },
 ];
 
 function makeGrid(rows: number, cols: number): Panel[] {
@@ -535,7 +534,7 @@ export function SliceStudio({ rows, cols, imageUrl: initUrl, pairStarts, onSaveS
       themes: ['saved'],
       aspect,
       sourceDomain: domainOf(imageUrl),
-      license: 'Unverified — review',
+      license: 'Unverified (review)',
       licenseClear: false,
     });
     setSavedNote(true);
@@ -682,8 +681,8 @@ export function SliceStudio({ rows, cols, imageUrl: initUrl, pairStarts, onSaveS
         <ScrollView contentContainerStyle={styles.scroll}>
           {/* Source — one calm row. Everything here is about GETTING an image in. */}
           <View style={styles.sourceBar}>
-            <Btn label="🎴 Card art" onPress={() => setCardPickOpen(true)} kind="primary" />
-            <Btn label="🖼 Art sources ↗" onPress={() => setSourcesOpen(true)} />
+            <Btn label="Card art" onPress={() => setCardPickOpen(true)} kind="primary" />
+            <Btn label="Art sources ↗" onPress={() => setSourcesOpen(true)} />
             <ArtUploadButton onUploaded={loadImage} />
             <View style={styles.urlWrap}>
               <TextInput
@@ -809,11 +808,11 @@ export function SliceStudio({ rows, cols, imageUrl: initUrl, pairStarts, onSaveS
               <View style={[styles.selBar, mergeLegal && styles.selBarLegal]}>
                 {mergeLegal ? (
                   <Text style={styles.selText}>
-                    A sideways pair on an inside-edge opening — fold down the middle to join it.
+                    A sideways pair on an inside-edge opening. Fold down the middle to join it.
                   </Text>
                 ) : selCount >= 2 ? (
                   <Text style={styles.selWarn}>
-                    Merged pieces must be a sideways PAIR on an inside-edge opening — fold down the
+                    Merged pieces must be a sideways PAIR on an inside-edge opening. Fold down the
                     middle, slide into both pockets.
                   </Text>
                 ) : (
@@ -855,7 +854,7 @@ export function SliceStudio({ rows, cols, imageUrl: initUrl, pairStarts, onSaveS
                   ))}
                   {Platform.OS !== 'web' ? (
                     <Text style={styles.guideNote}>
-                      Keyboard / Shift / Ctrl shortcuts are web-only — use the buttons on touch.
+                      Keyboard / Shift / Ctrl shortcuts are web-only. Use the buttons on touch.
                     </Text>
                   ) : null}
                 </ScrollView>
@@ -893,8 +892,8 @@ export function SliceStudio({ rows, cols, imageUrl: initUrl, pairStarts, onSaveS
                   ))}
                   <Text style={styles.guideNote}>
                     Open a source in its own tab, then drag any image straight onto the studio to
-                    load it. If a host blocks direct loading, save the image and ⬆ Upload it
-                    instead — uploads are stored with your binder, so they never break.
+                    load it. If a host blocks direct loading, save the image and Upload it
+                    instead. Uploads are stored with your binder, so they never break.
                   </Text>
                 </ScrollView>
               </ThemedView>

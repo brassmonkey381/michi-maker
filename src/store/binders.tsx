@@ -516,7 +516,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         if (blocking) {
           return {
             ok: false,
-            reason: `Page ${i + 1} has content that wouldn't fit ${rows}×${cols} — move or clear it first.`,
+            reason: `Page ${i + 1} has content that wouldn't fit ${rows}×${cols}. Move or clear it first.`,
           };
         }
       }

@@ -189,7 +189,7 @@ function Viewer({
       <Link href="/" asChild>
         <Pressable style={styles.madeWith} hitSlop={8}>
           <ThemedText type="small" themeColor="textSecondary" style={styles.madeWithText}>
-            Made with michi-maker — build your own binder ›
+            Made with michi-maker · build your own binder ›
           </ThemedText>
         </Pressable>
       </Link>

@@ -103,7 +103,7 @@ export function PrintPlaceholdersSheet({
           <ThemedView type="backgroundElement" style={sheet.dialogCard}>
             <View style={styles.header}>
               <ThemedText type="subtitle" style={styles.title}>
-                🖨 Print fill sheets
+                Print fill sheets
               </ThemedText>
               <Pressable onPress={onClose} hitSlop={8}>
                 <ThemedText type="link" themeColor="textSecondary">
@@ -113,16 +113,16 @@ export function PrintPlaceholdersSheet({
             </View>
 
             {guestGated ? (
-              <SignInPerk message="Placeholder labels read the full card catalog — sign in (free) to print them." />
+              <SignInPerk message="Placeholder labels read the full card catalog. Sign in (free) to print them." />
             ) : Platform.OS !== 'web' ? (
               <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-                PDF download is available on the web app for now — open michi-maker.com to print
+                PDF download is available on the web app for now. Open michi-maker.com to print
                 this binder’s placeholders.
               </ThemedText>
             ) : (
               <>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-                  A print-ready PDF of this binder’s pages as cut-ready fill sheets — card
+                  A print-ready PDF of this binder’s pages as cut-ready fill sheets: card
                   placeholders (labeled with pocket + name/set/number), the binder’s ART pieces
                   (gap-compensated so pictures stay continuous across pocket dividers), and
                   color inserts. Every piece is real card size (2.5″ × 3.5″): print at 100%,
@@ -160,7 +160,7 @@ export function PrintPlaceholdersSheet({
                     <ThemedText type="smallBold">{sheets}</ThemedText> sheet
                     {sheets === 1 ? '' : 's'} (plus a cover with print instructions).
                     {colorOwned && ownedCount > 0
-                      ? ` ${ownedCount} print${ownedCount === 1 ? 's' : ''} green — already in your collection.`
+                      ? ` ${ownedCount} print${ownedCount === 1 ? 's' : ''} green, already in your collection.`
                       : ''}
                   </ThemedText>
                 ) : null}
@@ -181,7 +181,7 @@ export function PrintPlaceholdersSheet({
                 ) : null}
                 {counts && counts.total === 0 ? (
                   <ThemedText type="small" themeColor="textSecondary">
-                    This binder’s pockets are empty — nothing to print yet.
+                    This binder’s pockets are empty. Nothing to print yet.
                   </ThemedText>
                 ) : null}
 
@@ -206,9 +206,9 @@ export function PrintPlaceholdersSheet({
                 ) : (
                   // No dead purchase button while checkout isn't wired — an honest note instead.
                   <View style={styles.lockedBox}>
-                    <ThemedText type="smallBold">🔒 Printing is a paid feature</ThemedText>
+                    <ThemedText type="smallBold">Printing is a paid feature</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-                      Full fill-sheet PDFs come with a PRO plan, or a small one-time unlock — print
+                      Full fill-sheet PDFs come with a PRO plan, or a small one-time unlock. Print
                       any of your binders forever. Purchases aren’t open quite yet; check back soon.
                     </ThemedText>
                   </View>

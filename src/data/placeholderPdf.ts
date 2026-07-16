@@ -783,11 +783,11 @@ function drawCover(page: PDFPage, binderTitle: string, counts: FillCounts, bold:
 
   y -= 56;
   const steps = [
-    'Print at 100% scale (“Actual size”) — NOT “Fit to page”.',
+    'Print at 100% scale (“Actual size”), NOT “Fit to page”.',
     'Check the calibration square below: it must measure exactly 1 inch (2.54 cm).',
-    'Cut along each piece’s dashed outline. Pieces sit at pocket pitch — the gaps between them mirror your binder page.',
+    'Cut along each piece’s dashed outline. Pieces sit at pocket pitch: the gaps between them mirror your binder page.',
     'Wide art pieces span TWO pockets: fold at the tick marks (the art continues across the fold), then slide each half into its pocket pair.',
-    'Slide every piece into the pocket printed on it (page, row, column — art pieces carry a corner tag). When a real card arrives, its placeholder shows exactly which pocket to swap.',
+    'Slide every piece into the pocket printed on it (page, row, column; art pieces carry a corner tag). When a real card arrives, its placeholder shows exactly which pocket to swap.',
   ];
   const left = MARGIN_X + 24;
   steps.forEach((text, i) => {

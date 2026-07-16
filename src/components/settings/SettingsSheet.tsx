@@ -31,7 +31,7 @@ export function SettingsButton() {
         accessibilityLabel="Settings"
         hitSlop={8}
         style={({ pressed }) => [styles.gearBtn, pressed && styles.pressed]}>
-        <ThemedText style={styles.gear}>⚙</ThemedText>
+        <ThemedText style={styles.gear}>Settings</ThemedText>
       </Pressable>
       <SettingsSheet visible={open} onClose={() => setOpen(false)} />
     </>
@@ -126,7 +126,7 @@ function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => 
                     <ThemedText type="small" themeColor="textSecondary">
                       {profilePublic
                         ? 'Your public binders can be shared and featured.'
-                        : 'Private — every one of your binders is hidden from everyone but you.'}
+                        : 'Private: every one of your binders is hidden from everyone but you.'}
                     </ThemedText>
                   </View>
                   <Switch
@@ -158,7 +158,7 @@ function ThemePreview({ id }: { id: VariantId }) {
 
 const styles = StyleSheet.create({
   gearBtn: { padding: Spacing.one },
-  gear: { fontSize: FontSize.title, lineHeight: 28 },
+  gear: { fontSize: FontSize.control, fontWeight: '600', lineHeight: 28 },
   pressed: { opacity: 0.7 },
 
   cardWrap: { width: '100%', maxWidth: 380 },

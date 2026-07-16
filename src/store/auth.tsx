@@ -327,7 +327,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!user) return { error: 'You need to be signed in to pick a username.' };
       const uname = username.trim().toLowerCase();
       if (!/^[a-z0-9_]{3,20}$/.test(uname)) {
-        return { error: 'Usernames are 3–20 characters — lowercase letters, numbers, or underscores.' };
+        return { error: 'Usernames are 3–20 characters, lowercase letters, numbers, or underscores.' };
       }
       // Best-effort availability check; the unique index is authoritative on the write below.
       const { data: taken } = await supabase

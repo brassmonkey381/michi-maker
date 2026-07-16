@@ -48,7 +48,7 @@ export function ArtUploadButton({ onUploaded, onError }: ArtUploadButtonProps) {
         onPress={() => inputRef.current?.click()}
         disabled={busy}
         style={({ pressed }) => [studioButton.base, (busy || pressed) && styles.pressed]}>
-        <Text style={studioButton.text}>{busy ? 'Uploading…' : '⬆ Upload'}</Text>
+        <Text style={studioButton.text}>{busy ? 'Uploading…' : 'Upload'}</Text>
       </Pressable>
     </>
   );

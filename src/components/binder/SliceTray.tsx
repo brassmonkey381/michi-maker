@@ -76,7 +76,7 @@ export function SliceTray({
         slices.length === 0 ? (
           <View style={styles.empty}>
             <Text style={styles.emptyText}>
-              No slices yet. Open the Slice Studio, cut some art, and Save slices — they land here to
+              No slices yet. Open the Slice Studio, cut some art, and Save slices. They land here to
               drag into your pockets.
             </Text>
           </View>

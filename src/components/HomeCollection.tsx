@@ -120,7 +120,7 @@ function EmptyCollection({ onToast }: { onToast?: (message: string) => void }) {
         <Pressable
           onPress={() => setImportOpen(true)}
           style={({ pressed }) => [styles.buildChip, pressed && styles.pressed]}>
-          <Text style={styles.buildChipText}>⬆ Import CSV</Text>
+          <Text style={styles.buildChipText}>Import CSV</Text>
         </Pressable>
       </View>
       <ImportCsvSheet
@@ -358,7 +358,7 @@ function CollectionStrip({
       const slot = [...page.slots].reverse().find((s) => s.cardId === cardId && s.fromCollection);
       if (slot) {
         store.removeSlot(binder.id, page.id, slot.id);
-        onToast?.(`Reclaimed from ${binder.title} — 1 more available to place`);
+        onToast?.(`Reclaimed from ${binder.title}. 1 more available to place`);
         return;
       }
     }
@@ -376,7 +376,7 @@ function CollectionStrip({
             <Pressable
               onPress={() => setWizardOpen(true)}
               style={({ pressed }) => [styles.buildChip, pressed && styles.pressed]}>
-              <Text style={styles.buildChipText}>✨ Build binder</Text>
+              <Text style={styles.buildChipText}>Build binder</Text>
             </Pressable>
           ) : null}
         </View>
@@ -408,7 +408,7 @@ function CollectionStrip({
           </Text>
         </Pressable>
         <Pressable onPress={() => setImportOpen(true)} style={pillChip.base}>
-          <Text style={pillChip.text}>⬆ Import</Text>
+          <Text style={pillChip.text}>Import</Text>
         </Pressable>
         <TextInput
           value={query}
@@ -477,7 +477,7 @@ function CollectionStrip({
           </ThemedText>
         ) : portfolioGroups.length === 0 ? (
           <ThemedText type="small" themeColor="textSecondary" style={styles.emptyNote}>
-            No portfolios yet — collections you make in tcgscan appear here.
+            No portfolios yet. Collections you make in tcgscan appear here.
           </ThemedText>
         ) : (
           portfolioGroups.map((g) => (

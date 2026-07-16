@@ -91,7 +91,7 @@ function toAsset(e: LibraryEntry, aspect: ArtAspect): ArtworkAsset {
     themes: subjects,
     aspect,
     sourceDomain: 'artofpkm.com',
-    license: `Official Pokémon artwork — via ${pageUrl(e)}`,
+    license: `Official Pokémon artwork, via ${pageUrl(e)}`,
     licenseClear: false,
   };
 }
@@ -130,7 +130,7 @@ export async function searchArt(query: string, aspect: ArtAspect): Promise<Artwo
       results.push({
         id: `pokeapi-${dex}`,
         url: pokeApiArt(dex),
-        title: `${term} — official render`,
+        title: `${term} (official render)`,
         themes: [term],
         aspect,
         sourceDomain: 'raw.githubusercontent.com',

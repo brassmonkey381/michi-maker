@@ -57,13 +57,13 @@ export function artPieceAllowed(
   if (rowSpan > 1) {
     return {
       ok: false,
-      reason: 'Side-load pockets only open sideways — an art piece can’t span rows. Use sliced pieces instead.',
+      reason: 'Side-load pockets only open sideways, so an art piece can’t span rows. Use sliced pieces instead.',
     };
   }
   if (colSpan > 2) {
     return {
       ok: false,
-      reason: 'An art piece can be at most 2 pockets wide — one fold, one pocket pair.',
+      reason: 'An art piece can be at most 2 pockets wide: one fold, one pocket pair.',
     };
   }
   if (colSpan === 2 && !insideEdgePairStarts(pageCols, side).includes(col)) {
@@ -72,7 +72,7 @@ export function artPieceAllowed(
       .join(' or ');
     return {
       ok: false,
-      reason: `A folded 2-wide piece only fits a pocket pair that opens along the same inside edge — columns ${pairs} on this page.`,
+      reason: `A folded 2-wide piece only fits a pocket pair that opens along the same inside edge: columns ${pairs} on this page.`,
     };
   }
   return { ok: true, reason: null };

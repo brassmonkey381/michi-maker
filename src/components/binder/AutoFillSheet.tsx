@@ -1,5 +1,5 @@
 /**
- * "✨ Fill page" sheet — auto-curate the current page around the selected card (the seed),
+ * "Fill page" sheet — auto-curate the current page around the selected card (the seed),
  * michi-method style. Lists the compose methods that make sense for this seed (see
  * `availableMethods`); picking one runs the page composer and fills the page's EMPTY pockets,
  * leaving everything already placed untouched. One store commit → one Undo.
@@ -100,8 +100,8 @@ export function AutoFillSheet({
       if (placements.length === 0) {
         setError(
           poolActive
-            ? 'None of your collection fits this method — try another, or fill from the whole catalog.'
-            : 'Nothing suitable found for this method — try another.',
+            ? 'None of your collection fits this method. Try another, or fill from the whole catalog.'
+            : 'Nothing suitable found for this method. Try another.',
         );
         return;
       }
@@ -119,7 +119,7 @@ export function AutoFillSheet({
           <ThemedView type="backgroundElement" style={sheet.dialogCard}>
             <View style={styles.header}>
               <ThemedText type="subtitle" style={styles.title}>
-                ✨ Fill page
+                Fill page
               </ThemedText>
               <Pressable onPress={onClose} hitSlop={8}>
                 <ThemedText type="link" themeColor="textSecondary">
@@ -131,7 +131,7 @@ export function AutoFillSheet({
             {guestGated ? (
               // The composer scans the full catalog, which is a signed-in perk — say so instead
               // of showing a spinner that would never resolve for a guest.
-              <SignInPerk message="Auto-fill curates pages from the full card catalog — sign in (free) to use it." />
+              <SignInPerk message="Auto-fill curates pages from the full card catalog. Sign in (free) to use it." />
             ) : !ready ? (
               <View style={styles.center}>
                 <ActivityIndicator />
@@ -146,8 +146,7 @@ export function AutoFillSheet({
             ) : (
               <>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-                  Curate this page around <ThemedText type="smallBold">{seed.name}</ThemedText> —
-                  fills the {emptyCount} empty pocket{emptyCount === 1 ? '' : 's'}, keeps what’s
+                  Curate this page around <ThemedText type="smallBold">{seed.name}</ThemedText>: fills the {emptyCount} empty pocket{emptyCount === 1 ? '' : 's'}, keeps what’s
                   already placed. Undo reverses the whole fill.
                 </ThemedText>
 
@@ -164,7 +163,7 @@ export function AutoFillSheet({
 
                 {emptyCount === 0 ? (
                   <ThemedText type="small" themeColor="textSecondary">
-                    The page is full — clear a pocket or two first.
+                    The page is full. Clear a pocket or two first.
                   </ThemedText>
                 ) : (
                   COMPOSE_METHODS.filter((m) => methods.includes(m.key)).map((m) => (

@@ -108,7 +108,7 @@ export default function BindersScreen() {
     if (!addCardId) return;
     if (store.atBinderLimit) {
       setAddCardId(null);
-      showToast('You’ve reached your binder limit — upgrade for more.');
+      showToast('You’ve reached your binder limit. Upgrade for more.');
       return;
     }
     // Atomic create-with-card — creating then adding would race the store snapshot.
@@ -133,7 +133,7 @@ export default function BindersScreen() {
 
   const handleNew = () => {
     if (store.atBinderLimit) {
-      showToast('You’ve reached your binder limit — upgrade for more.');
+      showToast('You’ve reached your binder limit. Upgrade for more.');
       return;
     }
     const binder = store.createBinder({ title: 'New binder' });
@@ -165,7 +165,7 @@ export default function BindersScreen() {
   const duplicateFromMenu = () => {
     if (menuBinder) {
       const copy = store.duplicateBinder(menuBinder.id);
-      showToast(copy ? 'Binder duplicated' : 'You’ve reached your binder limit — upgrade for more.');
+      showToast(copy ? 'Binder duplicated' : 'You’ve reached your binder limit. Upgrade for more.');
     }
     setMenuId(null);
   };
@@ -213,7 +213,7 @@ export default function BindersScreen() {
             hitSlop={6}
             style={({ pressed }) => [styles.methodLink, pressed && styles.pressed]}>
             <ThemedText type="small" themeColor="textSecondary">
-              ✨ New here? What’s the Michi Method?
+              New here? What’s the Michi Method?
             </ThemedText>
           </Pressable>
 

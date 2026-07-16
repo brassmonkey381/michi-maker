@@ -40,7 +40,7 @@ export function UpgradePerk({
       </View>
       {revealed ? (
         <ThemedText type="small" themeColor="textSecondary" style={styles.soon}>
-          Paid plans aren’t open quite yet — check back soon.
+          Paid plans aren’t open quite yet. Check back soon.
         </ThemedText>
       ) : null}
     </View>

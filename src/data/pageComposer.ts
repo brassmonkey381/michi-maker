@@ -86,7 +86,7 @@ export const COMPOSE_METHODS: {
   {
     key: 'pokemonFriends',
     label: 'Friends & partners',
-    description: 'Pokémon this one is known to pair with — duos, TAG TEAMs, lore.',
+    description: 'Pokémon this one is known to pair with: duos, TAG TEAMs, lore.',
   },
   {
     key: 'trainerPage',
@@ -106,7 +106,7 @@ export const COMPOSE_METHODS: {
   {
     key: 'fullPageSpread',
     label: 'Full-page spread',
-    description: 'One theme-matched artwork flows across every empty pocket — your cards become the accents.',
+    description: 'One theme-matched artwork flows across every empty pocket. Your cards become the accents.',
   },
 ];
 

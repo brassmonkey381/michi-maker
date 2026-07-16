@@ -238,7 +238,7 @@ export function CardPicker({
         <Pressable
           onPress={() => onOpenSliceStudio(slot?.imageUrl, shape.rows, shape.cols)}
           style={studioButton.base}>
-          <Text style={studioButton.text}>✂ Slice studio</Text>
+          <Text style={studioButton.text}>Slice studio</Text>
         </Pressable>
       </View>
       {!isArtSearchConfigured ? (
@@ -286,7 +286,7 @@ export function CardPicker({
         <Text style={[styles.hint, styles.errorHint]}>{uploadError}</Text>
       ) : urlInput.trim() ? (
         <Text style={styles.hint}>
-          From {domainOf(urlInput)} — saved as-is; check you have the right to use it.
+          From {domainOf(urlInput)}: saved as-is; check you have the right to use it.
         </Text>
       ) : null}
     </>
@@ -440,7 +440,7 @@ function ArtThumb({
           />
         )}
         <View style={[styles.tag, !art.licenseClear && styles.tagWarn]}>
-          <Text style={styles.tagText}>{art.licenseClear ? art.license : '⚠ review'}</Text>
+          <Text style={styles.tagText}>{art.licenseClear ? art.license : 'review'}</Text>
         </View>
       </View>
       <Text numberOfLines={1} style={styles.thumbName}>

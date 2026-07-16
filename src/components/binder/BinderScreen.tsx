@@ -763,7 +763,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           onPress={() =>
             store.pageLimitReached(binder.id)
               ? showToast(
-                  `You’ve reached the ${store.limits.pagesPerBinder}-page limit — upgrade for more.`,
+                  `You’ve reached the ${store.limits.pagesPerBinder}-page limit. Upgrade for more.`,
                   true,
                 )
               : store.addPage(binder.id)
@@ -837,8 +837,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
             <ThemedText type="smallBold">Page visibility</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
               {(page.isPublic ?? true)
-                ? 'Public — shown to anyone viewing this binder.'
-                : 'Private — hidden from public viewers; only you see it.'}
+                ? 'Public: shown to anyone viewing this binder.'
+                : 'Private: hidden from public viewers; only you see it.'}
             </ThemedText>
           </View>
           <Switch

@@ -84,7 +84,7 @@ export const RARITY_TABLE: readonly RarityEntry[] = [
   { catalog: 'shiny ultra rare', tier: 'Shiny Ultra Rare', symbol: '★★ (silver)', jp: 'SSR', group: 'special' },
   { catalog: 'rainbow rare', tier: 'Rainbow Rare', symbol: 'rainbow ★', jp: 'HR', group: 'special' },
   { catalog: 'amazing rare', tier: 'Amazing Rare', symbol: '"A" block', jp: 'A', group: 'special' },
-  { catalog: 'radiant rare', tier: 'Radiant Rare', symbol: '—', jp: 'K', group: 'special' },
+  { catalog: 'radiant rare', tier: 'Radiant Rare', symbol: '–', jp: 'K', group: 'special' },
   { catalog: 'prism rare', tier: 'Prism Rare', symbol: '◇', jp: 'PR', group: 'special' },
   { catalog: 'promo', tier: 'Promo', symbol: '★ + PROMO', jp: 'PROMO', group: 'special' },
 ];

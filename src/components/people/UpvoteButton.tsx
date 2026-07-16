@@ -96,7 +96,7 @@ export function UpvoteButton({
       style={({ pressed }) => [styles.btn, voted && styles.btnVoted, pressed && styles.pressed]}>
       <Text style={[styles.arrow, voted && styles.arrowVoted]}>▲</Text>
       <ThemedText type="smallBold" style={voted ? styles.countVoted : undefined}>
-        {count ?? '—'}
+        {count ?? '–'}
       </ThemedText>
     </Pressable>
   );

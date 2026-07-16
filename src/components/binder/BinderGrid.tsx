@@ -413,7 +413,7 @@ function SlotToolbar({
       style={[styles.slotToolbar, { left, top, opacity: size.w ? 1 : 0 }]}>
       <ToolButton label="Replace" onPress={onReplace} />
       <ToolButton label="Duplicate" onPress={onDuplicate} />
-      {onAutoFill ? <ToolButton label="✨ Fill" onPress={onAutoFill} /> : null}
+      {onAutoFill ? <ToolButton label="Fill" onPress={onAutoFill} /> : null}
       <ToolButton label="Remove" tone="danger" onPress={onRemove} />
       <ToolButton label="✕" onPress={onDeselect} />
     </View>

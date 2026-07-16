@@ -112,7 +112,7 @@ function AuthForm({ onClose, isGuest }: { onClose: () => void; isGuest: boolean 
     // Creating an account requires a permanent @username.
     const uname = username.trim().toLowerCase();
     if (!/^[a-z0-9_]{3,20}$/.test(uname)) {
-      setError('Pick a username: 3–20 characters — lowercase letters, numbers, or underscores.');
+      setError('Pick a username: 3–20 characters, lowercase letters, numbers, or underscores.');
       return;
     }
     void createWithUsername(uname);
@@ -139,7 +139,7 @@ function AuthForm({ onClose, isGuest }: { onClose: () => void; isGuest: boolean 
           return;
         }
         if (r.needsEmailConfirmation) {
-          setInfo(`Check ${email.trim()} to confirm your account — you’ll set @${uname} right after.`);
+          setInfo(`Check ${email.trim()} to confirm your account. You’ll set @${uname} right after.`);
           return; // no session yet; the gate claims the username once they confirm + sign in
         }
       }

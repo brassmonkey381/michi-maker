@@ -84,6 +84,6 @@ export const MICHI_LAYOUT_STYLES = [
   {
     value: 'freeform',
     label: 'Freeform',
-    description: 'No fixed style — arrange the canvas however you like.',
+    description: 'No fixed style. Arrange the canvas however you like.',
   },
 ] as const satisfies readonly MichiLayoutStyleMeta[];

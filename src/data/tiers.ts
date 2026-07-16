@@ -48,14 +48,23 @@ export const LIMITS_ENFORCED = false;
 export interface TierLimits {
   /** Max user binders. */
   binders: number;
-  /** Max pages per binder. */
+  /**
+   * Max pages per binder, counted in APP pages (one page = one side; see binderPhysics.ts).
+   * Marketing talks in double-sided sheets, so "20 double-sided pages" = 40 here.
+   */
   pagesPerBinder: number;
   /** ✨ Composer / auto-fill pages per calendar month (metering not built yet — see roadmap). */
   composerPagesPerMonth: number;
-  /** Uploaded art images retained. */
+  /** Uploaded art images KEPT in the account at a time (a retention cap, not a rate). */
   artUploads: number;
   /** Full fill-sheet / placeholder PDF export of any binder. */
   fullPrint: boolean;
+  /**
+   * Full-binder prints INCLUDED with the subscription each month (extra prints are the
+   * one-time per-binder purchase). Metering not built yet — until it is, `fullPrint` alone
+   * gates the Download button and included prints are effectively unlimited.
+   */
+  includedPrintsPerMonth: number;
 }
 
 /**
@@ -64,33 +73,42 @@ export interface TierLimits {
  * Kept behind LIMITS_ENFORCED so they don't bite until pricing is live.
  */
 export const TIER_LIMITS: Record<Tier, TierLimits> = {
+  // Guest is NOT an advertised plan — a taste before the sign-in prompt (SignInPerk, not
+  // UpgradePerk): 1 binder, 6 pages (3 double-sided sheets).
   guest: {
-    binders: 3,
-    pagesPerBinder: 10,
+    binders: 1,
+    pagesPerBinder: 6,
     composerPagesPerMonth: 0,
     artUploads: 0,
     fullPrint: false,
+    includedPrintsPerMonth: 0,
   },
+  // 3 binders × 20 double-sided sheets × 32 cards (4×4 both sides) = up to 1,920 cards.
   free: {
-    binders: 10,
-    pagesPerBinder: 20,
+    binders: 3,
+    pagesPerBinder: 40,
     composerPagesPerMonth: 5,
-    artUploads: 20,
+    artUploads: 10,
     fullPrint: false,
+    includedPrintsPerMonth: 0,
   },
+  // 12 binders × 640 cards = 7,680 ("over 7,500 cards"). $3.99/mo or $39.99/yr.
   pro: {
-    binders: 50,
-    pagesPerBinder: 50,
+    binders: 12,
+    pagesPerBinder: 40,
     composerPagesPerMonth: Infinity,
-    artUploads: 500,
+    artUploads: 100,
     fullPrint: true,
+    includedPrintsPerMonth: 1,
   },
+  // $9.99/mo or $99.99/yr.
   vip: {
     binders: Infinity,
     pagesPerBinder: Infinity,
     composerPagesPerMonth: Infinity,
     artUploads: Infinity,
     fullPrint: true,
+    includedPrintsPerMonth: 5,
   },
 };
 
@@ -101,6 +119,7 @@ const UNLIMITED: TierLimits = {
   composerPagesPerMonth: Infinity,
   artUploads: Infinity,
   fullPrint: false, // print eligibility is decided by tier/entitlement, not by this switch
+  includedPrintsPerMonth: Infinity,
 };
 
 /** Is a grant currently in effect? Lifetime rows (null expiry) always are. */

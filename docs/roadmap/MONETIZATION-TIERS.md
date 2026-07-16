@@ -35,9 +35,9 @@ Evolve the current single one-time unlock into a tier system:
 - **PRO** — monthly subscription (or discounted yearly), higher limits, full print access.
 - **VIP** — top tier, effectively unlimited + future perks (early features, print-on-demand
   discounts when that ships).
-- **One-time purchases** stay possible alongside subscriptions: a cheap **PDF print sample**
-  (e.g. one page of one binder) and a **full-binder PDF** at a higher one-time fee for
-  people who won't subscribe.
+- **One-time purchases** stay possible alongside subscriptions: a **full-binder fill-sheet
+  PDF** ($3.99) for people who won't subscribe. No paid sample — the teaser is a free
+  premade EXAMPLE sheet (our cards, not the user's binder).
 
 Owner's stated preferences: monthly subscription models, or a full year at a discount.
 
@@ -77,24 +77,37 @@ Client: extend the hook family with `useTier()` reading all rows once. Keep the 
 "no client writes" invariant; renewals/cancellations land via provider webhooks updating
 `expires_at`.
 
-## Suggested tier matrix (STRAWMAN — get owner sign-off on numbers before shipping)
+## Tier matrix (owner-revised 2026-07-16; mirrors `src/data/tiers.ts` TIER_LIMITS)
 
-| Capability | Guest | Free (signed in) | PRO | VIP |
+Guest is NOT an advertised plan — it's the pre-sign-in taste (1 binder, 6 pages) and the
+prompt beyond it is SignInPerk ("sign in, free"), never an upgrade pitch. The comparison
+sheet shows Free / PRO / VIP only.
+
+Page counts below are DOUBLE-SIDED sheets (marketing language); the app counts sides, so
+"20 double-sided pages" = `pagesPerBinder: 40` in tiers.ts.
+
+| Capability | Guest (unadvertised) | Free (signed in) | PRO | VIP |
 | --- | --- | --- | --- | --- |
-| Binders | 3 | 10 | 50 | unlimited |
-| Pages per binder | 10 | 20 | 50 | unlimited |
+| Binders | 1 | 3 | 12 | unlimited |
+| Pages per binder | 6 sides | 20 double-sided | 20 double-sided | unlimited |
+| Card capacity (4×4) | ~96 | up to 1,920 | over 7,500 | unlimited |
 | Catalog browse/search | server search | full catalog | full | full |
 | ✨ Composer / auto-fill | — | 5 pages/mo | unlimited | unlimited |
 | Slice Studio | ✓ | ✓ | ✓ | ✓ |
-| Art uploads | — | 20 | 500 | unlimited |
+| Art uploads kept (at a time) | — | 10 | 100 | unlimited |
 | My Collection sync (tcgscan) | — | ✓ | ✓ | ✓ |
 | CSV import | — | 1 portfolio | unlimited | unlimited |
-| Fill-sheet PDF | — | sample page w/ watermark | full binders | full + priority features |
-| Public sharing / likes | view only | ✓ | ✓ | ✓ + featured eligibility boost? |
+| Fill-sheet PDF | — | example-sheet preview only | full binders, 1 print/mo included | full binders, 5 prints/mo included + first in line for print extras |
+| Public sharing / likes | view only | view only | share + like | share + like + featured eligibility boost |
 
-Pricing strawman: PRO $4.99/mo or $39/yr; VIP $9.99/mo or $79/yr; sample PDF $1.99;
-full-binder one-time $6.99. (Owner sets real numbers in the provider dashboard — the app
+Pricing (owner-set 2026-07-16): PRO $3.99/mo or **$39.99/yr (most popular)**; VIP $9.99/mo
+or **$99.99/yr (best value)**; one-time full-binder fill-sheet PDF $3.99. There is NO paid
+sample PDF — the free preview is a premade EXAMPLE sheet (our cards, not theirs), not a
+watermarked page of their binder. (Prices still live in the provider dashboard — the app
 never hardcodes price; fetch or link to a pricing page.)
+
+"Included prints per month" needs the same usage-metering build as the composer quota —
+until that exists, `fullPrint` alone gates the Download button for PRO/VIP.
 
 ## Enforcement points (where limits plug in)
 
@@ -102,10 +115,9 @@ never hardcodes price; fetch or link to a pricing page.)
   — return a refusal the UI turns into an upgrade note (reuse the `SignInPerk` pattern with
   an "Upgrade" variant component).
 - Composer: `AutoFillSheet` entry point.
-- Print: `PrintPlaceholdersSheet` — replace the boolean `pdf_print` gate with tier logic +
-  the sample/one-time paths. **Sample = first sheet only + a diagonal watermark** (the PDF
-  engine `src/data/placeholderPdf.ts` makes this easy — cap `packTiles` output and stamp
-  text). Keep the counts preview free as the teaser (existing pattern).
+- Print: `PrintPlaceholdersSheet` — tier logic (done) + the one-time per-binder path.
+  The free teaser = counts preview (existing) + a premade EXAMPLE sheet PDF (static asset,
+  our cards — no watermarking of the user's binder needed).
 - Server-side backstop for the things that matter (binder count) via RLS-adjacent checks or
   a trigger — client limits alone are advisory.
 

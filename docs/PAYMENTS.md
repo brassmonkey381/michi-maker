@@ -16,9 +16,9 @@ active while `expires_at` is NULL or in the future.
 | product key | what it is / unlocks | notes |
 | ----------- | -------------------- | ----- |
 | `pdf_print` | One-time LIFETIME full-print unlock (fill sheets, any binder, forever) | **GRANDFATHERED** — existing holders keep it |
-| `tier_pro`  | PRO subscription — full print + higher limits | `expires_at` per period |
-| `tier_vip`  | VIP subscription — unlimited + priority | `expires_at` per period |
-| `pdf_sample`, `pdf_binder:<id>` | one-time sample / single-binder PDF | future |
+| `tier_pro`  | PRO subscription — full print (1 included print/mo) + higher limits | `expires_at` per period |
+| `tier_vip`  | VIP subscription — unlimited + 5 included prints/mo + priority | `expires_at` per period |
+| `pdf_binder:<id>` | one-time single-binder fill-sheet PDF ($3.99 strawman) | future — no paid sample; the teaser is a free premade example sheet |
 
 Full print (`PrintPlaceholdersSheet` Download) unlocks for PRO/VIP **or** an active `pdf_print`
 row. The counts preview stays free as the teaser; only the Download is behind the unlock.

@@ -1,0 +1,1963 @@
+[
+  {
+    "id": "ex-my-first-binder",
+    "title": "My First Binder",
+    "description": "Throwing in random pages and cards for testing UX",
+    "layoutStyle": "freeform",
+    "isExample": true,
+    "pages": [
+      {
+        "id": "ex-my-first-binder_p0",
+        "title": "Pikachu Shrine",
+        "description": "Pikachus I will never be able to afford lol.",
+        "rows": 3,
+        "cols": 3,
+        "backgroundColor": "#000000",
+        "slots": [
+          {
+            "id": "ex-my-first-binder_p0_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "252737"
+          },
+          {
+            "id": "ex-my-first-binder_p0_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "214241"
+          },
+          {
+            "id": "ex-my-first-binder_p0_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "268260"
+          },
+          {
+            "id": "ex-my-first-binder_p0_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "500263"
+          },
+          {
+            "id": "ex-my-first-binder_p0_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "478103"
+          },
+          {
+            "id": "ex-my-first-binder_p0_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "500264"
+          },
+          {
+            "id": "ex-my-first-binder_p0_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "252738"
+          },
+          {
+            "id": "ex-my-first-binder_p0_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "542481"
+          },
+          {
+            "id": "ex-my-first-binder_p0_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "268259"
+          }
+        ]
+      },
+      {
+        "id": "ex-my-first-binder_p1",
+        "title": "Togepi and Friends",
+        "description": "Togepi and friends enjoying a beautiful picnic eating strawberries.",
+        "rows": 3,
+        "cols": 3,
+        "backgroundColor": "#000000",
+        "slots": [
+          {
+            "id": "ex-my-first-binder_p1_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "89490"
+          },
+          {
+            "id": "ex-my-first-binder_p1_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 2,
+            "colSpan": 2,
+            "type": "artwork",
+            "imageUrl": "https://i.pinimg.com/control1/1200x/24/5c/bc/245cbc49cca5b928e71276575850c197.jpg",
+            "imageCrop": {
+              "h": 1,
+              "w": 1,
+              "x": 0,
+              "y": 0
+            },
+            "imageFit": "contain"
+          },
+          {
+            "id": "ex-my-first-binder_p1_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "84036"
+          },
+          {
+            "id": "ex-my-first-binder_p1_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "234287"
+          },
+          {
+            "id": "ex-my-first-binder_p1_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "88079"
+          },
+          {
+            "id": "ex-my-first-binder_p1_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "84216"
+          }
+        ]
+      },
+      {
+        "id": "ex-my-first-binder_p2",
+        "title": "Watery Bridge",
+        "description": "Art of artofpkm, these cards fit seamlessly into the pond environment.",
+        "rows": 3,
+        "cols": 3,
+        "backgroundColor": "#000000",
+        "slots": [
+          {
+            "id": "ex-my-first-binder_p2_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 3,
+            "type": "artwork",
+            "imageUrl": "https://www.artofpkm.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBMjBMQXc9PSIsImV4cCI6bnVsbCwicHVyIjoiYmxvYl9pZCJ9fQ==--fc17c008782f0b4f8d497c98acb5b10e4ff7e01a/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaDdDRG9MWm05eWJXRjBPZ2wzWldKd09oUnlaWE5wZW1WZmRHOWZiR2x0YVhSYkIya0MwQWRwQXRBSE9neHhkV0ZzYVhSNWFXUT0iLCJleHAiOm51bGwsInB1ciI6InZhcmlhdGlvbiJ9fQ==--ed2d6d11a2959980a13c5ee4344539bfee99a0a7/53067c56cebce5a1.jpg",
+            "imageCrop": {
+              "h": 0.5,
+              "w": 1,
+              "x": 0,
+              "y": 0
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-my-first-binder_p2_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://www.artofpkm.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBMjBMQXc9PSIsImV4cCI6bnVsbCwicHVyIjoiYmxvYl9pZCJ9fQ==--fc17c008782f0b4f8d497c98acb5b10e4ff7e01a/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaDdDRG9MWm05eWJXRjBPZ2wzWldKd09oUnlaWE5wZW1WZmRHOWZiR2x0YVhSYkIya0MwQWRwQXRBSE9neHhkV0ZzYVhSNWFXUT0iLCJleHAiOm51bGwsInB1ciI6InZhcmlhdGlvbiJ9fQ==--ed2d6d11a2959980a13c5ee4344539bfee99a0a7/53067c56cebce5a1.jpg",
+            "imageCrop": {
+              "h": 0.5,
+              "w": 0.5,
+              "x": 0,
+              "y": 0.5
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-my-first-binder_p2_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "89921"
+          },
+          {
+            "id": "ex-my-first-binder_p2_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://www.artofpkm.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBMjBMQXc9PSIsImV4cCI6bnVsbCwicHVyIjoiYmxvYl9pZCJ9fQ==--fc17c008782f0b4f8d497c98acb5b10e4ff7e01a/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaDdDRG9MWm05eWJXRjBPZ2wzWldKd09oUnlaWE5wZW1WZmRHOWZiR2x0YVhSYkIya0MwQWRwQXRBSE9neHhkV0ZzYVhSNWFXUT0iLCJleHAiOm51bGwsInB1ciI6InZhcmlhdGlvbiJ9fQ==--ed2d6d11a2959980a13c5ee4344539bfee99a0a7/53067c56cebce5a1.jpg",
+            "imageCrop": {
+              "h": 0.5,
+              "w": 0.5,
+              "x": 0.5,
+              "y": 0.5
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-my-first-binder_p2_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "111541"
+          },
+          {
+            "id": "ex-my-first-binder_p2_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "623462"
+          },
+          {
+            "id": "ex-my-first-binder_p2_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "241690"
+          }
+        ]
+      },
+      {
+        "id": "ex-my-first-binder_p3",
+        "title": "Animal Reverse Holos",
+        "description": "Cheap holos of one type, all in one page.  Bulk cards look very organized and clean this way.",
+        "rows": 3,
+        "cols": 3,
+        "backgroundColor": "#000000",
+        "slots": [
+          {
+            "id": "ex-my-first-binder_p3_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "642690"
+          },
+          {
+            "id": "ex-my-first-binder_p3_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "642767"
+          },
+          {
+            "id": "ex-my-first-binder_p3_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "642757"
+          },
+          {
+            "id": "ex-my-first-binder_p3_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "642766"
+          },
+          {
+            "id": "ex-my-first-binder_p3_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "642764"
+          },
+          {
+            "id": "ex-my-first-binder_p3_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "642421"
+          },
+          {
+            "id": "ex-my-first-binder_p3_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "642758"
+          },
+          {
+            "id": "ex-my-first-binder_p3_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "642759"
+          },
+          {
+            "id": "ex-my-first-binder_p3_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "642756"
+          }
+        ]
+      },
+      {
+        "id": "ex-my-first-binder_p4",
+        "title": "Charizard Energy",
+        "description": "Charizard swith some fire fire energy he's making.",
+        "rows": 3,
+        "cols": 3,
+        "backgroundColor": "#000000",
+        "slots": [
+          {
+            "id": "ex-my-first-binder_p4_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://i.pinimg.com/control1/736x/e8/57/d9/e857d91505e0a44234a6df642684dd08.jpg",
+            "imageCrop": {
+              "h": 0.3333333333333333,
+              "w": 0.3333333333333333,
+              "x": 0,
+              "y": 0
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-my-first-binder_p4_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://i.pinimg.com/control1/736x/e8/57/d9/e857d91505e0a44234a6df642684dd08.jpg",
+            "imageCrop": {
+              "h": 0.3333333333333333,
+              "w": 0.3333333333333333,
+              "x": 0.3333333333333333,
+              "y": 0
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-my-first-binder_p4_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "656264"
+          },
+          {
+            "id": "ex-my-first-binder_p4_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://i.pinimg.com/control1/736x/e8/57/d9/e857d91505e0a44234a6df642684dd08.jpg",
+            "imageCrop": {
+              "h": 0.3333333333333333,
+              "w": 0.3333333333333333,
+              "x": 0,
+              "y": 0.3333333333333333
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-my-first-binder_p4_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://i.pinimg.com/control1/736x/e8/57/d9/e857d91505e0a44234a6df642684dd08.jpg",
+            "imageCrop": {
+              "h": 0.3333333333333333,
+              "w": 0.3333333333333333,
+              "x": 0.3333333333333333,
+              "y": 0.3333333333333333
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-my-first-binder_p4_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://i.pinimg.com/control1/736x/e8/57/d9/e857d91505e0a44234a6df642684dd08.jpg",
+            "imageCrop": {
+              "h": 0.3333333333333333,
+              "w": 0.3333333333333333,
+              "x": 0.6666666666666666,
+              "y": 0.3333333333333333
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-my-first-binder_p4_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "656264"
+          },
+          {
+            "id": "ex-my-first-binder_p4_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://i.pinimg.com/control1/736x/e8/57/d9/e857d91505e0a44234a6df642684dd08.jpg",
+            "imageCrop": {
+              "h": 0.3333333333333333,
+              "w": 0.3333333333333333,
+              "x": 0.3333333333333333,
+              "y": 0.6666666666666666
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-my-first-binder_p4_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "656264"
+          }
+        ]
+      },
+      {
+        "id": "ex-my-first-binder_p5",
+        "title": "Hands!",
+        "description": "Inspired by a reddit post I saw, this page is dedicated to the pose of hands reaching out!",
+        "rows": 3,
+        "cols": 3,
+        "backgroundColor": "#000000",
+        "slots": [
+          {
+            "id": "ex-my-first-binder_p5_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "92204"
+          },
+          {
+            "id": "ex-my-first-binder_p5_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "85025"
+          },
+          {
+            "id": "ex-my-first-binder_p5_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "84778"
+          },
+          {
+            "id": "ex-my-first-binder_p5_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "113693"
+          },
+          {
+            "id": "ex-my-first-binder_p5_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/87597.831d56675b21.jpg",
+            "imageCrop": {
+              "h": 0.30706249999999996,
+              "w": 0.30706249999999996,
+              "x": 0.1564994130839472,
+              "y": 0.19797940923783974
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-my-first-binder_p5_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/87597.831d56675b21.jpg",
+            "imageCrop": {
+              "h": 0.30706249999999996,
+              "w": 0.30706249999999996,
+              "x": 0.4635619130839471,
+              "y": 0.19797940923783974
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-my-first-binder_p5_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "85126"
+          },
+          {
+            "id": "ex-my-first-binder_p5_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "86029"
+          },
+          {
+            "id": "ex-my-first-binder_p5_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "87421"
+          }
+        ]
+      },
+      {
+        "id": "ex-my-first-binder_p6",
+        "title": "Forest Friends Napping",
+        "description": "Three forest friends, surrounded by beautiful card sleeve art renditions of them napping. ",
+        "rows": 3,
+        "cols": 3,
+        "backgroundColor": "#000000",
+        "slots": [
+          {
+            "id": "ex-my-first-binder_p6_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://www.pokemoncenter.com/images/DAMRoot/High/10029/P12020_10-10562-101_01.jpg",
+            "imageCrop": {
+              "h": 1,
+              "w": 1,
+              "x": 0,
+              "y": 0
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-my-first-binder_p6_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://www.pokemoncenter.com/images/DAMRoot/High/10029/P12020_10-10562-101_01.jpg"
+          },
+          {
+            "id": "ex-my-first-binder_p6_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://www.pokemoncenter.com/images/DAMRoot/High/10029/P12020_10-10562-101_01.jpg"
+          },
+          {
+            "id": "ex-my-first-binder_p6_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "213251"
+          },
+          {
+            "id": "ex-my-first-binder_p6_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "200300"
+          },
+          {
+            "id": "ex-my-first-binder_p6_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "253413"
+          },
+          {
+            "id": "ex-my-first-binder_p6_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://www.pokemoncenter.com/images/DAMRoot/High/10029/P12020_10-10562-101_01.jpg"
+          },
+          {
+            "id": "ex-my-first-binder_p6_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://www.pokemoncenter.com/images/DAMRoot/High/10029/P12020_10-10562-101_01.jpg"
+          },
+          {
+            "id": "ex-my-first-binder_p6_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://www.pokemoncenter.com/images/DAMRoot/High/10029/P12020_10-10562-101_01.jpg"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "ex-ideas-in-flight",
+    "title": "Ideas in Flight",
+    "description": "A couple full art story page ideas thrown in throughout the binder (sky reshiram and friends page, misty page, houndoom page, ...)",
+    "layoutStyle": "freeform",
+    "isExample": true,
+    "pages": [
+      {
+        "id": "ex-ideas-in-flight_p0",
+        "title": "Page 1",
+        "description": "Sky reshiram and friends, layout #1",
+        "rows": 3,
+        "cols": 3,
+        "backgroundColor": "#f3e9d2",
+        "slots": [
+          {
+            "id": "ex-ideas-in-flight_p0_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://www.pokemoncenter.com/images/DAMRoot/High/10030/P11418_10-10247-101_01.jpg",
+            "imageCrop": {
+              "h": 0.3333333333333333,
+              "w": 0.23951863354037267,
+              "x": 0.24747670807453412,
+              "y": 0.1465450310559007
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-ideas-in-flight_p0_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://www.pokemoncenter.com/images/DAMRoot/High/10030/P11418_10-10247-101_01.jpg",
+            "imageCrop": {
+              "h": 0.3333333333333333,
+              "w": 0.23951863354037267,
+              "x": 0.48699534161490676,
+              "y": 0.1465450310559007
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-ideas-in-flight_p0_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "88098"
+          },
+          {
+            "id": "ex-ideas-in-flight_p0_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "85075"
+          },
+          {
+            "id": "ex-ideas-in-flight_p0_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 2,
+            "type": "artwork",
+            "imageUrl": "https://www.artofpkm.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBeHdPQXc9PSIsImV4cCI6bnVsbCwicHVyIjoiYmxvYl9pZCJ9fQ==--0a6203f84960c2deb0edfe9e8f8c7a78e198fcc9/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaDdDRG9MWm05eWJXRjBPZ2wzWldKd09oUnlaWE5wZW1WZmRHOWZiR2x0YVhSYkIya0MwQWRwQXRBSE9neHhkV0ZzYVhSNWFXUT0iLCJleHAiOm51bGwsInB1ciI6InZhcmlhdGlvbiJ9fQ==--ed2d6d11a2959980a13c5ee4344539bfee99a0a7/ExtractedImage.png",
+            "imageCrop": {
+              "h": 0.45,
+              "w": 0.4563973434535106,
+              "x": 0.1543212713472486,
+              "y": 0.41263282732447815
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-ideas-in-flight_p0_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://www.pokemoncenter.com/images/DAMRoot/High/10030/P11418_10-10247-101_01.jpg",
+            "imageCrop": {
+              "h": 0.2700000000000001,
+              "w": 0.19401009316770185,
+              "x": 0.23347049689441077,
+              "y": 0.4865819099378882
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-ideas-in-flight_p0_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://www.pokemoncenter.com/images/DAMRoot/High/10030/P11418_10-10247-101_01.jpg",
+            "imageCrop": {
+              "h": 0.2700000000000001,
+              "w": 0.19401009316770185,
+              "x": 0.4274805900621126,
+              "y": 0.4865819099378882
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-ideas-in-flight_p0_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "218440"
+          }
+        ]
+      },
+      {
+        "id": "ex-ideas-in-flight_p1",
+        "title": "Page 2",
+        "description": "Filler Page, eyeballing pages 1 & 3 visually, and the sliced art wouldn't fit realistically in an even numbered page.",
+        "rows": 3,
+        "cols": 3,
+        "slots": []
+      },
+      {
+        "id": "ex-ideas-in-flight_p2",
+        "title": "Page 3",
+        "description": "Sky reshiram and friends, layout #2",
+        "rows": 3,
+        "cols": 3,
+        "backgroundColor": "#f3e8d0",
+        "slots": [
+          {
+            "id": "ex-ideas-in-flight_p2_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "183899"
+          },
+          {
+            "id": "ex-ideas-in-flight_p2_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 2,
+            "type": "artwork",
+            "imageUrl": "https://www.pokemoncenter.com/images/DAMRoot/High/10030/P11418_10-10247-101_01.jpg",
+            "imageCrop": {
+              "h": 0.27000000000000013,
+              "w": 0.3880608365019012,
+              "x": 0.2946511406844104,
+              "y": 0.2130351711026614
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-ideas-in-flight_p2_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://www.artofpkm.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBeHdPQXc9PSIsImV4cCI6bnVsbCwicHVyIjoiYmxvYl9pZCJ9fQ==--0a6203f84960c2deb0edfe9e8f8c7a78e198fcc9/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaDdDRG9MWm05eWJXRjBPZ2wzWldKd09oUnlaWE5wZW1WZmRHOWZiR2x0YVhSYkIya0MwQWRwQXRBSE9neHhkV0ZzYVhSNWFXUT0iLCJleHAiOm51bGwsInB1ciI6InZhcmlhdGlvbiJ9fQ==--ed2d6d11a2959980a13c5ee4344539bfee99a0a7/ExtractedImage.png",
+            "imageCrop": {
+              "h": 0.3333333333333333,
+              "w": 0.1693396739130435,
+              "x": 0.14787228260869564,
+              "y": 0.4701733954451346
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-ideas-in-flight_p2_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 2,
+            "type": "artwork",
+            "imageUrl": "https://www.artofpkm.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBeHdPQXc9PSIsImV4cCI6bnVsbCwicHVyIjoiYmxvYl9pZCJ9fQ==--0a6203f84960c2deb0edfe9e8f8c7a78e198fcc9/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaDdDRG9MWm05eWJXRjBPZ2wzWldKd09oUnlaWE5wZW1WZmRHOWZiR2x0YVhSYkIya0MwQWRwQXRBSE9neHhkV0ZzYVhSNWFXUT0iLCJleHAiOm51bGwsInB1ciI6InZhcmlhdGlvbiJ9fQ==--ed2d6d11a2959980a13c5ee4344539bfee99a0a7/ExtractedImage.png",
+            "imageCrop": {
+              "h": 0.3333333333333333,
+              "w": 0.338679347826087,
+              "x": 0.31721195652173917,
+              "y": 0.4701733954451346
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-ideas-in-flight_p2_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "218440"
+          },
+          {
+            "id": "ex-ideas-in-flight_p2_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "85075"
+          },
+          {
+            "id": "ex-ideas-in-flight_p2_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "88098"
+          }
+        ]
+      },
+      {
+        "id": "ex-ideas-in-flight_p3",
+        "title": "Page 5",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "ex-ideas-in-flight_p3_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "183925"
+          },
+          {
+            "id": "ex-ideas-in-flight_p3_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "675855"
+          },
+          {
+            "id": "ex-ideas-in-flight_p3_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "117701"
+          },
+          {
+            "id": "ex-ideas-in-flight_p3_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "589945"
+          },
+          {
+            "id": "ex-ideas-in-flight_p3_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 2,
+            "type": "artwork",
+            "imageUrl": "https://piikwvntldytjejxmcla.supabase.co/storage/v1/object/public/binder-art/30f21f44-c88d-4bfa-9aa1-a563fc37ccae/aaa3f79a-2528-4ef8-98ec-33e4530ceb77.jpg",
+            "imageCrop": {
+              "h": 0.9408382115794607,
+              "w": 1.002962392707203,
+              "x": -0.0037100016707286966,
+              "y": 0.0602250837771796
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-ideas-in-flight_p3_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "246879"
+          },
+          {
+            "id": "ex-ideas-in-flight_p3_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "100621"
+          },
+          {
+            "id": "ex-ideas-in-flight_p3_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "219343"
+          }
+        ]
+      },
+      {
+        "id": "ex-ideas-in-flight_p4",
+        "title": "Page 3",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "ex-ideas-in-flight_p4_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "272470"
+          },
+          {
+            "id": "ex-ideas-in-flight_p4_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "277025"
+          },
+          {
+            "id": "ex-ideas-in-flight_p4_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "284169"
+          },
+          {
+            "id": "ex-ideas-in-flight_p4_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "633044"
+          },
+          {
+            "id": "ex-ideas-in-flight_p4_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "633043"
+          },
+          {
+            "id": "ex-ideas-in-flight_p4_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "567490"
+          },
+          {
+            "id": "ex-ideas-in-flight_p4_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "452010"
+          },
+          {
+            "id": "ex-ideas-in-flight_p4_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "208499"
+          },
+          {
+            "id": "ex-ideas-in-flight_p4_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "452012"
+          }
+        ]
+      },
+      {
+        "id": "ex-ideas-in-flight_p5",
+        "title": "Page 7",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "ex-ideas-in-flight_p5_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "272479"
+          },
+          {
+            "id": "ex-ideas-in-flight_p5_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "654481"
+          },
+          {
+            "id": "ex-ideas-in-flight_p5_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "680481"
+          },
+          {
+            "id": "ex-ideas-in-flight_p5_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "523938"
+          },
+          {
+            "id": "ex-ideas-in-flight_p5_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "108606"
+          },
+          {
+            "id": "ex-ideas-in-flight_p5_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "201351"
+          },
+          {
+            "id": "ex-ideas-in-flight_p5_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "234052"
+          },
+          {
+            "id": "ex-ideas-in-flight_p5_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "209528"
+          },
+          {
+            "id": "ex-ideas-in-flight_p5_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "84809"
+          }
+        ]
+      },
+      {
+        "id": "ex-ideas-in-flight_p6",
+        "title": "Page 8",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "ex-ideas-in-flight_p6_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "632842"
+          },
+          {
+            "id": "ex-ideas-in-flight_p6_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "632843"
+          },
+          {
+            "id": "ex-ideas-in-flight_p6_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "567238"
+          },
+          {
+            "id": "ex-ideas-in-flight_p6_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "84266"
+          },
+          {
+            "id": "ex-ideas-in-flight_p6_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "642583"
+          },
+          {
+            "id": "ex-ideas-in-flight_p6_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "84259"
+          },
+          {
+            "id": "ex-ideas-in-flight_p6_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "213093"
+          },
+          {
+            "id": "ex-ideas-in-flight_p6_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "550062"
+          },
+          {
+            "id": "ex-ideas-in-flight_p6_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "610543"
+          }
+        ]
+      },
+      {
+        "id": "ex-ideas-in-flight_p7",
+        "title": "Page 9",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "ex-ideas-in-flight_p7_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "213256"
+          },
+          {
+            "id": "ex-ideas-in-flight_p7_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "517043"
+          },
+          {
+            "id": "ex-ideas-in-flight_p7_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "517050"
+          },
+          {
+            "id": "ex-ideas-in-flight_p7_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "497685"
+          },
+          {
+            "id": "ex-ideas-in-flight_p7_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://www.artofpkm.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBK2wvQWc9PSIsImV4cCI6bnVsbCwicHVyIjoiYmxvYl9pZCJ9fQ==--60aa811757ffaeab1c6d571cc21c2f7e79f075b1/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaDdDRG9MWm05eWJXRjBPZ2wzWldKd09oUnlaWE5wZW1WZmRHOWZiR2x0YVhSYkIya0MwQWRwQXRBSE9neHhkV0ZzYVhSNWFXUT0iLCJleHAiOm51bGwsInB1ciI6InZhcmlhdGlvbiJ9fQ==--ed2d6d11a2959980a13c5ee4344539bfee99a0a7/047533_T_ROKETTODANNOSAKAKI.jpg",
+            "imageCrop": {
+              "h": 0.12571650520833327,
+              "w": 0.12571650520833327,
+              "x": 0.39470782370166657,
+              "y": 0.26378984234583025
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-ideas-in-flight_p7_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "artwork",
+            "imageUrl": "https://www.artofpkm.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBK2wvQWc9PSIsImV4cCI6bnVsbCwicHVyIjoiYmxvYl9pZCJ9fQ==--60aa811757ffaeab1c6d571cc21c2f7e79f075b1/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaDdDRG9MWm05eWJXRjBPZ2wzWldKd09oUnlaWE5wZW1WZmRHOWZiR2x0YVhSYkIya0MwQWRwQXRBSE9neHhkV0ZzYVhSNWFXUT0iLCJleHAiOm51bGwsInB1ciI6InZhcmlhdGlvbiJ9fQ==--ed2d6d11a2959980a13c5ee4344539bfee99a0a7/047533_T_ROKETTODANNOSAKAKI.jpg",
+            "imageCrop": {
+              "h": 0.12571650520833327,
+              "w": 0.12571650520833327,
+              "x": 0.5204243289099999,
+              "y": 0.26378984234583025
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-ideas-in-flight_p7_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "489944"
+          },
+          {
+            "id": "ex-ideas-in-flight_p7_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "676068"
+          },
+          {
+            "id": "ex-ideas-in-flight_p7_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "284297"
+          }
+        ]
+      },
+      {
+        "id": "ex-ideas-in-flight_p8",
+        "title": "Page 10",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "ex-ideas-in-flight_p8_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "90114"
+          },
+          {
+            "id": "ex-ideas-in-flight_p8_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "562023"
+          },
+          {
+            "id": "ex-ideas-in-flight_p8_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "84483"
+          },
+          {
+            "id": "ex-ideas-in-flight_p8_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "87875"
+          },
+          {
+            "id": "ex-ideas-in-flight_p8_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "86198"
+          },
+          {
+            "id": "ex-ideas-in-flight_p8_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "89558"
+          },
+          {
+            "id": "ex-ideas-in-flight_p8_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "257310"
+          },
+          {
+            "id": "ex-ideas-in-flight_p8_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "257310"
+          },
+          {
+            "id": "ex-ideas-in-flight_p8_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "257310"
+          }
+        ]
+      },
+      {
+        "id": "ex-ideas-in-flight_p9",
+        "title": "Orca Shrine",
+        "description": "Illustrator Highlight - Orca\nCentered is his first piece, charmander, with Full Arts in the corners",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "ex-ideas-in-flight_p9_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "642211"
+          },
+          {
+            "id": "ex-ideas-in-flight_p9_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "642268"
+          },
+          {
+            "id": "ex-ideas-in-flight_p9_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "632994"
+          },
+          {
+            "id": "ex-ideas-in-flight_p9_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "662233"
+          },
+          {
+            "id": "ex-ideas-in-flight_p9_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "675832"
+          },
+          {
+            "id": "ex-ideas-in-flight_p9_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "642577"
+          },
+          {
+            "id": "ex-ideas-in-flight_p9_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "542901"
+          },
+          {
+            "id": "ex-ideas-in-flight_p9_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "676060"
+          },
+          {
+            "id": "ex-ideas-in-flight_p9_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "567418"
+          }
+        ]
+      },
+      {
+        "id": "ex-ideas-in-flight_p10",
+        "title": "Page 12",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "ex-ideas-in-flight_p10_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "87546"
+          },
+          {
+            "id": "ex-ideas-in-flight_p10_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "123445"
+          },
+          {
+            "id": "ex-ideas-in-flight_p10_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "632993"
+          },
+          {
+            "id": "ex-ideas-in-flight_p10_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 2,
+            "type": "artwork",
+            "imageUrl": "https://board.ttvchannel.com/uploads/db5640/original/4X/8/a/4/8a48bad799e85611a5b7b8277e6e7884a47b11cf.jpeg",
+            "imageCrop": {
+              "h": 0.411522633744856,
+              "w": 0.5914040334330191,
+              "x": 0.25797484855455866,
+              "y": 0.0741795107737136
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-ideas-in-flight_p10_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "87534"
+          },
+          {
+            "id": "ex-ideas-in-flight_p10_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 2,
+            "type": "artwork",
+            "imageUrl": "https://board.ttvchannel.com/uploads/db5640/original/4X/8/a/4/8a48bad799e85611a5b7b8277e6e7884a47b11cf.jpeg",
+            "imageCrop": {
+              "h": 0.411522633744856,
+              "w": 0.5914040334330191,
+              "x": 0.25797484855455866,
+              "y": 0.4857021445185696
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-ideas-in-flight_p10_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "87531"
+          }
+        ]
+      },
+      {
+        "id": "ex-ideas-in-flight_p11",
+        "title": "TBD: Umbreon and Sylveon Page. ",
+        "description": "I like this artwork.  I forgot where I got it, but the card labels say it's from artofpkm.com",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "ex-ideas-in-flight_p11_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 2,
+            "type": "artwork",
+            "imageUrl": "https://www.artofpkm.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBemNMQXc9PSIsImV4cCI6bnVsbCwicHVyIjoiYmxvYl9pZCJ9fQ==--aad8d3d7e55e4ed36d098517fccad3423fa3d3d0/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaDdDRG9MWm05eWJXRjBPZ2wzWldKd09oUnlaWE5wZW1WZmRHOWZiR2x0YVhSYkIya0MwQWRwQXRBSE9neHhkV0ZzYVhSNWFXUT0iLCJleHAiOm51bGwsInB1ciI6InZhcmlhdGlvbiJ9fQ==--ed2d6d11a2959980a13c5ee4344539bfee99a0a7/1957060631216963690_1.jpg",
+            "imageCrop": {
+              "h": 0.3333333333333333,
+              "w": 0.3166436335403727,
+              "x": 0.2625172748447204,
+              "y": 0.3333333333333333
+            },
+            "imageFit": "cover"
+          },
+          {
+            "id": "ex-ideas-in-flight_p11_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 2,
+            "type": "artwork",
+            "imageUrl": "https://www.artofpkm.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBemNMQXc9PSIsImV4cCI6bnVsbCwicHVyIjoiYmxvYl9pZCJ9fQ==--aad8d3d7e55e4ed36d098517fccad3423fa3d3d0/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaDdDRG9MWm05eWJXRjBPZ2wzWldKd09oUnlaWE5wZW1WZmRHOWZiR2x0YVhSYkIya0MwQWRwQXRBSE9neHhkV0ZzYVhSNWFXUT0iLCJleHAiOm51bGwsInB1ciI6InZhcmlhdGlvbiJ9fQ==--ed2d6d11a2959980a13c5ee4344539bfee99a0a7/1957060631216963690_1.jpg",
+            "imageCrop": {
+              "h": 0.3333333333333333,
+              "w": 0.3166436335403727,
+              "x": 0.2625172748447204,
+              "y": 0.6666666666666666
+            },
+            "imageFit": "cover"
+          }
+        ]
+      },
+      {
+        "id": "ex-ideas-in-flight_p12",
+        "title": "Page 14",
+        "rows": 3,
+        "cols": 3,
+        "slots": []
+      }
+    ]
+  },
+  {
+    "id": "ex-pitch-black-chase",
+    "title": "ME: Pitch Black Chase",
+    "description": "All Pitch Black Illustration Rares and Special Illustration Rares, highlighted with other Pitch Black cards and art.",
+    "layoutStyle": "freeform",
+    "isExample": true,
+    "pages": [
+      {
+        "id": "ex-pitch-black-chase_p0",
+        "title": "The Chase",
+        "description": "Some of the chase cards in this set for me.",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "ex-pitch-black-chase_p0_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704871"
+          },
+          {
+            "id": "ex-pitch-black-chase_p0_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704856"
+          },
+          {
+            "id": "ex-pitch-black-chase_p0_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704858"
+          },
+          {
+            "id": "ex-pitch-black-chase_p0_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704855"
+          },
+          {
+            "id": "ex-pitch-black-chase_p0_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704872"
+          },
+          {
+            "id": "ex-pitch-black-chase_p0_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704873"
+          }
+        ]
+      },
+      {
+        "id": "ex-pitch-black-chase_p1",
+        "title": "Page 5",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "ex-pitch-black-chase_p1_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704874"
+          },
+          {
+            "id": "ex-pitch-black-chase_p1_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704859"
+          }
+        ]
+      },
+      {
+        "id": "ex-pitch-black-chase_p2",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "ex-pitch-black-chase_p2_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704861"
+          },
+          {
+            "id": "ex-pitch-black-chase_p2_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704862"
+          },
+          {
+            "id": "ex-pitch-black-chase_p2_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704857"
+          },
+          {
+            "id": "ex-pitch-black-chase_p2_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704860"
+          }
+        ]
+      },
+      {
+        "id": "ex-pitch-black-chase_p3",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "ex-pitch-black-chase_p3_r0c0",
+            "row": 0,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704866"
+          },
+          {
+            "id": "ex-pitch-black-chase_p3_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704865"
+          },
+          {
+            "id": "ex-pitch-black-chase_p3_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704869"
+          },
+          {
+            "id": "ex-pitch-black-chase_p3_r1c0",
+            "row": 1,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704863"
+          },
+          {
+            "id": "ex-pitch-black-chase_p3_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704867"
+          },
+          {
+            "id": "ex-pitch-black-chase_p3_r1c2",
+            "row": 1,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704864"
+          }
+        ]
+      },
+      {
+        "id": "ex-pitch-black-chase_p4",
+        "title": "Page 4",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "ex-pitch-black-chase_p4_r0c1",
+            "row": 0,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704870"
+          },
+          {
+            "id": "ex-pitch-black-chase_p4_r0c2",
+            "row": 0,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704876"
+          },
+          {
+            "id": "ex-pitch-black-chase_p4_r2c0",
+            "row": 2,
+            "col": 0,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704875"
+          },
+          {
+            "id": "ex-pitch-black-chase_p4_r2c1",
+            "row": 2,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704868"
+          },
+          {
+            "id": "ex-pitch-black-chase_p4_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704854"
+          }
+        ]
+      },
+      {
+        "id": "ex-pitch-black-chase_p5",
+        "title": "Page 6",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "ex-pitch-black-chase_p5_r1c1",
+            "row": 1,
+            "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704853"
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -72,17 +72,12 @@ function isDarkBackground(hex: string): boolean {
 
 /** One page that tells a story at a glance: the rarity ladder, common → hyper. */
 const HERO_ID = 'gen-prismatic-rarity-ladder';
-/** Wide screens get an OPEN SPREAD instead: facing pages are the whole point of this binder. */
-const SPREAD_ID = 'gen-vintage-vs-modern-grails';
-/** A curated spread of looks: grails, budget holos, vintage, completion, galleries. */
-const GALLERY_IDS = [
-  'gen-grail-wall',
-  'gen-vintage-vs-modern-grails',
-  'gen-dollar-bin-holos',
-  'gen-sv-supporter-gallery',
-  'gen-reprints-doppelgangers',
-  'gen-base-set-completion',
-];
+/** Wide screens get an OPEN SPREAD instead: the owner's real binder, opened to its facing pages. */
+const SPREAD_ID = 'ex-my-first-binder';
+/** Which facing pages the spread shows (0-indexed left page): pages 2–3, designed as a pair. */
+const SPREAD_LEFT_PAGE = 1;
+/** The owner's real binders (bundled by scripts/build-featured-binders.mjs), not mockups. */
+const GALLERY_IDS = ['ex-my-first-binder', 'ex-ideas-in-flight', 'ex-pitch-black-chase'];
 
 const VALUE_PROPS = [
   {
@@ -157,7 +152,8 @@ export default function WelcomeScreen() {
   // The hero: an open two-page spread when there's room for it (facing pages are the thing
   // neither a card list nor a competitor wireframe can show), a single page otherwise.
   const spreadBinder = BINDERS_BY_ID.get(SPREAD_ID);
-  const showSpread = windowW >= 1180 && !!spreadBinder && spreadBinder.pages.length >= 2;
+  const showSpread =
+    windowW >= 1180 && !!spreadBinder && spreadBinder.pages.length > SPREAD_LEFT_PAGE + 1;
   const spreadPageW = Math.min(330, (windowW - 620) / 2);
   // The single-page render: big enough to read the cards, never wider than the phone.
   const heroW = wide ? 420 : Math.min(windowW - Spacing.five * 2, 380);
@@ -234,13 +230,16 @@ export default function WelcomeScreen() {
                 <View style={styles.heroArt}>
                   <View style={[styles.heroTilt, Shadows.page]}>
                     <View style={styles.spreadRow}>
-                      <BinderGrid page={spreadBinder.pages[0]} width={spreadPageW} />
+                      <BinderGrid page={spreadBinder.pages[SPREAD_LEFT_PAGE]} width={spreadPageW} />
                       <View style={styles.spine}>
                         {[0, 1, 2, 3].map((i) => (
                           <View key={i} style={styles.ring} />
                         ))}
                       </View>
-                      <BinderGrid page={spreadBinder.pages[1]} width={spreadPageW} />
+                      <BinderGrid
+                        page={spreadBinder.pages[SPREAD_LEFT_PAGE + 1]}
+                        width={spreadPageW}
+                      />
                     </View>
                   </View>
                   <ThemedText type="small" themeColor="textSecondary" style={styles.heroCaption}>

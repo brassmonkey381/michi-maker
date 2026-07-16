@@ -20,7 +20,7 @@ import {
   Weight,
 } from '@/constants/theme';
 import { SAMPLE_BINDERS } from '@/data/sampleData';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTheme } from '@/hooks/use-theme';
 import { markLandingSeen } from '@/lib/landing';
 
 /**
@@ -51,6 +51,23 @@ const Mat = { light: '#F0EADF', dark: '#211E18' };
 const Bronze = { light: '#8A6B45', dark: '#C99F6E' };
 /** The print band is the page's one dark moment, in both schemes. */
 const InkBand = { bg: '#1D1A15', title: '#F5EFE4', body: '#B3AA9A' };
+
+/**
+ * Whether the RESOLVED theme is dark. The paper/mat/bronze surfaces must agree with the
+ * text colors ThemedText resolves, and those follow the active theme VARIANT, which may
+ * pin a scheme (Dark Vault is dark in both OS schemes). Reading the raw OS scheme here
+ * put espresso vintage-light text on dark paper for anyone with a variant set — so judge
+ * darkness from the actual theme background instead.
+ */
+function isDarkBackground(hex: string): boolean {
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return false;
+  let h = m[1];
+  if (h.length === 3) h = h.replace(/./g, (c) => c + c);
+  const n = parseInt(h, 16);
+  const luminance = 0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255);
+  return luminance < 128;
+}
 
 /** One page that tells a story at a glance: the rarity ladder, common → hyper. */
 const HERO_ID = 'gen-prismatic-rarity-ladder';
@@ -112,7 +129,7 @@ export default function WelcomeScreen() {
   const router = useRouter();
   const { width: windowW } = useWindowDimensions();
   const wide = windowW >= 920;
-  const dark = useColorScheme() === 'dark';
+  const dark = isDarkBackground(useTheme().background);
   const paper = dark ? Paper.dark : Paper.light;
   const mat = dark ? Mat.dark : Mat.light;
   const bronze = dark ? Bronze.dark : Bronze.light;

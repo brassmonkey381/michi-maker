@@ -21,6 +21,7 @@ interface LibraryEntry {
   p: [string, number][]; // tagged [species, dex]
   c: string[]; // tagged characters (trainers etc.)
   a?: string; // illustrator (present after the library is rebuilt with artist capture)
+  s?: string; // original source URL (the specific post the art came from), post-rebuild
 }
 
 const ENTRIES = (library as unknown as { entries: LibraryEntry[] }).entries ?? [];
@@ -38,6 +39,19 @@ const originalUrl = (e: LibraryEntry) =>
 
 /** artwork detail page (for provenance/citation). */
 const pageUrl = (e: LibraryEntry) => `https://www.artofpkm.com/artwork/${e.i}`;
+
+/** Friendly platform name from an original-source URL ("Instagram", "pixiv", …). */
+function sourceHost(url: string): string {
+  try {
+    const h = new URL(url).hostname.replace(/^www\./, '');
+    if (h.endsWith('instagram.com')) return 'Instagram';
+    if (h.endsWith('pixiv.net')) return 'pixiv';
+    if (h.endsWith('twitter.com') || h.endsWith('x.com')) return 'X (Twitter)';
+    return h;
+  } catch {
+    return 'source';
+  }
+}
 
 /** Scenery / colour words → iconic species, so "fire" or "ocean" still finds fitting art. */
 const THEME_SPECIES: Record<string, string[]> = {
@@ -94,11 +108,12 @@ function toAsset(e: LibraryEntry, aspect: ArtAspect): ArtworkAsset {
     sourceDomain: 'artofpkm.com',
     license: `Official Pokémon artwork, via ${pageUrl(e)}`,
     licenseClear: false,
-    // Provenance stamped on the slot at placement: the artwork page always; the illustrator
-    // once the library is rebuilt with artist capture (build-art-library.mjs).
+    // Provenance stamped on the slot at placement. Prefer the deeper ORIGINAL source (the
+    // Instagram/shop post the art came from) once the rebuilt library carries it; otherwise the
+    // artofpkm artwork page, which itself credits the artist and links the original.
     attribution: {
-      sourceName: 'The Art of Pokémon',
-      sourceUrl: pageUrl(e),
+      sourceName: e.s ? sourceHost(e.s) : 'The Art of Pokémon',
+      sourceUrl: e.s || pageUrl(e),
       ...(e.a ? { artist: e.a } : {}),
     },
   };

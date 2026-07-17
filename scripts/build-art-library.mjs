@@ -100,12 +100,21 @@ function parseDetail(id, html) {
     characters.push(name);
   }
 
-  // Illustrator credit — artofpkm links the artist via /artists/<id> (or /illustrators/<id>).
-  // Take the first such linked name as the primary credit.
+  // Illustrator credit — artofpkm shows "Illus. <name>" linked to /illustrators/<id> (or
+  // /artists/<id>). Take the first such linked name as the primary artist credit.
   let artist = '';
   const artistMatch =
     html.match(/<a[^>]*href="\/(?:artists|illustrators)\/[^"]+"[^>]*>([\s\S]*?)<\/a>/) ?? null;
   if (artistMatch) artist = stripTags(artistMatch[1]).trim();
+
+  // Original source — artofpkm prints "Source: <a href="https://…">www.instagram.com</a>",
+  // linking the specific post the art came from. That deeper link is the truest citation.
+  let source = '';
+  const sourceMatch =
+    html.match(/Source:\s*<a[^>]*href="(https?:\/\/[^"]+)"/i) ??
+    html.match(/href="(https?:\/\/(?:www\.)?instagram\.com\/[^"]+)"/i) ??
+    null;
+  if (sourceMatch) source = sourceMatch[1];
 
   if (species.length === 0 && characters.length === 0 && !title) return null;
   return {
@@ -116,6 +125,7 @@ function parseDetail(id, html) {
     p: species,
     c: characters,
     ...(artist ? { a: artist } : {}),
+    ...(source ? { s: source } : {}),
   };
 }
 

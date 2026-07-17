@@ -4,31 +4,51 @@
  * the system share sheet. Only shown for the owner's own cloud binders.
  */
 import { useState } from 'react';
-import { Modal, Platform, Pressable, Share, StyleSheet, Switch, View } from 'react-native';
+import { Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radius, Spacing } from '@/constants/theme';
 import { sheet } from '@/constants/ui';
+import { artNeedingSource, type UnsourcedArt } from '@/data/artAttributionCheck';
+import type { DemoBinder } from '@/data/binderTypes';
 import { useTheme } from '@/hooks/use-theme';
 import { binderShareUrl } from '@/lib/appUrl';
 
 export function ShareSheet({
   visible,
-  binderId,
+  binder,
   isPublic,
   onClose,
   onSetPublic,
 }: {
   visible: boolean;
-  binderId: string;
+  binder: DemoBinder;
   isPublic: boolean;
   onClose: () => void;
   onSetPublic: (v: boolean) => void;
 }) {
   const theme = useTheme();
-  const url = binderShareUrl(binderId);
+  const url = binderShareUrl(binder.id);
   const [copied, setCopied] = useState(false);
+  // Public-binder attribution gate: art without a source blocks going public (private is
+  // unrestricted). Computed on demand when the user tries to flip the switch.
+  const [unsourced, setUnsourced] = useState<UnsourcedArt[] | null>(null);
+
+  const handleToggle = (next: boolean) => {
+    if (!next) {
+      setUnsourced(null);
+      onSetPublic(false); // going private is always allowed
+      return;
+    }
+    const missing = artNeedingSource(binder);
+    if (missing.length > 0) {
+      setUnsourced(missing); // block — show what needs a source
+      return;
+    }
+    setUnsourced(null);
+    onSetPublic(true);
+  };
 
   const onShare = async () => {
     try {
@@ -69,8 +89,27 @@ export function ShareSheet({
                     : 'Private: only you can see it.'}
                 </ThemedText>
               </View>
-              <Switch value={isPublic} onValueChange={onSetPublic} trackColor={{ true: Palette.accent, false: theme.backgroundSelected }} />
+              <Switch value={isPublic} onValueChange={handleToggle} trackColor={{ true: Palette.accent, false: theme.backgroundSelected }} />
             </View>
+
+            {unsourced && unsourced.length > 0 ? (
+              <View style={styles.gateBox}>
+                <ThemedText type="smallBold">Add a source before going public</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary" style={styles.gateText}>
+                  Public binders credit every artwork, like The Art of Pokémon does. {unsourced.length}{' '}
+                  {unsourced.length === 1 ? 'piece needs' : 'pieces need'} a source link (the
+                  original post, shop, or artist page). Open each in Slice Studio and add its
+                  source, then try again.
+                </ThemedText>
+                <ScrollView style={styles.gateList} contentContainerStyle={styles.gateListInner}>
+                  {unsourced.map((u) => (
+                    <ThemedText key={u.slotId} type="small" themeColor="textSecondary">
+                      • Page {u.page}, row {u.row} col {u.col}
+                    </ThemedText>
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null}
 
             {isPublic ? (
               <View style={styles.linkArea}>
@@ -120,4 +159,15 @@ const styles = StyleSheet.create({
   },
   copyText: { color: Palette.accentText },
   hint: { lineHeight: 20 },
+  gateBox: {
+    gap: Spacing.two,
+    padding: Spacing.three,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
+    backgroundColor: Palette.panel,
+  },
+  gateText: { lineHeight: 18 },
+  gateList: { maxHeight: 96 },
+  gateListInner: { gap: 2 },
 });

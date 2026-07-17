@@ -341,7 +341,7 @@ export default function BindersScreen() {
       {shareBinder && (
         <ShareSheet
           visible
-          binderId={shareBinder.id}
+          binder={shareBinder}
           isPublic={!!shareBinder.isPublic}
           onClose={() => setShareId(null)}
           onSetPublic={(v) => store.updateBinder(shareBinder.id, { isPublic: v })}

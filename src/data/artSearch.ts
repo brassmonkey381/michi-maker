@@ -93,6 +93,10 @@ const THEME_SPECIES: Record<string, string[]> = {
 const SPECIES_DEX = new Map<string, number>();
 for (const e of ENTRIES) for (const [name, dex] of e.p) if (!SPECIES_DEX.has(name)) SPECIES_DEX.set(name, dex);
 
+/** Library entries keyed by artofpkm artwork id, for resolving a pasted /artwork/<id> page URL. */
+const BY_ID = new Map<number, LibraryEntry>();
+for (const e of ENTRIES) BY_ID.set(e.i, e);
+
 /** PokeAPI official artwork render — transparent PNG, very reliable host. */
 const pokeApiArt = (dex: number) =>
   `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${dex}.png`;
@@ -117,6 +121,20 @@ function toAsset(e: LibraryEntry, aspect: ArtAspect): ArtworkAsset {
       ...(e.a ? { artist: e.a } : {}),
     },
   };
+}
+
+/**
+ * Resolve a pasted artofpkm ARTWORK PAGE url (…/artwork/<id>) to a fully-attributed asset from
+ * our bundled library — the image URL plus artist + original source, all from data we already
+ * hold (no network, no scraping). Returns null when the url isn't an artofpkm artwork page or the
+ * piece isn't in our library yet (e.g. added since the last scrape). The caller then falls back to
+ * loading the pasted url directly and deriving what it can.
+ */
+export function artForArtofpkmUrl(url: string): ArtworkAsset | null {
+  const m = /artofpkm\.com\/artwork\/(\d+)/i.exec(url);
+  if (!m) return null;
+  const e = BY_ID.get(Number(m[1]));
+  return e ? toAsset(e, 'portrait') : null;
 }
 
 /**

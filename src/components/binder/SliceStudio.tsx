@@ -25,6 +25,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
 import { sheet } from '@/constants/ui';
+import { artForArtofpkmUrl } from '@/data/artSearch';
 import { deriveAttribution, domainOf, type ArtAttribution } from '@/data/artworkLibrary';
 import { uid, uuidv4, type ImageTransform } from '@/data/binderTypes';
 import type { SavedSlice } from '@/data/savedSlices';
@@ -548,7 +549,18 @@ export function SliceStudio({
   const loadUrl = useCallback(() => {
     const u = urlInput.trim();
     if (!/^https?:\/\/\S+$/i.test(u)) return;
-    loadImage(u);
+    // Paste an artofpkm ARTWORK PAGE url → resolve it against our own library so the image loads
+    // AND the artist + original source auto-fill (no scraping). See artSearch.ts.
+    const art = artForArtofpkmUrl(u);
+    if (art) {
+      loadImage(art.url, art.attribution);
+      return;
+    }
+    // Any other pasted url: load it, and seed the SOURCE with the url itself (the most specific
+    // origin we have — the user can refine it to the exact post page). Uploads/blobs never reach
+    // here, so this only stamps a real remote origin.
+    const d = deriveAttribution(u);
+    loadImage(u, { ...d, sourceUrl: d.sourceUrl ?? u });
   }, [urlInput, loadImage]);
 
   // Save the studio's pieces to the tray. Each grid piece (1×1, or a merged folded 1×2) becomes a
@@ -744,7 +756,7 @@ export function SliceStudio({
               <TextInput
                 value={urlInput}
                 onChangeText={setUrlInput}
-                placeholder="…or paste an image URL"
+                placeholder="…or paste an image or artofpkm.com URL"
                 placeholderTextColor={Palette.muted3}
                 autoCapitalize="none"
                 autoCorrect={false}

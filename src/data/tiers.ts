@@ -40,23 +40,21 @@ export interface EntitlementRow {
 }
 
 /**
- * MASTER SWITCH for the free-tier CAPS (binder/page counts, composer quota, uploads…).
+ * MASTER SWITCH for the free-tier CAPS (binder/page counts, uploads…).
  *
- * `false` = permissive: every limit reads as unlimited, so nothing new restricts existing
- * users. Flip to `true` only once pricing/checkout is live and the owner has signed off on the
- * numbers below. This flag does NOT touch the print gate — printing your own binders is included
+ * ENV-DRIVEN like CHECKOUT_OPEN: off = permissive (every limit reads as unlimited, nothing
+ * restricts existing users). EXPO_PUBLIC_LIMITS_ENFORCED=1 in .env.local enforces locally for
+ * gate testing; set it in the Vercel env at go-live (owner signed off on the numbers
+ * 2026-07-17). This flag does NOT touch the print gate — printing your own binders is included
  * with a PRO/VIP subscription or bought per-binder; this switch never changes that.
  */
-export const LIMITS_ENFORCED = false;
+export const LIMITS_ENFORCED = process.env.EXPO_PUBLIC_LIMITS_ENFORCED === '1';
 
 /** Per-tier capability limits. `Infinity` = unlimited. */
 export interface TierLimits {
   /** Max user binders. */
   binders: number;
-  /**
-   * Max pages per binder, counted in APP pages (one page = one side; see binderPhysics.ts).
-   * Marketing talks in double-sided sheets, so "20 double-sided pages" = 40 here.
-   */
+  /** Max pages per binder (app pages — same unit the editor's + Page button adds). */
   pagesPerBinder: number;
   /**
    * ✨ Composer / auto-fill pages per calendar month. Owner decision 2026-07-16: similarity
@@ -93,21 +91,21 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     fullPrint: false,
     includedPrintsPerMonth: 0,
   },
-  // 3 binders × 20 double-sided sheets × 32 cards (4×4 both sides) = up to 1,920 cards.
+  // 3 binders × 16 pages × 16 cards (4×4) = 768 ("over 750 cards").
   free: {
     binders: 3,
-    pagesPerBinder: 40,
+    pagesPerBinder: 16,
     composerPagesPerMonth: Infinity,
-    artUploads: 10,
+    artUploads: 100,
     fullPrint: false,
     includedPrintsPerMonth: 0,
   },
-  // 12 binders × 640 cards = 7,680 ("over 7,500 cards"). $3.99/mo or $39.99/yr.
+  // 12 binders × 40 pages × 16 cards = 7,680 ("over 7,500 cards"). $3.99/mo or $39.99/yr.
   pro: {
     binders: 12,
     pagesPerBinder: 40,
     composerPagesPerMonth: Infinity,
-    artUploads: 100,
+    artUploads: 1000,
     fullPrint: true,
     includedPrintsPerMonth: 1,
   },

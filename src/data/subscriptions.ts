@@ -100,13 +100,13 @@ export const COMPARISON: CompareRow[] = [
   },
   {
     capability: 'Pages per binder',
-    free: { text: '20 double-sided' },
-    pro: { text: '20 double-sided' },
+    free: { text: '16' },
+    pro: { text: '40' },
     vip: { text: 'Unlimited', strong: true },
   },
   {
     capability: 'Cards you can showcase',
-    free: { text: 'Up to 1,920' },
+    free: { text: 'Over 750!' },
     pro: { text: 'Over 7,500!', strong: true },
     vip: { text: 'Unlimited', strong: true },
   },
@@ -130,18 +130,18 @@ export const COMPARISON: CompareRow[] = [
     vip: { text: '✓' },
   },
   {
-    capability: 'Artworks kept in your account',
-    free: { text: '10' },
-    pro: { text: '100' },
+    capability: 'Slice Studio artworks in your account',
+    free: { text: '100' },
+    pro: { text: '1,000' },
     vip: { text: 'Unlimited', strong: true },
   },
   {
     capability: 'Build from cards you really own',
     mark: '‡',
     highlight: true,
-    free: { text: 'Included', strong: true, sub: 'make binders from your collection and track binder progress' },
-    pro: { text: 'Included', strong: true, sub: 'make binders from your collection and track binder progress' },
-    vip: { text: 'Included', strong: true, sub: 'make binders from your collection and track binder progress' },
+    free: { text: '✓' },
+    pro: { text: '✓', sub: 'bundle discounts on TCGScan memberships' },
+    vip: { text: '✓', sub: 'bundle discounts on TCGScan memberships' },
   },
   {
     capability: 'Print-ready fill sheets',
@@ -155,7 +155,7 @@ export const COMPARISON: CompareRow[] = [
   },
   {
     capability: 'Sharing',
-    free: { text: 'View public binders' },
+    free: { text: 'Share and like' },
     pro: { text: 'Share and like' },
     vip: { text: 'Share and like', sub: 'featured eligibility boost†' },
   },
@@ -172,8 +172,8 @@ export const FOOTNOTES: { mark: string; text: string; link?: { label: string; ur
   },
   {
     mark: '‡',
-    text: 'Included at every tier. For best-in-class inventory tracking across your portfolios, set analytics, and historical price history, see our partner app TCGScan - your collection syncs straight into michi-maker.',
-    link: { label: 'Meet TCGScan →', url: 'https://tcgscan.ai/welcome' },
+    text: 'Included at every tier. Scan and track the cards you own with our partner app TCGScan - your collection syncs straight into michi-maker, with best-in-class inventory tracking, set analytics, and historical price history. PRO and VIP members get bundle discounts on TCGScan memberships.',
+    link: { label: 'Meet TCGScan →', url: TCGSCAN_URL },
   },
 ];
 

@@ -85,27 +85,28 @@ Client: extend the hook family with `useTier()` reading all rows once. Keep the 
 "no client writes" invariant; renewals/cancellations land via provider webhooks updating
 `expires_at`.
 
-## Tier matrix (owner-revised 2026-07-16; mirrors `src/data/tiers.ts` TIER_LIMITS)
+## Tier matrix (owner-revised 2026-07-17; mirrors `src/data/tiers.ts` TIER_LIMITS)
 
 Guest is NOT an advertised plan — it's the pre-sign-in taste (1 binder, 6 pages) and the
 prompt beyond it is SignInPerk ("sign in, free"), never an upgrade pitch. The comparison
-sheet shows Free / PRO / VIP only.
-
-Page counts below are DOUBLE-SIDED sheets (marketing language); the app counts sides, so
-"20 double-sided pages" = `pagesPerBinder: 40` in tiers.ts.
+sheet shows Free / PRO / VIP only. Page counts are plain APP pages (no double-sided language).
 
 | Capability | Guest (unadvertised) | Free (signed in) | PRO | VIP |
 | --- | --- | --- | --- | --- |
 | Binders | 1 | 3 | 12 | unlimited |
-| Pages per binder | 6 sides | 20 double-sided | 20 double-sided | unlimited |
-| Card capacity (4×4) | ~96 | up to 1,920 | over 7,500 | unlimited |
+| Pages per binder | 6 | 16 | 40 | unlimited |
+| Card capacity (4×4) | ~96 | over 750 | over 7,500 | unlimited |
 | Catalog browse/search | server search | full catalog | full | full |
 | ✨ Similarity matching + composer methods | — | INCLUDED (no quota) | INCLUDED + upgraded composers (coming soon) | INCLUDED + upgraded composers (coming soon) |
 | Slice Studio | ✓ | ✓ | ✓ | ✓ |
-| Art uploads kept (at a time) | — | 10 | 100 | unlimited |
-| Build from cards you really own (TCGScan sync) + binder progress | — | INCLUDED | INCLUDED | INCLUDED |
+| Slice Studio artworks kept (at a time) | — | 100 | 1,000 | unlimited |
+| Build from cards you really own (TCGScan sync) | — | ✓ | ✓ + TCGScan bundle discounts | ✓ + TCGScan bundle discounts |
 | Fill-sheet PDF | — | example-sheet preview only | full binders, 1 print/mo included | full binders, 5 prints/mo included + first in line for print extras |
-| Public sharing / likes | view only | view only | share + like | share + like + featured eligibility boost |
+| Public sharing / likes | view only | share + like | share + like | share + like + featured eligibility boost |
+
+`LIMITS_ENFORCED` is now ENV-DRIVEN (`EXPO_PUBLIC_LIMITS_ENFORCED=1`) — on locally for gate
+testing, set in Vercel at go-live. Every user-facing TCGScan mention links to
+https://tcgscan.ai/welcome (TcgscanLink / TCGSCAN_URL).
 
 Owner decisions 2026-07-16 (sheet draft v4): the composer monthly QUOTA is dropped — similarity
 matching + composer methods are included at every signed-in tier, and PRO/VIP differentiate via

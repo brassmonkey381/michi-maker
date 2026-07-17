@@ -112,11 +112,13 @@ function parseDetail(id, html) {
     html.match(/<a[^>]*href="\/(?:artists|illustrators)\/[^"]+"[^>]*>([\s\S]*?)<\/a>/) ?? null;
   if (artistMatch) artist = stripTags(artistMatch[1]).trim();
 
-  // Original source — artofpkm prints "Source: <a href="https://…">www.instagram.com</a>",
-  // linking the specific post the art came from. That deeper link is the truest citation.
+  // Original source — artofpkm prints '<span>Source: </span><a … href="https://…">' linking the
+  // specific post the art came from (verified against /artwork/4367: an Instagram post). A long
+  // class list sits between "Source:" and href, so allow a generous gap; the {0,260} cap keeps it
+  // from grabbing an unrelated later link on pages that have no Source.
   let source = '';
   const sourceMatch =
-    html.match(/Source:\s*<a[^>]*href="(https?:\/\/[^"]+)"/i) ??
+    html.match(/Source:[\s\S]{0,260}?href="(https?:\/\/[^"]+)"/i) ??
     html.match(/href="(https?:\/\/(?:www\.)?instagram\.com\/[^"]+)"/i) ??
     null;
   if (sourceMatch) source = sourceMatch[1];

@@ -273,6 +273,24 @@ export function SliceStudio({
     setSrcName(a.sourceName ?? '');
   }, []);
 
+  // Load a REMOTE image url with its credit auto-seeded — shared by URL paste AND drag-drop.
+  // An artofpkm ARTWORK PAGE url resolves against our own library (full artist + source, no
+  // scraping); any other remote url seeds the SOURCE with the url itself (a real origin the user
+  // can refine to the exact post). Blob/data urls (file drops, uploads) are NOT sent here — those
+  // carry no source and go straight to loadImage for manual crediting.
+  const loadRemoteUrl = useCallback(
+    (u: string) => {
+      const art = artForArtofpkmUrl(u);
+      if (art) {
+        loadImage(art.url, art.attribution);
+        return;
+      }
+      const d = deriveAttribution(u);
+      loadImage(u, { ...d, sourceUrl: d.sourceUrl ?? u });
+    },
+    [loadImage],
+  );
+
   const openGallery = useCallback((url: string) => {
     if (Platform.OS === 'web' && typeof window !== 'undefined') window.open(url, '_blank', 'noopener');
     else void Linking.openURL(url);
@@ -321,7 +339,9 @@ export function SliceStudio({
         url = m ? m[1] : '';
       }
       if (/^https?:\/\//i.test(url)) {
-        loadImage(url);
+        // A dragged remote image carries its url — seed the source from it (artofpkm page urls
+        // resolve to full attribution). A dropped FILE is a blob with no origin: manual credit.
+        loadRemoteUrl(url);
         return;
       }
       const file = dt.files && dt.files[0];
@@ -335,7 +355,7 @@ export function SliceStudio({
       document.removeEventListener('dragleave', onDragLeave);
       document.removeEventListener('drop', onDrop);
     };
-  }, [loadImage]);
+  }, [loadImage, loadRemoteUrl]);
 
   // Workspace: fill what the viewport allows — capped by BOTH width and height so the whole
   // page-shaped grid stays on screen below the toolbars (vs the old fixed 460px cap).
@@ -549,19 +569,8 @@ export function SliceStudio({
   const loadUrl = useCallback(() => {
     const u = urlInput.trim();
     if (!/^https?:\/\/\S+$/i.test(u)) return;
-    // Paste an artofpkm ARTWORK PAGE url → resolve it against our own library so the image loads
-    // AND the artist + original source auto-fill (no scraping). See artSearch.ts.
-    const art = artForArtofpkmUrl(u);
-    if (art) {
-      loadImage(art.url, art.attribution);
-      return;
-    }
-    // Any other pasted url: load it, and seed the SOURCE with the url itself (the most specific
-    // origin we have — the user can refine it to the exact post page). Uploads/blobs never reach
-    // here, so this only stamps a real remote origin.
-    const d = deriveAttribution(u);
-    loadImage(u, { ...d, sourceUrl: d.sourceUrl ?? u });
-  }, [urlInput, loadImage]);
+    loadRemoteUrl(u);
+  }, [urlInput, loadRemoteUrl]);
 
   // Save the studio's pieces to the tray. Each grid piece (1×1, or a merged folded 1×2) becomes a
   // SavedSlice carrying its window of the image — the source is never re-encoded. Where each slice

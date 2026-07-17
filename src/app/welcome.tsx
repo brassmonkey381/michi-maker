@@ -208,10 +208,10 @@ export default function WelcomeScreen() {
           contentContainerStyle={styles.scroll}>
           {/* ── Nav ─────────────────────────────────────────────────────── */}
           <View style={styles.shell}>
-            <View style={styles.nav}>
+            <View style={[styles.nav, wide && styles.navWide]}>
               <View style={styles.brandRow}>
-                <AnimatedLogoMark size={wide ? 84 : 44} />
-                <ThemedText style={[styles.wordmark, wide && styles.wordmarkBig]}>michi-maker</ThemedText>
+                <AnimatedLogoMark size={wide ? 126 : 44} />
+                <ThemedText style={[styles.wordmark, wide && styles.wordmarkBig]}>Michi-Maker</ThemedText>
               </View>
               <Pressable
                 onPress={enterApp}
@@ -412,9 +412,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: Spacing.three,
   },
+  // On wide screens the brand lockup is big — drop it down so it sits vertically centred in
+  // the whitespace between the top of the page and the hero eyebrow.
+  navWide: { paddingTop: Spacing.six + Spacing.three },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   wordmark: { fontFamily: BrandFont, fontSize: FontSize.h2, fontWeight: Weight.bold },
-  wordmarkBig: { fontSize: 34 },
+  wordmarkBig: { fontSize: 51 },
   navBtn: {
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,

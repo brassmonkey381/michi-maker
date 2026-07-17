@@ -114,6 +114,8 @@ poke-michi/
 
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — how the app, client, and database fit together
 - **[docs/DATA-MODEL.md](docs/DATA-MODEL.md)** — the michi-binder domain and how card data is ingested
+- **[docs/OPEN-GRAPH.md](docs/OPEN-GRAPH.md)** — rich link previews (composed page images) for shared binders/profiles
+- **[docs/BRAND-MOTION.md](docs/BRAND-MOTION.md)** — the animated logo mark, branded loaders, and landing motion
 - **[supabase/README.md](supabase/README.md)** — database setup, migrations, and type generation
 
 ## Roadmap
@@ -128,7 +130,10 @@ poke-michi/
 - [ ] Auth (sign up / sign in) and profile screen
 - [x] Card catalogue ingestion (TCGdex) — `scripts/ingest.mjs`
 - [ ] Card browser filters (set / illustrator / Pokémon / colour)
-- [ ] Drag-and-drop placement; public binder sharing & discovery
+- [ ] Drag-and-drop placement
+- [x] Public binder sharing with rich link previews (composed page images) — see [docs/OPEN-GRAPH.md](docs/OPEN-GRAPH.md)
+- [x] Michi Method credit page (`/michi-method`) crediting @peeplop
+- [x] Animated brand mark + branded loaders on long funnels — see [docs/BRAND-MOTION.md](docs/BRAND-MOTION.md)
 
 ## License
 

@@ -18,13 +18,15 @@ tags. Humans keep hitting the untouched SPA.
   RLS-gated to public rows) and previews its title, description, and a **composed image
   of its fullest page** (see `og-image-binder.js`).
 - **`api/og-image-binder.js`** — an Edge function (`@vercel/og` / Satori) that renders
-  the binder as a 1200×630 image: an **open two-page spread** (the two fullest pages, with
-  a ringed spine) when the binder has 2+ card pages, else a single page. No text → no font
-  dependency. **Card art** comes from the lite `images.json` manifest (the hosted buckets
-  key images by content hash, so a URL is not constructible from a card id); it resolves the
-  `image` field, the full-size **JPEG** — Satori rasterises JPEG/PNG but not WebP, and the
-  245/640 thumb tiers are WebP. On any error (or no resolvable art) it redirects to the
-  cover image, so a share always has something.
+  the binder as a **2×-supersampled 2400×1260** image (displayed as 1200×630): an **open
+  two-page spread** (the two fullest pages, with a ringed spine) when the binder has 2+
+  card pages, else a single page. Rendering at 2× keeps card art crisp after the viewer
+  (Discord, etc.) downscales the embed. No text → no font dependency. **Card art** comes
+  from the lite `images.json` manifest (the hosted buckets key images by content hash, so a
+  URL is not constructible from a card id); it resolves the `image` field, the full-size
+  **JPEG** — Satori rasterises JPEG/PNG but not WebP, and the 245/640 thumb tiers are WebP.
+  On any error (or no resolvable art) it redirects to the cover image, so a share always has
+  something.
 - **`api/og-profile.js`** — previews a public profile's `@username` with their avatar,
   or the cover of their first public binder.
 - **`api/og-michi.js`** — static preview for the Michi Method page.
@@ -49,7 +51,7 @@ a URL into a validator: opengraph.xyz, the Facebook Sharing Debugger, or Discord
 
 ## Composed image — verify on deploy
 
-The Satori render path is verified locally (it produces a valid 1200×630 PNG with no
+The Satori render path is verified locally (it produces a valid 2400×1260 PNG with no
 font), but the Edge runtime + env + real image fetch can only be confirmed on Vercel.
 After deploying, check a preview deploy:
 
@@ -61,12 +63,18 @@ Then paste `https://<preview>/binder/<id>` into opengraph.xyz or Discord. If the
 function ever fails to build/run, the safe revert is one line in `api/og-binder.js`:
 point `image` back at the cover thumbnail instead of `/api/og-image-binder`.
 
+## Related: the Michi Method credit page
+
+`/michi-method` (`src/app/michi-method.tsx`) is both an in-app explainer and a shareable
+SEO/marketing surface — it credits Michi (@peeplop) as the method's creator, lists the
+core layouts, and links out to the community guides. Crawlers get its preview from
+`api/og-michi.js`. It's linked from the landing header.
+
 ## Follow-ups
 
 - **Slot spans in the composed image.** `og-image-binder.js` lays out with flexbox (all
   Satori supports), so a spanned card (jumbo, folded art) shows only in its origin cell.
   Honouring `row_span`/`col_span` would need a spanning grid model.
-- **Open two-page spread.** For binders with 2+ pages, rendering facing pages would fill
-  the 1200-wide frame even better than a single centred page.
 - **Branded static image for `/michi-method`.** Add `public/og/michi-method.png`
-  (1200×630) and set it as the `image` in `api/og-michi.js`.
+  (1200×630 — remember the image itself isn't supersampled) and set it as the `image` in
+  `api/og-michi.js`.

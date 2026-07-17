@@ -22,6 +22,7 @@ import { createWebArtLoader } from '@/data/fillSheetArt';
 import { startCheckout } from '@/data/checkout';
 import { buildPlaceholderPdf, collectFillTiles } from '@/data/placeholderPdf';
 import {
+  binderFingerprint,
   downloadPurchasedPdf,
   purchaseStatus,
   spendPurchase,
@@ -147,14 +148,10 @@ export function PrintPlaceholdersSheet({
     };
   }, [isSignedIn]);
 
-  // Cutting margins (default ON): pieces spaced apart with labels below them, guides outside
-  // the art, room for cutting mistakes. OFF = the compact edge-to-edge layout (fewer sheets,
-  // labels overlay the pieces). Changes the sheet count, so it feeds the counts preview too.
-  const [cutMargins, setCutMargins] = useState(true);
   const effectiveOwned = colorOwned ? (ownedIds ?? undefined) : undefined;
   const collected = useMemo(
-    () => (catalog ? collectFillTiles(binder, catalog, effectiveOwned, cutMargins) : null),
-    [binder, catalog, effectiveOwned, cutMargins],
+    () => (catalog ? collectFillTiles(binder, catalog, effectiveOwned) : null),
+    [binder, catalog, effectiveOwned],
   );
   const counts = collected?.counts ?? null;
   const sheets = counts?.sheets ?? 0;
@@ -174,7 +171,6 @@ export function PrintPlaceholdersSheet({
     try {
       const bytes = await buildPlaceholderPdf(binder, catalog, {
         ownedIds: effectiveOwned,
-        cutMargins,
         // Art pixels: direct CORS fetch → art-proxy edge fn fallback → webp/canvas convert.
         loadImage: createWebArtLoader(),
       });
@@ -212,9 +208,11 @@ export function PrintPlaceholdersSheet({
     }
   };
 
-  /** Download one purchased version (every spent purchase stays downloadable forever). When the
-   *  version carries its frozen CONTENT, regenerate the PDF so the current print options
-   *  (color-owned, cutting margins) apply; older rows without content serve the archived bytes. */
+  /** Download one purchased version (every spent purchase stays downloadable forever). We
+   *  REGENERATE whenever the version's content is recoverable — from its frozen snapshot, or
+   *  from the live binder when the fingerprint still matches — so the color-owned toggle
+   *  always applies with the user's CURRENT collection. Only unrecoverable old rows fall back
+   *  to the archived bytes. */
   const downloadArchived = async (version: PurchasedVersion) => {
     if (archBusyPath) return;
     setArchBusyPath(version.pdfPath ?? 'pending');
@@ -223,16 +221,19 @@ export function PrintPlaceholdersSheet({
       const stamp = new Date(version.spentAt).toISOString().slice(0, 10);
       const filename = `${binder.title.replace(/[^\w\- ]+/g, '').trim() || 'binder'} fill sheets (purchased ${stamp}).pdf`;
       let blob: Blob | null = null;
-      if (version.content && catalog) {
-        const frozen = {
-          ...binder,
-          title: version.content.title ?? binder.title,
-          layoutStyle: version.content.layoutStyle,
-          pages: version.content.pages,
-        };
-        const bytes = await buildPlaceholderPdf(frozen, catalog, {
+      const source = version.content
+        ? {
+            ...binder,
+            title: version.content.title ?? binder.title,
+            layoutStyle: version.content.layoutStyle,
+            pages: version.content.pages,
+          }
+        : (await binderFingerprint(binder)) === version.fingerprint
+          ? binder // pre-column row, but the live binder IS this version — regenerate from it
+          : null;
+      if (source && catalog) {
+        const bytes = await buildPlaceholderPdf(source, catalog, {
           ownedIds: effectiveOwned,
-          cutMargins,
           loadImage: createWebArtLoader(),
         });
         blob = new Blob([bytes as BlobPart], { type: 'application/pdf' });
@@ -394,21 +395,6 @@ export function PrintPlaceholdersSheet({
                     </View>
                     <ThemedText type="small" themeColor="textSecondary">
                       Color the cards I already own
-                    </ThemedText>
-                  </Pressable>
-                ) : null}
-                {counts && counts.total > 0 ? (
-                  <Pressable
-                    onPress={() => setCutMargins((v) => !v)}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: cutMargins }}
-                    style={styles.toggleRow}
-                    hitSlop={4}>
-                    <View style={[styles.toggleBox, cutMargins && styles.toggleBoxOn]}>
-                      {cutMargins ? <Text style={styles.toggleTick}>✓</Text> : null}
-                    </View>
-                    <ThemedText type="small" themeColor="textSecondary">
-                      Cutting margins between pieces (labels off the art; uses more sheets)
                     </ThemedText>
                   </Pressable>
                 ) : null}

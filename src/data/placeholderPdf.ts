@@ -360,8 +360,6 @@ export function collectFillTiles(
   binder: DemoBinder,
   cards: CardMetaSource,
   ownedIds?: ReadonlySet<string>,
-  /** Match the layout the PDF will use — cut-margin sheets hold fewer pieces (default true). */
-  cutMargins = true,
 ): { tiles: FillTile[]; counts: FillCounts } {
   const tiles: FillTile[] = [];
   binder.pages.forEach((page, pageIndex) => {
@@ -423,7 +421,7 @@ export function collectFillTiles(
     art: tiles.filter((t) => t.kind === 'art').length,
     inserts: tiles.filter((t) => t.kind === 'insert').length,
     total: tiles.length,
-    sheets: packTiles(tiles, makeLayout(cutMargins)).sheetCount,
+    sheets: packTiles(tiles, makeLayout(false)).sheetCount,
   };
   return { tiles, counts };
 }
@@ -553,11 +551,12 @@ interface EmbeddedArt {
 export async function buildPlaceholderPdf(
   binder: DemoBinder,
   cards: CardMetaSource,
-  opts?: { ownedIds?: ReadonlySet<string>; loadImage?: ArtLoader; cutMargins?: boolean },
+  opts?: { ownedIds?: ReadonlySet<string>; loadImage?: ArtLoader },
 ): Promise<Uint8Array> {
-  const cutMargins = opts?.cutMargins ?? true;
-  const L = makeLayout(cutMargins);
-  const { tiles, counts } = collectFillTiles(binder, cards, opts?.ownedIds, cutMargins);
+  // THE layout (owner call): placeholders/inserts pack edge to edge (shared cuts, least
+  // paper), art pieces get their own spaced sheets (labels beneath, no ink on artwork).
+  const L = makeLayout(false);
+  const { tiles, counts } = collectFillTiles(binder, cards, opts?.ownedIds);
   const doc = await PDFDocument.create();
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
   const regular = await doc.embedFont(StandardFonts.Helvetica);
@@ -578,7 +577,7 @@ export async function buildPlaceholderPdf(
     }),
   );
 
-  drawCover(doc.addPage([SHEET_W, SHEET_H]), sanitize(binder.title), counts, bold, regular, cutMargins);
+  drawCover(doc.addPage([SHEET_W, SHEET_H]), sanitize(binder.title), counts, bold, regular);
 
   const { placed, sheetCount, artStartSheet } = packTiles(tiles, L);
   const artLayout = makeLayout(true); // art draws with the spaced treatment regardless of mode
@@ -604,7 +603,7 @@ export async function buildPlaceholderPdf(
         if (tile.w === 2) drawFoldTicks(page, x + CARD_W + POCKET_GAP / 2, y);
       }
     }
-    if (!cutMargins && s < artStartSheet) drawMarginRulers(page, regular, false, L);
+    if (s < artStartSheet) drawMarginRulers(page, regular, false, L);
     const hosts = [...new Set(
       batch.map((p) => p.tile).filter((t): t is ArtTile => t.kind === 'art').map((t) => artHost(t.group.imageUrl)),
     )].filter(Boolean);
@@ -844,7 +843,7 @@ function drawTransformed(
 }
 
 /** Cover sheet: what this is, how to print it true-to-size, and the 1-inch calibration square. */
-function drawCover(page: PDFPage, binderTitle: string, counts: FillCounts, bold: PDFFont, regular: PDFFont, cutMargins: boolean) {
+function drawCover(page: PDFPage, binderTitle: string, counts: FillCounts, bold: PDFFont, regular: PDFFont) {
   let y = SHEET_H - 120;
   drawCentered(page, 'Binder fill sheets', y, bold, 26);
   y -= 26;
@@ -879,9 +878,7 @@ function drawCover(page: PDFPage, binderTitle: string, counts: FillCounts, bold:
   const steps = [
     'Print at 100% scale (“Actual size”), NOT “Fit to page”.',
     'Check the calibration square below: it must measure exactly 1 inch (2.54 cm).',
-    cutMargins
-      ? 'Pieces are spaced apart with room for error: rough-cut anywhere in the gap between pieces, then trim just inside the dashed outline. The line sits slightly outside the true edge, so trimming to it never cuts into the piece.'
-      : 'Cut along the dashed lines. Placeholder pieces print edge to edge: neighbors share a cut line, so one straight cut frees two edges at once.',
+    'Cut along the dashed lines. Placeholder pieces print edge to edge: neighbors share a cut line, so one straight cut frees two edges at once.',
     'ART pieces always print on their own sheets, spaced apart — nothing is ever printed on your artwork. Their location prints just below each piece; wide pieces fold at the tick marks above and below the fold line, then each half slides into its pocket pair.',
     'Slide every piece into its pocket: placeholders print the page/row/column on the piece. When a real card arrives, its placeholder shows exactly which pocket to swap.',
   ];

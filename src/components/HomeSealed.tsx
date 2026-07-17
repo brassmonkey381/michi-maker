@@ -1,20 +1,22 @@
 /**
- * Sealed-products carousel — CURATED by set. Instead of a flat newest-first strip, it groups
- * the sealed catalog by set, keeps only the RECENT or UPCOMING sets (by their products'
- * release dates), and shows each set's top products by headline value. One horizontal
- * carousel with a small header before each set's run (up to MAX_SETS × PER_SET tiles).
+ * Sealed-products carousel — CURATED by set. Groups the sealed catalog by set, keeps only the
+ * RECENT or UPCOMING sets (matching the Recent & Upcoming feed's window), and shows each set's
+ * top products by headline value. Rendered through the shared PagedCarousel (snap pages,
+ * wrap-around arrows, mouse-wheel paging, dots) — the same model as the binder carousels — with
+ * a small "set card" before each set's run.
  *
  * Deliberately catalog-FREE: the sealed artifacts are small public files, so this renders for
  * guests and before/without the card catalog. Tapping a product opens its TCGPlayer page.
  */
 import { Image } from 'expo-image';
-import { useMemo } from 'react';
-import { FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { productUrl, useSealed, type SealedCatalog, type SealedProduct, type SealedSet } from 'tcgscan-browse';
 
 import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { HomeSection } from '@/components/HomeSection';
+import { PagedCarousel } from '@/components/PagedCarousel';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 
 /** Curation knobs. The recency window matches the Recent & Upcoming cards/sets feed
@@ -25,7 +27,6 @@ const MONTHS_BACK = 12;
 const PER_SET = 10;
 /** Only bounds the stale-data fallback (when nothing falls in the window). */
 const FALLBACK_SETS = 6;
-const TILE_W = 132;
 const IMG_H = 132;
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
@@ -74,50 +75,71 @@ function buildGroups(sealed: SealedCatalog, priceOf: (id: string) => number): Se
 }
 
 type Item =
-  | { type: 'header'; key: string; set: SealedSet; date: string }
+  | { type: 'header'; key: string; set: SealedSet; date: string; upcoming: boolean }
   | { type: 'product'; key: string; product: SealedProduct; value: number };
 
 export function HomeSealed() {
   const { sealed, priceOf } = useSealed();
-  const groups = useMemo(() => (sealed ? buildGroups(sealed, priceOf) : []), [sealed, priceOf]);
+  const [width, setWidth] = useState(0);
+  const gap = Spacing.two;
 
-  const data = useMemo<Item[]>(
-    () =>
-      groups.flatMap((g) => [
-        { type: 'header', key: `h-${g.set.id}`, set: g.set, date: g.date } as const,
-        ...g.products.map(
-          (p) => ({ type: 'product', key: p.id, product: p, value: priceOf(p.id) }) as const,
-        ),
-      ]),
-    [groups, priceOf],
-  );
+  const items = useMemo<Item[]>(() => {
+    if (!sealed) return [];
+    const today = todayIso();
+    return buildGroups(sealed, priceOf).flatMap((g): Item[] => [
+      { type: 'header', key: `h-${g.set.id}`, set: g.set, date: g.date, upcoming: g.date > today },
+      ...g.products.map(
+        (p): Item => ({ type: 'product', key: p.id, product: p, value: priceOf(p.id) }),
+      ),
+    ]);
+  }, [sealed, priceOf]);
 
-  if (!sealed || data.length === 0) return null; // no gap until the (small) sealed catalog lands
+  if (!sealed || items.length === 0) return null; // no gap until the (small) sealed catalog lands
 
-  const today = todayIso();
+  // Uniform tiles (~144px target), chunked into full-width pages so paging snaps cleanly —
+  // the same measure-and-chunk pattern as BinderCarousel.
+  const perPage = width > 0 ? Math.max(2, Math.min(8, Math.floor((width + gap) / (144 + gap)))) : 3;
+  const tileWidth = width > 0 ? (width - gap * (perPage - 1)) / perPage : 0;
+  const pages: Item[][] = [];
+  for (let i = 0; i < items.length; i += perPage) pages.push(items.slice(i, i + perPage));
+
   return (
     <HomeSection title="Sealed Products" collapsible={false}>
-      <FlatList
-        horizontal
-        data={data}
-        keyExtractor={(i) => i.key}
-        renderItem={({ item }) =>
-          item.type === 'header' ? (
-            <SetHeader set={item.set} date={item.date} upcoming={item.date > today} />
-          ) : (
-            <SealedTile product={item.product} value={item.value} />
-          )
-        }
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.strip}
-      />
+      <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+        <PagedCarousel
+          width={width}
+          prevLabel="Previous sealed products"
+          nextLabel="More sealed products"
+          pages={pages.map((pg, pi) => (
+            <View key={pi} style={[styles.page, { gap }]}>
+              {pg.map((item) =>
+                item.type === 'header' ? (
+                  <SetHeader key={item.key} set={item.set} date={item.date} upcoming={item.upcoming} width={tileWidth} />
+                ) : (
+                  <SealedTile key={item.key} product={item.product} value={item.value} width={tileWidth} />
+                ),
+              )}
+            </View>
+          ))}
+        />
+      </View>
     </HomeSection>
   );
 }
 
-function SetHeader({ set, date, upcoming }: { set: SealedSet; date: string; upcoming: boolean }) {
+function SetHeader({
+  set,
+  date,
+  upcoming,
+  width,
+}: {
+  set: SealedSet;
+  date: string;
+  upcoming: boolean;
+  width: number;
+}) {
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, { width }]}>
       <Text style={[styles.headerKicker, upcoming && styles.headerKickerUpcoming]}>
         {upcoming ? 'UPCOMING' : 'NEW SET'}
       </Text>
@@ -129,10 +151,18 @@ function SetHeader({ set, date, upcoming }: { set: SealedSet; date: string; upco
   );
 }
 
-function SealedTile({ product, value }: { product: SealedProduct; value: number }) {
+function SealedTile({
+  product,
+  value,
+  width,
+}: {
+  product: SealedProduct;
+  value: number;
+  width: number;
+}) {
   return (
     <Pressable
-      style={styles.tile}
+      style={{ width }}
       onPress={() => Linking.openURL(productUrl(product.id)).catch(() => {})}
       accessibilityRole="link">
       <View style={styles.imageWrap}>
@@ -162,10 +192,9 @@ function SealedTile({ product, value }: { product: SealedProduct; value: number 
 }
 
 const styles = StyleSheet.create({
-  strip: { gap: Spacing.two, paddingVertical: Spacing.one },
-  tile: { width: TILE_W },
+  page: { flexDirection: 'row', alignItems: 'stretch' },
   imageWrap: {
-    width: TILE_W,
+    width: '100%',
     height: IMG_H,
     borderRadius: Radius.panel,
     backgroundColor: Palette.panel,
@@ -183,14 +212,12 @@ const styles = StyleSheet.create({
   },
   value: { fontSize: FontSize.sm, fontWeight: Weight.bold, color: Palette.accent, marginTop: 2 },
   header: {
-    width: 96,
-    height: IMG_H,
     justifyContent: 'center',
     gap: Spacing.one,
-    paddingRight: Spacing.two,
-    marginRight: Spacing.one,
-    borderRightWidth: 1,
-    borderRightColor: Palette.hairline,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.three,
+    borderRadius: Radius.panel,
+    backgroundColor: Palette.panelAlt,
   },
   headerKicker: {
     fontSize: FontSize.tag,

@@ -1,9 +1,10 @@
 /**
  * The plan comparison table — the /subscriptions centerpiece. Ported from the approved draft
  * sheet layout: capability rows down the left, ascending plan columns (Free → PRO → VIP), PRO
- * raised + accent-outlined ("Most popular", yearly price leading), VIP the filled accent hero
- * column ("Best value"), accent-tinted highlight rows for the included-at-every-tier items, and
- * *, †, ‡ footnotes below.
+ * raised + accent-outlined ("Most popular", yearly price leading), VIP the accent-TINTED hero
+ * column ("Best value") — soft selection tint with the standard dark ink ramp, NOT a saturated
+ * fill with white text (owner call: dark-on-light like every other surface) — accent-tinted
+ * highlight rows for the included-at-every-tier items, and *, †, ‡ footnotes below.
  *
  * Wide content: the table keeps a real minimum width and scrolls horizontally inside its own
  * ScrollView on narrow screens — columns never crush into unreadable slivers.
@@ -92,7 +93,7 @@ export function PlanComparison({ onSelectPlan }: { onSelectPlan?: (tier: string)
               </Text>
               <Text style={[styles.tierSub, styles.vipSubText]}>{vipHead.sub}</Text>
               {!loading && tier === 'vip' ? (
-                <Text style={[styles.current, styles.vipText]}>Your current plan</Text>
+                <Text style={styles.current}>Your current plan</Text>
               ) : null}
             </View>
           </View>
@@ -139,11 +140,11 @@ export function PlanComparison({ onSelectPlan }: { onSelectPlan?: (tier: string)
             <View style={[styles.cell, styles.vipCol, styles.footCell, styles.vipFoot]}>
               <Pressable
                 onPress={() => select(vipHead)}
-                style={({ pressed }) => [styles.btn, styles.btnOnAccent, pressed && styles.dim]}>
-                <Text style={styles.btnOnAccentText}>Choose VIP</Text>
+                style={({ pressed }) => [styles.btn, pressed && styles.dim]}>
+                <Text style={styles.btnText}>Choose VIP</Text>
               </Pressable>
               {revealed === 'vip' && !CHECKOUT_OPEN ? (
-                <Text style={[styles.ctaNote, styles.vipSubText]}>{CHECKOUT_CLOSED_NOTE}</Text>
+                <Text style={styles.ctaNote}>{CHECKOUT_CLOSED_NOTE}</Text>
               ) : null}
             </View>
           </View>
@@ -187,7 +188,13 @@ const styles = StyleSheet.create({
     borderLeftColor: Palette.accent,
     borderRightColor: Palette.accent,
   },
-  vipCol: { flexGrow: 1.25, backgroundColor: Palette.accent, borderTopColor: 'rgba(255,255,255,0.16)' },
+  vipCol: {
+    flexGrow: 1.25,
+    backgroundColor: Palette.selectionSoft,
+    borderTopColor: Palette.hairline,
+    borderRightWidth: 2,
+    borderRightColor: Palette.accent,
+  },
 
   /* header row */
   headLabel: { backgroundColor: 'transparent', borderTopWidth: 0, borderLeftWidth: 0 },
@@ -203,9 +210,11 @@ const styles = StyleSheet.create({
   },
   vipHead: {
     marginTop: -TAB_RISE,
-    borderTopWidth: 0,
+    borderTopWidth: 2,
+    borderTopColor: Palette.accent,
     borderTopLeftRadius: Radius.actionBar,
     borderTopRightRadius: Radius.actionBar,
+    backgroundColor: Palette.selectionTint,
     ...Shadows.page,
   },
   tierName: { fontSize: FontSize.control, fontWeight: Weight.bold, color: Palette.ink },
@@ -231,7 +240,7 @@ const styles = StyleSheet.create({
   },
   badgeVip: {
     alignSelf: 'flex-start',
-    backgroundColor: Palette.accentText,
+    backgroundColor: Palette.accent,
     borderRadius: Radius.pill,
     paddingVertical: 2,
     paddingHorizontal: Spacing.two,
@@ -242,7 +251,7 @@ const styles = StyleSheet.create({
     fontWeight: Weight.bold,
     letterSpacing: 0.7,
     textTransform: 'uppercase',
-    color: Palette.accent,
+    color: Palette.accentText,
   },
 
   /* capability cells */
@@ -250,8 +259,9 @@ const styles = StyleSheet.create({
   value: { fontSize: FontSize.body, color: Palette.ink2, lineHeight: 19 },
   valueStrong: { fontWeight: Weight.semibold, color: Palette.ink },
   valueSub: { fontSize: FontSize.sm, color: Palette.muted, lineHeight: 16 },
-  vipText: { color: Palette.accentText },
-  vipSubText: { color: 'rgba(255,255,255,0.82)' },
+  // The VIP column's text is the same dark ink ramp as every other light surface (owner call).
+  vipText: { color: Palette.ink },
+  vipSubText: { color: Palette.muted },
   mark: { color: Palette.link, fontWeight: Weight.bold },
 
   /* highlight rows */
@@ -268,7 +278,8 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: Radius.actionBar,
   },
   vipFoot: {
-    borderBottomWidth: 0,
+    borderBottomWidth: 2,
+    borderBottomColor: Palette.accent,
     borderBottomLeftRadius: Radius.actionBar,
     borderBottomRightRadius: Radius.actionBar,
   },
@@ -282,8 +293,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   btnText: { color: Palette.accentText, fontSize: FontSize.body, fontWeight: Weight.semibold },
-  btnOnAccent: { backgroundColor: Palette.accentText },
-  btnOnAccentText: { color: Palette.accent, fontSize: FontSize.body, fontWeight: Weight.semibold },
   dim: { opacity: 0.7 },
   ctaNote: { fontSize: FontSize.sm, color: Palette.muted, lineHeight: 16, marginTop: Spacing.one },
 

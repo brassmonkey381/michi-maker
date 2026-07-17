@@ -46,6 +46,7 @@ import { isSupabaseConfigured } from '@/lib/env';
 import { footprintForKind } from '@/data/cardSizing';
 import { resolveCard } from '@/data/cardResolver';
 import { addSavedSlices, removeSavedSlice, sliceSignature, slotSignature, useSavedSlices, useSavedSlicesSync, type SavedSlice } from '@/data/savedSlices';
+import { binderLimitMessage, pageLimitMessage } from '@/data/limitMessages';
 import { TIER_LIMITS } from '@/data/tiers';
 import { SliceTray, SliceThumb } from '@/components/binder/SliceTray';
 import type { CatalogCard } from '@/lib/catalog';
@@ -92,6 +93,22 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   useSavedSlicesSync();
   // Live tray size — the artUploads cap is a retention cap on slices KEPT in the account.
   const traySlices = useSavedSlices();
+  // "Artworks kept" = distinct content signatures across the tray AND every placed artwork slot.
+  // Placed art only reaches the tray on the NEXT sync (the import scan), so counting the tray
+  // alone would let repeated placements in one session sail past the cap unseen. Same signature
+  // vocabulary as the import scan, so a tray slice placed into a pocket counts once. Declared here
+  // (before any early return) so the hook order is stable — see the `if (!binder)` guard below.
+  const keptArtworks = useMemo(() => {
+    const sigs = new Set(traySlices.map(sliceSignature));
+    for (const b of store.userBinders) {
+      for (const p of b.pages) {
+        for (const s of p.slots) {
+          if (s.type === 'artwork' && s.imageUrl) sigs.add(slotSignature(s));
+        }
+      }
+    }
+    return sigs.size;
+  }, [traySlices, store.userBinders]);
   const [editing, setEditing] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
   const [pickerCell, setPickerCell] = useState<{ row: number; col: number } | null>(null);
@@ -340,7 +357,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     const copy = store.duplicateBinder(binder.id);
     if (copy) onOpenBinder?.(copy.id);
     // The store refuses past the binder cap — say so instead of silently doing nothing.
-    else showToast(`You’ve reached your ${store.limits.binders}-binder limit. Upgrade for more room.`);
+    else showToast(binderLimitMessage(store.tier, store.limits));
   };
 
   // Structural page edits re-space the binder with blank pages when folded 1×2 art would land
@@ -355,7 +372,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // before the new page lands) — the render clamps `pageIndex` to bounds once it does.
   const handleDuplicatePage = () => {
     if (store.pageLimitReached(binder.id)) {
-      showToast(`You’ve reached the ${store.limits.pagesPerBinder}-page limit. Upgrade for more.`);
+      showToast(pageLimitMessage(store.tier, store.limits));
       return;
     }
     const result = store.duplicatePage(binder.id, page.id);
@@ -613,22 +630,6 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     if (added > 0) showToast(`Added ${added} card${added === 1 ? '' : 's'}`);
   };
 
-  // "Artworks kept" = distinct content signatures across the tray AND every placed artwork
-  // slot. Placed art only reaches the tray on the NEXT sync (the import scan), so counting the
-  // tray alone would let repeated placements in one session sail past the cap unseen. Same
-  // signature vocabulary as the import scan, so a tray slice placed into a pocket counts once.
-  const keptArtworks = useMemo(() => {
-    const sigs = new Set(traySlices.map(sliceSignature));
-    for (const b of store.userBinders) {
-      for (const p of b.pages) {
-        for (const s of p.slots) {
-          if (s.type === 'artwork' && s.imageUrl) sigs.add(slotSignature(s));
-        }
-      }
-    }
-    return sigs.size;
-  }, [traySlices, store.userBinders]);
-
   // The artworks-kept cap covers EVERY way new art enters the account: studio saves are gated
   // in the studio, and direct placements are gated here — each placed piece is mirrored into
   // the tray by the import scan, so an unchecked placement would grow the tray past the cap
@@ -881,7 +882,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           label="+ Page"
           onPress={() =>
             store.pageLimitReached(binder.id)
-              ? showToast(`You’ve reached the ${store.limits.pagesPerBinder}-page limit. Upgrade for more.`)
+              ? showToast(pageLimitMessage(store.tier, store.limits))
               : store.addPage(binder.id)
           }
         />

@@ -23,12 +23,14 @@ import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDial
 import { PrintPlaceholdersSheet } from '@/components/binder/PrintPlaceholdersSheet';
 import { ShareSheet } from '@/components/binder/ShareSheet';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
-import { HomeCollection } from '@/components/HomeCollection';
+import { SignInPerk } from '@/components/auth/SignInPerk';
+import { MyCollection } from '@/components/MyCollection';
 import { HomeSection } from '@/components/HomeSection';
 import { UpgradePerk } from '@/components/monetization/UpgradePerk';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Breakpoints, FontSize, MaxContentWidth, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { binderLimitMessage } from '@/data/limitMessages';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useImageManifest } from '@/lib/catalogConfig';
 import { useBinders } from '@/store/binders';
@@ -76,7 +78,7 @@ export default function MyBindersScreen() {
 
   const handleNew = () => {
     if (store.atBinderLimit) {
-      showToast('You’ve reached your binder limit. Upgrade for more.');
+      showToast(binderLimitMessage(store.tier, store.limits));
       return;
     }
     const binder = store.createBinder({ title: 'New binder' });
@@ -108,7 +110,7 @@ export default function MyBindersScreen() {
   const duplicateFromMenu = () => {
     if (menuBinder) {
       const copy = store.duplicateBinder(menuBinder.id);
-      showToast(copy ? 'Binder duplicated' : 'You’ve reached your binder limit. Upgrade for more.');
+      showToast(copy ? 'Binder duplicated' : binderLimitMessage(store.tier, store.limits));
     }
     setMenuId(null);
   };
@@ -173,9 +175,11 @@ export default function MyBindersScreen() {
               <>
                 {store.atBinderLimit ? (
                   <View style={styles.upgradeRow}>
-                    <UpgradePerk
-                      message={`You’ve reached your ${store.limits.binders}-binder limit. Upgrade for more room.`}
-                    />
+                    {store.tier === 'guest' ? (
+                      <SignInPerk message={binderLimitMessage(store.tier, store.limits)} />
+                    ) : (
+                      <UpgradePerk message={binderLimitMessage(store.tier, store.limits)} />
+                    )}
                   </View>
                 ) : null}
                 {showBinderSearch ? (
@@ -216,7 +220,7 @@ export default function MyBindersScreen() {
           </HomeSection>
 
           {/* My collection — the tcgscan-fed inventory; appears with the first scan/import. */}
-          <HomeCollection
+          <MyCollection
             onToast={showToast}
             onOpenBinder={openBinder}
             onFindSimilar={driveSimilarIds}

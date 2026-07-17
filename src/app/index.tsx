@@ -18,6 +18,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { pagesForCards } from '@/data/binderTypes';
+import { binderLimitMessage } from '@/data/limitMessages';
 import { useImageManifest } from '@/lib/catalogConfig';
 import { shouldShowLanding } from '@/lib/landing';
 import { useBinders } from '@/store/binders';
@@ -82,7 +83,7 @@ export default function HomeScreen() {
     if (!addCardId) return;
     if (store.atBinderLimit) {
       setAddCardId(null);
-      showToast('You’ve reached your binder limit. Upgrade for more.');
+      showToast(binderLimitMessage(store.tier, store.limits));
       return;
     }
     // Atomic create-with-card — creating then adding would race the store snapshot.

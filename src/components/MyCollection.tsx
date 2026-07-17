@@ -1,7 +1,8 @@
 /**
  * "My collection" — the signed-in user's card inventory (`user_cards`), fed live by
- * tcgscan-app scans. Renders nothing until the inventory has rows, and updates in real time
- * while the page is open (scan a card in tcgscan, watch it show up here).
+ * tcgscan-app scans. Lives on the /my-binders page (below Your binders). Renders nothing until
+ * the inventory has rows, and updates in real time while the page is open (scan a card in
+ * tcgscan, watch it show up here).
  *
  * Each tile shows `(free/owned)` — how many copies are still unplaced vs owned, where "placed"
  * counts that card's pockets across ALL of the user's binders. A card with nothing left to
@@ -56,7 +57,7 @@ type ViewMode = 'all' | 'sets' | 'portfolios';
 // Session-remembered preference, like the binder double-sided toggle.
 let viewModePref: ViewMode = 'all';
 
-export function HomeCollection({
+export function MyCollection({
   onToast,
   onOpenBinder,
   onFindSimilar,

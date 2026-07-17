@@ -43,6 +43,9 @@ const SELLABLE = new Set([
 const ALLOWED_RETURN_ORIGINS = new Set([
   'https://www.michi-maker.com',
   'https://michi-maker.com',
+  'https://www.tcgscan.ai',
+  'https://tcgscan.ai',
+  // legacy tcgscan domain — kept while it still serves/redirects
   'https://www.idontgitit.com',
   'https://idontgitit.com',
   'http://localhost:8081',

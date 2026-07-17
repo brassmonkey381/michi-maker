@@ -69,7 +69,7 @@ export const BINDER_PDF_LOOKUP_KEY = 'michi_binder_pdf';
 export const TCGSCAN_PRO_LOOKUP_KEY = 'tcgscan_pro_yearly';
 
 /** The sibling app's landing page — EVERY user-facing TCGScan mention links here. */
-export const TCGSCAN_URL = 'https://idontgitit.com/welcome';
+export const TCGSCAN_URL = 'https://tcgscan.ai/welcome';
 
 export interface CompareCell {
   text: string;
@@ -173,7 +173,7 @@ export const FOOTNOTES: { mark: string; text: string; link?: { label: string; ur
   {
     mark: '‡',
     text: 'Included at every tier. For best-in-class inventory tracking across your portfolios, set analytics, and historical price history, see our partner app TCGScan - your collection syncs straight into michi-maker.',
-    link: { label: 'Meet TCGScan →', url: 'https://idontgitit.com/welcome' },
+    link: { label: 'Meet TCGScan →', url: 'https://tcgscan.ai/welcome' },
   },
 ];
 

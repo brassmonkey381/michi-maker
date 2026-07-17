@@ -24,7 +24,7 @@ export const PRODUCTS = {
   /** VIP subscription (entitlements.expires_at set per billing period). */
   tierVip: 'tier_vip',
   /**
-   * CROSS-APP: TCGScan Pro. Sold by the sibling app (tcgscan / idontgitit.com) but written to
+   * CROSS-APP: TCGScan Pro. Sold by the sibling app (tcgscan / tcgscan.ai) but written to
    * this SAME shared `entitlements` ledger, so michi can read it to unlock scan-powered features
    * here (e.g. "Build a binder from your collection"). See docs/SYNERGY.md. michi never sells or
    * resolves a *tier* from it — it's a feature key checked directly via `hasTcgscanPro`.

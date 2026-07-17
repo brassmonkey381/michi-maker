@@ -54,7 +54,7 @@ data from scanning + michi's binder builder), so it's the natural cross-app upse
 
 Holding one Pro surfaces a **discounted add-on** of the other:
 
-- michi PRO/VIP **and not** `tcgscan_pro` → `<BundleOffer/>` (michi `src/components/monetization/BundleOffer.tsx`) offers TCGScan Pro at a launch discount → opens `idontgitit.com`.
+- michi PRO/VIP **and not** `tcgscan_pro` → `<BundleOffer/>` (michi `src/components/monetization/BundleOffer.tsx`) offers TCGScan Pro at a launch discount → checkout, or opens `tcgscan.ai/welcome` while closed.
 - `tcgscan_pro` **and not** michi Pro → tcgscan's `<BundleOffer/>` (`src/components/cross-app.tsx`) offers Michi Pro at a discount → opens `michi-maker.com`.
 
 The *discount* itself is enforced at checkout (a coupon/price in the payment provider, keyed off

@@ -271,6 +271,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         crop: slice.crop ?? { x: 0, y: 0, w: 1, h: 1 },
         fit: slice.fit ?? 'cover',
         transform: slice.transform,
+        attribution: slice.attribution,
       },
     ]);
   };

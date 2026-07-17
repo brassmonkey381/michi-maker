@@ -30,6 +30,7 @@ function toSlice(r: Row): SavedSlice {
     cs: r.cs,
     groupId: r.group_id ?? undefined,
     label: r.label ?? undefined,
+    attribution: (r.attribution as unknown as SavedSlice['attribution']) ?? undefined,
     createdAt: r.created_at,
     deletedAt: r.deleted_at ?? undefined,
   };
@@ -47,6 +48,7 @@ function toInsert(s: SavedSlice): Insert {
     cs: s.cs,
     group_id: s.groupId ?? null,
     label: s.label ?? null,
+    attribution: (s.attribution ?? null) as Json,
     ...(s.createdAt ? { created_at: s.createdAt } : {}),
   };
 }
@@ -103,7 +105,7 @@ export async function fetchBinderArtSlices(ownerId: string): Promise<Omit<SavedS
   const { data, error } = await supabase
     .from('binder_slots')
     .select(
-      'image_url, image_crop, image_fit, image_transform, row_span, col_span, created_at, binder_pages!inner(binders!inner(owner_id))'
+      'image_url, image_crop, image_fit, image_transform, image_attribution, row_span, col_span, created_at, binder_pages!inner(binders!inner(owner_id))'
     )
     .eq('slot_type', 'artwork')
     .not('image_url', 'is', null)
@@ -114,6 +116,7 @@ export async function fetchBinderArtSlices(ownerId: string): Promise<Omit<SavedS
     crop: (s.image_crop as SavedSlice['crop']) ?? null,
     fit: (s.image_fit as 'cover' | 'contain' | null) ?? undefined,
     transform: (s.image_transform as ImageTransform | null) ?? undefined,
+    attribution: (s.image_attribution as unknown as SavedSlice['attribution']) ?? undefined,
     rs: s.row_span,
     cs: s.col_span,
     createdAt: s.created_at,

@@ -107,6 +107,8 @@ export interface ArtPanelInput {
   fit?: 'cover' | 'contain';
   /** Rotation / mirror applied before the crop window. Absent ⇒ as-is. */
   transform?: ImageTransform;
+  /** Provenance to stamp on the placed slot (public-binder attribution gate). */
+  attribution?: DemoSlot['attribution'];
 }
 
 interface BinderStore {
@@ -199,6 +201,7 @@ interface BinderStore {
     rows: number,
     cols: number,
     imageUrl: string,
+    attribution?: DemoSlot['attribution'],
   ) => void;
   placeArtPanels: (
     binderId: string,
@@ -1003,6 +1006,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       rows: number,
       cols: number,
       imageUrl: string,
+      attribution?: DemoSlot['attribution'],
     ) => {
       const target = binders.find((binder) => binder.id === binderId);
       const page = target?.pages.find((p) => p.id === pageId);
@@ -1023,6 +1027,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
             type: 'artwork',
             imageUrl,
             imageCrop: { x: j / cols, y: i / rows, w: 1 / cols, h: 1 / rows },
+            attribution,
           });
         }
       }
@@ -1091,6 +1096,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
           imageCrop: panel.crop,
           imageFit: panel.fit ?? 'cover',
           imageTransform: panel.transform,
+          attribution: panel.attribution,
         });
       }
       if (newSlots.length === 0) return;

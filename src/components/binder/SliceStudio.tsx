@@ -25,7 +25,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
 import { sheet } from '@/constants/ui';
-import { domainOf } from '@/data/artworkLibrary';
+import { deriveAttribution, domainOf, type ArtAttribution } from '@/data/artworkLibrary';
 import { uid, uuidv4, type ImageTransform } from '@/data/binderTypes';
 import type { SavedSlice } from '@/data/savedSlices';
 import { TIER_LIMITS } from '@/data/tiers';
@@ -252,13 +252,24 @@ export function SliceStudio({
   const [cardPickOpen, setCardPickOpen] = useState(false);
   const { catalog } = useCatalog(cardPickOpen);
   const [dropActive, setDropActive] = useState(false);
-  const loadImage = useCallback((url: string) => {
+  // Provenance for the loaded image. Required before a binder can go public (the source), the
+  // artist optional but encouraged. Pre-filled from the URL where derivable (an artofpkm/pin
+  // link), then editable. `srcName` remembers a platform label from a known asset.
+  const [artist, setArtist] = useState('');
+  const [sourceUrl, setSourceUrl] = useState('');
+  const [srcName, setSrcName] = useState('');
+  const loadImage = useCallback((url: string, seed?: ArtAttribution) => {
     setImageUrl(url);
     setFailed(false);
     setUrlInput('');
     setRot(0);
     setFlipH(false);
     setFlipV(false);
+    // Seed the credit fields: an asset's known attribution wins; else derive from the URL.
+    const a = seed ?? deriveAttribution(url);
+    setArtist(a.artist ?? '');
+    setSourceUrl(a.sourceUrl ?? '');
+    setSrcName(a.sourceName ?? '');
   }, []);
 
   const openGallery = useCallback((url: string) => {
@@ -551,6 +562,21 @@ export function SliceStudio({
         : undefined;
     const groupId = uid('slicegrp');
     const label = domainOf(imageUrl);
+    // Build the credit from the fields, filling the source name/url from the URL when the user
+    // left them blank. Attach only when there's something worth carrying.
+    const trimmedArtist = artist.trim();
+    const trimmedSource = sourceUrl.trim();
+    const derived = deriveAttribution(imageUrl);
+    const attribution: ArtAttribution | undefined =
+      trimmedArtist || trimmedSource || derived.sourceUrl
+        ? {
+            sourceName: srcName || derived.sourceName,
+            ...(trimmedArtist ? { artist: trimmedArtist } : {}),
+            ...(trimmedSource || derived.sourceUrl
+              ? { sourceUrl: trimmedSource || derived.sourceUrl }
+              : {}),
+          }
+        : undefined;
     const slices: SavedSlice[] = panels.map((p) => ({
       // A real UUID — saved_slices.id is a Postgres uuid column, so a `slice-…` string id makes
       // every insert fail (silently: the tray is optimistic) and nothing ever persists.
@@ -563,9 +589,10 @@ export function SliceStudio({
       cs: p.cs,
       groupId,
       label,
+      attribution,
     }));
     onSaveSlices(slices);
-  }, [imageUrl, rot, flipH, flipV, panels, rows, cols, win, onSaveSlices]);
+  }, [imageUrl, rot, flipH, flipV, panels, rows, cols, win, onSaveSlices, artist, sourceUrl, srcName]);
 
   // Web: keyboard shortcuts + tracking Shift/Ctrl for multi-select.
   useEffect(() => {
@@ -726,6 +753,32 @@ export function SliceStudio({
               <Btn label="Load" onPress={loadUrl} />
             </View>
           </View>
+
+          {/* Credit — captured with the art. A SOURCE (link to the original post/shop/artist
+              page) is required before a binder using this art can go public; the artist name is
+              optional but encouraged. Pre-filled from known/derivable sources. */}
+          {hasImage ? (
+            <View style={styles.creditBar}>
+              <TextInput
+                value={artist}
+                onChangeText={setArtist}
+                placeholder="Artist / credit (optional)"
+                placeholderTextColor={Palette.muted3}
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={[styles.input, styles.creditInput]}
+              />
+              <TextInput
+                value={sourceUrl}
+                onChangeText={setSourceUrl}
+                placeholder="Source URL (the original post — required to make public)"
+                placeholderTextColor={Palette.muted3}
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={[styles.input, styles.creditInput]}
+              />
+            </View>
+          ) : null}
 
           {/* Framing controls only exist once there's something to frame — the empty studio stays
               quiet. Grouped, hairline-separated clusters replace the old five stacked toolbars. */}
@@ -1071,6 +1124,8 @@ const styles = StyleSheet.create({
 
   // Source row
   sourceBar: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
+  creditBar: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+  creditInput: { flexBasis: 200 },
   urlWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minWidth: 220 },
   input: {
     flex: 1,

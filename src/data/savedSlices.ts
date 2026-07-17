@@ -17,7 +17,7 @@
 
 import { useEffect, useSyncExternalStore } from 'react';
 
-import { domainOf } from '@/data/artworkLibrary';
+import { domainOf, type ArtAttribution } from '@/data/artworkLibrary';
 import { uuidv4, type DemoSlot, type ImageTransform } from '@/data/binderTypes';
 import * as repo from '@/data/sliceRepo';
 import { supabase } from '@/lib/supabase';
@@ -38,6 +38,8 @@ export interface SavedSlice {
   groupId?: string;
   /** Human hint, e.g. the source domain. */
   label?: string;
+  /** Provenance captured in the studio — copied onto the slot when placed (public-binder gate). */
+  attribution?: ArtAttribution;
   createdAt?: string;
   /** Tombstone: the user removed it from the tray. Never shown; blocks re-import. */
   deletedAt?: string;

@@ -430,6 +430,7 @@ export type Database = {
           group_id: string | null
           id: string
           image_url: string
+          attribution: Json | null
           label: string | null
           owner_id: string
           rs: number
@@ -444,6 +445,7 @@ export type Database = {
           group_id?: string | null
           id?: string
           image_url: string
+          attribution?: Json | null
           label?: string | null
           owner_id?: string
           rs?: number
@@ -458,6 +460,7 @@ export type Database = {
           group_id?: string | null
           id?: string
           image_url?: string
+          attribution?: Json | null
           label?: string | null
           owner_id?: string
           rs?: number

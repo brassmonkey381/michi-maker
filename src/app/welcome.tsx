@@ -79,9 +79,9 @@ function isDarkBackground(hex: string): boolean {
 /** One page that tells a story at a glance: the rarity ladder, common → hyper. */
 const HERO_ID = 'gen-prismatic-rarity-ladder';
 /** Wide screens get an OPEN SPREAD instead: the owner's real binder, auto-flipping its facing pages. */
-const SPREAD_ID = 'ex-my-first-binder';
+const SPREAD_ID = 'ex-pikachu-and-friends';
 /** The owner's real binders (bundled by scripts/build-featured-binders.mjs), not mockups. */
-const GALLERY_IDS = ['ex-my-first-binder', 'ex-ideas-in-flight', 'ex-pitch-black-chase'];
+const GALLERY_IDS = ['ex-pikachu-and-friends', 'ex-ideas-in-flight', 'ex-pitch-black-chase'];
 
 const VALUE_PROPS = [
   {
@@ -265,7 +265,7 @@ export default function WelcomeScreen() {
                     </View>
                   </Animated.View>
                   <ThemedText type="small" themeColor="textSecondary" style={styles.heroCaption}>
-                    “{heroFlipBinder.title}”, a live binder — flipping through real pages, not a screenshot.
+                    “{heroFlipBinder.title}”, a live binder flipping through real pages, not a screenshot.
                   </ThemedText>
                 </Reveal>
               ) : null}

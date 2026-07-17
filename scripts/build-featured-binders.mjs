@@ -29,7 +29,8 @@ const OUT = join(ROOT, 'src', 'data', 'featuredBinders.json');
 
 /** The binders to bundle, in display order. `key` becomes the stable bundled id (`ex-<key>`). */
 const FEATURED = [
-  { sourceId: '70882b83-4a52-452d-9f4b-ab31fbe7db3c', key: 'my-first-binder' },
+  // "Pikachu and Friends" — the original "My First Binder" remade under the @michimaker account.
+  { sourceId: 'bb6a56b4-cce4-44dd-826d-5dab2e732370', key: 'pikachu-and-friends' },
   { sourceId: 'df338785-1041-4494-aeac-11be94e5186c', key: 'ideas-in-flight' },
   { sourceId: 'd1d44c9c-8da4-438a-9cdd-02343dcb36ff', key: 'pitch-black-chase' },
 ];

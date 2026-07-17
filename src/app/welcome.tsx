@@ -9,7 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { LogoMark } from '@/components/brand/LogoMark';
+import { AnimatedLogoMark } from '@/components/brand/AnimatedLogoMark';
 import { AutoFlipBinder } from '@/components/landing/AutoFlipBinder';
 import { HoverLift } from '@/components/landing/HoverLift';
 import { Reveal } from '@/components/landing/Reveal';
@@ -210,7 +210,7 @@ export default function WelcomeScreen() {
           <View style={styles.shell}>
             <View style={styles.nav}>
               <View style={styles.brandRow}>
-                <LogoMark size={26} />
+                <AnimatedLogoMark size={26} />
                 <ThemedText style={styles.wordmark}>michi-maker</ThemedText>
               </View>
               <Pressable

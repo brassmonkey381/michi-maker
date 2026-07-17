@@ -103,6 +103,7 @@ export type Database = {
         Row: {
           binder_id: string
           fingerprint: string
+          pdf_path: string | null
           sheets: number | null
           updated_at: string
           user_id: string
@@ -110,6 +111,7 @@ export type Database = {
         Insert: {
           binder_id: string
           fingerprint: string
+          pdf_path?: string | null
           sheets?: number | null
           updated_at?: string
           user_id?: string
@@ -117,6 +119,7 @@ export type Database = {
         Update: {
           binder_id?: string
           fingerprint?: string
+          pdf_path?: string | null
           sheets?: number | null
           updated_at?: string
           user_id?: string

@@ -21,7 +21,13 @@ import { fetchUserCards } from '@/data/collectionRepo';
 import { createWebArtLoader } from '@/data/fillSheetArt';
 import { startCheckout } from '@/data/checkout';
 import { buildPlaceholderPdf, collectFillTiles } from '@/data/placeholderPdf';
-import { downloadPurchasedPdf, purchaseState, spendPurchase, type PurchaseState } from '@/data/pdfSnapshot';
+import {
+  downloadPurchasedPdf,
+  purchaseStatus,
+  spendPurchase,
+  type PurchasedVersion,
+  type PurchaseStatus,
+} from '@/data/pdfSnapshot';
 import { recordPrintEvent } from '@/data/printRepo';
 import { BINDER_PDF_LOOKUP_KEY, CHECKOUT_OPEN } from '@/data/subscriptions';
 import { useCatalog } from '@/hooks/use-catalog';
@@ -55,24 +61,27 @@ export function PrintPlaceholdersSheet({
   const [busy, setBusy] = useState(false);
   const [buying, setBuying] = useState(false);
   const [exBusy, setExBusy] = useState(false);
-  const [archBusy, setArchBusy] = useState(false);
+  // pdfPath of the purchased version currently downloading (one at a time), or null.
+  const [archBusyPath, setArchBusyPath] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Where the per-binder purchase stands (unspent / current / edited); null while resolving.
-  const [pState, setPState] = useState<PurchaseState | null>(null);
+  // Where the per-binder purchase stands (state + every purchased version); null while resolving.
+  const [pStatus, setPStatus] = useState<PurchaseStatus | null>(null);
   useEffect(() => {
     if (!purchased || hasFullPrint) return;
     let live = true;
-    purchaseState(binder)
+    purchaseStatus(binder)
       .then((s) => {
-        if (live) setPState(s);
+        if (live) setPStatus(s);
       })
       .catch(() => {
-        if (live) setPState('unspent'); // resolution failure must not brick a paid unlock
+        if (live) setPStatus({ state: 'unspent', versions: [] }); // failure must not brick a paid unlock
       });
     return () => {
       live = false;
     };
   }, [purchased, hasFullPrint, binder]);
+  const pState = pStatus?.state ?? null;
+  const versions = pStatus?.versions ?? [];
   // Subscribers print freely; a purchase covers its snapshot (unspent = next download locks it in).
   const unlocked = hasFullPrint || (purchased && (pState === 'unspent' || pState === 'current'));
 
@@ -122,10 +131,15 @@ export function PrintPlaceholdersSheet({
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
       // A one-time purchase SPENDS on this download: record the binder's fingerprint + archive
-      // these exact bytes, locking the license to this version (see data/pdfSnapshot.ts).
+      // these exact bytes as a NEW purchased version (earlier versions stay downloadable too).
       if (!hasFullPrint && purchased && pState === 'unspent') {
-        await spendPurchase(binder, bytes, sheets).catch(() => {});
-        setPState('current');
+        const v = await spendPurchase(binder, bytes, sheets).catch(() => null);
+        setPStatus((prev) => ({
+          state: 'current',
+          versions: v
+            ? [v, ...(prev?.versions ?? []).filter((p) => p.fingerprint !== v.fingerprint)]
+            : (prev?.versions ?? []),
+        }));
       }
       // Count against the plan's included monthly prints (advisory ledger; failure is fine —
       // the meter just misses one, the user keeps their PDF).
@@ -139,24 +153,25 @@ export function PrintPlaceholdersSheet({
     }
   };
 
-  /** Serve the archived purchased-version PDF (after the binder was edited past its snapshot). */
-  const downloadArchived = async () => {
-    if (archBusy) return;
-    setArchBusy(true);
+  /** Serve one archived purchased version (every spent purchase stays downloadable forever). */
+  const downloadArchived = async (version: PurchasedVersion) => {
+    if (archBusyPath) return;
+    setArchBusyPath(version.pdfPath ?? 'pending');
     setError(null);
     try {
-      const blob = await downloadPurchasedPdf(binder.id);
+      const blob = await downloadPurchasedPdf(version);
       if (!blob) throw new Error('Your purchased PDF couldn’t be found. Contact support and we’ll sort it out.');
+      const stamp = new Date(version.spentAt).toISOString().slice(0, 10);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${binder.title.replace(/[^\w\- ]+/g, '').trim() || 'binder'} fill sheets (purchased version).pdf`;
+      a.download = `${binder.title.replace(/[^\w\- ]+/g, '').trim() || 'binder'} fill sheets (purchased ${stamp}).pdf`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setArchBusy(false);
+      setArchBusyPath(null);
     }
   };
 
@@ -312,13 +327,14 @@ export function PrintPlaceholdersSheet({
                     <ActivityIndicator />
                   </View>
                 ) : purchased && pState === 'edited' ? (
-                  // Purchase spent on an earlier version and the binder has changed since. The
-                  // bought version stays downloadable forever; the edited one needs a new unlock.
+                  // Purchases spent on earlier versions and the binder has changed since. Every
+                  // bought version stays downloadable (list below); the edited one needs a new unlock.
                   <View style={styles.lockedBox}>
                     <ThemedText type="smallBold">This binder changed since you bought its PDF</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-                      Your purchase covers the version you bought — download it below anytime.
-                      Printing the edited version needs its own unlock, or a PRO/VIP plan.
+                      Your purchased version{versions.length === 1 ? ' is' : 's are'} below —
+                      download them anytime. Printing the edited version needs its own unlock, or
+                      a PRO/VIP plan.
                     </ThemedText>
                     {CHECKOUT_OPEN ? (
                       <Pressable
@@ -336,16 +352,6 @@ export function PrintPlaceholdersSheet({
                         Purchases aren’t open quite yet; check back soon.
                       </ThemedText>
                     )}
-                    <Pressable
-                      onPress={downloadArchived}
-                      disabled={archBusy}
-                      style={({ pressed }) => [styles.exampleBtn, (pressed || archBusy) && styles.dim]}>
-                      {archBusy ? (
-                        <ActivityIndicator color={Palette.accent} />
-                      ) : (
-                        <Text style={styles.exampleBtnText}>Download the version you bought</Text>
-                      )}
-                    </Pressable>
                   </View>
                 ) : CHECKOUT_OPEN ? (
                   <View style={styles.lockedBox}>
@@ -377,6 +383,45 @@ export function PrintPlaceholdersSheet({
                     </ThemedText>
                   </View>
                 )}
+
+                {/* Every purchased version, newest first — each downloadable forever, whatever
+                    the binder looks like now. This is the version PICKER for multi-buy binders. */}
+                {!hasFullPrint && versions.length > 0 ? (
+                  <View style={styles.versionsBox}>
+                    <ThemedText type="smallBold" themeColor="textSecondary" style={styles.versionsTitle}>
+                      YOUR PURCHASED VERSIONS
+                    </ThemedText>
+                    {versions.map((v) => {
+                      const isBusy = archBusyPath != null && archBusyPath === (v.pdfPath ?? 'pending');
+                      const when = new Date(v.spentAt).toLocaleDateString(undefined, {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      });
+                      return (
+                        <View key={v.fingerprint} style={styles.versionRow}>
+                          <ThemedText type="small" themeColor="textSecondary" style={styles.versionMeta}>
+                            {when}
+                            {v.sheets != null ? ` · ${v.sheets} sheet${v.sheets === 1 ? '' : 's'}` : ''}
+                          </ThemedText>
+                          <Pressable
+                            onPress={() => void downloadArchived(v)}
+                            disabled={archBusyPath != null}
+                            style={({ pressed }) => [
+                              styles.versionBtn,
+                              (pressed || archBusyPath != null) && styles.dim,
+                            ]}>
+                            {isBusy ? (
+                              <ActivityIndicator color={Palette.accent} />
+                            ) : (
+                              <Text style={styles.exampleBtnText}>Download</Text>
+                            )}
+                          </Pressable>
+                        </View>
+                      );
+                    })}
+                  </View>
+                ) : null}
 
                 {/* Free teaser — a short example PDF (example cards + art), never the user's binder.
                     Hidden for purchasers: they've seen real output (edited state offers the archive). */}
@@ -432,6 +477,25 @@ const styles = StyleSheet.create({
     minHeight: 40,
   },
   exampleBtnText: { color: Palette.accent, fontSize: FontSize.label, fontWeight: Weight.semibold },
+  versionsBox: {
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
+    borderRadius: Radius.lg,
+    padding: Spacing.three,
+    gap: Spacing.two,
+  },
+  versionsTitle: { textTransform: 'uppercase', letterSpacing: 0.5, fontSize: FontSize.label },
+  versionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.three },
+  versionMeta: { flex: 1 },
+  versionBtn: {
+    borderWidth: 1,
+    borderColor: Palette.accent,
+    borderRadius: Radius.pill,
+    paddingVertical: Spacing.one,
+    paddingHorizontal: Spacing.three,
+    minWidth: 96,
+    alignItems: 'center',
+  },
   dim: { opacity: 0.6 },
   error: { color: Palette.danger, lineHeight: 20 },
   lockedBox: {

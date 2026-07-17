@@ -27,12 +27,14 @@ only subscriptions or per-binder purchases. Non-payers get the counts preview pl
 example PDF** (a bundled example binder's first page of example cards + artwork) — never their own
 binders.
 
-The per-binder purchase is a **snapshot license**: the first download after buying records the
-binder's content fingerprint and archives those exact PDF bytes (`binder-pdfs` bucket). While the
-binder is unedited the PDF can be regenerated freely; after an edit only the archived purchased
-version stays downloadable — printing the edited version requires buying the binder again (the
-webhook bumps `granted_at`, which re-arms the spend) or a plan. This is what stops
-edit → reprint → repeat turning one $3.99 unlock into unlimited prints.
+The per-binder purchase is a **snapshot license with version history**: the first download after
+buying records the binder's content fingerprint and archives those exact PDF bytes as a purchased
+VERSION (`binder_pdf_snapshots` row + `binder-pdfs` bucket, one archive per version). While the
+binder matches any purchased version the PDF can be regenerated freely; after an edit the print
+sheet lists **every purchased version for re-download (forever)** and printing the edited version
+requires buying the binder again (the webhook bumps `granted_at`, which re-arms the spend) or a
+plan. This is what stops edit → reprint → repeat turning one $3.99 unlock into unlimited prints,
+while multi-buy users keep a picker of everything they've paid for.
 
 ### Tier limits (caps) are behind a feature flag
 

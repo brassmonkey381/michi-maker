@@ -59,9 +59,26 @@ delete from public.entitlements where user_id = '<auth user id>' and product = '
 The client re-checks per identity/mount (and `useTier().refresh()` re-polls), so a fresh grant
 shows up next time the user opens the gated surface — no deploy needed.
 
-## Wiring a payment provider (the open slot)
+## Provider: STRIPE (decided 2026-07-16, building in TEST MODE)
 
-When a provider is chosen (Stripe or Lemon Squeezy were the candidates):
+Account: `acct_1TtzOWH8KZaf7tNO` ("TCGScan"). Accepted integration plan (Stripe
+implementation planner, guide `iguide_61V3NTkB3BlVzjmQZ41H8KZaf7tNO`): Stripe-hosted
+**Checkout** (subscription mode for tiers, payment mode for the one-time PDF), no-code
+**Customer Portal** for manage/cancel/payment-method, **freemium** (no card-on-file trials),
+**Smart Retries** defaults for failed-payment recovery. No Elements, no custom payment UI.
+
+Test-mode catalog (recreate the same lookup_keys in live mode before launch — code references
+lookup keys and `metadata.michi_product`, never raw price ids):
+
+| lookup_key | price | product (metadata.michi_product) |
+| --- | --- | --- |
+| `michi_pro_monthly` | $3.99/mo | michi-maker PRO (`tier_pro`) |
+| `michi_pro_yearly` | $39.99/yr | michi-maker PRO (`tier_pro`) |
+| `michi_vip_monthly` | $9.99/mo | michi-maker VIP (`tier_vip`) |
+| `michi_vip_yearly` | $99.99/yr | michi-maker VIP (`tier_vip`) |
+| `michi_binder_pdf` | $3.99 one-time | Full-binder fill-sheet PDF (`pdf_binder`) |
+
+## Wiring Stripe (build checklist)
 
 1. **Checkout**: hosted checkout page, launched from the locked box in
    `PrintPlaceholdersSheet` (replace the "purchases aren't open yet" note with a Buy button).

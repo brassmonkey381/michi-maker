@@ -1,12 +1,20 @@
 import { useRouter } from 'expo-router';
 import Head from 'expo-router/head';
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BinderGrid } from '@/components/binder/BinderGrid';
 import { BinderThumb } from '@/components/binder/BinderThumb';
 import { LogoMark } from '@/components/brand/LogoMark';
+import { Reveal } from '@/components/landing/Reveal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import {
@@ -120,6 +128,27 @@ export default function WelcomeScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const galleryY = useRef(0);
 
+  // A slow, continuous float on the hero art — the page's one always-on motion, so the
+  // binder feels alive the moment you land. Gated on prefers-reduced-motion (web); on
+  // native it just runs (there's no equivalent OS query wired here).
+  const float = useSharedValue(0);
+  useEffect(() => {
+    const reduce =
+      Platform.OS === 'web' &&
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) return;
+    float.value = withRepeat(
+      withTiming(1, { duration: 4200, easing: Easing.inOut(Easing.quad) }),
+      -1,
+      true,
+    );
+  }, [float]);
+  const floatStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: (float.value - 0.5) * 14 }],
+  }));
+
   const enterApp = () => {
     markLandingSeen();
     router.replace('/');
@@ -181,7 +210,7 @@ export default function WelcomeScreen() {
 
             {/* ── Hero ────────────────────────────────────────────────── */}
             <View style={[styles.hero, wide && styles.heroWide]}>
-              <View style={[styles.heroCopy, wide && styles.heroCopyWide]}>
+              <Reveal style={[styles.heroCopy, wide && styles.heroCopyWide]}>
                 <ThemedText style={[styles.kicker, { color: bronze }]}>
                   THE MICHI METHOD, DIGITIZED
                 </ThemedText>
@@ -210,47 +239,54 @@ export default function WelcomeScreen() {
                 <ThemedText type="small" themeColor="textSecondary" style={styles.betaNote}>
                   Free while in beta · web, iOS and Android
                 </ThemedText>
-              </View>
+              </Reveal>
 
               {showSpread && spreadBinder ? (
-                <View style={styles.heroArt}>
-                  <View style={[styles.heroTilt, Shadows.page]}>
-                    <View style={styles.spreadRow}>
-                      <BinderGrid page={spreadBinder.pages[0]} width={spreadPageW} />
-                      <View style={styles.spine}>
-                        {[0, 1, 2, 3].map((i) => (
-                          <View key={i} style={styles.ring} />
-                        ))}
+                <Reveal style={styles.heroArt} delay={140}>
+                  <Animated.View style={floatStyle}>
+                    <View style={[styles.heroTilt, Shadows.page]}>
+                      <View style={styles.spreadRow}>
+                        <BinderGrid page={spreadBinder.pages[0]} width={spreadPageW} />
+                        <View style={styles.spine}>
+                          {[0, 1, 2, 3].map((i) => (
+                            <View key={i} style={styles.ring} />
+                          ))}
+                        </View>
+                        <BinderGrid page={spreadBinder.pages[1]} width={spreadPageW} />
                       </View>
-                      <BinderGrid page={spreadBinder.pages[1]} width={spreadPageW} />
                     </View>
-                  </View>
+                  </Animated.View>
                   <ThemedText type="small" themeColor="textSecondary" style={styles.heroCaption}>
                     “{spreadBinder.title}”, an open spread rendered live. Not a screenshot.
                   </ThemedText>
-                </View>
+                </Reveal>
               ) : heroBinder?.pages[0] ? (
-                <View style={styles.heroArt}>
-                  <View style={[styles.heroTilt, Shadows.page]}>
-                    <BinderGrid page={heroBinder.pages[0]} width={heroW} />
-                  </View>
+                <Reveal style={styles.heroArt} delay={140}>
+                  <Animated.View style={floatStyle}>
+                    <View style={[styles.heroTilt, Shadows.page]}>
+                      <BinderGrid page={heroBinder.pages[0]} width={heroW} />
+                    </View>
+                  </Animated.View>
                   <ThemedText type="small" themeColor="textSecondary" style={styles.heroCaption}>
                     “{heroBinder.title}”, a real page rendered live. Not a screenshot.
                   </ThemedText>
-                </View>
+                </Reveal>
               ) : null}
             </View>
 
             {/* ── Why michi — plain text columns on the paper, a bronze rule above each ── */}
             <View style={styles.cardRow}>
-              {VALUE_PROPS.map((prop) => (
-                <View key={prop.title} style={[styles.valueCol, wide && styles.cardThird]}>
+              {VALUE_PROPS.map((prop, i) => (
+                <Reveal
+                  key={prop.title}
+                  delay={i * 90}
+                  style={[styles.valueCol, wide && styles.cardThird]}>
                   <View style={[styles.rule, { backgroundColor: bronze }]} />
                   <ThemedText style={styles.valueTitle}>{prop.title}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary" style={styles.cardBody}>
                     {prop.body}
                   </ThemedText>
-                </View>
+                </Reveal>
               ))}
             </View>
 
@@ -261,15 +297,16 @@ export default function WelcomeScreen() {
                 Everything between “pile of cards” and “page you’re proud of.”
               </ThemedText>
               <View style={styles.cardRow}>
-                {FEATURES.map((f) => (
-                  <View
+                {FEATURES.map((f, i) => (
+                  <Reveal
                     key={f.title}
+                    delay={(i % 3) * 90}
                     style={[styles.featureCard, { backgroundColor: mat }, wide && styles.cardThird]}>
                     <ThemedText style={styles.cardTitle}>{f.title}</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.cardBody}>
                       {f.body}
                     </ThemedText>
-                  </View>
+                  </Reveal>
                 ))}
               </View>
               <ThemedText type="small" themeColor="textSecondary" style={styles.alsoLine}>
@@ -279,7 +316,7 @@ export default function WelcomeScreen() {
             </View>
 
             {/* ── Print band — the page's one dark moment ─────────────── */}
-            <View style={[styles.printBand, wide && styles.printBandWide]}>
+            <Reveal style={[styles.printBand, wide && styles.printBandWide]}>
               <View style={styles.printStat}>
                 <ThemedText style={[styles.printSize, { color: InkBand.title }]}>
                   2.5″ × 3.5″
@@ -299,7 +336,7 @@ export default function WelcomeScreen() {
                   on your screen.
                 </ThemedText>
               </View>
-            </View>
+            </Reveal>
 
             {/* ── Gallery ─────────────────────────────────────────────── */}
             <View style={styles.section} onLayout={(e) => (galleryY.current = e.nativeEvent.layout.y)}>
@@ -322,7 +359,7 @@ export default function WelcomeScreen() {
             </View>
 
             {/* ── Closing CTA ─────────────────────────────────────────── */}
-            <View style={styles.closing}>
+            <Reveal style={styles.closing}>
               <ThemedText style={styles.h2}>Your cards deserve better than a shoebox.</ThemedText>
               <ThemedText type="small" themeColor="textSecondary" style={styles.sectionSub}>
                 Everything above is free while michi-maker is in beta. Sign in so your binders
@@ -333,7 +370,7 @@ export default function WelcomeScreen() {
                 style={({ pressed }) => [styles.ctaPrimary, styles.ctaClosing, pressed && styles.pressed]}>
                 <ThemedText style={styles.ctaPrimaryText}>Start building for free</ThemedText>
               </Pressable>
-            </View>
+            </Reveal>
 
             {/* ── Footer ──────────────────────────────────────────────── */}
             <View style={styles.footer}>

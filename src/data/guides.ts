@@ -34,7 +34,7 @@ export const GUIDE_LIST: Guide[] = [
       },
       {
         title: 'Pick your page size',
-        body: 'In Editing tools, choose the pocket layout: 3x3, 3x4, or 4x4. These are the real side-load page sizes you can buy; the app only offers layouts that exist physically. One layout applies to the whole binder, just like real pages in a real binder.',
+        body: 'In Editing tools, choose the pocket layout: 2x2, 3x3, 3x4, or 4x4. These are the real side-load page sizes you can buy; the app only offers layouts that exist physically. One layout applies to the whole binder, just like real pages in a real binder.',
       },
       {
         title: 'Fill a pocket',

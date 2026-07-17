@@ -6,6 +6,8 @@
  * spanning two pockets is physically inserted by folding it down the middle and sliding one
  * half into each pocket of such a pair — so 2-wide pieces only work AT those pairs:
  *
+ *  - 2-column pages (small 4-pocket binders): ONE pair — the whole row (col 1, col 2),
+ *    symmetric, same both sides.
  *  - 3-column pages: ONE pair — the two pockets FURTHEST from the binder spine
  *    (outer + middle). Which columns those are depends on the page's side of the spine.
  *  - 4-column pages: TWO pairs — (col 1, col 2) and (col 3, col 4), symmetric, same both sides.
@@ -15,13 +17,14 @@
  * Page side follows the double-sided pairing in BinderPages: page 1 (index 0) is the cover
  * face on the RIGHT of the spine, then indices 1·2 face each other (1 = left, 2 = right), etc.
  *
- * Real page grids: 3×3, 3×4 and 4×4 exist; 4 rows × 3 columns does not.
+ * Real page grids: 2×2, 3×3, 3×4 and 4×4 exist; 4 rows × 3 columns does not.
  */
 
 export type PageSide = 'left' | 'right';
 
 /** Real side-load page grids (rows × cols). 4×3 pages don't exist physically. */
 export const REAL_PAGE_SIZES: { label: string; rows: number; cols: number }[] = [
+  { label: '2×2', rows: 2, cols: 2 },
   { label: '3×3', rows: 3, cols: 3 },
   { label: '3×4', rows: 3, cols: 4 },
   { label: '4×4', rows: 4, cols: 4 },
@@ -38,6 +41,8 @@ export function pageSide(pageIndex: number): PageSide {
  * On a RIGHT page the spine is at the left, so "furthest from the spine" = the rightmost two.
  */
 export function insideEdgePairStarts(cols: number, side: PageSide): number[] {
+  // 2-col pages: the row IS a pair — both pockets open along the same edge, either side.
+  if (cols === 2) return [0];
   if (cols === 3) return side === 'right' ? [1] : [0];
   if (cols === 4) return [0, 2];
   return [];

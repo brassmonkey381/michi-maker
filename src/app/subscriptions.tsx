@@ -100,10 +100,6 @@ export default function SubscriptionsScreen() {
           <ThemedText type="smallBold">{ONE_TIME_PDF.price}</ThemedText> · {ONE_TIME_PDF.name}.{' '}
           {ONE_TIME_PDF.blurb}
         </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.oneTimeBlurb}>
-          Anyone who already bought the print unlock keeps full printing for life. Subscriptions
-          never take away something you paid for.
-        </ThemedText>
       </View>
 
       {/* ── signed-in: current plan + usage ──────────── */}

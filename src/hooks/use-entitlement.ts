@@ -1,5 +1,5 @@
 /**
- * Paid-product unlocks — does the signed-in user own `product` (e.g. 'pdf_print')?
+ * Paid-product unlocks — does the signed-in user own `product` (e.g. 'pdf_binder:<id>')?
  *
  * Reads the owner's row from `entitlements` (owner-only RLS; grants are server-side only —
  * manual SQL today, a payment webhook later, see supabase/migrations/20260715120000). The

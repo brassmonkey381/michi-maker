@@ -11,6 +11,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
+import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { BinderSurface, FontSize, Palette, Radii, Radius, Shadows, SlotBackingFallback, Weight } from '@/constants/theme';
 import { artAttribution } from '@/data/artworkLibrary';
 import { resolveCardWith, resolveCatalogCardWith } from '@/data/cardResolver';
@@ -790,9 +791,7 @@ function SlotContent({
   const id = slot.cardId;
   if (!id) {
     return (
-      <View style={[styles.fill, styles.missing, { borderRadius: radius }]}>
-        <Text style={styles.missingText}>?</Text>
-      </View>
+      <CardPlaceholder radius={radius} />
     );
   }
 
@@ -919,8 +918,8 @@ function CardImage({
   // HOLD until the manifest lands (or a grace timeout for static/offline mode, where images.json
   // never resolves). Loading before it lands fires convention-path 404s that burn the tier→full
   // retry budget and race the manifest's mid-flight URL swap — cards latched on "?" until reload.
-  // With the manifest in hand the FIRST attempt is already the right URL (hashed tier, or the
-  // TCGPlayer CDN for cards the pipeline hasn't mirrored yet — e.g. upcoming sets).
+  // With the manifest in hand the FIRST attempt is already the right URL (hashed tier), and a
+  // wholly unmirrored card (e.g. upcoming sets) resolves to '' → the placeholder below.
   const [graceOver, setGraceOver] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setGraceOver(true), 4000);
@@ -943,9 +942,7 @@ function CardImage({
 
   if (stage === 'failed') {
     return (
-      <View style={[styles.fill, styles.missing, { borderRadius: radius }]}>
-        <Text style={styles.missingText}>?</Text>
-      </View>
+      <CardPlaceholder radius={radius} />
     );
   }
 
@@ -955,6 +952,13 @@ function CardImage({
         <Skeleton radius={radius} />
       </View>
     );
+  }
+
+  // A wholly unmirrored card resolves to '' (the TCGPlayer CDN fallback is gone) — nothing to
+  // load, so show the placeholder outright instead of waiting on an onError that an empty
+  // source may never fire (which would leave the skeleton pulsing forever).
+  if (!uri) {
+    return <CardPlaceholder radius={radius} />;
   }
 
   return (
@@ -1174,11 +1178,6 @@ const styles = StyleSheet.create({
   toolBtnTextDanger: {
     color: Palette.dangerAlt,
   },
-  missing: {
-    backgroundColor: Palette.hairline,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   skeleton: {
     position: 'absolute',
     top: 0,
@@ -1186,10 +1185,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: Palette.skeletonFill,
-  },
-  missingText: {
-    fontSize: FontSize.h2,
-    color: Palette.onDark,
   },
   caption: {
     position: 'absolute',

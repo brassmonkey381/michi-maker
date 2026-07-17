@@ -27,6 +27,7 @@ import {
 } from 'react-native';
 
 import { BuildBinderSheet } from '@/components/BuildBinderSheet';
+import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { HomeSection } from '@/components/HomeSection';
 import { ImportCsvSheet } from '@/components/ImportCsvSheet';
 import { ThemedText } from '@/components/themed-text';
@@ -924,7 +925,7 @@ function CardTile({
             draggable={false}
           />
         ) : (
-          <Text style={styles.imageFallback}>?</Text>
+          <CardPlaceholder radius={Radius.control} />
         )}
         <View style={[styles.countBadge, exhausted && styles.countBadgeExhausted]}>
           <Text style={styles.countText}>
@@ -976,7 +977,6 @@ const styles = StyleSheet.create({
   imageWrapSelected: { borderColor: Palette.accent },
   image: { width: '100%', height: '100%' },
   imageExhausted: { opacity: 0.45 },
-  imageFallback: { fontSize: FontSize.h2, color: Palette.muted },
   countBadge: {
     position: 'absolute',
     right: 4,

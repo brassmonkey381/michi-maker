@@ -19,8 +19,6 @@ export type Tier = 'guest' | 'free' | 'pro' | 'vip';
  * is plain text (no CHECK), so adding a product is a code change here, not a migration.
  */
 export const PRODUCTS = {
-  /** One-time LIFETIME full-print unlock. GRANDFATHERED — existing holders keep it forever. */
-  pdfPrint: 'pdf_print',
   /** PRO subscription (entitlements.expires_at set per billing period). */
   tierPro: 'tier_pro',
   /** VIP subscription (entitlements.expires_at set per billing period). */
@@ -46,8 +44,8 @@ export interface EntitlementRow {
  *
  * `false` = permissive: every limit reads as unlimited, so nothing new restricts existing
  * users. Flip to `true` only once pricing/checkout is live and the owner has signed off on the
- * numbers below. This flag does NOT touch the print unlock — that gate is already live and only
- * ever *adds* access (PRO/VIP + grandfathered pdf_print), it never takes any away.
+ * numbers below. This flag does NOT touch the print gate — printing your own binders is included
+ * with a PRO/VIP subscription or bought per-binder; this switch never changes that.
  */
 export const LIMITS_ENFORCED = false;
 
@@ -170,13 +168,12 @@ export function resolveTier(
 }
 
 /**
- * Does the user get full print? PRO/VIP include it, and any active `pdf_print` unlock does too
- * (the grandfather clause — one-time buyers keep print forever even before tiers existed).
+ * Does the user get full print of their OWN binders? Included with a PRO/VIP subscription only.
+ * One-time prints are now per-binder purchases (`pdf_binder:<id>`), checked at the binder (see
+ * PrintPlaceholdersSheet), not here. Free users get a short example PDF, never their own binders.
  */
-export function hasFullPrint(tier: Tier, rows: EntitlementRow[], nowMs: number): boolean {
-  if (tier === 'guest') return false; // guests are never entitled, whatever rows say
-  if (tier === 'pro' || tier === 'vip') return true;
-  return rows.some((r) => r.product === PRODUCTS.pdfPrint && isActive(r, nowMs));
+export function hasFullPrint(tier: Tier): boolean {
+  return tier === 'pro' || tier === 'vip';
 }
 
 /** The active limits for a tier — permissive (all unlimited) while LIMITS_ENFORCED is off. */

@@ -15,14 +15,24 @@ active while `expires_at` is NULL or in the future.
 
 | product key | what it is / unlocks | notes |
 | ----------- | -------------------- | ----- |
-| `pdf_print` | One-time LIFETIME full-print unlock (fill sheets, any binder, forever) | **GRANDFATHERED** — existing holders keep it |
 | `tier_pro`  | PRO subscription — full print (1 included print/mo) + higher limits | `expires_at` per period |
 | `tier_vip`  | VIP subscription — unlimited + 5 included prints/mo + priority | `expires_at` per period |
-| `pdf_binder:<id>` | one-time single-binder fill-sheet PDF ($3.99 strawman) | future — no paid sample; the teaser is a free premade example sheet |
+| `pdf_binder:<id>` | one-time single-binder fill-sheet PDF ($3.99) — a **SNAPSHOT license**: the binder as it is when the purchase is spent (first download), re-downloadable forever; later edits need a new purchase | checked directly (`products.includes('pdf_binder:<id>')`); spend/fingerprint/archive in `src/data/pdfSnapshot.ts` + `binder_pdf_snapshots` + the `binder-pdfs` bucket; re-purchase re-arms via `granted_at` (webhook bumps it) |
 | `tcgscan_pro` | **CROSS-APP** — TCGScan Pro (sold by the sibling app). Unlocks scan-powered michi features (Build-a-binder-from-your-collection) + drives the bundle cross-sell | read via `hasTcgscanPro()`; michi never resolves a tier from it. See **docs/SYNERGY.md** |
 
-Full print (`PrintPlaceholdersSheet` Download) unlocks for PRO/VIP **or** an active `pdf_print`
-row. The counts preview stays free as the teaser; only the Download is behind the unlock.
+Printing your OWN binder (`PrintPlaceholdersSheet` Download) is a **PRO/VIP subscription** perk
+(subject to the monthly included-print allocation) **or** a per-binder one-time purchase
+(`pdf_binder:<id>`). There is **no lifetime all-binder unlock and no grandfathering** — prints are
+only subscriptions or per-binder purchases. Non-payers get the counts preview plus a **free short
+example PDF** (a bundled example binder's first page of example cards + artwork) — never their own
+binders.
+
+The per-binder purchase is a **snapshot license**: the first download after buying records the
+binder's content fingerprint and archives those exact PDF bytes (`binder-pdfs` bucket). While the
+binder is unedited the PDF can be regenerated freely; after an edit only the archived purchased
+version stays downloadable — printing the edited version requires buying the binder again (the
+webhook bumps `granted_at`, which re-arms the spend) or a plan. This is what stops
+edit → reprint → repeat turning one $3.99 unlock into unlimited prints.
 
 ### Tier limits (caps) are behind a feature flag
 
@@ -42,9 +52,9 @@ Checkout isn't wired yet. To grant (or revoke) an unlock or a tier, run as servi
 -- look up a user id by email
 select id, email from auth.users where email = 'someone@example.com';
 
--- grant a lifetime unlock (pdf_print)
+-- grant a per-binder print unlock (one-time; product key carries the binder id)
 insert into public.entitlements (user_id, product, source)
-values ('<auth user id>', 'pdf_print', 'manual')
+values ('<auth user id>', 'pdf_binder:<binder id>', 'manual')
 on conflict (user_id, product) do nothing;
 
 -- grant a PRO tier for 1 month (subscriptions carry a term; NULL expires_at = lifetime)
@@ -86,7 +96,7 @@ lookup keys and `metadata.michi_product`, never raw price ids):
    `checkout[custom][user_id]`.
 2. **Webhook edge function** (`supabase/functions/payments-webhook`): verify the provider
    signature, then **with the service role client** upsert the entitlement.
-   - one-time (`pdf_print`): `insert … values (:uid, 'pdf_print', :source) on conflict do nothing`.
+   - one-time per-binder (`pdf_binder:<id>`): `insert … values (:uid, 'pdf_binder:'||:binderId, :source) on conflict do nothing`.
    - subscription (`tier_pro`/`tier_vip`): on activation/renewal **upsert `expires_at`** to the
      period end (`on conflict (user_id, product) do update set expires_at = excluded.expires_at`);
      on cancellation either delete the row or set `expires_at` to the term end (it lapses on its own).

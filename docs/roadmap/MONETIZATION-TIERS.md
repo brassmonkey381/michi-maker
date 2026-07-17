@@ -15,8 +15,9 @@ Steps 1, 2 (dormant), and 4 below are done and on `main`:
   loading, refresh }`.
 - **Upgrade note:** `src/components/monetization/UpgradePerk.tsx` (SignInPerk sibling; honest
   "coming soon" since checkout isn't wired).
-- **Print gate:** `PrintPlaceholdersSheet` now unlocks for PRO/VIP **or** grandfathered
-  `pdf_print` (live, not flag-gated — only ever adds access).
+- **Print gate:** `PrintPlaceholdersSheet` unlocks printing your own binder for PRO/VIP **or** a
+  per-binder `pdf_binder:<id>` purchase (live, not flag-gated — only ever adds access). No lifetime
+  all-binder unlock and no grandfathering. Non-payers get a free short example PDF as the teaser.
 - **Limit enforcement (dormant):** `useBinders()` exposes `tier` / `limits` / `binderCount` /
   `atBinderLimit` / `pageLimitReached`; guards live in the store (`createBinder` paths via UI
   pre-check, `duplicateBinder` + `addPage` internally) and surface `UpgradePerk` / toasts.
@@ -51,8 +52,8 @@ Owner's stated preferences: monthly subscription models, or a full year at a dis
 
 - **`entitlements` table** (migration `20260715120000_entitlements.sql`): PK (user_id,
   product), `source`, `granted_at`. Owner-only SELECT via RLS; **no client write policies** —
-  grants are service-role only (manual SQL today, webhook later). First product: `pdf_print`
-  (currently a lifetime unlock gating the fill-sheet Download button).
+  grants are service-role only (manual SQL today, webhook later). Print products are the PRO/VIP
+  subscriptions (`tier_pro`/`tier_vip`) and the per-binder `pdf_binder:<id>` one-time purchase.
 - **`useEntitlement(product)`** hook (`src/hooks/use-entitlement.ts`): resolved answer keyed
   to the uid it was fetched for; `refresh()` for post-checkout polling.
 - **`docs/PAYMENTS.md`**: manual grant SQL + the webhook-slot design (checkout carries the
@@ -73,9 +74,10 @@ alter table public.entitlements add column expires_at timestamptz; -- null = nev
 -- product keys become a small vocabulary:
 --   'tier_pro'  (subscription, expires_at set per period, renewed by webhook)
 --   'tier_vip'  (subscription)
---   'pdf_print' (lifetime full-print unlock — GRANDFATHERED; existing holders keep it)
---   'pdf_sample' (one-time; consider a per-binder variant later)
---   'pdf_binder:<binderId>' (one-time full PDF for one binder)
+--   'pdf_binder:<binderId>' (one-time full PDF for one binder — the only one-time print product;
+--                            no lifetime all-binder unlock, no grandfathering. A SNAPSHOT license:
+--                            covers the binder as spent, forever; edits need a new purchase — see
+--                            src/data/pdfSnapshot.ts)
 ```
 
 A `tier()` helper resolves the user's effective tier: vip > pro > (signed-in) free > guest.
@@ -141,12 +143,12 @@ until that exists, `fullPrint` alone gates the Download button for PRO/VIP.
 3. Provider decision → checkout page + webhook edge function (`supabase/functions/`,
    pattern documented in `docs/PAYMENTS.md`; `art-proxy/index.ts` is a working edge-fn
    example incl. the tsconfig exclusion for Deno).
-4. Grandfather clause: existing `pdf_print` holders (incl. the owner + test account) keep
-   full print forever.
+4. No grandfathering: printing your own binder is only a PRO/VIP subscription perk or a per-binder
+   `pdf_binder:<id>` purchase; there is no lifetime all-binder unlock.
 5. Pricing/upgrade UI (pairs with LANDING-PAGE.md).
 
 ## Verify
 
-Test account `composer.test.…@example.com` exists with a `pdf_print` grant — use SQL to
-flip its tier rows and drive each gate through the UI (locked note → grant → unlocked),
-same pattern as the original entitlement verification.
+Test account `composer.test.…@example.com` — use SQL to grant/revoke a `tier_pro` row or a
+`pdf_binder:<id>` row and drive each gate through the UI (locked note + free example → grant →
+unlocked), same pattern as the original entitlement verification.

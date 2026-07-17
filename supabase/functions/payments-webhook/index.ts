@@ -149,7 +149,10 @@ Deno.serve(async (req: Request) => {
           typeof session.customer === 'string' ? session.customer : session.customer?.id,
         );
         if (session.mode === 'payment') {
-          // One-time full-binder PDF → lifetime per-binder grant.
+          // One-time full-binder PDF → lifetime per-binder grant. granted_at is bumped on every
+          // purchase: the unlock is a SNAPSHOT license (the binder as it was when spent — see
+          // src/data/pdfSnapshot.ts), and a newer granted_at than the recorded spend is what
+          // re-arms printing after the binder was edited and bought again.
           if (session.metadata?.michi_product === 'pdf_binder' && session.metadata?.binder_id) {
             await service()
               .from('entitlements')
@@ -159,6 +162,7 @@ Deno.serve(async (req: Request) => {
                   product: `pdf_binder:${session.metadata.binder_id}`,
                   source: 'stripe',
                   expires_at: null,
+                  granted_at: new Date().toISOString(),
                 },
                 { onConflict: 'user_id,product' },
               );

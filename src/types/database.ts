@@ -99,6 +99,30 @@ export type Database = {
           },
         ]
       }
+      binder_pdf_snapshots: {
+        Row: {
+          binder_id: string
+          fingerprint: string
+          sheets: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          binder_id: string
+          fingerprint: string
+          sheets?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          binder_id?: string
+          fingerprint?: string
+          sheets?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       binder_slots: {
         Row: {
           card_id: string | null

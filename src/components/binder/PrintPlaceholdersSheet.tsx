@@ -21,11 +21,13 @@ import { fetchUserCards } from '@/data/collectionRepo';
 import { createWebArtLoader } from '@/data/fillSheetArt';
 import { startCheckout } from '@/data/checkout';
 import { buildPlaceholderPdf, collectFillTiles } from '@/data/placeholderPdf';
+import { downloadPurchasedPdf, purchaseState, spendPurchase, type PurchaseState } from '@/data/pdfSnapshot';
 import { recordPrintEvent } from '@/data/printRepo';
 import { BINDER_PDF_LOOKUP_KEY, CHECKOUT_OPEN } from '@/data/subscriptions';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useTier } from '@/hooks/use-tier';
 import { useAuth } from '@/store/auth';
+import { useBinders } from '@/store/binders';
 
 export function PrintPlaceholdersSheet({
   binder,
@@ -38,15 +40,41 @@ export function PrintPlaceholdersSheet({
   onDone?: (sheets: number) => void;
 }) {
   const { catalog, guestGated, loading } = useCatalog(true);
-  // Full print comes with PRO/VIP, a one-time pdf_print unlock (grandfathered — existing
-  // holders keep it forever), or this binder's own $3.99 one-time purchase. The counts
-  // preview stays free as the teaser.
+  // Printing your OWN binder comes with a PRO/VIP subscription or this binder's own one-time
+  // purchase (`pdf_binder:<id>`). Non-payers get the counts preview + a free short EXAMPLE PDF
+  // (example cards + artwork) as the teaser — never their own binders.
+  //
+  // The one-time purchase is a SNAPSHOT license (see data/pdfSnapshot.ts): it covers the binder
+  // as it is when the purchase is spent (first download), forever. Editing the binder afterwards
+  // requires a new unlock (or a plan) to print the edited version — the purchased version stays
+  // downloadable from its archive.
   const { hasFullPrint, products, loading: entLoading } = useTier();
-  const unlocked = hasFullPrint || products.includes(`pdf_binder:${binder.id}`);
+  const purchased = products.includes(`pdf_binder:${binder.id}`);
   const { isSignedIn } = useAuth();
+  const store = useBinders();
   const [busy, setBusy] = useState(false);
   const [buying, setBuying] = useState(false);
+  const [exBusy, setExBusy] = useState(false);
+  const [archBusy, setArchBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Where the per-binder purchase stands (unspent / current / edited); null while resolving.
+  const [pState, setPState] = useState<PurchaseState | null>(null);
+  useEffect(() => {
+    if (!purchased || hasFullPrint) return;
+    let live = true;
+    purchaseState(binder)
+      .then((s) => {
+        if (live) setPState(s);
+      })
+      .catch(() => {
+        if (live) setPState('unspent'); // resolution failure must not brick a paid unlock
+      });
+    return () => {
+      live = false;
+    };
+  }, [purchased, hasFullPrint, binder]);
+  // Subscribers print freely; a purchase covers its snapshot (unspent = next download locks it in).
+  const unlocked = hasFullPrint || (purchased && (pState === 'unspent' || pState === 'current'));
 
   // Cards the user owns (My collection) — owned placeholders print green when the toggle is
   // on, so the cut sheet doubles as a pull-list (green = go grab it) + want-list (gray).
@@ -93,6 +121,12 @@ export function PrintPlaceholdersSheet({
       a.download = filename;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
+      // A one-time purchase SPENDS on this download: record the binder's fingerprint + archive
+      // these exact bytes, locking the license to this version (see data/pdfSnapshot.ts).
+      if (!hasFullPrint && purchased && pState === 'unspent') {
+        await spendPurchase(binder, bytes, sheets).catch(() => {});
+        setPState('current');
+      }
       // Count against the plan's included monthly prints (advisory ledger; failure is fine —
       // the meter just misses one, the user keeps their PDF).
       recordPrintEvent(binder.id, sheets).catch(() => {});
@@ -102,6 +136,62 @@ export function PrintPlaceholdersSheet({
       setError((e as Error).message);
     } finally {
       setBusy(false);
+    }
+  };
+
+  /** Serve the archived purchased-version PDF (after the binder was edited past its snapshot). */
+  const downloadArchived = async () => {
+    if (archBusy) return;
+    setArchBusy(true);
+    setError(null);
+    try {
+      const blob = await downloadPurchasedPdf(binder.id);
+      if (!blob) throw new Error('Your purchased PDF couldn’t be found. Contact support and we’ll sort it out.');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${binder.title.replace(/[^\w\- ]+/g, '').trim() || 'binder'} fill sheets (purchased version).pdf`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setArchBusy(false);
+    }
+  };
+
+  /** Launch the one-time purchase for THIS binder (first buy and buy-again after edits). */
+  const buyBinderPdf = () => {
+    if (buying) return;
+    setBuying(true);
+    setError(null);
+    startCheckout(BINDER_PDF_LOOKUP_KEY, { binderId: binder.id })
+      .catch((e) => setError((e as Error).message))
+      .finally(() => setBuying(false));
+  };
+
+  // Free teaser: a SHORT example PDF built from a bundled example binder (its first page of example
+  // cards + artwork), so non-payers can see the exact format without printing their own binders.
+  const downloadExample = async () => {
+    if (!catalog || exBusy) return;
+    const ex = store.exampleBinders[0];
+    if (!ex) return;
+    setExBusy(true);
+    setError(null);
+    try {
+      const short = { ...ex, pages: ex.pages.slice(0, 1) };
+      const bytes = await buildPlaceholderPdf(short, catalog, { loadImage: createWebArtLoader() });
+      const blob = new Blob([bytes as BlobPart], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'michi example fill sheet.pdf';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setExBusy(false);
     }
   };
 
@@ -195,39 +285,78 @@ export function PrintPlaceholdersSheet({
                 ) : null}
 
                 {unlocked ? (
-                  <Pressable
-                    onPress={download}
-                    disabled={busy || !counts || counts.total === 0}
-                    style={({ pressed }) => [
-                      styles.btn,
-                      (pressed || busy || !counts || counts.total === 0) && styles.dim,
-                    ]}>
-                    {busy ? (
-                      <ActivityIndicator color={Palette.accentText} />
-                    ) : (
-                      <Text style={styles.btnText}>Download PDF</Text>
-                    )}
-                  </Pressable>
-                ) : entLoading ? (
+                  <>
+                    <Pressable
+                      onPress={download}
+                      disabled={busy || !counts || counts.total === 0}
+                      style={({ pressed }) => [
+                        styles.btn,
+                        (pressed || busy || !counts || counts.total === 0) && styles.dim,
+                      ]}>
+                      {busy ? (
+                        <ActivityIndicator color={Palette.accentText} />
+                      ) : (
+                        <Text style={styles.btnText}>Download PDF</Text>
+                      )}
+                    </Pressable>
+                    {!hasFullPrint && pState === 'unspent' ? (
+                      <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
+                        Your unlock covers this binder as it is right now. Downloading locks in
+                        this version — re-download it anytime, forever. Printing future edits
+                        will need a new unlock or a PRO/VIP plan.
+                      </ThemedText>
+                    ) : null}
+                  </>
+                ) : entLoading || (purchased && pState === null) ? (
                   <View style={styles.center}>
                     <ActivityIndicator />
+                  </View>
+                ) : purchased && pState === 'edited' ? (
+                  // Purchase spent on an earlier version and the binder has changed since. The
+                  // bought version stays downloadable forever; the edited one needs a new unlock.
+                  <View style={styles.lockedBox}>
+                    <ThemedText type="smallBold">This binder changed since you bought its PDF</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
+                      Your purchase covers the version you bought — download it below anytime.
+                      Printing the edited version needs its own unlock, or a PRO/VIP plan.
+                    </ThemedText>
+                    {CHECKOUT_OPEN ? (
+                      <Pressable
+                        onPress={buyBinderPdf}
+                        disabled={buying}
+                        style={({ pressed }) => [styles.btn, (pressed || buying) && styles.dim]}>
+                        {buying ? (
+                          <ActivityIndicator color={Palette.accentText} />
+                        ) : (
+                          <Text style={styles.btnText}>Unlock this version · $3.99</Text>
+                        )}
+                      </Pressable>
+                    ) : (
+                      <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
+                        Purchases aren’t open quite yet; check back soon.
+                      </ThemedText>
+                    )}
+                    <Pressable
+                      onPress={downloadArchived}
+                      disabled={archBusy}
+                      style={({ pressed }) => [styles.exampleBtn, (pressed || archBusy) && styles.dim]}>
+                      {archBusy ? (
+                        <ActivityIndicator color={Palette.accent} />
+                      ) : (
+                        <Text style={styles.exampleBtnText}>Download the version you bought</Text>
+                      )}
+                    </Pressable>
                   </View>
                 ) : CHECKOUT_OPEN ? (
                   <View style={styles.lockedBox}>
                     <ThemedText type="smallBold">Printing is a paid feature</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-                      Fill-sheet PDFs come with a PRO or VIP plan. Or unlock just this binder
-                      once for $3.99, yours forever.
+                      Fill-sheet PDFs come with a PRO or VIP plan. Or unlock just this binder once
+                      for $3.99 — that download is this binder as it is today, yours to re-download
+                      forever (later edits need a new unlock).
                     </ThemedText>
                     <Pressable
-                      onPress={() => {
-                        if (buying) return;
-                        setBuying(true);
-                        setError(null);
-                        startCheckout(BINDER_PDF_LOOKUP_KEY, { binderId: binder.id })
-                          .catch((e) => setError((e as Error).message))
-                          .finally(() => setBuying(false));
-                      }}
+                      onPress={buyBinderPdf}
                       disabled={buying}
                       style={({ pressed }) => [styles.btn, (pressed || buying) && styles.dim]}>
                       {buying ? (
@@ -242,11 +371,27 @@ export function PrintPlaceholdersSheet({
                   <View style={styles.lockedBox}>
                     <ThemedText type="smallBold">Printing is a paid feature</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-                      Full fill-sheet PDFs come with a PRO plan, or a small one-time unlock. Print
-                      any of your binders forever. Purchases aren’t open quite yet; check back soon.
+                      Fill-sheet PDFs of your own binders come with a PRO/VIP plan, or a one-time
+                      unlock for this binder (covering it as it is at purchase — later edits need a
+                      new unlock). Purchases aren’t open quite yet; check back soon.
                     </ThemedText>
                   </View>
                 )}
+
+                {/* Free teaser — a short example PDF (example cards + art), never the user's binder.
+                    Hidden for purchasers: they've seen real output (edited state offers the archive). */}
+                {!unlocked && !entLoading && !purchased && catalog && store.exampleBinders.length > 0 ? (
+                  <Pressable
+                    onPress={downloadExample}
+                    disabled={exBusy}
+                    style={({ pressed }) => [styles.exampleBtn, (pressed || exBusy) && styles.dim]}>
+                    {exBusy ? (
+                      <ActivityIndicator color={Palette.accent} />
+                    ) : (
+                      <Text style={styles.exampleBtnText}>See a free example (PDF)</Text>
+                    )}
+                  </Pressable>
+                ) : null}
 
                 {error ? (
                   <ThemedText type="small" style={styles.error}>
@@ -277,6 +422,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   btnText: { color: Palette.accentText, fontSize: FontSize.md, fontWeight: Weight.semibold },
+  exampleBtn: {
+    borderWidth: 1,
+    borderColor: Palette.accent,
+    borderRadius: Radius.pill,
+    paddingVertical: Spacing.two,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 40,
+  },
+  exampleBtnText: { color: Palette.accent, fontSize: FontSize.label, fontWeight: Weight.semibold },
   dim: { opacity: 0.6 },
   error: { color: Palette.danger, lineHeight: 20 },
   lockedBox: {

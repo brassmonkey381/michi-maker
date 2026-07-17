@@ -174,5 +174,7 @@ export const ONE_TIME_PDF = {
   price: '$3.99',
   blurb:
     'One binder, one time: a print-ready PDF of every page as cut-ready fill sheets, true to ' +
-    'card size. The free preview is a premade example sheet so you can test your printer first.',
+    'card size. Covers the binder as it is when you download — that version is yours to ' +
+    're-download forever; printing later edits needs a new unlock or a plan. The free preview ' +
+    'is a premade example sheet so you can test your printer first.',
 };

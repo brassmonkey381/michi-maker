@@ -30,7 +30,7 @@ free text, so adding one is a code change, not a migration. Vocabulary (document
 | product | sold by | what it unlocks |
 | --- | --- | --- |
 | `tier_pro` / `tier_vip` | michi | michi PRO/VIP (resolved to a `Tier` in `src/data/tiers.ts`) |
-| `pdf_print` | michi | one-time lifetime print unlock (grandfathered) |
+| `pdf_binder:<id>` | michi | one-time single-binder print unlock (no lifetime/grandfathered unlock) |
 | `tcgscan_pro` | **tcgscan** | TCGScan Pro — ROI, price history, analytics. Written here so michi can read it. |
 
 A grant is **active** while `expires_at` is NULL (lifetime) or in the future. Michi resolves a

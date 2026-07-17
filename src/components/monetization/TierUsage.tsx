@@ -4,7 +4,7 @@
  * - `TierUsage`: a presentational meter row (label, used of limit, thin progress bar).
  *   Infinity-safe: unlimited caps render as "N · Unlimited" with no bar. Deliberately never
  *   turns red — at-limit messaging is UpgradePerk's job, the meter just informs.
- * - `PlanUsageSection`: the data-wired block used by Settings and /pricing. While
+ * - `PlanUsageSection`: the data-wired block used by Settings and /subscriptions. While
  *   LIMITS_ENFORCED is false it reads the PLANNED caps from TIER_LIMITS directly (useTier's
  *   limits resolve to unlimited when the flag is off) and frames them as what the plan
  *   includes. FLAG-FLIP NOTE: when LIMITS_ENFORCED goes true, switch the `caps` line to
@@ -93,8 +93,6 @@ interface PlanDetails {
   daysLeft?: number;
   /** The grant came from a manual SQL grant, not a checkout. */
   manualGrant?: boolean;
-  /** Display lines for active lifetime unlocks (e.g. the grandfathered full-print unlock). */
-  unlocks: string[];
 }
 
 /** The current plan + usage block (Settings PLAN section, /subscriptions YOUR PLAN section). */
@@ -142,13 +140,6 @@ export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }
             ? Math.max(0, Math.ceil((Date.parse(sub.expiresAt) - now) / 86400000))
             : undefined,
           manualGrant: sub?.source === 'manual',
-          unlocks: activeRows
-            .filter((r) => r.product === PRODUCTS.pdfPrint)
-            .map((r) =>
-              r.grantedAt
-                ? `Full-print unlock · lifetime, since ${fmt(r.grantedAt)}`
-                : 'Full-print unlock · lifetime',
-            ),
         });
       })
       .catch(() => {});
@@ -206,9 +197,6 @@ export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }
               ) : tier === 'free' ? (
                 <DetailRow label="Billing" value="None — Free is free forever" />
               ) : null}
-              {details.unlocks.map((u) => (
-                <DetailRow key={u} label="One-time unlock" value={u} />
-              ))}
               {details.termEnds && details.manualGrant && !CHECKOUT_OPEN ? (
                 <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
                   Plans don’t auto-renew during the beta — your term was granted directly and is

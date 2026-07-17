@@ -461,7 +461,7 @@ export function PrintPlaceholdersSheet({
                         styles.btn,
                         (pressed || busy || !counts || counts.total === 0) && styles.dim,
                       ]}>
-                      <Text style={styles.btnText}>Download PDF · your $3.99 unlock</Text>
+                      <Text style={styles.btnText}>Download</Text>
                     </Pressable>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
                       Your unlock covers this binder as it is right now. Downloading locks in

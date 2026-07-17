@@ -9,6 +9,7 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, Text
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { TcgscanLink } from '@/components/monetization/BundleOffer';
+import { LogoLoader } from '@/components/brand/LogoLoader';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
@@ -109,10 +110,7 @@ export function ImportCsvSheet({
 
                 {!catalog && text.trim() ? (
                   <View style={styles.center}>
-                    <ActivityIndicator />
-                    <ThemedText type="small" themeColor="textSecondary">
-                      Loading the card catalog…
-                    </ThemedText>
+                    <LogoLoader label="Loading the card catalog…" />
                   </View>
                 ) : null}
 

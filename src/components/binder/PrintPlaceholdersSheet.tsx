@@ -12,6 +12,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
+import { LogoLoader } from '@/components/brand/LogoLoader';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
@@ -350,10 +351,7 @@ export function PrintPlaceholdersSheet({
 
                 {!catalog && loading ? (
                   <View style={styles.center}>
-                    <ActivityIndicator />
-                    <ThemedText type="small" themeColor="textSecondary">
-                      Loading the card catalog…
-                    </ThemedText>
+                    <LogoLoader label="Loading the card catalog…" />
                   </View>
                 ) : null}
 

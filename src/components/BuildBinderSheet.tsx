@@ -8,10 +8,11 @@
  * as the ✨ Fill sheet.
  */
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { TcgscanSynergyNote } from '@/components/monetization/BundleOffer';
+import { LogoLoader } from '@/components/brand/LogoLoader';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
@@ -87,10 +88,7 @@ export function BuildBinderSheet({
               <SignInPerk message="Building from your collection reads the full card catalog. Sign in (free) to use it." />
             ) : !plan ? (
               <View style={styles.center}>
-                <ActivityIndicator />
-                <ThemedText type="small" themeColor="textSecondary">
-                  Reading your collection…
-                </ThemedText>
+                <LogoLoader label="Reading your collection…" />
               </View>
             ) : plan.proposals.length === 0 && plan.bulk.length === 0 ? (
               <ThemedText type="small" themeColor="textSecondary">

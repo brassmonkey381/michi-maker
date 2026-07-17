@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
+import { LogoLoader } from '@/components/brand/LogoLoader';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radius, Spacing } from '@/constants/theme';
@@ -134,10 +135,7 @@ export function AutoFillSheet({
               <SignInPerk message="Auto-fill curates pages from the full card catalog. Sign in (free) to use it." />
             ) : !ready ? (
               <View style={styles.center}>
-                <ActivityIndicator />
-                <ThemedText type="small" themeColor="textSecondary">
-                  Loading the card catalog…
-                </ThemedText>
+                <LogoLoader label="Loading the card catalog…" />
               </View>
             ) : !seed ? (
               <ThemedText type="small" themeColor="textSecondary">

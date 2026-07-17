@@ -46,6 +46,7 @@ export function AutoFlipBinder({
   binder,
   pageWidth,
   spread = false,
+  autoFlip = true,
   interval = 3600,
   maxFrames = 4,
 }: {
@@ -54,21 +55,25 @@ export function AutoFlipBinder({
   pageWidth: number;
   /** Render facing-page spreads (advancing two pages at a time) instead of single pages. */
   spread?: boolean;
+  /** When false, show only the first frame — no timer, no dots (a static binder). */
+  autoFlip?: boolean;
   interval?: number;
   maxFrames?: number;
 }) {
   const frames = useMemo<DemoPage[][]>(() => {
     const pages = binder.pages ?? [];
+    let built: DemoPage[][];
     if (spread) {
-      const out: DemoPage[][] = [];
-      for (let i = 0; i + 1 < pages.length && out.length < maxFrames; i += 2) {
-        out.push([pages[i], pages[i + 1]]);
+      built = [];
+      for (let i = 0; i + 1 < pages.length && built.length < maxFrames; i += 2) {
+        built.push([pages[i], pages[i + 1]]);
       }
-      if (out.length === 0 && pages.length) out.push([pages[0]]);
-      return out;
+      if (built.length === 0 && pages.length) built.push([pages[0]]);
+    } else {
+      built = pages.slice(0, maxFrames).map((p) => [p]);
     }
-    return pages.slice(0, maxFrames).map((p) => [p]);
-  }, [binder.pages, spread, maxFrames]);
+    return autoFlip ? built : built.slice(0, 1);
+  }, [binder.pages, spread, maxFrames, autoFlip]);
 
   const [idx, setIdx] = useState(0);
   useEffect(() => {

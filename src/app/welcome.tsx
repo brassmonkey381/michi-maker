@@ -1,14 +1,11 @@
 import { useRouter } from 'expo-router';
 import Head from 'expo-router/head';
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
-  Easing,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
-  withRepeat,
-  withTiming,
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -140,31 +137,14 @@ export default function WelcomeScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const galleryY = useRef(0);
 
-  // A slow, continuous float on the hero art — the page's one always-on motion, so the
-  // binder feels alive the moment you land. Gated on prefers-reduced-motion (web); on
-  // native it just runs (there's no equivalent OS query wired here).
-  const float = useSharedValue(0);
-  useEffect(() => {
-    const reduce =
-      Platform.OS === 'web' &&
-      typeof window !== 'undefined' &&
-      typeof window.matchMedia === 'function' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduce) return;
-    float.value = withRepeat(
-      withTiming(1, { duration: 4200, easing: Easing.inOut(Easing.quad) }),
-      -1,
-      true,
-    );
-  }, [float]);
-  // Scroll position drives a subtle parallax on the hero art — it drifts as the page moves,
-  // combined with the always-on float into one transform.
+  // Scroll position drives a subtle parallax on the hero art — it drifts as the page moves.
+  // (No idle oscillation; the only hero motion is this scroll-linked drift.)
   const scrollY = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((e) => {
     scrollY.value = e.contentOffset.y;
   });
   const heroArtStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: (float.value - 0.5) * 14 + scrollY.value * 0.06 }],
+    transform: [{ translateY: scrollY.value * 0.06 }],
   }));
 
   const enterApp = () => {
@@ -189,9 +169,11 @@ export default function WelcomeScreen() {
   // The hero flips through a real binder: a facing-page spread on wide screens, a single
   // (larger) page on phones.
   const heroFlipBinder = spreadBinder ?? heroBinder;
-  const heroSpread = wide && !!heroFlipBinder && heroFlipBinder.pages.length >= 2;
-  const spreadPageW = Math.min(300, Math.max(210, Math.floor((windowW - 680) / 2)));
-  const heroW = wide ? 430 : Math.min(windowW - Spacing.five * 2, 380);
+  // ~50% larger than before, still responsive so it never crowds the copy. The big spread
+  // needs real room, so it only opens at ≥1180; 920–1180 shows a single (large) page.
+  const heroSpread = windowW >= 1180 && !!heroFlipBinder && heroFlipBinder.pages.length >= 2;
+  const spreadPageW = Math.min(450, Math.max(330, Math.floor((windowW - 600) / 2)));
+  const heroW = wide ? Math.min(680, Math.floor(windowW * 0.47)) : Math.min(windowW - Spacing.four * 2, 560);
   // Gallery: three large, auto-flipping binders — three across on wide, one per row on phones.
   const galleryPageW = wide
     ? Math.min(
@@ -368,7 +350,7 @@ export default function WelcomeScreen() {
                       <Pressable
                         onPress={() => openBinder(binder.id)}
                         style={({ pressed }) => [styles.galleryPress, pressed && styles.pressed]}>
-                        <AutoFlipBinder binder={binder} pageWidth={galleryPageW} interval={3800 + i * 500} />
+                        <AutoFlipBinder binder={binder} pageWidth={galleryPageW} autoFlip={false} />
                         <ThemedText style={styles.galleryTitle}>{binder.title}</ThemedText>
                         <ThemedText type="small" themeColor="textSecondary">
                           Open · flip · duplicate

@@ -62,17 +62,63 @@ const ROWS = 3;
  */
 const GRID_W = COLS * CARD_W; // 540 pt (7.5")
 const GRID_H = ROWS * CARD_H; // 756 pt (10.5")
-const MARGIN_X = (SHEET_W - GRID_W) / 2; // 36 pt (0.5")
-const MARGIN_Y = (SHEET_H - GRID_H) / 2; // 18 pt (0.25")
-const colX = (c: number) => MARGIN_X + c * CARD_W;
-const rowY = (r: number) => SHEET_H - MARGIN_Y - (r + 1) * CARD_H;
-/** Fold sheets: one 2-pocket-wide piece per row (2 cards + the fold strip, art continuous
- *  across the fold), stacked edge to edge so the horizontal cuts are shared too. */
+/** Fold pieces: 2 cards + the fold strip, art continuous across the fold. */
 const FOLD_W = 2 * CARD_W + POCKET_GAP; // 369 pt (5.125")
-const FOLD_ROWS = 3;
-const FOLD_MARGIN_X = (SHEET_W - FOLD_W) / 2;
-const FOLD_MARGIN_Y = (SHEET_H - FOLD_ROWS * CARD_H) / 2;
-const foldRowY = (r: number) => SHEET_H - FOLD_MARGIN_Y - (r + 1) * CARD_H;
+
+/**
+ * Sheet layout, in two modes:
+ *
+ *  - CUT MARGINS (default): pieces are spaced 0.25" apart with the dashed outline drawn just
+ *    OUTSIDE each piece, so guides never touch the artwork and every cut has margin for error
+ *    (cut anywhere in the gap, then trim to the line). Placement labels print BELOW each piece
+ *    in the gap — nothing is ever stamped on the art. Costs sheets: 6 singles per sheet vs 9.
+ *
+ *  - TIGHT: the classic edge-to-edge grid — neighboring pieces share one cut line (fewest
+ *    cuts, least paper). No room between pieces, so labels overlay a corner of each piece.
+ */
+interface SheetLayout {
+  /** Piece spacing (0 = tight/shared cuts). */
+  gap: number;
+  /** How far the dashed outline sits OUTSIDE the true piece edge (0 = on the edge). */
+  outset: number;
+  rows: number;
+  marginX: number;
+  marginY: number;
+  foldRows: number;
+  foldMarginX: number;
+  foldMarginY: number;
+}
+
+function makeLayout(cutMargins: boolean): SheetLayout {
+  if (!cutMargins) {
+    return {
+      gap: 0,
+      outset: 0,
+      rows: ROWS,
+      marginX: (SHEET_W - GRID_W) / 2, // 36 pt (0.5")
+      marginY: (SHEET_H - GRID_H) / 2, // 18 pt (0.25")
+      foldRows: 3,
+      foldMarginX: (SHEET_W - FOLD_W) / 2,
+      foldMarginY: (SHEET_H - 3 * CARD_H) / 2,
+    };
+  }
+  const gap = 0.25 * PT;
+  const rows = 2; // 3 rows + gaps don't fit US Letter
+  return {
+    gap,
+    outset: 2,
+    rows,
+    marginX: (SHEET_W - (COLS * CARD_W + (COLS - 1) * gap)) / 2, // 18 pt (0.25")
+    marginY: (SHEET_H - (rows * CARD_H + (rows - 1) * gap)) / 2,
+    foldRows: 2,
+    foldMarginX: (SHEET_W - FOLD_W) / 2,
+    foldMarginY: (SHEET_H - (2 * CARD_H + gap)) / 2,
+  };
+}
+
+const colX = (L: SheetLayout, c: number) => L.marginX + c * (CARD_W + L.gap);
+const rowY = (L: SheetLayout, r: number) => SHEET_H - L.marginY - (r + 1) * CARD_H - r * L.gap;
+const foldRowY = (L: SheetLayout, r: number) => SHEET_H - L.foldMarginY - (r + 1) * CARD_H - r * L.gap;
 
 // ---- colors (ink-friendly grays; soft green for owned cards) ---------------
 const FILL = rgb(0.93, 0.93, 0.93);
@@ -314,6 +360,8 @@ export function collectFillTiles(
   binder: DemoBinder,
   cards: CardMetaSource,
   ownedIds?: ReadonlySet<string>,
+  /** Match the layout the PDF will use — cut-margin sheets hold fewer pieces (default true). */
+  cutMargins = true,
 ): { tiles: FillTile[]; counts: FillCounts } {
   const tiles: FillTile[] = [];
   binder.pages.forEach((page, pageIndex) => {
@@ -375,7 +423,7 @@ export function collectFillTiles(
     art: tiles.filter((t) => t.kind === 'art').length,
     inserts: tiles.filter((t) => t.kind === 'insert').length,
     total: tiles.length,
-    sheets: packTiles(tiles).sheetCount,
+    sheets: packTiles(tiles, makeLayout(cutMargins)).sheetCount,
   };
   return { tiles, counts };
 }
@@ -394,26 +442,29 @@ interface PlacedTile {
  * 2-wide pieces go on their own sheets AT THE END (FOLD_ROWS per sheet, stacked), so the
  * singles grid stays unbroken and the total cut count stays minimal.
  */
-function packTiles(tiles: FillTile[]): { placed: PlacedTile[]; sheetCount: number; foldStartSheet: number } {
+function packTiles(
+  tiles: FillTile[],
+  L: SheetLayout,
+): { placed: PlacedTile[]; sheetCount: number; foldStartSheet: number } {
   const singles = tiles.filter((t) => t.kind !== 'art' || t.w === 1);
   const folded = tiles.filter((t): t is ArtTile => t.kind === 'art' && t.w === 2);
-  const perSheet = COLS * ROWS;
+  const perSheet = COLS * L.rows;
   const placed: PlacedTile[] = singles.map((tile, n) => ({
     tile,
     sheet: Math.floor(n / perSheet),
-    x: colX(n % COLS),
-    y: rowY(Math.floor(n / COLS) % ROWS),
+    x: colX(L, n % COLS),
+    y: rowY(L, Math.floor(n / COLS) % L.rows),
   }));
   const foldStartSheet = Math.ceil(singles.length / perSheet);
   folded.forEach((tile, n) => {
     placed.push({
       tile,
-      sheet: foldStartSheet + Math.floor(n / FOLD_ROWS),
-      x: FOLD_MARGIN_X,
-      y: foldRowY(n % FOLD_ROWS),
+      sheet: foldStartSheet + Math.floor(n / L.foldRows),
+      x: L.foldMarginX,
+      y: foldRowY(L, n % L.foldRows),
     });
   });
-  const sheetCount = foldStartSheet + Math.ceil(folded.length / FOLD_ROWS);
+  const sheetCount = foldStartSheet + Math.ceil(folded.length / L.foldRows);
   return { placed, sheetCount, foldStartSheet };
 }
 
@@ -487,9 +538,11 @@ interface EmbeddedArt {
 export async function buildPlaceholderPdf(
   binder: DemoBinder,
   cards: CardMetaSource,
-  opts?: { ownedIds?: ReadonlySet<string>; loadImage?: ArtLoader },
+  opts?: { ownedIds?: ReadonlySet<string>; loadImage?: ArtLoader; cutMargins?: boolean },
 ): Promise<Uint8Array> {
-  const { tiles, counts } = collectFillTiles(binder, cards, opts?.ownedIds);
+  const cutMargins = opts?.cutMargins ?? true;
+  const L = makeLayout(cutMargins);
+  const { tiles, counts } = collectFillTiles(binder, cards, opts?.ownedIds, cutMargins);
   const doc = await PDFDocument.create();
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
   const regular = await doc.embedFont(StandardFonts.Helvetica);
@@ -510,31 +563,31 @@ export async function buildPlaceholderPdf(
     }),
   );
 
-  drawCover(doc.addPage([SHEET_W, SHEET_H]), sanitize(binder.title), counts, bold, regular);
+  drawCover(doc.addPage([SHEET_W, SHEET_H]), sanitize(binder.title), counts, bold, regular, cutMargins);
 
-  const { placed, sheetCount, foldStartSheet } = packTiles(tiles);
+  const { placed, sheetCount, foldStartSheet } = packTiles(tiles, L);
   for (let s = 0; s < sheetCount; s += 1) {
     const page = doc.addPage([SHEET_W, SHEET_H]);
     const batch = placed.filter((p) => p.sheet === s);
     for (const { tile, x, y } of batch) {
       if (tile.kind === 'card') {
         drawCardTile(page, tile, x, y, bold, regular);
-        drawPieceOutline(page, x, y, CARD_W);
+        drawPieceOutline(page, x, y, CARD_W, L);
       } else if (tile.kind === 'insert') {
         page.drawRectangle({ x, y, width: CARD_W, height: CARD_H, color: hexColor(tile.color) });
-        drawTag(page, `P${tile.page} · R${tile.row}C${tile.col} · insert ${tile.color}`, x, y, regular);
-        drawPieceOutline(page, x, y, CARD_W);
+        drawTag(page, `P${tile.page} · R${tile.row}C${tile.col} · insert ${tile.color}`, x, y, regular, L);
+        drawPieceOutline(page, x, y, CARD_W, L);
       } else {
         const pieceW = tile.w * CARD_W + (tile.w - 1) * POCKET_GAP;
         const img = images.get(tile.group.imageUrl) ?? null;
         if (img) drawArtPiece(page, img, tile, x, y);
         else drawArtFallback(page, tile, x, y, bold, regular);
-        drawTag(page, `P${tile.page} · R${tile.row}C${tile.col}${tile.w === 2 ? ' · fold' : ''}`, x, y, regular);
-        drawPieceOutline(page, x, y, pieceW);
+        drawTag(page, `P${tile.page} · R${tile.row}C${tile.col}${tile.w === 2 ? ' · fold' : ''}`, x, y, regular, L);
+        drawPieceOutline(page, x, y, pieceW, L);
         if (tile.w === 2) drawFoldTicks(page, x + CARD_W + POCKET_GAP / 2, y);
       }
     }
-    drawMarginRulers(page, regular, s >= foldStartSheet);
+    if (!cutMargins) drawMarginRulers(page, regular, s >= foldStartSheet, L);
     const hosts = [...new Set(
       batch.map((p) => p.tile).filter((t): t is ArtTile => t.kind === 'art').map((t) => artHost(t.group.imageUrl)),
     )].filter(Boolean);
@@ -555,11 +608,16 @@ function hexColor(h: string) {
   return rgb(((v >> 16) & 255) / 255, ((v >> 8) & 255) / 255, (v & 255) / 255);
 }
 
-/** Dashed cut outline around one piece. Pieces sit edge to edge, so neighbors' outlines
- *  coincide: one dashed line marks one shared cut (folded pieces span their fold strip uncut). */
-function drawPieceOutline(page: PDFPage, x: number, y: number, width: number) {
+/** Dashed cut outline around one piece. TIGHT: pieces sit edge to edge, neighbors' outlines
+ *  coincide — one dashed line marks one shared cut. CUT MARGINS: the outline sits `outset`
+ *  OUTSIDE the true edge, so the guide never touches the artwork — cut in the gap, trim to
+ *  the line, and the piece is still ≥ true size. */
+function drawPieceOutline(page: PDFPage, x: number, y: number, width: number, L: SheetLayout) {
   page.drawRectangle({
-    x, y, width, height: CARD_H,
+    x: x - L.outset,
+    y: y - L.outset,
+    width: width + 2 * L.outset,
+    height: CARD_H + 2 * L.outset,
     borderColor: GUIDE, borderWidth: 0.5, borderDashArray: [3, 3],
   });
 }
@@ -579,9 +637,9 @@ function drawFoldTicks(page: PDFPage, foldX: number, y: number) {
  * cut lines ARE the piece edges: 0 / 2.5 / 5 / 7.5" across, card-height pitch down (fold
  * sheets: 0 and the assembled width across).
  */
-function drawMarginRulers(page: PDFPage, regular: PDFFont, fold: boolean) {
-  const originX = fold ? FOLD_MARGIN_X : MARGIN_X;
-  const originY = fold ? FOLD_MARGIN_Y : MARGIN_Y;
+function drawMarginRulers(page: PDFPage, regular: PDFFont, fold: boolean, L: SheetLayout) {
+  const originX = fold ? L.foldMarginX : L.marginX;
+  const originY = fold ? L.foldMarginY : L.marginY;
   const label = (n: number) => `${Number(n.toFixed(2))}"`;
   const top = (x: number, inches: number) => {
     const text = label(inches);
@@ -595,12 +653,18 @@ function drawMarginRulers(page: PDFPage, regular: PDFFont, fold: boolean) {
   };
   const colEdges = fold ? [0, FOLD_W] : Array.from({ length: COLS + 1 }, (_, c) => c * CARD_W);
   for (const e of colEdges) top(originX + e, e / PT);
-  const rows = fold ? FOLD_ROWS : ROWS;
+  const rows = fold ? L.foldRows : L.rows;
   for (let r = 0; r <= rows; r += 1) left(SHEET_H - originY - r * CARD_H, (r * CARD_H) / PT);
 }
 
-/** Discreet assembly tag on art/insert pieces (a future run could print these on the back). */
-function drawTag(page: PDFPage, text: string, x: number, y: number, regular: PDFFont) {
+/** Assembly tag on art/insert pieces. CUT MARGINS: printed BELOW the piece in the gap — the
+ *  artwork itself stays clean. TIGHT: there's no gap, so a small translucent chip overlays the
+ *  piece's top-left corner (the trade-off of the compact layout). */
+function drawTag(page: PDFPage, text: string, x: number, y: number, regular: PDFFont, L: SheetLayout) {
+  if (L.gap > 0) {
+    page.drawText(text, { x: x + 1, y: y - L.outset - 8.5, size: 5.5, font: regular, color: MUTED });
+    return;
+  }
   const w = regular.widthOfTextAtSize(text, 5.5) + 6;
   page.drawRectangle({ x: x + 3, y: y + CARD_H - 12, width: w, height: 9, color: WHITE, opacity: 0.75 });
   page.drawText(text, { x: x + 6, y: y + CARD_H - 9.5, size: 5.5, font: regular, color: MUTED });
@@ -762,7 +826,7 @@ function drawTransformed(
 }
 
 /** Cover sheet: what this is, how to print it true-to-size, and the 1-inch calibration square. */
-function drawCover(page: PDFPage, binderTitle: string, counts: FillCounts, bold: PDFFont, regular: PDFFont) {
+function drawCover(page: PDFPage, binderTitle: string, counts: FillCounts, bold: PDFFont, regular: PDFFont, cutMargins: boolean) {
   let y = SHEET_H - 120;
   drawCentered(page, 'Binder fill sheets', y, bold, 26);
   y -= 26;
@@ -797,11 +861,15 @@ function drawCover(page: PDFPage, binderTitle: string, counts: FillCounts, bold:
   const steps = [
     'Print at 100% scale (“Actual size”), NOT “Fit to page”.',
     'Check the calibration square below: it must measure exactly 1 inch (2.54 cm).',
-    'Cut along the dashed lines. Pieces print edge to edge: neighbors share a cut line, so one straight cut frees two edges at once.',
+    cutMargins
+      ? 'Pieces are spaced apart with room for error: rough-cut anywhere in the gap between pieces, then trim just inside the dashed outline. The line sits slightly outside the true edge, so trimming to it never cuts into the piece.'
+      : 'Cut along the dashed lines. Pieces print edge to edge: neighbors share a cut line, so one straight cut frees two edges at once.',
     'Wide art pieces print on their own sheets at the END, at true two-pocket width: fold at the tick marks (the art continues across the fold), then slide each half into its pocket pair.',
-    'Slide every piece into the pocket printed on it (page, row, column; art pieces carry a corner tag). When a real card arrives, its placeholder shows exactly which pocket to swap.',
+    cutMargins
+      ? 'Slide every piece into its pocket: placeholders print the page/row/column on the piece, and art pieces have their location printed just below them (the label is in the gap, not on your art).'
+      : 'Slide every piece into the pocket printed on it (page, row, column; art pieces carry a corner tag). When a real card arrives, its placeholder shows exactly which pocket to swap.',
   ];
-  const left = MARGIN_X + 24;
+  const left = (SHEET_W - GRID_W) / 2 + 24;
   steps.forEach((text, i) => {
     page.drawText(`${i + 1}.`, { x: left, y, size: 11, font: bold, color: INK });
     const lines = wrap(text, regular, 11, GRID_W - 72, 2);

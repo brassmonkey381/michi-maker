@@ -28,7 +28,7 @@ import {
   type PurchasedVersion,
   type PurchaseStatus,
 } from '@/data/pdfSnapshot';
-import { recordPrintEvent } from '@/data/printRepo';
+import { countPrintsThisMonth, recordPrintEvent } from '@/data/printRepo';
 import { BINDER_PDF_LOOKUP_KEY, CHECKOUT_OPEN } from '@/data/subscriptions';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useTier } from '@/hooks/use-tier';
@@ -54,7 +54,7 @@ export function PrintPlaceholdersSheet({
   // as it is when the purchase is spent (first download), forever. Editing the binder afterwards
   // requires a new unlock (or a plan) to print the edited version — the purchased version stays
   // downloadable from its archive.
-  const { hasFullPrint, products, loading: entLoading } = useTier();
+  const { hasFullPrint, products, limits, loading: entLoading } = useTier();
   const purchased = products.includes(`pdf_binder:${binder.id}`);
   const { isSignedIn } = useAuth();
   const store = useBinders();
@@ -64,10 +64,17 @@ export function PrintPlaceholdersSheet({
   // pdfPath of the purchased version currently downloading (one at a time), or null.
   const [archBusyPath, setArchBusyPath] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Where the per-binder purchase stands (state + every purchased version); null while resolving.
+  // The pending consequential action awaiting the user's explicit CONFIRM (nothing spends a
+  // credit, locks a snapshot, or leaves for checkout on first click):
+  //  'credit' → subscriber spends 1 included monthly print on this version
+  //  'spend'  → a one-time purchase locks onto the binder's current version
+  //  'buy'    → leave for Stripe checkout ($3.99 unlock)
+  const [confirming, setConfirming] = useState<null | 'credit' | 'spend' | 'buy'>(null);
+  // Where this binder's printed/purchased VERSIONS stand (subscribers archive credit prints the
+  // same way purchases archive spends, so both get free re-downloads); null while resolving.
   const [pStatus, setPStatus] = useState<PurchaseStatus | null>(null);
   useEffect(() => {
-    if (!purchased || hasFullPrint) return;
+    if (!purchased && !hasFullPrint) return;
     let live = true;
     purchaseStatus(binder)
       .then((s) => {
@@ -82,8 +89,30 @@ export function PrintPlaceholdersSheet({
   }, [purchased, hasFullPrint, binder]);
   const pState = pStatus?.state ?? null;
   const versions = pStatus?.versions ?? [];
-  // Subscribers print freely; a purchase covers its snapshot (unspent = next download locks it in).
-  const unlocked = hasFullPrint || (purchased && (pState === 'unspent' || pState === 'current'));
+  // Binder currently matches an already-printed/purchased version → that document is paid for;
+  // regenerating it is a FREE re-download for everyone (no credit, no purchase).
+  const versionPaidFor = pState === 'current';
+
+  // Subscriber print credits: N included full-binder prints per month (PRO 1 / VIP 5). Only a
+  // CONFIRMED credit spend records usage. Infinity (flag off) = no credit language at all.
+  const allocation = limits.includedPrintsPerMonth;
+  const metered = hasFullPrint && Number.isFinite(allocation);
+  const [printsUsed, setPrintsUsed] = useState<number | null>(null);
+  useEffect(() => {
+    if (!metered) return;
+    let live = true;
+    countPrintsThisMonth()
+      .then((n) => {
+        if (live) setPrintsUsed(n);
+      })
+      .catch(() => {
+        if (live) setPrintsUsed(0); // count failure must not brick a paid plan
+      });
+    return () => {
+      live = false;
+    };
+  }, [metered]);
+  const creditsLeft = metered ? Math.max(0, (allocation as number) - (printsUsed ?? 0)) : Infinity;
 
   // Cards the user owns (My collection) — owned placeholders print green when the toggle is
   // on, so the cut sheet doubles as a pull-list (green = go grab it) + want-list (gray).
@@ -102,22 +131,34 @@ export function PrintPlaceholdersSheet({
     };
   }, [isSignedIn]);
 
+  // Cutting margins (default ON): pieces spaced apart with labels below them, guides outside
+  // the art, room for cutting mistakes. OFF = the compact edge-to-edge layout (fewer sheets,
+  // labels overlay the pieces). Changes the sheet count, so it feeds the counts preview too.
+  const [cutMargins, setCutMargins] = useState(true);
   const effectiveOwned = colorOwned ? (ownedIds ?? undefined) : undefined;
   const collected = useMemo(
-    () => (catalog ? collectFillTiles(binder, catalog, effectiveOwned) : null),
-    [binder, catalog, effectiveOwned],
+    () => (catalog ? collectFillTiles(binder, catalog, effectiveOwned, cutMargins) : null),
+    [binder, catalog, effectiveOwned, cutMargins],
   );
   const counts = collected?.counts ?? null;
   const sheets = counts?.sheets ?? 0;
   const ownedCount = counts?.ownedCards ?? 0;
 
-  const download = async () => {
+  /**
+   * Generate + save the PDF. `credit: true` = a CONFIRMED subscriber credit spend (records
+   * usage, archives the version); `spend: true` = a CONFIRMED one-time-purchase spend (archives
+   * the version, no usage record). Free re-downloads of an already-paid version pass neither —
+   * usage is only ever bumped by an explicit confirmation.
+   */
+  const download = async (opts: { credit?: boolean; spend?: boolean } = {}) => {
     if (!catalog || !counts || counts.total === 0 || busy) return;
+    setConfirming(null);
     setBusy(true);
     setError(null);
     try {
       const bytes = await buildPlaceholderPdf(binder, catalog, {
         ownedIds: effectiveOwned,
+        cutMargins,
         // Art pixels: direct CORS fetch → art-proxy edge fn fallback → webp/canvas convert.
         loadImage: createWebArtLoader(),
       });
@@ -130,9 +171,9 @@ export function PrintPlaceholdersSheet({
       a.download = filename;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
-      // A one-time purchase SPENDS on this download: record the binder's fingerprint + archive
-      // these exact bytes as a NEW purchased version (earlier versions stay downloadable too).
-      if (!hasFullPrint && purchased && pState === 'unspent') {
+      // Confirmed spends (credit OR purchase) archive this version so it re-downloads free
+      // forever — the version list below is the "print a previous version" surface.
+      if (opts.credit || opts.spend) {
         const v = await spendPurchase(binder, bytes, sheets).catch(() => null);
         setPStatus((prev) => ({
           state: 'current',
@@ -141,9 +182,11 @@ export function PrintPlaceholdersSheet({
             : (prev?.versions ?? []),
         }));
       }
-      // Count against the plan's included monthly prints (advisory ledger; failure is fine —
-      // the meter just misses one, the user keeps their PDF).
-      recordPrintEvent(binder.id, sheets).catch(() => {});
+      // Usage bumps ONLY on a confirmed credit spend — never on free re-downloads or purchases.
+      if (opts.credit) {
+        recordPrintEvent(binder.id, sheets).catch(() => {});
+        setPrintsUsed((u) => (u ?? 0) + 1);
+      }
       onDone?.(sheets);
       onClose();
     } catch (e) {
@@ -175,14 +218,40 @@ export function PrintPlaceholdersSheet({
     }
   };
 
-  /** Launch the one-time purchase for THIS binder (first buy and buy-again after edits). */
+  /** Launch the one-time purchase for THIS binder (first buy and buy-again after edits).
+   *  Only ever called from a CONFIRMED 'buy' action — never straight off a button. */
   const buyBinderPdf = () => {
     if (buying) return;
+    setConfirming(null);
     setBuying(true);
     setError(null);
     startCheckout(BINDER_PDF_LOOKUP_KEY, { binderId: binder.id })
       .catch((e) => setError((e as Error).message))
       .finally(() => setBuying(false));
+  };
+
+  /** The inline confirmation step for every consequential action (credit / spend / buy). */
+  const confirmCopy: Record<'credit' | 'spend' | 'buy', { title: string; body: string; cta: string }> = {
+    credit: {
+      title: 'Use 1 included print?',
+      body: `This spends 1 of your ${Number.isFinite(allocation) ? allocation : ''} included monthly prints on this binder as it is right now. This version stays re-downloadable free, forever.`,
+      cta: 'Use 1 print',
+    },
+    spend: {
+      title: 'Lock your unlock to this version?',
+      body: 'This download locks your $3.99 unlock to the binder as it is right now — re-download this version anytime, forever. Printing future edits will need a new unlock or a plan.',
+      cta: 'Download and lock in',
+    },
+    buy: {
+      title: 'Unlock this binder for $3.99?',
+      body: 'You will be taken to secure Stripe checkout. The one-time unlock covers this binder as it is today, yours to re-download forever.',
+      cta: 'Continue to checkout',
+    },
+  };
+  const runConfirmed = () => {
+    if (confirming === 'credit') void download({ credit: true });
+    else if (confirming === 'spend') void download({ spend: true });
+    else if (confirming === 'buy') buyBinderPdf();
   };
 
   // Free teaser: a SHORT example PDF built from a bundled example binder (its first page of example
@@ -293,16 +362,57 @@ export function PrintPlaceholdersSheet({
                     </ThemedText>
                   </Pressable>
                 ) : null}
+                {counts && counts.total > 0 ? (
+                  <Pressable
+                    onPress={() => setCutMargins((v) => !v)}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: cutMargins }}
+                    style={styles.toggleRow}
+                    hitSlop={4}>
+                    <View style={[styles.toggleBox, cutMargins && styles.toggleBoxOn]}>
+                      {cutMargins ? <Text style={styles.toggleTick}>✓</Text> : null}
+                    </View>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      Cutting margins between pieces (labels off the art; uses more sheets)
+                    </ThemedText>
+                  </Pressable>
+                ) : null}
                 {counts && counts.total === 0 ? (
                   <ThemedText type="small" themeColor="textSecondary">
                     This binder’s pockets are empty. Nothing to print yet.
                   </ThemedText>
                 ) : null}
 
-                {unlocked ? (
+                {confirming ? (
+                  // ── the confirmation step — nothing consequential happens on first click ──
+                  <View style={styles.confirmBox}>
+                    <ThemedText type="smallBold">{confirmCopy[confirming].title}</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
+                      {confirmCopy[confirming].body}
+                    </ThemedText>
+                    <View style={styles.confirmRow}>
+                      <Pressable
+                        onPress={() => setConfirming(null)}
+                        style={({ pressed }) => [styles.cancelBtn, pressed && styles.dim]}>
+                        <Text style={styles.exampleBtnText}>Cancel</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={runConfirmed}
+                        disabled={busy || buying}
+                        style={({ pressed }) => [styles.btn, styles.confirmBtn, (pressed || busy || buying) && styles.dim]}>
+                        {busy || buying ? (
+                          <ActivityIndicator color={Palette.accentText} />
+                        ) : (
+                          <Text style={styles.btnText}>{confirmCopy[confirming].cta}</Text>
+                        )}
+                      </Pressable>
+                    </View>
+                  </View>
+                ) : versionPaidFor ? (
+                  // Binder matches an already-paid version (credit print or purchase) — free.
                   <>
                     <Pressable
-                      onPress={download}
+                      onPress={() => void download()}
                       disabled={busy || !counts || counts.total === 0}
                       style={({ pressed }) => [
                         styles.btn,
@@ -311,18 +421,91 @@ export function PrintPlaceholdersSheet({
                       {busy ? (
                         <ActivityIndicator color={Palette.accentText} />
                       ) : (
-                        <Text style={styles.btnText}>Download PDF</Text>
+                        <Text style={styles.btnText}>Download PDF · already yours, free</Text>
                       )}
                     </Pressable>
-                    {!hasFullPrint && pState === 'unspent' ? (
-                      <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-                        Your unlock covers this binder as it is right now. Downloading locks in
-                        this version — re-download it anytime, forever. Printing future edits
-                        will need a new unlock or a PRO/VIP plan.
-                      </ThemedText>
-                    ) : null}
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
+                      You already printed this exact version — re-downloads are always free.
+                    </ThemedText>
                   </>
-                ) : entLoading || (purchased && pState === null) ? (
+                ) : hasFullPrint && !metered ? (
+                  // Unlimited included prints (enforcement off) — the plain subscriber button.
+                  <Pressable
+                    onPress={() => void download()}
+                    disabled={busy || !counts || counts.total === 0}
+                    style={({ pressed }) => [
+                      styles.btn,
+                      (pressed || busy || !counts || counts.total === 0) && styles.dim,
+                    ]}>
+                    {busy ? (
+                      <ActivityIndicator color={Palette.accentText} />
+                    ) : (
+                      <Text style={styles.btnText}>Download PDF</Text>
+                    )}
+                  </Pressable>
+                ) : hasFullPrint && printsUsed === null ? (
+                  <View style={styles.center}>
+                    <ActivityIndicator />
+                  </View>
+                ) : hasFullPrint && creditsLeft > 0 ? (
+                  // Subscriber with credits: spending one requires the confirm step above.
+                  <>
+                    <Pressable
+                      onPress={() => setConfirming('credit')}
+                      disabled={busy || !counts || counts.total === 0}
+                      style={({ pressed }) => [
+                        styles.btn,
+                        (pressed || busy || !counts || counts.total === 0) && styles.dim,
+                      ]}>
+                      <Text style={styles.btnText}>
+                        Use 1 included print · {creditsLeft} of {allocation} left this month
+                      </Text>
+                    </Pressable>
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
+                      Each print covers this binder as it is right now, and that version stays
+                      re-downloadable free, forever.
+                    </ThemedText>
+                  </>
+                ) : hasFullPrint ? (
+                  // Subscriber out of monthly credits: the one-time unlock bridges the gap.
+                  <View style={styles.lockedBox}>
+                    <ThemedText type="smallBold">
+                      You’ve used your {allocation} included print{allocation === 1 ? '' : 's'} this month
+                    </ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
+                      Included prints renew at the start of next month. Need this one now? Unlock
+                      just this binder once for $3.99 — that version is yours to re-download
+                      forever.
+                    </ThemedText>
+                    {CHECKOUT_OPEN ? (
+                      <Pressable
+                        onPress={() => setConfirming('buy')}
+                        disabled={buying}
+                        style={({ pressed }) => [styles.btn, (pressed || buying) && styles.dim]}>
+                        <Text style={styles.btnText}>Unlock this binder · $3.99</Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                ) : purchased && pState === 'unspent' ? (
+                  // A fresh (or re-armed) one-time purchase: the first download locks it in —
+                  // via the confirm step, so nothing is spent by accident.
+                  <>
+                    <Pressable
+                      onPress={() => setConfirming('spend')}
+                      disabled={busy || !counts || counts.total === 0}
+                      style={({ pressed }) => [
+                        styles.btn,
+                        (pressed || busy || !counts || counts.total === 0) && styles.dim,
+                      ]}>
+                      <Text style={styles.btnText}>Download PDF</Text>
+                    </Pressable>
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
+                      Your unlock covers this binder as it is right now. Downloading locks in
+                      this version — re-download it anytime, forever. Printing future edits
+                      will need a new unlock or a PRO/VIP plan.
+                    </ThemedText>
+                  </>
+                ) : entLoading || ((purchased || hasFullPrint) && pState === null) ? (
                   <View style={styles.center}>
                     <ActivityIndicator />
                   </View>
@@ -338,14 +521,10 @@ export function PrintPlaceholdersSheet({
                     </ThemedText>
                     {CHECKOUT_OPEN ? (
                       <Pressable
-                        onPress={buyBinderPdf}
+                        onPress={() => setConfirming('buy')}
                         disabled={buying}
                         style={({ pressed }) => [styles.btn, (pressed || buying) && styles.dim]}>
-                        {buying ? (
-                          <ActivityIndicator color={Palette.accentText} />
-                        ) : (
-                          <Text style={styles.btnText}>Unlock this version · $3.99</Text>
-                        )}
+                        <Text style={styles.btnText}>Unlock this version · $3.99</Text>
                       </Pressable>
                     ) : (
                       <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
@@ -362,14 +541,10 @@ export function PrintPlaceholdersSheet({
                       forever (later edits need a new unlock).
                     </ThemedText>
                     <Pressable
-                      onPress={buyBinderPdf}
+                      onPress={() => setConfirming('buy')}
                       disabled={buying}
                       style={({ pressed }) => [styles.btn, (pressed || buying) && styles.dim]}>
-                      {buying ? (
-                        <ActivityIndicator color={Palette.accentText} />
-                      ) : (
-                        <Text style={styles.btnText}>Unlock this binder · $3.99</Text>
-                      )}
+                      <Text style={styles.btnText}>Unlock this binder · $3.99</Text>
                     </Pressable>
                   </View>
                 ) : (
@@ -384,9 +559,9 @@ export function PrintPlaceholdersSheet({
                   </View>
                 )}
 
-                {/* Every purchased version, newest first — each downloadable forever, whatever
-                    the binder looks like now. This is the version PICKER for multi-buy binders. */}
-                {!hasFullPrint && versions.length > 0 ? (
+                {/* Every printed/purchased version, newest first — each downloadable forever,
+                    whatever the binder looks like now ("print a previous version"). */}
+                {versions.length > 0 ? (
                   <View style={styles.versionsBox}>
                     <ThemedText type="smallBold" themeColor="textSecondary" style={styles.versionsTitle}>
                       YOUR PURCHASED VERSIONS
@@ -424,8 +599,8 @@ export function PrintPlaceholdersSheet({
                 ) : null}
 
                 {/* Free teaser — a short example PDF (example cards + art), never the user's binder.
-                    Hidden for purchasers: they've seen real output (edited state offers the archive). */}
-                {!unlocked && !entLoading && !purchased && catalog && store.exampleBinders.length > 0 ? (
+                    Hidden for payers: they've seen real output (edited state offers the archive). */}
+                {!hasFullPrint && !purchased && !entLoading && catalog && store.exampleBinders.length > 0 ? (
                   <Pressable
                     onPress={downloadExample}
                     disabled={exBusy}
@@ -497,6 +672,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dim: { opacity: 0.6 },
+  confirmBox: {
+    borderWidth: 1.5,
+    borderColor: Palette.accent,
+    borderRadius: Radius.lg,
+    padding: Spacing.three,
+    gap: Spacing.two,
+    backgroundColor: Palette.selectionSoft,
+  },
+  confirmRow: { flexDirection: 'row', gap: Spacing.two, alignItems: 'center' },
+  confirmBtn: { flex: 1 },
+  cancelBtn: {
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
+    borderRadius: Radius.pill,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.four,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
   error: { color: Palette.danger, lineHeight: 20 },
   lockedBox: {
     borderWidth: 1,

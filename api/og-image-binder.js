@@ -25,9 +25,13 @@ const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
 const BROWSE_URL = process.env.EXPO_PUBLIC_CATALOG_BROWSE_URL || '';
 const SITE = process.env.EXPO_PUBLIC_APP_URL || 'https://michi-maker.com';
 
-const W = 1200;
-const H = 630;
-const GAP = 8;
+// Supersample: render at 2× the display size (2400×1260) so the viewer (Discord, etc.)
+// downscales from a higher-res source and card art stays crisp instead of soft. All pixel
+// sizes below are in this 2×-space.
+const S = 2;
+const W = 1200 * S;
+const H = 630 * S;
+const GAP = 8 * S;
 const CARD_ASPECT = 2.5 / 3.5; // real card proportions
 
 /** Minimal hyperscript — Satori reads `{ type, props: { style, children, ... } }`. */
@@ -123,7 +127,7 @@ function pageGrid(page, cw, ch, manifest) {
               display: 'flex',
               width: cw,
               height: ch,
-              borderRadius: 9,
+              borderRadius: 9 * S,
               overflow: 'hidden',
               backgroundColor: src ? '#e9e4da' : 'rgba(120,116,108,0.10)',
             },
@@ -143,10 +147,10 @@ function spine(height) {
     h('div', {
       style: {
         display: 'flex',
-        width: 12,
-        height: 12,
-        borderRadius: 6,
-        borderWidth: 2,
+        width: 12 * S,
+        height: 12 * S,
+        borderRadius: 6 * S,
+        borderWidth: 2 * S,
         borderStyle: 'solid',
         borderColor: 'rgba(120,116,108,0.40)',
       },
@@ -160,10 +164,10 @@ function spine(height) {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'space-around',
-        width: 26,
+        width: 26 * S,
         height,
-        paddingTop: 10,
-        paddingBottom: 10,
+        paddingTop: 10 * S,
+        paddingBottom: 10 * S,
       },
     },
     rings,
@@ -193,10 +197,10 @@ const mat = (children, tilt) =>
       style: {
         display: 'flex',
         alignItems: 'center',
-        padding: 18,
-        borderRadius: 24,
+        padding: 18 * S,
+        borderRadius: 24 * S,
         backgroundColor: '#fbfaf7',
-        boxShadow: '0 26px 70px rgba(60,50,35,0.30)',
+        boxShadow: `0 ${26 * S}px ${70 * S}px rgba(60,50,35,0.30)`,
         transform: `rotate(${tilt}deg)`,
       },
     },
@@ -208,7 +212,7 @@ function compose(pages, manifest) {
     // Open spread: shared card size so both pages align; sized to a half-frame box.
     const cols = Math.max(pages[0].cols || 3, pages[1].cols || 3);
     const rows = Math.max(pages[0].rows || 3, pages[1].rows || 3);
-    const { cw, ch } = cardSize(cols, rows, 470, 520);
+    const { cw, ch } = cardSize(cols, rows, 470 * S, 520 * S);
     const spineH = rows * ch + (rows - 1) * GAP;
     return frame(
       mat(
@@ -217,13 +221,13 @@ function compose(pages, manifest) {
           spine(spineH),
           pageGrid(pages[1], cw, ch, manifest),
         ],
-        -1.5,
+        -1,
       ),
     );
   }
   const page = pages[0];
-  const { cw, ch } = cardSize(page.cols || 3, page.rows || 3, 760, 540);
-  return frame(mat(pageGrid(page, cw, ch, manifest), -2));
+  const { cw, ch } = cardSize(page.cols || 3, page.rows || 3, 760 * S, 540 * S);
+  return frame(mat(pageGrid(page, cw, ch, manifest), -1.5));
 }
 
 export default async function handler(req) {

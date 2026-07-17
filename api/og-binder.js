@@ -34,6 +34,6 @@ module.exports = async (req, res) => {
   const image = `${SITE}/api/og-image-binder?id=${encodeURIComponent(id)}`;
   return sendHtml(
     res,
-    ogHtml({ title, description, image, imageWidth: 1200, imageHeight: 630, url, imageAlt: binder.title }),
+    ogHtml({ title, description, image, imageWidth: 2400, imageHeight: 1260, url, imageAlt: binder.title }),
   );
 };

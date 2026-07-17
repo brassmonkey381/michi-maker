@@ -515,6 +515,8 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       const target = binders.find((binder) => binder.id === binderId);
       const srcIndex = target ? target.pages.findIndex((p) => p.id === pageId) : -1;
       if (!target || srcIndex < 0) return null;
+      // Duplicating adds a page — refuse past the tier limit, same as addPage (the UI toasts).
+      if (LIMITS_ENFORCED && !target.isExample && target.pages.length >= limits.pagesPerBinder) return null;
       const src = target.pages[srcIndex];
       const copy: DemoPage = {
         ...src,
@@ -533,7 +535,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       if (!target.isExample) persist(() => repo.replaceBinder({ ...target, pages }));
       return { pageIndex: pages.findIndex((p) => p.id === copy.id), blanksInserted };
     },
-    [binders, commit, persist],
+    [binders, limits.pagesPerBinder, commit, persist],
   );
 
   const updatePage = useCallback(

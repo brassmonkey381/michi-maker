@@ -335,6 +335,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const handleDuplicate = () => {
     const copy = store.duplicateBinder(binder.id);
     if (copy) onOpenBinder?.(copy.id);
+    // The store refuses past the binder cap — say so instead of silently doing nothing.
+    else showToast(`You’ve reached your ${store.limits.binders}-binder limit. Upgrade for more room.`);
   };
 
   // Structural page edits re-space the binder with blank pages when folded 1×2 art would land
@@ -348,6 +350,10 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // Set the index directly (not via changePage, which would clamp against the stale page count
   // before the new page lands) — the render clamps `pageIndex` to bounds once it does.
   const handleDuplicatePage = () => {
+    if (store.pageLimitReached(binder.id)) {
+      showToast(`You’ve reached the ${store.limits.pagesPerBinder}-page limit. Upgrade for more.`);
+      return;
+    }
     const result = store.duplicatePage(binder.id, page.id);
     if (result) {
       setSelectedSlotId(null);
@@ -833,10 +839,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           label="+ Page"
           onPress={() =>
             store.pageLimitReached(binder.id)
-              ? showToast(
-                  `You’ve reached the ${store.limits.pagesPerBinder}-page limit. Upgrade for more.`,
-                  true,
-                )
+              ? showToast(`You’ve reached the ${store.limits.pagesPerBinder}-page limit. Upgrade for more.`)
               : store.addPage(binder.id)
           }
         />

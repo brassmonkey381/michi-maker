@@ -65,7 +65,7 @@ export default function PlansScreen() {
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
           Every plan includes the full binder editor, Slice Studio, and your pages synced across
-          web, iOS, and Android. Everything is free while michi-maker is in beta — these are the
+          web, iOS, and Android. Everything is free while michi-maker is in beta. These are the
           plans that are coming, so you know exactly where the shelves end.
         </ThemedText>
       </View>

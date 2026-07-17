@@ -210,8 +210,8 @@ export default function WelcomeScreen() {
           <View style={styles.shell}>
             <View style={styles.nav}>
               <View style={styles.brandRow}>
-                <AnimatedLogoMark size={26} />
-                <ThemedText style={styles.wordmark}>michi-maker</ThemedText>
+                <AnimatedLogoMark size={wide ? 84 : 44} />
+                <ThemedText style={[styles.wordmark, wide && styles.wordmarkBig]}>michi-maker</ThemedText>
               </View>
               <Pressable
                 onPress={enterApp}
@@ -412,8 +412,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: Spacing.three,
   },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   wordmark: { fontFamily: BrandFont, fontSize: FontSize.h2, fontWeight: Weight.bold },
+  wordmarkBig: { fontSize: 34 },
   navBtn: {
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,

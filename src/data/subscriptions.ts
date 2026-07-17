@@ -7,8 +7,12 @@
  * Guest is deliberately absent: it is a taste of the product, not an advertised plan.
  */
 
-/** Flip when the payment provider is wired; the plan CTAs then launch checkout. */
-export const CHECKOUT_OPEN = false;
+/**
+ * When true, plan CTAs launch real Stripe Checkout (see src/data/checkout.ts). Env-driven so
+ * test mode can be exercised locally (EXPO_PUBLIC_CHECKOUT_OPEN=1 in .env.local) while the
+ * deployed site keeps the honest "coming soon" note until live keys + owner go-live.
+ */
+export const CHECKOUT_OPEN = process.env.EXPO_PUBLIC_CHECKOUT_OPEN === '1';
 
 /** The honest line every CTA shows while checkout is closed (same voice as UpgradePerk). */
 export const CHECKOUT_CLOSED_NOTE = 'Paid plans aren’t open quite yet. Check back soon.';
@@ -23,6 +27,11 @@ export interface PlanHeader {
   /** The billing subline under the price. */
   sub: string;
   badge?: 'Most popular' | 'Best value';
+  /** Stripe price lookup_keys (docs/PAYMENTS.md catalog). The CTA buys yearly (the lead price). */
+  yearlyKey?: string;
+  monthlyKey?: string;
+  /** Label for the secondary month-to-month CTA link. */
+  monthlyLabel?: string;
 }
 
 /** Column headers, ascending order — the table reads as an upgrade path left to right. */
@@ -35,6 +44,9 @@ export const PLAN_HEADERS: PlanHeader[] = [
     per: '/yr',
     sub: 'about $3.33 a month, billed yearly · or $3.99 month to month',
     badge: 'Most popular',
+    yearlyKey: 'michi_pro_yearly',
+    monthlyKey: 'michi_pro_monthly',
+    monthlyLabel: 'or $3.99 month to month',
   },
   {
     tier: 'vip',
@@ -43,8 +55,14 @@ export const PLAN_HEADERS: PlanHeader[] = [
     per: '/yr',
     sub: 'about $8.33 a month, billed yearly · or $9.99 month to month',
     badge: 'Best value',
+    yearlyKey: 'michi_vip_yearly',
+    monthlyKey: 'michi_vip_monthly',
+    monthlyLabel: 'or $9.99 month to month',
   },
 ];
+
+/** Lookup key for the one-time full-binder PDF (payment mode; needs a binderId). */
+export const BINDER_PDF_LOOKUP_KEY = 'michi_binder_pdf';
 
 export interface CompareCell {
   text: string;

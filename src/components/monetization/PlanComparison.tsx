@@ -14,9 +14,10 @@
  * launches later).
  */
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FontSize, Palette, Radius, Shadows, Spacing, Weight } from '@/constants/theme';
+import { startCheckout } from '@/data/checkout';
 import {
   CHECKOUT_CLOSED_NOTE,
   CHECKOUT_OPEN,
@@ -27,6 +28,7 @@ import {
   type PlanHeader,
 } from '@/data/subscriptions';
 import { useTier } from '@/hooks/use-tier';
+import { useAuth } from '@/store/auth';
 
 /** How far the PRO/VIP header tabs rise above the table body. */
 const TAB_RISE = Spacing.four;
@@ -42,17 +44,33 @@ function ValueCell({ cell, vip }: { cell: CompareCell; vip?: boolean }) {
   );
 }
 
-export function PlanComparison({ onSelectPlan }: { onSelectPlan?: (tier: string) => void }) {
+export function PlanComparison() {
   const { tier, loading } = useTier();
-  // Which paid column's CTA was pressed while checkout is closed (shows the note under it).
-  const [revealed, setRevealed] = useState<string | null>(null);
+  const { isSignedIn } = useAuth();
+  // The note under the pressed CTA: the coming-soon line while checkout is closed, a sign-in
+  // nudge for guests, or a checkout error. Never a silent no-op.
+  const [note, setNote] = useState<{ tier: string; text: string } | null>(null);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
 
-  const select = (plan: PlanHeader) => {
+  const buy = async (plan: PlanHeader, lookupKey?: string) => {
     if (!CHECKOUT_OPEN) {
-      setRevealed(plan.tier);
+      setNote({ tier: plan.tier, text: CHECKOUT_CLOSED_NOTE });
       return;
     }
-    onSelectPlan?.(plan.tier); // checkout launch lands here when the provider is wired
+    if (!lookupKey || busyKey) return;
+    if (!isSignedIn) {
+      setNote({ tier: plan.tier, text: 'Sign in (free) first — plans attach to your account.' });
+      return;
+    }
+    setNote(null);
+    setBusyKey(lookupKey);
+    try {
+      await startCheckout(lookupKey); // navigates away on success
+    } catch (e) {
+      setNote({ tier: plan.tier, text: (e as Error).message });
+    } finally {
+      setBusyKey(null);
+    }
   };
 
   const [freeHead, proHead, vipHead] = PLAN_HEADERS;
@@ -129,23 +147,43 @@ export function PlanComparison({ onSelectPlan }: { onSelectPlan?: (tier: string)
             </View>
             <View style={[styles.cell, styles.proCol, styles.footCell, styles.proFoot]}>
               <Pressable
-                onPress={() => select(proHead)}
-                style={({ pressed }) => [styles.btn, pressed && styles.dim]}>
-                <Text style={styles.btnText}>Choose PRO</Text>
+                onPress={() => buy(proHead, proHead.yearlyKey)}
+                disabled={!!busyKey}
+                style={({ pressed }) => [styles.btn, (pressed || !!busyKey) && styles.dim]}>
+                {busyKey === proHead.yearlyKey ? (
+                  <ActivityIndicator color={Palette.accentText} />
+                ) : (
+                  <Text style={styles.btnText}>Choose PRO</Text>
+                )}
               </Pressable>
-              {revealed === 'pro' && !CHECKOUT_OPEN ? (
-                <Text style={styles.ctaNote}>{CHECKOUT_CLOSED_NOTE}</Text>
+              {CHECKOUT_OPEN && proHead.monthlyKey ? (
+                <Pressable onPress={() => buy(proHead, proHead.monthlyKey)} disabled={!!busyKey} hitSlop={4}>
+                  <Text style={styles.monthlyLink}>
+                    {busyKey === proHead.monthlyKey ? 'Opening checkout…' : proHead.monthlyLabel}
+                  </Text>
+                </Pressable>
               ) : null}
+              {note?.tier === 'pro' ? <Text style={styles.ctaNote}>{note.text}</Text> : null}
             </View>
             <View style={[styles.cell, styles.vipCol, styles.footCell, styles.vipFoot]}>
               <Pressable
-                onPress={() => select(vipHead)}
-                style={({ pressed }) => [styles.btn, pressed && styles.dim]}>
-                <Text style={styles.btnText}>Choose VIP</Text>
+                onPress={() => buy(vipHead, vipHead.yearlyKey)}
+                disabled={!!busyKey}
+                style={({ pressed }) => [styles.btn, (pressed || !!busyKey) && styles.dim]}>
+                {busyKey === vipHead.yearlyKey ? (
+                  <ActivityIndicator color={Palette.accentText} />
+                ) : (
+                  <Text style={styles.btnText}>Choose VIP</Text>
+                )}
               </Pressable>
-              {revealed === 'vip' && !CHECKOUT_OPEN ? (
-                <Text style={styles.ctaNote}>{CHECKOUT_CLOSED_NOTE}</Text>
+              {CHECKOUT_OPEN && vipHead.monthlyKey ? (
+                <Pressable onPress={() => buy(vipHead, vipHead.monthlyKey)} disabled={!!busyKey} hitSlop={4}>
+                  <Text style={styles.monthlyLink}>
+                    {busyKey === vipHead.monthlyKey ? 'Opening checkout…' : vipHead.monthlyLabel}
+                  </Text>
+                </Pressable>
               ) : null}
+              {note?.tier === 'vip' ? <Text style={styles.ctaNote}>{note.text}</Text> : null}
             </View>
           </View>
         </View>
@@ -294,6 +332,12 @@ const styles = StyleSheet.create({
   },
   btnText: { color: Palette.accentText, fontSize: FontSize.body, fontWeight: Weight.semibold },
   dim: { opacity: 0.7 },
+  monthlyLink: {
+    fontSize: FontSize.sm,
+    color: Palette.link,
+    marginTop: Spacing.one,
+    textAlign: 'center',
+  },
   ctaNote: { fontSize: FontSize.sm, color: Palette.muted, lineHeight: 16, marginTop: Spacing.one },
 
   /* footnotes */

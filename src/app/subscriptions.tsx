@@ -5,7 +5,8 @@
  * current plan + usage meters. Honest while checkout is closed: everything is free in beta and
  * CTAs reveal the coming-soon line (CHECKOUT_OPEN flips them into real checkout launches later).
  */
-import { useRouter, type Href } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { PageShell } from '@/components/layout/PageShell';
@@ -23,11 +24,28 @@ import {
   Weight,
 } from '@/constants/theme';
 import { ONE_TIME_PDF } from '@/data/subscriptions';
+import { useTier } from '@/hooks/use-tier';
 import { useAuth } from '@/store/auth';
 
 export default function SubscriptionsScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { checkout } = useLocalSearchParams<{ checkout?: string }>();
+  const { isPaid, refresh } = useTier();
+
+  // Back from Stripe Checkout: fulfillment is webhook-driven and lags the redirect by a few
+  // seconds, so poll the entitlement read until the tier flips (or we give up quietly — the
+  // banner keeps the user informed either way, never a dead spinner).
+  const settling = checkout === 'success' && !isPaid;
+  useEffect(() => {
+    if (!settling) return;
+    let polls = 0;
+    const id = setInterval(() => {
+      refresh();
+      if (++polls >= 10) clearInterval(id);
+    }, 2000);
+    return () => clearInterval(id);
+  }, [settling, refresh]);
 
   return (
     <PageShell
@@ -51,7 +69,27 @@ export default function SubscriptionsScreen() {
         </ThemedText>
       </View>
 
-      <PlanComparison />
+      {checkout === 'success' ? (
+        <View style={styles.banner}>
+          <ThemedText type="smallBold" style={styles.bannerTitle}>
+            {isPaid ? 'Your plan is active. Welcome aboard!' : 'Payment received'}
+          </ThemedText>
+          {!isPaid ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              Your purchase unlocks in a moment — this page checks automatically.
+            </ThemedText>
+          ) : null}
+        </View>
+      ) : checkout === 'cancelled' ? (
+        <View style={styles.banner}>
+          <ThemedText type="small" themeColor="textSecondary">
+            Checkout cancelled — nothing was charged.
+          </ThemedText>
+        </View>
+      ) : null}
+
+      {/* Remount on tier flip so the table's own entitlement read (Current plan tag) refreshes. */}
+      <PlanComparison key={`plans-${isPaid}`} />
 
       {/* ── one-time product ─────────────────────────── */}
       <View style={styles.oneTime}>
@@ -74,7 +112,7 @@ export default function SubscriptionsScreen() {
           <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
             Your plan
           </ThemedText>
-          <PlanUsageSection />
+          <PlanUsageSection key={`usage-${isPaid}`} />
         </View>
       ) : null}
 
@@ -118,6 +156,20 @@ const styles = StyleSheet.create({
   },
   h1: { textAlign: 'center' },
   lede: { lineHeight: 22, textAlign: 'center' },
+  banner: {
+    width: '100%',
+    maxWidth: MaxContentWidth,
+    alignSelf: 'center',
+    borderRadius: Radius.control,
+    borderWidth: 1,
+    borderColor: Palette.accent,
+    backgroundColor: Palette.selectionSoft,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    marginBottom: Spacing.four,
+    gap: 2,
+  },
+  bannerTitle: { color: Palette.link },
   prose: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center' },
   oneTime: {
     width: '100%',

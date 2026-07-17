@@ -15,6 +15,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   hasFullPrint as computeFullPrint,
   hasTcgscanPro as computeTcgscanPro,
+  isActive,
   limitsForTier,
   resolveTier,
   type EntitlementRow,
@@ -29,6 +30,7 @@ interface TierState {
   tier: Tier;
   hasFullPrint: boolean;
   hasTcgscanPro: boolean;
+  products: string[];
 }
 
 export interface UseTier {
@@ -40,6 +42,8 @@ export interface UseTier {
   isPaid: boolean;
   /** CROSS-APP: holds an active TCGScan Pro grant (unlocks scan-powered features). */
   hasTcgscanPro: boolean;
+  /** ACTIVE product keys, for direct checks (e.g. the per-binder `pdf_binder:<id>` unlock). */
+  products: string[];
   /** True while the first query for the current identity is still in flight. */
   loading: boolean;
   refresh: () => void;
@@ -77,6 +81,7 @@ export function useTier(): UseTier {
           tier,
           hasFullPrint: computeFullPrint(tier, rows, now),
           hasTcgscanPro: computeTcgscanPro(rows, now),
+          products: rows.filter((r) => isActive(r, now)).map((r) => r.product),
         });
       });
     return () => {
@@ -93,6 +98,7 @@ export function useTier(): UseTier {
     hasFullPrint: known ? state!.hasFullPrint : false,
     isPaid: tier === 'pro' || tier === 'vip',
     hasTcgscanPro: known ? state!.hasTcgscanPro : false,
+    products: known ? state!.products : [],
     loading: !!supabase && isSignedIn && !!user && !known,
     refresh,
   };

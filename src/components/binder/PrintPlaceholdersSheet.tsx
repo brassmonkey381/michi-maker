@@ -19,8 +19,10 @@ import { sheet } from '@/constants/ui';
 import type { DemoBinder } from '@/data/binderTypes';
 import { fetchUserCards } from '@/data/collectionRepo';
 import { createWebArtLoader } from '@/data/fillSheetArt';
+import { startCheckout } from '@/data/checkout';
 import { buildPlaceholderPdf, collectFillTiles } from '@/data/placeholderPdf';
 import { recordPrintEvent } from '@/data/printRepo';
+import { BINDER_PDF_LOOKUP_KEY, CHECKOUT_OPEN } from '@/data/subscriptions';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useTier } from '@/hooks/use-tier';
 import { useAuth } from '@/store/auth';
@@ -36,11 +38,14 @@ export function PrintPlaceholdersSheet({
   onDone?: (sheets: number) => void;
 }) {
   const { catalog, guestGated, loading } = useCatalog(true);
-  // Full print comes with PRO/VIP, or a one-time pdf_print unlock (grandfathered — existing
-  // holders keep it forever). The counts preview stays free as the teaser.
-  const { hasFullPrint: unlocked, loading: entLoading } = useTier();
+  // Full print comes with PRO/VIP, a one-time pdf_print unlock (grandfathered — existing
+  // holders keep it forever), or this binder's own $3.99 one-time purchase. The counts
+  // preview stays free as the teaser.
+  const { hasFullPrint, products, loading: entLoading } = useTier();
+  const unlocked = hasFullPrint || products.includes(`pdf_binder:${binder.id}`);
   const { isSignedIn } = useAuth();
   const [busy, setBusy] = useState(false);
+  const [buying, setBuying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Cards the user owns (My collection) — owned placeholders print green when the toggle is
@@ -207,8 +212,33 @@ export function PrintPlaceholdersSheet({
                   <View style={styles.center}>
                     <ActivityIndicator />
                   </View>
+                ) : CHECKOUT_OPEN ? (
+                  <View style={styles.lockedBox}>
+                    <ThemedText type="smallBold">Printing is a paid feature</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
+                      Fill-sheet PDFs come with a PRO or VIP plan. Or unlock just this binder
+                      once for $3.99, yours forever.
+                    </ThemedText>
+                    <Pressable
+                      onPress={() => {
+                        if (buying) return;
+                        setBuying(true);
+                        setError(null);
+                        startCheckout(BINDER_PDF_LOOKUP_KEY, { binderId: binder.id })
+                          .catch((e) => setError((e as Error).message))
+                          .finally(() => setBuying(false));
+                      }}
+                      disabled={buying}
+                      style={({ pressed }) => [styles.btn, (pressed || buying) && styles.dim]}>
+                      {buying ? (
+                        <ActivityIndicator color={Palette.accentText} />
+                      ) : (
+                        <Text style={styles.btnText}>Unlock this binder · $3.99</Text>
+                      )}
+                    </Pressable>
+                  </View>
                 ) : (
-                  // No dead purchase button while checkout isn't wired — an honest note instead.
+                  // No dead purchase button while checkout isn't open — an honest note instead.
                   <View style={styles.lockedBox}>
                     <ThemedText type="smallBold">Printing is a paid feature</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>

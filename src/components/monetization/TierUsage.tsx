@@ -15,6 +15,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing } from '@/constants/theme';
+import { openBillingPortal } from '@/data/checkout';
 import { fetchEntitlementDetails } from '@/data/entitlementRepo';
 import { countPrintsThisMonth } from '@/data/printRepo';
 import { countLiveSavedSlices } from '@/data/sliceRepo';
@@ -109,6 +110,7 @@ export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }
   const [artCount, setArtCount] = useState<number | null>(null);
   const [printCount, setPrintCount] = useState<number | null>(null);
   const [details, setDetails] = useState<PlanDetails | null>(null);
+  const [portalNote, setPortalNote] = useState<string | null>(null);
   const isGuest = tier === 'guest';
   const memberSinceIso = user?.created_at;
   useEffect(() => {
@@ -240,6 +242,25 @@ export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }
           </ThemedText>
         </>
       )}
+
+      {/* Stripe Customer Portal: cancel, switch plans, payment method, invoices. Only offered
+          once checkout is open AND the user actually has billing history to manage. */}
+      {CHECKOUT_OPEN && (tier === 'pro' || tier === 'vip') ? (
+        <ThemedText
+          type="linkPrimary"
+          style={styles.manage}
+          onPress={() => {
+            setPortalNote('Opening the billing portal…');
+            openBillingPortal().catch((e) => setPortalNote((e as Error).message));
+          }}>
+          Manage billing ›
+        </ThemedText>
+      ) : null}
+      {portalNote ? (
+        <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
+          {portalNote}
+        </ThemedText>
+      ) : null}
 
       {onManagePlan ? (
         <ThemedText type="linkPrimary" style={styles.manage} onPress={onManagePlan}>

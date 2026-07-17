@@ -64,11 +64,12 @@ export function AutoFlipBinder({
     const pages = binder.pages ?? [];
     let built: DemoPage[][];
     if (spread) {
-      built = [];
-      for (let i = 0; i + 1 < pages.length && built.length < maxFrames; i += 2) {
+      // Real binder pagination (matches pageSide() physics): page 1 sits ALONE on the
+      // RIGHT of the rings — nothing faces it — then facing pairs 2-3, 4-5, …
+      built = pages.length ? [[pages[0]]] : [];
+      for (let i = 1; i + 1 < pages.length && built.length < maxFrames; i += 2) {
         built.push([pages[i], pages[i + 1]]);
       }
-      if (built.length === 0 && pages.length) built.push([pages[0]]);
     } else {
       built = pages.slice(0, maxFrames).map((p) => [p]);
     }
@@ -92,15 +93,21 @@ export function AutoFlipBinder({
       <View>
         {frames.map((frame, i) => (
           <Layer key={i} active={i === active} base={i === 0}>
-            {frame.length === 2 ? (
+            {spread ? (
+              // A 1-page spread frame keeps the rings and leaves the left side open —
+              // exactly how page 1 looks in a real binder.
               <View style={styles.spreadRow}>
-                <BinderGrid page={frame[0]} width={pageWidth} />
+                {frame.length === 2 ? (
+                  <BinderGrid page={frame[0]} width={pageWidth} />
+                ) : (
+                  <View style={{ width: pageWidth }} />
+                )}
                 <View style={styles.spine}>
                   {RINGS.map((r) => (
                     <View key={r} style={styles.ring} />
                   ))}
                 </View>
-                <BinderGrid page={frame[1]} width={pageWidth} />
+                <BinderGrid page={frame[frame.length - 1]} width={pageWidth} />
               </View>
             ) : (
               <BinderGrid page={frame[0]} width={pageWidth} />

@@ -12,7 +12,7 @@ import { Platform } from 'react-native';
 
 import { requireSupabase } from '@/lib/supabase';
 
-async function fetchStripeUrl(body: Record<string, string>): Promise<string> {
+async function fetchStripeUrl(body: Record<string, string | boolean>): Promise<string> {
   const supabase = requireSupabase();
   // Pass the session token EXPLICITLY. functions.invoke's ambient header injection silently
   // falls back to the publishable API key when getSession() comes up empty, which the server
@@ -56,13 +56,19 @@ function currentReturnUrl(): string {
   return 'https://www.michi-maker.com/subscriptions';
 }
 
-/** Launch Stripe Checkout for a catalog lookup_key (subscriptions or the one-time binder PDF). */
-export async function startCheckout(lookupKey: string, opts?: { binderId?: string }): Promise<void> {
+/** Launch Stripe Checkout for a catalog lookup_key (subscriptions or the one-time binder PDF).
+ *  `bundle: true` asks for the cross-app bundle discount — the server verifies the caller
+ *  actually owns the sibling Pro before applying the coupon (see docs/SYNERGY.md). */
+export async function startCheckout(
+  lookupKey: string,
+  opts?: { binderId?: string; bundle?: boolean },
+): Promise<void> {
   const url = await fetchStripeUrl({
     action: 'checkout',
     lookupKey,
     returnUrl: currentReturnUrl(),
     ...(opts?.binderId ? { binderId: opts.binderId } : {}),
+    ...(opts?.bundle ? { bundle: true } : {}),
   });
   if (Platform.OS === 'web') window.location.assign(url);
 }

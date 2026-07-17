@@ -26,11 +26,14 @@ const cryptoProvider = Stripe.createSubtleCryptoProvider();
 const service = () =>
   createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
-/** Our subscription price lookup_keys map onto the entitlement tier products. */
+/** Our subscription price lookup_keys map onto the entitlement products. `tcgscan_pro` is the
+ *  CROSS-APP subscription (sold by either app, read by both — see docs/SYNERGY.md); it is NOT a
+ *  michi tier, so the PRO↔VIP sibling hygiene below must never touch it. */
 function tierProductFromLookupKey(lookupKey: string | null | undefined): string | null {
   if (!lookupKey) return null;
   if (lookupKey.startsWith('michi_vip')) return 'tier_vip';
   if (lookupKey.startsWith('michi_pro')) return 'tier_pro';
+  if (lookupKey.startsWith('tcgscan_pro')) return 'tcgscan_pro';
   return null;
 }
 
@@ -102,15 +105,18 @@ async function upsertSubscriptionGrant(sub: Stripe.Subscription) {
   );
 
   // Plan switch hygiene: upgrading PRO→VIP (or down) must not leave the other Stripe-sourced
-  // tier row alive past now. Manual/lifetime grants are never touched.
-  const sibling = product === 'tier_vip' ? 'tier_pro' : 'tier_vip';
-  await db
-    .from('entitlements')
-    .update({ expires_at: new Date().toISOString() })
-    .eq('user_id', userId)
-    .eq('product', sibling)
-    .eq('source', 'stripe')
-    .gt('expires_at', new Date().toISOString());
+  // tier row alive past now. Manual/lifetime grants are never touched — and neither is the
+  // cross-app `tcgscan_pro` (an independent subscription, not a michi tier).
+  if (product === 'tier_pro' || product === 'tier_vip') {
+    const sibling = product === 'tier_vip' ? 'tier_pro' : 'tier_vip';
+    await db
+      .from('entitlements')
+      .update({ expires_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .eq('product', sibling)
+      .eq('source', 'stripe')
+      .gt('expires_at', new Date().toISOString());
+  }
 
   await recordCustomer(userId, typeof sub.customer === 'string' ? sub.customer : sub.customer?.id);
 }

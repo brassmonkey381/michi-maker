@@ -30,6 +30,7 @@ import { BuildBinderSheet } from '@/components/BuildBinderSheet';
 import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { HomeSection } from '@/components/HomeSection';
 import { ImportCsvSheet } from '@/components/ImportCsvSheet';
+import { TcgscanLink } from '@/components/monetization/BundleOffer';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
@@ -115,8 +116,8 @@ function EmptyCollection({ onToast }: { onToast?: (message: string) => void }) {
     <HomeSection title="My collection">
       <View style={styles.emptyRow}>
         <ThemedText type="small" themeColor="textSecondary" style={styles.emptyRowText}>
-          Scan cards with tcgscan, or import a CSV (TCGPlayer collection exports work) to start
-          your collection.
+          Scan cards with <TcgscanLink label="tcgscan" />, or import a CSV (TCGPlayer collection
+          exports work) to start your collection.
         </ThemedText>
         <Pressable
           onPress={() => setImportOpen(true)}
@@ -478,7 +479,7 @@ function CollectionStrip({
           </ThemedText>
         ) : portfolioGroups.length === 0 ? (
           <ThemedText type="small" themeColor="textSecondary" style={styles.emptyNote}>
-            No portfolios yet. Collections you make in tcgscan appear here.
+            No portfolios yet. Collections you make in <TcgscanLink label="tcgscan" /> appear here.
           </ThemedText>
         ) : (
           portfolioGroups.map((g) => (

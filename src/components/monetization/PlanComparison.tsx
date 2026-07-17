@@ -14,7 +14,7 @@
  * launches later).
  */
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FontSize, Palette, Radius, Shadows, Spacing, Weight } from '@/constants/theme';
 import { startCheckout } from '@/data/checkout';
@@ -194,6 +194,14 @@ export function PlanComparison() {
         {FOOTNOTES.map((f) => (
           <Text key={f.mark} style={styles.footnote}>
             <Text style={styles.mark}>{f.mark}</Text> {f.text}
+            {f.link ? (
+              <Text
+                style={styles.footnoteLink}
+                onPress={() => void Linking.openURL(f.link!.url).catch(() => {})}>
+                {' '}
+                {f.link.label}
+              </Text>
+            ) : null}
           </Text>
         ))}
       </View>
@@ -343,4 +351,5 @@ const styles = StyleSheet.create({
   /* footnotes */
   footnotes: { gap: Spacing.one, marginTop: Spacing.three, maxWidth: 720 },
   footnote: { fontSize: FontSize.sm, color: Palette.muted, lineHeight: 18 },
+  footnoteLink: { color: Palette.accent, fontWeight: Weight.semibold },
 });

@@ -25,21 +25,36 @@ const CORS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-/** Catalog lookup keys this function will sell — anything else is rejected. */
+/** Catalog lookup keys this function will sell — anything else is rejected. Spans BOTH apps
+ *  (they share this project + the entitlements ledger): michi sells the tcgscan keys in its
+ *  bundle cross-sell and vice-versa. See docs/SYNERGY.md. */
 const SELLABLE = new Set([
   'michi_pro_monthly',
   'michi_pro_yearly',
   'michi_vip_monthly',
   'michi_vip_yearly',
   'michi_binder_pdf',
+  'tcgscan_pro_monthly',
+  'tcgscan_pro_yearly',
 ]);
 
-/** Origins checkout may return to (success/cancel URLs are validated against these). */
+/** Origins checkout may return to (success/cancel URLs are validated against these).
+ *  Includes the sibling app — tcgscan launches checkouts against this same function. */
 const ALLOWED_RETURN_ORIGINS = new Set([
   'https://www.michi-maker.com',
   'https://michi-maker.com',
+  'https://www.idontgitit.com',
+  'https://idontgitit.com',
   'http://localhost:8081',
 ]);
+
+/** The sibling products whose ACTIVE ownership qualifies a lookup key for the bundle discount:
+ *  own a michi tier → discounted TCGScan Pro; own TCGScan Pro → discounted michi tier. */
+function bundleSiblingsFor(lookupKey: string): string[] | null {
+  if (lookupKey.startsWith('tcgscan_pro')) return ['tier_pro', 'tier_vip'];
+  if (lookupKey.startsWith('michi_pro') || lookupKey.startsWith('michi_vip')) return ['tcgscan_pro'];
+  return null; // one-time products have no bundle
+}
 
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -89,7 +104,13 @@ Deno.serve(async (req: Request) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   );
 
-  let body: { action?: string; lookupKey?: string; returnUrl?: string; binderId?: string };
+  let body: {
+    action?: string;
+    lookupKey?: string;
+    returnUrl?: string;
+    binderId?: string;
+    bundle?: boolean;
+  };
   try {
     body = await req.json();
   } catch {
@@ -139,6 +160,27 @@ Deno.serve(async (req: Request) => {
     .eq('user_id', user.id)
     .maybeSingle();
 
+  // Cross-app BUNDLE discount — verified SERVER-SIDE (a client claiming bundle:true gets the
+  // coupon only if it actually owns an active sibling Pro; see docs/SYNERGY.md). Stripe rejects
+  // `discounts` together with `allow_promotion_codes`, so a bundle checkout gives up promo codes.
+  let discounts: { coupon: string }[] | undefined;
+  if (body.bundle === true) {
+    const coupon = Deno.env.get('STRIPE_BUNDLE_COUPON');
+    const siblings = bundleSiblingsFor(lookupKey);
+    if (coupon && siblings) {
+      const { data: rows } = await service
+        .from('entitlements')
+        .select('product, expires_at')
+        .eq('user_id', user.id)
+        .in('product', siblings);
+      const now = Date.now();
+      const qualifies = (rows ?? []).some(
+        (r) => !r.expires_at || Date.parse(r.expires_at as string) > now,
+      );
+      if (qualifies) discounts = [{ coupon }];
+    }
+  }
+
   const success = new URL(returnUrl);
   success.searchParams.set('checkout', 'success');
   const cancel = new URL(returnUrl);
@@ -165,7 +207,7 @@ Deno.serve(async (req: Request) => {
     },
     success_url: success.toString(),
     cancel_url: cancel.toString(),
-    allow_promotion_codes: true,
+    ...(discounts ? { discounts } : { allow_promotion_codes: true }),
   });
 
   return json(200, { url: session.url });

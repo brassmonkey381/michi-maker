@@ -89,6 +89,24 @@ lookup keys and `metadata.michi_product`, never raw price ids):
 | `michi_vip_monthly` | $9.99/mo | michi-maker VIP (`tier_vip`) |
 | `michi_vip_yearly` | $99.99/yr | michi-maker VIP (`tier_vip`) |
 | `michi_binder_pdf` | $3.99 one-time | Full-binder fill-sheet PDF (`pdf_binder`) |
+| `tcgscan_pro_monthly` | TBD/mo | **CROSS-APP** TCGScan Pro (`tcgscan_pro`) — needs creating |
+| `tcgscan_pro_yearly` | TBD/yr | **CROSS-APP** TCGScan Pro (`tcgscan_pro`) — needs creating |
+
+### Cross-app bundle (code is live; two dashboard steps remain)
+
+`stripe-checkout` sells BOTH apps' products and applies a server-verified **bundle discount**
+(`bundle: true` in the request): owning an active michi tier discounts TCGScan Pro and vice-versa
+(`bundleSiblingsFor`). The webhook grants `tcgscan_pro` from its lookup keys and never lets the
+PRO↔VIP sibling hygiene touch it. Surfaces: michi `BundleOffer` (Settings + post-checkout upsell
+on /subscriptions), tcgscan `ProPerk`/`BundleOffer` (Settings + Home). To finish:
+
+1. **Create the TCGScan Pro product** (Test mode): metadata `michi_product=tcgscan_pro`, two
+   recurring prices with lookup keys `tcgscan_pro_monthly` / `tcgscan_pro_yearly`.
+2. **Create the bundle coupon** (percent-off, e.g. 30%) and set it:
+   `supabase secrets set STRIPE_BUNDLE_COUPON=<coupon id>`.
+
+Until both exist, a bundle CTA fails gracefully ("price not found in this Stripe mode" /
+no discount applied).
 
 ## Wiring Stripe (build checklist)
 

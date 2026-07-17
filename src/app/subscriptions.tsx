@@ -10,6 +10,7 @@ import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { PageShell } from '@/components/layout/PageShell';
+import { BundleOffer } from '@/components/monetization/BundleOffer';
 import { PlanComparison } from '@/components/monetization/PlanComparison';
 import { PlanUsageSection } from '@/components/monetization/TierUsage';
 import { ThemedText } from '@/components/themed-text';
@@ -79,6 +80,9 @@ export default function SubscriptionsScreen() {
               Your purchase unlocks in a moment — this page checks automatically.
             </ThemedText>
           ) : null}
+          {/* POST-CHECKOUT BUNDLE UPSELL — a fresh member who lacks TCGScan Pro is offered the
+              discounted add-on right here (BundleOffer self-gates: paid + no tcgscan_pro). */}
+          <BundleOffer />
         </View>
       ) : checkout === 'cancelled' ? (
         <View style={styles.banner}>

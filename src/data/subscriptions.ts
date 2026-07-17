@@ -64,6 +64,13 @@ export const PLAN_HEADERS: PlanHeader[] = [
 /** Lookup key for the one-time full-binder PDF (payment mode; needs a binderId). */
 export const BINDER_PDF_LOOKUP_KEY = 'michi_binder_pdf';
 
+/** CROSS-APP: TCGScan Pro's yearly lookup key — sold from michi in the bundle cross-sell (the
+ *  grant lands in the shared entitlements ledger both apps read; see docs/SYNERGY.md). */
+export const TCGSCAN_PRO_LOOKUP_KEY = 'tcgscan_pro_yearly';
+
+/** The sibling app's landing page — EVERY user-facing TCGScan mention links here. */
+export const TCGSCAN_URL = 'https://idontgitit.com/welcome';
+
 export interface CompareCell {
   text: string;
   /** Small second line under the value. */
@@ -154,7 +161,7 @@ export const COMPARISON: CompareRow[] = [
   },
 ];
 
-export const FOOTNOTES: { mark: string; text: string }[] = [
+export const FOOTNOTES: { mark: string; text: string; link?: { label: string; url: string } }[] = [
   {
     mark: '*',
     text: 'First in line for print extras: VIP members get new print features first as they ship, like new sheet formats and print-on-demand, plus member pricing on print-on-demand orders.',
@@ -166,6 +173,7 @@ export const FOOTNOTES: { mark: string; text: string }[] = [
   {
     mark: '‡',
     text: 'Included at every tier. For best-in-class inventory tracking across your portfolios, set analytics, and historical price history, see our partner app TCGScan - your collection syncs straight into michi-maker.',
+    link: { label: 'Meet TCGScan →', url: 'https://idontgitit.com/welcome' },
   },
 ];
 

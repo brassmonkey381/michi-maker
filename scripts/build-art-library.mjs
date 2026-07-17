@@ -10,15 +10,20 @@
  * cdn.artofpkm.com with a non-expiring signature — that's what we store.
  *
  * Output: src/data/artofpkm.json — compact entries {i: artworkId, t: title, b: blobSig,
- * f: filename, p: [[species, dex], …], c: [characters…]}. Re-run any time to refresh
- * (rate-limited; ~3 requests/second).
+ * f: filename, p: [[species, dex], …], c: [characters…], a?: illustrator, s?: original source
+ * URL}. Re-run any time to refresh (rate-limited; ~3 requests/second). This crawls ARTWORK
+ * (/artwork), never cards — it's the hand-drawn art gallery the studio pulls from.
  *
- *   node scripts/build-art-library.mjs [pages]   // default 12 listing pages (~480 artworks)
+ * The listing runs to ~287 pages; the loop stops early on the first empty page, so the default
+ * covers the whole gallery. Pass a smaller number for a quick partial refresh.
+ *
+ *   node scripts/build-art-library.mjs          // full crawl (stops at the last real page)
+ *   node scripts/build-art-library.mjs 12       // just the 12 most-recent listing pages
  */
 import { writeFileSync } from 'node:fs';
 
 const BASE = 'https://www.artofpkm.com';
-const PAGES = Number(process.argv[2] ?? 12);
+const PAGES = Number(process.argv[2] ?? 300); // > the ~287 real pages; the empty-page break stops it
 const DELAY_MS = 300;
 const HEADERS = { 'User-Agent': 'michi-maker.com art library builder (brassmonkey381@gmail.com)' };
 

@@ -20,6 +20,7 @@ interface LibraryEntry {
   f: string; // original filename
   p: [string, number][]; // tagged [species, dex]
   c: string[]; // tagged characters (trainers etc.)
+  a?: string; // illustrator (present after the library is rebuilt with artist capture)
 }
 
 const ENTRIES = (library as unknown as { entries: LibraryEntry[] }).entries ?? [];
@@ -93,6 +94,13 @@ function toAsset(e: LibraryEntry, aspect: ArtAspect): ArtworkAsset {
     sourceDomain: 'artofpkm.com',
     license: `Official Pokémon artwork, via ${pageUrl(e)}`,
     licenseClear: false,
+    // Provenance stamped on the slot at placement: the artwork page always; the illustrator
+    // once the library is rebuilt with artist capture (build-art-library.mjs).
+    attribution: {
+      sourceName: 'The Art of Pokémon',
+      sourceUrl: pageUrl(e),
+      ...(e.a ? { artist: e.a } : {}),
+    },
   };
 }
 

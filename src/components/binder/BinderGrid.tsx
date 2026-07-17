@@ -13,7 +13,7 @@ import Animated, {
 
 import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { BinderSurface, FontSize, Palette, Radii, Radius, Shadows, SlotBackingFallback, Weight } from '@/constants/theme';
-import { artAttribution } from '@/data/artworkLibrary';
+import { attributionLabel, deriveAttribution, type ArtAttribution } from '@/data/artworkLibrary';
 import { resolveCardWith, resolveCatalogCardWith } from '@/data/cardResolver';
 import { formatCaption, type CaptionFieldKey } from '@/data/cardCaption';
 import { occupiedCells, type DemoCard, type DemoPage, type DemoSlot } from '@/data/binderTypes';
@@ -302,6 +302,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               <ArtCaption
                 key={`art-cap-${slot.id}`}
                 url={slot.imageUrl}
+                attribution={slot.attribution}
                 left={b.left}
                 top={b.top + b.height}
                 width={b.width}
@@ -868,9 +869,12 @@ function SlotCaption({
   );
 }
 
-/** The attribution strip beneath a custom artwork panel — mirrors SlotCaption's styling. */
+/** The attribution strip beneath a custom artwork panel — mirrors SlotCaption's styling. Shows
+ *  the illustrator when the slot's stored attribution carries one ("art · suyari · The Art of
+ *  Pokémon"); otherwise derives what the source URL reveals. */
 function ArtCaption({
   url,
+  attribution,
   left,
   top,
   width,
@@ -878,6 +882,7 @@ function ArtCaption({
   small,
 }: {
   url: string;
+  attribution?: ArtAttribution;
   left: number;
   top: number;
   width: number;
@@ -888,7 +893,7 @@ function ArtCaption({
     <View pointerEvents="none" style={[styles.caption, { left, top, width, height }]}>
       <View style={styles.captionPill}>
         <Text numberOfLines={2} style={[styles.captionText, small && styles.captionTextSmall]}>
-          {`art · ${artAttribution(url)}`}
+          {`art · ${attributionLabel(deriveAttribution(url, attribution))}`}
         </Text>
       </View>
     </View>

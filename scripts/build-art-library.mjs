@@ -100,6 +100,13 @@ function parseDetail(id, html) {
     characters.push(name);
   }
 
+  // Illustrator credit — artofpkm links the artist via /artists/<id> (or /illustrators/<id>).
+  // Take the first such linked name as the primary credit.
+  let artist = '';
+  const artistMatch =
+    html.match(/<a[^>]*href="\/(?:artists|illustrators)\/[^"]+"[^>]*>([\s\S]*?)<\/a>/) ?? null;
+  if (artistMatch) artist = stripTags(artistMatch[1]).trim();
+
   if (species.length === 0 && characters.length === 0 && !title) return null;
   return {
     i: Number(id),
@@ -108,6 +115,7 @@ function parseDetail(id, html) {
     f: decodeURIComponent(main[2]),
     p: species,
     c: characters,
+    ...(artist ? { a: artist } : {}),
   };
 }
 

@@ -7,6 +7,7 @@
  * between these shapes and the database rows.
  */
 
+import type { ArtAttribution } from '@/data/artworkLibrary';
 import type { BinderSlotType, CardOrientation, MichiLayoutStyle } from '@/types/domain';
 
 export type { BinderSlotType, CardOrientation, MichiLayoutStyle };
@@ -75,6 +76,12 @@ export interface DemoSlot {
   imageFit?: 'cover' | 'contain';
   /** Rotation / mirror applied to `imageUrl` before the crop window. Absent ⇒ as-is. */
   imageTransform?: ImageTransform;
+  /**
+   * Provenance captured AT IMPORT for a custom artwork — the illustrator + specific source page
+   * a bare URL can't reveal (see ArtAttribution). Authoritative when present; rendering falls
+   * back to `deriveAttribution(imageUrl)` when it's absent (slots that predate this field).
+   */
+  attribution?: ArtAttribution;
   /**
    * True when this pocket was filled FROM the owner's card inventory ("My collection" /
    * fill-from-my-collection) — it consumes one owned copy in the (free/owned) accounting and

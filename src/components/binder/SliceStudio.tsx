@@ -17,8 +17,10 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { SignInPerk } from '@/components/auth/SignInPerk';
 import { ArtUploadButton } from '@/components/binder/ArtUploadButton';
 import { CardBrowse } from '@/components/binder/CardBrowse';
+import { UpgradePerk } from '@/components/monetization/UpgradePerk';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
@@ -203,9 +205,23 @@ interface SliceStudioProps {
   /** Save the studio's pieces to the slice tray (instead of placing them straight into the binder). */
   onSaveSlices: (slices: SavedSlice[]) => void;
   onClose: () => void;
+  /** Live tray size + the account's artwork cap (Infinity = uncapped) — gates Save slices. */
+  trayCount?: number;
+  trayLimit?: number;
+  /** Guests can't keep artworks (cap 0): show the sign-in note, never an upgrade pitch. */
+  guest?: boolean;
 }
 
-export function SliceStudio({ rows, cols, imageUrl: initUrl, onSaveSlices, onClose }: SliceStudioProps) {
+export function SliceStudio({
+  rows,
+  cols,
+  imageUrl: initUrl,
+  onSaveSlices,
+  onClose,
+  trayCount = 0,
+  trayLimit = Infinity,
+  guest = false,
+}: SliceStudioProps) {
   const { width, height } = useWindowDimensions();
 
   // The grid is fixed to the binder's page size (passed in); slicing across the page is the point,
@@ -639,6 +655,8 @@ export function SliceStudio({ rows, cols, imageUrl: initUrl, onSaveSlices, onClo
 
   const hasImage = Boolean(imageUrl);
   const selCount = selected.size;
+  // Saving would pass the account's artwork cap (a retention cap: slices KEPT, not a rate).
+  const wouldExceedTray = hasImage && panels.length > 0 && trayCount + panels.length > trayLimit;
 
   return (
     <Modal visible animationType="slide" onRequestClose={requestClose}>
@@ -656,8 +674,15 @@ export function SliceStudio({ rows, cols, imageUrl: initUrl, onSaveSlices, onClo
               style={styles.helpBtn}>
               <Text style={styles.helpBtnText}>?</Text>
             </Pressable>
-            <Pressable onPress={saveSlices} hitSlop={10} disabled={!hasImage || !panels.length}>
-              <View style={[styles.placeBtn, (!hasImage || !panels.length) && styles.disabled]}>
+            <Pressable
+              onPress={saveSlices}
+              hitSlop={10}
+              disabled={!hasImage || !panels.length || wouldExceedTray}>
+              <View
+                style={[
+                  styles.placeBtn,
+                  (!hasImage || !panels.length || wouldExceedTray) && styles.disabled,
+                ]}>
                 <Text style={styles.placeBtnText}>
                   Save slices{hasImage && panels.length ? ` (${panels.length})` : ''}
                 </Text>
@@ -665,6 +690,19 @@ export function SliceStudio({ rows, cols, imageUrl: initUrl, onSaveSlices, onClo
             </Pressable>
           </View>
         </View>
+
+        {wouldExceedTray ? (
+          <View style={styles.capNote}>
+            {guest ? (
+              <SignInPerk message="Slices save to your account's tray. Sign in (free) to keep them." />
+            ) : (
+              <UpgradePerk
+                message={`Your tray holds ${trayCount} of ${trayLimit} artworks. Saving ${panels.length} more needs a bigger plan.`}
+                onBeforePress={onClose}
+              />
+            )}
+          </View>
+        ) : null}
 
         <ScrollView contentContainerStyle={styles.scroll}>
           {/* Source — one calm row. Everything here is about GETTING an image in. */}
@@ -1004,6 +1042,7 @@ const styles = StyleSheet.create({
   },
   headerAction: { fontSize: FontSize.md, fontWeight: Weight.semibold, color: Palette.ink2 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  capNote: { paddingHorizontal: 16, paddingTop: 12 },
   primary: { color: Palette.accent },
   disabled: { opacity: 0.4 },
   helpBtn: {

@@ -17,9 +17,12 @@ export function UpgradePerk({
   message,
   /** Button label — defaults to "Upgrade". */
   cta = 'Upgrade',
+  /** Runs before navigating (e.g. close a covering modal so /plans is actually visible). */
+  onBeforePress,
 }: {
   message: string;
   cta?: string;
+  onBeforePress?: () => void;
 }) {
   const router = useRouter();
   return (
@@ -29,7 +32,10 @@ export function UpgradePerk({
           {message}
         </ThemedText>
         <Pressable
-          onPress={() => router.push('/plans')}
+          onPress={() => {
+            onBeforePress?.();
+            router.push('/plans');
+          }}
           hitSlop={6}
           style={({ pressed }) => [styles.btn, pressed && styles.pressed]}>
           <ThemedText type="smallBold" style={styles.btnText}>

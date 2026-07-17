@@ -45,7 +45,7 @@ import type { ComposePlacement } from '@/data/pageComposer';
 import { isSupabaseConfigured } from '@/lib/env';
 import { footprintForKind } from '@/data/cardSizing';
 import { resolveCard } from '@/data/cardResolver';
-import { addSavedSlices, removeSavedSlice, sliceSignature, slotSignature, useSavedSlicesSync, type SavedSlice } from '@/data/savedSlices';
+import { addSavedSlices, removeSavedSlice, sliceSignature, slotSignature, useSavedSlices, useSavedSlicesSync, type SavedSlice } from '@/data/savedSlices';
 import { SliceTray, SliceThumb } from '@/components/binder/SliceTray';
 import type { CatalogCard } from '@/lib/catalog';
 import { isBlankPage, useBinders } from '@/store/binders';
@@ -89,6 +89,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const { width } = useWindowDimensions();
   // Keep the saved-slice tray synced to the current (guest or signed-in) user while editing.
   useSavedSlicesSync();
+  // Live tray size — the artUploads cap is a retention cap on slices KEPT in the account.
+  const traySlices = useSavedSlices();
   const [editing, setEditing] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
   const [pickerCell, setPickerCell] = useState<{ row: number; col: number } | null>(null);
@@ -1159,11 +1161,23 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
             cols={page.cols}
             imageUrl={studio.imageUrl}
             onSaveSlices={(slices) => {
+              // The studio disables Save past the cap; this is the belt-and-braces guard.
+              if (traySlices.length + slices.length > store.limits.artUploads) {
+                showToast(
+                  store.tier === 'guest'
+                    ? 'Slices save to your account. Sign in (free) to keep them.'
+                    : `Saving ${slices.length} more would pass your ${store.limits.artUploads}-artwork limit. Upgrade for more room.`,
+                );
+                return;
+              }
               addSavedSlices(slices);
               setStudio(null);
               showToast(`Saved ${slices.length} slice${slices.length === 1 ? '' : 's'} to your tray`);
             }}
             onClose={() => setStudio(null)}
+            trayCount={traySlices.length}
+            trayLimit={store.limits.artUploads}
+            guest={store.tier === 'guest'}
           />
         )}
 

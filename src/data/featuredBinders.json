@@ -919,7 +919,7 @@
       },
       {
         "id": "ex-ideas-in-flight_p3",
-        "title": "Page 5",
+        "title": ":O",
         "rows": 3,
         "cols": 3,
         "slots": [
@@ -1006,7 +1006,8 @@
       },
       {
         "id": "ex-ideas-in-flight_p4",
-        "title": "Page 3",
+        "title": "Golden Future",
+        "description": "Futuristic shiny gold items and the shiny gold cities that they would come from.",
         "rows": 3,
         "cols": 3,
         "slots": [
@@ -1095,7 +1096,8 @@
       },
       {
         "id": "ex-ideas-in-flight_p5",
-        "title": "Page 7",
+        "title": "Black and Blue",
+        "description": "Beautiful black and blue themed full arts",
         "rows": 3,
         "cols": 3,
         "slots": [
@@ -1184,7 +1186,8 @@
       },
       {
         "id": "ex-ideas-in-flight_p6",
-        "title": "Page 8",
+        "title": "Apples Sensei",
+        "description": "Throh, surrounded by apples and cherries, he looks like the black-belt master of round red fruity things.",
         "rows": 3,
         "cols": 3,
         "slots": [
@@ -1273,7 +1276,8 @@
       },
       {
         "id": "ex-ideas-in-flight_p7",
-        "title": "Page 9",
+        "title": "Boss's Orders",
+        "description": "Tribute to the Boss's Orders card.  Looks like Giovanni is calling the shots.",
         "rows": 3,
         "cols": 3,
         "slots": [
@@ -1376,7 +1380,8 @@
       },
       {
         "id": "ex-ideas-in-flight_p8",
-        "title": "Page 10",
+        "title": "Houndoom's Dream",
+        "description": "Houndoom howling up into the sky, creating a universe with sparking crobats, tyranitars, and dark energy.",
         "rows": 3,
         "cols": 3,
         "slots": [
@@ -1555,7 +1560,8 @@
       },
       {
         "id": "ex-ideas-in-flight_p10",
-        "title": "Page 12",
+        "title": "Misty's Pokemon",
+        "description": "Misty hanging out with some of her favorite water pokemon.",
         "rows": 3,
         "cols": 3,
         "slots": [
@@ -1698,7 +1704,7 @@
       {
         "id": "ex-pitch-black-chase_p0",
         "title": "The Chase",
-        "description": "Some of the chase cards in this set for me.",
+        "description": "Some of the chase cards in this set for me, along with artist renderings of their SIRs up top.",
         "rows": 3,
         "cols": 3,
         "slots": [
@@ -1808,7 +1814,8 @@
       },
       {
         "id": "ex-pitch-black-chase_p1",
-        "title": "Page 5",
+        "title": "Mega Morpoko",
+        "description": "The two full art (Special) Illustration Rares in ME: Pitch Black, unleashing some energy.",
         "rows": 3,
         "cols": 3,
         "slots": [
@@ -1946,6 +1953,8 @@
       },
       {
         "id": "ex-pitch-black-chase_p2",
+        "title": "Boom",
+        "description": "Mega Exadrill and crushing hammer smash into the fire crystal to blow up the ground and reveal Rampardos.",
         "rows": 3,
         "cols": 3,
         "slots": [
@@ -1956,7 +1965,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704861"
+            "cardId": "704857"
           },
           {
             "id": "ex-pitch-black-chase_p2_r0c1",
@@ -1983,7 +1992,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704857"
+            "cardId": "704861"
           },
           {
             "id": "ex-pitch-black-chase_p2_r1c1",
@@ -2062,7 +2071,8 @@
       },
       {
         "id": "ex-pitch-black-chase_p3",
-        "title": "Page 6",
+        "title": "Lurantis",
+        "description": "Lurantis Secret Illustration Rare featured center, surrounded by other set's variations of her.",
         "rows": 3,
         "cols": 3,
         "slots": [
@@ -2151,6 +2161,8 @@
       },
       {
         "id": "ex-pitch-black-chase_p4",
+        "title": "Syndicate Tooling",
+        "description": "Gladion and Syndicate grunts featured with their new full-art items.  other printings of the items featured below.",
         "rows": 3,
         "cols": 3,
         "slots": [
@@ -2239,7 +2251,8 @@
       },
       {
         "id": "ex-pitch-black-chase_p5",
-        "title": "Page 4",
+        "title": "Boom, a Love Story",
+        "description": "Gwynn seen triggering a Tremendous (LOVE) Bomb, which catches Gladion and Misty in the blast.",
         "rows": 3,
         "cols": 3,
         "slots": [

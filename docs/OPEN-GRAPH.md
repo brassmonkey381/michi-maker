@@ -18,10 +18,13 @@ tags. Humans keep hitting the untouched SPA.
   RLS-gated to public rows) and previews its title, description, and a **composed image
   of its fullest page** (see `og-image-binder.js`).
 - **`api/og-image-binder.js`** — an Edge function (`@vercel/og` / Satori) that renders
-  the binder's fullest page as a 1200×630 image, so a shared link unfurls as the actual
-  page rather than a single card. No text → no font dependency; card art uses the flat
-  JPEG tier (resvg rasterises JPEG/PNG reliably, WebP not always). On any error it
-  redirects to the cover card, so a share always has an image.
+  the binder as a 1200×630 image: an **open two-page spread** (the two fullest pages, with
+  a ringed spine) when the binder has 2+ card pages, else a single page. No text → no font
+  dependency. **Card art** comes from the lite `images.json` manifest (the hosted buckets
+  key images by content hash, so a URL is not constructible from a card id); it resolves the
+  `image` field, the full-size **JPEG** — Satori rasterises JPEG/PNG but not WebP, and the
+  245/640 thumb tiers are WebP. On any error (or no resolvable art) it redirects to the
+  cover image, so a share always has something.
 - **`api/og-profile.js`** — previews a public profile's `@username` with their avatar,
   or the cover of their first public binder.
 - **`api/og-michi.js`** — static preview for the Michi Method page.

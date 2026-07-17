@@ -614,9 +614,10 @@ export function PrintPlaceholdersSheet({
                   </View>
                 ) : null}
 
-                {/* Free teaser — a short example PDF (example cards + art), never the user's binder.
-                    Hidden for payers: they've seen real output (edited state offers the archive). */}
-                {!hasFullPrint && !purchased && !entLoading && catalog && store.exampleBinders.length > 0 ? (
+                {/* Example PDF — a short sample sheet (example cards + art). Available to
+                    everyone: non-payers see the format before buying, payers use it to test
+                    printer scale without spending a credit. */}
+                {catalog && store.exampleBinders.length > 0 ? (
                   <Pressable
                     onPress={downloadExample}
                     disabled={exBusy}

@@ -177,6 +177,16 @@ export async function fetchUserBinders(ownerId: string): Promise<DemoBinder[]> {
  * so this resolves for a shared link without a session. Returns null when the binder
  * doesn't exist or isn't visible to the caller (private + not owner).
  */
+/** Just the titles for a set of binder ids (RLS-visible ones: own + public). Missing ids are
+ *  genuinely gone (deleted) or private to someone else — callers phrase that honestly. */
+export async function fetchBinderTitles(ids: string[]): Promise<Map<string, string>> {
+  if (ids.length === 0) return new Map();
+  const supabase = requireSupabase();
+  const { data, error } = await supabase.from('binders').select('id, title').in('id', ids);
+  if (error) throw error;
+  return new Map((data ?? []).map((r) => [r.id as string, (r.title as string) ?? 'Untitled binder']));
+}
+
 export async function fetchBinder(id: string): Promise<DemoBinder | null> {
   const supabase = requireSupabase();
   const { data, error } = await supabase

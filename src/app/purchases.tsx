@@ -18,6 +18,7 @@ import { Linking, StyleSheet, View } from 'react-native';
 import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, MaxContentWidth, Palette, Radius, Spacing } from '@/constants/theme';
+import { fetchBinderTitles } from '@/data/binderRepo';
 import { fetchPurchaseHistory, openBillingPortal, type PurchasePayment } from '@/data/checkout';
 import { fetchEntitlementDetails } from '@/data/entitlementRepo';
 import {
@@ -29,7 +30,6 @@ import { fetchPrintEvents } from '@/data/printRepo';
 import { CHECKOUT_OPEN } from '@/data/subscriptions';
 import { useTier } from '@/hooks/use-tier';
 import { useAuth } from '@/store/auth';
-import { useBinders } from '@/store/binders';
 
 /** Product keys → human names for the grants section. */
 function grantName(product: string): string {
@@ -142,7 +142,6 @@ export default function PurchasesScreen() {
   const router = useRouter();
   const { isSignedIn } = useAuth();
   const { isPaid } = useTier();
-  const store = useBinders();
 
   const [payments, setPayments] = useState<Row[] | null>(null);
   const [paymentsFailed, setPaymentsFailed] = useState(false);
@@ -155,39 +154,64 @@ export default function PurchasesScreen() {
   const [pdfBusy, setPdfBusy] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
 
+  // Binder titles resolved SERVER-SIDE (RLS: own + public binders) — the local store races
+  // this page's mount and mislabeled real binders as deleted. Missing ids are genuinely gone.
+  const [titles, setTitles] = useState<Map<string, string>>(new Map());
   const binderTitle = (id: string | null) => {
     if (!id) return undefined;
-    const b = store.binders.find((x) => x.id === id);
-    return b ? `“${b.title}”` : 'a since-deleted binder';
+    const t = titles.get(id);
+    return t ? `“${t}”` : 'a binder that is no longer available';
   };
 
   useEffect(() => {
     if (!isSignedIn) return;
     let live = true;
-    fetchPurchaseHistory()
-      .then((list: PurchasePayment[]) => {
-        if (!live) return;
+    (async () => {
+      const [pay, ent, pv, pe] = await Promise.allSettled([
+        fetchPurchaseHistory(),
+        fetchEntitlementDetails(),
+        fetchAllPurchasedVersions(),
+        fetchPrintEvents(),
+      ]);
+      if (!live) return;
+
+      // Resolve every referenced binder title in one query before building rows.
+      const ids = new Set<string>();
+      if (pay.status === 'fulfilled') pay.value.forEach((p) => p.binderId && ids.add(p.binderId));
+      if (ent.status === 'fulfilled')
+        ent.value.forEach((r) => {
+          if (r.product.startsWith('pdf_binder:')) ids.add(r.product.slice('pdf_binder:'.length));
+        });
+      if (pv.status === 'fulfilled') pv.value.forEach((v) => ids.add(v.binderId));
+      if (pe.status === 'fulfilled') pe.value.forEach((r) => r.binderId && ids.add(r.binderId));
+      const titleMap = await fetchBinderTitles([...ids]).catch(() => new Map<string, string>());
+      if (!live) return;
+      setTitles(titleMap);
+      const named = (id: string | null) => {
+        if (!id) return undefined;
+        const t = titleMap.get(id);
+        return t ? `“${t}”` : 'a binder that is no longer available';
+      };
+
+      if (pay.status === 'fulfilled') {
         setPayments(
-          list.map((p) => ({
+          pay.value.map((p: PurchasePayment) => ({
             key: p.id,
             when: fmtDateTime(p.createdAt),
             title: p.description,
-            detail: [p.binderId ? binderTitle(p.binderId) : undefined, p.status !== 'paid' ? p.status : undefined]
-              .filter(Boolean)
-              .join(' · ') || undefined,
+            detail:
+              [named(p.binderId), p.status !== 'paid' ? p.status : undefined]
+                .filter(Boolean)
+                .join(' · ') || undefined,
             amount: fmtAmount(p.amount, p.currency),
             receiptUrl: p.receiptUrl,
           })),
         );
-      })
-      .catch(() => {
-        if (live) setPaymentsFailed(true);
-      });
-    fetchEntitlementDetails()
-      .then((rows) => {
-        if (!live) return;
+      } else setPaymentsFailed(true);
+
+      if (ent.status === 'fulfilled') {
         setGrants(
-          rows
+          ent.value
             .slice()
             .sort((a, b) => Date.parse(b.grantedAt ?? '') - Date.parse(a.grantedAt ?? ''))
             .map((r, i) => ({
@@ -196,7 +220,7 @@ export default function PurchasesScreen() {
               title: grantName(r.product),
               detail: [
                 r.product.startsWith('pdf_binder:')
-                  ? binderTitle(r.product.slice('pdf_binder:'.length))
+                  ? named(r.product.slice('pdf_binder:'.length))
                   : undefined,
                 r.source === 'manual' ? 'granted directly (beta)' : r.source ? `via ${r.source}` : undefined,
                 r.expiresAt ? `runs through ${fmtDateTime(r.expiresAt)}` : 'lifetime',
@@ -205,42 +229,30 @@ export default function PurchasesScreen() {
                 .join(' · '),
             })),
         );
-      })
-      .catch(() => {
-        if (live) setGrantsFailed(true);
-      });
-    fetchAllPurchasedVersions()
-      .then((rows) => {
-        if (live) setPdfs(rows);
-      })
-      .catch(() => {
-        if (live) setPdfsFailed(true);
-      });
-    fetchPrintEvents()
-      .then((rows) => {
-        if (!live) return;
+      } else setGrantsFailed(true);
+
+      if (pv.status === 'fulfilled') setPdfs(pv.value);
+      else setPdfsFailed(true);
+
+      if (pe.status === 'fulfilled') {
         setPrints(
-          rows.map((r, i) => ({
+          pe.value.map((r, i) => ({
             key: `${r.createdAt}-${i}`,
             when: fmtDateTime(r.createdAt),
             title: 'Included print used',
             detail: [
-              binderTitle(r.binderId),
+              named(r.binderId),
               r.sheets != null ? `${r.sheets} sheet${r.sheets === 1 ? '' : 's'}` : undefined,
             ]
               .filter(Boolean)
               .join(' · '),
           })),
         );
-      })
-      .catch(() => {
-        if (live) setPrintsFailed(true);
-      });
+      } else setPrintsFailed(true);
+    })();
     return () => {
       live = false;
     };
-    // binderTitle reads the store snapshot; re-running on every binder edit would refetch Stripe.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSignedIn]);
 
   return (

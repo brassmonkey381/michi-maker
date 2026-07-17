@@ -94,7 +94,7 @@ const VALUE_PROPS = [
   },
   {
     title: 'From screen to shelf',
-    body: 'Print cut-ready fill sheets at true card size, 2.5″ × 3.5″ edge to edge, so every cut is shared and the page you composed drops straight into real pockets. Most tools print undersized; we don’t.',
+    body: 'Print cut-ready fill sheets at true card size, 2.5″ × 3.5″ edge to edge, so every cut is shared and the page you composed drops straight into real pockets.',
   },
 ] as const;
 
@@ -121,7 +121,7 @@ const FEATURES = [
   },
   {
     title: 'Share your pages',
-    body: 'Publish binders at a permanent @username, collect likes, and climb the rolling featured leaderboard. Anyone can flip through, no account needed.',
+    body: 'Publish binders at a permanent @username, collect likes, and make it to the featured homepage section. Anyone can flip through, no account needed.',
   },
 ] as const;
 
@@ -353,7 +353,7 @@ export default function WelcomeScreen() {
                         <AutoFlipBinder binder={binder} pageWidth={galleryPageW} autoFlip={false} />
                         <ThemedText style={styles.galleryTitle}>{binder.title}</ThemedText>
                         <ThemedText type="small" themeColor="textSecondary">
-                          Open · flip · duplicate
+                          Click to open!
                         </ThemedText>
                       </Pressable>
                     </HoverLift>

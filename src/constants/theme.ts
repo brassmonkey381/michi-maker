@@ -7,7 +7,7 @@ import '@/global.css';
 
 import { Platform } from 'react-native';
 
-import { activeVariant } from '@/constants/variants';
+import { activePalette, activeVariant } from '@/constants/variants';
 
 /**
  * Scheme-aware colour roles for the ACTIVE theme variation (see
@@ -28,18 +28,23 @@ export const Fonts = Platform.select({
     rounded: 'ui-rounded',
     /** iOS `UIFontDescriptorSystemDesignMonospaced` */
     mono: 'ui-monospace',
+    /** Brand display face — marquee headings only (wordmark, binder titles). Serif on native. */
+    brand: 'ui-serif',
   },
   default: {
     sans: 'normal',
     serif: 'serif',
     rounded: 'normal',
     mono: 'monospace',
+    brand: 'serif',
   },
   web: {
     sans: 'var(--font-display)',
     serif: 'var(--font-serif)',
     rounded: 'var(--font-rounded)',
     mono: 'var(--font-mono)',
+    /** Fraunces (global.css), matching the landing page's headings. */
+    brand: 'var(--font-brand)',
   },
 });
 
@@ -54,6 +59,11 @@ export const Spacing = {
 } as const;
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
+/**
+ * Responsive breakpoints (px). `rail` gates the wide-web left nav rail (matches the editor and
+ * spread's existing 900 threshold); `hero` is the landing page's open-spread width.
+ */
+export const Breakpoints = { rail: 900, hero: 1180 } as const;
 /** Readable column for prose and forms (descriptions, empty states, auth). Text wider than
  *  this gets hard to read, so it stays capped even inside a wide shell. */
 export const MaxContentWidth = 800;
@@ -115,7 +125,9 @@ export const SlotBackingFallback = activeVariant.slotBacking;
  * per-component branching.
  * ─────────────────────────────────────────────────────────────────────────
  */
-export const Palette = activeVariant.palette;
+// Scheme-resolved at module load: dark schemes get the variant's `paletteDark` overrides
+// (surfaces, ink ramp, hairlines) so palette-styled chrome is readable in dark mode.
+export const Palette = activePalette;
 
 export const Radius = activeVariant.radius;
 

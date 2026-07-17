@@ -49,7 +49,7 @@ export function CaptionControls({
       </View>
 
       {enabled && guestGated ? (
-        <SignInPerk message="Card labels read live card data — sign in (free) to see set, rarity, price and more under each card." />
+        <SignInPerk message="Card labels read live card data. Sign in (free) to see set, rarity, price and more under each card." />
       ) : enabled ? (
         <View style={styles.fieldRow}>
           {CAPTION_FIELDS.map((f) => {

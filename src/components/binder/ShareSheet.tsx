@@ -65,8 +65,8 @@ export function ShareSheet({
                 <ThemedText type="smallBold">Anyone with the link</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
                   {isPublic
-                    ? 'Public — anyone with the link can view this binder.'
-                    : 'Private — only you can see it.'}
+                    ? 'Public: anyone with the link can view this binder.'
+                    : 'Private: only you can see it.'}
                 </ThemedText>
               </View>
               <Switch value={isPublic} onValueChange={onSetPublic} trackColor={{ true: Palette.accent, false: theme.backgroundSelected }} />

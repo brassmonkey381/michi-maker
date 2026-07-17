@@ -6,6 +6,8 @@
  * spanning two pockets is physically inserted by folding it down the middle and sliding one
  * half into each pocket of such a pair — so 2-wide pieces only work AT those pairs:
  *
+ *  - 2-column pages (small 4-pocket binders): ONE pair — the whole row (col 1, col 2),
+ *    symmetric, same both sides.
  *  - 3-column pages: ONE pair — the two pockets FURTHEST from the binder spine
  *    (outer + middle). Which columns those are depends on the page's side of the spine.
  *  - 4-column pages: TWO pairs — (col 1, col 2) and (col 3, col 4), symmetric, same both sides.
@@ -15,13 +17,14 @@
  * Page side follows the double-sided pairing in BinderPages: page 1 (index 0) is the cover
  * face on the RIGHT of the spine, then indices 1·2 face each other (1 = left, 2 = right), etc.
  *
- * Real page grids: 3×3, 3×4 and 4×4 exist; 4 rows × 3 columns does not.
+ * Real page grids: 2×2, 3×3, 3×4 and 4×4 exist; 4 rows × 3 columns does not.
  */
 
 export type PageSide = 'left' | 'right';
 
 /** Real side-load page grids (rows × cols). 4×3 pages don't exist physically. */
 export const REAL_PAGE_SIZES: { label: string; rows: number; cols: number }[] = [
+  { label: '2×2', rows: 2, cols: 2 },
   { label: '3×3', rows: 3, cols: 3 },
   { label: '3×4', rows: 3, cols: 4 },
   { label: '4×4', rows: 4, cols: 4 },
@@ -38,6 +41,8 @@ export function pageSide(pageIndex: number): PageSide {
  * On a RIGHT page the spine is at the left, so "furthest from the spine" = the rightmost two.
  */
 export function insideEdgePairStarts(cols: number, side: PageSide): number[] {
+  // 2-col pages: the row IS a pair — both pockets open along the same edge, either side.
+  if (cols === 2) return [0];
   if (cols === 3) return side === 'right' ? [1] : [0];
   if (cols === 4) return [0, 2];
   return [];
@@ -57,13 +62,13 @@ export function artPieceAllowed(
   if (rowSpan > 1) {
     return {
       ok: false,
-      reason: 'Side-load pockets only open sideways — an art piece can’t span rows. Use sliced pieces instead.',
+      reason: 'Side-load pockets only open sideways, so an art piece can’t span rows. Use sliced pieces instead.',
     };
   }
   if (colSpan > 2) {
     return {
       ok: false,
-      reason: 'An art piece can be at most 2 pockets wide — one fold, one pocket pair.',
+      reason: 'An art piece can be at most 2 pockets wide: one fold, one pocket pair.',
     };
   }
   if (colSpan === 2 && !insideEdgePairStarts(pageCols, side).includes(col)) {
@@ -72,10 +77,30 @@ export function artPieceAllowed(
       .join(' or ');
     return {
       ok: false,
-      reason: `A folded 2-wide piece only fits a pocket pair that opens along the same inside edge — columns ${pairs} on this page.`,
+      reason: `A folded 2-wide piece only fits a pocket pair that opens along the same inside edge: columns ${pairs} on this page.`,
     };
   }
   return { ok: true, reason: null };
+}
+
+/**
+ * The side of the spine a page MUST sit on, dictated by its content — or null when either side
+ * works. Only one thing pins a page today: a folded 1×2 art piece on a 3-column page, which can
+ * only slide into the inside-edge pocket pair — column 0 on a left page, column 1 on a right
+ * page (insideEdgePairStarts). 4-column pages have symmetric pairs, so they're never pinned.
+ *
+ * Structural page edits (duplicate/delete/reorder) shift page indices and therefore sides; the
+ * store re-checks every page against this and inserts blank spacer pages where a pinned page
+ * would land on the wrong side.
+ */
+export function requiredPageSide(page: {
+  cols: number;
+  slots: { type: string; col: number; rowSpan: number; colSpan: number }[];
+}): PageSide | null {
+  if (page.cols !== 3) return null;
+  const fold = page.slots.find((s) => s.type === 'artwork' && s.rowSpan === 1 && s.colSpan === 2);
+  if (!fold) return null;
+  return fold.col === 0 ? 'left' : 'right';
 }
 
 /**

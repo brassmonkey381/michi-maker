@@ -19,12 +19,17 @@ export type Tier = 'guest' | 'free' | 'pro' | 'vip';
  * is plain text (no CHECK), so adding a product is a code change here, not a migration.
  */
 export const PRODUCTS = {
-  /** One-time LIFETIME full-print unlock. GRANDFATHERED — existing holders keep it forever. */
-  pdfPrint: 'pdf_print',
   /** PRO subscription (entitlements.expires_at set per billing period). */
   tierPro: 'tier_pro',
   /** VIP subscription (entitlements.expires_at set per billing period). */
   tierVip: 'tier_vip',
+  /**
+   * CROSS-APP: TCGScan Pro. Sold by the sibling app (tcgscan / tcgscan.ai) but written to
+   * this SAME shared `entitlements` ledger, so michi can read it to unlock scan-powered features
+   * here (e.g. "Build a binder from your collection"). See docs/SYNERGY.md. michi never sells or
+   * resolves a *tier* from it — it's a feature key checked directly via `hasTcgscanPro`.
+   */
+  tcgscanPro: 'tcgscan_pro',
 } as const;
 
 /** One entitlement row as the client reads it (owner-scoped by RLS). */
@@ -35,62 +40,83 @@ export interface EntitlementRow {
 }
 
 /**
- * MASTER SWITCH for the free-tier CAPS (binder/page counts, composer quota, uploads…).
+ * MASTER SWITCH for the free-tier CAPS (binder/page counts, uploads…).
  *
- * `false` = permissive: every limit reads as unlimited, so nothing new restricts existing
- * users. Flip to `true` only once pricing/checkout is live and the owner has signed off on the
- * numbers below. This flag does NOT touch the print unlock — that gate is already live and only
- * ever *adds* access (PRO/VIP + grandfathered pdf_print), it never takes any away.
+ * ENV-DRIVEN like CHECKOUT_OPEN: off = permissive (every limit reads as unlimited, nothing
+ * restricts existing users). EXPO_PUBLIC_LIMITS_ENFORCED=1 in .env.local enforces locally for
+ * gate testing; set it in the Vercel env at go-live (owner signed off on the numbers
+ * 2026-07-17). This flag does NOT touch the print gate — printing your own binders is included
+ * with a PRO/VIP subscription or bought per-binder; this switch never changes that.
  */
-export const LIMITS_ENFORCED = false;
+export const LIMITS_ENFORCED = process.env.EXPO_PUBLIC_LIMITS_ENFORCED === '1';
 
 /** Per-tier capability limits. `Infinity` = unlimited. */
 export interface TierLimits {
   /** Max user binders. */
   binders: number;
-  /** Max pages per binder. */
+  /** Max pages per binder (app pages — same unit the editor's + Page button adds). */
   pagesPerBinder: number;
-  /** ✨ Composer / auto-fill pages per calendar month (metering not built yet — see roadmap). */
+  /**
+   * ✨ Composer / auto-fill pages per calendar month. Owner decision 2026-07-16: similarity
+   * matching + composer methods are INCLUDED at every signed-in tier (no monthly quota) —
+   * PRO/VIP differentiate via UPGRADED composers when those ship, not via metering. Kept as a
+   * number in case a quota ever returns; 0 = no composer (guests, who lack catalog access).
+   */
   composerPagesPerMonth: number;
-  /** Uploaded art images retained. */
+  /** Uploaded art images KEPT in the account at a time (a retention cap, not a rate). */
   artUploads: number;
   /** Full fill-sheet / placeholder PDF export of any binder. */
   fullPrint: boolean;
+  /**
+   * Full-binder prints INCLUDED with the subscription each month (extra prints are the
+   * one-time per-binder purchase). Metering not built yet — until it is, `fullPrint` alone
+   * gates the Download button and included prints are effectively unlimited.
+   */
+  includedPrintsPerMonth: number;
 }
 
 /**
- * STRAWMAN numbers from docs/roadmap/MONETIZATION-TIERS.md. Tune here in one place; the app
- * never hardcodes *price* (that lives in the payment provider dashboard) — only these caps.
- * Kept behind LIMITS_ENFORCED so they don't bite until pricing is live.
+ * OWNER-SET numbers (2026-07-16 — see docs/roadmap/MONETIZATION-TIERS.md). Tune here in one
+ * place; the app never hardcodes *price* (that lives in the payment provider dashboard) — only
+ * these caps. Kept behind LIMITS_ENFORCED so they don't bite until pricing is live.
  */
 export const TIER_LIMITS: Record<Tier, TierLimits> = {
+  // Guest is NOT an advertised plan — a taste before the sign-in prompt (SignInPerk, not
+  // UpgradePerk): 1 binder, 6 pages (3 double-sided sheets).
   guest: {
-    binders: 3,
-    pagesPerBinder: 10,
+    binders: 1,
+    pagesPerBinder: 6,
     composerPagesPerMonth: 0,
     artUploads: 0,
     fullPrint: false,
+    includedPrintsPerMonth: 0,
   },
+  // 3 binders × 16 pages × 16 cards (4×4) = 768 ("over 750 cards").
   free: {
-    binders: 10,
-    pagesPerBinder: 20,
-    composerPagesPerMonth: 5,
-    artUploads: 20,
-    fullPrint: false,
-  },
-  pro: {
-    binders: 50,
-    pagesPerBinder: 50,
+    binders: 3,
+    pagesPerBinder: 16,
     composerPagesPerMonth: Infinity,
-    artUploads: 500,
-    fullPrint: true,
+    artUploads: 100,
+    fullPrint: false,
+    includedPrintsPerMonth: 0,
   },
+  // 12 binders × 40 pages × 16 cards = 7,680 ("over 7,500 cards"). $3.99/mo or $39.99/yr.
+  pro: {
+    binders: 12,
+    pagesPerBinder: 40,
+    composerPagesPerMonth: Infinity,
+    artUploads: 1000,
+    fullPrint: true,
+    includedPrintsPerMonth: 1,
+  },
+  // $9.99/mo or $99.99/yr.
   vip: {
     binders: Infinity,
     pagesPerBinder: Infinity,
     composerPagesPerMonth: Infinity,
     artUploads: Infinity,
     fullPrint: true,
+    includedPrintsPerMonth: 5,
   },
 };
 
@@ -101,6 +127,7 @@ const UNLIMITED: TierLimits = {
   composerPagesPerMonth: Infinity,
   artUploads: Infinity,
   fullPrint: false, // print eligibility is decided by tier/entitlement, not by this switch
+  includedPrintsPerMonth: Infinity,
 };
 
 /** Is a grant currently in effect? Lifetime rows (null expiry) always are. */
@@ -108,6 +135,19 @@ export function isActive(row: EntitlementRow, nowMs: number): boolean {
   if (!row.expires_at) return true;
   const end = Date.parse(row.expires_at);
   return Number.isNaN(end) ? true : end > nowMs;
+}
+
+/** Does the user hold an ACTIVE grant for `product`? (Direct product check, tier-independent.) */
+export function hasProduct(rows: EntitlementRow[], product: string, nowMs: number): boolean {
+  return rows.some((r) => r.product === product && isActive(r, nowMs));
+}
+
+/**
+ * CROSS-APP: does the user hold an active TCGScan Pro grant (bought in the sibling app, written
+ * to this shared ledger)? Gates scan-powered features here. See docs/SYNERGY.md.
+ */
+export function hasTcgscanPro(rows: EntitlementRow[], nowMs: number): boolean {
+  return hasProduct(rows, PRODUCTS.tcgscanPro, nowMs);
 }
 
 /**
@@ -126,13 +166,12 @@ export function resolveTier(
 }
 
 /**
- * Does the user get full print? PRO/VIP include it, and any active `pdf_print` unlock does too
- * (the grandfather clause — one-time buyers keep print forever even before tiers existed).
+ * Does the user get full print of their OWN binders? Included with a PRO/VIP subscription only.
+ * One-time prints are now per-binder purchases (`pdf_binder:<id>`), checked at the binder (see
+ * PrintPlaceholdersSheet), not here. Free users get a short example PDF, never their own binders.
  */
-export function hasFullPrint(tier: Tier, rows: EntitlementRow[], nowMs: number): boolean {
-  if (tier === 'guest') return false; // guests are never entitled, whatever rows say
-  if (tier === 'pro' || tier === 'vip') return true;
-  return rows.some((r) => r.product === PRODUCTS.pdfPrint && isActive(r, nowMs));
+export function hasFullPrint(tier: Tier): boolean {
+  return tier === 'pro' || tier === 'vip';
 }
 
 /** The active limits for a tier — permissive (all unlimited) while LIMITS_ENFORCED is off. */

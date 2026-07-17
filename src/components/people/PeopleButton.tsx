@@ -20,7 +20,7 @@ export function PeopleButton() {
         accessibilityLabel="Find people"
         hitSlop={8}
         style={({ pressed }) => [styles.btn, pressed && styles.pressed]}>
-        <ThemedText style={styles.icon}>👥</ThemedText>
+        <ThemedText style={styles.icon}>People</ThemedText>
       </Pressable>
       <PeopleSearch visible={open} onClose={() => setOpen(false)} />
     </>
@@ -30,5 +30,5 @@ export function PeopleButton() {
 const styles = StyleSheet.create({
   btn: { padding: Spacing.one },
   pressed: { opacity: 0.7 },
-  icon: { fontSize: FontSize.title, lineHeight: 28 },
+  icon: { fontSize: FontSize.control, fontWeight: '600', lineHeight: 28 },
 });

@@ -28,7 +28,7 @@ import { SlotMultiActions } from '@/components/binder/SlotMultiActions';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Palette, Radius, Spacing, Weight, FontSize } from '@/constants/theme';
+import { Fonts, Palette, Radius, Spacing, Weight, FontSize } from '@/constants/theme';
 import {
   firstFreePlacement,
   occupiedCells,
@@ -39,16 +39,16 @@ import {
   type DemoSlot,
 } from '@/data/binderTypes';
 import { fetchLikeCount } from '@/data/binderRepo';
-import { artPieceAllowed, insideEdgePairStarts, pageSide, REAL_PAGE_SIZES } from '@/data/binderPhysics';
+import { artPieceAllowed, pageSide, REAL_PAGE_SIZES } from '@/data/binderPhysics';
 import type { CaptionFieldKey } from '@/data/cardCaption';
 import type { ComposePlacement } from '@/data/pageComposer';
 import { isSupabaseConfigured } from '@/lib/env';
 import { footprintForKind } from '@/data/cardSizing';
 import { resolveCard } from '@/data/cardResolver';
-import { addSavedSlices, useSavedSlicesSync, type SavedSlice } from '@/data/savedSlices';
+import { addSavedSlices, removeSavedSlice, sliceSignature, slotSignature, useSavedSlicesSync, type SavedSlice } from '@/data/savedSlices';
 import { SliceTray, SliceThumb } from '@/components/binder/SliceTray';
 import type { CatalogCard } from '@/lib/catalog';
-import { useBinders } from '@/store/binders';
+import { isBlankPage, useBinders } from '@/store/binders';
 import { useTheme } from '@/hooks/use-theme';
 
 // Real side-load page grids only — 4 rows × 3 columns doesn't exist physically (binderPhysics).
@@ -228,30 +228,37 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     ? (page.slots.find((s) => s.row === pickerCell.row && s.col === pickerCell.col) ?? null)
     : null;
 
-  // The slice currently being placed (dragged wins over armed) and the pockets it may drop into.
+  // The slice currently being placed (dragged wins over armed) and the pockets it may drop
+  // into — computed for EVERY page in the visible spread (current + prev/next neighbours or the
+  // double-sided partner), so all reachable pockets light up, not just the active page's.
   const activeSlice = dragSlice ?? armedSlice;
-  const dropTargets = activeSlice ? computeDropTargets(activeSlice, page, idx) : undefined;
+  const sliceTargets = (pg: DemoPage | null, pgIndex: number) =>
+    activeSlice && pg ? computeDropTargets(activeSlice, pg, pgIndex) : undefined;
+  const dropTargets = sliceTargets(page, idx);
+  const prevDropTargets = sliceTargets(prevPage, idx - 1);
+  const nextDropTargets = sliceTargets(nextPage, idx + 1);
 
-  // Drop a saved slice into a pocket, re-checking side-load physics and occupancy (matches the
-  // highlighted targets). Placing keeps the slice in the tray, so it can fill more pockets.
-  const placeSliceAt = (slice: SavedSlice, row: number, col: number) => {
-    if (row + slice.rs > page.rows || col + slice.cs > page.cols) {
+  // Drop a saved slice into a pocket of any visible page, re-checking side-load physics and
+  // occupancy (matches the highlighted targets). Placing keeps the slice in the tray, so it can
+  // fill more pockets.
+  const placeSliceOnPage = (slice: SavedSlice, pg: DemoPage, pgIndex: number, row: number, col: number) => {
+    if (row + slice.rs > pg.rows || col + slice.cs > pg.cols) {
       showToast('That slice doesn’t fit there.');
       return;
     }
-    const verdict = artPieceAllowed(col, slice.rs, slice.cs, page.cols, pageSide(idx));
+    const verdict = artPieceAllowed(col, slice.rs, slice.cs, pg.cols, pageSide(pgIndex));
     if (!verdict.ok) {
       showToast(verdict.reason ?? 'That pocket doesn’t fit this slice.');
       return;
     }
-    const occupied = new Set(page.slots.flatMap((s) => slotCells(s)));
+    const occupied = new Set(pg.slots.flatMap((s) => slotCells(s)));
     for (let i = 0; i < slice.rs; i += 1)
       for (let j = 0; j < slice.cs; j += 1)
         if (occupied.has(`${row + i},${col + j}`)) {
           showToast('That pocket is already filled.');
           return;
         }
-    store.placeArtPanels(binder.id, page.id, row, col, [
+    store.placeArtPanels(binder.id, pg.id, row, col, [
       {
         r: 0,
         c: 0,
@@ -264,16 +271,59 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
       },
     ]);
   };
+  const placeSliceAt = (slice: SavedSlice, row: number, col: number) =>
+    placeSliceOnPage(slice, page, idx, row, col);
   const handleSliceDragStart = (slice: SavedSlice) => {
-    curRef.current?.remeasure(); // fresh grid bounds before the drop hit-test (scroll-safe)
+    // Fresh bounds for every visible grid before the drop hit-test (scroll-safe) — a tray slice
+    // can land on the neighbours too.
+    prevRef.current?.remeasure();
+    curRef.current?.remeasure();
+    nextRef.current?.remeasure();
     setArmedSlice(null);
     setDragSlice(slice);
   };
   const handleSliceDrop = (slice: SavedSlice, windowX: number, windowY: number) => {
     setDragSlice(null);
-    const cell = curRef.current?.hitTest(windowX, windowY);
-    if (cell) placeSliceAt(slice, cell.row, cell.col);
+    const hit = resolveSpreadHit(windowX, windowY);
+    if (!hit) return;
+    const pgIndex = binder.pages.findIndex((p) => p.id === hit.pageId);
+    if (pgIndex < 0) return;
+    placeSliceOnPage(slice, binder.pages[pgIndex], pgIndex, hit.row, hit.col);
   };
+  // Removing a tray slice also clears its placed copies everywhere (same content signature).
+  // If any exist, confirm first — this reaches into other binders, not just the open one.
+  const handleRemoveSlice = (slice: SavedSlice) => {
+    const sig = sliceSignature(slice);
+    const placed = store.userBinders.reduce(
+      (n, b) =>
+        n +
+        b.pages.reduce(
+          (m, p) =>
+            m +
+            p.slots.filter((s) => s.type === 'artwork' && !!s.imageUrl && slotSignature(s) === sig)
+              .length,
+          0,
+        ),
+      0,
+    );
+    if (placed === 0) {
+      removeSavedSlice(slice.id);
+      showToast('Slice removed from your tray', true);
+      return;
+    }
+    setConfirm({
+      title: 'Delete this slice?',
+      message: `This piece fills ${placed} pocket${placed === 1 ? '' : 's'} across your binders. Deleting it clears ${placed === 1 ? 'that pocket' : 'those pockets'} too.`,
+      confirmLabel: 'Delete slice',
+      destructive: true,
+      onConfirm: () => {
+        const cleared = store.removeArtworkBySignature(sig);
+        removeSavedSlice(slice.id);
+        showToast(`Slice deleted, ${cleared} pocket${cleared === 1 ? '' : 's'} cleared`, true);
+      },
+    });
+  };
+
   // Open the studio to cut a fresh set of slices — page-sized, not tied to a pocket.
   const openStudioForPage = () =>
     setStudio({ rows: page.rows, cols: page.cols, row: 0, col: 0, imageUrl: undefined });
@@ -287,6 +337,13 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     if (copy) onOpenBinder?.(copy.id);
   };
 
+  // Structural page edits re-space the binder with blank pages when folded 1×2 art would land
+  // on the wrong side of the spine (see binderPhysics.requiredPageSide) — say so in the toast.
+  const parityNote = (base: string, blanks: number | undefined) =>
+    blanks
+      ? `${base}. ${blanks > 1 ? 'Blank pages were' : 'A blank page was'} added so folded art stays on its pocket pairs.`
+      : base;
+
   // In-editor "Duplicate" clones the *current page* (right after it) and jumps to the copy.
   // Set the index directly (not via changePage, which would clamp against the stale page count
   // before the new page lands) — the render clamps `pageIndex` to bounds once it does.
@@ -295,7 +352,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     if (result) {
       setSelectedSlotId(null);
       setPageIndex(result.pageIndex);
-      showToast('Page duplicated');
+      showToast(parityNote('Page duplicated', result.blanksInserted));
     }
   };
 
@@ -678,6 +735,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
       return <BinderGrid page={p} width={width} editable={false} captionFields={captionFields} />;
     }
     if (role === 'prev' || role === 'next') {
+      const nIdx = role === 'prev' ? idx - 1 : idx + 1;
       return (
         <BinderGrid
           ref={role === 'prev' ? prevRef : nextRef}
@@ -685,6 +743,12 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           width={width}
           editable
           captionFields={captionFields}
+          // A tray slice reaches the neighbours too: show its legal pockets here, and let an
+          // armed slice tap-place onto them (drags resolve via resolveSpreadHit regardless).
+          dropTargets={role === 'prev' ? prevDropTargets : nextDropTargets}
+          {...(armedSlice
+            ? { onCellPress: (row: number, col: number) => placeSliceOnPage(armedSlice, p, nIdx, row, col) }
+            : {})}
           onCrossDrop={(slotId, x, y) => handleCrossDrop(p.id, slotId, x, y)}
           onDragStart={() => startColumnDrag(role === 'prev' ? 0 : 2)}
         />
@@ -704,7 +768,14 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           width={width}
           editable
           captionFields={captionFields}
+          // The facing page is a first-class drop surface for tray slices too.
+          dropTargets={isPrev ? prevDropTargets : nextDropTargets}
           onCellPress={(row, col) => {
+            // An armed tray slice places here directly — without stealing the page focus.
+            if (armedSlice) {
+              placeSliceOnPage(armedSlice, p, pIdx, row, col);
+              return;
+            }
             changePage(pIdx);
             setPickerCell({ row, col });
           }}
@@ -763,7 +834,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           onPress={() =>
             store.pageLimitReached(binder.id)
               ? showToast(
-                  `You’ve reached the ${store.limits.pagesPerBinder}-page limit — upgrade for more.`,
+                  `You’ve reached the ${store.limits.pagesPerBinder}-page limit. Upgrade for more.`,
                   true,
                 )
               : store.addPage(binder.id)
@@ -781,12 +852,37 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                 confirmLabel: 'Delete page',
                 destructive: true,
                 onConfirm: () => {
-                  store.removePage(binder.id, page.id);
+                  const result = store.removePage(binder.id, page.id);
                   changePage(0);
-                  showToast('Page deleted', true);
+                  showToast(parityNote('Page deleted', result?.blanksInserted), true);
                 },
               })
             }
+          />
+        )}
+        {binder.pages.some(isBlankPage) && (
+          <PillButton
+            label="Compact blanks"
+            onPress={() => {
+              const result = store.compactBlankPages(binder.id);
+              if (!result) return;
+              if (result.removed === 0) {
+                showToast(
+                  result.kept > 0
+                    ? 'Every blank page here keeps folded art on its pocket pairs.'
+                    : 'No blank pages to remove.',
+                );
+                return;
+              }
+              showToast(
+                `Removed ${result.removed} blank page${result.removed === 1 ? '' : 's'}${
+                  result.kept > 0
+                    ? `. ${result.kept === 1 ? 'One stays' : `${result.kept} stay`} to keep folded art aligned.`
+                    : ''
+                }`,
+                true,
+              );
+            }}
           />
         )}
       </View>
@@ -837,8 +933,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
             <ThemedText type="smallBold">Page visibility</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
               {(page.isPublic ?? true)
-                ? 'Public — shown to anyone viewing this binder.'
-                : 'Private — hidden from public viewers; only you see it.'}
+                ? 'Public: shown to anyone viewing this binder.'
+                : 'Private: hidden from public viewers; only you see it.'}
             </ThemedText>
           </View>
           <Switch
@@ -946,8 +1042,12 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               onReorderPages={
                 editing
                   ? (from, to) => {
-                      store.reorderPages(binder.id, from, to);
-                      changePage(to);
+                      const result = store.reorderPages(binder.id, from, to);
+                      // Follow the moved page to where it actually landed — a parity spacer can
+                      // shift it past the raw drop index.
+                      changePage(result ? result.pageIndex : to);
+                      if (result?.blanksInserted)
+                        showToast(parityNote('Pages reordered', result.blanksInserted));
                     }
                   : undefined
               }
@@ -1006,6 +1106,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               onArm={setArmedSlice}
               onDragStart={handleSliceDragStart}
               onDrop={handleSliceDrop}
+              onRemove={handleRemoveSlice}
               onNew={openStudioForPage}
               ghostOn={ghostOn}
               ghostX={ghostX}
@@ -1049,12 +1150,11 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
 
         {studio && (
           <SliceStudio
-            // The studio slices the WHOLE page now, so its grid is the binder's page size and its
-            // merge frame starts at column 0 — the page's inside-edge pocket pairs directly.
+            // The studio slices the WHOLE page, so its grid is the binder's page size. Merging is
+            // position-free in the studio; pocket-pair physics applies when a slice is placed.
             rows={page.rows}
             cols={page.cols}
             imageUrl={studio.imageUrl}
-            pairStarts={insideEdgePairStarts(page.cols, pageSide(pageIndex))}
             onSaveSlices={(slices) => {
               addSavedSlices(slices);
               setStudio(null);
@@ -1264,7 +1364,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.three,
   },
   pageVisText: { flex: 1, gap: 2 },
-  titleText: { flex: 1, textAlign: 'center', fontSize: FontSize.title, lineHeight: 28 },
+  titleText: { flex: 1, textAlign: 'center', fontFamily: Fonts?.brand, fontSize: FontSize.title, lineHeight: 28 },
   scroll: { paddingHorizontal: 16, paddingBottom: 48 },
   description: { marginTop: 10, textAlign: 'center', maxWidth: 640, alignSelf: 'center' },
   // Detail fields share one centred column (matches the edit-tools card) so the editable

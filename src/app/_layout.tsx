@@ -1,10 +1,11 @@
 import { DarkTheme, DefaultTheme, Slot, ThemeProvider } from 'expo-router';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { Platform, useColorScheme } from 'react-native';
+import { Platform, useColorScheme, View } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { UsernameGate } from '@/components/auth/UsernameGate';
+import { AppRail } from '@/components/nav/AppRail';
 import { AuthProvider } from '@/store/auth';
 import { BinderProvider } from '@/store/binders';
 
@@ -28,7 +29,14 @@ export default function TabLayout() {
         <AuthProvider>
           <BinderProvider>
             <AnimatedSplashOverlay />
-            <Slot />
+            {/* Site frame: the wide-web left rail beside the routed screen. On native (and on
+                narrow web / excluded routes) AppRail renders null and the row collapses. */}
+            <View style={{ flex: 1, flexDirection: 'row' }}>
+              <AppRail />
+              <View style={{ flex: 1 }}>
+                <Slot />
+              </View>
+            </View>
             {/* Blocks any real account with no @username yet — required, immutable, once per account. */}
             <UsernameGate />
           </BinderProvider>

@@ -15,13 +15,26 @@ active while `expires_at` is NULL or in the future.
 
 | product key | what it is / unlocks | notes |
 | ----------- | -------------------- | ----- |
-| `pdf_print` | One-time LIFETIME full-print unlock (fill sheets, any binder, forever) | **GRANDFATHERED** — existing holders keep it |
-| `tier_pro`  | PRO subscription — full print + higher limits | `expires_at` per period |
-| `tier_vip`  | VIP subscription — unlimited + priority | `expires_at` per period |
-| `pdf_sample`, `pdf_binder:<id>` | one-time sample / single-binder PDF | future |
+| `tier_pro`  | PRO subscription — full print (1 included print/mo) + higher limits | `expires_at` per period |
+| `tier_vip`  | VIP subscription — unlimited + 5 included prints/mo + priority | `expires_at` per period |
+| `pdf_binder:<id>` | one-time single-binder fill-sheet PDF ($3.99) — a **SNAPSHOT license**: the binder as it is when the purchase is spent (first download), re-downloadable forever; later edits need a new purchase | checked directly (`products.includes('pdf_binder:<id>')`); spend/fingerprint/archive in `src/data/pdfSnapshot.ts` + `binder_pdf_snapshots` + the `binder-pdfs` bucket; re-purchase re-arms via `granted_at` (webhook bumps it) |
+| `tcgscan_pro` | **CROSS-APP** — TCGScan Pro (sold by the sibling app). Unlocks scan-powered michi features (Build-a-binder-from-your-collection) + drives the bundle cross-sell | read via `hasTcgscanPro()`; michi never resolves a tier from it. See **docs/SYNERGY.md** |
 
-Full print (`PrintPlaceholdersSheet` Download) unlocks for PRO/VIP **or** an active `pdf_print`
-row. The counts preview stays free as the teaser; only the Download is behind the unlock.
+Printing your OWN binder (`PrintPlaceholdersSheet` Download) is a **PRO/VIP subscription** perk
+(subject to the monthly included-print allocation) **or** a per-binder one-time purchase
+(`pdf_binder:<id>`). There is **no lifetime all-binder unlock and no grandfathering** — prints are
+only subscriptions or per-binder purchases. Non-payers get the counts preview plus a **free short
+example PDF** (a bundled example binder's first page of example cards + artwork) — never their own
+binders.
+
+The per-binder purchase is a **snapshot license with version history**: the first download after
+buying records the binder's content fingerprint and archives those exact PDF bytes as a purchased
+VERSION (`binder_pdf_snapshots` row + `binder-pdfs` bucket, one archive per version). While the
+binder matches any purchased version the PDF can be regenerated freely; after an edit the print
+sheet lists **every purchased version for re-download (forever)** and printing the edited version
+requires buying the binder again (the webhook bumps `granted_at`, which re-arms the spend) or a
+plan. This is what stops edit → reprint → repeat turning one $3.99 unlock into unlimited prints,
+while multi-buy users keep a picker of everything they've paid for.
 
 ### Tier limits (caps) are behind a feature flag
 
@@ -41,9 +54,9 @@ Checkout isn't wired yet. To grant (or revoke) an unlock or a tier, run as servi
 -- look up a user id by email
 select id, email from auth.users where email = 'someone@example.com';
 
--- grant a lifetime unlock (pdf_print)
+-- grant a per-binder print unlock (one-time; product key carries the binder id)
 insert into public.entitlements (user_id, product, source)
-values ('<auth user id>', 'pdf_print', 'manual')
+values ('<auth user id>', 'pdf_binder:<binder id>', 'manual')
 on conflict (user_id, product) do nothing;
 
 -- grant a PRO tier for 1 month (subscriptions carry a term; NULL expires_at = lifetime)
@@ -58,9 +71,44 @@ delete from public.entitlements where user_id = '<auth user id>' and product = '
 The client re-checks per identity/mount (and `useTier().refresh()` re-polls), so a fresh grant
 shows up next time the user opens the gated surface — no deploy needed.
 
-## Wiring a payment provider (the open slot)
+## Provider: STRIPE (decided 2026-07-16, building in TEST MODE)
 
-When a provider is chosen (Stripe or Lemon Squeezy were the candidates):
+Account: `acct_1TtzOWH8KZaf7tNO` ("TCGScan"). Accepted integration plan (Stripe
+implementation planner, guide `iguide_61V3NTkB3BlVzjmQZ41H8KZaf7tNO`): Stripe-hosted
+**Checkout** (subscription mode for tiers, payment mode for the one-time PDF), no-code
+**Customer Portal** for manage/cancel/payment-method, **freemium** (no card-on-file trials),
+**Smart Retries** defaults for failed-payment recovery. No Elements, no custom payment UI.
+
+Test-mode catalog (recreate the same lookup_keys in live mode before launch — code references
+lookup keys and `metadata.michi_product`, never raw price ids):
+
+| lookup_key | price | product (metadata.michi_product) |
+| --- | --- | --- |
+| `michi_pro_monthly` | $3.99/mo | michi-maker PRO (`tier_pro`) |
+| `michi_pro_yearly` | $39.99/yr | michi-maker PRO (`tier_pro`) |
+| `michi_vip_monthly` | $9.99/mo | michi-maker VIP (`tier_vip`) |
+| `michi_vip_yearly` | $99.99/yr | michi-maker VIP (`tier_vip`) |
+| `michi_binder_pdf` | $3.99 one-time | Full-binder fill-sheet PDF (`pdf_binder`) |
+| `tcgscan_pro_monthly` | TBD/mo | **CROSS-APP** TCGScan Pro (`tcgscan_pro`) — needs creating |
+| `tcgscan_pro_yearly` | TBD/yr | **CROSS-APP** TCGScan Pro (`tcgscan_pro`) — needs creating |
+
+### Cross-app bundle (code is live; two dashboard steps remain)
+
+`stripe-checkout` sells BOTH apps' products and applies a server-verified **bundle discount**
+(`bundle: true` in the request): owning an active michi tier discounts TCGScan Pro and vice-versa
+(`bundleSiblingsFor`). The webhook grants `tcgscan_pro` from its lookup keys and never lets the
+PRO↔VIP sibling hygiene touch it. Surfaces: michi `BundleOffer` (Settings + post-checkout upsell
+on /subscriptions), tcgscan `ProPerk`/`BundleOffer` (Settings + Home). To finish:
+
+1. **Create the TCGScan Pro product** (Test mode): metadata `michi_product=tcgscan_pro`, two
+   recurring prices with lookup keys `tcgscan_pro_monthly` / `tcgscan_pro_yearly`.
+2. **Create the bundle coupon** (percent-off, e.g. 30%) and set it:
+   `supabase secrets set STRIPE_BUNDLE_COUPON=<coupon id>`.
+
+Until both exist, a bundle CTA fails gracefully ("price not found in this Stripe mode" /
+no discount applied).
+
+## Wiring Stripe (build checklist)
 
 1. **Checkout**: hosted checkout page, launched from the locked box in
    `PrintPlaceholdersSheet` (replace the "purchases aren't open yet" note with a Buy button).
@@ -68,7 +116,7 @@ When a provider is chosen (Stripe or Lemon Squeezy were the candidates):
    `checkout[custom][user_id]`.
 2. **Webhook edge function** (`supabase/functions/payments-webhook`): verify the provider
    signature, then **with the service role client** upsert the entitlement.
-   - one-time (`pdf_print`): `insert … values (:uid, 'pdf_print', :source) on conflict do nothing`.
+   - one-time per-binder (`pdf_binder:<id>`): `insert … values (:uid, 'pdf_binder:'||:binderId, :source) on conflict do nothing`.
    - subscription (`tier_pro`/`tier_vip`): on activation/renewal **upsert `expires_at`** to the
      period end (`on conflict (user_id, product) do update set expires_at = excluded.expires_at`);
      on cancellation either delete the row or set `expires_at` to the term end (it lapses on its own).

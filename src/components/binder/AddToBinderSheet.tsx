@@ -56,7 +56,7 @@ export function AddToBinderSheet({
             ))}
             {binders.length === 0 ? (
               <ThemedText type="small" themeColor="textSecondary" style={styles.empty}>
-                You don’t have any binders yet — “New binder” starts one with this card.
+                You don’t have any binders yet. “New binder” starts one with this card.
               </ThemedText>
             ) : null}
           </ScrollView>

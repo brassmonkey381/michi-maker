@@ -99,6 +99,33 @@ export type Database = {
           },
         ]
       }
+      binder_pdf_snapshots: {
+        Row: {
+          binder_id: string
+          fingerprint: string
+          pdf_path: string | null
+          sheets: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          binder_id: string
+          fingerprint: string
+          pdf_path?: string | null
+          sheets?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          binder_id?: string
+          fingerprint?: string
+          pdf_path?: string | null
+          sheets?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       binder_slots: {
         Row: {
           card_id: string | null
@@ -257,6 +284,30 @@ export type Database = {
         }
         Relationships: []
       }
+      print_events: {
+        Row: {
+          binder_id: string | null
+          created_at: string
+          id: string
+          sheets: number | null
+          user_id: string
+        }
+        Insert: {
+          binder_id?: string | null
+          created_at?: string
+          id?: string
+          sheets?: number | null
+          user_id?: string
+        }
+        Update: {
+          binder_id?: string | null
+          created_at?: string
+          id?: string
+          sheets?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       portfolio_entries: {
         Row: {
           added_at: string
@@ -368,6 +419,7 @@ export type Database = {
           created_at: string
           crop: Json | null
           cs: number
+          deleted_at: string | null
           fit: string
           group_id: string | null
           id: string
@@ -381,6 +433,7 @@ export type Database = {
           created_at?: string
           crop?: Json | null
           cs?: number
+          deleted_at?: string | null
           fit?: string
           group_id?: string | null
           id?: string
@@ -394,6 +447,7 @@ export type Database = {
           created_at?: string
           crop?: Json | null
           cs?: number
+          deleted_at?: string | null
           fit?: string
           group_id?: string | null
           id?: string

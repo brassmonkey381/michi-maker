@@ -27,7 +27,8 @@ import {
 } from 'react';
 
 import * as repo from '@/data/binderRepo';
-import { legalizeArtPanels, pageSide } from '@/data/binderPhysics';
+import { slotSignature } from '@/data/savedSlices';
+import { legalizeArtPanels, pageSide, requiredPageSide } from '@/data/binderPhysics';
 import {
   canPlaceSlot,
   cloneBinder,
@@ -50,6 +51,38 @@ import { useAuth } from '@/store/auth';
 
 const CLOUD = isSupabaseConfigured;
 const HISTORY_LIMIT = 50;
+
+/**
+ * A page with nothing on it and nothing typed on it — what the parity pass inserts as a spacer,
+ * and the only thing "Compact blanks" will remove (a titled or described empty page is a page
+ * the user is keeping on purpose).
+ */
+export function isBlankPage(page: DemoPage): boolean {
+  return page.slots.length === 0 && !page.title && !page.description;
+}
+
+/**
+ * Insert blank spacer pages so every side-pinned page (binderPhysics.requiredPageSide — a page
+ * holding a folded 1×2 art piece on a 3-column grid) sits on the side of the spine its art
+ * demands. Binders are double-sided, so ANY structural edit that shifts page indices —
+ * duplicate, delete, reorder — flips the side of every page after it; running the result
+ * through this keeps the whole binder physically bindable, at the cost of an occasional
+ * visible blank page (which stays deletable: removing it re-runs this and only re-adds a
+ * blank if something still needs it).
+ */
+function withParitySpacers(pages: DemoPage[]): { pages: DemoPage[]; blanksInserted: number } {
+  let blanksInserted = 0;
+  const out: DemoPage[] = [];
+  for (const page of pages) {
+    const need = requiredPageSide(page);
+    if (need && pageSide(out.length) !== need) {
+      out.push(emptyPage(page.rows, page.cols));
+      blanksInserted += 1;
+    }
+    out.push(page);
+  }
+  return { pages: out, blanksInserted };
+}
 
 export interface SlotInput {
   row: number;
@@ -102,13 +135,28 @@ interface BinderStore {
   deleteBinder: (id: string) => void;
   addPage: (binderId: string) => void;
   /** Clone a page (new ids for the page + every slot) and insert it right after the original.
-   *  Returns the new page's index, or null if the binder/page can't be found. */
-  duplicatePage: (binderId: string, pageId: string) => { pageIndex: number } | null;
+   *  The result is re-spaced with blank pages wherever folded 1×2 art would land on the wrong
+   *  side of the spine (withParitySpacers). Returns the copy's index and how many blanks were
+   *  added, or null if the binder/page can't be found. */
+  duplicatePage: (
+    binderId: string,
+    pageId: string,
+  ) => { pageIndex: number; blanksInserted: number } | null;
   updatePage: (binderId: string, pageId: string, patch: Partial<DemoPage>) => void;
   /** Uniform pocket layout for the whole binder; refuses when content would fall outside. */
   setBinderPageSize: (binderId: string, rows: number, cols: number) => { ok: boolean; reason?: string };
-  removePage: (binderId: string, pageId: string) => void;
-  reorderPages: (binderId: string, fromIndex: number, toIndex: number) => void;
+  /** Delete a page; the remainder is re-spaced with blanks so later folded art keeps its side. */
+  removePage: (binderId: string, pageId: string) => { blanksInserted: number } | null;
+  /** Move a page; the result is re-spaced with blanks so all folded art keeps its side. Returns
+   *  the moved page's final index (spacers can shift it past the raw drop index). */
+  reorderPages: (
+    binderId: string,
+    fromIndex: number,
+    toIndex: number,
+  ) => { pageIndex: number; blanksInserted: number } | null;
+  /** Remove every blank page (no slots, no title/description) the parity pass doesn't still
+   *  need as a spacer. Returns how many were removed and how many blanks remain. */
+  compactBlankPages: (binderId: string) => { removed: number; kept: number } | null;
   upsertSlot: (binderId: string, pageId: string, slot: SlotInput) => void;
   /**
    * Drop a card into a binder's first free 1×1 pocket (scanning pages in order; appends a new
@@ -171,6 +219,9 @@ interface BinderStore {
     toCol: number,
   ) => void;
   removeSlot: (binderId: string, pageId: string, slotId: string) => void;
+  /** Remove every placed artwork slot whose content matches `signature` (slotSignature) across
+   *  the user's binders. One undo entry; returns how many pockets were cleared. */
+  removeArtworkBySignature: (signature: string) => number;
   undo: () => void;
   redo: () => void;
   canUndo: boolean;
@@ -471,16 +522,16 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         title: src.title ? `${src.title} copy` : undefined,
         slots: src.slots.map((slot) => ({ ...slot, id: uuidv4() })),
       };
-      const pages = [
+      const { pages, blanksInserted } = withParitySpacers([
         ...target.pages.slice(0, srcIndex + 1),
         copy,
         ...target.pages.slice(srcIndex + 1),
-      ];
+      ]);
       commit((prev) => prev.map((binder) => (binder.id === binderId ? { ...binder, pages } : binder)));
       // Inserting mid-list shifts page positions, so persist the whole binder (replaceBinder
       // rewrites pages + slots with correct positions — avoids the unique(position) dance).
       if (!target.isExample) persist(() => repo.replaceBinder({ ...target, pages }));
-      return { pageIndex: srcIndex + 1 };
+      return { pageIndex: pages.findIndex((p) => p.id === copy.id), blanksInserted };
     },
     [binders, commit, persist],
   );
@@ -516,7 +567,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         if (blocking) {
           return {
             ok: false,
-            reason: `Page ${i + 1} has content that wouldn't fit ${rows}×${cols} — move or clear it first.`,
+            reason: `Page ${i + 1} has content that wouldn't fit ${rows}×${cols}. Move or clear it first.`,
           };
         }
       }
@@ -536,25 +587,37 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   );
 
   const removePage = useCallback(
-    (binderId: string, pageId: string) => {
+    (binderId: string, pageId: string): { blanksInserted: number } | null => {
       const target = binders.find((binder) => binder.id === binderId);
-      if (!target || target.pages.length <= 1) return; // never leave a binder with zero pages
-      commit((prev) =>
-        prev.map((binder) =>
-          binder.id === binderId
-            ? { ...binder, pages: binder.pages.filter((page) => page.id !== pageId) }
-            : binder,
-        ),
+      if (!target || target.pages.length <= 1) return null; // never leave a binder with zero pages
+      // Removing one page flips the side of every page after it — re-space so folded art on
+      // those pages stays on its pocket pairs (a blank may reappear where the page was).
+      const { pages, blanksInserted } = withParitySpacers(
+        target.pages.filter((page) => page.id !== pageId),
       );
-      if (!target.isExample) persist(() => repo.deletePage(pageId));
+      commit((prev) =>
+        prev.map((binder) => (binder.id === binderId ? { ...binder, pages } : binder)),
+      );
+      if (!target.isExample) {
+        // A spacer changes page positions and adds rows — persist wholesale; a plain removal
+        // stays the cheap single delete.
+        persist(() =>
+          blanksInserted ? repo.replaceBinder({ ...target, pages }) : repo.deletePage(pageId),
+        );
+      }
+      return { blanksInserted };
     },
     [binders, commit, persist],
   );
 
   const reorderPages = useCallback(
-    (binderId: string, fromIndex: number, toIndex: number) => {
+    (
+      binderId: string,
+      fromIndex: number,
+      toIndex: number,
+    ): { pageIndex: number; blanksInserted: number } | null => {
       const target = binders.find((binder) => binder.id === binderId);
-      if (!target) return;
+      if (!target) return null;
       const count = target.pages.length;
       if (
         fromIndex === toIndex ||
@@ -563,13 +626,43 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         fromIndex >= count ||
         toIndex >= count
       ) {
-        return;
+        return null;
       }
-      const pages = [...target.pages];
-      const [moved] = pages.splice(fromIndex, 1);
-      pages.splice(toIndex, 0, moved);
+      const arr = [...target.pages];
+      const [moved] = arr.splice(fromIndex, 1);
+      arr.splice(toIndex, 0, moved);
+      // A move flips the side of the moved page (when from/to parity differ) and of every page
+      // in between — re-space so all folded art keeps its pocket-pair alignment.
+      const { pages, blanksInserted } = withParitySpacers(arr);
       commit((prev) => prev.map((binder) => (binder.id === binderId ? { ...binder, pages } : binder)));
-      if (!target.isExample) persist(() => repo.reorderPages(binderId, pages.map((p) => p.id)));
+      if (!target.isExample) {
+        persist(() =>
+          blanksInserted
+            ? repo.replaceBinder({ ...target, pages })
+            : repo.reorderPages(binderId, pages.map((p) => p.id)),
+        );
+      }
+      return { pageIndex: pages.findIndex((p) => p.id === moved.id), blanksInserted };
+    },
+    [binders, commit, persist],
+  );
+
+  const compactBlankPages = useCallback(
+    (binderId: string): { removed: number; kept: number } | null => {
+      const target = binders.find((binder) => binder.id === binderId);
+      if (!target) return null;
+      // Drop every removable blank, then let the parity pass re-add ONLY the spacers folded art
+      // still needs — the minimal blank set falls out of the same rule that inserted them.
+      const kept = target.pages.filter((page) => !isBlankPage(page));
+      const { pages } = withParitySpacers(kept.length ? kept : [target.pages[0]]);
+      const removed = target.pages.length - pages.length;
+      const spacersKept = pages.filter(isBlankPage).length;
+      if (removed <= 0) return { removed: 0, kept: spacersKept };
+      commit((prev) =>
+        prev.map((binder) => (binder.id === binderId ? { ...binder, pages } : binder)),
+      );
+      if (!target.isExample) persist(() => repo.replaceBinder({ ...target, pages }));
+      return { removed, kept: spacersKept };
     },
     [binders, commit, persist],
   );
@@ -1188,6 +1281,34 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     [binders, commit, persist],
   );
 
+  // Delete-everywhere for a tray slice: clear every artwork slot with this content signature.
+  // Examples are skipped (read-only samples); removals persist per slot and undo as ONE entry.
+  const removeArtworkBySignature = useCallback(
+    (signature: string): number => {
+      const removedIds: string[] = [];
+      commit((prev) =>
+        prev.map((binder) => {
+          if (binder.isExample) return binder;
+          let touched = false;
+          const pages = binder.pages.map((page) => {
+            const keep = page.slots.filter((slot) => {
+              const match = slot.type === 'artwork' && !!slot.imageUrl && slotSignature(slot) === signature;
+              if (match) removedIds.push(slot.id);
+              return !match;
+            });
+            if (keep.length === page.slots.length) return page;
+            touched = true;
+            return { ...page, slots: keep };
+          });
+          return touched ? { ...binder, pages } : binder;
+        }),
+      );
+      for (const id of removedIds) persist(() => repo.deleteSlot(id));
+      return removedIds.length;
+    },
+    [commit, persist],
+  );
+
   const value = useMemo<BinderStore>(
     () => ({
       binders,
@@ -1212,6 +1333,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       setBinderPageSize,
       removePage,
       reorderPages,
+      compactBlankPages,
       upsertSlot,
       addCardToBinder,
       addCardsToBinder,
@@ -1223,6 +1345,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       swapSlots,
       moveSlotAcrossPages,
       removeSlot,
+      removeArtworkBySignature,
       undo,
       redo,
       canUndo: history.past.length > 0,
@@ -1249,6 +1372,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       setBinderPageSize,
       removePage,
       reorderPages,
+      compactBlankPages,
       upsertSlot,
       addCardToBinder,
       addCardsToBinder,
@@ -1260,6 +1384,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       swapSlots,
       moveSlotAcrossPages,
       removeSlot,
+      removeArtworkBySignature,
       undo,
       redo,
       history.past.length,

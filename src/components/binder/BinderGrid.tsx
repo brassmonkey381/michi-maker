@@ -11,6 +11,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
+import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { BinderSurface, FontSize, Palette, Radii, Radius, Shadows, SlotBackingFallback, Weight } from '@/constants/theme';
 import { artAttribution } from '@/data/artworkLibrary';
 import { resolveCardWith, resolveCatalogCardWith } from '@/data/cardResolver';
@@ -413,7 +414,7 @@ function SlotToolbar({
       style={[styles.slotToolbar, { left, top, opacity: size.w ? 1 : 0 }]}>
       <ToolButton label="Replace" onPress={onReplace} />
       <ToolButton label="Duplicate" onPress={onDuplicate} />
-      {onAutoFill ? <ToolButton label="✨ Fill" onPress={onAutoFill} /> : null}
+      {onAutoFill ? <ToolButton label="Fill" onPress={onAutoFill} /> : null}
       <ToolButton label="Remove" tone="danger" onPress={onRemove} />
       <ToolButton label="✕" onPress={onDeselect} />
     </View>
@@ -790,9 +791,7 @@ function SlotContent({
   const id = slot.cardId;
   if (!id) {
     return (
-      <View style={[styles.fill, styles.missing, { borderRadius: radius }]}>
-        <Text style={styles.missingText}>?</Text>
-      </View>
+      <CardPlaceholder radius={radius} />
     );
   }
 
@@ -919,8 +918,8 @@ function CardImage({
   // HOLD until the manifest lands (or a grace timeout for static/offline mode, where images.json
   // never resolves). Loading before it lands fires convention-path 404s that burn the tier→full
   // retry budget and race the manifest's mid-flight URL swap — cards latched on "?" until reload.
-  // With the manifest in hand the FIRST attempt is already the right URL (hashed tier, or the
-  // TCGPlayer CDN for cards the pipeline hasn't mirrored yet — e.g. upcoming sets).
+  // With the manifest in hand the FIRST attempt is already the right URL (hashed tier), and a
+  // wholly unmirrored card (e.g. upcoming sets) resolves to '' → the placeholder below.
   const [graceOver, setGraceOver] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setGraceOver(true), 4000);
@@ -943,9 +942,7 @@ function CardImage({
 
   if (stage === 'failed') {
     return (
-      <View style={[styles.fill, styles.missing, { borderRadius: radius }]}>
-        <Text style={styles.missingText}>?</Text>
-      </View>
+      <CardPlaceholder radius={radius} />
     );
   }
 
@@ -955,6 +952,13 @@ function CardImage({
         <Skeleton radius={radius} />
       </View>
     );
+  }
+
+  // A wholly unmirrored card resolves to '' (the TCGPlayer CDN fallback is gone) — nothing to
+  // load, so show the placeholder outright instead of waiting on an onError that an empty
+  // source may never fire (which would leave the skeleton pulsing forever).
+  if (!uri) {
+    return <CardPlaceholder radius={radius} />;
   }
 
   return (
@@ -1141,6 +1145,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: Palette.white,
   },
+  // The selected-pocket toolbar: the light gallery voice (surface pill, hairline, soft lift)
+  // rather than a dark chrome bar, matching the studio's contextual action bars.
   slotToolbar: {
     position: 'absolute',
     zIndex: 60,
@@ -1150,12 +1156,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     paddingVertical: 3,
     borderRadius: Radius.pill,
-    backgroundColor: Palette.chrome,
+    backgroundColor: Palette.surface,
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
     shadowColor: Palette.black,
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
+    elevation: 6,
   },
   toolBtn: {
     paddingHorizontal: 10,
@@ -1163,17 +1171,12 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
   },
   toolBtnText: {
-    color: Palette.white,
+    color: Palette.ink2,
     fontSize: FontSize.label,
     fontWeight: Weight.semibold,
   },
   toolBtnTextDanger: {
-    color: Palette.danger,
-  },
-  missing: {
-    backgroundColor: Palette.hairline,
-    alignItems: 'center',
-    justifyContent: 'center',
+    color: Palette.dangerAlt,
   },
   skeleton: {
     position: 'absolute',
@@ -1182,10 +1185,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: Palette.skeletonFill,
-  },
-  missingText: {
-    fontSize: FontSize.h2,
-    color: Palette.onDark,
   },
   caption: {
     position: 'absolute',

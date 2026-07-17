@@ -12,6 +12,7 @@ import { FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import { productUrl, useSealed, type SealedProduct } from 'tcgscan-browse';
 
+import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { HomeSection } from '@/components/HomeSection';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 
@@ -59,7 +60,7 @@ function SealedTile({ product, value }: { product: SealedProduct; value: number 
             transition={100}
           />
         ) : (
-          <Text style={styles.imageFallback}>?</Text>
+          <CardPlaceholder radius={Radius.panel} />
         )}
       </View>
       <Text style={styles.name} numberOfLines={2}>
@@ -90,7 +91,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   image: { width: '100%', height: '100%' },
-  imageFallback: { fontSize: FontSize.h2, color: Palette.muted },
   name: {
     marginTop: Spacing.one,
     fontSize: FontSize.sm,

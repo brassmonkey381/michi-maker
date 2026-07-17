@@ -23,7 +23,7 @@ const FIELD_HELP: Record<CaptionFieldKey, string> = {
   series: 'Series / era the card belongs to',
   set: 'Set name',
   artist: 'Illustrator',
-  rarityCode: 'Short rarity code — see the Rarity codes tab',
+  rarityCode: 'Short rarity code (see the Rarity codes tab)',
   number: 'Collector number (e.g. 004/102)',
   stage: 'Evolution stage (Basic, Stage 1, …)',
   released: 'Full release date (e.g. Mar 15, 2022)',

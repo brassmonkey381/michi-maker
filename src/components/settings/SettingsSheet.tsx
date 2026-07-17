@@ -4,9 +4,12 @@
  * `constants/variants.ts`). Selecting a theme persists it and re-applies (a
  * reload on web, where the token styles are resolved at load).
  */
+import { useRouter, type Href } from 'expo-router';
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { BundleOffer } from '@/components/monetization/BundleOffer';
+import { PlanUsageSection } from '@/components/monetization/TierUsage';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
@@ -31,7 +34,7 @@ export function SettingsButton() {
         accessibilityLabel="Settings"
         hitSlop={8}
         style={({ pressed }) => [styles.gearBtn, pressed && styles.pressed]}>
-        <ThemedText style={styles.gear}>⚙</ThemedText>
+        <ThemedText style={styles.gear}>Settings</ThemedText>
       </Pressable>
       <SettingsSheet visible={open} onClose={() => setOpen(false)} />
     </>
@@ -40,24 +43,21 @@ export function SettingsButton() {
 
 function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const theme = useTheme();
-  const current = activeVariantId();
-  const { user, profile, updateProfile } = useAuth();
-  // Optimistic mirror of the profile's public flag so the switch responds instantly.
-  const [publicProfile, setPublicProfile] = useState<boolean | null>(null);
-  const profilePublic = publicProfile ?? profile?.is_public ?? true;
-
-  const toggleProfilePublic = (v: boolean) => {
-    setPublicProfile(v);
-    void updateProfile({ is_public: v }).then((r) => {
-      if (r.error) setPublicProfile(!v); // revert on failure
-    });
+  const router = useRouter();
+  // Close the sheet first so the modal never sits over the pushed route.
+  const go = (href: Href) => {
+    onClose();
+    router.push(href);
   };
+  const current = activeVariantId();
+  const { user } = useAuth();
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={sheet.dialogBackdrop} onPress={onClose}>
         <Pressable onPress={(e) => e.stopPropagation()} style={styles.cardWrap}>
-          <ThemedView type="backgroundElement" style={[sheet.dialogCard, styles.cardGap]}>
+          <ThemedView type="backgroundElement" style={[sheet.dialogCard, styles.cardGap, styles.cardMax]}>
+            <ScrollView contentContainerStyle={styles.scrollBody} showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
               <ThemedText type="subtitle" style={styles.title}>
                 Settings
@@ -115,28 +115,14 @@ function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => 
               })}
             </View>
 
-            {user ? (
-              <>
-                <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
-                  PRIVACY
-                </ThemedText>
-                <View style={styles.privacyRow}>
-                  <View style={styles.privacyText}>
-                    <ThemedText type="smallBold">Public profile</ThemedText>
-                    <ThemedText type="small" themeColor="textSecondary">
-                      {profilePublic
-                        ? 'Your public binders can be shared and featured.'
-                        : 'Private — every one of your binders is hidden from everyone but you.'}
-                    </ThemedText>
-                  </View>
-                  <Switch
-                    value={profilePublic}
-                    onValueChange={toggleProfilePublic}
-                    trackColor={{ true: Palette.accent, false: theme.backgroundSelected }}
-                  />
-                </View>
-              </>
-            ) : null}
+            <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
+              PLAN
+            </ThemedText>
+            <PlanUsageSection onManagePlan={() => go('/subscriptions' as Href)} />
+
+            {/* Bundle cross-sell — only renders for a paying member who lacks TCGScan Pro. */}
+            {user ? <BundleOffer /> : null}
+            </ScrollView>
           </ThemedView>
         </Pressable>
       </Pressable>
@@ -158,11 +144,13 @@ function ThemePreview({ id }: { id: VariantId }) {
 
 const styles = StyleSheet.create({
   gearBtn: { padding: Spacing.one },
-  gear: { fontSize: FontSize.title, lineHeight: 28 },
+  gear: { fontSize: FontSize.control, fontWeight: '600', lineHeight: 28 },
   pressed: { opacity: 0.7 },
 
   cardWrap: { width: '100%', maxWidth: 380 },
   cardGap: { gap: Spacing.two },
+  cardMax: { maxHeight: '88%' },
+  scrollBody: { gap: Spacing.two },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: FontSize.h2, lineHeight: 26 },
   sectionLabel: { textTransform: 'uppercase', letterSpacing: 0.5, marginTop: Spacing.two },
@@ -187,15 +175,6 @@ const styles = StyleSheet.create({
   },
   defaultTagText: { fontSize: FontSize.micro, fontWeight: Weight.bold, letterSpacing: 0.5, color: Palette.muted },
   check: { color: Palette.accent, fontSize: FontSize.md, fontWeight: Weight.bold },
-  privacyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.three,
-    marginTop: Spacing.one,
-  },
-  privacyText: { flex: 1, gap: 2 },
-
   preview: {
     flexDirection: 'row',
     width: 54,

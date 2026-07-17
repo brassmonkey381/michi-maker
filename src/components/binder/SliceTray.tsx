@@ -1,16 +1,21 @@
 import { Image } from 'expo-image';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS, type SharedValue } from 'react-native-reanimated';
 
+import { PagedCarousel } from '@/components/PagedCarousel';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
-import { removeSavedSlice, useSavedSlices, type SavedSlice } from '@/data/savedSlices';
+import { useSavedSlices, type SavedSlice } from '@/data/savedSlices';
 
 const POCKET_W = 63;
 const POCKET_H = 88;
 /** Thumbnail height for a 1-row slice; a folded 1×2 is twice as wide. */
-const THUMB_H = 64;
+const THUMB_H = 128;
+/** A chip's rendered width from its footprint (pocket aspect at THUMB_H tall). */
+const chipWidth = (s: SavedSlice) => (THUMB_H * (s.cs * POCKET_W)) / (s.rs * POCKET_H);
+/** chipWrap's paddingRight — part of the space a chip occupies when packing pages. */
+const CHIP_PAD = 6;
 
 /**
  * The saved-slice tray — a collapsible strip docked at the bottom of the binder editor. Each slice
@@ -25,6 +30,7 @@ export function SliceTray({
   onArm,
   onDragStart,
   onDrop,
+  onRemove,
   onNew,
   ghostOn,
   ghostX,
@@ -34,6 +40,8 @@ export function SliceTray({
   onArm: (slice: SavedSlice | null) => void;
   onDragStart: (slice: SavedSlice) => void;
   onDrop: (slice: SavedSlice, windowX: number, windowY: number) => void;
+  /** Remove a slice from the tray (the editor confirms if it is placed in any binder). */
+  onRemove: (slice: SavedSlice) => void;
   onNew: () => void;
   ghostOn: SharedValue<number>;
   ghostX: SharedValue<number>;
@@ -41,6 +49,7 @@ export function SliceTray({
 }) {
   const slices = useSavedSlices();
   const [open, setOpen] = useState(true);
+  const [width, setWidth] = useState(0);
 
   // Group the pieces cut from one artwork together, newest group first.
   const groups = useMemo(() => {
@@ -53,6 +62,33 @@ export function SliceTray({
     }
     return [...byGroup.entries()].map(([key, items]) => ({ key, label: items[0].label, items }));
   }, [slices]);
+
+  // Pack chips into pages of the measured width (PagedCarousel snaps page-by-page and shows the
+  // dots). Groups stay in order with a wider gap at each group boundary; a group that doesn't fit
+  // simply continues on the next page. `lead` is the chip's gap to its left neighbour on the page.
+  const pages = useMemo(() => {
+    const capacity = width - Spacing.three * 2; // pageRow's horizontal padding
+    if (capacity <= 0) return [];
+    const out: { slice: SavedSlice; lead: number }[][] = [];
+    let cur: { slice: SavedSlice; lead: number }[] = [];
+    let used = 0;
+    for (const g of groups) {
+      g.items.forEach((slice, idx) => {
+        const w = chipWidth(slice) + CHIP_PAD;
+        const lead = cur.length === 0 ? 0 : idx === 0 ? Spacing.three : Spacing.two;
+        if (cur.length && used + lead + w > capacity) {
+          out.push(cur);
+          cur = [{ slice, lead: 0 }];
+          used = w;
+        } else {
+          cur.push({ slice, lead });
+          used += lead + w;
+        }
+      });
+    }
+    if (cur.length) out.push(cur);
+    return out;
+  }, [groups, width]);
 
   return (
     <View style={styles.tray}>
@@ -74,35 +110,45 @@ export function SliceTray({
 
       {open ? (
         slices.length === 0 ? (
-          <View style={styles.empty}>
+          <View key="tray-empty" style={styles.empty}>
             <Text style={styles.emptyText}>
-              No slices yet. Open the Slice Studio, cut some art, and Save slices — they land here to
+              No slices yet. Open the Slice Studio, cut some art, and Save slices. They land here to
               drag into your pockets.
             </Text>
           </View>
         ) : (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.strip}>
-            {groups.map((g) => (
-              <View key={g.key} style={styles.group}>
-                {g.items.map((slice) => (
-                  <SliceChip
-                    key={slice.id}
-                    slice={slice}
-                    armed={slice.id === armedId}
-                    onArm={onArm}
-                    onDragStart={onDragStart}
-                    onDrop={onDrop}
-                    ghostOn={ghostOn}
-                    ghostX={ghostX}
-                    ghostY={ghostY}
-                  />
-                ))}
-              </View>
-            ))}
-          </ScrollView>
+          <View
+            // Distinct keys per branch: without them React updates the empty-state View in place
+            // when slices arrive, and react-native-web never attaches onLayout to the reused node,
+            // so the strip stays width 0 and renders nothing.
+            key="tray-strip"
+            style={styles.carousel}
+            onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+            <PagedCarousel
+              width={width}
+              prevLabel="Previous slices"
+              nextLabel="More slices"
+              pages={pages.map((items, pi) => (
+                <View key={pi} style={styles.pageRow}>
+                  {items.map(({ slice, lead }) => (
+                    <View key={slice.id} style={{ marginLeft: lead }}>
+                      <SliceChip
+                        slice={slice}
+                        armed={slice.id === armedId}
+                        onArm={onArm}
+                        onRemove={onRemove}
+                        onDragStart={onDragStart}
+                        onDrop={onDrop}
+                        ghostOn={ghostOn}
+                        ghostX={ghostX}
+                        ghostY={ghostY}
+                      />
+                    </View>
+                  ))}
+                </View>
+              ))}
+            />
+          </View>
         )
       ) : null}
     </View>
@@ -116,6 +162,7 @@ function SliceChip({
   onArm,
   onDragStart,
   onDrop,
+  onRemove,
   ghostOn,
   ghostX,
   ghostY,
@@ -125,6 +172,7 @@ function SliceChip({
   onArm: (slice: SavedSlice | null) => void;
   onDragStart: (slice: SavedSlice) => void;
   onDrop: (slice: SavedSlice, windowX: number, windowY: number) => void;
+  onRemove: (slice: SavedSlice) => void;
   ghostOn: SharedValue<number>;
   ghostX: SharedValue<number>;
   ghostY: SharedValue<number>;
@@ -170,7 +218,11 @@ function SliceChip({
           </View>
         </View>
       </GestureDetector>
-      <Pressable onPress={() => removeSavedSlice(slice.id)} hitSlop={6} style={styles.remove}>
+      <Pressable
+        onPress={() => onRemove(slice)}
+        hitSlop={6}
+        accessibilityLabel="Remove slice"
+        style={styles.remove}>
         <Text style={styles.removeText}>×</Text>
       </Pressable>
     </View>
@@ -231,8 +283,8 @@ const styles = StyleSheet.create({
   chevron: { fontSize: FontSize.md, color: Palette.muted },
   empty: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.three },
   emptyText: { fontSize: FontSize.sm, color: Palette.muted3, lineHeight: 17 },
-  strip: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.three, gap: Spacing.three, flexDirection: 'row', alignItems: 'flex-start' },
-  group: { flexDirection: 'row', gap: Spacing.two, alignItems: 'flex-start' },
+  carousel: { paddingBottom: Spacing.two },
+  pageRow: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: Spacing.three },
   chipWrap: { paddingTop: 6, paddingRight: 6 },
   chip: {
     borderRadius: Radius.thumb,

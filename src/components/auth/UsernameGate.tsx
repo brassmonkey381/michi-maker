@@ -50,7 +50,7 @@ export function UsernameGate() {
               Pick your username
             </ThemedText>
             <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-              This is your permanent @handle — how other collectors find you. It can’t be changed
+              This is your permanent @handle: how other collectors find you. It can’t be changed
               later, so choose carefully.
             </ThemedText>
 

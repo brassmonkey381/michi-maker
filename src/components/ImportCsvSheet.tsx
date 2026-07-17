@@ -8,6 +8,7 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
+import { TcgscanLink } from '@/components/monetization/BundleOffer';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
@@ -67,7 +68,7 @@ export function ImportCsvSheet({
           <ThemedView type="backgroundElement" style={styles.card}>
             <View style={styles.header}>
               <ThemedText type="subtitle" style={styles.title}>
-                ⬆ Import a CSV
+                Import a CSV
               </ThemedText>
               <Pressable onPress={onClose} hitSlop={8}>
                 <ThemedText type="link" themeColor="textSecondary">
@@ -77,13 +78,14 @@ export function ImportCsvSheet({
             </View>
 
             {guestGated ? (
-              <SignInPerk message="Importing reads the full card catalog to match your rows — sign in (free) to use it." />
+              <SignInPerk message="Importing reads the full card catalog to match your rows. Sign in (free) to use it." />
             ) : (
               <>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
                   Paste a TCGPlayer collection export, any CSV with a product-id or name column,
-                  or bare “productId,quantity” lines. The import becomes a portfolio — it shows
-                  up in tcgscan too, and deleting it there removes these cards again.
+                  or bare “productId,quantity” lines. The import becomes a portfolio. It shows
+                  up in <TcgscanLink /> too, and deleting it there removes these
+                  cards again.
                 </ThemedText>
 
                 <TextInput

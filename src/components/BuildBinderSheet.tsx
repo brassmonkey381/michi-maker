@@ -1,5 +1,5 @@
 /**
- * "✨ Build a binder" wizard — proposes michi-method pages from the FREE copies in the user's
+ * "Build a binder" wizard — proposes michi-method pages from the FREE copies in the user's
  * collection (see src/data/binderWizard.ts), lets them tick which theme pages to keep and
  * whether to sweep the remainder into colour-blocked bulk pages, then creates the whole binder
  * in one atomic store commit and opens it. Every pocket carries collection provenance.
@@ -11,6 +11,7 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
+import { TcgscanSynergyNote } from '@/components/monetization/BundleOffer';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
@@ -73,7 +74,7 @@ export function BuildBinderSheet({
           <ThemedView type="backgroundElement" style={styles.card}>
             <View style={styles.header}>
               <ThemedText type="subtitle" style={styles.title}>
-                ✨ Build a binder
+                Build a binder
               </ThemedText>
               <Pressable onPress={onClose} hitSlop={8}>
                 <ThemedText type="link" themeColor="textSecondary">
@@ -83,7 +84,7 @@ export function BuildBinderSheet({
             </View>
 
             {guestGated ? (
-              <SignInPerk message="Building from your collection reads the full card catalog — sign in (free) to use it." />
+              <SignInPerk message="Building from your collection reads the full card catalog. Sign in (free) to use it." />
             ) : !plan ? (
               <View style={styles.center}>
                 <ActivityIndicator />
@@ -93,14 +94,16 @@ export function BuildBinderSheet({
               </View>
             ) : plan.proposals.length === 0 && plan.bulk.length === 0 ? (
               <ThemedText type="small" themeColor="textSecondary">
-                Nothing left to place — every owned copy is already in a binder.
+                Nothing left to place. Every owned copy is already in a binder.
               </ThemedText>
             ) : (
               <>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-                  Theme pages found in your unplaced cards — untick any you don’t want. The
+                  Theme pages found in your unplaced cards. Untick any you don’t want. The
                   binder opens ready to rearrange, and Reclaim can take any card back out.
                 </ThemedText>
+
+                <TcgscanSynergyNote />
 
                 <ScrollView style={styles.list}>
                   {plan.proposals.map((p) => {
@@ -158,7 +161,7 @@ export function BuildBinderSheet({
                     (pressed || chosen.length === 0) && styles.pressed,
                   ]}>
                   <Text style={styles.buildBtnText}>
-                    Build binder — {chosen.length} page{chosen.length === 1 ? '' : 's'}, {cardTotal}{' '}
+                    Build binder · {chosen.length} page{chosen.length === 1 ? '' : 's'}, {cardTotal}{' '}
                     cards
                   </Text>
                 </Pressable>

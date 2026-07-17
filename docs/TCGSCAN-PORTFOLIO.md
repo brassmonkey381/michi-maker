@@ -147,6 +147,7 @@ Nothing else changes on your side: keep writing `portfolio_entries` exactly as y
 
 **Two things that still need michi-side / dashboard action** (GoTrue config, not SQL/MCP):
 - Add tcgscan's redirect URLs to this project's **Auth → URL Configuration**:
-  `https://idontgitit.com` (web) and `tcgscanexpo://auth-callback` (native deep link).
+  `https://tcgscan.ai` (web — the current domain; drop the legacy `idontgitit.com` entry once it
+  stops serving) and `tcgscanexpo://auth-callback` (native deep link).
 - The `increment_user_card` / table migrations were authored here but applying them to the
   live project needs your go-ahead (a production DDL deploy).

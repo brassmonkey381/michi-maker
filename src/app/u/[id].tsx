@@ -1,5 +1,5 @@
 /**
- * Public profile route (`/u/[id]`) — a person's page: their name, an upvote control, and the
+ * Public profile route (`/u/[id]`) — a person's page: their name and the
  * public binders they've shared. Reached from the People search window or a shared profile link.
  * A private profile (or one that doesn't exist) shows a friendly "not available" state, except to
  * its owner. Card images resolve from ids, so the page paints without the catalog.
@@ -10,7 +10,6 @@ import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BinderCarousel } from '@/components/binder/BinderCarousel';
-import { UpvoteButton } from '@/components/people/UpvoteButton';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
@@ -119,15 +118,6 @@ export default function ProfileRoute() {
               {name}
             </ThemedText>
 
-            <View style={styles.upvoteRow}>
-              <UpvoteButton profileId={state.profile.id} onNeedsAccount={() => setNeedAccount(true)} />
-            </View>
-            {needAccount ? (
-              <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
-                Sign in with an account to upvote this person.
-              </ThemedText>
-            ) : null}
-
             <View style={styles.section}>
               <ThemedText type="smallBold" style={styles.sectionTitle}>
                 Public binders
@@ -176,7 +166,6 @@ const styles = StyleSheet.create({
   },
   avatarText: { color: Palette.accentText, fontWeight: Weight.bold, fontSize: FontSize.display },
   name: { marginTop: Spacing.two, textAlign: 'center' },
-  upvoteRow: { marginTop: Spacing.three, alignItems: 'center' },
   hint: { marginTop: Spacing.two, textAlign: 'center' },
   section: { width: '100%', marginTop: Spacing.five, gap: Spacing.three },
   sectionTitle: { fontSize: FontSize.md },

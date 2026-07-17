@@ -15,17 +15,24 @@ Steps 1, 2 (dormant), and 4 below are done and on `main`:
   loading, refresh }`.
 - **Upgrade note:** `src/components/monetization/UpgradePerk.tsx` (SignInPerk sibling; honest
   "coming soon" since checkout isn't wired).
-- **Print gate:** `PrintPlaceholdersSheet` now unlocks for PRO/VIP **or** grandfathered
-  `pdf_print` (live, not flag-gated — only ever adds access).
+- **Print gate:** `PrintPlaceholdersSheet` unlocks printing your own binder for PRO/VIP **or** a
+  per-binder `pdf_binder:<id>` purchase (live, not flag-gated — only ever adds access). No lifetime
+  all-binder unlock and no grandfathering. Non-payers get a free short example PDF as the teaser.
 - **Limit enforcement (dormant):** `useBinders()` exposes `tier` / `limits` / `binderCount` /
   `atBinderLimit` / `pageLimitReached`; guards live in the store (`createBinder` paths via UI
   pre-check, `duplicateBinder` + `addPage` internally) and surface `UpgradePerk` / toasts.
   All no-ops while `LIMITS_ENFORCED` is false.
 
-**Not done (next):** provider decision + checkout/webhook (step 3), composer **monthly-usage
-metering** (the quota needs a usage counter — table or RPC — not yet built; the limit number
-exists but isn't enforced), art-upload/CSV/sharing gates, and pricing/upgrade UI (step 5, pairs
-with LANDING-PAGE.md). Owner still to sign off on the strawman numbers before flipping the flag.
+**Also shipped (2026-07-16):** the public plan page at **`/subscriptions`** (renamed from
+/pricing, which now redirects) — the approved comparison-sheet layout (PlanComparison component,
+data in `src/data/subscriptions.ts`), plus **usage meters** on the Your-plan section: binders,
+artworks kept (live `saved_slices` count), and included prints used this month (new
+`print_events` ledger, migration `20260716220000_print_events.sql`, recorded on every fill-sheet
+download — advisory, client-reported).
+
+**Not done (next):** provider decision + checkout/webhook (step 3) — the /subscriptions CTAs
+reveal the honest coming-soon note until `CHECKOUT_OPEN` flips; included-prints ENFORCEMENT
+(ledger + meter exist, nothing blocks past the allocation yet); art-upload/sharing gates.
 
 ## Goal
 
@@ -35,9 +42,9 @@ Evolve the current single one-time unlock into a tier system:
 - **PRO** — monthly subscription (or discounted yearly), higher limits, full print access.
 - **VIP** — top tier, effectively unlimited + future perks (early features, print-on-demand
   discounts when that ships).
-- **One-time purchases** stay possible alongside subscriptions: a cheap **PDF print sample**
-  (e.g. one page of one binder) and a **full-binder PDF** at a higher one-time fee for
-  people who won't subscribe.
+- **One-time purchases** stay possible alongside subscriptions: a **full-binder fill-sheet
+  PDF** ($3.99) for people who won't subscribe. No paid sample — the teaser is a free
+  premade EXAMPLE sheet (our cards, not the user's binder).
 
 Owner's stated preferences: monthly subscription models, or a full year at a discount.
 
@@ -45,8 +52,8 @@ Owner's stated preferences: monthly subscription models, or a full year at a dis
 
 - **`entitlements` table** (migration `20260715120000_entitlements.sql`): PK (user_id,
   product), `source`, `granted_at`. Owner-only SELECT via RLS; **no client write policies** —
-  grants are service-role only (manual SQL today, webhook later). First product: `pdf_print`
-  (currently a lifetime unlock gating the fill-sheet Download button).
+  grants are service-role only (manual SQL today, webhook later). Print products are the PRO/VIP
+  subscriptions (`tier_pro`/`tier_vip`) and the per-binder `pdf_binder:<id>` one-time purchase.
 - **`useEntitlement(product)`** hook (`src/hooks/use-entitlement.ts`): resolved answer keyed
   to the uid it was fetched for; `refresh()` for post-checkout polling.
 - **`docs/PAYMENTS.md`**: manual grant SQL + the webhook-slot design (checkout carries the
@@ -67,9 +74,10 @@ alter table public.entitlements add column expires_at timestamptz; -- null = nev
 -- product keys become a small vocabulary:
 --   'tier_pro'  (subscription, expires_at set per period, renewed by webhook)
 --   'tier_vip'  (subscription)
---   'pdf_print' (lifetime full-print unlock — GRANDFATHERED; existing holders keep it)
---   'pdf_sample' (one-time; consider a per-binder variant later)
---   'pdf_binder:<binderId>' (one-time full PDF for one binder)
+--   'pdf_binder:<binderId>' (one-time full PDF for one binder — the only one-time print product;
+--                            no lifetime all-binder unlock, no grandfathering. A SNAPSHOT license:
+--                            covers the binder as spent, forever; edits need a new purchase — see
+--                            src/data/pdfSnapshot.ts)
 ```
 
 A `tier()` helper resolves the user's effective tier: vip > pro > (signed-in) free > guest.
@@ -77,35 +85,55 @@ Client: extend the hook family with `useTier()` reading all rows once. Keep the 
 "no client writes" invariant; renewals/cancellations land via provider webhooks updating
 `expires_at`.
 
-## Suggested tier matrix (STRAWMAN — get owner sign-off on numbers before shipping)
+## Tier matrix (owner-revised 2026-07-17; mirrors `src/data/tiers.ts` TIER_LIMITS)
 
-| Capability | Guest | Free (signed in) | PRO | VIP |
+Guest is NOT an advertised plan — it's the pre-sign-in taste (1 binder, 6 pages) and the
+prompt beyond it is SignInPerk ("sign in, free"), never an upgrade pitch. The comparison
+sheet shows Free / PRO / VIP only. Page counts are plain APP pages (no double-sided language).
+
+| Capability | Guest (unadvertised) | Free (signed in) | PRO | VIP |
 | --- | --- | --- | --- | --- |
-| Binders | 3 | 10 | 50 | unlimited |
-| Pages per binder | 10 | 20 | 50 | unlimited |
+| Binders | 1 | 3 | 12 | unlimited |
+| Pages per binder | 6 | 16 | 40 | unlimited |
+| Card capacity (4×4) | ~96 | over 750 | over 7,500 | unlimited |
 | Catalog browse/search | server search | full catalog | full | full |
-| ✨ Composer / auto-fill | — | 5 pages/mo | unlimited | unlimited |
+| ✨ Similarity matching + composer methods | — | INCLUDED (no quota) | INCLUDED + upgraded composers (coming soon) | INCLUDED + upgraded composers (coming soon) |
 | Slice Studio | ✓ | ✓ | ✓ | ✓ |
-| Art uploads | — | 20 | 500 | unlimited |
-| My Collection sync (tcgscan) | — | ✓ | ✓ | ✓ |
-| CSV import | — | 1 portfolio | unlimited | unlimited |
-| Fill-sheet PDF | — | sample page w/ watermark | full binders | full + priority features |
-| Public sharing / likes | view only | ✓ | ✓ | ✓ + featured eligibility boost? |
+| Slice Studio artworks kept (at a time) | — | 100 | 1,000 | unlimited |
+| Build from cards you really own (TCGScan sync) | — | ✓ | ✓ + TCGScan bundle discounts | ✓ + TCGScan bundle discounts |
+| Fill-sheet PDF | — | example-sheet preview only | full binders, 1 print/mo included | full binders, 5 prints/mo included + first in line for print extras |
+| Public sharing / likes | view only | share + like | share + like | share + like + featured eligibility boost |
 
-Pricing strawman: PRO $4.99/mo or $39/yr; VIP $9.99/mo or $79/yr; sample PDF $1.99;
-full-binder one-time $6.99. (Owner sets real numbers in the provider dashboard — the app
+`LIMITS_ENFORCED` is now ENV-DRIVEN (`EXPO_PUBLIC_LIMITS_ENFORCED=1`) — on locally for gate
+testing, set in Vercel at go-live. Every user-facing TCGScan mention links to
+https://tcgscan.ai/welcome (TcgscanLink / TCGSCAN_URL).
+
+Owner decisions 2026-07-16 (sheet draft v4): the composer monthly QUOTA is dropped — similarity
+matching + composer methods are included at every signed-in tier, and PRO/VIP differentiate via
+UPGRADED binder composers when those ship. CSV import is off the comparison sheet entirely (it's
+a TCGScan-side concern). The real-collection row is a HIGHLIGHTED all-tier item and cross-sells
+the TCGScan partner app (inventory tracking, set analytics, historical price history) — see
+docs/SYNERGY.md for the cross-app entitlement (`tcgscan_pro`).
+
+Pricing (owner-set 2026-07-16): PRO $3.99/mo or **$39.99/yr (most popular)**; VIP $9.99/mo
+or **$99.99/yr (best value)**; one-time full-binder fill-sheet PDF $3.99. There is NO paid
+sample PDF — the free preview is a premade EXAMPLE sheet (our cards, not theirs), not a
+watermarked page of their binder. (Prices still live in the provider dashboard — the app
 never hardcodes price; fetch or link to a pricing page.)
+
+"Included prints per month" is the one remaining metered quantity and needs a usage counter —
+until that exists, `fullPrint` alone gates the Download button for PRO/VIP.
 
 ## Enforcement points (where limits plug in)
 
 - Binder/page counts: `src/store/binders.tsx` `createBinder` / `addPage` / `duplicateBinder`
   — return a refusal the UI turns into an upgrade note (reuse the `SignInPerk` pattern with
   an "Upgrade" variant component).
-- Composer: `AutoFillSheet` entry point.
-- Print: `PrintPlaceholdersSheet` — replace the boolean `pdf_print` gate with tier logic +
-  the sample/one-time paths. **Sample = first sheet only + a diagonal watermark** (the PDF
-  engine `src/data/placeholderPdf.ts` makes this easy — cap `packTiles` output and stamp
-  text). Keep the counts preview free as the teaser (existing pattern).
+- Composer: no gate — included at every signed-in tier (quota dropped 2026-07-16). The future
+  UPGRADED composers gate at their own entry points when they ship.
+- Print: `PrintPlaceholdersSheet` — tier logic (done) + the one-time per-binder path.
+  The free teaser = counts preview (existing) + a premade EXAMPLE sheet PDF (static asset,
+  our cards — no watermarking of the user's binder needed).
 - Server-side backstop for the things that matter (binder count) via RLS-adjacent checks or
   a trigger — client limits alone are advisory.
 
@@ -116,12 +144,12 @@ never hardcodes price; fetch or link to a pricing page.)
 3. Provider decision → checkout page + webhook edge function (`supabase/functions/`,
    pattern documented in `docs/PAYMENTS.md`; `art-proxy/index.ts` is a working edge-fn
    example incl. the tsconfig exclusion for Deno).
-4. Grandfather clause: existing `pdf_print` holders (incl. the owner + test account) keep
-   full print forever.
+4. No grandfathering: printing your own binder is only a PRO/VIP subscription perk or a per-binder
+   `pdf_binder:<id>` purchase; there is no lifetime all-binder unlock.
 5. Pricing/upgrade UI (pairs with LANDING-PAGE.md).
 
 ## Verify
 
-Test account `composer.test.…@example.com` exists with a `pdf_print` grant — use SQL to
-flip its tier rows and drive each gate through the UI (locked note → grant → unlocked),
-same pattern as the original entitlement verification.
+Test account `composer.test.…@example.com` — use SQL to grant/revoke a `tier_pro` row or a
+`pdf_binder:<id>` row and drive each gate through the UI (locked note + free example → grant →
+unlocked), same pattern as the original entitlement verification.

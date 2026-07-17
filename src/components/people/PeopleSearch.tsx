@@ -1,18 +1,17 @@
 /**
  * "Find people" search window. Opened from the home header; searches public profiles by name /
- * username (debounced) and lists them ranked by upvotes. Each row shows the person's upvote count
- * with an inline upvote control, and tapping a row opens their public profile (`/u/[id]`).
- * Private and nameless (guest) profiles never appear (the search RPC filters them out).
+ * username (debounced). Tapping a row opens their public profile (`/u/[id]`), where their public
+ * binders (and binder likes) live. Private and nameless (guest) profiles never appear (the search
+ * RPC filters them out).
  */
 import { useRouter, type Href } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
-import { UpvoteButton } from '@/components/people/UpvoteButton';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
-import { fetchUpvotedSet, searchProfiles, type PersonResult } from '@/data/profileRepo';
+import { searchProfiles, type PersonResult } from '@/data/profileRepo';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/store/auth';
 
@@ -22,8 +21,6 @@ export function PeopleSearch({ visible, onClose }: { visible: boolean; onClose: 
   const { user } = useAuth();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PersonResult[] | null>(null);
-  const [voted, setVoted] = useState<Set<string>>(new Set());
-  const [needAccount, setNeedAccount] = useState(false);
   const reqId = useRef(0);
 
   // Debounced search; also loads the top profiles for an empty query when the window opens.
@@ -35,16 +32,6 @@ export function PeopleSearch({ visible, onClose }: { visible: boolean; onClose: 
         const rows = await searchProfiles(query.trim());
         if (id !== reqId.current) return; // a newer query superseded this one
         setResults(rows);
-        // Reflect which of these the signed-in user has already upvoted.
-        if (user && rows.length > 0) {
-          const set = await fetchUpvotedSet(
-            user.id,
-            rows.map((r) => r.id),
-          );
-          if (id === reqId.current) setVoted(set);
-        } else {
-          setVoted(new Set());
-        }
       } catch {
         if (id === reqId.current) setResults([]);
       }
@@ -88,12 +75,6 @@ export function PeopleSearch({ visible, onClose }: { visible: boolean; onClose: 
               style={[styles.input, { color: theme.text, borderColor: theme.backgroundSelected }]}
             />
 
-            {needAccount ? (
-              <ThemedText type="small" themeColor="textSecondary">
-                Sign in with an account to upvote people.
-              </ThemedText>
-            ) : null}
-
             <ScrollView style={styles.list} keyboardShouldPersistTaps="handled">
               {results === null ? (
                 <View style={styles.center}>
@@ -119,12 +100,6 @@ export function PeopleSearch({ visible, onClose }: { visible: boolean; onClose: 
                           </ThemedText>
                         </View>
                       </Pressable>
-                      <UpvoteButton
-                        profileId={p.id}
-                        initialCount={p.upvotes}
-                        initialUpvoted={voted.has(p.id)}
-                        onNeedsAccount={() => setNeedAccount(true)}
-                      />
                     </View>
                   );
                 })
@@ -146,7 +121,7 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
   },
   cardWrap: { width: '100%', maxWidth: 460 },
-  card: { borderRadius: Radii.page, padding: Spacing.four, gap: Spacing.three, maxHeight: '82%' },
+  card: { borderRadius: Radii.page, padding: Spacing.four, gap: Spacing.three, maxHeight: '92%' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: FontSize.h2, lineHeight: 26 },
   input: {
@@ -156,7 +131,9 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
     fontSize: FontSize.control,
   },
-  list: { maxHeight: 380 },
+  // A fixed height (not a cap) so the window is roomy even with few results — about twice the
+  // old 380 cap; the card's maxHeight still protects short viewports.
+  list: { height: 720 },
   center: { paddingVertical: Spacing.five, alignItems: 'center' },
   empty: { paddingVertical: Spacing.three },
   row: {

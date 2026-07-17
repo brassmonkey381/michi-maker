@@ -18,7 +18,7 @@ import { BinderPages } from '@/components/binder/BinderPages';
 import { LikeButton } from '@/components/binder/LikeButton';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { FontSize, MaxContentWidthWide, Palette, Spacing } from '@/constants/theme';
+import { Fonts, FontSize, MaxContentWidthWide, Palette, Spacing } from '@/constants/theme';
 import { fetchBinder } from '@/data/binderRepo';
 import type { DemoBinder } from '@/data/binderTypes';
 import { isSupabaseConfigured } from '@/lib/env';
@@ -189,7 +189,7 @@ function Viewer({
       <Link href="/" asChild>
         <Pressable style={styles.madeWith} hitSlop={8}>
           <ThemedText type="small" themeColor="textSecondary" style={styles.madeWithText}>
-            Made with michi-maker — build your own binder ›
+            Made with michi-maker · build your own binder ›
           </ThemedText>
         </Pressable>
       </Link>
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     alignItems: 'center',
   },
-  title: { textAlign: 'center', fontSize: FontSize.nav, lineHeight: 34 },
+  title: { textAlign: 'center', fontFamily: Fonts?.brand, fontSize: FontSize.nav, lineHeight: 34 },
   description: { textAlign: 'center', marginTop: Spacing.two, maxWidth: 520 },
   likeRow: { marginTop: Spacing.three, alignItems: 'center' },
   likeHint: { marginTop: Spacing.two, textAlign: 'center' },

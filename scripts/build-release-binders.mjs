@@ -39,7 +39,7 @@ const SET_CONFIGS = [
     chase: {
       title: 'Pitch Black: Chase Board',
       description:
-        'Releases July 17 — prep this before you open a single pack. Every hit worth pulling from ME05: the Mega Hyper Rare Mega Darkrai crowning page one, the full Illustration Rare wall, and the ex board. Duplicate it and check them off as you rip.',
+        'Releases July 17. Prep this before you open a single pack. Every hit worth pulling from ME05: the Mega Hyper Rare Mega Darkrai crowning page one, the full Illustration Rare wall, and the ex board. Duplicate it and check them off as you rip.',
       layoutStyle: 'anchor',
     },
     showcase: {
@@ -65,7 +65,7 @@ const SET_CONFIGS = [
     chase: {
       title: '30th Celebration: Chase Board',
       description:
-        'The anniversary special (September) — nineteen cards, and the ones to hunt: the Futuristic Rare Mewtwo ex and Mew ex crowns, the Illustration Rare quartet, and every anniversary ex. One page of history in the making.',
+        'The anniversary special (September). Nineteen cards, and the ones to hunt: the Futuristic Rare Mewtwo ex and Mew ex crowns, the Illustration Rare quartet, and every anniversary ex. One page of history in the making.',
       layoutStyle: 'anchor',
     },
     showcase: {
@@ -77,7 +77,7 @@ const SET_CONFIGS = [
     bulk: {
       title: '30th Celebration: Every Last Card',
       description:
-        'A nineteen-card set is one you can actually COMPLETE — here are the commons and promo prints that finish it, organized by type. Fill the chase pages, then close the book with these.',
+        'A nineteen-card set is one you can actually COMPLETE. Here are the commons and promo prints that finish it, organized by type. Fill the chase pages, then close the book with these.',
       layoutStyle: 'color_theme',
     },
     storyNames: [],
@@ -104,7 +104,7 @@ const SET_CONFIGS = [
     bulk: {
       title: 'Chaos Rising: Beautiful Bulk',
       description:
-        'Seventy-six commons, uncommons and rares, color-blocked by energy type — the binder that makes a stack of ME04 bulk look like a curated collection instead of a shoebox.',
+        'Seventy-six commons, uncommons and rares, color-blocked by energy type: the binder that makes a stack of ME04 bulk look like a curated collection instead of a shoebox.',
       layoutStyle: 'color_theme',
     },
     storyNames: ["az's tranquility", 'emma', "roxie's performance", 'philippe'],

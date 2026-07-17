@@ -101,7 +101,7 @@ export function proposePages(
         key: 'chase',
         kind: 'chase',
         title: 'Chase board',
-        blurb: `Your ${ids.length} most valuable cards · ${formatUsd(total)} — crown in the centre.`,
+        blurb: `Your ${ids.length} most valuable cards · ${formatUsd(total)} · crown in the centre.`,
         cardIds: ordered,
       });
     }

@@ -90,7 +90,7 @@ export function LikeButton({
       style={({ pressed }) => [styles.btn, liked && styles.btnLiked, pressed && styles.pressed]}>
       <Text style={[styles.heart, liked && styles.heartLiked]}>{liked ? '♥' : '♡'}</Text>
       <ThemedText type="smallBold" style={liked ? styles.countLiked : undefined}>
-        {count ?? '—'}
+        {count ?? '–'}
       </ThemedText>
     </Pressable>
   );

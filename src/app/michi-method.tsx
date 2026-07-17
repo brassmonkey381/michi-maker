@@ -56,7 +56,7 @@ export default function MichiMethodScreen() {
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
             A way of building a binder page as a <ThemedText type="smallBold">canvas</ThemedText> rather
-            than a storage grid — cards, printed art, deliberate negative space, and single images sliced
+            than a storage grid: cards, printed art, deliberate negative space, and single images sliced
             across several pockets, arranged into pages that look intentional.
           </ThemedText>
 
@@ -72,7 +72,7 @@ export default function MichiMethodScreen() {
                 <ThemedText type="linkPrimary">@peeplop</ThemedText>
               </ExternalLink>{' '}
               on Instagram). The name, the style, and the whole idea of treating a binder page as
-              composition are theirs — michi-maker is a fan tool built to make the method easier to plan,
+              composition are theirs. michi-maker is a fan tool built to make the method easier to plan,
               and we credit Michi as its originator.
             </ThemedText>
             <ExternalLink href={MICHI_INSTAGRAM} style={styles.creditLink}>
@@ -103,10 +103,10 @@ export default function MichiMethodScreen() {
           </ThemedText>
           <View style={styles.linkList}>
             <ExternalLink href={WOAHPOKE_GUIDE}>
-              <ThemedText type="linkPrimary">woahpoke — A Full Guide to the Michi Method →</ThemedText>
+              <ThemedText type="linkPrimary">woahpoke: A Full Guide to the Michi Method →</ThemedText>
             </ExternalLink>
             <ExternalLink href={ARTOFPKM}>
-              <ThemedText type="linkPrimary">The Art of Pokémon — browse card art by illustrator →</ThemedText>
+              <ThemedText type="linkPrimary">The Art of Pokémon: browse card art by illustrator →</ThemedText>
             </ExternalLink>
           </View>
 

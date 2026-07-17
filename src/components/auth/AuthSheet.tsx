@@ -11,6 +11,7 @@
  * All Supabase calls go through the auth store (src/store/auth.tsx); this file is only UI.
  */
 
+import { useRouter, type Href } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -20,6 +21,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   TextInput,
   View,
 } from 'react-native';
@@ -112,7 +114,7 @@ function AuthForm({ onClose, isGuest }: { onClose: () => void; isGuest: boolean 
     // Creating an account requires a permanent @username.
     const uname = username.trim().toLowerCase();
     if (!/^[a-z0-9_]{3,20}$/.test(uname)) {
-      setError('Pick a username: 3–20 characters — lowercase letters, numbers, or underscores.');
+      setError('Pick a username: 3–20 characters, lowercase letters, numbers, or underscores.');
       return;
     }
     void createWithUsername(uname);
@@ -139,7 +141,7 @@ function AuthForm({ onClose, isGuest }: { onClose: () => void; isGuest: boolean 
           return;
         }
         if (r.needsEmailConfirmation) {
-          setInfo(`Check ${email.trim()} to confirm your account — you’ll set @${uname} right after.`);
+          setInfo(`Check ${email.trim()} to confirm your account. You’ll set @${uname} right after.`);
           return; // no session yet; the gate claims the username once they confirm + sign in
         }
       }
@@ -356,6 +358,17 @@ function AuthForm({ onClose, isGuest }: { onClose: () => void; isGuest: boolean 
 
 function ProfileView({ onClose }: { onClose: () => void }) {
   const auth = useAuth();
+  const router = useRouter();
+  const theme = useTheme();
+  // Optimistic mirror of the profile's public flag so the switch responds instantly.
+  const [publicProfile, setPublicProfile] = useState<boolean | null>(null);
+  const profilePublic = publicProfile ?? auth.profile?.is_public ?? true;
+  const toggleProfilePublic = (v: boolean) => {
+    setPublicProfile(v);
+    void auth.updateProfile({ is_public: v }).then((r) => {
+      if (r.error) setPublicProfile(!v); // revert on failure
+    });
+  };
 
   const email = auth.user?.email ?? '';
   const username = auth.profile?.username ?? null;
@@ -388,14 +401,35 @@ function ProfileView({ onClose }: { onClose: () => void }) {
         </View>
       </View>
 
-      {username ? (
-        <View style={styles.readonlyField}>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.label}>
-            Username (permanent)
+      {username && auth.user ? (
+        <Pressable
+          onPress={() => {
+            onClose();
+            router.push(`/u/${auth.user!.id}` as Href);
+          }}
+          style={({ pressed }) => [styles.profileLink, pressed && styles.pressed]}>
+          <ThemedText type="small">View public profile</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            ›
           </ThemedText>
-          <ThemedText type="smallBold">@{username}</ThemedText>
-        </View>
+        </Pressable>
       ) : null}
+
+      <View style={styles.privacyRow}>
+        <View style={styles.privacyText}>
+          <ThemedText type="smallBold">Public profile</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {profilePublic
+              ? 'Your public binders can be shared and featured.'
+              : 'Private: every one of your binders is hidden from everyone but you.'}
+          </ThemedText>
+        </View>
+        <Switch
+          value={profilePublic}
+          onValueChange={toggleProfilePublic}
+          trackColor={{ true: Palette.accent, false: theme.backgroundSelected }}
+        />
+      </View>
 
       <Pressable
         onPress={async () => {
@@ -534,6 +568,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   pressed: { opacity: 0.7 },
+  privacyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
+  privacyText: { flex: 1, gap: 2 },
+  profileLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.two,
+    borderBottomWidth: 1,
+    borderBottomColor: Palette.hairline,
+  },
   error: { color: Palette.danger, lineHeight: 20 },
   info: { color: Palette.success, lineHeight: 20 },
   flex: { flex: 1 },

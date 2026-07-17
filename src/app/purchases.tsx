@@ -15,10 +15,12 @@ import { useRouter, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
+import { PrintPlaceholdersSheet } from '@/components/binder/PrintPlaceholdersSheet';
 import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, MaxContentWidth, Palette, Radius, Spacing } from '@/constants/theme';
-import { fetchBinderTitles } from '@/data/binderRepo';
+import { fetchBinder, fetchBinderTitles } from '@/data/binderRepo';
+import type { DemoBinder } from '@/data/binderTypes';
 import { fetchPurchaseHistory, openBillingPortal, type PurchasePayment } from '@/data/checkout';
 import { fetchEntitlementDetails } from '@/data/entitlementRepo';
 import {
@@ -153,6 +155,9 @@ export default function PurchasesScreen() {
   const [pdfsFailed, setPdfsFailed] = useState(false);
   const [pdfBusy, setPdfBusy] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  // The binder whose print sheet is open — rows for unlocks/prints open the SAME fill-sheet
+  // modal as the home page (options, confirm step, credit/unlock logic all included).
+  const [printTarget, setPrintTarget] = useState<DemoBinder | null>(null);
 
   // Binder titles resolved SERVER-SIDE (RLS: own + public binders) — the local store races
   // this page's mount and mislabeled real binders as deleted. Missing ids are genuinely gone.
@@ -161,6 +166,17 @@ export default function PurchasesScreen() {
     if (!id) return undefined;
     const t = titles.get(id);
     return t ? `“${t}”` : 'a binder that is no longer available';
+  };
+
+  /** Open the standard print fill-sheets modal for a binder referenced by a purchase row. */
+  const openPrint = (binderId: string) => {
+    setPdfError(null);
+    fetchBinder(binderId)
+      .then((b) => {
+        if (b) setPrintTarget(b);
+        else setPdfError('That binder is no longer available — its archived PDFs above still download.');
+      })
+      .catch((e) => setPdfError((e as Error).message));
   };
 
   useEffect(() => {
@@ -214,20 +230,27 @@ export default function PurchasesScreen() {
           ent.value
             .slice()
             .sort((a, b) => Date.parse(b.grantedAt ?? '') - Date.parse(a.grantedAt ?? ''))
-            .map((r, i) => ({
-              key: `${r.product}-${i}`,
-              when: r.grantedAt ? fmtDateTime(r.grantedAt) : 'unknown date',
-              title: grantName(r.product),
-              detail: [
-                r.product.startsWith('pdf_binder:')
-                  ? named(r.product.slice('pdf_binder:'.length))
-                  : undefined,
-                r.source === 'manual' ? 'granted directly (beta)' : r.source ? `via ${r.source}` : undefined,
-                r.expiresAt ? `runs through ${fmtDateTime(r.expiresAt)}` : 'lifetime',
-              ]
-                .filter(Boolean)
-                .join(' · '),
-            })),
+            .map((r, i) => {
+              const binderId = r.product.startsWith('pdf_binder:')
+                ? r.product.slice('pdf_binder:'.length)
+                : null;
+              return {
+                key: `${r.product}-${i}`,
+                when: r.grantedAt ? fmtDateTime(r.grantedAt) : 'unknown date',
+                title: grantName(r.product),
+                detail: [
+                  binderId ? named(binderId) : undefined,
+                  r.source === 'manual' ? 'granted directly (beta)' : r.source ? `via ${r.source}` : undefined,
+                  r.expiresAt ? `runs through ${fmtDateTime(r.expiresAt)}` : 'lifetime',
+                ]
+                  .filter(Boolean)
+                  .join(' · '),
+                // The binder still exists → open the standard print modal (options + confirm).
+                ...(binderId && titleMap.has(binderId)
+                  ? { action: { label: 'Print', run: () => openPrint(binderId) } }
+                  : {}),
+              };
+            }),
         );
       } else setGrantsFailed(true);
 
@@ -246,6 +269,9 @@ export default function PurchasesScreen() {
             ]
               .filter(Boolean)
               .join(' · '),
+            ...(r.binderId && titleMap.has(r.binderId)
+              ? { action: { label: 'Print', run: () => openPrint(r.binderId!) } }
+              : {}),
           })),
         );
       } else setPrintsFailed(true);
@@ -256,10 +282,10 @@ export default function PurchasesScreen() {
   }, [isSignedIn]);
 
   return (
-    <PageShell title="Purchases" description="Your michi-maker payments, grants, and print usage.">
+    <PageShell title="My Purchases" description="Your michi-maker payments, grants, and print usage.">
       <View style={styles.prose}>
         <ThemedText type="subtitle" style={styles.h1}>
-          Purchases
+          My Purchases
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
           Every payment, plan grant, and included print on your account, newest first.
@@ -348,6 +374,12 @@ export default function PurchasesScreen() {
           </>
         )}
       </View>
+
+      {/* The standard print fill-sheets modal (same options, confirm step, and credit/unlock
+          logic as the home page) — opened from a purchase row's Print action. */}
+      {printTarget ? (
+        <PrintPlaceholdersSheet binder={printTarget} onClose={() => setPrintTarget(null)} />
+      ) : null}
     </PageShell>
   );
 }

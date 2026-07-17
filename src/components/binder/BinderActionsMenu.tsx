@@ -40,7 +40,7 @@ export function BinderActionsMenu({
             <Row label="Rename" onPress={onRename} />
             <Row label="Duplicate" onPress={onDuplicate} />
             {canShare ? <Row label="Share" onPress={onShare} /> : null}
-            {onPrint ? <Row label="Print fill sheets" onPress={onPrint} /> : null}
+            {onPrint ? <Row label="Print fill sheets" tone="accent" onPress={onPrint} /> : null}
             <Row label="Delete" tone="danger" onPress={onDelete} />
             <Pressable onPress={onClose} style={styles.cancel} hitSlop={6}>
               <Text style={styles.cancelText}>Cancel</Text>
@@ -52,10 +52,19 @@ export function BinderActionsMenu({
   );
 }
 
-function Row({ label, onPress, tone = 'default' }: { label: string; onPress: () => void; tone?: 'default' | 'danger' }) {
+function Row({ label, onPress, tone = 'default' }: { label: string; onPress: () => void; tone?: 'default' | 'danger' | 'accent' }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}>
-      <Text style={[styles.rowText, tone === 'danger' && styles.rowTextDanger]}>{label}</Text>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, tone === 'accent' && styles.rowAccent, pressed && styles.rowPressed]}>
+      <Text
+        style={[
+          styles.rowText,
+          tone === 'danger' && styles.rowTextDanger,
+          tone === 'accent' && styles.rowTextAccent,
+        ]}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -73,8 +82,11 @@ const styles = StyleSheet.create({
   title: { marginBottom: Spacing.two, paddingHorizontal: Spacing.two },
   row: { paddingVertical: Spacing.three, paddingHorizontal: Spacing.two, borderRadius: Radius.control },
   rowPressed: { backgroundColor: Palette.panel },
+  // The print action is the tile's headline verb — accent-filled like the home Print button.
+  rowAccent: { backgroundColor: Palette.accent, alignItems: 'center' },
   rowText: { fontSize: FontSize.control, fontWeight: Weight.semibold, color: Palette.ink },
   rowTextDanger: { color: Palette.dangerAlt },
+  rowTextAccent: { color: Palette.accentText },
   cancel: { marginTop: Spacing.two, paddingVertical: Spacing.three, alignItems: 'center' },
   cancelText: { fontSize: FontSize.control, fontWeight: Weight.semibold, color: Palette.muted },
 });

@@ -275,7 +275,18 @@ export default function BindersScreen() {
                   <BinderCarousel
                     binders={visibleBinders}
                     onOpen={openBinder}
-                    accessory={(binder) => <MenuButton onPress={() => setMenuId(binder.id)} />}
+                    accessory={(binder) => (
+                      <View style={styles.tileActions}>
+                        <Pressable
+                          onPress={() => setPrintId(binder.id)}
+                          hitSlop={8}
+                          accessibilityLabel="Print fill sheets"
+                          style={({ pressed }) => [styles.printBtn, pressed && styles.pressed]}>
+                          <Text style={styles.printBtnText}>Print</Text>
+                        </Pressable>
+                        <MenuButton onPress={() => setMenuId(binder.id)} />
+                      </View>
+                    )}
                   />
                 )}
               </>
@@ -457,6 +468,17 @@ const styles = StyleSheet.create({
   },
   noMatch: { paddingVertical: Spacing.three },
   upgradeRow: { marginBottom: Spacing.three },
+  tileActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  printBtn: {
+    backgroundColor: Palette.accent,
+    borderRadius: Radius.pill,
+    paddingVertical: 5,
+    paddingHorizontal: Spacing.three,
+    minHeight: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  printBtnText: { color: Palette.accentText, fontSize: FontSize.label, fontWeight: Weight.semibold },
   menuBtn: {
     width: 30,
     height: 30,

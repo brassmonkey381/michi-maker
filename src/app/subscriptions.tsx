@@ -117,7 +117,7 @@ export default function SubscriptionsScreen() {
             type="linkPrimary"
             style={styles.historyLink}
             onPress={() => router.push('/purchases' as Href)}>
-            Purchase history ›
+            My Purchases ›
           </ThemedText>
         </View>
       ) : null}

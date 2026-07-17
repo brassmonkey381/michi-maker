@@ -130,11 +130,11 @@ const styles = StyleSheet.create({
   wrap: { gap: Spacing.two, maxWidth: 460 },
   footer: { paddingHorizontal: Spacing.three, lineHeight: 18 },
   inlineLink: { color: Palette.accent, fontWeight: '600' },
+  // Stacked: message ABOVE the button — a side-by-side row squeezed the text into a sliver
+  // inside narrow containers (the Settings sheet).
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingVertical: Spacing.two,
+    gap: Spacing.two,
+    paddingVertical: Spacing.three,
     paddingHorizontal: Spacing.three,
     borderRadius: Radius.lg,
     borderWidth: 1,
@@ -142,12 +142,13 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.panel,
     maxWidth: 460,
   },
-  text: { flex: 1, lineHeight: 18 },
+  text: { lineHeight: 18 },
   btn: {
     backgroundColor: Palette.accent,
-    paddingVertical: Spacing.one,
+    paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
     borderRadius: Radius.pill,
+    alignSelf: 'flex-start',
   },
   btnText: { color: Palette.accentText, fontSize: FontSize.label },
   pressed: { opacity: 0.7 },

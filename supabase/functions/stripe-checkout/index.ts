@@ -68,14 +68,16 @@ Deno.serve(async (req: Request) => {
   const stripe = new Stripe(stripeKey, { httpClient: Stripe.createFetchHttpClient() });
 
   // Resolve the caller from their JWT. Anonymous (guest) sessions can't buy.
+  // getUser needs the token PASSED EXPLICITLY — with no argument it looks for a client-side
+  // session, which never exists in an edge function, and errors "Auth session missing".
+  const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
   const authClient = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_ANON_KEY')!,
-    { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } },
   );
   const {
     data: { user },
-  } = await authClient.auth.getUser();
+  } = await authClient.auth.getUser(token);
   if (!user) return json(401, { error: 'not signed in' });
   if ((user as { is_anonymous?: boolean }).is_anonymous) {
     return json(403, { error: 'sign in with a real account to purchase' });

@@ -28,6 +28,7 @@ import { sheet } from '@/constants/ui';
 import { domainOf } from '@/data/artworkLibrary';
 import { uid, uuidv4, type ImageTransform } from '@/data/binderTypes';
 import type { SavedSlice } from '@/data/savedSlices';
+import { TIER_LIMITS } from '@/data/tiers';
 import { useCatalog } from '@/hooks/use-catalog';
 import { cardThumbUrl } from '@/lib/catalogConfig';
 
@@ -694,10 +695,12 @@ export function SliceStudio({
         {wouldExceedTray ? (
           <View style={styles.capNote}>
             {guest ? (
-              <SignInPerk message="Slices save to your account's tray. Sign in (free) to keep them." />
+              <SignInPerk
+                message={`You’re keeping ${trayCount} of ${trayLimit} guest artworks. Sign in (free) to keep up to ${TIER_LIMITS.free.artUploads}.`}
+              />
             ) : (
               <UpgradePerk
-                message={`Your tray holds ${trayCount} of ${trayLimit} artworks. Saving ${panels.length} more needs a bigger plan.`}
+                message={`You’re keeping ${trayCount} of ${trayLimit} artworks. Saving ${panels.length} more needs a bigger plan.`}
                 onBeforePress={onClose}
               />
             )}

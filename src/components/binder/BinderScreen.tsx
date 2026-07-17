@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Platform,
   Pressable,
@@ -46,6 +46,7 @@ import { isSupabaseConfigured } from '@/lib/env';
 import { footprintForKind } from '@/data/cardSizing';
 import { resolveCard } from '@/data/cardResolver';
 import { addSavedSlices, removeSavedSlice, sliceSignature, slotSignature, useSavedSlices, useSavedSlicesSync, type SavedSlice } from '@/data/savedSlices';
+import { TIER_LIMITS } from '@/data/tiers';
 import { SliceTray, SliceThumb } from '@/components/binder/SliceTray';
 import type { CatalogCard } from '@/lib/catalog';
 import { isBlankPage, useBinders } from '@/store/binders';
@@ -611,8 +612,42 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     if (added > 0) showToast(`Added ${added} card${added === 1 ? '' : 's'}`);
   };
 
+  // "Artworks kept" = distinct content signatures across the tray AND every placed artwork
+  // slot. Placed art only reaches the tray on the NEXT sync (the import scan), so counting the
+  // tray alone would let repeated placements in one session sail past the cap unseen. Same
+  // signature vocabulary as the import scan, so a tray slice placed into a pocket counts once.
+  const keptArtworks = useMemo(() => {
+    const sigs = new Set(traySlices.map(sliceSignature));
+    for (const b of store.userBinders) {
+      for (const p of b.pages) {
+        for (const s of p.slots) {
+          if (s.type === 'artwork' && s.imageUrl) sigs.add(slotSignature(s));
+        }
+      }
+    }
+    return sigs.size;
+  }, [traySlices, store.userBinders]);
+
+  // The artworks-kept cap covers EVERY way new art enters the account: studio saves are gated
+  // in the studio, and direct placements are gated here — each placed piece is mirrored into
+  // the tray by the import scan, so an unchecked placement would grow the tray past the cap
+  // silently. `newPieces` is the footprint's piece count (an upper bound: folded pairs merge).
+  const artCapBlocks = (newPieces: number): boolean => {
+    if (keptArtworks + newPieces <= store.limits.artUploads) return false;
+    showToast(
+      store.tier === 'guest'
+        ? `Guests can keep ${store.limits.artUploads} artworks. Sign in (free) to keep up to ${TIER_LIMITS.free.artUploads}.`
+        : `You’ve reached your ${store.limits.artUploads}-artwork limit. Upgrade for more room.`,
+    );
+    return true;
+  };
+
   const handlePickArtwork = (imageUrl: string, rowSpan: number, colSpan: number) => {
     if (!pickerCell) return;
+    if (artCapBlocks(rowSpan * colSpan)) {
+      closePicker();
+      return;
+    }
     // Through placeArtPanels so side-load physics applies: a footprint that isn't a single
     // insertable piece (1×1, or a folded 1×2 on an inside-edge pair) is split into legal
     // pieces with proportional crops — the assembled picture looks the same.
@@ -624,6 +659,10 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
 
   const handlePickSlicedArtwork = (imageUrl: string, rows: number, cols: number) => {
     if (!pickerCell) return;
+    if (artCapBlocks(rows * cols)) {
+      closePicker();
+      return;
+    }
     store.placeSlicedArtwork(binder.id, page.id, pickerCell.row, pickerCell.col, rows, cols, imageUrl);
     closePicker();
   };
@@ -1162,20 +1201,13 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
             imageUrl={studio.imageUrl}
             onSaveSlices={(slices) => {
               // The studio disables Save past the cap; this is the belt-and-braces guard.
-              if (traySlices.length + slices.length > store.limits.artUploads) {
-                showToast(
-                  store.tier === 'guest'
-                    ? 'Slices save to your account. Sign in (free) to keep them.'
-                    : `Saving ${slices.length} more would pass your ${store.limits.artUploads}-artwork limit. Upgrade for more room.`,
-                );
-                return;
-              }
+              if (artCapBlocks(slices.length)) return;
               addSavedSlices(slices);
               setStudio(null);
               showToast(`Saved ${slices.length} slice${slices.length === 1 ? '' : 's'} to your tray`);
             }}
             onClose={() => setStudio(null)}
-            trayCount={traySlices.length}
+            trayCount={keptArtworks}
             trayLimit={store.limits.artUploads}
             guest={store.tier === 'guest'}
           />

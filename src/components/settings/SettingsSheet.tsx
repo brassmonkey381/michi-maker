@@ -4,10 +4,9 @@
  * `constants/variants.ts`). Selecting a theme persists it and re-applies (a
  * reload on web, where the token styles are resolved at load).
  */
-import Constants from 'expo-constants';
 import { useRouter, type Href } from 'expo-router';
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { BundleOffer } from '@/components/monetization/BundleOffer';
 import { PlanUsageSection } from '@/components/monetization/TierUsage';
@@ -51,17 +50,7 @@ function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => 
     router.push(href);
   };
   const current = activeVariantId();
-  const { user, profile, updateProfile } = useAuth();
-  // Optimistic mirror of the profile's public flag so the switch responds instantly.
-  const [publicProfile, setPublicProfile] = useState<boolean | null>(null);
-  const profilePublic = publicProfile ?? profile?.is_public ?? true;
-
-  const toggleProfilePublic = (v: boolean) => {
-    setPublicProfile(v);
-    void updateProfile({ is_public: v }).then((r) => {
-      if (r.error) setPublicProfile(!v); // revert on failure
-    });
-  };
+  const { user } = useAuth();
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -131,61 +120,8 @@ function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => 
             </ThemedText>
             <PlanUsageSection onManagePlan={() => go('/subscriptions' as Href)} />
 
-            {user ? (
-              <>
-                <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
-                  PRIVACY
-                </ThemedText>
-                <View style={styles.privacyRow}>
-                  <View style={styles.privacyText}>
-                    <ThemedText type="smallBold">Public profile</ThemedText>
-                    <ThemedText type="small" themeColor="textSecondary">
-                      {profilePublic
-                        ? 'Your public binders can be shared and featured.'
-                        : 'Private: every one of your binders is hidden from everyone but you.'}
-                    </ThemedText>
-                  </View>
-                  <Switch
-                    value={profilePublic}
-                    onValueChange={toggleProfilePublic}
-                    trackColor={{ true: Palette.accent, false: theme.backgroundSelected }}
-                  />
-                </View>
-
-                {/* Bundle cross-sell — only renders for a paying member who lacks TCGScan Pro. */}
-                <BundleOffer />
-              </>
-            ) : null}
-
-            <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
-              ABOUT
-            </ThemedText>
-            <View style={styles.aboutList}>
-              {(
-                [
-                  { label: 'The Michi Method', href: '/michi-method' },
-                  { label: 'How-to guides', href: '/learn' },
-                  { label: 'Subscriptions', href: '/subscriptions' },
-                  { label: 'Terms of Service', href: '/legal/terms' },
-                  { label: 'Privacy Policy', href: '/legal/privacy' },
-                ] as { label: string; href: Href }[]
-              ).map((l) => (
-                <Pressable
-                  key={l.label}
-                  onPress={() => go(l.href)}
-                  style={({ pressed }) => [styles.aboutRow, pressed && styles.pressed]}>
-                  <ThemedText type="small">{l.label}</ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary">
-                    ›
-                  </ThemedText>
-                </Pressable>
-              ))}
-              {Constants.expoConfig?.version ? (
-                <ThemedText type="small" themeColor="textSecondary" style={styles.version}>
-                  michi-maker v{Constants.expoConfig.version}
-                </ThemedText>
-              ) : null}
-            </View>
+            {/* Bundle cross-sell — only renders for a paying member who lacks TCGScan Pro. */}
+            {user ? <BundleOffer /> : null}
             </ScrollView>
           </ThemedView>
         </Pressable>
@@ -215,16 +151,6 @@ const styles = StyleSheet.create({
   cardGap: { gap: Spacing.two },
   cardMax: { maxHeight: '88%' },
   scrollBody: { gap: Spacing.two },
-  aboutList: { marginTop: Spacing.one },
-  aboutRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.two,
-    borderBottomWidth: 1,
-    borderBottomColor: Palette.hairline,
-  },
-  version: { fontSize: FontSize.xs, marginTop: Spacing.two },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: FontSize.h2, lineHeight: 26 },
   sectionLabel: { textTransform: 'uppercase', letterSpacing: 0.5, marginTop: Spacing.two },
@@ -249,15 +175,6 @@ const styles = StyleSheet.create({
   },
   defaultTagText: { fontSize: FontSize.micro, fontWeight: Weight.bold, letterSpacing: 0.5, color: Palette.muted },
   check: { color: Palette.accent, fontSize: FontSize.md, fontWeight: Weight.bold },
-  privacyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.three,
-    marginTop: Spacing.one,
-  },
-  privacyText: { flex: 1, gap: 2 },
-
   preview: {
     flexDirection: 'row',
     width: 54,

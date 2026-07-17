@@ -16,6 +16,7 @@ import { useEffect, useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
 import { PrintPlaceholdersSheet } from '@/components/binder/PrintPlaceholdersSheet';
+import { LogoLoader } from '@/components/brand/LogoLoader';
 import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, MaxContentWidth, Palette, Radius, Spacing } from '@/constants/theme';
@@ -145,6 +146,10 @@ export default function PurchasesScreen() {
   const { isSignedIn } = useAuth();
   const { isPaid } = useTier();
 
+  // One loading flag for the whole ledger: the four sections load together (one batched
+  // Promise.allSettled below), so they reveal together behind a single animated loader
+  // instead of four separate "Loading…" placeholders.
+  const [loading, setLoading] = useState(true);
   const [payments, setPayments] = useState<Row[] | null>(null);
   const [paymentsFailed, setPaymentsFailed] = useState(false);
   const [grants, setGrants] = useState<Row[] | null>(null);
@@ -275,6 +280,9 @@ export default function PurchasesScreen() {
           })),
         );
       } else setPrintsFailed(true);
+
+      // Everything above resolved in one batch — reveal all four sections at once.
+      if (live) setLoading(false);
     })();
     return () => {
       live = false;
@@ -295,6 +303,10 @@ export default function PurchasesScreen() {
           <ThemedText type="small" themeColor="textSecondary">
             Sign in to see your purchase history.
           </ThemedText>
+        ) : loading ? (
+          <View style={styles.center}>
+            <LogoLoader label="Loading your purchases…" />
+          </View>
         ) : (
           <>
             <SectionRows
@@ -388,6 +400,7 @@ const styles = StyleSheet.create({
   prose: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', gap: Spacing.three },
   h1: { marginBottom: Spacing.one },
   lede: { lineHeight: 20, marginBottom: Spacing.two },
+  center: { paddingVertical: Spacing.six, alignItems: 'center' },
   section: { gap: Spacing.two, marginTop: Spacing.two },
   sectionLabel: { textTransform: 'uppercase', letterSpacing: 0.5 },
   list: {

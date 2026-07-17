@@ -98,7 +98,7 @@ const VALUE_PROPS = [
   },
   {
     title: 'From screen to shelf',
-    body: 'Print cut-ready fill sheets at true card size, 2.5″ × 3.5″ at pocket pitch, so the page you composed drops straight into real pockets. Most tools print undersized; we don’t.',
+    body: 'Print cut-ready fill sheets at true card size, 2.5″ × 3.5″ edge to edge, so every cut is shared and the page you composed drops straight into real pockets. Most tools print undersized; we don’t.',
   },
 ] as const;
 
@@ -336,7 +336,7 @@ export default function WelcomeScreen() {
                   2.5″ × 3.5″
                 </ThemedText>
                 <ThemedText type="small" style={{ color: InkBand.body }}>
-                  true card size, at pocket pitch
+                  true card size, cut-ready
                 </ThemedText>
               </View>
               <View style={styles.printCopy}>

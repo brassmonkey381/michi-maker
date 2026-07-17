@@ -94,7 +94,7 @@ export const GUIDE_LIST: Guide[] = [
       },
       {
         title: 'Print at 100 percent',
-        body: 'Print at Actual size, never Fit to page. Every card prints at the true 2.5 by 3.5 inch card size, and pieces sit at pocket pitch so the gaps between them mirror your binder page.',
+        body: 'Print at Actual size, never Fit to page. Every card prints at the true 2.5 by 3.5 inch card size, and pieces sit edge to edge so neighboring pieces share one cut. Folded art pieces get their own sheets at the end.',
       },
       {
         title: 'Cut and slide',

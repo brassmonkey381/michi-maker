@@ -15,9 +15,11 @@
  *    (crop windows live in TRANSFORMED image space; flips apply before rotation) via a PDF
  *    transformation matrix.
  *
- * Layout: US Letter, 3 × 3 tiles per sheet, edge-to-edge dashed guillotine cut lines, margin
- * rulers (cumulative inches at every cut), and a cover with instructions + a 1-inch
- * calibration square — home printers love "fit to page", which would shrink the pieces.
+ * Layout: US Letter. Singles (placeholders, inserts, 1-pocket art) pack 3 × 3 EDGE TO EDGE so
+ * neighboring pieces share one dashed cut line (fewest cuts, no waste strips); folded 2-wide
+ * art pieces print on their own sheets AT THE END, at true assembled width. Margin rulers
+ * (cumulative inches at every cut) and a cover with instructions + a 1-inch calibration
+ * square — home printers love "fit to page", which would shrink the pieces.
  *
  * All geometry is in PDF points (72 pt = 1 inch), so the physical sizes are exact.
  */
@@ -53,19 +55,24 @@ const POCKET_GAP = 0.125 * PT;
 const COLS = 3;
 const ROWS = 3;
 /**
- * Sheet layout mirrors the binder page: columns sit at POCKET PITCH — the horizontal gap IS
- * the physical webbing, so a folded 2-wide piece prints at its true assembled width
- * (2 cards + the fold strip) and its art runs continuously across the fold. Vertical merges
- * don't exist (side-load physics), so row spacing is just cutting room, kept smaller.
+ * Singles sheets pack pieces EDGE TO EDGE: neighboring pieces share one cut line, so a single
+ * straight cut frees two edges at once — no narrow waste strips between columns. Folded
+ * 2-wide pieces would break that shared grid (their true assembled width is 2 cards + the
+ * fold strip), so they move to their own sheets at the END of the document (FOLD_* below).
  */
-const GAP_X = POCKET_GAP; // 9 pt (1/8")
-const GAP_Y = 6;
-const GRID_W = COLS * CARD_W + (COLS - 1) * GAP_X;
-const GRID_H = ROWS * CARD_H + (ROWS - 1) * GAP_Y;
-const MARGIN_X = (SHEET_W - GRID_W) / 2; // 27 pt (0.375")
-const MARGIN_Y = (SHEET_H - GRID_H) / 2; // 12 pt
-const colX = (c: number) => MARGIN_X + c * (CARD_W + GAP_X);
-const rowY = (r: number) => SHEET_H - MARGIN_Y - (r + 1) * CARD_H - r * GAP_Y;
+const GRID_W = COLS * CARD_W; // 540 pt (7.5")
+const GRID_H = ROWS * CARD_H; // 756 pt (10.5")
+const MARGIN_X = (SHEET_W - GRID_W) / 2; // 36 pt (0.5")
+const MARGIN_Y = (SHEET_H - GRID_H) / 2; // 18 pt (0.25")
+const colX = (c: number) => MARGIN_X + c * CARD_W;
+const rowY = (r: number) => SHEET_H - MARGIN_Y - (r + 1) * CARD_H;
+/** Fold sheets: one 2-pocket-wide piece per row (2 cards + the fold strip, art continuous
+ *  across the fold), stacked edge to edge so the horizontal cuts are shared too. */
+const FOLD_W = 2 * CARD_W + POCKET_GAP; // 369 pt (5.125")
+const FOLD_ROWS = 3;
+const FOLD_MARGIN_X = (SHEET_W - FOLD_W) / 2;
+const FOLD_MARGIN_Y = (SHEET_H - FOLD_ROWS * CARD_H) / 2;
+const foldRowY = (r: number) => SHEET_H - FOLD_MARGIN_Y - (r + 1) * CARD_H;
 
 // ---- colors (ink-friendly grays; soft green for owned cards) ---------------
 const FILL = rgb(0.93, 0.93, 0.93);
@@ -132,8 +139,8 @@ export interface FillCounts {
   art: number;
   inserts: number;
   total: number;
-  /** Print sheets needed (excluding the cover) — from the packed layout, since folded
-   *  2-wide pieces can leave blanks at row breaks. */
+  /** Print sheets needed (excluding the cover) — from the packed layout: singles fill 3 × 3
+   *  sheets edge to edge, folded 2-wide pieces add their own sheets at the end. */
   sheets: number;
 }
 
@@ -373,37 +380,41 @@ export function collectFillTiles(
   return { tiles, counts };
 }
 
-/** A tile placed on the print layout: which sheet, and its cell (2-wide pieces occupy 2 cols). */
+/** A tile placed on the print layout: which sheet, and its bottom-left corner (points). */
 interface PlacedTile {
   tile: FillTile;
   sheet: number;
-  row: number; // 0..ROWS-1 within the sheet
-  col: number; // leftmost column
+  x: number;
+  y: number;
 }
 
 /**
- * Pack tiles into sheet rows (reading order): 2-wide folded pieces can't straddle a row
- * break, so a pair that doesn't fit the current row starts the next one (leaving a blank).
+ * Pack tiles onto sheets. Singles (placeholders, inserts, 1-pocket art) fill the 3 × 3 grid
+ * edge to edge in reading order — no blanks, every interior edge is one shared cut. Folded
+ * 2-wide pieces go on their own sheets AT THE END (FOLD_ROWS per sheet, stacked), so the
+ * singles grid stays unbroken and the total cut count stays minimal.
  */
-function packTiles(tiles: FillTile[]): { placed: PlacedTile[]; sheetCount: number } {
-  const placed: PlacedTile[] = [];
-  let row = 0;
-  let col = 0;
-  for (const tile of tiles) {
-    const w = tile.kind === 'art' ? tile.w : 1;
-    if (col + w > COLS) {
-      col = 0;
-      row += 1;
-    }
-    placed.push({ tile, sheet: Math.floor(row / ROWS), row: row % ROWS, col });
-    col += w;
-    if (col >= COLS) {
-      col = 0;
-      row += 1;
-    }
-  }
-  const sheetCount = placed.length ? placed[placed.length - 1].sheet + 1 : 0;
-  return { placed, sheetCount };
+function packTiles(tiles: FillTile[]): { placed: PlacedTile[]; sheetCount: number; foldStartSheet: number } {
+  const singles = tiles.filter((t) => t.kind !== 'art' || t.w === 1);
+  const folded = tiles.filter((t): t is ArtTile => t.kind === 'art' && t.w === 2);
+  const perSheet = COLS * ROWS;
+  const placed: PlacedTile[] = singles.map((tile, n) => ({
+    tile,
+    sheet: Math.floor(n / perSheet),
+    x: colX(n % COLS),
+    y: rowY(Math.floor(n / COLS) % ROWS),
+  }));
+  const foldStartSheet = Math.ceil(singles.length / perSheet);
+  folded.forEach((tile, n) => {
+    placed.push({
+      tile,
+      sheet: foldStartSheet + Math.floor(n / FOLD_ROWS),
+      x: FOLD_MARGIN_X,
+      y: foldRowY(n % FOLD_ROWS),
+    });
+  });
+  const sheetCount = foldStartSheet + Math.ceil(folded.length / FOLD_ROWS);
+  return { placed, sheetCount, foldStartSheet };
 }
 
 // ---- text helpers -----------------------------------------------------------
@@ -501,14 +512,11 @@ export async function buildPlaceholderPdf(
 
   drawCover(doc.addPage([SHEET_W, SHEET_H]), sanitize(binder.title), counts, bold, regular);
 
-  const { placed, sheetCount } = packTiles(tiles);
+  const { placed, sheetCount, foldStartSheet } = packTiles(tiles);
   for (let s = 0; s < sheetCount; s += 1) {
     const page = doc.addPage([SHEET_W, SHEET_H]);
     const batch = placed.filter((p) => p.sheet === s);
-    for (const { tile, row, col } of batch) {
-      // Pocket-pitch layout: gaps between tiles mirror the binder page's webbing.
-      const x = colX(col);
-      const y = rowY(row);
+    for (const { tile, x, y } of batch) {
       if (tile.kind === 'card') {
         drawCardTile(page, tile, x, y, bold, regular);
         drawPieceOutline(page, x, y, CARD_W);
@@ -526,7 +534,7 @@ export async function buildPlaceholderPdf(
         if (tile.w === 2) drawFoldTicks(page, x + CARD_W + POCKET_GAP / 2, y);
       }
     }
-    drawMarginRulers(page, regular);
+    drawMarginRulers(page, regular, s >= foldStartSheet);
     const hosts = [...new Set(
       batch.map((p) => p.tile).filter((t): t is ArtTile => t.kind === 'art').map((t) => artHost(t.group.imageUrl)),
     )].filter(Boolean);
@@ -547,8 +555,8 @@ function hexColor(h: string) {
   return rgb(((v >> 16) & 255) / 255, ((v >> 8) & 255) / 255, (v & 255) / 255);
 }
 
-/** Dashed cut outline around one piece — with pocket-pitch gaps, you cut on each piece's
- *  own edge (no shared guillotine lines; folded pieces span their fold strip uncut). */
+/** Dashed cut outline around one piece. Pieces sit edge to edge, so neighbors' outlines
+ *  coincide: one dashed line marks one shared cut (folded pieces span their fold strip uncut). */
 function drawPieceOutline(page: PDFPage, x: number, y: number, width: number) {
   page.drawRectangle({
     x, y, width, height: CARD_H,
@@ -566,25 +574,29 @@ function drawFoldTicks(page: PDFPage, foldX: number, y: number) {
 }
 
 /**
- * Cumulative-inch labels in the margins at every piece's leading edge (plus the far edge) —
- * a printed ruler doubling as a second scale check beyond the cover's calibration square.
+ * Cumulative-inch labels in the margins at every cut line — a printed ruler doubling as a
+ * second scale check beyond the cover's calibration square. With the edge-to-edge layout the
+ * cut lines ARE the piece edges: 0 / 2.5 / 5 / 7.5" across, card-height pitch down (fold
+ * sheets: 0 and the assembled width across).
  */
-function drawMarginRulers(page: PDFPage, regular: PDFFont) {
+function drawMarginRulers(page: PDFPage, regular: PDFFont, fold: boolean) {
+  const originX = fold ? FOLD_MARGIN_X : MARGIN_X;
+  const originY = fold ? FOLD_MARGIN_Y : MARGIN_Y;
   const label = (n: number) => `${Number(n.toFixed(2))}"`;
   const top = (x: number, inches: number) => {
     const text = label(inches);
     const w = regular.widthOfTextAtSize(text, 6);
-    page.drawText(text, { x: x - w / 2, y: SHEET_H - MARGIN_Y + 4, size: 6, font: regular, color: MUTED });
+    page.drawText(text, { x: x - w / 2, y: SHEET_H - originY + 4, size: 6, font: regular, color: MUTED });
   };
   const left = (y: number, inches: number) => {
     const text = label(inches);
     const w = regular.widthOfTextAtSize(text, 6);
-    page.drawText(text, { x: MARGIN_X - w - 4, y: y + 2, size: 6, font: regular, color: MUTED });
+    page.drawText(text, { x: originX - w - 4, y: y + 2, size: 6, font: regular, color: MUTED });
   };
-  for (let c = 0; c < COLS; c += 1) top(colX(c), (c * (CARD_W + GAP_X)) / PT);
-  top(colX(COLS - 1) + CARD_W, (( (COLS - 1) * (CARD_W + GAP_X) + CARD_W) / PT));
-  for (let r = 0; r < ROWS; r += 1) left(rowY(r) + CARD_H, (r * (CARD_H + GAP_Y)) / PT);
-  left(rowY(ROWS - 1), (((ROWS - 1) * (CARD_H + GAP_Y) + CARD_H) / PT));
+  const colEdges = fold ? [0, FOLD_W] : Array.from({ length: COLS + 1 }, (_, c) => c * CARD_W);
+  for (const e of colEdges) top(originX + e, e / PT);
+  const rows = fold ? FOLD_ROWS : ROWS;
+  for (let r = 0; r <= rows; r += 1) left(SHEET_H - originY - r * CARD_H, (r * CARD_H) / PT);
 }
 
 /** Discreet assembly tag on art/insert pieces (a future run could print these on the back). */
@@ -785,8 +797,8 @@ function drawCover(page: PDFPage, binderTitle: string, counts: FillCounts, bold:
   const steps = [
     'Print at 100% scale (“Actual size”), NOT “Fit to page”.',
     'Check the calibration square below: it must measure exactly 1 inch (2.54 cm).',
-    'Cut along each piece’s dashed outline. Pieces sit at pocket pitch: the gaps between them mirror your binder page.',
-    'Wide art pieces span TWO pockets: fold at the tick marks (the art continues across the fold), then slide each half into its pocket pair.',
+    'Cut along the dashed lines. Pieces print edge to edge: neighbors share a cut line, so one straight cut frees two edges at once.',
+    'Wide art pieces print on their own sheets at the END, at true two-pocket width: fold at the tick marks (the art continues across the fold), then slide each half into its pocket pair.',
     'Slide every piece into the pocket printed on it (page, row, column; art pieces carry a corner tag). When a real card arrives, its placeholder shows exactly which pocket to swap.',
   ];
   const left = MARGIN_X + 24;

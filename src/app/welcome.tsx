@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
   Easing,
+  useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -11,9 +12,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BinderGrid } from '@/components/binder/BinderGrid';
-import { BinderThumb } from '@/components/binder/BinderThumb';
 import { LogoMark } from '@/components/brand/LogoMark';
+import { AutoFlipBinder } from '@/components/landing/AutoFlipBinder';
+import { HoverLift } from '@/components/landing/HoverLift';
 import { Reveal } from '@/components/landing/Reveal';
 import { FooterLinks } from '@/components/layout/SiteFooter';
 import { ThemedText } from '@/components/themed-text';
@@ -80,10 +81,8 @@ function isDarkBackground(hex: string): boolean {
 
 /** One page that tells a story at a glance: the rarity ladder, common → hyper. */
 const HERO_ID = 'gen-prismatic-rarity-ladder';
-/** Wide screens get an OPEN SPREAD instead: the owner's real binder, opened to its facing pages. */
+/** Wide screens get an OPEN SPREAD instead: the owner's real binder, auto-flipping its facing pages. */
 const SPREAD_ID = 'ex-my-first-binder';
-/** Which facing pages the spread shows (0-indexed left page): pages 2–3, designed as a pair. */
-const SPREAD_LEFT_PAGE = 1;
 /** The owner's real binders (bundled by scripts/build-featured-binders.mjs), not mockups. */
 const GALLERY_IDS = ['ex-my-first-binder', 'ex-ideas-in-flight', 'ex-pitch-black-chase'];
 
@@ -158,8 +157,14 @@ export default function WelcomeScreen() {
       true,
     );
   }, [float]);
-  const floatStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: (float.value - 0.5) * 14 }],
+  // Scroll position drives a subtle parallax on the hero art — it drifts as the page moves,
+  // combined with the always-on float into one transform.
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler((e) => {
+    scrollY.value = e.contentOffset.y;
+  });
+  const heroArtStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: (float.value - 0.5) * 14 + scrollY.value * 0.06 }],
   }));
 
   const enterApp = () => {
@@ -181,12 +186,19 @@ export default function WelcomeScreen() {
   // The hero: an open two-page spread when there's room for it (facing pages are the thing
   // neither a card list nor a competitor wireframe can show), a single page otherwise.
   const spreadBinder = BINDERS_BY_ID.get(SPREAD_ID);
-  const showSpread =
-    windowW >= 1180 && !!spreadBinder && spreadBinder.pages.length > SPREAD_LEFT_PAGE + 1;
-  const spreadPageW = Math.min(330, (windowW - 620) / 2);
-  // The single-page render: big enough to read the cards, never wider than the phone.
-  const heroW = wide ? 420 : Math.min(windowW - Spacing.five * 2, 380);
-  const thumbW = wide ? 300 : Math.min(windowW - Spacing.five * 2, 280);
+  // The hero flips through a real binder: a facing-page spread on wide screens, a single
+  // (larger) page on phones.
+  const heroFlipBinder = spreadBinder ?? heroBinder;
+  const heroSpread = wide && !!heroFlipBinder && heroFlipBinder.pages.length >= 2;
+  const spreadPageW = Math.min(300, Math.max(210, Math.floor((windowW - 680) / 2)));
+  const heroW = wide ? 430 : Math.min(windowW - Spacing.five * 2, 380);
+  // Gallery: three large, auto-flipping binders — three across on wide, one per row on phones.
+  const galleryPageW = wide
+    ? Math.min(
+        400,
+        Math.floor((Math.min(windowW, MaxContentWidthWide) - Spacing.four * 2 - Spacing.four * 2) / 3),
+      )
+    : Math.min(windowW - Spacing.four * 2, 380);
 
   return (
     <ThemedView style={[styles.root, { backgroundColor: paper }]}>
@@ -207,7 +219,11 @@ export default function WelcomeScreen() {
         </Head>
       ) : null}
       <SafeAreaView style={styles.root} edges={['top']}>
-        <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll}>
+        <Animated.ScrollView
+          ref={scrollRef}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+          contentContainerStyle={styles.scroll}>
           {/* ── Nav ─────────────────────────────────────────────────────── */}
           <View style={styles.shell}>
             <View style={styles.nav}>
@@ -255,34 +271,19 @@ export default function WelcomeScreen() {
                 </ThemedText>
               </Reveal>
 
-              {showSpread && spreadBinder ? (
+              {heroFlipBinder ? (
                 <Reveal style={styles.heroArt} delay={140}>
-                  <Animated.View style={floatStyle}>
+                  <Animated.View style={heroArtStyle}>
                     <View style={[styles.heroTilt, Shadows.page]}>
-                      <View style={styles.spreadRow}>
-                        <BinderGrid page={spreadBinder.pages[SPREAD_LEFT_PAGE]} width={spreadPageW} />
-                        <View style={styles.spine}>
-                          {[0, 1, 2, 3].map((i) => (
-                            <View key={i} style={styles.ring} />
-                          ))}
-                        </View>
-                        <BinderGrid page={spreadBinder.pages[SPREAD_LEFT_PAGE + 1]} width={spreadPageW} />
-                      </View>
+                      <AutoFlipBinder
+                        binder={heroFlipBinder}
+                        pageWidth={heroSpread ? spreadPageW : heroW}
+                        spread={heroSpread}
+                      />
                     </View>
                   </Animated.View>
                   <ThemedText type="small" themeColor="textSecondary" style={styles.heroCaption}>
-                    “{spreadBinder.title}”, an open spread rendered live. Not a screenshot.
-                  </ThemedText>
-                </Reveal>
-              ) : heroBinder?.pages[0] ? (
-                <Reveal style={styles.heroArt} delay={140}>
-                  <Animated.View style={floatStyle}>
-                    <View style={[styles.heroTilt, Shadows.page]}>
-                      <BinderGrid page={heroBinder.pages[0]} width={heroW} />
-                    </View>
-                  </Animated.View>
-                  <ThemedText type="small" themeColor="textSecondary" style={styles.heroCaption}>
-                    “{heroBinder.title}”, a real page rendered live. Not a screenshot.
+                    “{heroFlipBinder.title}”, a live binder — flipping through real pages, not a screenshot.
                   </ThemedText>
                 </Reveal>
               ) : null}
@@ -360,16 +361,23 @@ export default function WelcomeScreen() {
                 Every example below is a live binder. Open one, flip its pages, then duplicate
                 it and make it yours.
               </ThemedText>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.galleryRow}>
-                {galleryBinders.map((binder) => (
-                  <BinderThumb
-                    key={binder.id}
-                    binder={binder}
-                    width={thumbW}
-                    onPress={() => openBinder(binder.id)}
-                  />
+              <View style={styles.galleryGrid}>
+                {galleryBinders.map((binder, i) => (
+                  <Reveal key={binder.id} delay={i * 110} style={styles.galleryItem}>
+                    <HoverLift style={styles.galleryLift}>
+                      <Pressable
+                        onPress={() => openBinder(binder.id)}
+                        style={({ pressed }) => [styles.galleryPress, pressed && styles.pressed]}>
+                        <AutoFlipBinder binder={binder} pageWidth={galleryPageW} interval={3800 + i * 500} />
+                        <ThemedText style={styles.galleryTitle}>{binder.title}</ThemedText>
+                        <ThemedText type="small" themeColor="textSecondary">
+                          Open · flip · duplicate
+                        </ThemedText>
+                      </Pressable>
+                    </HoverLift>
+                  </Reveal>
                 ))}
-              </ScrollView>
+              </View>
             </View>
 
             {/* ── Closing CTA ─────────────────────────────────────────── */}
@@ -398,7 +406,7 @@ export default function WelcomeScreen() {
               </ThemedText>
             </View>
           </View>
-        </ScrollView>
+        </Animated.ScrollView>
       </SafeAreaView>
     </ThemedView>
   );
@@ -475,21 +483,6 @@ const styles = StyleSheet.create({
   heroArt: { alignItems: 'center', gap: Spacing.three },
   heroTilt: { transform: [{ rotate: '-1.5deg' }] },
   heroCaption: { maxWidth: 480, textAlign: 'center' },
-  spreadRow: { flexDirection: 'row', alignItems: 'center' },
-  spine: {
-    alignSelf: 'stretch',
-    width: 26,
-    alignItems: 'center',
-    justifyContent: 'space-evenly',
-    paddingVertical: Spacing.five,
-  },
-  ring: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: Palette.hairlineStrong,
-  },
 
   cardRow: {
     flexDirection: 'row',
@@ -538,7 +531,18 @@ const styles = StyleSheet.create({
   printSize: { fontFamily: BrandFont, fontSize: FontSize.display, fontWeight: '900', lineHeight: 40 },
   printCopy: { flex: 1, gap: Spacing.two, minWidth: 240 },
 
-  galleryRow: { gap: Spacing.four, paddingTop: Spacing.four, paddingBottom: Spacing.two },
+  galleryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: Spacing.four,
+    paddingTop: Spacing.four,
+    paddingBottom: Spacing.two,
+  },
+  galleryItem: { alignItems: 'center' },
+  galleryLift: { borderRadius: Radius.lg },
+  galleryPress: { alignItems: 'center', gap: Spacing.two },
+  galleryTitle: { fontFamily: BrandFont, fontSize: FontSize.lg, fontWeight: Weight.bold, marginTop: Spacing.two },
 
   closing: {
     marginTop: Spacing.six,

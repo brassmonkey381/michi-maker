@@ -28,7 +28,7 @@ import { HomeSection } from '@/components/HomeSection';
 import { UpgradePerk } from '@/components/monetization/UpgradePerk';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, Breakpoints, Fonts, FontSize, MaxContentWidth, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { BottomTabInset, Breakpoints, FontSize, MaxContentWidth, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useImageManifest } from '@/lib/catalogConfig';
 import { useBinders } from '@/store/binders';
@@ -140,21 +140,20 @@ export default function MyBindersScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.flex} edges={['top']}>
         <ScrollView contentContainerStyle={styles.scroll}>
-          <View style={styles.headerRow}>
-            <ThemedText type="title" style={styles.h1}>
-              My binders
-            </ThemedText>
-            {railHidden ? (
+          {/* No page title — the "My binders" section header is the top of the page. Where the
+              rail is hidden (native / narrow web), keep a way back Home. */}
+          {railHidden ? (
+            <View style={styles.backRow}>
               <Pressable onPress={() => router.push('/')} hitSlop={8}>
                 <ThemedText type="smallBold" themeColor="textSecondary">
                   ‹ Home
                 </ThemedText>
               </Pressable>
-            ) : null}
-          </View>
+            </View>
+          ) : null}
 
           <HomeSection
-            title="Your binders"
+            title="My binders"
             collapsible={false}
             action={
               <Pressable
@@ -331,14 +330,7 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidthWide,
     alignSelf: 'center',
   },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.four,
-    gap: Spacing.three,
-  },
-  h1: { fontFamily: Fonts?.brand, fontSize: FontSize.display, lineHeight: 40 },
+  backRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.three },
   newBtn: {
     backgroundColor: Palette.accent,
     paddingVertical: Spacing.two,

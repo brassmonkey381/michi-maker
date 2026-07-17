@@ -139,6 +139,12 @@ export default function HomeScreen() {
 
           <GuestBanner />
 
+          {store.featuredBinders.length > 0 ? (
+            <HomeSection title="Featured binders">
+              <BinderCarousel binders={store.featuredBinders} onOpen={openBinder} />
+            </HomeSection>
+          ) : null}
+
           {/* Catalog-free sealed carousel: renders for everyone (guests included). */}
           <HomeSealed />
 
@@ -150,12 +156,6 @@ export default function HomeScreen() {
             onOpenSet={driveViewSetById}
             onAddToBinder={setAddCardId}
           />
-
-          {store.featuredBinders.length > 0 ? (
-            <HomeSection title="Featured binders">
-              <BinderCarousel binders={store.featuredBinders} onOpen={openBinder} />
-            </HomeSection>
-          ) : null}
 
           <HomeSection title="Example binders">
             <BinderCarousel binders={store.exampleBinders} onOpen={openBinder} />

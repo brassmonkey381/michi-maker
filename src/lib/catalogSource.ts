@@ -65,12 +65,37 @@ function gatedSupported(): boolean {
   );
 }
 
+/**
+ * A CURRENT app-project access token. getSession() hands back whatever is in storage — right
+ * after a page load that can be an expired/stale-kid JWT that the key endpoint's getUser()
+ * rejects (a 401 even though the user is signed in) — so refresh when it's expired or close.
+ */
+async function freshToken(): Promise<string | null> {
+  if (!supabase) return null;
+  const { data } = await supabase.auth.getSession();
+  const session = data.session;
+  if (!session) return null;
+  if (session.expires_at && session.expires_at * 1000 - Date.now() < 60_000) {
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    return refreshed.session?.access_token ?? session.access_token;
+  }
+  return session.access_token;
+}
+
 async function fetchGated(onProgress: Progress): Promise<RawCatalog> {
-  const { data } = (await supabase?.auth.getSession()) ?? { data: { session: null } };
-  const token = data.session?.access_token;
+  const token = await freshToken();
   if (!token) throw new Error('no session');
 
-  const keyRes = await fetch(CATALOG_KEY_FN, { headers: { Authorization: `Bearer ${token}` } });
+  let keyRes = await fetch(CATALOG_KEY_FN, { headers: { Authorization: `Bearer ${token}` } });
+  if (keyRes.status === 401 && supabase) {
+    // The stored token was already invalid (expired mid-flight / signing-key rotation) —
+    // force-refresh the session once and retry before giving up.
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    const retryToken = refreshed.session?.access_token;
+    if (retryToken && retryToken !== token) {
+      keyRes = await fetch(CATALOG_KEY_FN, { headers: { Authorization: `Bearer ${retryToken}` } });
+    }
+  }
   if (!keyRes.ok) throw new Error(`catalog-key ${keyRes.status}`);
   const { key, url } = (await keyRes.json()) as { key: string; url: string };
 
@@ -101,8 +126,11 @@ export const gatedCatalogSource: CatalogSource = async (onProgress) => {
   if (gatedSupported() && supabase) {
     try {
       return await fetchGated(onProgress);
-    } catch {
-      // fall through — key endpoint down / no session yet / decrypt failure
+    } catch (e) {
+      // Fall through to the public URL — but say why, because the public catalog.json has been
+      // retired upstream (the P3 protective flip): if this warning shows a gated failure, the
+      // fallback will 400 and the catalog is effectively down for this user.
+      console.warn(`[poke-michi] gated catalog failed: ${(e as Error).message}`);
     }
   }
   return fetchPublic(onProgress);

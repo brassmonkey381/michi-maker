@@ -14,7 +14,22 @@ import { requireSupabase } from '@/lib/supabase';
 
 async function fetchStripeUrl(body: Record<string, string>): Promise<string> {
   const supabase = requireSupabase();
-  const { data, error } = await supabase.functions.invoke('stripe-checkout', { body });
+  // Pass the session token EXPLICITLY. functions.invoke's ambient header injection silently
+  // falls back to the publishable API key when getSession() comes up empty, which the server
+  // can only report as "not signed in" — resolving it here instead gives the user the real
+  // story (stale session vs guest) before any network call.
+  const { data: sessionData } = await supabase.auth.getSession();
+  const session = sessionData.session;
+  if (!session) {
+    throw new Error('Your sign-in session has expired. Sign in again, then retry.');
+  }
+  if (session.user.is_anonymous) {
+    throw new Error('Sign in with a real account to purchase (guest sessions cannot buy).');
+  }
+  const { data, error } = await supabase.functions.invoke('stripe-checkout', {
+    body,
+    headers: { Authorization: `Bearer ${session.access_token}` },
+  });
   if (error) {
     // The function returns JSON error bodies; surface the message when we can read it.
     let message = error.message;

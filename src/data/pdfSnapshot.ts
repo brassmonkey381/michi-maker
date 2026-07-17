@@ -54,6 +54,13 @@ export type PurchaseState =
   /** Binder edited past every purchased version — only the archived versions are downloadable. */
   | 'edited';
 
+/** The frozen printable content of a purchased version (regenerable with any print options). */
+export interface SnapshotContent {
+  title?: string;
+  layoutStyle: DemoBinder['layoutStyle'];
+  pages: DemoBinder['pages'];
+}
+
 /** One purchased (spent) version of a binder's PDF — downloadable forever. */
 export interface PurchasedVersion {
   fingerprint: string;
@@ -62,6 +69,10 @@ export interface PurchasedVersion {
   sheets: number | null;
   /** ISO timestamp the purchase was spent on this version. */
   spentAt: string;
+  /** The version's frozen content — lets a download REGENERATE with the current print options
+   *  (color-owned, cutting margins). Null on rows spent before the column existed; those fall
+   *  back to the archived bytes. */
+  content: SnapshotContent | null;
 }
 
 export interface PurchaseStatus {
@@ -80,7 +91,7 @@ export async function purchaseStatus(binder: DemoBinder): Promise<PurchaseStatus
   const [{ data: rows }, details, fingerprint] = await Promise.all([
     supabase
       .from('binder_pdf_snapshots')
-      .select('fingerprint, pdf_path, sheets, updated_at')
+      .select('fingerprint, pdf_path, sheets, updated_at, binder_json')
       .eq('binder_id', binder.id)
       .order('updated_at', { ascending: false }),
     fetchEntitlementDetails(),
@@ -91,6 +102,7 @@ export async function purchaseStatus(binder: DemoBinder): Promise<PurchaseStatus
     pdfPath: r.pdf_path,
     sheets: r.sheets,
     spentAt: r.updated_at,
+    content: (r.binder_json as SnapshotContent | null) ?? null,
   }));
   if (versions.length === 0) return { state: 'unspent', versions };
   const grant = details.find((d) => d.product === `pdf_binder:${binder.id}`);
@@ -118,10 +130,25 @@ export async function spendPurchase(
   if (!uid) return null;
   const pdfPath = `${uid}/${binder.id}-${fingerprint.slice(0, 16)}.pdf`;
   const spentAt = new Date().toISOString();
+  // Freeze the printable CONTENT alongside the bytes: future downloads of this version can
+  // regenerate it with whatever print options the user picks then.
+  const content: SnapshotContent = {
+    title: binder.title,
+    layoutStyle: binder.layoutStyle,
+    pages: binder.pages,
+  };
   await supabase
     .from('binder_pdf_snapshots')
     .upsert(
-      { user_id: uid, binder_id: binder.id, fingerprint, sheets, pdf_path: pdfPath, updated_at: spentAt },
+      {
+        user_id: uid,
+        binder_id: binder.id,
+        fingerprint,
+        sheets,
+        pdf_path: pdfPath,
+        updated_at: spentAt,
+        binder_json: content as unknown as import('@/types/database').Json,
+      },
       { onConflict: 'user_id,binder_id,fingerprint' },
     );
   await supabase.storage
@@ -131,7 +158,7 @@ export async function spendPurchase(
       upsert: true,
     })
     .catch(() => {}); // best-effort archive
-  return { fingerprint, pdfPath, sheets, spentAt };
+  return { fingerprint, pdfPath, sheets, spentAt, content };
 }
 
 /** One archived version across ALL the user's binders — the /purchases ledger row. These
@@ -145,7 +172,7 @@ export async function fetchAllPurchasedVersions(): Promise<AnyPurchasedVersion[]
   const supabase = requireSupabase();
   const { data, error } = await supabase
     .from('binder_pdf_snapshots')
-    .select('binder_id, fingerprint, pdf_path, sheets, updated_at')
+    .select('binder_id, fingerprint, pdf_path, sheets, updated_at, binder_json')
     .order('updated_at', { ascending: false })
     .limit(200);
   if (error) throw error;
@@ -155,6 +182,7 @@ export async function fetchAllPurchasedVersions(): Promise<AnyPurchasedVersion[]
     pdfPath: r.pdf_path,
     sheets: r.sheets,
     spentAt: r.updated_at,
+    content: (r.binder_json as SnapshotContent | null) ?? null,
   }));
 }
 

@@ -212,19 +212,38 @@ export function PrintPlaceholdersSheet({
     }
   };
 
-  /** Serve one archived purchased version (every spent purchase stays downloadable forever). */
+  /** Download one purchased version (every spent purchase stays downloadable forever). When the
+   *  version carries its frozen CONTENT, regenerate the PDF so the current print options
+   *  (color-owned, cutting margins) apply; older rows without content serve the archived bytes. */
   const downloadArchived = async (version: PurchasedVersion) => {
     if (archBusyPath) return;
     setArchBusyPath(version.pdfPath ?? 'pending');
     setError(null);
     try {
-      const blob = await downloadPurchasedPdf(version);
-      if (!blob) throw new Error('Your purchased PDF couldn’t be found. Contact support and we’ll sort it out.');
       const stamp = new Date(version.spentAt).toISOString().slice(0, 10);
+      const filename = `${binder.title.replace(/[^\w\- ]+/g, '').trim() || 'binder'} fill sheets (purchased ${stamp}).pdf`;
+      let blob: Blob | null = null;
+      if (version.content && catalog) {
+        const frozen = {
+          ...binder,
+          title: version.content.title ?? binder.title,
+          layoutStyle: version.content.layoutStyle,
+          pages: version.content.pages,
+        };
+        const bytes = await buildPlaceholderPdf(frozen, catalog, {
+          ownedIds: effectiveOwned,
+          cutMargins,
+          loadImage: createWebArtLoader(),
+        });
+        blob = new Blob([bytes as BlobPart], { type: 'application/pdf' });
+      } else {
+        blob = await downloadPurchasedPdf(version);
+      }
+      if (!blob) throw new Error('Your purchased PDF couldn’t be found. Contact support and we’ll sort it out.');
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${binder.title.replace(/[^\w\- ]+/g, '').trim() || 'binder'} fill sheets (purchased ${stamp}).pdf`;
+      a.download = filename;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
     } catch (e) {

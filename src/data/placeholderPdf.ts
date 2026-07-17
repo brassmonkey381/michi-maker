@@ -445,27 +445,42 @@ interface PlacedTile {
 function packTiles(
   tiles: FillTile[],
   L: SheetLayout,
-): { placed: PlacedTile[]; sheetCount: number; foldStartSheet: number } {
-  const singles = tiles.filter((t) => t.kind !== 'art' || t.w === 1);
+): { placed: PlacedTile[]; sheetCount: number; artStartSheet: number; foldStartSheet: number } {
+  // ART is NEVER printed tight: whatever the placeholder layout, art pieces get their own
+  // sheets in the spaced layout — labels beneath them, outlines outset, no ink on the artwork.
+  const art = makeLayout(true);
+  const plain = tiles.filter((t) => t.kind !== 'art');
+  const artSingles = tiles.filter((t): t is ArtTile => t.kind === 'art' && t.w === 1);
   const folded = tiles.filter((t): t is ArtTile => t.kind === 'art' && t.w === 2);
-  const perSheet = COLS * L.rows;
-  const placed: PlacedTile[] = singles.map((tile, n) => ({
+
+  const perPlain = COLS * L.rows;
+  const placed: PlacedTile[] = plain.map((tile, n) => ({
     tile,
-    sheet: Math.floor(n / perSheet),
+    sheet: Math.floor(n / perPlain),
     x: colX(L, n % COLS),
     y: rowY(L, Math.floor(n / COLS) % L.rows),
   }));
-  const foldStartSheet = Math.ceil(singles.length / perSheet);
+  const artStartSheet = Math.ceil(plain.length / perPlain);
+  const perArt = COLS * art.rows;
+  artSingles.forEach((tile, n) => {
+    placed.push({
+      tile,
+      sheet: artStartSheet + Math.floor(n / perArt),
+      x: colX(art, n % COLS),
+      y: rowY(art, Math.floor(n / COLS) % art.rows),
+    });
+  });
+  const foldStartSheet = artStartSheet + Math.ceil(artSingles.length / perArt);
   folded.forEach((tile, n) => {
     placed.push({
       tile,
-      sheet: foldStartSheet + Math.floor(n / L.foldRows),
-      x: L.foldMarginX,
-      y: foldRowY(L, n % L.foldRows),
+      sheet: foldStartSheet + Math.floor(n / art.foldRows),
+      x: art.foldMarginX,
+      y: foldRowY(art, n % art.foldRows),
     });
   });
-  const sheetCount = foldStartSheet + Math.ceil(folded.length / L.foldRows);
-  return { placed, sheetCount, foldStartSheet };
+  const sheetCount = foldStartSheet + Math.ceil(folded.length / art.foldRows);
+  return { placed, sheetCount, artStartSheet, foldStartSheet };
 }
 
 // ---- text helpers -----------------------------------------------------------
@@ -565,7 +580,8 @@ export async function buildPlaceholderPdf(
 
   drawCover(doc.addPage([SHEET_W, SHEET_H]), sanitize(binder.title), counts, bold, regular, cutMargins);
 
-  const { placed, sheetCount, foldStartSheet } = packTiles(tiles, L);
+  const { placed, sheetCount, artStartSheet } = packTiles(tiles, L);
+  const artLayout = makeLayout(true); // art draws with the spaced treatment regardless of mode
   for (let s = 0; s < sheetCount; s += 1) {
     const page = doc.addPage([SHEET_W, SHEET_H]);
     const batch = placed.filter((p) => p.sheet === s);
@@ -582,12 +598,13 @@ export async function buildPlaceholderPdf(
         const img = images.get(tile.group.imageUrl) ?? null;
         if (img) drawArtPiece(page, img, tile, x, y);
         else drawArtFallback(page, tile, x, y, bold, regular);
-        drawTag(page, `P${tile.page} · R${tile.row}C${tile.col}${tile.w === 2 ? ' · fold' : ''}`, x, y, regular, L);
-        drawPieceOutline(page, x, y, pieceW, L);
+        // Art markings NEVER touch the artwork: label below the piece, outline outset.
+        drawTag(page, `P${tile.page} · R${tile.row}C${tile.col}${tile.w === 2 ? ' · fold' : ''}`, x, y, regular, artLayout);
+        drawPieceOutline(page, x, y, pieceW, artLayout);
         if (tile.w === 2) drawFoldTicks(page, x + CARD_W + POCKET_GAP / 2, y);
       }
     }
-    if (!cutMargins) drawMarginRulers(page, regular, s >= foldStartSheet, L);
+    if (!cutMargins && s < artStartSheet) drawMarginRulers(page, regular, false, L);
     const hosts = [...new Set(
       batch.map((p) => p.tile).filter((t): t is ArtTile => t.kind === 'art').map((t) => artHost(t.group.imageUrl)),
     )].filter(Boolean);
@@ -622,13 +639,14 @@ function drawPieceOutline(page: PDFPage, x: number, y: number, width: number, L:
   });
 }
 
-/** Fold marks on a 2-wide piece: short ticks at the fold line's top and bottom (kept out of
- *  the art's middle). Fold here, then each half slides into its pocket. */
+/** Fold marks on a 2-wide piece: short ticks ABOVE and BELOW the piece, in the surrounding
+ *  gap — never on the artwork itself. Fold on the line between them, then each half slides
+ *  into its pocket. (Fold sheets always use the spaced layout, so the gap exists.) */
 function drawFoldTicks(page: PDFPage, foldX: number, y: number) {
   const tick = (y1: number, y2: number) =>
     page.drawLine({ start: { x: foldX, y: y1 }, end: { x: foldX, y: y2 }, thickness: 0.8, color: GUIDE, dashArray: [2, 2] });
-  tick(y, y + 12);
-  tick(y + CARD_H - 12, y + CARD_H);
+  tick(y - 9, y - 3);
+  tick(y + CARD_H + 3, y + CARD_H + 9);
 }
 
 /**
@@ -863,11 +881,9 @@ function drawCover(page: PDFPage, binderTitle: string, counts: FillCounts, bold:
     'Check the calibration square below: it must measure exactly 1 inch (2.54 cm).',
     cutMargins
       ? 'Pieces are spaced apart with room for error: rough-cut anywhere in the gap between pieces, then trim just inside the dashed outline. The line sits slightly outside the true edge, so trimming to it never cuts into the piece.'
-      : 'Cut along the dashed lines. Pieces print edge to edge: neighbors share a cut line, so one straight cut frees two edges at once.',
-    'Wide art pieces print on their own sheets at the END, at true two-pocket width: fold at the tick marks (the art continues across the fold), then slide each half into its pocket pair.',
-    cutMargins
-      ? 'Slide every piece into its pocket: placeholders print the page/row/column on the piece, and art pieces have their location printed just below them (the label is in the gap, not on your art).'
-      : 'Slide every piece into the pocket printed on it (page, row, column; art pieces carry a corner tag). When a real card arrives, its placeholder shows exactly which pocket to swap.',
+      : 'Cut along the dashed lines. Placeholder pieces print edge to edge: neighbors share a cut line, so one straight cut frees two edges at once.',
+    'ART pieces always print on their own sheets, spaced apart — nothing is ever printed on your artwork. Their location prints just below each piece; wide pieces fold at the tick marks above and below the fold line, then each half slides into its pocket pair.',
+    'Slide every piece into its pocket: placeholders print the page/row/column on the piece. When a real card arrives, its placeholder shows exactly which pocket to swap.',
   ];
   const left = (SHEET_W - GRID_W) / 2 + 24;
   steps.forEach((text, i) => {

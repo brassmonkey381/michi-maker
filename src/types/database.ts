@@ -102,6 +102,7 @@ export type Database = {
       binder_pdf_snapshots: {
         Row: {
           binder_id: string
+          binder_json: Json | null
           fingerprint: string
           pdf_path: string | null
           sheets: number | null
@@ -110,6 +111,7 @@ export type Database = {
         }
         Insert: {
           binder_id: string
+          binder_json?: Json | null
           fingerprint: string
           pdf_path?: string | null
           sheets?: number | null
@@ -118,6 +120,7 @@ export type Database = {
         }
         Update: {
           binder_id?: string
+          binder_json?: Json | null
           fingerprint?: string
           pdf_path?: string | null
           sheets?: number | null

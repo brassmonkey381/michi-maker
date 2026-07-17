@@ -222,13 +222,13 @@ function chaseBoard(cfg, pool) {
 
   // P1: the crown (first card of the rarest tier) centered, ringed by the next 8 hits.
   const pages = [page(key, 0, ordered.slice(0, 9).map(id), { center: true })];
-  // Then the rest of the hits, 9 per page (a 3×4 final page when it tidies the remainder).
+  // Then the rest of the hits, 9 per page. Uniform 3×3 throughout — an overflow card starts a
+  // new page rather than widening the last one (every page in a binder is the same size).
   let rest = ordered.slice(9);
   let p = 1;
   while (rest.length > 0) {
-    const take = rest.length > 9 && rest.length <= 12 ? 12 : 9;
-    pages.push(page(key, p, rest.slice(0, take).map(id), take === 12 ? { rows: 3, cols: 4 } : {}));
-    rest = rest.slice(take);
+    pages.push(page(key, p, rest.slice(0, 9).map(id)));
+    rest = rest.slice(9);
     p += 1;
   }
   return makeBinder(key, cfg.chase, pages);

@@ -362,7 +362,7 @@
       {
         "id": "rel-pitch-black-chase_p4",
         "rows": 3,
-        "cols": 4,
+        "cols": 3,
         "slots": [
           {
             "id": "rel-pitch-black-chase_p4_r0c0",
@@ -392,22 +392,13 @@
             "cardId": "704773"
           },
           {
-            "id": "rel-pitch-black-chase_p4_r0c3",
-            "row": 0,
-            "col": 3,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "card",
-            "cardId": "704784"
-          },
-          {
             "id": "rel-pitch-black-chase_p4_r1c0",
             "row": 1,
             "col": 0,
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704788"
+            "cardId": "704784"
           },
           {
             "id": "rel-pitch-black-chase_p4_r1c1",
@@ -416,7 +407,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704795"
+            "cardId": "704788"
           },
           {
             "id": "rel-pitch-black-chase_p4_r1c2",
@@ -425,16 +416,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704802"
-          },
-          {
-            "id": "rel-pitch-black-chase_p4_r1c3",
-            "row": 1,
-            "col": 3,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "card",
-            "cardId": "704805"
+            "cardId": "704795"
           },
           {
             "id": "rel-pitch-black-chase_p4_r2c0",
@@ -443,12 +425,37 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "704812"
+            "cardId": "704802"
           },
           {
             "id": "rel-pitch-black-chase_p4_r2c1",
             "row": 2,
             "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704805"
+          },
+          {
+            "id": "rel-pitch-black-chase_p4_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "704812"
+          }
+        ]
+      },
+      {
+        "id": "rel-pitch-black-chase_p5",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "rel-pitch-black-chase_p5_r0c0",
+            "row": 0,
+            "col": 0,
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
@@ -2196,7 +2203,7 @@
       {
         "id": "rel-chaos-rising-chase_p4",
         "rows": 3,
-        "cols": 4,
+        "cols": 3,
         "slots": [
           {
             "id": "rel-chaos-rising-chase_p4_r0c0",
@@ -2226,22 +2233,13 @@
             "cardId": "693515"
           },
           {
-            "id": "rel-chaos-rising-chase_p4_r0c3",
-            "row": 0,
-            "col": 3,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "card",
-            "cardId": "693511"
-          },
-          {
             "id": "rel-chaos-rising-chase_p4_r1c0",
             "row": 1,
             "col": 0,
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "693497"
+            "cardId": "693511"
           },
           {
             "id": "rel-chaos-rising-chase_p4_r1c1",
@@ -2250,7 +2248,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "693514"
+            "cardId": "693497"
           },
           {
             "id": "rel-chaos-rising-chase_p4_r1c2",
@@ -2259,16 +2257,7 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "693504"
-          },
-          {
-            "id": "rel-chaos-rising-chase_p4_r1c3",
-            "row": 1,
-            "col": 3,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "card",
-            "cardId": "693468"
+            "cardId": "693514"
           },
           {
             "id": "rel-chaos-rising-chase_p4_r2c0",
@@ -2277,12 +2266,37 @@
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",
-            "cardId": "693508"
+            "cardId": "693504"
           },
           {
             "id": "rel-chaos-rising-chase_p4_r2c1",
             "row": 2,
             "col": 1,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693468"
+          },
+          {
+            "id": "rel-chaos-rising-chase_p4_r2c2",
+            "row": 2,
+            "col": 2,
+            "rowSpan": 1,
+            "colSpan": 1,
+            "type": "card",
+            "cardId": "693508"
+          }
+        ]
+      },
+      {
+        "id": "rel-chaos-rising-chase_p5",
+        "rows": 3,
+        "cols": 3,
+        "slots": [
+          {
+            "id": "rel-chaos-rising-chase_p5_r0c0",
+            "row": 0,
+            "col": 0,
             "rowSpan": 1,
             "colSpan": 1,
             "type": "card",

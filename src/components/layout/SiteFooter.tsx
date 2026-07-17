@@ -18,7 +18,7 @@ export const FAN_DISCLAIMER =
 export const TAGLINE = 'michi-maker, made with a love for the craft.';
 
 const LINKS: { label: string; href: Href }[] = [
-  { label: 'Subscriptions', href: '/subscriptions' as Href },
+  { label: 'Plans', href: '/plans' as Href },
   { label: 'My Purchases', href: '/purchases' as Href },
   { label: 'How-to', href: '/learn' as Href },
   { label: 'The Michi Method', href: '/michi-method' },

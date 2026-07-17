@@ -61,7 +61,7 @@ const SECTIONS: Section[] = [
   {
     heading: '7. Paid plans',
     paragraphs: [
-      'michi-maker is free while in beta. Paid plans (described on the Subscriptions page) are planned but not yet open. When they open, billing will be handled by a payment provider and these terms will be updated with billing and refund policies before any charge is made.',
+      'michi-maker is free while in beta. Paid plans (described on the Plans page) are planned but not yet open. When they open, billing will be handled by a payment provider and these terms will be updated with billing and refund policies before any charge is made.',
       '[PLACEHOLDER: billing, renewal, and refund terms pending payment provider selection.]',
     ],
   },

@@ -444,6 +444,30 @@ export function PrintPlaceholdersSheet({
                       You already printed this exact version — re-downloads are always free.
                     </ThemedText>
                   </>
+                ) : purchased && pState === null ? (
+                  // This binder was BOUGHT — resolve where the purchase stands before showing
+                  // any credit/upgrade UI (a paid unlock always beats spending a credit).
+                  <View style={styles.center}>
+                    <ActivityIndicator />
+                  </View>
+                ) : purchased && pState === 'unspent' ? (
+                  // An unspent (or re-armed) purchase for THIS binder: use it first — even for
+                  // PRO/VIP, the unlock is already paid for and credits keep for other binders.
+                  <>
+                    <Pressable
+                      onPress={() => setConfirming('spend')}
+                      disabled={busy || !counts || counts.total === 0}
+                      style={({ pressed }) => [
+                        styles.btn,
+                        (pressed || busy || !counts || counts.total === 0) && styles.dim,
+                      ]}>
+                      <Text style={styles.btnText}>Download PDF · your $3.99 unlock</Text>
+                    </Pressable>
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
+                      Your unlock covers this binder as it is right now. Downloading locks in
+                      this version — re-download it anytime, forever.
+                    </ThemedText>
+                  </>
                 ) : hasFullPrint && !metered ? (
                   // Unlimited included prints (enforcement off) — the plain subscriber button.
                   <Pressable
@@ -502,25 +526,6 @@ export function PrintPlaceholdersSheet({
                       </Pressable>
                     ) : null}
                   </View>
-                ) : purchased && pState === 'unspent' ? (
-                  // A fresh (or re-armed) one-time purchase: the first download locks it in —
-                  // via the confirm step, so nothing is spent by accident.
-                  <>
-                    <Pressable
-                      onPress={() => setConfirming('spend')}
-                      disabled={busy || !counts || counts.total === 0}
-                      style={({ pressed }) => [
-                        styles.btn,
-                        (pressed || busy || !counts || counts.total === 0) && styles.dim,
-                      ]}>
-                      <Text style={styles.btnText}>Download PDF</Text>
-                    </Pressable>
-                    <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-                      Your unlock covers this binder as it is right now. Downloading locks in
-                      this version — re-download it anytime, forever. Printing future edits
-                      will need a new unlock or a PRO/VIP plan.
-                    </ThemedText>
-                  </>
                 ) : entLoading || ((purchased || hasFullPrint) && pState === null) ? (
                   <View style={styles.center}>
                     <ActivityIndicator />

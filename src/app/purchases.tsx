@@ -368,7 +368,7 @@ export default function PurchasesScreen() {
             <ThemedText
               type="linkPrimary"
               style={styles.portal}
-              onPress={() => router.push('/subscriptions' as Href)}>
+              onPress={() => router.push('/plans' as Href)}>
               View plans ›
             </ThemedText>
           </>

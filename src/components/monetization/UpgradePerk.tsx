@@ -29,7 +29,7 @@ export function UpgradePerk({
           {message}
         </ThemedText>
         <Pressable
-          onPress={() => router.push('/subscriptions')}
+          onPress={() => router.push('/plans')}
           hitSlop={6}
           style={({ pressed }) => [styles.btn, pressed && styles.pressed]}>
           <ThemedText type="smallBold" style={styles.btnText}>

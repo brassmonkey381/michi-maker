@@ -6,7 +6,7 @@
  * purchases for now — same policy as PDF download.
  *
  * Fulfillment is webhook-driven: after Checkout redirects back with ?checkout=success, the
- * entitlement row lands within seconds — callers poll `useTier().refresh()` (see /subscriptions).
+ * entitlement row lands within seconds — callers poll `useTier().refresh()` (see /plans).
  */
 import { Platform } from 'react-native';
 
@@ -80,7 +80,7 @@ function currentReturnUrl(): string {
     here.searchParams.delete('checkout'); // never carry a stale result flag back around
     return here.toString();
   }
-  return 'https://www.michi-maker.com/subscriptions';
+  return 'https://www.michi-maker.com/plans';
 }
 
 /** Launch Stripe Checkout for a catalog lookup_key (subscriptions or the one-time binder PDF).

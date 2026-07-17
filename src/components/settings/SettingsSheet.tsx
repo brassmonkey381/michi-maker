@@ -118,7 +118,7 @@ function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => 
             <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
               PLAN
             </ThemedText>
-            <PlanUsageSection onManagePlan={() => go('/subscriptions' as Href)} />
+            <PlanUsageSection onManagePlan={() => go('/plans' as Href)} />
 
             {/* Bundle cross-sell — only renders for a paying member who lacks TCGScan Pro. */}
             {user ? <BundleOffer /> : null}

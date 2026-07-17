@@ -1,5 +1,5 @@
 /**
- * Shared site footer: the cross-page link row (Pricing / How-to / Method / Terms / Privacy)
+ * Shared site footer: the cross-page link row (Subscriptions / How-to / Method / Terms / Privacy)
  * plus the fan-tool disclaimer lines. `FooterLinks` is exported separately so the landing page
  * can adopt just the links inside its own footer without restructuring.
  */

@@ -369,8 +369,8 @@ export function CardPicker({
                     key={s.label}
                     disabled={!enabled}
                     onPress={() => setShape({ rows: s.rows, cols: s.cols })}
-                    style={[styles.shapeChip, active && flatChip.active, !enabled && styles.disabled]}>
-                    <Text style={[flatChip.text, active && flatChip.textActive]}>{s.name}</Text>
+                    style={[styles.shapeChip, active && styles.shapeChipActive, !enabled && styles.disabled]}>
+                    <Text style={[flatChip.text, active && styles.shapeTextActive]}>{s.name}</Text>
                     <Text style={[styles.shapeSize, active && styles.shapeSizeActive]}>{s.size}</Text>
                   </Pressable>
                 );
@@ -470,29 +470,54 @@ const styles = StyleSheet.create({
   keepAddingTextOn: { color: Palette.accentText },
   close: { fontSize: FontSize.md, fontWeight: Weight.semibold, color: Palette.accent },
   controlsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' },
-  controlsLabel: { fontSize: FontSize.label, color: Palette.muted, marginRight: 2 },
-  segmentRow: { flexDirection: 'row', gap: 6, marginBottom: 12 },
+  controlsLabel: {
+    fontSize: FontSize.sm,
+    color: Palette.muted,
+    fontWeight: Weight.semibold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginRight: 2,
+  },
+  // Segmented control, matching the studio's fit/view toggles: panel track, surface thumb.
+  segmentRow: {
+    flexDirection: 'row',
+    backgroundColor: Palette.panel,
+    borderRadius: Radius.pill,
+    padding: 2,
+    marginBottom: 12,
+  },
   segment: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 9,
-    borderRadius: Radius.control,
-    backgroundColor: Palette.panel,
+    paddingVertical: 8,
+    borderRadius: Radius.pill,
   },
-  segmentActive: { backgroundColor: Palette.accent },
-  segmentText: { fontSize: FontSize.body, fontWeight: Weight.semibold, color: Palette.ink2 },
-  segmentTextActive: { color: Palette.accentText },
+  segmentActive: {
+    backgroundColor: Palette.surface,
+    shadowColor: '#000000',
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  segmentText: { fontSize: FontSize.body, fontWeight: Weight.medium, color: Palette.muted },
+  segmentTextActive: { color: Palette.ink, fontWeight: Weight.semibold },
   shapeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' },
   shapeChip: {
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: Radius.control,
     backgroundColor: Palette.panel,
+    borderWidth: 1,
+    borderColor: 'transparent',
     alignItems: 'center',
     minWidth: 58,
   },
-  shapeSize: { fontSize: FontSize.micro, color: Palette.onDarkMuted2, marginTop: 1 },
-  shapeSizeActive: { color: Palette.selectionTint },
+  // Selection language shared with the studio's legal-pair bar: accent border + soft tint.
+  shapeChipActive: { borderColor: Palette.accent, backgroundColor: Palette.selectionSoft },
+  shapeTextActive: { color: Palette.ink, fontWeight: Weight.semibold },
+  shapeSize: { fontSize: FontSize.micro, color: Palette.muted3, marginTop: 1 },
+  shapeSizeActive: { color: Palette.accent },
   disabled: { opacity: 0.3 },
   hint: { fontSize: FontSize.base, color: Palette.muted3, marginTop: 4, marginBottom: 4, lineHeight: 17, width: '100%' },
   errorHint: { color: Palette.dangerAlt },

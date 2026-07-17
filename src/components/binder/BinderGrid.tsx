@@ -1141,6 +1141,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: Palette.white,
   },
+  // The selected-pocket toolbar: the light gallery voice (surface pill, hairline, soft lift)
+  // rather than a dark chrome bar, matching the studio's contextual action bars.
   slotToolbar: {
     position: 'absolute',
     zIndex: 60,
@@ -1150,12 +1152,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     paddingVertical: 3,
     borderRadius: Radius.pill,
-    backgroundColor: Palette.chrome,
+    backgroundColor: Palette.surface,
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
     shadowColor: Palette.black,
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
+    elevation: 6,
   },
   toolBtn: {
     paddingHorizontal: 10,
@@ -1163,12 +1167,12 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
   },
   toolBtnText: {
-    color: Palette.white,
+    color: Palette.ink2,
     fontSize: FontSize.label,
     fontWeight: Weight.semibold,
   },
   toolBtnTextDanger: {
-    color: Palette.danger,
+    color: Palette.dangerAlt,
   },
   missing: {
     backgroundColor: Palette.hairline,

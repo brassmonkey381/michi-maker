@@ -109,7 +109,7 @@ const FEATURES = [
   },
   {
     title: 'My Collection',
-    body: 'Scans from the tcgscan app and CSV imports land here live. Fill binders from what you own: green for owned, gray for still hunting.',
+    body: 'Scans from the TCGScan app and CSV imports land here live. Fill binders from what you own: green for owned, gray for still hunting.',
   },
   {
     title: 'True-size printing',

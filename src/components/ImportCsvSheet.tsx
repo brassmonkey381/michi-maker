@@ -84,7 +84,7 @@ export function ImportCsvSheet({
                 <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
                   Paste a TCGPlayer collection export, any CSV with a product-id or name column,
                   or bare “productId,quantity” lines. The import becomes a portfolio. It shows
-                  up in <TcgscanLink label="tcgscan" /> too, and deleting it there removes these
+                  up in <TcgscanLink /> too, and deleting it there removes these
                   cards again.
                 </ThemedText>
 

@@ -116,7 +116,7 @@ function EmptyCollection({ onToast }: { onToast?: (message: string) => void }) {
     <HomeSection title="My collection">
       <View style={styles.emptyRow}>
         <ThemedText type="small" themeColor="textSecondary" style={styles.emptyRowText}>
-          Scan cards with <TcgscanLink label="tcgscan" />, or import a CSV (TCGPlayer collection
+          Scan cards with <TcgscanLink />, or import a CSV (TCGPlayer collection
           exports work) to start your collection.
         </ThemedText>
         <Pressable
@@ -479,7 +479,7 @@ function CollectionStrip({
           </ThemedText>
         ) : portfolioGroups.length === 0 ? (
           <ThemedText type="small" themeColor="textSecondary" style={styles.emptyNote}>
-            No portfolios yet. Collections you make in <TcgscanLink label="tcgscan" /> appear here.
+            No portfolios yet. Collections you make in <TcgscanLink /> appear here.
           </ThemedText>
         ) : (
           portfolioGroups.map((g) => (

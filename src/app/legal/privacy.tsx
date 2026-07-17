@@ -24,7 +24,7 @@ const SECTIONS: Section[] = [
       'Account identity: an email address, or a Google or Apple sign-in, handled by our backend provider (Supabase). Guests get an anonymous account with no personal details until they choose to upgrade it.',
       'Profile: your permanent username, optional avatar, and a public or private flag you control.',
       'Your work: binders, pages, pocket contents, notes, saved art slices, and images you upload.',
-      'Collection data: card inventory you import from tcgscan or by CSV, if you use those features.',
+      'Collection data: card inventory you import from TCGScan or by CSV, if you use those features.',
       'On this device: small preferences like your theme choice and whether you have seen the landing page, stored locally.',
     ],
   },

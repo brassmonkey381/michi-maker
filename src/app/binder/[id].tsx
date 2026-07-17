@@ -9,14 +9,13 @@
  */
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BinderGrid } from '@/components/binder/BinderGrid';
 import { BinderScreen } from '@/components/binder/BinderScreen';
 import { BinderPages } from '@/components/binder/BinderPages';
 import { LikeButton } from '@/components/binder/LikeButton';
-import { LogoLoader } from '@/components/brand/LogoLoader';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Fonts, FontSize, MaxContentWidthWide, Palette, Spacing } from '@/constants/theme';
@@ -49,7 +48,7 @@ export default function BinderRoute() {
     return (
       <ThemedView style={styles.container}>
         <SafeAreaView style={[styles.flex, styles.center]} edges={['top']}>
-          <LogoLoader label="Loading binder…" />
+          <ActivityIndicator />
         </SafeAreaView>
       </ThemedView>
     );
@@ -112,7 +111,7 @@ function PublicViewer({ id }: { id?: string }) {
 
         {state.status === 'loading' ? (
           <View style={styles.center}>
-            <LogoLoader label="Loading binder…" />
+            <ActivityIndicator />
           </View>
         ) : state.status === 'missing' ? (
           <View style={styles.center}>

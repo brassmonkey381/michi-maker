@@ -402,7 +402,13 @@ export function PrintPlaceholdersSheet({
                   </ThemedText>
                 ) : null}
 
-                {confirming ? (
+                {busy ? (
+                  // PDF generation is the long processing funnel — brand the wait instead of a
+                  // button spinner.
+                  <View style={styles.center}>
+                    <LogoLoader label="Generating your PDF…" variant="thinking" />
+                  </View>
+                ) : confirming ? (
                   // ── the confirmation step — nothing consequential happens on first click ──
                   <View style={styles.confirmBox}>
                     <ThemedText type="smallBold">{confirmCopy[confirming].title}</ThemedText>
@@ -626,16 +632,17 @@ export function PrintPlaceholdersSheet({
                     everyone: non-payers see the format before buying, payers use it to test
                     printer scale without spending a credit. */}
                 {catalog && store.exampleBinders.length > 0 ? (
-                  <Pressable
-                    onPress={downloadExample}
-                    disabled={exBusy}
-                    style={({ pressed }) => [styles.exampleBtn, (pressed || exBusy) && styles.dim]}>
-                    {exBusy ? (
-                      <ActivityIndicator color={Palette.accent} />
-                    ) : (
+                  exBusy ? (
+                    <View style={styles.center}>
+                      <LogoLoader label="Generating example…" variant="thinking" />
+                    </View>
+                  ) : (
+                    <Pressable
+                      onPress={downloadExample}
+                      style={({ pressed }) => [styles.exampleBtn, pressed && styles.dim]}>
                       <Text style={styles.exampleBtnText}>See a free example (PDF)</Text>
-                    )}
-                  </Pressable>
+                    </Pressable>
+                  )
                 ) : null}
 
                 {error ? (

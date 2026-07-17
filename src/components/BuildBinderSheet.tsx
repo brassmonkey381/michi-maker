@@ -7,7 +7,7 @@
  * Needs the catalog (a signed-in perk) to read species/artist/set metadata — same gating story
  * as the ✨ Fill sheet.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
@@ -41,10 +41,24 @@ export function BuildBinderSheet({
   // simply proposes without a chase page rather than blocking the wizard.
   const priceSummary = usePriceSummary();
 
-  const plan = useMemo(
+  const rawPlan = useMemo(
     () => (visible && catalog ? proposePages(freeIds, catalog, priceSummary) : null),
     [visible, catalog, priceSummary, freeIds],
   );
+  // Hold the "Reading your collection…" state for a deliberate minimum so the build
+  // animation is actually seen — the plan itself computes near-instantly on a warm catalog.
+  // (Effective wait = max(catalog load, this floor).) Tune or drop MIN_LOADER_MS freely.
+  const MIN_LOADER_MS = 3500;
+  const [minElapsed, setMinElapsed] = useState(false);
+  useEffect(() => {
+    if (!visible) return;
+    const id = setTimeout(() => setMinElapsed(true), MIN_LOADER_MS);
+    return () => {
+      clearTimeout(id);
+      setMinElapsed(false);
+    };
+  }, [visible]);
+  const plan = rawPlan && minElapsed ? rawPlan : null;
 
   // Ticked theme pages (default: all proposed) + the bulk sweep toggle.
   const [excluded, setExcluded] = useState<Set<string>>(new Set());

@@ -5,13 +5,16 @@
  *
  * Runs on the Edge runtime via @vercel/og (Satori → resvg). Design notes:
  *  - No text nodes → no font dependency (the title/description ride in the meta tags).
- *  - Card art uses the flat JPEG tier (`card-imgs/<id>.jpg`); resvg rasterises JPEG/PNG
- *    reliably but not always WebP.
+ *  - CARD ART: the hosted buckets key images by content hash, so a URL is NOT
+ *    constructible from a card id — it comes from the lite `images.json` manifest
+ *    (fields ["image","image_small","image_medium"]). Satori can rasterise JPEG/PNG but
+ *    NOT WebP, and the two thumb tiers are WebP, so we resolve the `image` field (the
+ *    full-size JPEG). See tcgscan-browse `images.ts` / `cardThumbUrl`.
  *  - Satori supports flexbox only, so the page is laid out as nested flex rows. Slot
  *    spans are not honoured yet (a spanned card shows in its origin cell) — see the
  *    follow-up in docs/OPEN-GRAPH.md.
- *  - On ANY failure it redirects to the binder's cover card (the previous behaviour),
- *    so a share always has an image.
+ *  - On ANY failure it redirects to the binder's cover image (or the site image), so a
+ *    share always has something.
  */
 import { ImageResponse } from '@vercel/og';
 
@@ -19,7 +22,7 @@ export const config = { runtime: 'edge' };
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
-const IMG_BASE = process.env.EXPO_PUBLIC_CATALOG_IMG_BASE || '';
+const BROWSE_URL = process.env.EXPO_PUBLIC_CATALOG_BROWSE_URL || '';
 const SITE = process.env.EXPO_PUBLIC_APP_URL || 'https://michi-maker.com';
 
 const W = 1200;
@@ -27,12 +30,14 @@ const H = 630;
 const GAP = 8;
 const CARD_ASPECT = 2.5 / 3.5; // real card proportions
 
-const cardJpg = (id) => (id && IMG_BASE ? `${IMG_BASE}/card-imgs/${encodeURIComponent(id)}.jpg` : null);
-const cardThumb = (id) =>
-  id && IMG_BASE ? `${IMG_BASE}/card-thumbs/640/${encodeURIComponent(id)}.webp` : null;
-
 /** Minimal hyperscript — Satori reads `{ type, props: { style, children, ... } }`. */
 const h = (type, props, children) => ({ type, props: { ...(props || {}), children } });
+
+async function fetchJson(url, headers) {
+  const res = await fetch(url, headers ? { headers } : undefined);
+  if (!res.ok) return null;
+  return res.json();
+}
 
 async function fetchBinder(id) {
   if (!SUPABASE_URL || !SUPABASE_KEY) return null;
@@ -41,28 +46,52 @@ async function fetchBinder(id) {
   const url = `${SUPABASE_URL}/rest/v1/binders?id=eq.${encodeURIComponent(
     id,
   )}&is_public=eq.true&select=${encodeURIComponent(select)}`;
-  const res = await fetch(url, {
-    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+  const rows = await fetchJson(url, {
+    apikey: SUPABASE_KEY,
+    Authorization: `Bearer ${SUPABASE_KEY}`,
   });
-  if (!res.ok) return null;
-  const rows = await res.json();
   return Array.isArray(rows) ? rows[0] : null;
 }
 
-const cardCount = (page) => (page.binder_slots || []).filter((s) => s.card_id).length;
-
-/** The page that makes the best hero: the one with the most cards on it. */
-function pickPage(binder) {
-  const pages = (binder.binder_pages || []).slice().sort((a, b) => a.position - b.position);
-  let best = null;
-  for (const p of pages) if (!best || cardCount(p) > cardCount(best)) best = p;
-  return best && cardCount(best) > 0 ? best : null;
+/** The lite id→content-hashed-image manifest. Fetched once per render (the PNG is edge-cached). */
+async function fetchManifest() {
+  if (!BROWSE_URL) return null;
+  const m = await fetchJson(`${BROWSE_URL}/images.json`);
+  if (!m || !Array.isArray(m.fields) || !m.base || !m.cards) return null;
+  return m;
 }
 
-/** Card size that fits `cols`×`rows` inside the frame while staying card-shaped. */
-function cardSize(cols, rows) {
-  const maxGridW = 760;
-  const maxGridH = 540;
+/** id → absolute URL for a manifest field, or null. `image` is the full JPEG (Satori-safe). */
+function manifestUrl(manifest, id, field) {
+  if (!manifest || !id) return null;
+  const i = manifest.fields.indexOf(field);
+  if (i < 0) return null;
+  const key = manifest.cards[id]?.[i];
+  const base = manifest.base[field];
+  return key && base ? `${base}/${key}` : null;
+}
+
+const cardCount = (page) => (page.binder_slots || []).filter((s) => s.card_id).length;
+const pageCells = (page) => (page.cols || 3) * (page.rows || 3);
+
+/**
+ * The page(s) to show. Prefer an OPEN SPREAD (the two fullest pages, in page order) —
+ * more art, and it fills the wide frame — falling back to a single page. The spread is
+ * capped at ~18 pockets total so a render never fetches an unreasonable pile of
+ * full-size card JPEGs.
+ */
+function pickPages(binder) {
+  const pages = (binder.binder_pages || []).slice().sort((a, b) => a.position - b.position);
+  const withCards = pages.filter((p) => cardCount(p) > 0);
+  if (withCards.length === 0) return [];
+  if (withCards.length === 1) return [withCards[0]];
+  const topTwo = withCards.slice().sort((a, b) => cardCount(b) - cardCount(a)).slice(0, 2);
+  if (pageCells(topTwo[0]) + pageCells(topTwo[1]) > 18) return [topTwo[0]];
+  return topTwo.sort((a, b) => a.position - b.position);
+}
+
+/** Card size that fits `cols`×`rows` inside the given box while staying card-shaped. */
+function cardSize(cols, rows, maxGridW, maxGridH) {
   const cellW = (maxGridW - GAP * (cols - 1)) / cols;
   const cellH = (maxGridH - GAP * (rows - 1)) / rows;
   let cw = cellW;
@@ -74,19 +103,18 @@ function cardSize(cols, rows) {
   return { cw: Math.floor(cw), ch: Math.floor(ch) };
 }
 
-function compose(page) {
+/** One page's grid of cards at a fixed card size. */
+function pageGrid(page, cw, ch, manifest) {
   const cols = page.cols || 3;
   const rows = page.rows || 3;
-  const { cw, ch } = cardSize(cols, rows);
   const byCell = new Map();
   for (const s of page.binder_slots || []) byCell.set(`${s.row_index}:${s.col_index}`, s);
-
   const rowEls = [];
   for (let r = 0; r < rows; r++) {
     const cells = [];
     for (let c = 0; c < cols; c++) {
       const slot = byCell.get(`${r}:${c}`);
-      const src = slot && slot.card_id ? cardJpg(slot.card_id) : null;
+      const src = slot && slot.card_id ? manifestUrl(manifest, slot.card_id, 'image') : null;
       cells.push(
         h(
           'div',
@@ -106,23 +134,44 @@ function compose(page) {
     }
     rowEls.push(h('div', { style: { display: 'flex', flexDirection: 'row', gap: GAP } }, cells));
   }
+  return h('div', { style: { display: 'flex', flexDirection: 'column', gap: GAP } }, rowEls);
+}
 
-  const grid = h('div', { style: { display: 'flex', flexDirection: 'column', gap: GAP } }, rowEls);
-  const pageCard = h(
+/** The ringed binder spine between two facing pages. */
+function spine(height) {
+  const rings = [0, 1, 2, 3].map(() =>
+    h('div', {
+      style: {
+        display: 'flex',
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        borderWidth: 2,
+        borderStyle: 'solid',
+        borderColor: 'rgba(120,116,108,0.40)',
+      },
+    }),
+  );
+  return h(
     'div',
     {
       style: {
         display: 'flex',
-        padding: 18,
-        borderRadius: 24,
-        backgroundColor: '#fbfaf7',
-        boxShadow: '0 26px 70px rgba(60,50,35,0.30)',
-        transform: 'rotate(-2deg)',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'space-around',
+        width: 26,
+        height,
+        paddingTop: 10,
+        paddingBottom: 10,
       },
     },
-    grid,
+    rings,
   );
-  return h(
+}
+
+const frame = (inner) =>
+  h(
     'div',
     {
       style: {
@@ -134,8 +183,47 @@ function compose(page) {
         background: 'linear-gradient(135deg, #FAF6EF 0%, #EFE7D9 100%)',
       },
     },
-    pageCard,
+    inner,
   );
+
+const mat = (children, tilt) =>
+  h(
+    'div',
+    {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        padding: 18,
+        borderRadius: 24,
+        backgroundColor: '#fbfaf7',
+        boxShadow: '0 26px 70px rgba(60,50,35,0.30)',
+        transform: `rotate(${tilt}deg)`,
+      },
+    },
+    children,
+  );
+
+function compose(pages, manifest) {
+  if (pages.length >= 2) {
+    // Open spread: shared card size so both pages align; sized to a half-frame box.
+    const cols = Math.max(pages[0].cols || 3, pages[1].cols || 3);
+    const rows = Math.max(pages[0].rows || 3, pages[1].rows || 3);
+    const { cw, ch } = cardSize(cols, rows, 470, 520);
+    const spineH = rows * ch + (rows - 1) * GAP;
+    return frame(
+      mat(
+        [
+          pageGrid(pages[0], cw, ch, manifest),
+          spine(spineH),
+          pageGrid(pages[1], cw, ch, manifest),
+        ],
+        -1.5,
+      ),
+    );
+  }
+  const page = pages[0];
+  const { cw, ch } = cardSize(page.cols || 3, page.rows || 3, 760, 540);
+  return frame(mat(pageGrid(page, cw, ch, manifest), -2));
 }
 
 export default async function handler(req) {
@@ -143,18 +231,27 @@ export default async function handler(req) {
   const id = (searchParams.get('id') || '').trim();
   let cover = `${SITE}/og.png`;
   try {
-    const binder = id ? await fetchBinder(id) : null;
-    if (binder) {
-      cover = cardThumb(binder.cover_card_id) || cover;
-      const page = pickPage(binder);
-      if (page) {
-        return new ImageResponse(compose(page), {
-          width: W,
-          height: H,
-          headers: {
-            'cache-control': 'public, max-age=0, s-maxage=300, stale-while-revalidate=86400',
-          },
-        });
+    if (id) {
+      const [binder, manifest] = await Promise.all([fetchBinder(id), fetchManifest()]);
+      if (binder) {
+        cover = manifestUrl(manifest, binder.cover_card_id, 'image') || cover;
+        const pages = pickPages(binder);
+        // Only compose when at least one card actually resolves to an image — otherwise
+        // an all-blank page is worse than the cover fallback.
+        const anyImage = pages.some((page) =>
+          (page.binder_slots || []).some(
+            (s) => s.card_id && manifestUrl(manifest, s.card_id, 'image'),
+          ),
+        );
+        if (pages.length && anyImage) {
+          return new ImageResponse(compose(pages, manifest), {
+            width: W,
+            height: H,
+            headers: {
+              'cache-control': 'public, max-age=0, s-maxage=300, stale-while-revalidate=86400',
+            },
+          });
+        }
       }
     }
   } catch {

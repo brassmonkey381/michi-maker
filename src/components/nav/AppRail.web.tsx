@@ -14,12 +14,20 @@ import { LogoMark } from '@/components/brand/LogoMark';
 import { ThemedText } from '@/components/themed-text';
 import { Breakpoints, Fonts, FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 
-const ITEMS: { label: string; href: Href; match: (path: string) => boolean }[] = [
+type RailItem = { label: string; href: Href; match: (path: string) => boolean };
+
+// Two groups: "Explore" (discovery + info) and "You" (the account's own stuff). Within You,
+// My Binders sits directly above My Purchases.
+const EXPLORE: RailItem[] = [
   { label: 'Home', href: '/', match: (p) => p === '/' },
+  { label: 'Browse cards', href: '/browse' as Href, match: (p) => p.startsWith('/browse') },
   { label: 'Plans', href: '/plans' as Href, match: (p) => p.startsWith('/plans') || p.startsWith('/subscriptions') || p.startsWith('/pricing') },
-  { label: 'My Purchases', href: '/purchases' as Href, match: (p) => p.startsWith('/purchases') },
   { label: 'How-to', href: '/learn' as Href, match: (p) => p.startsWith('/learn') },
   { label: 'The Michi Method', href: '/michi-method', match: (p) => p.startsWith('/michi-method') },
+];
+const YOU: RailItem[] = [
+  { label: 'My Binders', href: '/my-binders' as Href, match: (p) => p.startsWith('/my-binders') },
+  { label: 'My Purchases', href: '/purchases' as Href, match: (p) => p.startsWith('/purchases') },
 ];
 
 export function AppRail() {
@@ -40,29 +48,9 @@ export function AppRail() {
         <ThemedText style={styles.wordmark}>michi-maker</ThemedText>
       </Pressable>
 
-      <ThemedText type="smallBold" themeColor="textSecondary" style={styles.groupLabel}>
-        Explore
-      </ThemedText>
-      <View style={styles.items}>
-        {ITEMS.map((item) => {
-          const active = item.match(pathname);
-          return (
-            <Pressable
-              key={item.label}
-              onPress={() => router.push(item.href)}
-              accessibilityRole="link"
-              accessibilityState={{ selected: active }}
-              style={({ pressed }) => [styles.item, active && styles.itemActive, pressed && styles.pressed]}>
-              <ThemedText
-                type={active ? 'smallBold' : 'small'}
-                themeColor={active ? undefined : 'textSecondary'}
-                style={styles.itemText}>
-                {item.label}
-              </ThemedText>
-            </Pressable>
-          );
-        })}
-      </View>
+      <RailGroup label="Explore" items={EXPLORE} pathname={pathname} onNavigate={router.push} />
+      <View style={styles.groupGap} />
+      <RailGroup label="You" items={YOU} pathname={pathname} onNavigate={router.push} />
 
       <View style={styles.grow} />
 
@@ -79,6 +67,46 @@ export function AppRail() {
         </Pressable>
       </View>
     </View>
+  );
+}
+
+function RailGroup({
+  label,
+  items,
+  pathname,
+  onNavigate,
+}: {
+  label: string;
+  items: RailItem[];
+  pathname: string;
+  onNavigate: (href: Href) => void;
+}) {
+  return (
+    <>
+      <ThemedText type="smallBold" themeColor="textSecondary" style={styles.groupLabel}>
+        {label}
+      </ThemedText>
+      <View style={styles.items}>
+        {items.map((item) => {
+          const active = item.match(pathname);
+          return (
+            <Pressable
+              key={item.label}
+              onPress={() => onNavigate(item.href)}
+              accessibilityRole="link"
+              accessibilityState={{ selected: active }}
+              style={({ pressed }) => [styles.item, active && styles.itemActive, pressed && styles.pressed]}>
+              <ThemedText
+                type={active ? 'smallBold' : 'small'}
+                themeColor={active ? undefined : 'textSecondary'}
+                style={styles.itemText}>
+                {item.label}
+              </ThemedText>
+            </Pressable>
+          );
+        })}
+      </View>
+    </>
   );
 }
 
@@ -106,6 +134,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.two,
   },
   items: { gap: 2 },
+  groupGap: { height: Spacing.four },
   item: {
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.two,

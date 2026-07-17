@@ -6,7 +6,7 @@ import { runOnJS, type SharedValue } from 'react-native-reanimated';
 
 import { PagedCarousel } from '@/components/PagedCarousel';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
-import { removeSavedSlice, useSavedSlices, type SavedSlice } from '@/data/savedSlices';
+import { useSavedSlices, type SavedSlice } from '@/data/savedSlices';
 
 const POCKET_W = 63;
 const POCKET_H = 88;
@@ -30,6 +30,7 @@ export function SliceTray({
   onArm,
   onDragStart,
   onDrop,
+  onRemove,
   onNew,
   ghostOn,
   ghostX,
@@ -39,6 +40,8 @@ export function SliceTray({
   onArm: (slice: SavedSlice | null) => void;
   onDragStart: (slice: SavedSlice) => void;
   onDrop: (slice: SavedSlice, windowX: number, windowY: number) => void;
+  /** Remove a slice from the tray (the editor confirms if it is placed in any binder). */
+  onRemove: (slice: SavedSlice) => void;
   onNew: () => void;
   ghostOn: SharedValue<number>;
   ghostX: SharedValue<number>;
@@ -107,14 +110,20 @@ export function SliceTray({
 
       {open ? (
         slices.length === 0 ? (
-          <View style={styles.empty}>
+          <View key="tray-empty" style={styles.empty}>
             <Text style={styles.emptyText}>
               No slices yet. Open the Slice Studio, cut some art, and Save slices. They land here to
               drag into your pockets.
             </Text>
           </View>
         ) : (
-          <View style={styles.carousel} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+          <View
+            // Distinct keys per branch: without them React updates the empty-state View in place
+            // when slices arrive, and react-native-web never attaches onLayout to the reused node,
+            // so the strip stays width 0 and renders nothing.
+            key="tray-strip"
+            style={styles.carousel}
+            onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
             <PagedCarousel
               width={width}
               prevLabel="Previous slices"
@@ -127,6 +136,7 @@ export function SliceTray({
                         slice={slice}
                         armed={slice.id === armedId}
                         onArm={onArm}
+                        onRemove={onRemove}
                         onDragStart={onDragStart}
                         onDrop={onDrop}
                         ghostOn={ghostOn}
@@ -152,6 +162,7 @@ function SliceChip({
   onArm,
   onDragStart,
   onDrop,
+  onRemove,
   ghostOn,
   ghostX,
   ghostY,
@@ -161,6 +172,7 @@ function SliceChip({
   onArm: (slice: SavedSlice | null) => void;
   onDragStart: (slice: SavedSlice) => void;
   onDrop: (slice: SavedSlice, windowX: number, windowY: number) => void;
+  onRemove: (slice: SavedSlice) => void;
   ghostOn: SharedValue<number>;
   ghostX: SharedValue<number>;
   ghostY: SharedValue<number>;
@@ -206,7 +218,11 @@ function SliceChip({
           </View>
         </View>
       </GestureDetector>
-      <Pressable onPress={() => removeSavedSlice(slice.id)} hitSlop={6} style={styles.remove}>
+      <Pressable
+        onPress={() => onRemove(slice)}
+        hitSlop={6}
+        accessibilityLabel="Remove slice"
+        style={styles.remove}>
         <Text style={styles.removeText}>×</Text>
       </Pressable>
     </View>

@@ -45,7 +45,7 @@ import type { ComposePlacement } from '@/data/pageComposer';
 import { isSupabaseConfigured } from '@/lib/env';
 import { footprintForKind } from '@/data/cardSizing';
 import { resolveCard } from '@/data/cardResolver';
-import { addSavedSlices, useSavedSlicesSync, type SavedSlice } from '@/data/savedSlices';
+import { addSavedSlices, removeSavedSlice, sliceSignature, slotSignature, useSavedSlicesSync, type SavedSlice } from '@/data/savedSlices';
 import { SliceTray, SliceThumb } from '@/components/binder/SliceTray';
 import type { CatalogCard } from '@/lib/catalog';
 import { isBlankPage, useBinders } from '@/store/binders';
@@ -290,6 +290,40 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     if (pgIndex < 0) return;
     placeSliceOnPage(slice, binder.pages[pgIndex], pgIndex, hit.row, hit.col);
   };
+  // Removing a tray slice also clears its placed copies everywhere (same content signature).
+  // If any exist, confirm first — this reaches into other binders, not just the open one.
+  const handleRemoveSlice = (slice: SavedSlice) => {
+    const sig = sliceSignature(slice);
+    const placed = store.userBinders.reduce(
+      (n, b) =>
+        n +
+        b.pages.reduce(
+          (m, p) =>
+            m +
+            p.slots.filter((s) => s.type === 'artwork' && !!s.imageUrl && slotSignature(s) === sig)
+              .length,
+          0,
+        ),
+      0,
+    );
+    if (placed === 0) {
+      removeSavedSlice(slice.id);
+      showToast('Slice removed from your tray', true);
+      return;
+    }
+    setConfirm({
+      title: 'Delete this slice?',
+      message: `This piece fills ${placed} pocket${placed === 1 ? '' : 's'} across your binders. Deleting it clears ${placed === 1 ? 'that pocket' : 'those pockets'} too.`,
+      confirmLabel: 'Delete slice',
+      destructive: true,
+      onConfirm: () => {
+        const cleared = store.removeArtworkBySignature(sig);
+        removeSavedSlice(slice.id);
+        showToast(`Slice deleted, ${cleared} pocket${cleared === 1 ? '' : 's'} cleared`, true);
+      },
+    });
+  };
+
   // Open the studio to cut a fresh set of slices — page-sized, not tied to a pocket.
   const openStudioForPage = () =>
     setStudio({ rows: page.rows, cols: page.cols, row: 0, col: 0, imageUrl: undefined });
@@ -1072,6 +1106,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               onArm={setArmedSlice}
               onDragStart={handleSliceDragStart}
               onDrop={handleSliceDrop}
+              onRemove={handleRemoveSlice}
               onNew={openStudioForPage}
               ghostOn={ghostOn}
               ghostX={ghostX}

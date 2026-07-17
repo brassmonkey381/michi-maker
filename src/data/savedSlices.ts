@@ -18,7 +18,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 
 import { domainOf } from '@/data/artworkLibrary';
-import { uuidv4, type ImageTransform } from '@/data/binderTypes';
+import { uuidv4, type DemoSlot, type ImageTransform } from '@/data/binderTypes';
 import * as repo from '@/data/sliceRepo';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/store/auth';
@@ -48,7 +48,7 @@ export interface SavedSlice {
  * so a float that round-tripped through jsonb still matches; absent fit/transform normalize to
  * their defaults ('cover', no rotation/flips).
  */
-function sliceSignature(s: Omit<SavedSlice, 'id'>): string {
+export function sliceSignature(s: Omit<SavedSlice, 'id'>): string {
   const r6 = (v: number) => Math.round(v * 1e6) / 1e6;
   const crop = s.crop ? [r6(s.crop.x), r6(s.crop.y), r6(s.crop.w), r6(s.crop.h)].join(',') : '-';
   const t = s.transform;
@@ -59,6 +59,19 @@ function sliceSignature(s: Omit<SavedSlice, 'id'>): string {
     `${t?.rot ?? 0}${t?.flipH ? 'h' : ''}${t?.flipV ? 'v' : ''}`,
     `${s.rs}x${s.cs}`,
   ].join('|');
+}
+
+/** The same content identity computed from a PLACED artwork slot, so tray slices and binder
+ *  pockets can be matched (used by delete-everywhere and the binder-art import scan). */
+export function slotSignature(slot: DemoSlot): string {
+  return sliceSignature({
+    imageUrl: slot.imageUrl ?? '',
+    crop: slot.imageCrop ?? null,
+    fit: (slot.imageFit as 'cover' | 'contain' | undefined) ?? 'cover',
+    transform: slot.imageTransform,
+    rs: slot.rowSpan,
+    cs: slot.colSpan,
+  });
 }
 
 let saved: SavedSlice[] = [];

@@ -27,6 +27,7 @@ import {
 } from 'react';
 
 import * as repo from '@/data/binderRepo';
+import { slotSignature } from '@/data/savedSlices';
 import { legalizeArtPanels, pageSide, requiredPageSide } from '@/data/binderPhysics';
 import {
   canPlaceSlot,
@@ -218,6 +219,9 @@ interface BinderStore {
     toCol: number,
   ) => void;
   removeSlot: (binderId: string, pageId: string, slotId: string) => void;
+  /** Remove every placed artwork slot whose content matches `signature` (slotSignature) across
+   *  the user's binders. One undo entry; returns how many pockets were cleared. */
+  removeArtworkBySignature: (signature: string) => number;
   undo: () => void;
   redo: () => void;
   canUndo: boolean;
@@ -1277,6 +1281,34 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     [binders, commit, persist],
   );
 
+  // Delete-everywhere for a tray slice: clear every artwork slot with this content signature.
+  // Examples are skipped (read-only samples); removals persist per slot and undo as ONE entry.
+  const removeArtworkBySignature = useCallback(
+    (signature: string): number => {
+      const removedIds: string[] = [];
+      commit((prev) =>
+        prev.map((binder) => {
+          if (binder.isExample) return binder;
+          let touched = false;
+          const pages = binder.pages.map((page) => {
+            const keep = page.slots.filter((slot) => {
+              const match = slot.type === 'artwork' && !!slot.imageUrl && slotSignature(slot) === signature;
+              if (match) removedIds.push(slot.id);
+              return !match;
+            });
+            if (keep.length === page.slots.length) return page;
+            touched = true;
+            return { ...page, slots: keep };
+          });
+          return touched ? { ...binder, pages } : binder;
+        }),
+      );
+      for (const id of removedIds) persist(() => repo.deleteSlot(id));
+      return removedIds.length;
+    },
+    [commit, persist],
+  );
+
   const value = useMemo<BinderStore>(
     () => ({
       binders,
@@ -1313,6 +1345,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       swapSlots,
       moveSlotAcrossPages,
       removeSlot,
+      removeArtworkBySignature,
       undo,
       redo,
       canUndo: history.past.length > 0,
@@ -1351,6 +1384,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       swapSlots,
       moveSlotAcrossPages,
       removeSlot,
+      removeArtworkBySignature,
       undo,
       redo,
       history.past.length,

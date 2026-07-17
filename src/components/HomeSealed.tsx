@@ -17,18 +17,22 @@ import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { HomeSection } from '@/components/HomeSection';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 
-/** Curation knobs. A set counts as "recent/upcoming" if its newest product releases within the
- *  last RECENT_DAYS or in the future; we show the top PER_SET by value, across up to MAX_SETS. */
-const RECENT_DAYS = 150;
-const MAX_SETS = 6;
+/** Curation knobs. The recency window matches the Recent & Upcoming cards/sets feed
+ *  (RecentProducts `monthsBack`): a set counts as "recent/upcoming" if its newest product
+ *  releases within the last MONTHS_BACK months or in the future. Each set shows its top
+ *  PER_SET products by value. */
+const MONTHS_BACK = 12;
 const PER_SET = 10;
+/** Only bounds the stale-data fallback (when nothing falls in the window). */
+const FALLBACK_SETS = 6;
 const TILE_W = 132;
 const IMG_H = 132;
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
-const isoDaysAgo = (days: number) => {
+/** Cutoff date `MONTHS_BACK` months ago (setMonth handles year rollover) — same as the feed. */
+const recentCutoff = () => {
   const d = new Date();
-  d.setDate(d.getDate() - days);
+  d.setMonth(d.getMonth() - MONTHS_BACK);
   return d.toISOString().slice(0, 10);
 };
 
@@ -62,11 +66,11 @@ function buildGroups(sealed: SealedCatalog, priceOf: (id: string) => number): Se
   }
   all.sort((a, b) => b.date.localeCompare(a.date)); // upcoming + newest sets first
 
-  const cutoff = isoDaysAgo(RECENT_DAYS);
+  const cutoff = recentCutoff();
   const recent = all.filter((g) => g.date >= cutoff);
-  // Prefer the recent/upcoming window; if nothing is recent (e.g. stale data), still show the
-  // newest sets so the section never vanishes.
-  return (recent.length > 0 ? recent : all).slice(0, MAX_SETS);
+  // Show every set in the recent/upcoming window (matching the Recent & Upcoming feed). If
+  // stale data leaves nothing recent, fall back to the newest few sets so it never vanishes.
+  return recent.length > 0 ? recent : all.slice(0, FALLBACK_SETS);
 }
 
 type Item =

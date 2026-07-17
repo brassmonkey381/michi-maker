@@ -136,6 +136,55 @@ Deno.serve(async (req: Request) => {
     return json(200, { url: session.url });
   }
 
+  // ── Purchase history ────────────────────────────────────────────────────
+  // Everything the user has PAID Stripe, newest first: subscription invoices (initial +
+  // renewals, with hosted receipt links) and one-time Checkout purchases. Feeds /purchases.
+  if (body.action === 'history') {
+    const { data: mapping } = await service
+      .from('billing_customers')
+      .select('stripe_customer_id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (!mapping) return json(200, { payments: [] });
+    const customer = mapping.stripe_customer_id;
+    const [invoices, sessions] = await Promise.all([
+      stripe.invoices.list({ customer, limit: 100 }),
+      stripe.checkout.sessions.list({ customer, limit: 100 }),
+    ]);
+    const payments = [
+      ...invoices.data
+        .filter((i) => (i.amount_paid ?? 0) > 0 || i.status === 'paid')
+        .map((i) => ({
+          id: i.id,
+          kind: 'subscription',
+          createdAt: i.created,
+          amount: i.amount_paid ?? 0,
+          currency: i.currency ?? 'usd',
+          description: i.lines?.data?.[0]?.description ?? 'Subscription payment',
+          status: i.status ?? 'paid',
+          receiptUrl: i.hosted_invoice_url ?? null,
+          binderId: null as string | null,
+        })),
+      ...sessions.data
+        .filter((s) => s.mode === 'payment' && s.payment_status === 'paid')
+        .map((s) => ({
+          id: s.id,
+          kind: 'one_time',
+          createdAt: s.created,
+          amount: s.amount_total ?? 0,
+          currency: s.currency ?? 'usd',
+          description:
+            s.metadata?.michi_product === 'pdf_binder'
+              ? 'Full-binder fill-sheet PDF (one-time unlock)'
+              : 'One-time purchase',
+          status: 'paid',
+          receiptUrl: null as string | null,
+          binderId: s.metadata?.binder_id ?? null,
+        })),
+    ].sort((a, b) => b.createdAt - a.createdAt);
+    return json(200, { payments });
+  }
+
   // ── Checkout ────────────────────────────────────────────────────────────
   if (body.action !== 'checkout') return json(400, { error: 'unknown action' });
   const lookupKey = String(body.lookupKey ?? '');

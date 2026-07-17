@@ -134,6 +134,30 @@ export async function spendPurchase(
   return { fingerprint, pdfPath, sheets, spentAt };
 }
 
+/** One archived version across ALL the user's binders — the /purchases ledger row. These
+ *  outlive the binder itself: deleting a binder never deletes what was bought. */
+export interface AnyPurchasedVersion extends PurchasedVersion {
+  binderId: string;
+}
+
+/** Every archived purchased/printed version the user owns, newest first (RLS owner-scoped). */
+export async function fetchAllPurchasedVersions(): Promise<AnyPurchasedVersion[]> {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from('binder_pdf_snapshots')
+    .select('binder_id, fingerprint, pdf_path, sheets, updated_at')
+    .order('updated_at', { ascending: false })
+    .limit(200);
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    binderId: r.binder_id,
+    fingerprint: r.fingerprint,
+    pdfPath: r.pdf_path,
+    sheets: r.sheets,
+    spentAt: r.updated_at,
+  }));
+}
+
 /** The archived bytes of one purchased version, or null if the archive is missing. */
 export async function downloadPurchasedPdf(version: PurchasedVersion): Promise<Blob | null> {
   if (!version.pdfPath) return null;

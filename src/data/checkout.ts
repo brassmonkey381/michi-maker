@@ -12,7 +12,7 @@ import { Platform } from 'react-native';
 
 import { requireSupabase } from '@/lib/supabase';
 
-async function fetchStripeUrl(body: Record<string, string | boolean>): Promise<string> {
+async function invokeStripe(body: Record<string, string | boolean>): Promise<unknown> {
   const supabase = requireSupabase();
   // Pass the session token EXPLICITLY. functions.invoke's ambient header injection silently
   // falls back to the publishable API key when getSession() comes up empty, which the server
@@ -41,9 +41,36 @@ async function fetchStripeUrl(body: Record<string, string | boolean>): Promise<s
     }
     throw new Error(message);
   }
-  const url = (data as { url?: string })?.url;
+  return data;
+}
+
+async function fetchStripeUrl(body: Record<string, string | boolean>): Promise<string> {
+  const url = ((await invokeStripe(body)) as { url?: string })?.url;
   if (!url) throw new Error('No checkout URL returned');
   return url;
+}
+
+/** One Stripe payment as /purchases shows it — a subscription invoice or a one-time checkout. */
+export interface PurchasePayment {
+  id: string;
+  kind: 'subscription' | 'one_time';
+  /** Unix seconds. */
+  createdAt: number;
+  /** Smallest currency unit (cents). */
+  amount: number;
+  currency: string;
+  description: string;
+  status: string;
+  /** Hosted Stripe receipt/invoice page, when there is one. */
+  receiptUrl: string | null;
+  /** For one-time binder-PDF unlocks: which binder. */
+  binderId: string | null;
+}
+
+/** Everything the user has paid, newest first (server reads Stripe for the mapped customer). */
+export async function fetchPurchaseHistory(): Promise<PurchasePayment[]> {
+  const data = (await invokeStripe({ action: 'history' })) as { payments?: PurchasePayment[] };
+  return data.payments ?? [];
 }
 
 /** Where Stripe should send the user back to — the current page on web. */

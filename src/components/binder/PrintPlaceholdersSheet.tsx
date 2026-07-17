@@ -54,8 +54,22 @@ export function PrintPlaceholdersSheet({
   // as it is when the purchase is spent (first download), forever. Editing the binder afterwards
   // requires a new unlock (or a plan) to print the edited version — the purchased version stays
   // downloadable from its archive.
-  const { hasFullPrint, products, limits, loading: entLoading } = useTier();
+  const { hasFullPrint, products, limits, loading: entLoading, refresh } = useTier();
   const purchased = products.includes(`pdf_binder:${binder.id}`);
+
+  // Back from Stripe checkout ON THIS PAGE (?checkout=success): the webhook grant lags the
+  // redirect by a few seconds and nothing else re-polls the tier read here (only
+  // /subscriptions does) — so poll until the purchase shows up, or give up quietly.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || purchased) return;
+    if (!new URL(window.location.href).searchParams.get('checkout')) return;
+    let polls = 0;
+    const id = setInterval(() => {
+      refresh();
+      if (++polls >= 10) clearInterval(id);
+    }, 2000);
+    return () => clearInterval(id);
+  }, [purchased, refresh]);
   const { isSignedIn } = useAuth();
   const store = useBinders();
   const [busy, setBusy] = useState(false);
@@ -74,7 +88,9 @@ export function PrintPlaceholdersSheet({
   // same way purchases archive spends, so both get free re-downloads); null while resolving.
   const [pStatus, setPStatus] = useState<PurchaseStatus | null>(null);
   useEffect(() => {
-    if (!purchased && !hasFullPrint) return;
+    // Any signed-in user can have archived versions (past purchases/credit prints survive
+    // plan lapses and even binder edits) — always resolve them, so the list never vanishes.
+    if (!isSignedIn) return;
     let live = true;
     purchaseStatus(binder)
       .then((s) => {
@@ -86,7 +102,7 @@ export function PrintPlaceholdersSheet({
     return () => {
       live = false;
     };
-  }, [purchased, hasFullPrint, binder]);
+  }, [isSignedIn, purchased, hasFullPrint, binder]);
   const pState = pStatus?.state ?? null;
   const versions = pStatus?.versions ?? [];
   // Binder currently matches an already-printed/purchased version → that document is paid for;

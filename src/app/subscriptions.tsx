@@ -113,6 +113,12 @@ export default function SubscriptionsScreen() {
             Your plan
           </ThemedText>
           <PlanUsageSection key={`usage-${isPaid}`} />
+          <ThemedText
+            type="linkPrimary"
+            style={styles.historyLink}
+            onPress={() => router.push('/purchases' as Href)}>
+            Purchase history ›
+          </ThemedText>
         </View>
       ) : null}
 
@@ -193,6 +199,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.three,
     marginTop: Spacing.two,
   },
+  historyLink: { fontSize: FontSize.label, marginTop: Spacing.two },
   smallPrint: { fontSize: FontSize.sm, lineHeight: 18, marginTop: Spacing.four },
   smallPrintLink: { fontSize: FontSize.sm },
 });

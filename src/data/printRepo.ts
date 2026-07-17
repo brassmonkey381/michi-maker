@@ -19,6 +19,30 @@ export async function recordPrintEvent(binderId: string, sheets: number): Promis
   if (error) throw error;
 }
 
+/** One recorded credit spend, for the purchase-history page. */
+export interface PrintEventRow {
+  binderId: string | null;
+  sheets: number | null;
+  /** ISO timestamp. */
+  createdAt: string;
+}
+
+/** The user's recorded print-credit spends, newest first (RLS scopes to owner). */
+export async function fetchPrintEvents(): Promise<PrintEventRow[]> {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from('print_events')
+    .select('binder_id, sheets, created_at')
+    .order('created_at', { ascending: false })
+    .limit(100);
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    binderId: r.binder_id,
+    sheets: r.sheets,
+    createdAt: r.created_at,
+  }));
+}
+
 /** How many full-binder PDFs this user downloaded this calendar month (RLS scopes to owner). */
 export async function countPrintsThisMonth(): Promise<number> {
   const supabase = requireSupabase();

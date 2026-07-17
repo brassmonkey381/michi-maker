@@ -15,8 +15,13 @@ tags. Humans keep hitting the untouched SPA.
   render JS and should index the full SPA, not the stub. Any unmatched agent falls
   through to the SPA catch-all, so the worst case is simply "no rich preview".
 - **`api/og-binder.js`** — reads the public binder via Supabase REST (publishable key,
-  RLS-gated to public rows) and previews its title, description, and cover card image
-  (chosen cover → first placed card → first custom-art slot).
+  RLS-gated to public rows) and previews its title, description, and a **composed image
+  of its fullest page** (see `og-image-binder.js`).
+- **`api/og-image-binder.js`** — an Edge function (`@vercel/og` / Satori) that renders
+  the binder's fullest page as a 1200×630 image, so a shared link unfurls as the actual
+  page rather than a single card. No text → no font dependency; card art uses the flat
+  JPEG tier (resvg rasterises JPEG/PNG reliably, WebP not always). On any error it
+  redirects to the cover card, so a share always has an image.
 - **`api/og-profile.js`** — previews a public profile's `@username` with their avatar,
   or the cover of their first public binder.
 - **`api/og-michi.js`** — static preview for the Michi Method page.
@@ -39,13 +44,26 @@ curl -A 'Twitterbot/1.0' https://michi-maker.com/u/<profile-id>
 You should get the meta-only HTML. A normal browser user-agent returns the SPA. Or paste
 a URL into a validator: opengraph.xyz, the Facebook Sharing Debugger, or Discord itself.
 
+## Composed image — verify on deploy
+
+The Satori render path is verified locally (it produces a valid 1200×630 PNG with no
+font), but the Edge runtime + env + real image fetch can only be confirmed on Vercel.
+After deploying, check a preview deploy:
+
+```bash
+curl -sI 'https://<preview>/api/og-image-binder?id=<public-binder-id>'   # → 200, content-type: image/png
+```
+
+Then paste `https://<preview>/binder/<id>` into opengraph.xyz or Discord. If the Edge
+function ever fails to build/run, the safe revert is one line in `api/og-binder.js`:
+point `image` back at the cover thumbnail instead of `/api/og-image-binder`.
+
 ## Follow-ups
 
-- **Composed page image (highest-impact).** The card images are portrait single cards.
-  A `@vercel/og` (Satori) endpoint that composites the binder's best 3×3 page into a
-  1200×630 image would make every shared binder unfurl as the *page* — far better share
-  bait. Point `og:image` at that endpoint once built.
+- **Slot spans in the composed image.** `og-image-binder.js` lays out with flexbox (all
+  Satori supports), so a spanned card (jumbo, folded art) shows only in its origin cell.
+  Honouring `row_span`/`col_span` would need a spanning grid model.
+- **Open two-page spread.** For binders with 2+ pages, rendering facing pages would fill
+  the 1200-wide frame even better than a single centred page.
 - **Branded static image for `/michi-method`.** Add `public/og/michi-method.png`
   (1200×630) and set it as the `image` in `api/og-michi.js`.
-- **Per-page previews.** `/binder/:id` currently previews the binder's cover; a
-  `?page=N` variant could preview a specific page when that deep link exists.

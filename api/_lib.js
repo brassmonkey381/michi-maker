@@ -61,14 +61,20 @@ async function sbSelect(path) {
 }
 
 /** The minimal HTML document a crawler receives: meta in <head>, a human link in <body>. */
-function ogHtml({ title, description, image, url, imageAlt }) {
+function ogHtml({ title, description, image, url, imageAlt, imageWidth, imageHeight }) {
   const t = esc(title);
   const d = esc(description);
   const u = esc(url);
   const img = image ? esc(image) : '';
+  const dims =
+    imageWidth && imageHeight
+      ? `
+    <meta property="og:image:width" content="${imageWidth}" />
+    <meta property="og:image:height" content="${imageHeight}" />`
+      : '';
   const imageTags = img
     ? `
-    <meta property="og:image" content="${img}" />
+    <meta property="og:image" content="${img}" />${dims}
     <meta property="og:image:alt" content="${esc(imageAlt || title)}" />
     <meta name="twitter:image" content="${img}" />
     <meta name="twitter:card" content="summary_large_image" />`

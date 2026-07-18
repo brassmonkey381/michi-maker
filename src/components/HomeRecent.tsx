@@ -17,6 +17,7 @@
 import { RecentProducts } from 'tcgscan-browse';
 
 import { HomeSection } from '@/components/HomeSection';
+import { isPremiumRarity } from '@/data/premiumRarity';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useBrowseTheme } from '@/lib/browseTheme';
 
@@ -43,6 +44,12 @@ export function HomeRecent({
         theme={browseTheme}
         catalog={catalog}
         title=""
+        // A wider window shows more recent + upcoming sets; the premium filter + set-spanning card
+        // pool then surfaces the chase cards (Double Rare and up) from EVERY set shown, not just
+        // the newest. cardLimit is generous so a card from each set gets a slot.
+        monthsBack={18}
+        cardLimit={80}
+        rarityFilter={(card) => isPremiumRarity(card.rarity)}
         onFindSimilar={(card) => onFindSimilar?.(card.id)}
         onViewSet={(card) => onViewSet?.(card.id)}
         onOpenSet={(set) => onOpenSet?.(set.id, set.seriesId)}

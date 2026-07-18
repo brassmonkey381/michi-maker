@@ -66,6 +66,20 @@ Catalog cards carry size tiers: `image_small` (245px webp — grids use it),
    keeps the `DemoCard` adapter; `src/lib/prices.ts` keeps binder/page totals.
    App-specific actions are injected via props. Remaining: have `tcgscan-app`
    consume the same package.
+6. **Set/series `language` field (data-server side, RECOMMENDED — 2026-07-18).**
+   Cards already carry `language` (`'en' | 'ja'`), and the browse surfaces filter by
+   it (EN/JP toggles on Home Recent & Upcoming and `/browse`). But `browse/taxonomy.json`
+   and `catalog.json` do **not** carry a language on their **sets** or **series**, so the
+   kit currently DERIVES it from the series name (Japanese series are suffixed `" -JP"`,
+   e.g. `"Scarlet & Violet -JP"`) — see `resolveLanguage` / `languageFromName` in the kit's
+   `catalog.ts`. This is a stopgap heuristic. **The proper fix: emit an explicit
+   `language: 'en' | 'ja'` on every set (and series) in `taxonomy.json` and `catalog.json`.**
+   The kit is already wired to PREFER it: `RawSet`/`RawSeries`/`RawTaxSet`/`RawTaxSeries`
+   accept an optional `language`, and `resolveLanguage(explicit, name)` uses it when present
+   and only falls back to the `-JP` name heuristic when absent. So this is a pure additive
+   data change — no kit or app change needed once the field ships; the heuristic keeps
+   working until then. (Also note: the app's committed `public/browse/catalog.json` is
+   EN-only right now; JP data currently lives only on the server/cold path.)
 
 ## Retired (do not resurrect)
 

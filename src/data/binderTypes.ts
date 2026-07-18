@@ -183,6 +183,29 @@ export function pagesForCards(cardIds: string[]): DemoPage[] {
   return pages;
 }
 
+/**
+ * Fill every unoccupied cell of a grid with empty 'artwork' placeholder slots — the binder grid
+ * paints these as a dashed "Your Art Here" invitation. Horizontally-adjacent empty pairs merge
+ * into a 1×2 panel (so it reads as "mostly 1×2, some 1×1"). Empty (no imageUrl/cardId) so they
+ * never trip the private-art gate or consume inventory. Used by the Build-a-binder wizard.
+ */
+export function artGapSlots(rows: number, cols: number, occupied: Set<string>): DemoSlot[] {
+  const slots: DemoSlot[] = [];
+  for (let r = 0; r < rows; r += 1) {
+    let c = 0;
+    while (c < cols) {
+      if (occupied.has(`${r},${c}`)) {
+        c += 1;
+        continue;
+      }
+      const pair = c + 1 < cols && !occupied.has(`${r},${c + 1}`);
+      slots.push({ id: uuidv4(), row: r, col: c, rowSpan: 1, colSpan: pair ? 2 : 1, type: 'artwork' });
+      c += pair ? 2 : 1;
+    }
+  }
+  return slots;
+}
+
 /** Cells covered by a slot, as "row,col" keys (accounts for spans). */
 export function slotCells(slot: DemoSlot): string[] {
   const keys: string[] = [];

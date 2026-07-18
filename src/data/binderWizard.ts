@@ -10,7 +10,7 @@
  * `fromCollection` provenance so the (free/owned) accounting and Reclaim see it.
  */
 import type { Catalog, CatalogCard } from '@/lib/catalog';
-import { uuidv4, type DemoPage, type DemoSlot } from '@/data/binderTypes';
+import { artGapSlots, uuidv4, type DemoPage, type DemoSlot } from '@/data/binderTypes';
 import { speciesOf } from '@/data/pageComposer';
 import { formatUsd, type PriceSummary } from '@/lib/prices';
 
@@ -255,56 +255,26 @@ const COL_MAJOR: [number, number][] = [
 ];
 
 /**
- * Art-gap footprints woven into built pages, leaving deliberate room for the owner's OWN art
- * (rendered as a "Your Art Here" placeholder). Rotates two 2-pocket panels — a tall 2×1 and a
- * wide 1×2 — then a single 1×1: "mostly 1×2, some 1×1". Each gap + its page's cards still fill
- * all nine cells, so a page never reads half-empty. The chase board opts out (kept a full
- * 9-card showcase — see buildPages).
+ * Turn chosen proposals into persistable pages. Cards keep their collection provenance and fill
+ * the page in reading order (evolution pages read down the columns); EVERY remaining open pocket
+ * becomes an empty 'artwork' slot the grid paints as "Your Art Here" (see artGapSlots) — so the
+ * built binder is everywhere ready for the owner to drop in their own art.
  */
-const ART_GAP_ROTATION: { row: number; col: number; rowSpan: number; colSpan: number }[][] = [
-  [{ row: 0, col: 2, rowSpan: 2, colSpan: 1 }], // tall 2-pocket panel, right edge
-  [{ row: 2, col: 0, rowSpan: 1, colSpan: 2 }], // wide 2-pocket panel, bottom
-  [{ row: 2, col: 2, rowSpan: 1, colSpan: 1 }], // single pocket
-];
-
-const gapKeys = (g: { row: number; col: number; rowSpan: number; colSpan: number }): string[] => {
-  const keys: string[] = [];
-  for (let r = g.row; r < g.row + g.rowSpan; r += 1)
-    for (let c = g.col; c < g.col + g.colSpan; c += 1) keys.push(`${r},${c}`);
-  return keys;
-};
-
-/**
- * Turn chosen proposals into persistable pages. Cards keep their collection provenance; every
- * page except the chase board reserves an art gap (an empty 'artwork' slot the grid paints as
- * "Your Art Here") so the built binder is ready for the owner to drop in their own art.
- */
-export function buildPages(chosen: WizardProposal[], opts?: { artGaps?: boolean }): DemoPage[] {
-  const artGaps = opts?.artGaps ?? true;
-  let gapTick = 0; // advances only on pages that actually get a gap, so the rotation stays even
+export function buildPages(chosen: WizardProposal[]): DemoPage[] {
   return chosen.map((p) => {
     const order = p.kind === 'evolution' ? COL_MAJOR : ROW_MAJOR;
-    const gaps = artGaps && p.kind !== 'chase' ? ART_GAP_ROTATION[gapTick++ % ART_GAP_ROTATION.length] : [];
-    const reserved = new Set(gaps.flatMap(gapKeys));
-    const cardCells = order.filter(([r, c]) => !reserved.has(`${r},${c}`));
-    const cardSlots: DemoSlot[] = p.cardIds.slice(0, cardCells.length).map((cardId, i) => ({
+    const cardSlots: DemoSlot[] = p.cardIds.slice(0, PAGE_CELLS).map((cardId, i) => ({
       id: uuidv4(),
-      row: cardCells[i][0],
-      col: cardCells[i][1],
+      row: order[i][0],
+      col: order[i][1],
       rowSpan: 1,
       colSpan: 1,
       type: 'card' as const,
       cardId,
       fromCollection: true,
     }));
-    const artSlots: DemoSlot[] = gaps.map((g) => ({
-      id: uuidv4(),
-      row: g.row,
-      col: g.col,
-      rowSpan: g.rowSpan,
-      colSpan: g.colSpan,
-      type: 'artwork' as const, // empty (no imageUrl/cardId) → "Your Art Here" placeholder
-    }));
+    const occupied = new Set(cardSlots.map((s) => `${s.row},${s.col}`));
+    const artSlots = artGapSlots(PAGE_ROWS, PAGE_COLS, occupied);
     return { id: uuidv4(), title: p.title, rows: PAGE_ROWS, cols: PAGE_COLS, slots: [...cardSlots, ...artSlots] };
   });
 }

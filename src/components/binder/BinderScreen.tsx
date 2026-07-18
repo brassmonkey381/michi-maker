@@ -39,6 +39,7 @@ import {
   type DemoSlot,
 } from '@/data/binderTypes';
 import { fetchLikeCount } from '@/data/binderRepo';
+import { isPrivateArt } from '@/data/artAttributionCheck';
 import { artPieceAllowed, pageSide, REAL_PAGE_SIZES } from '@/data/binderPhysics';
 import type { CaptionFieldKey } from '@/data/cardCaption';
 import type { ComposePlacement } from '@/data/pageComposer';
@@ -262,8 +263,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // occupancy (matches the highlighted targets). Placing keeps the slice in the tray, so it can
   // fill more pockets.
   const placeSliceOnPage = (slice: SavedSlice, pg: DemoPage, pgIndex: number, row: number, col: number) => {
-    // PRIVATE art (pulled from a URL) can never enter a shared binder — deny, don't silently drop.
-    if (binder.isPublic && slice.attribution?.origin === 'external') {
+    // PRIVATE art (pulled from a URL, or any non-bucket hotlink) can never enter a shared binder —
+    // deny, don't silently drop.
+    if (binder.isPublic && isPrivateArt(slice.attribution, slice.imageUrl)) {
       showToast('This is a shared binder — private art (added from a link) can’t go in it. Upload your own art instead.', true);
       return;
     }

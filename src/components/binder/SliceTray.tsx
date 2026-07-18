@@ -6,6 +6,7 @@ import { runOnJS, type SharedValue } from 'react-native-reanimated';
 
 import { PagedCarousel } from '@/components/PagedCarousel';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { isPrivateArt } from '@/data/artAttributionCheck';
 import { useSavedSlices, type SavedSlice } from '@/data/savedSlices';
 
 const POCKET_W = 63;
@@ -211,8 +212,9 @@ function SliceChip({
       <GestureDetector gesture={gesture}>
         <View style={[styles.chip, { width: w, height: THUMB_H }, armed && styles.chipArmed]}>
           <SliceThumb slice={slice} style={StyleSheet.absoluteFill} />
-          {/* URL-pulled art is PRIVATE — it can't go in a shared binder (see the sharing gate). */}
-          {slice.attribution?.origin === 'external' ? (
+          {/* URL-pulled art (or any non-bucket hotlink) is PRIVATE — it can't go in a shared
+              binder (see the sharing gate). */}
+          {isPrivateArt(slice.attribution, slice.imageUrl) ? (
             <View style={styles.privateBadge}>
               <Text style={styles.privateBadgeText}>PRIVATE</Text>
             </View>

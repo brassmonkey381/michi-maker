@@ -203,6 +203,36 @@ export type Database = {
           },
         ]
       }
+      content_reports: {
+        Row: {
+          binder_id: string | null
+          created_at: string
+          details: string | null
+          id: string
+          reason: string
+          reporter_id: string | null
+          status: string
+        }
+        Insert: {
+          binder_id?: string | null
+          created_at?: string
+          details?: string | null
+          id?: string
+          reason: string
+          reporter_id?: string | null
+          status?: string
+        }
+        Update: {
+          binder_id?: string | null
+          created_at?: string
+          details?: string | null
+          id?: string
+          reason?: string
+          reporter_id?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       binders: {
         Row: {
           cover_card_id: string | null

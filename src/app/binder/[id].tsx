@@ -16,6 +16,7 @@ import { BinderGrid } from '@/components/binder/BinderGrid';
 import { BinderScreen } from '@/components/binder/BinderScreen';
 import { BinderPages } from '@/components/binder/BinderPages';
 import { LikeButton } from '@/components/binder/LikeButton';
+import { ReportSheet } from '@/components/binder/ReportSheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Fonts, FontSize, MaxContentWidthWide, Palette, Spacing } from '@/constants/theme';
@@ -154,6 +155,7 @@ function Viewer({
   availableWidth: number;
 }) {
   const [needAccount, setNeedAccount] = useState(false);
+  const [reporting, setReporting] = useState(false);
   return (
     <ScrollView contentContainerStyle={styles.scroll}>
       <ThemedText type="subtitle" style={styles.title}>
@@ -193,6 +195,14 @@ function Viewer({
           </ThemedText>
         </Pressable>
       </Link>
+
+      {/* Takedown intake: any viewer can report this public binder (see docs/roadmap/ART-RIGHTS). */}
+      <Pressable onPress={() => setReporting(true)} hitSlop={6} style={styles.reportLink}>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.reportText}>
+          Report this binder
+        </ThemedText>
+      </Pressable>
+      {reporting ? <ReportSheet binderId={binder.id} onClose={() => setReporting(false)} /> : null}
     </ScrollView>
   );
 }
@@ -222,4 +232,6 @@ const styles = StyleSheet.create({
   likeHint: { marginTop: Spacing.two, textAlign: 'center' },
   madeWith: { marginTop: Spacing.five },
   madeWithText: { textAlign: 'center' },
+  reportLink: { marginTop: Spacing.three },
+  reportText: { textAlign: 'center', fontSize: FontSize.sm, textDecorationLine: 'underline' },
 });

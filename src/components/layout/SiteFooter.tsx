@@ -24,6 +24,7 @@ const LINKS: { label: string; href: Href }[] = [
   { label: 'The Michi Method', href: '/michi-method' },
   { label: 'Terms', href: '/legal/terms' },
   { label: 'Privacy', href: '/legal/privacy' },
+  { label: 'Copyright', href: '/legal/dmca' as Href },
 ];
 
 /** A wrap row of quiet page links, middot-separated. */

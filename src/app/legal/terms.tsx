@@ -10,7 +10,7 @@ import { FAN_DISCLAIMER } from '@/components/layout/SiteFooter';
 import { ThemedText } from '@/components/themed-text';
 import { Fonts, FontSize, Palette, Radius, Spacing } from '@/constants/theme';
 
-const LAST_UPDATED = 'July 16, 2026';
+const LAST_UPDATED = 'July 17, 2026';
 
 interface Section {
   heading: string;
@@ -38,10 +38,12 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    heading: '4. Your content',
+    heading: '4. Your content and the art you add',
     paragraphs: [
       'Binders, page layouts, notes, and images you upload remain yours. By marking a binder or profile public, you give us permission to display it to other visitors (that is what public means); flip it back to private any time and it disappears from public view.',
-      'You are responsible for content you upload. Only upload images you have the right to use.',
+      'You are responsible for every image and piece of art you add, whether uploaded, pasted by URL, or dragged in. By adding art you represent that you own it or have the right to use and display it on michi-maker, and that doing so does not infringe anyone’s copyright or other rights. Do not add art you do not have the right to use — attribution alone (crediting an artist or source) does not give you that right.',
+      'For content you add, you grant michi-maker a non-exclusive, worldwide, royalty-free license to host, store, display, and reproduce it as needed to run the service and the features you use (including, for content you mark public, showing it to other visitors, and, for print features, generating your printable output). This license ends for a given piece when you remove it, except for copies already made by others or retained as required by law.',
+      'You agree to indemnify michi-maker for claims arising from art or content you added in violation of these terms.',
     ],
   },
   {
@@ -59,33 +61,39 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    heading: '7. Paid plans',
+    heading: '7. Copyright and takedowns',
+    paragraphs: [
+      'We respond to copyright takedown requests. If you believe content on michi-maker infringes your copyright, see our Copyright / DMCA policy for how to file a notice, our counter-notice process, and our repeat-infringer policy. Any visitor can also report a public binder from its page.',
+    ],
+  },
+  {
+    heading: '8. Paid plans',
     paragraphs: [
       'michi-maker is free while in beta. Paid plans (described on the Plans page) are planned but not yet open. When they open, billing will be handled by a payment provider and these terms will be updated with billing and refund policies before any charge is made.',
       '[PLACEHOLDER: billing, renewal, and refund terms pending payment provider selection.]',
     ],
   },
   {
-    heading: '8. Termination',
+    heading: '9. Termination',
     paragraphs: [
       'You can stop using michi-maker at any time. We may suspend or close accounts that break these terms or that we reasonably believe are harming the service or other users.',
     ],
   },
   {
-    heading: '9. Disclaimers and limitation of liability',
+    heading: '10. Disclaimers and limitation of liability',
     paragraphs: [
       'michi-maker is provided as is, without warranties of any kind, to the extent permitted by law.',
       '[PLACEHOLDER: full disclaimer and limitation-of-liability clause pending counsel review.]',
     ],
   },
   {
-    heading: '10. Changes to these terms',
+    heading: '11. Changes to these terms',
     paragraphs: [
       'We may update these terms as the product evolves. Material changes will be reflected in the date above, and continued use after a change means you accept the updated terms.',
     ],
   },
   {
-    heading: '11. Contact',
+    heading: '12. Contact',
     paragraphs: ['[PLACEHOLDER: contact email or form for terms questions.]'],
   },
 ];

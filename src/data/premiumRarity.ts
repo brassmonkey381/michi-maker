@@ -9,7 +9,8 @@
  * base tiers are filtered out.
  */
 
-/** Rarities BELOW the "Double Rare and higher" floor (matched case-insensitively). */
+/** Rarities BELOW the "Double Rare and higher" floor (matched case-insensitively). Promos are
+ *  INCLUDED (many are full-art / chase cards), per owner call 2026-07-17. */
 const BASE_RARITIES = new Set([
   '',
   'common',
@@ -17,7 +18,6 @@ const BASE_RARITIES = new Set([
   'rare',
   'holo rare',
   'rare holo',
-  'promo',
   'none',
   'unconfirmed',
 ]);

@@ -93,9 +93,21 @@ const THEME_SPECIES: Record<string, string[]> = {
 const SPECIES_DEX = new Map<string, number>();
 for (const e of ENTRIES) for (const [name, dex] of e.p) if (!SPECIES_DEX.has(name)) SPECIES_DEX.set(name, dex);
 
-/** Library entries keyed by artofpkm artwork id, for resolving a pasted /artwork/<id> page URL. */
+// Three lookup keys so ANY artofpkm reference resolves to full attribution:
+//  - BY_ID:       a pasted /artwork/<id> PAGE url.
+//  - BY_BLOB:     a dragged IMAGE url — Active Storage blobs/representations both carry the
+//                 signed blob id (our stored `b`) as the first redirect segment.
+//  - BY_FILENAME: last-ditch match on the original filename (only kept when unambiguous).
 const BY_ID = new Map<number, LibraryEntry>();
-for (const e of ENTRIES) BY_ID.set(e.i, e);
+const BY_BLOB = new Map<string, LibraryEntry>();
+const filenameCounts = new Map<string, number>();
+for (const e of ENTRIES) {
+  BY_ID.set(e.i, e);
+  BY_BLOB.set(e.b, e);
+  filenameCounts.set(e.f, (filenameCounts.get(e.f) ?? 0) + 1);
+}
+const BY_FILENAME = new Map<string, LibraryEntry>();
+for (const e of ENTRIES) if (filenameCounts.get(e.f) === 1) BY_FILENAME.set(e.f, e);
 
 /** PokeAPI official artwork render — transparent PNG, very reliable host. */
 const pokeApiArt = (dex: number) =>
@@ -124,17 +136,38 @@ function toAsset(e: LibraryEntry, aspect: ArtAspect): ArtworkAsset {
 }
 
 /**
- * Resolve a pasted artofpkm ARTWORK PAGE url (…/artwork/<id>) to a fully-attributed asset from
- * our bundled library — the image URL plus artist + original source, all from data we already
- * hold (no network, no scraping). Returns null when the url isn't an artofpkm artwork page or the
- * piece isn't in our library yet (e.g. added since the last scrape). The caller then falls back to
- * loading the pasted url directly and deriving what it can.
+ * Resolve ANY artofpkm reference — a pasted ARTWORK PAGE url (…/artwork/<id>) OR a dragged IMAGE
+ * url (…/active_storage/{blobs,representations}/redirect/<sig>/…) — to a fully-attributed asset
+ * from our bundled library: the canonical image url plus artist + original source, all from data
+ * we already hold (no network, no scraping). Order: artwork id → blob signature → filename.
+ * Returns null when the url isn't ours or the piece isn't in the library yet; the caller then
+ * loads the url directly and derives what it can.
  */
 export function artForArtofpkmUrl(url: string): ArtworkAsset | null {
-  const m = /artofpkm\.com\/artwork\/(\d+)/i.exec(url);
-  if (!m) return null;
-  const e = BY_ID.get(Number(m[1]));
-  return e ? toAsset(e, 'portrait') : null;
+  if (!/artofpkm\.com/i.test(url)) return null;
+
+  // 1) artwork PAGE url → id
+  const idMatch = /\/artwork\/(\d+)/i.exec(url);
+  if (idMatch) {
+    const e = BY_ID.get(Number(idMatch[1]));
+    if (e) return toAsset(e, 'portrait');
+  }
+
+  // 2) IMAGE url → the signed blob id is the first redirect segment (same for blobs + reps).
+  const sigMatch = /active_storage\/(?:blobs|representations)\/redirect\/([^/]+)\//i.exec(url);
+  if (sigMatch) {
+    const e = BY_BLOB.get(decodeURIComponent(sigMatch[1]));
+    if (e) return toAsset(e, 'portrait');
+  }
+
+  // 3) last-ditch: the original filename, only when it's unique across the library.
+  const fileMatch = /\/([^/?#]+\.(?:jpe?g|png|webp|gif))(?:[?#]|$)/i.exec(url);
+  if (fileMatch) {
+    const e = BY_FILENAME.get(decodeURIComponent(fileMatch[1]));
+    if (e) return toAsset(e, 'portrait');
+  }
+
+  return null;
 }
 
 /**

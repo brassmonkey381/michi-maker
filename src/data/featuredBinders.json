@@ -106,38 +106,6 @@
         "backgroundColor": "#000000",
         "slots": [
           {
-            "id": "ex-pikachu-and-friends_p1_r0c0",
-            "row": 0,
-            "col": 0,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "artwork",
-            "imageUrl": "https://i.pinimg.com/736x/24/5c/bc/245cbc49cca5b928e71276575850c197.jpg",
-            "imageCrop": {
-              "h": 0.45,
-              "w": 0.4822457698514565,
-              "x": 0.011545331152592774,
-              "y": 0.0915760869565217
-            },
-            "imageFit": "cover"
-          },
-          {
-            "id": "ex-pikachu-and-friends_p1_r0c1",
-            "row": 0,
-            "col": 1,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "artwork",
-            "imageUrl": "https://i.pinimg.com/736x/24/5c/bc/245cbc49cca5b928e71276575850c197.jpg",
-            "imageCrop": {
-              "h": 0.45,
-              "w": 0.4822457698514565,
-              "x": 0.49379110100404927,
-              "y": 0.0915760869565217
-            },
-            "imageFit": "cover"
-          },
-          {
             "id": "ex-pikachu-and-friends_p1_r0c2",
             "row": 0,
             "col": 2,
@@ -145,38 +113,6 @@
             "colSpan": 1,
             "type": "card",
             "cardId": "89490"
-          },
-          {
-            "id": "ex-pikachu-and-friends_p1_r1c0",
-            "row": 1,
-            "col": 0,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "artwork",
-            "imageUrl": "https://i.pinimg.com/736x/24/5c/bc/245cbc49cca5b928e71276575850c197.jpg",
-            "imageCrop": {
-              "h": 0.45,
-              "w": 0.4822457698514565,
-              "x": 0.011545331152592774,
-              "y": 0.5415760869565217
-            },
-            "imageFit": "cover"
-          },
-          {
-            "id": "ex-pikachu-and-friends_p1_r1c1",
-            "row": 1,
-            "col": 1,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "artwork",
-            "imageUrl": "https://i.pinimg.com/736x/24/5c/bc/245cbc49cca5b928e71276575850c197.jpg",
-            "imageCrop": {
-              "h": 0.45,
-              "w": 0.4822457698514565,
-              "x": 0.49379110100404927,
-              "y": 0.5415760869565217
-            },
-            "imageFit": "cover"
           },
           {
             "id": "ex-pikachu-and-friends_p1_r1c2",
@@ -225,54 +161,6 @@
         "backgroundColor": "#000000",
         "slots": [
           {
-            "id": "ex-pikachu-and-friends_p2_r0c0",
-            "row": 0,
-            "col": 0,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "artwork",
-            "imageUrl": "https://www.artofpkm.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBMjBMQXc9PSIsImV4cCI6bnVsbCwicHVyIjoiYmxvYl9pZCJ9fQ==--fc17c008782f0b4f8d497c98acb5b10e4ff7e01a/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaDdDRG9MWm05eWJXRjBPZ2wzWldKd09oUnlaWE5wZW1WZmRHOWZiR2x0YVhSYkIya0MwQWRwQXRBSE9neHhkV0ZzYVhSNWFXUT0iLCJleHAiOm51bGwsInB1ciI6InZhcmlhdGlvbiJ9fQ==--ed2d6d11a2959980a13c5ee4344539bfee99a0a7/53067c56cebce5a1.jpg",
-            "imageCrop": {
-              "h": 0.3333333333333333,
-              "w": 0.31955423803249894,
-              "x": 0.020668642951251537,
-              "y": 0
-            },
-            "imageFit": "cover"
-          },
-          {
-            "id": "ex-pikachu-and-friends_p2_r0c1",
-            "row": 0,
-            "col": 1,
-            "rowSpan": 1,
-            "colSpan": 2,
-            "type": "artwork",
-            "imageUrl": "https://www.artofpkm.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBMjBMQXc9PSIsImV4cCI6bnVsbCwicHVyIjoiYmxvYl9pZCJ9fQ==--fc17c008782f0b4f8d497c98acb5b10e4ff7e01a/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaDdDRG9MWm05eWJXRjBPZ2wzWldKd09oUnlaWE5wZW1WZmRHOWZiR2x0YVhSYkIya0MwQWRwQXRBSE9neHhkV0ZzYVhSNWFXUT0iLCJleHAiOm51bGwsInB1ciI6InZhcmlhdGlvbiJ9fQ==--ed2d6d11a2959980a13c5ee4344539bfee99a0a7/53067c56cebce5a1.jpg",
-            "imageCrop": {
-              "h": 0.3333333333333333,
-              "w": 0.6391084760649979,
-              "x": 0.3402228809837505,
-              "y": 0
-            },
-            "imageFit": "cover"
-          },
-          {
-            "id": "ex-pikachu-and-friends_p2_r1c0",
-            "row": 1,
-            "col": 0,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "artwork",
-            "imageUrl": "https://www.artofpkm.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBMjBMQXc9PSIsImV4cCI6bnVsbCwicHVyIjoiYmxvYl9pZCJ9fQ==--fc17c008782f0b4f8d497c98acb5b10e4ff7e01a/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaDdDRG9MWm05eWJXRjBPZ2wzWldKd09oUnlaWE5wZW1WZmRHOWZiR2x0YVhSYkIya0MwQWRwQXRBSE9neHhkV0ZzYVhSNWFXUT0iLCJleHAiOm51bGwsInB1ciI6InZhcmlhdGlvbiJ9fQ==--ed2d6d11a2959980a13c5ee4344539bfee99a0a7/53067c56cebce5a1.jpg",
-            "imageCrop": {
-              "h": 0.5,
-              "w": 0.5,
-              "x": 0,
-              "y": 0.5
-            },
-            "imageFit": "cover"
-          },
-          {
             "id": "ex-pikachu-and-friends_p2_r1c1",
             "row": 1,
             "col": 1,
@@ -280,22 +168,6 @@
             "colSpan": 1,
             "type": "card",
             "cardId": "89921"
-          },
-          {
-            "id": "ex-pikachu-and-friends_p2_r1c2",
-            "row": 1,
-            "col": 2,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "artwork",
-            "imageUrl": "https://www.artofpkm.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBMjBMQXc9PSIsImV4cCI6bnVsbCwicHVyIjoiYmxvYl9pZCJ9fQ==--fc17c008782f0b4f8d497c98acb5b10e4ff7e01a/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaDdDRG9MWm05eWJXRjBPZ2wzWldKd09oUnlaWE5wZW1WZmRHOWZiR2x0YVhSYkIya0MwQWRwQXRBSE9neHhkV0ZzYVhSNWFXUT0iLCJleHAiOm51bGwsInB1ciI6InZhcmlhdGlvbiJ9fQ==--ed2d6d11a2959980a13c5ee4344539bfee99a0a7/53067c56cebce5a1.jpg",
-            "imageCrop": {
-              "h": 0.5,
-              "w": 0.5,
-              "x": 0.5,
-              "y": 0.5
-            },
-            "imageFit": "cover"
           },
           {
             "id": "ex-pikachu-and-friends_p2_r2c0",
@@ -435,66 +307,6 @@
             "cardId": "656264"
           },
           {
-            "id": "ex-pikachu-and-friends_p4_r0c1",
-            "row": 0,
-            "col": 1,
-            "rowSpan": 1,
-            "colSpan": 2,
-            "type": "artwork",
-            "imageUrl": "https://i.pinimg.com/736x/e4/d1/50/e4d150ce494c6b325508b2f0bbbc9ea4.jpg",
-            "imageCrop": {
-              "h": 0.2611662753631487,
-              "w": 0.6666666666666666,
-              "x": 0.3333333333333333,
-              "y": 0.10825058695527695
-            },
-            "imageFit": "cover",
-            "imageTransform": {
-              "rot": 0,
-              "flipH": true
-            }
-          },
-          {
-            "id": "ex-pikachu-and-friends_p4_r1c0",
-            "row": 1,
-            "col": 0,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "artwork",
-            "imageUrl": "https://i.pinimg.com/736x/e4/d1/50/e4d150ce494c6b325508b2f0bbbc9ea4.jpg",
-            "imageCrop": {
-              "h": 0.2611662753631487,
-              "w": 0.3333333333333333,
-              "x": 0,
-              "y": 0.36941686231842563
-            },
-            "imageFit": "cover",
-            "imageTransform": {
-              "rot": 0,
-              "flipH": true
-            }
-          },
-          {
-            "id": "ex-pikachu-and-friends_p4_r1c1",
-            "row": 1,
-            "col": 1,
-            "rowSpan": 1,
-            "colSpan": 2,
-            "type": "artwork",
-            "imageUrl": "https://i.pinimg.com/736x/e4/d1/50/e4d150ce494c6b325508b2f0bbbc9ea4.jpg",
-            "imageCrop": {
-              "h": 0.2611662753631487,
-              "w": 0.6666666666666666,
-              "x": 0.3333333333333333,
-              "y": 0.36941686231842563
-            },
-            "imageFit": "cover",
-            "imageTransform": {
-              "rot": 0,
-              "flipH": true
-            }
-          },
-          {
             "id": "ex-pikachu-and-friends_p4_r2c0",
             "row": 2,
             "col": 0,
@@ -502,26 +314,6 @@
             "colSpan": 1,
             "type": "card",
             "cardId": "656264"
-          },
-          {
-            "id": "ex-pikachu-and-friends_p4_r2c1",
-            "row": 2,
-            "col": 1,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "artwork",
-            "imageUrl": "https://i.pinimg.com/736x/e4/d1/50/e4d150ce494c6b325508b2f0bbbc9ea4.jpg",
-            "imageCrop": {
-              "h": 0.2611662753631487,
-              "w": 0.3333333333333333,
-              "x": 0.3333333333333333,
-              "y": 0.6305831376815743
-            },
-            "imageFit": "cover",
-            "imageTransform": {
-              "rot": 0,
-              "flipH": true
-            }
           },
           {
             "id": "ex-pikachu-and-friends_p4_r2c2",
@@ -579,38 +371,6 @@
             "cardId": "113693"
           },
           {
-            "id": "ex-pikachu-and-friends_p5_r1c1",
-            "row": 1,
-            "col": 1,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "artwork",
-            "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/87597.831d56675b21.jpg",
-            "imageCrop": {
-              "h": 0.30706249999999996,
-              "w": 0.30706249999999996,
-              "x": 0.1564994130839472,
-              "y": 0.19797940923783974
-            },
-            "imageFit": "cover"
-          },
-          {
-            "id": "ex-pikachu-and-friends_p5_r1c2",
-            "row": 1,
-            "col": 2,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "artwork",
-            "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/87597.831d56675b21.jpg",
-            "imageCrop": {
-              "h": 0.30706249999999996,
-              "w": 0.30706249999999996,
-              "x": 0.4635619130839471,
-              "y": 0.19797940923783974
-            },
-            "imageFit": "cover"
-          },
-          {
             "id": "ex-pikachu-and-friends_p5_r2c0",
             "row": 2,
             "col": 0,
@@ -648,40 +408,6 @@
         "backgroundColor": "#000000",
         "slots": [
           {
-            "id": "ex-pikachu-and-friends_p6_r0c0",
-            "row": 0,
-            "col": 0,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "artwork",
-            "imageUrl": "https://www.pokemoncenter.com/images/DAMRoot/High/10029/P12020_10-10562-101_01.jpg",
-            "imageCrop": {
-              "h": 1,
-              "w": 1,
-              "x": 0,
-              "y": 0
-            },
-            "imageFit": "cover"
-          },
-          {
-            "id": "ex-pikachu-and-friends_p6_r0c1",
-            "row": 0,
-            "col": 1,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "artwork",
-            "imageUrl": "https://www.pokemoncenter.com/images/DAMRoot/High/10029/P12020_10-10562-101_01.jpg"
-          },
-          {
-            "id": "ex-pikachu-and-friends_p6_r0c2",
-            "row": 0,
-            "col": 2,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "artwork",
-            "imageUrl": "https://www.pokemoncenter.com/images/DAMRoot/High/10029/P12020_10-10562-101_01.jpg"
-          },
-          {
             "id": "ex-pikachu-and-friends_p6_r1c0",
             "row": 1,
             "col": 0,
@@ -707,33 +433,6 @@
             "colSpan": 1,
             "type": "card",
             "cardId": "253413"
-          },
-          {
-            "id": "ex-pikachu-and-friends_p6_r2c0",
-            "row": 2,
-            "col": 0,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "artwork",
-            "imageUrl": "https://www.pokemoncenter.com/images/DAMRoot/High/10029/P12020_10-10562-101_01.jpg"
-          },
-          {
-            "id": "ex-pikachu-and-friends_p6_r2c1",
-            "row": 2,
-            "col": 1,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "artwork",
-            "imageUrl": "https://www.pokemoncenter.com/images/DAMRoot/High/10029/P12020_10-10562-101_01.jpg"
-          },
-          {
-            "id": "ex-pikachu-and-friends_p6_r2c2",
-            "row": 2,
-            "col": 2,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "artwork",
-            "imageUrl": "https://www.pokemoncenter.com/images/DAMRoot/High/10029/P12020_10-10562-101_01.jpg"
           }
         ]
       }
@@ -755,38 +454,6 @@
         "backgroundColor": "#f3e9d2",
         "slots": [
           {
-            "id": "ex-ideas-in-flight_p0_r0c0",
-            "row": 0,
-            "col": 0,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "artwork",
-            "imageUrl": "https://www.pokemoncenter.com/images/DAMRoot/High/10030/P11418_10-10247-101_01.jpg",
-            "imageCrop": {
-              "h": 0.3333333333333333,
-              "w": 0.23951863354037267,
-              "x": 0.24747670807453412,
-              "y": 0.1465450310559007
-            },
-            "imageFit": "cover"
-          },
-          {
-            "id": "ex-ideas-in-flight_p0_r0c1",
-            "row": 0,
-            "col": 1,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "artwork",
-            "imageUrl": "https://www.pokemoncenter.com/images/DAMRoot/High/10030/P11418_10-10247-101_01.jpg",
-            "imageCrop": {
-              "h": 0.3333333333333333,
-              "w": 0.23951863354037267,
-              "x": 0.48699534161490676,
-              "y": 0.1465450310559007
-            },
-            "imageFit": "cover"
-          },
-          {
             "id": "ex-ideas-in-flight_p0_r0c2",
             "row": 0,
             "col": 2,
@@ -805,54 +472,6 @@
             "cardId": "85075"
           },
           {
-            "id": "ex-ideas-in-flight_p0_r1c1",
-            "row": 1,
-            "col": 1,
-            "rowSpan": 1,
-            "colSpan": 2,
-            "type": "artwork",
-            "imageUrl": "https://www.artofpkm.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBeHdPQXc9PSIsImV4cCI6bnVsbCwicHVyIjoiYmxvYl9pZCJ9fQ==--0a6203f84960c2deb0edfe9e8f8c7a78e198fcc9/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaDdDRG9MWm05eWJXRjBPZ2wzWldKd09oUnlaWE5wZW1WZmRHOWZiR2x0YVhSYkIya0MwQWRwQXRBSE9neHhkV0ZzYVhSNWFXUT0iLCJleHAiOm51bGwsInB1ciI6InZhcmlhdGlvbiJ9fQ==--ed2d6d11a2959980a13c5ee4344539bfee99a0a7/ExtractedImage.png",
-            "imageCrop": {
-              "h": 0.45,
-              "w": 0.4563973434535106,
-              "x": 0.1543212713472486,
-              "y": 0.41263282732447815
-            },
-            "imageFit": "cover"
-          },
-          {
-            "id": "ex-ideas-in-flight_p0_r2c0",
-            "row": 2,
-            "col": 0,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "artwork",
-            "imageUrl": "https://www.pokemoncenter.com/images/DAMRoot/High/10030/P11418_10-10247-101_01.jpg",
-            "imageCrop": {
-              "h": 0.2700000000000001,
-              "w": 0.19401009316770185,
-              "x": 0.23347049689441077,
-              "y": 0.4865819099378882
-            },
-            "imageFit": "cover"
-          },
-          {
-            "id": "ex-ideas-in-flight_p0_r2c1",
-            "row": 2,
-            "col": 1,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "artwork",
-            "imageUrl": "https://www.pokemoncenter.com/images/DAMRoot/High/10030/P11418_10-10247-101_01.jpg",
-            "imageCrop": {
-              "h": 0.2700000000000001,
-              "w": 0.19401009316770185,
-              "x": 0.4274805900621126,
-              "y": 0.4865819099378882
-            },
-            "imageFit": "cover"
-          },
-          {
             "id": "ex-ideas-in-flight_p0_r2c2",
             "row": 2,
             "col": 2,
@@ -862,14 +481,6 @@
             "cardId": "218440"
           }
         ]
-      },
-      {
-        "id": "ex-ideas-in-flight_p1",
-        "title": "Page 2",
-        "description": "Filler Page, eyeballing pages 1 & 3 visually, and the sliced art wouldn't fit realistically in an even numbered page.",
-        "rows": 3,
-        "cols": 3,
-        "slots": []
       },
       {
         "id": "ex-ideas-in-flight_p2",
@@ -887,54 +498,6 @@
             "colSpan": 1,
             "type": "card",
             "cardId": "183899"
-          },
-          {
-            "id": "ex-ideas-in-flight_p2_r0c1",
-            "row": 0,
-            "col": 1,
-            "rowSpan": 1,
-            "colSpan": 2,
-            "type": "artwork",
-            "imageUrl": "https://www.pokemoncenter.com/images/DAMRoot/High/10030/P11418_10-10247-101_01.jpg",
-            "imageCrop": {
-              "h": 0.27000000000000013,
-              "w": 0.3880608365019012,
-              "x": 0.2946511406844104,
-              "y": 0.2130351711026614
-            },
-            "imageFit": "cover"
-          },
-          {
-            "id": "ex-ideas-in-flight_p2_r1c0",
-            "row": 1,
-            "col": 0,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "artwork",
-            "imageUrl": "https://www.artofpkm.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBeHdPQXc9PSIsImV4cCI6bnVsbCwicHVyIjoiYmxvYl9pZCJ9fQ==--0a6203f84960c2deb0edfe9e8f8c7a78e198fcc9/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaDdDRG9MWm05eWJXRjBPZ2wzWldKd09oUnlaWE5wZW1WZmRHOWZiR2x0YVhSYkIya0MwQWRwQXRBSE9neHhkV0ZzYVhSNWFXUT0iLCJleHAiOm51bGwsInB1ciI6InZhcmlhdGlvbiJ9fQ==--ed2d6d11a2959980a13c5ee4344539bfee99a0a7/ExtractedImage.png",
-            "imageCrop": {
-              "h": 0.3333333333333333,
-              "w": 0.1693396739130435,
-              "x": 0.14787228260869564,
-              "y": 0.4701733954451346
-            },
-            "imageFit": "cover"
-          },
-          {
-            "id": "ex-ideas-in-flight_p2_r1c1",
-            "row": 1,
-            "col": 1,
-            "rowSpan": 1,
-            "colSpan": 2,
-            "type": "artwork",
-            "imageUrl": "https://www.artofpkm.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBeHdPQXc9PSIsImV4cCI6bnVsbCwicHVyIjoiYmxvYl9pZCJ9fQ==--0a6203f84960c2deb0edfe9e8f8c7a78e198fcc9/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaDdDRG9MWm05eWJXRjBPZ2wzWldKd09oUnlaWE5wZW1WZmRHOWZiR2x0YVhSYkIya0MwQWRwQXRBSE9neHhkV0ZzYVhSNWFXUT0iLCJleHAiOm51bGwsInB1ciI6InZhcmlhdGlvbiJ9fQ==--ed2d6d11a2959980a13c5ee4344539bfee99a0a7/ExtractedImage.png",
-            "imageCrop": {
-              "h": 0.3333333333333333,
-              "w": 0.338679347826087,
-              "x": 0.31721195652173917,
-              "y": 0.4701733954451346
-            },
-            "imageFit": "cover"
           },
           {
             "id": "ex-ideas-in-flight_p2_r2c0",
@@ -1006,22 +569,6 @@
             "colSpan": 1,
             "type": "card",
             "cardId": "589945"
-          },
-          {
-            "id": "ex-ideas-in-flight_p3_r1c1",
-            "row": 1,
-            "col": 1,
-            "rowSpan": 1,
-            "colSpan": 2,
-            "type": "artwork",
-            "imageUrl": "https://piikwvntldytjejxmcla.supabase.co/storage/v1/object/public/binder-art/30f21f44-c88d-4bfa-9aa1-a563fc37ccae/aaa3f79a-2528-4ef8-98ec-33e4530ceb77.jpg",
-            "imageCrop": {
-              "h": 0.9408382115794607,
-              "w": 1.002962392707203,
-              "x": -0.0037100016707286966,
-              "y": 0.0602250837771796
-            },
-            "imageFit": "cover"
           },
           {
             "id": "ex-ideas-in-flight_p3_r2c0",
@@ -1366,38 +913,6 @@
             "cardId": "497685"
           },
           {
-            "id": "ex-ideas-in-flight_p7_r1c1",
-            "row": 1,
-            "col": 1,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "artwork",
-            "imageUrl": "https://www.artofpkm.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBK2wvQWc9PSIsImV4cCI6bnVsbCwicHVyIjoiYmxvYl9pZCJ9fQ==--60aa811757ffaeab1c6d571cc21c2f7e79f075b1/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaDdDRG9MWm05eWJXRjBPZ2wzWldKd09oUnlaWE5wZW1WZmRHOWZiR2x0YVhSYkIya0MwQWRwQXRBSE9neHhkV0ZzYVhSNWFXUT0iLCJleHAiOm51bGwsInB1ciI6InZhcmlhdGlvbiJ9fQ==--ed2d6d11a2959980a13c5ee4344539bfee99a0a7/047533_T_ROKETTODANNOSAKAKI.jpg",
-            "imageCrop": {
-              "h": 0.12571650520833327,
-              "w": 0.12571650520833327,
-              "x": 0.39470782370166657,
-              "y": 0.26378984234583025
-            },
-            "imageFit": "cover"
-          },
-          {
-            "id": "ex-ideas-in-flight_p7_r1c2",
-            "row": 1,
-            "col": 2,
-            "rowSpan": 1,
-            "colSpan": 1,
-            "type": "artwork",
-            "imageUrl": "https://www.artofpkm.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBK2wvQWc9PSIsImV4cCI6bnVsbCwicHVyIjoiYmxvYl9pZCJ9fQ==--60aa811757ffaeab1c6d571cc21c2f7e79f075b1/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaDdDRG9MWm05eWJXRjBPZ2wzWldKd09oUnlaWE5wZW1WZmRHOWZiR2x0YVhSYkIya0MwQWRwQXRBSE9neHhkV0ZzYVhSNWFXUT0iLCJleHAiOm51bGwsInB1ciI6InZhcmlhdGlvbiJ9fQ==--ed2d6d11a2959980a13c5ee4344539bfee99a0a7/047533_T_ROKETTODANNOSAKAKI.jpg",
-            "imageCrop": {
-              "h": 0.12571650520833327,
-              "w": 0.12571650520833327,
-              "x": 0.5204243289099999,
-              "y": 0.26378984234583025
-            },
-            "imageFit": "cover"
-          },
-          {
             "id": "ex-ideas-in-flight_p7_r2c0",
             "row": 2,
             "col": 0,
@@ -1641,22 +1156,6 @@
             "cardId": "632993"
           },
           {
-            "id": "ex-ideas-in-flight_p10_r1c0",
-            "row": 1,
-            "col": 0,
-            "rowSpan": 1,
-            "colSpan": 2,
-            "type": "artwork",
-            "imageUrl": "https://board.ttvchannel.com/uploads/db5640/original/4X/8/a/4/8a48bad799e85611a5b7b8277e6e7884a47b11cf.jpeg",
-            "imageCrop": {
-              "h": 0.411522633744856,
-              "w": 0.5914040334330191,
-              "x": 0.25797484855455866,
-              "y": 0.0741795107737136
-            },
-            "imageFit": "cover"
-          },
-          {
             "id": "ex-ideas-in-flight_p10_r1c2",
             "row": 1,
             "col": 2,
@@ -1664,22 +1163,6 @@
             "colSpan": 1,
             "type": "card",
             "cardId": "87534"
-          },
-          {
-            "id": "ex-ideas-in-flight_p10_r2c0",
-            "row": 2,
-            "col": 0,
-            "rowSpan": 1,
-            "colSpan": 2,
-            "type": "artwork",
-            "imageUrl": "https://board.ttvchannel.com/uploads/db5640/original/4X/8/a/4/8a48bad799e85611a5b7b8277e6e7884a47b11cf.jpeg",
-            "imageCrop": {
-              "h": 0.411522633744856,
-              "w": 0.5914040334330191,
-              "x": 0.25797484855455866,
-              "y": 0.4857021445185696
-            },
-            "imageFit": "cover"
           },
           {
             "id": "ex-ideas-in-flight_p10_r2c2",
@@ -1691,54 +1174,6 @@
             "cardId": "87531"
           }
         ]
-      },
-      {
-        "id": "ex-ideas-in-flight_p11",
-        "title": "TBD: Umbreon and Sylveon Page. ",
-        "description": "I like this artwork.  I forgot where I got it, but the card labels say it's from artofpkm.com",
-        "rows": 3,
-        "cols": 3,
-        "slots": [
-          {
-            "id": "ex-ideas-in-flight_p11_r0c1",
-            "row": 0,
-            "col": 1,
-            "rowSpan": 1,
-            "colSpan": 2,
-            "type": "artwork",
-            "imageUrl": "https://www.artofpkm.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBemNMQXc9PSIsImV4cCI6bnVsbCwicHVyIjoiYmxvYl9pZCJ9fQ==--aad8d3d7e55e4ed36d098517fccad3423fa3d3d0/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaDdDRG9MWm05eWJXRjBPZ2wzWldKd09oUnlaWE5wZW1WZmRHOWZiR2x0YVhSYkIya0MwQWRwQXRBSE9neHhkV0ZzYVhSNWFXUT0iLCJleHAiOm51bGwsInB1ciI6InZhcmlhdGlvbiJ9fQ==--ed2d6d11a2959980a13c5ee4344539bfee99a0a7/1957060631216963690_1.jpg",
-            "imageCrop": {
-              "h": 0.3333333333333333,
-              "w": 0.3166436335403727,
-              "x": 0.2625172748447204,
-              "y": 0.3333333333333333
-            },
-            "imageFit": "cover"
-          },
-          {
-            "id": "ex-ideas-in-flight_p11_r1c1",
-            "row": 1,
-            "col": 1,
-            "rowSpan": 1,
-            "colSpan": 2,
-            "type": "artwork",
-            "imageUrl": "https://www.artofpkm.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBemNMQXc9PSIsImV4cCI6bnVsbCwicHVyIjoiYmxvYl9pZCJ9fQ==--aad8d3d7e55e4ed36d098517fccad3423fa3d3d0/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaDdDRG9MWm05eWJXRjBPZ2wzWldKd09oUnlaWE5wZW1WZmRHOWZiR2x0YVhSYkIya0MwQWRwQXRBSE9neHhkV0ZzYVhSNWFXUT0iLCJleHAiOm51bGwsInB1ciI6InZhcmlhdGlvbiJ9fQ==--ed2d6d11a2959980a13c5ee4344539bfee99a0a7/1957060631216963690_1.jpg",
-            "imageCrop": {
-              "h": 0.3333333333333333,
-              "w": 0.3166436335403727,
-              "x": 0.2625172748447204,
-              "y": 0.6666666666666666
-            },
-            "imageFit": "cover"
-          }
-        ]
-      },
-      {
-        "id": "ex-ideas-in-flight_p12",
-        "title": "Page 14",
-        "rows": 3,
-        "cols": 3,
-        "slots": []
       }
     ]
   },
@@ -1770,7 +1205,10 @@
               "x": 0.0728224612097057,
               "y": 0.3512185127674258
             },
-            "imageFit": "cover"
+            "imageFit": "cover",
+            "attribution": {
+              "sourceName": "Original AI art by michi-maker"
+            }
           },
           {
             "id": "ex-pitch-black-chase_p0_r0c1",
@@ -1786,7 +1224,10 @@
               "x": 0.36390752530747283,
               "y": 0.3512185127674258
             },
-            "imageFit": "cover"
+            "imageFit": "cover",
+            "attribution": {
+              "sourceName": "Original AI art by michi-maker"
+            }
           },
           {
             "id": "ex-pitch-black-chase_p0_r0c2",
@@ -1802,7 +1243,10 @@
               "x": 0.65499258940524,
               "y": 0.3512185127674258
             },
-            "imageFit": "cover"
+            "imageFit": "cover",
+            "attribution": {
+              "sourceName": "Original AI art by michi-maker"
+            }
           },
           {
             "id": "ex-pitch-black-chase_p0_r1c0",
@@ -1881,7 +1325,10 @@
               "x": 0.020951704545454475,
               "y": 0
             },
-            "imageFit": "cover"
+            "imageFit": "cover",
+            "attribution": {
+              "sourceName": "Original AI art by michi-maker"
+            }
           },
           {
             "id": "ex-pitch-black-chase_p1_r0c1",
@@ -1897,7 +1344,10 @@
               "x": 0.3403172348484848,
               "y": 0
             },
-            "imageFit": "cover"
+            "imageFit": "cover",
+            "attribution": {
+              "sourceName": "Original AI art by michi-maker"
+            }
           },
           {
             "id": "ex-pitch-black-chase_p1_r0c2",
@@ -1913,7 +1363,10 @@
               "x": 0.6596827651515151,
               "y": 0
             },
-            "imageFit": "cover"
+            "imageFit": "cover",
+            "attribution": {
+              "sourceName": "Original AI art by michi-maker"
+            }
           },
           {
             "id": "ex-pitch-black-chase_p1_r1c0",
@@ -1929,7 +1382,10 @@
               "x": 0.020951704545454475,
               "y": 0.3333333333333333
             },
-            "imageFit": "cover"
+            "imageFit": "cover",
+            "attribution": {
+              "sourceName": "Original AI art by michi-maker"
+            }
           },
           {
             "id": "ex-pitch-black-chase_p1_r1c1",
@@ -1963,7 +1419,10 @@
               "x": 0.020951704545454475,
               "y": 0.6666666666666666
             },
-            "imageFit": "cover"
+            "imageFit": "cover",
+            "attribution": {
+              "sourceName": "Original AI art by michi-maker"
+            }
           },
           {
             "id": "ex-pitch-black-chase_p1_r2c1",
@@ -1979,7 +1438,10 @@
               "x": 0.3403172348484848,
               "y": 0.6666666666666666
             },
-            "imageFit": "cover"
+            "imageFit": "cover",
+            "attribution": {
+              "sourceName": "Original AI art by michi-maker"
+            }
           },
           {
             "id": "ex-pitch-black-chase_p1_r2c2",
@@ -1995,7 +1457,10 @@
               "x": 0.6596827651515151,
               "y": 0.6666666666666666
             },
-            "imageFit": "cover"
+            "imageFit": "cover",
+            "attribution": {
+              "sourceName": "Original AI art by michi-maker"
+            }
           }
         ]
       },
@@ -2065,7 +1530,10 @@
               "x": 0.6283285984848486,
               "y": 0.3236653645833332
             },
-            "imageFit": "cover"
+            "imageFit": "cover",
+            "attribution": {
+              "sourceName": "Original AI art by michi-maker"
+            }
           },
           {
             "id": "ex-pitch-black-chase_p2_r2c0",
@@ -2081,7 +1549,10 @@
               "x": -0.01040246212121225,
               "y": 0.6569986979166667
             },
-            "imageFit": "cover"
+            "imageFit": "cover",
+            "attribution": {
+              "sourceName": "Original AI art by michi-maker"
+            }
           },
           {
             "id": "ex-pitch-black-chase_p2_r2c1",
@@ -2097,7 +1568,10 @@
               "x": 0.3089630681818181,
               "y": 0.6569986979166667
             },
-            "imageFit": "cover"
+            "imageFit": "cover",
+            "attribution": {
+              "sourceName": "Original AI art by michi-maker"
+            }
           },
           {
             "id": "ex-pitch-black-chase_p2_r2c2",
@@ -2113,7 +1587,10 @@
               "x": 0.6283285984848486,
               "y": 0.6569986979166667
             },
-            "imageFit": "cover"
+            "imageFit": "cover",
+            "attribution": {
+              "sourceName": "Original AI art by michi-maker"
+            }
           }
         ]
       },
@@ -2318,7 +1795,10 @@
               "x": 0.017080745341614783,
               "y": 0.006696428571428575
             },
-            "imageFit": "cover"
+            "imageFit": "cover",
+            "attribution": {
+              "sourceName": "Original AI art by michi-maker"
+            }
           },
           {
             "id": "ex-pitch-black-chase_p5_r0c1",
@@ -2352,7 +1832,10 @@
               "x": 0.017080745341614783,
               "y": 0.34002976190476186
             },
-            "imageFit": "cover"
+            "imageFit": "cover",
+            "attribution": {
+              "sourceName": "Original AI art by michi-maker"
+            }
           },
           {
             "id": "ex-pitch-black-chase_p5_r1c1",
@@ -2368,7 +1851,10 @@
               "x": 0.33643892339544507,
               "y": 0.34002976190476186
             },
-            "imageFit": "cover"
+            "imageFit": "cover",
+            "attribution": {
+              "sourceName": "Original AI art by michi-maker"
+            }
           },
           {
             "id": "ex-pitch-black-chase_p5_r1c2",
@@ -2384,7 +1870,10 @@
               "x": 0.6557971014492753,
               "y": 0.34002976190476186
             },
-            "imageFit": "cover"
+            "imageFit": "cover",
+            "attribution": {
+              "sourceName": "Original AI art by michi-maker"
+            }
           },
           {
             "id": "ex-pitch-black-chase_p5_r2c0",

@@ -28,6 +28,7 @@ const SECTIONS: Section[] = [
     heading: '2. What michi-maker is',
     paragraphs: [
       'michi-maker is a fan-made hobby tool, currently in beta. Features may change, break, or be removed while we build. We will always try to treat your data carefully, but during beta you should not treat michi-maker as the only copy of anything you cannot afford to lose.',
+      'michi-maker is a neutral tool for content you supply. Our service is the software: arranging cards and art into binder-page layouts, engineering true-size, cut-ready print output, and exporting a file. We do not provide, license, or sell the artwork you place — you bring your own art, and any print-ready file is generated on your device from your arrangement, for you to print yourself for personal use. Paid plans pay for the software and the arrangement and print-layout engineering, never for artwork.',
     ],
   },
   {

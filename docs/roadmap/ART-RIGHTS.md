@@ -23,18 +23,46 @@ Two layers of rights sit on essentially every Pokémon artwork:
 apps. The codebase already flags this honestly: every artofpkm asset carries
 `licenseClear: false` ("provenance known, permission unverified" — NOT cleared).
 
+## The crux: SUPPLY, not printing (owner-refined 2026-07-17)
+
+The distinction that actually moves risk is **not "do we print"** (we don't — we arrange and
+export a file the user chooses to print at home) and **not "do we charge for art"** (we don't —
+we charge for the software + arrangement/cut-line engineering + export). It's:
+
+> **Does michi-maker SUPPLY the art, or does the USER bring it?**
+
+- User brings their own art → michi-maker is **Canva/Photoshop for binder layouts**: a neutral
+  tool, not liable for what users make. Reproduction happens **client-side** (pdf-lib in the
+  user's browser — KEEP IT THERE; do not move PDF generation server-side), at the user's command,
+  for personal use. This is the TARGET MODEL.
+- michi-maker supplies/curates the art (a built-in gallery, or our own Pokémon-art example
+  binders) → we're a design tool that ALSO ships a library of copyrighted art. That's where the
+  exposure concentrates, and it doesn't care whether we print.
+
+Every "we don't print / don't sell art / personal use" clarification pushes toward the neutral
+tool; the only thing that undercuts it is supplying the art.
+
+### Hotlink vs. upload
+Forcing the user to UPLOAD art (they download it, then upload a copy) is a cleaner posture than
+hotlinking/dragging a remote image URL: it puts michi-maker squarely in **DMCA safe-harbor host**
+territory (user affirmatively uploads, we host, we take down on notice) and makes "user-supplied"
+unambiguous. Hotlinking is murkier (embed/display + server-test debates, no safe harbor, CDN
+dependency). Linking OUT to art sources is fine either way — linking is not reproduction; the only
+risk there is curation that reads as *steering* users to a specific infringing use (inducement),
+so the suggested-sources list is framed neutrally ("art you have the right to use", responsibility
+on the user), not "grab Pokémon art here". OPEN DECISION: whether to go upload-only (drop URL
+hotlink storage + the drag/paste-to-hotlink flow) for maximum defensibility, vs. keep drag/paste
+for UX. Not yet decided.
+
 ## Risk ladder (lowest → highest exposure)
 
 | Use | Posture | Exposure |
 | --- | --- | --- |
-| A user pastes their OWN sourced art into a PRIVATE binder | UGC / hosting — safe-harbor territory | Lowest |
-| Public binders with user art | We publish it, but user-driven | Medium (needs DMCA + ToS) |
-| Example / featured binders **we** ship using this art | *We* publish it | Higher |
-| **Option A** — a curated, SELF-HOSTED in-app artofpkm gallery | We select, copy, distribute | High — self-hosting is worse than hotlinking |
-| **Selling PDF prints** of binders containing this art | Commercial reproduction | Highest — guts fair-use |
-
-The two features we were most excited to build next (self-hosted gallery + paid prints of that
-art) are the two highest-risk uses. Noted, not blocked.
+| User brings/uploads their OWN art into a PRIVATE binder; client-side export | Neutral tool + UGC host | Lowest |
+| Public binders with user art | User-driven, we display | Medium (DMCA + ToS — SHIPPED) |
+| Example / featured binders **we** ship using Pokémon art | *We* supply + display | Higher — swap for cleared art |
+| ~~**Option A** — self-hosted in-app art gallery~~ | We become the supplier | **DROPPED 2026-07-17 — do not build** |
+| **Selling PDF prints** of binders containing this art | Commercial | Highest — counsel before shipping |
 
 ## Decisions & action items
 
@@ -50,12 +78,21 @@ art) are the two highest-risk uses. Noted, not blocked.
 - Consult an IP attorney before: shipping Option A, and before selling prints of Pokémon-character
   art. These are the two items most worth a paid consult.
 
-**Deferred design choices (when Option A / prints are revisited):**
-- Prefer art we can stand behind: commissioned/our own, genuine CC0/public-domain, or licenses
-  that explicitly permit commercial redistribution — over bundling Pokémon promotional art.
-- Consider firewalling the print product from Pokémon-character art until rights are sorted.
-- Inventory exactly where Pokémon-sourced art currently ships (examples, featured, prints) so the
-  real surface area is known before counsel.
+**Neutral-tool positioning SHIPPED (2026-07-17):** ToS §2 defines michi-maker as "a neutral tool
+for content you supply" (software + arrangement/cut-line engineering + export; we don't provide/
+license/sell art; client-side file for personal use); print sheet carries the same note; Slice
+Studio art-sources modal leads with a rights-responsibility note and neutral framing.
 
-## Not doing (yet)
-- Blocking any current feature. Everything ships as-is; this brief keeps the risk on the record.
+**Option A: DROPPED.** No self-hosted in-app art gallery. michi-maker stays a tool for
+user-supplied art. (The rebuilt artofpkm.json + attribution resolvers stay useful for crediting
+user-brought art, not for us serving a gallery.)
+
+**Deferred / open:**
+- Swap our own Pokémon-art example/featured binders for art we can stand behind (commissioned/own,
+  CC0/public-domain, or explicitly redistributable) — the remaining spot where *we* supply art.
+- Decide hotlink vs. upload-only (see above).
+- Counsel before selling prints of Pokémon-character art.
+
+## Not blocking
+Nothing current is blocked. This brief keeps the risk on the record and the design pointed at the
+neutral-tool / user-supplied model.

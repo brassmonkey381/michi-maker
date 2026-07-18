@@ -984,6 +984,11 @@ export function SliceStudio({
                   </Pressable>
                 </View>
                 <ScrollView contentContainerStyle={styles.sourcesList}>
+                  <Text style={styles.sourcesResponsibility}>
+                    michi-maker is a layout tool for art you supply. These are places to find art
+                    for your own personal binders — only use images you have the right to use, and
+                    credit the artist and source. You are responsible for the art you add.
+                  </Text>
                   {ART_SOURCES.map((s) => (
                     <Pressable key={s.title} style={styles.sourceRow} onPress={() => openGallery(s.url)}>
                       <View style={styles.sourceRowHead}>
@@ -1276,6 +1281,15 @@ const styles = StyleSheet.create({
   cardPickHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   sourcesCard: { width: '100%', maxWidth: 520, maxHeight: '80%' },
   sourcesList: { gap: 10, paddingBottom: 12 },
+  sourcesResponsibility: {
+    fontSize: FontSize.sm,
+    color: Palette.ink4,
+    lineHeight: 17,
+    paddingBottom: 4,
+    marginBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: Palette.hairline,
+  },
   sourceRow: {
     borderWidth: 1,
     borderColor: Palette.controlBorder,

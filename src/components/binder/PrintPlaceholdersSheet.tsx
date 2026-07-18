@@ -348,6 +348,11 @@ export function PrintPlaceholdersSheet({
                   color inserts. Every piece is real card size (2.5″ × 3.5″): print at 100%,
                   cut along the guides, slide in.
                 </ThemedText>
+                <ThemedText type="small" themeColor="textSecondary" style={styles.legalNote}>
+                  michi-maker lays out and exports your arrangement — the file is generated on
+                  your device from art you supplied, for your personal collection. You print it
+                  yourself, and you are responsible for the rights to any art it contains.
+                </ThemedText>
 
                 {!catalog && loading ? (
                   <View style={styles.center}>
@@ -664,6 +669,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: FontSize.h2, lineHeight: 26 },
   sub: { lineHeight: 20 },
+  legalNote: { lineHeight: 17, fontSize: FontSize.sm, fontStyle: 'italic' },
   center: { alignItems: 'center', gap: Spacing.one, paddingVertical: Spacing.two },
   btn: {
     backgroundColor: Palette.accent,

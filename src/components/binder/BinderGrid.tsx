@@ -733,6 +733,21 @@ function ArtworkImage({
   );
 }
 
+/**
+ * A reserved art gap left by the Build-a-binder wizard — a dashed "Your Art Here" placeholder.
+ * Tapping it in the editor (or dragging a slice from the tray onto it) fills it with the owner's
+ * own art. Purely empty (no image / card), so it never trips the private-art gate.
+ */
+function ArtGapPlaceholder({ radius, small }: { radius: number; small: boolean }) {
+  return (
+    <View style={[styles.fill, styles.artGap, { borderRadius: radius }]}>
+      <Text style={[styles.artGapText, small && styles.artGapTextSmall]} numberOfLines={2}>
+        Your Art Here
+      </Text>
+    </View>
+  );
+}
+
 /** A small corner badge marking a card's real-world size class (jumbo / V-UNION). */
 function KindBadge({ kind, small }: { kind?: DemoCard['kind']; small: boolean }) {
   if (small || (kind !== 'jumbo' && kind !== 'vunion')) return null;
@@ -787,6 +802,12 @@ function SlotContent({
         transform={slot.imageTransform}
       />
     );
+  }
+
+  // An empty artwork slot is a RESERVED ART GAP (the Build-a-binder wizard leaves these): a
+  // dashed placeholder inviting the owner to drop in their own art. No image, no card.
+  if (slot.type === 'artwork' && !slot.cardId) {
+    return <ArtGapPlaceholder radius={radius} small={small} />;
   }
 
   const id = slot.cardId;
@@ -1095,6 +1116,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  artGap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: Palette.grayBorder50,
+    paddingHorizontal: 4,
+  },
+  artGapText: {
+    color: Palette.grayBorder70,
+    fontSize: FontSize.sm,
+    fontWeight: Weight.semibold,
+    letterSpacing: 0.3,
+    textAlign: 'center',
+  },
+  artGapTextSmall: { fontSize: FontSize.micro, letterSpacing: 0 },
   artworkFallbackText: {
     color: Palette.onDarkMuted,
     fontSize: FontSize.xs,

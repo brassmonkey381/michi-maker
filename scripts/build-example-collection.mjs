@@ -25,7 +25,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const catalog = JSON.parse(fs.readFileSync(path.join(ROOT, 'public/browse/catalog.json'), 'utf8'));
 const prices = JSON.parse(fs.readFileSync(path.join(ROOT, 'public/browse/prices-summary.json'), 'utf8'));
 
-const PORTFOLIO_NAME = 'Example collection';
+const PORTFOLIO_NAME = 'Example cards (safe to delete)';
 const TARGET = 200;
 const RECENT_SERIES = new Set(['Scarlet & Violet', 'Mega Evolution']);
 

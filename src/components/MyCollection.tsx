@@ -37,6 +37,7 @@ import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
 import { pillChip } from '@/constants/ui';
 import {
+  deletePortfolio,
   fetchPortfolioGroups,
   fetchUserCards,
   subscribeUserCards,
@@ -265,6 +266,20 @@ function CollectionStrip({
   const headline = `${copies} card${copies === 1 ? '' : 's'} · ${available} available to place`;
   const [wizardOpen, setWizardOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  // Portfolio pending deletion (confirm dialog) — e.g. the "Try it out!" example cards.
+  const [pfDelete, setPfDelete] = useState<{ id: string; name: string } | null>(null);
+  const runDeletePortfolio = async () => {
+    if (!pfDelete) return;
+    const { id } = pfDelete;
+    setPfDelete(null);
+    try {
+      await deletePortfolio(id);
+      setPortfolios(null); // refetch the portfolio list; user_cards realtime refreshes the strip
+      onToast?.('Portfolio deleted');
+    } catch (e) {
+      onToast?.((e as Error).message);
+    }
+  };
   const freeIds = cards.filter((c) => freeOf(c) > 0).map((c) => c.cardId);
 
   const toggle = (cardId: string) =>
@@ -539,12 +554,17 @@ function CollectionStrip({
         ) : (
           portfolioGroups.map((g) => (
             <View key={g.id}>
-              <ThemedText type="smallBold" style={styles.groupSeries}>
-                {g.name}
-                <ThemedText type="small" themeColor="textSecondary">
-                  {'  '}· {g.cards.length} card{g.cards.length === 1 ? '' : 's'}
+              <View style={styles.portfolioHead}>
+                <ThemedText type="smallBold" style={styles.groupSeries}>
+                  {g.name}
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {'  '}· {g.cards.length} card{g.cards.length === 1 ? '' : 's'}
+                  </ThemedText>
                 </ThemedText>
-              </ThemedText>
+                <Pressable onPress={() => setPfDelete({ id: g.id, name: g.name })} hitSlop={6}>
+                  <Text style={styles.portfolioDelete}>Delete</Text>
+                </Pressable>
+              </View>
               <TileStrip
                 cards={g.cards}
                 placedCounts={placedCounts}
@@ -664,6 +684,36 @@ function CollectionStrip({
                   style={({ pressed }) => [styles.chooserRow, pressed && styles.pressed]}>
                   <Text style={styles.chooserNew}>+ New binder</Text>
                 </Pressable>
+              </ThemedView>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      ) : null}
+
+      {pfDelete ? (
+        <Modal visible transparent animationType="fade" onRequestClose={() => setPfDelete(null)}>
+          <Pressable style={styles.backdrop} onPress={() => setPfDelete(null)}>
+            <Pressable onPress={(e) => e.stopPropagation()} style={styles.chooserWrap}>
+              <ThemedView type="backgroundElement" style={styles.chooser}>
+                <ThemedText type="smallBold" style={styles.chooserTitle}>
+                  Delete “{pfDelete.name}”?
+                </ThemedText>
+                <ThemedText type="small" themeColor="textSecondary" style={styles.pfDeleteBody}>
+                  This removes the portfolio and its cards from your collection. Cards you already
+                  placed in a binder stay there. This can’t be undone.
+                </ThemedText>
+                <View style={styles.pfDeleteBtns}>
+                  <Pressable
+                    onPress={() => setPfDelete(null)}
+                    style={({ pressed }) => [styles.pfBtn, pressed && styles.pressed]}>
+                    <ThemedText type="smallBold">Cancel</ThemedText>
+                  </Pressable>
+                  <Pressable
+                    onPress={runDeletePortfolio}
+                    style={({ pressed }) => [styles.pfBtn, styles.pfBtnDanger, pressed && styles.pressed]}>
+                    <Text style={styles.pfBtnDangerText}>Delete</Text>
+                  </Pressable>
+                </View>
               </ThemedView>
             </Pressable>
           </Pressable>
@@ -1125,6 +1175,13 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.panel,
   },
   guideText: { flex: 1, minWidth: 200, color: Palette.accent, fontSize: FontSize.sm, lineHeight: 18, fontWeight: Weight.semibold },
+  portfolioHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
+  portfolioDelete: { color: Palette.danger, fontSize: FontSize.sm, fontWeight: Weight.semibold },
+  pfDeleteBody: { lineHeight: 18, marginTop: Spacing.one },
+  pfDeleteBtns: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.two, marginTop: Spacing.three },
+  pfBtn: { paddingVertical: Spacing.two, paddingHorizontal: Spacing.four, borderRadius: Radius.control },
+  pfBtnDanger: { backgroundColor: Palette.danger },
+  pfBtnDangerText: { color: Palette.white, fontSize: FontSize.sm, fontWeight: Weight.semibold },
   groupSeries: { marginTop: Spacing.three },
   groupSet: { marginTop: Spacing.one },
   cardModalWrap: { width: '100%', maxWidth: 320 },

@@ -16,7 +16,7 @@ import { LogoLoader } from '@/components/brand/LogoLoader';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
-import { buildPages, proposePages, type WizardProposal } from '@/data/binderWizard';
+import { buildPages, capProposals, proposePages, WIZARD_MAX_PAGES, type WizardProposal } from '@/data/binderWizard';
 import { useCatalog } from '@/hooks/use-catalog';
 import { usePriceSummary } from '@/lib/prices';
 import { useBinders } from '@/store/binders';
@@ -72,7 +72,12 @@ export function BuildBinderSheet({
     });
 
   const chosenThemes = plan ? plan.proposals.filter((p) => !excluded.has(p.key)) : [];
-  const chosen: WizardProposal[] = [...chosenThemes, ...(bulkOn && plan ? plan.bulk : [])];
+  const chosenRaw: WizardProposal[] = [...chosenThemes, ...(bulkOn && plan ? plan.bulk : [])];
+  // Cap the build at a sensible page ceiling (grass bulk goes first, then the rest of the bulk,
+  // then evolution pages — see capProposals). Keeps a fresh build from ballooning past the
+  // free-tier page limit.
+  const chosen = capProposals(chosenRaw);
+  const trimmed = chosenRaw.length - chosen.length;
   const cardTotal = chosen.reduce((n, p) => n + p.cardIds.length, 0);
 
   const build = () => {
@@ -111,9 +116,17 @@ export function BuildBinderSheet({
             ) : (
               <>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-                  Theme pages found in your unplaced cards. Untick any you don’t want. The
-                  binder opens ready to rearrange, and Reclaim can take any card back out.
+                  Theme pages found in your unplaced cards. Untick any you don’t want. Each page
+                  leaves a “Your Art Here” gap for your own art, and Reclaim can take any card
+                  back out.
                 </ThemedText>
+
+                {trimmed > 0 ? (
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.trimNote}>
+                    Capped at {WIZARD_MAX_PAGES} pages — {trimmed} extra bulk/evolution page
+                    {trimmed === 1 ? '' : 's'} left out. Untick pages above to swap which ones make it in.
+                  </ThemedText>
+                ) : null}
 
                 <TcgscanSynergyNote />
 
@@ -199,6 +212,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: FontSize.h2, lineHeight: 26 },
   sub: { lineHeight: 20 },
+  trimNote: { lineHeight: 18, fontStyle: 'italic' },
   center: { paddingVertical: Spacing.four, alignItems: 'center', gap: Spacing.two },
   list: { maxHeight: 380 },
   row: {

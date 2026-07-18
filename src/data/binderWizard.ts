@@ -213,20 +213,98 @@ export function proposePages(
   return { proposals, bulk };
 }
 
-/** Turn chosen proposals into persistable pages — every pocket collection-sourced. */
-export function buildPages(chosen: WizardProposal[]): DemoPage[] {
+/** Default page ceiling for a wizard build — matches the free tier's per-binder page cap
+ *  (see TIER_LIMITS.free.pagesPerBinder). A build shouldn't dump dozens of pages on a new user;
+ *  they can always add more by hand. */
+export const WIZARD_MAX_PAGES = 16;
+
+/**
+ * Trim a chosen page set down to `max` pages. Drop order matches the owner's intent for a
+ * free-tier build: **grass bulk pages first**, then the rest of the colour-blocked bulk, then
+ * evolution pages — the chase board and the single-species / set / artist gallery pages are the
+ * keepers. Original page order is preserved in the result.
+ */
+export function capProposals(chosen: WizardProposal[], max = WIZARD_MAX_PAGES): WizardProposal[] {
+  if (chosen.length <= max) return chosen;
+  const isBulk = (p: WizardProposal) => p.key.startsWith('bulk|');
+  const isGrassBulk = (p: WizardProposal) => /^bulk\|grass\b/i.test(p.key);
+  // Lower rank = kept first. Highest ranks are dropped when we slice to `max`.
+  const keepRank = (p: WizardProposal): number => {
+    if (p.kind === 'chase') return 0;
+    if (p.kind === 'species' || p.kind === 'set' || p.kind === 'artist') return 1;
+    if (p.kind === 'type' && !isBulk(p)) return 2;
+    if (p.kind === 'evolution') return 3;
+    if (isBulk(p)) return isGrassBulk(p) ? 6 : 5;
+    return 4;
+  };
+  return chosen
+    .map((p, i) => ({ p, i }))
+    .sort((a, b) => keepRank(a.p) - keepRank(b.p) || a.i - b.i)
+    .slice(0, max)
+    .sort((a, b) => a.i - b.i)
+    .map((x) => x.p);
+}
+
+// Reading orders for a 3×3 page. Row-major for most pages; column-major for evolution pages so
+// the stages read top→bottom down each column.
+const ROW_MAJOR: [number, number][] = [
+  [0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2],
+];
+const COL_MAJOR: [number, number][] = [
+  [0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1], [0, 2], [1, 2], [2, 2],
+];
+
+/**
+ * Art-gap footprints woven into built pages, leaving deliberate room for the owner's OWN art
+ * (rendered as a "Your Art Here" placeholder). Rotates two 2-pocket panels — a tall 2×1 and a
+ * wide 1×2 — then a single 1×1: "mostly 1×2, some 1×1". Each gap + its page's cards still fill
+ * all nine cells, so a page never reads half-empty. The chase board opts out (kept a full
+ * 9-card showcase — see buildPages).
+ */
+const ART_GAP_ROTATION: { row: number; col: number; rowSpan: number; colSpan: number }[][] = [
+  [{ row: 0, col: 2, rowSpan: 2, colSpan: 1 }], // tall 2-pocket panel, right edge
+  [{ row: 2, col: 0, rowSpan: 1, colSpan: 2 }], // wide 2-pocket panel, bottom
+  [{ row: 2, col: 2, rowSpan: 1, colSpan: 1 }], // single pocket
+];
+
+const gapKeys = (g: { row: number; col: number; rowSpan: number; colSpan: number }): string[] => {
+  const keys: string[] = [];
+  for (let r = g.row; r < g.row + g.rowSpan; r += 1)
+    for (let c = g.col; c < g.col + g.colSpan; c += 1) keys.push(`${r},${c}`);
+  return keys;
+};
+
+/**
+ * Turn chosen proposals into persistable pages. Cards keep their collection provenance; every
+ * page except the chase board reserves an art gap (an empty 'artwork' slot the grid paints as
+ * "Your Art Here") so the built binder is ready for the owner to drop in their own art.
+ */
+export function buildPages(chosen: WizardProposal[], opts?: { artGaps?: boolean }): DemoPage[] {
+  const artGaps = opts?.artGaps ?? true;
+  let gapTick = 0; // advances only on pages that actually get a gap, so the rotation stays even
   return chosen.map((p) => {
-    const colMajor = p.kind === 'evolution'; // stages read left → right down the columns
-    const slots: DemoSlot[] = p.cardIds.slice(0, PAGE_CELLS).map((cardId, i) => ({
+    const order = p.kind === 'evolution' ? COL_MAJOR : ROW_MAJOR;
+    const gaps = artGaps && p.kind !== 'chase' ? ART_GAP_ROTATION[gapTick++ % ART_GAP_ROTATION.length] : [];
+    const reserved = new Set(gaps.flatMap(gapKeys));
+    const cardCells = order.filter(([r, c]) => !reserved.has(`${r},${c}`));
+    const cardSlots: DemoSlot[] = p.cardIds.slice(0, cardCells.length).map((cardId, i) => ({
       id: uuidv4(),
-      row: colMajor ? i % PAGE_ROWS : Math.floor(i / PAGE_COLS),
-      col: colMajor ? Math.floor(i / PAGE_ROWS) : i % PAGE_COLS,
+      row: cardCells[i][0],
+      col: cardCells[i][1],
       rowSpan: 1,
       colSpan: 1,
       type: 'card' as const,
       cardId,
       fromCollection: true,
     }));
-    return { id: uuidv4(), title: p.title, rows: PAGE_ROWS, cols: PAGE_COLS, slots };
+    const artSlots: DemoSlot[] = gaps.map((g) => ({
+      id: uuidv4(),
+      row: g.row,
+      col: g.col,
+      rowSpan: g.rowSpan,
+      colSpan: g.colSpan,
+      type: 'artwork' as const, // empty (no imageUrl/cardId) → "Your Art Here" placeholder
+    }));
+    return { id: uuidv4(), title: p.title, rows: PAGE_ROWS, cols: PAGE_COLS, slots: [...cardSlots, ...artSlots] };
   });
 }

@@ -7,7 +7,7 @@
  * Build-a-binder wizard. Cards are curated so the wizard produces a chase board, single-species
  * gallery pages, and same-set pages (see the script header for why these three signals).
  */
-export const EXAMPLE_COLLECTION_NAME = "Example collection";
+export const EXAMPLE_COLLECTION_NAME = "Example cards (safe to delete)";
 export const EXAMPLE_COLLECTION_COUNT = 200;
 export const EXAMPLE_COLLECTION_COPIES = 228;
 

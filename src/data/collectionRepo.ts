@@ -73,6 +73,18 @@ export async function fetchPortfolioGroups(): Promise<PortfolioGroup[]> {
 }
 
 /**
+ * Delete a portfolio (collection) and everything in it. Cascades `portfolio_entries`, and the
+ * `user_cards` rollup trigger removes the owned copies — so the cards vanish from My collection
+ * too. Owner-only under RLS (same insert/delete grant the CSV import uses). Used to clear the
+ * "Try it out!" example cards a user was only playing with.
+ */
+export async function deletePortfolio(id: string): Promise<void> {
+  const supabase = requireSupabase();
+  const { error } = await supabase.from('collections').delete().eq('id', id);
+  if (error) throw new Error(`delete portfolio: ${error.message}`);
+}
+
+/**
  * Live changes to the user's inventory (scan-to-screen): calls `onChange` on any insert /
  * update / delete of their rows. Returns an unsubscribe. The publication includes user_cards
  * (20260714150000) and RLS keeps the stream owner-only.

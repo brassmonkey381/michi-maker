@@ -775,6 +775,12 @@ export function SliceStudio({
             </View>
           </View>
 
+          {/* Attribution hint — the auto-fill only fires for artofpkm references, so say so. */}
+          <Text style={styles.attribHint}>
+            Tip: drag in art from artofpkm.com, or paste an artofpkm.com artwork page URL, and the
+            artist + source fill in automatically. For other art, add a source link below.
+          </Text>
+
           {/* Credit — captured with the art. A SOURCE (link to the original post/shop/artist
               page) is required before a binder using this art can go public; the artist name is
               optional but encouraged. Pre-filled from known/derivable sources. */}
@@ -1147,6 +1153,7 @@ const styles = StyleSheet.create({
   sourceBar: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
   creditBar: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 8 },
   creditInput: { flexBasis: 200 },
+  attribHint: { marginTop: 8, fontSize: FontSize.sm, lineHeight: 17, color: Palette.muted2 },
   urlWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minWidth: 220 },
   input: {
     flex: 1,

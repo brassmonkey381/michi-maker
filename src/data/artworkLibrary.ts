@@ -51,6 +51,14 @@ export interface ArtAttribution {
   sourceName: string;
   /** The specific page to credit/link (an artofpkm artwork page, a Pinterest pin), when known. */
   sourceUrl?: string;
+  /**
+   * Provenance class for the SHARING gate (not the credit):
+   *  - 'external' — pulled from an outside URL (we can't verify the user's rights). PRIVATE: a
+   *    binder containing this art can never be made public/shared.
+   *  - 'upload' — a file the user brought from their device. Public-eligible (with attestation).
+   * Absent ⇒ legacy/official content (card art, our own AI art) — not treated as private.
+   */
+  origin?: 'external' | 'upload';
 }
 
 const PLATFORM_NAMES: Record<string, string> = {

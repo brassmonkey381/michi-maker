@@ -211,6 +211,12 @@ function SliceChip({
       <GestureDetector gesture={gesture}>
         <View style={[styles.chip, { width: w, height: THUMB_H }, armed && styles.chipArmed]}>
           <SliceThumb slice={slice} style={StyleSheet.absoluteFill} />
+          {/* URL-pulled art is PRIVATE — it can't go in a shared binder (see the sharing gate). */}
+          {slice.attribution?.origin === 'external' ? (
+            <View style={styles.privateBadge}>
+              <Text style={styles.privateBadgeText}>PRIVATE</Text>
+            </View>
+          ) : null}
           <View style={styles.badge}>
             <Text style={styles.badgeText}>
               {slice.rs}×{slice.cs}
@@ -305,6 +311,17 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.scrim60,
   },
   badgeText: { color: Palette.white, fontSize: FontSize.tag, fontWeight: Weight.bold, letterSpacing: 0.4 },
+  privateBadge: {
+    position: 'absolute',
+    top: 3,
+    left: 3,
+    right: 3,
+    paddingVertical: 1,
+    borderRadius: Radius.tag,
+    backgroundColor: Palette.scrim60,
+    alignItems: 'center',
+  },
+  privateBadgeText: { color: Palette.white, fontSize: FontSize.tag, fontWeight: Weight.bold, letterSpacing: 0.6 },
   remove: {
     position: 'absolute',
     top: 0,

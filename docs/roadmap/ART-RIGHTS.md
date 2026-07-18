@@ -42,6 +42,21 @@ we charge for the software + arrangement/cut-line engineering + export). It's:
 Every "we don't print / don't sell art / personal use" clarification pushes toward the neutral
 tool; the only thing that undercuts it is supplying the art.
 
+### Private/public art gate — SHIPPED (2026-07-17)
+Every art piece carries a provenance class (`attribution.origin`): **`external`** = pulled from a
+URL (we can't verify rights) → **PRIVATE**; **`upload`** = a file the user brought → public-eligible.
+Rules, enforced:
+- URL paste/drag → `external`; file upload/drop → `upload` (set at import in Slice Studio).
+- Slice tray shows a **PRIVATE** badge on external pieces; the studio warns while an external
+  image is loaded.
+- A binder with ANY private (`external`) art **cannot be made public** (`privateArtInBinder` in
+  `src/data/artAttributionCheck.ts`, gate in ShareSheet). Clean binders require a **rights
+  attestation checkbox** at share time (owner confirms they own/created/are licensed for all art +
+  agrees to ToS) before the public flag flips.
+- Adding private art to an already-public binder is **denied with a toast** (BinderScreen
+  placement check) — the gate is re-enforced on edit, not just at share time.
+- `origin` rides the existing `image_attribution` / `saved_slices.attribution` jsonb (no migration).
+
 ### Hotlink vs. upload — DECIDED: we host what users bring (no hotlinking) (2026-07-17)
 michi-maker now **hosts the user's own copy** of every image, and never stores a hotlink. Paste or
 drag a remote image URL and we FETCH it (direct → art-proxy edge fn) and UPLOAD it into the user's

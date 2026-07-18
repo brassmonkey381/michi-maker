@@ -262,6 +262,11 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // occupancy (matches the highlighted targets). Placing keeps the slice in the tray, so it can
   // fill more pockets.
   const placeSliceOnPage = (slice: SavedSlice, pg: DemoPage, pgIndex: number, row: number, col: number) => {
+    // PRIVATE art (pulled from a URL) can never enter a shared binder — deny, don't silently drop.
+    if (binder.isPublic && slice.attribution?.origin === 'external') {
+      showToast('This is a shared binder — private art (added from a link) can’t go in it. Upload your own art instead.', true);
+      return;
+    }
     if (row + slice.rs > pg.rows || col + slice.cs > pg.cols) {
       showToast('That slice doesn’t fit there.');
       return;

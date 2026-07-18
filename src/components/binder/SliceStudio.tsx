@@ -262,6 +262,9 @@ export function SliceStudio({
   const [artist, setArtist] = useState('');
   const [sourceUrl, setSourceUrl] = useState('');
   const [srcName, setSrcName] = useState('');
+  // Provenance class of the loaded image — 'external' (URL-pulled → PRIVATE) or 'upload' (a file
+  // the user brought → public-eligible). Drives the tray PRIVATE badge + the sharing gate.
+  const [origin, setOrigin] = useState<ArtAttribution['origin']>(undefined);
   // While a pasted/dragged remote image is being fetched INTO the user's own bucket (we host what
   // the user brings — never a hotlink). Shows a spinner; errors surface an "Upload instead" note.
   const [importing, setImporting] = useState(false);
@@ -278,6 +281,7 @@ export function SliceStudio({
     setArtist(a.artist ?? '');
     setSourceUrl(a.sourceUrl ?? '');
     setSrcName(a.sourceName ?? '');
+    setOrigin(a.origin);
   }, []);
 
   // Bring a REMOTE image url in — shared by URL paste AND drag-drop. We FETCH the image and upload
@@ -290,8 +294,10 @@ export function SliceStudio({
       const art = artForArtofpkmUrl(u);
       const fetchFrom = art ? art.url : u;
       const derived = deriveAttribution(u);
-      const attribution: ArtAttribution =
-        art?.attribution ?? { ...derived, sourceUrl: derived.sourceUrl ?? u };
+      const base: ArtAttribution = art?.attribution ?? { ...derived, sourceUrl: derived.sourceUrl ?? u };
+      // Pulled from an outside URL — provenance we can't verify → PRIVATE. Hosting a copy in the
+      // user's bucket does not change that; only a file the user uploads + attests is public.
+      const attribution: ArtAttribution = { ...base, origin: 'external' };
       setImporting(true);
       setImportError(null);
       try {
@@ -306,14 +312,15 @@ export function SliceStudio({
     [loadImage],
   );
 
-  // Upload a user's own file (drop or picker) into their bucket, then load the hosted copy.
+  // Upload a user's own file (drop or picker) into their bucket, then load the hosted copy. A
+  // brought file is 'upload' provenance — public-eligible once the user attests their rights.
   const importFile = useCallback(
     async (file: Blob, name?: string) => {
       setImporting(true);
       setImportError(null);
       try {
         const hostedUrl = await uploadArtImage(file, name);
-        loadImage(hostedUrl); // a file the user brought: their upload, no external source
+        loadImage(hostedUrl, { sourceName: 'your upload', origin: 'upload' });
       } catch (e) {
         setImportError((e as Error).message);
       } finally {
@@ -621,14 +628,16 @@ export function SliceStudio({
     const trimmedArtist = artist.trim();
     const trimmedSource = sourceUrl.trim();
     const derived = deriveAttribution(imageUrl);
+    // Always carry the origin (the sharing gate reads it), even when there's no credit text.
     const attribution: ArtAttribution | undefined =
-      trimmedArtist || trimmedSource || derived.sourceUrl
+      trimmedArtist || trimmedSource || derived.sourceUrl || origin
         ? {
             sourceName: srcName || derived.sourceName,
             ...(trimmedArtist ? { artist: trimmedArtist } : {}),
             ...(trimmedSource || derived.sourceUrl
               ? { sourceUrl: trimmedSource || derived.sourceUrl }
               : {}),
+            ...(origin ? { origin } : {}),
           }
         : undefined;
     const slices: SavedSlice[] = panels.map((p) => ({
@@ -646,7 +655,7 @@ export function SliceStudio({
       attribution,
     }));
     onSaveSlices(slices);
-  }, [imageUrl, rot, flipH, flipV, panels, rows, cols, win, onSaveSlices, artist, sourceUrl, srcName]);
+  }, [imageUrl, rot, flipH, flipV, panels, rows, cols, win, onSaveSlices, artist, sourceUrl, srcName, origin]);
 
   // Web: keyboard shortcuts + tracking Shift/Ctrl for multi-select.
   useEffect(() => {
@@ -793,7 +802,10 @@ export function SliceStudio({
           <View style={styles.sourceBar}>
             <Btn label="Card art" onPress={() => setCardPickOpen(true)} kind="primary" />
             <Btn label="Art sources ↗" onPress={() => setSourcesOpen(true)} />
-            <ArtUploadButton onUploaded={loadImage} onError={setImportError} />
+            <ArtUploadButton
+              onUploaded={(url) => loadImage(url, { sourceName: 'your upload', origin: 'upload' })}
+              onError={setImportError}
+            />
             <View style={styles.urlWrap}>
               <TextInput
                 value={urlInput}
@@ -811,8 +823,8 @@ export function SliceStudio({
           {/* Attribution hint — the auto-fill only fires for artofpkm references, so say so. */}
           <Text style={styles.attribHint}>
             Tip: drag in art from artofpkm.com, or paste an artofpkm.com artwork page URL, and the
-            artist + source fill in automatically. For other art, add a source link below. Art you
-            bring is saved to your own account; we host your copy, we don’t hotlink other sites.
+            artist + source fill in automatically. Art you bring is saved to your own account; we
+            host your copy, we don’t hotlink other sites.
           </Text>
 
           {importing ? (
@@ -822,6 +834,18 @@ export function SliceStudio({
             </View>
           ) : null}
           {importError ? <Text style={styles.importError}>{importError}</Text> : null}
+
+          {/* Provenance status for the loaded image — private (URL-pulled) vs shareable (uploaded). */}
+          {hasImage && origin === 'external' ? (
+            <Text style={styles.privateNote}>
+              PRIVATE — this art came from a link, so binders using it can’t be shared publicly. To
+              share, upload your own art (art you own or created) instead.
+            </Text>
+          ) : hasImage && origin === 'upload' ? (
+            <Text style={styles.attribHint}>
+              Your upload — this can go in binders you share, once you confirm you have the rights.
+            </Text>
+          ) : null}
 
           {/* Credit — captured with the art. A SOURCE (link to the original post/shop/artist
               page) is required before a binder using this art can go public; the artist name is
@@ -1203,6 +1227,7 @@ const styles = StyleSheet.create({
   attribHint: { marginTop: 8, fontSize: FontSize.sm, lineHeight: 17, color: Palette.muted2 },
   importRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
   importError: { marginTop: 8, fontSize: FontSize.sm, lineHeight: 17, color: Palette.danger },
+  privateNote: { marginTop: 8, fontSize: FontSize.sm, lineHeight: 17, color: Palette.ink3, fontWeight: Weight.semibold },
   urlWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minWidth: 220 },
   input: {
     flex: 1,

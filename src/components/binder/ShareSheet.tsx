@@ -4,13 +4,13 @@
  * the system share sheet. Only shown for the owner's own cloud binders.
  */
 import { useState } from 'react';
-import { Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, View } from 'react-native';
+import { Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { FontSize, Palette, Radius, Spacing } from '@/constants/theme';
+import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { sheet } from '@/constants/ui';
-import { artNeedingSource, type UnsourcedArt } from '@/data/artAttributionCheck';
+import { privateArtInBinder, type PrivateArtRef } from '@/data/artAttributionCheck';
 import type { DemoBinder } from '@/data/binderTypes';
 import { useTheme } from '@/hooks/use-theme';
 import { binderShareUrl } from '@/lib/appUrl';
@@ -31,22 +31,34 @@ export function ShareSheet({
   const theme = useTheme();
   const url = binderShareUrl(binder.id);
   const [copied, setCopied] = useState(false);
-  // Public-binder attribution gate: art without a source blocks going public (private is
-  // unrestricted). Computed on demand when the user tries to flip the switch.
-  const [unsourced, setUnsourced] = useState<UnsourcedArt[] | null>(null);
+  // Sharing gate. Two blockers before a binder can go public:
+  //  1. PRIVATE art (pulled from a URL) — must be removed first.
+  //  2. Rights attestation — the user must confirm they hold the rights to the remaining art.
+  const [privateArt, setPrivateArt] = useState<PrivateArtRef[] | null>(null);
+  const [awaitingAttest, setAwaitingAttest] = useState(false);
+  const [attested, setAttested] = useState(false);
 
   const handleToggle = (next: boolean) => {
     if (!next) {
-      setUnsourced(null);
+      setPrivateArt(null);
+      setAwaitingAttest(false);
       onSetPublic(false); // going private is always allowed
       return;
     }
-    const missing = artNeedingSource(binder);
-    if (missing.length > 0) {
-      setUnsourced(missing); // block — show what needs a source
+    const priv = privateArtInBinder(binder);
+    if (priv.length > 0) {
+      setPrivateArt(priv); // block — has URL-sourced (private) art
+      setAwaitingAttest(false);
       return;
     }
-    setUnsourced(null);
+    // Clean of private art → require the rights attestation before flipping public.
+    setPrivateArt(null);
+    setAwaitingAttest(true);
+  };
+
+  const confirmPublic = () => {
+    if (!attested) return;
+    setAwaitingAttest(false);
     onSetPublic(true);
   };
 
@@ -92,22 +104,51 @@ export function ShareSheet({
               <Switch value={isPublic} onValueChange={handleToggle} trackColor={{ true: Palette.accent, false: theme.backgroundSelected }} />
             </View>
 
-            {unsourced && unsourced.length > 0 ? (
+            {privateArt && privateArt.length > 0 ? (
               <View style={styles.gateBox}>
-                <ThemedText type="smallBold">Add a source before going public</ThemedText>
+                <ThemedText type="smallBold">Remove private art before sharing</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.gateText}>
-                  Public binders credit every artwork, like The Art of Pokémon does. {unsourced.length}{' '}
-                  {unsourced.length === 1 ? 'piece needs' : 'pieces need'} a source link (the
-                  original post, shop, or artist page). Open each in Slice Studio and add its
-                  source, then try again.
+                  {privateArt.length} art {privateArt.length === 1 ? 'piece was' : 'pieces were'}{' '}
+                  brought in from a link, so {privateArt.length === 1 ? 'it stays' : 'they stay'}{' '}
+                  private — a binder with them can’t be shared. Replace{' '}
+                  {privateArt.length === 1 ? 'it' : 'them'} with your own uploaded art to share this
+                  binder.
                 </ThemedText>
                 <ScrollView style={styles.gateList} contentContainerStyle={styles.gateListInner}>
-                  {unsourced.map((u) => (
+                  {privateArt.map((u) => (
                     <ThemedText key={u.slotId} type="small" themeColor="textSecondary">
                       • Page {u.page}, row {u.row} col {u.col}
                     </ThemedText>
                   ))}
                 </ScrollView>
+              </View>
+            ) : null}
+
+            {awaitingAttest ? (
+              <View style={styles.gateBox}>
+                <ThemedText type="smallBold">Confirm you have the rights</ThemedText>
+                <Pressable
+                  onPress={() => setAttested((v) => !v)}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: attested }}
+                  style={styles.attestRow}
+                  hitSlop={4}>
+                  <View style={[styles.checkbox, attested && styles.checkboxOn]}>
+                    {attested ? <Text style={styles.checkTick}>✓</Text> : null}
+                  </View>
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.attestText}>
+                    I own, created, or have the rights to all art in this binder, and I agree to the
+                    Terms of Service. I understand I am responsible for what I share.
+                  </ThemedText>
+                </Pressable>
+                <Pressable
+                  onPress={confirmPublic}
+                  disabled={!attested}
+                  style={({ pressed }) => [styles.publicBtn, (!attested || pressed) && styles.dim]}>
+                  <ThemedText type="smallBold" style={styles.publicBtnText}>
+                    Make public
+                  </ThemedText>
+                </Pressable>
               </View>
             ) : null}
 
@@ -170,4 +211,29 @@ const styles = StyleSheet.create({
   gateText: { lineHeight: 18 },
   gateList: { maxHeight: 96 },
   gateListInner: { gap: 2 },
+  attestRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderRadius: Radius.xs,
+    borderWidth: 1.5,
+    borderColor: Palette.hairlineStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  checkboxOn: { backgroundColor: Palette.accent, borderColor: Palette.accent },
+  checkTick: { color: Palette.accentText, fontSize: 12, fontWeight: Weight.bold, lineHeight: 14 },
+  attestText: { flex: 1, lineHeight: 18 },
+  publicBtn: {
+    backgroundColor: Palette.accent,
+    borderRadius: Radius.pill,
+    paddingVertical: Spacing.two,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 40,
+    marginTop: Spacing.one,
+  },
+  publicBtnText: { color: Palette.accentText },
+  dim: { opacity: 0.5 },
 });

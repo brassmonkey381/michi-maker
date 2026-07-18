@@ -1,26 +1,24 @@
 /**
- * Public-binder attribution gate. A binder can hold ANY art while it's private — but the moment
- * it goes public, every custom artwork MUST carry a source (the same rule artofpkm.com follows:
- * every piece links back to where it came from). Card images are official art and never need a
- * source; only user-supplied artwork (uploads, pasted URLs, Slice Studio pieces) does.
- *
- * "Has a source" = the slot's stored attribution carries a `sourceUrl` (a link to the original
- * post / shop / artwork page). A bare host domain is NOT enough — we require the specific origin.
+ * Public-binder PRIVATE-ART gate. A binder can hold ANY art while it's private — but it can only
+ * be made public/shared if it contains no PRIVATE art. Art pulled from an outside URL is private
+ * (`attribution.origin === 'external'`): we can't verify the user's rights to it, so it never
+ * leaves their account. Only art the user UPLOADED from their device (with a rights attestation
+ * at share time) is public-eligible. Card images and our own content are never private.
  */
 import type { ArtAttribution } from '@/data/artworkLibrary';
 import type { DemoBinder, DemoSlot } from '@/data/binderTypes';
 
-/** Does this slot hold user-supplied artwork (so it needs a source before going public)? */
+/** Does this slot hold user-supplied artwork (vs. a card image / insert)? */
 export function isCustomArtwork(slot: DemoSlot): boolean {
   return slot.type === 'artwork' && !!slot.imageUrl && !slot.cardId;
 }
 
-/** Is a custom artwork slot's source present? Requires a specific origin URL, not just a domain. */
-export function hasSource(attribution?: ArtAttribution | null): boolean {
-  return !!attribution?.sourceUrl && /^https?:\/\//i.test(attribution.sourceUrl);
+/** Is this artwork PRIVATE — pulled from an external URL, so it can't be in a shared binder? */
+export function isPrivateArt(attribution?: ArtAttribution | null): boolean {
+  return attribution?.origin === 'external';
 }
 
-export interface UnsourcedArt {
+export interface PrivateArtRef {
   slotId: string;
   /** 1-indexed for human display. */
   page: number;
@@ -30,14 +28,15 @@ export interface UnsourcedArt {
 }
 
 /**
- * Every custom-artwork slot in the binder that lacks a source, in reading order. Empty ⇒ the
- * binder is clear to go public. Card pockets and inserts are never included.
+ * Every PRIVATE (external-origin) custom-artwork slot in the binder, in reading order. Empty ⇒ the
+ * binder has no private art and is clear to go public (after the rights attestation). Card pockets,
+ * inserts, uploads, and our own content are never included.
  */
-export function artNeedingSource(binder: DemoBinder): UnsourcedArt[] {
-  const out: UnsourcedArt[] = [];
+export function privateArtInBinder(binder: DemoBinder): PrivateArtRef[] {
+  const out: PrivateArtRef[] = [];
   binder.pages.forEach((page, pageIndex) => {
     for (const slot of page.slots) {
-      if (!isCustomArtwork(slot) || hasSource(slot.attribution)) continue;
+      if (!isCustomArtwork(slot) || !isPrivateArt(slot.attribution)) continue;
       out.push({
         slotId: slot.id,
         page: pageIndex + 1,

@@ -174,6 +174,12 @@ function spine(height) {
   );
 }
 
+// Shared previews travel far beyond the app (Discord, X, Reddit) where our fan disclaimer isn't
+// visible — so it rides along the bottom of the image itself. @vercel/og renders text with its
+// bundled Geist font, no font fetch needed.
+const DISCLAIMER =
+  'Fan-made tool — not affiliated with, endorsed by, or sponsored by Nintendo, Creatures, or The Pokémon Company. Card images belong to their respective owners.';
+
 const frame = (inner) =>
   h(
     'div',
@@ -182,12 +188,43 @@ const frame = (inner) =>
         width: W,
         height: H,
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        flexDirection: 'column',
         background: 'linear-gradient(135deg, #FAF6EF 0%, #EFE7D9 100%)',
       },
     },
-    inner,
+    [
+      h(
+        'div',
+        { style: { display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center' } },
+        inner,
+      ),
+      h(
+        'div',
+        {
+          style: {
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingLeft: 40 * S,
+            paddingRight: 40 * S,
+            paddingBottom: 12 * S,
+          },
+        },
+        h(
+          'div',
+          {
+            style: {
+              display: 'flex',
+              textAlign: 'center',
+              fontSize: 16 * S,
+              lineHeight: 1.3,
+              color: 'rgba(70,58,42,0.62)',
+            },
+          },
+          DISCLAIMER,
+        ),
+      ),
+    ],
   );
 
 const mat = (children, tilt) =>

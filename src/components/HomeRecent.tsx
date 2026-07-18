@@ -45,8 +45,8 @@ export function HomeRecent({
         catalog={catalog}
         title=""
         // Show all sets in the last 12 months plus everything upcoming, and EVERY premium card
-        // (Double Rare and up, promos included) from them, newest-set-first. The rarity filter is
-        // what keeps the card strip tight, so there's no card cap (Infinity).
+        // (above Double Rare — full arts / secret / special, promos included) from them,
+        // newest-set-first. The rarity filter keeps the card strip tight, so no cap (Infinity).
         monthsBack={12}
         cardLimit={Infinity}
         rarityFilter={(card) => isPremiumRarity(card.rarity)}

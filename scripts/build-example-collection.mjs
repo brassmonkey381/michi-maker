@@ -95,6 +95,28 @@ for (const [, list] of artistPick) topN(list.filter((c) => c.price < 60), 6).for
 // ---- 3. SINGLE SPECIES page — Pikachu across sets --------------------------------------------
 topN(pool.filter((c) => /pikachu/i.test(c.name)), 6).forEach((c) => put(c.id, 1));
 
+// ---- 3b. TRAINER page — one character's team ("X's Pokémon" naming), distinct species ---------
+const byTrainer = new Map();
+for (const c of pool) {
+  const t = /^(.+?)['’]s\s/.exec(c.name)?.[1];
+  if (!t) continue;
+  const l = byTrainer.get(t) ?? [];
+  l.push(c);
+  byTrainer.set(t, l);
+}
+const trainerPick = [...byTrainer.entries()]
+  .filter(([, l]) => new Set(l.map((c) => c.species)).size >= 7)
+  .sort((a, b) => b[1].length - a[1].length)[0];
+if (trainerPick) {
+  const seen = new Set();
+  for (const c of trainerPick[1].sort((a, b) => b.price - a.price)) {
+    if (seen.has(c.species)) continue;
+    seen.add(c.species);
+    put(c.id, 1);
+    if (seen.size >= 7) break;
+  }
+}
+
 // ---- 4. CHASE board (anchor) — the grails ----------------------------------------------------
 const chaseSp = new Set();
 for (const c of [...pool].sort((a, b) => b.price - a.price)) {
@@ -166,8 +188,8 @@ fs.writeFileSync(path.join(ROOT, 'src/data/exampleCollection.ts'), ts);
 fs.writeFileSync(path.join(ROOT, 'docs/example-collection.csv'), csv + '\n');
 
 // ---- simulate the wizard (proposePages) to VERIFY a rich, method-diverse plan -----------------
-const MIN = { chase: 3, evolution: 4, species: 4, artist: 5, set: 6, type: 6 };
-const PRIO = { chase: 6, evolution: 5, species: 4, artist: 3, set: 2, type: 1 };
+const MIN = { chase: 3, trainer: 5, evolution: 4, species: 4, artist: 5, set: 6, type: 6 };
+const PRIO = { chase: 7, trainer: 6, evolution: 5, species: 4, artist: 3, set: 2, type: 1 };
 const cards = rows.map((c) => byId.get(c.id));
 const used = new Set();
 const plan = [];
@@ -176,6 +198,8 @@ if (hits.length >= MIN.chase) { hits.slice(0, 9).forEach((x) => used.add(x.c.id)
 const clusters = new Map();
 const putC = (c, kind, key, title) => { const k = `${kind}|${key}`; (clusters.get(k) ?? clusters.set(k, { kind, title, cards: [] }).get(k)).cards.push(c); };
 for (const c of cards) {
+  const tr = /^(.+?)['’]s\s/.exec(c.name)?.[1];
+  if (tr) putC(c, 'trainer', tr.toLowerCase(), `${tr}'s team`);
   if (c.evoKey) putC(c, 'evolution', c.evoKey, `${c.line[0]} line`);
   if (c.species) putC(c, 'species', c.species, c.species);
   if (c.illustrator) putC(c, 'artist', c.illustrator.toLowerCase(), `Art by ${c.illustrator}`);

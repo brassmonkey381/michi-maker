@@ -16,7 +16,7 @@ import { formatUsd, type PriceSummary } from '@/lib/prices';
 
 export interface WizardProposal {
   key: string;
-  kind: 'chase' | 'evolution' | 'species' | 'artist' | 'set' | 'type';
+  kind: 'chase' | 'trainer' | 'evolution' | 'species' | 'artist' | 'set' | 'type';
   /** Page title (also the picker row's headline). */
   title: string;
   /** One-line description for the picker row. */
@@ -31,15 +31,19 @@ const PAGE_CELLS = PAGE_ROWS * PAGE_COLS;
 /** Minimum cluster size per kind — below this a "page" reads as an accident, not a theme. */
 const MIN_SIZE: Record<WizardProposal['kind'], number> = {
   chase: 3,
+  trainer: 5,
   evolution: 4,
   species: 4,
   artist: 5,
   set: 6,
   type: 6,
 };
-/** Story-ish kinds outrank generic groupings when clusters compete for the same cards. */
+/** Story-ish kinds outrank generic groupings when clusters compete for the same cards. A trainer's
+ *  team is a strong theme (their named Pokémon belong together), so it outranks the generic
+ *  evolution/species groupings — just under the value-first chase board. */
 const KIND_PRIORITY: Record<WizardProposal['kind'], number> = {
-  chase: 6,
+  chase: 7,
+  trainer: 6,
   evolution: 5,
   species: 4,
   artist: 3,
@@ -115,6 +119,18 @@ export function proposePages(
   };
 
   for (const c of cards) {
+    // A trainer's team: SV-era trainer cards name their owner ("Cynthia's Garchomp", "Team
+    // Rocket's Mewtwo ex"). Group by that owner — a distinctive page of one character's Pokémon.
+    const trainer = /^(.+?)['’]s\s/.exec(c.name)?.[1];
+    if (trainer) {
+      put(c, {
+        kind: 'trainer',
+        key: `tr|${trainer.toLowerCase()}`,
+        title: `${cap(trainer)}’s team`,
+        blurb: `${cap(trainer)}’s Pokémon gathered on one page.`,
+        order: (cs) => [...cs].sort(byRelease),
+      });
+    }
     if (c.evolutionLine.length > 1) {
       put(c, {
         kind: 'evolution',
@@ -231,7 +247,7 @@ export function capProposals(chosen: WizardProposal[], max = WIZARD_MAX_PAGES): 
   // Lower rank = kept first. Highest ranks are dropped when we slice to `max`.
   const keepRank = (p: WizardProposal): number => {
     if (p.kind === 'chase') return 0;
-    if (p.kind === 'species' || p.kind === 'set' || p.kind === 'artist') return 1;
+    if (p.kind === 'trainer' || p.kind === 'species' || p.kind === 'set' || p.kind === 'artist') return 1;
     if (p.kind === 'type' && !isBulk(p)) return 2;
     if (p.kind === 'evolution') return 3;
     if (isBulk(p)) return isGrassBulk(p) ? 6 : 5;

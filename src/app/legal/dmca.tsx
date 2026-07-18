@@ -21,7 +21,7 @@ const SECTIONS: Section[] = [
   {
     heading: 'Our approach',
     paragraphs: [
-      'michi-maker lets people compose binder pages, including with images they add themselves. We respect copyright and respond to valid takedown requests. If you believe content on michi-maker infringes your copyright, tell us using the process below and we will review it promptly.',
+      'michi-maker is a layout tool for content our users supply: people compose binder pages with art they add, and when a user adds art we host a copy of it on their behalf. We respect copyright and respond to valid takedown requests. If you believe content a user has posted on michi-maker infringes your copyright, tell us using the process below and we will review it promptly.',
       'You can also flag a public binder directly from its page with the “Report this binder” link — useful for a quick report. The formal notice below is the route for rights holders who want a documented takedown.',
     ],
   },

@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Image as RNImage,
   Linking,
   Modal,
@@ -26,6 +27,8 @@ import { ThemedView } from '@/components/themed-view';
 import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
 import { sheet } from '@/constants/ui';
 import { artForArtofpkmUrl } from '@/data/artSearch';
+import { importRemoteArtToBucket } from '@/lib/importArt';
+import { uploadArtImage } from '@/lib/uploadArt';
 import { deriveAttribution, domainOf, type ArtAttribution } from '@/data/artworkLibrary';
 import { uid, uuidv4, type ImageTransform } from '@/data/binderTypes';
 import type { SavedSlice } from '@/data/savedSlices';
@@ -259,6 +262,10 @@ export function SliceStudio({
   const [artist, setArtist] = useState('');
   const [sourceUrl, setSourceUrl] = useState('');
   const [srcName, setSrcName] = useState('');
+  // While a pasted/dragged remote image is being fetched INTO the user's own bucket (we host what
+  // the user brings — never a hotlink). Shows a spinner; errors surface an "Upload instead" note.
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
   const loadImage = useCallback((url: string, seed?: ArtAttribution) => {
     setImageUrl(url);
     setFailed(false);
@@ -273,20 +280,45 @@ export function SliceStudio({
     setSrcName(a.sourceName ?? '');
   }, []);
 
-  // Load a REMOTE image url with its credit auto-seeded — shared by URL paste AND drag-drop.
-  // An artofpkm ARTWORK PAGE url resolves against our own library (full artist + source, no
-  // scraping); any other remote url seeds the SOURCE with the url itself (a real origin the user
-  // can refine to the exact post). Blob/data urls (file drops, uploads) are NOT sent here — those
-  // carry no source and go straight to loadImage for manual crediting.
+  // Bring a REMOTE image url in — shared by URL paste AND drag-drop. We FETCH the image and upload
+  // a copy to the user's own bucket (importRemoteArtToBucket), so nothing is ever hotlinked: the
+  // slot holds the user's own hosted copy, while the ORIGINAL url is kept only as attribution (the
+  // credit / public-binder source). An artofpkm reference resolves to full artist + source first.
+  // If the fetch fails (a host we can't reach), we tell the user to Upload — never store the link.
   const loadRemoteUrl = useCallback(
-    (u: string) => {
+    async (u: string) => {
       const art = artForArtofpkmUrl(u);
-      if (art) {
-        loadImage(art.url, art.attribution);
-        return;
+      const fetchFrom = art ? art.url : u;
+      const derived = deriveAttribution(u);
+      const attribution: ArtAttribution =
+        art?.attribution ?? { ...derived, sourceUrl: derived.sourceUrl ?? u };
+      setImporting(true);
+      setImportError(null);
+      try {
+        const hostedUrl = await importRemoteArtToBucket(fetchFrom);
+        loadImage(hostedUrl, attribution); // imageUrl = user's bucket copy; credit = original source
+      } catch (e) {
+        setImportError((e as Error).message);
+      } finally {
+        setImporting(false);
       }
-      const d = deriveAttribution(u);
-      loadImage(u, { ...d, sourceUrl: d.sourceUrl ?? u });
+    },
+    [loadImage],
+  );
+
+  // Upload a user's own file (drop or picker) into their bucket, then load the hosted copy.
+  const importFile = useCallback(
+    async (file: Blob, name?: string) => {
+      setImporting(true);
+      setImportError(null);
+      try {
+        const hostedUrl = await uploadArtImage(file, name);
+        loadImage(hostedUrl); // a file the user brought: their upload, no external source
+      } catch (e) {
+        setImportError((e as Error).message);
+      } finally {
+        setImporting(false);
+      }
     },
     [loadImage],
   );
@@ -339,13 +371,14 @@ export function SliceStudio({
         url = m ? m[1] : '';
       }
       if (/^https?:\/\//i.test(url)) {
-        // A dragged remote image carries its url — seed the source from it (artofpkm page urls
-        // resolve to full attribution). A dropped FILE is a blob with no origin: manual credit.
-        loadRemoteUrl(url);
+        // A dragged remote image → fetch it into the user's bucket (no hotlink); artofpkm urls
+        // also resolve to full attribution.
+        void loadRemoteUrl(url);
         return;
       }
+      // A dropped FILE the user brought → upload it to their bucket (persisted, not a transient blob).
       const file = dt.files && dt.files[0];
-      if (file && file.type.startsWith('image/')) loadImage(URL.createObjectURL(file));
+      if (file && file.type.startsWith('image/')) void importFile(file, (file as File).name);
     };
     document.addEventListener('dragover', onDragOver);
     document.addEventListener('dragleave', onDragLeave);
@@ -355,7 +388,7 @@ export function SliceStudio({
       document.removeEventListener('dragleave', onDragLeave);
       document.removeEventListener('drop', onDrop);
     };
-  }, [loadImage, loadRemoteUrl]);
+  }, [loadImage, loadRemoteUrl, importFile]);
 
   // Workspace: fill what the viewport allows — capped by BOTH width and height so the whole
   // page-shaped grid stays on screen below the toolbars (vs the old fixed 460px cap).
@@ -569,7 +602,7 @@ export function SliceStudio({
   const loadUrl = useCallback(() => {
     const u = urlInput.trim();
     if (!/^https?:\/\/\S+$/i.test(u)) return;
-    loadRemoteUrl(u);
+    void loadRemoteUrl(u);
   }, [urlInput, loadRemoteUrl]);
 
   // Save the studio's pieces to the tray. Each grid piece (1×1, or a merged folded 1×2) becomes a
@@ -760,7 +793,7 @@ export function SliceStudio({
           <View style={styles.sourceBar}>
             <Btn label="Card art" onPress={() => setCardPickOpen(true)} kind="primary" />
             <Btn label="Art sources ↗" onPress={() => setSourcesOpen(true)} />
-            <ArtUploadButton onUploaded={loadImage} />
+            <ArtUploadButton onUploaded={loadImage} onError={setImportError} />
             <View style={styles.urlWrap}>
               <TextInput
                 value={urlInput}
@@ -778,8 +811,17 @@ export function SliceStudio({
           {/* Attribution hint — the auto-fill only fires for artofpkm references, so say so. */}
           <Text style={styles.attribHint}>
             Tip: drag in art from artofpkm.com, or paste an artofpkm.com artwork page URL, and the
-            artist + source fill in automatically. For other art, add a source link below.
+            artist + source fill in automatically. For other art, add a source link below. Art you
+            bring is saved to your own account; we host your copy, we don’t hotlink other sites.
           </Text>
+
+          {importing ? (
+            <View style={styles.importRow}>
+              <ActivityIndicator />
+              <Text style={styles.attribHint}>Saving your image to your account…</Text>
+            </View>
+          ) : null}
+          {importError ? <Text style={styles.importError}>{importError}</Text> : null}
 
           {/* Credit — captured with the art. A SOURCE (link to the original post/shop/artist
               page) is required before a binder using this art can go public; the artist name is
@@ -1159,6 +1201,8 @@ const styles = StyleSheet.create({
   creditBar: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 8 },
   creditInput: { flexBasis: 200 },
   attribHint: { marginTop: 8, fontSize: FontSize.sm, lineHeight: 17, color: Palette.muted2 },
+  importRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
+  importError: { marginTop: 8, fontSize: FontSize.sm, lineHeight: 17, color: Palette.danger },
   urlWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minWidth: 220 },
   input: {
     flex: 1,

@@ -42,23 +42,23 @@ we charge for the software + arrangement/cut-line engineering + export). It's:
 Every "we don't print / don't sell art / personal use" clarification pushes toward the neutral
 tool; the only thing that undercuts it is supplying the art.
 
-### Hotlink vs. upload
-Forcing the user to UPLOAD art (they download it, then upload a copy) is a cleaner posture than
-hotlinking/dragging a remote image URL: it puts michi-maker squarely in **DMCA safe-harbor host**
-territory (user affirmatively uploads, we host, we take down on notice) and makes "user-supplied"
-unambiguous. Hotlinking is murkier (embed/display + server-test debates, no safe harbor, CDN
-dependency). Linking OUT to art sources is fine either way — linking is not reproduction; the only
-risk there is curation that reads as *steering* users to a specific infringing use (inducement),
-so the suggested-sources list is framed neutrally ("art you have the right to use", responsibility
-on the user), not "grab Pokémon art here". OPEN DECISION: whether to go upload-only (drop URL
-hotlink storage + the drag/paste-to-hotlink flow) for maximum defensibility, vs. keep drag/paste
-for UX. Not yet decided.
+### Hotlink vs. upload — DECIDED: we host what users bring (no hotlinking) (2026-07-17)
+michi-maker now **hosts the user's own copy** of every image, and never stores a hotlink. Paste or
+drag a remote image URL and we FETCH it (direct → art-proxy edge fn) and UPLOAD it into the user's
+`binder-art` bucket (`src/lib/importArt.ts` → `uploadArtImage`); the slot stores that bucket URL,
+while the ORIGINAL url is kept only as attribution (the credit / public-binder source). Dropped
+FILES upload the same way. If the fetch fails we tell the user to download + Upload — we NEVER fall
+back to storing the remote link. This is the **DMCA safe-harbor host** posture (user affirmatively
+brings art, we host it, we take down on notice) and makes "user-supplied" unambiguous. The PDF is
+still generated client-side. Linking OUT to art sources stays (linking is not reproduction); the
+sources list is framed neutrally ("art you have the right to use", responsibility on the user), and
+we do not encourage copying art the user hasn't sourced and licensed.
 
 ## Risk ladder (lowest → highest exposure)
 
 | Use | Posture | Exposure |
 | --- | --- | --- |
-| User brings/uploads their OWN art into a PRIVATE binder; client-side export | Neutral tool + UGC host | Lowest |
+| User brings/uploads their OWN art (hosted in their bucket) into a PRIVATE binder; client-side export | Neutral tool + UGC host | Lowest |
 | Public binders with user art | User-driven, we display | Medium (DMCA + ToS — SHIPPED) |
 | Example / featured binders **we** ship using Pokémon art | *We* supply + display | Higher — swap for cleared art |
 | ~~**Option A** — self-hosted in-app art gallery~~ | We become the supplier | **DROPPED 2026-07-17 — do not build** |

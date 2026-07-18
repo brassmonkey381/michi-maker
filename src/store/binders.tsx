@@ -258,7 +258,8 @@ export function BinderProvider({ children }: { children: ReactNode }) {
 
   const binders = history.present;
 
-  const binderCount = binders.filter((b) => !b.isExample).length;
+  // Demo binders (the "Try it out!" showcase) are free of the cap, like bundled examples.
+  const binderCount = binders.filter((b) => !b.isExample && !b.isDemo).length;
   const atBinderLimit = LIMITS_ENFORCED && binderCount >= limits.binders;
   const pageLimitReached = useCallback(
     (binderId: string) => {
@@ -445,11 +446,19 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         pages: [emptyPage()],
         ...init,
       };
-      commit((prev) => [...prev, binder]);
+      if (binder.isDemo) {
+        // At most ONE demo binder per account — clear any prior one first (delete + replace in a
+        // single commit so the old showcase is gone before the new one lands).
+        const priorDemos = binders.filter((b) => b.isDemo);
+        for (const d of priorDemos) persist(() => repo.deleteBinder(d.id));
+        commit((prev) => [...prev.filter((b) => !b.isDemo), binder]);
+      } else {
+        commit((prev) => [...prev, binder]);
+      }
       persist(() => repo.insertBinder(binder));
       return binder;
     },
-    [commit, persist],
+    [binders, commit, persist],
   );
 
   const createBinderWithCard = useCallback(

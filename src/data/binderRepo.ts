@@ -29,6 +29,7 @@ function binderRow(binder: DemoBinder): Tables['binders']['Insert'] {
     layout_style: binder.layoutStyle,
     cover_card_id: binder.coverCardId ?? null,
     is_public: binder.isPublic ?? false,
+    is_demo: binder.isDemo ?? false,
   };
 }
 
@@ -106,6 +107,7 @@ interface BinderRowIn {
   layout_style: MichiLayoutStyle;
   cover_card_id: string | null;
   is_public: boolean;
+  is_demo: boolean | null;
   binder_pages: PageRowIn[] | null;
 }
 
@@ -150,6 +152,7 @@ function mapBinder(row: BinderRowIn): DemoBinder {
     description: row.description ?? undefined,
     layoutStyle: row.layout_style,
     isExample: false,
+    isDemo: row.is_demo ?? undefined,
     coverCardId: row.cover_card_id ?? undefined,
     isPublic: row.is_public,
     pages,

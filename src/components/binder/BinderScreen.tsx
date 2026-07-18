@@ -357,8 +357,10 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     setStudio({ rows: page.rows, cols: page.cols, row: 0, col: 0, imageUrl: undefined });
 
   // Example binders are read-only: they can't be edited in place, only duplicated into the
-  // user's own binders (where the copy is fully editable).
-  const canEdit = !binder.isExample;
+  // user's own binders (where the copy is fully editable). Demo binders (the "Try it out!"
+  // showcase) are likewise read-only and not shareable — canEdit gates both the edit toggle and
+  // the share button, so a demo binder can only be viewed or deleted.
+  const canEdit = !binder.isExample && !binder.isDemo;
 
   const handleDuplicate = () => {
     const copy = store.duplicateBinder(binder.id);

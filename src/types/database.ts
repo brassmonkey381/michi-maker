@@ -239,6 +239,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          is_demo: boolean
           is_public: boolean
           layout_style: Database["public"]["Enums"]["michi_layout_style"]
           owner_id: string
@@ -250,6 +251,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_demo?: boolean
           is_public?: boolean
           layout_style?: Database["public"]["Enums"]["michi_layout_style"]
           owner_id?: string
@@ -261,6 +263,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_demo?: boolean
           is_public?: boolean
           layout_style?: Database["public"]["Enums"]["michi_layout_style"]
           owner_id?: string

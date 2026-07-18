@@ -114,6 +114,12 @@ export interface DemoBinder {
   layoutStyle: MichiLayoutStyle;
   /** Premade, read-only-by-default reference binders ship with the app. */
   isExample: boolean;
+  /**
+   * The read-only "Try it out!" showcase binder built from the example collection. Persisted and
+   * owner-scoped (so it survives reload and can be deleted), but excluded from the binder cap,
+   * not editable, and not shareable. At most one per account (see the store's createBinder).
+   */
+  isDemo?: boolean;
   /** A curated community "Featured" binder — shown in the Featured section (still read-only). */
   isFeatured?: boolean;
   /** The author's display name, shown on Featured binders. One day this links to their profile. */
@@ -270,6 +276,7 @@ export function cloneBinder(binder: DemoBinder, overrides?: Partial<DemoBinder>)
     ...binder,
     id: uuidv4(),
     isExample: false,
+    isDemo: false, // a duplicate of the demo showcase becomes a real, editable, counted binder
     isPublic: false, // a copy is private until the new owner shares it
     pages: binder.pages.map((page) => ({
       ...page,

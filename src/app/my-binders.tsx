@@ -233,10 +233,11 @@ export default function MyBindersScreen() {
         <BinderActionsMenu
           title={menuBinder.title}
           canShare={isSupabaseConfigured}
+          readOnly={!!menuBinder.isDemo}
           onRename={startRename}
           onDuplicate={duplicateFromMenu}
           onShare={shareFromMenu}
-          onPrint={printFromMenu}
+          onPrint={menuBinder.isDemo ? undefined : printFromMenu}
           onDelete={deleteFromMenu}
           onClose={() => setMenuId(null)}
         />

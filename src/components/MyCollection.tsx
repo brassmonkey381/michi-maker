@@ -723,6 +723,7 @@ function CollectionStrip({
       <BuildBinderSheet
         visible={wizardOpen}
         freeIds={freeIds}
+        asDemo={exampleFlow}
         onClose={() => setWizardOpen(false)}
         onBuilt={(binderId, pageCount) => {
           onToast?.(

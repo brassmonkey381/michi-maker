@@ -12,6 +12,7 @@ import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/t
 export function BinderActionsMenu({
   title,
   canShare,
+  readOnly = false,
   onRename,
   onDuplicate,
   onShare,
@@ -21,6 +22,9 @@ export function BinderActionsMenu({
 }: {
   title: string;
   canShare: boolean;
+  /** A read-only binder (the "Try it out!" demo): hide Rename + Share, keep Duplicate + Delete
+   *  (Duplicate makes a real, editable copy — the "keep it" path). */
+  readOnly?: boolean;
   onRename: () => void;
   onDuplicate: () => void;
   onShare: () => void;
@@ -37,9 +41,9 @@ export function BinderActionsMenu({
             <ThemedText type="smallBold" numberOfLines={1} style={styles.title}>
               {title}
             </ThemedText>
-            <Row label="Rename" onPress={onRename} />
+            {!readOnly ? <Row label="Rename" onPress={onRename} /> : null}
             <Row label="Duplicate" onPress={onDuplicate} />
-            {canShare ? <Row label="Share" onPress={onShare} /> : null}
+            {canShare && !readOnly ? <Row label="Share" onPress={onShare} /> : null}
             {onPrint ? <Row label="Print fill sheets" tone="accent" onPress={onPrint} /> : null}
             <Row label="Delete" tone="danger" onPress={onDelete} />
             <Pressable onPress={onClose} style={styles.cancel} hitSlop={6}>

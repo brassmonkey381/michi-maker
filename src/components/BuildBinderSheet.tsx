@@ -26,6 +26,7 @@ export function BuildBinderSheet({
   freeIds,
   onClose,
   onBuilt,
+  asDemo = false,
 }: {
   visible: boolean;
   /** Card ids with at least one unplaced copy. */
@@ -33,6 +34,9 @@ export function BuildBinderSheet({
   onClose: () => void;
   /** Called with the new binder's id (the parent navigates + toasts). */
   onBuilt: (binderId: string, pageCount: number) => void;
+  /** Build a read-only DEMO binder (the "Try it out!" showcase) — free of the binder cap, not
+   *  editable or shareable, at most one per account. Defaults to a normal, editable binder. */
+  asDemo?: boolean;
 }) {
   const store = useBinders();
   const { catalog, guestGated } = useCatalog(visible);
@@ -82,7 +86,11 @@ export function BuildBinderSheet({
 
   const build = () => {
     if (chosen.length === 0) return;
-    const binder = store.createBinder({ title: 'From my collection', pages: buildPages(chosen) });
+    const binder = store.createBinder({
+      title: asDemo ? 'Example binder' : 'From my collection',
+      pages: buildPages(chosen),
+      isDemo: asDemo || undefined,
+    });
     onBuilt(binder.id, chosen.length);
     onClose();
   };

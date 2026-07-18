@@ -4,7 +4,7 @@
  * lands as a REAL tcgscan portfolio (see src/data/csvImport.ts), so it appears in tcgscan-app
  * and rolls into My collection automatically via the database trigger + realtime.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
@@ -21,10 +21,19 @@ export function ImportCsvSheet({
   visible,
   onClose,
   onImported,
+  initialCsv,
+  initialName,
+  intro,
 }: {
   visible: boolean;
   onClose: () => void;
   onImported: (portfolioName: string, cards: number, copies: number) => void;
+  /** Prefill the paste box on open (e.g. the "Try it out!" example collection). */
+  initialCsv?: string;
+  /** Prefill the portfolio name on open. */
+  initialName?: string;
+  /** A guided-step banner shown above the paste box (e.g. "Step 1 of 3 …"). */
+  intro?: string;
 }) {
   const theme = useTheme();
   // Name matching + id validation read the catalog (signed-in perk, on-demand load).
@@ -33,6 +42,21 @@ export function ImportCsvSheet({
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Seed the fields once each time the sheet opens with an initial CSV (the "Try it out!" flow
+  // passes the bundled example). Cleared on close so the next open re-seeds.
+  const seeded = useRef(false);
+  useEffect(() => {
+    if (!visible) {
+      seeded.current = false;
+      return;
+    }
+    if (seeded.current || initialCsv === undefined) return;
+    seeded.current = true;
+    setText(initialCsv);
+    setName(initialName ?? '');
+    setError(null);
+  }, [visible, initialCsv, initialName]);
 
   const analysis = useMemo(() => {
     if (!catalog || !text.trim()) return null;
@@ -82,6 +106,11 @@ export function ImportCsvSheet({
               <SignInPerk message="Importing reads the full card catalog to match your rows. Sign in (free) to use it." />
             ) : (
               <>
+                {intro ? (
+                  <View style={styles.introBox}>
+                    <Text style={styles.introText}>{intro}</Text>
+                  </View>
+                ) : null}
                 <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
                   Paste a TCGPlayer collection export, any CSV with a product-id or name column,
                   or bare “productId,quantity” lines. The import becomes a portfolio. It shows
@@ -188,6 +217,15 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: FontSize.h2, lineHeight: 26 },
   sub: { lineHeight: 20 },
+  introBox: {
+    backgroundColor: Palette.panel,
+    borderRadius: Radius.control,
+    borderLeftWidth: 3,
+    borderLeftColor: Palette.accent,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+  },
+  introText: { color: Palette.accent, fontSize: FontSize.sm, lineHeight: 18, fontWeight: Weight.semibold },
   center: { alignItems: 'center', gap: Spacing.one, paddingVertical: Spacing.two },
   input: {
     borderWidth: 1,

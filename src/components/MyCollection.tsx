@@ -43,6 +43,7 @@ import {
   type PortfolioGroup,
   type UserCard,
 } from '@/data/collectionRepo';
+import { EXAMPLE_COLLECTION_CSV, EXAMPLE_COLLECTION_NAME } from '@/data/exampleCollection';
 import { isSupabaseConfigured } from '@/lib/env';
 import { cardThumbUrl } from '@/lib/catalogConfig';
 import { useCatalog } from '@/hooks/use-catalog';
@@ -72,6 +73,9 @@ export function MyCollection({
 }) {
   const { user } = useAuth();
   const [cards, setCards] = useState<UserCard[] | null>(null);
+  // "Try it out!" onboarding: set when the empty state imports the example collection, so the
+  // strip that replaces it (once realtime delivers the cards) can guide the user to Build binder.
+  const [exampleFlow, setExampleFlow] = useState(false);
 
   const userId = user?.id ?? null;
   useEffect(() => {
@@ -92,7 +96,8 @@ export function MyCollection({
   }, [userId]);
 
   if (!cards) return null;
-  if (cards.length === 0) return <EmptyCollection onToast={onToast} />;
+  if (cards.length === 0)
+    return <EmptyCollection onToast={onToast} onStartExample={() => setExampleFlow(true)} />;
   return (
     <CollectionStrip
       cards={cards}
@@ -100,35 +105,65 @@ export function MyCollection({
       onOpenBinder={onOpenBinder}
       onFindSimilar={onFindSimilar}
       onViewSet={onViewSet}
+      exampleFlow={exampleFlow}
+      onExampleDone={() => setExampleFlow(false)}
     />
   );
 }
 
 /**
- * Signed-in but nothing owned yet: a slim on-ramp — scan with tcgscan, or bootstrap the
- * collection from a CSV. (Guests see nothing here; realtime swaps this for the full strip
- * the moment the first card lands.)
+ * Signed-in but nothing owned yet: a slim on-ramp — try the example collection, scan with
+ * tcgscan, or bootstrap from your own CSV. "Try it out!" prefills the import sheet with a bundled
+ * ~200-card sample (see src/data/exampleCollection.ts) so a first-timer can go from nothing to a
+ * built binder in two taps. (Guests see nothing here; realtime swaps this for the full strip the
+ * moment the first card lands.)
  */
-function EmptyCollection({ onToast }: { onToast?: (message: string) => void }) {
+function EmptyCollection({
+  onToast,
+  onStartExample,
+}: {
+  onToast?: (message: string) => void;
+  onStartExample?: () => void;
+}) {
   const { isSignedIn } = useAuth();
   const [importOpen, setImportOpen] = useState(false);
+  const [seedExample, setSeedExample] = useState(false);
   if (!isSignedIn) return null;
+  const openExample = () => {
+    setSeedExample(true);
+    onStartExample?.();
+    setImportOpen(true);
+  };
+  const openImport = () => {
+    setSeedExample(false);
+    setImportOpen(true);
+  };
   return (
     <HomeSection title="My collection">
       <View style={styles.emptyRow}>
         <ThemedText type="small" themeColor="textSecondary" style={styles.emptyRowText}>
-          Scan cards with <TcgscanLink />, or import a CSV (TCGPlayer collection
-          exports work) to start your collection.
+          New here? Load an example collection to see how it works, or scan cards with{' '}
+          <TcgscanLink /> and import your own CSV.
         </ThemedText>
         <Pressable
-          onPress={() => setImportOpen(true)}
+          onPress={openExample}
           style={({ pressed }) => [styles.buildChip, pressed && styles.pressed]}>
-          <Text style={styles.buildChipText}>Import CSV</Text>
+          <Text style={styles.buildChipText}>Try it out</Text>
+        </Pressable>
+        <Pressable onPress={openImport} style={({ pressed }) => [pillChip.base, pressed && styles.pressed]}>
+          <Text style={pillChip.text}>Import CSV</Text>
         </Pressable>
       </View>
       <ImportCsvSheet
         visible={importOpen}
         onClose={() => setImportOpen(false)}
+        initialCsv={seedExample ? EXAMPLE_COLLECTION_CSV : ''}
+        initialName={seedExample ? EXAMPLE_COLLECTION_NAME : ''}
+        intro={
+          seedExample
+            ? 'Step 1 of 3 · We filled in a sample of about 200 recent cards below. Tap Import to add them to your collection.'
+            : undefined
+        }
         onImported={(name, cardCount, copies) =>
           onToast?.(`Imported ${copies} cop${copies === 1 ? 'y' : 'ies'} into “${name}”`)
         }
@@ -143,12 +178,18 @@ function CollectionStrip({
   onOpenBinder,
   onFindSimilar,
   onViewSet,
+  exampleFlow,
+  onExampleDone,
 }: {
   cards: UserCard[];
   onToast?: (message: string) => void;
   onOpenBinder?: (binderId: string) => void;
   onFindSimilar?: (cardIds: string[]) => void;
   onViewSet?: (cardId: string) => void;
+  /** True right after the "Try it out!" example import — show the Build-binder next step. */
+  exampleFlow?: boolean;
+  /** Clear the onboarding flow (called once the example binder is built). */
+  onExampleDone?: () => void;
 }) {
   const store = useBinders();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -384,6 +425,19 @@ function CollectionStrip({
           ) : null}
         </View>
       }>
+      {exampleFlow && freeIds.length > 0 ? (
+        <View style={styles.guideBanner}>
+          <Text style={styles.guideText}>
+            Step 2 of 3 · Your example cards are in. Build a binder to see them arranged into
+            curated pages.
+          </Text>
+          <Pressable
+            onPress={() => setWizardOpen(true)}
+            style={({ pressed }) => [styles.buildChip, pressed && styles.pressed]}>
+            <Text style={styles.buildChipText}>Build binder</Text>
+          </Pressable>
+        </View>
+      ) : null}
       {/* Browse controls: view mode · multi-select toggle · search. */}
       <View style={styles.controlsRow}>
         {(
@@ -621,7 +675,12 @@ function CollectionStrip({
         freeIds={freeIds}
         onClose={() => setWizardOpen(false)}
         onBuilt={(binderId, pageCount) => {
-          onToast?.(`Built ${pageCount} page${pageCount === 1 ? '' : 's'} from your collection`);
+          onToast?.(
+            exampleFlow
+              ? `Step 3 of 3 · Built ${pageCount} page${pageCount === 1 ? '' : 's'}. Here is your first binder, curated from your collection.`
+              : `Built ${pageCount} page${pageCount === 1 ? '' : 's'} from your collection`,
+          );
+          onExampleDone?.();
           onOpenBinder?.(binderId);
         }}
       />
@@ -1053,6 +1112,19 @@ const styles = StyleSheet.create({
   emptyNote: { paddingVertical: Spacing.two },
   emptyRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.three },
   emptyRowText: { flexShrink: 1, minWidth: 220 },
+  guideBanner: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: Spacing.three,
+    marginBottom: Spacing.two,
+    padding: Spacing.three,
+    borderRadius: Radius.control,
+    borderLeftWidth: 3,
+    borderLeftColor: Palette.accent,
+    backgroundColor: Palette.panel,
+  },
+  guideText: { flex: 1, minWidth: 200, color: Palette.accent, fontSize: FontSize.sm, lineHeight: 18, fontWeight: Weight.semibold },
   groupSeries: { marginTop: Spacing.three },
   groupSet: { marginTop: Spacing.one },
   cardModalWrap: { width: '100%', maxWidth: 320 },

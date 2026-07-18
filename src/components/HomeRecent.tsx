@@ -44,10 +44,10 @@ export function HomeRecent({
         theme={browseTheme}
         catalog={catalog}
         title=""
-        // Show every UPCOMING set plus released sets from the last 3 months, and EVERY premium
+        // Show every UPCOMING set plus released sets from the last 6 months, and EVERY premium
         // card (above Double Rare — full arts / secret / special, promos included) from them,
         // newest-set-first. The rarity filter keeps the card strip tight, so no cap (Infinity).
-        monthsBack={3}
+        monthsBack={6}
         cardLimit={Infinity}
         rarityFilter={(card) => isPremiumRarity(card.rarity)}
         onFindSimilar={(card) => onFindSimilar?.(card.id)}

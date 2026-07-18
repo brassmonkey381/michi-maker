@@ -2,7 +2,7 @@ import { Redirect, useRouter, type Href } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { sendBrowseCommand } from 'tcgscan-browse';
+import { sendBrowseCommand, type CardLanguage } from 'tcgscan-browse';
 
 import { AccountButton } from '@/components/auth/AccountButton';
 import { GuestBanner } from '@/components/auth/GuestBanner';
@@ -22,6 +22,13 @@ import { binderLimitMessage } from '@/data/limitMessages';
 import { useImageManifest } from '@/lib/catalogConfig';
 import { shouldShowLanding } from '@/lib/landing';
 import { useBinders } from '@/store/binders';
+
+/**
+ * Printing language(s) the home browse surfaces show. The single control point for the home
+ * screen — `undefined` shows all languages (EN + JP). Set to `['en']` or `['ja']` to constrain
+ * every home carousel at once; a future language selector would feed its state in here.
+ */
+const HOME_LANGUAGES: CardLanguage[] | undefined = undefined;
 
 export default function HomeScreen() {
   // First-time web visitors get the marketing page; any landing CTA sets the seen flag
@@ -147,11 +154,12 @@ export default function HomeScreen() {
           ) : null}
 
           {/* Catalog-free sealed carousel: renders for everyone (guests included). */}
-          <HomeSealed />
+          <HomeSealed languages={HOME_LANGUAGES} />
 
           {/* Recent & Upcoming — ONE feed for every auth state (the kit's RecentProducts runs
               catalog-free for guests/cold and from the catalog when signed-in). */}
           <HomeRecent
+            languages={HOME_LANGUAGES}
             onFindSimilar={driveSimilar}
             onViewSet={driveViewSet}
             onOpenSet={driveViewSetById}

@@ -12,7 +12,15 @@ import { Image } from 'expo-image';
 import { useMemo, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { productUrl, useSealed, type SealedCatalog, type SealedProduct, type SealedSet } from 'tcgscan-browse';
+import {
+  productUrl,
+  sealedLanguageOf,
+  useSealed,
+  type CardLanguage,
+  type SealedCatalog,
+  type SealedProduct,
+  type SealedSet,
+} from 'tcgscan-browse';
 
 import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { HomeSection } from '@/components/HomeSection';
@@ -44,11 +52,17 @@ interface SetGroup {
   products: SealedProduct[];
 }
 
-/** Group products by set, keep recent/upcoming sets, rank each set's products by value. */
-function buildGroups(sealed: SealedCatalog, priceOf: (id: string) => number): SetGroup[] {
+/** Group products by set, keep recent/upcoming sets, rank each set's products by value.
+ *  `langSet` (null = unconstrained) limits which printing languages appear. */
+function buildGroups(
+  sealed: SealedCatalog,
+  priceOf: (id: string) => number,
+  langSet: Set<CardLanguage> | null,
+): SetGroup[] {
   const bySet = new Map<string, SealedProduct[]>();
   for (const p of sealed.products) {
     if (!p.setId) continue;
+    if (langSet && !langSet.has(sealedLanguageOf(p))) continue;
     let arr = bySet.get(p.setId);
     if (!arr) bySet.set(p.setId, (arr = []));
     arr.push(p);
@@ -78,21 +92,26 @@ type Item =
   | { type: 'header'; key: string; set: SealedSet; date: string; upcoming: boolean }
   | { type: 'product'; key: string; product: SealedProduct; value: number };
 
-export function HomeSealed() {
+export function HomeSealed({ languages }: { languages?: CardLanguage[] }) {
   const { sealed, priceOf } = useSealed();
   const [width, setWidth] = useState(0);
   const gap = Spacing.two;
+  const langSet = useMemo(
+    () => (languages && languages.length ? new Set(languages) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [languages?.join(',')],
+  );
 
   const items = useMemo<Item[]>(() => {
     if (!sealed) return [];
     const today = todayIso();
-    return buildGroups(sealed, priceOf).flatMap((g): Item[] => [
+    return buildGroups(sealed, priceOf, langSet).flatMap((g): Item[] => [
       { type: 'header', key: `h-${g.set.id}`, set: g.set, date: g.date, upcoming: g.date > today },
       ...g.products.map(
         (p): Item => ({ type: 'product', key: p.id, product: p, value: priceOf(p.id) }),
       ),
     ]);
-  }, [sealed, priceOf]);
+  }, [sealed, priceOf, langSet]);
 
   if (!sealed || items.length === 0) return null; // no gap until the (small) sealed catalog lands
 

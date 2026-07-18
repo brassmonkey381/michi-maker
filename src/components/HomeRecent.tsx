@@ -14,7 +14,7 @@
  * cheap subscribe. `onFindSimilar` / `onViewSet` / `onOpenSet` bubble up so the home screen can
  * drive the "Browse all cards" browser below (see index.tsx).
  */
-import { RecentProducts } from 'tcgscan-browse';
+import { RecentProducts, type CardLanguage } from 'tcgscan-browse';
 
 import { HomeSection } from '@/components/HomeSection';
 import { isPremiumRarity } from '@/data/premiumRarity';
@@ -26,6 +26,7 @@ export function HomeRecent({
   onViewSet,
   onOpenSet,
   onAddToBinder,
+  languages,
 }: {
   onFindSimilar?: (cardId: string) => void;
   onViewSet?: (cardId: string) => void;
@@ -33,6 +34,8 @@ export function HomeRecent({
   onOpenSet?: (setId: string, series: string) => void;
   /** Drop a tapped feed card into a binder — surfaced as "Add to a binder…". */
   onAddToBinder?: (cardId: string) => void;
+  /** Printing language(s) to show; undefined = all. Threads to the kit's RecentProducts. */
+  languages?: CardLanguage[];
 }) {
   const { catalog } = useCatalog(true);
   const browseTheme = useBrowseTheme();
@@ -50,6 +53,7 @@ export function HomeRecent({
         monthsBack={6}
         cardLimit={Infinity}
         rarityFilter={(card) => isPremiumRarity(card.rarity)}
+        languages={languages}
         onFindSimilar={(card) => onFindSimilar?.(card.id)}
         onViewSet={(card) => onViewSet?.(card.id)}
         onOpenSet={(set) => onOpenSet?.(set.id, set.seriesId)}

@@ -10,7 +10,7 @@
  * the pending command lands the moment this page's CatalogBrowser subscribes.
  */
 import { useRouter } from 'expo-router';
-import { type CardAction, type CardActionsFactory } from 'tcgscan-browse';
+import { type CardAction, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
 import { useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,12 +18,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
 import { CardBrowse } from '@/components/binder/CardBrowse';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
+import { LanguageToggle } from '@/components/LanguageToggle';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Spacing } from '@/constants/theme';
 import { pagesForCards } from '@/data/binderTypes';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useBinders } from '@/store/binders';
+
+// Session-sticky language filter for the browse page (EN only by default).
+let browseLangPref: CardLanguage[] | null = null;
 
 export default function BrowseScreen() {
   const store = useBinders();
@@ -34,6 +38,13 @@ export default function BrowseScreen() {
 
   // A dedicated page loads the catalog on mount (the browser runs cold/server-search until it's in).
   const { catalog } = useCatalog(true);
+
+  // EN / JP filter for the browser (cards + series/set drill-down) — EN only by default.
+  const [langs, setLangs] = useState<CardLanguage[]>(() => browseLangPref ?? ['en']);
+  const changeLangs = (v: CardLanguage[]) => {
+    browseLangPref = v;
+    setLangs(v);
+  };
 
   // One or many cards headed for a binder (single tap → [id]; multi-select → the whole set).
   const [addCardIds, setAddCardIds] = useState<string[] | null>(null);
@@ -89,13 +100,16 @@ export default function BrowseScreen() {
             <ThemedText type="title" style={styles.h1}>
               Browse all cards
             </ThemedText>
-            {railHidden ? (
-              <Pressable onPress={() => router.push('/')} hitSlop={8}>
-                <ThemedText type="smallBold" themeColor="textSecondary">
-                  ‹ Home
-                </ThemedText>
-              </Pressable>
-            ) : null}
+            <View style={styles.headerRight}>
+              <LanguageToggle value={langs} onChange={changeLangs} />
+              {railHidden ? (
+                <Pressable onPress={() => router.push('/')} hitSlop={8}>
+                  <ThemedText type="smallBold" themeColor="textSecondary">
+                    ‹ Home
+                  </ThemedText>
+                </Pressable>
+              ) : null}
+            </View>
           </View>
 
           {/* The browser owns the remaining height; its inner FlatList scrolls (no page ScrollView
@@ -105,6 +119,7 @@ export default function BrowseScreen() {
               catalog={catalog}
               cardActions={cardActions}
               onPickCards={(cardIds) => setAddCardIds(cardIds)}
+              languages={langs}
             />
           </View>
         </View>
@@ -141,6 +156,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.three,
     gap: Spacing.three,
   },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   h1: { fontFamily: Fonts?.brand, fontSize: FontSize.display, lineHeight: 40 },
   panel: {
     flex: 1,

@@ -12,7 +12,7 @@
  */
 import { Platform } from 'react-native';
 
-import { CatalogBrowser, type CardActionsFactory } from 'tcgscan-browse';
+import { CatalogBrowser, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
 
 import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { useBrowseTheme } from '@/lib/browseTheme';
@@ -40,6 +40,7 @@ export function CardBrowse({
   selectedCardId,
   cardActions,
   initialSimilar,
+  languages,
 }: {
   /** Null while the catalog is still loading — CatalogBrowser then runs cold (server search). */
   catalog: Catalog | null;
@@ -56,6 +57,9 @@ export function CardBrowse({
    *  CatalogBrowser as an explicit prop so it survives the per-pocket remount and isn't stolen by
    *  another mounted browser via the command bus. */
   initialSimilar?: string[];
+  /** Constrain the browser (cards + series/set drill-down) to these printing languages; undefined
+   *  = all. Passed straight to CatalogBrowser, which also auto-hides its language facet when one. */
+  languages?: CardLanguage[];
 }) {
   // App tokens → the kit's color contract, so the browser follows light/dark + variant
   // instead of falling back to the kit's built-in light look.
@@ -70,6 +74,7 @@ export function CardBrowse({
       onPickCards={onPickCards}
       cardActions={cardActions}
       initialSimilar={initialSimilar}
+      languages={languages}
       footer={null}
       cardTileWidth={CARD_BROWSE_TILE_WIDTH}
       taxTileHeight={CARD_BROWSE_TAX_TILE_HEIGHT}

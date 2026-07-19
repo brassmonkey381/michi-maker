@@ -10,7 +10,7 @@
  * the pending command lands the moment this page's CatalogBrowser subscribes.
  */
 import { useRouter } from 'expo-router';
-import { type CardAction, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
+import { type CardAction, type CardActionsFactory } from 'tcgscan-browse';
 import { useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,9 +25,7 @@ import { Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Spacing } f
 import { pagesForCards } from '@/data/binderTypes';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useBinders } from '@/store/binders';
-
-// Session-sticky language filter for the browse page (EN only by default).
-let browseLangPref: CardLanguage[] | null = null;
+import { useLanguagePref } from '@/store/languagePref';
 
 export default function BrowseScreen() {
   const store = useBinders();
@@ -39,12 +37,9 @@ export default function BrowseScreen() {
   // A dedicated page loads the catalog on mount (the browser runs cold/server-search until it's in).
   const { catalog } = useCatalog(true);
 
-  // EN / JP filter for the browser (cards + series/set drill-down) — EN only by default.
-  const [langs, setLangs] = useState<CardLanguage[]>(() => browseLangPref ?? ['en']);
-  const changeLangs = (v: CardLanguage[]) => {
-    browseLangPref = v;
-    setLangs(v);
-  };
+  // EN / JP filter for the browser (cards + series/set drill-down). The app-wide, persisted
+  // preference (shared with Home) — EN only by default, remembered per account across devices.
+  const [langs, changeLangs] = useLanguagePref();
 
   // One or many cards headed for a binder (single tap → [id]; multi-select → the whole set).
   const [addCardIds, setAddCardIds] = useState<string[] | null>(null);

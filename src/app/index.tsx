@@ -159,7 +159,6 @@ export default function HomeScreen() {
           {/* Recent & Upcoming — ONE feed for every auth state (the kit's RecentProducts runs
               catalog-free for guests/cold and from the catalog when signed-in). */}
           <HomeRecent
-            languages={HOME_LANGUAGES}
             onFindSimilar={driveSimilar}
             onViewSet={driveViewSet}
             onOpenSet={driveViewSetById}

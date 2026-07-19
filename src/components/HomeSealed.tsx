@@ -96,10 +96,11 @@ export function HomeSealed({ languages }: { languages?: CardLanguage[] }) {
   const { sealed, priceOf } = useSealed();
   const [width, setWidth] = useState(0);
   const gap = Spacing.two;
+  const langKey = languages?.join(',');
   const langSet = useMemo(
     () => (languages && languages.length ? new Set(languages) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [languages?.join(',')],
+    [langKey],
   );
 
   const items = useMemo<Item[]>(() => {

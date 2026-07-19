@@ -29,8 +29,8 @@ const FORCE_COLD =
 
 /** Target card-thumbnail width (px) — larger ⇒ fewer, bigger cards (≈ binder size). */
 export const CARD_BROWSE_TILE_WIDTH = 140;
-/** Series/set art tile height (px). */
-export const CARD_BROWSE_TAX_TILE_HEIGHT = 180;
+/** Series/set art tile height (px) — tall so the cover art (which fills the tile) reads big. */
+export const CARD_BROWSE_TAX_TILE_HEIGHT = 250;
 
 export function CardBrowse({
   catalog,

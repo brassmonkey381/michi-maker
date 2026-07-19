@@ -5,7 +5,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { sendBrowseCommand, type CardLanguage } from 'tcgscan-browse';
 
 import { AccountButton } from '@/components/auth/AccountButton';
-import { CardSizeToggle } from '@/components/CardSizeToggle';
 import { GuestBanner } from '@/components/auth/GuestBanner';
 import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
 import { BinderCarousel } from '@/components/binder/BinderCarousel';
@@ -20,7 +19,6 @@ import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { pagesForCards } from '@/data/binderTypes';
 import { binderLimitMessage } from '@/data/limitMessages';
-import { useCardSize } from '@/lib/cardSizePref';
 import { useImageManifest } from '@/lib/catalogConfig';
 import { shouldShowLanding } from '@/lib/landing';
 import { useBinders } from '@/store/binders';
@@ -37,7 +35,6 @@ export default function HomeScreen() {
   // before navigating back here, so this evaluates once per mount and never loops.
   const [showLanding] = useState(shouldShowLanding);
   const store = useBinders();
-  const [cardSize, setCardSize] = useCardSize();
   const router = useRouter();
   const { width } = useWindowDimensions();
   // Where the web rail isn't present (native, or narrow web) Home carries the quick-nav to the
@@ -117,7 +114,6 @@ export default function HomeScreen() {
               poke-michi
             </ThemedText>
             <View style={styles.headerActions}>
-              <CardSizeToggle value={cardSize} onChange={setCardSize} />
               <PeopleButton />
               <SettingsButton />
               <AccountButton />

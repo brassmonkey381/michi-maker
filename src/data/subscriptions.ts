@@ -90,6 +90,26 @@ export interface CompareRow {
   vip: CompareCell;
 }
 
+/**
+ * What an included print effectively COSTS on yearly billing, next to the $3.99 one-off binder
+ * PDF. Derived from the plan prices above — recompute if any of the three changes:
+ *
+ *   PRO yearly  $39.99 / 12 prints = $3.33 each → 16% less than $3.99
+ *   VIP yearly  $99.99 / 60 prints = $1.67 each → 58% less than $3.99
+ *
+ * This attributes the WHOLE subscription price to prints, which is deliberately the conservative
+ * framing: even valuing binders/pages/artworks at zero, prints alone come out cheaper. It is NOT
+ * a coupon on top of the subscription, so every string built from it must read as "what your
+ * included prints work out to", never "N% off when you buy prints".
+ *
+ * Month-to-month is pointedly absent: PRO monthly is $3.99 a print (12 × $3.99 = $47.88 for 12),
+ * exactly the one-off price, so there is no saving to advertise there.
+ */
+export const YEARLY_PRINT_VALUE = {
+  pro: { each: '$3.33', off: '16%' },
+  vip: { each: '$1.67', off: '58%' },
+};
+
 /** The capability comparison, Free/PRO/VIP only (guest is unadvertised). */
 export const COMPARISON: CompareRow[] = [
   {
@@ -145,12 +165,17 @@ export const COMPARISON: CompareRow[] = [
   },
   {
     capability: 'Print-ready fill sheets',
+    mark: '§',
     free: { text: 'Example-sheet preview' },
-    pro: { text: 'Full binders', strong: true, sub: '1 print included each month' },
+    pro: {
+      text: 'Full binders',
+      strong: true,
+      sub: `1 print included each month · yearly: all 12 whenever you want, about ${YEARLY_PRINT_VALUE.pro.off} less per print`,
+    },
     vip: {
       text: 'Full binders',
       strong: true,
-      sub: '5 prints included each month · first in line for print extras*',
+      sub: `5 prints included each month · yearly: all 60 whenever you want, about ${YEARLY_PRINT_VALUE.vip.off} less per print · first in line for print extras*`,
     },
   },
   {
@@ -160,6 +185,18 @@ export const COMPARISON: CompareRow[] = [
     vip: { text: 'Share and like', sub: 'featured eligibility boost†' },
   },
 ];
+
+// Declared above FOOTNOTES because the § footnote quotes its price — a `const` referenced
+// before its declaration would throw at module load, not just read oddly.
+export const ONE_TIME_PDF = {
+  name: 'Full-binder fill-sheet PDF',
+  price: '$3.99',
+  blurb:
+    'One binder, one time: a print-ready PDF of every page as cut-ready fill sheets, true to ' +
+    'card size. Covers the binder as it is when you download — that version is yours to ' +
+    're-download forever; printing later edits needs a new unlock or a plan. The free preview ' +
+    'is a premade example sheet so you can test your printer first.',
+};
 
 export const FOOTNOTES: { mark: string; text: string; link?: { label: string; url: string } }[] = [
   {
@@ -174,6 +211,16 @@ export const FOOTNOTES: { mark: string; text: string; link?: { label: string; ur
     mark: '‡',
     text: 'Included at every tier. Scan and track the cards you own with our partner app TCGScan - your collection syncs straight into michi-maker, with best-in-class inventory tracking, set analytics, and historical price history. PRO and VIP members get bundle discounts on TCGScan memberships.',
     link: { label: 'Meet TCGScan →', url: TCGSCAN_URL },
+  },
+  {
+    mark: '§',
+    text:
+      'Yearly plans can use the whole year of prints whenever you want. Included prints arrive a ' +
+      'month at a time to start; once you have used your first one, you can release the rest of ' +
+      'the year in a single tap, and it stays released until your plan renews. Per print that ' +
+      `works out to about ${YEARLY_PRINT_VALUE.pro.each} on PRO yearly and ` +
+      `${YEARLY_PRINT_VALUE.vip.each} on VIP yearly, next to ${ONE_TIME_PDF.price} for a one-off ` +
+      'single-binder PDF. Month-to-month plans get their prints a month at a time.',
   },
 ];
 
@@ -205,14 +252,4 @@ export const ANNUAL_POOL = {
     `plan renews.`,
   /** Nudge for month-to-month subscribers, who have no pool to release. */
   monthlyUpsell: 'Switch to yearly billing and you can use a whole year of prints whenever you want.',
-};
-
-export const ONE_TIME_PDF = {
-  name: 'Full-binder fill-sheet PDF',
-  price: '$3.99',
-  blurb:
-    'One binder, one time: a print-ready PDF of every page as cut-ready fill sheets, true to ' +
-    'card size. Covers the binder as it is when you download — that version is yours to ' +
-    're-download forever; printing later edits needs a new unlock or a plan. The free preview ' +
-    'is a premade example sheet so you can test your printer first.',
 };

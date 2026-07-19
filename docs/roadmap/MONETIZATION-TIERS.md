@@ -37,8 +37,18 @@ full rules; the short version:
 
 - **Schema** `20260719120000_billing_interval_and_print_pool.sql` — `entitlements.interval`
   (`'month'`/`'year'`) + `entitlements.period_start`, plus the `print_pool_unlocks` table.
-  **Must be applied to the live DB** before yearly checkout opens; every read is defensive, so an
-  unapplied migration degrades to the old calendar-month behaviour rather than breaking print.
+  **APPLIED to the live DB (piikwvntldytjejxmcla) 2026-07-19**, webhook redeployed (v9). Reads are
+  defensive anyway, so a environment without it degrades to calendar-month metering.
+- **Backfill:** the one pre-existing Stripe subscription row (bstockman1@hotmail.com, `tier_pro`)
+  was written before the columns existed, so it was backfilled from the live Stripe subscription
+  `sub_1Tu6tIH8KZaf7tNOSSNOBEFi` (`michi_pro_yearly`, `recurring.interval='year'`,
+  `current_period_start=1784275982` → 2026-07-17 08:13:02Z) rather than inferred from `expires_at`.
+  **Any future subscription row created before this migration needs the same treatment** — a NULL
+  interval otherwise persists until the next webhook event, which for a yearly plan is a year away.
+- **RLS verified live** (impersonated JWTs, all state restored afterwards): non-yearly grant
+  rejected · mismatched `period_start` rejected · no-print-this-term rejected · eligible yearly
+  subscriber accepted · and the user could neither UPDATE nor DELETE the unlock row (0 rows each),
+  so irreversibility holds in production, not just by intent.
 - **Webhook** writes both columns from the Stripe PRICE's `recurring.interval` and the
   subscription's `current_period_start` — the lookup-key `_yearly` suffix is a naming convention,
   not a source of truth.

@@ -329,24 +329,6 @@ export type Database = {
         }
         Relationships: []
       }
-      print_pool_unlocks: {
-        Row: {
-          period_start: string
-          unlocked_at: string
-          user_id: string
-        }
-        Insert: {
-          period_start: string
-          unlocked_at?: string
-          user_id?: string
-        }
-        Update: {
-          period_start?: string
-          unlocked_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       print_events: {
         Row: {
           binder_id: string | null
@@ -367,6 +349,24 @@ export type Database = {
           created_at?: string
           id?: string
           sheets?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      print_pool_unlocks: {
+        Row: {
+          period_start: string
+          unlocked_at: string
+          user_id: string
+        }
+        Insert: {
+          period_start: string
+          unlocked_at?: string
+          user_id?: string
+        }
+        Update: {
+          period_start?: string
+          unlocked_at?: string
           user_id?: string
         }
         Relationships: []

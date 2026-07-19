@@ -144,7 +144,14 @@ export function PlanComparison() {
 
   return (
     <View>
-      <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.scroll}>
+      {/* The indicator is hidden, not the scrolling: RN Web renders a horizontal ScrollView with
+          a permanent scrollbar TRACK even when nothing overflows, which is the useless bar this
+          table used to show at every width. Panning still works on genuinely narrow screens,
+          where four columns cannot fit no matter how tight the table gets. */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}>
         <View style={styles.table}>
           {/* ── header row ─────────────────────────────── */}
           <View style={styles.row}>
@@ -242,14 +249,18 @@ export function PlanComparison() {
 
 const styles = StyleSheet.create({
   scroll: { flexGrow: 1 },
-  table: { minWidth: 860, flex: 1, paddingTop: TAB_RISE },
+  // 720, down from 860: the page shell caps readable content well below the old figure, so the
+  // table demanded more width than it was ever given and overflowed on ordinary screens. Columns
+  // still hold their proportions; the capability subs just wrap a line earlier.
+  table: { minWidth: 720, flex: 1, paddingTop: TAB_RISE },
   row: { flexDirection: 'row', alignItems: 'stretch' },
 
   cell: {
     flexGrow: 1,
     flexBasis: 0,
     paddingVertical: Spacing.three,
-    paddingHorizontal: Spacing.three,
+    // Tightened from `three` (16) to buy back horizontal room without touching column ratios.
+    paddingHorizontal: Spacing.two,
     justifyContent: 'center',
     gap: 2,
     backgroundColor: Palette.surface,

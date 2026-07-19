@@ -18,6 +18,9 @@ import {
 
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 
+/** Double-tap window (ms) for the arrows: a second tap within this jumps to start/end. */
+const DOUBLE_TAP_MS = 200;
+
 export function PagedCarousel({
   width,
   pages,
@@ -47,6 +50,22 @@ export function PagedCarousel({
 
   const onMomentumEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (width > 0) setPage(Math.round(e.nativeEvent.contentOffset.x / width));
+  };
+
+  // Double-tap an arrow (<200ms) to jump to the first / last page; a single tap steps one page.
+  const lastPrev = useRef(0);
+  const lastNext = useRef(0);
+  const onPrev = () => {
+    const now = Date.now();
+    if (now - lastPrev.current < DOUBLE_TAP_MS) goTo(0);
+    else goTo(safePage - 1);
+    lastPrev.current = now;
+  };
+  const onNext = () => {
+    const now = Date.now();
+    if (now - lastNext.current < DOUBLE_TAP_MS) goTo(pageCount - 1);
+    else goTo(safePage + 1);
+    lastNext.current = now;
   };
 
   // Web: page the carousel with the mouse wheel (vertical or horizontal). We consume the wheel
@@ -91,8 +110,8 @@ export function PagedCarousel({
 
       {pageCount > 1 ? (
         <>
-          <Arrow dir="prev" label={prevLabel} onPress={() => goTo(safePage - 1)} />
-          <Arrow dir="next" label={nextLabel} onPress={() => goTo(safePage + 1)} />
+          <Arrow dir="prev" label={`${prevLabel} (double-tap for start)`} onPress={onPrev} />
+          <Arrow dir="next" label={`${nextLabel} (double-tap for end)`} onPress={onNext} />
           <View style={styles.dots}>
             {pages.map((_, i) => (
               <Pressable

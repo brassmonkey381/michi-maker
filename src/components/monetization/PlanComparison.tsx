@@ -23,7 +23,9 @@ import {
   CHECKOUT_OPEN,
   COMPARISON,
   FOOTNOTES,
+  PLAN_CHANGE_CLOSED_NOTE,
   PLAN_HEADERS,
+  planCta,
   type CompareCell,
   type PlanHeader,
 } from '@/data/subscriptions';
@@ -74,6 +76,71 @@ export function PlanComparison() {
   };
 
   const [freeHead, proHead, vipHead] = PLAN_HEADERS;
+
+  /**
+   * One paid column's foot cell. What it offers depends entirely on the viewer's current plan
+   * (see planCta): no downgrades, no active button on the plan you already hold, and upgrades
+   * from a paid plan are a subscription SWITCH rather than a second purchase.
+   */
+  /** Free's foot cell. Never a purchase: a sign-up for guests, "your plan" for Free users, and
+   *  nothing for subscribers (that would be a downgrade). Same planCta rules as the paid columns. */
+  const freeFoot = () => {
+    if (loading) return null;
+    const cta = planCta(freeHead, tier);
+    if (cta.kind === 'signIn') return <Text style={styles.valueSub}>Sign in free to start</Text>;
+    if (cta.kind === 'current') return <Text style={styles.footCurrent}>Your current plan</Text>;
+    return null;
+  };
+
+  const paidFoot = (plan: PlanHeader) => {
+    // Resolve nothing until the tier is known — a flash of "Choose PRO" at someone who already
+    // pays for PRO is exactly the wrong first impression.
+    if (loading) return <View style={styles.footPlaceholder} />;
+    const cta = planCta(plan, tier);
+
+    if (cta.kind === 'none') return <View style={styles.footPlaceholder} />;
+    if (cta.kind === 'current') {
+      return <Text style={styles.footCurrent}>Your current plan</Text>;
+    }
+    // 'signIn' is the Free column's case and never reaches a paid column — but keep this total
+    // so a future tier can't silently fall through to a purchase button.
+    if (cta.kind === 'signIn') return <View style={styles.footPlaceholder} />;
+
+    const isSwitch = cta.kind === 'switch';
+    const key = plan.yearlyKey;
+    return (
+      <>
+        <Pressable
+          onPress={() => {
+            // A switch must never open Checkout: that starts a second subscription and bills
+            // both plans. Until plan changes are wired it says so plainly.
+            if (isSwitch) {
+              setNote({ tier: plan.tier, text: PLAN_CHANGE_CLOSED_NOTE });
+              return;
+            }
+            void buy(plan, key);
+          }}
+          disabled={!!busyKey}
+          style={({ pressed }) => [styles.btn, (pressed || !!busyKey) && styles.dim]}>
+          {busyKey === key ? (
+            <ActivityIndicator color={Palette.accentText} />
+          ) : (
+            <Text style={styles.btnText}>{cta.label}</Text>
+          )}
+        </Pressable>
+        {/* The month-to-month link is a NEW-subscription choice. Offering it on an upgrade would
+            imply we can move an existing yearly plan onto monthly billing, which we can't yet. */}
+        {CHECKOUT_OPEN && !isSwitch && plan.monthlyKey ? (
+          <Pressable onPress={() => buy(plan, plan.monthlyKey)} disabled={!!busyKey} hitSlop={4}>
+            <Text style={styles.monthlyLink}>
+              {busyKey === plan.monthlyKey ? 'Opening checkout…' : plan.monthlyLabel}
+            </Text>
+          </Pressable>
+        ) : null}
+        {note?.tier === plan.tier ? <Text style={styles.ctaNote}>{note.text}</Text> : null}
+      </>
+    );
+  };
 
   return (
     <View>
@@ -141,49 +208,13 @@ export function PlanComparison() {
           <View style={styles.row}>
             <View style={[styles.cell, styles.labelCell, styles.footCell, styles.footLabel]} />
             <View style={[styles.cell, styles.freeCol, styles.footCell]}>
-              <Text style={styles.valueSub}>
-                {tier === 'guest' ? 'Sign in free to start' : 'Free forever'}
-              </Text>
+              {freeFoot()}
             </View>
             <View style={[styles.cell, styles.proCol, styles.footCell, styles.proFoot]}>
-              <Pressable
-                onPress={() => buy(proHead, proHead.yearlyKey)}
-                disabled={!!busyKey}
-                style={({ pressed }) => [styles.btn, (pressed || !!busyKey) && styles.dim]}>
-                {busyKey === proHead.yearlyKey ? (
-                  <ActivityIndicator color={Palette.accentText} />
-                ) : (
-                  <Text style={styles.btnText}>Choose PRO</Text>
-                )}
-              </Pressable>
-              {CHECKOUT_OPEN && proHead.monthlyKey ? (
-                <Pressable onPress={() => buy(proHead, proHead.monthlyKey)} disabled={!!busyKey} hitSlop={4}>
-                  <Text style={styles.monthlyLink}>
-                    {busyKey === proHead.monthlyKey ? 'Opening checkout…' : proHead.monthlyLabel}
-                  </Text>
-                </Pressable>
-              ) : null}
-              {note?.tier === 'pro' ? <Text style={styles.ctaNote}>{note.text}</Text> : null}
+              {paidFoot(proHead)}
             </View>
             <View style={[styles.cell, styles.vipCol, styles.footCell, styles.vipFoot]}>
-              <Pressable
-                onPress={() => buy(vipHead, vipHead.yearlyKey)}
-                disabled={!!busyKey}
-                style={({ pressed }) => [styles.btn, (pressed || !!busyKey) && styles.dim]}>
-                {busyKey === vipHead.yearlyKey ? (
-                  <ActivityIndicator color={Palette.accentText} />
-                ) : (
-                  <Text style={styles.btnText}>Choose VIP</Text>
-                )}
-              </Pressable>
-              {CHECKOUT_OPEN && vipHead.monthlyKey ? (
-                <Pressable onPress={() => buy(vipHead, vipHead.monthlyKey)} disabled={!!busyKey} hitSlop={4}>
-                  <Text style={styles.monthlyLink}>
-                    {busyKey === vipHead.monthlyKey ? 'Opening checkout…' : vipHead.monthlyLabel}
-                  </Text>
-                </Pressable>
-              ) : null}
-              {note?.tier === 'vip' ? <Text style={styles.ctaNote}>{note.text}</Text> : null}
+              {paidFoot(vipHead)}
             </View>
           </View>
         </View>
@@ -347,6 +378,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   ctaNote: { fontSize: FontSize.sm, color: Palette.muted, lineHeight: 16, marginTop: Spacing.one },
+  // Keeps the foot row's height stable when a column offers nothing (downgrades, or while the
+  // tier is still resolving) so the table doesn't jump as the entitlement read lands.
+  footPlaceholder: { minHeight: 38 },
+  footCurrent: {
+    fontSize: FontSize.body,
+    fontWeight: Weight.semibold,
+    color: Palette.link,
+    textAlign: 'center',
+    minHeight: 38,
+    lineHeight: 38,
+  },
 
   /* footnotes */
   footnotes: { gap: Spacing.one, marginTop: Spacing.three, maxWidth: 720 },

@@ -12,7 +12,18 @@
  * test mode can be exercised locally (EXPO_PUBLIC_CHECKOUT_OPEN=1 in .env.local) while the
  * deployed site keeps the honest "coming soon" note until live keys + owner go-live.
  */
+import type { Tier } from '@/data/tiers';
+
 export const CHECKOUT_OPEN = process.env.EXPO_PUBLIC_CHECKOUT_OPEN === '1';
+
+/**
+ * Shown when an existing subscriber taps an upgrade. Plan CHANGES are not wired yet: Checkout
+ * would open a second subscription (billing both plans), and the Customer Portal has no
+ * configuration in this Stripe account yet, so it can't switch plans either. Until one of those
+ * exists this stays an honest note rather than a button that double-charges.
+ */
+export const PLAN_CHANGE_CLOSED_NOTE =
+  'Plan changes aren’t open yet. When they are, this will move your current subscription over instead of starting a second one.';
 
 /** The honest line every CTA shows while checkout is closed (same voice as UpgradePerk). */
 export const CHECKOUT_CLOSED_NOTE = 'Paid plans aren’t open quite yet. Check back soon.';
@@ -60,6 +71,49 @@ export const PLAN_HEADERS: PlanHeader[] = [
     monthlyLabel: 'or $9.99 month to month',
   },
 ];
+
+/**
+ * What the comparison sheet's CTA should be for one plan column, given the viewer's CURRENT tier.
+ *
+ * Rules (owner call 2026-07-19):
+ *  - Never offer a DOWNGRADE. A VIP looking at Free/PRO gets no button at all, not "Downgrade to
+ *    Free" — leaving the plan is a billing action, and it belongs in Manage billing, not in a
+ *    row that otherwise reads as a purchase.
+ *  - The plan you are already on has no active button. Buying your own plan again would start a
+ *    SECOND Stripe subscription.
+ *  - Upgrading FROM a paid plan is a `switch`, not a `buy`: it has to modify the existing
+ *    subscription, since a second Checkout Session would bill for both plans at once.
+ *
+ * Pure so the rules are testable and can't drift from the rendering.
+ */
+export type PlanCta =
+  /** Render nothing — a downgrade, which this page deliberately does not offer. */
+  | { kind: 'none' }
+  /** The viewer's current plan. */
+  | { kind: 'current' }
+  /** Free column for a signed-out viewer: an account, not a purchase. */
+  | { kind: 'signIn' }
+  /** A brand-new subscription — safe to send through Checkout. */
+  | { kind: 'buy'; label: string }
+  /** An upgrade from an existing PAID subscription — must modify it in place. */
+  | { kind: 'switch'; label: string };
+
+const TIER_RANK: Record<Tier, number> = { guest: 0, free: 1, pro: 2, vip: 3 };
+
+export function planCta(column: PlanHeader, current: Tier): PlanCta {
+  const columnRank = TIER_RANK[column.tier];
+  const currentRank = TIER_RANK[current];
+  if (columnRank === currentRank) return { kind: 'current' };
+  if (columnRank < currentRank) return { kind: 'none' };
+  // Free sits above a guest, but joining is a sign-up, not a sale.
+  if (column.tier === 'free') return { kind: 'signIn' };
+  // Upgrading from a plan that is already billing means switching that subscription, not buying
+  // alongside it. 'guest' and 'free' have nothing to switch, so they're ordinary purchases.
+  const label = `Upgrade to ${column.name}`;
+  return currentRank >= TIER_RANK.pro
+    ? { kind: 'switch', label }
+    : { kind: 'buy', label: current === 'guest' ? `Choose ${column.name}` : label };
+}
 
 /** Lookup key for the one-time full-binder PDF (payment mode; needs a binderId). */
 export const BINDER_PDF_LOOKUP_KEY = 'michi_binder_pdf';

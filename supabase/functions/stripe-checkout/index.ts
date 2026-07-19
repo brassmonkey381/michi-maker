@@ -212,6 +212,38 @@ Deno.serve(async (req: Request) => {
     .eq('user_id', user.id)
     .maybeSingle();
 
+  // ── Never sell a SECOND subscription to an existing subscriber ──────────────────────────
+  //
+  // Checkout in subscription mode always CREATES a subscription; it cannot upgrade one. If a PRO
+  // subscriber reached here for VIP they would end up paying for both plans, and the entitlement
+  // ledger would hide it: the webhook's sibling hygiene expires the PRO row, so the app shows a
+  // clean VIP account while Stripe keeps billing PRO. The comparison sheet already routes
+  // upgrades away from Checkout (planCta -> 'switch'); this is the backstop that makes the
+  // double-charge impossible rather than merely unlikely.
+  //
+  // Changing plans needs either a Customer Portal configuration with subscription_update enabled,
+  // or a subscriptions.update() call here that swaps the price with proration. Neither exists
+  // yet, so refuse loudly instead of taking money for the wrong thing.
+  if (mode === 'subscription' && mapping?.stripe_customer_id) {
+    const existing = await stripe.subscriptions.list({
+      customer: mapping.stripe_customer_id,
+      status: 'active',
+      limit: 10,
+    });
+    // Only MICHI tiers block each other. The cross-app tcgscan_pro is an independent
+    // subscription and is expected to co-exist (see docs/SYNERGY.md).
+    const holdsMichiTier = existing.data.some((s) => {
+      const key = s.items?.data?.[0]?.price?.lookup_key ?? '';
+      return key.startsWith('michi_pro') || key.startsWith('michi_vip');
+    });
+    if (holdsMichiTier && (michiProduct === 'tier_pro' || michiProduct === 'tier_vip')) {
+      return json(409, {
+        error:
+          'You already have an active michi-maker plan. Changing plans isn’t open yet — it has to move your existing subscription rather than start a second one.',
+      });
+    }
+  }
+
   // Cross-app BUNDLE discount — verified SERVER-SIDE (a client claiming bundle:true gets the
   // coupon only if it actually owns an active sibling Pro; see docs/SYNERGY.md). Stripe rejects
   // `discounts` together with `allow_promotion_codes`, so a bundle checkout gives up promo codes.

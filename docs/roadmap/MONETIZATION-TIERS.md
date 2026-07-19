@@ -55,7 +55,8 @@ full rules; the short version:
 - **Windowing** `src/data/printWindow.ts` — the included-print meter now counts over the real
   billing term (sliced monthly from the anniversary), fixing a calendar-month bug that gave anyone
   subscribing on the 28th two allocations in four days.
-- **The pool** — a yearly PRO gets 12, a yearly VIP 60, released on an explicit confirm.
+- **The pool** — a yearly PRO gets 12, a yearly VIP 36 (VIP cut 5→3/mo, owner 2026-07-19),
+  released on an explicit confirm. Mid-term upgrades are PRORATED via `term_print_allocation`.
   **Irreversible for the term** and resets at renewal (enforced by schema shape, not code), and
   gated on having spent at least one included print in the term (owner decision: proof the user
   actually used the feature before we hand over a year of it).
@@ -66,9 +67,10 @@ full rules; the short version:
 **Not done (next):** provider decision + checkout/webhook (step 3) — the /subscriptions CTAs
 reveal the honest coming-soon note until `CHECKOUT_OPEN` flips; included-prints ENFORCEMENT
 (ledger + meter + windowing exist, nothing blocks past the allocation yet); art-upload/sharing
-gates. Also open: the comparison sheet still says "1 print included each month" for PRO and "5
-prints included each month" for VIP without mentioning that yearly buyers can take the whole year
-up front — worth saying once yearly checkout is live, since it's a genuine reason to pick yearly.
+gates. Also open: **plan CHANGES have no mechanism** — Checkout would start a second subscription
+(now 409-blocked) and this Stripe account has no Customer Portal configuration at all, which also
+means today's "Manage billing" link would fail. Needs a portal config with `subscription_update`
+enabled, or a server-side `subscriptions.update()` with proration.
 
 ## Goal
 
@@ -137,7 +139,7 @@ sheet shows Free / PRO / VIP only. Page counts are plain APP pages (no double-si
 | Slice Studio | ✓ | ✓ | ✓ | ✓ |
 | Slice Studio artworks kept (at a time) | — | 100 | 1,000 | unlimited |
 | Build from cards you really own (TCGScan sync) | — | ✓ | ✓ + TCGScan bundle discounts | ✓ + TCGScan bundle discounts |
-| Fill-sheet PDF | — | example-sheet preview only | full binders, 1 print/mo included | full binders, 5 prints/mo included + first in line for print extras |
+| Fill-sheet PDF | — | example-sheet preview only | full binders, 1 print/mo included | full binders, 3 prints/mo included + first in line for print extras |
 | Public sharing / likes | view only | share + like | share + like | share + like + featured eligibility boost |
 
 `LIMITS_ENFORCED` is now ENV-DRIVEN (`EXPO_PUBLIC_LIMITS_ENFORCED=1`) — on locally for gate

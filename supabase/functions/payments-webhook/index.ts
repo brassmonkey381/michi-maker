@@ -72,6 +72,74 @@ function billingInterval(sub: Stripe.Subscription): 'month' | 'year' | null {
   return recurring.interval === 'year' ? 'year' : 'month';
 }
 
+/**
+ * Included prints per month per tier. MIRRORS src/data/tiers.ts PRINTS_PER_MONTH — this runs on
+ * Deno and can't import from the app. Change both together.
+ */
+const PRINTS_PER_MONTH: Record<string, number> = { tier_pro: 1, tier_vip: 3 };
+const MONTHS_PER_YEAR = 12;
+
+/** Whole months between two instants, clamped to a single year. Mirrors printWindow.monthsElapsed. */
+function monthsElapsed(startMs: number, nowMs: number): number {
+  const start = new Date(startMs);
+  const now = new Date(nowMs);
+  let months =
+    (now.getUTCFullYear() - start.getUTCFullYear()) * 12 + (now.getUTCMonth() - start.getUTCMonth());
+  if (now.getUTCDate() < start.getUTCDate()) months -= 1;
+  return Math.max(0, Math.min(MONTHS_PER_YEAR, months));
+}
+
+/**
+ * Included prints for the WHOLE term, which becomes the annual pool total.
+ *
+ * You keep your OLD rate for months already served and get the NEW rate for months remaining:
+ * upgrading to VIP 8 months into a PRO year yields 1×8 + 3×4 = 20, not a fresh 36. Without this a
+ * late upgrade would buy a full year of prints for a few prorated dollars.
+ *
+ * Only meaningful for YEARLY terms (monthly plans have no pool). Returns null otherwise.
+ */
+async function termAllocationFor(
+  userId: string,
+  product: string,
+  interval: 'month' | 'year' | null,
+  periodStartIso: string | null,
+  nowMs: number,
+): Promise<number | null> {
+  const rate = PRINTS_PER_MONTH[product];
+  if (interval !== 'year' || !periodStartIso || rate === undefined) return null;
+
+  const db = service();
+  const { data: rows } = await db
+    .from('entitlements')
+    .select('product, period_start, expires_at, term_print_allocation')
+    .eq('user_id', userId)
+    .in('product', ['tier_pro', 'tier_vip']);
+
+  const sameTerm = (r: { period_start?: string | null }) => r.period_start === periodStartIso;
+
+  // Already computed for THIS term: keep it. `customer.subscription.updated` fires for plenty of
+  // reasons that aren't plan changes (payment method, dunning), and recomputing on each would
+  // walk the allocation down as monthsElapsed grows.
+  const mine = (rows ?? []).find((r) => r.product === product && sameTerm(r));
+  if (mine?.term_print_allocation != null) return mine.term_print_allocation;
+
+  // A mid-term switch: the tier being replaced is still ACTIVE on the same term.
+  const sibling = (rows ?? []).find(
+    (r) =>
+      r.product !== product &&
+      sameTerm(r) &&
+      (!r.expires_at || Date.parse(r.expires_at as string) > nowMs),
+  );
+  if (sibling) {
+    const oldRate = PRINTS_PER_MONTH[sibling.product as string] ?? 0;
+    const elapsed = monthsElapsed(Date.parse(periodStartIso), nowMs);
+    return oldRate * elapsed + rate * (MONTHS_PER_YEAR - elapsed);
+  }
+
+  // Fresh subscription or a renewal onto a new period_start: the whole year at the new rate.
+  return rate * MONTHS_PER_YEAR;
+}
+
 /** Upsert the user ↔ Stripe customer mapping (needed for Customer Portal sessions). */
 async function recordCustomer(userId: string, customerId: string | null | undefined) {
   if (!customerId) return;
@@ -123,6 +191,18 @@ async function upsertSubscriptionGrant(sub: Stripe.Subscription) {
   // together they define the window the included-print meter counts over (src/data/printWindow.ts),
   // and `interval` is what makes the yearly-only annual print pool offerable at all.
   const periodStart = periodStartSeconds(sub);
+  const periodStartIso = periodStart ? new Date(periodStart * 1000).toISOString() : null;
+  const interval = billingInterval(sub);
+  // MUST be computed BEFORE the upsert and BEFORE the sibling is expired below — it reads the
+  // outgoing tier's still-active row to work out what the user already served this term.
+  const termAllocation = await termAllocationFor(
+    userId,
+    product,
+    interval,
+    periodStartIso,
+    Date.now(),
+  );
+
   const db = service();
   await db.from('entitlements').upsert(
     {
@@ -130,8 +210,9 @@ async function upsertSubscriptionGrant(sub: Stripe.Subscription) {
       product,
       source: 'stripe',
       expires_at: new Date(expiresAtMs).toISOString(),
-      interval: billingInterval(sub),
-      period_start: periodStart ? new Date(periodStart * 1000).toISOString() : null,
+      interval,
+      period_start: periodStartIso,
+      term_print_allocation: termAllocation,
     },
     { onConflict: 'user_id,product' },
   );

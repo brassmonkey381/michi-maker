@@ -109,15 +109,28 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     fullPrint: true,
     includedPrintsPerMonth: 1,
   },
-  // $9.99/mo or $99.99/yr.
+  // $9.99/mo or $99.99/yr. Included prints cut 5 -> 3 (owner call 2026-07-19): a yearly VIP pool
+  // of 60 was more print than the tier could carry. 3/mo = 36 on a yearly term.
   vip: {
     binders: Infinity,
     pagesPerBinder: Infinity,
     composerPagesPerMonth: Infinity,
     artUploads: Infinity,
     fullPrint: true,
-    includedPrintsPerMonth: 5,
+    includedPrintsPerMonth: 3,
   },
+};
+
+/**
+ * Included prints per month by tier, for code that has a PRODUCT key rather than a Tier — chiefly
+ * the prorated upgrade maths. Kept beside TIER_LIMITS so the two can't drift.
+ *
+ * MIRRORED in supabase/functions/payments-webhook/index.ts, which computes a term's allocation at
+ * upgrade time and cannot import from here (Deno edge runtime). Change both together.
+ */
+export const PRINTS_PER_MONTH: Record<string, number> = {
+  [PRODUCTS.tierPro]: TIER_LIMITS.pro.includedPrintsPerMonth,
+  [PRODUCTS.tierVip]: TIER_LIMITS.vip.includedPrintsPerMonth,
 };
 
 /** Permissive limits (every cap unlimited) — used whenever LIMITS_ENFORCED is off. */

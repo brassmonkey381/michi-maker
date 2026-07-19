@@ -307,6 +307,7 @@ export type Database = {
           period_start: string | null
           product: string
           source: string
+          term_print_allocation: number | null
           user_id: string
         }
         Insert: {
@@ -316,6 +317,7 @@ export type Database = {
           period_start?: string | null
           product: string
           source?: string
+          term_print_allocation?: number | null
           user_id: string
         }
         Update: {
@@ -325,6 +327,7 @@ export type Database = {
           period_start?: string | null
           product?: string
           source?: string
+          term_print_allocation?: number | null
           user_id?: string
         }
         Relationships: []

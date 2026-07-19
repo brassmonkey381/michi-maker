@@ -28,7 +28,7 @@ comment on column public.entitlements.period_start is
 
 -- ── The annual print pool ─────────────────────────────────────────────────────────────────
 --
--- A yearly subscriber has already paid for the whole year's prints (PRO 1/mo = 12, VIP 5/mo
+-- A yearly subscriber has already paid for the whole year's prints (PRO 1/mo = 12, VIP 3/mo
 -- = 60). By default we still release them a month at a time so the meter reads the same for
 -- everyone; unlocking the pool releases the full year's allocation at once.
 --
@@ -63,7 +63,7 @@ create policy "Users can read their own pool unlocks"
 --
 -- SECOND CONDITION — "spend one first" (owner decision 2026-07-19). Releasing a whole year of
 -- prints to an account that has never printed anything is the chargeback shape we care about:
--- subscribe, drain 60 prints, dispute. Requiring at least one recorded print IN THIS TERM means
+-- subscribe, drain a whole year of prints, dispute. Requiring one recorded print IN THIS TERM means
 -- every pool unlock is preceded by the user actually generating and (presumably) liking a sheet.
 -- Scoped to the current term rather than "ever" so a renewal re-proves it — a renewing
 -- subscriber only needs their first print of the new year, which they were going to take anyway.

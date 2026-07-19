@@ -16,7 +16,7 @@ active while `expires_at` is NULL or in the future.
 | product key | what it is / unlocks | notes |
 | ----------- | -------------------- | ----- |
 | `tier_pro`  | PRO subscription — full print (1 included print/mo) + higher limits | `expires_at` per period |
-| `tier_vip`  | VIP subscription — unlimited + 5 included prints/mo + priority | `expires_at` per period |
+| `tier_vip`  | VIP subscription — unlimited + 3 included prints/mo + priority | `expires_at` per period |
 | `pdf_binder:<id>` | one-time single-binder fill-sheet PDF ($3.99) — a **SNAPSHOT license**: the binder as it is when the purchase is spent (first download), re-downloadable forever; later edits need a new purchase | checked directly (`products.includes('pdf_binder:<id>')`); spend/fingerprint/archive in `src/data/pdfSnapshot.ts` + `binder_pdf_snapshots` + the `binder-pdfs` bucket; re-purchase re-arms via `granted_at` (webhook bumps it) |
 | `tcgscan_pro` | **CROSS-APP** — TCGScan Pro (sold by the sibling app). Unlocks scan-powered michi features (Build-a-binder-from-your-collection) + drives the bundle cross-sell | read via `hasTcgscanPro()`; michi never resolves a tier from it. See **docs/SYNERGY.md** |
 
@@ -45,7 +45,7 @@ while multi-buy users keep a picker of everything they've paid for.
 
 ### Included prints & the annual pool
 
-PRO includes 1 full-binder print per period, VIP 5 (`tiers.ts includedPrintsPerMonth`). WHICH
+PRO includes 1 full-binder print per period, VIP 3 (`tiers.ts includedPrintsPerMonth`). WHICH
 period that is comes from `src/data/printWindow.ts` (`resolvePrintWindow`), which both the print
 sheet and the plan meters read through so they can never quote different numbers:
 
@@ -53,7 +53,7 @@ sheet and the plan meters read through so they can never quote different numbers
 | --- | --- | --- |
 | `calendar` | no `period_start` (manual grant, lifetime unlock, pre-migration row) | monthly |
 | `month` | any subscriber, sliced from the billing anniversary | monthly |
-| `year` | yearly subscriber who unlocked their pool | monthly × 12 (PRO 12, VIP 60) |
+| `year` | yearly subscriber who unlocked their pool | `term_print_allocation` (PRO 12, VIP 36 on a full year) |
 
 The `month` slice replaced a plain calendar-month count, which handed out two allocations in four
 days to anyone who subscribed on the 28th. Slicing from `period_start` (rather than trusting it to
@@ -65,7 +65,7 @@ one month at a time — they already paid for them. Two rules, both enforced by 
 
 1. **Yearly + active + exactly this term.** `interval = 'year'` on a live `tier_pro`/`tier_vip`
    row whose `period_start` matches the row being inserted.
-2. **Spend one first.** At least one `print_events` row in the current term. Releasing 60 prints
+2. **Spend one first.** At least one `print_events` row in the current term. Releasing a year of prints
    to an account that never printed anything is the chargeback shape we care about; requiring one
    real print first means every unlock follows actual use of the feature. Scoped to the term, so a
    renewal re-proves it with a print the user was going to take anyway.
@@ -74,6 +74,25 @@ It is **irreversible within a term** by construction: the table has no UPDATE or
 so there is no "re-lock" path (there is no honest answer to "what's my monthly allowance now?"
 after someone has burned 8 of 12). Renewal writes a new `period_start`, which has no unlock row —
 the pool resets to monthly release with no cleanup job.
+
+**Mid-term upgrades are prorated** (`20260719160000_term_print_allocation.sql`). The pool total is
+NOT `rate × 12` off the current tier — that let someone 11 months into PRO buy a ~$5 prorated VIP
+upgrade and release a full VIP year. `entitlements.term_print_allocation`, written by the webhook,
+holds the real figure:
+
+```
+allocation = oldRate × monthsElapsed + newRate × monthsRemaining
+```
+
+You keep your old rate for months already served and get the new rate for months still to come.
+Upgrading to VIP yearly 8 months into a PRO year gives `1×8 + 3×4 = 20`, which is the owner's
+framing (full PRO year 12, plus 4 months of VIP 12, minus the 4 PRO months replaced 4). A fresh
+subscriber is the `monthsElapsed = 0` case, so the column is always populated for a yearly term.
+
+The webhook recomputes ONLY on a real product change (an ACTIVE sibling tier on the same
+`period_start`); otherwise it preserves the stored value, because `customer.subscription.updated`
+fires for payment-method and dunning events too and recomputing would walk the allocation down as
+`monthsElapsed` grows. NULL falls back to `rate × 12`.
 
 Caveat to keep in mind: `print_events` is **client-reported**, so rule 2 proves intent, not
 fulfilment. It is a friction gate, not a security boundary — the right weight while prints are

@@ -35,6 +35,7 @@ interface TierState {
   products: string[];
   interval: BillingInterval | null;
   periodStart: string | null;
+  termAllocation: number | null;
 }
 
 export interface UseTier {
@@ -56,6 +57,11 @@ export interface UseTier {
   interval: BillingInterval | null;
   /** ISO start of the active tier's CURRENT billing term; null when there isn't one. */
   periodStart: string | null;
+  /**
+   * Included prints for the WHOLE current term — the annual pool total, already prorated by the
+   * webhook when the user upgraded mid-term. null = fall back to a full year at the current rate.
+   */
+  termAllocation: number | null;
   /** True while the first query for the current identity is still in flight. */
   loading: boolean;
   refresh: () => void;
@@ -112,6 +118,9 @@ export function useTier(): UseTier {
           interval: rawInterval === 'month' || rawInterval === 'year' ? rawInterval : null,
           periodStart:
             (tierRow as { period_start?: string | null } | undefined)?.period_start ?? null,
+          termAllocation:
+            (tierRow as { term_print_allocation?: number | null } | undefined)
+              ?.term_print_allocation ?? null,
         });
       });
     return () => {
@@ -131,6 +140,7 @@ export function useTier(): UseTier {
     products: known ? state!.products : [],
     interval: known ? state!.interval : null,
     periodStart: known ? state!.periodStart : null,
+    termAllocation: known ? state!.termAllocation : null,
     loading: !!supabase && isSignedIn && !!user && !known,
     refresh,
   };

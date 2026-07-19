@@ -63,6 +63,7 @@ export function PrintPlaceholdersSheet({
     limits,
     interval,
     periodStart,
+    termAllocation,
     loading: entLoading,
     refresh,
   } = useTier();
@@ -122,7 +123,8 @@ export function PrintPlaceholdersSheet({
   const versionPaidFor = pState === 'current';
 
   // Subscriber print credits: the included allocation for the CURRENT window — normally this
-  // billing month (PRO 1 / VIP 5), or the whole year at once (PRO 12 / VIP 60) for a yearly
+  // billing month (PRO 1 / VIP 3), or the whole term at once (PRO 12 / VIP 36 on a full year,
+  // less if they upgraded mid-term — see term_print_allocation) for a yearly
   // subscriber who released their pool. Only a CONFIRMED credit spend records usage. Infinity
   // (flag off) = no credit language at all.
   const allowance = usePrintAllowance({
@@ -130,6 +132,7 @@ export function PrintPlaceholdersSheet({
     includedPerMonth: limits.includedPrintsPerMonth,
     interval,
     periodStart,
+    termAllocation,
   });
   const { metered, left: creditsLeft, offer: poolOffer, window: printWindow } = allowance;
   const printsUsed = allowance.used;

@@ -149,7 +149,7 @@ export interface CompareRow {
  * PDF. Derived from the plan prices above — recompute if any of the three changes:
  *
  *   PRO yearly  $39.99 / 12 prints = $3.33 each → 16% less than $3.99
- *   VIP yearly  $99.99 / 60 prints = $1.67 each → 58% less than $3.99
+ *   VIP yearly  $99.99 / 36 prints = $2.78 each → 30% less than $3.99
  *
  * This attributes the WHOLE subscription price to prints, which is deliberately the conservative
  * framing: even valuing binders/pages/artworks at zero, prints alone come out cheaper. It is NOT
@@ -161,7 +161,7 @@ export interface CompareRow {
  */
 export const YEARLY_PRINT_VALUE = {
   pro: { each: '$3.33', off: '16%' },
-  vip: { each: '$1.67', off: '58%' },
+  vip: { each: '$2.78', off: '30%' },
 };
 
 /** The capability comparison, Free/PRO/VIP only (guest is unadvertised). */
@@ -224,12 +224,12 @@ export const COMPARISON: CompareRow[] = [
     pro: {
       text: 'Full binders',
       strong: true,
-      sub: `1 print included each month · yearly: all 12 whenever you want, about ${YEARLY_PRINT_VALUE.pro.off} less per print`,
+      sub: `1 print included each month · yearly: all 12 whenever you want, about ${YEARLY_PRINT_VALUE.pro.off} less per print · move up to VIP any time, prorated‖`,
     },
     vip: {
       text: 'Full binders',
       strong: true,
-      sub: `5 prints included each month · yearly: all 60 whenever you want, about ${YEARLY_PRINT_VALUE.vip.off} less per print · first in line for print extras*`,
+      sub: `3 prints included each month · yearly: all 36 whenever you want, about ${YEARLY_PRINT_VALUE.vip.off} less per print · first in line for print extras*`,
     },
   },
   {
@@ -275,6 +275,15 @@ export const FOOTNOTES: { mark: string; text: string; link?: { label: string; ur
       `works out to about ${YEARLY_PRINT_VALUE.pro.each} on PRO yearly and ` +
       `${YEARLY_PRINT_VALUE.vip.each} on VIP yearly, next to ${ONE_TIME_PDF.price} for a one-off ` +
       'single-binder PDF. Month-to-month plans get their prints a month at a time.',
+  },
+  {
+    mark: '‖',
+    text:
+      'Moving up a plan is prorated, so you only pay the difference for the time left in your ' +
+      'year rather than starting over. Your prints are prorated the same way: you keep everything ' +
+      'your old plan already earned this year and pick up the new plan’s rate for every month ' +
+      'still to come. Upgrading to VIP yearly eight months into a PRO year gives you 20 prints ' +
+      'for the year, not a fresh 36 and not the 12 you started with.',
   },
 ];
 

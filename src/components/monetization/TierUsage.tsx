@@ -97,7 +97,7 @@ interface PlanDetails {
 
 /** The current plan + usage block (Settings PLAN section, /subscriptions YOUR PLAN section). */
 export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }) {
-  const { tier, hasFullPrint, interval, periodStart, limits } = useTier();
+  const { tier, hasFullPrint, interval, periodStart, termAllocation, limits } = useTier();
   const { user } = useAuth();
   const { binderCount } = useBinders();
   // Planned caps, not live limits — see the header comment for the LIMITS_ENFORCED flip note.
@@ -114,6 +114,7 @@ export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }
     includedPerMonth: caps.includedPrintsPerMonth,
     interval,
     periodStart,
+    termAllocation,
   });
   // The pool CONTROL, unlike the meter, follows LIVE enforcement: releasing "your year of prints"
   // is meaningless while included prints aren't metered at all, and offering it here when the

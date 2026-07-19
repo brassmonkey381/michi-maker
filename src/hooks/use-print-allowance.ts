@@ -29,6 +29,8 @@ export interface PrintAllowanceInput {
   interval: BillingInterval | null;
   /** ISO, from the active tier entitlement row. */
   periodStart: string | null;
+  /** entitlements.term_print_allocation — the term's pool total, prorated for mid-term upgrades. */
+  termAllocation?: number | null;
 }
 
 export interface PrintAllowance {
@@ -52,7 +54,7 @@ export interface PrintAllowance {
 }
 
 export function usePrintAllowance(input: PrintAllowanceInput): PrintAllowance {
-  const { enabled, includedPerMonth, interval, periodStart } = input;
+  const { enabled, includedPerMonth, interval, periodStart, termAllocation } = input;
   const [window, setWindow] = useState<PrintWindow | null>(null);
   const [used, setUsed] = useState<number | null>(null);
   const [offer, setOffer] = useState<PoolOffer>({ state: 'none' });
@@ -84,6 +86,7 @@ export function usePrintAllowance(input: PrintAllowanceInput): PrintAllowance {
         interval,
         periodStartMs: hasTerm ? periodStartMs : null,
         poolUnlocked,
+        termAllocation,
         nowMs: Date.now(),
       });
       if (!live) return;
@@ -114,6 +117,7 @@ export function usePrintAllowance(input: PrintAllowanceInput): PrintAllowance {
           periodStartMs,
           poolUnlocked,
           printsThisTerm: termCount,
+          termAllocation,
         }),
       );
     })();
@@ -121,7 +125,7 @@ export function usePrintAllowance(input: PrintAllowanceInput): PrintAllowance {
     return () => {
       live = false;
     };
-  }, [enabled, includedPerMonth, interval, periodStart, generation]);
+  }, [enabled, includedPerMonth, interval, periodStart, termAllocation, generation]);
 
   const unlock = useCallback(async () => {
     if (!periodStart || unlocking) return false;

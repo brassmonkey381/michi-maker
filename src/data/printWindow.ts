@@ -13,8 +13,10 @@
  *               anniversary. Used for monthly subscribers AND for yearly subscribers who
  *               haven't unlocked their pool. Fixes the old calendar-month bug where subscribing
  *               on the 28th handed out two allocations in four days.
- *   'year'      The whole annual term at once: 12× the monthly allocation, released to a yearly
- *               subscriber who has unlocked their pool (PRO 12, VIP 60).
+ *   'year'      The whole annual term at once, released to a yearly subscriber who unlocked their
+ *               pool. The total is `term_print_allocation` when the webhook has computed one —
+ *               PRO 12 / VIP 36 on a full year, PRORATED down if they upgraded mid-term — and
+ *               falls back to 12× the monthly rate when it hasn't.
  *
  * The pool unlock is IRREVERSIBLE within a term and resets on renewal — that lives in the
  * schema (no update/delete policies, row keyed to period_start), not here.
@@ -44,7 +46,19 @@ export interface PrintWindowInput {
   periodStartMs: number | null;
   /** Has this exact term's annual pool been unlocked? */
   poolUnlocked: boolean;
+  /**
+   * entitlements.term_print_allocation — prints for the WHOLE term, already prorated for any
+   * mid-term upgrade by the webhook. null falls back to a full year at the current rate, which is
+   * right for fresh subscribers and for rows written before the column existed.
+   */
+  termAllocation?: number | null;
   nowMs: number;
+}
+
+/** The term's pool total: the stored (prorated) figure when we have one, else a full year. */
+function poolTotal(includedPerMonth: number, termAllocation?: number | null): number {
+  if (!Number.isFinite(includedPerMonth)) return includedPerMonth; // unlimited stays unlimited
+  return termAllocation != null ? termAllocation : includedPerMonth * MONTHS_PER_YEAR;
 }
 
 /**
@@ -81,7 +95,7 @@ function calendarMonthStart(nowMs: number): number {
 
 /** The window the user's included prints are counted over right now. */
 export function resolvePrintWindow(input: PrintWindowInput): PrintWindow {
-  const { includedPerMonth, interval, periodStartMs, poolUnlocked, nowMs } = input;
+  const { includedPerMonth, interval, periodStartMs, poolUnlocked, termAllocation, nowMs } = input;
 
   // No billing term to anchor to → calendar month, as before terms existed.
   if (periodStartMs == null || !Number.isFinite(periodStartMs)) {
@@ -98,9 +112,7 @@ export function resolvePrintWindow(input: PrintWindowInput): PrintWindow {
   if (interval === 'year' && poolUnlocked) {
     return {
       startMs: periodStartMs,
-      allocation: Number.isFinite(includedPerMonth)
-        ? includedPerMonth * MONTHS_PER_YEAR
-        : includedPerMonth,
+      allocation: poolTotal(includedPerMonth, termAllocation),
       kind: 'year',
       resetsAtMs: addMonths(periodStartMs, MONTHS_PER_YEAR),
     };
@@ -125,6 +137,8 @@ export interface PoolOfferInput {
   poolUnlocked: boolean;
   /** Prints recorded since the start of the current TERM (not the current monthly slice). */
   printsThisTerm: number;
+  /** Prorated term total; see PrintWindowInput.termAllocation. */
+  termAllocation?: number | null;
 }
 
 export type PoolOffer =
@@ -143,11 +157,12 @@ export type PoolOffer =
  * decides what the UI offers, so the two must be kept in step.
  */
 export function resolvePoolOffer(input: PoolOfferInput): PoolOffer {
-  const { includedPerMonth, interval, periodStartMs, poolUnlocked, printsThisTerm } = input;
+  const { includedPerMonth, interval, periodStartMs, poolUnlocked, printsThisTerm, termAllocation } =
+    input;
   if (interval !== 'year' || periodStartMs == null) return { state: 'none' };
   // Unlimited (metering off) or no allocation at all — a pool is meaningless either way.
   if (!Number.isFinite(includedPerMonth) || includedPerMonth <= 0) return { state: 'none' };
-  const total = includedPerMonth * MONTHS_PER_YEAR;
+  const total = poolTotal(includedPerMonth, termAllocation);
   if (poolUnlocked) return { state: 'unlocked', total };
   // "Spend one first": proof the user has actually used the feature before we release the year.
   if (printsThisTerm < 1) return { state: 'needsFirstPrint', total };

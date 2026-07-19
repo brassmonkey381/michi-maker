@@ -23,6 +23,8 @@ export interface EntitlementDetail {
   interval: BillingInterval | null;
   /** ISO start of the CURRENT billing term — the anchor the print meter counts from. */
   periodStart: string | null;
+  /** Included prints for the whole term (prorated at upgrade); null = full year at current rate. */
+  termAllocation: number | null;
 }
 
 /** 'month' / 'year' only — anything else the DB holds is not a shape we sell. */
@@ -41,5 +43,7 @@ export async function fetchEntitlementDetails(): Promise<EntitlementDetail[]> {
     source: (r as { source?: string | null }).source ?? null,
     interval: readInterval((r as { interval?: unknown }).interval),
     periodStart: (r as { period_start?: string | null }).period_start ?? null,
+    termAllocation:
+      (r as { term_print_allocation?: number | null }).term_print_allocation ?? null,
   }));
 }

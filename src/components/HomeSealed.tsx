@@ -95,8 +95,8 @@ type Item =
 
 export function HomeSealed({ languages }: { languages?: CardLanguage[] }) {
   const { sealed, priceOf } = useSealed();
-  // The tiny public taxonomy (guest-safe) carries series logos — join by the set's series name to
-  // put the same logo the Recent & Upcoming filler shows on each sealed set header.
+  // The tiny public taxonomy (guest-safe) carries set logos — join by set id (sealed set ids share
+  // the taxonomy's set-id space) to put the SET logo on each sealed set header.
   const tax = useTaxonomy(true);
   const [width, setWidth] = useState(0);
   const gap = Spacing.two;
@@ -144,7 +144,7 @@ export function HomeSealed({ languages }: { languages?: CardLanguage[] }) {
                     date={item.date}
                     upcoming={item.upcoming}
                     width={tileWidth}
-                    logoUri={tax?.getSeries(item.set.series)?.coverUri}
+                    logoUri={tax?.getSet(item.set.id)?.coverUri}
                   />
                 ) : (
                   <SealedTile key={item.key} product={item.product} value={item.value} width={tileWidth} />
@@ -169,7 +169,7 @@ function SetHeader({
   date: string;
   upcoming: boolean;
   width: number;
-  /** Series logo (from the taxonomy), when resolved. */
+  /** Set logo (from the taxonomy), when resolved. */
   logoUri?: string;
 }) {
   return (

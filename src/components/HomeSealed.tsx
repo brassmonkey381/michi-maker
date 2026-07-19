@@ -13,6 +13,7 @@ import { useMemo, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
+  CARD_SIZE_SCALE,
   productUrl,
   sealedLanguageOf,
   useSealed,
@@ -21,6 +22,8 @@ import {
   type SealedProduct,
   type SealedSet,
 } from 'tcgscan-browse';
+
+import { useCardSize } from '@/lib/cardSizePref';
 
 import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { HomeSection } from '@/components/HomeSection';
@@ -95,6 +98,8 @@ type Item =
 export function HomeSealed({ languages }: { languages?: CardLanguage[] }) {
   const { sealed, priceOf } = useSealed();
   const [width, setWidth] = useState(0);
+  const [cardSize] = useCardSize();
+  const sizeScale = CARD_SIZE_SCALE[cardSize];
   const gap = Spacing.two;
   const langSet = useMemo(
     () => (languages && languages.length ? new Set(languages) : null),
@@ -115,9 +120,11 @@ export function HomeSealed({ languages }: { languages?: CardLanguage[] }) {
 
   if (!sealed || items.length === 0) return null; // no gap until the (small) sealed catalog lands
 
-  // Uniform tiles (~144px target), chunked into full-width pages so paging snaps cleanly —
-  // the same measure-and-chunk pattern as BinderCarousel.
-  const perPage = width > 0 ? Math.max(2, Math.min(8, Math.floor((width + gap) / (144 + gap)))) : 3;
+  // Uniform tiles chunked into full-width pages so paging snaps cleanly. The ~144px target and the
+  // image height scale with the app-wide card size (S/M/L) so sealed tiles match every other strip.
+  const tileTarget = 144 * sizeScale;
+  const imgH = Math.round(IMG_H * sizeScale);
+  const perPage = width > 0 ? Math.max(2, Math.min(8, Math.floor((width + gap) / (tileTarget + gap)))) : 3;
   const tileWidth = width > 0 ? (width - gap * (perPage - 1)) / perPage : 0;
   const pages: Item[][] = [];
   for (let i = 0; i < items.length; i += perPage) pages.push(items.slice(i, i + perPage));
@@ -135,7 +142,7 @@ export function HomeSealed({ languages }: { languages?: CardLanguage[] }) {
                 item.type === 'header' ? (
                   <SetHeader key={item.key} set={item.set} date={item.date} upcoming={item.upcoming} width={tileWidth} />
                 ) : (
-                  <SealedTile key={item.key} product={item.product} value={item.value} width={tileWidth} />
+                  <SealedTile key={item.key} product={item.product} value={item.value} width={tileWidth} imgH={imgH} />
                 ),
               )}
             </View>
@@ -174,17 +181,19 @@ function SealedTile({
   product,
   value,
   width,
+  imgH,
 }: {
   product: SealedProduct;
   value: number;
   width: number;
+  imgH: number;
 }) {
   return (
     <Pressable
       style={{ width }}
       onPress={() => Linking.openURL(productUrl(product.id)).catch(() => {})}
       accessibilityRole="link">
-      <View style={styles.imageWrap}>
+      <View style={[styles.imageWrap, { height: imgH }]}>
         {product.imageSmall ? (
           <Image
             source={{ uri: product.imageSmall }}

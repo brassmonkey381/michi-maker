@@ -45,8 +45,11 @@ import {
   type UserCard,
 } from '@/data/collectionRepo';
 import { EXAMPLE_COLLECTION_CSV, EXAMPLE_COLLECTION_NAME } from '@/data/exampleCollection';
+import { CARD_SIZE_SCALE, cardTierFor } from 'tcgscan-browse';
+
 import { isSupabaseConfigured } from '@/lib/env';
 import { cardThumbUrl } from '@/lib/catalogConfig';
+import { useCardSize } from '@/lib/cardSizePref';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
@@ -795,11 +798,14 @@ function TileStrip({
   const [page, setPage] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
   const containerRef = useRef<View>(null);
+  const [cardSize] = useCardSize();
   const gap = Spacing.two;
+  // Tile width follows the app-wide card size (S/M/L) so the collection strip matches other surfaces.
+  const tileW = Math.round(TILE_W * CARD_SIZE_SCALE[cardSize]);
 
   // Whole tiles per page from the measured width; each page spans exactly the container so
   // paging snaps cleanly.
-  const perPage = width > 0 ? Math.max(2, Math.floor((width + gap) / (TILE_W + gap))) : 2;
+  const perPage = width > 0 ? Math.max(2, Math.floor((width + gap) / (tileW + gap))) : 2;
   const pages: UserCard[][] = [];
   for (let i = 0; i < cards.length; i += perPage) pages.push(cards.slice(i, i + perPage));
   const pageCount = pages.length;
@@ -855,6 +861,7 @@ function TileStrip({
                   card={item}
                   placed={placedCounts.get(item.cardId) ?? 0}
                   selected={selected.has(item.cardId)}
+                  tileW={tileW}
                   onPress={() => onPress(item)}
                 />
               ))}
@@ -1003,24 +1010,32 @@ function CardTile({
   card,
   placed,
   selected,
+  tileW,
   onPress,
 }: {
   card: UserCard;
   placed: number;
   selected: boolean;
+  tileW: number;
   onPress: () => void;
 }) {
-  const uri = cardThumbUrl(card.cardId, 245);
+  const uri = cardThumbUrl(card.cardId, cardTierFor(tileW));
   const free = Math.max(0, card.quantity - placed);
   const exhausted = free === 0;
   return (
     <Pressable
-      style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.tile, { width: tileW }, pressed && styles.pressed]}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       accessibilityLabel={`${free} of ${card.quantity} copies free to place`}>
-      <View style={[styles.imageWrap, selected && styles.imageWrapSelected]}>
+      <View
+        style={[
+          styles.imageWrap,
+          { width: tileW, height: Math.round(tileW * CARD_ASPECT) },
+          selected && styles.imageWrapSelected,
+        ]}>
+
         {uri ? (
           <Image
             source={{ uri }}

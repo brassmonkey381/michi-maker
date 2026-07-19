@@ -19,6 +19,7 @@ import { RecentProducts, type CardLanguage } from 'tcgscan-browse';
 
 import { HomeSection } from '@/components/HomeSection';
 import { LanguageToggle } from '@/components/LanguageToggle';
+import { useCardSize } from '@/lib/cardSizePref';
 import { isPremiumRarity } from '@/data/premiumRarity';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useBrowseTheme } from '@/lib/browseTheme';
@@ -44,6 +45,7 @@ export function HomeRecent({
 }) {
   const { catalog } = useCatalog(true);
   const browseTheme = useBrowseTheme();
+  const [cardSize] = useCardSize();
   // EN / JP filter for THIS section's Sets + Cards carousels — EN only by default.
   const [langs, setLangs] = useState<CardLanguage[]>(() => recentLangPref ?? languages ?? ['en']);
   const changeLangs = (v: CardLanguage[]) => {
@@ -65,6 +67,7 @@ export function HomeRecent({
         cardLimit={Infinity}
         rarityFilter={(card) => isPremiumRarity(card.rarity)}
         languages={langs}
+        cardSize={cardSize}
         onFindSimilar={(card) => onFindSimilar?.(card.id)}
         onViewSet={(card) => onViewSet?.(card.id)}
         onOpenSet={(set) => onOpenSet?.(set.id, set.seriesId)}

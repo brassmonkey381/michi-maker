@@ -16,6 +16,7 @@ import { CatalogBrowser, type CardActionsFactory, type CardLanguage } from 'tcgs
 
 import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { useBrowseTheme } from '@/lib/browseTheme';
+import { useCardSize } from '@/lib/cardSizePref';
 
 /**
  * Dev/QA override: append `?coldsearch` to the URL (web) to force the COLD path — the kit
@@ -64,6 +65,8 @@ export function CardBrowse({
   // App tokens → the kit's color contract, so the browser follows light/dark + variant
   // instead of falling back to the kit's built-in light look.
   const browseTheme = useBrowseTheme();
+  // Follow the app-wide card size as this browser's default; its own toolbar S/M/L still overrides.
+  const [cardSize] = useCardSize();
   return (
     <CatalogBrowser
       theme={browseTheme}
@@ -75,6 +78,7 @@ export function CardBrowse({
       cardActions={cardActions}
       initialSimilar={initialSimilar}
       languages={languages}
+      cardSize={cardSize}
       footer={null}
       cardTileWidth={CARD_BROWSE_TILE_WIDTH}
       taxTileHeight={CARD_BROWSE_TAX_TILE_HEIGHT}

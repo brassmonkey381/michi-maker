@@ -28,9 +28,9 @@ export function BinderCarousel({
   const [width, setWidth] = useState(0);
   const gap = Spacing.three;
 
-  // Tiles per page from the measured width: aim for ~300px tiles, between 2 (phone) and 5
-  // (wide desktop). Each page is exactly the container width so paging snaps cleanly.
-  const perPage = width > 0 ? Math.max(2, Math.min(5, Math.floor((width + gap) / (300 + gap)))) : 2;
+  // Tiles per page from the measured width — bigger binders: 1 (phone), 2 (tablet), 3 (wide
+  // desktop), capped at 3. Each page is exactly the container width so paging snaps cleanly.
+  const perPage = width > 0 ? Math.max(1, Math.min(3, Math.floor((width + gap) / (300 + gap)))) : 1;
   const tileWidth = width > 0 ? (width - gap * (perPage - 1)) / perPage : 0;
 
   const pages: DemoBinder[][] = [];

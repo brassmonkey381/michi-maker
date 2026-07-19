@@ -11,16 +11,16 @@
  *   `useTier().limits` so live enforcement and the meters can never disagree.
  */
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { FontSize, Palette, Radius, Spacing } from '@/constants/theme';
+import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { openBillingPortal } from '@/data/checkout';
 import { fetchEntitlementDetails } from '@/data/entitlementRepo';
-import { countPrintsThisMonth } from '@/data/printRepo';
 import { countLiveSavedSlices } from '@/data/sliceRepo';
-import { CHECKOUT_OPEN } from '@/data/subscriptions';
+import { ANNUAL_POOL, CHECKOUT_OPEN } from '@/data/subscriptions';
 import { isActive, PRODUCTS, TIER_LIMITS, type Tier } from '@/data/tiers';
+import { usePrintAllowance } from '@/hooks/use-print-allowance';
 import { useTier } from '@/hooks/use-tier';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
@@ -97,16 +97,38 @@ interface PlanDetails {
 
 /** The current plan + usage block (Settings PLAN section, /subscriptions YOUR PLAN section). */
 export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }) {
-  const { tier } = useTier();
+  const { tier, hasFullPrint, interval, periodStart, limits } = useTier();
   const { user } = useAuth();
   const { binderCount } = useBinders();
   // Planned caps, not live limits — see the header comment for the LIMITS_ENFORCED flip note.
   const caps = TIER_LIMITS[tier];
 
-  // Server-counted usage: artworks kept (live saved slices) + this month's fill-sheet prints.
+  // Included prints: allocation + usage for the CURRENT window (this billing month, or the whole
+  // year for a yearly subscriber who released their pool). Resolved through the same hook the
+  // print sheet uses, so the windowing logic can't drift between the two surfaces.
+  //
+  // Fed the PLANNED caps, matching the meters around it — while LIMITS_ENFORCED is off the live
+  // limits read as unlimited and this meter would vanish entirely.
+  const allowance = usePrintAllowance({
+    enabled: hasFullPrint,
+    includedPerMonth: caps.includedPrintsPerMonth,
+    interval,
+    periodStart,
+  });
+  // The pool CONTROL, unlike the meter, follows LIVE enforcement: releasing "your year of prints"
+  // is meaningless while included prints aren't metered at all, and offering it here when the
+  // print sheet (which reads live limits) shows an unmetered Download button would let someone
+  // burn an irreversible unlock on nothing.
+  const poolEnabled = Number.isFinite(limits.includedPrintsPerMonth);
+  const printCount = allowance.used;
+  const printWindow = allowance.window;
+  const poolOffer = allowance.offer;
+  const printAllocation = printWindow?.allocation ?? caps.includedPrintsPerMonth;
+  const [confirmingPool, setConfirmingPool] = useState(false);
+
+  // Server-counted usage: artworks kept (live saved slices).
   // Meters appear once counted; a failed count just leaves that meter off (never a spinner).
   const [artCount, setArtCount] = useState<number | null>(null);
-  const [printCount, setPrintCount] = useState<number | null>(null);
   const [details, setDetails] = useState<PlanDetails | null>(null);
   const [portalNote, setPortalNote] = useState<string | null>(null);
   const isGuest = tier === 'guest';
@@ -146,11 +168,6 @@ export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }
     countLiveSavedSlices()
       .then((n) => {
         if (live) setArtCount(n);
-      })
-      .catch(() => {});
-    countPrintsThisMonth()
-      .then((n) => {
-        if (live) setPrintCount(n);
       })
       .catch(() => {});
     return () => {
@@ -211,16 +228,84 @@ export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }
           ) : null}
           {printCount != null && caps.includedPrintsPerMonth > 0 ? (
             <TierUsage
-              label="Included prints used this month"
+              label={
+                printWindow?.kind === 'year'
+                  ? 'Included prints used this year'
+                  : 'Included prints used this month'
+              }
               used={printCount}
-              limit={caps.includedPrintsPerMonth}
+              limit={printAllocation}
               note={
-                Number.isFinite(caps.includedPrintsPerMonth)
-                  ? 'Full-binder fill-sheet PDFs included with your plan each month.'
+                Number.isFinite(printAllocation)
+                  ? printWindow?.kind === 'year'
+                    ? 'Full-binder fill-sheet PDFs. You released your whole year at once.'
+                    : 'Full-binder fill-sheet PDFs included with your plan each month.'
                   : undefined
               }
             />
           ) : null}
+
+          {/* ── The annual print pool: yearly subscribers only, and only once included prints
+                 are actually metered (see poolEnabled above) ────────────────────────────── */}
+          {!poolEnabled ? null : poolOffer.state === 'needsFirstPrint' ? (
+            <ThemedText type="small" themeColor="textSecondary" style={styles.included}>
+              {ANNUAL_POOL.needsFirstPrint(poolOffer.total)}
+            </ThemedText>
+          ) : poolOffer.state === 'unlocked' ? (
+            <ThemedText type="small" themeColor="textSecondary" style={styles.included}>
+              {ANNUAL_POOL.unlocked(poolOffer.total)}
+            </ThemedText>
+          ) : poolOffer.state === 'available' && confirmingPool ? (
+            // Irreversible for the term, so it never fires on a single tap.
+            <View style={styles.confirmBox}>
+              <ThemedText type="smallBold">{ANNUAL_POOL.title(poolOffer.total)}</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
+                {ANNUAL_POOL.body(poolOffer.total, caps.includedPrintsPerMonth)}
+              </ThemedText>
+              <View style={styles.confirmRow}>
+                <Pressable
+                  onPress={() => setConfirmingPool(false)}
+                  style={({ pressed }) => [styles.cancelBtn, pressed && styles.dim]}>
+                  <Text style={styles.cancelBtnText}>{ANNUAL_POOL.cancel}</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    void allowance.unlock().then((ok) => {
+                      if (ok) setConfirmingPool(false);
+                    });
+                  }}
+                  disabled={allowance.unlocking}
+                  style={({ pressed }) => [
+                    styles.confirmBtn,
+                    (pressed || allowance.unlocking) && styles.dim,
+                  ]}>
+                  {allowance.unlocking ? (
+                    <ActivityIndicator color={Palette.accentText} />
+                  ) : (
+                    <Text style={styles.confirmBtnText}>{ANNUAL_POOL.cta(poolOffer.total)}</Text>
+                  )}
+                </Pressable>
+              </View>
+            </View>
+          ) : poolOffer.state === 'available' ? (
+            <ThemedText
+              type="linkPrimary"
+              style={styles.manage}
+              onPress={() => setConfirmingPool(true)}>
+              Use all {poolOffer.total} of this year’s prints ›
+            </ThemedText>
+          ) : hasFullPrint && interval === 'month' && caps.includedPrintsPerMonth > 0 ? (
+            // Month-to-month subscribers have no pool to release — one honest line, not a nag.
+            <ThemedText type="small" themeColor="textSecondary" style={styles.included}>
+              {ANNUAL_POOL.monthlyUpsell}
+            </ThemedText>
+          ) : null}
+          {allowance.error ? (
+            <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
+              {allowance.error}
+            </ThemedText>
+          ) : null}
+
           <ThemedText type="small" themeColor="textSecondary" style={styles.included}>
             Your plan includes similarity matching and every composer method
             {caps.includedPrintsPerMonth > 0 && Number.isFinite(caps.includedPrintsPerMonth)
@@ -296,4 +381,40 @@ const styles = StyleSheet.create({
   note: { lineHeight: 18 },
   included: { lineHeight: 18 },
   manage: { fontSize: FontSize.label, marginTop: 2 },
+  // Matches the print sheet's confirm step (accent-outlined box, cancel + commit pair) so the
+  // same irreversible decision looks the same wherever it's offered.
+  confirmBox: {
+    borderWidth: 1.5,
+    borderColor: Palette.accent,
+    borderRadius: Radius.control,
+    padding: Spacing.three,
+    gap: Spacing.two,
+  },
+  confirmRow: { flexDirection: 'row', gap: Spacing.two, alignItems: 'center' },
+  confirmBtn: {
+    flex: 1,
+    backgroundColor: Palette.accent,
+    borderRadius: Radius.control,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.two,
+    minHeight: 40,
+  },
+  confirmBtnText: {
+    color: Palette.accentText,
+    fontSize: FontSize.label,
+    fontWeight: Weight.semibold,
+  },
+  cancelBtn: {
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
+    borderRadius: Radius.control,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    minHeight: 40,
+  },
+  cancelBtnText: { color: Palette.accent, fontSize: FontSize.label, fontWeight: Weight.semibold },
+  dim: { opacity: 0.6 },
 });

@@ -30,9 +30,10 @@ import {
   type PurchasedVersion,
   type PurchaseStatus,
 } from '@/data/pdfSnapshot';
-import { countPrintsThisMonth, recordPrintEvent } from '@/data/printRepo';
-import { BINDER_PDF_LOOKUP_KEY, CHECKOUT_OPEN } from '@/data/subscriptions';
+import { recordPrintEvent } from '@/data/printRepo';
+import { ANNUAL_POOL, BINDER_PDF_LOOKUP_KEY, CHECKOUT_OPEN } from '@/data/subscriptions';
 import { useCatalog } from '@/hooks/use-catalog';
+import { usePrintAllowance } from '@/hooks/use-print-allowance';
 import { useTier } from '@/hooks/use-tier';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
@@ -56,7 +57,15 @@ export function PrintPlaceholdersSheet({
   // as it is when the purchase is spent (first download), forever. Editing the binder afterwards
   // requires a new unlock (or a plan) to print the edited version — the purchased version stays
   // downloadable from its archive.
-  const { hasFullPrint, products, limits, loading: entLoading, refresh } = useTier();
+  const {
+    hasFullPrint,
+    products,
+    limits,
+    interval,
+    periodStart,
+    loading: entLoading,
+    refresh,
+  } = useTier();
   const purchased = products.includes(`pdf_binder:${binder.id}`);
 
   // Back from Stripe checkout ON THIS PAGE (?checkout=success): the webhook grant lags the
@@ -82,10 +91,11 @@ export function PrintPlaceholdersSheet({
   const [error, setError] = useState<string | null>(null);
   // The pending consequential action awaiting the user's explicit CONFIRM (nothing spends a
   // credit, locks a snapshot, or leaves for checkout on first click):
-  //  'credit' → subscriber spends 1 included monthly print on this version
+  //  'credit' → subscriber spends 1 included print on this version
   //  'spend'  → a one-time purchase locks onto the binder's current version
   //  'buy'    → leave for Stripe checkout ($3.99 unlock)
-  const [confirming, setConfirming] = useState<null | 'credit' | 'spend' | 'buy'>(null);
+  //  'pool'   → yearly subscriber releases the whole year's prints at once (IRREVERSIBLE)
+  const [confirming, setConfirming] = useState<null | 'credit' | 'spend' | 'buy' | 'pool'>(null);
   // Where this binder's printed/purchased VERSIONS stand (subscribers archive credit prints the
   // same way purchases archive spends, so both get free re-downloads); null while resolving.
   const [pStatus, setPStatus] = useState<PurchaseStatus | null>(null);
@@ -111,26 +121,21 @@ export function PrintPlaceholdersSheet({
   // regenerating it is a FREE re-download for everyone (no credit, no purchase).
   const versionPaidFor = pState === 'current';
 
-  // Subscriber print credits: N included full-binder prints per month (PRO 1 / VIP 5). Only a
-  // CONFIRMED credit spend records usage. Infinity (flag off) = no credit language at all.
-  const allocation = limits.includedPrintsPerMonth;
-  const metered = hasFullPrint && Number.isFinite(allocation);
-  const [printsUsed, setPrintsUsed] = useState<number | null>(null);
-  useEffect(() => {
-    if (!metered) return;
-    let live = true;
-    countPrintsThisMonth()
-      .then((n) => {
-        if (live) setPrintsUsed(n);
-      })
-      .catch(() => {
-        if (live) setPrintsUsed(0); // count failure must not brick a paid plan
-      });
-    return () => {
-      live = false;
-    };
-  }, [metered]);
-  const creditsLeft = metered ? Math.max(0, (allocation as number) - (printsUsed ?? 0)) : Infinity;
+  // Subscriber print credits: the included allocation for the CURRENT window — normally this
+  // billing month (PRO 1 / VIP 5), or the whole year at once (PRO 12 / VIP 60) for a yearly
+  // subscriber who released their pool. Only a CONFIRMED credit spend records usage. Infinity
+  // (flag off) = no credit language at all.
+  const allowance = usePrintAllowance({
+    enabled: hasFullPrint,
+    includedPerMonth: limits.includedPrintsPerMonth,
+    interval,
+    periodStart,
+  });
+  const { metered, left: creditsLeft, offer: poolOffer, window: printWindow } = allowance;
+  const printsUsed = allowance.used;
+  const allocation = printWindow?.allocation ?? limits.includedPrintsPerMonth;
+  // Every "N left …" / "renews …" line has to name the right window or the numbers read as a bug.
+  const periodWord = printWindow?.kind === 'year' ? 'this year' : 'this month';
 
   // Cards the user owns (My collection) — owned placeholders print green when the toggle is
   // on, so the cut sheet doubles as a pull-list (green = go grab it) + want-list (gray).
@@ -198,7 +203,7 @@ export function PrintPlaceholdersSheet({
       // Usage bumps ONLY on a confirmed credit spend — never on free re-downloads or purchases.
       if (opts.credit) {
         recordPrintEvent(binder.id, sheets).catch(() => {});
-        setPrintsUsed((u) => (u ?? 0) + 1);
+        allowance.noteSpent();
       }
       onDone?.(sheets);
       onClose();
@@ -267,12 +272,21 @@ export function PrintPlaceholdersSheet({
       .finally(() => setBuying(false));
   };
 
-  /** The inline confirmation step for every consequential action (credit / spend / buy). */
-  const confirmCopy: Record<'credit' | 'spend' | 'buy', { title: string; body: string; cta: string }> = {
+  /** The inline confirmation step for every consequential action (credit / spend / buy / pool). */
+  const poolTotal = poolOffer.state === 'none' ? 0 : poolOffer.total;
+  const confirmCopy: Record<
+    'credit' | 'spend' | 'buy' | 'pool',
+    { title: string; body: string; cta: string }
+  > = {
     credit: {
       title: 'Use 1 included print?',
-      body: `This spends 1 of your ${Number.isFinite(allocation) ? allocation : ''} included monthly prints on this binder as it is right now. This version stays re-downloadable free, forever.`,
+      body: `This spends 1 of your ${Number.isFinite(allocation) ? allocation : ''} included prints for ${periodWord} on this binder as it is right now. This version stays re-downloadable free, forever.`,
       cta: 'Use 1 print',
+    },
+    pool: {
+      title: ANNUAL_POOL.title(poolTotal),
+      body: ANNUAL_POOL.body(poolTotal, limits.includedPrintsPerMonth),
+      cta: ANNUAL_POOL.cta(poolTotal),
     },
     spend: {
       title: 'Lock your unlock to this version?',
@@ -289,6 +303,12 @@ export function PrintPlaceholdersSheet({
     if (confirming === 'credit') void download({ credit: true });
     else if (confirming === 'spend') void download({ spend: true });
     else if (confirming === 'buy') buyBinderPdf();
+    else if (confirming === 'pool') {
+      // Stay on the sheet: releasing the pool re-resolves the window in place, so the button
+      // below turns straight back into "Use 1 included print" with the year's count.
+      setConfirming(null);
+      void allowance.unlock();
+    }
   };
 
   // Free teaser: a SHORT example PDF built from a bundled example binder (its first page of example
@@ -512,31 +532,84 @@ export function PrintPlaceholdersSheet({
                         (pressed || busy || !counts || counts.total === 0) && styles.dim,
                       ]}>
                       <Text style={styles.btnText}>
-                        Use 1 included print · {creditsLeft} of {allocation} left this month
+                        Use 1 included print · {creditsLeft} of {allocation} left {periodWord}
                       </Text>
                     </Pressable>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
                       Each print covers this binder as it is right now, and that version stays
                       re-downloadable free, forever.
                     </ThemedText>
+                    {/* Yearly subscribers who have already spent one print can release the rest
+                        of the year here, at the moment the monthly pace is on their mind. */}
+                    {poolOffer.state === 'available' ? (
+                      <ThemedText
+                        type="linkPrimary"
+                        style={styles.poolLink}
+                        onPress={() => setConfirming('pool')}>
+                        Use all {poolOffer.total} of this year’s prints instead ›
+                      </ThemedText>
+                    ) : null}
+                    {allowance.error ? (
+                      <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
+                        {allowance.error}
+                      </ThemedText>
+                    ) : null}
                   </>
                 ) : hasFullPrint ? (
-                  // Subscriber out of monthly credits: the one-time unlock bridges the gap.
+                  // Subscriber out of credits for this window. A yearly subscriber has more
+                  // prints already paid for — offer those BEFORE selling anything.
                   <View style={styles.lockedBox}>
                     <ThemedText type="smallBold">
-                      You’ve used your {allocation} included print{allocation === 1 ? '' : 's'} this month
+                      You’ve used your {allocation} included print{allocation === 1 ? '' : 's'} {periodWord}
                     </ThemedText>
-                    <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-                      Included prints renew at the start of next month. Need this one now? Unlock
-                      just this binder once for $3.99 — that version is yours to re-download
-                      forever.
-                    </ThemedText>
+                    {poolOffer.state === 'available' ? (
+                      <>
+                        <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
+                          You have {poolOffer.total} prints paid for this year. Release the rest of
+                          them now and print whenever you want.
+                        </ThemedText>
+                        <Pressable
+                          onPress={() => setConfirming('pool')}
+                          disabled={allowance.unlocking}
+                          style={({ pressed }) => [
+                            styles.btn,
+                            (pressed || allowance.unlocking) && styles.dim,
+                          ]}>
+                          {allowance.unlocking ? (
+                            <ActivityIndicator color={Palette.accentText} />
+                          ) : (
+                            <Text style={styles.btnText}>
+                              Use my {poolOffer.total} prints for the year
+                            </Text>
+                          )}
+                        </Pressable>
+                      </>
+                    ) : (
+                      <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
+                        {poolOffer.state === 'needsFirstPrint'
+                          ? ANNUAL_POOL.needsFirstPrint(poolOffer.total)
+                          : `Included prints renew ${printWindow?.kind === 'year' ? 'when your plan renews' : 'at the start of your next billing month'}. Need this one now? Unlock just this binder once for $3.99 — that version is yours to re-download forever.`}
+                      </ThemedText>
+                    )}
+                    {allowance.error ? (
+                      <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
+                        {allowance.error}
+                      </ThemedText>
+                    ) : null}
                     {CHECKOUT_OPEN ? (
                       <Pressable
                         onPress={() => setConfirming('buy')}
                         disabled={buying}
-                        style={({ pressed }) => [styles.btn, (pressed || buying) && styles.dim]}>
-                        <Text style={styles.btnText}>Unlock this binder · $3.99</Text>
+                        style={({ pressed }) => [
+                          poolOffer.state === 'available' ? styles.cancelBtn : styles.btn,
+                          (pressed || buying) && styles.dim,
+                        ]}>
+                        <Text
+                          style={
+                            poolOffer.state === 'available' ? styles.exampleBtnText : styles.btnText
+                          }>
+                          Unlock this binder · $3.99
+                        </Text>
                       </Pressable>
                     ) : null}
                   </View>
@@ -731,6 +804,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   error: { color: Palette.danger, lineHeight: 20 },
+  poolLink: { fontSize: FontSize.label, marginTop: 2 },
   lockedBox: {
     borderWidth: 1,
     borderColor: Palette.hairlineStrong,

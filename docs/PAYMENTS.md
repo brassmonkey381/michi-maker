@@ -20,8 +20,15 @@ active while `expires_at` is NULL or in the future.
 | `pdf_binder:<id>` | one-time single-binder fill-sheet PDF ($3.99) — a **SNAPSHOT license**: the binder as it is when the purchase is spent (first download), re-downloadable forever; later edits need a new purchase | checked directly (`products.includes('pdf_binder:<id>')`); spend/fingerprint/archive in `src/data/pdfSnapshot.ts` + `binder_pdf_snapshots` + the `binder-pdfs` bucket; re-purchase re-arms via `granted_at` (webhook bumps it) |
 | `tcgscan_pro` | **CROSS-APP** — TCGScan Pro (sold by the sibling app). Unlocks scan-powered michi features (Build-a-binder-from-your-collection) + drives the bundle cross-sell | read via `hasTcgscanPro()`; michi never resolves a tier from it. See **docs/SYNERGY.md** |
 
+Subscription rows also carry **`interval`** (`'month'` | `'year'`) and **`period_start`**
+(`20260719120000_billing_interval_and_print_pool.sql`), both written by the webhook from the
+Stripe price and subscription. They exist because the ledger previously could not tell a yearly
+subscriber from a monthly one (both lookup keys collapse to the same product), and because the
+included-print meter needs the real billing term to count over. See **Included prints & the
+annual pool** below.
+
 Printing your OWN binder (`PrintPlaceholdersSheet` Download) is a **PRO/VIP subscription** perk
-(subject to the monthly included-print allocation) **or** a per-binder one-time purchase
+(subject to the included-print allocation) **or** a per-binder one-time purchase
 (`pdf_binder:<id>`). There is **no lifetime all-binder unlock and no grandfathering** — prints are
 only subscriptions or per-binder purchases. Non-payers get the counts preview plus a **free short
 example PDF** (a bundled example binder's first page of example cards + artwork) — never their own
@@ -35,6 +42,46 @@ sheet lists **every purchased version for re-download (forever)** and printing t
 requires buying the binder again (the webhook bumps `granted_at`, which re-arms the spend) or a
 plan. This is what stops edit → reprint → repeat turning one $3.99 unlock into unlimited prints,
 while multi-buy users keep a picker of everything they've paid for.
+
+### Included prints & the annual pool
+
+PRO includes 1 full-binder print per period, VIP 5 (`tiers.ts includedPrintsPerMonth`). WHICH
+period that is comes from `src/data/printWindow.ts` (`resolvePrintWindow`), which both the print
+sheet and the plan meters read through so they can never quote different numbers:
+
+| window | when | allocation |
+| --- | --- | --- |
+| `calendar` | no `period_start` (manual grant, lifetime unlock, pre-migration row) | monthly |
+| `month` | any subscriber, sliced from the billing anniversary | monthly |
+| `year` | yearly subscriber who unlocked their pool | monthly × 12 (PRO 12, VIP 60) |
+
+The `month` slice replaced a plain calendar-month count, which handed out two allocations in four
+days to anyone who subscribed on the 28th. Slicing from `period_start` (rather than trusting it to
+be current) also means a lagging renewal webhook can't strand someone on a stale window.
+
+**The annual pool** lets a yearly subscriber release the whole term's prints at once instead of
+one month at a time — they already paid for them. Two rules, both enforced by the INSERT policy on
+`print_pool_unlocks`, not by client code:
+
+1. **Yearly + active + exactly this term.** `interval = 'year'` on a live `tier_pro`/`tier_vip`
+   row whose `period_start` matches the row being inserted.
+2. **Spend one first.** At least one `print_events` row in the current term. Releasing 60 prints
+   to an account that never printed anything is the chargeback shape we care about; requiring one
+   real print first means every unlock follows actual use of the feature. Scoped to the term, so a
+   renewal re-proves it with a print the user was going to take anyway.
+
+It is **irreversible within a term** by construction: the table has no UPDATE or DELETE policies,
+so there is no "re-lock" path (there is no honest answer to "what's my monthly allowance now?"
+after someone has burned 8 of 12). Renewal writes a new `period_start`, which has no unlock row —
+the pool resets to monthly release with no cleanup job.
+
+Caveat to keep in mind: `print_events` is **client-reported**, so rule 2 proves intent, not
+fulfilment. It is a friction gate, not a security boundary — the right weight while prints are
+client-generated PDFs with near-zero marginal cost. Revisit if print-on-demand ships and a pool
+unlock starts carrying real fulfilment liability.
+
+Month-to-month subscribers have no pool; they get one line pointing at yearly billing
+(`ANNUAL_POOL.monthlyUpsell`), not a recurring nag.
 
 ### Tier limits (caps) are behind a feature flag
 
@@ -64,8 +111,19 @@ insert into public.entitlements (user_id, product, source, expires_at)
 values ('<auth user id>', 'tier_pro', 'manual', now() + interval '1 month')
 on conflict (user_id, product) do update set expires_at = excluded.expires_at, source = excluded.source;
 
+-- grant a YEARLY tier — set interval + period_start too, or the annual print pool can't be
+-- offered and the print meter falls back to calendar months.
+insert into public.entitlements (user_id, product, source, expires_at, interval, period_start)
+values ('<auth user id>', 'tier_vip', 'manual', now() + interval '1 year', 'year', now())
+on conflict (user_id, product) do update
+  set expires_at = excluded.expires_at, source = excluded.source,
+      interval = excluded.interval, period_start = excluded.period_start;
+
 -- revoke
 delete from public.entitlements where user_id = '<auth user id>' and product = 'tier_pro';
+
+-- undo a pool unlock (support only — there is deliberately no in-app path)
+delete from public.print_pool_unlocks where user_id = '<auth user id>';
 ```
 
 The client re-checks per identity/mount (and `useTier().refresh()` re-polls), so a fresh grant

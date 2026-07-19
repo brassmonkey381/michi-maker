@@ -177,6 +177,36 @@ export const FOOTNOTES: { mark: string; text: string; link?: { label: string; ur
   },
 ];
 
+/**
+ * ANNUAL PRINT POOL copy — the yearly-only option to release the whole term's included prints
+ * at once instead of one month at a time (see src/data/printWindow.ts). Lives here with the rest
+ * of the plan wording so the print sheet and the plan page say the same thing.
+ *
+ * Two things the copy must carry, because both are irreversible or easily misread:
+ *   - the prints are ALREADY PAID FOR (this is not an upsell, it's a release schedule), and
+ *   - unlocking is permanent for the term, and resets at renewal.
+ */
+export const ANNUAL_POOL = {
+  /** Offered once the user has spent at least one included print this term. */
+  title: (total: number) => `Unlock all ${total} of your prints for the year?`,
+  body: (total: number, perMonth: number) =>
+    `You already paid for ${total} full-binder prints this year. Turning this on releases them ` +
+    `all now instead of ${perMonth} a month, so you can print whenever you want. This is ` +
+    `permanent for your current year and goes back to ${perMonth} a month when your plan renews.`,
+  cta: (total: number) => `Unlock all ${total}`,
+  cancel: 'Not now',
+  /** Shown to a yearly subscriber who hasn't spent a print in this term yet. */
+  needsFirstPrint: (total: number) =>
+    `Use one of your included prints first, then you can release all ${total} of this year’s ` +
+    `prints at once.`,
+  /** Steady state once released. */
+  unlocked: (total: number) =>
+    `You released all ${total} of this year’s prints. They go back to arriving monthly when your ` +
+    `plan renews.`,
+  /** Nudge for month-to-month subscribers, who have no pool to release. */
+  monthlyUpsell: 'Switch to yearly billing and you can use a whole year of prints whenever you want.',
+};
+
 export const ONE_TIME_PDF = {
   name: 'Full-binder fill-sheet PDF',
   price: '$3.99',

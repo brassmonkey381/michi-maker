@@ -13,6 +13,10 @@
  *  - customer.subscription.updated / deleted: recompute expires_at (cancel-at-period-end lapses
  *    exactly at period end; hard cancel/delete lapses now; active gets a 3-day dunning grace).
  *  Always: record the user ↔ Stripe-customer mapping in billing_customers (portal needs it).
+ *
+ * Every tier row also carries `interval` ('month' | 'year') and `period_start` — the billing
+ * term the included-print meter counts over, and the reason a yearly subscriber can be offered
+ * the annual print pool (20260719120000_billing_interval_and_print_pool.sql).
  */
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@18.5.0';
@@ -44,6 +48,28 @@ function periodEndSeconds(sub: Stripe.Subscription): number | null {
   const onItem = (sub.items?.data?.[0] as unknown as { current_period_end?: number })
     ?.current_period_end;
   return typeof onItem === 'number' ? onItem : null;
+}
+
+/** current_period_start, same two shapes. Falls back to the subscription's start_date. */
+function periodStartSeconds(sub: Stripe.Subscription): number | null {
+  const onSub = (sub as unknown as { current_period_start?: number }).current_period_start;
+  if (typeof onSub === 'number') return onSub;
+  const onItem = (sub.items?.data?.[0] as unknown as { current_period_start?: number })
+    ?.current_period_start;
+  if (typeof onItem === 'number') return onItem;
+  return typeof sub.start_date === 'number' ? sub.start_date : null;
+}
+
+/**
+ * Which billing interval was actually bought. Read from the PRICE (authoritative) rather than
+ * the `_yearly` / `_monthly` lookup-key suffix, which is only a naming convention. We sell
+ * month and year; anything else Stripe could report (day/week) is recorded as 'month' so the
+ * print meter still slices on a monthly cadence rather than falling back to calendar months.
+ */
+function billingInterval(sub: Stripe.Subscription): 'month' | 'year' | null {
+  const recurring = sub.items?.data?.[0]?.price?.recurring;
+  if (!recurring?.interval) return null;
+  return recurring.interval === 'year' ? 'year' : 'month';
 }
 
 /** Upsert the user ↔ Stripe customer mapping (needed for Customer Portal sessions). */
@@ -93,6 +119,10 @@ async function upsertSubscriptionGrant(sub: Stripe.Subscription) {
     expiresAtMs = Date.now();
   }
 
+  // Term anchor + interval. `period_start` moves forward with `expires_at` on every renewal;
+  // together they define the window the included-print meter counts over (src/data/printWindow.ts),
+  // and `interval` is what makes the yearly-only annual print pool offerable at all.
+  const periodStart = periodStartSeconds(sub);
   const db = service();
   await db.from('entitlements').upsert(
     {
@@ -100,6 +130,8 @@ async function upsertSubscriptionGrant(sub: Stripe.Subscription) {
       product,
       source: 'stripe',
       expires_at: new Date(expiresAtMs).toISOString(),
+      interval: billingInterval(sub),
+      period_start: periodStart ? new Date(periodStart * 1000).toISOString() : null,
     },
     { onConflict: 'user_id,product' },
   );

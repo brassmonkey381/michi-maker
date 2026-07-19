@@ -30,9 +30,35 @@ artworks kept (live `saved_slices` count), and included prints used this month (
 `print_events` ledger, migration `20260716220000_print_events.sql`, recorded on every fill-sheet
 download — advisory, client-reported).
 
+**Also shipped (2026-07-19): billing interval + the annual print pool.** The ledger now records
+HOW a subscription is billed and WHEN its term started, and yearly subscribers can release the
+whole year's prints at once. See **docs/PAYMENTS.md → Included prints & the annual pool** for the
+full rules; the short version:
+
+- **Schema** `20260719120000_billing_interval_and_print_pool.sql` — `entitlements.interval`
+  (`'month'`/`'year'`) + `entitlements.period_start`, plus the `print_pool_unlocks` table.
+  **Must be applied to the live DB** before yearly checkout opens; every read is defensive, so an
+  unapplied migration degrades to the old calendar-month behaviour rather than breaking print.
+- **Webhook** writes both columns from the Stripe PRICE's `recurring.interval` and the
+  subscription's `current_period_start` — the lookup-key `_yearly` suffix is a naming convention,
+  not a source of truth.
+- **Windowing** `src/data/printWindow.ts` — the included-print meter now counts over the real
+  billing term (sliced monthly from the anniversary), fixing a calendar-month bug that gave anyone
+  subscribing on the 28th two allocations in four days.
+- **The pool** — a yearly PRO gets 12, a yearly VIP 60, released on an explicit confirm.
+  **Irreversible for the term** and resets at renewal (enforced by schema shape, not code), and
+  gated on having spent at least one included print in the term (owner decision: proof the user
+  actually used the feature before we hand over a year of it).
+- **Surfaces** — the plan section (`PlanUsageSection`, primary home) and the print sheet's
+  out-of-credits box, both through the shared `usePrintAllowance` hook so the meter and the print
+  button can never disagree. Month-to-month subscribers get one yearly-billing line, not a nag.
+
 **Not done (next):** provider decision + checkout/webhook (step 3) — the /subscriptions CTAs
 reveal the honest coming-soon note until `CHECKOUT_OPEN` flips; included-prints ENFORCEMENT
-(ledger + meter exist, nothing blocks past the allocation yet); art-upload/sharing gates.
+(ledger + meter + windowing exist, nothing blocks past the allocation yet); art-upload/sharing
+gates. Also open: the comparison sheet still says "1 print included each month" for PRO and "5
+prints included each month" for VIP without mentioning that yearly buyers can take the whole year
+up front — worth saying once yearly checkout is live, since it's a genuine reason to pick yearly.
 
 ## Goal
 
@@ -121,8 +147,10 @@ sample PDF — the free preview is a premade EXAMPLE sheet (our cards, not their
 watermarked page of their binder. (Prices still live in the provider dashboard — the app
 never hardcodes price; fetch or link to a pricing page.)
 
-"Included prints per month" is the one remaining metered quantity and needs a usage counter —
-until that exists, `fullPrint` alone gates the Download button for PRO/VIP.
+"Included prints per month" is the one remaining metered quantity. The counter and the window
+resolution both exist now (`print_events` + `src/data/printWindow.ts`), and yearly subscribers can
+release the full year at once — but nothing BLOCKS past the allocation yet, so `fullPrint` alone
+still gates the Download button for PRO/VIP.
 
 ## Enforcement points (where limits plug in)
 
@@ -153,3 +181,19 @@ until that exists, `fullPrint` alone gates the Download button for PRO/VIP.
 Test account `composer.test.…@example.com` — use SQL to grant/revoke a `tier_pro` row or a
 `pdf_binder:<id>` row and drive each gate through the UI (locked note + free example → grant →
 unlocked), same pattern as the original entitlement verification.
+
+**Annual pool** (needs `EXPO_PUBLIC_LIMITS_ENFORCED=1`, or the allocation is Infinity and no
+pool language renders at all). Grant a yearly tier with `interval`/`period_start` set (SQL in
+docs/PAYMENTS.md), then walk the four states on /subscriptions and in the print sheet:
+
+1. **needsFirstPrint** — fresh term, no prints. Both surfaces say "use one first"; no unlock
+   control anywhere. Confirm a hand-written `insert into print_pool_unlocks` is REJECTED by RLS.
+2. **available** — take one included print, reload. The unlock link appears on the plan page and
+   the print sheet's out-of-credits box leads with the pool, not the $3.99 buy.
+3. **unlocked** — confirm. The meter flips to "used this year" out of 12 (PRO) / 60 (VIP), and the
+   print button reads "N of 60 left this year". Reload to confirm it survives.
+4. **reset** — push `period_start` forward a year in SQL. The pool offer returns to
+   needsFirstPrint with no unlock row, and the meter is back to the monthly slice.
+
+Also check a MONTHLY grant shows the one-line yearly nudge and never an unlock control, and that
+a manual grant with NULL `interval`/`period_start` still meters on the calendar month.

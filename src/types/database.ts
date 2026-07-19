@@ -303,6 +303,8 @@ export type Database = {
         Row: {
           expires_at: string | null
           granted_at: string
+          interval: string | null
+          period_start: string | null
           product: string
           source: string
           user_id: string
@@ -310,6 +312,8 @@ export type Database = {
         Insert: {
           expires_at?: string | null
           granted_at?: string
+          interval?: string | null
+          period_start?: string | null
           product: string
           source?: string
           user_id: string
@@ -317,8 +321,28 @@ export type Database = {
         Update: {
           expires_at?: string | null
           granted_at?: string
+          interval?: string | null
+          period_start?: string | null
           product?: string
           source?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      print_pool_unlocks: {
+        Row: {
+          period_start: string
+          unlocked_at: string
+          user_id: string
+        }
+        Insert: {
+          period_start: string
+          unlocked_at?: string
+          user_id?: string
+        }
+        Update: {
+          period_start?: string
+          unlocked_at?: string
           user_id?: string
         }
         Relationships: []

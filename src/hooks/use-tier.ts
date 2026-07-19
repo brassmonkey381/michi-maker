@@ -12,11 +12,13 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 
+import type { BillingInterval } from '@/data/printWindow';
 import {
   hasFullPrint as computeFullPrint,
   hasTcgscanPro as computeTcgscanPro,
   isActive,
   limitsForTier,
+  PRODUCTS,
   resolveTier,
   type EntitlementRow,
   type Tier,
@@ -31,6 +33,8 @@ interface TierState {
   hasFullPrint: boolean;
   hasTcgscanPro: boolean;
   products: string[];
+  interval: BillingInterval | null;
+  periodStart: string | null;
 }
 
 export interface UseTier {
@@ -44,6 +48,14 @@ export interface UseTier {
   hasTcgscanPro: boolean;
   /** ACTIVE product keys, for direct checks (e.g. the per-binder `pdf_binder:<id>` unlock). */
   products: string[];
+  /**
+   * How the ACTIVE tier subscription is billed. null for free/guest, manual grants, and rows
+   * written before the interval column existed. Yearly is what makes the annual print pool
+   * offerable (see src/data/printWindow.ts).
+   */
+  interval: BillingInterval | null;
+  /** ISO start of the active tier's CURRENT billing term; null when there isn't one. */
+  periodStart: string | null;
   /** True while the first query for the current identity is still in flight. */
   loading: boolean;
   refresh: () => void;
@@ -75,12 +87,31 @@ export function useTier(): UseTier {
         // Resolve against "now" here in the effect — never call the clock during render.
         const now = Date.now();
         const tier = resolveTier({ isSignedIn: true, rows }, now);
+        // Billing shape of the row that WON the tier resolution (a VIP row's term is the one
+        // that matters when someone holds both). Absent columns read as null — same defensive
+        // stance as the select('*') above.
+        const tierProduct =
+          tier === 'vip' ? PRODUCTS.tierVip : tier === 'pro' ? PRODUCTS.tierPro : null;
+        const tierRow = tierProduct
+          ? (data ?? []).find(
+              (r) =>
+                r.product === tierProduct &&
+                isActive(
+                  { product: r.product, expires_at: (r as { expires_at?: string | null }).expires_at ?? null },
+                  now,
+                ),
+            )
+          : undefined;
+        const rawInterval = (tierRow as { interval?: unknown } | undefined)?.interval;
         setState({
           uid: user.id,
           tier,
           hasFullPrint: computeFullPrint(tier),
           hasTcgscanPro: computeTcgscanPro(rows, now),
           products: rows.filter((r) => isActive(r, now)).map((r) => r.product),
+          interval: rawInterval === 'month' || rawInterval === 'year' ? rawInterval : null,
+          periodStart:
+            (tierRow as { period_start?: string | null } | undefined)?.period_start ?? null,
         });
       });
     return () => {
@@ -98,6 +129,8 @@ export function useTier(): UseTier {
     isPaid: tier === 'pro' || tier === 'vip',
     hasTcgscanPro: known ? state!.hasTcgscanPro : false,
     products: known ? state!.products : [],
+    interval: known ? state!.interval : null,
+    periodStart: known ? state!.periodStart : null,
     loading: !!supabase && isSignedIn && !!user && !known,
     refresh,
   };

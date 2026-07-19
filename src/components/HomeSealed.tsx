@@ -16,6 +16,7 @@ import {
   productUrl,
   sealedLanguageOf,
   useSealed,
+  useTaxonomy,
   type CardLanguage,
   type SealedCatalog,
   type SealedProduct,
@@ -94,6 +95,9 @@ type Item =
 
 export function HomeSealed({ languages }: { languages?: CardLanguage[] }) {
   const { sealed, priceOf } = useSealed();
+  // The tiny public taxonomy (guest-safe) carries series logos — join by the set's series name to
+  // put the same logo the Recent & Upcoming filler shows on each sealed set header.
+  const tax = useTaxonomy(true);
   const [width, setWidth] = useState(0);
   const gap = Spacing.two;
   const langKey = languages?.join(',');
@@ -134,7 +138,14 @@ export function HomeSealed({ languages }: { languages?: CardLanguage[] }) {
             <View key={pi} style={[styles.page, { gap }]}>
               {pg.map((item) =>
                 item.type === 'header' ? (
-                  <SetHeader key={item.key} set={item.set} date={item.date} upcoming={item.upcoming} width={tileWidth} />
+                  <SetHeader
+                    key={item.key}
+                    set={item.set}
+                    date={item.date}
+                    upcoming={item.upcoming}
+                    width={tileWidth}
+                    logoUri={tax?.getSeries(item.set.series)?.coverUri}
+                  />
                 ) : (
                   <SealedTile key={item.key} product={item.product} value={item.value} width={tileWidth} />
                 ),
@@ -152,11 +163,14 @@ function SetHeader({
   date,
   upcoming,
   width,
+  logoUri,
 }: {
   set: SealedSet;
   date: string;
   upcoming: boolean;
   width: number;
+  /** Series logo (from the taxonomy), when resolved. */
+  logoUri?: string;
 }) {
   return (
     <View style={[styles.header, { width }]}>
@@ -167,6 +181,16 @@ function SetHeader({
         {set.name}
       </Text>
       {date ? <Text style={styles.headerDate}>{date.slice(0, 7)}</Text> : null}
+      {logoUri ? (
+        <Image
+          source={{ uri: logoUri }}
+          style={styles.headerLogo}
+          contentFit="contain"
+          cachePolicy="memory-disk"
+          recyclingKey={`sealed-hdr-logo-${set.id}`}
+          transition={100}
+        />
+      ) : null}
     </View>
   );
 }
@@ -248,4 +272,5 @@ const styles = StyleSheet.create({
   headerKickerUpcoming: { color: Palette.accent },
   headerName: { fontSize: FontSize.body, fontWeight: Weight.bold, lineHeight: 17, color: Palette.ink },
   headerDate: { fontSize: FontSize.xs, color: Palette.muted },
+  headerLogo: { width: '100%', height: 44, marginTop: Spacing.one },
 });

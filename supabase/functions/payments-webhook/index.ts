@@ -178,17 +178,27 @@ async function upsertSubscriptionGrant(sub: Stripe.Subscription) {
   }
 
   const periodEnd = periodEndSeconds(sub);
+  const periodStartSec = periodStartSeconds(sub);
+  const GRACE_MS = 3 * 24 * 60 * 60 * 1000;
   let expiresAtMs: number;
   if (sub.status === 'canceled' || sub.status === 'incomplete_expired') {
     // Hard-ended: lapse at the recorded end (or immediately).
     expiresAtMs = (sub.ended_at ?? sub.canceled_at ?? Math.floor(Date.now() / 1000)) * 1000;
+  } else if ((sub.status === 'past_due' || sub.status === 'unpaid') && periodStartSec) {
+    // DUNNING: the renewal payment failed, but Stripe has already rolled the period — so
+    // periodEnd is the end of a term nobody has paid for. The active branch below would grant
+    // that whole year (caught live on the test-clock rig: a declined renewal produced a full
+    // year of access + a fresh print allocation on an open invoice). Access is held at
+    // PAID-THROUGH — the unpaid term's start, which is exactly where the old term ended — plus
+    // the same grace, so a customer mid-recovery gets their 3 days and no more. invoice.paid on
+    // recovery routes through the active branch and restores the full term.
+    expiresAtMs = periodStartSec * 1000 + GRACE_MS;
   } else if (sub.cancel_at_period_end && periodEnd) {
     // User cancelled but the term is paid through — lapse exactly at period end.
     expiresAtMs = periodEnd * 1000;
   } else if (periodEnd) {
-    // Active/renewing: period end + 3-day grace so Smart Retries dunning never gates a
-    // paying user mid-recovery. Every invoice.paid pushes this forward.
-    expiresAtMs = periodEnd * 1000 + 3 * 24 * 60 * 60 * 1000;
+    // Active: period end + grace. (Dunning no longer reaches this branch — see past_due above.)
+    expiresAtMs = periodEnd * 1000 + GRACE_MS;
   } else {
     expiresAtMs = Date.now();
   }
@@ -196,8 +206,7 @@ async function upsertSubscriptionGrant(sub: Stripe.Subscription) {
   // Term anchor + interval. `period_start` moves forward with `expires_at` on every renewal;
   // together they define the window the included-print meter counts over (src/data/printWindow.ts),
   // and `interval` is what makes the yearly-only annual print pool offerable at all.
-  const periodStart = periodStartSeconds(sub);
-  const periodStartIso = periodStart ? new Date(periodStart * 1000).toISOString() : null;
+  const periodStartIso = periodStartSec ? new Date(periodStartSec * 1000).toISOString() : null;
   const interval = billingInterval(sub);
   // MUST be computed BEFORE the upsert and BEFORE the sibling is expired below — it reads the
   // outgoing tier's still-active row to work out what the user already served this term.

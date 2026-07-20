@@ -17,6 +17,7 @@ import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { openBillingPortal } from '@/data/checkout';
 import { fetchEntitlementDetails } from '@/data/entitlementRepo';
+import { addMonths } from '@/data/printWindow';
 import { countLiveSavedSlices } from '@/data/sliceRepo';
 import { ANNUAL_POOL, CHECKOUT_OPEN } from '@/data/subscriptions';
 import { isActive, PRODUCTS, TIER_LIMITS, type Tier } from '@/data/tiers';
@@ -155,13 +156,25 @@ export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }
         const subProduct =
           tier === 'vip' ? PRODUCTS.tierVip : tier === 'pro' ? PRODUCTS.tierPro : null;
         const sub = subProduct ? activeRows.find((r) => r.product === subProduct) : undefined;
+        // The RENEWAL date is period_start + one interval — NOT expires_at. expires_at carries a
+        // 3-day dunning grace on top of the period end so a failed-payment retry can't lock out a
+        // paying customer mid-recovery. That's the right access boundary and the wrong billing
+        // date: showing it told a customer renewing Jul 17 that they renewed Jul 20, and inflated
+        // "days left" to match. Falls back to expires_at for manual grants, which have no term.
+        const startMs = sub?.periodStart ? Date.parse(sub.periodStart) : NaN;
+        const renewalMs =
+          sub?.interval && !Number.isNaN(startMs)
+            ? addMonths(startMs, sub.interval === 'year' ? 12 : 1)
+            : sub?.expiresAt
+              ? Date.parse(sub.expiresAt)
+              : NaN;
         setDetails({
           memberSince: fmt(memberSinceIso),
           planSince: fmt(sub?.grantedAt),
-          termEnds: fmt(sub?.expiresAt),
-          daysLeft: sub?.expiresAt
-            ? Math.max(0, Math.ceil((Date.parse(sub.expiresAt) - now) / 86400000))
-            : undefined,
+          termEnds: Number.isNaN(renewalMs) ? undefined : fmt(new Date(renewalMs).toISOString()),
+          daysLeft: Number.isNaN(renewalMs)
+            ? undefined
+            : Math.max(0, Math.ceil((renewalMs - now) / 86400000)),
           manualGrant: sub?.source === 'manual',
         });
       })

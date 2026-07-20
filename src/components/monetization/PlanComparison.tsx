@@ -13,11 +13,16 @@
  * "coming soon" note (CHECKOUT_OPEN in src/data/subscriptions.ts flips them into real checkout
  * launches later).
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FontSize, Palette, Radius, Shadows, Spacing, Weight } from '@/constants/theme';
-import { startCheckout } from '@/data/checkout';
+import {
+  formatMoney,
+  previewPlanChange,
+  startCheckout,
+  type PlanChangePreview,
+} from '@/data/checkout';
 import {
   CHECKOUT_CLOSED_NOTE,
   CHECKOUT_OPEN,
@@ -77,6 +82,33 @@ export function PlanComparison() {
 
   const [freeHead, proHead, vipHead] = PLAN_HEADERS;
 
+  // Real prorated cost of each upgrade available to an existing subscriber, so the CTA can quote
+  // a number instead of promising "you only pay the difference". Read-only on Stripe's side.
+  // Keyed by lookup key; a plan with no entry simply renders without a price.
+  const [previews, setPreviews] = useState<Record<string, PlanChangePreview>>({});
+  useEffect(() => {
+    if (loading) return;
+    // Only a paying subscriber has anything to prorate — planCta calls that case 'switch'.
+    const upgrades = PLAN_HEADERS.filter(
+      (p) => p.tier !== 'free' && planCta(p, tier).kind === 'switch' && p.yearlyKey,
+    );
+    if (!upgrades.length) return;
+    let live = true;
+    Promise.all(
+      upgrades.map(async (p) => [p.yearlyKey!, await previewPlanChange(p.yearlyKey!)] as const),
+    )
+      .then((pairs) => {
+        if (!live) return;
+        const next: Record<string, PlanChangePreview> = {};
+        for (const [key, preview] of pairs) if (preview) next[key] = preview;
+        setPreviews(next);
+      })
+      .catch(() => {}); // a missing price is better than a wrong one — just omit it
+    return () => {
+      live = false;
+    };
+  }, [loading, tier]);
+
   /**
    * One paid column's foot cell. What it offers depends entirely on the viewer's current plan
    * (see planCta): no downgrades, no active button on the plan you already hold, and upgrades
@@ -108,6 +140,7 @@ export function PlanComparison() {
 
     const isSwitch = cta.kind === 'switch';
     const key = plan.yearlyKey;
+    const preview = key ? previews[key] : undefined;
     return (
       <>
         <Pressable
@@ -128,6 +161,15 @@ export function PlanComparison() {
             <Text style={styles.btnText}>{cta.label}</Text>
           )}
         </Pressable>
+        {/* The real prorated figure from Stripe, not an estimate we computed. Only ever shown on
+            an upgrade, where "what does this actually cost me today" is the open question. */}
+        {isSwitch && preview ? (
+          <Text style={styles.prorated}>
+            {preview.amountDue > 0
+              ? `${formatMoney(preview.amountDue, preview.currency)} today, prorated for the rest of your year`
+              : 'Nothing to pay today — your remaining credit covers it'}
+          </Text>
+        ) : null}
         {/* The month-to-month link is a NEW-subscription choice. Offering it on an upgrade would
             imply we can move an existing yearly plan onto monthly billing, which we can't yet. */}
         {CHECKOUT_OPEN && !isSwitch && plan.monthlyKey ? (
@@ -382,6 +424,14 @@ const styles = StyleSheet.create({
   },
   btnText: { color: Palette.accentText, fontSize: FontSize.body, fontWeight: Weight.semibold },
   dim: { opacity: 0.7 },
+  prorated: {
+    fontSize: FontSize.sm,
+    color: Palette.ink2,
+    fontWeight: Weight.semibold,
+    textAlign: 'center',
+    lineHeight: 16,
+    marginTop: Spacing.one,
+  },
   monthlyLink: {
     fontSize: FontSize.sm,
     color: Palette.link,

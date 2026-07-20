@@ -7,6 +7,10 @@
  *    derived from the price. Carries client_reference_id = the Supabase user id; subscriptions
  *    also get metadata so renewal webhooks can resolve the user without a DB lookup.
  *
+ *  POST { action: 'preview_change', lookupKey } → { preview }
+ *    READ-ONLY: what moving the user's existing subscription onto that price costs today, after
+ *    proration. `preview: null` whenever there's nothing to quote. Persists nothing.
+ *
  *  POST { action: 'portal', returnUrl } → { url }
  *    A Customer Portal session (manage / cancel / payment method) for the user's mapped Stripe
  *    customer (billing_customers, written by the payments-webhook on first checkout).
@@ -134,6 +138,75 @@ Deno.serve(async (req: Request) => {
       return_url: returnUrl,
     });
     return json(200, { url: session.url });
+  }
+
+  // ── Preview a plan change ───────────────────────────────────────────────
+  // READ-ONLY. Returns what moving the user's existing subscription onto `lookupKey` would cost
+  // them TODAY, so the upgrade CTA can quote a real prorated number instead of the vague promise
+  // that they'll "only pay the difference". Stripe's create_preview builds a throwaway invoice
+  // (its id is prefixed `upcoming_in`) and persists nothing.
+  //
+  // `preview: null` is a normal answer, not an error — no billing history, no michi subscription
+  // to move, or the price is missing from this Stripe mode. Callers just omit the price line.
+  if (body.action === 'preview_change') {
+    const lookupKey = String(body.lookupKey ?? '');
+    if (!SELLABLE.has(lookupKey)) return json(400, { error: 'unknown product' });
+
+    const { data: mapping } = await service
+      .from('billing_customers')
+      .select('stripe_customer_id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (!mapping) return json(200, { preview: null });
+
+    const subs = await stripe.subscriptions.list({
+      customer: mapping.stripe_customer_id,
+      status: 'active',
+      limit: 10,
+    });
+    const current = subs.data.find((s) => {
+      const k = s.items?.data?.[0]?.price?.lookup_key ?? '';
+      return k.startsWith('michi_pro') || k.startsWith('michi_vip');
+    });
+    const item = current?.items?.data?.[0];
+    if (!current || !item) return json(200, { preview: null });
+
+    const targets = await stripe.prices.list({ lookup_keys: [lookupKey], limit: 1 });
+    const target = targets.data[0];
+    if (!target) return json(200, { preview: null });
+    // Already on it — nothing to preview.
+    if (item.price?.id === target.id) return json(200, { preview: null });
+
+    try {
+      // createPreview replaced the older retrieveUpcoming; cast because the typing varies across
+      // SDK minors and a preview that fails must degrade to "no price shown", never a 500.
+      const preview = await (
+        stripe.invoices as unknown as {
+          createPreview: (args: unknown) => Promise<Stripe.Invoice>;
+        }
+      ).createPreview({
+        customer: mapping.stripe_customer_id,
+        subscription: current.id,
+        subscription_details: {
+          items: [{ id: item.id, price: target.id }],
+          proration_behavior: 'create_prorations',
+        },
+      });
+      return json(200, {
+        preview: {
+          amountDue: preview.amount_due ?? 0,
+          currency: preview.currency ?? 'usd',
+          // Credit for unused time on the old plan shows as negative proration lines; surfacing
+          // the total lets the UI say "X credited" rather than only the net figure.
+          subtotal: preview.subtotal ?? 0,
+          fromLookupKey: item.price?.lookup_key ?? null,
+          toLookupKey: lookupKey,
+        },
+      });
+    } catch (e) {
+      console.log('plan-change preview failed', (e as Error).message);
+      return json(200, { preview: null });
+    }
   }
 
   // ── Purchase history ────────────────────────────────────────────────────

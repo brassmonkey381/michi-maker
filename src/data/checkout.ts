@@ -100,6 +100,48 @@ export async function startCheckout(
   if (Platform.OS === 'web') window.location.assign(url);
 }
 
+/** What moving an existing subscription onto another plan costs today, after proration. */
+export interface PlanChangePreview {
+  /** Charged now, in the smallest currency unit (cents). Can be 0 when credit covers it. */
+  amountDue: number;
+  currency: string;
+  /** Before any existing customer credit balance is applied. */
+  subtotal: number;
+  fromLookupKey: string | null;
+  toLookupKey: string;
+}
+
+/**
+ * Preview an upgrade's prorated cost. READ-ONLY — Stripe builds a throwaway invoice and stores
+ * nothing, so this is safe to call just to render a price.
+ *
+ * Resolves to null whenever there is nothing to quote (no subscription yet, price missing from
+ * this Stripe mode, preview call failed). Callers show the CTA without a price rather than an
+ * error: a missing number is a smaller problem than a wrong one.
+ */
+export async function previewPlanChange(lookupKey: string): Promise<PlanChangePreview | null> {
+  try {
+    const data = (await invokeStripe({ action: 'preview_change', lookupKey })) as {
+      preview?: PlanChangePreview | null;
+    };
+    return data?.preview ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Money for display: 5842 + 'usd' → "$58.42". Falls back to the raw code for odd currencies. */
+export function formatMoney(amountMinor: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: currency.toUpperCase(),
+    }).format(amountMinor / 100);
+  } catch {
+    return `${(amountMinor / 100).toFixed(2)} ${currency.toUpperCase()}`;
+  }
+}
+
 /** Open the Stripe Customer Portal (manage plan / cancel / payment method). */
 export async function openBillingPortal(): Promise<void> {
   const url = await fetchStripeUrl({ action: 'portal', returnUrl: currentReturnUrl() });

@@ -169,6 +169,24 @@ lookup keys and `metadata.michi_product`, never raw price ids):
 | `tcgscan_pro_monthly` | TBD/mo | **CROSS-APP** TCGScan Pro (`tcgscan_pro`) — needs creating |
 | `tcgscan_pro_yearly` | TBD/yr | **CROSS-APP** TCGScan Pro (`tcgscan_pro`) — needs creating |
 
+#### Product descriptions (Stripe-side copy — keep in sync with `tiers.ts`)
+
+These show on Stripe Checkout and on every invoice, so a stale one is customer-facing. Corrected
+2026-07-19: VIP still said "5 included prints" after the cut to 3, and **PRO said "100 artworks
+kept" when PRO's cap is 1,000** (100 is the Free limit) — wrong since the catalog was created.
+
+- **michi-maker PRO** (`prod_Utn8JzwQXHhDjn`): 12 binders, 40 pages each, full card catalog,
+  similarity matching and every composer method, 1,000 Slice Studio artworks kept, full-binder
+  fill-sheet PDFs with 1 included print a month (12 a year on yearly billing, usable whenever you
+  want). Move up to VIP any time, prorated.
+- **michi-maker VIP** (`prod_Utn8x7GCeGVKMw`): unlimited binders and pages, unlimited Slice Studio
+  artworks, similarity matching and every composer method, full-binder fill-sheet PDFs with 3
+  included prints a month (36 a year on yearly billing, usable whenever you want). Plus first in
+  line for print extras and a featured eligibility boost.
+
+**These are TEST-mode products.** Live mode has its own product objects — recreate the same
+descriptions there at go-live, same as the price catalog above.
+
 ### Cross-app bundle (code is live; two dashboard steps remain)
 
 `stripe-checkout` sells BOTH apps' products and applies a server-verified **bundle discount**

@@ -300,6 +300,10 @@ const styles = StyleSheet.create({
   cell: {
     flexGrow: 1,
     flexBasis: 0,
+    // Flex items default to min-width:auto, i.e. they refuse to shrink below their content's
+    // intrinsic width. With long capability sublines that pushed the whole table wider than its
+    // shell and clipped the VIP column off the right edge. Allowing 0 lets the text wrap instead.
+    minWidth: 0,
     paddingVertical: Spacing.three,
     // Tightened from `three` (16) to buy back horizontal room without touching column ratios.
     paddingHorizontal: Spacing.two,
@@ -309,7 +313,10 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Palette.hairline,
   },
-  labelCell: { flexGrow: 1.3, borderLeftWidth: 1, borderLeftColor: Palette.hairline },
+  // 0.85, down from 1.3. The capability labels are short ("Binders", "Sharing") and were taking
+  // ~28% of the table; the plan columns carry the dense copy and need the room. This hands the
+  // difference to the three plan columns, VIP most of all.
+  labelCell: { flexGrow: 0.85, borderLeftWidth: 1, borderLeftColor: Palette.hairline },
   freeCol: { flexGrow: 1 },
   proCol: {
     flexGrow: 1.1,

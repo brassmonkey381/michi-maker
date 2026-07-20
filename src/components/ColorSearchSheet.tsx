@@ -126,9 +126,11 @@ export function ColorSearchSheet({
             <ScrollView style={styles.help} contentContainerStyle={styles.helpContent}>
               {REGION_HELP.map((h) => (
                 <View key={h.label} style={styles.helpItem}>
-                  <Text style={styles.helpLabel}>{h.label}</Text>
                   <Image source={h.img} style={styles.helpImg} contentFit="contain" />
-                  <Text style={styles.helpDesc}>{h.desc}</Text>
+                  <View style={styles.helpText}>
+                    <Text style={styles.helpLabel}>{h.label}</Text>
+                    <Text style={styles.helpDesc}>{h.desc}</Text>
+                  </View>
                 </View>
               ))}
             </ScrollView>
@@ -198,12 +200,13 @@ const styles = StyleSheet.create({
   helpBtnOn: { backgroundColor: Palette.accent, borderColor: Palette.accent },
   helpTxt: { fontSize: FontSize.control, fontWeight: Weight.bold, color: Palette.ink2 },
   helpTxtOn: { color: Palette.accentText },
-  help: { maxHeight: 320, borderRadius: Radius.control, backgroundColor: Palette.panel },
-  helpContent: { gap: Spacing.three, padding: Spacing.three },
-  helpItem: { gap: Spacing.one },
-  helpLabel: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.ink },
-  helpImg: { width: '100%', height: 130, borderRadius: Radius.control, backgroundColor: Palette.surface },
-  helpDesc: { fontSize: FontSize.xs, lineHeight: 16, color: Palette.ink2 },
+  help: { maxHeight: 520, borderRadius: Radius.control, backgroundColor: Palette.panel },
+  helpContent: { gap: Spacing.four, padding: Spacing.three },
+  helpItem: { flexDirection: 'row', gap: Spacing.three, alignItems: 'center' },
+  helpImg: { width: 170, height: 240, borderRadius: Radius.control, backgroundColor: Palette.surface },
+  helpText: { flex: 1, gap: Spacing.one },
+  helpLabel: { fontSize: FontSize.body, fontWeight: Weight.bold, color: Palette.ink },
+  helpDesc: { fontSize: FontSize.control, lineHeight: 19, color: Palette.ink2 },
   picker: { gap: Spacing.two },
   hint: { fontSize: FontSize.xs, color: Palette.muted },
   msg: { fontSize: FontSize.control, color: Palette.muted },

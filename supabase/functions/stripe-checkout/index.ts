@@ -409,6 +409,27 @@ Deno.serve(async (req: Request) => {
         (target.recurring?.interval === 'year' ? 12 : 1) -
           monthsElapsed((periodStartSec ?? 0) * 1000, Date.now()),
       );
+      // A standalone invoice charges the CUSTOMER's default payment method — which is routinely
+      // unset even when the subscription has a card, because Checkout attaches the card to the
+      // SUBSCRIPTION. That is exactly what broke the first live attempt: invoices.pay had nothing
+      // to charge, so a correct $60.00 invoice was raised and immediately voided. Resolve the
+      // method explicitly, preferring the card already paying for this subscription.
+      let payMethod =
+        typeof current.default_payment_method === 'string'
+          ? current.default_payment_method
+          : (current.default_payment_method?.id ?? null);
+      if (!payMethod) {
+        const cust = (await stripe.customers.retrieve(customerId)) as Stripe.Customer;
+        const cpm = cust.invoice_settings?.default_payment_method;
+        payMethod = typeof cpm === 'string' ? cpm : (cpm?.id ?? null);
+      }
+      if (!payMethod) {
+        return json(402, {
+          error:
+            'We don’t have a saved payment method for this account. Add one in Manage billing, then try the upgrade again.',
+        });
+      }
+
       let invoiceId: string | undefined;
       try {
         // Customer-level pending item (no `subscription`), so the standalone invoice below sweeps
@@ -425,12 +446,14 @@ Deno.serve(async (req: Request) => {
           collection_method: 'charge_automatically',
           auto_advance: false,
           pending_invoice_items_behavior: 'include',
+          default_payment_method: payMethod,
           description: 'michi-maker plan change (prorated for the rest of your term)',
           metadata: { michi_plan_change: marker, supabase_user_id: user.id },
         });
         invoiceId = invoice.id;
         const finalized = await stripe.invoices.finalizeInvoice(invoice.id!);
-        const paid = await stripe.invoices.pay(finalized.id!);
+        // Pass the method again — belt and braces if the invoice default didn't stick.
+        const paid = await stripe.invoices.pay(finalized.id!, { payment_method: payMethod });
         if (paid.status !== 'paid') throw new Error(`invoice status ${paid.status}`);
         invoiceUrl = paid.hosted_invoice_url ?? null;
       } catch (e) {

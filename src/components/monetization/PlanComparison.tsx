@@ -65,7 +65,7 @@ export function PlanComparison() {
   const { isSignedIn } = useAuth();
   // The note under the pressed CTA: the coming-soon line while checkout is closed, a sign-in
   // nudge for guests, or a checkout error. Never a silent no-op.
-  const [note, setNote] = useState<{ tier: string; text: string } | null>(null);
+  const [note, setNote] = useState<{ tier: string; text: string; error?: boolean } | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
   const buy = async (plan: PlanHeader, lookupKey?: string) => {
@@ -193,7 +193,9 @@ export function PlanComparison() {
                       if (++polls >= 8) clearInterval(id);
                     }, 1500);
                   })
-                  .catch((e) => setNote({ tier: plan.tier, text: (e as Error).message }))
+                  .catch((e) =>
+                    setNote({ tier: plan.tier, text: (e as Error).message, error: true }),
+                  )
                   .finally(() => setSwitching(false));
               }}
               disabled={switching}
@@ -205,7 +207,9 @@ export function PlanComparison() {
               )}
             </Pressable>
           </View>
-          {note?.tier === plan.tier ? <Text style={styles.ctaNote}>{note.text}</Text> : null}
+          {note?.tier === plan.tier ? (
+            <Text style={[styles.ctaNote, note.error && styles.ctaError]}>{note.text}</Text>
+          ) : null}
         </View>
       );
     }
@@ -562,6 +566,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   ctaNote: { fontSize: FontSize.sm, color: Palette.muted, lineHeight: 16, marginTop: Spacing.one },
+  // A failed payment must not read like a muted aside — the first live failure went unnoticed.
+  ctaError: { color: Palette.danger, fontWeight: Weight.semibold },
   // Keeps the foot row's height stable when a column offers nothing (downgrades, or while the
   // tier is still resolving) so the table doesn't jump as the entitlement read lands.
   footPlaceholder: { minHeight: 38 },

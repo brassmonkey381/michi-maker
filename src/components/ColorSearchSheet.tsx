@@ -7,8 +7,9 @@
  *   · SIMILAR — seeded from a card → findSimilarByColor (warm on-device; falls back to a note).
  * Region toggle: full card face ("Full art") vs illustration window ("Art panel").
  */
+import { Image } from 'expo-image';
 import { useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { findSimilarByColor, searchByColors, srgbToLab, useColorIndex, type ColorRegion, type Lab } from 'tcgscan-browse';
 
 import { GradientMixBar, HsvColorPicker, stopWeights, type Stop } from '@/components/color/ColorPicker';
@@ -19,13 +20,19 @@ const REGIONS: { value: ColorRegion; label: string }[] = [
   { value: 'art', label: 'Art panel' },
 ];
 
-/** What each region analyzes — shown in the "?" help (text mirrors the pipeline's MODE_INFO). */
-const REGION_HELP: { label: string; desc: string }[] = [
+/** What each region analyzes — shown in the "?" help (text + explainer image, from the pipeline's
+ *  colors.py `explain` / MODE_INFO). */
+const REGION_HELP: { label: string; desc: string; img: number }[] = [
   {
     label: 'Full art — no border',
     desc: 'Uses the whole card face — illustration, text box and background. Only the outer border is ignored.',
+    img: require('@/assets/images/color-help-noborder.png'),
   },
-  { label: 'Art panel', desc: "Focuses on just the illustration window. Only the artwork's colors are used." },
+  {
+    label: 'Art panel',
+    desc: "Focuses on just the illustration window. Only the artwork's colors are used.",
+    img: require('@/assets/images/color-help-art.png'),
+  },
 ];
 
 // Session-sticky picker state so reopening the picker resumes the last color mix + region (module
@@ -116,14 +123,15 @@ export function ColorSearchSheet({
           </View>
 
           {showHelp ? (
-            <View style={styles.help}>
+            <ScrollView style={styles.help} contentContainerStyle={styles.helpContent}>
               {REGION_HELP.map((h) => (
                 <View key={h.label} style={styles.helpItem}>
                   <Text style={styles.helpLabel}>{h.label}</Text>
+                  <Image source={h.img} style={styles.helpImg} contentFit="contain" />
                   <Text style={styles.helpDesc}>{h.desc}</Text>
                 </View>
               ))}
-            </View>
+            </ScrollView>
           ) : null}
 
           {similarUnavailable ? (
@@ -190,9 +198,11 @@ const styles = StyleSheet.create({
   helpBtnOn: { backgroundColor: Palette.accent, borderColor: Palette.accent },
   helpTxt: { fontSize: FontSize.control, fontWeight: Weight.bold, color: Palette.ink2 },
   helpTxtOn: { color: Palette.accentText },
-  help: { gap: Spacing.two, padding: Spacing.three, borderRadius: Radius.control, backgroundColor: Palette.panel },
-  helpItem: { gap: 2 },
+  help: { maxHeight: 320, borderRadius: Radius.control, backgroundColor: Palette.panel },
+  helpContent: { gap: Spacing.three, padding: Spacing.three },
+  helpItem: { gap: Spacing.one },
   helpLabel: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.ink },
+  helpImg: { width: '100%', height: 130, borderRadius: Radius.control, backgroundColor: Palette.surface },
   helpDesc: { fontSize: FontSize.xs, lineHeight: 16, color: Palette.ink2 },
   picker: { gap: Spacing.two },
   hint: { fontSize: FontSize.xs, color: Palette.muted },

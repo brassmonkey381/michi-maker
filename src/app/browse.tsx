@@ -10,7 +10,7 @@
  * the pending command lands the moment this page's CatalogBrowser subscribes.
  */
 import { useRouter } from 'expo-router';
-import { type CardAction, type CardActionsFactory } from 'tcgscan-browse';
+import { sendBrowseCommand, type CardAction, type CardActionsFactory } from 'tcgscan-browse';
 import { useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -140,9 +140,11 @@ export default function BrowseScreen() {
         <ColorSearchSheet
           seedCardId={colorSheet.seedCardId}
           seedName={colorSheet.seedName}
-          onPickCard={(id) => {
+          onResults={(ids, label) => {
+            // Push the ranked ids into the browser as a result set — facets / multi-select / actions
+            // / sort all apply, exactly like a search.
+            sendBrowseCommand({ type: 'showCards', ids, label });
             setColorSheet(null);
-            setAddCardIds([id]);
           }}
           onClose={() => setColorSheet(null)}
         />

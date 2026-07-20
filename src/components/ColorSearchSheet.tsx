@@ -1,25 +1,15 @@
 /**
- * Search-by-color sheet — two modes over the kit's color client:
- *   · PICK    — a gradient mix bar with up to 3 draggable color STOPS (positions set the weights)
- *               + a continuous HSV picker per stop → cards whose palette best matches that weighted
- *               mix (the SAME set-distance the similarity metric uses).
- *   · SIMILAR — seeded from a card → cards with the nearest palette (find_similar_by_color).
- * Region toggle: full card face ("Full art") vs illustration window ("Art panel"). Results are card
- * ids rendered by thumbnail; tapping one bubbles up (→ add to a binder). On-device when the color
- * blob is loaded (instant), else the data-server RPCs (debounced).
+ * Search-by-color PICKER sheet. Builds a query and hands the resulting card ids back to the browse
+ * page (`onResults`), which pushes them into the CatalogBrowser as a result set — so color results
+ * get the full search-result treatment (facets, multi-select, sort, card actions).
+ *   · PICK    — a gradient mix bar with up to 3 draggable color STOPS (positions set the weights) +
+ *               a continuous HSV picker per stop → searchByColors.
+ *   · SIMILAR — seeded from a card → findSimilarByColor (warm on-device; falls back to a note).
+ * Region toggle: full card face ("Full art") vs illustration window ("Art panel").
  */
-import { Image } from 'expo-image';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import {
-  cardThumbUrl,
-  findSimilarByColor,
-  searchByColors,
-  srgbToLab,
-  useColorIndex,
-  type ColorRegion,
-  type Lab,
-} from 'tcgscan-browse';
+import { useMemo, useState } from 'react';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { findSimilarByColor, searchByColors, srgbToLab, useColorIndex, type ColorRegion, type Lab } from 'tcgscan-browse';
 
 import { GradientMixBar, HsvColorPicker, stopWeights, type Stop } from '@/components/color/ColorPicker';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
@@ -32,54 +22,43 @@ const REGIONS: { value: ColorRegion; label: string }[] = [
 export function ColorSearchSheet({
   seedCardId,
   seedName,
-  onPickCard,
+  onResults,
   onClose,
 }: {
   seedCardId?: string;
   seedName?: string;
-  onPickCard: (cardId: string) => void;
+  /** The ranked result ids (nearest first) + a short label — the page shows them in the browser. */
+  onResults: (ids: string[], label: string) => void;
   onClose: () => void;
 }) {
   const colorIndex = useColorIndex(true);
   const [region, setRegion] = useState<ColorRegion>('noborder');
-  // Three color stops (primary / secondary / tertiary) along the mix bar.
   const [stops, setStops] = useState<Stop[]>([
     { pos: 0.2, rgb: [226, 59, 59] },
     { pos: 0.5, rgb: [59, 123, 226] },
     { pos: 0.8, rgb: [237, 226, 58] },
   ]);
   const [editing, setEditing] = useState<number | null>(null);
-  const [ids, setIds] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState('');
 
   const similarUnavailable = Boolean(seedCardId) && !(colorIndex && seedCardId && colorIndex.has(seedCardId));
 
-  // Weighted query palette from the stops (positions → weights that sum to 1).
   const query = useMemo<Lab[]>(() => {
     const w = stopWeights(stops);
     return stops.map((s, i) => ({ ...srgbToLab(s.rgb[0], s.rgb[1], s.rgb[2]), w: w[i] })).filter((c) => c.w > 0);
   }, [stops]);
 
-  const run = useCallback(async () => {
-    setLoading(true);
-    let result: string[] = [];
-    if (seedCardId) {
-      if (colorIndex?.has(seedCardId)) result = await findSimilarByColor(seedCardId, region, { limit: 60 });
-    } else if (query.length) {
-      result = await searchByColors(query, region, { limit: 60 });
-    }
-    setIds(result);
-    setLoading(false);
-  }, [seedCardId, colorIndex, query, region]);
-
-  // Do NOT auto-search while dragging stops/sliders — it re-rendered the results grid mid-drag and
-  // fought the drag responder. Search runs on open, on a region change, when the on-device index
-  // loads, and on the explicit "Find matches" button (below).
-  const runRef = useRef(run);
-  runRef.current = run;
-  useEffect(() => {
-    runRef.current();
-  }, [region, seedCardId, colorIndex]);
+  const findMatches = async () => {
+    setBusy(true);
+    setNote('');
+    const ids = seedCardId
+      ? await findSimilarByColor(seedCardId, region, { limit: 120 })
+      : await searchByColors(query, region, { limit: 120 });
+    setBusy(false);
+    if (ids.length) onResults(ids, seedCardId ? `Similar: ${seedName ?? 'card'}` : 'Color mix');
+    else setNote('No color matches.');
+  };
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
@@ -94,7 +73,6 @@ export function ColorSearchSheet({
             </Pressable>
           </View>
 
-          {/* Region toggle */}
           <View style={styles.regionRow}>
             {REGIONS.map((r) => {
               const on = r.value === region;
@@ -106,8 +84,11 @@ export function ColorSearchSheet({
             })}
           </View>
 
-          {/* Gradient mix bar + per-stop HSV picker (PICK mode only) */}
-          {!seedCardId ? (
+          {similarUnavailable ? (
+            <Text style={styles.msg}>
+              Similar-by-color needs the on-device color data (still publishing). Use the color picker meanwhile.
+            </Text>
+          ) : !seedCardId ? (
             <View style={styles.picker}>
               <Text style={styles.hint}>Drag the stops to reweight · tap a stop to change its color</Text>
               <GradientMixBar stops={stops} onChange={setStops} onEditColor={setEditing} />
@@ -118,52 +99,20 @@ export function ColorSearchSheet({
                   onClose={() => setEditing(null)}
                 />
               ) : null}
-              <Pressable
-                onPress={run}
-                disabled={loading}
-                style={({ pressed }) => [styles.searchBtn, pressed && styles.pressed]}
-                accessibilityRole="button">
-                <Text style={styles.searchBtnText}>{loading ? 'Searching…' : 'Find matches'}</Text>
-              </Pressable>
-            </View>
-          ) : null}
-
-          {/* Results */}
-          {similarUnavailable ? (
-            <View style={styles.center}>
-              <Text style={styles.empty}>
-                Similar-by-color needs the on-device color data (still publishing). Try the color picker meanwhile.
-              </Text>
-            </View>
-          ) : loading ? (
-            <View style={styles.center}>
-              <ActivityIndicator color={Palette.accent} />
-            </View>
-          ) : ids.length === 0 ? (
-            <View style={styles.center}>
-              <Text style={styles.empty}>No color matches.</Text>
             </View>
           ) : (
-            <FlatList
-              data={ids}
-              numColumns={4}
-              keyExtractor={(id) => id}
-              columnWrapperStyle={styles.grid}
-              contentContainerStyle={styles.gridContent}
-              renderItem={({ item }) => {
-                const uri = cardThumbUrl(item, 245);
-                return (
-                  <Pressable style={styles.cell} onPress={() => onPickCard(item)} accessibilityLabel="Add this card to a binder">
-                    <View style={styles.cellImgWrap}>
-                      {uri ? (
-                        <Image source={{ uri }} style={styles.cellImg} contentFit="contain" cachePolicy="memory-disk" recyclingKey={item} transition={100} />
-                      ) : null}
-                    </View>
-                  </Pressable>
-                );
-              }}
-            />
+            <Text style={styles.msg}>Find cards whose palette is closest to this card.</Text>
           )}
+
+          {note ? <Text style={styles.note}>{note}</Text> : null}
+
+          <Pressable
+            onPress={findMatches}
+            disabled={busy || similarUnavailable}
+            style={({ pressed }) => [styles.searchBtn, (busy || similarUnavailable) && styles.searchBtnOff, pressed && styles.pressed]}
+            accessibilityRole="button">
+            <Text style={styles.searchBtnText}>{busy ? 'Searching…' : 'Find matches'}</Text>
+          </Pressable>
         </Pressable>
       </Pressable>
     </Modal>
@@ -179,32 +128,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,
     paddingBottom: Spacing.six,
-    maxHeight: '88%',
+    gap: Spacing.three,
   },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.three },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { flex: 1, fontSize: FontSize.body, fontWeight: Weight.bold, color: Palette.ink },
   close: { fontSize: FontSize.md, color: Palette.muted, paddingHorizontal: Spacing.two },
-  regionRow: { flexDirection: 'row', gap: Spacing.two, marginBottom: Spacing.three },
+  regionRow: { flexDirection: 'row', gap: Spacing.two },
   regionBtn: { paddingVertical: 6, paddingHorizontal: Spacing.three, borderRadius: Radius.pill, backgroundColor: Palette.panel },
   regionBtnOn: { backgroundColor: Palette.accent },
   regionTxt: { fontSize: FontSize.label, fontWeight: Weight.semibold, color: Palette.ink2 },
   regionTxtOn: { color: Palette.accentText },
-  picker: { marginBottom: Spacing.three, gap: Spacing.two },
+  picker: { gap: Spacing.two },
   hint: { fontSize: FontSize.xs, color: Palette.muted },
-  searchBtn: {
-    marginTop: Spacing.one,
-    paddingVertical: Spacing.two,
-    borderRadius: Radius.pill,
-    backgroundColor: Palette.accent,
-    alignItems: 'center',
-  },
+  msg: { fontSize: FontSize.control, color: Palette.muted },
+  note: { fontSize: FontSize.control, color: Palette.muted, textAlign: 'center' },
+  searchBtn: { paddingVertical: Spacing.two, borderRadius: Radius.pill, backgroundColor: Palette.accent, alignItems: 'center' },
+  searchBtnOff: { opacity: 0.5 },
   searchBtnText: { fontSize: FontSize.control, fontWeight: Weight.bold, color: Palette.accentText },
   pressed: { opacity: 0.7 },
-  center: { paddingVertical: Spacing.six, alignItems: 'center', justifyContent: 'center' },
-  empty: { fontSize: FontSize.control, color: Palette.muted, textAlign: 'center' },
-  grid: { gap: Spacing.two },
-  gridContent: { gap: Spacing.two, paddingBottom: Spacing.four },
-  cell: { flex: 1 / 4 },
-  cellImgWrap: { width: '100%', aspectRatio: 63 / 88, borderRadius: Radius.control, overflow: 'hidden', backgroundColor: Palette.panel },
-  cellImg: { width: '100%', height: '100%' },
 });

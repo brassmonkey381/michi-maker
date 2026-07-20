@@ -14,7 +14,16 @@
  * launches later).
  */
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Linking,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { FontSize, Palette, Radius, Shadows, Spacing, Weight } from '@/constants/theme';
 import {
@@ -98,6 +107,28 @@ export function PlanComparison() {
   /** Which plan column is awaiting an explicit confirm — nothing is charged on first click. */
   const [confirmSwitch, setConfirmSwitch] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
+  /** Tier we just paid to move onto; reload the page when the entitlement catches up. */
+  const [awaitingTier, setAwaitingTier] = useState<string | null>(null);
+
+  // FULL RELOAD once the switch lands, not just a state update. useTier has no shared cache —
+  // every call site fetches independently — so polling refresh() here updated this component's
+  // CTA row while the plan chip and usage meters elsewhere kept saying PRO until a manual
+  // refresh. Owner hit exactly that after the first live upgrade. The reload fires when THIS
+  // hook instance sees the new tier (webhooks lag by seconds), with a 15s fallback so a slow
+  // webhook still lands somewhere honest.
+  useEffect(() => {
+    if (!awaitingTier || Platform.OS !== 'web') return;
+    if (tier === awaitingTier) {
+      window.location.reload();
+      return;
+    }
+    const bail = setTimeout(() => window.location.reload(), 15000);
+    const poll = setInterval(refresh, 1500);
+    return () => {
+      clearTimeout(bail);
+      clearInterval(poll);
+    };
+  }, [awaitingTier, tier, refresh]);
   useEffect(() => {
     if (loading) return;
     // Only a paying subscriber has anything to prorate — planCta calls that case 'switch'.
@@ -164,6 +195,11 @@ export function PlanComparison() {
             {price
               ? `Charge ${price} now and move to ${plan.name} for the rest of your year?`
               : `Move to ${plan.name} for the rest of your year?`}
+            {/* The PRORATED print total, from the same server maths that writes the ledger —
+                never the fresh-year number, which over-promised 36 to a mid-term upgrader. */}
+            {preview?.termPrints != null
+              ? ` You’ll have ${preview.termPrints} included prints for your year in total.`
+              : ''}
           </Text>
           <View style={styles.switchRow}>
             <Pressable
@@ -184,14 +220,11 @@ export function PlanComparison() {
                       tier: plan.tier,
                       text: r.alreadyOnPlan
                         ? 'You’re already on this plan.'
-                        : `You’re on ${plan.name}. Your new prints are available now.`,
+                        : `You’re on ${plan.name}. Updating the page…`,
                     });
-                    // The webhook writes the entitlement a beat after Stripe confirms.
-                    let polls = 0;
-                    const id = setInterval(() => {
-                      refresh();
-                      if (++polls >= 8) clearInterval(id);
-                    }, 1500);
+                    // Hand off to the reload effect above: poll until the entitlement lands,
+                    // then reload the whole page so every surface agrees at once.
+                    setAwaitingTier(plan.tier);
                   })
                   .catch((e) =>
                     setNote({ tier: plan.tier, text: (e as Error).message, error: true }),

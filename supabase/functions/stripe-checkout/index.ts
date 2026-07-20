@@ -115,6 +115,36 @@ function monthlyUpgradeMinor(
   return Math.round((to - from) * left);
 }
 
+/**
+ * Included prints per month per michi tier — MIRRORS src/data/tiers.ts PRINTS_PER_MONTH and the
+ * copy in payments-webhook (Deno can't import from the app; change all three together).
+ */
+function printsPerMonthFor(lookupKey: string | null | undefined): number | null {
+  if (!lookupKey) return null;
+  if (lookupKey.startsWith('michi_vip')) return 3;
+  if (lookupKey.startsWith('michi_pro')) return 1;
+  return null;
+}
+
+/**
+ * Included prints for the WHOLE term after a plan change — the same old-rate/new-rate split the
+ * webhook writes to term_print_allocation. Quoted in the upgrade confirm so nobody is promised a
+ * fresh year's worth ("36 prints") when a mid-term upgrade actually grants the prorated figure
+ * (4 months into PRO → VIP is 1×4 + 3×8 = 28).
+ */
+function termPrintsAfterChange(
+  fromKey: string | null | undefined,
+  toKey: string | null | undefined,
+  toInterval: string | null | undefined,
+  periodStartSec: number | null,
+): number | null {
+  const oldRate = printsPerMonthFor(fromKey);
+  const newRate = printsPerMonthFor(toKey);
+  if (oldRate == null || newRate == null || !periodStartSec || toInterval !== 'year') return null;
+  const elapsed = monthsElapsed(periodStartSec * 1000, Date.now());
+  return oldRate * elapsed + newRate * (12 - elapsed);
+}
+
 /** The caller's active michi subscription (PRO or VIP), or null. */
 async function activeMichiSubscription(
   stripe: Stripe,
@@ -322,6 +352,13 @@ Deno.serve(async (req: Request) => {
           // pay" rather than a negative price.
           amountDue: Math.max(0, amountDue),
           currency: preview.currency ?? 'usd',
+          /** Included prints across the whole term after this change (prorated). Rendered. */
+          termPrints: termPrintsAfterChange(
+            item.price?.lookup_key,
+            lookupKey,
+            target.recurring?.interval ?? null,
+            periodStartSecondsOf(current),
+          ),
           /** How the figure was reached, for debugging. Not rendered. */
           basis: monthly != null ? 'whole-months' : 'stripe-seconds',
           stripeProration,

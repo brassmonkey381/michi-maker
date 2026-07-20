@@ -112,6 +112,12 @@ export interface PlanChangePreview {
    */
   amountDue: number;
   currency: string;
+  /**
+   * Included prints across the WHOLE term after the change, prorated the same way as the price
+   * (old rate for months served, new rate for months remaining). null when unknown — show no
+   * print promise rather than a fresh-year number the ledger won't honour.
+   */
+  termPrints?: number | null;
   /** 'whole-months' normally; 'stripe-seconds' for cross-interval changes. Debug only. */
   basis: 'whole-months' | 'stripe-seconds';
   /** Stripe's second-accurate proration, for comparison. Never render this. */

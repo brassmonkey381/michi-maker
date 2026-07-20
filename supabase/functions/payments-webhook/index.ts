@@ -115,7 +115,13 @@ async function termAllocationFor(
     .eq('user_id', userId)
     .in('product', ['tier_pro', 'tier_vip']);
 
-  const sameTerm = (r: { period_start?: string | null }) => r.period_start === periodStartIso;
+  // Compare INSTANTS, not strings. JS toISOString() says "2026-03-20T07:00:00.000Z" while
+  // Postgres serializes the same moment as "2026-03-20T07:00:00+00:00" — string equality never
+  // matched, so the sibling lookup below always missed and every mid-term upgrade fell through
+  // to the fresh-subscription rate×12 (caught when a real 4-months-in upgrade granted 36, not 28).
+  const periodStartMs = Date.parse(periodStartIso);
+  const sameTerm = (r: { period_start?: string | null }) =>
+    r.period_start != null && Date.parse(r.period_start) === periodStartMs;
 
   // Already computed for THIS term: keep it. `customer.subscription.updated` fires for plenty of
   // reasons that aren't plan changes (payment method, dunning), and recomputing on each would

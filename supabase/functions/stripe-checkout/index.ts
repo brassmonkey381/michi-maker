@@ -7,6 +7,11 @@
  *    derived from the price. Carries client_reference_id = the Supabase user id; subscriptions
  *    also get metadata so renewal webhooks can resolve the user without a DB lookup.
  *
+ *  POST { action: 'change_plan', lookupKey } → { ok, charged, invoiceUrl }
+ *    Moves the EXISTING subscription onto a new price and charges exactly the previewed
+ *    whole-month figure (invoice item + proration_behavior 'none'). Charges BEFORE switching, so
+ *    a declined card never yields a free upgrade. Upgrades only; downgrades go to the portal.
+ *
  *  POST { action: 'preview_change', lookupKey } → { preview }
  *    READ-ONLY: what moving the user's existing subscription onto that price costs today, after
  *    proration. `preview: null` whenever there's nothing to quote. Persists nothing.
@@ -80,6 +85,48 @@ function perMonthMinor(price: Stripe.Price | null | undefined): number | null {
   if (interval === 'year') return amount / 12;
   if (interval === 'month') return amount;
   return null;
+}
+
+/**
+ * THE upgrade price, in minor units, prorated by WHOLE MONTHS:
+ *
+ *     (newPerMonth − oldPerMonth) × whole months left in the term
+ *
+ * 12 months left of PRO → VIP is $99.99 − $39.99 = $60.00; 3 months left is $15.00. Stripe's own
+ * proration is second-accurate and would say $59.55 two days in, which is not the offer we make.
+ *
+ * BOTH the `preview_change` quote and the `change_plan` charge call this. They must never be
+ * computed separately — that is exactly how a quote drifts from a charge.
+ *
+ * Returns null when the whole-month model doesn't apply (cross-interval, missing data), in which
+ * case the caller falls back to Stripe or refuses.
+ */
+function monthlyUpgradeMinor(
+  fromPrice: Stripe.Price | null | undefined,
+  toPrice: Stripe.Price | null | undefined,
+  periodStartSec: number | null,
+): number | null {
+  const from = perMonthMinor(fromPrice);
+  const to = perMonthMinor(toPrice);
+  if (from == null || to == null || !periodStartSec) return null;
+  if (fromPrice?.recurring?.interval !== toPrice?.recurring?.interval) return null;
+  const termMonths = toPrice?.recurring?.interval === 'year' ? 12 : 1;
+  const left = Math.max(0, termMonths - monthsElapsed(periodStartSec * 1000, Date.now()));
+  return Math.round((to - from) * left);
+}
+
+/** The caller's active michi subscription (PRO or VIP), or null. */
+async function activeMichiSubscription(
+  stripe: Stripe,
+  customerId: string,
+): Promise<Stripe.Subscription | null> {
+  const subs = await stripe.subscriptions.list({ customer: customerId, status: 'active', limit: 10 });
+  return (
+    subs.data.find((s) => {
+      const k = s.items?.data?.[0]?.price?.lookup_key ?? '';
+      return k.startsWith('michi_pro') || k.startsWith('michi_vip');
+    }) ?? null
+  );
 }
 
 /** current_period_start lives on the subscription in older API versions, on the item in newer. */
@@ -267,17 +314,7 @@ Deno.serve(async (req: Request) => {
       // Only for a SAME-interval change, which is the real upgrade path (yearly → yearly). Across
       // intervals "months remaining" doesn't map — a monthly plan has at most one — so those fall
       // back to Stripe's figure rather than quoting something indefensible.
-      const fromPerMonth = perMonthMinor(item.price);
-      const toPerMonth = perMonthMinor(target);
-      const sameInterval = item.price?.recurring?.interval === target.recurring?.interval;
-      const periodStart = periodStartSecondsOf(current);
-      let monthly: number | null = null;
-      if (sameInterval && fromPerMonth != null && toPerMonth != null && periodStart) {
-        const termMonths = target.recurring?.interval === 'year' ? 12 : 1;
-        const left = termMonths - monthsElapsed(periodStart * 1000, Date.now());
-        monthly = Math.round((toPerMonth - fromPerMonth) * Math.max(0, left));
-      }
-
+      const monthly = monthlyUpgradeMinor(item.price, target, periodStartSecondsOf(current));
       const amountDue = monthly ?? stripeProration;
       return json(200, {
         preview: {
@@ -298,6 +335,138 @@ Deno.serve(async (req: Request) => {
       console.log('plan-change preview failed', (e as Error).message);
       return json(200, { preview: null });
     }
+  }
+
+  // ── Change plan (server-driven, exact whole-month proration) ────────────
+  //
+  // Moves the EXISTING subscription onto a new price and charges precisely the figure the app
+  // quoted. The Customer Portal can also switch plans, but it bills Stripe's second-accurate
+  // proration ($59.55) rather than our whole-month price ($60.00) — so upgrades are driven here
+  // instead, and the portal is left for cancellation and payment methods.
+  //
+  // How the exactness is achieved: `proration_behavior: 'none'` on the update, so Stripe adds no
+  // proration of its own, plus one invoice item for the amount monthlyUpgradeMinor() returns —
+  // the SAME function that produced the quote.
+  //
+  // ORDER MATTERS: charge first, switch second. If the card declines, the plan must not change;
+  // the reverse order would hand out a free upgrade on every failed payment.
+  if (body.action === 'change_plan') {
+    const lookupKey = String(body.lookupKey ?? '');
+    if (!SELLABLE.has(lookupKey)) return json(400, { error: 'unknown product' });
+    if (!lookupKey.startsWith('michi_')) {
+      return json(400, { error: 'only michi plans can be changed here' });
+    }
+
+    const { data: mapping } = await service
+      .from('billing_customers')
+      .select('stripe_customer_id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (!mapping) return json(404, { error: 'no subscription to change' });
+    const customerId = mapping.stripe_customer_id;
+
+    const current = await activeMichiSubscription(stripe, customerId);
+    const item = current?.items?.data?.[0];
+    if (!current || !item) return json(404, { error: 'no active michi-maker plan to change' });
+
+    const targets = await stripe.prices.list({ lookup_keys: [lookupKey], limit: 1 });
+    const target = targets.data[0];
+    if (!target) return json(500, { error: 'price not found in this Stripe mode' });
+    // Already there — treat as success so a double submit is harmless.
+    if (item.price?.id === target.id) return json(200, { ok: true, alreadyOnPlan: true });
+
+    const periodStartSec = periodStartSecondsOf(current);
+    const amount = monthlyUpgradeMinor(item.price, target, periodStartSec);
+    if (amount == null) {
+      // Cross-interval (e.g. monthly → yearly) has no honest "months remaining" reading, so we
+      // don't invent a price for it. The portal handles those with Stripe's own proration.
+      return json(400, {
+        error:
+          'This plan change has to go through billing management. Open Manage billing and switch there.',
+      });
+    }
+    if (amount < 0) {
+      // A downgrade nets a credit. Refunds/credits are deliberately not automated here.
+      return json(400, {
+        error: 'Moving to a smaller plan is handled in billing management. Open Manage billing.',
+      });
+    }
+
+    // Duplicate guard. No idempotency key: a legitimate retry after a declined card must be able
+    // to try again, which a cached response would prevent. Instead we look for an invoice already
+    // raised for THIS exact change and never bill it twice.
+    const marker = `${current.id}:${target.id}:${periodStartSec ?? 0}`;
+    const recent = await stripe.invoices.list({ customer: customerId, limit: 20 });
+    const already = recent.data.find(
+      (i) =>
+        i.metadata?.michi_plan_change === marker && (i.status === 'paid' || i.status === 'open'),
+    );
+
+    let invoiceUrl: string | null = already?.hosted_invoice_url ?? null;
+    if (amount > 0 && !already) {
+      const months = Math.max(
+        0,
+        (target.recurring?.interval === 'year' ? 12 : 1) -
+          monthsElapsed((periodStartSec ?? 0) * 1000, Date.now()),
+      );
+      let invoiceId: string | undefined;
+      try {
+        // Customer-level pending item (no `subscription`), so the standalone invoice below sweeps
+        // it rather than it waiting for the subscription's own next invoice.
+        await stripe.invoiceItems.create({
+          customer: customerId,
+          amount,
+          currency: target.currency,
+          description: `Upgrade to ${target.nickname ?? lookupKey} — ${months} month${months === 1 ? '' : 's'} remaining in your term`,
+          metadata: { michi_plan_change: marker, supabase_user_id: user.id },
+        });
+        const invoice = await stripe.invoices.create({
+          customer: customerId,
+          collection_method: 'charge_automatically',
+          auto_advance: false,
+          pending_invoice_items_behavior: 'include',
+          description: 'michi-maker plan change (prorated for the rest of your term)',
+          metadata: { michi_plan_change: marker, supabase_user_id: user.id },
+        });
+        invoiceId = invoice.id;
+        const finalized = await stripe.invoices.finalizeInvoice(invoice.id!);
+        const paid = await stripe.invoices.pay(finalized.id!);
+        if (paid.status !== 'paid') throw new Error(`invoice status ${paid.status}`);
+        invoiceUrl = paid.hosted_invoice_url ?? null;
+      } catch (e) {
+        // Payment failed → VOID the invoice and leave the plan alone. Voiding also releases the
+        // customer from the charge; the next attempt raises a fresh invoice.
+        if (invoiceId) await stripe.invoices.voidInvoice(invoiceId).catch(() => {});
+        const message = (e as Error).message ?? 'payment failed';
+        console.error('plan change payment failed', marker, message);
+        return json(402, {
+          error: `We couldn’t take the payment for this upgrade, so your plan hasn’t changed. Check your payment method in Manage billing and try again. (${message})`,
+        });
+      }
+    }
+
+    // Paid (or nothing to pay) — now move the plan. proration_behavior 'none' because the invoice
+    // above IS the proration. Passing the ITEM id replaces the price; omitting it would ADD a
+    // second price and bill both.
+    const updated = await stripe.subscriptions.update(current.id, {
+      items: [{ id: item.id, price: target.id }],
+      proration_behavior: 'none',
+      metadata: {
+        ...(current.metadata ?? {}),
+        supabase_user_id: user.id,
+        michi_product: lookupKey.startsWith('michi_vip') ? 'tier_vip' : 'tier_pro',
+      },
+    });
+
+    // The webhook will write the entitlement from customer.subscription.updated; the client polls
+    // useTier().refresh() after this returns.
+    return json(200, {
+      ok: true,
+      charged: amount,
+      currency: target.currency,
+      invoiceUrl,
+      newLookupKey: updated.items?.data?.[0]?.price?.lookup_key ?? lookupKey,
+    });
   }
 
   // ── Purchase history ────────────────────────────────────────────────────
@@ -385,9 +554,9 @@ Deno.serve(async (req: Request) => {
   // upgrades away from Checkout (planCta -> 'switch'); this is the backstop that makes the
   // double-charge impossible rather than merely unlikely.
   //
-  // Changing plans needs either a Customer Portal configuration with subscription_update enabled,
-  // or a subscriptions.update() call here that swaps the price with proration. Neither exists
-  // yet, so refuse loudly instead of taking money for the wrong thing.
+  // Changing plans has its own path now — `action: 'change_plan'` above, which swaps the price on
+  // the existing subscription and bills the exact whole-month figure. Checkout must never be that
+  // path, so this stays as the backstop that makes a duplicate subscription impossible.
   if (mode === 'subscription' && mapping?.stripe_customer_id) {
     const existing = await stripe.subscriptions.list({
       customer: mapping.stripe_customer_id,

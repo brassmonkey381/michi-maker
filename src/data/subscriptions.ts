@@ -17,13 +17,13 @@ import type { Tier } from '@/data/tiers';
 export const CHECKOUT_OPEN = process.env.EXPO_PUBLIC_CHECKOUT_OPEN === '1';
 
 /**
- * Shown when opening the plan-change flow fails. Upgrades go through the Stripe Customer Portal,
- * which moves the EXISTING subscription onto the new price — Checkout can't, it would open a
- * second subscription and bill both. The portal needs a configuration with `subscription_update`
- * enabled in the Stripe dashboard; without one, session creation fails and this is what shows.
+ * Upgrades are driven SERVER-SIDE (`change_plan` in stripe-checkout), not through Checkout or the
+ * Customer Portal:
+ *   - Checkout can only CREATE a subscription, so it would bill both plans at once.
+ *   - The Portal can switch plans, but bills Stripe's second-accurate proration rather than the
+ *     whole-month figure the app quotes, so the price shown wouldn't be the price charged.
+ * The portal keeps cancellation and payment-method management, where it has no such problem.
  */
-export const PLAN_CHANGE_ERROR_NOTE =
-  'We couldn’t open plan management just now. Try again in a moment, or contact support if it keeps happening.';
 
 /** The honest line every CTA shows while checkout is closed (same voice as UpgradePerk). */
 export const CHECKOUT_CLOSED_NOTE = 'Paid plans aren’t open quite yet. Check back soon.';

@@ -18,8 +18,8 @@ import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, Vi
 
 import { FontSize, Palette, Radius, Shadows, Spacing, Weight } from '@/constants/theme';
 import {
+  changePlan,
   formatMoney,
-  openBillingPortal,
   previewPlanChange,
   startCheckout,
   type PlanChangePreview,
@@ -29,7 +29,6 @@ import {
   CHECKOUT_OPEN,
   COMPARISON,
   FOOTNOTES,
-  PLAN_CHANGE_ERROR_NOTE,
   PLAN_HEADERS,
   planCta,
   type CompareCell,
@@ -62,7 +61,7 @@ function ValueCell({ cell, vip }: { cell: CompareCell; vip?: boolean }) {
 }
 
 export function PlanComparison() {
-  const { tier, loading } = useTier();
+  const { tier, loading, refresh } = useTier();
   const { isSignedIn } = useAuth();
   // The note under the pressed CTA: the coming-soon line while checkout is closed, a sign-in
   // nudge for guests, or a checkout error. Never a silent no-op.
@@ -96,6 +95,9 @@ export function PlanComparison() {
   // a number instead of promising "you only pay the difference". Read-only on Stripe's side.
   // Keyed by lookup key; a plan with no entry simply renders without a price.
   const [previews, setPreviews] = useState<Record<string, PlanChangePreview>>({});
+  /** Which plan column is awaiting an explicit confirm — nothing is charged on first click. */
+  const [confirmSwitch, setConfirmSwitch] = useState<string | null>(null);
+  const [switching, setSwitching] = useState(false);
   useEffect(() => {
     if (loading) return;
     // Only a paying subscriber has anything to prorate — planCta calls that case 'switch'.
@@ -151,19 +153,72 @@ export function PlanComparison() {
     const isSwitch = cta.kind === 'switch';
     const key = plan.yearlyKey;
     const preview = key ? previews[key] : undefined;
+
+    // The confirm step for a plan change. Shows the exact amount that will be charged, because
+    // this button moves money the moment it's pressed — there is no hosted page after it.
+    if (isSwitch && confirmSwitch === plan.tier) {
+      const price = preview ? formatMoney(preview.amountDue, preview.currency) : null;
+      return (
+        <View style={styles.switchConfirm}>
+          <Text style={styles.switchConfirmText}>
+            {price
+              ? `Charge ${price} now and move to ${plan.name} for the rest of your year?`
+              : `Move to ${plan.name} for the rest of your year?`}
+          </Text>
+          <View style={styles.switchRow}>
+            <Pressable
+              onPress={() => setConfirmSwitch(null)}
+              disabled={switching}
+              style={({ pressed }) => [styles.switchCancel, pressed && styles.dim]}>
+              <Text style={styles.switchCancelText}>Not now</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                if (!key || switching) return;
+                setSwitching(true);
+                setNote(null);
+                changePlan(key)
+                  .then((r) => {
+                    setConfirmSwitch(null);
+                    setNote({
+                      tier: plan.tier,
+                      text: r.alreadyOnPlan
+                        ? 'You’re already on this plan.'
+                        : `You’re on ${plan.name}. Your new prints are available now.`,
+                    });
+                    // The webhook writes the entitlement a beat after Stripe confirms.
+                    let polls = 0;
+                    const id = setInterval(() => {
+                      refresh();
+                      if (++polls >= 8) clearInterval(id);
+                    }, 1500);
+                  })
+                  .catch((e) => setNote({ tier: plan.tier, text: (e as Error).message }))
+                  .finally(() => setSwitching(false));
+              }}
+              disabled={switching}
+              style={({ pressed }) => [styles.btn, styles.switchGo, (pressed || switching) && styles.dim]}>
+              {switching ? (
+                <ActivityIndicator color={Palette.accentText} />
+              ) : (
+                <Text style={styles.btnText}>{price ? `Pay ${price}` : 'Confirm'}</Text>
+              )}
+            </Pressable>
+          </View>
+          {note?.tier === plan.tier ? <Text style={styles.ctaNote}>{note.text}</Text> : null}
+        </View>
+      );
+    }
+
     return (
       <>
         <Pressable
           onPress={() => {
             // A switch must NEVER open Checkout — that starts a second subscription and bills
-            // both plans. It goes to the Customer Portal, which moves the existing subscription
-            // onto the new price with proration. Deliberately not gated on CHECKOUT_OPEN: that
-            // flag gates SELLING, and this is a subscriber managing a plan they already pay for.
+            // both plans. It goes through change_plan, which moves the existing subscription and
+            // charges exactly the amount shown below the button. Confirm first: this takes money.
             if (isSwitch) {
-              setNote({ tier: plan.tier, text: 'Opening plan management…' });
-              openBillingPortal().catch(() =>
-                setNote({ tier: plan.tier, text: PLAN_CHANGE_ERROR_NOTE }),
-              );
+              setConfirmSwitch(plan.tier);
               return;
             }
             void buy(plan, key);
@@ -472,6 +527,26 @@ const styles = StyleSheet.create({
   },
   btnText: { color: Palette.accentText, fontSize: FontSize.body, fontWeight: Weight.semibold },
   dim: { opacity: 0.7 },
+  switchConfirm: { gap: Spacing.two, width: '100%' },
+  switchConfirmText: {
+    fontSize: FontSize.sm,
+    color: Palette.ink,
+    lineHeight: 17,
+    textAlign: 'center',
+  },
+  switchRow: { flexDirection: 'row', gap: Spacing.two, alignItems: 'center' },
+  switchGo: { flex: 1 },
+  switchCancel: {
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
+    borderRadius: Radius.pill,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 38,
+  },
+  switchCancelText: { color: Palette.link, fontSize: FontSize.sm, fontWeight: Weight.semibold },
   prorated: {
     fontSize: FontSize.sm,
     color: Palette.ink2,

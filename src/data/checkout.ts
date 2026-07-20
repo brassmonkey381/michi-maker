@@ -155,6 +155,26 @@ export function formatMoney(amountMinor: number, currency: string): string {
   }
 }
 
+export interface PlanChangeResult {
+  ok: true;
+  /** Minor units actually charged. 0 when there was nothing to pay. */
+  charged?: number;
+  currency?: string;
+  invoiceUrl?: string | null;
+  alreadyOnPlan?: boolean;
+}
+
+/**
+ * Move the user's existing subscription onto `lookupKey`, charging exactly the figure
+ * `previewPlanChange` quoted. The server charges BEFORE switching, so a rejected payment leaves
+ * the plan untouched and throws here with a message worth showing.
+ *
+ * Upgrades only — a downgrade nets a credit and is deliberately left to the billing portal.
+ */
+export async function changePlan(lookupKey: string): Promise<PlanChangeResult> {
+  return (await invokeStripe({ action: 'change_plan', lookupKey })) as PlanChangeResult;
+}
+
 /** Open the Stripe Customer Portal (manage plan / cancel / payment method). */
 export async function openBillingPortal(): Promise<void> {
   const url = await fetchStripeUrl({ action: 'portal', returnUrl: currentReturnUrl() });

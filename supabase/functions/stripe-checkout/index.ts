@@ -63,6 +63,35 @@ function bundleSiblingsFor(lookupKey: string): string[] | null {
   return null; // one-time products have no bundle
 }
 
+/** Whole months elapsed, clamped to a year. Mirrors payments-webhook + src/data/printWindow.ts. */
+function monthsElapsed(startMs: number, nowMs: number): number {
+  const s = new Date(startMs);
+  const n = new Date(nowMs);
+  let m = (n.getUTCFullYear() - s.getUTCFullYear()) * 12 + (n.getUTCMonth() - s.getUTCMonth());
+  if (n.getUTCDate() < s.getUTCDate()) m -= 1;
+  return Math.max(0, Math.min(12, m));
+}
+
+/** A price's cost per month in minor units. Yearly prices divide by 12. */
+function perMonthMinor(price: Stripe.Price | null | undefined): number | null {
+  const amount = price?.unit_amount;
+  const interval = price?.recurring?.interval;
+  if (typeof amount !== 'number' || !interval) return null;
+  if (interval === 'year') return amount / 12;
+  if (interval === 'month') return amount;
+  return null;
+}
+
+/** current_period_start lives on the subscription in older API versions, on the item in newer. */
+function periodStartSecondsOf(sub: Stripe.Subscription): number | null {
+  const onSub = (sub as unknown as { current_period_start?: number }).current_period_start;
+  if (typeof onSub === 'number') return onSub;
+  const onItem = (sub.items?.data?.[0] as unknown as { current_period_start?: number })
+    ?.current_period_start;
+  if (typeof onItem === 'number') return onItem;
+  return typeof sub.start_date === 'number' ? sub.start_date : null;
+}
+
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -192,32 +221,63 @@ Deno.serve(async (req: Request) => {
           proration_behavior: 'create_prorations',
         },
       });
-      // The COST OF UPGRADING is the sum of the PRORATION lines only — a credit for unused time
-      // on the old plan plus a charge for the new plan over the remaining term. For a full year
-      // left that is VIP $99.99 − PRO $39.99 = $60; with three months left it is a quarter of
-      // each, so ~$15.
+      // Stripe's own proration, summed from the lines flagged `proration` — a credit for unused
+      // time on the old plan plus a charge for the new one. NOT `amount_due`: create_preview
+      // returns the whole next UPCOMING invoice, so amount_due was the renewal ($99.99) plus the
+      // proration ($59.55) = $159.54, which read as the upgrade price and was wildly wrong.
       //
-      // NOT `amount_due`. create_preview always returns the whole next upcoming invoice, and with
-      // create_prorations the proration lines ride along on the coming renewal — so amount_due
-      // was the renewal ($99.99) PLUS the proration ($59.55) = $159.54, which read as the upgrade
-      // price and was wildly wrong.
-      //
-      // This figure is what `proration_behavior: 'always_invoice'` would bill immediately, so the
-      // eventual plan-change call MUST use always_invoice or the quote won't match the charge.
-      const lines = (preview as unknown as { lines?: { data?: { proration?: boolean; amount?: number }[] } })
-        .lines?.data ?? [];
-      const prorationLines = lines.filter((l) => l.proration);
-      const prorationDue = prorationLines.reduce((sum, l) => sum + (l.amount ?? 0), 0);
+      // The proration flag MOVED between API versions, exactly like invoice.subscription did:
+      // it used to sit on the line and now hangs off parent.subscription_item_details. Checking
+      // only the legacy shape matched nothing, summed to 0, and the CTA cheerfully announced
+      // "nothing to pay" for a $60 upgrade. Check both.
+      type PreviewLine = {
+        proration?: boolean;
+        amount?: number;
+        parent?: { subscription_item_details?: { proration?: boolean } };
+      };
+      const lines =
+        (preview as unknown as { lines?: { data?: PreviewLine[] } }).lines?.data ?? [];
+      const isProration = (l: PreviewLine) =>
+        l.proration === true || l.parent?.subscription_item_details?.proration === true;
+      const prorationLines = lines.filter(isProration);
+      const stripeProration = prorationLines.reduce((sum, l) => sum + (l.amount ?? 0), 0);
 
+      // WE QUOTE BY WHOLE MONTHS, NOT BY SECOND (owner call). Stripe prorates down to the second,
+      // so two days into a year it returns $59.55 where the plan is plainly "$60 — a year of VIP
+      // minus a year of PRO". Whole months also match how the included-print allocation is
+      // prorated (see payments-webhook termAllocationFor), so the money and the prints tell the
+      // same story instead of disagreeing by a couple of days.
+      //
+      //   upgrade = (newPerMonth − oldPerMonth) × whole months left in the term
+      //     12 months left: (999.9 − 333.25) × 12 = $60.00
+      //      3 months left: (999.9 − 333.25) ×  3 = $15.00
+      //
+      // Only for a SAME-interval change, which is the real upgrade path (yearly → yearly). Across
+      // intervals "months remaining" doesn't map — a monthly plan has at most one — so those fall
+      // back to Stripe's figure rather than quoting something indefensible.
+      const fromPerMonth = perMonthMinor(item.price);
+      const toPerMonth = perMonthMinor(target);
+      const sameInterval = item.price?.recurring?.interval === target.recurring?.interval;
+      const periodStart = periodStartSecondsOf(current);
+      let monthly: number | null = null;
+      if (sameInterval && fromPerMonth != null && toPerMonth != null && periodStart) {
+        const termMonths = target.recurring?.interval === 'year' ? 12 : 1;
+        const left = termMonths - monthsElapsed(periodStart * 1000, Date.now());
+        monthly = Math.round((toPerMonth - fromPerMonth) * Math.max(0, left));
+      }
+
+      const amountDue = monthly ?? stripeProration;
       return json(200, {
         preview: {
-          // What the upgrade costs. Never negative in the UI — a downgrade produces net credit,
-          // which we surface as "nothing to pay" rather than a negative price.
-          amountDue: Math.max(0, prorationDue),
+          // Never negative in the UI — a downgrade nets a credit, which we show as "nothing to
+          // pay" rather than a negative price.
+          amountDue: Math.max(0, amountDue),
           currency: preview.currency ?? 'usd',
-          /** Whole next invoice, for debugging the number above. Not shown to users. */
-          nextInvoiceTotal: preview.amount_due ?? 0,
+          /** How the figure was reached, for debugging. Not rendered. */
+          basis: monthly != null ? 'whole-months' : 'stripe-seconds',
+          stripeProration,
           prorationLineCount: prorationLines.length,
+          nextInvoiceTotal: preview.amount_due ?? 0,
           fromLookupKey: item.price?.lookup_key ?? null,
           toLookupKey: lookupKey,
         },

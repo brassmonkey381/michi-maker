@@ -103,18 +103,23 @@ export async function startCheckout(
 /** What moving an existing subscription onto another plan costs, after proration. */
 export interface PlanChangePreview {
   /**
-   * The upgrade price, in the smallest currency unit (cents): the new plan across the remaining
-   * term MINUS credit for unused time on the old one. A full year left of PRO → VIP is
-   * $99.99 − $39.99 = $60; three months left is a quarter of each, ~$15.
+   * The upgrade price in minor units, prorated by WHOLE MONTHS: (new per-month − old per-month)
+   * × months left in the term. A full year left of PRO → VIP is $99.99 − $39.99 = $60.00; three
+   * months left is a quarter of each, $15.00.
    *
-   * This is the sum of the PRORATION lines, not the previewed invoice total — that total also
-   * contains the next renewal, which made an upgrade look like $159.54 instead of $59.55.
+   * Deliberately not Stripe's own figure, which prorates to the second and so returns $59.55 two
+   * days into a year. Whole months match how included prints are prorated on an upgrade.
    */
   amountDue: number;
   currency: string;
+  /** 'whole-months' normally; 'stripe-seconds' for cross-interval changes. Debug only. */
+  basis: 'whole-months' | 'stripe-seconds';
+  /** Stripe's second-accurate proration, for comparison. Never render this. */
+  stripeProration: number;
+  /** 0 means we failed to identify Stripe's proration lines — see the API-shape note server-side. */
+  prorationLineCount: number;
   /** Whole previewed invoice, for debugging only — never render this. */
   nextInvoiceTotal: number;
-  prorationLineCount: number;
   fromLookupKey: string | null;
   toLookupKey: string;
 }

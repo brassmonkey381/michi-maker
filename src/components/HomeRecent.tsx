@@ -10,9 +10,11 @@
  * Don't add a parallel guest-only feed here — that's how the earlier HomeSets duplicate
  * happened. Anything the feed needs should go into the kit's RecentProducts.
  *
- * `useCatalog(true)` asks for the catalog when the tier allows (signed-in); for guests it's a
- * cheap subscribe. `onFindSimilar` / `onViewSet` / `onOpenSet` bubble up so the home screen can
- * drive the "Browse all cards" browser below (see index.tsx).
+ * `useCatalog(false)` (P4 lazy-load): home never FORCES the ~9 MB catalog fetch/parse — the feed
+ * runs on its slim server fetches for everyone at first paint, then flips to the in-memory
+ * catalog automatically if another surface (the Browse page, the card picker) loads it. That
+ * keeps home's cold start catalog-free. `onFindSimilar` / `onViewSet` / `onOpenSet` bubble up so
+ * the home screen can drive the "Browse all cards" browser below (see index.tsx).
  */
 import { RecentProducts } from 'tcgscan-browse';
 
@@ -36,7 +38,7 @@ export function HomeRecent({
   /** Drop a tapped feed card into a binder — surfaced as "Add to a binder…". */
   onAddToBinder?: (cardId: string) => void;
 }) {
-  const { catalog } = useCatalog(true);
+  const { catalog } = useCatalog(false);
   const browseTheme = useBrowseTheme();
   // EN / JP filter for THIS section's Sets + Cards carousels. The app-wide, persisted preference
   // (shared with the Browse page) — EN only by default, remembered per account across devices.

@@ -7,8 +7,8 @@
  * Cross-platform (web + native) via the RN responder system + expo-linear-gradient; no extra deps.
  */
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRef, useState } from 'react';
-import { StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
 
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 
@@ -58,20 +58,34 @@ export function stopWeights(stops: Stop[]): number[] {
   return w;
 }
 
-/** The gradient bar + draggable/tappable stops. */
+/** The gradient bar + draggable stops. Touching/dragging a stop makes it ACTIVE (highlighted +
+ *  edited by the HSV picker); the active stop is enlarged with a pulsing glow. */
 export function GradientMixBar({
   stops,
+  active,
   onChange,
-  onEditColor,
+  onActive,
 }: {
   stops: Stop[];
+  active: number;
   onChange: (stops: Stop[]) => void;
-  onEditColor: (index: number) => void;
+  onActive: (index: number) => void;
 }) {
   const [w, setW] = useState(0);
-  const active = useRef(-1);
-  const startX = useRef(0);
-  const moved = useRef(false);
+  const dragging = useRef(-1);
+
+  // Pulsing glow on the active stop (JS-driven so it also animates opacity/scale on web).
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 750, useNativeDriver: false }),
+        Animated.timing(pulse, { toValue: 0, duration: 750, useNativeDriver: false }),
+      ]),
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [pulse]);
 
   const nearest = (x: number) => {
     let best = 0, bd = Infinity;
@@ -84,10 +98,10 @@ export function GradientMixBar({
   const move = (i: number, x: number) =>
     onChange(stops.map((s, j) => (j === i ? { ...s, pos: clamp01(w > 0 ? x / w : 0) } : s)));
 
-  // Gradient colors must be given in ascending position order.
   const sorted = [...stops].sort((a, b) => a.pos - b.pos);
   const colors = sorted.map((s) => rgbToHex(s.rgb)) as [string, string, ...string[]];
   const locations = sorted.map((s) => clamp01(s.pos)) as [number, number, ...number[]];
+  const act = stops[active];
 
   return (
     <View style={styles.barWrap}>
@@ -105,22 +119,38 @@ export function GradientMixBar({
         onMoveShouldSetResponder={() => true}
         onResponderGrant={(e: GestureResponderEvent) => {
           const x = e.nativeEvent.locationX;
-          active.current = nearest(x);
-          startX.current = x;
-          moved.current = false;
-          move(active.current, x);
+          dragging.current = nearest(x);
+          onActive(dragging.current);
+          move(dragging.current, x);
         }}
         onResponderMove={(e: GestureResponderEvent) => {
-          const x = e.nativeEvent.locationX;
-          if (Math.abs(x - startX.current) > 3) moved.current = true;
-          if (active.current >= 0) move(active.current, x);
+          if (dragging.current >= 0) move(dragging.current, e.nativeEvent.locationX);
         }}
         onResponderRelease={() => {
-          if (!moved.current && active.current >= 0) onEditColor(active.current);
-          active.current = -1;
+          dragging.current = -1;
         }}>
+        {act ? (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.glow,
+              {
+                left: `${clamp01(act.pos) * 100}%`,
+                backgroundColor: rgbToHex(act.rgb),
+                opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.2, 0.6] }),
+                transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1.3, 2.0] }) }],
+              },
+            ]}
+          />
+        ) : null}
         {stops.map((s, i) => (
-          <View key={i} style={[styles.thumb, { left: `${clamp01(s.pos) * 100}%`, backgroundColor: rgbToHex(s.rgb) }]} />
+          <View
+            key={i}
+            style={[
+              i === active ? styles.thumbActive : styles.thumb,
+              { left: `${clamp01(s.pos) * 100}%`, backgroundColor: rgbToHex(s.rgb) },
+            ]}
+          />
         ))}
       </View>
     </View>
@@ -128,7 +158,7 @@ export function GradientMixBar({
 }
 
 /** Continuous HSV picker: hue bar + saturation/value square. Emits RGB live. */
-export function HsvColorPicker({ rgb, onChange, onClose }: { rgb: RGB; onChange: (rgb: RGB) => void; onClose: () => void }) {
+export function HsvColorPicker({ rgb, onChange, onClose }: { rgb: RGB; onChange: (rgb: RGB) => void; onClose?: () => void }) {
   const init = rgbToHsv(rgb);
   const [h, setH] = useState(init.h);
   const [s, setS] = useState(init.s);
@@ -172,18 +202,20 @@ export function HsvColorPicker({ rgb, onChange, onClose }: { rgb: RGB; onChange:
       <View style={styles.pickerFooter}>
         <View style={[styles.preview, { backgroundColor: rgbToHex(hsvToRgb(h, s, v)) }]} />
         <Text style={styles.hex}>{rgbToHex(hsvToRgb(h, s, v)).toUpperCase()}</Text>
-        <Text onPress={onClose} style={styles.done} accessibilityRole="button">
-          Done
-        </Text>
+        {onClose ? (
+          <Text onPress={onClose} style={styles.done} accessibilityRole="button">
+            Done
+          </Text>
+        ) : null}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  barWrap: { gap: 4 },
+  barWrap: { gap: 6 },
   bar: { height: 26, borderRadius: Radius.control, borderWidth: 1, borderColor: Palette.hairline },
-  thumbRow: { height: 22, marginHorizontal: 0 },
+  thumbRow: { height: 34, marginHorizontal: 0, justifyContent: 'center' },
   thumb: {
     position: 'absolute',
     width: 18,
@@ -192,12 +224,34 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     borderWidth: 2,
     borderColor: Palette.surface,
-    top: 2,
-    // a subtle ring so light thumbs read on the panel
+    top: 8,
     shadowColor: '#000',
     shadowOpacity: 0.3,
     shadowRadius: 1,
     shadowOffset: { width: 0, height: 1 },
+  },
+  thumbActive: {
+    position: 'absolute',
+    width: 28,
+    height: 28,
+    marginLeft: -14,
+    borderRadius: 7,
+    borderWidth: 3,
+    borderColor: Palette.ink,
+    top: 3,
+    zIndex: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.35,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+  },
+  glow: {
+    position: 'absolute',
+    width: 30,
+    height: 30,
+    marginLeft: -15,
+    borderRadius: 15,
+    top: 2,
   },
   pickerCard: { gap: Spacing.two, marginTop: Spacing.one, marginBottom: Spacing.three },
   sv: { width: '100%', height: 150, borderRadius: Radius.control, overflow: 'hidden', borderWidth: 1, borderColor: Palette.hairline },

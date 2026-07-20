@@ -27,6 +27,7 @@ let savedStops: Stop[] = [
   { pos: 0.8, rgb: [237, 226, 58] },
 ];
 let savedRegion: ColorRegion = 'noborder';
+let savedActive = 0; // which stop the HSV picker edits (open by default)
 
 export function ColorSearchSheet({
   seedCardId,
@@ -43,15 +44,16 @@ export function ColorSearchSheet({
   const colorIndex = useColorIndex(true);
   const [region, setRegion] = useState<ColorRegion>(savedRegion);
   const [stops, setStops] = useState<Stop[]>(savedStops);
-  const [editing, setEditing] = useState<number | null>(null);
+  const [active, setActive] = useState<number>(savedActive); // the stop the HSV picker edits
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
 
-  // Remember the mix + region across opens (session-sticky).
+  // Remember the mix + region + active stop across opens (session-sticky).
   useEffect(() => {
     savedStops = stops;
     savedRegion = region;
-  }, [stops, region]);
+    savedActive = active;
+  }, [stops, region, active]);
 
   const similarUnavailable = Boolean(seedCardId) && !(colorIndex && seedCardId && colorIndex.has(seedCardId));
 
@@ -101,15 +103,12 @@ export function ColorSearchSheet({
             </Text>
           ) : !seedCardId ? (
             <View style={styles.picker}>
-              <Text style={styles.hint}>Drag the stops to reweight · tap a stop to change its color</Text>
-              <GradientMixBar stops={stops} onChange={setStops} onEditColor={setEditing} />
-              {editing !== null ? (
-                <HsvColorPicker
-                  rgb={stops[editing].rgb}
-                  onChange={(rgb) => setStops((prev) => prev.map((s, i) => (i === editing ? { ...s, rgb } : s)))}
-                  onClose={() => setEditing(null)}
-                />
-              ) : null}
+              <Text style={styles.hint}>Drag a stop to reweight · pick its color below</Text>
+              <GradientMixBar stops={stops} active={active} onChange={setStops} onActive={setActive} />
+              <HsvColorPicker
+                rgb={stops[active].rgb}
+                onChange={(rgb) => setStops((prev) => prev.map((s, i) => (i === active ? { ...s, rgb } : s)))}
+              />
             </View>
           ) : (
             <Text style={styles.msg}>Find cards whose palette is closest to this card.</Text>

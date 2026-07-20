@@ -9,7 +9,7 @@
  * blob is loaded (instant), else the data-server RPCs (debounced).
  */
 import { Image } from 'expo-image';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   cardThumbUrl,
@@ -72,11 +72,14 @@ export function ColorSearchSheet({
     setLoading(false);
   }, [seedCardId, colorIndex, query, region]);
 
-  // Debounce so dragging a stop fires one query when it settles (on-device is instant either way).
+  // Do NOT auto-search while dragging stops/sliders — it re-rendered the results grid mid-drag and
+  // fought the drag responder. Search runs on open, on a region change, when the on-device index
+  // loads, and on the explicit "Find matches" button (below).
+  const runRef = useRef(run);
+  runRef.current = run;
   useEffect(() => {
-    const t = setTimeout(run, 250);
-    return () => clearTimeout(t);
-  }, [run]);
+    runRef.current();
+  }, [region, seedCardId, colorIndex]);
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
@@ -115,6 +118,13 @@ export function ColorSearchSheet({
                   onClose={() => setEditing(null)}
                 />
               ) : null}
+              <Pressable
+                onPress={run}
+                disabled={loading}
+                style={({ pressed }) => [styles.searchBtn, pressed && styles.pressed]}
+                accessibilityRole="button">
+                <Text style={styles.searchBtnText}>{loading ? 'Searching…' : 'Find matches'}</Text>
+              </Pressable>
             </View>
           ) : null}
 
@@ -181,6 +191,15 @@ const styles = StyleSheet.create({
   regionTxtOn: { color: Palette.accentText },
   picker: { marginBottom: Spacing.three, gap: Spacing.two },
   hint: { fontSize: FontSize.xs, color: Palette.muted },
+  searchBtn: {
+    marginTop: Spacing.one,
+    paddingVertical: Spacing.two,
+    borderRadius: Radius.pill,
+    backgroundColor: Palette.accent,
+    alignItems: 'center',
+  },
+  searchBtnText: { fontSize: FontSize.control, fontWeight: Weight.bold, color: Palette.accentText },
+  pressed: { opacity: 0.7 },
   center: { paddingVertical: Spacing.six, alignItems: 'center', justifyContent: 'center' },
   empty: { fontSize: FontSize.control, color: Palette.muted, textAlign: 'center' },
   grid: { gap: Spacing.two },

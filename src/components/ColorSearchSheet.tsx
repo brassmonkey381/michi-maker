@@ -19,6 +19,15 @@ const REGIONS: { value: ColorRegion; label: string }[] = [
   { value: 'art', label: 'Art panel' },
 ];
 
+/** What each region analyzes — shown in the "?" help (text mirrors the pipeline's MODE_INFO). */
+const REGION_HELP: { label: string; desc: string }[] = [
+  {
+    label: 'Full art — no border',
+    desc: 'Uses the whole card face — illustration, text box and background. Only the outer border is ignored.',
+  },
+  { label: 'Art panel', desc: "Focuses on just the illustration window. Only the artwork's colors are used." },
+];
+
 // Session-sticky picker state so reopening the picker resumes the last color mix + region (module
 // level, mirrors the app's viewModePref/recentLangPref prefs — resets on a fresh app load).
 let savedStops: Stop[] = [
@@ -47,6 +56,7 @@ export function ColorSearchSheet({
   const [active, setActive] = useState<number>(savedActive); // the stop the HSV picker edits
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
+  const [showHelp, setShowHelp] = useState(false);
 
   // Remember the mix + region + active stop across opens (session-sticky).
   useEffect(() => {
@@ -95,7 +105,26 @@ export function ColorSearchSheet({
                 </Pressable>
               );
             })}
+            <View style={styles.spacer} />
+            <Pressable
+              onPress={() => setShowHelp((v) => !v)}
+              style={[styles.helpBtn, showHelp && styles.helpBtnOn]}
+              hitSlop={8}
+              accessibilityLabel="What do Full art and Art panel analyze?">
+              <Text style={[styles.helpTxt, showHelp && styles.helpTxtOn]}>?</Text>
+            </Pressable>
           </View>
+
+          {showHelp ? (
+            <View style={styles.help}>
+              {REGION_HELP.map((h) => (
+                <View key={h.label} style={styles.helpItem}>
+                  <Text style={styles.helpLabel}>{h.label}</Text>
+                  <Text style={styles.helpDesc}>{h.desc}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
 
           {similarUnavailable ? (
             <Text style={styles.msg}>
@@ -143,11 +172,28 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { flex: 1, fontSize: FontSize.body, fontWeight: Weight.bold, color: Palette.ink },
   close: { fontSize: FontSize.md, color: Palette.muted, paddingHorizontal: Spacing.two },
-  regionRow: { flexDirection: 'row', gap: Spacing.two },
+  regionRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   regionBtn: { paddingVertical: 6, paddingHorizontal: Spacing.three, borderRadius: Radius.pill, backgroundColor: Palette.panel },
   regionBtnOn: { backgroundColor: Palette.accent },
   regionTxt: { fontSize: FontSize.label, fontWeight: Weight.semibold, color: Palette.ink2 },
   regionTxtOn: { color: Palette.accentText },
+  spacer: { flex: 1 },
+  helpBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  helpBtnOn: { backgroundColor: Palette.accent, borderColor: Palette.accent },
+  helpTxt: { fontSize: FontSize.control, fontWeight: Weight.bold, color: Palette.ink2 },
+  helpTxtOn: { color: Palette.accentText },
+  help: { gap: Spacing.two, padding: Spacing.three, borderRadius: Radius.control, backgroundColor: Palette.panel },
+  helpItem: { gap: 2 },
+  helpLabel: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.ink },
+  helpDesc: { fontSize: FontSize.xs, lineHeight: 16, color: Palette.ink2 },
   picker: { gap: Spacing.two },
   hint: { fontSize: FontSize.xs, color: Palette.muted },
   msg: { fontSize: FontSize.control, color: Palette.muted },

@@ -123,7 +123,11 @@ export function ColorSearchSheet({
           </View>
 
           {showHelp ? (
-            <ScrollView style={styles.help} contentContainerStyle={styles.helpContent}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.help}
+              contentContainerStyle={styles.helpContent}>
               {REGION_HELP.map((h) => (
                 <View key={h.label} style={styles.helpItem}>
                   <Image source={h.img} style={styles.helpImg} contentFit="contain" />
@@ -200,11 +204,11 @@ const styles = StyleSheet.create({
   helpBtnOn: { backgroundColor: Palette.accent, borderColor: Palette.accent },
   helpTxt: { fontSize: FontSize.control, fontWeight: Weight.bold, color: Palette.ink2 },
   helpTxtOn: { color: Palette.accentText },
-  help: { maxHeight: 520, borderRadius: Radius.control, backgroundColor: Palette.panel },
-  helpContent: { gap: Spacing.four, padding: Spacing.three },
+  help: { borderRadius: Radius.control, backgroundColor: Palette.panel },
+  helpContent: { flexDirection: 'row', gap: Spacing.four, padding: Spacing.three, alignItems: 'center' },
   helpItem: { flexDirection: 'row', gap: Spacing.three, alignItems: 'center' },
-  helpImg: { width: 170, height: 240, borderRadius: Radius.control, backgroundColor: Palette.surface },
-  helpText: { flex: 1, gap: Spacing.one },
+  helpImg: { width: 265, height: 460, borderRadius: Radius.control, backgroundColor: Palette.surface },
+  helpText: { width: 150, gap: Spacing.one },
   helpLabel: { fontSize: FontSize.body, fontWeight: Weight.bold, color: Palette.ink },
   helpDesc: { fontSize: FontSize.control, lineHeight: 19, color: Palette.ink2 },
   picker: { gap: Spacing.two },

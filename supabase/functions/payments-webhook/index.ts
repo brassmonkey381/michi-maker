@@ -231,6 +231,19 @@ async function upsertSubscriptionGrant(sub: Stripe.Subscription) {
       .gt('expires_at', new Date().toISOString());
   }
 
+  // Keep Stripe's own label honest. The Customer Portal swaps the PRICE but leaves subscription
+  // metadata alone, so after a PRO→VIP upgrade the subscription still read michi_product=tier_pro.
+  // Nothing resolves a tier from this — the price lookup_key is the source of truth — but stale
+  // metadata misleads support and any reporting built on it later.
+  //
+  // Best-effort: a failure here must never fail the webhook. It fires one more
+  // customer.subscription.updated, which finds the metadata already correct and stops.
+  if (sub.metadata?.michi_product && sub.metadata.michi_product !== product) {
+    await stripe.subscriptions
+      .update(sub.id, { metadata: { ...sub.metadata, michi_product: product } })
+      .catch((e) => console.log('metadata sync skipped', (e as Error).message));
+  }
+
   await recordCustomer(userId, typeof sub.customer === 'string' ? sub.customer : sub.customer?.id);
 }
 

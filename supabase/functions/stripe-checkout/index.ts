@@ -27,6 +27,15 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@18.5.0';
 import { createClient } from 'npm:@supabase/supabase-js@2';
+// THE money maths — one implementation, shared with the app and payments-webhook. Deno resolves
+// this relative .ts at bundle time (verified: the deployed function boots, i.e. the import
+// resolves). Extension is required by Deno's resolver. Never reimplement these here — a mid-term
+// upgrade once quoted the right price while granting a fresh year of prints because copies drifted.
+import {
+  monthsElapsed,
+  termPrintAllocation,
+  upgradeQuoteMinor,
+} from '../../../src/data/proration.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -68,69 +77,38 @@ function bundleSiblingsFor(lookupKey: string): string[] | null {
   return null; // one-time products have no bundle
 }
 
-/** Whole months elapsed, clamped to a year. Mirrors payments-webhook + src/data/printWindow.ts. */
-function monthsElapsed(startMs: number, nowMs: number): number {
-  const s = new Date(startMs);
-  const n = new Date(nowMs);
-  let m = (n.getUTCFullYear() - s.getUTCFullYear()) * 12 + (n.getUTCMonth() - s.getUTCMonth());
-  if (n.getUTCDate() < s.getUTCDate()) m -= 1;
-  return Math.max(0, Math.min(12, m));
-}
-
-/** A price's cost per month in minor units. Yearly prices divide by 12. */
-function perMonthMinor(price: Stripe.Price | null | undefined): number | null {
-  const amount = price?.unit_amount;
-  const interval = price?.recurring?.interval;
-  if (typeof amount !== 'number' || !interval) return null;
-  if (interval === 'year') return amount / 12;
-  if (interval === 'month') return amount;
+/** michi lookup key → the entitlement product the shared print maths keys on. */
+function tierProductFromLookupKey(lookupKey: string | null | undefined): string | null {
+  if (!lookupKey) return null;
+  if (lookupKey.startsWith('michi_vip')) return 'tier_vip';
+  if (lookupKey.startsWith('michi_pro')) return 'tier_pro';
   return null;
 }
 
 /**
- * THE upgrade price, in minor units, prorated by WHOLE MONTHS:
- *
- *     (newPerMonth − oldPerMonth) × whole months left in the term
- *
- * 12 months left of PRO → VIP is $99.99 − $39.99 = $60.00; 3 months left is $15.00. Stripe's own
- * proration is second-accurate and would say $59.55 two days in, which is not the offer we make.
- *
- * BOTH the `preview_change` quote and the `change_plan` charge call this. They must never be
- * computed separately — that is exactly how a quote drifts from a charge.
- *
- * Returns null when the whole-month model doesn't apply (cross-interval, missing data), in which
- * case the caller falls back to Stripe or refuses.
+ * The upgrade price in minor units — a thin Stripe-shape adapter over the shared
+ * `upgradeQuoteMinor`. BOTH the `preview_change` quote and the `change_plan` charge call this, so
+ * the number shown is provably the number billed.
  */
 function monthlyUpgradeMinor(
   fromPrice: Stripe.Price | null | undefined,
   toPrice: Stripe.Price | null | undefined,
   periodStartSec: number | null,
 ): number | null {
-  const from = perMonthMinor(fromPrice);
-  const to = perMonthMinor(toPrice);
-  if (from == null || to == null || !periodStartSec) return null;
-  if (fromPrice?.recurring?.interval !== toPrice?.recurring?.interval) return null;
-  const termMonths = toPrice?.recurring?.interval === 'year' ? 12 : 1;
-  const left = Math.max(0, termMonths - monthsElapsed(periodStartSec * 1000, Date.now()));
-  return Math.round((to - from) * left);
+  return upgradeQuoteMinor({
+    fromAmountMinor: fromPrice?.unit_amount,
+    fromInterval: fromPrice?.recurring?.interval,
+    toAmountMinor: toPrice?.unit_amount,
+    toInterval: toPrice?.recurring?.interval,
+    periodStartSec,
+    nowMs: Date.now(),
+  });
 }
 
 /**
- * Included prints per month per michi tier — MIRRORS src/data/tiers.ts PRINTS_PER_MONTH and the
- * copy in payments-webhook (Deno can't import from the app; change all three together).
- */
-function printsPerMonthFor(lookupKey: string | null | undefined): number | null {
-  if (!lookupKey) return null;
-  if (lookupKey.startsWith('michi_vip')) return 3;
-  if (lookupKey.startsWith('michi_pro')) return 1;
-  return null;
-}
-
-/**
- * Included prints for the WHOLE term after a plan change — the same old-rate/new-rate split the
- * webhook writes to term_print_allocation. Quoted in the upgrade confirm so nobody is promised a
- * fresh year's worth ("36 prints") when a mid-term upgrade actually grants the prorated figure
- * (4 months into PRO → VIP is 1×4 + 3×8 = 28).
+ * Included prints for the whole term after a plan change — Stripe-shape adapter over the shared
+ * `termPrintAllocation`, so the confirm dialog's print promise matches what the webhook writes to
+ * the ledger. Requires the OUTGOING plan to be a michi tier (this is a change, not a fresh buy).
  */
 function termPrintsAfterChange(
   fromKey: string | null | undefined,
@@ -138,11 +116,10 @@ function termPrintsAfterChange(
   toInterval: string | null | undefined,
   periodStartSec: number | null,
 ): number | null {
-  const oldRate = printsPerMonthFor(fromKey);
-  const newRate = printsPerMonthFor(toKey);
-  if (oldRate == null || newRate == null || !periodStartSec || toInterval !== 'year') return null;
-  const elapsed = monthsElapsed(periodStartSec * 1000, Date.now());
-  return oldRate * elapsed + newRate * (12 - elapsed);
+  const fromProduct = tierProductFromLookupKey(fromKey);
+  const toProduct = tierProductFromLookupKey(toKey);
+  if (!fromProduct || !toProduct) return null;
+  return termPrintAllocation(fromProduct, toProduct, toInterval, periodStartSec, Date.now());
 }
 
 /** The caller's active michi subscription (PRO or VIP), or null. */

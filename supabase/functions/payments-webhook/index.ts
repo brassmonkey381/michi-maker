@@ -21,6 +21,10 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@18.5.0';
 import { createClient } from 'npm:@supabase/supabase-js@2';
+// THE print-allocation maths — shared with the app and stripe-checkout (verified: the deployed
+// function boots, so Deno resolves this relative .ts). Only the DB lookup below is webhook-local;
+// the arithmetic lives in one place so a mid-term upgrade can never grant a fresh year again.
+import { PRINTS_PER_MONTH, termPrintAllocation } from '../../../src/data/proration.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   httpClient: Stripe.createFetchHttpClient(),
@@ -73,24 +77,10 @@ function billingInterval(sub: Stripe.Subscription): 'month' | 'year' | null {
 }
 
 /**
- * Included prints per month per tier. MIRRORS src/data/tiers.ts PRINTS_PER_MONTH — this runs on
- * Deno and can't import from the app. Change both together.
- */
-const PRINTS_PER_MONTH: Record<string, number> = { tier_pro: 1, tier_vip: 3 };
-const MONTHS_PER_YEAR = 12;
-
-/** Whole months between two instants, clamped to a single year. Mirrors printWindow.monthsElapsed. */
-function monthsElapsed(startMs: number, nowMs: number): number {
-  const start = new Date(startMs);
-  const now = new Date(nowMs);
-  let months =
-    (now.getUTCFullYear() - start.getUTCFullYear()) * 12 + (now.getUTCMonth() - start.getUTCMonth());
-  if (now.getUTCDate() < start.getUTCDate()) months -= 1;
-  return Math.max(0, Math.min(MONTHS_PER_YEAR, months));
-}
-
-/**
- * Included prints for the WHOLE term, which becomes the annual pool total.
+ * Included prints for the WHOLE term, which becomes the annual pool total. The DB lookup here is
+ * webhook-specific — deciding whether this is a fresh term, a mid-term switch, or a redundant
+ * event; the ARITHMETIC is delegated to the shared `termPrintAllocation` so the number written to
+ * the ledger is the same one the app quotes and stripe-checkout charges against.
  *
  * You keep your OLD rate for months already served and get the NEW rate for months remaining:
  * upgrading to VIP 8 months into a PRO year yields 1×8 + 3×4 = 20, not a fresh 36. Without this a
@@ -105,8 +95,8 @@ async function termAllocationFor(
   periodStartIso: string | null,
   nowMs: number,
 ): Promise<number | null> {
-  const rate = PRINTS_PER_MONTH[product];
-  if (interval !== 'year' || !periodStartIso || rate === undefined) return null;
+  if (interval !== 'year' || !periodStartIso || PRINTS_PER_MONTH[product] === undefined) return null;
+  const periodStartSec = Date.parse(periodStartIso) / 1000;
 
   const db = service();
   const { data: rows } = await db
@@ -129,21 +119,15 @@ async function termAllocationFor(
   const mine = (rows ?? []).find((r) => r.product === product && sameTerm(r));
   if (mine?.term_print_allocation != null) return mine.term_print_allocation;
 
-  // A mid-term switch: the tier being replaced is still ACTIVE on the same term.
+  // A mid-term switch: the tier being replaced is still ACTIVE on the same term. `sibling.product`
+  // → the outgoing rate; null (no sibling: fresh subscription or renewal) → the whole year.
   const sibling = (rows ?? []).find(
     (r) =>
       r.product !== product &&
       sameTerm(r) &&
       (!r.expires_at || Date.parse(r.expires_at as string) > nowMs),
   );
-  if (sibling) {
-    const oldRate = PRINTS_PER_MONTH[sibling.product as string] ?? 0;
-    const elapsed = monthsElapsed(Date.parse(periodStartIso), nowMs);
-    return oldRate * elapsed + rate * (MONTHS_PER_YEAR - elapsed);
-  }
-
-  // Fresh subscription or a renewal onto a new period_start: the whole year at the new rate.
-  return rate * MONTHS_PER_YEAR;
+  return termPrintAllocation(sibling?.product ?? null, product, 'year', periodStartSec, nowMs);
 }
 
 /** Upsert the user ↔ Stripe customer mapping (needed for Customer Portal sessions). */

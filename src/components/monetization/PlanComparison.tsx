@@ -175,8 +175,8 @@ export function PlanComparison() {
         {isSwitch && preview ? (
           <Text style={styles.prorated}>
             {preview.amountDue > 0
-              ? `${formatMoney(preview.amountDue, preview.currency)} today, prorated for the rest of your year`
-              : 'Nothing to pay today — your remaining credit covers it'}
+              ? `${formatMoney(preview.amountDue, preview.currency)} to upgrade, prorated for the rest of your year`
+              : 'Nothing to pay — your remaining credit covers it'}
           </Text>
         ) : null}
         {/* The month-to-month link is a NEW-subscription choice. Offering it on an upgrade would

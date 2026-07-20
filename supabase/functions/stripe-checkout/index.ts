@@ -192,13 +192,32 @@ Deno.serve(async (req: Request) => {
           proration_behavior: 'create_prorations',
         },
       });
+      // The COST OF UPGRADING is the sum of the PRORATION lines only — a credit for unused time
+      // on the old plan plus a charge for the new plan over the remaining term. For a full year
+      // left that is VIP $99.99 − PRO $39.99 = $60; with three months left it is a quarter of
+      // each, so ~$15.
+      //
+      // NOT `amount_due`. create_preview always returns the whole next upcoming invoice, and with
+      // create_prorations the proration lines ride along on the coming renewal — so amount_due
+      // was the renewal ($99.99) PLUS the proration ($59.55) = $159.54, which read as the upgrade
+      // price and was wildly wrong.
+      //
+      // This figure is what `proration_behavior: 'always_invoice'` would bill immediately, so the
+      // eventual plan-change call MUST use always_invoice or the quote won't match the charge.
+      const lines = (preview as unknown as { lines?: { data?: { proration?: boolean; amount?: number }[] } })
+        .lines?.data ?? [];
+      const prorationLines = lines.filter((l) => l.proration);
+      const prorationDue = prorationLines.reduce((sum, l) => sum + (l.amount ?? 0), 0);
+
       return json(200, {
         preview: {
-          amountDue: preview.amount_due ?? 0,
+          // What the upgrade costs. Never negative in the UI — a downgrade produces net credit,
+          // which we surface as "nothing to pay" rather than a negative price.
+          amountDue: Math.max(0, prorationDue),
           currency: preview.currency ?? 'usd',
-          // Credit for unused time on the old plan shows as negative proration lines; surfacing
-          // the total lets the UI say "X credited" rather than only the net figure.
-          subtotal: preview.subtotal ?? 0,
+          /** Whole next invoice, for debugging the number above. Not shown to users. */
+          nextInvoiceTotal: preview.amount_due ?? 0,
+          prorationLineCount: prorationLines.length,
           fromLookupKey: item.price?.lookup_key ?? null,
           toLookupKey: lookupKey,
         },

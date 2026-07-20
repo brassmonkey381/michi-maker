@@ -100,13 +100,21 @@ export async function startCheckout(
   if (Platform.OS === 'web') window.location.assign(url);
 }
 
-/** What moving an existing subscription onto another plan costs today, after proration. */
+/** What moving an existing subscription onto another plan costs, after proration. */
 export interface PlanChangePreview {
-  /** Charged now, in the smallest currency unit (cents). Can be 0 when credit covers it. */
+  /**
+   * The upgrade price, in the smallest currency unit (cents): the new plan across the remaining
+   * term MINUS credit for unused time on the old one. A full year left of PRO → VIP is
+   * $99.99 − $39.99 = $60; three months left is a quarter of each, ~$15.
+   *
+   * This is the sum of the PRORATION lines, not the previewed invoice total — that total also
+   * contains the next renewal, which made an upgrade look like $159.54 instead of $59.55.
+   */
   amountDue: number;
   currency: string;
-  /** Before any existing customer credit balance is applied. */
-  subtotal: number;
+  /** Whole previewed invoice, for debugging only — never render this. */
+  nextInvoiceTotal: number;
+  prorationLineCount: number;
   fromLookupKey: string | null;
   toLookupKey: string;
 }

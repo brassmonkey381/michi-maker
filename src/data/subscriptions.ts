@@ -228,13 +228,13 @@ export const COMPARISON: CompareRow[] = [
     pro: {
       text: 'Full binders',
       strong: true,
-      stamp: `−${YEARLY_PRINT_VALUE.pro.off}`,
+      stamp: `${YEARLY_PRINT_VALUE.pro.off} SAVINGS`,
       sub: '1 full-binder PDF included per month',
     },
     vip: {
       text: 'Full binders',
       strong: true,
-      stamp: `−${YEARLY_PRINT_VALUE.vip.off}`,
+      stamp: `${YEARLY_PRINT_VALUE.vip.off} SAVINGS`,
       sub: '3 full-binder PDFs included per month',
     },
   },

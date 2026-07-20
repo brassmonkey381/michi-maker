@@ -12,10 +12,11 @@ import { pillChip } from '@/constants/ui';
 import { CAPTION_FIELDS, type CaptionFieldKey } from '@/data/cardCaption';
 import { RARITY_TABLE, type RarityGroup } from '@/data/rarityCode';
 
-type TabId = 'fields' | 'rarity';
+type TabId = 'fields' | 'rarity' | 'tiles';
 const TABS: { id: TabId; label: string }[] = [
   { id: 'fields', label: 'Fields' },
   { id: 'rarity', label: 'Rarity codes' },
+  { id: 'tiles', label: 'Card tiles' },
 ];
 
 /** One-line description of what each caption field shows. */
@@ -80,7 +81,7 @@ export function LabelsHelp({ onClose }: { onClose: () => void }) {
       </View>
 
       <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
-        {tab === 'fields' ? <FieldsTab /> : <RarityTab />}
+        {tab === 'fields' ? <FieldsTab /> : tab === 'rarity' ? <RarityTab /> : <TilesTab />}
       </ScrollView>
     </View>
   );
@@ -97,6 +98,33 @@ function FieldsTab() {
         <View key={f.key} style={styles.row}>
           <Text style={styles.rowLabel}>{f.label}</Text>
           <Text style={styles.rowDesc}>{FIELD_HELP[f.key]}</Text>
+        </View>
+      ))}
+    </>
+  );
+}
+
+/** Badges & marks that appear ON card tiles / in the card panel across the browse surfaces. */
+const TILE_HELP: { code: string; desc: string }[] = [
+  { code: '$ tag', desc: 'Bottom-left: latest market value (USD)' },
+  { code: 'JP', desc: 'Bottom-right: Japanese printing' },
+  { code: '✓', desc: 'Selected in multi-select (⊕ Select multiple, or Ctrl/Shift-click on web)' },
+  { code: 'V-UNION', desc: 'An assembled 2×2 group tile — tap places all four pieces' },
+  { code: 'ring', desc: 'Keyboard focus (web): arrow keys move it, Enter opens, Esc closes' },
+  { code: 'Tap a card', desc: 'Opens its panel: value, evolves from/to, add, ≈ similar, view set/artist' },
+  { code: 'may differ', desc: 'Panel caveat: the image shown is a clean twin of this exact printing' },
+];
+
+function TilesTab() {
+  return (
+    <>
+      <Text style={styles.intro}>
+        Marks and badges you’ll see on card tiles and in the card panel when browsing.
+      </Text>
+      {TILE_HELP.map((r) => (
+        <View key={r.code} style={styles.row}>
+          <Text style={styles.rowLabel}>{r.code}</Text>
+          <Text style={styles.rowDesc}>{r.desc}</Text>
         </View>
       ))}
     </>

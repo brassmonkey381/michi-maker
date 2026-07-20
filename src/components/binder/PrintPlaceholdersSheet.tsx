@@ -8,6 +8,7 @@
  * inline SignInPerk note, never a dead spinner). The PDF downloads in-browser on web; on
  * native we point at the web app for now (no share-sheet plumbing yet).
  */
+import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -111,6 +112,7 @@ export function PrintPlaceholdersSheet({
     return () => clearInterval(id);
   }, [purchased, refresh]);
   const { isSignedIn } = useAuth();
+  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [buying, setBuying] = useState(false);
   const [exBusy, setExBusy] = useState(false);
@@ -752,6 +754,18 @@ export function PrintPlaceholdersSheet({
                   )
                 ) : null}
 
+                {/* View the same sampler as a binder (read-only reference — can't be edited or
+                    copied), so you can see how the pages map to the printed files. */}
+                <ThemedText
+                  type="linkPrimary"
+                  style={styles.viewExampleLink}
+                  onPress={() => {
+                    onClose();
+                    router.push(`/binder/${EXAMPLE_FILL_SHEET_BINDER.id}`);
+                  }}>
+                  View the example binder ›
+                </ThemedText>
+
                 {error ? (
                   <ThemedText type="small" style={styles.error}>
                     {error}
@@ -792,6 +806,7 @@ const styles = StyleSheet.create({
     minHeight: 40,
   },
   exampleBtnText: { color: Palette.accent, fontSize: FontSize.label, fontWeight: Weight.semibold },
+  viewExampleLink: { fontSize: FontSize.label, textAlign: 'center', marginTop: 2 },
   versionsBox: {
     borderWidth: 1,
     borderColor: Palette.hairlineStrong,

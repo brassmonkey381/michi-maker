@@ -1046,6 +1046,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                   </View>
                 </Pressable>
               </View>
+            ) : binder.locked ? (
+              // A locked reference (the print sampler): view only — no edit, no Duplicate.
+              <Text style={[styles.headerAction, { color: theme.text, opacity: 0.55 }]}>View only</Text>
             ) : (
               <Pressable onPress={handleDuplicate} hitSlop={10}>
                 <View style={styles.modeBtn}>

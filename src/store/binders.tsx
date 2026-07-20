@@ -29,6 +29,7 @@ import {
 import * as repo from '@/data/binderRepo';
 import { slotSignature } from '@/data/savedSlices';
 import { legalizeArtPanels, pageSide, requiredPageSide } from '@/data/binderPhysics';
+import { EXAMPLE_FILL_SHEET_BINDER } from '@/data/exampleFillSheetBinder';
 import {
   canPlaceSlot,
   cloneBinder,
@@ -432,7 +433,12 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   }, [syncChanged]);
 
   const getBinder = useCallback(
-    (id: string) => binders.find((binder) => binder.id === id),
+    (id: string) =>
+      binders.find((binder) => binder.id === id) ??
+      // The print-feature sampler is a standalone locked reference — resolvable at
+      // /binder/example-fill-sheet, but deliberately NOT in the binder list (so it stays out of
+      // the home carousels, the binder cap, and every persistence/mutation path).
+      (id === EXAMPLE_FILL_SHEET_BINDER.id ? EXAMPLE_FILL_SHEET_BINDER : undefined),
     [binders],
   );
 
@@ -474,6 +480,8 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     (id: string) => {
       const source = binders.find((binder) => binder.id === id);
       if (!source) return undefined;
+      // Locked references (the print sampler) are view-only — never copyable.
+      if (source.locked) return undefined;
       // Duplicating adds a binder — refuse past the tier limit (UI shows the upgrade note).
       if (LIMITS_ENFORCED && binderCount >= limits.binders) return undefined;
       const copy = cloneBinder(source, { title: `${source.title} (copy)` });

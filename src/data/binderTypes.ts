@@ -120,6 +120,13 @@ export interface DemoBinder {
    * not editable, and not shareable. At most one per account (see the store's createBinder).
    */
   isDemo?: boolean;
+  /**
+   * A hard read-only reference binder: view ONLY — it cannot be edited OR duplicated. Ordinary
+   * examples (`isExample`) are read-only but still duplicable into an editable copy; a `locked`
+   * binder additionally has no Duplicate action (the store's `duplicateBinder` refuses it). Used
+   * for the print-feature sampler (see `src/data/exampleFillSheetBinder.ts`).
+   */
+  locked?: boolean;
   /** A curated community "Featured" binder — shown in the Featured section (still read-only). */
   isFeatured?: boolean;
   /** The author's display name, shown on Featured binders. One day this links to their profile. */
@@ -300,6 +307,7 @@ export function cloneBinder(binder: DemoBinder, overrides?: Partial<DemoBinder>)
     id: uuidv4(),
     isExample: false,
     isDemo: false, // a duplicate of the demo showcase becomes a real, editable, counted binder
+    locked: false, // a copy is a real, freely editable binder (locked references can't be copied anyway)
     isPublic: false, // a copy is private until the new owner shares it
     pages: binder.pages.map((page) => ({
       ...page,

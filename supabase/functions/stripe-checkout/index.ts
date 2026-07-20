@@ -162,11 +162,23 @@ Deno.serve(async (req: Request) => {
       .eq('user_id', user.id)
       .maybeSingle();
     if (!mapping) return json(404, { error: 'no billing history yet' });
-    const session = await stripe.billingPortal.sessions.create({
-      customer: mapping.stripe_customer_id,
-      return_url: returnUrl,
-    });
-    return json(200, { url: session.url });
+    try {
+      const session = await stripe.billingPortal.sessions.create({
+        customer: mapping.stripe_customer_id,
+        return_url: returnUrl,
+      });
+      return json(200, { url: session.url });
+    } catch (e) {
+      // The overwhelmingly common cause is no portal CONFIGURATION in this Stripe mode — the
+      // portal is dashboard-configured per mode, and without one every session create throws.
+      // Say so explicitly; a bare 500 here sends people hunting through app code for a Stripe
+      // dashboard setting. Plan changes need `subscription_update` enabled on that config.
+      const message = (e as Error).message ?? 'portal session failed';
+      console.error('portal session failed', message);
+      return json(502, {
+        error: `Stripe could not open the billing portal. If this Stripe mode has no Customer Portal configuration yet, create one (with subscription_update enabled for the PRO and VIP products) at Settings → Billing → Customer portal. Stripe said: ${message}`,
+      });
+    }
   }
 
   // ── Preview a plan change ───────────────────────────────────────────────

@@ -19,6 +19,7 @@ import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, Vi
 import { FontSize, Palette, Radius, Shadows, Spacing, Weight } from '@/constants/theme';
 import {
   formatMoney,
+  openBillingPortal,
   previewPlanChange,
   startCheckout,
   type PlanChangePreview,
@@ -28,7 +29,7 @@ import {
   CHECKOUT_OPEN,
   COMPARISON,
   FOOTNOTES,
-  PLAN_CHANGE_CLOSED_NOTE,
+  PLAN_CHANGE_ERROR_NOTE,
   PLAN_HEADERS,
   planCta,
   type CompareCell,
@@ -154,10 +155,15 @@ export function PlanComparison() {
       <>
         <Pressable
           onPress={() => {
-            // A switch must never open Checkout: that starts a second subscription and bills
-            // both plans. Until plan changes are wired it says so plainly.
+            // A switch must NEVER open Checkout — that starts a second subscription and bills
+            // both plans. It goes to the Customer Portal, which moves the existing subscription
+            // onto the new price with proration. Deliberately not gated on CHECKOUT_OPEN: that
+            // flag gates SELLING, and this is a subscriber managing a plan they already pay for.
             if (isSwitch) {
-              setNote({ tier: plan.tier, text: PLAN_CHANGE_CLOSED_NOTE });
+              setNote({ tier: plan.tier, text: 'Opening plan management…' });
+              openBillingPortal().catch(() =>
+                setNote({ tier: plan.tier, text: PLAN_CHANGE_ERROR_NOTE }),
+              );
               return;
             }
             void buy(plan, key);

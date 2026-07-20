@@ -319,7 +319,9 @@ export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }
 
       {/* Stripe Customer Portal: cancel, switch plans, payment method, invoices. Only offered
           once checkout is open AND the user actually has billing history to manage. */}
-      {CHECKOUT_OPEN && (tier === 'pro' || tier === 'vip') ? (
+      {/* Not gated on CHECKOUT_OPEN: that flag gates SELLING. Someone who already pays should be
+          able to reach cancellation and payment-method management regardless. */}
+      {tier === 'pro' || tier === 'vip' ? (
         <ThemedText
           type="linkPrimary"
           style={styles.manage}

@@ -17,13 +17,13 @@ import type { Tier } from '@/data/tiers';
 export const CHECKOUT_OPEN = process.env.EXPO_PUBLIC_CHECKOUT_OPEN === '1';
 
 /**
- * Shown when an existing subscriber taps an upgrade. Plan CHANGES are not wired yet: Checkout
- * would open a second subscription (billing both plans), and the Customer Portal has no
- * configuration in this Stripe account yet, so it can't switch plans either. Until one of those
- * exists this stays an honest note rather than a button that double-charges.
+ * Shown when opening the plan-change flow fails. Upgrades go through the Stripe Customer Portal,
+ * which moves the EXISTING subscription onto the new price — Checkout can't, it would open a
+ * second subscription and bill both. The portal needs a configuration with `subscription_update`
+ * enabled in the Stripe dashboard; without one, session creation fails and this is what shows.
  */
-export const PLAN_CHANGE_CLOSED_NOTE =
-  'Plan changes aren’t open yet. When they are, this will move your current subscription over instead of starting a second one.';
+export const PLAN_CHANGE_ERROR_NOTE =
+  'We couldn’t open plan management just now. Try again in a moment, or contact support if it keeps happening.';
 
 /** The honest line every CTA shows while checkout is closed (same voice as UpgradePerk). */
 export const CHECKOUT_CLOSED_NOTE = 'Paid plans aren’t open quite yet. Check back soon.';

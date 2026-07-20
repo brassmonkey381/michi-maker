@@ -10,10 +10,12 @@
  * for the selected highlight). To reset browse state (e.g. per pocket) pass a React `key` on the
  * element — it remounts this wrapper and the browser inside it.
  */
+import { useState } from 'react';
 import { Platform } from 'react-native';
 
-import { CatalogBrowser, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
+import { CatalogBrowser, sendBrowseCommand, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
 
+import { ColorSearchSheet } from '@/components/ColorSearchSheet';
 import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { useBrowseTheme } from '@/lib/browseTheme';
 
@@ -64,20 +66,36 @@ export function CardBrowse({
   // App tokens → the kit's color contract, so the browser follows light/dark + variant
   // instead of falling back to the kit's built-in light look.
   const browseTheme = useBrowseTheme();
+  // Color search lives IN the browser (a "Color" toolbar button) so it's available on every surface
+  // that uses this wrapper — the /browse page AND the binder card picker. Results are pushed back
+  // into the browser as a result set (showCards), so filters / multi-select / actions all apply.
+  const [colorOpen, setColorOpen] = useState(false);
   return (
-    <CatalogBrowser
-      theme={browseTheme}
-      catalog={FORCE_COLD ? null : catalog}
-      selectedCardId={selectedCardId}
-      onPickCard={onPickCard ?? (() => {})}
-      onPickVUnion={onPickVUnion}
-      onPickCards={onPickCards}
-      cardActions={cardActions}
-      initialSimilar={initialSimilar}
-      languages={languages}
-      footer={null}
-      cardTileWidth={CARD_BROWSE_TILE_WIDTH}
-      taxTileHeight={CARD_BROWSE_TAX_TILE_HEIGHT}
-    />
+    <>
+      <CatalogBrowser
+        theme={browseTheme}
+        catalog={FORCE_COLD ? null : catalog}
+        selectedCardId={selectedCardId}
+        onPickCard={onPickCard ?? (() => {})}
+        onPickVUnion={onPickVUnion}
+        onPickCards={onPickCards}
+        cardActions={cardActions}
+        initialSimilar={initialSimilar}
+        languages={languages}
+        onColorSearch={() => setColorOpen(true)}
+        footer={null}
+        cardTileWidth={CARD_BROWSE_TILE_WIDTH}
+        taxTileHeight={CARD_BROWSE_TAX_TILE_HEIGHT}
+      />
+      {colorOpen ? (
+        <ColorSearchSheet
+          onResults={(ids, label) => {
+            sendBrowseCommand({ type: 'showCards', ids, label });
+            setColorOpen(false);
+          }}
+          onClose={() => setColorOpen(false)}
+        />
+      ) : null}
+    </>
   );
 }

@@ -10,7 +10,7 @@
  * the pending command lands the moment this page's CatalogBrowser subscribes.
  */
 import { useRouter } from 'expo-router';
-import { sendBrowseCommand, type CardAction, type CardActionsFactory } from 'tcgscan-browse';
+import { type CardAction, type CardActionsFactory } from 'tcgscan-browse';
 import { useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,7 +18,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
 import { CardBrowse } from '@/components/binder/CardBrowse';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
-import { ColorSearchSheet } from '@/components/ColorSearchSheet';
 import { LanguageToggle } from '@/components/LanguageToggle';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -44,8 +43,6 @@ export default function BrowseScreen() {
 
   // One or many cards headed for a binder (single tap → [id]; multi-select → the whole set).
   const [addCardIds, setAddCardIds] = useState<string[] | null>(null);
-  // Color search: null = closed; {} = pick mode; {seedCardId} = "similar by color" from a card.
-  const [colorSheet, setColorSheet] = useState<{ seedCardId?: string; seedName?: string } | null>(null);
   const [toast, setToast] = useState<ToastSpec | null>(null);
   const toastId = useRef(0);
 
@@ -66,17 +63,11 @@ export default function BrowseScreen() {
       label: 'Add to a binder…',
       onPress: (c) => setAddCardIds([c.id]),
     };
-    const colorSimilar: CardAction = {
-      key: 'color-similar',
-      label: '🎨 Similar by color',
-      onPress: (c) => setColorSheet({ seedCardId: c.id, seedName: c.name }),
-    };
     return [
       add,
       builtins.moreLikeThis,
       builtins.lessLikeThis,
       builtins.findSimilar,
-      colorSimilar,
       builtins.viewSet,
     ].filter(Boolean) as CardAction[];
   };
@@ -105,13 +96,6 @@ export default function BrowseScreen() {
               Browse all cards
             </ThemedText>
             <View style={styles.headerRight}>
-              <Pressable
-                onPress={() => setColorSheet({})}
-                hitSlop={8}
-                accessibilityLabel="Search by color"
-                style={({ pressed }) => [styles.colorBtn, pressed && styles.pressed]}>
-                <ThemedText type="smallBold">🎨 Color</ThemedText>
-              </Pressable>
               <LanguageToggle value={langs} onChange={changeLangs} />
               {railHidden ? (
                 <Pressable onPress={() => router.push('/')} hitSlop={8}>
@@ -135,20 +119,6 @@ export default function BrowseScreen() {
           </View>
         </View>
       </SafeAreaView>
-
-      {colorSheet ? (
-        <ColorSearchSheet
-          seedCardId={colorSheet.seedCardId}
-          seedName={colorSheet.seedName}
-          onResults={(ids, label) => {
-            // Push the ranked ids into the browser as a result set — facets / multi-select / actions
-            // / sort all apply, exactly like a search.
-            sendBrowseCommand({ type: 'showCards', ids, label });
-            setColorSheet(null);
-          }}
-          onClose={() => setColorSheet(null)}
-        />
-      ) : null}
 
       {addCardIds ? (
         <AddToBinderSheet
@@ -182,8 +152,6 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  colorBtn: { paddingVertical: 5, paddingHorizontal: Spacing.three, borderRadius: 999, backgroundColor: Palette.panel },
-  pressed: { opacity: 0.7 },
   h1: { fontFamily: Fonts?.brand, fontSize: FontSize.display, lineHeight: 40 },
   panel: {
     flex: 1,

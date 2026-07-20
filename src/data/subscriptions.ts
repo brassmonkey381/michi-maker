@@ -221,15 +221,17 @@ export const COMPARISON: CompareRow[] = [
     capability: 'Print-ready fill sheets',
     mark: '§',
     free: { text: 'Example-sheet preview' },
+    // Kept deliberately terse — this is the densest cell in the table and it was driving the
+    // row's height and width. The § and ‖ footnotes carry the detail (pool mechanics, proration).
     pro: {
       text: 'Full binders',
       strong: true,
-      sub: `1 print included each month · yearly: all 12 whenever you want, about ${YEARLY_PRINT_VALUE.pro.off} less per print · move up to VIP any time, prorated‖`,
+      sub: `1 a month · 12 a year on yearly, ~${YEARLY_PRINT_VALUE.pro.off} less each · upgrade any time, prorated‖`,
     },
     vip: {
       text: 'Full binders',
       strong: true,
-      sub: `3 prints included each month · yearly: all 36 whenever you want, about ${YEARLY_PRINT_VALUE.vip.off} less per print · first in line for print extras*`,
+      sub: `3 a month · 36 a year on yearly, ~${YEARLY_PRINT_VALUE.vip.off} less each · print extras first*`,
     },
   },
   {

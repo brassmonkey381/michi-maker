@@ -290,11 +290,15 @@ export function PlanComparison() {
 }
 
 const styles = StyleSheet.create({
-  scroll: { flexGrow: 1 },
-  // 720, down from 860: the page shell caps readable content well below the old figure, so the
-  // table demanded more width than it was ever given and overflowed on ordinary screens. Columns
-  // still hold their proportions; the capability subs just wrap a line earlier.
-  table: { minWidth: 720, flex: 1, paddingTop: TAB_RISE },
+  // Centres the capped table in whatever width the shell gives us. This is a horizontal
+  // ScrollView, so its content container is a flex ROW — horizontal alignment is justifyContent
+  // here, NOT alignSelf on the table (alignSelf would move it on the vertical axis instead).
+  scroll: { flexGrow: 1, justifyContent: 'center' },
+  // The plans page hands PageShell MaxContentWidthWide (1440), which this table would otherwise
+  // fill edge to edge — sprawling on a large monitor and crowding the right column everywhere
+  // else. maxWidth caps it ~13% below that and centres it; minWidth keeps four columns legible
+  // before the ScrollView starts panning on narrow screens.
+  table: { minWidth: 720, maxWidth: 1040, flex: 1, paddingTop: TAB_RISE },
   row: { flexDirection: 'row', alignItems: 'stretch' },
 
   cell: {

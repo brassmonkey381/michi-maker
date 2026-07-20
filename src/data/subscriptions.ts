@@ -131,6 +131,8 @@ export interface CompareCell {
   sub?: string;
   /** Bold the value (the standout numbers / Unlimited / Included). */
   strong?: boolean;
+  /** Small pill set beside the value, e.g. the per-print saving on yearly billing. */
+  stamp?: string;
 }
 
 export interface CompareRow {
@@ -221,17 +223,19 @@ export const COMPARISON: CompareRow[] = [
     capability: 'Print-ready fill sheets',
     mark: '§',
     free: { text: 'Example-sheet preview' },
-    // Kept deliberately terse — this is the densest cell in the table and it was driving the
-    // row's height and width. The § and ‖ footnotes carry the detail (pool mechanics, proration).
+    // One plain sentence plus a saving stamp. Everything else — the yearly pool, the per-print
+    // maths, prorated upgrades — lives in the § and ‖ footnotes rather than crowding the cell.
     pro: {
       text: 'Full binders',
       strong: true,
-      sub: `1 a month · 12 a year on yearly, ~${YEARLY_PRINT_VALUE.pro.off} less each · upgrade any time, prorated‖`,
+      stamp: `−${YEARLY_PRINT_VALUE.pro.off}`,
+      sub: '1 full-binder PDF included per month',
     },
     vip: {
       text: 'Full binders',
       strong: true,
-      sub: `3 a month · 36 a year on yearly, ~${YEARLY_PRINT_VALUE.vip.off} less each · print extras first*`,
+      stamp: `−${YEARLY_PRINT_VALUE.vip.off}`,
+      sub: '3 full-binder PDFs included per month',
     },
   },
   {
@@ -257,35 +261,32 @@ export const ONE_TIME_PDF = {
 export const FOOTNOTES: { mark: string; text: string; link?: { label: string; url: string } }[] = [
   {
     mark: '*',
-    text: 'First in line for print extras: VIP members get new print features first as they ship, like new sheet formats and print-on-demand, plus member pricing on print-on-demand orders.',
+    text: 'New print features first as they ship, like new sheet formats and print-on-demand, plus member pricing on print-on-demand orders.',
   },
   {
     mark: '†',
-    text: 'Featured eligibility boost: public VIP binders get priority consideration when we pick binders to feature on the home page and in community showcases.',
+    text: 'Public VIP binders get priority consideration when we pick binders to feature on the home page and in community showcases.',
   },
   {
     mark: '‡',
-    text: 'Included at every tier. Scan and track the cards you own with our partner app TCGScan - your collection syncs straight into michi-maker, with best-in-class inventory tracking, set analytics, and historical price history. PRO and VIP members get bundle discounts on TCGScan memberships.',
+    text: 'Included at every tier. Scan and track the cards you own with our partner app TCGScan and your collection syncs straight into michi-maker. PRO and VIP get bundle discounts on TCGScan memberships.',
     link: { label: 'Meet TCGScan →', url: TCGSCAN_URL },
   },
   {
     mark: '§',
     text:
-      'Yearly plans can use the whole year of prints whenever you want. Included prints arrive a ' +
-      'month at a time to start; once you have used your first one, you can release the rest of ' +
-      'the year in a single tap, and it stays released until your plan renews. Per print that ' +
-      `works out to about ${YEARLY_PRINT_VALUE.pro.each} on PRO yearly and ` +
-      `${YEARLY_PRINT_VALUE.vip.each} on VIP yearly, next to ${ONE_TIME_PDF.price} for a one-off ` +
-      'single-binder PDF. Month-to-month plans get their prints a month at a time.',
+      'Yearly plans can use the whole year of prints whenever you want: take your first one, then ' +
+      `release the rest in a tap. That works out to about ${YEARLY_PRINT_VALUE.pro.each} a print ` +
+      `on PRO yearly and ${YEARLY_PRINT_VALUE.vip.each} on VIP yearly, against ` +
+      `${ONE_TIME_PDF.price} for a single one-off binder PDF. Month-to-month plans get their ` +
+      'prints a month at a time.',
   },
   {
     mark: '‖',
     text:
-      'Moving up a plan is prorated, so you only pay the difference for the time left in your ' +
-      'year rather than starting over. Your prints are prorated the same way: you keep everything ' +
-      'your old plan already earned this year and pick up the new plan’s rate for every month ' +
-      'still to come. Upgrading to VIP yearly eight months into a PRO year gives you 20 prints ' +
-      'for the year, not a fresh 36 and not the 12 you started with.',
+      'Moving up is prorated: you pay the difference for the time left in your year, and your ' +
+      'prints carry over the same way. Upgrading to VIP eight months into a PRO year gives you 20 ' +
+      'prints for that year, not a fresh 36.',
   },
 ];
 

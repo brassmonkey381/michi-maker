@@ -43,9 +43,18 @@ const TAB_RISE = Spacing.four;
 function ValueCell({ cell, vip }: { cell: CompareCell; vip?: boolean }) {
   return (
     <>
-      <Text style={[styles.value, vip && styles.vipText, cell.strong && styles.valueStrong]}>
-        {cell.text}
-      </Text>
+      <View style={styles.valueRow}>
+        <Text style={[styles.value, vip && styles.vipText, cell.strong && styles.valueStrong]}>
+          {cell.text}
+        </Text>
+        {/* Sits beside the value rather than under it, so the saving reads as part of the
+            headline instead of another line of small print. */}
+        {cell.stamp ? (
+          <View style={styles.stamp}>
+            <Text style={styles.stampText}>{cell.stamp}</Text>
+          </View>
+        ) : null}
+      </View>
       {cell.sub ? <Text style={[styles.valueSub, vip && styles.vipSubText]}>{cell.sub}</Text> : null}
     </>
   );
@@ -185,7 +194,10 @@ export function PlanComparison() {
   };
 
   return (
-    <View>
+    // Everything in the block shares ONE width. The footnotes used to sit in the full shell
+    // (1440 on this page) capped at 720 and left-aligned, while the table centred itself at
+    // 1040 — so the fine print visibly failed to line up with the table above it.
+    <View style={styles.block}>
       {/* The indicator is hidden, not the scrolling: RN Web renders a horizontal ScrollView with
           a permanent scrollbar TRACK even when nothing overflows, which is the useless bar this
           table used to show at every width. Panning still works on genuinely narrow screens,
@@ -289,16 +301,22 @@ export function PlanComparison() {
   );
 }
 
+/** The shared width for the table AND its footnotes — see the `block` comment above. */
+const BLOCK_WIDTH = 1040;
+
 const styles = StyleSheet.create({
-  // Centres the capped table in whatever width the shell gives us. This is a horizontal
-  // ScrollView, so its content container is a flex ROW — horizontal alignment is justifyContent
-  // here, NOT alignSelf on the table (alignSelf would move it on the vertical axis instead).
-  scroll: { flexGrow: 1, justifyContent: 'center' },
+  block: { width: '100%', maxWidth: BLOCK_WIDTH, alignSelf: 'center' },
+  // The block already caps the width, so the content container just fills it. (Horizontal
+  // alignment inside a horizontal ScrollView is justifyContent, never alignSelf on the child —
+  // alignSelf would move the table on the VERTICAL axis.)
+  scroll: { flexGrow: 1 },
   // The plans page hands PageShell MaxContentWidthWide (1440), which this table would otherwise
   // fill edge to edge — sprawling on a large monitor and crowding the right column everywhere
   // else. maxWidth caps it ~13% below that and centres it; minWidth keeps four columns legible
   // before the ScrollView starts panning on narrow screens.
-  table: { minWidth: 720, maxWidth: 1040, flex: 1, paddingTop: TAB_RISE },
+  // minWidth keeps four columns legible; below that the ScrollView pans, which is the right
+  // trade on a narrow window. At full width the block cap means nothing overflows.
+  table: { minWidth: 720, flex: 1, paddingTop: TAB_RISE },
   row: { flexDirection: 'row', alignItems: 'stretch' },
 
   cell: {
@@ -397,7 +415,20 @@ const styles = StyleSheet.create({
 
   /* capability cells */
   label: { fontSize: FontSize.body, fontWeight: Weight.semibold, color: Palette.ink, lineHeight: 19 },
+  valueRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, flexWrap: 'wrap' },
   value: { fontSize: FontSize.body, color: Palette.ink2, lineHeight: 19 },
+  stamp: {
+    borderRadius: Radius.pill,
+    backgroundColor: Palette.selectionSoft,
+    paddingHorizontal: Spacing.one + 2,
+    paddingVertical: 1,
+  },
+  stampText: {
+    fontSize: FontSize.xs,
+    fontWeight: Weight.bold,
+    color: Palette.link,
+    fontVariant: ['tabular-nums'],
+  },
   valueStrong: { fontWeight: Weight.semibold, color: Palette.ink },
   valueSub: { fontSize: FontSize.sm, color: Palette.muted, lineHeight: 16 },
   // The VIP column's text is the same dark ink ramp as every other light surface (owner call).
@@ -462,8 +493,8 @@ const styles = StyleSheet.create({
     lineHeight: 38,
   },
 
-  /* footnotes */
-  footnotes: { gap: Spacing.one, marginTop: Spacing.three, maxWidth: 720 },
+  /* footnotes — full block width, so they start on the table's left edge */
+  footnotes: { gap: Spacing.one, marginTop: Spacing.three },
   footnote: { fontSize: FontSize.sm, color: Palette.muted, lineHeight: 18 },
   footnoteLink: { color: Palette.accent, fontWeight: Weight.semibold },
 });

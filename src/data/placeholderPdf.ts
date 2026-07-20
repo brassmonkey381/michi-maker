@@ -185,9 +185,12 @@ export interface FillCounts {
   art: number;
   inserts: number;
   total: number;
-  /** Print sheets needed (excluding the cover) — from the packed layout: singles fill 3 × 3
-   *  sheets edge to edge, folded 2-wide pieces add their own sheets at the end. */
+  /** Total print sheets across BOTH files, excluding their covers (placeholders + art). */
   sheets: number;
+  /** Sheets in the PLACEHOLDERS file — plain paper: card placeholders + inserts, 3 × 3 edge to edge. */
+  placeholderSheets: number;
+  /** Sheets in the ART file — matte cardstock: art pieces, spaced (singles 3-up, folds their own). */
+  artSheets: number;
 }
 
 /** Card metadata lookup the builder needs — satisfied by the kit catalog's `getCard`. */
@@ -415,13 +418,17 @@ export function collectFillTiles(
       }
     }
   });
+  const placeholderSheets = packSection(tiles, 'placeholders').sheetCount;
+  const artSheets = packSection(tiles, 'art').sheetCount;
   const counts: FillCounts = {
     cards: tiles.filter((t) => t.kind === 'card').length,
     ownedCards: tiles.filter((t) => t.kind === 'card' && t.owned).length,
     art: tiles.filter((t) => t.kind === 'art').length,
     inserts: tiles.filter((t) => t.kind === 'insert').length,
     total: tiles.length,
-    sheets: packTiles(tiles, makeLayout(false)).sheetCount,
+    placeholderSheets,
+    artSheets,
+    sheets: placeholderSheets + artSheets,
   };
   return { tiles, counts };
 }
@@ -435,40 +442,43 @@ interface PlacedTile {
 }
 
 /**
- * Pack tiles onto sheets. Singles (placeholders, inserts, 1-pocket art) fill the 3 × 3 grid
- * edge to edge in reading order — no blanks, every interior edge is one shared cut. Folded
- * 2-wide pieces go on their own sheets AT THE END (FOLD_ROWS per sheet, stacked), so the
- * singles grid stays unbroken and the total cut count stays minimal.
+ * Pack ONE section's tiles onto its own sheets, each section numbered from sheet 0 (the two
+ * sections become two separate PDFs — plain paper vs matte cardstock).
+ *
+ *  - 'placeholders': card placeholders + inserts fill the 3 × 3 grid EDGE TO EDGE in reading
+ *    order — no blanks, every interior edge is one shared cut. (Art tiles are ignored here.)
+ *  - 'art': art pieces print SPACED (never on ink) — singles 3-up per the spaced layout, then
+ *    folded 2-wide pieces on their own sheets at the end (FOLD_ROWS per sheet, true width).
  */
-function packTiles(
+function packSection(
   tiles: FillTile[],
-  L: SheetLayout,
-): { placed: PlacedTile[]; sheetCount: number; artStartSheet: number; foldStartSheet: number } {
-  // ART is NEVER printed tight: whatever the placeholder layout, art pieces get their own
-  // sheets in the spaced layout — labels beneath them, outlines outset, no ink on the artwork.
-  const art = makeLayout(true);
-  const plain = tiles.filter((t) => t.kind !== 'art');
-  const artSingles = tiles.filter((t): t is ArtTile => t.kind === 'art' && t.w === 1);
-  const folded = tiles.filter((t): t is ArtTile => t.kind === 'art' && t.w === 2);
-
-  const perPlain = COLS * L.rows;
-  const placed: PlacedTile[] = plain.map((tile, n) => ({
-    tile,
-    sheet: Math.floor(n / perPlain),
-    x: colX(L, n % COLS),
-    y: rowY(L, Math.floor(n / COLS) % L.rows),
-  }));
-  const artStartSheet = Math.ceil(plain.length / perPlain);
-  const perArt = COLS * art.rows;
-  artSingles.forEach((tile, n) => {
-    placed.push({
+  section: 'placeholders' | 'art',
+): { placed: PlacedTile[]; sheetCount: number } {
+  if (section === 'placeholders') {
+    const L = makeLayout(false);
+    const plain = tiles.filter((t) => t.kind !== 'art');
+    const perPlain = COLS * L.rows;
+    const placed: PlacedTile[] = plain.map((tile, n) => ({
       tile,
-      sheet: artStartSheet + Math.floor(n / perArt),
-      x: colX(art, n % COLS),
-      y: rowY(art, Math.floor(n / COLS) % art.rows),
-    });
-  });
-  const foldStartSheet = artStartSheet + Math.ceil(artSingles.length / perArt);
+      sheet: Math.floor(n / perPlain),
+      x: colX(L, n % COLS),
+      y: rowY(L, Math.floor(n / COLS) % L.rows),
+    }));
+    return { placed, sheetCount: Math.ceil(plain.length / perPlain) };
+  }
+  // ART is NEVER printed tight: art pieces get the spaced layout — labels beneath them,
+  // outlines outset, no ink on the artwork.
+  const art = makeLayout(true);
+  const singles = tiles.filter((t): t is ArtTile => t.kind === 'art' && t.w === 1);
+  const folded = tiles.filter((t): t is ArtTile => t.kind === 'art' && t.w === 2);
+  const perArt = COLS * art.rows;
+  const placed: PlacedTile[] = singles.map((tile, n) => ({
+    tile,
+    sheet: Math.floor(n / perArt),
+    x: colX(art, n % COLS),
+    y: rowY(art, Math.floor(n / COLS) % art.rows),
+  }));
+  const foldStartSheet = Math.ceil(singles.length / perArt);
   folded.forEach((tile, n) => {
     placed.push({
       tile,
@@ -477,8 +487,7 @@ function packTiles(
       y: foldRowY(art, n % art.foldRows),
     });
   });
-  const sheetCount = foldStartSheet + Math.ceil(folded.length / art.foldRows);
-  return { placed, sheetCount, artStartSheet, foldStartSheet };
+  return { placed, sheetCount: foldStartSheet + Math.ceil(folded.length / art.foldRows) };
 }
 
 // ---- text helpers -----------------------------------------------------------
@@ -543,44 +552,82 @@ interface EmbeddedArt {
   height: number;
 }
 
+/** One generated fill-sheet file. Placeholders and art print as SEPARATE PDFs so each can go
+ *  on its own paper stock (plain paper for placeholders, matte cardstock for art). */
+export interface FillSheetPdf {
+  section: 'placeholders' | 'art';
+  bytes: Uint8Array;
+  /** Sheets in this file, excluding its cover. */
+  sheets: number;
+  /** Printable pieces in this file (placeholders + inserts, or art pieces). */
+  pieces: number;
+}
+
 /**
- * Build the full PDF: cover (instructions + calibration square) then the fill sheets.
+ * Build the fill-sheet PDFs for a binder: up to TWO files — a PLACEHOLDERS file (plain paper:
+ * card placeholders + inserts) and an ART file (matte cardstock: the binder's art pieces). A
+ * section with no pieces is omitted, so a card-only binder yields one file and an art-only
+ * binder the other. Each file carries its own cover (instructions + calibration square).
  * `loadImage` fetches art pixels (see fillSheetArt's web loader); art whose image can't be
  * loaded prints a labeled fallback tile instead of aborting the export.
  */
-export async function buildPlaceholderPdf(
+export async function buildFillSheetPdfs(
   binder: DemoBinder,
   cards: CardMetaSource,
   opts?: { ownedIds?: ReadonlySet<string>; loadImage?: ArtLoader },
-): Promise<Uint8Array> {
-  // THE layout (owner call): placeholders/inserts pack edge to edge (shared cuts, least
-  // paper), art pieces get their own spaced sheets (labels beneath, no ink on artwork).
-  const L = makeLayout(false);
+): Promise<FillSheetPdf[]> {
+  const title = sanitize(binder.title);
   const { tiles, counts } = collectFillTiles(binder, cards, opts?.ownedIds);
+  const plain = tiles.filter((t) => t.kind !== 'art');
+  const art = tiles.filter((t) => t.kind === 'art');
+  const out: FillSheetPdf[] = [];
+  if (plain.length > 0) {
+    const { bytes, sheets } = await buildSectionDoc('placeholders', title, tiles, counts);
+    out.push({ section: 'placeholders', bytes, sheets, pieces: plain.length });
+  }
+  if (art.length > 0) {
+    const { bytes, sheets } = await buildSectionDoc('art', title, tiles, counts, opts?.loadImage);
+    out.push({ section: 'art', bytes, sheets, pieces: art.length });
+  }
+  return out;
+}
+
+/** Build one section's PDF (cover + its sheets). Only the art section fetches/embeds images. */
+async function buildSectionDoc(
+  section: 'placeholders' | 'art',
+  title: string,
+  tiles: FillTile[],
+  counts: FillCounts,
+  loadImage?: ArtLoader,
+): Promise<{ bytes: Uint8Array; sheets: number }> {
   const doc = await PDFDocument.create();
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
   const regular = await doc.embedFont(StandardFonts.Helvetica);
-  doc.setTitle(`${sanitize(binder.title)} - fill sheets`);
+  doc.setTitle(`${title} - ${section === 'art' ? 'art' : 'placeholder'} sheets`);
 
-  // Fetch + embed each distinct art image once. Failures resolve null → fallback tiles.
-  const urls = [...new Set(tiles.filter((t): t is ArtTile => t.kind === 'art').map((t) => t.group.imageUrl))];
+  // Only the ART file embeds images (placeholders are pure vector). Fetch + embed each distinct
+  // art image once. Failures resolve null → fallback tiles.
   const images = new Map<string, EmbeddedArt | null>();
-  await Promise.all(
-    urls.map(async (url) => {
-      const loaded: LoadedArt | null = opts?.loadImage ? await opts.loadImage(url) : null;
-      if (!loaded) {
-        images.set(url, null);
-        return;
-      }
-      const ref = loaded.kind === 'png' ? await doc.embedPng(loaded.bytes) : await doc.embedJpg(loaded.bytes);
-      images.set(url, { ref, width: loaded.width, height: loaded.height });
-    }),
-  );
+  if (section === 'art') {
+    const urls = [...new Set(tiles.filter((t): t is ArtTile => t.kind === 'art').map((t) => t.group.imageUrl))];
+    await Promise.all(
+      urls.map(async (url) => {
+        const loaded: LoadedArt | null = loadImage ? await loadImage(url) : null;
+        if (!loaded) {
+          images.set(url, null);
+          return;
+        }
+        const ref = loaded.kind === 'png' ? await doc.embedPng(loaded.bytes) : await doc.embedJpg(loaded.bytes);
+        images.set(url, { ref, width: loaded.width, height: loaded.height });
+      }),
+    );
+  }
 
-  drawCover(doc.addPage([SHEET_W, SHEET_H]), sanitize(binder.title), counts, bold, regular);
+  drawCover(doc.addPage([SHEET_W, SHEET_H]), section, title, counts, bold, regular);
 
-  const { placed, sheetCount, artStartSheet } = packTiles(tiles, L);
-  const artLayout = makeLayout(true); // art draws with the spaced treatment regardless of mode
+  const { placed, sheetCount } = packSection(tiles, section);
+  const L = makeLayout(false);
+  const artLayout = makeLayout(true); // art draws with the spaced treatment
   for (let s = 0; s < sheetCount; s += 1) {
     const page = doc.addPage([SHEET_W, SHEET_H]);
     const batch = placed.filter((p) => p.sheet === s);
@@ -603,19 +650,20 @@ export async function buildPlaceholderPdf(
         if (tile.w === 2) drawFoldTicks(page, x + CARD_W + POCKET_GAP / 2, y);
       }
     }
-    if (s < artStartSheet) drawMarginRulers(page, regular, false, L);
+    if (section === 'placeholders') drawMarginRulers(page, regular, false, L);
     const hosts = [...new Set(
       batch.map((p) => p.tile).filter((t): t is ArtTile => t.kind === 'art').map((t) => artHost(t.group.imageUrl)),
     )].filter(Boolean);
+    const label = section === 'art' ? 'art sheet' : 'sheet';
     const footer = [
-      `${sanitize(binder.title)} · sheet ${s + 1} of ${sheetCount}`,
+      `${title} · ${label} ${s + 1} of ${sheetCount}`,
       'cards 2.5" × 3.5" (63.5 × 88.9 mm)',
       hosts.length ? `art: ${hosts.join(', ')}` : '',
     ].filter(Boolean).join(' · ');
     drawCentered(page, footer, 3, regular, 7, MUTED);
   }
 
-  return doc.save();
+  return { bytes: await doc.save(), sheets: sheetCount };
 }
 
 function hexColor(h: string) {
@@ -842,28 +890,63 @@ function drawTransformed(
   page.pushOperators(popGraphicsState());
 }
 
-/** Cover sheet: what this is, how to print it true-to-size, and the 1-inch calibration square. */
-function drawCover(page: PDFPage, binderTitle: string, counts: FillCounts, bold: PDFFont, regular: PDFFont) {
+/** Cover sheet: what this file is, which paper it wants, how to print it true-to-size, and the
+ *  1-inch calibration square. One cover per file (placeholders → plain paper; art → cardstock). */
+function drawCover(
+  page: PDFPage,
+  section: 'placeholders' | 'art',
+  binderTitle: string,
+  counts: FillCounts,
+  bold: PDFFont,
+  regular: PDFFont,
+) {
+  const isArt = section === 'art';
   let y = SHEET_H - 120;
-  drawCentered(page, 'Binder fill sheets', y, bold, 26);
+  drawCentered(page, isArt ? 'Art fill sheets' : 'Placeholder fill sheets', y, bold, 26);
   y -= 26;
   drawCentered(page, binderTitle, y, regular, 14, MUTED);
   y -= 20;
-  const parts = [
-    `${counts.cards} card placeholder${counts.cards === 1 ? '' : 's'}`,
-    counts.art ? `${counts.art} art piece${counts.art === 1 ? '' : 's'}` : '',
-    counts.inserts ? `${counts.inserts} insert${counts.inserts === 1 ? '' : 's'}` : '',
-  ].filter(Boolean);
+
+  const sectionSheets = isArt ? counts.artSheets : counts.placeholderSheets;
+  const parts = isArt
+    ? [`${counts.art} art piece${counts.art === 1 ? '' : 's'}`]
+    : [
+        `${counts.cards} card placeholder${counts.cards === 1 ? '' : 's'}`,
+        counts.inserts ? `${counts.inserts} insert${counts.inserts === 1 ? '' : 's'}` : '',
+      ].filter(Boolean);
   drawCentered(
     page,
-    `${parts.join(' · ')} · ${counts.sheets} sheet${counts.sheets === 1 ? '' : 's'}`,
+    `${parts.join(' · ')} · ${sectionSheets} sheet${sectionSheets === 1 ? '' : 's'}`,
     y,
     regular,
     11,
     MUTED,
   );
-  if (counts.ownedCards > 0) {
-    y -= 16;
+
+  // The whole point of two files: each prints on its own stock. Say which, loud, up top.
+  y -= 20;
+  drawCentered(
+    page,
+    isArt ? 'Print on MATTE-COATED CARDSTOCK' : 'Print on PLAIN PAPER',
+    y,
+    bold,
+    12,
+    isArt ? OWNED_INK : INK,
+  );
+  y -= 15;
+  drawCentered(
+    page,
+    isArt
+      ? 'Your card placeholders print in a separate file — put plain paper in for that one.'
+      : 'Your artwork prints in a separate file — swap to matte cardstock for that one.',
+    y,
+    regular,
+    9.5,
+    MUTED,
+  );
+
+  if (!isArt && counts.ownedCards > 0) {
+    y -= 15;
     drawCentered(
       page,
       `Green placeholders = the ${counts.ownedCards} card${counts.ownedCards === 1 ? '' : 's'} already in your collection; gray = still to hunt.`,
@@ -874,14 +957,21 @@ function drawCover(page: PDFPage, binderTitle: string, counts: FillCounts, bold:
     );
   }
 
-  y -= 56;
-  const steps = [
-    'Print at 100% scale (“Actual size”), NOT “Fit to page”.',
-    'Check the calibration square below: it must measure exactly 1 inch (2.54 cm).',
-    'Cut along the dashed lines. Placeholder pieces print edge to edge: neighbors share a cut line, so one straight cut frees two edges at once.',
-    'ART pieces always print on their own sheets, spaced apart — nothing is ever printed on your artwork. Their location prints just below each piece; wide pieces fold at the tick marks above and below the fold line, then each half slides into its pocket pair.',
-    'Slide every piece into its pocket: placeholders print the page/row/column on the piece. When a real card arrives, its placeholder shows exactly which pocket to swap.',
-  ];
+  y -= 48;
+  const steps = isArt
+    ? [
+        'Print at 100% scale (“Actual size”), NOT “Fit to page”. Matte-coated cardstock holds the ink and slides into a pocket best.',
+        'Check the calibration square below: it must measure exactly 1 inch (2.54 cm).',
+        'Pieces print spaced apart — nothing is ever printed on your artwork. Cut just inside each dashed outline; the pocket location prints in the margin below each piece.',
+        'Wide pieces fold at the tick marks above and below the fold line, then each half slides into its pocket pair.',
+        'Slide each piece into its pocket. Neighboring pieces are gap-compensated, so the picture reads continuous across the dividers.',
+      ]
+    : [
+        'Print at 100% scale (“Actual size”), NOT “Fit to page”. Plain paper is fine — these are backings behind your cards, not display pieces.',
+        'Check the calibration square below: it must measure exactly 1 inch (2.54 cm).',
+        'Cut along the dashed lines. Pieces print edge to edge: neighbors share a cut line, so one straight cut frees two edges at once.',
+        'Slide every piece into its pocket: each placeholder prints its page/row/column. When a real card arrives, its placeholder shows exactly which pocket to swap.',
+      ];
   const left = (SHEET_W - GRID_W) / 2 + 24;
   steps.forEach((text, i) => {
     page.drawText(`${i + 1}.`, { x: left, y, size: 11, font: bold, color: INK });
@@ -893,7 +983,7 @@ function drawCover(page: PDFPage, binderTitle: string, counts: FillCounts, bold:
     y -= 8;
   });
 
-  y -= 30;
+  y -= 24;
   const sq = PT;
   page.drawRectangle({ x: SHEET_W / 2 - sq / 2, y: y - sq, width: sq, height: sq, borderColor: INK, borderWidth: 1 });
   drawCentered(page, '1 inch', y - sq / 2 - 4, regular, 9, MUTED);

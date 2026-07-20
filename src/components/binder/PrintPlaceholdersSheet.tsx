@@ -19,9 +19,10 @@ import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { sheet } from '@/constants/ui';
 import type { DemoBinder } from '@/data/binderTypes';
 import { fetchUserCards } from '@/data/collectionRepo';
+import { EXAMPLE_FILL_SHEET_BINDER } from '@/data/exampleFillSheetBinder';
 import { createWebArtLoader } from '@/data/fillSheetArt';
 import { startCheckout } from '@/data/checkout';
-import { buildPlaceholderPdf, collectFillTiles } from '@/data/placeholderPdf';
+import { buildFillSheetPdfs, collectFillTiles, type FillSheetPdf } from '@/data/placeholderPdf';
 import {
   binderFingerprint,
   downloadPurchasedPdf,
@@ -36,7 +37,34 @@ import { useCatalog } from '@/hooks/use-catalog';
 import { usePrintAllowance } from '@/hooks/use-print-allowance';
 import { useTier } from '@/hooks/use-tier';
 import { useAuth } from '@/store/auth';
-import { useBinders } from '@/store/binders';
+
+/** Trigger a browser download for generated PDF bytes. */
+function saveBytes(bytes: Uint8Array, filename: string) {
+  const blob = new Blob([bytes as BlobPart], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+/** Filesystem-safe stem from a binder title (kept in sync with the snapshot filename rules). */
+const fileStem = (title: string) => title.replace(/[^\w\- ]+/g, '').trim() || 'binder';
+
+/**
+ * Save every generated file as its own download. Placeholders and art now print as SEPARATE
+ * PDFs (plain paper vs matte cardstock), so a binder with art yields two files — saved staggered
+ * so the browser doesn't drop the second automatic download. `suffix` marks archived versions.
+ */
+async function saveFillSheetFiles(files: FillSheetPdf[], stem: string, suffix = '') {
+  for (let i = 0; i < files.length; i += 1) {
+    const f = files[i];
+    const label = f.section === 'art' ? 'Art (matte cardstock)' : 'Placeholders (plain paper)';
+    saveBytes(f.bytes, `${stem} - ${label}${suffix}.pdf`);
+    if (i < files.length - 1) await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+}
 
 export function PrintPlaceholdersSheet({
   binder,
@@ -83,7 +111,6 @@ export function PrintPlaceholdersSheet({
     return () => clearInterval(id);
   }, [purchased, refresh]);
   const { isSignedIn } = useAuth();
-  const store = useBinders();
   const [busy, setBusy] = useState(false);
   const [buying, setBuying] = useState(false);
   const [exBusy, setExBusy] = useState(false);
@@ -178,24 +205,21 @@ export function PrintPlaceholdersSheet({
     setBusy(true);
     setError(null);
     try {
-      const bytes = await buildPlaceholderPdf(binder, catalog, {
+      // Two files: a plain-paper placeholders PDF and a matte-cardstock art PDF (either omitted
+      // if the binder has none of that kind). Web: plain blob downloads, staggered.
+      const files = await buildFillSheetPdfs(binder, catalog, {
         ownedIds: effectiveOwned,
         // Art pixels: direct CORS fetch → art-proxy edge fn fallback → webp/canvas convert.
         loadImage: createWebArtLoader(),
       });
-      const filename = `${binder.title.replace(/[^\w\- ]+/g, '').trim() || 'binder'} fill sheets.pdf`;
-      // Web: a plain blob download. (Native share-sheet export can come later.)
-      const blob = new Blob([bytes as BlobPart], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      if (files.length === 0) throw new Error('This binder has nothing to print yet.');
+      await saveFillSheetFiles(files, fileStem(binder.title));
       // Confirmed spends (credit OR purchase) archive this version so it re-downloads free
-      // forever — the version list below is the "print a previous version" surface.
+      // forever — the version list below is the "print a previous version" surface. The snapshot
+      // regenerates from stored content on re-download, so archiving the first file's bytes is a
+      // best-effort fallback; `sheets` stays the TOTAL across both files.
       if (opts.credit || opts.spend) {
-        const v = await spendPurchase(binder, bytes, sheets).catch(() => null);
+        const v = await spendPurchase(binder, files[0].bytes, sheets).catch(() => null);
         setPStatus((prev) => ({
           state: 'current',
           versions: v
@@ -228,8 +252,7 @@ export function PrintPlaceholdersSheet({
     setError(null);
     try {
       const stamp = new Date(version.spentAt).toISOString().slice(0, 10);
-      const filename = `${binder.title.replace(/[^\w\- ]+/g, '').trim() || 'binder'} fill sheets (purchased ${stamp}).pdf`;
-      let blob: Blob | null = null;
+      const stem = `${fileStem(binder.title)} (purchased ${stamp})`;
       const source = version.content
         ? {
             ...binder,
@@ -241,21 +264,19 @@ export function PrintPlaceholdersSheet({
           ? binder // pre-column row, but the live binder IS this version — regenerate from it
           : null;
       if (source && catalog) {
-        const bytes = await buildPlaceholderPdf(source, catalog, {
+        // Recoverable version → regenerate BOTH files (placeholders + art) with current options.
+        const files = await buildFillSheetPdfs(source, catalog, {
           ownedIds: effectiveOwned,
           loadImage: createWebArtLoader(),
         });
-        blob = new Blob([bytes as BlobPart], { type: 'application/pdf' });
+        if (files.length === 0) throw new Error('This purchased version has nothing to print.');
+        await saveFillSheetFiles(files, stem);
       } else {
-        blob = await downloadPurchasedPdf(version);
+        // Unrecoverable legacy row: fall back to the single archived PDF from when it was bought.
+        const blob = await downloadPurchasedPdf(version);
+        if (!blob) throw new Error('Your purchased PDF couldn’t be found. Contact support and we’ll sort it out.');
+        saveBytes(new Uint8Array(await blob.arrayBuffer()), `${stem}.pdf`);
       }
-      if (!blob) throw new Error('Your purchased PDF couldn’t be found. Contact support and we’ll sort it out.');
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -314,24 +335,18 @@ export function PrintPlaceholdersSheet({
     }
   };
 
-  // Free teaser: a SHORT example PDF built from a bundled example binder (its first page of example
-  // cards + artwork), so non-payers can see the exact format without printing their own binders.
+  // Free teaser: the curated sample binder (4 placeholder pages + 2 art pages), so non-payers see
+  // the exact format — and BOTH output files (plain-paper placeholders + matte-cardstock art) —
+  // without printing their own binders. See src/data/exampleFillSheetBinder.ts.
   const downloadExample = async () => {
     if (!catalog || exBusy) return;
-    const ex = store.exampleBinders[0];
-    if (!ex) return;
     setExBusy(true);
     setError(null);
     try {
-      const short = { ...ex, pages: ex.pages.slice(0, 1) };
-      const bytes = await buildPlaceholderPdf(short, catalog, { loadImage: createWebArtLoader() });
-      const blob = new Blob([bytes as BlobPart], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'michi example fill sheet.pdf';
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      const files = await buildFillSheetPdfs(EXAMPLE_FILL_SHEET_BINDER, catalog, {
+        loadImage: createWebArtLoader(),
+      });
+      await saveFillSheetFiles(files, 'michi example');
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -365,10 +380,11 @@ export function PrintPlaceholdersSheet({
             ) : (
               <>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-                  A print-ready PDF of this binder’s pages as cut-ready fill sheets: card
-                  placeholders (labeled with pocket + name/set/number), the binder’s ART pieces
-                  (gap-compensated so pictures stay continuous across pocket dividers), and
-                  color inserts. Every piece is real card size (2.5″ × 3.5″): print at 100%,
+                  Print-ready cut sheets of this binder’s pages, as up to two files: a
+                  placeholders PDF for plain paper (card placeholders labeled with pocket +
+                  name/set/number, plus color inserts) and, if the binder has art, a separate art
+                  PDF for matte cardstock (gap-compensated so pictures stay continuous across the
+                  pocket dividers). Every piece is real card size (2.5″ × 3.5″): print at 100%,
                   cut along the guides, slide in.
                 </ThemedText>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.legalNote}>
@@ -403,7 +419,17 @@ export function PrintPlaceholdersSheet({
                     ) : null}
                     {' across '}
                     <ThemedText type="smallBold">{sheets}</ThemedText> sheet
-                    {sheets === 1 ? '' : 's'} (plus a cover with print instructions).
+                    {sheets === 1 ? '' : 's'}
+                    {counts.art > 0 ? (
+                      <>
+                        {' — '}
+                        <ThemedText type="smallBold">{counts.placeholderSheets}</ThemedText> on plain
+                        paper, <ThemedText type="smallBold">{counts.artSheets}</ThemedText> on matte
+                        cardstock (two files, each with its own cover).
+                      </>
+                    ) : (
+                      ' (plus a cover with print instructions).'
+                    )}
                     {colorOwned && ownedCount > 0
                       ? ` ${ownedCount} print${ownedCount === 1 ? 's' : ''} green, already in your collection.`
                       : ''}
@@ -709,10 +735,10 @@ export function PrintPlaceholdersSheet({
                   </View>
                 ) : null}
 
-                {/* Example PDF — a short sample sheet (example cards + art). Available to
-                    everyone: non-payers see the format before buying, payers use it to test
-                    printer scale without spending a credit. */}
-                {catalog && store.exampleBinders.length > 0 ? (
+                {/* Example PDFs — the curated 6-page sampler (placeholders + art), so both output
+                    files download. Available to everyone: non-payers see the format before buying,
+                    payers use it to test printer scale without spending a credit. */}
+                {catalog ? (
                   exBusy ? (
                     <View style={styles.center}>
                       <LogoLoader label="Generating example…" variant="thinking" />
@@ -721,7 +747,7 @@ export function PrintPlaceholdersSheet({
                     <Pressable
                       onPress={downloadExample}
                       style={({ pressed }) => [styles.exampleBtn, pressed && styles.dim]}>
-                      <Text style={styles.exampleBtnText}>See a free example (PDF)</Text>
+                      <Text style={styles.exampleBtnText}>See a free example (2 sample PDFs)</Text>
                     </Pressable>
                   )
                 ) : null}

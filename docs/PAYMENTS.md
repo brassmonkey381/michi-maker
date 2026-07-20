@@ -30,9 +30,16 @@ annual pool** below.
 Printing your OWN binder (`PrintPlaceholdersSheet` Download) is a **PRO/VIP subscription** perk
 (subject to the included-print allocation) **or** a per-binder one-time purchase
 (`pdf_binder:<id>`). There is **no lifetime all-binder unlock and no grandfathering** — prints are
-only subscriptions or per-binder purchases. Non-payers get the counts preview plus a **free short
-example PDF** (a bundled example binder's first page of example cards + artwork) — never their own
-binders.
+only subscriptions or per-binder purchases. Non-payers get the counts preview plus a **free
+example** — the curated 6-page sampler in `src/data/exampleFillSheetBinder.ts` (4 placeholder
+pages + 2 art pages), which downloads as the same two files a real export produces — never their
+own binders.
+
+Every export is **two separate PDFs** (`buildFillSheetPdfs`): a plain-paper **placeholders** file
+(card placeholders + inserts) and a matte-cardstock **art** file (the binder's art pieces), each
+with its own cover. A section with no pieces is omitted (a card-only binder is one file). The
+snapshot `sheets` count and the archived bytes stay TOTAL/first-file respectively; re-downloads
+regenerate both files from the stored version content.
 
 The per-binder purchase is a **snapshot license with version history**: the first download after
 buying records the binder's content fingerprint and archives those exact PDF bytes as a purchased

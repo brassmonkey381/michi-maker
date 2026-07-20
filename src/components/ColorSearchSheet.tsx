@@ -7,7 +7,7 @@
  *   · SIMILAR — seeded from a card → findSimilarByColor (warm on-device; falls back to a note).
  * Region toggle: full card face ("Full art") vs illustration window ("Art panel").
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { findSimilarByColor, searchByColors, srgbToLab, useColorIndex, type ColorRegion, type Lab } from 'tcgscan-browse';
 
@@ -18,6 +18,15 @@ const REGIONS: { value: ColorRegion; label: string }[] = [
   { value: 'noborder', label: 'Full art' },
   { value: 'art', label: 'Art panel' },
 ];
+
+// Session-sticky picker state so reopening the picker resumes the last color mix + region (module
+// level, mirrors the app's viewModePref/recentLangPref prefs — resets on a fresh app load).
+let savedStops: Stop[] = [
+  { pos: 0.2, rgb: [226, 59, 59] },
+  { pos: 0.5, rgb: [59, 123, 226] },
+  { pos: 0.8, rgb: [237, 226, 58] },
+];
+let savedRegion: ColorRegion = 'noborder';
 
 export function ColorSearchSheet({
   seedCardId,
@@ -32,15 +41,17 @@ export function ColorSearchSheet({
   onClose: () => void;
 }) {
   const colorIndex = useColorIndex(true);
-  const [region, setRegion] = useState<ColorRegion>('noborder');
-  const [stops, setStops] = useState<Stop[]>([
-    { pos: 0.2, rgb: [226, 59, 59] },
-    { pos: 0.5, rgb: [59, 123, 226] },
-    { pos: 0.8, rgb: [237, 226, 58] },
-  ]);
+  const [region, setRegion] = useState<ColorRegion>(savedRegion);
+  const [stops, setStops] = useState<Stop[]>(savedStops);
   const [editing, setEditing] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
+
+  // Remember the mix + region across opens (session-sticky).
+  useEffect(() => {
+    savedStops = stops;
+    savedRegion = region;
+  }, [stops, region]);
 
   const similarUnavailable = Boolean(seedCardId) && !(colorIndex && seedCardId && colorIndex.has(seedCardId));
 

@@ -10,7 +10,7 @@
  */
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { LogoLoader } from '@/components/brand/LogoLoader';
@@ -360,7 +360,7 @@ export function PrintPlaceholdersSheet({
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={sheet.dialogBackdrop} onPress={onClose}>
         <Pressable onPress={(e) => e.stopPropagation()} style={styles.cardWrap}>
-          <ThemedView type="backgroundElement" style={sheet.dialogCard}>
+          <ThemedView type="backgroundElement" style={[sheet.dialogCard, styles.card]}>
             <View style={styles.header}>
               <ThemedText type="subtitle" style={styles.title}>
                 Print fill sheets
@@ -372,6 +372,11 @@ export function PrintPlaceholdersSheet({
               </Pressable>
             </View>
 
+            {/* Body scrolls: this is the tallest dialog and must fit short (mobile) screens. */}
+            <ScrollView
+              style={styles.body}
+              contentContainerStyle={styles.bodyContent}
+              showsVerticalScrollIndicator>
             {guestGated ? (
               <SignInPerk message="Placeholder labels read the full card catalog. Sign in (free) to print them." />
             ) : Platform.OS !== 'web' ? (
@@ -773,6 +778,7 @@ export function PrintPlaceholdersSheet({
                 ) : null}
               </>
             )}
+            </ScrollView>
           </ThemedView>
         </Pressable>
       </Pressable>
@@ -781,7 +787,12 @@ export function PrintPlaceholdersSheet({
 }
 
 const styles = StyleSheet.create({
-  cardWrap: { width: '100%', maxWidth: 440 },
+  // maxHeight caps the dialog to the (padded) viewport; the card shrinks to it and the body
+  // ScrollView takes the remainder, so a tall dialog scrolls instead of clipping off-screen.
+  cardWrap: { width: '100%', maxWidth: 440, maxHeight: '100%' },
+  card: { flexShrink: 1, overflow: 'hidden' },
+  body: { flexShrink: 1 },
+  bodyContent: { gap: Spacing.three, paddingBottom: Spacing.one },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: FontSize.h2, lineHeight: 26 },
   sub: { lineHeight: 20 },

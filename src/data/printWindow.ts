@@ -22,11 +22,18 @@
  * schema (no update/delete policies, row keyed to period_start), not here.
  */
 
+import { addMonths, monthsElapsed, MONTHS_PER_YEAR } from './proration.ts';
+
+/**
+ * Month arithmetic comes from data/proration.ts — the same implementation the webhook and the
+ * plan-change endpoint use. It previously had its own LOCAL-time copy, which drifted from the
+ * server's UTC one by the viewer's offset and by an hour across DST: the meter could show a
+ * different window than the ledger was counting. Unit tests caught it.
+ */
+export { addMonths, monthsElapsed, MONTHS_PER_YEAR };
+
 /** How the subscription that granted a tier is billed. NULL = not a subscription grant. */
 export type BillingInterval = 'month' | 'year';
-
-/** Months of allocation released at once when a yearly subscriber unlocks their pool. */
-export const MONTHS_PER_YEAR = 12;
 
 export interface PrintWindow {
   /** Count print_events at or after this instant. */
@@ -61,36 +68,11 @@ function poolTotal(includedPerMonth: number, termAllocation?: number | null): nu
   return termAllocation != null ? termAllocation : includedPerMonth * MONTHS_PER_YEAR;
 }
 
-/**
- * Add `n` months, clamping the day to the target month's length so a term anchored on the 31st
- * doesn't skip February. Mirrors how billing anniversaries actually behave.
- */
-export function addMonths(ms: number, n: number): number {
-  const src = new Date(ms);
-  const day = src.getDate();
-  const out = new Date(ms);
-  // Move off the day-of-month first, or setMonth can roll a 31st into the next month.
-  out.setDate(1);
-  out.setMonth(out.getMonth() + n);
-  const daysInTarget = new Date(out.getFullYear(), out.getMonth() + 1, 0).getDate();
-  out.setDate(Math.min(day, daysInTarget));
-  return out.getTime();
-}
-
-/** Whole billing months elapsed since `startMs`. Never negative (a future term reads as 0). */
-export function monthsElapsed(startMs: number, nowMs: number): number {
-  const start = new Date(startMs);
-  const now = new Date(nowMs);
-  let months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
-  // The calendar-month difference overshoots until the anniversary DAY is reached.
-  if (addMonths(startMs, months) > nowMs) months -= 1;
-  return Math.max(0, months);
-}
-
-/** Start of the calendar month containing `nowMs` — the no-billing-term fallback. */
+/** Start of the calendar month containing `nowMs` — the no-billing-term fallback (manual grants).
+ *  UTC, to stay consistent with every other window boundary here. */
 function calendarMonthStart(nowMs: number): number {
   const d = new Date(nowMs);
-  return new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
 }
 
 /** The window the user's included prints are counted over right now. */

@@ -2,6 +2,14 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    // Metro/Babel do the transpiling; tsc is only ever run as a checker (`npx tsc --noEmit`).
+    // Declaring it here is what allows `allowImportingTsExtensions` below.
+    "noEmit": true,
+    // `node --test` runs the *.test.ts files directly via Node's native type stripping, and Node's
+    // ESM resolver requires explicit file extensions. Metro resolves explicit .ts fine, so shared
+    // pure modules (e.g. data/proration.ts) can be imported the same way from both.
+    "allowImportingTsExtensions": true,
+    "types": ["node"],
     "paths": {
       "@/*": [
         "./src/*"

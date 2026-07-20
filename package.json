@@ -35,6 +35,7 @@
     "tcgscan-browse": "github:brassmonkey381/tcgscan-browse#fa242d8c2cb0fdd8ec75beae0799b2422f5a1dff"
   },
   "devDependencies": {
+    "@types/node": "^24.13.3",
     "@types/react": "~19.2.2",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~56.0.4",
@@ -51,7 +52,8 @@
     "web": "expo start --web",
     "build:web": "expo export -p web && node scripts/inject-meta.mjs",
     "deploy": "npx vercel --prod",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "test": "node --test \"src/**/*.test.ts\""
   },
   "private": true
 }

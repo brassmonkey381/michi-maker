@@ -31,7 +31,7 @@
     "react-native-url-polyfill": "^3.0.0",
     "react-native-web": "~0.21.0",
     "react-native-worklets": "0.8.3",
-    "tcgscan-browse": "github:brassmonkey381/tcgscan-browse#28cd8a3"
+    "tcgscan-browse": "github:brassmonkey381/tcgscan-browse#56fd454"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",

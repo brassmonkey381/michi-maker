@@ -154,8 +154,8 @@ delete from auth.users where email = 'billing.clock.rig@example.com';
 **Pre-flip, local:**
 - [ ] `npx tsc --noEmit` clean
 - [ ] `npm test` green (the billing maths — 31 assertions)
-- [ ] `npm run lint` — currently red on `ColorPicker.tsx` (unrelated to billing; clear it or
-      consciously accept)
+- [ ] `npm run lint` — clean of errors (3 unrelated warnings remain; the old `ColorPicker.tsx`
+      `react-hooks/refs` errors were cleared 2026-07-20 by moving its Animated.Value to lazy state)
 - [ ] `npx expo export -p web` succeeds (proves the shared-module `.ts` imports bundle)
 
 **Post-flip, live smoke test (real card, then refund):**
@@ -188,4 +188,5 @@ month-arithmetic drifts between copies). The money maths lives in one unit-teste
 - **Cross-interval changes** (monthly↔yearly) and **downgrades** are intentionally routed to the
   portal, not `change_plan`. Monthly plans are otherwise **untested** — no monthly customer has
   been driven through checkout, window slicing, or the cross-interval refusal.
-- **`ColorPicker.tsx` lint errors** are unrelated to billing but keep `npm run lint` red.
+- **`ColorPicker.tsx` lint errors** — RESOLVED 2026-07-20 (Animated.Value moved to lazy state).
+  `npm run lint` is now error-clean (3 unrelated warnings remain).

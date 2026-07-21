@@ -118,10 +118,11 @@ so nothing new restricts users; the store already consults the limits (`useBinde
 hit. Flip the switch to `true` **only after pricing/checkout is live and the numbers are signed
 off**. The print unlock is independent of this switch (it only ever grants access).
 
-## Granting manually (today's path)
+## Granting manually (comps & support)
 
-Checkout isn't wired yet. To grant (or revoke) an unlock or a tier, run as service role
-(SQL editor / MCP):
+Checkout is fully wired (see **Wiring status** below), so this is no longer the *only* path — it
+is how you **comp** an account or fix up state in support. To grant (or revoke) an unlock or a
+tier by hand, run as service role (SQL editor / MCP):
 
 ```sql
 -- look up a user id by email
@@ -210,23 +211,27 @@ on /subscriptions), tcgscan `ProPerk`/`BundleOffer` (Settings + Home). To finish
 Until both exist, a bundle CTA fails gracefully ("price not found in this Stripe mode" /
 no discount applied).
 
-## Wiring Stripe (build checklist)
+## Wiring status — BUILT (test-verified)
 
-1. **Checkout**: hosted checkout page, launched from the locked box in
-   `PrintPlaceholdersSheet` (replace the "purchases aren't open yet" note with a Buy button).
-   Attach the Supabase user id — Stripe: `client_reference_id`; Lemon Squeezy:
-   `checkout[custom][user_id]`.
-2. **Webhook edge function** (`supabase/functions/payments-webhook`): verify the provider
-   signature, then **with the service role client** upsert the entitlement.
-   - one-time per-binder (`pdf_binder:<id>`): `insert … values (:uid, 'pdf_binder:'||:binderId, :source) on conflict do nothing`.
-   - subscription (`tier_pro`/`tier_vip`): on activation/renewal **upsert `expires_at`** to the
-     period end (`on conflict (user_id, product) do update set expires_at = excluded.expires_at`);
-     on cancellation either delete the row or set `expires_at` to the term end (it lapses on its own).
-   Keep it idempotent — providers redeliver webhooks.
-3. **Client**: after returning from checkout, call `useTier().refresh()` (poll a few times —
-   webhooks lag checkout by seconds). Replace the `UpgradePerk` "coming soon" toggle + the
-   `PrintPlaceholdersSheet` locked box with a real Buy/Upgrade launch into hosted checkout.
-4. Secrets go in Supabase function env (`supabase secrets set`), never in app code —
-   same rule as the service key (see AGENTS.md).
+The whole Stripe pipeline is implemented and was exercised end to end in **test mode** (including
+Stripe test clocks for the time-dependent paths). The pieces:
 
-Price lives entirely in the provider dashboard; the app never hardcodes it.
+1. **Checkout** — `src/data/checkout.ts` `startCheckout(lookupKey, { binderId? })` invokes the
+   `stripe-checkout` edge function, which creates a hosted Checkout Session (subscription mode for
+   tiers, payment mode for the one-time PDF) with `client_reference_id = user.id`. The print sheet's
+   locked box already launches it (gated by `CHECKOUT_OPEN`); upgrades from an existing paid plan
+   route to the server-driven `change_plan` action instead, never a second Checkout.
+2. **Webhook** — `supabase/functions/payments-webhook` verifies the Stripe signature (service role;
+   the entitlements table has no client write policies) and upserts grants idempotently:
+   `checkout.session.completed` (mode=payment) → lifetime `pdf_binder:<id>`; (mode=subscription),
+   `invoice.paid`, `customer.subscription.updated/deleted` → the tier row with `expires_at`,
+   `interval`, `period_start`, and `term_print_allocation`.
+3. **Client refresh** — surfaces poll `useTier().refresh()` after returning with `?checkout=success`
+   (the grant lags the redirect by seconds).
+4. **Secrets** live in the Supabase function env (`supabase secrets set`), never in app code.
+
+Price lives entirely in the Stripe dashboard; the app resolves it by `lookup_key`, never a raw
+price id — which is what lets the same build run against live mode once the live catalog exists.
+
+**What remains is go-live, not building.** Taking it from test mode to charging real cards is a
+sequenced, mostly Stripe-dashboard + live-secret operation — see **docs/GO-LIVE-BILLING.md**.

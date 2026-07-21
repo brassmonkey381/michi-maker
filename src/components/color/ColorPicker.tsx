@@ -75,7 +75,9 @@ export function GradientMixBar({
   const dragging = useRef(-1);
 
   // Pulsing glow on the active stop (JS-driven so it also animates opacity/scale on web).
-  const pulse = useRef(new Animated.Value(0)).current;
+  // Held in lazy state, not a ref: an Animated.Value is stable across renders either way, and
+  // reading state during render (pulse.interpolate below) is fine where reading a ref is not.
+  const [pulse] = useState(() => new Animated.Value(0));
   useEffect(() => {
     const anim = Animated.loop(
       Animated.sequence([

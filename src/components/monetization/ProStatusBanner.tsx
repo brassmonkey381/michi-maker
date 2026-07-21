@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
+import { KeepBindersModal } from '@/components/monetization/KeepBindersModal';
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing } from '@/constants/theme';
 import { fetchArchivedBinderCount } from '@/data/binderRepo';
@@ -23,9 +24,10 @@ const daysUntil = (iso: string | null) =>
 export function ProStatusBanner() {
   const router = useRouter();
   const { user, isSignedIn } = useAuth();
-  const { binderCount, limits, tier } = useBinders();
+  const { binderCount, limits, tier, userBinders } = useBinders();
   const trial = useTrial();
   const isPaid = tier === 'pro' || tier === 'vip';
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // Stale count from a prior session is gated by the `!isSignedIn` return below, so there's no
   // sync reset here (which would be a set-state-in-effect).
@@ -59,8 +61,9 @@ export function ProStatusBanner() {
   const liveExcess = Number.isFinite(cap) ? Math.max(0, binderCount - cap) : 0;
   const inGrace = trial.isDowngraded && daysUntil(trial.graceEndsAt) > 0;
 
-  // Priority: reclaim warning (time-critical) → locked note → trial countdown.
-  let body: { text: string; cta: string } | null = null;
+  // Priority: reclaim warning (time-critical) → locked note → trial countdown. `pick` adds the
+  // "choose which to keep" action (only on the over-cap-with-live-excess cases).
+  let body: { text: string; cta: string; pick?: boolean } | null = null;
 
   if (trial.isDowngraded && liveExcess > 0) {
     // Over cap after a downgrade — excess will be archived at grace end.
@@ -69,10 +72,12 @@ export function ProStatusBanner() {
       ? {
           text: `Your PRO access ended. Free keeps ${cap} binders — you have ${binderCount}. In ${d} day${d === 1 ? '' : 's'}, ${liveExcess} will be locked unless you subscribe.`,
           cta: 'Keep them — subscribe',
+          pick: true,
         }
       : {
           text: `You're over the Free limit of ${cap} binders (${binderCount}). ${liveExcess} will be locked soon; we keep your ${cap} most recent. Subscribe to keep them all.`,
           cta: 'Keep them — subscribe',
+          pick: true,
         };
   } else if (archived > 0 && !isPaid) {
     body = {
@@ -92,20 +97,40 @@ export function ProStatusBanner() {
 
   if (!body) return null;
 
+  // The over-cap set the picker chooses among: the user's own live, non-demo binders.
+  const ownLive = userBinders.filter((b) => !b.isDemo).map((b) => ({ id: b.id, title: b.title }));
+
   return (
-    <View style={styles.wrap}>
-      <ThemedText type="small" style={styles.text}>
-        {body.text}
-      </ThemedText>
-      <Pressable
-        onPress={() => router.push('/plans')}
-        hitSlop={6}
-        style={({ pressed }) => [styles.btn, pressed && styles.dim]}>
-        <ThemedText type="smallBold" style={styles.btnText}>
-          {body.cta}
+    <>
+      <View style={styles.wrap}>
+        <ThemedText type="small" style={styles.text}>
+          {body.text}
         </ThemedText>
-      </Pressable>
-    </View>
+        {body.pick ? (
+          <Pressable onPress={() => setPickerOpen(true)} hitSlop={6}>
+            <ThemedText type="smallBold" style={styles.pickLink}>
+              Choose which to keep
+            </ThemedText>
+          </Pressable>
+        ) : null}
+        <Pressable
+          onPress={() => router.push('/plans')}
+          hitSlop={6}
+          style={({ pressed }) => [styles.btn, pressed && styles.dim]}>
+          <ThemedText type="smallBold" style={styles.btnText}>
+            {body.cta}
+          </ThemedText>
+        </Pressable>
+      </View>
+      {pickerOpen ? (
+        <KeepBindersModal
+          visible
+          onClose={() => setPickerOpen(false)}
+          cap={Number.isFinite(cap) ? cap : ownLive.length}
+          binders={ownLive}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -121,6 +146,7 @@ const styles = StyleSheet.create({
     borderBottomColor: Palette.hairlineStrong,
   },
   text: { flex: 1, lineHeight: 18 },
+  pickLink: { color: Palette.link, fontSize: FontSize.label },
   btn: {
     backgroundColor: Palette.accent,
     paddingVertical: Spacing.one,

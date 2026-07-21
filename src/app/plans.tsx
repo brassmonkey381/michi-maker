@@ -12,6 +12,7 @@ import { StyleSheet, View } from 'react-native';
 import { PageShell } from '@/components/layout/PageShell';
 import { BundleOffer } from '@/components/monetization/BundleOffer';
 import { PlanComparison } from '@/components/monetization/PlanComparison';
+import { TrialCta } from '@/components/monetization/TrialCta';
 import { PlanUsageSection } from '@/components/monetization/TierUsage';
 import { ThemedText } from '@/components/themed-text';
 import {
@@ -68,6 +69,12 @@ export default function PlansScreen() {
           web, iOS, and Android. Everything is free while michi-maker is in beta. These are the
           plans that are coming, so you know exactly where the shelves end.
         </ThemedText>
+      </View>
+
+      {/* Eligible free users: the trial offer, front and centre. Self-gates (null unless eligible
+          and checkout is open), so it simply doesn't show for subscribers or the ineligible. */}
+      <View style={styles.trialHero}>
+        <TrialCta message="Try everything PRO before you decide — free for 14 days." />
       </View>
 
       {checkout === 'success' ? (
@@ -176,6 +183,13 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   bannerTitle: { color: Palette.link },
+  trialHero: {
+    width: '100%',
+    maxWidth: MaxContentWidth,
+    alignSelf: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.four,
+  },
   prose: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center' },
   oneTime: {
     width: '100%',

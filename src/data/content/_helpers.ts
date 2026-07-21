@@ -21,6 +21,7 @@ import {
   type DemoPage,
   type DemoSlot,
 } from '@/data/binderTypes';
+import { themeBackgroundDataUri, type ThemeArtOpts } from '@/data/themeBackgrounds';
 
 export { uid };
 export type { CardKind, CardOrientation, DemoBinder, DemoCard, DemoPage, DemoSlot };
@@ -109,6 +110,34 @@ export function sliceRegion(
     }
   }
   return tiles;
+}
+
+/**
+ * A procedural THEMED BACKGROUND filling a pocket/region — a fully owned art source (no sourcing,
+ * no licensing; see `src/data/themeBackgrounds.ts`). It's an `artwork` slot whose `imageUrl` is a
+ * self-generated SVG data URI, so it flows through the normal art rendering. Pair with spans to
+ * cover a bigger footprint, or slice a page of them for a color-themed spread.
+ */
+export function themeBg(
+  row: number,
+  col: number,
+  themeId: string,
+  opts?: SpanOpts & ThemeArtOpts,
+): DemoSlot {
+  return {
+    id: uid('slot'),
+    row,
+    col,
+    rowSpan: opts?.rowSpan ?? 1,
+    colSpan: opts?.colSpan ?? 1,
+    type: 'artwork',
+    imageUrl: themeBackgroundDataUri(themeId, {
+      seed: opts?.seed,
+      w: opts?.w,
+      h: opts?.h,
+      count: opts?.count,
+    }),
+  };
 }
 
 /** A tonal insert (negative-space filler) using a hex colour. */

@@ -19,10 +19,138 @@ A **14-day, no-card PRO trial**, one per real account, offered at high-intent mo
   been built yet.
 - **Trial PRO, never VIP.** Trial the entry tier, convert to PRO, upsell VIP later.
 
-The conversion engine is **loss aversion at expiry** (verified safe): cap guards block *creation*
-only and never delete binders (`store/binders.tsx` `duplicateBinder`/`addPage`/`duplicatePage`), so
-a lapsed trial user keeps their (say) 8 binders visible but can't add a 9th or edit past Free caps —
-pressure that lands exactly when they next reach for something PRO enabled.
+The conversion engine is **loss aversion at expiry**: a lapsed trial user who built 8 binders now
+exceeds Free's 3. Rather than keep the excess visible forever (which is itself a loophole — see
+below), they get a **warned 3-day grace, then the excess is archived** (locked, recoverable on
+subscribe). "5 binders lock in 3 days unless you subscribe" is far stronger than a silent cap, and
+it closes the abuse vector. See **Over-cap reclaim** below.
+
+### Over-cap reclaim on downgrade (closes the "keep exploring for free" loophole)
+
+**The loophole:** if an expired trial (or a cancelled subscription) leaves 8 binders merely
+view-only, the user keeps 8 binders' worth of curation space forever — deleting and rebuilding pages
+within them to keep exploring, i.e. most of PRO's value for free after one trial. (The existing
+`addPage` guard blocks *growing* an over-cap binder, but not churning content inside it.)
+
+**The fix — reclaim excess down to the tier cap, after a warned grace.** This is a general
+**downgrade** mechanic (trial expiry *and* subscription cancel/lapse both land a user over cap on
+Free); trials are just the first driver.
+
+- **Soft-archive, not hard-delete.** Add `binders.archived_at timestamptz` (null = live). Archived
+  binders are hidden from every grid and non-interactive — which removes the exploration value and
+  kills the loophole — but the data is preserved. This is deliberately NOT destruction: it is
+  recoverable, and "5 binders locked — subscribe to unlock" is a standing upsell. (Hard-deletion, if
+  ever wanted, is a separate much-later policy, e.g. archived > 90 days; default is keep.)
+- **3-day grace, deadline DERIVED (no scheduler needed for the clock).** The reference instant is
+  the lapsed tier row's `expires_at`; `reclaim_deadline = that + 3 days`. Server-derivable and
+  identical for a trial or a cancellation — no stamp table.
+- **User agency during grace.** The warning lets the user (a) **subscribe** → keep everything and
+  cancel the reclaim; or (b) **choose which N to keep**; the rest archive at grace end. Default if
+  they pick nothing: keep the `cap` most-recently-`updated_at` binders (their active work), archive
+  the rest.
+- **Auto-restore.** When the cap rises again (they subscribe/upgrade), un-archive up to the new cap,
+  newest-first, and tell them ("PRO restored — your 5 locked binders are back").
+
+**Enforcement.** The client renders the warning + keep-picker and calls a `SECURITY DEFINER`
+`reclaim_over_cap(keep_ids uuid[])` RPC that validates ownership + that the user is genuinely over
+cap with an expired grace, then sets `archived_at` on the excess (idempotent). For robustness
+against a tampered client, a **scheduled reclaim** (Supabase `pg_cron`, nightly) runs the same
+default archival for anyone past grace — recommended as the authoritative enforcer; the RPC is what
+makes the in-app "choose which to keep / subscribe now" flow instant. (No-cron fallback: run the
+default reclaim lazily on load. The abuse needs the user *in* the app, which is exactly when the lazy
+check fires.)
+
+**Pages are NOT reclaimed (v1).** Archiving whole excess binders already removes the page-churn
+value (an archived binder can't be explored). Within a KEPT binder, over-cap pages stay but can't
+grow (existing `addPage` guard), so no perpetual exploration. Page-level reclaim is more destructive
+and granular — deferred unless it proves necessary.
+
+**Schema + RPCs.**
+
+```sql
+-- supabase/migrations/20260721130000_binder_archive_and_reclaim.sql
+alter table public.binders add column archived_at timestamptz;  -- null = live
+create index binders_user_live_idx on public.binders (user_id) where archived_at is null;
+
+-- The FREE binder cap, mirrored from tiers.ts TIER_LIMITS.free.binders (Deno/SQL can't import it —
+-- same discipline as PRINTS_PER_MONTH in the webhook; change both together).
+create or replace function public.free_binder_cap() returns integer
+  language sql immutable as $$ select 3 $$;
+
+-- Archive the caller's over-cap excess, keeping keep_ids. Security definer; enforces server-side
+-- that the caller (a) has NO active paid/trial tier, (b) is past their 3-day reclaim grace, and
+-- (c) isn't keeping more than the Free cap. Idempotent.
+create or replace function public.reclaim_over_cap(keep_ids uuid[])
+returns integer                                   -- how many were archived
+language plpgsql security definer set search_path = public as $$
+declare uid uuid := auth.uid(); grace_end timestamptz; n integer;
+begin
+  if uid is null then raise exception 'not signed in' using errcode = '42501'; end if;
+
+  -- No reclaim while an entitlement is active (paid OR trial still running).
+  if exists (select 1 from public.entitlements e
+             where e.user_id = uid and e.product in ('tier_pro','tier_vip')
+               and (e.expires_at is null or e.expires_at > now())) then
+    raise exception 'still entitled' using errcode = 'P0001';
+  end if;
+
+  -- Grace = latest lapsed tier row's expiry + 3 days. Null (never subscribed/trialed) → no grace gate.
+  select max(e.expires_at) + interval '3 days' into grace_end
+    from public.entitlements e
+   where e.user_id = uid and e.product in ('tier_pro','tier_vip');
+  if grace_end is not null and now() < grace_end then
+    raise exception 'still in grace' using errcode = 'P0001';
+  end if;
+
+  if array_length(keep_ids, 1) > public.free_binder_cap() then
+    raise exception 'keep list exceeds the free cap' using errcode = 'P0001';
+  end if;
+  if exists (select 1 from unnest(keep_ids) k
+             where not exists (select 1 from public.binders b where b.id = k and b.user_id = uid)) then
+    raise exception 'keep list contains a binder that is not yours' using errcode = 'P0001';
+  end if;
+
+  update public.binders set archived_at = now()
+   where user_id = uid and archived_at is null and id <> all(keep_ids);
+  get diagnostics n = row_count;
+  return n;
+end; $$;
+
+-- Bring archived binders back, newest-first, up to the current cap headroom. Called on subscribe
+-- (the client polls tier then calls this) and safe to call anytime. Returns how many were restored.
+create or replace function public.restore_archived_binders(cap integer)
+returns integer language plpgsql security definer set search_path = public as $$
+declare uid uuid := auth.uid(); live_count integer; n integer;
+begin
+  if uid is null then raise exception 'not signed in' using errcode = '42501'; end if;
+  select count(*) into live_count from public.binders where user_id = uid and archived_at is null;
+  update public.binders set archived_at = null
+   where id in (
+     select id from public.binders
+      where user_id = uid and archived_at is not null
+      order by updated_at desc
+      limit greatest(0, cap - live_count)
+   );
+  get diagnostics n = row_count; return n;
+end; $$;
+
+revoke all on function public.reclaim_over_cap(uuid[]), public.restore_archived_binders(integer) from public;
+grant execute on function public.reclaim_over_cap(uuid[]), public.restore_archived_binders(integer) to authenticated;
+```
+
+The store's binder read filters `archived_at is null` for the grid + all cap counts; a small
+`useArchivedBinders()` count feeds the "N locked — subscribe to unlock" upsell. `restore_archived_binders`
+is passed the caller's *new* cap (`Infinity` → a large int for VIP) so the client, which owns the cap
+matrix, stays the source of the number.
+
+### The warnings (the owner's explicit ask)
+
+1. **Late in the trial, if already over cap** — fold into the day-11 "3 days of PRO left" banner:
+   "You have 8 binders. Subscribe before your trial ends to keep them, or 5 will lock 3 days after."
+2. **During the reclaim grace (0–3 days after expiry)** — a persistent, unmissable banner with a
+   live countdown: "Your PRO trial ended. Free keeps 3 binders; you have 8. In 2 days, 5 will be
+   locked unless you subscribe. [Subscribe] [Choose which to keep]."
+3. **At grace end** — "5 binders locked. Subscribe anytime to unlock them."
 
 ## Data model
 
@@ -181,14 +309,17 @@ double-grant, no special-casing.
 - **Value self-caps** — the trial's included print is 1 (calendar window); print is a
   client-generated PDF with near-zero marginal cost, so the worst case is one free fill-sheet.
 
-## Open decisions
+## Decisions (owner, 2026-07-21)
 
-1. **Win-back**: current spec refuses trials to churned ex-subscribers (acquisition-only). If
-   win-back trials are wanted later, relax the `source <> 'trial'` guard to a time-based rule.
-2. **Duration A/B**: ship 14; revisit 7 vs 14 with real conversion data (duration is one constant in
-   the RPC + copy).
-3. **Pre-launch trials**: default is to gate on `CHECKOUT_OPEN`. Flip only with a conscious
-   `TRIALS_OPEN` flag and messaging for "subscribe opens soon".
+- **No win-back** — trials are acquisition-only; anyone who ever held a non-trial tier is refused
+  (the `source <> 'trial'` guard, as written).
+- **Trials launch WITH go-live** — gated on `CHECKOUT_OPEN`, so no trial expires without a subscribe
+  path.
+- **PRO only** — never VIP.
+
+Still open:
+- **Duration A/B**: ship 14; revisit 7 vs 14 with real conversion data (one constant in the RPC +
+  copy).
 
 ## Test plan
 
@@ -199,6 +330,14 @@ double-grant, no special-casing.
   `tiers` tests with a `source='trial'` row — pure, no DB).
 - Print during trial: 1 included print via the calendar window; a second attempt shows
   out-of-credits; the printed version stays re-downloadable after expiry.
-- Lapse: with `LIMITS_ENFORCED`, an over-cap trial user post-expiry keeps binders visible, is
-  blocked from creating a new one, and sees the `used`-state CTA.
 - Handoff: trial → Checkout subscribe overwrites the row to `source='stripe'`; `pro_trials` remains.
+- **Reclaim grace**: over-cap trial user right after expiry is still in grace → `reclaim_over_cap`
+  raises `still in grace`; the warning banner shows the correct countdown and excess count.
+- **Reclaim runs**: past grace, `reclaim_over_cap(keep_ids)` archives exactly the excess, respects
+  the keep list, refuses a keep list > Free cap or containing a non-owned binder, refuses while any
+  tier is active, and is idempotent on re-call.
+- **Archived binders are inert**: excluded from the grid, from `binderCount`/cap checks, and from
+  the editor; only surfaced as the "N locked" upsell count.
+- **Restore**: `restore_archived_binders(cap)` after subscribing un-archives newest-first up to the
+  new headroom and no further; VIP (large cap) restores all.
+- **Default reclaim** (scheduled/lazy, no keep list): keeps the `cap` most-recently-updated binders.

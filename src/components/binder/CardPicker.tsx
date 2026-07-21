@@ -8,7 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { domainOf, slotAspect, type ArtworkAsset } from '@/data/artworkLibrary';
 import { artSearchProvider, isArtSearchConfigured, searchArt } from '@/data/artSearch';
 import { useSavedArt } from '@/data/savedArt';
-import { THEME_BACKGROUNDS, themeBackgroundDataUri } from '@/data/themeBackgrounds';
+import { THEME_FAMILIES, themeBackgroundDataUri } from '@/data/themeBackgrounds';
 import type { DemoPage, DemoSlot } from '@/data/binderTypes';
 import { useCatalog } from '@/hooks/use-catalog';
 import type { CatalogCard } from '@/lib/catalog';
@@ -118,6 +118,8 @@ export function CardPicker({
   const [urlInput, setUrlInput] = useState('');
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [sliced, setSliced] = useState(false);
+  // Themed-background picker shows one swatch per energy family; this flips base ↔ palette variant.
+  const [themeVariant, setThemeVariant] = useState(false);
   const [tab, setTab] = useState<PickerTab>('cards');
 
   const fits = (rows: number, cols: number) =>
@@ -321,25 +323,38 @@ export function CardPicker({
         })}
       </View>
 
-      {/* Themed backgrounds — procedural, fully owned elemental art (themeBackgrounds.ts). */}
-      <Text style={styles.sectionLabel}>Themed background · {sizeLabel}</Text>
+      {/* Themed backgrounds — procedural, fully owned elemental art (themeBackgrounds.ts). One
+          swatch per energy family; the Variant chip flips every swatch to its alternate palette. */}
+      <View style={styles.themeHeaderRow}>
+        <Text style={styles.sectionLabel}>Themed background · {sizeLabel}</Text>
+        <Pressable
+          onPress={() => setThemeVariant((v) => !v)}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: themeVariant }}
+          style={[flatChip.base, themeVariant && flatChip.active]}>
+          <Text style={[flatChip.text, themeVariant && flatChip.textActive]}>Variant</Text>
+        </Pressable>
+      </View>
       <View style={styles.insertRow}>
-        {THEME_BACKGROUNDS.map((t) => (
-          <Pressable
-            key={t.id}
-            accessibilityLabel={`${t.name} themed background — ${t.vibe}`}
-            onPress={() => placeTheme(t.id)}
-            style={styles.themeSwatch}>
-            <Image
-              source={{ uri: themeBackgroundDataUri(t.id, { w: 80, h: 112, count: 5 }) }}
-              style={styles.themeSwatchImg}
-              contentFit="cover"
-            />
-            <Text style={styles.themeSwatchLabel} numberOfLines={1}>
-              {t.name}
-            </Text>
-          </Pressable>
-        ))}
+        {THEME_FAMILIES.map((fam) => {
+          const t = themeVariant ? fam.variant : fam.base;
+          return (
+            <Pressable
+              key={fam.family}
+              accessibilityLabel={`${t.name} themed background — ${t.vibe}`}
+              onPress={() => placeTheme(t.id)}
+              style={styles.themeSwatch}>
+              <Image
+                source={{ uri: themeBackgroundDataUri(t.id, { w: 80, h: 112, count: 5 }) }}
+                style={styles.themeSwatchImg}
+                contentFit="cover"
+              />
+              <Text style={styles.themeSwatchLabel} numberOfLines={1}>
+                {t.name}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       <Pressable onPress={onClear} style={styles.emptyBtn}>
@@ -570,6 +585,7 @@ const styles = StyleSheet.create({
   insertRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 8 },
   insertSwatch: { width: 28, height: 28, borderRadius: 7, borderWidth: 1, borderColor: Palette.swatchBorder },
   insertSwatchActive: { borderWidth: 3, borderColor: Palette.accent },
+  themeHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   themeSwatch: { width: 48, alignItems: 'center', gap: 3 },
   themeSwatchImg: {
     width: 48,

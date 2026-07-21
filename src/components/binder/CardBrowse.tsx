@@ -43,6 +43,7 @@ export function CardBrowse({
   cardActions,
   initialSimilar,
   languages,
+  ownedIds,
 }: {
   /** Null while the catalog is still loading — CatalogBrowser then runs cold (server search). */
   catalog: Catalog | null;
@@ -62,6 +63,9 @@ export function CardBrowse({
   /** Constrain the browser (cards + series/set drill-down) to these printing languages; undefined
    *  = all. Passed straight to CatalogBrowser, which also auto-hides its language facet when one. */
   languages?: CardLanguage[];
+  /** The user's owned-card ids (own ≥ 1) — lights up the collection overlays: tile checks, set
+   *  completion %, and the Collection (have:) filter chip. Undefined for guests. */
+  ownedIds?: ReadonlySet<string>;
 }) {
   // App tokens → the kit's color contract, so the browser follows light/dark + variant
   // instead of falling back to the kit's built-in light look.
@@ -82,6 +86,7 @@ export function CardBrowse({
         cardActions={cardActions}
         initialSimilar={initialSimilar}
         languages={languages}
+        ownedIds={ownedIds}
         onColorSearch={() => setColorOpen(true)}
         footer={null}
         cardTileWidth={CARD_BROWSE_TILE_WIDTH}

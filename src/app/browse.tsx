@@ -24,6 +24,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Spacing } from '@/constants/theme';
 import { pagesForCards } from '@/data/binderTypes';
 import { useCatalog } from '@/hooks/use-catalog';
+import { useOwnedCards } from '@/hooks/use-owned-cards';
 import { useBinders } from '@/store/binders';
 import { useLanguagePref } from '@/store/languagePref';
 
@@ -40,6 +41,10 @@ export default function BrowseScreen() {
   // EN / JP filter for the browser (cards + series/set drill-down). The app-wide, persisted
   // preference (shared with Home) — EN only by default, remembered per account across devices.
   const [langs, changeLangs] = useLanguagePref();
+
+  // The signed-in user's owned cards → collection overlays in the browser (tile checks, set
+  // completion %, the Collection have: filter). Undefined for guests, so the UI stays off.
+  const ownedIds = useOwnedCards();
 
   // One or many cards headed for a binder (single tap → [id]; multi-select → the whole set).
   const [addCardIds, setAddCardIds] = useState<string[] | null>(null);
@@ -69,6 +74,7 @@ export default function BrowseScreen() {
       builtins.lessLikeThis,
       builtins.findSimilar,
       builtins.viewSet,
+      builtins.viewIllustrator,
     ].filter(Boolean) as CardAction[];
   };
 
@@ -115,6 +121,7 @@ export default function BrowseScreen() {
               cardActions={cardActions}
               onPickCards={(cardIds) => setAddCardIds(cardIds)}
               languages={langs}
+              ownedIds={ownedIds}
             />
           </View>
         </View>

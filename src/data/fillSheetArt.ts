@@ -75,6 +75,40 @@ async function canvasConvert(bytes: Uint8Array): Promise<LoadedArt | null> {
   }
 }
 
+/**
+ * Rasterize a `data:image/svg+xml` URL (our procedural theme backgrounds, see themeBackgrounds.ts)
+ * to PNG bytes for pdf-lib. createImageBitmap doesn't decode SVG reliably, so we draw it through an
+ * <img> element instead — same-origin data URIs never taint the canvas. Rendered at a crisp print
+ * resolution derived from the SVG's own viewBox aspect.
+ */
+async function rasterizeSvgDataUri(url: string): Promise<LoadedArt | null> {
+  try {
+    const svg = decodeURIComponent(url.replace(/^data:image\/svg\+xml,/, ''));
+    const vb = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
+    const vw = vb ? parseFloat(vb[1]) : 250;
+    const vh = vb ? parseFloat(vb[2]) : 350;
+    const scale = 1400 / Math.max(vw, vh); // ~1400px long edge: crisp at a print pocket, still light
+    const w = Math.max(1, Math.round(vw * scale));
+    const h = Math.max(1, Math.round(vh * scale));
+    const img = new Image();
+    img.decoding = 'async';
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('svg decode failed'));
+      img.src = url;
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    canvas.getContext('2d')!.drawImage(img, 0, 0, w, h);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+    if (!blob) return null;
+    return { bytes: new Uint8Array(await blob.arrayBuffer()), kind: 'png', width: w, height: h };
+  } catch {
+    return null;
+  }
+}
+
 /** Read a PNG/JPEG's pixel size from its bytes (cheap, avoids a decode for pass-through). */
 async function imageSize(bytes: Uint8Array): Promise<{ width: number; height: number } | null> {
   try {
@@ -94,6 +128,8 @@ export function createWebArtLoader(): ArtLoader {
     let hit = cache.get(key);
     if (!hit) {
       hit = (async () => {
+        // Procedural theme backgrounds arrive as SVG data URIs — rasterize, don't fetch/sniff.
+        if (key.startsWith('data:image/svg+xml')) return rasterizeSvgDataUri(key);
         const bytes = await fetchBytes(key);
         if (!bytes) return null;
         const kind = sniff(bytes);

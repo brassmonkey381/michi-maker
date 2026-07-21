@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { domainOf, slotAspect, type ArtworkAsset } from '@/data/artworkLibrary';
 import { artSearchProvider, isArtSearchConfigured, searchArt } from '@/data/artSearch';
 import { useSavedArt } from '@/data/savedArt';
+import { THEME_BACKGROUNDS, themeBackgroundDataUri } from '@/data/themeBackgrounds';
 import type { DemoPage, DemoSlot } from '@/data/binderTypes';
 import { useCatalog } from '@/hooks/use-catalog';
 import type { CatalogCard } from '@/lib/catalog';
@@ -292,7 +293,17 @@ export function CardPicker({
     </>
   );
 
-  // The Insert tab: a tonal negative-space tile, or leave the pocket empty.
+  // Place a themed background (our owned procedural art) as a spanning artwork. Seeded from the
+  // pocket so a page of themes doesn't render identically. Fills the whole footprint as one
+  // continuous background (the color-themed-spread idea) — no external art, no licensing.
+  const placeTheme = (id: string) =>
+    onPickArtwork(
+      themeBackgroundDataUri(id, { seed: cell ? cell.row * 31 + cell.col + 1 : undefined }),
+      shape.rows,
+      shape.cols,
+    );
+
+  // The Insert tab: a tonal negative-space tile, a themed background, or leave the pocket empty.
   const renderInsert = () => (
     <>
       <Text style={styles.sectionLabel}>Tonal insert · {sizeLabel}</Text>
@@ -309,6 +320,28 @@ export function CardPicker({
           );
         })}
       </View>
+
+      {/* Themed backgrounds — procedural, fully owned elemental art (themeBackgrounds.ts). */}
+      <Text style={styles.sectionLabel}>Themed background · {sizeLabel}</Text>
+      <View style={styles.insertRow}>
+        {THEME_BACKGROUNDS.map((t) => (
+          <Pressable
+            key={t.id}
+            accessibilityLabel={`${t.name} themed background — ${t.vibe}`}
+            onPress={() => placeTheme(t.id)}
+            style={styles.themeSwatch}>
+            <Image
+              source={{ uri: themeBackgroundDataUri(t.id, { w: 80, h: 112, count: 5 }) }}
+              style={styles.themeSwatchImg}
+              contentFit="cover"
+            />
+            <Text style={styles.themeSwatchLabel} numberOfLines={1}>
+              {t.name}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
       <Pressable onPress={onClear} style={styles.emptyBtn}>
         <Text style={styles.emptyText}>Leave empty</Text>
       </Pressable>
@@ -537,6 +570,16 @@ const styles = StyleSheet.create({
   insertRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 8 },
   insertSwatch: { width: 28, height: 28, borderRadius: 7, borderWidth: 1, borderColor: Palette.swatchBorder },
   insertSwatchActive: { borderWidth: 3, borderColor: Palette.accent },
+  themeSwatch: { width: 48, alignItems: 'center', gap: 3 },
+  themeSwatchImg: {
+    width: 48,
+    height: 60,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: Palette.swatchBorder,
+    backgroundColor: Palette.panel,
+  },
+  themeSwatchLabel: { fontSize: FontSize.xs, color: Palette.muted2 },
   emptyBtn: { alignSelf: 'flex-start', marginTop: 12, paddingVertical: 8, paddingHorizontal: 16, borderRadius: Radius.control, backgroundColor: Palette.dangerBg },
   emptyText: { fontSize: FontSize.label, color: Palette.dangerAlt, fontWeight: Weight.semibold },
   scroll: { paddingBottom: 16 },

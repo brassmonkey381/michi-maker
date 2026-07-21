@@ -26,6 +26,9 @@ const INSERT_TONES: { label: string; color: string }[] = [
   { label: 'Charcoal', color: '#2A2A30' },
 ];
 
+/** How many palettes the themed-background cycle steps through (the richest family's count). */
+const MAX_PALETTES = Math.max(1, ...THEME_FAMILIES.map((f) => f.themes.length));
+
 /**
  * Placement footprints, with their real Michi-method print sizes. The michi insert grid is a
  * consistent 7cm × 9.5cm per cell (so 1×2 = the "2-horizontal" 14×9.5cm insert, 2×2 = the
@@ -118,8 +121,9 @@ export function CardPicker({
   const [urlInput, setUrlInput] = useState('');
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [sliced, setSliced] = useState(false);
-  // Themed-background picker shows one swatch per energy family; this flips base ↔ palette variant.
-  const [themeVariant, setThemeVariant] = useState(false);
+  // Themed-background picker shows one swatch per energy family; this cycles the palette (base +
+  // variants) across every swatch at once.
+  const [themePaletteIdx, setThemePaletteIdx] = useState(0);
   const [tab, setTab] = useState<PickerTab>('cards');
 
   const fits = (rows: number, cols: number) =>
@@ -328,16 +332,17 @@ export function CardPicker({
       <View style={styles.themeHeaderRow}>
         <Text style={styles.sectionLabel}>Themed background · {sizeLabel}</Text>
         <Pressable
-          onPress={() => setThemeVariant((v) => !v)}
-          accessibilityRole="switch"
-          accessibilityState={{ checked: themeVariant }}
-          style={[flatChip.base, themeVariant && flatChip.active]}>
-          <Text style={[flatChip.text, themeVariant && flatChip.textActive]}>Variant</Text>
+          onPress={() => setThemePaletteIdx((i) => (i + 1) % MAX_PALETTES)}
+          accessibilityLabel={`Palette ${themePaletteIdx + 1} of ${MAX_PALETTES}; tap to cycle`}
+          style={[flatChip.base, themePaletteIdx > 0 && flatChip.active]}>
+          <Text style={[flatChip.text, themePaletteIdx > 0 && flatChip.textActive]}>
+            Palette {themePaletteIdx + 1}/{MAX_PALETTES}
+          </Text>
         </Pressable>
       </View>
       <View style={styles.insertRow}>
         {THEME_FAMILIES.map((fam) => {
-          const t = themeVariant ? fam.variant : fam.base;
+          const t = fam.themes[Math.min(themePaletteIdx, fam.themes.length - 1)];
           return (
             <Pressable
               key={fam.family}

@@ -131,22 +131,17 @@ export function CardPicker({
 
   const is = (rows: number, cols: number) => shape.rows === rows && shape.cols === cols;
 
-  // Default the tab to the pocket's existing content type when editing an occupied slot. Artwork
-  // is edited in the Slice Studio (opened on demand), so it never becomes a resident tab here.
+  // Default the tab to the pocket's existing content type when editing an occupied slot, so
+  // "Replace" lands on the right panel (artwork slots → the Artwork tab, its Slice Studio a button away).
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTab(slot?.type === 'insert' ? 'insert' : 'cards');
+    setTab(slot?.type === 'insert' ? 'insert' : slot?.type === 'artwork' ? 'artwork' : 'cards');
   }, [cell?.row, cell?.col, slot?.id, slot?.type]);
 
   // Cards only exist at 1×1 (standard) or 2×2 (jumbo / V-UNION); coerce to a card-capable
-  // shape when switching to the Cards tab from a non-square artwork/insert shape.
+  // shape when switching to the Cards tab from a non-square artwork/insert shape. Artwork is a
+  // resident tab now (search / paste / upload / theme, with the Slice Studio one button away).
   const selectTab = (next: PickerTab) => {
-    if (next === 'artwork') {
-      // "Artwork" goes straight to the Slice Studio (card art / drag-in / upload + crop) — no
-      // intermediate search-and-load step.
-      onOpenSliceStudio(slot?.imageUrl, shape.rows, shape.cols);
-      return;
-    }
     if (next === 'cards' && !(is(1, 1) || is(2, 2))) setShape({ rows: 1, cols: 1 });
     setTab(next);
   };
@@ -157,7 +152,6 @@ export function CardPicker({
   // browse stays one list. The sheet gets a definite height so its FlatList has a bounded viewport.
   const sizeLabel = `${shape.rows}×${shape.cols}`;
   const isMultiCell = shape.rows > 1 || shape.cols > 1;
-  const browseMode = tab === 'cards';
 
   // Place a chosen artwork: as one panel, or sliced across the block when the toggle is on.
   const placeArt = (url: string) =>
@@ -372,7 +366,9 @@ export function CardPicker({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={sheet.bottomBackdrop}>
         <Pressable style={styles.backdropFill} onPress={onClose} />
-        <View style={[sheet.bottomSheet, browseMode && styles.sheetTall]}>
+        {/* Always tall, whatever the tab — Cards, Artwork, and Insert all rise to the same height
+            so switching between them doesn't resize the sheet. */}
+        <View style={[sheet.bottomSheet, styles.sheetTall]}>
           <View style={sheet.handle} />
           <View style={styles.header}>
             <ThemedText type="subtitle" style={styles.headerTitle}>
@@ -449,11 +445,17 @@ export function CardPicker({
               initialSimilar={initialSimilar}
             />
           ) : tab === 'artwork' ? (
-            <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+            <ScrollView
+              style={styles.scrollFill}
+              contentContainerStyle={styles.scroll}
+              keyboardShouldPersistTaps="handled">
               {renderArtwork()}
             </ScrollView>
           ) : (
-            <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+            <ScrollView
+              style={styles.scrollFill}
+              contentContainerStyle={styles.scroll}
+              keyboardShouldPersistTaps="handled">
               {renderInsert()}
             </ScrollView>
           )}
@@ -603,6 +605,7 @@ const styles = StyleSheet.create({
   themeSwatchLabel: { fontSize: FontSize.xs, color: Palette.muted2 },
   emptyBtn: { alignSelf: 'flex-start', marginTop: 12, paddingVertical: 8, paddingHorizontal: 16, borderRadius: Radius.control, backgroundColor: Palette.dangerBg },
   emptyText: { fontSize: FontSize.label, color: Palette.dangerAlt, fontWeight: Weight.semibold },
+  scrollFill: { flex: 1 },
   scroll: { paddingBottom: 16 },
   sectionLabel: {
     fontSize: FontSize.base,

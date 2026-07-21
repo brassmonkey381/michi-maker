@@ -9,7 +9,7 @@
  * native we point at the web app for now (no share-sheet plumbing yet).
  */
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
@@ -340,21 +340,36 @@ export function PrintPlaceholdersSheet({
   // Free teaser: the curated sample binder (4 placeholder pages + 2 art pages), so non-payers see
   // the exact format — and BOTH output files (plain-paper placeholders + matte-cardstock art) —
   // without printing their own binders. See src/data/exampleFillSheetBinder.ts.
-  const downloadExample = async () => {
-    if (!catalog || exBusy) return;
-    setExBusy(true);
+  // Arm the example download. Generation is DEFERRED to the effect below so the free example is
+  // never hidden behind a slow/cold catalog load — the button stays visible and just shows a
+  // spinner ("Preparing…") until the catalog is ready, then generates and downloads.
+  const downloadExample = () => {
+    if (exBusy) return;
     setError(null);
-    try {
-      const files = await buildFillSheetPdfs(EXAMPLE_FILL_SHEET_BINDER, catalog, {
-        loadImage: createWebArtLoader(),
-      });
-      await saveFillSheetFiles(files, 'michi example');
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setExBusy(false);
-    }
+    setExBusy(true);
   };
+  const exRunning = useRef(false);
+  useEffect(() => {
+    if (!exBusy || !catalog || exRunning.current) return;
+    exRunning.current = true;
+    let live = true;
+    (async () => {
+      try {
+        const files = await buildFillSheetPdfs(EXAMPLE_FILL_SHEET_BINDER, catalog, {
+          loadImage: createWebArtLoader(),
+        });
+        await saveFillSheetFiles(files, 'michi example');
+      } catch (e) {
+        if (live) setError((e as Error).message);
+      } finally {
+        exRunning.current = false;
+        if (live) setExBusy(false);
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [exBusy, catalog]);
 
   return (
     <DialogCard title="Print fill sheets" onClose={onClose}>
@@ -727,21 +742,23 @@ export function PrintPlaceholdersSheet({
                 ) : null}
 
                 {/* Example PDFs — the curated 6-page sampler (placeholders + art), so both output
-                    files download. Available to everyone: non-payers see the format before buying,
-                    payers use it to test printer scale without spending a credit. */}
-                {catalog ? (
-                  exBusy ? (
-                    <View style={styles.center}>
-                      <LogoLoader label="Generating example…" variant="thinking" />
-                    </View>
-                  ) : (
-                    <Pressable
-                      onPress={downloadExample}
-                      style={({ pressed }) => [styles.exampleBtn, pressed && styles.dim]}>
-                      <Text style={styles.exampleBtnText}>See a free example (2 sample PDFs)</Text>
-                    </Pressable>
-                  )
-                ) : null}
+                    files download. Always available (never hidden behind the catalog load): the
+                    button shows a spinner until the catalog is ready, then generates. Non-payers
+                    see the format before buying; payers test printer scale without spending a credit. */}
+                {exBusy ? (
+                  <View style={styles.center}>
+                    <LogoLoader
+                      label={catalog ? 'Generating example…' : 'Preparing example…'}
+                      variant="thinking"
+                    />
+                  </View>
+                ) : (
+                  <Pressable
+                    onPress={downloadExample}
+                    style={({ pressed }) => [styles.exampleBtn, pressed && styles.dim]}>
+                    <Text style={styles.exampleBtnText}>See a free example (2 sample PDFs)</Text>
+                  </Pressable>
+                )}
 
                 {/* View the same sampler as a binder (read-only reference — can't be edited or
                     copied), so you can see how the pages map to the printed files. */}

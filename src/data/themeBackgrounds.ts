@@ -14,7 +14,18 @@
  */
 
 /** The motif drawn scattered across a theme — a simple, iconic, cartoon shape. */
-export type MotifKind = 'flame' | 'wave' | 'leaf' | 'bolt' | 'facet' | 'shard';
+export type MotifKind =
+  | 'flame'
+  | 'wave'
+  | 'leaf'
+  | 'bolt'
+  | 'facet'
+  | 'shard'
+  | 'spark4'
+  | 'blob'
+  | 'burst'
+  | 'hex'
+  | 'petal';
 
 export interface ThemeBackground {
   id: string;
@@ -29,14 +40,30 @@ export interface ThemeBackground {
   motif: MotifKind;
 }
 
-/** The starter set — six energy moods. Extend freely; each is just data. */
+/**
+ * The set — one mood per energy, plus a few palette VARIANTS of the popular ones (same motif, a
+ * different mood: molten fire, abyssal water). Each entry is just data; extend freely, and remember
+ * the `seed` gives infinite ARRANGEMENT variants of any single theme.
+ */
 export const THEME_BACKGROUNDS: ThemeBackground[] = [
+  // core six
   { id: 'ember', name: 'Ember', vibe: 'the warmth of a fire type', bg: ['#ffd59e', '#ff7a45'], accents: ['#ffb703', '#fb5607', '#ffe8a3'], motif: 'flame' },
   { id: 'tide', name: 'Tide', vibe: 'cool, deep water', bg: ['#a8e6ff', '#2b8fd6'], accents: ['#48cae4', '#0077b6', '#caf0f8'], motif: 'wave' },
   { id: 'verdant', name: 'Verdant', vibe: 'fresh grass and leaves', bg: ['#d8f3c4', '#4c9a2a'], accents: ['#80c34f', '#2d6a1e', '#eaf7d9'], motif: 'leaf' },
   { id: 'spark', name: 'Spark', vibe: 'crackling electricity', bg: ['#fff3b0', '#f4b400'], accents: ['#ffd60a', '#e09f00', '#3a3120'], motif: 'bolt' },
   { id: 'stone', name: 'Stone', vibe: 'rugged rock and earth', bg: ['#e7dcc8', '#a1866f'], accents: ['#c9ad8c', '#6f5642', '#f2ead9'], motif: 'facet' },
   { id: 'frost', name: 'Frost', vibe: 'still, crystalline ice', bg: ['#eaf6ff', '#8fc7e8'], accents: ['#bde0fe', '#5a9fd6', '#ffffff'], motif: 'shard' },
+  // the wider wheel
+  { id: 'psyche', name: 'Psyche', vibe: 'shimmering psychic energy', bg: ['#f0d0ff', '#9b3fc9'], accents: ['#c86ef0', '#6a1f9c', '#fbe6ff'], motif: 'spark4' },
+  { id: 'venom', name: 'Venom', vibe: 'toxic, bubbling poison', bg: ['#dcc6ef', '#6a2f92'], accents: ['#9d5fd0', '#451a6b', '#b6f24d'], motif: 'blob' },
+  { id: 'grit', name: 'Grit', vibe: 'raw fighting force', bg: ['#f2cfa6', '#a84e1c'], accents: ['#dd7f34', '#6e2f0e', '#ffdca8'], motif: 'burst' },
+  { id: 'alloy', name: 'Alloy', vibe: 'brushed steel and metal', bg: ['#eef1f4', '#8a97a5'], accents: ['#b7c1cb', '#59636f', '#ffffff'], motif: 'hex' },
+  { id: 'bloom', name: 'Bloom', vibe: 'soft fairy petals', bg: ['#ffe1ef', '#ff86ba'], accents: ['#ffacce', '#e05a8f', '#fff2f8'], motif: 'petal' },
+  { id: 'draco', name: 'Draco', vibe: 'regal dragon skies', bg: ['#cdd2ff', '#3f45a8'], accents: ['#7a80e0', '#262a72', '#ffd166'], motif: 'spark4' },
+  { id: 'wisp', name: 'Wisp', vibe: 'ghostly drifting shadow', bg: ['#d6cdea', '#524072'], accents: ['#8f7cbb', '#2f2450', '#84e6d6'], motif: 'blob' },
+  // palette variants of the popular moods
+  { id: 'molten', name: 'Molten', vibe: 'a hotter, deeper fire', bg: ['#ffb37a', '#8f1d0e'], accents: ['#ff6b35', '#3d0c05', '#ffd08a'], motif: 'flame' },
+  { id: 'abyss', name: 'Abyss', vibe: 'deep-ocean water', bg: ['#7fb8d6', '#0a2a52'], accents: ['#2f7fb8', '#04162e', '#8fe0e8'], motif: 'wave' },
 ];
 
 const THEME_BY_ID = new Map(THEME_BACKGROUNDS.map((t) => [t.id, t]));
@@ -75,6 +102,16 @@ function motifPath(kind: MotifKind): string {
       return 'M0,-1 L0.75,-0.1 L0.45,1 L-0.45,1 L-0.75,-0.1 Z';
     case 'shard':
       return 'M0,-1 L0.28,0.9 L0,1 L-0.28,0.9 Z';
+    case 'spark4': // a four-point sparkle (psychic / dragon shimmer)
+      return 'M0,-1 L0.18,-0.18 L1,0 L0.18,0.18 L0,1 L-0.18,0.18 L-1,0 L-0.18,-0.18 Z';
+    case 'blob': // a soft round blob (bubble / orb)
+      return 'M0,-1 C0.55,-1 1,-0.55 1,0 C1,0.55 0.55,1 0,1 C-0.55,1 -1,0.55 -1,0 C-1,-0.55 -0.55,-1 0,-1 Z';
+    case 'burst': // a five-point spiky star (impact)
+      return 'M0,-1 L0.22,-0.31 L0.95,-0.31 L0.36,0.12 L0.59,0.81 L0,0.38 L-0.59,0.81 L-0.36,0.12 L-0.95,-0.31 L-0.22,-0.31 Z';
+    case 'hex': // a hexagon (metal plate)
+      return 'M0,-1 L0.87,-0.5 L0.87,0.5 L0,1 L-0.87,0.5 L-0.87,-0.5 Z';
+    case 'petal': // a full, rounded petal (fairy)
+      return 'M0,-1 C0.62,-0.55 0.62,0.55 0,1 C-0.62,0.55 -0.62,-0.55 0,-1 Z';
   }
 }
 

@@ -5,6 +5,7 @@ import { Platform, useColorScheme, View } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { UsernameGate } from '@/components/auth/UsernameGate';
+import { ProStatusBanner } from '@/components/monetization/ProStatusBanner';
 import { AppRail } from '@/components/nav/AppRail';
 import { AuthProvider } from '@/store/auth';
 import { BinderProvider } from '@/store/binders';
@@ -34,6 +35,8 @@ export default function TabLayout() {
             <View style={{ flex: 1, flexDirection: 'row' }}>
               <AppRail />
               <View style={{ flex: 1 }}>
+                {/* PRO trial nudge / over-cap reclaim warning / restore — null unless it applies. */}
+                <ProStatusBanner />
                 <Slot />
               </View>
             </View>

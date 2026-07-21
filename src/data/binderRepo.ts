@@ -171,10 +171,33 @@ export async function fetchUserBinders(ownerId: string): Promise<DemoBinder[]> {
     .from('binders')
     .select('*, binder_pages(*, binder_slots(*))')
     .eq('owner_id', ownerId)
+    // Archived binders (over-cap reclaim after a downgrade — see docs/PRO-TRIALS.md) are hidden
+    // from the owner's grid and every cap count until they upgrade and restore them.
+    .is('archived_at', null)
     .order('created_at', { ascending: true })
     .order('position', { referencedTable: 'binder_pages', ascending: true });
   if (error) throw new Error(`load binders: ${error.message}`);
   return ((data ?? []) as unknown as BinderRowIn[]).map(mapBinder);
+}
+
+/**
+ * How many of the owner's binders are currently ARCHIVED (soft-hidden by over-cap reclaim). Feeds
+ * the "N binders locked — subscribe to unlock" upsell. Demo binders don't count against caps, so
+ * they're excluded here too. Returns 0 on any failure (the upsell just doesn't show).
+ */
+export async function fetchArchivedBinderCount(ownerId: string): Promise<number> {
+  try {
+    const supabase = requireSupabase();
+    const { count } = await supabase
+      .from('binders')
+      .select('id', { count: 'exact', head: true })
+      .eq('owner_id', ownerId)
+      .not('archived_at', 'is', null)
+      .or('is_demo.is.null,is_demo.eq.false');
+    return count ?? 0;
+  } catch {
+    return 0;
+  }
 }
 
 /**

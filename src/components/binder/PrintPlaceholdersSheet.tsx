@@ -15,6 +15,7 @@ import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from '
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { LogoLoader } from '@/components/brand/LogoLoader';
 import { ThemedText } from '@/components/themed-text';
+import { TrialCta } from '@/components/monetization/TrialCta';
 import { DialogCard } from '@/components/ui/DialogCard';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import type { DemoBinder } from '@/data/binderTypes';
@@ -664,6 +665,9 @@ export function PrintPlaceholdersSheet({
                       for $3.99 — that download is this binder as it is today, yours to re-download
                       forever (later edits need a new unlock).
                     </ThemedText>
+                    {/* Eligible free users see the trial first — start it and the sheet re-renders
+                        to the subscriber Download button. Renders null when not eligible. */}
+                    <TrialCta message="New here? Try PRO free and print this binder." />
                     <Pressable
                       onPress={() => setConfirming('buy')}
                       disabled={buying}

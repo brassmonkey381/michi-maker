@@ -54,6 +54,8 @@ const SELLABLE = new Set([
   'michi_binder_pdf',
   'tcgscan_pro_monthly',
   'tcgscan_pro_yearly',
+  'tcgscan_vip_monthly',
+  'tcgscan_vip_yearly',
 ]);
 
 /** Origins checkout may return to (success/cancel URLs are validated against these).
@@ -70,10 +72,15 @@ const ALLOWED_RETURN_ORIGINS = new Set([
 ]);
 
 /** The sibling products whose ACTIVE ownership qualifies a lookup key for the bundle discount:
- *  own a michi tier → discounted TCGScan Pro; own TCGScan Pro → discounted michi tier. */
+ *  own any michi tier → discounted TCGScan tier; own any TCGScan tier → discounted michi tier.
+ *  Level-agnostic on purpose — holding EITHER sibling tier earns the cross-app discount. */
 function bundleSiblingsFor(lookupKey: string): string[] | null {
-  if (lookupKey.startsWith('tcgscan_pro')) return ['tier_pro', 'tier_vip'];
-  if (lookupKey.startsWith('michi_pro') || lookupKey.startsWith('michi_vip')) return ['tcgscan_pro'];
+  if (lookupKey.startsWith('tcgscan_pro') || lookupKey.startsWith('tcgscan_vip')) {
+    return ['tier_pro', 'tier_vip'];
+  }
+  if (lookupKey.startsWith('michi_pro') || lookupKey.startsWith('michi_vip')) {
+    return ['tcgscan_pro', 'tcgscan_vip'];
+  }
   return null; // one-time products have no bundle
 }
 
@@ -600,16 +607,19 @@ Deno.serve(async (req: Request) => {
       status: 'active',
       limit: 10,
     });
-    // Only MICHI tiers block each other. The cross-app tcgscan_pro is an independent
-    // subscription and is expected to co-exist (see docs/SYNERGY.md).
-    const holdsMichiTier = existing.data.some((s) => {
-      const key = s.items?.data?.[0]?.price?.lookup_key ?? '';
-      return key.startsWith('michi_pro') || key.startsWith('michi_vip');
-    });
-    if (holdsMichiTier && (michiProduct === 'tier_pro' || michiProduct === 'tier_vip')) {
+    // Block a SECOND subscription within the SAME app only. The two apps are independent
+    // (a michi tier and a tcgscan tier co-exist by design — see docs/SYNERGY.md), but PRO↔VIP
+    // within one app is a plan change, never a new subscription: a second one would bill both
+    // while the webhook's sibling hygiene hides it (the ledger shows one clean tier).
+    const existingKeys = existing.data.map((s) => s.items?.data?.[0]?.price?.lookup_key ?? '');
+    const holdsMichiTier = existingKeys.some((k) => k.startsWith('michi_pro') || k.startsWith('michi_vip'));
+    const holdsTcgscanTier = existingKeys.some((k) => k.startsWith('tcgscan_pro') || k.startsWith('tcgscan_vip'));
+    const buyingMichiTier = michiProduct === 'tier_pro' || michiProduct === 'tier_vip';
+    const buyingTcgscanTier = michiProduct === 'tcgscan_pro' || michiProduct === 'tcgscan_vip';
+    if ((holdsMichiTier && buyingMichiTier) || (holdsTcgscanTier && buyingTcgscanTier)) {
       return json(409, {
         error:
-          'You already have an active michi-maker plan. Changing plans isn’t open yet — it has to move your existing subscription rather than start a second one.',
+          'You already have an active plan in this app. Changing plans isn’t open yet — it has to move your existing subscription rather than start a second one.',
       });
     }
   }

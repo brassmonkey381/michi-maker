@@ -27,9 +27,16 @@ export const PRODUCTS = {
    * CROSS-APP: TCGScan Pro. Sold by the sibling app (tcgscan / tcgscan.ai) but written to
    * this SAME shared `entitlements` ledger, so michi can read it to unlock scan-powered features
    * here (e.g. "Build a binder from your collection"). See docs/SYNERGY.md. michi never sells or
-   * resolves a *tier* from it — it's a feature key checked directly via `hasTcgscanPro`.
+   * resolves a michi *tier* from it — it's a cross-app membership checked via `hasTcgscanPro` /
+   * `tcgscanLevel`.
    */
   tcgscanPro: 'tcgscan_pro',
+  /**
+   * CROSS-APP: TCGScan VIP — the sibling app's top tier (its own product row; a VIP holds this,
+   * NOT tcgscan_pro). michi reads it so it knows the sibling's exact level, and any tcgscan paid
+   * tier unlocks michi's scan-powered features. See docs/SYNERGY.md.
+   */
+  tcgscanVip: 'tcgscan_vip',
 } as const;
 
 /** One entitlement row as the client reads it (owner-scoped by RLS). */
@@ -155,12 +162,21 @@ export function hasProduct(rows: EntitlementRow[], product: string, nowMs: numbe
   return rows.some((r) => r.product === product && isActive(r, nowMs));
 }
 
+/** The sibling tcgscan account's paid level, or null. 'vip' > 'pro'. Each is its own product row
+ *  (a VIP holds tcgscan_vip, not tcgscan_pro); future tiers extend this without a migration. */
+export function tcgscanLevel(rows: EntitlementRow[], nowMs: number): 'pro' | 'vip' | null {
+  if (hasProduct(rows, PRODUCTS.tcgscanVip, nowMs)) return 'vip';
+  if (hasProduct(rows, PRODUCTS.tcgscanPro, nowMs)) return 'pro';
+  return null;
+}
+
 /**
- * CROSS-APP: does the user hold an active TCGScan Pro grant (bought in the sibling app, written
- * to this shared ledger)? Gates scan-powered features here. See docs/SYNERGY.md.
+ * CROSS-APP: does the user hold ANY paid TCGScan tier (PRO or VIP), bought in the sibling app and
+ * written to this shared ledger? Gates scan-powered features here (they need any tcgscan paid
+ * membership, not PRO specifically). For the exact level use `tcgscanLevel`. See docs/SYNERGY.md.
  */
 export function hasTcgscanPro(rows: EntitlementRow[], nowMs: number): boolean {
-  return hasProduct(rows, PRODUCTS.tcgscanPro, nowMs);
+  return tcgscanLevel(rows, nowMs) !== null;
 }
 
 /**

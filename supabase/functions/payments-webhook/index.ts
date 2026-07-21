@@ -34,16 +34,29 @@ const cryptoProvider = Stripe.createSubtleCryptoProvider();
 const service = () =>
   createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
-/** Our subscription price lookup_keys map onto the entitlement products. `tcgscan_pro` is the
- *  CROSS-APP subscription (sold by either app, read by both — see docs/SYNERGY.md); it is NOT a
- *  michi tier, so the PRO↔VIP sibling hygiene below must never touch it. */
+/** Our subscription price lookup_keys map onto the entitlement products. `tcgscan_pro`/`tcgscan_vip`
+ *  are the CROSS-APP subscriptions (sold by either app, read by both — see docs/SYNERGY.md); they
+ *  are their OWN family, independent of the michi tiers. */
 function tierProductFromLookupKey(lookupKey: string | null | undefined): string | null {
   if (!lookupKey) return null;
   if (lookupKey.startsWith('michi_vip')) return 'tier_vip';
   if (lookupKey.startsWith('michi_pro')) return 'tier_pro';
+  if (lookupKey.startsWith('tcgscan_vip')) return 'tcgscan_vip';
   if (lookupKey.startsWith('tcgscan_pro')) return 'tcgscan_pro';
   return null;
 }
+
+/**
+ * PRO↔VIP siblings WITHIN one app — a plan switch expires the other tier's stripe-sourced row so
+ * a stale grant can't outlive the switch. The two apps' families are independent (a michi switch
+ * never touches a tcgscan row, and vice versa), so each tier maps only to its own-app sibling.
+ */
+const TIER_SIBLING: Record<string, string> = {
+  tier_pro: 'tier_vip',
+  tier_vip: 'tier_pro',
+  tcgscan_pro: 'tcgscan_vip',
+  tcgscan_vip: 'tcgscan_pro',
+};
 
 /** current_period_end lives on the subscription in older API versions and on the item in newer ones. */
 function periodEndSeconds(sub: Stripe.Subscription): number | null {
@@ -217,10 +230,10 @@ async function upsertSubscriptionGrant(sub: Stripe.Subscription) {
   );
 
   // Plan switch hygiene: upgrading PRO→VIP (or down) must not leave the other Stripe-sourced
-  // tier row alive past now. Manual/lifetime grants are never touched — and neither is the
-  // cross-app `tcgscan_pro` (an independent subscription, not a michi tier).
-  if (product === 'tier_pro' || product === 'tier_vip') {
-    const sibling = product === 'tier_vip' ? 'tier_pro' : 'tier_vip';
+  // tier row alive past now. Applies within EITHER app's family (michi tiers, tcgscan tiers) but
+  // never across them, and never to manual/lifetime grants (source != 'stripe').
+  const sibling = TIER_SIBLING[product];
+  if (sibling) {
     await db
       .from('entitlements')
       .update({ expires_at: new Date().toISOString() })

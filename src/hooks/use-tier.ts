@@ -16,6 +16,7 @@ import type { BillingInterval } from '@/data/printWindow';
 import {
   hasFullPrint as computeFullPrint,
   hasTcgscanPro as computeTcgscanPro,
+  tcgscanLevel as computeTcgscanLevel,
   isActive,
   limitsForTier,
   PRODUCTS,
@@ -32,6 +33,7 @@ interface TierState {
   tier: Tier;
   hasFullPrint: boolean;
   hasTcgscanPro: boolean;
+  tcgscanLevel: 'pro' | 'vip' | null;
   products: string[];
   interval: BillingInterval | null;
   periodStart: string | null;
@@ -45,8 +47,10 @@ export interface UseTier {
   hasFullPrint: boolean;
   /** A paid subscriber (PRO or VIP). */
   isPaid: boolean;
-  /** CROSS-APP: holds an active TCGScan Pro grant (unlocks scan-powered features). */
+  /** CROSS-APP: holds ANY paid TCGScan tier (PRO or VIP) — unlocks scan-powered features. */
   hasTcgscanPro: boolean;
+  /** CROSS-APP: the sibling tcgscan account's exact paid level ('vip' > 'pro' > null). */
+  tcgscanLevel: 'pro' | 'vip' | null;
   /** ACTIVE product keys, for direct checks (e.g. the per-binder `pdf_binder:<id>` unlock). */
   products: string[];
   /**
@@ -114,6 +118,7 @@ export function useTier(): UseTier {
           tier,
           hasFullPrint: computeFullPrint(tier),
           hasTcgscanPro: computeTcgscanPro(rows, now),
+          tcgscanLevel: computeTcgscanLevel(rows, now),
           products: rows.filter((r) => isActive(r, now)).map((r) => r.product),
           interval: rawInterval === 'month' || rawInterval === 'year' ? rawInterval : null,
           periodStart:
@@ -137,6 +142,7 @@ export function useTier(): UseTier {
     hasFullPrint: known ? state!.hasFullPrint : false,
     isPaid: tier === 'pro' || tier === 'vip',
     hasTcgscanPro: known ? state!.hasTcgscanPro : false,
+    tcgscanLevel: known ? state!.tcgscanLevel : null,
     products: known ? state!.products : [],
     interval: known ? state!.interval : null,
     periodStart: known ? state!.periodStart : null,

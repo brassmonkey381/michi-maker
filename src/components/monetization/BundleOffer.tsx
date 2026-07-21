@@ -101,8 +101,8 @@ export function BundleOffer() {
   };
   return (
     <CrossAppCard
-      message="You’re a Michi member — add TCGScan Pro (scan, price-track & value your collection) at a bundle discount."
-      cta={CHECKOUT_OPEN ? 'Add TCGScan Pro (discounted) →' : 'Add TCGScan Pro →'}
+      message="You’re a Michi member — save 60% on your TCGScan add-on: scan, price-track & value this exact collection."
+      cta={CHECKOUT_OPEN ? 'Save 60% on TCGScan →' : 'Add TCGScan Pro →'}
       onPress={onPress}
       busy={busy}
       footer={note}

@@ -7,12 +7,11 @@
  * dead spinner. Guests can file (they're anonymous-authenticated).
  */
 import { useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { DialogCard } from '@/components/ui/DialogCard';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
-import { sheet } from '@/constants/ui';
 import { submitContentReport, type ReportReason } from '@/data/reportRepo';
 
 const REASONS: { key: ReportReason; label: string; hint: string }[] = [
@@ -41,21 +40,7 @@ export function ReportSheet({ binderId, onClose }: { binderId: string; onClose: 
   const hint = REASONS.find((r) => r.key === reason)?.hint ?? '';
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={sheet.dialogBackdrop} onPress={onClose}>
-        <Pressable onPress={(e) => e.stopPropagation()} style={styles.cardWrap}>
-          <ThemedView type="backgroundElement" style={sheet.dialogCard}>
-            <View style={styles.header}>
-              <ThemedText type="subtitle" style={styles.title}>
-                Report this binder
-              </ThemedText>
-              <Pressable onPress={onClose} hitSlop={8}>
-                <ThemedText type="link" themeColor="textSecondary">
-                  Close
-                </ThemedText>
-              </Pressable>
-            </View>
-
+    <DialogCard title="Report this binder" onClose={onClose}>
             {done ? (
               <>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.body}>
@@ -115,17 +100,11 @@ export function ReportSheet({ binderId, onClose }: { binderId: string; onClose: 
                 ) : null}
               </>
             )}
-          </ThemedView>
-        </Pressable>
-      </Pressable>
-    </Modal>
+    </DialogCard>
   );
 }
 
 const styles = StyleSheet.create({
-  cardWrap: { width: '100%', maxWidth: 440 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontSize: FontSize.h2, lineHeight: 26 },
   body: { lineHeight: 19 },
   reasons: { gap: Spacing.one, marginTop: Spacing.one },
   reasonRow: {

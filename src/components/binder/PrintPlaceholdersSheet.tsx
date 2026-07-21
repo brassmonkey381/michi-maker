@@ -10,14 +10,13 @@
  */
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { LogoLoader } from '@/components/brand/LogoLoader';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { DialogCard } from '@/components/ui/DialogCard';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
-import { sheet } from '@/constants/ui';
 import type { DemoBinder } from '@/data/binderTypes';
 import { fetchUserCards } from '@/data/collectionRepo';
 import { EXAMPLE_FILL_SHEET_BINDER } from '@/data/exampleFillSheetBinder';
@@ -357,26 +356,7 @@ export function PrintPlaceholdersSheet({
   };
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={sheet.dialogBackdrop} onPress={onClose}>
-        <Pressable onPress={(e) => e.stopPropagation()} style={styles.cardWrap}>
-          <ThemedView type="backgroundElement" style={[sheet.dialogCard, styles.card]}>
-            <View style={styles.header}>
-              <ThemedText type="subtitle" style={styles.title}>
-                Print fill sheets
-              </ThemedText>
-              <Pressable onPress={onClose} hitSlop={8}>
-                <ThemedText type="link" themeColor="textSecondary">
-                  Close
-                </ThemedText>
-              </Pressable>
-            </View>
-
-            {/* Body scrolls: this is the tallest dialog and must fit short (mobile) screens. */}
-            <ScrollView
-              style={styles.body}
-              contentContainerStyle={styles.bodyContent}
-              showsVerticalScrollIndicator>
+    <DialogCard title="Print fill sheets" onClose={onClose}>
             {guestGated ? (
               <SignInPerk message="Placeholder labels read the full card catalog. Sign in (free) to print them." />
             ) : Platform.OS !== 'web' ? (
@@ -778,23 +758,11 @@ export function PrintPlaceholdersSheet({
                 ) : null}
               </>
             )}
-            </ScrollView>
-          </ThemedView>
-        </Pressable>
-      </Pressable>
-    </Modal>
+    </DialogCard>
   );
 }
 
 const styles = StyleSheet.create({
-  // maxHeight caps the dialog to the (padded) viewport; the card shrinks to it and the body
-  // ScrollView takes the remainder, so a tall dialog scrolls instead of clipping off-screen.
-  cardWrap: { width: '100%', maxWidth: 440, maxHeight: '100%' },
-  card: { flexShrink: 1, overflow: 'hidden' },
-  body: { flexShrink: 1 },
-  bodyContent: { gap: Spacing.three, paddingBottom: Spacing.one },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontSize: FontSize.h2, lineHeight: 26 },
   sub: { lineHeight: 20 },
   legalNote: { lineHeight: 17, fontSize: FontSize.sm, fontStyle: 'italic' },
   center: { alignItems: 'center', gap: Spacing.one, paddingVertical: Spacing.two },

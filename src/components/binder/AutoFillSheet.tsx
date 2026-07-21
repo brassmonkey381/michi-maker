@@ -7,14 +7,14 @@
  * Forces the catalog load on open (like the CardPicker) — composition scans real metadata.
  */
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { LogoLoader } from '@/components/brand/LogoLoader';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { FontSize, Palette, Radius, Spacing } from '@/constants/theme';
-import { pillChip, sheet } from '@/constants/ui';
+import { DialogCard } from '@/components/ui/DialogCard';
+import { Palette, Radius, Spacing } from '@/constants/theme';
+import { pillChip } from '@/constants/ui';
 import { occupiedCells, type DemoPage } from '@/data/binderTypes';
 import { fetchUserCards } from '@/data/collectionRepo';
 import {
@@ -114,21 +114,7 @@ export function AutoFillSheet({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={sheet.dialogBackdrop} onPress={onClose}>
-        <Pressable onPress={(e) => e.stopPropagation()} style={styles.cardWrap}>
-          <ThemedView type="backgroundElement" style={sheet.dialogCard}>
-            <View style={styles.header}>
-              <ThemedText type="subtitle" style={styles.title}>
-                Fill page
-              </ThemedText>
-              <Pressable onPress={onClose} hitSlop={8}>
-                <ThemedText type="link" themeColor="textSecondary">
-                  Close
-                </ThemedText>
-              </Pressable>
-            </View>
-
+    <DialogCard visible={visible} onClose={onClose} maxWidth={420} title="Fill page">
             {guestGated ? (
               // The composer scans the full catalog, which is a signed-in perk — say so instead
               // of showing a spinner that would never resolve for a guest.
@@ -192,17 +178,11 @@ export function AutoFillSheet({
                 ) : null}
               </>
             )}
-          </ThemedView>
-        </Pressable>
-      </Pressable>
-    </Modal>
+    </DialogCard>
   );
 }
 
 const styles = StyleSheet.create({
-  cardWrap: { width: '100%', maxWidth: 420 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontSize: FontSize.h2, lineHeight: 26 },
   sub: { lineHeight: 20 },
   center: { paddingVertical: Spacing.four, alignItems: 'center', gap: Spacing.two },
   poolChip: { alignSelf: 'flex-start' },

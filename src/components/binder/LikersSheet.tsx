@@ -4,12 +4,11 @@
  * as "Someone" (their name is withheld). Public viewers never see this — they only see the count.
  */
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { FontSize, Palette, Spacing } from '@/constants/theme';
-import { sheet } from '@/constants/ui';
+import { DialogCard } from '@/components/ui/DialogCard';
+import { Palette, Spacing } from '@/constants/theme';
 import { fetchLikers, type Liker } from '@/data/binderRepo';
 
 /** "3 days ago" / "2 hours ago" / "just now" from an ISO timestamp. */
@@ -57,55 +56,38 @@ export function LikersSheet({
   /* eslint-enable react-hooks/set-state-in-effect */
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={sheet.dialogBackdrop} onPress={onClose}>
-        <Pressable onPress={(e) => e.stopPropagation()} style={styles.cardWrap}>
-          <ThemedView type="backgroundElement" style={[sheet.dialogCard, styles.cardMax]}>
-            <View style={styles.header}>
-              <ThemedText type="subtitle" style={styles.title}>
-                {likers ? `${likers.length} ${likers.length === 1 ? 'like' : 'likes'}` : 'Likes'}
+    <DialogCard
+      visible={visible}
+      onClose={onClose}
+      maxWidth={400}
+      title={likers ? `${likers.length} ${likers.length === 1 ? 'like' : 'likes'}` : 'Likes'}>
+      {likers === null ? (
+        <View style={styles.center}>
+          <ActivityIndicator />
+        </View>
+      ) : likers.length === 0 ? (
+        <ThemedText type="small" themeColor="textSecondary" style={styles.empty}>
+          No likes yet. Share your binder to start collecting them.
+        </ThemedText>
+      ) : (
+        <View style={styles.list}>
+          {likers.map((l) => (
+            <View key={l.userId} style={styles.row}>
+              <ThemedText type="smallBold" numberOfLines={1} style={styles.name}>
+                {l.username ? `@${l.username}` : 'Someone'}
               </ThemedText>
-              <Pressable onPress={onClose} hitSlop={8}>
-                <ThemedText type="link" themeColor="textSecondary">
-                  Close
-                </ThemedText>
-              </Pressable>
+              <ThemedText type="small" themeColor="textSecondary">
+                {timeAgo(l.createdAt)}
+              </ThemedText>
             </View>
-
-            {likers === null ? (
-              <View style={styles.center}>
-                <ActivityIndicator />
-              </View>
-            ) : likers.length === 0 ? (
-              <ThemedText type="small" themeColor="textSecondary" style={styles.empty}>
-                No likes yet. Share your binder to start collecting them.
-              </ThemedText>
-            ) : (
-              <View style={styles.list}>
-                {likers.map((l) => (
-                  <View key={l.userId} style={styles.row}>
-                    <ThemedText type="smallBold" numberOfLines={1} style={styles.name}>
-                      {l.username ? `@${l.username}` : 'Someone'}
-                    </ThemedText>
-                    <ThemedText type="small" themeColor="textSecondary">
-                      {timeAgo(l.createdAt)}
-                    </ThemedText>
-                  </View>
-                ))}
-              </View>
-            )}
-          </ThemedView>
-        </Pressable>
-      </Pressable>
-    </Modal>
+          ))}
+        </View>
+      )}
+    </DialogCard>
   );
 }
 
 const styles = StyleSheet.create({
-  cardWrap: { width: '100%', maxWidth: 400 },
-  cardMax: { maxHeight: '80%' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontSize: FontSize.h2, lineHeight: 26 },
   center: { paddingVertical: Spacing.five, alignItems: 'center' },
   empty: { lineHeight: 20 },
   list: { gap: Spacing.one },

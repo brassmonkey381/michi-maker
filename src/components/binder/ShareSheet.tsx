@@ -4,12 +4,11 @@
  * the system share sheet. Only shown for the owner's own cloud binders.
  */
 import { useState } from 'react';
-import { Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
-import { sheet } from '@/constants/ui';
+import { DialogCard } from '@/components/ui/DialogCard';
+import { Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { privateArtInBinder, type PrivateArtRef } from '@/data/artAttributionCheck';
 import type { DemoBinder } from '@/data/binderTypes';
 import { useTheme } from '@/hooks/use-theme';
@@ -77,21 +76,7 @@ export function ShareSheet({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={sheet.dialogBackdrop} onPress={onClose}>
-        <Pressable onPress={(e) => e.stopPropagation()} style={styles.cardWrap}>
-          <ThemedView type="backgroundElement" style={sheet.dialogCard}>
-            <View style={styles.header}>
-              <ThemedText type="subtitle" style={styles.title}>
-                Share binder
-              </ThemedText>
-              <Pressable onPress={onClose} hitSlop={8}>
-                <ThemedText type="link" themeColor="textSecondary">
-                  Close
-                </ThemedText>
-              </Pressable>
-            </View>
-
+    <DialogCard visible={visible} onClose={onClose} maxWidth={420} title="Share binder">
             <View style={styles.toggleRow}>
               <View style={styles.toggleText}>
                 <ThemedText type="smallBold">Anyone with the link</ThemedText>
@@ -170,17 +155,11 @@ export function ShareSheet({
                 Turn on public sharing to get a link you can send to anyone.
               </ThemedText>
             )}
-          </ThemedView>
-        </Pressable>
-      </Pressable>
-    </Modal>
+    </DialogCard>
   );
 }
 
 const styles = StyleSheet.create({
-  cardWrap: { width: '100%', maxWidth: 420 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontSize: FontSize.h2, lineHeight: 26 },
   toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.three },
   toggleText: { flex: 1, gap: 2 },
   linkArea: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },

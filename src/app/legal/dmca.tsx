@@ -1,9 +1,10 @@
 /**
  * `/legal/dmca` — DMCA / copyright takedown policy. Explains how a rights holder files a
- * notice, our counter-notice process, and the repeat-infringer policy. Notices route to
- * support@michi-maker.com as an interim contact; the banner stays until the owner registers a
- * designated agent with the US Copyright Office (dmca.copyright.gov, see
- * docs/roadmap/ART-RIGHTS.md) and the real agent block replaces the interim one.
+ * notice, our counter-notice process, and the repeat-infringer policy. Designated agent:
+ * "Copyright Compliance Agent" (a registered position, not a person), filed with the US
+ * Copyright Office 2026-07-22, notices to support@michi-maker.com. Remove the processing
+ * banner once the directory listing at dmca.copyright.gov is confirmed live; renewal due
+ * 2029 (3-year term) or safe harbor lapses.
  */
 import { StyleSheet, View } from 'react-native';
 
@@ -49,7 +50,7 @@ const SECTIONS: Section[] = [
   {
     heading: 'Designated agent',
     paragraphs: [
-      'Send takedown notices and counter-notices to support@michi-maker.com with the subject line DMCA. Notices sent there reach the operator directly. Our designated-agent registration with the US Copyright Office is in progress; this page will list the registered agent details once it completes.',
+      'Copyright Compliance Agent, michi-maker. Email: support@michi-maker.com (subject line DMCA). This agent is designated with the US Copyright Office; the full listing, including mailing address, appears in the Office’s public DMCA Designated Agent Directory at dmca.copyright.gov.',
     ],
   },
 ];
@@ -62,8 +63,8 @@ export default function DmcaScreen() {
           Note
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary" style={styles.draftText}>
-          Registration of our designated agent with the US Copyright Office is in progress. Until
-          it completes, use the interim contact under Designated agent below.
+          Our designated-agent registration has been filed with the US Copyright Office and is
+          processing. The agent below is live and receiving notices now.
         </ThemedText>
       </View>
 

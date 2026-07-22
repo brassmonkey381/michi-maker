@@ -1,9 +1,28 @@
-# Go-live checklist — billing & subscriptions
+# Go-live checklist — billing & subscriptions (michi-maker **and** tcgscan)
 
-How to take michi-maker billing from Stripe **test mode** to **live mode**. Pair with
-`docs/PAYMENTS.md` (how the system works) and `docs/roadmap/MONETIZATION-TIERS.md` (the numbers).
+How to take billing from Stripe **test mode** to **live mode**. Pair with `docs/PAYMENTS.md` (how
+the system works), `docs/SYNERGY.md` (the cross-app shape), and `docs/roadmap/MONETIZATION-TIERS.md`
+(the numbers).
 
-## The one thing to understand first
+## ⚠️ This is a SHARED cutover across both apps
+
+michi-maker and tcgscan are **separate front-ends over one shared billing spine** (see
+`docs/SYNERGY.md`): **one Stripe account, one Supabase project (`piikwvntldytjejxmcla`), one set of
+edge functions (`stripe-checkout` / `payments-webhook`), one webhook endpoint, one Customer Portal
+config, one entitlements ledger, one bundle coupon.** So:
+
+- **The backend cutover is done ONCE and lights up BOTH apps.** §1–5 are shared. The live catalog
+  must include **both** `michi_*` and `tcgscan_*` products; the live secret, webhook endpoint,
+  portal config, and test-data cleanup all serve both.
+- **Setting the live `STRIPE_SECRET_KEY` flips both apps' functions to live at the same instant** —
+  you cannot take one app's backend live without the other's.
+- **What's per-app is only the front-end flip** (§6): each app has its **own**
+  `EXPO_PUBLIC_CHECKOUT_OPEN` flag + its own Vercel deploy (michi-maker.com vs the tcgscan domain).
+  That flag is what decides which app actually *sells*, so you can flip them together or stagger.
+
+Net: **one shared backend cutover + two front-end flips.**
+
+## The other thing to understand first
 
 **Almost everything in Stripe is per-mode.** Products, prices, the Customer Portal configuration,
 and webhook endpoints all exist separately in test and live mode and **do not copy over**. Live
@@ -12,14 +31,16 @@ mode starts empty. Most of this checklist is recreating in live what already exi
 **The Supabase project is NOT per-mode.** There is one database (`piikwvntldytjejxmcla`) and one
 set of edge-function secrets. So:
 
-- All migrations are already applied — nothing to re-run.
+- All migrations are already applied — nothing to re-run. (Exception: the PRO-trial + over-cap
+  reclaim migration `20260721120000_pro_trials_and_reclaim.sql` is intentionally NOT applied yet —
+  apply it during §5, after the test-data cleanup, then enable `pg_cron`. See `docs/PRO-TRIALS.md`.)
 - Setting `STRIPE_SECRET_KEY` to a live key makes the **deployed functions operate in live mode
   immediately**. There is no separate "live deploy". This is the real cutover moment.
 - The `entitlements` / `billing_customers` / `print_events` rows written during test-mode testing
   are still in the production DB and grant real access. Decide what to do with them (§5).
 
 Because the functions flip the instant the live secret is set, sequence matters: build the live
-Stripe catalog first (§1–3), set secrets (§4), clean test data (§5), then flip the app flag
+Stripe catalog first (§1–3), set secrets (§4), clean test data (§5), then flip **each app's** flag
 **last** (§6).
 
 ---
@@ -37,8 +58,15 @@ Set each product's `metadata.michi_product` (the webhook maps tiers from it as a
 | `michi_vip_monthly` | $9.99 / mo | michi-maker VIP · `tier_vip` |
 | `michi_vip_yearly` | $99.99 / yr | michi-maker VIP · `tier_vip` |
 | `michi_binder_pdf` | $3.99 one-time | Full-binder fill-sheet PDF · `pdf_binder` |
-| `tcgscan_pro_monthly` | TBD | **CROSS-APP** TCGScan Pro · `tcgscan_pro` — only if the bundle ships |
-| `tcgscan_pro_yearly` | TBD | **CROSS-APP** TCGScan Pro · `tcgscan_pro` — only if the bundle ships |
+| `tcgscan_pro_monthly` | TBD | **CROSS-APP** TCGScan Pro · `tcgscan_pro` |
+| `tcgscan_pro_yearly` | TBD | **CROSS-APP** TCGScan Pro · `tcgscan_pro` |
+| `tcgscan_vip_monthly` | TBD | **CROSS-APP** TCGScan VIP · `tcgscan_vip` |
+| `tcgscan_vip_yearly` | TBD | **CROSS-APP** TCGScan VIP · `tcgscan_vip` |
+
+The cross-app bundle **is built and shipped** (tcgscan VIP went live 2026-07-21; `stripe-checkout`
+sells all four `tcgscan_*` keys and applies the bundle coupon), so the `tcgscan_*` products are
+**required** for a joint go-live, not optional. Confirm the tcgscan prices/descriptions with the
+tcgscan side before creating them.
 
 - [ ] PRO product + monthly & yearly prices, lookup keys set
 - [ ] VIP product + monthly & yearly prices, lookup keys set
@@ -46,8 +74,9 @@ Set each product's `metadata.michi_product` (the webhook maps tiers from it as a
 - [ ] **Product descriptions** copied from `docs/PAYMENTS.md → Product descriptions` (they show on
       Checkout and every invoice; the test-mode ones were corrected 2026-07-19 — VIP is 3 prints,
       PRO keeps 1,000 artworks not 100)
-- [ ] `tcgscan_pro` prices — **only if launching the cross-sell**; otherwise skip (the bundle CTA
-      fails gracefully without them)
+- [ ] **TCGScan** Pro + VIP products, monthly & yearly prices, lookup keys `tcgscan_pro_*` /
+      `tcgscan_vip_*`, `metadata.michi_product` = `tcgscan_pro` / `tcgscan_vip`, with tcgscan-side
+      descriptions
 
 ---
 
@@ -87,16 +116,18 @@ Dashboard → Developers → Webhooks → Add endpoint (in **live** mode).
 Single-valued, shared by the deployed functions — setting these is the cutover to live.
 
 ```bash
-supabase secrets set STRIPE_SECRET_KEY=sk_live_...        # flips functions to LIVE
+supabase secrets set STRIPE_SECRET_KEY=sk_live_...        # flips BOTH apps' functions to LIVE
 supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_...      # the LIVE endpoint secret from §3
-# only if the cross-app bundle ships:
-supabase secrets set STRIPE_BUNDLE_COUPON=<live coupon id>
+supabase secrets set STRIPE_BUNDLE_COUPON=<live coupon id># the bundle is live — create the coupon
 ```
 
-- [ ] `STRIPE_SECRET_KEY` = live key
+- [ ] `STRIPE_SECRET_KEY` = live key (⚠️ this is the shared cutover — lights up michi AND tcgscan)
 - [ ] `STRIPE_WEBHOOK_SECRET` = **live** endpoint secret (the test one will not verify live events)
+- [ ] `STRIPE_BUNDLE_COUPON` = the **live** bundle coupon id (percent-off; the bundle cross-sell ships)
 - [ ] Confirm `verify_jwt` is unchanged after any redeploy: **payments-webhook = false**
-      (Stripe can't send a Supabase JWT — the signature is the auth), **stripe-checkout = true**
+      (Stripe can't send a Supabase JWT — the signature is the auth), **stripe-checkout = true**.
+      Both functions were last deployed 2026-07-21 (`stripe-checkout` v20 for tcgscan VIP); a
+      plain CLI `functions deploy` keeps these defaults — never pass `--no-verify-jwt` to checkout.
 - [ ] `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_ANON_KEY` already set — no change
 
 ---
@@ -135,17 +166,25 @@ delete from auth.users where email = 'billing.clock.rig@example.com';
 
 ---
 
-## 6. Flip the app on (last)
+## 6. Flip each app on (last) — the ONLY per-app step
 
 `EXPO_PUBLIC_*` vars are baked at **build time** for Expo web, so changing them requires a Vercel
-**redeploy**, not just an env edit.
+**redeploy**, not just an env edit. Each app has its **own** flags and its **own** Vercel project —
+flip them together, or stagger (the backend is already live from §4, so an un-flipped app simply
+keeps showing its "coming soon" note).
 
+**michi-maker (this repo, michi-maker.com):**
 - [ ] `EXPO_PUBLIC_LIMITS_ENFORCED=1` in Vercel Production (already set — confirm)
 - [ ] `EXPO_PUBLIC_CHECKOUT_OPEN=1` in Vercel Production — **the final switch**; CTAs stop showing
       the "coming soon" note and launch real checkout
 - [ ] Trigger a production redeploy so both flags take effect
 - [ ] Confirm return-URL origins in `stripe-checkout` `ALLOWED_RETURN_ORIGINS` cover the live
-      domain (currently includes `https://www.michi-maker.com`)
+      domain (currently includes `https://www.michi-maker.com` **and** the tcgscan domains)
+
+**tcgscan (sister repo/Vercel project):**
+- [ ] Flip tcgscan's own checkout-open flag + any limits flag, then redeploy its Vercel project
+- [ ] Confirm tcgscan's live domain is in `ALLOWED_RETURN_ORIGINS` (already includes
+      `https://www.tcgscan.ai` / `https://tcgscan.ai`)
 
 ---
 
@@ -183,8 +222,11 @@ month-arithmetic drifts between copies). The money maths lives in one unit-teste
 
 ## Known open items (decide, don't discover)
 
-- **Cross-app bundle** (`tcgscan_pro`, `STRIPE_BUNDLE_COUPON`) is not built even in test. The
-  bundle CTA degrades gracefully; launch michi without it unless the cross-sell is ready.
+- **Cross-app bundle** (`tcgscan_pro` / `tcgscan_vip`, `STRIPE_BUNDLE_COUPON`) **is now built and
+  shipped** (tcgscan VIP live 2026-07-21). So the live catalog MUST include the `tcgscan_*` products
+  and a live bundle coupon, and the joint go-live lights up both apps at once (§4). Coordinate the
+  tcgscan prices/descriptions with the tcgscan side; without the coupon the bundle CTA still degrades
+  gracefully.
 - **Cross-interval changes** (monthly↔yearly) and **downgrades** are intentionally routed to the
   portal, not `change_plan`. Monthly plans are otherwise **untested** — no monthly customer has
   been driven through checkout, window slicing, or the cross-interval refusal.

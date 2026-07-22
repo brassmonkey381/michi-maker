@@ -193,7 +193,7 @@ export function PlanComparison() {
         <View style={styles.switchConfirm}>
           <Text style={styles.switchConfirmText}>
             {price
-              ? `Charge ${price} now and move to ${plan.name} for the rest of your year?`
+              ? `Charge ${price} to your card on file now and move to ${plan.name} for the rest of your year?`
               : `Move to ${plan.name} for the rest of your year?`}
             {/* The PRORATED print total, from the same server maths that writes the ledger —
                 never the fresh-year number, which over-promised 36 to a mid-term upgrader. */}

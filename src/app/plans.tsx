@@ -2,11 +2,12 @@
  * `/plans` — the plan page (formerly /subscriptions and /pricing, which redirect here). Layout ported
  * from the approved comparison-sheet draft: masthead, the plan comparison table (PLAN_HEADERS +
  * COMPARISON in src/data/subscriptions.ts), the one-time PDF product, and the signed-in user's
- * current plan + usage meters. Honest while checkout is closed: everything is free in beta and
- * CTAs reveal the coming-soon line (CHECKOUT_OPEN flips them into real checkout launches later).
+ * current plan + usage meters. Checkout is LIVE (2026-07-22): a settled ?checkout=success opens
+ * the WelcomeAboardModal (features + bundle cross-sell), and paid members keep a standing
+ * BundleOffer in the Your plan section.
  */
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { PageShell } from '@/components/layout/PageShell';
@@ -14,6 +15,7 @@ import { BundleOffer } from '@/components/monetization/BundleOffer';
 import { PlanComparison } from '@/components/monetization/PlanComparison';
 import { TrialCta } from '@/components/monetization/TrialCta';
 import { PlanUsageSection } from '@/components/monetization/TierUsage';
+import { WelcomeAboardModal } from '@/components/monetization/WelcomeAboardModal';
 import { ThemedText } from '@/components/themed-text';
 import {
   FontSize,
@@ -49,6 +51,11 @@ export default function PlansScreen() {
     return () => clearInterval(id);
   }, [settling, refresh]);
 
+  // The settled success moment gets the full welcome modal (features + bundle), once per
+  // arrival; dismissing it leaves a clean plan page behind.
+  const celebrate = checkout === 'success' && isPaid;
+  const [welcomeDismissed, setWelcomeDismissed] = useState(false);
+
   return (
     <PageShell
       title="Plans"
@@ -66,8 +73,8 @@ export default function PlansScreen() {
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
           Every plan includes the full binder editor, Slice Studio, and your pages synced across
-          web, iOS, and Android. Everything is free while michi-maker is in beta. These are the
-          plans that are coming, so you know exactly where the shelves end.
+          web, iOS, and Android. Start free, and upgrade when your collection outgrows the
+          shelves.
         </ThemedText>
       </View>
 
@@ -77,19 +84,14 @@ export default function PlansScreen() {
         <TrialCta message="Try everything PRO before you decide — free for 14 days." />
       </View>
 
-      {checkout === 'success' ? (
+      {settling ? (
         <View style={styles.banner}>
           <ThemedText type="smallBold" style={styles.bannerTitle}>
-            {isPaid ? 'Your plan is active. Welcome aboard!' : 'Payment received'}
+            Payment received
           </ThemedText>
-          {!isPaid ? (
-            <ThemedText type="small" themeColor="textSecondary">
-              Your purchase unlocks in a moment — this page checks automatically.
-            </ThemedText>
-          ) : null}
-          {/* POST-CHECKOUT BUNDLE UPSELL — a fresh member who lacks TCGScan Pro is offered the
-              discounted add-on right here (BundleOffer self-gates: paid + no tcgscan_pro). */}
-          <BundleOffer />
+          <ThemedText type="small" themeColor="textSecondary">
+            Your purchase unlocks in a moment — this page checks automatically.
+          </ThemedText>
         </View>
       ) : checkout === 'cancelled' ? (
         <View style={styles.banner}>
@@ -98,6 +100,9 @@ export default function PlansScreen() {
           </ThemedText>
         </View>
       ) : null}
+
+      {/* The big post-checkout moment: features unlocked + the bundle cross-sell. */}
+      <WelcomeAboardModal visible={celebrate && !welcomeDismissed} onClose={() => setWelcomeDismissed(true)} />
 
       {/* Remount on tier flip so the table's own entitlement read (Current plan tag) refreshes. */}
       <PlanComparison key={`plans-${isPaid}`} />
@@ -120,6 +125,11 @@ export default function PlansScreen() {
             Your plan
           </ThemedText>
           <PlanUsageSection key={`usage-${isPaid}`} />
+          {/* Standing bundle cross-sell for paid members (self-gates: paid + no tcgscan_pro).
+              The post-checkout modal shows it once; this is where it lives permanently. */}
+          <View style={styles.bundleStanding}>
+            <BundleOffer />
+          </View>
           <ThemedText
             type="linkPrimary"
             style={styles.historyLink}
@@ -131,7 +141,7 @@ export default function PlansScreen() {
 
       <View style={styles.prose}>
         <ThemedText type="small" themeColor="textSecondary" style={styles.smallPrint}>
-          Prices may change before plans open. New to the craft? Start with the{' '}
+          New to the craft? Start with the{' '}
           <ThemedText
             type="linkPrimary"
             style={styles.smallPrintLink}
@@ -213,6 +223,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.three,
     marginTop: Spacing.two,
   },
+  bundleStanding: { marginTop: Spacing.three },
   historyLink: { fontSize: FontSize.label, marginTop: Spacing.two },
   smallPrint: { fontSize: FontSize.sm, lineHeight: 18, marginTop: Spacing.four },
   smallPrintLink: { fontSize: FontSize.sm },

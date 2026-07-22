@@ -1,16 +1,19 @@
 /**
- * `/legal/privacy` — Privacy Policy DRAFT, written to reflect what the app actually does
- * (Supabase auth including anonymous guests, binders and profiles with public flags, art
- * uploads, tcgscan portfolio imports, on-device preferences). Ships with a visible draft
- * banner and inline [PLACEHOLDER] markers for passages that need verification or counsel.
+ * `/legal/privacy` — Privacy Policy, written to reflect what the app actually does (Supabase
+ * auth including anonymous guests, binders and profiles with public flags, art uploads,
+ * tcgscan portfolio imports, Stripe payments, on-device preferences). Finalized 2026-07-22 at
+ * billing go-live: subprocessors verified (Supabase on AWS us-east-1, Vercel, Stripe), the
+ * no-ads/no-trackers claim checked against the dependency tree (only @vercel/og, which is OG
+ * image generation, not analytics), and account deletion routed through support email (no
+ * in-app path exists yet — if one ships, update §7).
  */
 import { StyleSheet, View } from 'react-native';
 
 import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
-import { Fonts, FontSize, Palette, Radius, Spacing } from '@/constants/theme';
+import { Fonts, FontSize, Spacing } from '@/constants/theme';
 
-const LAST_UPDATED = 'July 16, 2026';
+const LAST_UPDATED = 'July 22, 2026';
 
 interface Section {
   heading: string;
@@ -37,8 +40,8 @@ const SECTIONS: Section[] = [
   {
     heading: '3. Where it lives',
     paragraphs: [
-      'Your data is stored with Supabase, our database and authentication provider.',
-      '[PLACEHOLDER: hosting region and subprocessor details.]',
+      'Your data is stored with Supabase, our database and authentication provider, which runs on Amazon Web Services in the US East (Northern Virginia) region.',
+      'Two other providers handle parts of the service: Vercel hosts the web app, and Stripe processes payments (see Payments below). Each stores only what it needs to do its job.',
     ],
   },
   {
@@ -50,20 +53,20 @@ const SECTIONS: Section[] = [
   {
     heading: '5. What we do not do',
     paragraphs: [
-      '[PLACEHOLDER pending verification: statements about advertising trackers, analytics tooling, and data sale. The intent is: no ads, no selling data; confirm the analytics inventory before finalizing.]',
+      'No ads, no ad trackers, and no third-party analytics tools run in michi-maker. We never sell your personal information or share it for advertising. Beyond the content you create, the only records are the standard infrastructure logs our hosting providers keep to run and secure the service.',
     ],
   },
   {
     heading: '6. Payments',
     paragraphs: [
-      'There are no payments today. When paid plans open, a payment provider will process them; michi-maker will not store your card details. This policy will be updated before any charge is made.',
+      'Paid plans and one-time unlocks are processed by Stripe, our payment provider. Your card details go directly to Stripe and are never seen or stored by michi-maker. We keep the records needed to run your plan: what you bought, the term it covers, and the Stripe customer reference that links your account to your subscription. Receipts and invoices come from Stripe.',
     ],
   },
   {
     heading: '7. Data retention and deletion',
     paragraphs: [
       'Your binders and profile persist until you delete them. Deleting a binder removes its pages and contents.',
-      '[PLACEHOLDER: account-deletion path and timelines; verify the current mechanism before finalizing this section.]',
+      'To delete your account entirely, email support@michi-maker.com from the address on the account. We will delete the account and its data within 30 days, except records we are required to keep (such as payment records) for legal or accounting reasons.',
     ],
   },
   {
@@ -80,22 +83,13 @@ const SECTIONS: Section[] = [
   },
   {
     heading: '10. Contact',
-    paragraphs: ['[PLACEHOLDER: contact email or form for privacy questions.]'],
+    paragraphs: ['Privacy questions and data requests: support@michi-maker.com.'],
   },
 ];
 
 export default function PrivacyScreen() {
   return (
     <PageShell title="Privacy Policy" description="How michi-maker handles your data.">
-      <View style={styles.draftBanner}>
-        <ThemedText type="smallBold" style={styles.draftTitle}>
-          Draft
-        </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.draftText}>
-          This document is awaiting legal review. Passages marked [PLACEHOLDER] are not final.
-        </ThemedText>
-      </View>
-
       <ThemedText type="subtitle" style={styles.h1}>
         Privacy Policy
       </ThemedText>
@@ -109,11 +103,7 @@ export default function PrivacyScreen() {
             {s.heading}
           </ThemedText>
           {s.paragraphs.map((p, i) => (
-            <ThemedText
-              key={i}
-              type="small"
-              themeColor="textSecondary"
-              style={[styles.para, p.startsWith('[PLACEHOLDER') && styles.placeholder]}>
+            <ThemedText key={i} type="small" themeColor="textSecondary" style={styles.para}>
               {p}
             </ThemedText>
           ))}
@@ -124,21 +114,9 @@ export default function PrivacyScreen() {
 }
 
 const styles = StyleSheet.create({
-  draftBanner: {
-    borderWidth: 1,
-    borderColor: Palette.hairlineStrong,
-    backgroundColor: Palette.panelAlt,
-    borderRadius: Radius.panel,
-    padding: Spacing.three,
-    gap: 2,
-    marginBottom: Spacing.four,
-  },
-  draftTitle: { fontSize: FontSize.label, textTransform: 'uppercase', letterSpacing: 0.5 },
-  draftText: { fontSize: FontSize.sm, lineHeight: 18 },
   h1: { fontFamily: Fonts?.brand, marginBottom: Spacing.one },
   updated: { fontSize: FontSize.sm, marginBottom: Spacing.five },
   section: { marginBottom: Spacing.four, gap: Spacing.two },
   heading: { fontSize: FontSize.control },
   para: { lineHeight: 20 },
-  placeholder: { fontStyle: 'italic', color: Palette.muted3 },
 });

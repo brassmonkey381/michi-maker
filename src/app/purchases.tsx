@@ -312,7 +312,7 @@ export default function PurchasesScreen() {
             <SectionRows
               label="PAYMENTS"
               rows={payments}
-              empty="No payments yet — everything is free while michi-maker is in beta."
+              empty="No payments yet. Receipts for plans and binder unlocks will appear here."
               failed={paymentsFailed}
             />
             <SectionRows

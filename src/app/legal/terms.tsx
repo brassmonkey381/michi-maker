@@ -1,16 +1,16 @@
 /**
- * `/legal/terms` — Terms of Service DRAFT. Ships with a visible draft banner and inline
- * [PLACEHOLDER] markers; the owner (and counsel) finalize those passages before the draft
- * banner comes down. The IP / fan-content disclaimer is folded in as its own section.
+ * `/legal/terms` — Terms of Service. Finalized 2026-07-22 at billing go-live (owner-approved
+ * refund/billing defaults; draft banner retired). The IP / fan-content disclaimer is folded in
+ * as its own section. Contact routes through support@michi-maker.com.
  */
 import { StyleSheet, View } from 'react-native';
 
 import { PageShell } from '@/components/layout/PageShell';
 import { FAN_DISCLAIMER } from '@/components/layout/SiteFooter';
 import { ThemedText } from '@/components/themed-text';
-import { Fonts, FontSize, Palette, Radius, Spacing } from '@/constants/theme';
+import { Fonts, FontSize, Spacing } from '@/constants/theme';
 
-const LAST_UPDATED = 'July 17, 2026';
+const LAST_UPDATED = 'July 22, 2026';
 
 interface Section {
   heading: string;
@@ -27,7 +27,7 @@ const SECTIONS: Section[] = [
   {
     heading: '2. What michi-maker is',
     paragraphs: [
-      'michi-maker is a fan-made hobby tool, currently in beta. Features may change, break, or be removed while we build. We will always try to treat your data carefully, but during beta you should not treat michi-maker as the only copy of anything you cannot afford to lose.',
+      'michi-maker is a fan-made hobby tool under active development. Features may change, break, or be removed while we build. We will always try to treat your data carefully, but you should not treat michi-maker as the only copy of anything you cannot afford to lose.',
       'michi-maker is a neutral tool for content you supply. Our service is the software: arranging cards and art into binder-page layouts, engineering true-size, cut-ready print output, and exporting a file. We do not provide, license, or sell the artwork you place — you bring your own art, and any print-ready file is generated on your device from your arrangement, for you to print yourself for personal use. Paid plans pay for the software and the arrangement and print-layout engineering, never for artwork.',
     ],
   },
@@ -68,10 +68,12 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    heading: '8. Paid plans',
+    heading: '8. Paid plans, billing, and refunds',
     paragraphs: [
-      'michi-maker is free while in beta. Paid plans (described on the Plans page) are planned but not yet open. When they open, billing will be handled by a payment provider and these terms will be updated with billing and refund policies before any charge is made.',
-      '[PLACEHOLDER: billing, renewal, and refund terms pending payment provider selection.]',
+      'michi-maker is free to start. Optional paid plans (PRO and VIP, described on the Plans page) and a one-time per-binder print unlock are available. Payments are processed by Stripe, our payment provider; michi-maker never sees or stores your card details. Prices are shown before you buy, plus any taxes where required.',
+      'Subscriptions renew automatically, monthly or yearly, until you cancel. You can cancel any time from Manage billing: your plan stays active through the end of the period you already paid for, and you will not be charged again. Upgrading mid-term charges the exact upgrade price the app quotes at the moment you confirm.',
+      'Because plans deliver their value immediately (higher limits, print credits, digital output), we do not refund partial billing periods, except where the law of your country requires it. The one-time binder PDF unlock is delivered digital content: once your download has been generated it cannot be refunded. If a charge went wrong or you believe you were billed in error, contact support@michi-maker.com and we will make it right.',
+      'The free 14-day PRO trial requires no card and never turns into a charge on its own. When a trial or subscription ends and you are over the free limits, your extra binders are locked, not deleted: after a 3-day grace period the excess is archived, and it comes back when you subscribe again.',
     ],
   },
   {
@@ -83,8 +85,8 @@ const SECTIONS: Section[] = [
   {
     heading: '10. Disclaimers and limitation of liability',
     paragraphs: [
-      'michi-maker is provided as is, without warranties of any kind, to the extent permitted by law.',
-      '[PLACEHOLDER: full disclaimer and limitation-of-liability clause pending counsel review.]',
+      'michi-maker is provided as is and as available, without warranties of any kind, express or implied, including fitness for a particular purpose and non-infringement, to the extent permitted by law.',
+      'To the fullest extent permitted by law, michi-maker and its operator are not liable for indirect, incidental, special, consequential, or punitive damages, or for lost profits, data, or goodwill, arising from your use of the service. Our total liability for any claim is limited to the greater of $20 or the amount you paid us in the 12 months before the claim arose. Some jurisdictions do not allow some of these limits, so parts of this section may not apply to you.',
     ],
   },
   {
@@ -95,22 +97,13 @@ const SECTIONS: Section[] = [
   },
   {
     heading: '12. Contact',
-    paragraphs: ['[PLACEHOLDER: contact email or form for terms questions.]'],
+    paragraphs: ['Questions about these terms: support@michi-maker.com.'],
   },
 ];
 
 export default function TermsScreen() {
   return (
     <PageShell title="Terms of Service" description="michi-maker terms of service.">
-      <View style={styles.draftBanner}>
-        <ThemedText type="smallBold" style={styles.draftTitle}>
-          Draft
-        </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.draftText}>
-          This document is awaiting legal review. Passages marked [PLACEHOLDER] are not final.
-        </ThemedText>
-      </View>
-
       <ThemedText type="subtitle" style={styles.h1}>
         Terms of Service
       </ThemedText>
@@ -124,11 +117,7 @@ export default function TermsScreen() {
             {s.heading}
           </ThemedText>
           {s.paragraphs.map((p, i) => (
-            <ThemedText
-              key={i}
-              type="small"
-              themeColor="textSecondary"
-              style={[styles.para, p.startsWith('[PLACEHOLDER') && styles.placeholder]}>
+            <ThemedText key={i} type="small" themeColor="textSecondary" style={styles.para}>
               {p}
             </ThemedText>
           ))}
@@ -139,21 +128,9 @@ export default function TermsScreen() {
 }
 
 const styles = StyleSheet.create({
-  draftBanner: {
-    borderWidth: 1,
-    borderColor: Palette.hairlineStrong,
-    backgroundColor: Palette.panelAlt,
-    borderRadius: Radius.panel,
-    padding: Spacing.three,
-    gap: 2,
-    marginBottom: Spacing.four,
-  },
-  draftTitle: { fontSize: FontSize.label, textTransform: 'uppercase', letterSpacing: 0.5 },
-  draftText: { fontSize: FontSize.sm, lineHeight: 18 },
   h1: { fontFamily: Fonts?.brand, marginBottom: Spacing.one },
   updated: { fontSize: FontSize.sm, marginBottom: Spacing.five },
   section: { marginBottom: Spacing.four, gap: Spacing.two },
   heading: { fontSize: FontSize.control },
   para: { lineHeight: 20 },
-  placeholder: { fontStyle: 'italic', color: Palette.muted3 },
 });

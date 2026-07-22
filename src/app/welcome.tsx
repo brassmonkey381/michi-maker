@@ -189,12 +189,12 @@ export default function WelcomeScreen() {
           <title>michi-maker: build beautiful Pokémon card binders</title>
           <meta
             name="description"
-            content="Compose curated Pokémon card binder pages: rarity ladders, color spreads, artist galleries. Print true-size fill sheets and build the real thing. Free while in beta."
+            content="Compose curated Pokémon card binder pages: rarity ladders, color spreads, artist galleries. Print true-size fill sheets and build the real thing. Free to start."
           />
           <meta property="og:title" content="michi-maker: build beautiful Pokémon card binders" />
           <meta
             property="og:description"
-            content="Compose curated Pokémon card binder pages: rarity ladders, color spreads, artist galleries. Print true-size fill sheets and build the real thing. Free while in beta."
+            content="Compose curated Pokémon card binder pages: rarity ladders, color spreads, artist galleries. Print true-size fill sheets and build the real thing. Free to start."
           />
           <meta property="og:image" content="https://michi-maker.com/og.png" />
           <meta name="twitter:card" content="summary_large_image" />
@@ -249,7 +249,7 @@ export default function WelcomeScreen() {
                   </Pressable>
                 </View>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.betaNote}>
-                  Free while in beta · web, iOS and Android
+                  Free to start · web, iOS and Android
                 </ThemedText>
               </Reveal>
 
@@ -366,8 +366,8 @@ export default function WelcomeScreen() {
             <Reveal style={styles.closing}>
               <ThemedText style={styles.h2}>Your cards deserve better than a shoebox.</ThemedText>
               <ThemedText type="small" themeColor="textSecondary" style={styles.sectionSub}>
-                Everything above is free while michi-maker is in beta. Sign in so your binders
-                follow you between devices.
+                Start free and build real binders today. Sign in so your binders follow you
+                between devices, and upgrade only when you outgrow the free plan.
               </ThemedText>
               <Pressable
                 onPress={enterApp}

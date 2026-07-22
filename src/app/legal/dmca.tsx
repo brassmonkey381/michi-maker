@@ -1,8 +1,9 @@
 /**
- * `/legal/dmca` — DMCA / copyright takedown policy DRAFT. Explains how a rights holder files a
- * notice, our counter-notice process, and the repeat-infringer policy. The designated-agent
- * contact is a [PLACEHOLDER] until the owner registers an agent with the US Copyright Office and
- * fills in the real details (see docs/roadmap/ART-RIGHTS.md). Mirrors the terms.tsx draft styling.
+ * `/legal/dmca` — DMCA / copyright takedown policy. Explains how a rights holder files a
+ * notice, our counter-notice process, and the repeat-infringer policy. Notices route to
+ * support@michi-maker.com as an interim contact; the banner stays until the owner registers a
+ * designated agent with the US Copyright Office (dmca.copyright.gov, see
+ * docs/roadmap/ART-RIGHTS.md) and the real agent block replaces the interim one.
  */
 import { StyleSheet, View } from 'react-native';
 
@@ -10,7 +11,7 @@ import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
 import { Fonts, FontSize, Palette, Radius, Spacing } from '@/constants/theme';
 
-const LAST_UPDATED = 'July 17, 2026';
+const LAST_UPDATED = 'July 22, 2026';
 
 interface Section {
   heading: string;
@@ -48,7 +49,7 @@ const SECTIONS: Section[] = [
   {
     heading: 'Designated agent',
     paragraphs: [
-      '[PLACEHOLDER: designated DMCA agent name, mailing address, and email. Register an agent with the US Copyright Office (dmca.copyright.gov) and put the real contact here before relying on this policy.]',
+      'Send takedown notices and counter-notices to support@michi-maker.com with the subject line DMCA. Notices sent there reach the operator directly. Our designated-agent registration with the US Copyright Office is in progress; this page will list the registered agent details once it completes.',
     ],
   },
 ];
@@ -58,11 +59,11 @@ export default function DmcaScreen() {
     <PageShell title="Copyright / DMCA" description="How to file a copyright takedown on michi-maker.">
       <View style={styles.draftBanner}>
         <ThemedText type="smallBold" style={styles.draftTitle}>
-          Draft
+          Note
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary" style={styles.draftText}>
-          This policy is awaiting legal review and a registered designated agent. The passage
-          marked [PLACEHOLDER] is not final.
+          Registration of our designated agent with the US Copyright Office is in progress. Until
+          it completes, use the interim contact under Designated agent below.
         </ThemedText>
       </View>
 

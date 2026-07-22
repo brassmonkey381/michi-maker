@@ -2,15 +2,14 @@
  * `/legal/dmca` — DMCA / copyright takedown policy. Explains how a rights holder files a
  * notice, our counter-notice process, and the repeat-infringer policy. Designated agent:
  * "Copyright Compliance Agent" (a registered position, not a person), filed with the US
- * Copyright Office 2026-07-22, notices to support@michi-maker.com. Remove the processing
- * banner once the directory listing at dmca.copyright.gov is confirmed live; renewal due
- * 2029 (3-year term) or safe harbor lapses.
+ * Copyright Office 2026-07-22 (listing confirmed), notices to support@michi-maker.com.
+ * Renewal due 2029 (3-year term) or safe harbor lapses.
  */
 import { StyleSheet, View } from 'react-native';
 
 import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
-import { Fonts, FontSize, Palette, Radius, Spacing } from '@/constants/theme';
+import { Fonts, FontSize, Spacing } from '@/constants/theme';
 
 const LAST_UPDATED = 'July 22, 2026';
 
@@ -58,16 +57,6 @@ const SECTIONS: Section[] = [
 export default function DmcaScreen() {
   return (
     <PageShell title="Copyright / DMCA" description="How to file a copyright takedown on michi-maker.">
-      <View style={styles.draftBanner}>
-        <ThemedText type="smallBold" style={styles.draftTitle}>
-          Note
-        </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.draftText}>
-          Our designated-agent registration has been filed with the US Copyright Office and is
-          processing. The agent below is live and receiving notices now.
-        </ThemedText>
-      </View>
-
       <ThemedText type="subtitle" style={styles.h1}>
         Copyright &amp; DMCA policy
       </ThemedText>
@@ -81,11 +70,7 @@ export default function DmcaScreen() {
             {s.heading}
           </ThemedText>
           {s.paragraphs.map((p, i) => (
-            <ThemedText
-              key={i}
-              type="small"
-              themeColor="textSecondary"
-              style={[styles.para, p.startsWith('[PLACEHOLDER') && styles.placeholder]}>
+            <ThemedText key={i} type="small" themeColor="textSecondary" style={styles.para}>
               {p}
             </ThemedText>
           ))}
@@ -96,21 +81,9 @@ export default function DmcaScreen() {
 }
 
 const styles = StyleSheet.create({
-  draftBanner: {
-    borderWidth: 1,
-    borderColor: Palette.hairlineStrong,
-    backgroundColor: Palette.panelAlt,
-    borderRadius: Radius.panel,
-    padding: Spacing.three,
-    gap: 2,
-    marginBottom: Spacing.four,
-  },
-  draftTitle: { fontSize: FontSize.label, textTransform: 'uppercase', letterSpacing: 0.5 },
-  draftText: { fontSize: FontSize.sm, lineHeight: 18 },
   h1: { fontFamily: Fonts?.brand, marginBottom: Spacing.one },
   updated: { fontSize: FontSize.sm, marginBottom: Spacing.five },
   section: { marginBottom: Spacing.four, gap: Spacing.two },
   heading: { fontSize: FontSize.control },
   para: { lineHeight: 20 },
-  placeholder: { fontStyle: 'italic', color: Palette.muted3 },
 });

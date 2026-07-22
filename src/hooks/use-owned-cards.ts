@@ -15,18 +15,17 @@ import { useAuth } from '@/store/auth';
 export function useOwnedCards(): ReadonlySet<string> | undefined {
   const { user } = useAuth();
   const userId = user?.id ?? null;
-  const [cards, setCards] = useState<UserCard[] | null>(null);
+  // Rows are keyed by the identity they were loaded for, so a signed-out (or switched) user is
+  // derived as "no inventory" during render — no reset-setState in the effect, no stale leak.
+  const [cards, setCards] = useState<{ userId: string; rows: UserCard[] } | null>(null);
 
   useEffect(() => {
-    if (!isSupabaseConfigured || !userId) {
-      setCards(null);
-      return;
-    }
+    if (!isSupabaseConfigured || !userId) return;
     let active = true;
     const load = () =>
       fetchUserCards()
         .then((rows) => {
-          if (active) setCards(rows);
+          if (active) setCards({ userId, rows });
         })
         .catch(() => {});
     load();
@@ -37,7 +36,9 @@ export function useOwnedCards(): ReadonlySet<string> | undefined {
     };
   }, [userId]);
 
+  const rows = cards && cards.userId === userId ? cards.rows : null;
+
   // undefined (not empty) until the first inventory load, so the kit shows no collection UI at all
   // for guests — an empty Set would (incorrectly) mark every card "missing".
-  return useMemo(() => (cards ? new Set(cards.map((c) => c.cardId)) : undefined), [cards]);
+  return useMemo(() => (rows ? new Set(rows.map((c) => c.cardId)) : undefined), [rows]);
 }

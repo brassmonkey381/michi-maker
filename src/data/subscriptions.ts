@@ -124,6 +124,9 @@ export const TCGSCAN_PRO_LOOKUP_KEY = 'tcgscan_pro_yearly';
 
 /** The sibling app's landing page — EVERY user-facing TCGScan mention links here. */
 export const TCGSCAN_URL = 'https://tcgscan.ai/welcome';
+/** The bundle deep link: TCGScan's plans page, ?bundle=1 so it can greet the michi member.
+ *  The 60% coupon itself is applied server-side at checkout (sibling ownership verified). */
+export const TCGSCAN_PLANS_URL = 'https://tcgscan.ai/plans?bundle=1';
 
 export interface CompareCell {
   text: string;

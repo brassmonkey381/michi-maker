@@ -4,23 +4,23 @@
  * See docs/SYNERGY.md.
  *
  *   <BundleOffer/>          — shown to a MICHI PRO/VIP member who does NOT yet hold TCGScan Pro:
- *                            "add TCGScan Pro at a bundle discount". When checkout is open this
- *                            launches a REAL discounted tcgscan_pro checkout (the server verifies
- *                            sibling ownership before applying the coupon); the grant lands in the
- *                            shared ledger both apps read. Closed → links to TCGScan's landing page.
+ *                            "add TCGScan at a bundle discount". When checkout is open this opens
+ *                            TCGScan's PLANS page (?bundle=1) so the member picks PRO or VIP
+ *                            themselves — the 60% coupon is applied server-side at checkout after
+ *                            sibling-ownership verification, whichever tier they choose. (It used
+ *                            to jump straight into a tcgscan_pro checkout; the owner wanted the
+ *                            choice.) Closed → links to TCGScan's landing page.
  *   <TcgscanSynergyNote/>   — contextual note on scan-powered features (Build-a-binder-from-your-
  *                            collection): TCGScan makes your collection real; Pro unlocks more.
  *
  * Every TCGScan mention links to its landing page (TCGSCAN_URL → tcgscan.ai/welcome).
  * Nothing here removes access — these are additive CTAs.
  */
-import { useState } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing } from '@/constants/theme';
-import { startCheckout } from '@/data/checkout';
-import { CHECKOUT_OPEN, TCGSCAN_PRO_LOOKUP_KEY, TCGSCAN_URL } from '@/data/subscriptions';
+import { CHECKOUT_OPEN, TCGSCAN_PLANS_URL, TCGSCAN_URL } from '@/data/subscriptions';
 import { useTier } from '@/hooks/use-tier';
 
 export { TCGSCAN_URL };
@@ -84,28 +84,17 @@ function CrossAppCard({
  */
 export function BundleOffer() {
   const { isPaid, hasTcgscanPro, loading } = useTier();
-  const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
   if (loading || !isPaid || hasTcgscanPro) return null;
   const onPress = () => {
-    if (!CHECKOUT_OPEN) {
-      openTcgscan();
-      return;
-    }
-    if (busy) return;
-    setBusy(true);
-    setNote(null);
-    startCheckout(TCGSCAN_PRO_LOOKUP_KEY, { bundle: true })
-      .catch((e) => setNote((e as Error).message))
-      .finally(() => setBusy(false));
+    // Open TCGScan's plans page rather than a pre-picked checkout: the member chooses PRO or
+    // VIP there, and the coupon rides along server-side either way.
+    void Linking.openURL(CHECKOUT_OPEN ? TCGSCAN_PLANS_URL : TCGSCAN_URL).catch(() => {});
   };
   return (
     <CrossAppCard
       message="You’re a Michi member — save 60% on your TCGScan add-on: scan, price-track & value this exact collection."
       cta={CHECKOUT_OPEN ? 'Save 60% on TCGScan →' : 'Add TCGScan Pro →'}
       onPress={onPress}
-      busy={busy}
-      footer={note}
     />
   );
 }

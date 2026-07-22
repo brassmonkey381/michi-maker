@@ -10,6 +10,7 @@ import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { SignInPerk } from '@/components/auth/SignInPerk';
 import { PageShell } from '@/components/layout/PageShell';
 import { BundleOffer } from '@/components/monetization/BundleOffer';
 import { PlanComparison } from '@/components/monetization/PlanComparison';
@@ -27,6 +28,7 @@ import {
   Spacing,
   Weight,
 } from '@/constants/theme';
+import { redeemHandoffHashFromLocation } from '@/data/handoff';
 import { ONE_TIME_PDF } from '@/data/subscriptions';
 import { useTier } from '@/hooks/use-tier';
 import { useAuth } from '@/store/auth';
@@ -34,8 +36,22 @@ import { useAuth } from '@/store/auth';
 export default function PlansScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { checkout } = useLocalSearchParams<{ checkout?: string }>();
-  const { isPaid, refresh } = useTier();
+  const { checkout, bundle } = useLocalSearchParams<{ checkout?: string; bundle?: string }>();
+  const { isPaid, hasTcgscanPro, loading: tierLoading, refresh } = useTier();
+
+  // Inbound cross-app SSO: a "save 60% on michi" link from tcgscan carries a one-time #th=
+  // hash — redeem it into a session here (no-op without one), then re-read the tier so the
+  // banner below flips from the sign-in nudge to the discount.
+  useEffect(() => {
+    void redeemHandoffHashFromLocation().then((ok) => {
+      if (ok) refresh();
+    });
+  }, [refresh]);
+
+  // The reverse bundle moment (mirrors tcgscan's /plans): a TCGScan member without a michi
+  // tier sees the discount banner; a signed-out ?bundle=1 arrival gets the sign-in nudge.
+  const bundleEligible = !tierLoading && !isPaid && hasTcgscanPro;
+  const bundleArrival = bundle === '1' && !tierLoading && !isPaid && !hasTcgscanPro;
 
   // Back from Stripe Checkout: fulfillment is webhook-driven and lags the redirect by a few
   // seconds, so poll the entitlement read until the tier flips (or we give up quietly — the
@@ -83,6 +99,25 @@ export default function PlansScreen() {
       <View style={styles.trialHero}>
         <TrialCta message="Try everything PRO before you decide — free for 14 days." />
       </View>
+
+      {bundleEligible ? (
+        <View style={styles.banner}>
+          <ThemedText type="smallBold" style={styles.bannerTitle}>
+            Your TCGScan membership earns 60% off
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            Pick PRO or VIP below. The bundle discount applies automatically at checkout,
+            whichever you choose.
+          </ThemedText>
+        </View>
+      ) : bundleArrival ? (
+        <View style={styles.banner}>
+          <ThemedText type="smallBold" style={styles.bannerTitle}>
+            Arriving from TCGScan?
+          </ThemedText>
+          <SignInPerk message="Sign in with the same account and your TCGScan membership takes 60% off PRO or VIP at checkout." />
+        </View>
+      ) : null}
 
       {settling ? (
         <View style={styles.banner}>

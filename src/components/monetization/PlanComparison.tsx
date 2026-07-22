@@ -90,7 +90,10 @@ export function PlanComparison() {
     setNote(null);
     setBusyKey(lookupKey);
     try {
-      await startCheckout(lookupKey); // navigates away on success
+      // Always ask for the cross-app bundle: the server only applies the coupon when the
+      // buyer actually holds a TCGScan tier (sibling verification) — a no-op for everyone
+      // else. This is what makes tcgscan's reverse "save 60% on michi" deep link real.
+      await startCheckout(lookupKey, { bundle: true }); // navigates away on success
     } catch (e) {
       setNote({ tier: plan.tier, text: (e as Error).message });
     } finally {

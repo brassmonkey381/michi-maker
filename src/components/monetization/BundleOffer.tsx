@@ -9,17 +9,22 @@
  *                            themselves — the 60% coupon is applied server-side at checkout after
  *                            sibling-ownership verification, whichever tier they choose. (It used
  *                            to jump straight into a tcgscan_pro checkout; the owner wanted the
- *                            choice.) Closed → links to TCGScan's landing page.
+ *                            choice.) The click also mints a one-time SSO handoff hash
+ *                            (data/handoff.ts) so the member arrives at tcgscan ALREADY signed
+ *                            in; mint failure degrades to the plain link and tcgscan's banner
+ *                            sign-in button. Closed → links to TCGScan's landing page.
  *   <TcgscanSynergyNote/>   — contextual note on scan-powered features (Build-a-binder-from-your-
  *                            collection): TCGScan makes your collection real; Pro unlocks more.
  *
  * Every TCGScan mention links to its landing page (TCGSCAN_URL → tcgscan.ai/welcome).
  * Nothing here removes access — these are additive CTAs.
  */
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing } from '@/constants/theme';
+import { mintHandoffHash, withHandoffHash } from '@/data/handoff';
 import { CHECKOUT_OPEN, TCGSCAN_PLANS_URL, TCGSCAN_URL } from '@/data/subscriptions';
 import { useTier } from '@/hooks/use-tier';
 
@@ -84,17 +89,33 @@ function CrossAppCard({
  */
 export function BundleOffer() {
   const { isPaid, hasTcgscanPro, loading } = useTier();
+  const [busy, setBusy] = useState(false);
   if (loading || !isPaid || hasTcgscanPro) return null;
-  const onPress = () => {
-    // Open TCGScan's plans page rather than a pre-picked checkout: the member chooses PRO or
-    // VIP there, and the coupon rides along server-side either way.
-    void Linking.openURL(CHECKOUT_OPEN ? TCGSCAN_PLANS_URL : TCGSCAN_URL).catch(() => {});
+  const onPress = async () => {
+    if (!CHECKOUT_OPEN) {
+      openTcgscan();
+      return;
+    }
+    if (busy) return;
+    setBusy(true);
+    try {
+      // Open TCGScan's plans page rather than a pre-picked checkout: the member chooses PRO
+      // or VIP there, and the coupon rides along server-side either way. The handoff hash
+      // signs them in over there; null (guest / mint failure) falls back to the plain link.
+      const url = withHandoffHash(TCGSCAN_PLANS_URL, await mintHandoffHash());
+      // Same-tab on web: window.open after an await trips popup blockers.
+      if (Platform.OS === 'web') window.location.assign(url);
+      else void Linking.openURL(url).catch(() => {});
+    } finally {
+      setBusy(false);
+    }
   };
   return (
     <CrossAppCard
       message="You’re a Michi member — save 60% on your TCGScan add-on: scan, price-track & value this exact collection."
       cta={CHECKOUT_OPEN ? 'Save 60% on TCGScan →' : 'Add TCGScan Pro →'}
-      onPress={onPress}
+      onPress={() => void onPress()}
+      busy={busy}
     />
   );
 }

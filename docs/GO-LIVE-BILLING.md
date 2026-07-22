@@ -1,5 +1,27 @@
 # Go-live checklist — billing & subscriptions (michi-maker **and** tcgscan)
 
+> ## ✅ CUTOVER COMPLETE — 2026-07-22. Both apps are LIVE and selling.
+>
+> Live catalog (5 products / 9 prices, lookup keys mirroring test), live bundle coupon
+> `Si93JqYS`, live webhook endpoint `we_1Tw4YEH8KZaf7tNOd0et9nZL`, and the three live secrets are
+> all in place; §5 test-data cleanup ran and the PRO-trials/reclaim migration is applied with its
+> nightly `pg_cron` job. Boot checks pass (webhook `400 missing signature`, checkout `401`).
+>
+> **§6 needed no action — and that is the one thing this checklist got wrong.** It assumed
+> `EXPO_PUBLIC_CHECKOUT_OPEN` had to be flipped in Vercel, but michi's `vercel.json` has baked
+> `EXPO_PUBLIC_CHECKOUT_OPEN=1` into `buildCommand` since 4fe687d (2026-07-16), exactly like
+> tcgscan. Both deployed bundles were verified to compile `CHECKOUT_OPEN` and `LIMITS_ENFORCED`
+> to `true`. So **both apps went live at the same instant the live `STRIPE_SECRET_KEY` was set** —
+> there was no separate per-app front-end switch to stagger. If you ever need to close checkout
+> again, edit `vercel.json`'s `buildCommand` and redeploy; a Vercel env var alone will not do it.
+>
+> Still open, deliberately deferred: the live-mode **Customer Portal** config (§2 — owner reports
+> done 2026-07-22), the §7 **post-flip smoke test with a real card**, a **customer support email
+> and URL** (neither domain has MX records; there is no `/support` route), and the
+> `[PLACEHOLDER]` blocks in `src/app/legal/*` — including `terms.tsx`'s billing/renewal/**refund**
+> clause, which is now live-money-relevant. Also still pending: deleting the local `sk_live.txt` /
+> `supabase_token.txt` handoff files and tidying the test-mode test clock.
+
 How to take billing from Stripe **test mode** to **live mode**. Pair with `docs/PAYMENTS.md` (how
 the system works), `docs/SYNERGY.md` (the cross-app shape), and `docs/roadmap/MONETIZATION-TIERS.md`
 (the numbers).
@@ -166,7 +188,13 @@ delete from auth.users where email = 'billing.clock.rig@example.com';
 
 ---
 
-## 6. Flip each app on (last) — the ONLY per-app step
+## 6. Flip each app on (last) — ⚠️ SEE THE BANNER: no action was needed
+
+> Both apps already baked `EXPO_PUBLIC_CHECKOUT_OPEN=1` into their `vercel.json` `buildCommand`,
+> so this section's premise was wrong — there was no separate front-end flip and no way to
+> stagger the two apps. Kept below for the return-origin notes and for the (real) mechanics if
+> checkout ever needs closing again.
+
 
 `EXPO_PUBLIC_*` vars are baked at **build time** for Expo web, so changing them requires a Vercel
 **redeploy**, not just an env edit. Each app has its **own** flags and its **own** Vercel project —

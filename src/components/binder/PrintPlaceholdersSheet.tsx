@@ -15,6 +15,7 @@ import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from '
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { LogoLoader } from '@/components/brand/LogoLoader';
 import { ThemedText } from '@/components/themed-text';
+import { PdfUnlockedModal } from '@/components/monetization/PdfUnlockedModal';
 import { TrialCta } from '@/components/monetization/TrialCta';
 import { DialogCard } from '@/components/ui/DialogCard';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
@@ -101,16 +102,27 @@ export function PrintPlaceholdersSheet({
   // Back from Stripe checkout ON THIS PAGE (?checkout=success): the webhook grant lags the
   // redirect by a few seconds and nothing else re-polls the tier read here (only
   // /subscriptions does) — so poll until the purchase shows up, or give up quietly.
+  //
+  // `cameFromCheckout` also drives the celebration: read ONCE at mount (the URL can't change
+  // under this sheet), so the modal fires when the grant lands on this visit and never on a
+  // later re-open of an already-purchased binder. Lazy state, not an effect — setting it in the
+  // effect would be a cascading-render setState.
+  const [cameFromCheckout] = useState(
+    () =>
+      Platform.OS === 'web' &&
+      typeof window !== 'undefined' &&
+      new URL(window.location.href).searchParams.get('checkout') === 'success',
+  );
+  const [celebrated, setCelebrated] = useState(false);
   useEffect(() => {
-    if (Platform.OS !== 'web' || purchased) return;
-    if (!new URL(window.location.href).searchParams.get('checkout')) return;
+    if (!cameFromCheckout || purchased) return;
     let polls = 0;
     const id = setInterval(() => {
       refresh();
       if (++polls >= 10) clearInterval(id);
     }, 2000);
     return () => clearInterval(id);
-  }, [purchased, refresh]);
+  }, [cameFromCheckout, purchased, refresh]);
   const { isSignedIn } = useAuth();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -779,6 +791,13 @@ export function PrintPlaceholdersSheet({
                 ) : null}
               </>
             )}
+
+      {/* The unlock landed on this visit back from checkout — celebrate the document, once. */}
+      <PdfUnlockedModal
+        visible={cameFromCheckout && purchased && !celebrated}
+        binderTitle={binder.title}
+        onClose={() => setCelebrated(true)}
+      />
     </DialogCard>
   );
 }

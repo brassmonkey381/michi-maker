@@ -86,7 +86,7 @@ export const GUIDE_LIST: Guide[] = [
     slug: 'print-binder',
     title: 'Print your binder at true size',
     lede: 'Fill sheets turn a digital page into paper pieces that slide into real pockets.',
-    minutes: 6,
+    minutes: 8,
     steps: [
       {
         title: 'Open the print sheet',
@@ -95,6 +95,14 @@ export const GUIDE_LIST: Guide[] = [
       {
         title: 'Print at 100 percent',
         body: 'Print at Actual size, never Fit to page. Every card prints at the true 2.5 by 3.5 inch card size, and pieces sit edge to edge so neighboring pieces share one cut. Folded art pieces get their own sheets at the end.',
+      },
+      {
+        title: 'Choose your paper',
+        body: 'Every export is two files, because the two halves want different paper. The placeholders file is temporary — each piece gets swapped out the day the real card arrives — so plain copy paper is the right call, and cheap enough to reprint whenever the layout changes. The art file is permanent: those pieces stay in the binder for good, so print them on matte cardstock somewhere around 200 to 250 gsm (80 to 110 lb cover). Matte matters more than weight. A glossy sheet sitting behind a glossy sleeve next to a glossy card throws three competing reflections, and the art is the one that loses.',
+      },
+      {
+        title: 'Get the settings right first',
+        body: 'Print one test page before committing a whole binder. Set scaling to Actual size or 100 percent, turn borderless off, and pick the highest quality your printer offers. Then measure a placeholder with a ruler: it should be exactly 2.5 by 3.5 inches. If it is short, scaling is still on somewhere. Cardstock usually wants the heavy paper or cardstock media setting too, or the ink sits wet on the surface and smudges when you cut.',
       },
       {
         title: 'Cut and slide',

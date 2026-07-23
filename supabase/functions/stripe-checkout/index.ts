@@ -129,16 +129,42 @@ function termPrintsAfterChange(
   return termPrintAllocation(fromProduct, toProduct, toInterval, periodStartSec, Date.now());
 }
 
-/** The caller's active michi subscription (PRO or VIP), or null. */
-async function activeMichiSubscription(
+/**
+ * Which APP a tier lookup key belongs to. A bundle customer holds TWO separate subscriptions on
+ * one Stripe customer (michi + tcgscan), so every plan-change lookup must be scoped to the family
+ * of the requested key — otherwise changing a tcgscan plan would find and mutate the michi
+ * subscription. Returns null for one-time products, which have no plan to change.
+ */
+type AppFamily = 'michi' | 'tcgscan';
+function appFamilyOf(lookupKey: string): AppFamily | null {
+  if (lookupKey.startsWith('michi_pro') || lookupKey.startsWith('michi_vip')) return 'michi';
+  if (lookupKey.startsWith('tcgscan_pro') || lookupKey.startsWith('tcgscan_vip')) return 'tcgscan';
+  return null;
+}
+
+/** The entitlement product a tier lookup key grants (mirrors the webhook's map). */
+function tierProductFor(lookupKey: string): string | null {
+  if (lookupKey.startsWith('michi_vip')) return 'tier_vip';
+  if (lookupKey.startsWith('michi_pro')) return 'tier_pro';
+  if (lookupKey.startsWith('tcgscan_vip')) return 'tcgscan_vip';
+  if (lookupKey.startsWith('tcgscan_pro')) return 'tcgscan_pro';
+  return null;
+}
+
+/** Human app name for customer-facing copy. */
+const APP_LABEL: Record<AppFamily, string> = { michi: 'michi-maker', tcgscan: 'TCGScan' };
+
+/** The caller's active subscription IN ONE APP FAMILY (PRO or VIP), or null. */
+async function activeSubscriptionFor(
   stripe: Stripe,
   customerId: string,
+  family: AppFamily,
 ): Promise<Stripe.Subscription | null> {
   const subs = await stripe.subscriptions.list({ customer: customerId, status: 'active', limit: 10 });
   return (
     subs.data.find((s) => {
       const k = s.items?.data?.[0]?.price?.lookup_key ?? '';
-      return k.startsWith('michi_pro') || k.startsWith('michi_vip');
+      return appFamilyOf(k) === family;
     }) ?? null
   );
 }
@@ -261,15 +287,10 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
     if (!mapping) return json(200, { preview: null });
 
-    const subs = await stripe.subscriptions.list({
-      customer: mapping.stripe_customer_id,
-      status: 'active',
-      limit: 10,
-    });
-    const current = subs.data.find((s) => {
-      const k = s.items?.data?.[0]?.price?.lookup_key ?? '';
-      return k.startsWith('michi_pro') || k.startsWith('michi_vip');
-    });
+    // Scope to the requested key's own app: a bundle customer has one subscription per app.
+    const family = appFamilyOf(lookupKey);
+    if (!family) return json(200, { preview: null });
+    const current = await activeSubscriptionFor(stripe, mapping.stripe_customer_id, family);
     const item = current?.items?.data?.[0];
     if (!current || !item) return json(200, { preview: null });
 
@@ -374,9 +395,11 @@ Deno.serve(async (req: Request) => {
   if (body.action === 'change_plan') {
     const lookupKey = String(body.lookupKey ?? '');
     if (!SELLABLE.has(lookupKey)) return json(400, { error: 'unknown product' });
-    if (!lookupKey.startsWith('michi_')) {
-      return json(400, { error: 'only michi plans can be changed here' });
-    }
+    // Tier products only (one-time purchases have no plan to change). Both apps are supported:
+    // the change is scoped to the requested key's own family, so a bundle customer's michi and
+    // tcgscan subscriptions never interfere with each other.
+    const family = appFamilyOf(lookupKey);
+    if (!family) return json(400, { error: 'this product has no plan to change' });
 
     const { data: mapping } = await service
       .from('billing_customers')
@@ -386,9 +409,11 @@ Deno.serve(async (req: Request) => {
     if (!mapping) return json(404, { error: 'no subscription to change' });
     const customerId = mapping.stripe_customer_id;
 
-    const current = await activeMichiSubscription(stripe, customerId);
+    const current = await activeSubscriptionFor(stripe, customerId, family);
     const item = current?.items?.data?.[0];
-    if (!current || !item) return json(404, { error: 'no active michi-maker plan to change' });
+    if (!current || !item) {
+      return json(404, { error: `no active ${APP_LABEL[family]} plan to change` });
+    }
 
     const targets = await stripe.prices.list({ lookup_keys: [lookupKey], limit: 1 });
     const target = targets.data[0];
@@ -468,7 +493,7 @@ Deno.serve(async (req: Request) => {
           auto_advance: false,
           pending_invoice_items_behavior: 'include',
           default_payment_method: payMethod,
-          description: 'michi-maker plan change (prorated for the rest of your term)',
+          description: `${APP_LABEL[family]} plan change (prorated for the rest of your term)`,
           metadata: { michi_plan_change: marker, supabase_user_id: user.id },
         });
         invoiceId = invoice.id;
@@ -498,7 +523,9 @@ Deno.serve(async (req: Request) => {
       metadata: {
         ...(current.metadata ?? {}),
         supabase_user_id: user.id,
-        michi_product: lookupKey.startsWith('michi_vip') ? 'tier_vip' : 'tier_pro',
+        // The webhook's tier fallback reads this. Must be the TARGET product in the requested
+        // app's own vocabulary (tier_* for michi, tcgscan_* for tcgscan), never assumed michi.
+        michi_product: tierProductFor(lookupKey) ?? '',
       },
     });
 

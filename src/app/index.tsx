@@ -111,7 +111,7 @@ export default function HomeScreen() {
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.headerRow}>
             <ThemedText type="title" style={styles.h1}>
-              poke-michi
+              michi-maker
             </ThemedText>
             <View style={styles.headerActions}>
               <PeopleButton />

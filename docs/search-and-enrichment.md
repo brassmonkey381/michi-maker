@@ -6,8 +6,8 @@ full-migrate lost (`docs/DATASET-ENRICHMENT.md`). Several items on that backlog 
 now unblocked, and the minimal edits to surface it — mostly through the facet **extension
 seam** already reserved in `CatalogBrowser.tsx`.
 
-> This is the poke-michi cut of the shared "metadata search / facets" upgrade. The sibling
-> `tcgscan-expo` got the same feature (`docs/search.md` there), but poke-michi already has
+> This is the michi-maker cut of the shared "metadata search / facets" upgrade. The sibling
+> `tcgscan-app` got the same feature (`docs/search.md` there), but michi-maker already has
 > the catalog data layer **and** a data-driven facet framework, so here it's a plug-in, not
 > a build-from-scratch.
 

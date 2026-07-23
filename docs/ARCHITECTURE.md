@@ -1,12 +1,12 @@
 # Architecture
 
-A high-level map of how poke-michi fits together. For the domain model see
+A high-level map of how michi-maker fits together. For the domain model see
 [DATA-MODEL.md](DATA-MODEL.md); for the database specifics see
 [../supabase/README.md](../supabase/README.md).
 
 ## One codebase, three targets
 
-poke-michi is a single [Expo](https://docs.expo.dev/) app that renders to **web, iOS, and
+michi-maker is a single [Expo](https://docs.expo.dev/) app that renders to **web, iOS, and
 Android**. React Native primitives compile to native views on mobile and to DOM via
 `react-native-web` in the browser. Where platforms must differ, we branch on `Platform.OS`
 or use platform file variants (`*.web.tsx`, `*.ios.tsx`, `*.android.tsx`) — the tab bar

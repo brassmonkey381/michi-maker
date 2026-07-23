@@ -34,7 +34,7 @@ export const supabase: SupabaseClient<Database> | null = isSupabaseConfigured
 
 if (!isSupabaseConfigured && process.env.NODE_ENV !== 'production') {
   console.warn(
-    '[poke-michi] Supabase is not configured — running in local mode. ' +
+    '[michi-maker] Supabase is not configured — running in local mode. ' +
       'Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env to enable cloud features.',
   );
 }

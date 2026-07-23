@@ -1,6 +1,6 @@
 # Data model
 
-How poke-michi represents the [Michi Method](https://woahpoke.com/michi-method/) and where the
+How michi-maker represents the [Michi Method](https://woahpoke.com/michi-method/) and where the
 card data comes from. The authoritative schema is
 [`supabase/migrations/`](../supabase/migrations); this document explains the *why*.
 
@@ -80,7 +80,7 @@ The ingestion is a standalone server-side script (not part of the shipped app):
 
 ### How TCGdex maps onto the schema
 
-| TCGdex             | poke-michi table / column                                  |
+| TCGdex             | michi-maker table / column                                  |
 | ------------------ | ---------------------------------------------------------- |
 | Set                | `card_sets` (name, `serie` → series, `releaseDate`)        |
 | Card `illustrator` | `illustrators` (deduped, slug `id`)                        |
@@ -109,6 +109,6 @@ UI has something to render.
 
 ### A note on rights
 
-Card artwork and Pokémon are © Nintendo / Creatures Inc. / GAME FREAK inc. poke-michi is a fan
+Card artwork and Pokémon are © Nintendo / Creatures Inc. / GAME FREAK inc. michi-maker is a fan
 project for personal collection display. Respect artofpkm.com's terms when ingesting; prefer
 caching references/metadata and linking out over rehosting artwork wholesale.

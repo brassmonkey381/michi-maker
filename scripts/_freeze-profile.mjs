@@ -40,7 +40,7 @@ await ctx.addInitScript(
 const page = await ctx.newPage();
 page.on('console', (m) => {
   const t = m.text();
-  if (/catalog|freeze|poke-michi|error/i.test(t)) console.log('  [console]', t.slice(0, 160));
+  if (/catalog|freeze|michi-maker|error/i.test(t)) console.log('  [console]', t.slice(0, 160));
 });
 const cdp = await ctx.newCDPSession(page);
 await cdp.send('Profiler.enable');

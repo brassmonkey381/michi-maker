@@ -9,9 +9,9 @@
 Integrating the **TCGScan** 25k-card catalog into **michi-maker**, with a path to production Supabase.
 
 Source repos:
-- Pipeline (data): `C:\Users\Brian\Desktop\data-science-projects\TCGScan-data-science\pipeline`
-- Browse app (reference impl): `C:\Users\Brian\Documents\github projects\_scanner\tcgscan-expo`
-- This app: `C:\Users\Brian\source\repos\poke-michi` (michi-maker)
+- Pipeline (data): `C:\Users\Brian\source\repos\tcgscan\tcgscan-data-science\pipeline`
+- Browse app (reference impl): `C:\Users\Brian\source\repos\tcgscan\tcgscan-app`
+- This app: `C:\Users\Brian\source\repos\tcgscan\michi-maker`
 
 ## The central tension: two card universes
 
@@ -28,7 +28,7 @@ Source repos:
 ## DECISIONS (locked)
 
 1. **Catalog strategy = FULL MIGRATE to TCGScan.** The 25k TCGPlayer catalog becomes the *only* catalog. The ~70 bundled TCGdex cards in `sampleData.ts` are retired. **Single id space (TCGPlayer product ids).**
-2. **Images v1 = HOST LOCAL JPGS.** Serve the 2.9GB `work/card-imgs/<id>.jpg` pool from `poke-michi/public/card-imgs/`; rewrite `catalog.json` image URLs to local `/card-imgs/<id>.jpg`. (Later → Supabase Storage, behind the same config seam.)
+2. **Images v1 = HOST LOCAL JPGS.** Serve the 2.9GB `work/card-imgs/<id>.jpg` pool from `michi-maker/public/card-imgs/`; rewrite `catalog.json` image URLs to local `/card-imgs/<id>.jpg`. (Later → Supabase Storage, behind the same config seam.)
 
 ### Knock-on effects of full migrate (must handle)
 - **No `dominant_color`** → the color tint backing (`BinderGrid.tsx:39-46`) and color-theme binders lose their data source. Short term: leave tint undefined/neutral. Fast-follow: add `dominant_color` extraction to the pipeline (it already decodes every image — cheap) to restore color features across all 25k.
@@ -54,7 +54,7 @@ series[name] = { name, set_ids: [...], card_count }
 - Alternates: `alternates.json` keyed by productId — "hard to tell apart" reprint groups.
 - No live DB/API in the pipeline repo — it emits static bundles under `dist/<version>/`. A `to_supabase.py` publisher is described in its README but not yet built.
 
-## tcgscan-expo browse layer (the pattern to port)
+## tcgscan-app browse layer (the pattern to port)
 
 - `src/config.ts` → `config.browseUrl = '/browse'` (single seam).
 - `src/lib/cards.ts` → `loadCatalog()` fetches `catalog.json` once, caches the promise, normalizes snake_case → `CatalogCard`/`CatalogSet`/`CatalogSeries`, holds `Map`s behind a `Catalog` interface.
@@ -95,7 +95,7 @@ series[name] = { name, set_ids: [...], card_count }
 
 ### Phase 0 — Publish the browse bundle + images (pipeline, no Supabase)
 - Run the pipeline's `to_app_public.py` / `browse_data.py` to emit `catalog.json` (+ `alternates.json`, optional `prices/<id>.json`, `prices-summary.json`).
-- Copy `work/card-imgs/*.jpg` (26,968 files, 2.9GB) → `poke-michi/public/card-imgs/`.
+- Copy `work/card-imgs/*.jpg` (26,968 files, 2.9GB) → `michi-maker/public/card-imgs/`.
 - Rewrite each card's `image` in `catalog.json` from the TCGPlayer CDN URL to local `/card-imgs/<id>.jpg` (or resolve at load time via a config `imgBase`).
 
 ### Phase 1 — Catalog data layer in michi-maker (Q2)
@@ -105,7 +105,7 @@ series[name] = { name, set_ids: [...], card_count }
 - **Replace `CARDS`/`CARDS_BY_ID` usage** (single id space now): `BinderGrid.tsx`, `CardPicker.tsx` read from the Catalog instead of the bundled array. Retire `sampleData.ts` card literals.
 
 ### Phase 2 — Rebuild CardPicker for 25k (Q3)
-- Series→Set→Card drill-down (port tcgscan-expo screens' logic into the picker sheet).
+- Series→Set→Card drill-down (port tcgscan-app screens' logic into the picker sheet).
 - Name search (prefix-boosted substring, capped) + filter chips: rarity, card_type, series, release year, price range.
 - Virtualized `FlatList`; preserve existing shape-picker (1×1…3×3), V-UNION, artwork, insert flows.
 

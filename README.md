@@ -1,8 +1,8 @@
-# poke-michi 🃏
+# michi-maker 🃏
 
 Build **digital "michi binders"** — aesthetically curated Pokémon card layouts — on web, iOS, and Android from a single codebase.
 
-Most collection apps organize cards by number or set. poke-michi is about *composition*: arranging cards into visually cohesive pages the way collectors do with the [Michi Method](https://woahpoke.com/michi-method/) — anchor layouts, single-Pokémon pages, color-themed spreads, artist pages, and full-page artwork, with intentional negative space and cards that span multiple pockets. Card metadata (sets, packs, illustrators, species) is sourced from [The Art of Pokémon](https://www.artofpkm.com/pokemon).
+Most collection apps organize cards by number or set. michi-maker is about *composition*: arranging cards into visually cohesive pages the way collectors do with the [Michi Method](https://woahpoke.com/michi-method/) — anchor layouts, single-Pokémon pages, color-themed spreads, artist pages, and full-page artwork, with intentional negative space and cards that span multiple pockets. Card metadata (sets, packs, illustrators, species) is sourced from [The Art of Pokémon](https://www.artofpkm.com/pokemon).
 
 > **Status:** early build, runs today with **no backend required**. Browse seven premade example
 > binders built from real official TCG card art (via [TCGdex](https://tcgdex.dev/)), view/edit them
@@ -69,7 +69,7 @@ npm start         # start the dev server and choose a target
 ## Project structure
 
 ```
-poke-michi/
+michi-maker/
 ├── src/
 │   ├── app/              # Expo Router routes (file-based)
 │   │   ├── _layout.tsx   # Root layout, tab navigator + BinderProvider

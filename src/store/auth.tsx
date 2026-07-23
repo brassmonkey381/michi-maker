@@ -158,14 +158,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               // app still runs and the user can sign in for real.
               setAnonymousUnavailable(true);
               console.warn(
-                `[poke-michi] anonymous guest sign-in unavailable (${error.message}). ` +
+                `[michi-maker] anonymous guest sign-in unavailable (${error.message}). ` +
                   'Enable "Anonymous sign-ins" in Supabase Auth settings, or have users sign in.',
               );
             }
           }
         }
       } catch (error) {
-        console.warn(`[poke-michi] auth bootstrap failed: ${msg(error)}`);
+        console.warn(`[michi-maker] auth bootstrap failed: ${msg(error)}`);
       } finally {
         if (active) setReady(true);
       }

@@ -2,7 +2,7 @@
 
 The app consumes the shared **tcgscan-data** Supabase project (org "TCGScan",
 project ref `bmhjizcmwtmcrstadqto`) for ALL card data. That server and its
-pipeline live in the `tcgscan-data` repo (`C:\Users\Brian\source\repos\tcgscan-data`)
+pipeline live in the `tcgscan-data` repo (`C:\Users\Brian\source\repos\tcgscan\tcgscan-data`)
 and are owned by the data/training session — this app is a pure consumer.
 
 ## Integration points (all shipped)

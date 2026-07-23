@@ -19,12 +19,12 @@ import {
   Spacing,
   Weight,
 } from '@/constants/theme';
+import { WOAHPOKE_GUIDE } from '@/data/guides';
 import { MICHI_LAYOUT_STYLES } from '@/types/domain';
 
 // The collector credited with creating and popularising the method, and the community
 // guides worth sending people to.
 const MICHI_INSTAGRAM = 'https://www.instagram.com/peeplop/';
-const WOAHPOKE_GUIDE = 'https://woahpoke.com/michi-method/';
 const ARTOFPKM = 'https://www.artofpkm.com/pokemon';
 
 export default function MichiMethodScreen() {

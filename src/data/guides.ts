@@ -4,6 +4,14 @@
  * plain punctuation, no em-dashes, no emoji.
  */
 
+/**
+ * Michi's own full guide to the method (the collector who created it, @peeplop). It carries
+ * "Best Paper to Use for the Michi Method" and "How to print inserts", which is the source our
+ * print guidance defers to on stock weight — keep our numbers consistent with it. Shared here
+ * so /michi-method, /learn, and the PDF-unlock celebration all point at one URL.
+ */
+export const WOAHPOKE_GUIDE = 'https://woahpoke.com/michi-method/';
+
 export interface GuideStep {
   title: string;
   body: string;
@@ -98,11 +106,11 @@ export const GUIDE_LIST: Guide[] = [
       },
       {
         title: 'Choose your paper',
-        body: 'Every export is two files, because the two halves want different paper. The placeholders file is temporary — each piece gets swapped out the day the real card arrives — so plain copy paper is the right call, and cheap enough to reprint whenever the layout changes. The art file is permanent: those pieces stay in the binder for good, so print them on matte cardstock somewhere around 200 to 250 gsm (80 to 110 lb cover). Matte matters more than weight. A glossy sheet sitting behind a glossy sleeve next to a glossy card throws three competing reflections, and the art is the one that loses.',
+        body: 'Every export is two files, because the two halves want different paper. The placeholders file is temporary — each piece gets swapped out the day the real card arrives — so plain copy paper is the right call, and cheap enough to reprint whenever the layout changes. The art file is permanent: those pieces stay in the binder for good, so print them on matte coated cardstock, around 250 to 300 gsm. Michi recommends roughly 300 gsm matte coated stock, and the reasoning is worth knowing: plain printer paper is too flimsy to sit flat in a pocket, and uncoated cardstock lets the ink spread. Matte over glossy matters too — a glossy sheet behind a glossy sleeve next to a glossy card throws three competing reflections, and the art is the one that loses.',
       },
       {
         title: 'Get the settings right first',
-        body: 'Print one test page before committing a whole binder. Set scaling to Actual size or 100 percent, turn borderless off, and pick the highest quality your printer offers. Then measure a placeholder with a ruler: it should be exactly 2.5 by 3.5 inches. If it is short, scaling is still on somewhere. Cardstock usually wants the heavy paper or cardstock media setting too, or the ink sits wet on the surface and smudges when you cut.',
+        body: 'Print one test page before committing a whole binder. Set scaling to Actual size or 100 percent, turn borderless off, and pick the highest quality your printer offers. Then measure a placeholder with a ruler: it should be exactly 2.5 by 3.5 inches (63 by 88 mm). If it is short, scaling is still on somewhere. Cardstock usually wants the heavy paper or cardstock media setting too, or the ink sits wet on the surface and smudges when you cut. A guillotine or straight cutter gives cleaner edges than scissors, and a cutting machine can do it automatically.',
       },
       {
         title: 'Cut and slide',

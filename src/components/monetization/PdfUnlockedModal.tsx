@@ -12,12 +12,13 @@
  * Fires from PrintPlaceholdersSheet when the entitlement lands after ?checkout=success.
  */
 import { useRouter, type Href } from 'expo-router';
-import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { sheet } from '@/constants/ui';
+import { WOAHPOKE_GUIDE } from '@/data/guides';
 
 export function PdfUnlockedModal({
   visible,
@@ -87,6 +88,15 @@ export function PdfUnlockedModal({
                     Read the printing guide →
                   </ThemedText>
                 </Pressable>
+                <ThemedText type="small" themeColor="textSecondary" style={styles.credit}>
+                  Michi, who created the method, covers paper and printing in the original guide:{' '}
+                  <ThemedText
+                    type="small"
+                    style={styles.creditLink}
+                    onPress={() => void Linking.openURL(WOAHPOKE_GUIDE).catch(() => {})}>
+                    woahpoke.com/michi-method →
+                  </ThemedText>
+                </ThemedText>
               </View>
 
               <Pressable
@@ -141,6 +151,8 @@ const styles = StyleSheet.create({
   guideText: { lineHeight: 18 },
   secondary: { alignSelf: 'flex-start' },
   secondaryText: { color: Palette.link, fontSize: FontSize.label },
+  credit: { fontSize: FontSize.sm, lineHeight: 17, marginTop: Spacing.one },
+  creditLink: { fontSize: FontSize.sm, color: Palette.link, fontWeight: Weight.semibold },
   cta: {
     backgroundColor: Palette.accent,
     borderRadius: Radius.pill,

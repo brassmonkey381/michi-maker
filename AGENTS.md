@@ -1,4 +1,4 @@
-# Working in poke-michi
+# Working in michi-maker
 
 Guidance for AI agents (and humans) contributing to this repo.
 
@@ -10,7 +10,7 @@ before writing any Expo/React Native code** — do not rely on memory of older E
 
 ## What this app is
 
-poke-michi lets collectors build **digital "michi binders"** — aesthetically curated Pokémon
+michi-maker lets collectors build **digital "michi binders"** — aesthetically curated Pokémon
 card layouts (anchor pages, single-Pokémon pages, color-themed spreads, artist pages, etc.)
 for web, iOS, and Android from one codebase. See `README.md` and `docs/DATA-MODEL.md`.
 

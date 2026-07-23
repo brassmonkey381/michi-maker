@@ -1,6 +1,6 @@
 # Auth & user accounts
 
-poke-michi / tcgscan-app authenticate against the app's own Supabase project,
+michi-maker / tcgscan-app authenticate against the app's own Supabase project,
 **tcgscan-michi-maker** (org "TCGScan", ref `piikwvntldytjejxmcla`) — separate from the
 read-only `tcgscan-data` catalogue server. All user data (profiles + saved binders) lives here
 under Row Level Security.

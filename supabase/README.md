@@ -1,6 +1,6 @@
 # Supabase backend
 
-The database is the source of truth for poke-michi's data model. This folder holds the SQL
+The database is the source of truth for michi-maker's data model. This folder holds the SQL
 migrations and seed data; the live schema should always match what's here.
 
 ```

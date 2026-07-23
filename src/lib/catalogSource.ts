@@ -167,7 +167,7 @@ export const gatedCatalogSource: CatalogSource = async (onProgress) => {
       // Fall through to the public URL — but say why, because the public catalog.json has been
       // retired upstream (the P3 protective flip): if this warning shows a gated failure, the
       // fallback will 400 and the catalog is effectively down for this user.
-      console.warn(`[poke-michi] gated catalog failed: ${(e as Error).message}`);
+      console.warn(`[michi-maker] gated catalog failed: ${(e as Error).message}`);
     }
   }
   return fetchPublic(onProgress);

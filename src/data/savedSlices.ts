@@ -107,7 +107,7 @@ export function addSavedSlices(slices: SavedSlice[]): void {
   if (supabase) {
     void repo
       .insertSavedSlices(slices)
-      .catch((e) => console.warn(`[poke-michi] slice save failed: ${(e as Error).message}`));
+      .catch((e) => console.warn(`[michi-maker] slice save failed: ${(e as Error).message}`));
   }
 }
 
@@ -122,7 +122,7 @@ export function removeSavedSlice(id: string): void {
   if (supabase) {
     void repo
       .deleteSavedSlice(id)
-      .catch((e) => console.warn(`[poke-michi] slice delete failed: ${(e as Error).message}`));
+      .catch((e) => console.warn(`[michi-maker] slice delete failed: ${(e as Error).message}`));
   }
 }
 
@@ -147,7 +147,7 @@ export async function syncSavedSlices(ownerId: string | null): Promise<void> {
       repo.fetchSavedSlices(),
       // The import is best-effort: if the scan fails, the tray still loads what was saved.
       repo.fetchBinderArtSlices(ownerId).catch((e) => {
-        console.warn(`[poke-michi] binder art scan failed: ${(e as Error).message}`);
+        console.warn(`[michi-maker] binder art scan failed: ${(e as Error).message}`);
         return [] as Omit<SavedSlice, 'id'>[];
       }),
     ]);
@@ -170,7 +170,7 @@ export async function syncSavedSlices(ownerId: string | null): Promise<void> {
     if (imported.length) {
       void repo
         .insertSavedSlices(imported)
-        .catch((e) => console.warn(`[poke-michi] slice import failed: ${(e as Error).message}`));
+        .catch((e) => console.warn(`[michi-maker] slice import failed: ${(e as Error).message}`));
     }
 
     const byNewest = (a: SavedSlice, b: SavedSlice) =>
@@ -181,7 +181,7 @@ export async function syncSavedSlices(ownerId: string | null): Promise<void> {
     saved = [...localOnly, ...live];
     emit();
   } catch (e) {
-    console.warn(`[poke-michi] slice load failed: ${(e as Error).message}`);
+    console.warn(`[michi-maker] slice load failed: ${(e as Error).message}`);
   }
 }
 

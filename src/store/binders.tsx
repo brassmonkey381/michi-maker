@@ -293,7 +293,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         console.warn(
-          `[poke-michi] Supabase load failed; showing examples only: ${(error as Error).message}`,
+          `[michi-maker] Supabase load failed; showing examples only: ${(error as Error).message}`,
         );
       } finally {
         if (active) setLoading(false);
@@ -315,7 +315,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         const rows = await repo.fetchFeaturedBinders();
         if (active) setFeatured(rows);
       } catch (error) {
-        console.warn(`[poke-michi] featured load failed: ${(error as Error).message}`);
+        console.warn(`[michi-maker] featured load failed: ${(error as Error).message}`);
       }
     })();
     return () => {
@@ -345,7 +345,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   const persist = useCallback(
     (op: () => Promise<void>) => {
       if (!CLOUD || !user) return;
-      op().catch((error) => console.warn(`[poke-michi] cloud save failed: ${(error as Error).message}`));
+      op().catch((error) => console.warn(`[michi-maker] cloud save failed: ${(error as Error).message}`));
     },
     [user],
   );

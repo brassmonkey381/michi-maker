@@ -38,7 +38,7 @@
 > - Delete the test-mode test clock and its rig customers (cosmetic).
 > - **tcgscan has NOT had a real-card smoke test.** Its checkout, upgrade path, and over-cap
 >   reclaim went live on code parity with michi, not on an exercised live purchase — see
->   `tcgscan-expo/docs/MONETIZATION-TIERS.md`.
+>   `tcgscan-app/docs/MONETIZATION-TIERS.md`.
 
 How to take billing from Stripe **test mode** to **live mode**. Pair with `docs/PAYMENTS.md` (how
 the system works), `docs/SYNERGY.md` (the cross-app shape), and `docs/roadmap/MONETIZATION-TIERS.md`

@@ -131,7 +131,7 @@ fresh grant shows up next time the surface opens — no deploy.
 2. **Discount: 60% off the second app**, evergreen while the coupon is active, applied as a Stripe
    coupon at checkout.
 3. **Free-tier boundary**: settled per app — `TIER_LIMITS` in michi, the cap matrix in
-   `tcgscan-expo/docs/MONETIZATION-TIERS.md`.
+   `tcgscan-app/docs/MONETIZATION-TIERS.md`.
 4. **Enforcement**: both flags on, in production.
 
 ## Still open

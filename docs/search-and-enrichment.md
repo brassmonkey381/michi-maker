@@ -7,7 +7,7 @@ now unblocked, and the minimal edits to surface it — mostly through the facet 
 seam** already reserved in `CatalogBrowser.tsx`.
 
 > This is the michi-maker cut of the shared "metadata search / facets" upgrade. The sibling
-> `tcgscan-expo` got the same feature (`docs/search.md` there), but michi-maker already has
+> `tcgscan-app` got the same feature (`docs/search.md` there), but michi-maker already has
 > the catalog data layer **and** a data-driven facet framework, so here it's a plug-in, not
 > a build-from-scratch.
 

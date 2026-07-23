@@ -15,7 +15,7 @@ const blockClaude = /[\\/]\.claude[\\/].*/;
 // served by Expo's static `public/` middleware, NOT the JS bundler, and nothing imports them (the
 // app fetches them by URL). On Windows there's no Watchman, so Node's file-watcher chokes on that
 // many files and triggers constant reloads. Excluding them from the module graph stops the churn;
-// static serving is unaffected. (Ported from the sibling tcgscan-expo app's metro.config.js.)
+// static serving is unaffected. (Ported from the sibling tcgscan-app app's metro.config.js.)
 const blockPublicAssets = [
   /[/\\]public[/\\]card-imgs[/\\].*/,
   /[/\\]public[/\\]browse[/\\].*/,

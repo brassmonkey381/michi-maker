@@ -1,4 +1,21 @@
-# Free PRO trials — spec
+# Free PRO trials & over-cap reclaim
+
+> **STATUS: SHIPPED AND APPLIED IN BOTH APPS.**
+>
+> - **michi** — migration `20260721120000_pro_trials_and_reclaim.sql`, applied at go-live
+>   (2026-07-22, deliberately after the test-data cleanup so no test-mode entitlement could hand
+>   out a trial or trip a reclaim grace). Nightly `pg_cron` job `reclaim-over-cap` at `17 3 * * *`.
+> - **tcgscan** — migration `20260723120000_tcgscan_trials_and_collection_reclaim.sql`, applied
+>   2026-07-23. Same design over **collections** instead of binders, with one significant extra
+>   problem to solve (local-first sync). Nightly job at `37 3 * * *`. See **Porting it to tcgscan**
+>   at the end of this doc.
+>
+> Names drifted slightly from the sketches below: the shipped michi migration is one file (not the
+> two filenames quoted in the SQL blocks), and it also carries `reclaim_all_over_cap()` — the
+> no-keep-list variant the cron job calls.
+>
+> **Neither app's reclaim path has been exercised end to end with a real lapsed subscription.** It
+> is sandbox-verified (see the test plan at the bottom), not production-observed.
 
 A **14-day, no-card PRO trial**, one per real account, offered at high-intent moments. Pairs with
 `docs/PAYMENTS.md` (how tiers/entitlements work) and `docs/GO-LIVE-BILLING.md` (the checkout cutover).
@@ -341,3 +358,65 @@ Still open:
 - **Restore**: `restore_archived_binders(cap)` after subscribing un-archives newest-first up to the
   new headroom and no further; VIP (large cap) restores all.
 - **Default reclaim** (scheduled/lazy, no keep list): keeps the `cap` most-recently-updated binders.
+
+---
+
+## Porting it to tcgscan (2026-07-23)
+
+Owner call: *"the same exact upgrade paths as michi-maker — same plan drop fallbacks, same cap
+enforcement logic."* Migration `20260723120000_tcgscan_trials_and_collection_reclaim.sql`, applied.
+The unit of reclaim is a **collection** rather than a binder; everything else mirrors the design
+above. Owner decisions taken during scoping:
+
+- **Archived collections do NOT count as cards you own.**
+- **tcgscan gets its own 14-day trial**, on a **separate ledger** (`tcgscan_pro_trials`) so
+  trialing michi doesn't burn the tcgscan trial and vice versa.
+- **The keep-picker is required**, with the same date-based fallback when the user picks nothing.
+
+Server objects: `collections.archived_at` · `free_collection_cap()` ·
+`start_tcgscan_pro_trial()` · `reclaim_over_cap_collections(text[])` ·
+`reclaim_all_over_cap_collections()` · `restore_archived_collections(int)` · cron `37 3 * * *`.
+Note the keep list is **`text[]`**, not `uuid[]` — tcgscan's client mints `col-…` ids.
+
+### The part that isn't a port: local-first sync
+
+michi's store reads binders from the server. **tcgscan is local-first** with a three-way merge
+(LOCAL / REMOTE / MIRROR, `src/lib/sync-merge.ts`), and `diffTable` **derives deletes from
+absence**. So the michi approach — hide archived rows at the read layer — would have had the client
+push those rows as DELETEs, cascading `portfolio_entries` and destroying the very data the archive
+was meant to preserve. The trap only surfaces on a second device, which is why it is worth writing
+down.
+
+The fix is to make `archived_at` a **server-owned field**:
+
+- present in `fetchRemote`'s select,
+- **deliberately absent** from `pushDelta`'s upserts,
+- and forced to the remote value by a dedicated `mergeCollections` step that runs after the generic
+  merge.
+
+Last-writer-wins is *wrong* for this one field: a device that edited offline carries a newer
+`updated_at`, wins the merge, and would silently un-archive what the nightly job just locked.
+Archived rows therefore stay in the local store and are hidden at the read layer only
+(`isLive()` / `collections()` / `archived()` in `src/lib/portfolio.ts`), with `normalize()` keeping
+the active collection visible. Four regression tests cover this directly — including "an archived
+collection is never pushed as a DELETE" (12/12 in `scripts/sync-merge.test.ts`).
+
+### The cross-app consequence
+
+`user_cards` is a rollup michi reads (`docs/TCGSCAN-PORTFOLIO.md`), maintained by a **delta trigger**
+on `portfolio_entries`. Honouring "archived doesn't count as owned" meant rewriting
+`sync_user_cards_from_portfolio()` to ignore entries in archived collections — necessary not just at
+archive time but for **every later mutation**, since otherwise the bulk delta applied at archive
+gets double-counted when an entry subsequently changes. Verified in a rolled-back sandbox:
+5 cards → archive two collections → 2 → restore → 5.
+
+### Client
+
+`src/lib/trial.ts` · `src/hooks/use-trial.ts` (`EntitlementRow` gained `source`) ·
+`KeepCollectionsModal.tsx` (defaults to keeping the most-recently-updated `cap`; copy says
+**"locked, not deleted"**) · `ProStatusBanner.tsx` (michi's three-warning ladder + auto-restore,
+mounted in `_layout.tsx`) · `TrialCta.tsx`.
+
+**Known gap:** `TrialCta` is mounted only on `/plans` in tcgscan, whereas michi puts the trial offer
+at every wall a Free user hits — which is the whole point of "triggered, not blanket". Worth
+closing.

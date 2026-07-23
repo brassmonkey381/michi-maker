@@ -1,5 +1,10 @@
 # Payments & entitlements
 
+> **STATUS: LIVE.** Real cards have been charged since 2026-07-22 (`docs/GO-LIVE-BILLING.md`).
+> Everything below describes a running system, not a plan. The two flags that used to hold it
+> back — `CHECKOUT_OPEN` and `LIMITS_ENFORCED` — are both **on** in the deployed builds of both
+> apps, so caps bite and CTAs launch real checkout.
+
 Paid features are gated by the `entitlements` table (`supabase/migrations/20260715120000_entitlements.sql`
 + `20260715130000_entitlement_terms.sql`): one row per `(user_id, product)`, owner-only SELECT
 via RLS, **no client write policies** — a grant can only come from the service role. The client
@@ -19,6 +24,7 @@ active while `expires_at` is NULL or in the future.
 | `tier_vip`  | VIP subscription — unlimited + 3 included prints/mo + priority | `expires_at` per period |
 | `pdf_binder:<id>` | one-time single-binder fill-sheet PDF ($3.99) — a **SNAPSHOT license**: the binder as it is when the purchase is spent (first download), re-downloadable forever; later edits need a new purchase | checked directly (`products.includes('pdf_binder:<id>')`); spend/fingerprint/archive in `src/data/pdfSnapshot.ts` + `binder_pdf_snapshots` + the `binder-pdfs` bucket; re-purchase re-arms via `granted_at` (webhook bumps it) |
 | `tcgscan_pro` | **CROSS-APP** — TCGScan Pro (sold by the sibling app). Unlocks scan-powered michi features (Build-a-binder-from-your-collection) + drives the bundle cross-sell | read via `hasTcgscanPro()`; michi never resolves a tier from it. See **docs/SYNERGY.md** |
+| `tcgscan_vip` | **CROSS-APP** — TCGScan VIP. A VIP subscriber gets **both** rows (`tcgscan_vip` *and* `tcgscan_pro`) | deliberate: every existing `hasTcgscanPro()` check in either repo keeps working without a sibling-repo change |
 
 Subscription rows also carry **`interval`** (`'month'` | `'year'`) and **`period_start`**
 (`20260719120000_billing_interval_and_print_pool.sql`), both written by the webhook from the
@@ -109,14 +115,18 @@ unlock starts carrying real fulfilment liability.
 Month-to-month subscribers have no pool; they get one line pointing at yearly billing
 (`ANNUAL_POOL.monthlyUpsell`), not a recurring nag.
 
-### Tier limits (caps) are behind a feature flag
+### Tier limits (caps) — ENFORCED
 
-`src/data/tiers.ts` also holds `TIER_LIMITS` (binder/page counts, composer quota, uploads) and a
-**master switch `LIMITS_ENFORCED` (currently `false`)**. While off, every cap reads as unlimited,
-so nothing new restricts users; the store already consults the limits (`useBinders().limits` /
-`atBinderLimit` / `pageLimitReached`) and the UI shows an inline `UpgradePerk` note when a cap is
-hit. Flip the switch to `true` **only after pricing/checkout is live and the numbers are signed
-off**. The print unlock is independent of this switch (it only ever grants access).
+`src/data/tiers.ts` also holds `TIER_LIMITS` (binder/page counts, composer quota, uploads) and the
+master switch `LIMITS_ENFORCED`, which is **on in production** (`vercel.json` bakes
+`EXPO_PUBLIC_LIMITS_ENFORCED=1` into `buildCommand`; the constant reads the env var, so a local
+build without it silently runs uncapped — set it in `.env.local` when testing caps). Caps bite: the
+store consults them (`useBinders().limits` / `atBinderLimit` / `pageLimitReached`) and the UI shows
+an inline `UpgradePerk` note at the wall. The print unlock is independent of this switch (it only
+ever grants access).
+
+Because caps are enforced, a **downgrade** can leave someone over cap — that is what the reclaim
+machinery in `docs/PRO-TRIALS.md` exists to resolve, and it is now live in both apps.
 
 ## Granting manually (comps & support)
 
@@ -156,7 +166,7 @@ delete from public.print_pool_unlocks where user_id = '<auth user id>';
 The client re-checks per identity/mount (and `useTier().refresh()` re-polls), so a fresh grant
 shows up next time the user opens the gated surface — no deploy needed.
 
-## Provider: STRIPE (decided 2026-07-16, building in TEST MODE)
+## Provider: STRIPE (decided 2026-07-16 · LIVE since 2026-07-22)
 
 Account: `acct_1TtzOWH8KZaf7tNO` ("TCGScan"). Accepted integration plan (Stripe
 implementation planner, guide `iguide_61V3NTkB3BlVzjmQZ41H8KZaf7tNO`): Stripe-hosted
@@ -164,8 +174,9 @@ implementation planner, guide `iguide_61V3NTkB3BlVzjmQZ41H8KZaf7tNO`): Stripe-ho
 **Customer Portal** for manage/cancel/payment-method, **freemium** (no card-on-file trials),
 **Smart Retries** defaults for failed-payment recovery. No Elements, no custom payment UI.
 
-Test-mode catalog (recreate the same lookup_keys in live mode before launch — code references
-lookup keys and `metadata.michi_product`, never raw price ids):
+The catalog exists in **both modes** with the same lookup keys — code resolves prices by
+`lookup_key` and `metadata.michi_product`, never by raw price id, which is exactly what lets one
+build run against either mode:
 
 | lookup_key | price | product (metadata.michi_product) |
 | --- | --- | --- |
@@ -174,8 +185,10 @@ lookup keys and `metadata.michi_product`, never raw price ids):
 | `michi_vip_monthly` | $9.99/mo | michi-maker VIP (`tier_vip`) |
 | `michi_vip_yearly` | $99.99/yr | michi-maker VIP (`tier_vip`) |
 | `michi_binder_pdf` | $3.99 one-time | Full-binder fill-sheet PDF (`pdf_binder`) |
-| `tcgscan_pro_monthly` | TBD/mo | **CROSS-APP** TCGScan Pro (`tcgscan_pro`) — needs creating |
-| `tcgscan_pro_yearly` | TBD/yr | **CROSS-APP** TCGScan Pro (`tcgscan_pro`) — needs creating |
+| `tcgscan_pro_monthly` | $3.99/mo | **CROSS-APP** TCGScan Pro (`tcgscan_pro`) |
+| `tcgscan_pro_yearly` | $39.99/yr | **CROSS-APP** TCGScan Pro (`tcgscan_pro`) |
+| `tcgscan_vip_monthly` | $9.99/mo | **CROSS-APP** TCGScan VIP (`tcgscan_vip`) |
+| `tcgscan_vip_yearly` | $99.99/yr | **CROSS-APP** TCGScan VIP (`tcgscan_vip`) |
 
 #### Product descriptions (Stripe-side copy — keep in sync with `tiers.ts`)
 
@@ -192,29 +205,34 @@ kept" when PRO's cap is 1,000** (100 is the Free limit) — wrong since the cata
   included prints a month (36 a year on yearly billing, usable whenever you want). Plus first in
   line for print extras and a featured eligibility boost.
 
-**These are TEST-mode products.** Live mode has its own product objects — recreate the same
-descriptions there at go-live, same as the price catalog above.
+The product ids above are the **test-mode** objects. Live mode has its own, created at go-live with
+the same descriptions — when you edit copy, edit it in both modes or invoices drift.
 
-### Cross-app bundle (code is live; two dashboard steps remain)
+### Cross-app bundle — LIVE (60% off)
 
 `stripe-checkout` sells BOTH apps' products and applies a server-verified **bundle discount**
-(`bundle: true` in the request): owning an active michi tier discounts TCGScan Pro and vice-versa
-(`bundleSiblingsFor`). The webhook grants `tcgscan_pro` from its lookup keys and never lets the
-PRO↔VIP sibling hygiene touch it. Surfaces: michi `BundleOffer` (Settings + post-checkout upsell
-on /subscriptions), tcgscan `ProPerk`/`BundleOffer` (Settings + Home). To finish:
+(`bundle: true` in the request): owning an active michi tier discounts TCGScan PRO/VIP and
+vice-versa (`bundleSiblingsFor`). The webhook grants `tcgscan_pro` / `tcgscan_vip` from their
+lookup keys and never lets the PRO↔VIP sibling hygiene touch them. The live coupon is `Si93JqYS`
+(60% off), set as `STRIPE_BUNDLE_COUPON`; without a coupon set, the CTA still works and simply
+applies no discount.
 
-1. **Create the TCGScan Pro product** (Test mode): metadata `michi_product=tcgscan_pro`, two
-   recurring prices with lookup keys `tcgscan_pro_monthly` / `tcgscan_pro_yearly`.
-2. **Create the bundle coupon** (percent-off, e.g. 30%) and set it:
-   `supabase secrets set STRIPE_BUNDLE_COUPON=<coupon id>`.
+Surfaces: michi `BundleOffer` — Settings, the post-checkout modal, **and a standing home on
+`/subscriptions`** for as long as the coupon is active (it started life as a one-time banner that
+vanished, which meant a subscriber who scrolled past it could never find the offer again) —
+plus tcgscan `ProPerk`/`BundleOffer` (Settings + Home).
 
-Until both exist, a bundle CTA fails gracefully ("price not found in this Stripe mode" /
-no discount applied).
+**The CTA hands over to the sibling's plans page, not to a checkout.** michi's offer opens
+`tcgscan.ai/plans?bundle=1` with the discount armed, so the member picks PRO or VIP themselves.
+Pre-picking a plan for them was worse: it assumed the tier they wanted and skipped the comparison
+they were about to make. That page also carries a "← Go to TCGScan" link, because a `?bundle=1`
+arrival has no other way back to the sibling app's landing page. See `docs/SYNERGY.md` for the SSO
+handoff that signs them in on arrival.
 
-## Wiring status — BUILT (test-verified)
+## Wiring status — LIVE (test-verified, then real-card verified)
 
-The whole Stripe pipeline is implemented and was exercised end to end in **test mode** (including
-Stripe test clocks for the time-dependent paths). The pieces:
+The whole Stripe pipeline was exercised end to end in **test mode** (including Stripe test clocks
+for the time-dependent paths) and then smoke-tested with a **real card** on 2026-07-22. The pieces:
 
 1. **Checkout** — `src/data/checkout.ts` `startCheckout(lookupKey, { binderId? })` invokes the
    `stripe-checkout` edge function, which creates a hosted Checkout Session (subscription mode for
@@ -231,7 +249,20 @@ Stripe test clocks for the time-dependent paths). The pieces:
 4. **Secrets** live in the Supabase function env (`supabase secrets set`), never in app code.
 
 Price lives entirely in the Stripe dashboard; the app resolves it by `lookup_key`, never a raw
-price id — which is what lets the same build run against live mode once the live catalog exists.
+price id — which is what lets the same build run against either mode.
 
-**What remains is go-live, not building.** Taking it from test mode to charging real cards is a
-sequenced, mostly Stripe-dashboard + live-secret operation — see **docs/GO-LIVE-BILLING.md**.
+### Coming back from checkout: the modals
+
+A returning buyer used to get one line of text ("Your plan is active. Welcome aboard!"), which
+undersold the moment they had just paid for. They now get a full modal:
+
+| component | shown when | what it does |
+| --- | --- | --- |
+| `WelcomeAboardModal` | return with `?checkout=success` on a tier purchase | names the tier, lists what just unlocked, and carries the bundle offer + its value prop. Mirrored in tcgscan (`src/components/monetization/WelcomeAboardModal.tsx` in both repos). |
+| `PdfUnlockedModal` | a `pdf_binder:<id>` purchase lands | celebrates the document rather than the plan, and points at print/paper guidance — `/learn/print-binder` plus Michi's own guide (`WOAHPOKE_GUIDE` in `src/data/guides.ts`) |
+
+Deliberately **not** built (asked for, then deferred): multi-page modals with per-tier infographics,
+and an editor tool for authoring them. The current modals are single-page and hand-written.
+
+**Everything above is live.** The remaining go-live items are dashboard chores, not code — see
+**docs/GO-LIVE-BILLING.md**.

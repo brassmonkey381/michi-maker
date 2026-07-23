@@ -145,6 +145,24 @@ the trigger already applies the delta, so your call would double-count.** The RP
 (michi's own writers use it), it just must not be driven from portfolio mutations anymore.
 Nothing else changes on your side: keep writing `portfolio_entries` exactly as you do.
 
+## ⚠️ 2026-07-23: ARCHIVED collections are excluded from the rollup
+
+tcgscan now soft-archives over-cap collections when a subscription lapses (`collections.archived_at`,
+migration `20260723120000_tcgscan_trials_and_collection_reclaim.sql` — see `docs/PRO-TRIALS.md`).
+Owner decision: **archived collections do not count as cards you own.**
+
+So `sync_user_cards_from_portfolio()` now **ignores `portfolio_entries` whose collection is
+archived**. Consequences for michi:
+
+- A user's `user_cards` rollup can **shrink without any card being deleted**, and grow back when
+  they resubscribe (restore un-archives newest-first). Anything michi caches off `user_cards` should
+  tolerate that, and "My collection" should never present a shrink as data loss — the entries still
+  exist in `portfolio_entries`.
+- The exclusion applies to **every later mutation**, not just the moment of archiving. It has to:
+  the archive applies one bulk delta, and if subsequent edits inside an archived collection still
+  moved the rollup, that delta would be double-counted.
+- Verified in a rolled-back sandbox: 5 cards → archive two collections → 2 → restore → 5.
+
 **Two things that still need michi-side / dashboard action** (GoTrue config, not SQL/MCP):
 - Add tcgscan's redirect URLs to this project's **Auth → URL Configuration**:
   `https://tcgscan.ai` (web — the current domain; drop the legacy `idontgitit.com` entry once it

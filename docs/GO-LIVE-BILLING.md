@@ -1,6 +1,7 @@
 # Go-live checklist — billing & subscriptions (michi-maker **and** tcgscan)
 
 > ## ✅ CUTOVER COMPLETE — 2026-07-22. Both apps are LIVE and selling.
+> ## ✅ SMOKE-TESTED WITH REAL MONEY — 2026-07-22.
 >
 > Live catalog (5 products / 9 prices, lookup keys mirroring test), live bundle coupon
 > `Si93JqYS`, live webhook endpoint `we_1Tw4YEH8KZaf7tNOd0et9nZL`, and the three live secrets are
@@ -15,12 +16,29 @@
 > there was no separate per-app front-end switch to stagger. If you ever need to close checkout
 > again, edit `vercel.json`'s `buildCommand` and redeploy; a Vercel env var alone will not do it.
 >
-> Still open, deliberately deferred: the live-mode **Customer Portal** config (§2 — owner reports
-> done 2026-07-22), the §7 **post-flip smoke test with a real card**, a **customer support email
-> and URL** (neither domain has MX records; there is no `/support` route), and the
-> `[PLACEHOLDER]` blocks in `src/app/legal/*` — including `terms.tsx`'s billing/renewal/**refund**
-> clause, which is now live-money-relevant. Also still pending: deleting the local `sk_live.txt` /
-> `supabase_token.txt` handoff files and tidying the test-mode test clock.
+> **Closed since the cutover** (2026-07-22 → 07-23):
+> - §2 live **Customer Portal** configured (Subscription update OFF, per the reasoning below).
+> - §7 **real-card smoke test** ran on michi: PRO yearly bought → entitlement landed in seconds ·
+>   one included print spent · in-app **PRO→VIP upgrade charged the quoted $60.00 to the cent
+>   without re-entering Checkout** (server-driven `change_plan` on the existing subscription — the
+>   legal basis is the pre-authorised payment method plus the priced confirm step in-app; it is a
+>   subscription *modification*, not a new sale) · cancel → cancel-at-period-end.
+> - Every `[PLACEHOLDER]` in `src/app/legal/*` is filled, including `terms.tsx`'s
+>   billing/renewal/**refund** clause, and beta-era messaging is retired app-wide.
+> - **support@michi-maker.com** is live and wired into the legal pages and the DMCA notice; a DMCA
+>   agent (**"Copyright Compliance Agent"**) is registered with the U.S. Copyright Office.
+>
+> **Still open** (none of it blocks selling):
+> - Delete the local `sk_live.txt` / `supabase_token.txt` handoff files. ⚠️ **These are live
+>   credentials sitting in `C:\Users\Brian\` — highest-value item on this list.**
+> - Add `support@michi-maker.com` to Stripe → Settings → Business → Public details (it shows on
+>   receipts and in the portal).
+> - Refund the smoke-test charges in the live dashboard if you want the money back (the
+>   subscription is cancelled, but the PRO-yearly and upgrade charges stand).
+> - Delete the test-mode test clock and its rig customers (cosmetic).
+> - **tcgscan has NOT had a real-card smoke test.** Its checkout, upgrade path, and over-cap
+>   reclaim went live on code parity with michi, not on an exercised live purchase — see
+>   `tcgscan-expo/docs/MONETIZATION-TIERS.md`.
 
 How to take billing from Stripe **test mode** to **live mode**. Pair with `docs/PAYMENTS.md` (how
 the system works), `docs/SYNERGY.md` (the cross-app shape), and `docs/roadmap/MONETIZATION-TIERS.md`
@@ -80,23 +98,26 @@ Set each product's `metadata.michi_product` (the webhook maps tiers from it as a
 | `michi_vip_monthly` | $9.99 / mo | michi-maker VIP · `tier_vip` |
 | `michi_vip_yearly` | $99.99 / yr | michi-maker VIP · `tier_vip` |
 | `michi_binder_pdf` | $3.99 one-time | Full-binder fill-sheet PDF · `pdf_binder` |
-| `tcgscan_pro_monthly` | TBD | **CROSS-APP** TCGScan Pro · `tcgscan_pro` |
-| `tcgscan_pro_yearly` | TBD | **CROSS-APP** TCGScan Pro · `tcgscan_pro` |
-| `tcgscan_vip_monthly` | TBD | **CROSS-APP** TCGScan VIP · `tcgscan_vip` |
-| `tcgscan_vip_yearly` | TBD | **CROSS-APP** TCGScan VIP · `tcgscan_vip` |
+| `tcgscan_pro_monthly` | $3.99 / mo | **CROSS-APP** TCGScan Pro · `tcgscan_pro` |
+| `tcgscan_pro_yearly` | $39.99 / yr | **CROSS-APP** TCGScan Pro · `tcgscan_pro` |
+| `tcgscan_vip_monthly` | $9.99 / mo | **CROSS-APP** TCGScan VIP · `tcgscan_vip` |
+| `tcgscan_vip_yearly` | $99.99 / yr | **CROSS-APP** TCGScan VIP · `tcgscan_vip` |
+
+tcgscan's price points **mirror michi's exactly** — that is deliberate, and it is what keeps the
+bundle maths legible ("60% off the second app" reads the same in both directions).
 
 The cross-app bundle **is built and shipped** (tcgscan VIP went live 2026-07-21; `stripe-checkout`
 sells all four `tcgscan_*` keys and applies the bundle coupon), so the `tcgscan_*` products are
 **required** for a joint go-live, not optional. Confirm the tcgscan prices/descriptions with the
 tcgscan side before creating them.
 
-- [ ] PRO product + monthly & yearly prices, lookup keys set
-- [ ] VIP product + monthly & yearly prices, lookup keys set
-- [ ] One-time full-binder PDF price, lookup key `michi_binder_pdf`
-- [ ] **Product descriptions** copied from `docs/PAYMENTS.md → Product descriptions` (they show on
+- [x] PRO product + monthly & yearly prices, lookup keys set
+- [x] VIP product + monthly & yearly prices, lookup keys set
+- [x] One-time full-binder PDF price, lookup key `michi_binder_pdf`
+- [x] **Product descriptions** copied from `docs/PAYMENTS.md → Product descriptions` (they show on
       Checkout and every invoice; the test-mode ones were corrected 2026-07-19 — VIP is 3 prints,
       PRO keeps 1,000 artworks not 100)
-- [ ] **TCGScan** Pro + VIP products, monthly & yearly prices, lookup keys `tcgscan_pro_*` /
+- [x] **TCGScan** Pro + VIP products, monthly & yearly prices, lookup keys `tcgscan_pro_*` /
       `tcgscan_vip_*`, `metadata.michi_product` = `tcgscan_pro` / `tcgscan_vip`, with tcgscan-side
       descriptions
 
@@ -107,13 +128,13 @@ tcgscan side before creating them.
 Dashboard → Settings → Billing → Customer portal. **There is no API for this** — it must be done
 by hand, per mode.
 
-- [ ] Payment method update: **on**
-- [ ] Invoice history: **on**
-- [ ] Cancellation: **on**, mode **at end of billing period** (the webhook's dunning/grace logic
+- [x] Payment method update: **on**
+- [x] Invoice history: **on**
+- [x] Cancellation: **on**, mode **at end of billing period** (the webhook's dunning/grace logic
       assumes this — immediate cancel would strand a yearly subscriber who released their pool)
-- [ ] Business info: link Terms `https://www.michi-maker.com/legal/terms` and Privacy
+- [x] Business info: link Terms `https://www.michi-maker.com/legal/terms` and Privacy
       `https://www.michi-maker.com/legal/privacy`
-- [ ] **Subscription update: OFF.** Upgrades are driven server-side by the app's `change_plan`
+- [x] **Subscription update: OFF.** Upgrades are driven server-side by the app's `change_plan`
       action, which charges the exact whole-month price ($60.00). The portal bills Stripe's
       second-accurate proration ($59.54) — leaving portal updates on means two paths quote two
       different prices for the same upgrade. Let the portal do cancellation and payment methods
@@ -126,10 +147,10 @@ by hand, per mode.
 
 Dashboard → Developers → Webhooks → Add endpoint (in **live** mode).
 
-- [ ] URL: `https://piikwvntldytjejxmcla.supabase.co/functions/v1/payments-webhook`
-- [ ] Events: `checkout.session.completed`, `invoice.paid`, `customer.subscription.updated`,
+- [x] URL: `https://piikwvntldytjejxmcla.supabase.co/functions/v1/payments-webhook`
+- [x] Events: `checkout.session.completed`, `invoice.paid`, `customer.subscription.updated`,
       `customer.subscription.deleted` (exactly the four the handler switches on)
-- [ ] Copy the endpoint's **live signing secret** (`whsec_…`) for §4
+- [x] Copy the endpoint's **live signing secret** (`whsec_…`) for §4
 
 ---
 
@@ -143,14 +164,16 @@ supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_...      # the LIVE endpoint se
 supabase secrets set STRIPE_BUNDLE_COUPON=<live coupon id># the bundle is live — create the coupon
 ```
 
-- [ ] `STRIPE_SECRET_KEY` = live key (⚠️ this is the shared cutover — lights up michi AND tcgscan)
-- [ ] `STRIPE_WEBHOOK_SECRET` = **live** endpoint secret (the test one will not verify live events)
-- [ ] `STRIPE_BUNDLE_COUPON` = the **live** bundle coupon id (percent-off; the bundle cross-sell ships)
-- [ ] Confirm `verify_jwt` is unchanged after any redeploy: **payments-webhook = false**
-      (Stripe can't send a Supabase JWT — the signature is the auth), **stripe-checkout = true**.
-      Both functions were last deployed 2026-07-21 (`stripe-checkout` v20 for tcgscan VIP); a
-      plain CLI `functions deploy` keeps these defaults — never pass `--no-verify-jwt` to checkout.
-- [ ] `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_ANON_KEY` already set — no change
+- [x] `STRIPE_SECRET_KEY` = live key (⚠️ this is the shared cutover — lights up michi AND tcgscan)
+- [x] `STRIPE_WEBHOOK_SECRET` = **live** endpoint secret (the test one will not verify live events)
+- [x] `STRIPE_BUNDLE_COUPON` = the **live** bundle coupon id (percent-off; the bundle cross-sell ships)
+- [x] Confirm `verify_jwt` is unchanged after any redeploy: **payments-webhook = false**
+      (Stripe can't send a Supabase JWT — the signature is the auth), **stripe-checkout = true**,
+      **auth-handoff = true** (it mints a sign-in link for *the caller's own* account — see
+      `docs/AUTH.md → Cross-app SSO handoff`). `stripe-checkout` is on **v24** (app-family-generic
+      upgrade paths); a plain CLI `functions deploy` keeps these defaults — never pass
+      `--no-verify-jwt` to checkout or auth-handoff.
+- [x] `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_ANON_KEY` already set — no change
 
 ---
 
@@ -178,9 +201,12 @@ delete from public.entitlements where source = 'stripe';   -- keep manual comps 
 delete from auth.users where email = 'billing.clock.rig@example.com';
 ```
 
-- [ ] Reviewed the entitlements list and decided comps
-- [ ] Ran the reset (or a chosen subset)
+- [x] Reviewed the entitlements list and decided comps
+- [x] Ran the reset (or a chosen subset)
 - [ ] In Stripe **test** mode: delete/stop the test clock and its rig customers (cosmetic, but tidy)
+- [x] Applied `20260721120000_pro_trials_and_reclaim.sql` (michi trials + binder reclaim) and
+      enabled its nightly `pg_cron` job — this was deliberately held back until after the cleanup
+      above so no test-mode entitlement could hand out a trial or trip the reclaim grace
 
 > Note: even if you skip `billing_customers` cleanup, it self-heals — the webhook upserts the new
 > live customer id on first live checkout (`on conflict user_id`). But "Manage billing" would error
@@ -219,21 +245,27 @@ keeps showing its "coming soon" note).
 ## 7. Verify (before and after the flip)
 
 **Pre-flip, local:**
-- [ ] `npx tsc --noEmit` clean
-- [ ] `npm test` green (the billing maths — 31 assertions)
-- [ ] `npm run lint` — clean of errors (3 unrelated warnings remain; the old `ColorPicker.tsx`
+- [x] `npx tsc --noEmit` clean
+- [x] `npm test` green (the billing maths — 31 assertions)
+- [x] `npm run lint` — clean of errors (3 unrelated warnings remain; the old `ColorPicker.tsx`
       `react-hooks/refs` errors were cleared 2026-07-20 by moving its Animated.Value to lazy state)
-- [ ] `npx expo export -p web` succeeds (proves the shared-module `.ts` imports bundle)
+- [x] `npx expo export -p web` succeeds (proves the shared-module `.ts` imports bundle)
 
-**Post-flip, live smoke test (real card, then refund):**
-- [ ] Boot-check the live functions resolve: an unauthed POST to `payments-webhook` returns
+**Post-flip, live smoke test (real card, then refund) — RAN 2026-07-22 on michi:**
+- [x] Boot-check the live functions resolve: an unauthed POST to `payments-webhook` returns
       `400 bad signature` (not a 500); a publishable-key POST to `stripe-checkout` returns
       `401 not signed in`. A 500 means a secret or import is wrong.
-- [ ] One real PRO yearly checkout → entitlement lands within seconds, plan page shows PRO
-- [ ] One real upgrade PRO→VIP → invoice equals the quoted whole-month price to the cent
-- [ ] "Manage billing" opens the live portal
-- [ ] Cancel → subscription shows cancel-at-period-end, access holds to term end
+- [x] One real PRO yearly checkout → entitlement lands within seconds, plan page shows PRO
+- [x] One real upgrade PRO→VIP → invoice equals the quoted whole-month price to the cent
+      ($60.00, charged in-app without a second Checkout — see the banner)
+- [x] "Manage billing" opens the live portal
+- [x] Cancel → subscription shows cancel-at-period-end, access holds to term end
 - [ ] Refund the smoke-test charges in the live dashboard
+- [ ] **The same pass on tcgscan** — buy TCGScan PRO, upgrade PRO→VIP, cancel. Never run.
+
+**Not covered by any smoke test yet:** the over-cap reclaim path in either app (it needs a lapsed
+subscription plus a real over-cap account), and tcgscan's archive behaviour **across two devices**,
+which is the step that actually proves the sync half of the design.
 
 ---
 
@@ -250,13 +282,19 @@ month-arithmetic drifts between copies). The money maths lives in one unit-teste
 
 ## Known open items (decide, don't discover)
 
-- **Cross-app bundle** (`tcgscan_pro` / `tcgscan_vip`, `STRIPE_BUNDLE_COUPON`) **is now built and
-  shipped** (tcgscan VIP live 2026-07-21). So the live catalog MUST include the `tcgscan_*` products
-  and a live bundle coupon, and the joint go-live lights up both apps at once (§4). Coordinate the
-  tcgscan prices/descriptions with the tcgscan side; without the coupon the bundle CTA still degrades
-  gracefully.
+- **Cross-app bundle** — DONE. Live coupon `Si93JqYS` (**60% off**) is set as
+  `STRIPE_BUNDLE_COUPON`, and the live catalog carries all four `tcgscan_*` prices. The offer has a
+  standing home on michi's `/subscriptions` (not just a one-time post-checkout banner), and the CTA
+  now hands the member to **tcgscan's plans page with the coupon armed** so they choose PRO or VIP
+  themselves, rather than dropping them into a pre-picked checkout. See `docs/SYNERGY.md`.
 - **Cross-interval changes** (monthly↔yearly) and **downgrades** are intentionally routed to the
   portal, not `change_plan`. Monthly plans are otherwise **untested** — no monthly customer has
   been driven through checkout, window slicing, or the cross-interval refusal.
+- **The upgrade path is now identical in both apps.** `stripe-checkout` v24 is app-family-generic:
+  it derives the family from the lookup key, so TCGScan PRO→VIP runs the same preview → confirm →
+  server-driven `change_plan` flow michi does. Before v24 that path did not exist on the tcgscan
+  side at all. One thing to keep in mind when reading the function: a bundle customer has **two
+  subscriptions on one Stripe customer**, so anything that resolves "the current subscription"
+  must filter by app family first.
 - **`ColorPicker.tsx` lint errors** — RESOLVED 2026-07-20 (Animated.Value moved to lazy state).
   `npm run lint` is now error-clean (3 unrelated warnings remain).

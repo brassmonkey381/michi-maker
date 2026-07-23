@@ -64,6 +64,34 @@ social logins on iOS.) Enable the provider and paste the credentials.
 > The app code needs no changes for any of the above — providers are configured server-side and the
 > client discovers them at sign-in time. OAuth buttons simply error until their provider is enabled.
 
+## Cross-app SSO handoff (michi ⇄ tcgscan)
+
+Both apps authenticate against the **same** Supabase project, but they are separate web origins, so
+a session in one is not a session in the other. To make the bundle cross-sell feel like one product,
+a member following the offer arrives at the sibling app already signed in on the same account.
+
+| piece | where |
+|---|---|
+| Edge function that mints the handoff | `supabase/functions/auth-handoff` (`verify_jwt: true`) |
+| Client helper (michi) | `src/data/handoff.ts` |
+| Client helper (tcgscan) | `src/lib/handoff.ts` — **a mirror; keep the two in sync** |
+
+How it works: the caller (already signed in) invokes `auth-handoff`, which uses the service role to
+`generateLink` a magic link **for the caller's own account** and returns only its **token hash**.
+`withHandoffHash` appends that to the destination URL; on arrival
+`redeemHandoffHashFromLocation` calls `verifyOtp` and establishes the session.
+
+The safety properties worth preserving if this is ever touched:
+
+- **The function mints only for `auth.uid()`** — it takes no user id as input, so it cannot be
+  driven to issue a link for someone else's account.
+- **Guests are refused.** An anonymous identity is not useful to the sibling app, and handing one
+  over would silently fork the user's data.
+- **The token hash rides in the URL fragment**, which browsers never send to a server, and it is
+  single-use.
+- **Always ship a visible fallback.** The sibling's plans page keeps its own "Sign in with the same
+  account" button, so the flow degrades to a normal sign-in if the handoff fails.
+
 ## Security notes
 
 - Only the **publishable** key ships in the client (`EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`). The

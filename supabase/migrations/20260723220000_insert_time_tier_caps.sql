@@ -213,6 +213,12 @@ declare cap integer; total integer; addition integer;
 begin
   if public.is_privileged_write() then return new; end if;
   if public.is_staff(new.user_id) then return new; end if;
+  -- Archived collections are out of scope on both sides: they hold no live cards, the client
+  -- hides them, and the reclaim flow re-archives them. Matches tcgscan's client semantics.
+  if exists (select 1 from public.collections c
+              where c.id = new.collection_id and c.archived_at is not null) then
+    return new;
+  end if;
 
   if tg_op = 'INSERT' then
     if exists (select 1 from public.portfolio_entries e where e.id = new.id) then return new; end if;

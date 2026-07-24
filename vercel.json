@@ -1,5 +1,5 @@
 {
-  "buildCommand": "EXPO_PUBLIC_CHECKOUT_OPEN=1 expo export -p web && node scripts/inject-meta.mjs",
+  "buildCommand": "EXPO_PUBLIC_CHECKOUT_OPEN=1 EXPO_PUBLIC_LIMITS_ENFORCED=1 expo export -p web && node scripts/inject-meta.mjs",
   "outputDirectory": "dist",
   "devCommand": "expo",
   "cleanUrls": true,

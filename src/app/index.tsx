@@ -18,7 +18,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { pagesForCards } from '@/data/binderTypes';
-import { binderLimitMessage } from '@/data/limitMessages';
+import { binderLimitMessage, pageLimitMessage } from '@/data/limitMessages';
 import { useImageManifest } from '@/lib/catalogConfig';
 import { shouldShowLanding } from '@/lib/landing';
 import { useBinders } from '@/store/binders';
@@ -81,10 +81,10 @@ export default function HomeScreen() {
   const addToExistingBinder = (binderId: string) => {
     if (!addCardId) return;
     const title = store.getBinder(binderId)?.title ?? 'binder';
-    const { added } = store.addCardsToBinder(binderId, [addCardId]);
+    const { added, unplaced } = store.addCardsToBinder(binderId, [addCardId]);
     setAddCardId(null);
     if (added > 0) showAddedToast(binderId, title);
-    else showToast('That binder is full');
+    else if (unplaced > 0) showToast(pageLimitMessage(store.tier, store.limits));
   };
   const addToNewBinder = () => {
     if (!addCardId) return;
@@ -96,7 +96,7 @@ export default function HomeScreen() {
     // Atomic create-with-card — creating then adding would race the store snapshot.
     const binder = store.createBinder({ title: 'New binder', pages: pagesForCards([addCardId]) });
     setAddCardId(null);
-    showAddedToast(binder.id, binder.title);
+    if (binder) showAddedToast(binder.id, binder.title);
   };
 
   // Binder covers resolve their image straight from the card id (cardThumbUrl) via the lite

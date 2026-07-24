@@ -49,13 +49,19 @@ export interface EntitlementRow {
 /**
  * MASTER SWITCH for the free-tier CAPS (binder/page counts, uploads…).
  *
- * ENV-DRIVEN like CHECKOUT_OPEN: off = permissive (every limit reads as unlimited, nothing
- * restricts existing users). EXPO_PUBLIC_LIMITS_ENFORCED=1 in .env.local enforces locally for
- * gate testing; set it in the Vercel env at go-live (owner signed off on the numbers
- * 2026-07-17). This flag does NOT touch the print gate — printing your own binders is included
- * with a PRO/VIP subscription or bought per-binder; this switch never changes that.
+ * ENFORCED BY DEFAULT (2026-07-23) — opt OUT with EXPO_PUBLIC_LIMITS_ENFORCED=0, matching
+ * tcgscan-app's switch exactly. It used to be opt-IN (`=== '1'`), which meant a missing env var
+ * silently made every cap `Infinity` with no error and no failing test; `vercel.json` now bakes
+ * the flag in as well, so prod no longer depends on a dashboard variable staying set.
+ *
+ * This flag does NOT touch the print gate — printing your own binders is included with a PRO/VIP
+ * subscription or bought per-binder; this switch never changes that.
+ *
+ * The client switch is a UX affordance, not the enforcement boundary: the caps that protect
+ * revenue are enforced server-side in the shared project (see the insert-time cap triggers and
+ * `michi_binder_cap()` in supabase/migrations).
  */
-export const LIMITS_ENFORCED = process.env.EXPO_PUBLIC_LIMITS_ENFORCED === '1';
+export const LIMITS_ENFORCED = process.env.EXPO_PUBLIC_LIMITS_ENFORCED !== '0';
 
 /** Per-tier capability limits. `Infinity` = unlimited. */
 export interface TierLimits {

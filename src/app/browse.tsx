@@ -23,6 +23,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Spacing } from '@/constants/theme';
 import { pagesForCards } from '@/data/binderTypes';
+import { binderLimitMessage, pageLimitMessage } from '@/data/limitMessages';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useOwnedCards } from '@/hooks/use-owned-cards';
 import { useBinders } from '@/store/binders';
@@ -78,19 +79,36 @@ export default function BrowseScreen() {
     ].filter(Boolean) as CardAction[];
   };
 
+  const showToast = (message: string) => {
+    toastId.current += 1;
+    setToast({ id: toastId.current, message });
+  };
+
   const addToExisting = (binderId: string) => {
     if (!addCardIds?.length) return;
     const title = store.getBinder(binderId)?.title ?? 'binder';
-    const { added } = store.addCardsToBinder(binderId, addCardIds);
+    const { added, unplaced } = store.addCardsToBinder(binderId, addCardIds);
     setAddCardIds(null);
-    if (added > 0) showAdded(binderId, title, added);
+    // Anything the binder's page cap left out is named, never dropped in silence.
+    if (unplaced > 0) showToast(pageLimitMessage(store.tier, store.limits));
+    else if (added > 0) showAdded(binderId, title, added);
   };
   const addToNew = () => {
     if (!addCardIds?.length) return;
-    const binder = store.createBinder({ title: 'New binder', pages: pagesForCards(addCardIds) });
-    const count = addCardIds.length;
+    // The browser's multi-select is unbounded, but a new binder only gets the tier's page
+    // allowance (pagesForCards lays 9 pockets a page) — trim to what fits and say so, rather
+    // than seeding a binder over the cap. Unlimited tiers keep the whole selection.
+    const ids = addCardIds.slice(0, store.limits.pagesPerBinder * 9);
+    const short = addCardIds.length - ids.length;
+    const binder = store.createBinder({ title: 'New binder', pages: pagesForCards(ids) });
     setAddCardIds(null);
-    showAdded(binder.id, binder.title, count);
+    // The store refuses past the binder cap — say so instead of silently doing nothing.
+    if (!binder) {
+      showToast(binderLimitMessage(store.tier, store.limits));
+      return;
+    }
+    if (short > 0) showToast(pageLimitMessage(store.tier, store.limits));
+    else showAdded(binder.id, binder.title, ids.length);
   };
 
   return (

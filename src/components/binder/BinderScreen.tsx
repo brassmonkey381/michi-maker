@@ -595,16 +595,23 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   };
   const addElsewhereTo = (targetId: string) => {
     if (!addElsewhereIds?.length) return;
-    const { added } = store.addCardsToBinder(targetId, addElsewhereIds);
+    const { added, unplaced } = store.addCardsToBinder(targetId, addElsewhereIds);
     const title = store.getBinder(targetId)?.title ?? 'binder';
     setAddElsewhereIds(null);
-    if (added > 0) showToast(`Added ${added} card${added === 1 ? '' : 's'} to ${title}`);
+    // Anything the target binder's page cap left out is named, never dropped in silence.
+    if (unplaced > 0) showToast(pageLimitMessage(store.tier, store.limits));
+    else if (added > 0) showToast(`Added ${added} card${added === 1 ? '' : 's'} to ${title}`);
   };
   const addElsewhereNew = () => {
     if (!addElsewhereIds?.length) return;
     const copy = store.createBinder({ title: 'New binder', pages: pagesForCards(addElsewhereIds) });
     const count = addElsewhereIds.length;
     setAddElsewhereIds(null);
+    // The store refuses past the binder cap — say so instead of silently doing nothing.
+    if (!copy) {
+      showToast(binderLimitMessage(store.tier, store.limits));
+      return;
+    }
     showToast(`Added ${count} card${count === 1 ? '' : 's'} to ${copy.title}`);
   };
 
@@ -634,9 +641,12 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const handlePickCards = (cardIds: string[]) => {
     // One batch pass — each card lands in the next free pocket (pages appended as needed), so they
     // never collide on a cell. A per-card loop re-read stale state and 409'd on every card but the first.
-    const { added } = store.addCardsToBinder(binder.id, cardIds);
+    const { added, unplaced } = store.addCardsToBinder(binder.id, cardIds);
     closePicker();
-    if (added > 0) showToast(`Added ${added} card${added === 1 ? '' : 's'}`);
+    // The binder can run out of pages at the tier cap — name it (with the upgrade route) rather
+    // than quietly placing fewer cards than the user picked.
+    if (unplaced > 0) showToast(pageLimitMessage(store.tier, store.limits));
+    else if (added > 0) showToast(`Added ${added} card${added === 1 ? '' : 's'}`);
   };
 
   // The artworks-kept cap covers EVERY way new art enters the account: studio saves are gated

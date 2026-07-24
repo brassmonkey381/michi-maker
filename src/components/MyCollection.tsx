@@ -45,6 +45,7 @@ import {
   type UserCard,
 } from '@/data/collectionRepo';
 import { EXAMPLE_COLLECTION_CSV, EXAMPLE_COLLECTION_NAME } from '@/data/exampleCollection';
+import { binderLimitMessage, pageLimitMessage } from '@/data/limitMessages';
 import { isSupabaseConfigured } from '@/lib/env';
 import { cardThumbUrl } from '@/lib/catalogConfig';
 import { useCatalog } from '@/hooks/use-catalog';
@@ -236,11 +237,14 @@ function CollectionStrip({
   useEffect(() => {
     if (!pendingAdd) return;
     if (!store.userBinders.some((b) => b.id === pendingAdd.binderId)) return;
-    const { added } = store.addCardsToBinder(pendingAdd.binderId, pendingAdd.ids, {
+    const { added, unplaced } = store.addCardsToBinder(pendingAdd.binderId, pendingAdd.ids, {
       fromCollection: true,
     });
     setPendingAdd(null);
-    if (added > 0) onToast?.(`Added ${added} card${added === 1 ? '' : 's'} to your new binder`);
+    // The page cap can leave cards out — say so (with the upgrade route) rather than dropping
+    // them silently.
+    if (unplaced > 0) onToast?.(pageLimitMessage(store.tier, store.limits));
+    else if (added > 0) onToast?.(`Added ${added} card${added === 1 ? '' : 's'} to your new binder`);
   }, [pendingAdd, store, onToast]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -391,9 +395,11 @@ function CollectionStrip({
     const ids = placeableIds;
     setChooser(null);
     setSelected(new Set());
-    const { added } = store.addCardsToBinder(binderId, ids, { fromCollection: true });
+    const { added, unplaced } = store.addCardsToBinder(binderId, ids, { fromCollection: true });
     const title = store.userBinders.find((b) => b.id === binderId)?.title ?? 'binder';
-    if (added > 0) onToast?.(`Added ${added} card${added === 1 ? '' : 's'} to ${title}`);
+    // Anything the page cap left out is named, not dropped in silence.
+    if (unplaced > 0) onToast?.(pageLimitMessage(store.tier, store.limits));
+    else if (added > 0) onToast?.(`Added ${added} card${added === 1 ? '' : 's'} to ${title}`);
   };
 
   const addToNew = () => {
@@ -401,6 +407,11 @@ function CollectionStrip({
     setChooser(null);
     setSelected(new Set());
     const binder = store.createBinder({ title: 'My collection picks' });
+    // The store refuses past the binder cap — say so instead of silently doing nothing.
+    if (!binder) {
+      onToast?.(binderLimitMessage(store.tier, store.limits));
+      return;
+    }
     setPendingAdd({ binderId: binder.id, ids });
   };
 

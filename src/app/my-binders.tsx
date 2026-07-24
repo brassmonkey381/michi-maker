@@ -82,7 +82,7 @@ export default function MyBindersScreen() {
       return;
     }
     const binder = store.createBinder({ title: 'New binder' });
-    openBinder(binder.id);
+    if (binder) openBinder(binder.id);
   };
 
   // Show the filter once there are enough binders that scanning gets tedious.

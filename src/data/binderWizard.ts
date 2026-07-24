@@ -229,10 +229,19 @@ export function proposePages(
   return { proposals, bulk };
 }
 
-/** Default page ceiling for a wizard build — matches the free tier's per-binder page cap
- *  (see TIER_LIMITS.free.pagesPerBinder). A build shouldn't dump dozens of pages on a new user;
- *  they can always add more by hand. */
+/** The wizard's OWN page ceiling — a build shouldn't dump dozens of pages on a new user; they can
+ *  always add more by hand. This is a taste call, not a tier cap: the effective ceiling for a
+ *  build is this AND the user's per-binder page limit, resolved by `wizardMaxPages`. */
 export const WIZARD_MAX_PAGES = 16;
+
+/**
+ * Effective page ceiling for a build: the wizard's own ceiling, never above the tier's
+ * per-binder page cap. Pass `TierLimits.pagesPerBinder` (Infinity while LIMITS_ENFORCED is off, or
+ * on VIP — the wizard's own ceiling then applies unchanged).
+ */
+export function wizardMaxPages(pagesPerBinder: number): number {
+  return Math.min(WIZARD_MAX_PAGES, pagesPerBinder);
+}
 
 /**
  * Trim a chosen page set down to `max` pages. Drop order matches the owner's intent for a

@@ -12,11 +12,13 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { TcgscanSynergyNote } from '@/components/monetization/BundleOffer';
+import { UpgradePerk } from '@/components/monetization/UpgradePerk';
 import { LogoLoader } from '@/components/brand/LogoLoader';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
-import { buildPages, capProposals, proposePages, WIZARD_MAX_PAGES, type WizardProposal } from '@/data/binderWizard';
+import { buildPages, capProposals, proposePages, wizardMaxPages, type WizardProposal } from '@/data/binderWizard';
+import { binderLimitMessage } from '@/data/limitMessages';
 import { useCatalog } from '@/hooks/use-catalog';
 import { usePriceSummary } from '@/lib/prices';
 import { useBinders } from '@/store/binders';
@@ -78,11 +80,15 @@ export function BuildBinderSheet({
   const chosenThemes = plan ? plan.proposals.filter((p) => !excluded.has(p.key)) : [];
   const chosenRaw: WizardProposal[] = [...chosenThemes, ...(bulkOn && plan ? plan.bulk : [])];
   // Cap the build at a sensible page ceiling (grass bulk goes first, then the rest of the bulk,
-  // then evolution pages — see capProposals). Keeps a fresh build from ballooning past the
-  // free-tier page limit.
-  const chosen = capProposals(chosenRaw);
+  // then evolution pages — see capProposals). The ceiling is the wizard's own taste call capped
+  // by THIS user's per-binder page limit, so a build never lands over the tier's cap.
+  const maxPages = wizardMaxPages(store.limits.pagesPerBinder);
+  const chosen = capProposals(chosenRaw, maxPages);
   const trimmed = chosenRaw.length - chosen.length;
   const cardTotal = chosen.reduce((n, p) => n + p.cardIds.length, 0);
+  // A build adds a binder — demo builds ("Try it out!") sit outside the cap, like the store's own
+  // createBinder guard. At the cap the button goes quiet and the perk note explains why.
+  const atBinderLimit = !asDemo && store.atBinderLimit;
 
   const build = () => {
     if (chosen.length === 0) return;
@@ -91,6 +97,8 @@ export function BuildBinderSheet({
       pages: buildPages(chosen),
       isDemo: asDemo || undefined,
     });
+    // The store refuses past the binder cap — leave the sheet open on the perk note below.
+    if (!binder) return;
     onBuilt(binder.id, chosen.length);
     onClose();
   };
@@ -131,7 +139,7 @@ export function BuildBinderSheet({
 
                 {trimmed > 0 ? (
                   <ThemedText type="small" themeColor="textSecondary" style={styles.trimNote}>
-                    Capped at {WIZARD_MAX_PAGES} pages — {trimmed} extra bulk/evolution page
+                    Capped at {maxPages} pages — {trimmed} extra bulk/evolution page
                     {trimmed === 1 ? '' : 's'} left out. Untick pages above to swap which ones make it in.
                   </ThemedText>
                 ) : null}
@@ -186,12 +194,23 @@ export function BuildBinderSheet({
                   ) : null}
                 </ScrollView>
 
+                {atBinderLimit ? (
+                  store.tier === 'guest' ? (
+                    <SignInPerk message={binderLimitMessage(store.tier, store.limits)} />
+                  ) : (
+                    <UpgradePerk
+                      message={binderLimitMessage(store.tier, store.limits)}
+                      onBeforePress={onClose}
+                    />
+                  )
+                ) : null}
+
                 <Pressable
                   onPress={build}
-                  disabled={chosen.length === 0}
+                  disabled={chosen.length === 0 || atBinderLimit}
                   style={({ pressed }) => [
                     styles.buildBtn,
-                    (pressed || chosen.length === 0) && styles.pressed,
+                    (pressed || chosen.length === 0 || atBinderLimit) && styles.pressed,
                   ]}>
                   <Text style={styles.buildBtnText}>
                     Build binder · {chosen.length} page{chosen.length === 1 ? '' : 's'}, {cardTotal}{' '}

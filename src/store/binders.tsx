@@ -130,9 +130,11 @@ interface BinderStore {
   /** True when adding a page to this binder would exceed the tier limit (always false while the flag is off). */
   pageLimitReached: (binderId: string) => boolean;
   getBinder: (id: string) => DemoBinder | undefined;
-  createBinder: (init?: Partial<DemoBinder>) => DemoBinder;
-  /** Create a fresh binder seeded with one card in its first pocket (atomic). */
-  createBinderWithCard: (cardId: string) => DemoBinder;
+  /** Create a binder. Returns undefined when the tier's binder cap refuses it (callers show the
+   *  upgrade note), same contract as duplicateBinder. Demo/example binders are free of the cap. */
+  createBinder: (init?: Partial<DemoBinder>) => DemoBinder | undefined;
+  /** Create a fresh binder seeded with one card in its first pocket (atomic). Undefined at the cap. */
+  createBinderWithCard: (cardId: string) => DemoBinder | undefined;
   duplicateBinder: (id: string) => DemoBinder | undefined;
   updateBinder: (id: string, patch: Partial<DemoBinder>) => void;
   deleteBinder: (id: string) => void;
@@ -163,18 +165,21 @@ interface BinderStore {
   upsertSlot: (binderId: string, pageId: string, slot: SlotInput) => void;
   /**
    * Drop a card into a binder's first free 1×1 pocket (scanning pages in order; appends a new
-   * page if every page is full). Atomic — one history entry. Returns the page index it landed on,
-   * or null if the binder can't be found.
+   * page if every page is full, but never past the tier's per-binder page cap). Atomic — one
+   * history entry. Returns the page index it landed on, or null if the binder can't be found or
+   * the page cap leaves nowhere to put it.
    */
   addCardToBinder: (binderId: string, cardId: string) => { pageIndex: number } | null;
-  /** Batch-add many cards, each to the next free 1×1 pocket (appending pages as needed), in ONE
-   *  commit + persist pass — avoids the stale-closure re-placement that a per-card loop hits.
-   *  `fromCollection` marks the pockets as consuming owned copies (My-collection provenance). */
+  /** Batch-add many cards, each to the next free 1×1 pocket (appending pages as needed, but never
+   *  past the tier's per-binder page cap), in ONE commit + persist pass — avoids the stale-closure
+   *  re-placement that a per-card loop hits. `fromCollection` marks the pockets as consuming owned
+   *  copies (My-collection provenance). `unplaced` is how many cards the cap left out, so callers
+   *  can surface the upgrade note instead of dropping them silently. */
   addCardsToBinder: (
     binderId: string,
     cardIds: string[],
     opts?: { fromCollection?: boolean },
-  ) => { added: number };
+  ) => { added: number; unplaced: number };
   /** Batch-place 1×1 pockets at explicit page cells (the page composer's output) in ONE commit —
    *  a single history entry so the whole auto-fill undoes at once. Each placement is a card, a
    *  tonal insert, or an artwork slice (exactly one of cardId / insertColor / imageUrl). Cells
@@ -444,6 +449,11 @@ export function BinderProvider({ children }: { children: ReactNode }) {
 
   const createBinder = useCallback(
     (init?: Partial<DemoBinder>) => {
+      // Creating adds a binder — refuse past the tier limit (UI shows the upgrade note), exactly
+      // as duplicateBinder does. Demo/example binders sit outside the cap (see binderCount), so
+      // the "Try it out!" showcase still builds for a user who is already at their limit.
+      const counted = !init?.isDemo && !init?.isExample;
+      if (counted && LIMITS_ENFORCED && binderCount >= limits.binders) return undefined;
       const binder: DemoBinder = {
         id: uuidv4(),
         title: 'Untitled binder',
@@ -464,7 +474,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       persist(() => repo.insertBinder(binder));
       return binder;
     },
-    [binders, commit, persist],
+    [binders, binderCount, limits.binders, commit, persist],
   );
 
   const createBinderWithCard = useCallback(
@@ -805,7 +815,10 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         pages = target.pages.map((p, i) => (i === pageIndex ? { ...p, slots: [...p.slots, newSlot] } : p));
         landedPage = pages[pageIndex];
       } else {
-        // Every page is full → append a fresh page and place at its top-left.
+        // Every page is full → append a fresh page and place at its top-left. Refuse (null, like
+        // "binder not found") once the binder sits at the tier's page cap — same rule as addPage.
+        if (LIMITS_ENFORCED && !target.isExample && target.pages.length >= limits.pagesPerBinder)
+          return null;
         appendedPage = true;
         pageIndex = target.pages.length;
         newSlot = makeSlot(0, 0);
@@ -820,13 +833,17 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       }
       return { pageIndex };
     },
-    [binders, commit, persist],
+    [binders, limits.pagesPerBinder, commit, persist],
   );
 
   const addCardsToBinder = useCallback(
     (binderId: string, cardIds: string[], opts?: { fromCollection?: boolean }) => {
       const target = binders.find((b) => b.id === binderId);
-      if (!target || cardIds.length === 0) return { added: 0 };
+      if (!target || cardIds.length === 0) return { added: 0, unplaced: 0 };
+
+      // Appending pages is capped by the tier, same rule as addPage — examples are never
+      // persisted, so leave their in-session editing unlimited.
+      const maxPages = LIMITS_ENFORCED && !target.isExample ? limits.pagesPerBinder : Infinity;
 
       // Evolve ONE working copy so each card lands in the NEXT free cell. A per-card loop over
       // addCardToBinder reads stale closure state every iteration, so every card resolves to the
@@ -834,6 +851,9 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       const pages: DemoPage[] = target.pages.map((p) => ({ ...p, slots: [...p.slots] }));
       const firstAppended = pages.length; // pages at this index and beyond are newly appended
       const placed: { pageId: string; slot: DemoSlot }[] = [];
+      // Cards the page cap left out — reported so the caller can show the upgrade note rather
+      // than quietly losing them.
+      let unplaced = 0;
 
       for (const cardId of cardIds) {
         let pageIndex = -1;
@@ -847,7 +867,12 @@ export function BinderProvider({ children }: { children: ReactNode }) {
           }
         }
         if (pageIndex < 0 || !cell) {
-          // Every page is full → append a fresh page and start at its top-left.
+          // Every page is full → append a fresh page and start at its top-left, unless the binder
+          // is already at the tier's page cap: then this card (and every one after it) stays out.
+          if (pages.length >= maxPages) {
+            unplaced += 1;
+            continue;
+          }
           pages.push(emptyPage(3, 3, `Page ${pages.length + 1}`));
           pageIndex = pages.length - 1;
           cell = { row: 0, col: 0 };
@@ -866,6 +891,9 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         placed.push({ pageId: pages[pageIndex].id, slot });
       }
 
+      // Nothing fitted → no commit at all, so the cap can't burn an empty undo step.
+      if (placed.length === 0) return { added: 0, unplaced };
+
       commit((prev) => prev.map((b) => (b.id === binderId ? { ...b, pages } : b)));
       if (!target.isExample) {
         // One ordered op: create any appended pages FIRST (FK), then the slots (distinct cells,
@@ -880,9 +908,9 @@ export function BinderProvider({ children }: { children: ReactNode }) {
           }
         });
       }
-      return { added: cardIds.length };
+      return { added: placed.length, unplaced };
     },
-    [binders, commit, persist],
+    [binders, limits.pagesPerBinder, commit, persist],
   );
 
   const placeCards = useCallback(

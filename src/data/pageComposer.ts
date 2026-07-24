@@ -10,24 +10,25 @@
  *  - evolutionLine  → the seed's evolution family, reading Basic → final stage (Themed/Story)
  *  - sameArtist     → the seed illustrator's other work, spread across eras (Card Artist)
  *  - trainerPage    → a trainer's partner/team/supporter world (Trainer)
- *  - colorTheme     → the seed's energy colour across eras + tonal inserts (Color-Themed)
- *  - fullPageSpread → one theme-matched artwork sliced across every empty pocket, the placed
- *                     cards reading as accents inside it (Full-Page Spread)
- *                     ⚠️ DISABLED — see the fullPageSpread branch + docs/FILL-METHODS.md. It
- *                     sourced background art from the (removed) bundled Art of Pokémon library
- *                     and needs a replacement art source before it can be re-enabled.
+ *  - colorTheme     → cards whose PALETTE is closest to the seed (the Tri-Color Search —
+ *                     findSimilarByColor), with tonal inserts for cohesion (Color-Themed)
+ *  - fullPageSpread → one of our OWNED procedural "color sheets" (themeBackgrounds — 3 palettes ×
+ *                     18 energy families = 54) sliced across every empty pocket; the placed cards
+ *                     read as accents on the sheet (Full-Page Spread)
  *  (+ pokemonFriends — curated duos/TAG-TEAM lore, our extra beyond the canonical seven.)
  *
- * Selection is deterministic (except the moreLikeThis RPC ranking): only standard 1×1 cards,
+ * Selection is deterministic (except the moreLikeThis RPC ranking and colorTheme's palette
+ * ranking): only standard 1×1 cards,
  * no card already on the page, no duplicate (name, set) print twice, and "variety ranking" —
  * candidates are round-robined across series so a page samples eras/styles instead of dumping
  * one set's run.
  */
-import { findSimilar, similarAvailable } from 'tcgscan-browse';
+import { colorSearchAvailable, findSimilar, findSimilarByColor, similarAvailable } from 'tcgscan-browse';
 
 import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { occupiedCells, type DemoPage } from '@/data/binderTypes';
 import { hasToken } from '@/data/nameMatch';
+import { THEME_BACKGROUNDS, themeBackgroundDataUri } from '@/data/themeBackgrounds';
 import { loadPokemonPartners, partnersFor } from '@/data/pokemonPartners';
 import { loadTrainerPartners, trainerFor } from '@/data/trainerPartners';
 
@@ -102,13 +103,13 @@ export const COMPOSE_METHODS: {
   },
   {
     key: 'colorTheme',
-    label: 'Color theme',
-    description: 'Cards sharing this one’s energy colour, with tonal inserts for cohesion.',
+    label: 'Color match',
+    description: 'Cards whose palette is closest to this one (tri-color search), with tonal inserts.',
   },
   {
     key: 'fullPageSpread',
     label: 'Full-page spread',
-    description: 'One theme-matched artwork flows across every empty pocket. Your cards become the accents.',
+    description: 'A color sheet flows across every empty pocket. Your cards become the accents.',
   },
 ];
 
@@ -122,34 +123,60 @@ export function availableMethods(seed: CatalogCard, catalog: Catalog): ComposeMe
   if (species && partnersFor(species, catalog).length > 0) out.push('pokemonFriends');
   if (trainerFor(seed.name)) out.push('trainerPage');
   if (seed.illustrator.trim()) out.push('sameArtist');
-  if (seed.types.length > 0 && TYPE_STYLES[seed.types[0]]) out.push('colorTheme');
-  // fullPageSpread is intentionally NOT offered: its art source (bundled Art of Pokémon) was
-  // removed and it has no replacement yet. Re-add the push once composePage can source art
-  // again — see the fullPageSpread branch + docs/FILL-METHODS.md.
+  // Color match ranks by palette (findSimilarByColor) — offered whenever a color path is usable
+  // (on-device index OR the server RPC), regardless of the seed's type.
+  if (colorSearchAvailable()) out.push('colorTheme');
+  // Full-page spread now sources from our OWNED procedural color sheets (themeBackgrounds), so it
+  // always works — no external art, no licensing.
+  out.push('fullPageSpread');
   return out;
 }
 
 /**
- * Per-energy-type styling: soft tonal insert colours (light → deeper, echoing the card frame
- * palette) for the Color-Themed method. `scenery` is a theme word the (now-disabled) Full-Page
- * Spread used to seed its art search — retained so that method is easy to reinstate once it has a
- * replacement art source (see the fullPageSpread branch + docs/FILL-METHODS.md). The card FRAME is
- * coloured by its energy type, so type is a faithful colour-palette proxy until per-card
- * dominant-colour enrichment lands upstream.
+ * Per-energy-type tonal insert colours (light → deeper, echoing the card frame palette) — the
+ * scattered negative-space tiles the Color-match method drops in for cohesion. The card FRAME is
+ * coloured by its energy type, so type is a faithful colour-palette proxy for the inserts.
  */
-const TYPE_STYLES: Record<string, { tones: string[]; scenery: string }> = {
-  Grass: { tones: ['#E3EEDA', '#C4DCB0', '#9CC584'], scenery: 'forest' },
-  Fire: { tones: ['#FAE0D2', '#F4BCA0', '#EC9273'], scenery: 'fire' },
-  Water: { tones: ['#DCEAF7', '#B4D3EE', '#86B8E2'], scenery: 'ocean' },
-  Lightning: { tones: ['#FBF2CC', '#F6E4A0', '#EFD16F'], scenery: 'lightning' },
-  Psychic: { tones: ['#EBDFF3', '#D4BCE7', '#B994D8'], scenery: 'psychic' },
-  Fighting: { tones: ['#F1E3D3', '#E0C5A5', '#CBA377'], scenery: 'fighting' },
-  Darkness: { tones: ['#DCDFE4', '#AEB4BF', '#767E8C'], scenery: 'night' },
-  Metal: { tones: ['#EBEDEF', '#D2D7DC', '#B3BAC3'], scenery: 'metal' },
-  Fairy: { tones: ['#FAE2EA', '#F4C0D3', '#EC9CBB'], scenery: 'fairy' },
-  Dragon: { tones: ['#F0E6CC', '#E0D0A0', '#CBB373'], scenery: 'dragon' },
-  Colorless: { tones: ['#F3F2EF', '#E3E1DB', '#CFCCC4'], scenery: 'sky' },
+const TYPE_STYLES: Record<string, { tones: string[] }> = {
+  Grass: { tones: ['#E3EEDA', '#C4DCB0', '#9CC584'] },
+  Fire: { tones: ['#FAE0D2', '#F4BCA0', '#EC9273'] },
+  Water: { tones: ['#DCEAF7', '#B4D3EE', '#86B8E2'] },
+  Lightning: { tones: ['#FBF2CC', '#F6E4A0', '#EFD16F'] },
+  Psychic: { tones: ['#EBDFF3', '#D4BCE7', '#B994D8'] },
+  Fighting: { tones: ['#F1E3D3', '#E0C5A5', '#CBA377'] },
+  Darkness: { tones: ['#DCDFE4', '#AEB4BF', '#767E8C'] },
+  Metal: { tones: ['#EBEDEF', '#D2D7DC', '#B3BAC3'] },
+  Fairy: { tones: ['#FAE2EA', '#F4C0D3', '#EC9CBB'] },
+  Dragon: { tones: ['#F0E6CC', '#E0D0A0', '#CBB373'] },
+  Colorless: { tones: ['#F3F2EF', '#E3E1DB', '#CFCCC4'] },
 };
+
+/**
+ * TCG energy type → themeBackgrounds family (our owned "color sheets"). The families ice / poison /
+ * ground / flying / bug / rock / ghost exist as sheets too but aren't card types, so they're never
+ * mapped from here; a typeless card (item/trainer) falls back to 'normal'.
+ */
+const TYPE_TO_FAMILY: Record<string, string> = {
+  Grass: 'grass',
+  Fire: 'fire',
+  Water: 'water',
+  Lightning: 'electric',
+  Psychic: 'psychic',
+  Fighting: 'fighting',
+  Darkness: 'dark',
+  Metal: 'steel',
+  Fairy: 'fairy',
+  Dragon: 'dragon',
+  Colorless: 'normal',
+};
+
+/** Stable string → 32-bit hash (FNV-1a), for deterministically picking a sheet palette/arrangement
+ *  from the seed card id — the same card always yields the same spread. */
+function hashStr(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i += 1) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  return h >>> 0;
+}
 
 // Decorations that appear alongside a species in card names ("Pikachu ex", "Radiant Greninja",
 // "Mega Charizard Y", "Dark Alakazam"); stripped when falling back to name-based species
@@ -338,40 +365,49 @@ export async function composePage(
   }
 
   if (method === 'fullPageSpread') {
-    // ⚠️ DISABLED (2026-07-23). This method flowed one background artwork across every empty
-    // pocket (each pocket showing its window of the whole image — the crop math below), with the
-    // placed cards reading as accents inside the scene. Its art came from the bundled Art of
-    // Pokémon library (searchArt), which has been removed, so it can no longer source an image.
-    // `availableMethods` doesn't offer it, so this branch shouldn't be reached; it returns [] as
-    // a belt-and-braces guard.
-    //
-    // TODO(fill): REPLACE the art source. Reinstate with an owned/licensed art pipeline (e.g. our
-    // procedural themeBackgrounds, a user-supplied Slice Studio image, or a rights-cleared gallery),
-    // then re-add `out.push('fullPageSpread')` in availableMethods. The placement/crop shape to
-    // restore, once `image` is a { url } again:
-    //   return cells.map((cell) => ({
-    //     ...cell,
-    //     imageUrl: image.url,
-    //     imageCrop: { x: cell.col / page.cols, y: cell.row / page.rows, w: 1 / page.cols, h: 1 / page.rows },
-    //   }));
-    // See docs/FILL-METHODS.md.
-    return [];
+    // One of our OWNED procedural "color sheets" (themeBackgrounds — 3 palettes × 18 families)
+    // flows across EVERY empty pocket: each pocket shows its window of the one image (the crop
+    // math), so the placed cards read as accents on the sheet. The family comes from the seed's
+    // energy type; the palette + arrangement are seeded by the card id (deterministic, so a binder
+    // renders identically every time). No external art, no licensing.
+    const seedNum = hashStr(seed.id);
+    const family = TYPE_TO_FAMILY[seed.types[0] ?? ''] ?? 'normal';
+    const sheets = THEME_BACKGROUNDS.filter((t) => t.family === family);
+    const sheet = (sheets.length ? sheets : THEME_BACKGROUNDS)[seedNum % (sheets.length || THEME_BACKGROUNDS.length)];
+    // Render the sheet at the page's overall shape (each cell a 250×350 card pocket) so the motifs
+    // scatter true-to-aspect across the whole spread.
+    const imageUrl = themeBackgroundDataUri(sheet.id, {
+      w: page.cols * 250,
+      h: page.rows * 350,
+      seed: seedNum,
+    });
+    return cells.map((cell) => ({
+      ...cell,
+      imageUrl,
+      imageCrop: {
+        x: cell.col / page.cols,
+        y: cell.row / page.rows,
+        w: 1 / page.cols,
+        h: 1 / page.rows,
+      },
+    }));
   }
 
   if (method === 'colorTheme') {
-    // The seed's energy colour across eras. A few pockets become tonal inserts — the michi
-    // negative-space look — and any card shortfall falls back to inserts too, so the page
-    // always reads finished.
-    const type = seed.types[0] ?? '';
-    const style = TYPE_STYLES[type];
-    if (!style) return [];
-    const cards = varietyRank(
-      filterAndDedupe(
-        catalog.listAll().filter((c) => c.types.includes(type)),
-        page,
-        pool,
-      ),
+    // Cards whose PALETTE is closest to the seed — the Tri-Color Search (findSimilarByColor, hybrid
+    // on-device/server, fails soft to []). Nearest-first, so we KEEP that order (no variety re-rank,
+    // which would scramble the colour ranking). A few pockets become tonal inserts (the seed's type
+    // tones) for the michi negative-space look; a card shortfall falls back to inserts too.
+    const ids = await findSimilarByColor(seed.id, 'noborder', { limit: cells.length * 3 + 8 });
+    const cards = filterAndDedupe(
+      ids.map((id) => catalog.getCard(id)).filter((c): c is CatalogCard => !!c),
+      page,
+      pool,
     );
+    if (cards.length === 0) return [];
+    const style = TYPE_STYLES[seed.types[0] ?? ''];
+    // No type (item/trainer seed) → no tonal palette; just lay the colour-matched cards in.
+    if (!style) return place(cells, cards.slice(0, cells.length));
     // Deliberate tonal inserts: ~1 per 4 pockets, scattered (never the first pocket, which
     // usually neighbours the seed).
     const insertCount = Math.min(3, Math.floor(cells.length / 4));

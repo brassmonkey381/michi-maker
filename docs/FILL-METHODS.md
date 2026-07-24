@@ -28,8 +28,8 @@ series/eras so a page samples styles instead of dumping one set's run).
 | `pokemonFriends` | Friends & partners | Curated duos / TAG-TEAM lore + species proven to share card art. | `pokemonPartners` (tcgscan-data) + catalog | partners exist for species |
 | `trainerPage` | Trainer page | A trainer's signature partner(s), trainer cards, and canonical team. | `trainerPartners` (tcgscan-data) + catalog | `trainerFor(name)` matches |
 | `sameArtist` | Same artist | More cards by the same illustrator, sampled across eras. | catalog scan by `illustrator` | illustrator known |
-| `colorTheme` | Color theme | The seed's energy colour across eras, with scattered tonal inserts (the michi negative-space look). | catalog scan by type + `TYPE_STYLES` tones | seed has a type in `TYPE_STYLES` |
-| `fullPageSpread` | Full-page spread | **⚠️ DISABLED.** One background artwork sliced across every empty pocket, cards reading as accents. | ~~bundled Art of Pokémon (`searchArt`)~~ removed | **never (see below)** |
+| `colorTheme` | Color match | Cards whose **palette** is closest to the seed (nearest-first, order kept — no variety re-rank), with scattered tonal inserts for the michi negative-space look. | **Tri-Color Search** — `findSimilarByColor(seed.id, 'noborder')` (kit, hybrid on-device/server) + `TYPE_STYLES` tones for inserts | `colorSearchAvailable()` |
+| `fullPageSpread` | Full-page spread | One owned **color sheet** flows across every empty pocket (each shows its crop window); cards read as accents. Sheet family from the seed's type, palette + arrangement seeded by the card id. | **`themeBackgrounds`** — our procedural sheets (3 palettes × 18 families = 54), fully owned | always |
 
 ### "Fill from my collection" (pool)
 
@@ -39,24 +39,29 @@ The AutoFillSheet shows the "From my collection (N)" toggle only when the invent
 tags placed pockets `fromCollection: true` so inventory accounting / Reclaim sees them. The
 preference sticks for the session.
 
-### ⚠️ `fullPageSpread` is disabled — needs a replacement art source
+### `fullPageSpread` — owned "color sheets"
 
-As of **2026-07-23** we removed the bundled **Art of Pokémon** (artofpkm.com) integration. That was
-the only art source `fullPageSpread` had (`searchArt` → seed species, energy-type theme fallback),
-so the method can no longer produce a background image. It is:
+History: it once sourced background art from the bundled **Art of Pokémon** (removed 2026-07-23),
+was disabled, and on **2026-07-24** was **re-enabled on our own art**. It now flows one of the 54
+procedural `themeBackgrounds` "color sheets" (`src/data/themeBackgrounds.ts` — 3 palettes × 18 energy
+families) across every empty pocket:
 
-- **not** listed in `availableMethods` (so the UI never offers it), and
-- guarded to `return []` in the `composePage` branch (belt-and-braces).
+- **family** = the seed's TCG type mapped via `TYPE_TO_FAMILY` (typeless → `normal`);
+- **palette + arrangement** = seeded by the card id (`hashStr(seed.id)`) so the spread is
+  deterministic (identical every render) yet varies card to card;
+- the sheet is rendered at the page shape (`w: cols*250, h: rows*350`) as one `imageUrl` (an SVG
+  `data:` URI), and each pocket gets its `imageCrop` window — the same crop mechanism the old
+  photo-based version used.
 
-**TODO(fill): replace the art source and re-enable.** To reinstate:
+Fully owned, offline, no licensing — so it's **always** offered.
 
-1. Give it a rights-cleared art source — options: our procedural `themeBackgrounds` (fully owned),
-   a user-supplied Slice Studio image, or a licensed gallery pipeline.
-2. Restore the placement/crop shape kept in the branch comment (each pocket shows its window of the
-   whole image via `imageCrop`).
-3. Re-add `out.push('fullPageSpread')` in `availableMethods` (gated on the new source being ready).
+### `colorTheme` — the Tri-Color Search
 
-`TYPE_STYLES[...].scenery` (the theme words) is retained for exactly this reinstatement.
+Rebuilt **2026-07-24** to rank by **palette** instead of energy type. It calls the kit's
+`findSimilarByColor(seed.id, 'noborder', { limit })` (the same colour engine behind the Search-by-color
+sheet's "similar" mode — hybrid on-device index / server RPC, fails soft to `[]`), keeps that
+nearest-first order (no `varietyRank`, which would scramble it), and scatters a few `TYPE_STYLES`
+tonal inserts (when the seed has a type) for cohesion. Offered whenever `colorSearchAvailable()`.
 
 ---
 

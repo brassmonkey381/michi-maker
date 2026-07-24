@@ -84,15 +84,25 @@ export async function deletePortfolio(id: string): Promise<void> {
   if (error) throw new Error(`delete portfolio: ${error.message}`);
 }
 
+/** Monotonic suffix so every subscription gets a UNIQUE channel topic (see subscribeUserCards). */
+let channelSeq = 0;
+
 /**
  * Live changes to the user's inventory (scan-to-screen): calls `onChange` on any insert /
  * update / delete of their rows. Returns an unsubscribe. The publication includes user_cards
  * (20260714150000) and RLS keeps the stream owner-only.
+ *
+ * The channel topic carries a per-call `channelSeq` suffix and is NEVER just `user_cards:<userId>`.
+ * A fixed topic collides whenever two subscriptions overlap — two live `useOwnedCards()` callers,
+ * or a remount whose async `removeChannel()` hasn't finished — because `supabase.channel(topic)`
+ * then hands back the already-`subscribe()`d channel, and chaining `.on('postgres_changes', …)`
+ * onto it throws "cannot add postgres_changes callbacks … after subscribe()" synchronously in the
+ * effect, blanking the page. A unique topic guarantees a fresh, un-subscribed channel every time.
  */
 export function subscribeUserCards(userId: string, onChange: () => void): () => void {
   const supabase = requireSupabase();
   const channel = supabase
-    .channel(`user_cards:${userId}`)
+    .channel(`user_cards:${userId}:${++channelSeq}`)
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'user_cards', filter: `owner_id=eq.${userId}` },

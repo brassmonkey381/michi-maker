@@ -26,7 +26,6 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
 import { sheet } from '@/constants/ui';
-import { artForArtofpkmUrl } from '@/data/artSearch';
 import { importRemoteArtToBucket } from '@/lib/importArt';
 import { uploadArtImage } from '@/lib/uploadArt';
 import { deriveAttribution, domainOf, type ArtAttribution } from '@/data/artworkLibrary';
@@ -56,12 +55,6 @@ const clampAxis = (v: number, size: number) => clamp(v, -OVER * size, 1 - size +
  * often block hotlinking (403 → blank pocket), so the modal steers those users to save + Upload.
  */
 const ART_SOURCES: { title: string; blurb: string; url: string; dragFriendly: boolean }[] = [
-  {
-    title: 'Art of Pokémon',
-    url: 'https://www.artofpkm.com/artwork/all',
-    blurb: 'Curated official artwork, browsable by artist and era.',
-    dragFriendly: true,
-  },
   {
     title: 'Bulbagarden Archives',
     url: 'https://archives.bulbagarden.net/wiki/Main_Page',
@@ -215,6 +208,9 @@ interface SliceStudioProps {
   trayLimit?: number;
   /** Guests can't keep artworks (cap 0): show the sign-in note, never an upgrade pitch. */
   guest?: boolean;
+  /** Render inline (inside the picker's Artwork tab) instead of as a full-screen modal: no outer
+   *  Modal/SafeAreaView chrome and no Close button — the host sheet's tab bar handles navigation. */
+  embedded?: boolean;
 }
 
 export function SliceStudio({
@@ -226,6 +222,7 @@ export function SliceStudio({
   trayCount = 0,
   trayLimit = Infinity,
   guest = false,
+  embedded = false,
 }: SliceStudioProps) {
   const { width, height } = useWindowDimensions();
 
@@ -287,21 +284,19 @@ export function SliceStudio({
   // Bring a REMOTE image url in — shared by URL paste AND drag-drop. We FETCH the image and upload
   // a copy to the user's own bucket (importRemoteArtToBucket), so nothing is ever hotlinked: the
   // slot holds the user's own hosted copy, while the ORIGINAL url is kept only as attribution (the
-  // credit / public-binder source). An artofpkm reference resolves to full artist + source first.
+  // credit / public-binder source).
   // If the fetch fails (a host we can't reach), we tell the user to Upload — never store the link.
   const loadRemoteUrl = useCallback(
     async (u: string) => {
-      const art = artForArtofpkmUrl(u);
-      const fetchFrom = art ? art.url : u;
       const derived = deriveAttribution(u);
-      const base: ArtAttribution = art?.attribution ?? { ...derived, sourceUrl: derived.sourceUrl ?? u };
+      const base: ArtAttribution = { ...derived, sourceUrl: derived.sourceUrl ?? u };
       // Pulled from an outside URL — provenance we can't verify → PRIVATE. Hosting a copy in the
       // user's bucket does not change that; only a file the user uploads + attests is public.
       const attribution: ArtAttribution = { ...base, origin: 'external' };
       setImporting(true);
       setImportError(null);
       try {
-        const hostedUrl = await importRemoteArtToBucket(fetchFrom);
+        const hostedUrl = await importRemoteArtToBucket(u);
         loadImage(hostedUrl, attribution); // imageUrl = user's bucket copy; credit = original source
       } catch (e) {
         setImportError((e as Error).message);
@@ -355,8 +350,8 @@ export function SliceStudio({
   }, [imageUrl]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  // Web: drop an image (or its URL) dragged from anywhere — e.g. an Art of Pokémon tab — onto the
-  // studio to load it. The studio is a full-screen modal, so a drop while it's open is for us.
+  // Web: drop an image (or its URL) dragged from anywhere — a gallery tab, your files — onto the
+  // studio to load it. A drop while the studio is open is for us.
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return;
     const onDragOver = (e: DragEvent) => {
@@ -749,13 +744,18 @@ export function SliceStudio({
   // Saving would pass the account's artwork cap (a retention cap: slices KEPT, not a rate).
   const wouldExceedTray = hasImage && panels.length > 0 && trayCount + panels.length > trayLimit;
 
-  return (
-    <Modal visible animationType="slide" onRequestClose={requestClose}>
-      <SafeAreaView style={styles.flex} edges={['top']}>
+  const body = (
+    <>
         <View style={styles.header}>
-          <Pressable onPress={onClose} hitSlop={10}>
-            <Text style={styles.headerAction}>Close</Text>
-          </Pressable>
+          {embedded ? (
+            // The host sheet's Cards/Artwork/Insert tab bar handles navigation, so no Close here —
+            // an empty spacer keeps the title centred between it and the right-hand actions.
+            <View style={styles.headerSpacer} />
+          ) : (
+            <Pressable onPress={onClose} hitSlop={10}>
+              <Text style={styles.headerAction}>Close</Text>
+            </Pressable>
+          )}
           <ThemedText type="subtitle">Slice studio</ThemedText>
           <View style={styles.headerRight}>
             <Pressable
@@ -810,7 +810,7 @@ export function SliceStudio({
               <TextInput
                 value={urlInput}
                 onChangeText={setUrlInput}
-                placeholder="…or paste an image or artofpkm.com URL"
+                placeholder="…or paste an image URL"
                 placeholderTextColor={Palette.muted3}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -820,11 +820,10 @@ export function SliceStudio({
             </View>
           </View>
 
-          {/* Attribution hint — the auto-fill only fires for artofpkm references, so say so. */}
+          {/* Attribution hint — remind the user to credit the source; art is hosted, never hotlinked. */}
           <Text style={styles.attribHint}>
-            Tip: drag in art from artofpkm.com, or paste an artofpkm.com artwork page URL, and the
-            artist + source fill in automatically. Art you bring is saved to your own account; we
-            host your copy, we don’t hotlink other sites.
+            Tip: add the artist and source below so your art stays credited. Art you bring is saved
+            to your own account; we host your copy, we don’t hotlink other sites.
           </Text>
 
           {importing ? (
@@ -1106,6 +1105,16 @@ export function SliceStudio({
             </View>
           </Modal>
         ) : null}
+    </>
+  );
+
+  // Embedded: live inside the picker's Artwork tab (a plain flex box), so the sheet's tab bar
+  // stays visible above it. Standalone: the full-screen framing modal (e.g. the tray's "New").
+  if (embedded) return <View style={styles.flex}>{body}</View>;
+  return (
+    <Modal visible animationType="slide" onRequestClose={requestClose}>
+      <SafeAreaView style={styles.flex} edges={['top']}>
+        {body}
       </SafeAreaView>
     </Modal>
   );
@@ -1195,6 +1204,7 @@ const styles = StyleSheet.create({
     borderBottomColor: Palette.hairline,
   },
   headerAction: { fontSize: FontSize.md, fontWeight: Weight.semibold, color: Palette.ink2 },
+  headerSpacer: { width: 44 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   capNote: { paddingHorizontal: 16, paddingTop: 12 },
   primary: { color: Palette.accent },

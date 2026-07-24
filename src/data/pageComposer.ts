@@ -13,9 +13,12 @@
  *  - colorTheme     → the seed's energy colour across eras + tonal inserts (Color-Themed)
  *  - fullPageSpread → one theme-matched artwork sliced across every empty pocket, the placed
  *                     cards reading as accents inside it (Full-Page Spread)
+ *                     ⚠️ DISABLED — see the fullPageSpread branch + docs/FILL-METHODS.md. It
+ *                     sourced background art from the (removed) bundled Art of Pokémon library
+ *                     and needs a replacement art source before it can be re-enabled.
  *  (+ pokemonFriends — curated duos/TAG-TEAM lore, our extra beyond the canonical seven.)
  *
- * Selection is deterministic (except the RPC ranking / art search): only standard 1×1 cards,
+ * Selection is deterministic (except the moreLikeThis RPC ranking): only standard 1×1 cards,
  * no card already on the page, no duplicate (name, set) print twice, and "variety ranking" —
  * candidates are round-robined across series so a page samples eras/styles instead of dumping
  * one set's run.
@@ -23,7 +26,6 @@
 import { findSimilar, similarAvailable } from 'tcgscan-browse';
 
 import type { Catalog, CatalogCard } from '@/lib/catalog';
-import { isArtSearchConfigured, searchArt } from '@/data/artSearch';
 import { occupiedCells, type DemoPage } from '@/data/binderTypes';
 import { hasToken } from '@/data/nameMatch';
 import { loadPokemonPartners, partnersFor } from '@/data/pokemonPartners';
@@ -121,16 +123,19 @@ export function availableMethods(seed: CatalogCard, catalog: Catalog): ComposeMe
   if (trainerFor(seed.name)) out.push('trainerPage');
   if (seed.illustrator.trim()) out.push('sameArtist');
   if (seed.types.length > 0 && TYPE_STYLES[seed.types[0]]) out.push('colorTheme');
-  if (isArtSearchConfigured) out.push('fullPageSpread');
+  // fullPageSpread is intentionally NOT offered: its art source (bundled Art of Pokémon) was
+  // removed and it has no replacement yet. Re-add the push once composePage can source art
+  // again — see the fullPageSpread branch + docs/FILL-METHODS.md.
   return out;
 }
 
 /**
  * Per-energy-type styling: soft tonal insert colours (light → deeper, echoing the card frame
- * palette) for the Color-Themed method, and a theme word for the Full-Page Spread's art search
- * (expanded to iconic species by artSearch's THEME_SPECIES — official art, not stock photos).
- * The card FRAME is coloured by its energy type, so type is a faithful colour-palette proxy
- * until per-card dominant-colour enrichment lands upstream.
+ * palette) for the Color-Themed method. `scenery` is a theme word the (now-disabled) Full-Page
+ * Spread used to seed its art search — retained so that method is easy to reinstate once it has a
+ * replacement art source (see the fullPageSpread branch + docs/FILL-METHODS.md). The card FRAME is
+ * coloured by its energy type, so type is a faithful colour-palette proxy until per-card
+ * dominant-colour enrichment lands upstream.
  */
 const TYPE_STYLES: Record<string, { tones: string[]; scenery: string }> = {
   Grass: { tones: ['#E3EEDA', '#C4DCB0', '#9CC584'], scenery: 'forest' },
@@ -304,13 +309,6 @@ function place(cells: { row: number; col: number }[], cards: CatalogCard[]): Com
   return cells.slice(0, cards.length).map((cell, i) => ({ ...cell, cardId: cards[i].id }));
 }
 
-/** The page's overall shape (pockets are card-aspect, 63×88), for matching artwork. */
-function pageAspect(page: DemoPage): 'landscape' | 'portrait' | 'square' {
-  const w = page.cols * 63;
-  const h = page.rows * 88;
-  return w > h * 1.1 ? 'landscape' : h > w * 1.1 ? 'portrait' : 'square';
-}
-
 /**
  * Compose placements for the page's empty pockets. Async because `moreLikeThis` calls the
  * similarity RPC; the other methods scan the loaded catalog synchronously. Returns [] when the
@@ -340,29 +338,24 @@ export async function composePage(
   }
 
   if (method === 'fullPageSpread') {
-    // One artwork flows across EVERY empty pocket (each gets its window of the whole image —
-    // the sliceRegion crop math), so the cards already placed (the seed and any neighbours)
-    // read as accents sitting inside the scene. Art comes from the bundled Art of Pokémon
-    // library: the seed's own species first, its energy-type theme as the fallback.
-    const aspect = pageAspect(page);
-    const species = speciesOf(seed);
-    let art = species ? await searchArt(species, aspect) : [];
-    if (art.length === 0) {
-      const style = TYPE_STYLES[seed.types[0] ?? ''];
-      art = await searchArt(style?.scenery ?? 'sky', aspect);
-    }
-    const image = art[0];
-    if (!image) return [];
-    return cells.map((cell) => ({
-      ...cell,
-      imageUrl: image.url,
-      imageCrop: {
-        x: cell.col / page.cols,
-        y: cell.row / page.rows,
-        w: 1 / page.cols,
-        h: 1 / page.rows,
-      },
-    }));
+    // ⚠️ DISABLED (2026-07-23). This method flowed one background artwork across every empty
+    // pocket (each pocket showing its window of the whole image — the crop math below), with the
+    // placed cards reading as accents inside the scene. Its art came from the bundled Art of
+    // Pokémon library (searchArt), which has been removed, so it can no longer source an image.
+    // `availableMethods` doesn't offer it, so this branch shouldn't be reached; it returns [] as
+    // a belt-and-braces guard.
+    //
+    // TODO(fill): REPLACE the art source. Reinstate with an owned/licensed art pipeline (e.g. our
+    // procedural themeBackgrounds, a user-supplied Slice Studio image, or a rights-cleared gallery),
+    // then re-add `out.push('fullPageSpread')` in availableMethods. The placement/crop shape to
+    // restore, once `image` is a { url } again:
+    //   return cells.map((cell) => ({
+    //     ...cell,
+    //     imageUrl: image.url,
+    //     imageCrop: { x: cell.col / page.cols, y: cell.row / page.rows, w: 1 / page.cols, h: 1 / page.rows },
+    //   }));
+    // See docs/FILL-METHODS.md.
+    return [];
   }
 
   if (method === 'colorTheme') {

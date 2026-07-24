@@ -1,19 +1,17 @@
 import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { ArtUploadButton } from '@/components/binder/ArtUploadButton';
 import { CardBrowse } from '@/components/binder/CardBrowse';
+import { SliceStudio } from '@/components/binder/SliceStudio';
 import { ThemedText } from '@/components/themed-text';
-import { domainOf, slotAspect, type ArtworkAsset } from '@/data/artworkLibrary';
-import { artSearchProvider, isArtSearchConfigured, searchArt } from '@/data/artSearch';
-import { useSavedArt } from '@/data/savedArt';
 import { THEME_FAMILIES, themeBackgroundDataUri } from '@/data/themeBackgrounds';
 import type { DemoPage, DemoSlot } from '@/data/binderTypes';
+import type { SavedSlice } from '@/data/savedSlices';
 import { useCatalog } from '@/hooks/use-catalog';
 import type { CatalogCard } from '@/lib/catalog';
 import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
-import { flatChip, sheet, studioButton } from '@/constants/ui';
+import { flatChip, sheet } from '@/constants/ui';
 
 /** Tasteful tonal inserts for filling a pocket with negative space. */
 const INSERT_TONES: { label: string; color: string }[] = [
@@ -64,19 +62,20 @@ interface CardPickerProps {
   page: DemoPage | null;
   cell: { row: number; col: number } | null;
   slot?: DemoSlot | null;
-  /** A theme keyword guessed from the binder, used to seed the artwork search. */
-  themeHint?: string;
   onClose: () => void;
   onPickCard: (cardId: string, card?: CatalogCard) => void;
   onPickVUnion: (pieces: readonly string[]) => void;
   /** Batch-add the multi-selected cards to the binder ("Add all to a binder"). */
   onPickCards?: (cardIds: string[], cards?: CatalogCard[]) => void;
-  /** Place a custom artwork image (playground art or a pasted URL) at the chosen shape. */
+  /** Place a custom artwork image (a themed background) at the chosen shape. */
   onPickArtwork: (imageUrl: string, rowSpan: number, colSpan: number) => void;
-  /** Slice an image across the rows×cols block — each pocket shows its piece. */
-  onPickSlicedArtwork: (imageUrl: string, rows: number, cols: number) => void;
-  /** Open the slice studio for the current pocket at the given grid. */
-  onOpenSliceStudio: (imageUrl: string | undefined, rows: number, cols: number) => void;
+  /** Save the embedded Slice Studio's pieces to the slice tray (Artwork tab). */
+  onSaveSlices: (slices: SavedSlice[]) => void;
+  /** Live tray size + the account's artwork cap (Infinity = uncapped) — gates the studio's Save. */
+  trayCount?: number;
+  trayLimit?: number;
+  /** Guests can't keep artworks (cap 0): the studio shows a sign-in note, not an upgrade pitch. */
+  guest?: boolean;
   onPickInsert: (color: string, rowSpan: number, colSpan: number) => void;
   onClear: () => void;
   /** "Keep adding" mode: after placing a card the sheet stays open and jumps to the next pocket. */
@@ -92,21 +91,21 @@ export function CardPicker({
   page,
   cell,
   slot,
-  themeHint,
   onClose,
   onPickCard,
   onPickVUnion,
   onPickCards,
   onPickArtwork,
-  onPickSlicedArtwork,
-  onOpenSliceStudio,
+  onSaveSlices,
+  trayCount,
+  trayLimit,
+  guest,
   onPickInsert,
   onClear,
   keepAdding,
   onToggleKeepAdding,
   initialSimilar,
 }: CardPickerProps) {
-  const savedArt = useSavedArt();
   // Subscribe only while the sheet is open: the persistently-mounted picker must not
   // force the 9.87MB catalog fetch on binder-open. The background prefetch (BinderScreen)
   // warms the shared load-once promise; opening the sheet just subscribes to it.
@@ -117,10 +116,6 @@ export function CardPicker({
     setShape(slot ? { rows: slot.rowSpan, cols: slot.colSpan } : { rows: 1, cols: 1 });
   }, [cell?.row, cell?.col, slot?.id, slot?.rowSpan, slot?.colSpan]);
 
-  const [query, setQuery] = useState(themeHint ?? '');
-  const [urlInput, setUrlInput] = useState('');
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [sliced, setSliced] = useState(false);
   // Themed-background picker shows one swatch per energy family; this cycles the palette (base +
   // variants) across every swatch at once.
   const [themePaletteIdx, setThemePaletteIdx] = useState(0);
@@ -132,15 +127,15 @@ export function CardPicker({
   const is = (rows: number, cols: number) => shape.rows === rows && shape.cols === cols;
 
   // Default the tab to the pocket's existing content type when editing an occupied slot, so
-  // "Replace" lands on the right panel (artwork slots → the Artwork tab, its Slice Studio a button away).
+  // "Replace" lands on the right panel (artwork slots → the Artwork tab, which is the Slice Studio).
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setTab(slot?.type === 'insert' ? 'insert' : slot?.type === 'artwork' ? 'artwork' : 'cards');
   }, [cell?.row, cell?.col, slot?.id, slot?.type]);
 
   // Cards only exist at 1×1 (standard) or 2×2 (jumbo / V-UNION); coerce to a card-capable
-  // shape when switching to the Cards tab from a non-square artwork/insert shape. Artwork is a
-  // resident tab now (search / paste / upload / theme, with the Slice Studio one button away).
+  // shape when switching to the Cards tab from a non-square insert shape. The Artwork tab embeds
+  // the Slice Studio (bring art in via URL / drag / upload, then slice to your tray).
   const selectTab = (next: PickerTab) => {
     if (next === 'cards' && !(is(1, 1) || is(2, 2))) setShape({ rows: 1, cols: 1 });
     setTab(next);
@@ -151,147 +146,7 @@ export function CardPicker({
   // footprints derive from the card's kind at drop time (BinderScreen.footprintForKind), so the
   // browse stays one list. The sheet gets a definite height so its FlatList has a bounded viewport.
   const sizeLabel = `${shape.rows}×${shape.cols}`;
-  const isMultiCell = shape.rows > 1 || shape.cols > 1;
-
-  // Place a chosen artwork: as one panel, or sliced across the block when the toggle is on.
-  const placeArt = (url: string) =>
-    sliced && isMultiCell
-      ? onPickSlicedArtwork(url, shape.rows, shape.cols)
-      : onPickArtwork(url, shape.rows, shape.cols);
-
-  // Artwork suggestions come from art saved this session (Slice Studio / pasted), theme-filtered,
-  // with art that matches this slot's aspect first. Live Pexels/Pixabay results are merged below.
-  const q = query.trim().toLowerCase();
-  const targetAspect = slotAspect(shape.rows, shape.cols);
-  const library = savedArt
-    .filter((a) => !q || a.title.toLowerCase().includes(q) || a.themes.some((t) => t.includes(q)))
-    .sort((a, b) => (a.aspect === targetAspect ? 0 : 1) - (b.aspect === targetAspect ? 0 : 1));
-
-  // Live, orientation-matched results from the configured image API (debounced).
-  const [live, setLive] = useState<ArtworkAsset[]>([]);
-  const [searching, setSearching] = useState(false);
-  useEffect(() => {
-    if (!isArtSearchConfigured) return;
-    let active = true;
-    const term = query.trim();
-    const handle = setTimeout(() => {
-      if (!term) {
-        if (active) {
-          setLive([]);
-          setSearching(false);
-        }
-        return;
-      }
-      if (active) setSearching(true);
-      searchArt(term, targetAspect).then((results) => {
-        if (active) {
-          setLive(results);
-          setSearching(false);
-        }
-      });
-    }, 350);
-    return () => {
-      active = false;
-      clearTimeout(handle);
-    };
-  }, [query, targetAspect]);
-
-  // Live results (fresh, aspect-matched) first, then the bundled library — de-duped by URL.
-  const seenArt = new Set<string>();
-  const artwork = [...live, ...library].filter((a) => {
-    if (seenArt.has(a.url)) return false;
-    seenArt.add(a.url);
-    return true;
-  });
-
-  const urlValid = /^https?:\/\/\S+$/i.test(urlInput.trim());
   const title = slot ? 'Edit pocket' : 'Add to pocket';
-
-  // The Artwork tab: search / paste / upload / slice a picture to fill the pocket(s).
-  const renderArtwork = () => (
-    <>
-      {isArtSearchConfigured ? (
-        <Text style={[styles.artMeta, styles.artMetaRow]}>
-          {searching ? 'searching…' : `via ${artSearchProvider}`}
-        </Text>
-      ) : null}
-      {/* Whole vs sliced: a multi-cell artwork can fill one panel or cut across the pockets. */}
-      {isMultiCell ? (
-        <View style={styles.controlsRow}>
-          <Text style={styles.controlsLabel}>Layout</Text>
-          <Pressable onPress={() => setSliced(false)} style={[flatChip.base, !sliced && flatChip.active]}>
-            <Text style={[flatChip.text, !sliced && flatChip.textActive]}>Whole</Text>
-          </Pressable>
-          <Pressable onPress={() => setSliced(true)} style={[flatChip.base, sliced && flatChip.active]}>
-            <Text style={[flatChip.text, sliced && flatChip.textActive]}>Sliced</Text>
-          </Pressable>
-          <Text style={styles.artMeta}>{sliced ? `${shape.rows * shape.cols} pieces` : 'one panel'}</Text>
-        </View>
-      ) : null}
-      <View style={styles.controlsRow}>
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search art (e.g. fire, ocean)"
-          placeholderTextColor={Palette.muted4}
-          style={[styles.input, styles.inputGrow]}
-        />
-        <Pressable
-          onPress={() => onOpenSliceStudio(slot?.imageUrl, shape.rows, shape.cols)}
-          style={studioButton.base}>
-          <Text style={studioButton.text}>Slice studio</Text>
-        </Pressable>
-      </View>
-      {!isArtSearchConfigured ? (
-        <Text style={styles.hint}>
-          Paste an image URL below, or open the Slice Studio to add and frame your own art.
-        </Text>
-      ) : null}
-      <View style={styles.grid}>
-        {artwork.map((art) => (
-          <ArtThumb
-            key={art.id}
-            art={art}
-            selected={slot?.type === 'artwork' && slot?.imageUrl === art.url}
-            onPress={() => placeArt(art.url)}
-          />
-        ))}
-        {artwork.length === 0 && query.trim() ? (
-          <Text style={styles.hint}>No art matches “{query}”. Paste a URL below.</Text>
-        ) : null}
-      </View>
-
-      {/* Paste a URL or upload your own image. Uploads go to your binder-art bucket and persist. */}
-      <View style={styles.controlsRow}>
-        <TextInput
-          value={urlInput}
-          onChangeText={setUrlInput}
-          placeholder="Paste image URL…"
-          placeholderTextColor={Palette.muted4}
-          autoCapitalize="none"
-          autoCorrect={false}
-          style={[styles.input, styles.inputGrow]}
-        />
-        <ArtUploadButton onUploaded={(url) => placeArt(url)} onError={setUploadError} />
-        <Pressable
-          disabled={!urlValid}
-          onPress={() => {
-            placeArt(urlInput.trim());
-            setUrlInput('');
-          }}
-          style={[styles.addBtn, !urlValid && styles.disabled]}>
-          <Text style={styles.addBtnText}>Add</Text>
-        </Pressable>
-      </View>
-      {uploadError ? (
-        <Text style={[styles.hint, styles.errorHint]}>{uploadError}</Text>
-      ) : urlInput.trim() ? (
-        <Text style={styles.hint}>
-          From {domainOf(urlInput)}: saved as-is; check you have the right to use it.
-        </Text>
-      ) : null}
-    </>
-  );
 
   // Place a themed background (our owned procedural art) as a spanning artwork. Seeded from the
   // pocket so a page of themes doesn't render identically. Fills the whole footprint as one
@@ -404,10 +259,10 @@ export function CardPicker({
             })}
           </View>
 
-          {/* Shape selector — artwork & inserts take any shape. Cards no longer pick a shape here:
-              the browse is unified and Size (Standard / Jumbo / V-UNION) is a filter within it;
-              the placed footprint derives from the card's kind at drop time. */}
-          {tab !== 'cards' ? (
+          {/* Shape selector — inserts take any shape. Cards derive their footprint from the card's
+              kind at drop time; the Artwork tab's Slice Studio slices the whole page, so neither
+              needs a shape here. */}
+          {tab === 'insert' ? (
             <View style={styles.shapeRow}>
               <Text style={styles.controlsLabel}>Shape</Text>
               {SHAPES.map((s) => {
@@ -445,12 +300,22 @@ export function CardPicker({
               initialSimilar={initialSimilar}
             />
           ) : tab === 'artwork' ? (
-            <ScrollView
-              style={styles.scrollFill}
-              contentContainerStyle={styles.scroll}
-              keyboardShouldPersistTaps="handled">
-              {renderArtwork()}
-            </ScrollView>
+            // Inserting artwork IS the Slice Studio now — bring art in by URL, drag, image drag, or
+            // upload, frame it, and slice to your tray. Embedded so the tab bar stays above it. It
+            // slices the whole page (its own grid = the binder's page size), so remount per page
+            // shape/source to reset the framing when the pocket context changes.
+            <SliceStudio
+              key={`${page?.rows ?? 1}x${page?.cols ?? 1}-${slot?.id ?? 'new'}`}
+              embedded
+              rows={page?.rows ?? 1}
+              cols={page?.cols ?? 1}
+              imageUrl={slot?.imageUrl}
+              onSaveSlices={onSaveSlices}
+              onClose={onClose}
+              trayCount={trayCount}
+              trayLimit={trayLimit}
+              guest={guest}
+            />
           ) : (
             <ScrollView
               style={styles.scrollFill}
@@ -462,49 +327,6 @@ export function CardPicker({
         </View>
       </View>
     </Modal>
-  );
-}
-
-/** An artwork suggestion thumbnail, with a visible fallback if the image fails to load. */
-function ArtThumb({
-  art,
-  selected,
-  onPress,
-}: {
-  art: ArtworkAsset;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  const [failed, setFailed] = useState(false);
-  return (
-    <Pressable style={[styles.artThumb, selected && styles.thumbSelected]} onPress={onPress}>
-      <View style={styles.artImageWrap}>
-        {failed ? (
-          <View style={styles.artFail}>
-            <Text style={styles.artFailText}>no image</Text>
-          </View>
-        ) : (
-          <Image
-            source={{ uri: art.url }}
-            style={styles.thumbImage}
-            contentFit="cover"
-            cachePolicy="memory-disk"
-            recyclingKey={art.id}
-            transition={100}
-            onError={() => setFailed(true)}
-          />
-        )}
-        <View style={[styles.tag, !art.licenseClear && styles.tagWarn]}>
-          <Text style={styles.tagText}>{art.licenseClear ? art.license : 'review'}</Text>
-        </View>
-      </View>
-      <Text numberOfLines={1} style={styles.thumbName}>
-        {art.title}
-      </Text>
-      <Text numberOfLines={1} style={styles.source}>
-        {art.sourceDomain}
-      </Text>
-    </Pressable>
   );
 }
 
@@ -524,7 +346,6 @@ const styles = StyleSheet.create({
   keepAddingText: { fontSize: FontSize.base, fontWeight: Weight.bold, color: Palette.muted },
   keepAddingTextOn: { color: Palette.accentText },
   close: { fontSize: FontSize.md, fontWeight: Weight.semibold, color: Palette.accent },
-  controlsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' },
   controlsLabel: {
     fontSize: FontSize.sm,
     color: Palette.muted,
@@ -574,21 +395,6 @@ const styles = StyleSheet.create({
   shapeSize: { fontSize: FontSize.micro, color: Palette.muted3, marginTop: 1 },
   shapeSizeActive: { color: Palette.accent },
   disabled: { opacity: 0.3 },
-  hint: { fontSize: FontSize.base, color: Palette.muted3, marginTop: 4, marginBottom: 4, lineHeight: 17, width: '100%' },
-  errorHint: { color: Palette.dangerAlt },
-  input: {
-    borderWidth: 1,
-    borderColor: Palette.controlBorder,
-    borderRadius: Radius.control,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    fontSize: FontSize.body,
-    color: Palette.ink,
-    minWidth: 200,
-  },
-  inputGrow: { flex: 1, minWidth: 160 },
-  addBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: Radius.control, backgroundColor: Palette.accent },
-  addBtnText: { color: Palette.accentText, fontWeight: Weight.bold, fontSize: FontSize.body },
   insertRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 8 },
   insertSwatch: { width: 28, height: 28, borderRadius: 7, borderWidth: 1, borderColor: Palette.swatchBorder },
   insertSwatchActive: { borderWidth: 3, borderColor: Palette.accent },
@@ -616,28 +422,4 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 6,
   },
-  artMeta: { fontSize: FontSize.xs, color: Palette.accent, fontWeight: Weight.semibold },
-  artMetaRow: { alignSelf: 'flex-end', marginBottom: 4 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  thumb: { width: 70, borderRadius: Radius.control, padding: 3 },
-  artThumb: { width: 86, borderRadius: Radius.control, padding: 3 },
-  thumbSelected: { backgroundColor: Palette.selectionSoft },
-  thumbImageWrap: { width: '100%', aspectRatio: 63 / 88, borderRadius: Radius.thumb, overflow: 'hidden' },
-  artImageWrap: { width: '100%', aspectRatio: 1, borderRadius: Radius.thumb, overflow: 'hidden', backgroundColor: Palette.chromeDeep },
-  artFail: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  artFailText: { color: Palette.onDarkMuted, fontSize: FontSize.micro },
-  thumbImage: { width: '100%', height: '100%' },
-  tag: {
-    position: 'absolute',
-    bottom: 3,
-    left: 3,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: Radius.tag,
-    backgroundColor: Palette.scrim60,
-  },
-  tagWarn: { backgroundColor: Palette.tagWarn },
-  tagText: { color: Palette.white, fontSize: FontSize.tag, fontWeight: Weight.bold, letterSpacing: 0.4 },
-  thumbName: { fontSize: FontSize.sm, textAlign: 'center', marginTop: 3, color: Palette.ink3 },
-  source: { fontSize: FontSize.micro, textAlign: 'center', color: Palette.muted4 },
 });

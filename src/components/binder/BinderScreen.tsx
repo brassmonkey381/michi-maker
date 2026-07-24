@@ -4,7 +4,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   useWindowDimensions,
@@ -678,33 +677,11 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     closePicker();
   };
 
-  const handlePickSlicedArtwork = (imageUrl: string, rows: number, cols: number) => {
-    if (!pickerCell) return;
-    if (artCapBlocks(rows * cols)) {
-      closePicker();
-      return;
-    }
-    store.placeSlicedArtwork(binder.id, page.id, pickerCell.row, pickerCell.col, rows, cols, imageUrl);
-    closePicker();
-  };
-
-  const handleOpenStudio = (imageUrl: string | undefined, rows: number, cols: number) => {
-    if (!pickerCell) return;
-    setStudio({ rows, cols, row: pickerCell.row, col: pickerCell.col, imageUrl });
-    closePicker();
-  };
-
   const handlePickInsert = (insertColor: string, rowSpan: number, colSpan: number) => {
     if (!pickerCell) return;
     store.upsertSlot(binder.id, page.id, { ...pickerCell, type: 'insert', insertColor, rowSpan, colSpan });
     closePicker();
   };
-
-  // Guess a theme keyword from the binder to seed the artwork search.
-  const themeHint =
-    ['fire', 'water', 'ocean', 'grass', 'forest', 'electric', 'storm', 'sunset', 'gold', 'psychic', 'dragon', 'ice'].find(
-      (k) => binder.title.toLowerCase().includes(k),
-    ) ?? '';
 
   const handleClear = () => {
     if (pickerCell && slotAtCell) store.removeSlot(binder.id, page.id, slotAtCell.id);
@@ -991,24 +968,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           />
         </View>
       </View>
-
-      {isSupabaseConfigured ? (
-        <View style={styles.pageVisRow}>
-          <View style={styles.pageVisText}>
-            <ThemedText type="smallBold">Page visibility</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {(page.isPublic ?? true)
-                ? 'Public: shown to anyone viewing this binder.'
-                : 'Private: hidden from public viewers; only you see it.'}
-            </ThemedText>
-          </View>
-          <Switch
-            value={page.isPublic ?? true}
-            onValueChange={(v) => store.updatePage(binder.id, page.id, { isPublic: v })}
-            trackColor={{ true: Palette.accent, false: theme.backgroundSelected }}
-          />
-        </View>
-      ) : null}
+      {/* Per-page visibility now lives only in the Share modal ("Pages shown publicly"), so the
+          edit surface stays about layout, not sharing. */}
     </ThemedView>
   );
 
@@ -1194,13 +1155,20 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           cell={pickerCell}
           slot={slotAtCell}
           onClose={closePicker}
-          themeHint={themeHint}
           onPickCard={handlePickCard}
           onPickVUnion={handlePickVUnion}
           onPickCards={handlePickCards}
           onPickArtwork={handlePickArtwork}
-          onPickSlicedArtwork={handlePickSlicedArtwork}
-          onOpenSliceStudio={handleOpenStudio}
+          onSaveSlices={(slices) => {
+            // The embedded studio disables Save past the cap; this is the belt-and-braces guard.
+            if (artCapBlocks(slices.length)) return;
+            addSavedSlices(slices);
+            closePicker();
+            showToast(`Saved ${slices.length} slice${slices.length === 1 ? '' : 's'} to your tray`);
+          }}
+          trayCount={keptArtworks}
+          trayLimit={store.limits.artUploads}
+          guest={store.tier === 'guest'}
           onPickInsert={handlePickInsert}
           onClear={handleClear}
           keepAdding={keepAdding}
@@ -1275,6 +1243,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           isPublic={!!binder.isPublic}
           onClose={() => setShareOpen(false)}
           onSetPublic={(v) => store.updateBinder(binder.id, { isPublic: v })}
+          onSetPagePublic={(pageId, v) => store.updatePage(binder.id, pageId, { isPublic: v })}
         />
         <LikersSheet visible={likesOpen} binderId={binder.id} onClose={() => setLikesOpen(false)} />
       </ThemedView>
@@ -1429,14 +1398,6 @@ const styles = StyleSheet.create({
   likeChip: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   likeChipHeart: { color: Palette.accent, fontSize: FontSize.md, lineHeight: 18 },
   likeChipText: { color: Palette.ink2, fontSize: FontSize.control, fontWeight: Weight.semibold },
-  pageVisRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.three,
-    marginTop: Spacing.three,
-  },
-  pageVisText: { flex: 1, gap: 2 },
   titleText: { flex: 1, textAlign: 'center', fontFamily: Fonts?.brand, fontSize: FontSize.title, lineHeight: 28 },
   scroll: { paddingHorizontal: 16, paddingBottom: 48 },
   description: { marginTop: 10, textAlign: 'center', maxWidth: 640, alignSelf: 'center' },

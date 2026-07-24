@@ -257,6 +257,7 @@ export default function MyBindersScreen() {
           isPublic={!!shareBinder.isPublic}
           onClose={() => setShareId(null)}
           onSetPublic={(v) => store.updateBinder(shareBinder.id, { isPublic: v })}
+          onSetPagePublic={(pageId, v) => store.updatePage(shareBinder.id, pageId, { isPublic: v })}
         />
       )}
       {printBinder ? (

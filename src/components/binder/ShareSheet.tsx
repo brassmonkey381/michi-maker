@@ -20,12 +20,15 @@ export function ShareSheet({
   isPublic,
   onClose,
   onSetPublic,
+  onSetPagePublic,
 }: {
   visible: boolean;
   binder: DemoBinder;
   isPublic: boolean;
   onClose: () => void;
   onSetPublic: (v: boolean) => void;
+  /** Toggle a single page's visibility to public viewers (only meaningful when the binder is public). */
+  onSetPagePublic: (pageId: string, isPublic: boolean) => void;
 }) {
   const theme = useTheme();
   const url = binderShareUrl(binder.id);
@@ -88,6 +91,37 @@ export function ShareSheet({
               </View>
               <Switch value={isPublic} onValueChange={handleToggle} trackColor={{ true: Palette.accent, false: theme.backgroundSelected }} />
             </View>
+
+            {/* Per-page visibility — a public binder can still keep individual pages private. Only
+                meaningful once the binder itself is public, so it lives here rather than the editor. */}
+            {isPublic && binder.pages.length > 0 ? (
+              <View style={styles.pagesBlock}>
+                <ThemedText type="smallBold">Pages shown publicly</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary" style={styles.pagesHint}>
+                  Tap a page to hide it from public viewers. Hidden pages stay in your binder — only
+                  you see them.
+                </ThemedText>
+                <View style={styles.pageChips}>
+                  {binder.pages.map((p, i) => {
+                    const pub = p.isPublic ?? true;
+                    return (
+                      <Pressable
+                        key={p.id}
+                        onPress={() => onSetPagePublic(p.id, !pub)}
+                        accessibilityRole="switch"
+                        accessibilityState={{ checked: pub }}
+                        accessibilityLabel={`Page ${i + 1}, ${pub ? 'public' : 'hidden from public'}`}
+                        style={[styles.pageChip, !pub && styles.pageChipHidden]}
+                        hitSlop={4}>
+                        <Text style={[styles.pageChipText, !pub && styles.pageChipTextHidden]}>
+                          {pub ? `${i + 1}` : `⊘ ${i + 1}`}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            ) : null}
 
             {privateArt && privateArt.length > 0 ? (
               <View style={styles.gateBox}>
@@ -162,6 +196,23 @@ export function ShareSheet({
 const styles = StyleSheet.create({
   toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.three },
   toggleText: { flex: 1, gap: 2 },
+  pagesBlock: { gap: Spacing.two },
+  pagesHint: { lineHeight: 18 },
+  pageChips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, marginTop: Spacing.one },
+  pageChip: {
+    minWidth: 34,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.one,
+    borderRadius: Radius.control,
+    borderWidth: 1,
+    borderColor: Palette.accent,
+    backgroundColor: Palette.selectionSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pageChipHidden: { borderColor: Palette.hairlineStrong, backgroundColor: Palette.panel },
+  pageChipText: { fontSize: 13, fontWeight: Weight.semibold, color: Palette.accent },
+  pageChipTextHidden: { color: Palette.muted2, textDecorationLine: 'line-through' },
   linkArea: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   linkBox: {
     flex: 1,

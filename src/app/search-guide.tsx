@@ -32,7 +32,7 @@ const RECIPES: { title: string; query: string; blurb: string }[] = [
   {
     title: 'Finish a set',
     query: 'set:base have:no',
-    blurb: 'Every card in Base Set you don’t own yet: an instant want-list. Swap in any set name.',
+    blurb: 'Cards you’re missing from a set. set: matches by name, so base also returns Base Set (Shadowless) and Base Set 2; once it lands, click the Set filter to pin exactly Base Set (102 cards).',
   },
   {
     title: 'One artist, one type',

@@ -43,8 +43,9 @@ Add every URL the providers may return to:
 - `https://michi-maker.com/auth-callback` (and any other deployed web origins)
 
 ### 2. Anonymous guest mode — Authentication → Sign In / Providers → Anonymous
-Toggle **ON** to enable the guest flow. *(Currently OFF — verified 2026-07-07.)* Leave OFF to
-require sign-in.
+Toggle **ON** to enable the guest flow. *(Currently ON — enabled for the tcgscan portfolio
+integration; do NOT enable CAPTCHA on this project, it breaks silent guest sign-in — see
+`docs/TCGSCAN-PORTFOLIO.md`.)*
 
 ### 3. Email — Authentication → Providers → Email
 Enabled by default. Decide whether to keep **"Confirm email"** on (users must click a link before

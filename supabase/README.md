@@ -5,19 +5,34 @@ migrations and seed data; the live schema should always match what's here.
 
 ```
 supabase/
-├── migrations/
-│   └── 20260707055603_init_user_schema.sql   # tables, enums, triggers, RLS, grants
-├── seed.sql                                  # no-op placeholder (nothing to seed)
-└── README.md                                 # you are here
+├── migrations/               # versioned SQL — tables, enums, triggers, RLS, grants
+│   ├── 20260707055603_init_user_schema.sql        # profiles, binders, pages, slots
+│   ├── …                                          # 30+ follow-ups: likes/upvotes, user_cards,
+│   │                                              # entitlements/billing, saved slices, print
+│   │                                              # events + PDF snapshots, trials/reclaim
+│   └── 20260723120000_tcgscan_trials_and_collection_reclaim.sql
+├── functions/                # Deno edge functions (deploy: supabase functions deploy <name>)
+│   ├── stripe-checkout/      # creates Stripe Checkout sessions + change_plan upgrades
+│   ├── payments-webhook/     # Stripe fulfillment → entitlement grants (service role)
+│   ├── auth-handoff/         # cross-app SSO token handoff (docs/AUTH.md)
+│   └── art-proxy/            # allowlisted CORS image relay for fill-sheet PDFs
+├── seed.sql                  # no-op placeholder (nothing to seed)
+└── README.md                 # you are here
 ```
 
-The live project is **tcgscan-michi-maker** (org "TCGScan", ref `piikwvntldytjejxmcla`).
+The live project is **tcgscan-michi-maker** (org "TCGScan", ref `piikwvntldytjejxmcla`). It is
+**shared with tcgscan-app** — one account, one `entitlements` ledger (see `../docs/SYNERGY.md`).
 
 ## What's in the schema
 
-This project holds **only user data** — `profiles`, `binders`, `binder_pages`, `binder_slots`,
-owned by a signed-in user and protected by Row Level Security (full details in
-[../docs/DATA-MODEL.md](../docs/DATA-MODEL.md)).
+This project holds **only user data**: the binder tables (`profiles`, `binders`,
+`binder_pages`, `binder_slots`), the social layer (likes, upvotes, content reports), the shared
+`user_cards` collection that tcgscan-app writes into, the billing layer (`entitlements`,
+`billing_customers`, `print_events`, `binder_pdf_snapshots`, PRO-trial/reclaim functions with
+their `pg_cron` jobs), and saved artwork slices — all owned by a signed-in user and protected
+by Row Level Security (full details in [../docs/DATA-MODEL.md](../docs/DATA-MODEL.md) and
+[../docs/PAYMENTS.md](../docs/PAYMENTS.md)). The `entitlements` table has **no client write
+policies**; grants come only from the `payments-webhook` edge function or manual SQL.
 
 Reference/catalogue data (pokemon, illustrators, sets, cards, images, prices, embeddings) is **not**
 here — it lives in the shared **tcgscan-data** server and is consumed read-only over HTTP (see
@@ -71,8 +86,8 @@ supabase db reset                # applies migrations, then runs seed.sql
 
 ## Generating TypeScript types
 
-`src/types/database.ts` is hand-written to match the initial migration. Once your project is
-linked, regenerate it from the real schema so the two never drift:
+`src/types/database.ts` must stay in sync with the migrations. Once your project is linked,
+regenerate it from the real schema so the two never drift:
 
 ```bash
 # from a linked cloud project

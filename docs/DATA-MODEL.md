@@ -32,83 +32,55 @@ Mirrored in `src/types/domain.ts` as `MICHI_LAYOUT_STYLES` (with labels + descri
 | `color_theme`      | A unified colour palette                                      |
 | `freeform`         | No fixed style                                                |
 
-The `cards.dominant_color` field exists specifically to power `color_theme` pages and palette
-suggestions.
-
 ## Entities
 
-### Reference data (the catalogue) — read-only to clients
+### Reference data (the catalogue) — external, read-only
 
-| Table          | Purpose                                                                |
-| -------------- | ---------------------------------------------------------------------- |
-| `pokemon`      | Species: dex number, English + Japanese names, sprite                  |
-| `illustrators` | Card artists (the Michi Method loves artist pages)                     |
-| `card_sets`    | Sets / products / packs                                                |
-| `cards`        | Individual cards: name, set, illustrator, species, image, `dominant_color`, orientation |
+The card catalogue (cards, sets, series, illustrators, prices, embeddings) does **not** live in
+this app's database. It is served by the shared **tcgscan-data** Supabase project and consumed
+read-only through the `tcgscan-browse` kit — see [DATA-SERVER.md](DATA-SERVER.md). Binder slots
+reference a card by its catalog id as plain `text` (no FK), so binders save independently of
+catalogue completeness.
 
 ### User data — Row Level Security protected
 
 | Table          | Purpose                                                                 |
 | -------------- | ----------------------------------------------------------------------- |
-| `profiles`     | One row per auth user (created automatically on signup)                 |
-| `binders`      | A user's collection, with a `layout_style` and an `is_public` flag      |
+| `profiles`     | One row per auth user (created automatically on signup); permanent immutable @username, avatar, preferences |
+| `binders`      | A user's binder, with a `layout_style` and an `is_public` flag          |
 | `binder_pages` | Ordered pages within a binder; each carries grid dimensions             |
-| `binder_slots` | Placements on a page (card / insert / artwork / empty), with spans      |
+| `binder_slots` | Placements on a page (card / insert / artwork / empty), with spans, image fit/transform, and art attribution |
+| `user_cards`   | The shared collection — written by tcgscan-app scans and CSV import, read by the Build-a-binder wizard ([TCGSCAN-PORTFOLIO.md](TCGSCAN-PORTFOLIO.md)) |
+| `entitlements` | Paid grants (PRO/VIP, per-binder PDF unlocks, cross-app products) — no client writes ([PAYMENTS.md](PAYMENTS.md)) |
+| `saved_slices` | Reusable artwork slices from the Slice Studio (soft-deleted)            |
+| `print_events` / `binder_pdf_snapshots` | Included-print metering and snapshot-licensed PDF archives |
+| `billing_customers` | Stripe customer mapping                                            |
+
+(Plus likes/upvotes, content reports, scan feedback, and the PRO-trial/reclaim machinery —
+the migrations in [`supabase/migrations/`](../supabase/migrations) are the authoritative list.)
 
 ### Relationships
 
 ```
 auth.users 1──1 profiles
 auth.users 1──* binders 1──* binder_pages 1──* binder_slots
-                                                   │
-card_sets 1──* cards *──1 illustrators             │ (slot_type = 'card')
-                  │  └──────────── referenced by ──┘
-              pokemon 1──* cards
+auth.users 1──* user_cards          binder_slots.card_id (text) ─▶ catalog card id
+auth.users 1──* entitlements                 (resolved against tcgscan-data)
 ```
 
 ## Sourcing the catalogue
 
-The catalogue is ingested from **[TCGdex](https://tcgdex.dev/)** — a documented, MIT-licensed
-(metadata) Pokémon TCG API with **illustrator** data and a card-image CDN. We chose it over
-scraping [artofpkm.com](https://www.artofpkm.com/pokemon): that site has no public API, serves
-images through opaque, CDN-less Rails Active Storage redirect URLs, and doesn't even list
-individual cards in its sitemap — making it fragile to mirror and the weakest option on rights.
-artofpkm is better kept as *curation inspiration* (which illustrators / aesthetics to feature).
-
-The ingestion is a standalone server-side script (not part of the shipped app):
-[`scripts/ingest.mjs`](../scripts/ingest.mjs) — see [`scripts/README.md`](../scripts/README.md).
-
-### How TCGdex maps onto the schema
-
-| TCGdex             | michi-maker table / column                                  |
-| ------------------ | ---------------------------------------------------------- |
-| Set                | `card_sets` (name, `serie` → series, `releaseDate`)        |
-| Card `illustrator` | `illustrators` (deduped, slug `id`)                        |
-| Card               | `cards` (name, set, illustrator, `localId` → number, rarity) |
-| Card `image`       | `image_url` / `image_small_url` (+ `source_url`)           |
-
-Re-runs are idempotent (upsert by stable `id`). `dominant_color` (for colour-theme layouts) and
-`pokemon_id` (from TCGdex `dexId`) are left null as later enrichment steps.
-
-### Image strategy (hybrid)
-
-By default the script stores TCGdex CDN URLs (`.../high.webp` 600×825, `.../low.webp` 245×337) plus
-the base `source_url`. With `--cache-images` it mirrors both qualities into a Supabase Storage
-`cards` bucket and points the columns at your own storage — the reliability of self-hosting without
-mirroring the entire catalogue upfront.
-
-### Security
-
-The script upserts with the Supabase **secret / `service_role`** key, which bypasses RLS (reference
-tables have no client write policies). That key lives **only** in the script's environment (a
-gitignored `.env`) — never in the app, never in an `EXPO_PUBLIC_` variable, never committed. The app
-only ever *reads* the catalogue.
-
-Until you run it, [`supabase/seed.sql`](../supabase/seed.sql) loads a tiny hand-picked sample so the
-UI has something to render.
+Everything catalog-side — ids, images (245px / 640px / full-size tiers), prices, and the
+enrichment fields (`illustrator`, `dex`, `types`, evolution lines) that light up the artist /
+single-Pokémon / story layout styles — comes from the **tcgscan-data** pipeline and server.
+[DATA-SERVER.md](DATA-SERVER.md) documents the integration seams;
+[search-and-enrichment.md](search-and-enrichment.md) documents the enrichment fields. The
+earlier TCGdex ingestion script was retired 2026-07-06 (history in
+[`scripts/README.md`](../scripts/README.md)) — never resurrect local catalog builds or
+scrapers in this repo.
 
 ### A note on rights
 
 Card artwork and Pokémon are © Nintendo / Creatures Inc. / GAME FREAK inc. michi-maker is a fan
-project for personal collection display. Respect artofpkm.com's terms when ingesting; prefer
-caching references/metadata and linking out over rehosting artwork wholesale.
+project for personal collection display. The rights posture for user-placed artwork
+(attribution, DMCA agent, takedowns) is tracked in [roadmap/ART-RIGHTS.md](roadmap/ART-RIGHTS.md).

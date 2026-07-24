@@ -21,6 +21,7 @@ item 5); the app-side seams below are the shims that configure and consume it.
 | Card action modal | `tcgscan-browse` package (`CardActionModal`) — place/replace/similar/view-set; app-specific actions injected via props |
 | Catalog browser UI | `tcgscan-browse` package (`CatalogBrowser`) — imported by `src/components/binder/CardPicker.tsx` |
 | Session browse state | `tcgscan-browse` package (`state.ts`) |
+| Gated catalog download (2026-07-20) | `src/lib/catalogSource.ts` — with a session, the catalog is fetched via the data server's `catalog-key` edge function (AES-256-GCM `catalog.enc` in a PRIVATE bucket, decrypted client-side) and cached encrypted-at-rest (`src/lib/catalogCache.ts`); no session / native / any failure falls back to the public `catalog.json`, which stays published during the migration |
 
 Catalog cards carry size tiers: `image_small` (245px webp — grids use it),
 `image_medium` (640px webp), `image` (full, served from our bucket;

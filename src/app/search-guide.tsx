@@ -216,16 +216,16 @@ const styles = StyleSheet.create({
   codeRow: { alignSelf: 'flex-start', borderRadius: Radius.control, backgroundColor: Palette.accent, paddingHorizontal: 10, paddingVertical: 6 },
   code: { fontFamily: mono, fontSize: FontSize.body, color: Palette.accentText, fontWeight: Weight.semibold },
   recipeBlurb: { lineHeight: 18 },
-  // Try it: dark fill, blue text (the inverse of the chips).
+  // Try it: primary blue fill, white text (matching the query chips).
   tryBtn: {
     alignSelf: 'flex-start',
     marginTop: Spacing.one,
-    backgroundColor: Palette.ink,
+    backgroundColor: Palette.accent,
     borderRadius: Radius.pill,
     paddingVertical: 8,
     paddingHorizontal: Spacing.four,
   },
-  tryBtnText: { color: Palette.accent, fontSize: FontSize.control, fontWeight: Weight.bold },
+  tryBtnText: { color: Palette.accentText, fontSize: FontSize.control, fontWeight: Weight.bold },
   pressed: { opacity: 0.7 },
   refIntro: { marginTop: -4, marginBottom: Spacing.two },
   refSection: { marginBottom: Spacing.three },

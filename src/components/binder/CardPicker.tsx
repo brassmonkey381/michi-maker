@@ -332,8 +332,9 @@ export function CardPicker({
 
 const styles = StyleSheet.create({
   backdropFill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  // A definite height (not just maxHeight) so the browse FlatList gets a bounded viewport.
-  sheetTall: { height: '85%' },
+  // A definite height (not just maxHeight) so the browse FlatList gets a bounded viewport. Overrides
+  // the shared bottomSheet's 85% maxHeight to give the Slice Studio canvas more vertical room.
+  sheetTall: { height: '94%', maxHeight: '94%' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
   headerTitle: { flex: 1 },
   keepAdding: {

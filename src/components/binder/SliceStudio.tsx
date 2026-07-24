@@ -37,6 +37,12 @@ import { cardThumbUrl } from '@/lib/catalogConfig';
 
 const CARD_ASPECT = 88 / 63;
 const GAP = 6;
+// Two-column workspace (controls left, canvas right) once there's room — keeps the tall page-shaped
+// canvas beside the toolbars instead of below them, so users don't scroll past the controls to
+// reach their art. Below the breakpoint the layout stacks (controls over canvas), as before.
+const TWO_COL_MIN = 800;
+const CONTROLS_W = 380;
+const COL_GAP = 16;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 type Rot = ImageTransform['rot'];
@@ -55,6 +61,12 @@ const clampAxis = (v: number, size: number) => clamp(v, -OVER * size, 1 - size +
  * often block hotlinking (403 → blank pocket), so the modal steers those users to save + Upload.
  */
 const ART_SOURCES: { title: string; blurb: string; url: string; dragFriendly: boolean }[] = [
+  {
+    title: 'Art of Pokémon',
+    url: 'https://www.artofpkm.com/artwork/all',
+    blurb: 'Curated official artwork, browsable by artist and era.',
+    dragFriendly: true,
+  },
   {
     title: 'Bulbagarden Archives',
     url: 'https://archives.bulbagarden.net/wiki/Main_Page',
@@ -253,6 +265,13 @@ export function SliceStudio({
   const [cardPickOpen, setCardPickOpen] = useState(false);
   const { catalog } = useCatalog(cardPickOpen);
   const [dropActive, setDropActive] = useState(false);
+  // Measured width of the canvas column (two-column layout) — the accurate box to size the canvas
+  // into once laid out; 0 until the first onLayout, when we fall back to an estimate.
+  const [measuredCanvasW, setMeasuredCanvasW] = useState(0);
+  // Measured height of the scroll viewport — in two-column mode the canvas sits BESIDE the controls,
+  // so it can use the whole visible height. 0 until the first layout (then we fall back to a window
+  // estimate). This is what lets the canvas fill the (now taller) sheet without vertical scrolling.
+  const [viewportH, setViewportH] = useState(0);
   // Provenance for the loaded image. Required before a binder can go public (the source), the
   // artist optional but encouraged. Pre-filled from the URL where derivable (an artofpkm/pin
   // link), then editable. `srcName` remembers a platform label from a known asset.
@@ -393,10 +412,22 @@ export function SliceStudio({
   }, [loadImage, loadRemoteUrl, importFile]);
 
   // Workspace: fill what the viewport allows — capped by BOTH width and height so the whole
-  // page-shaped grid stays on screen below the toolbars (vs the old fixed 460px cap).
-  // The controls reference is now an on-demand overlay, so the canvas gets the full width.
-  const availW = Math.max(240, Math.min(width - 48, 960));
-  const availH = Math.max(300, height - 360);
+  // page-shaped grid stays on screen. In two-column mode the canvas sits in its own column, so we
+  // size it to that column's measured width (estimated until the first layout); stacked, it uses
+  // the full sheet width as before. Height is the same viewport budget in both layouts.
+  const twoCol = width >= TWO_COL_MIN;
+  const estCanvasW = twoCol
+    ? Math.min(width - 48, 1400) - CONTROLS_W - COL_GAP
+    : Math.min(width - 48, 960);
+  const availW = Math.max(
+    240,
+    twoCol ? Math.min(measuredCanvasW > 0 ? measuredCanvasW : estCanvasW, 1100) : estCanvasW,
+  );
+  // Two-column: fill the measured viewport (canvas is beside the controls). We subtract the chrome
+  // that sits INSIDE the scroll content around the canvas — the scroll's 16px top+bottom padding
+  // (32) + the canvasWrap's 4px marginTop + a small buffer — so the canvas fits exactly and the tab
+  // doesn't scroll by default. Single-column: the old window budget (controls stack above the canvas).
+  const availH = Math.max(300, twoCol && viewportH > 0 ? viewportH - 40 : height - 360);
   const cellW = Math.min(
     (availW - GAP * (cols - 1)) / cols,
     (availH - GAP * (rows - 1)) / rows / CARD_ASPECT,
@@ -695,11 +726,13 @@ export function SliceStudio({
     onClose();
   }, [onClose]);
 
-  // Web: scroll wheel over the canvas zooms (the guide promised it; now it's true).
-  const canvasWrapRef = useRef<View | null>(null);
+  // Web: scroll wheel over the IMAGE PANEL zooms; wheel anywhere else (the controls, the page/sheet)
+  // scrolls normally. Attaching to the canvas node itself — not its centring wrapper — is what scopes
+  // the zoom (and the scroll-blocking preventDefault) to a pointer that's directly over the image.
+  const canvasRef = useRef<View | null>(null);
   useEffect(() => {
     if (Platform.OS !== 'web' || !imageUrl) return;
-    const node = canvasWrapRef.current as unknown as HTMLElement | null;
+    const node = canvasRef.current as unknown as HTMLElement | null;
     if (!node || typeof node.addEventListener !== 'function') return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
@@ -744,43 +777,50 @@ export function SliceStudio({
   // Saving would pass the account's artwork cap (a retention cap: slices KEPT, not a rate).
   const wouldExceedTray = hasImage && panels.length > 0 && trayCount + panels.length > trayLimit;
 
+  // The three studio-level controls — title, help, and Save slices. Shared so they can sit in the
+  // full-screen header (standalone) OR at the top of the left controls column (embedded), where
+  // they replace a whole header row and free the vertical space for the canvas.
+  const titleEl = (
+    <ThemedText type="subtitle" style={styles.headerTitle}>
+      Slice studio
+    </ThemedText>
+  );
+  const helpBtn = (
+    <Pressable
+      onPress={() => setGuideOpen(true)}
+      hitSlop={10}
+      accessibilityLabel="Controls & shortcuts"
+      style={styles.helpBtn}>
+      <Text style={styles.helpBtnText}>?</Text>
+    </Pressable>
+  );
+  const saveBtn = (
+    <Pressable onPress={saveSlices} hitSlop={10} disabled={!hasImage || !panels.length || wouldExceedTray}>
+      <View style={[styles.placeBtn, (!hasImage || !panels.length || wouldExceedTray) && styles.disabled]}>
+        <Text style={styles.placeBtnText}>
+          Save slices{hasImage && panels.length ? ` (${panels.length})` : ''}
+        </Text>
+      </View>
+    </Pressable>
+  );
+
   const body = (
     <>
-        <View style={styles.header}>
-          {embedded ? (
-            // The host sheet's Cards/Artwork/Insert tab bar handles navigation, so no Close here —
-            // an empty spacer keeps the title centred between it and the right-hand actions.
-            <View style={styles.headerSpacer} />
-          ) : (
+        {/* Standalone (e.g. the tray's "New") keeps a full-screen header with Close on the left and
+            the studio actions on the right. Embedded has no header row at all — the same actions
+            live at the top of the left controls column (see studioActions below). */}
+        {!embedded ? (
+          <View style={styles.header}>
             <Pressable onPress={onClose} hitSlop={10}>
               <Text style={styles.headerAction}>Close</Text>
             </Pressable>
-          )}
-          <ThemedText type="subtitle">Slice studio</ThemedText>
-          <View style={styles.headerRight}>
-            <Pressable
-              onPress={() => setGuideOpen(true)}
-              hitSlop={10}
-              accessibilityLabel="Controls & shortcuts"
-              style={styles.helpBtn}>
-              <Text style={styles.helpBtnText}>?</Text>
-            </Pressable>
-            <Pressable
-              onPress={saveSlices}
-              hitSlop={10}
-              disabled={!hasImage || !panels.length || wouldExceedTray}>
-              <View
-                style={[
-                  styles.placeBtn,
-                  (!hasImage || !panels.length || wouldExceedTray) && styles.disabled,
-                ]}>
-                <Text style={styles.placeBtnText}>
-                  Save slices{hasImage && panels.length ? ` (${panels.length})` : ''}
-                </Text>
-              </View>
-            </Pressable>
+            <View style={styles.headerRight}>
+              {titleEl}
+              {helpBtn}
+              {saveBtn}
+            </View>
           </View>
-        </View>
+        ) : null}
 
         {wouldExceedTray ? (
           <View style={styles.capNote}>
@@ -797,7 +837,22 @@ export function SliceStudio({
           </View>
         ) : null}
 
-        <ScrollView contentContainerStyle={styles.scroll}>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          onLayout={(e) => setViewportH(e.nativeEvent.layout.height)}>
+         <View style={[styles.columns, twoCol && styles.columnsRow]}>
+          {/* LEFT: everything you touch — get art in, credit it, frame it. */}
+          <View style={[styles.controlsCol, twoCol && styles.controlsColFixed]}>
+          {/* Studio actions (embedded): title + help + Save, atop the controls instead of a header. */}
+          {embedded ? (
+            <View style={styles.studioActions}>
+              {titleEl}
+              <View style={styles.headerRight}>
+                {helpBtn}
+                {saveBtn}
+              </View>
+            </View>
+          ) : null}
           {/* Source — one calm row. Everything here is about GETTING an image in. */}
           <View style={styles.sourceBar}>
             <Btn label="Card art" onPress={() => setCardPickOpen(true)} kind="primary" />
@@ -909,8 +964,18 @@ export function SliceStudio({
             </View>
           ) : null}
 
-          {/* Canvas — the hero. Full width now the guide column is gone. */}
-          <View ref={canvasWrapRef} style={styles.canvasWrap}>
+          {/* Interaction hint — lives with the controls (left), not over the canvas. */}
+          {hasImage ? (
+            <Text style={styles.hint}>Drag to pan · scroll to zoom · click a piece to select</Text>
+          ) : null}
+          </View>
+
+          {/* RIGHT: the art itself. Measured so the canvas sizes to this column, not the window. */}
+          <View
+            style={[styles.canvasCol, twoCol && styles.canvasColFlex]}
+            onLayout={(e) => setMeasuredCanvasW(e.nativeEvent.layout.width)}>
+          {/* Canvas — the hero. */}
+          <View style={styles.canvasWrap}>
             {!hasImage ? (
               <View style={[styles.canvas, { width: canvasW, height: canvasH }, styles.empty]}>
                 <Text style={styles.emptyTitle}>Bring in some art</Text>
@@ -921,7 +986,7 @@ export function SliceStudio({
               </View>
             ) : (
               <GestureDetector gesture={gesture}>
-                <View style={[styles.canvas, { width: canvasW, height: canvasH }]}>
+                <View ref={canvasRef} style={[styles.canvas, { width: canvasW, height: canvasH }]}>
                   {failed ? (
                     <View style={[styles.empty, StyleSheet.absoluteFill]}>
                       <Text style={styles.emptySub}>image didn’t load</Text>
@@ -996,10 +1061,10 @@ export function SliceStudio({
                 <Btn label="Remove" onPress={removePanels} />
                 <Ghost label="Clear" onPress={() => setSelected(new Set())} />
               </View>
-            ) : hasImage ? (
-              <Text style={styles.hint}>Drag to pan · scroll to zoom · click a piece to select</Text>
             ) : null}
           </View>
+          </View>
+         </View>
         </ScrollView>
 
         {dropActive ? (
@@ -1199,12 +1264,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: Palette.hairline,
   },
   headerAction: { fontSize: FontSize.md, fontWeight: Weight.semibold, color: Palette.ink2 },
-  headerSpacer: { width: 44 },
+  headerTitle: { marginRight: 4 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   capNote: { paddingHorizontal: 16, paddingTop: 12 },
   primary: { color: Palette.accent },
@@ -1229,6 +1294,24 @@ const styles = StyleSheet.create({
 
   scroll: { padding: 16, gap: 12 },
   pressed: { opacity: 0.65 },
+
+  // Two-column workspace (controls left, canvas right). Stacks to one column below TWO_COL_MIN.
+  columns: { gap: 12 },
+  columnsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: COL_GAP },
+  controlsCol: { gap: 12 },
+  controlsColFixed: { width: CONTROLS_W, flexShrink: 0 },
+  // Embedded studio actions (title + help + Save), a hairline divider grouping them above controls.
+  studioActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Palette.hairline,
+  },
+  canvasCol: {},
+  canvasColFlex: { flex: 1, minWidth: 0 },
 
   // Source row
   sourceBar: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
@@ -1331,7 +1414,7 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     zIndex: 5,
   },
-  hint: { fontSize: FontSize.base, color: Palette.muted2, textAlign: 'center' },
+  hint: { fontSize: FontSize.base, color: Palette.muted2, lineHeight: 17 },
 
   // Contextual selection / merge action bar
   selBar: {

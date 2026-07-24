@@ -22,7 +22,7 @@ const RECIPES: { title: string; query: string; blurb: string }[] = [
   {
     title: 'See your whole collection',
     query: 'have:yes',
-    blurb: 'Every card you own, in the grid — then keep stacking: sort it, narrow to a set, filter by type. It becomes the base for everything below.',
+    blurb: 'Every card you own, in the grid. Then keep stacking: sort it, narrow to a set, filter by type. It becomes the base for everything below.',
   },
   {
     title: 'Your most valuable cards',
@@ -32,12 +32,12 @@ const RECIPES: { title: string; query: string; blurb: string }[] = [
   {
     title: 'Finish a set',
     query: 'set:base have:no',
-    blurb: 'Every card in Base Set you don’t own yet — an instant want-list. Swap in any set name.',
+    blurb: 'Every card in Base Set you don’t own yet: an instant want-list. Swap in any set name.',
   },
   {
     title: 'One artist, one type',
     query: 'artist:arita type:fire',
-    blurb: 'Combine fields freely — here, an illustrator’s fire cards.',
+    blurb: 'Combine fields freely, like an illustrator’s fire cards.',
   },
   {
     title: 'Chase cards',
@@ -47,7 +47,7 @@ const RECIPES: { title: string; query: string; blurb: string }[] = [
   {
     title: 'Modern heavy hitters',
     query: 'hp>=300 date>2022 sort:hp',
-    blurb: 'Numeric and date compares together, sorted by HP — recent, high-HP cards.',
+    blurb: 'Numeric and date compares together, sorted by HP for recent, high-HP cards.',
   },
 ];
 
@@ -55,6 +55,9 @@ const RECIPES: { title: string; query: string; blurb: string }[] = [
 // "Additional info". Within the query sections, placeholder rows (…, ✓) are informational too.
 const INFO_SECTIONS = new Set(['More', 'On the web']);
 const isPlaceholder = (code: string) => /[…✓]/.test(code);
+
+/** Strip em-dashes from rendered copy (house style), including the kit-sourced descriptions. */
+const noDash = (s: string) => s.replace(/\s*—\s*/g, ', ');
 
 /** Query sections with only their runnable example rows (tap-to-run). */
 const OP_SECTIONS = QUERY_MANUAL.filter((s) => !INFO_SECTIONS.has(s.title))
@@ -91,7 +94,7 @@ export default function SearchGuideScreen() {
 
             <ThemedText type="small" themeColor="textSecondary" style={styles.intro}>
               The search box is a tiny query language. Type words, target a field, compare numbers
-              and dates, sort, and filter by your collection — and combine any of them freely. Tap
+              and dates, sort, and filter by your collection, and combine any of them freely. Tap
               “Try it” to run a recipe in the browser, then keep layering chips and params on top.
             </ThemedText>
 
@@ -108,7 +111,7 @@ export default function SearchGuideScreen() {
                     <Text style={styles.code}>{r.query}</Text>
                   </View>
                   <ThemedText type="small" themeColor="textSecondary" style={styles.recipeBlurb}>
-                    {r.blurb}
+                    {noDash(r.blurb)}
                   </ThemedText>
                   <Pressable
                     onPress={() => tryIt(r.query)}
@@ -138,7 +141,7 @@ export default function SearchGuideScreen() {
                       <Text style={styles.codeChipText}>{code}</Text>
                     </Pressable>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.refDesc}>
-                      {desc}
+                      {noDash(desc)}
                     </ThemedText>
                   </View>
                 ))}
@@ -149,7 +152,7 @@ export default function SearchGuideScreen() {
               Additional info
             </ThemedText>
             <ThemedText type="small" themeColor="textSecondary" style={styles.refIntro}>
-              Features and shortcuts — not search terms.
+              Features and shortcuts, not search terms.
             </ThemedText>
             <View style={styles.refSection}>
               {INFO_ROWS.map(([code, desc]) => (
@@ -158,7 +161,7 @@ export default function SearchGuideScreen() {
                     <Text style={styles.infoChipText}>{code}</Text>
                   </View>
                   <ThemedText type="small" themeColor="textSecondary" style={styles.refDesc}>
-                    {desc}
+                    {noDash(desc)}
                   </ThemedText>
                 </View>
               ))}

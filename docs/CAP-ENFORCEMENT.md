@@ -85,10 +85,10 @@ select count(*) from (
 
 ## Known gaps (not yet closed)
 
-- **The meters are still advisory.** `print_events` and `scan_events` are client-written with
-  swallowed errors — a client that simply never inserts has an infinite meter. Making them
-  authoritative means moving record-and-check into a security-definer RPC that does both
-  atomically.
+- **The meters can be under-counted, but no longer exceeded.** See "Metering" below — a client
+  that never records a scan or print keeps its credit, because "this add came from a scan" is a
+  claim only the client can make. Closing that would mean putting the add itself behind a server
+  RPC.
 - **Never-subscribed accounts are never reclaimed.** The nightly reclaimers select only from
   `entitlements`, so an account that has never held a tier is not in the candidate set. With
   insert-time caps in place this matters much less — the only way to get over cap is data that
@@ -101,6 +101,29 @@ select count(*) from (
 - **Cap numbers are mirrored by hand** in three places: each app's `tiers.ts`, the SQL cap
   functions here, and `PRINTS_PER_MONTH` in the payments webhook (Deno can't import from the
   app). Change them together; consolidating is a tracked follow-up.
+
+## Metering (prints and scans)
+
+`record_print_event()` and `record_scan_event(card_id)` check the allowance and insert the ledger
+row **atomically**, under a per-user advisory lock so two tabs cannot both spend the last credit.
+They return `{used, left, ...}` so the client can show the authoritative number instead of an
+optimistic guess, and raise `tier_cap_exceeded:includedPrintsPerMonth` / `:cardScansPerMonth` when
+the allowance is gone.
+
+The INSERT policies on both tables carry the same allowance predicate. That matters because every
+build shipped before 2026-07-24 writes to the tables directly: those clients are metered too,
+without needing to upgrade first. (They fail silently, since they swallow insert errors — which is
+why the clients moved to the RPCs.)
+
+`michi_print_window()` is the server's copy of `resolvePrintWindow()` in `src/data/printWindow.ts`,
+including the three window kinds (calendar month with no billing term, a monthly slice anchored on
+the billing anniversary, or the whole term for a yearly subscriber who unlocked their pool) and
+`months_elapsed()` mirroring `data/proration.ts`. **These are hand-mirrored: change them together.**
+Verified live on 2026-07-24 against a VIP account — the server resolved the same anniversary slice
+and allocation the client shows.
+
+What this does *not* fix: a client that skips recording keeps its credit. The exceeded direction is
+closed; the under-counted direction is a client-honesty problem by construction.
 
 ## Client-side contract
 

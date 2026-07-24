@@ -199,6 +199,9 @@ function CollectionStrip({
   // "Select multiple" and taps toggle a selection for the bulk action bar instead.
   const [multiMode, setMultiMode] = useState(false);
   const [actionCard, setActionCard] = useState<UserCard | null>(null);
+  // Ending multi-select with a selection opens this bulk-action modal (rather than silently
+  // discarding the picks — the old behaviour, which read as "nothing happened").
+  const [bulkOpen, setBulkOpen] = useState(false);
   // Browse / search state: one carousel, the series→set drill, or by tcgscan portfolio.
   const [mode, setMode] = useState<ViewMode>(viewModePref);
   const switchMode = (m: ViewMode) =>
@@ -482,12 +485,19 @@ function CollectionStrip({
         ))}
         <Pressable
           onPress={() => {
-            setMultiMode((v) => !v);
-            setSelected(new Set());
+            if (multiMode) {
+              // Ending multi-select: surface the bulk-action modal when cards are chosen (keeping the
+              // selection); otherwise just leave the mode.
+              setMultiMode(false);
+              if (selected.size > 0) setBulkOpen(true);
+            } else {
+              setMultiMode(true);
+              setSelected(new Set());
+            }
           }}
           style={[pillChip.base, multiMode && pillChip.active]}>
           <Text style={[pillChip.text, multiMode && pillChip.textActive]}>
-            {multiMode ? '✓ Select multiple' : '⊕ Select multiple'}
+            {multiMode ? '✓ Done selecting' : '⊕ Select multiple'}
           </Text>
         </Pressable>
         <Pressable onPress={() => setImportOpen(true)} style={pillChip.base}>
@@ -669,6 +679,35 @@ function CollectionStrip({
               : undefined
           }
           onClose={() => setActionCard(null)}
+        />
+      ) : null}
+
+      {bulkOpen && selected.size > 0 ? (
+        <CollectionBulkModal
+          cardIds={[...selected]}
+          placeable={placeableIds.length}
+          onAdd={placeableIds.length > 0 ? () => {
+            setBulkOpen(false);
+            setChooser('add');
+          } : undefined}
+          onFindSimilar={
+            onFindSimilar
+              ? () => {
+                  const ids = [...selected];
+                  setBulkOpen(false);
+                  setSelected(new Set());
+                  onFindSimilar(ids);
+                }
+              : undefined
+          }
+          onReclaim={reclaimId ? () => {
+            setBulkOpen(false);
+            setChooser('reclaim');
+          } : undefined}
+          onClose={() => {
+            setBulkOpen(false);
+            setSelected(new Set());
+          }}
         />
       ) : null}
 
@@ -1010,6 +1049,94 @@ function CollectionCardModal({
   );
 }
 
+/**
+ * Bulk-action sheet shown when multi-select ends with cards chosen: a thumbnail strip of the
+ * selection + the same verbs as the inline action bar (Add to a binder / Find similar / Reclaim).
+ * Each action is omitted when it doesn't apply (no free copies → no Add, etc.).
+ */
+function CollectionBulkModal({
+  cardIds,
+  placeable,
+  onAdd,
+  onFindSimilar,
+  onReclaim,
+  onClose,
+}: {
+  cardIds: string[];
+  placeable: number;
+  onAdd?: () => void;
+  onFindSimilar?: () => void;
+  onReclaim?: () => void;
+  onClose: () => void;
+}) {
+  const shown = cardIds.slice(0, 6);
+  const extra = cardIds.length - shown.length;
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.backdrop} onPress={onClose}>
+        <Pressable onPress={(e) => e.stopPropagation()} style={styles.cardModalWrap}>
+          <ThemedView type="backgroundElement" style={styles.cardModal}>
+            <ThemedText type="smallBold" style={styles.cardModalTitle}>
+              {cardIds.length} card{cardIds.length === 1 ? '' : 's'} selected
+            </ThemedText>
+            <View style={styles.bulkThumbs}>
+              {shown.map((id) => (
+                <Image
+                  key={id}
+                  source={{ uri: cardThumbUrl(id, 245) }}
+                  style={styles.bulkThumb}
+                  contentFit="contain"
+                  cachePolicy="memory-disk"
+                  transition={80}
+                  draggable={false}
+                />
+              ))}
+              {extra > 0 ? (
+                <View style={[styles.bulkThumb, styles.bulkMore]}>
+                  <Text style={styles.bulkMoreText}>+{extra}</Text>
+                </View>
+              ) : null}
+            </View>
+
+            {onAdd ? (
+              <Pressable
+                onPress={onAdd}
+                style={({ pressed }) => [styles.actionBtn, styles.cardModalBtn, pressed && styles.pressed]}>
+                <Text style={styles.actionBtnText}>
+                  Add {placeable} to a binder…
+                </Text>
+              </Pressable>
+            ) : (
+              <ThemedText type="small" themeColor="textSecondary" style={styles.bulkNote}>
+                None of these have a free copy left to place.
+              </ThemedText>
+            )}
+            {onFindSimilar ? (
+              <Pressable
+                onPress={onFindSimilar}
+                style={({ pressed }) => [styles.cardModalSecondary, pressed && styles.pressed]}>
+                <Text style={styles.cardModalSecondaryText}>≈ Find similar</Text>
+              </Pressable>
+            ) : null}
+            {onReclaim ? (
+              <Pressable
+                onPress={onReclaim}
+                style={({ pressed }) => [styles.cardModalSecondary, pressed && styles.pressed]}>
+                <Text style={styles.cardModalSecondaryText}>Reclaim from a binder…</Text>
+              </Pressable>
+            ) : null}
+            <Pressable
+              onPress={onClose}
+              style={({ pressed }) => [styles.cardModalSecondary, pressed && styles.pressed]}>
+              <Text style={styles.cardModalCancel}>Cancel</Text>
+            </Pressable>
+          </ThemedView>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 function CardTile({
   card,
   placed,
@@ -1212,4 +1339,9 @@ const styles = StyleSheet.create({
   },
   cardModalSecondaryText: { color: Palette.accent, fontSize: FontSize.control, fontWeight: Weight.semibold },
   cardModalCancel: { color: Palette.muted, fontSize: FontSize.control, fontWeight: Weight.semibold },
+  bulkThumbs: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: Spacing.two, marginVertical: Spacing.one },
+  bulkThumb: { width: 44, height: 44 * CARD_ASPECT, borderRadius: Radius.control, backgroundColor: Palette.panel, overflow: 'hidden' },
+  bulkMore: { alignItems: 'center', justifyContent: 'center' },
+  bulkMoreText: { color: Palette.ink2, fontSize: FontSize.sm, fontWeight: Weight.bold },
+  bulkNote: { textAlign: 'center', marginTop: Spacing.two },
 });

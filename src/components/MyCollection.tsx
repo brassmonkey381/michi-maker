@@ -1321,7 +1321,7 @@ const styles = StyleSheet.create({
   pfDeleteBtns: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.two, marginTop: Spacing.three },
   pfBtn: { paddingVertical: Spacing.two, paddingHorizontal: Spacing.four, borderRadius: Radius.control },
   pfBtnDanger: { backgroundColor: Palette.danger },
-  pfBtnDangerText: { color: Palette.white, fontSize: FontSize.sm, fontWeight: Weight.semibold },
+  pfBtnDangerText: { color: Palette.accentText, fontSize: FontSize.sm, fontWeight: Weight.semibold },
   groupSeries: { marginTop: Spacing.three },
   groupSet: { marginTop: Spacing.one },
   cardModalWrap: { width: '100%', maxWidth: 320 },

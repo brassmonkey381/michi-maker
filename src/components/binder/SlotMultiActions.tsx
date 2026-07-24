@@ -110,6 +110,6 @@ const styles = StyleSheet.create({
   btnPrimary: { backgroundColor: Palette.accent },
   btnDanger: { backgroundColor: Palette.danger },
   btnOutline: { borderWidth: 1 },
-  btnFilledText: { color: Palette.white },
+  btnFilledText: { color: Palette.accentText },
   pressed: { opacity: 0.75 },
 });

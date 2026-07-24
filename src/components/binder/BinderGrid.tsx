@@ -55,6 +55,9 @@ interface BinderGridProps {
   onDragStart?: () => void;
   /** Footprints to highlight as legal drop targets while a slice is armed/dragged from the tray. */
   dropTargets?: readonly { row: number; col: number; rs: number; cs: number }[];
+  /** Card ids the viewer owns (own ≥ 1) — card slots for these get a green ✓ corner badge.
+   *  Undefined/omitted = the owned overlay is off. */
+  ownedIds?: ReadonlySet<string>;
 }
 
 export interface BinderGridHandle {
@@ -96,6 +99,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
     onCrossDrop,
     onDragStart,
     dropTargets,
+    ownedIds,
   }: BinderGridProps,
   ref,
 ) {
@@ -237,7 +241,15 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
           const selected =
             editable && (slot.id === selectedSlotId || !!multiSelectedIds?.has(slot.id));
           const style = box(slot.row, slot.col, slot.rowSpan, slot.colSpan);
-          const content = <SlotContent slot={slot} radius={slotRadius} small={small} catalog={catalog} />;
+          const content = (
+            <SlotContent
+              slot={slot}
+              radius={slotRadius}
+              small={small}
+              catalog={catalog}
+              owned={!!(slot.cardId && ownedIds?.has(slot.cardId))}
+            />
+          );
           if (!editable) {
             return (
               <View key={slot.id} style={style}>
@@ -321,7 +333,13 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               styles.ghost,
               ghostStyle,
             ]}>
-            <SlotContent slot={dragged} radius={slotRadius} small={small} catalog={catalog} />
+            <SlotContent
+              slot={dragged}
+              radius={slotRadius}
+              small={small}
+              catalog={catalog}
+              owned={!!(dragged.cardId && ownedIds?.has(dragged.cardId))}
+            />
           </Animated.View>
         ) : null}
 
@@ -763,11 +781,14 @@ function SlotContent({
   radius,
   small,
   catalog,
+  owned = false,
 }: {
   slot: DemoSlot;
   radius: number;
   small: boolean;
   catalog: Catalog | null;
+  /** The viewer owns this card (own ≥ 1) — show the green ✓ corner badge. */
+  owned?: boolean;
 }) {
   if (slot.type === 'insert') {
     // Tonal negative-space filler: solid colour with a soft top inner highlight
@@ -829,6 +850,7 @@ function SlotContent({
       <View style={[styles.fill, { borderRadius: radius, backgroundColor: SlotBackingFallback }]}>
         <CardImage key={id} id={id} radius={radius} small={small} contentFit={spanning ? 'cover' : 'contain'} />
         <KindBadge kind={kind} small={small} />
+        <OwnedBadge owned={owned} small={small} />
       </View>
     );
   }
@@ -844,7 +866,19 @@ function SlotContent({
           <View style={[styles.foilBar, styles.foilBarB]} />
         </View>
         <KindBadge kind={kind} small={small} />
+        <OwnedBadge owned={owned} small={small} />
       </View>
+    </View>
+  );
+}
+
+/** A green ✓ corner badge marking a card the viewer owns (own ≥ 1) — top-left, matching the
+ *  browse grid's owned marker. Off unless `owned`; shrinks on small (neighbour) tiles. */
+function OwnedBadge({ owned, small }: { owned: boolean; small: boolean }) {
+  if (!owned) return null;
+  return (
+    <View pointerEvents="none" style={[styles.ownedBadge, small && styles.ownedBadgeSmall]}>
+      <Text style={[styles.ownedBadgeText, small && styles.ownedBadgeTextSmall]}>✓</Text>
     </View>
   );
 }
@@ -1268,4 +1302,19 @@ const styles = StyleSheet.create({
     fontWeight: Weight.bold,
     letterSpacing: 0.5,
   },
+  // Owned marker — the same green as the browse grid's owned check (#2e9e5b).
+  ownedBadge: {
+    position: 'absolute',
+    top: 5,
+    left: 5,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#2e9e5b',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ownedBadgeSmall: { top: 3, left: 3, width: 14, height: 14, borderRadius: 7 },
+  ownedBadgeText: { color: Palette.white, fontSize: 12, fontWeight: Weight.bold, lineHeight: 14 },
+  ownedBadgeTextSmall: { fontSize: 9, lineHeight: 11 },
 });

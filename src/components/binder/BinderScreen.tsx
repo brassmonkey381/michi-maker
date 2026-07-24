@@ -770,14 +770,18 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     width,
     role,
     captionFields,
+    ownedIds,
   }: {
     page: DemoPage;
     width: number;
     role: GridRole;
     captionFields: CaptionFieldKey[];
+    ownedIds?: ReadonlySet<string>;
   }) => {
     if (!editing) {
-      return <BinderGrid page={p} width={width} editable={false} captionFields={captionFields} />;
+      return (
+        <BinderGrid page={p} width={width} editable={false} captionFields={captionFields} ownedIds={ownedIds} />
+      );
     }
     if (role === 'prev' || role === 'next') {
       const nIdx = role === 'prev' ? idx - 1 : idx + 1;
@@ -788,6 +792,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           width={width}
           editable
           captionFields={captionFields}
+          ownedIds={ownedIds}
           // A tray slice reaches the neighbours too: show its legal pockets here, and let an
           // armed slice tap-place onto them (drags resolve via resolveSpreadHit regardless).
           dropTargets={role === 'prev' ? prevDropTargets : nextDropTargets}
@@ -813,6 +818,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           width={width}
           editable
           captionFields={captionFields}
+          ownedIds={ownedIds}
           // The facing page is a first-class drop surface for tray slices too.
           dropTargets={isPrev ? prevDropTargets : nextDropTargets}
           onCellPress={(row, col) => {
@@ -842,6 +848,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         width={width}
         editable
         captionFields={captionFields}
+        ownedIds={ownedIds}
         selectedSlotId={selectedSlotId}
         multiSelectedIds={multiIds}
         onCellPress={handleAddCell}

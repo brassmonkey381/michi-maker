@@ -9,6 +9,7 @@ import { THEME_FAMILIES, themeBackgroundDataUri } from '@/data/themeBackgrounds'
 import type { DemoPage, DemoSlot } from '@/data/binderTypes';
 import type { SavedSlice } from '@/data/savedSlices';
 import { useCatalog } from '@/hooks/use-catalog';
+import { useOwnedCards } from '@/hooks/use-owned-cards';
 import type { CatalogCard } from '@/lib/catalog';
 import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
 import { flatChip, sheet } from '@/constants/ui';
@@ -110,6 +111,9 @@ export function CardPicker({
   // force the 9.87MB catalog fetch on binder-open. The background prefetch (BinderScreen)
   // warms the shared load-once promise; opening the sheet just subscribes to it.
   const { catalog } = useCatalog(visible);
+  // Owned-card ids → the browse's collection overlays (tile checks, set completion %, and the
+  // have: / Collection filter) inside the picker, matching the /browse page. Undefined for guests.
+  const ownedIds = useOwnedCards();
   const [shape, setShape] = useState({ rows: 1, cols: 1 });
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -298,6 +302,7 @@ export function CardPicker({
               onPickVUnion={onPickVUnion}
               onPickCards={onPickCards}
               initialSimilar={initialSimilar}
+              ownedIds={ownedIds}
             />
           ) : tab === 'artwork' ? (
             // Inserting artwork IS the Slice Studio now — bring art in by URL, drag, image drag, or

@@ -21,6 +21,7 @@ import { BinderPageMaxWidth } from '@/constants/theme';
 import { pillChip } from '@/constants/ui';
 import { DEFAULT_CAPTION_FIELDS, type CaptionFieldKey } from '@/data/cardCaption';
 import type { DemoBinder, DemoPage } from '@/data/binderTypes';
+import { useOwnedCards } from '@/hooks/use-owned-cards';
 
 /** Which slot a rendered grid occupies — lets the caller wire the right handlers/refs per grid.
  *  'partner' is the facing page of a double-sided spread: fully interactive in edit mode (the
@@ -46,6 +47,7 @@ export interface BinderPagesProps {
     width: number;
     role: GridRole;
     captionFields: CaptionFieldKey[];
+    ownedIds?: ReadonlySet<string>;
   }) => ReactNode;
   /** Enables drag-to-reorder in the filmstrip (edit only). Omit → tap-to-jump only. */
   onReorderPages?: (from: number, to: number) => void;
@@ -73,6 +75,11 @@ export function BinderPages({
   const toggleLabelField = (key: CaptionFieldKey) =>
     setLabelFields((cur) => (cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key]));
   const captionFields = labelsOn ? labelFields : [];
+  // The viewer's owned cards → an optional green ✓ on card slots they own. Undefined for guests /
+  // empty inventory (the "Owned" pill then stays hidden). Off by default; the pill flips it.
+  const ownedCards = useOwnedCards();
+  const [showOwned, setShowOwned] = useState(false);
+  const ownedIds = showOwned ? ownedCards : undefined;
   // Double-sided: pages pair like a physical binder — page 1 alone (the cover face), then
   // 2·3 facing, 4·5, … Both sides of the open spread are shown (and edited) together.
   const [doubleSided, setDoubleSided] = useState(doubleSidedPref);
@@ -166,6 +173,17 @@ export function BinderPages({
             fields={labelFields}
             onToggleField={toggleLabelField}
           />
+          {/* Owned overlay — only offered when the viewer has an inventory (own cards). A green ✓
+              corner badge lights up on card slots they own. */}
+          {ownedCards ? (
+            <Pressable
+              onPress={() => setShowOwned((v) => !v)}
+              style={[pillChip.base, showOwned && pillChip.active]}>
+              <Text style={[pillChip.text, showOwned && pillChip.textActive]}>
+                {showOwned ? '✓ Owned' : 'Owned'}
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
       </View>
 
@@ -195,6 +213,7 @@ export function BinderPages({
                     width: bookW,
                     role: spreadLeftIdx === idx ? 'current' : 'partner',
                     captionFields,
+                    ownedIds,
                   })
                 : null}
             </SpreadColumn>
@@ -214,6 +233,7 @@ export function BinderPages({
                     width: bookW,
                     role: spreadRightIdx === idx ? 'current' : 'partner',
                     captionFields,
+                    ownedIds,
                   })
                 : null}
             </SpreadColumn>
@@ -229,7 +249,7 @@ export function BinderPages({
               dragCol={dragCol}
               columnIndex={0}>
               {prevPage
-                ? renderGrid({ page: prevPage, width: spreadWidth, role: 'prev', captionFields })
+                ? renderGrid({ page: prevPage, width: spreadWidth, role: 'prev', captionFields, ownedIds })
                 : null}
             </SpreadColumn>
             <SpreadColumn
@@ -239,7 +259,7 @@ export function BinderPages({
               editable={editable}
               dragCol={dragCol}
               columnIndex={1}>
-              {renderGrid({ page, width: spreadWidth, role: 'current', captionFields })}
+              {renderGrid({ page, width: spreadWidth, role: 'current', captionFields, ownedIds })}
             </SpreadColumn>
             <SpreadColumn
               page={nextPage}
@@ -250,12 +270,12 @@ export function BinderPages({
               dragCol={dragCol}
               columnIndex={2}>
               {nextPage
-                ? renderGrid({ page: nextPage, width: spreadWidth, role: 'next', captionFields })
+                ? renderGrid({ page: nextPage, width: spreadWidth, role: 'next', captionFields, ownedIds })
                 : null}
             </SpreadColumn>
           </View>
         ) : (
-          renderGrid({ page, width: pageWidth, role: 'single', captionFields })
+          renderGrid({ page, width: pageWidth, role: 'single', captionFields, ownedIds })
         )}
       </View>
 

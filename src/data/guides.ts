@@ -27,6 +27,9 @@ export interface Guide {
   /** Optional closing pointer. */
   tip?: string;
   relatedSlugs?: string[];
+  /** Optional call-to-action button (e.g. an interactive companion page). Shown under the lede. */
+  ctaLabel?: string;
+  ctaHref?: string;
 }
 
 export const GUIDE_LIST: Guide[] = [
@@ -106,7 +109,7 @@ export const GUIDE_LIST: Guide[] = [
       },
       {
         title: 'Choose your paper',
-        body: 'Every export is two files, because the two halves want different paper. The placeholders file is temporary — each piece gets swapped out the day the real card arrives — so plain copy paper is the right call, and cheap enough to reprint whenever the layout changes. The art file is permanent: those pieces stay in the binder for good, so print them on matte coated cardstock, around 250 to 300 gsm. Michi recommends roughly 300 gsm matte coated stock, and the reasoning is worth knowing: plain printer paper is too flimsy to sit flat in a pocket, and uncoated cardstock lets the ink spread. Matte over glossy matters too — a glossy sheet behind a glossy sleeve next to a glossy card throws three competing reflections, and the art is the one that loses.',
+        body: 'Every export is two files, because the two halves want different paper. The placeholders file is temporary, since each piece gets swapped out the day the real card arrives, so plain copy paper is the right call, and cheap enough to reprint whenever the layout changes. The art file is permanent: those pieces stay in the binder for good, so print them on matte coated cardstock, around 250 to 300 gsm. Michi recommends roughly 300 gsm matte coated stock, and the reasoning is worth knowing: plain printer paper is too flimsy to sit flat in a pocket, and uncoated cardstock lets the ink spread. Matte over glossy matters too: a glossy sheet behind a glossy sleeve next to a glossy card throws three competing reflections, and the art is the one that loses.',
       },
       {
         title: 'Get the settings right first',
@@ -123,6 +126,42 @@ export const GUIDE_LIST: Guide[] = [
     ],
     tip: 'Full-binder PDF export is a paid unlock while the free preview shows a premade example sheet. See Plans for what each plan includes.',
     relatedSlugs: ['first-binder', 'slice-studio'],
+  },
+  {
+    slug: 'search-your-cards',
+    title: 'Power-search your cards',
+    lede: 'The search box is a tiny query language. Aim at a field, compare numbers and dates, sort, and filter by your collection, then stack it all together.',
+    minutes: 3,
+    ctaLabel: 'Open the interactive cheatsheet',
+    ctaHref: '/search-guide',
+    steps: [
+      {
+        title: 'Just type words',
+        body: 'Type anything: charizard, or arita fire. Every word has to match somewhere (name, set, series, artist, rarity, type), so piling words on narrows the results.',
+      },
+      {
+        title: 'Target a field',
+        body: 'Put a field before a colon to aim: set:base, artist:arita, type:fire, rarity:"holo rare". Quote multi-word values so the whole thing is matched.',
+      },
+      {
+        title: 'Compare numbers and dates',
+        body: 'Use >, <, >=, <=: try >$100 for value, hp>=300, stage>1, or date>2022. A colon means exactly equal: hp:120, year:1999.',
+      },
+      {
+        title: 'Sort',
+        body: 'sort:value puts the priciest first (the tiles show values). Also sort:newest, sort:hp, sort:name. Add :asc or :desc to flip the direction.',
+      },
+      {
+        title: 'Filter by your collection',
+        body: 'have:yes shows the cards you own; have:no shows what you are missing. Combine with a set to build a want-list, like set:"evolving skies" have:no.',
+      },
+      {
+        title: 'Stack and refine',
+        body: 'Everything combines. Run something broad, then keep adding fields, comparisons, and the chip filters until it is exactly what you want. The Set filter pins one exact set when a name is too fuzzy.',
+      },
+    ],
+    tip: 'The interactive cheatsheet puts a Try it button on every example, so you can run a query and keep building on it.',
+    relatedSlugs: ['first-binder'],
   },
 ];
 

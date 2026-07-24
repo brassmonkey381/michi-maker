@@ -40,6 +40,14 @@ export default function GuideScreen() {
         {guide.lede} About {guide.minutes} minutes.
       </ThemedText>
 
+      {guide.ctaHref ? (
+        <Pressable
+          onPress={() => router.push(guide.ctaHref as Href)}
+          style={({ pressed }) => [styles.cta, styles.ctaTop, pressed && styles.pressed]}>
+          <ThemedText style={styles.ctaText}>{guide.ctaLabel ?? 'Open'} →</ThemedText>
+        </Pressable>
+      ) : null}
+
       <View style={styles.steps}>
         {guide.steps.map((s, i) => (
           <View key={s.title} style={styles.step}>
@@ -126,6 +134,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
   },
+  ctaTop: { marginBottom: Spacing.five },
   ctaText: { color: Palette.accentText, fontWeight: Weight.bold, fontSize: FontSize.control },
   pressed: { opacity: 0.7 },
 });

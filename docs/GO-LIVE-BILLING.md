@@ -28,13 +28,13 @@
 > - **support@michi-maker.com** is live and wired into the legal pages and the DMCA notice; a DMCA
 >   agent (**"Copyright Compliance Agent"**) is registered with the U.S. Copyright Office.
 >
+ **Closed since (2026-07-24):**
+> - `support@michi-maker.com` added to Stripe → Public details.
+> - Smoke-test charges refunded in the live dashboard.
+> - Local `sk_live.txt` / `supabase_token.txt` handoff files: owner has chosen to keep them where
+>   they are (outside the repos, never committed) — accepted, no longer tracked as an open item.
+>
 > **Still open** (none of it blocks selling):
-> - Delete the local `sk_live.txt` / `supabase_token.txt` handoff files. ⚠️ **These are live
->   credentials sitting in `C:\Users\Brian\` — highest-value item on this list.**
-> - Add `support@michi-maker.com` to Stripe → Settings → Business → Public details (it shows on
->   receipts and in the portal).
-> - Refund the smoke-test charges in the live dashboard if you want the money back (the
->   subscription is cancelled, but the PRO-yearly and upgrade charges stand).
 > - Delete the test-mode test clock and its rig customers (cosmetic).
 > - **tcgscan has NOT had a real-card smoke test.** Its checkout, upgrade path, and over-cap
 >   reclaim went live on code parity with michi, not on an exercised live purchase — see

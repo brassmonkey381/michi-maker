@@ -1,5 +1,10 @@
 # Monetization — Free / PRO / VIP tiers + print gating
 
+> **⚠️ HISTORICAL ROADMAP.** Billing went **LIVE 2026-07-22** — checkout is open and `LIMITS_ENFORCED`
+> defaults ON in both deployed builds. Where this doc says a switch is "dormant / false / not wired",
+> read it as the pre-launch plan. The source of truth for current state is `docs/PAYMENTS.md` and
+> `docs/GO-LIVE-BILLING.md`.
+
 ## STATUS — foundation SHIPPED (2026-07-15)
 
 Steps 1, 2 (dormant), and 4 below are done and on `main`:
@@ -10,15 +15,16 @@ Steps 1, 2 (dormant), and 4 below are done and on `main`:
   can't regress print if the column isn't there yet, but subscription terms need the column.
 - **Config:** `src/data/tiers.ts` — `Tier`, `PRODUCTS`, `TIER_LIMITS` (the strawman numbers),
   `resolveTier` / `hasFullPrint` / `limitsForTier`, and the master switch
-  **`LIMITS_ENFORCED = false`** (permissive until pricing is live).
+  **`LIMITS_ENFORCED`** (env-driven, defaults ON since go-live — was planned to stay `false` until
+  pricing was live; kill switch is `EXPO_PUBLIC_LIMITS_ENFORCED=0`).
 - **Hook:** `src/hooks/use-tier.ts` — `useTier()` → `{ tier, limits, hasFullPrint, isPaid,
   loading, refresh }`.
-- **Upgrade note:** `src/components/monetization/UpgradePerk.tsx` (SignInPerk sibling; honest
-  "coming soon" since checkout isn't wired).
+- **Upgrade note:** `src/components/monetization/UpgradePerk.tsx` (SignInPerk sibling). Now that
+  checkout is live it launches real Stripe Checkout; it showed a "coming soon" note pre-launch.
 - **Print gate:** `PrintPlaceholdersSheet` unlocks printing your own binder for PRO/VIP **or** a
   per-binder `pdf_binder:<id>` purchase (live, not flag-gated — only ever adds access). No lifetime
   all-binder unlock and no grandfathering. Non-payers get a free short example PDF as the teaser.
-- **Limit enforcement (dormant):** `useBinders()` exposes `tier` / `limits` / `binderCount` /
+- **Limit enforcement (now live):** `useBinders()` exposes `tier` / `limits` / `binderCount` /
   `atBinderLimit` / `pageLimitReached`; guards live in the store (`createBinder` paths via UI
   pre-check, `duplicateBinder` + `addPage` internally) and surface `UpgradePerk` / toasts.
   All no-ops while `LIMITS_ENFORCED` is false.

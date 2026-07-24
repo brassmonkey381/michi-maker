@@ -3,7 +3,8 @@
  * binder editor before destructive actions — deleting a page or a binder.
  */
 
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -16,16 +17,32 @@ export interface ConfirmSpec {
   confirmLabel?: string;
   /** When true, the confirm button reads as destructive (red). */
   destructive?: boolean;
+  /** When set, the user must type this exact text (trimmed, case-insensitive) to enable the
+   *  confirm button — the "type the name to delete" gate for the most destructive actions. */
+  requireText?: string;
   onConfirm: () => void;
 }
 
 export function ConfirmDialog({ spec, onClose }: { spec: ConfirmSpec | null; onClose: () => void }) {
   const theme = useTheme();
+  const [text, setText] = useState('');
+  // Reset the typed confirmation whenever a dialog opens or closes (spec identity changes).
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setText('');
+  }, [spec]);
   if (!spec) return null;
 
+  const need = spec.requireText?.trim().toLowerCase() ?? '';
+  const canConfirm = !need || text.trim().toLowerCase() === need;
+  const close = () => {
+    setText('');
+    onClose();
+  };
+
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
+    <Modal visible transparent animationType="fade" onRequestClose={close}>
+      <Pressable style={styles.backdrop} onPress={close}>
         <Pressable onPress={(e) => e.stopPropagation()} style={styles.cardWrap}>
           <ThemedView type="backgroundElement" style={styles.card}>
             <ThemedText type="subtitle" style={styles.title}>
@@ -36,9 +53,26 @@ export function ConfirmDialog({ spec, onClose }: { spec: ConfirmSpec | null; onC
                 {spec.message}
               </ThemedText>
             ) : null}
+            {spec.requireText ? (
+              <>
+                <ThemedText type="small" themeColor="textSecondary" style={styles.gateLabel}>
+                  Type <ThemedText type="smallBold">{spec.requireText}</ThemedText> to confirm.
+                </ThemedText>
+                <TextInput
+                  value={text}
+                  onChangeText={setText}
+                  placeholder={spec.requireText}
+                  placeholderTextColor={theme.textSecondary}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoFocus
+                  style={[styles.input, { color: theme.text, borderColor: theme.backgroundSelected }]}
+                />
+              </>
+            ) : null}
             <View style={styles.row}>
               <Pressable
-                onPress={onClose}
+                onPress={close}
                 style={({ pressed }) => [
                   styles.btn,
                   { borderColor: theme.backgroundSelected },
@@ -47,13 +81,15 @@ export function ConfirmDialog({ spec, onClose }: { spec: ConfirmSpec | null; onC
                 <ThemedText type="smallBold">Cancel</ThemedText>
               </Pressable>
               <Pressable
+                disabled={!canConfirm}
                 onPress={() => {
                   spec.onConfirm();
-                  onClose();
+                  close();
                 }}
                 style={({ pressed }) => [
                   styles.btn,
                   spec.destructive ? styles.btnDanger : styles.btnPrimary,
+                  !canConfirm && styles.btnDisabled,
                   pressed && styles.pressed,
                 ]}>
                 <ThemedText type="smallBold" style={styles.btnFilledText}>
@@ -90,6 +126,15 @@ const styles = StyleSheet.create({
   },
   btnPrimary: { backgroundColor: Palette.accent },
   btnDanger: { backgroundColor: Palette.danger },
+  btnDisabled: { opacity: 0.4 },
   btnFilledText: { color: Palette.accentText },
   pressed: { opacity: 0.7 },
+  gateLabel: { lineHeight: 20 },
+  input: {
+    borderWidth: 1,
+    borderRadius: Radius.control,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    fontSize: FontSize.body,
+  },
 });

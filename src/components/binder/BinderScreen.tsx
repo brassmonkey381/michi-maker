@@ -1121,6 +1121,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                         message: 'This binder and all its pages will be permanently deleted.',
                         confirmLabel: 'Delete binder',
                         destructive: true,
+                        requireText: binder.title,
                         onConfirm: () => {
                           store.deleteBinder(binder.id);
                           onClose();

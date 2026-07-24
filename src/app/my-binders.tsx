@@ -124,13 +124,14 @@ export default function MyBindersScreen() {
   };
   const deleteFromMenu = () => {
     if (!menuBinder) return;
-    const id = menuBinder.id;
+    const { id, title } = menuBinder;
     setMenuId(null);
     setConfirm({
       title: 'Delete this binder?',
       message: 'This binder and all its pages will be permanently deleted.',
       confirmLabel: 'Delete binder',
       destructive: true,
+      requireText: title,
       onConfirm: () => {
         store.deleteBinder(id);
         showToast('Binder deleted');

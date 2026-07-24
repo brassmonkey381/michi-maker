@@ -28,6 +28,7 @@ import {
 } from 'react-native';
 
 import { BuildBinderSheet } from '@/components/BuildBinderSheet';
+import { ConfirmDialog } from '@/components/binder/ConfirmDialog';
 import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { HomeSection } from '@/components/HomeSection';
 import { ImportCsvSheet } from '@/components/ImportCsvSheet';
@@ -740,35 +741,22 @@ function CollectionStrip({
         </Modal>
       ) : null}
 
-      {pfDelete ? (
-        <Modal visible transparent animationType="fade" onRequestClose={() => setPfDelete(null)}>
-          <Pressable style={styles.backdrop} onPress={() => setPfDelete(null)}>
-            <Pressable onPress={(e) => e.stopPropagation()} style={styles.chooserWrap}>
-              <ThemedView type="backgroundElement" style={styles.chooser}>
-                <ThemedText type="smallBold" style={styles.chooserTitle}>
-                  Delete “{pfDelete.name}”?
-                </ThemedText>
-                <ThemedText type="small" themeColor="textSecondary" style={styles.pfDeleteBody}>
-                  This removes the portfolio and its cards from your collection. Cards you already
-                  placed in a binder stay there. This can’t be undone.
-                </ThemedText>
-                <View style={styles.pfDeleteBtns}>
-                  <Pressable
-                    onPress={() => setPfDelete(null)}
-                    style={({ pressed }) => [styles.pfBtn, pressed && styles.pressed]}>
-                    <ThemedText type="smallBold">Cancel</ThemedText>
-                  </Pressable>
-                  <Pressable
-                    onPress={runDeletePortfolio}
-                    style={({ pressed }) => [styles.pfBtn, styles.pfBtnDanger, pressed && styles.pressed]}>
-                    <Text style={styles.pfBtnDangerText}>Delete</Text>
-                  </Pressable>
-                </View>
-              </ThemedView>
-            </Pressable>
-          </Pressable>
-        </Modal>
-      ) : null}
+      <ConfirmDialog
+        spec={
+          pfDelete
+            ? {
+                title: `Delete “${pfDelete.name}”?`,
+                message:
+                  'This removes the portfolio and its cards from your collection. Cards you already placed in a binder stay there. This can’t be undone.',
+                confirmLabel: 'Delete',
+                destructive: true,
+                requireText: pfDelete.name,
+                onConfirm: runDeletePortfolio,
+              }
+            : null
+        }
+        onClose={() => setPfDelete(null)}
+      />
 
       <BuildBinderSheet
         visible={wizardOpen}
@@ -1317,11 +1305,6 @@ const styles = StyleSheet.create({
   guideText: { flex: 1, minWidth: 200, color: Palette.accent, fontSize: FontSize.sm, lineHeight: 18, fontWeight: Weight.semibold },
   portfolioHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
   portfolioDelete: { color: Palette.danger, fontSize: FontSize.sm, fontWeight: Weight.semibold },
-  pfDeleteBody: { lineHeight: 18, marginTop: Spacing.one },
-  pfDeleteBtns: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.two, marginTop: Spacing.three },
-  pfBtn: { paddingVertical: Spacing.two, paddingHorizontal: Spacing.four, borderRadius: Radius.control },
-  pfBtnDanger: { backgroundColor: Palette.danger },
-  pfBtnDangerText: { color: Palette.accentText, fontSize: FontSize.sm, fontWeight: Weight.semibold },
   groupSeries: { marginTop: Spacing.three },
   groupSet: { marginTop: Spacing.one },
   cardModalWrap: { width: '100%', maxWidth: 320 },

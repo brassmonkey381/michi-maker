@@ -143,6 +143,60 @@ export interface DemoBinder {
 
 // --- helpers ---------------------------------------------------------------
 
+/**
+ * A short, throwaway 4-letter binder name (pronounceable consonant-vowel-consonant-vowel, e.g.
+ * "Miko", "Tavu", "Beno"). Used as the default title for a freshly created or duplicated binder:
+ * short enough that the "type the name to delete" gate is trivial to satisfy, and obviously a
+ * placeholder so it nudges the owner to give the binder a real name.
+ */
+export function fillerName(): string {
+  const consonants = 'bcdfghjklmnprstvwz';
+  const vowels = 'aeiou';
+  const pick = (set: string) => set[Math.floor(Math.random() * set.length)];
+  const raw = pick(consonants) + pick(vowels) + pick(consonants) + pick(vowels);
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
+}
+
+/** Generic default titles that `createBinder` replaces with a fresh `fillerName()`. */
+export const GENERIC_BINDER_TITLES = new Set(['', 'New binder', 'Untitled binder', 'Untitled']);
+
+/**
+ * A stable content fingerprint of a binder — title plus every page/slot, EXCLUDING the (always
+ * fresh) ids. Used to tell whether a duplicated binder is still untouched: the store stamps a
+ * copy's signature at duplication time, and a later delete compares it against the binder's
+ * current signature. Any edit (retitle, add/move/remove a card, re-page) changes the string, so a
+ * mismatch means "edited" and the name-to-delete gate stays on.
+ */
+export function binderSignature(binder: DemoBinder): string {
+  return JSON.stringify({
+    t: binder.title,
+    pages: binder.pages.map((page) => ({
+      t: page.title ?? null,
+      d: page.description ?? null,
+      r: page.rows,
+      c: page.cols,
+      bg: page.backgroundColor ?? null,
+      pub: page.isPublic ?? null,
+      slots: [...page.slots]
+        .sort((a, b) => a.row - b.row || a.col - b.col)
+        .map((slot) => ({
+          r: slot.row,
+          c: slot.col,
+          rs: slot.rowSpan,
+          cs: slot.colSpan,
+          ty: slot.type,
+          cd: slot.cardId ?? null,
+          ins: slot.insertColor ?? null,
+          im: slot.imageUrl ?? null,
+          cr: slot.imageCrop ?? null,
+          ft: slot.imageFit ?? null,
+          tr: slot.imageTransform ?? null,
+          fc: slot.fromCollection ?? null,
+        })),
+    })),
+  });
+}
+
 let _counter = 0;
 
 /** A small unique id generator (runtime only — fine for keys and the bundled examples). */

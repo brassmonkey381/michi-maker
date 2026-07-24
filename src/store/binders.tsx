@@ -31,10 +31,13 @@ import { slotSignature } from '@/data/savedSlices';
 import { legalizeArtPanels, pageSide, requiredPageSide } from '@/data/binderPhysics';
 import { EXAMPLE_FILL_SHEET_BINDER } from '@/data/exampleFillSheetBinder';
 import {
+  binderSignature,
   canPlaceSlot,
   cloneBinder,
   emptyPage,
+  fillerName,
   firstFreePlacement,
+  GENERIC_BINDER_TITLES,
   occupiedCells,
   slotCells,
   uuidv4,
@@ -136,6 +139,12 @@ interface BinderStore {
   /** Create a fresh binder seeded with one card in its first pocket (atomic). Undefined at the cap. */
   createBinderWithCard: (cardId: string) => DemoBinder | undefined;
   duplicateBinder: (id: string) => DemoBinder | undefined;
+  /**
+   * True when `id` is a duplicate created THIS session whose content is still byte-for-byte what
+   * duplication produced (session-scoped — a reload forgets it). Lets the delete UI skip the
+   * "type the name to confirm" gate for a throwaway copy the user made and immediately wants gone.
+   */
+  isPristineDuplicate: (id: string) => boolean;
   updateBinder: (id: string, patch: Partial<DemoBinder>) => void;
   deleteBinder: (id: string) => void;
   addPage: (binderId: string) => void;
@@ -248,6 +257,10 @@ const BinderContext = createContext<BinderStore | null>(null);
 export function BinderProvider({ children }: { children: ReactNode }) {
   const [history, setHistory] = useState<History>({ past: [], present: SAMPLE_BINDERS, future: [] });
   const [loading, setLoading] = useState<boolean>(CLOUD);
+  // Content signatures of duplicates made this session, keyed by the copy's id. A copy whose
+  // current signature still matches is "pristine" (untouched) and can be deleted without the
+  // type-the-name gate. Session-only (a ref, never persisted) — after a reload the gate returns.
+  const pristineDupSigs = useRef<Map<string, string>>(new Map());
   // Featured = the top public binders by likes in the last rolling 3 days, fetched live from the
   // backend (empty in local mode, or when nothing qualifies → the Featured section stays hidden).
   const [featured, setFeatured] = useState<DemoBinder[]>([]);
@@ -454,13 +467,17 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       // the "Try it out!" showcase still builds for a user who is already at their limit.
       const counted = !init?.isDemo && !init?.isExample;
       if (counted && LIMITS_ENFORCED && binderCount >= limits.binders) return undefined;
+      // Generic placeholder titles ("New binder" / "Untitled binder") become a short random filler
+      // name (e.g. "Miko") — trivial to type into the delete gate, and an obvious nudge to rename.
+      // A meaningful title a caller passed (e.g. "My collection picks") is kept as-is.
+      const title = init?.title && !GENERIC_BINDER_TITLES.has(init.title.trim()) ? init.title : fillerName();
       const binder: DemoBinder = {
         id: uuidv4(),
-        title: 'Untitled binder',
         layoutStyle: 'freeform' as MichiLayoutStyle,
         isExample: false,
         pages: [emptyPage()],
         ...init,
+        title,
       };
       if (binder.isDemo) {
         // At most ONE demo binder per account — clear any prior one first (delete + replace in a
@@ -494,12 +511,25 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       if (source.locked) return undefined;
       // Duplicating adds a binder — refuse past the tier limit (UI shows the upgrade note).
       if (LIMITS_ENFORCED && binderCount >= limits.binders) return undefined;
-      const copy = cloneBinder(source, { title: `${source.title} (copy)` });
+      // A duplicate gets a fresh short filler name (not "<title> (copy)") — same rationale as a
+      // new binder. Stamp its content signature so an immediate, unedited delete can skip the gate.
+      const copy = cloneBinder(source, { title: fillerName() });
+      pristineDupSigs.current.set(copy.id, binderSignature(copy));
       commit((prev) => [...prev, copy]);
       persist(() => repo.insertBinder(copy));
       return copy;
     },
     [binders, binderCount, limits.binders, commit, persist],
+  );
+
+  const isPristineDuplicate = useCallback(
+    (id: string) => {
+      const sig = pristineDupSigs.current.get(id);
+      if (!sig) return false;
+      const target = binders.find((binder) => binder.id === id);
+      return !!target && binderSignature(target) === sig;
+    },
+    [binders],
   );
 
   const updateBinder = useCallback(
@@ -514,6 +544,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   const deleteBinder = useCallback(
     (id: string) => {
       const target = binders.find((binder) => binder.id === id);
+      pristineDupSigs.current.delete(id);
       commit((prev) => prev.filter((binder) => binder.id !== id));
       if (target && !target.isExample) persist(() => repo.deleteBinder(id));
     },
@@ -1378,6 +1409,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       createBinder,
       createBinderWithCard,
       duplicateBinder,
+      isPristineDuplicate,
       updateBinder,
       deleteBinder,
       addPage,
@@ -1417,6 +1449,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       createBinder,
       createBinderWithCard,
       duplicateBinder,
+      isPristineDuplicate,
       updateBinder,
       deleteBinder,
       addPage,

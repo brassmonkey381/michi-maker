@@ -750,7 +750,9 @@ function CollectionStrip({
                   'This removes the portfolio and its cards from your collection. Cards you already placed in a binder stay there. This can’t be undone.',
                 confirmLabel: 'Delete',
                 destructive: true,
-                requireText: pfDelete.name,
+                // The bundled "Example cards (safe to delete)" portfolio deletes immediately; a
+                // real portfolio the user built still requires typing its name to confirm.
+                requireText: pfDelete.name === EXAMPLE_COLLECTION_NAME ? undefined : pfDelete.name,
                 onConfirm: runDeletePortfolio,
               }
             : null

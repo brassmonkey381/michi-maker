@@ -30,6 +30,7 @@ import { UpgradePerk } from '@/components/monetization/UpgradePerk';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Breakpoints, FontSize, MaxContentWidth, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { fillerName } from '@/data/binderTypes';
 import { binderLimitMessage } from '@/data/limitMessages';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useImageManifest } from '@/lib/catalogConfig';
@@ -104,7 +105,7 @@ export default function MyBindersScreen() {
     setMenuId(null);
   };
   const saveRename = () => {
-    if (renameId) store.updateBinder(renameId, { title: renameText.trim() || 'Untitled binder' });
+    if (renameId) store.updateBinder(renameId, { title: renameText.trim() || fillerName() });
     setRenameId(null);
   };
   const duplicateFromMenu = () => {
@@ -124,14 +125,17 @@ export default function MyBindersScreen() {
   };
   const deleteFromMenu = () => {
     if (!menuBinder) return;
-    const { id, title } = menuBinder;
+    const { id, title, isExample, isDemo } = menuBinder;
+    // Skip the type-the-name gate for a throwaway: an example/demo binder, or a duplicate the user
+    // just made and hasn't edited. Anything they've put work into still requires typing the name.
+    const easy = !!isExample || !!isDemo || store.isPristineDuplicate(id);
     setMenuId(null);
     setConfirm({
       title: 'Delete this binder?',
       message: 'This binder and all its pages will be permanently deleted.',
       confirmLabel: 'Delete binder',
       destructive: true,
-      requireText: title,
+      requireText: easy ? undefined : title,
       onConfirm: () => {
         store.deleteBinder(id);
         showToast('Binder deleted');

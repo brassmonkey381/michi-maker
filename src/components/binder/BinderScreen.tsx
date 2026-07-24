@@ -1121,7 +1121,10 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                         message: 'This binder and all its pages will be permanently deleted.',
                         confirmLabel: 'Delete binder',
                         destructive: true,
-                        requireText: binder.title,
+                        // A demo binder or an untouched fresh duplicate deletes without the gate;
+                        // a binder the user has worked on still requires typing its name.
+                        requireText:
+                          binder.isDemo || store.isPristineDuplicate(binder.id) ? undefined : binder.title,
                         onConfirm: () => {
                           store.deleteBinder(binder.id);
                           onClose();

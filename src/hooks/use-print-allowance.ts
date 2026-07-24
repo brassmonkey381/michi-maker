@@ -12,7 +12,13 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 
-import { countPrintsSince, fetchAnnualPoolUnlocked, unlockAnnualPool } from '@/data/printRepo';
+import {
+  countPrintsSince,
+  fetchAnnualPoolUnlocked,
+  printCreditsLeft,
+  unlockAnnualPool,
+  type RecordedPrint,
+} from '@/data/printRepo';
 import {
   resolvePoolOffer,
   resolvePrintWindow,
@@ -20,6 +26,7 @@ import {
   type PoolOffer,
   type PrintWindow,
 } from '@/data/printWindow';
+import { useAuth } from '@/store/auth';
 
 export interface PrintAllowanceInput {
   /** Only subscribers have an allocation — false short-circuits every query. */
@@ -48,13 +55,21 @@ export interface PrintAllowance {
   error: string | null;
   /** Release the full year. Resolves true on success. Irreversible. */
   unlock: () => Promise<boolean>;
-  /** Record a locally-spent credit without refetching (the sheet spends then closes). */
-  noteSpent: () => void;
+  /**
+   * Record a just-spent credit without refetching (the sheet spends then closes). Pass the RPC's
+   * authoritative result to snap the meter to the server's truth; omit it to bump optimistically.
+   */
+  noteSpent: (recorded?: RecordedPrint | null) => void;
   reload: () => void;
 }
 
 export function usePrintAllowance(input: PrintAllowanceInput): PrintAllowance {
   const { enabled, includedPerMonth, interval, periodStart, termAllocation } = input;
+  // Needed to read print_credits_left, which is parameterised by user id (security-definer, but
+  // the signature takes p_user_id). A subscriber is always signed in, so this is present when the
+  // effect below runs; if it isn't we simply fall back to the client-side count.
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
   const [window, setWindow] = useState<PrintWindow | null>(null);
   const [used, setUsed] = useState<number | null>(null);
   const [offer, setOffer] = useState<PoolOffer>({ state: 'none' });
@@ -92,13 +107,26 @@ export function usePrintAllowance(input: PrintAllowanceInput): PrintAllowance {
       if (!live) return;
       setWindow(w);
 
-      // Window usage drives the meter. TERM usage is a separate count — a yearly subscriber who
-      // printed in month 1 and is now in month 3 has an empty slice but has proven the feature,
-      // which is exactly what the pool's "spend one first" rule asks about.
-      const windowCount = await countPrintsSince(new Date(w.startMs).toISOString()).catch(
-        () => 0, // a count failure must never brick a paid plan
-      );
+      // Window usage drives the meter. Prefer the SERVER's own remaining count (print_credits_left)
+      // over counting client-side: it resolves the window with server time and is the exact figure
+      // record_print_event enforces, so the meter's gate can't drift from the ledger across a clock
+      // skew at a window boundary. Fall back to a client-side count (over the shared window) when
+      // the RPC read fails or is unavailable — a metering read must never brick a paid plan.
+      //
+      // TERM usage is a separate count — a yearly subscriber who printed in month 1 and is now in
+      // month 3 has an empty slice but has proven the feature, which is what the pool's "spend one
+      // first" rule asks about.
+      let windowCount: number;
+      const serverLeft = userId ? await printCreditsLeft(userId).catch(() => null) : null;
       if (!live) return;
+      if (serverLeft != null && Number.isFinite(w.allocation)) {
+        // Derive used from the server's remaining count. Clamp because a staff/uncapped account
+        // reports a sentinel far above the allocation.
+        windowCount = Math.min(w.allocation, Math.max(0, w.allocation - serverLeft));
+      } else {
+        windowCount = await countPrintsSince(new Date(w.startMs).toISOString()).catch(() => 0);
+        if (!live) return;
+      }
       setUsed(windowCount);
 
       if (interval !== 'year' || !hasTerm) {
@@ -125,7 +153,7 @@ export function usePrintAllowance(input: PrintAllowanceInput): PrintAllowance {
     return () => {
       live = false;
     };
-  }, [enabled, includedPerMonth, interval, periodStart, termAllocation, generation]);
+  }, [enabled, includedPerMonth, interval, periodStart, termAllocation, userId, generation]);
 
   const unlock = useCallback(async () => {
     if (!periodStart || unlocking) return false;
@@ -147,7 +175,13 @@ export function usePrintAllowance(input: PrintAllowanceInput): PrintAllowance {
     }
   }, [periodStart, unlocking, reload]);
 
-  const noteSpent = useCallback(() => setUsed((u) => (u ?? 0) + 1), []);
+  // Prefer the RPC's AUTHORITATIVE post-spend count (record_print_event returns used/left/allocation)
+  // so the meter snaps to the server's truth; fall back to an optimistic +1 when the caller has no
+  // server figure (a soft-failed record we still let through).
+  const noteSpent = useCallback(
+    (recorded?: RecordedPrint | null) => setUsed((u) => (recorded ? recorded.used : (u ?? 0) + 1)),
+    [],
+  );
 
   // Mask any state left over from a previous identity / plan while disabled, so a signed-out or
   // free user can never briefly read a stale subscriber allowance.

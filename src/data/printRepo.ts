@@ -6,20 +6,92 @@
  * PRO/VIP plans INCLUDE a print allocation (tiers.ts `includedPrintsPerMonth`). WHICH window
  * that allocation covers is decided by src/data/printWindow.ts — the billing term's current
  * monthly slice normally, or the whole year for a yearly subscriber who unlocked their pool.
- * Callers resolve the window first, then count against it. Advisory today — nothing is blocked
- * when the count passes the allocation until metering enforcement ships.
+ * Callers resolve the window first, then count against it.
+ *
+ * AUTHORITATIVE as of 20260724040000_authoritative_metering.sql: recording a spend and reading
+ * the remaining balance now go through server RPCs (`record_print_event` / `print_credits_left`)
+ * that resolve the window and check the allowance ATOMICALLY, and the INSERT policy carries the
+ * same allowance predicate. The client no longer inserts the ledger row directly.
  */
+
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { requireSupabase } from '@/lib/supabase';
 
-/** Record a successful full-binder PDF download. Fire-and-forget from the print sheet. */
-export async function recordPrintEvent(binderId: string, sheets: number): Promise<void> {
-  const supabase = requireSupabase();
-  // user_id defaults to auth.uid() server-side, same pattern as saved_slices inserts.
-  const { error } = await supabase
-    .from('print_events')
-    .insert({ binder_id: binderId, sheets });
-  if (error) throw error;
+// The metering RPCs added in 20260724040000 aren't in the generated database.ts yet (those types
+// regenerate once the migration is pulled into the linked DB). Until then, reach them through the
+// generic (schema-agnostic) client — the same escape hatch data/trial.ts uses for its RPCs.
+const rpcClient = () => requireSupabase() as unknown as SupabaseClient;
+
+/** The server's authoritative counts after a recorded spend (from `record_print_event`). */
+export interface RecordedPrint {
+  /** Prints used in the current window INCLUDING this one. */
+  used: number;
+  /** The window's included allocation. */
+  allocation: number;
+  /** Remaining in the window after this spend. */
+  left: number;
+  /** ISO start of the window the spend counted against. */
+  windowStart: string;
+}
+
+/**
+ * The server refused the spend because the current window is exhausted — a MEANINGFUL "you're out
+ * of credits" answer, not a glitch. Thrown (never swallowed) so the caller can show the
+ * out-of-credits UI instead of the download. Network / any other failure stays soft (null) below.
+ */
+export class PrintCapExceededError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PrintCapExceededError';
+  }
+}
+
+/**
+ * Record a successful full-binder PDF download through the authoritative RPC. It resolves the
+ * user's window, checks the allowance, and inserts the ledger row ATOMICALLY under a per-user
+ * advisory lock, so two tabs can't both spend the last credit.
+ *
+ * Two failure modes, deliberately kept apart because one is a paywall answer and the other is a
+ * transient blip:
+ *   - Window exhausted → the RPC raises SQLSTATE P0001 `tier_cap_exceeded:…`. Re-thrown as
+ *     PrintCapExceededError so the sheet drops to the out-of-credits UI rather than downloading.
+ *   - Network / auth / anything else → returns null (soft). A metering blip must never block a
+ *     paying customer who has credits; under-counting is the accepted soft-fail direction (see
+ *     the migration header). The old bare insert swallowed everything — we keep that softness
+ *     ONLY for the non-cap case.
+ *
+ * Pass the binder + sheet count so the purchase-history "Included print used" rows keep that
+ * detail (the RPC stores them on print_events; both are optional).
+ */
+export async function recordPrintEvent(
+  meta?: { binderId?: string | null; sheets?: number | null },
+): Promise<RecordedPrint | null> {
+  const { data, error } = await rpcClient().rpc('record_print_event', {
+    p_binder_id: meta?.binderId ?? null,
+    p_sheets: meta?.sheets ?? null,
+  });
+  if (error) {
+    if (error.code === 'P0001' || error.message?.startsWith('tier_cap_exceeded:')) {
+      throw new PrintCapExceededError(error.message);
+    }
+    return null; // soft: never block a paid print on a network/other error
+  }
+  const r = data as { used: number; allocation: number; left: number; window_start: string };
+  return { used: r.used, allocation: r.allocation, left: r.left, windowStart: r.window_start };
+}
+
+/**
+ * The server's own count of included prints remaining in the caller's CURRENT window
+ * (`print_credits_left`). Preferred over counting client-side for the meter: it resolves the
+ * window with SERVER time and is the exact figure `record_print_event` enforces, so the meter's
+ * gate can't drift from the ledger across a clock skew at a window boundary. Returns null on
+ * failure so callers fall back to a client-side count rather than brick a paid plan.
+ */
+export async function printCreditsLeft(userId: string): Promise<number | null> {
+  const { data, error } = await rpcClient().rpc('print_credits_left', { p_user_id: userId });
+  if (error) return null;
+  return typeof data === 'number' ? data : null;
 }
 
 /** One recorded credit spend, for the purchase-history page. */

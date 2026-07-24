@@ -33,7 +33,7 @@ import {
   type PurchasedVersion,
   type PurchaseStatus,
 } from '@/data/pdfSnapshot';
-import { recordPrintEvent } from '@/data/printRepo';
+import { PrintCapExceededError, recordPrintEvent, type RecordedPrint } from '@/data/printRepo';
 import { ANNUAL_POOL, BINDER_PDF_LOOKUP_KEY, CHECKOUT_OPEN } from '@/data/subscriptions';
 import { useCatalog } from '@/hooks/use-catalog';
 import { usePrintAllowance } from '@/hooks/use-print-allowance';
@@ -227,6 +227,33 @@ export function PrintPlaceholdersSheet({
         loadImage: createWebArtLoader(),
       });
       if (files.length === 0) throw new Error('This binder has nothing to print yet.');
+
+      // Spend the included credit BEFORE handing over the file (record-then-download): the RPC
+      // checks the window allowance and inserts the ledger row atomically, so a spent-out window is
+      // refused HERE — preventing the download — instead of the refusal trailing a PDF the user
+      // already has. Files are built first (a build failure must not burn a credit), but nothing is
+      // saved until the credit is secured. Usage bumps ONLY on a confirmed credit spend — never on
+      // free re-downloads or purchases ('spend' gates on the paid unlock, not credits).
+      let recorded: RecordedPrint | null = null;
+      if (opts.credit) {
+        try {
+          recorded = await recordPrintEvent({ binderId: binder.id, sheets });
+        } catch (e) {
+          if (e instanceof PrintCapExceededError) {
+            // Out of credits for this window (e.g. another tab just spent the last one). Reconcile
+            // the meter to the server's truth — reload re-resolves to 0 left and the sheet falls
+            // back to the existing out-of-credits UI — and DON'T hand over the file.
+            allowance.reload();
+            return;
+          }
+          throw e; // unexpected failure → surfaced by the catch below as an error message
+        }
+        // A soft failure (network/other) returns null: fall through to the download rather than
+        // block a paying customer over a transient blip — under-counting is the accepted soft-fail
+        // direction (see 20260724040000_authoritative_metering.sql).
+      }
+
+      // Credit secured (or this isn't a metered spend) — hand over the file(s) now.
       await saveFillSheetFiles(files, fileStem(binder.title));
       // Confirmed spends (credit OR purchase) archive this version so it re-downloads free
       // forever — the version list below is the "print a previous version" surface. The snapshot
@@ -241,10 +268,9 @@ export function PrintPlaceholdersSheet({
             : (prev?.versions ?? []),
         }));
       }
-      // Usage bumps ONLY on a confirmed credit spend — never on free re-downloads or purchases.
+      // Reflect the spend — the RPC's authoritative counts when we have them, else an optimistic bump.
       if (opts.credit) {
-        recordPrintEvent(binder.id, sheets).catch(() => {});
-        allowance.noteSpent();
+        allowance.noteSpent(recorded);
       }
       onDone?.(sheets);
       onClose();

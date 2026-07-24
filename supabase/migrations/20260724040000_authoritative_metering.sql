@@ -131,8 +131,12 @@ end; $$;
 
 -- ── the recording RPCs (check + insert atomically) ──────────────────────────────────────────
 
-create or replace function public.record_print_event()
-returns json language plpgsql security definer set search_path = public as $$
+-- Takes the binder + sheet count so purchase history (purchases.tsx / fetchPrintEvents) keeps
+-- showing which binder a print was spent on — print_events has those columns and the app reads
+-- them. Both are optional so an older caller passing nothing still records a valid credit.
+create or replace function public.record_print_event(
+  p_binder_id uuid default null, p_sheets integer default null
+) returns json language plpgsql security definer set search_path = public as $$
 declare uid uuid := auth.uid(); w record; used integer; left_after integer;
 begin
   if uid is null then raise exception 'not signed in' using errcode = '42501'; end if;
@@ -149,7 +153,7 @@ begin
       using errcode = 'P0001';
   end if;
 
-  insert into public.print_events (user_id) values (uid);
+  insert into public.print_events (user_id, binder_id, sheets) values (uid, p_binder_id, p_sheets);
   left_after := greatest(0, w.allocation - (used + 1));
   return json_build_object('recorded', true, 'used', used + 1,
                            'allocation', w.allocation, 'left', left_after,
@@ -201,12 +205,12 @@ revoke all on function public.michi_print_window(uuid) from public;
 revoke all on function public.print_credits_left(uuid) from public;
 revoke all on function public.tcgscan_scan_cap(uuid)   from public;
 revoke all on function public.scan_credits_left(uuid)  from public;
-revoke all on function public.record_print_event()     from public;
+revoke all on function public.record_print_event(uuid, integer) from public;
 revoke all on function public.record_scan_event(text)  from public;
 
 grant execute on function public.print_credits_left(uuid) to authenticated;
 grant execute on function public.scan_credits_left(uuid)  to authenticated;
 grant execute on function public.michi_print_window(uuid) to authenticated;
 grant execute on function public.tcgscan_scan_cap(uuid)   to authenticated;
-grant execute on function public.record_print_event()     to authenticated;
+grant execute on function public.record_print_event(uuid, integer) to authenticated;
 grant execute on function public.record_scan_event(text)  to authenticated;

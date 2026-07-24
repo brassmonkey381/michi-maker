@@ -7,6 +7,40 @@ covers both; the client-side halves live in `src/data/tiers.ts` (michi) and `src
 
 Written during the 2026-07-23 enforcement rollout.
 
+## Audit table — every tier cap and how it is enforced
+
+Values are the live `tier_caps` rows (∞ = unlimited). "Enforcement" is the *server* boundary;
+every limit also has a client-side gate that turns a refusal into an upgrade prompt.
+
+### michi-maker
+
+| Limit | guest | free | pro | vip | Server enforcement | Usage tracked by |
+|---|--:|--:|--:|--:|---|---|
+| Binders | 1 | 3 | 12 | ∞ | `BEFORE INSERT` trigger on `binders` (counts live rows) | live row count |
+| Pages per binder | 6 | 16 | 40 | ∞ | trigger on `binder_pages` | live row count |
+| Art uploads (saved slices) | 10 | 100 | 1000 | ∞ | trigger on `saved_slices` | live row count |
+| Included prints / window | 0 | 0 | 1 | 3 | `record_print_event()` RPC + allowance INSERT policy on `print_events` | `print_events` ledger |
+| Full-binder PDF (own) | ✗ | ✗ | ✓ | ✓ | client gate only (`hasFullPrint`) — **not server-enforced** | — |
+| Per-binder PDF purchase | — | — | — | — | RLS owner-only on `binder_pdf_snapshots` — **no entitlement predicate** | fingerprint snapshot |
+
+### tcgscan-app
+
+| Limit | guest | free | pro | vip | Server enforcement | Usage tracked by |
+|---|--:|--:|--:|--:|---|---|
+| Collections | 1 | 3 | 12 | ∞ | `BEFORE INSERT` trigger on `collections` | live row count |
+| Cards per collection (Σ qty) | 60 | 250 | 1000 | ∞ | trigger on `portfolio_entries` (insert + quantity raise) | `sum(quantity)` |
+| Scans / month | 5 | 60 | 1000 | ∞ | `record_scan_event()` RPC + allowance INSERT policy on `scan_events` | `scan_events` ledger (calendar month) |
+| Price checks / hour | 15 | ∞ | ∞ | ∞ | client only (guest, unauthenticated) — **not server-enforced** | client timestamps |
+| Price history / ROI window | today | 90d | ∞ | ∞ | client only (display window) | — |
+| set/series analytics, rapid scan, full-page scan, booster, early access | boolean features by tier | | | | client gate (`can()` / `limits.*`) — **not server-enforced** | — |
+
+**Legend for "Server enforcement":** *trigger* = `tier_cap_exceeded:<limit>` raised at write time,
+counting live rows, exempting upserts of existing rows / staff / privileged writes; *RPC* =
+atomic check-and-insert under a per-user advisory lock, plus a matching allowance predicate on the
+table's INSERT policy so pre-RPC builds are capped too; *client only* = enforced in the app,
+bypassable by a modified client (acceptable where there's no revenue at stake, flagged where there
+might be).
+
 ## The model
 
 **The database is the enforcement boundary. The clients are the UX.**
@@ -31,6 +65,22 @@ instead of a raw Postgres error. They are no longer what protects revenue.
 | Insert-time triggers | `binders`, `binder_pages`, `saved_slices`, `collections`, `portfolio_entries`. Refusals raise SQLSTATE `P0001` with a `tier_cap_exceeded:<limit>` message prefix. |
 | `staff_accounts` | Allowlist exempt from caps. Service-role writes only — **no client policies at all**, so membership cannot be self-granted. |
 | Nightly `pg_cron` reclaimers | Pre-existing. Archive over-cap binders/collections after a downgrade + 3-day grace. |
+| `tier_caps` table + `cap_value()` | **Single source of truth for the cap NUMBERS.** Every `*_cap()` reads it; change a cap with one `UPDATE`, live, no redeploy. |
+
+## One source of truth for the numbers
+
+The cap *values* (3, 12, 250, …) used to be hand-copied across each app's `tiers.ts`, the SQL
+functions, and the webhook's `PRINTS_PER_MONTH` — each with a "change both together" comment,
+which is a convention, not a mechanism. They now live once, in `public.tier_caps`
+(`(app, limit_key, tier) → value`, NULL = unlimited), and every `*_cap()` function reads it via
+`cap_value()`. Changing a cap is a single `UPDATE`, effective immediately with no redeploy — the
+same real-time, DB-driven shape as the `user_cards` rollup.
+
+The apps keep a hardcoded `TIER_LIMITS` mirror for instant/offline UX. It is a **cache**, not a
+second authority: `npm run check:caps` in each repo fetches the public `tier_caps` rows and fails
+if the mirror drifts (it also pins `proration.ts`'s separate `PRINTS_PER_MONTH`). A missing row
+fails **open** (unlimited) — caps are a revenue nicety, not a security boundary, and blocking a
+legitimate user is worse than a brief leak.
 
 ## Four things that are easy to get wrong
 
@@ -98,9 +148,6 @@ select count(*) from (
   ships.
 - **`binder_slots` are unbounded server-side.** `rows`/`cols` are capped at 6 by a CHECK, but
   nothing verifies a slot fits inside its page's grid, and no cap counts cards per binder.
-- **Cap numbers are mirrored by hand** in three places: each app's `tiers.ts`, the SQL cap
-  functions here, and `PRINTS_PER_MONTH` in the payments webhook (Deno can't import from the
-  app). Change them together; consolidating is a tracked follow-up.
 
 ## Metering (prints and scans)
 

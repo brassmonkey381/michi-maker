@@ -53,7 +53,8 @@
     "build:web": "expo export -p web && node scripts/inject-meta.mjs",
     "deploy": "npx vercel --prod",
     "lint": "expo lint",
-    "test": "node --test \"src/**/*.test.ts\""
+    "test": "node --test \"src/**/*.test.ts\"",
+    "check:caps": "node scripts/check-tier-caps.mjs"
   },
   "private": true
 }

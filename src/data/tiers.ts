@@ -89,9 +89,14 @@ export interface TierLimits {
 }
 
 /**
- * OWNER-SET numbers (2026-07-16 — see docs/roadmap/MONETIZATION-TIERS.md). Tune here in one
- * place; the app never hardcodes *price* (that lives in the payment provider dashboard) — only
- * these caps. Kept behind LIMITS_ENFORCED so they don't bite until pricing is live.
+ * OWNER-SET numbers (2026-07-16 — see docs/roadmap/MONETIZATION-TIERS.md). The app never hardcodes
+ * *price* (that lives in the payment provider dashboard) — only these caps. Kept behind
+ * LIMITS_ENFORCED so they don't bite until pricing is live.
+ *
+ * This is a CLIENT MIRROR for instant/offline UX. The enforced source of truth is the `tier_caps`
+ * table in the shared backend (supabase/migrations/20260724050000_tier_caps_single_source.sql) —
+ * `npm run check:caps` fails if this mirror drifts from it. To change a cap: UPDATE tier_caps
+ * (live, no redeploy) and update the matching number here.
  */
 export const TIER_LIMITS: Record<Tier, TierLimits> = {
   // Guest is NOT an advertised plan — a taste before the sign-in prompt (SignInPerk, not
@@ -138,8 +143,10 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
  * Included prints per month by tier, for code that has a PRODUCT key rather than a Tier — chiefly
  * the prorated upgrade maths. Kept beside TIER_LIMITS so the two can't drift.
  *
- * MIRRORED in supabase/functions/payments-webhook/index.ts, which computes a term's allocation at
- * upgrade time and cannot import from here (Deno edge runtime). Change both together.
+ * Derived from TIER_LIMITS (which `npm run check:caps` pins to the tier_caps table). NOTE: the
+ * payments-webhook and the proration maths use the SEPARATE copy in data/proration.ts (kept
+ * dependency-free for the Deno edge runtime); `check:caps` pins THAT copy to the same table too,
+ * so all three — this, proration's, and the DB — agree.
  */
 export const PRINTS_PER_MONTH: Record<string, number> = {
   [PRODUCTS.tierPro]: TIER_LIMITS.pro.includedPrintsPerMonth,

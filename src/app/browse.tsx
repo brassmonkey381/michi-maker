@@ -9,7 +9,7 @@
  * browser through the shared browse command bus: they sendBrowseCommand and navigate here, and
  * the pending command lands the moment this page's CatalogBrowser subscribes.
  */
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { type CardAction, type CardActionsFactory } from 'tcgscan-browse';
 import { useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
@@ -120,6 +120,11 @@ export default function BrowseScreen() {
               Browse all cards
             </ThemedText>
             <View style={styles.headerRight}>
+              <Pressable onPress={() => router.push('/search-guide' as Href)} hitSlop={8}>
+                <ThemedText type="smallBold" themeColor="textSecondary">
+                  Search tips ↗
+                </ThemedText>
+              </Pressable>
               <LanguageToggle value={langs} onChange={changeLangs} />
               {railHidden ? (
                 <Pressable onPress={() => router.push('/')} hitSlop={8}>

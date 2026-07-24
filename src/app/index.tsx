@@ -145,6 +145,15 @@ export default function HomeScreen() {
             </ThemedText>
           </Pressable>
 
+          <Pressable
+            onPress={() => router.push('/search-guide' as Href)}
+            hitSlop={6}
+            style={({ pressed }) => [styles.methodLink, pressed && styles.pressed]}>
+            <ThemedText type="small" themeColor="textSecondary">
+              Power-search your cards: have:yes, sort:value, set:base have:no… — Search recipes ↗
+            </ThemedText>
+          </Pressable>
+
           <GuestBanner />
 
           {store.featuredBinders.length > 0 ? (

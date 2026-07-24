@@ -16,7 +16,7 @@ import { Platform } from 'react-native';
 
 import type { CatalogSource, RawCatalog } from 'tcgscan-browse';
 
-import { readCatalogCache, writeCatalogCache } from '@/lib/catalogCache';
+import { clearCatalogCache, readCatalogCache, writeCatalogCache } from '@/lib/catalogCache';
 import { supabase } from '@/lib/supabase';
 
 /** The data server's edge-function origin (same project as the browse bucket/API). */
@@ -137,11 +137,21 @@ async function fetchGated(onProgress: Progress): Promise<RawCatalog> {
   }
 
   // 2) Online. Reuse the cached blob when its version matches — skips the ~1.3 MB re-download.
+  //    Decode with the key the blob was CACHED with (a matched pair), NOT the freshly-fetched key:
+  //    a re-publish can re-key the same content-addressed version, so the current key wouldn't
+  //    decrypt an older cached blob. And if the cached pair still won't decode (a corrupt/partial
+  //    record from an interrupted write), DON'T fail the whole load — evict it and fall through to a
+  //    fresh download, so a poisoned cache can't strand the user on the retired public fallback.
   const cached = await readCatalogCache();
   const rawKey = Uint8Array.from(atob(keyInfo.key), (c) => c.charCodeAt(0));
   if (cached && cached.version === keyInfo.version) {
-    onProgress?.(1, 1);
-    return decodeCatalog(cached.enc, rawKey);
+    try {
+      const catalog = await decodeCatalog(cached.enc, cached.key);
+      onProgress?.(1, 1);
+      return catalog;
+    } catch {
+      await clearCatalogCache();
+    }
   }
 
   // 3) No cache, or a new publish rotated the version: download, decode, and re-cache (blob +

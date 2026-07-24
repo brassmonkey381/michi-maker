@@ -40,6 +40,11 @@ is already at or over cap from re-syncing their **own existing rows** — every 
 raise. Each trigger therefore checks whether the id already exists and lets it through if so:
 re-stating an existing row is not a new allocation.
 
+**`collections` and `portfolio_entries` are keyed `(user_id, id)`, not `(id)`.** tcgscan ids are
+client-generated and unique only per user, so the "row already exists" exemption must match the
+full key — matching on `id` alone would let another user's row with the same id exempt an insert.
+Fixed in `20260724030000` after a live probe surfaced the composite key.
+
 **Guests are `authenticated`.** Anonymous Supabase sessions hold the same role as signed-in free
 users and are indistinguishable at the row level, so guest caps must come from the `is_anonymous`
 claim — the same mechanism `start_pro_trial()` uses to refuse anonymous trials.
@@ -60,6 +65,13 @@ free cap — `official@michi-maker.com` (19 binders, the public showcase account
 accounts. Nobody was over the slice or portfolio-entry caps. So there was no customer
 grandfathering problem to solve: the showcase account went on the staff allowlist, existing rows
 were left untouched, and enforcement applies to new allocations from here on.
+
+Verified live on 2026-07-24 by probing inside an aborted transaction: a free user at 5 live
+collections was refused a new one (`tier_cap_exceeded:collections (5 of 3)`); that same over-cap
+user could still upsert their **existing** rows, which is the property that keeps device sync
+working; a staff-allowlisted account created a binder past the cap unimpeded; and a single lot of
+quantity 100,000 was refused (`tier_cap_exceeded:cardsPerCollection (100003 of 250)`), confirming
+the cap counts cards rather than rows.
 
 Re-run the check before changing any cap number:
 

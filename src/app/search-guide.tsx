@@ -31,8 +31,8 @@ const RECIPES: { title: string; query: string; blurb: string }[] = [
   },
   {
     title: 'Finish a set',
-    query: 'set:base have:no',
-    blurb: 'Cards you’re missing from a set. set: matches by name, so base also returns Base Set (Shadowless) and Base Set 2; once it lands, click the Set filter to pin exactly Base Set (102 cards).',
+    query: 'set:"evolving skies" have:no',
+    blurb: 'Every Evolving Skies card you don’t own yet: an instant want-list. Quote multi-word set names so set: captures the whole name.',
   },
   {
     title: 'One artist, one type',

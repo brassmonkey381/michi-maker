@@ -150,7 +150,7 @@ export default function HomeScreen() {
             hitSlop={6}
             style={({ pressed }) => [styles.methodLink, pressed && styles.pressed]}>
             <ThemedText type="small" themeColor="textSecondary">
-              Power-search your cards: have:yes, sort:value, set:base have:no… — Search recipes ↗
+              Search the card database — search quickstart cheatsheet ↗
             </ThemedText>
           </Pressable>
 

@@ -1,8 +1,8 @@
 /**
- * "Search recipes" — a guide to the browse search grammar. A handful of high-value RECIPES
- * (combinable queries) up top, each with a one-tap "Try it →" that runs it live in the browser,
- * then the full field / compare / sort / collection reference rendered straight from the kit's
- * QUERY_MANUAL (the same source the in-browser "?" help uses, so it never drifts from the grammar).
+ * "Search cheatsheet" — a quickstart for the browse search grammar. A handful of high-value
+ * RECIPES (combinable queries) up top, each with a one-tap "Try it →" that runs it live in the
+ * browser; then the runnable operators (tap any to run it) rendered from the kit's QUERY_MANUAL;
+ * then an "Additional info" section for the non-query rows (UI features, keyboard tips, aliases).
  *
  * "Try it" sends a `search` BrowseCommand and navigates to /browse; the command is held pending
  * until that page's CatalogBrowser mounts, then runs — so the query lands whether or not a browser
@@ -51,8 +51,20 @@ const RECIPES: { title: string; query: string; blurb: string }[] = [
   },
 ];
 
-/** A code is "runnable" as-is when it's a real query, not an illustrative placeholder (…, ✓). */
-const runnable = (code: string) => !/[…✓]/.test(code);
+// The manual's last two sections describe UI features / keyboard, not query syntax — they go to
+// "Additional info". Within the query sections, placeholder rows (…, ✓) are informational too.
+const INFO_SECTIONS = new Set(['More', 'On the web']);
+const isPlaceholder = (code: string) => /[…✓]/.test(code);
+
+/** Query sections with only their runnable example rows (tap-to-run). */
+const OP_SECTIONS = QUERY_MANUAL.filter((s) => !INFO_SECTIONS.has(s.title))
+  .map((s) => ({ title: s.title, rows: s.rows.filter(([code]) => !isPlaceholder(code)) }))
+  .filter((s) => s.rows.length > 0);
+
+/** Everything that isn't a runnable query — features, keyboard, aliases, placeholders. */
+const INFO_ROWS: [code: string, desc: string][] = QUERY_MANUAL.flatMap((s) =>
+  INFO_SECTIONS.has(s.title) ? s.rows : s.rows.filter(([code]) => isPlaceholder(code)),
+);
 
 export default function SearchGuideScreen() {
   const router = useRouter();
@@ -68,7 +80,7 @@ export default function SearchGuideScreen() {
           <View style={styles.shell}>
             <View style={styles.headerRow}>
               <ThemedText type="title" style={styles.h1}>
-                Search recipes
+                Search cheatsheet
               </ThemedText>
               <Pressable onPress={() => router.push('/browse')} hitSlop={8}>
                 <ThemedText type="smallBold" themeColor="textSecondary">
@@ -113,24 +125,18 @@ export default function SearchGuideScreen() {
             <ThemedText type="small" themeColor="textSecondary" style={styles.refIntro}>
               Tap any example to run it.
             </ThemedText>
-            {QUERY_MANUAL.map((section) => (
+            {OP_SECTIONS.map((section) => (
               <View key={section.title} style={styles.refSection}>
                 <ThemedText type="smallBold" themeColor="textSecondary" style={styles.refTitle}>
                   {section.title}
                 </ThemedText>
                 {section.rows.map(([code, desc]) => (
                   <View key={code} style={styles.refRow}>
-                    {runnable(code) ? (
-                      <Pressable
-                        onPress={() => tryIt(code)}
-                        style={({ pressed }) => [styles.codeChip, pressed && styles.pressed]}>
-                        <Text style={styles.codeChipText}>{code}</Text>
-                      </Pressable>
-                    ) : (
-                      <View style={[styles.codeChip, styles.codeChipStatic]}>
-                        <Text style={styles.codeChipStaticText}>{code}</Text>
-                      </View>
-                    )}
+                    <Pressable
+                      onPress={() => tryIt(code)}
+                      style={({ pressed }) => [styles.codeChip, pressed && styles.pressed]}>
+                      <Text style={styles.codeChipText}>{code}</Text>
+                    </Pressable>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.refDesc}>
                       {desc}
                     </ThemedText>
@@ -138,6 +144,25 @@ export default function SearchGuideScreen() {
                 ))}
               </View>
             ))}
+
+            <ThemedText type="smallBold" style={styles.sectionHead}>
+              Additional info
+            </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary" style={styles.refIntro}>
+              Features and shortcuts — not search terms.
+            </ThemedText>
+            <View style={styles.refSection}>
+              {INFO_ROWS.map(([code, desc]) => (
+                <View key={code} style={styles.refRow}>
+                  <View style={styles.infoChip}>
+                    <Text style={styles.infoChipText}>{code}</Text>
+                  </View>
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.refDesc}>
+                    {desc}
+                  </ThemedText>
+                </View>
+              ))}
+            </View>
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -187,18 +212,20 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.panel,
   },
   recipeTitle: { fontSize: FontSize.md },
-  codeRow: { alignSelf: 'flex-start', borderRadius: Radius.control, backgroundColor: Palette.chrome, paddingHorizontal: 10, paddingVertical: 6 },
-  code: { fontFamily: mono, fontSize: FontSize.body, color: Palette.accent, fontWeight: Weight.semibold },
+  // Query chips: primary blue fill, white text.
+  codeRow: { alignSelf: 'flex-start', borderRadius: Radius.control, backgroundColor: Palette.accent, paddingHorizontal: 10, paddingVertical: 6 },
+  code: { fontFamily: mono, fontSize: FontSize.body, color: Palette.accentText, fontWeight: Weight.semibold },
   recipeBlurb: { lineHeight: 18 },
+  // Try it: dark fill, blue text (the inverse of the chips).
   tryBtn: {
     alignSelf: 'flex-start',
     marginTop: Spacing.one,
-    backgroundColor: Palette.accent,
+    backgroundColor: Palette.ink,
     borderRadius: Radius.pill,
     paddingVertical: 8,
     paddingHorizontal: Spacing.four,
   },
-  tryBtnText: { color: Palette.accentText, fontSize: FontSize.control, fontWeight: Weight.bold },
+  tryBtnText: { color: Palette.accent, fontSize: FontSize.control, fontWeight: Weight.bold },
   pressed: { opacity: 0.7 },
   refIntro: { marginTop: -4, marginBottom: Spacing.two },
   refSection: { marginBottom: Spacing.three },
@@ -206,14 +233,20 @@ const styles = StyleSheet.create({
   refRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, marginBottom: 6, flexWrap: 'wrap' },
   codeChip: {
     borderRadius: Radius.control,
-    backgroundColor: Palette.chrome,
+    backgroundColor: Palette.accent,
     paddingHorizontal: 9,
     paddingVertical: 5,
-    borderWidth: 1,
-    borderColor: Palette.accent,
   },
-  codeChipText: { fontFamily: mono, fontSize: FontSize.sm, color: Palette.accent, fontWeight: Weight.semibold },
-  codeChipStatic: { borderColor: Palette.hairlineStrong },
-  codeChipStaticText: { fontFamily: mono, fontSize: FontSize.sm, color: Palette.muted },
+  codeChipText: { fontFamily: mono, fontSize: FontSize.sm, color: Palette.accentText, fontWeight: Weight.semibold },
+  // Info chips: quiet, non-interactive — clearly not something to tap-run.
+  infoChip: {
+    borderRadius: Radius.control,
+    backgroundColor: Palette.panel,
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  infoChipText: { fontSize: FontSize.sm, color: Palette.muted2, fontWeight: Weight.semibold },
   refDesc: { flexShrink: 1, minWidth: 180, lineHeight: 18 },
 });

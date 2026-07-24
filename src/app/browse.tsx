@@ -122,7 +122,7 @@ export default function BrowseScreen() {
             <View style={styles.headerRight}>
               <Pressable onPress={() => router.push('/search-guide' as Href)} hitSlop={8}>
                 <ThemedText type="smallBold" themeColor="textSecondary">
-                  Search tips ↗
+                  Cheatsheet ↗
                 </ThemedText>
               </Pressable>
               <LanguageToggle value={langs} onChange={changeLangs} />

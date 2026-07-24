@@ -45,6 +45,10 @@ configureBrowse({
   },
   // Gated catalog (encrypted, session-keyed) with public fallback — see lib/catalogSource.ts.
   catalogSource: gatedCatalogSource,
+  // Affiliate deep-link template for outbound TCGPlayer links (empty = raw links, unchanged). Set
+  // EXPO_PUBLIC_TCGPLAYER_DEEPLINK to the Impact tracking URL with a {url} token, e.g.
+  // https://partner.tcgplayer.com/c/<ids>?subId1=michi&u={url}
+  affiliateDeeplink: process.env.EXPO_PUBLIC_TCGPLAYER_DEEPLINK ?? '',
 });
 
 export { cardThumbUrl, resolveImageUrl, hydrateImageManifest, useImageManifest };

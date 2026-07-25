@@ -31,7 +31,6 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { sheet } from '@/constants/ui';
-import { isPremiumRarity } from '@/data/premiumRarity';
 import type { Catalog } from '@/lib/catalog';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 
@@ -42,8 +41,32 @@ const TRIAD: Stop[] = [
   { pos: 0.8, rgb: [251, 140, 78] },
 ];
 
-// Safety net if the colour search returns nothing (e.g. the on-device index isn't warm and the
-// server path is down): real, colourful cards so the flow is never empty. Ids from
+// Full-art / chase rarity tiers — the gorgeous cards to showcase. Substring match (case-insensitive)
+// so it's robust across eras/naming: Illustration Rare + Special Illustration Rare, Ultra Rare
+// (full-art ex/Trainer), Hyper Rare, Secret Rare, Rainbow, Shiny, Amazing, Radiant, explicit Full
+// Art, Character/Trainer-Gallery, gold secrets. Deliberately TIGHTER than data/premiumRarity's
+// isPremiumRarity, which lets through Rare Holo V/GX and other non-full-art "premium" tiers.
+const AESTHETIC_RARITY = [
+  'illustration',
+  'ultra rare',
+  'hyper rare',
+  'secret',
+  'rainbow',
+  'amazing',
+  'radiant',
+  'shiny',
+  'full art',
+  'character',
+  'trainer gallery',
+  'gold',
+];
+function isAesthetic(rarity: string | undefined | null): boolean {
+  const r = (rarity ?? '').toLowerCase();
+  return AESTHETIC_RARITY.some((k) => r.includes(k));
+}
+
+// Safety net if the colour search yields too few full-arts: hand-picked chase cards (all Special
+// Illustration / full-art tier) so the page is never padded with plain rarities. Ids from
 // data/exampleCollection.ts.
 const FALLBACK_IDS = ['517045', '610516', '590026', '509980', '517017', '662184'];
 
@@ -92,16 +115,20 @@ export function TriColorUpsell({
     if (!visible || !catalog) return;
     let alive = true;
     const t = setTimeout(() => {
-      // Rank deep, then keep the AESTHETIC cards: premium full-art / illustration / secret / special
-      // rarities (isPremiumRarity) with a real mirrored cover — so the whole walkthrough shows only
-      // gorgeous cards. Full-art region ('noborder') matches on the whole illustration.
-      searchByColors(query, 'noborder', { limit: 150 })
+      // Rank deep, then keep ONLY the aesthetic full-art / chase rarities (isAesthetic) that have a
+      // real mirrored cover — so the whole walkthrough shows gorgeous cards, never plain ones.
+      // Full-art region ('noborder') matches on the whole illustration.
+      searchByColors(query, 'noborder', { limit: 200 })
         .then((ids) => {
           if (!alive) return;
-          const real = ids.filter((id) => catalog.getCard(id) && cardThumbUrl(id, 245));
-          const premium = real.filter((id) => isPremiumRarity(catalog.getCard(id)?.rarity));
-          // Prefer premium; fall back to any real match, then a curated spread — never blank.
-          setResults(premium.length >= 5 ? premium : real.length ? real : FALLBACK_IDS);
+          const nice = ids.filter((id) => {
+            const c = catalog.getCard(id);
+            return c && isAesthetic(c.rarity) && cardThumbUrl(id, 245);
+          });
+          // Never drop to plain rarities: pad a thin result from the curated (also full-art)
+          // fallback rather than backfilling with non-aesthetic cards.
+          const chosen = nice.length >= 9 ? nice : [...nice, ...FALLBACK_IDS.filter((f) => !nice.includes(f))];
+          setResults(chosen.length ? chosen : FALLBACK_IDS);
         })
         .catch(() => alive && setResults(FALLBACK_IDS));
     }, 350);
@@ -341,18 +368,18 @@ const styles = StyleSheet.create({
   card: { borderRadius: Radius.sheet, padding: Spacing.four, gap: Spacing.three, overflow: 'hidden' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: FontSize.h2, lineHeight: 26 },
-  pro: { fontSize: FontSize.tag, color: '#6C4DFF', fontWeight: '700', letterSpacing: 0.5 },
+  pro: { fontSize: FontSize.sm, color: '#6C4DFF', fontWeight: '800', letterSpacing: 0.5 },
 
   viewport: { overflow: 'hidden' },
   row: { flexDirection: 'row', height: '100%' },
   slideScroll: { flex: 1 },
   slideBody: { paddingHorizontal: Spacing.one, paddingBottom: Spacing.two, gap: Spacing.two },
 
-  stepHead: { gap: 2, marginBottom: Spacing.one },
-  kicker: { fontSize: FontSize.tag, letterSpacing: 1, color: '#6C4DFF', fontWeight: '700' },
-  stepTitle: { fontSize: FontSize.md, lineHeight: 24 },
-  lead: { lineHeight: 20 },
-  hintCenter: { textAlign: 'center', lineHeight: 18, marginTop: Spacing.one },
+  stepHead: { gap: 3, marginBottom: Spacing.one },
+  kicker: { fontSize: FontSize.sm, letterSpacing: 1, color: '#6C4DFF', fontWeight: '800' },
+  stepTitle: { fontSize: FontSize.lg, lineHeight: 26 },
+  lead: { fontSize: FontSize.body, lineHeight: 21 },
+  hintCenter: { fontSize: FontSize.body, textAlign: 'center', lineHeight: 20, marginTop: Spacing.one },
 
   pickerWrap: { gap: Spacing.two, marginTop: Spacing.one },
 
@@ -363,21 +390,21 @@ const styles = StyleSheet.create({
   heroCard: { width: 150, height: 209, borderRadius: Radius.control, overflow: 'hidden', backgroundColor: Palette.panel },
   heroImg: { width: 150, height: 209 },
   heroLoading: { flex: 1, backgroundColor: Palette.panel },
-  matchCaption: { textAlign: 'center', marginTop: Spacing.two },
+  matchCaption: { fontSize: FontSize.body, textAlign: 'center', marginTop: Spacing.two },
 
   // Slide 3 grid
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GRID_GAP, alignSelf: 'center', marginTop: Spacing.one },
   pocket: { borderRadius: Radius.thumb, overflow: 'hidden', backgroundColor: Palette.panel },
   pocketLoading: { flex: 1, backgroundColor: Palette.panel },
 
-  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  back: { fontSize: FontSize.control, fontWeight: Weight.semibold, color: Palette.muted },
+  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: Spacing.one },
+  back: { fontSize: FontSize.md, fontWeight: Weight.semibold, color: Palette.muted, paddingVertical: Spacing.one },
   hidden: { opacity: 0 },
   dots: { flexDirection: 'row', gap: 6 },
-  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: Palette.hairlineStrong },
-  dotOn: { backgroundColor: Palette.accent, width: 18 },
-  nextBtn: { paddingVertical: Spacing.one, paddingHorizontal: Spacing.two },
-  nextText: { fontSize: FontSize.control, fontWeight: Weight.bold, color: Palette.accent },
-  ctaBtn: { backgroundColor: Palette.accent, paddingVertical: Spacing.two, paddingHorizontal: Spacing.four, borderRadius: Radius.pill },
-  ctaText: { color: Palette.accentText, fontWeight: Weight.bold, fontSize: FontSize.control },
+  dot: { width: 9, height: 9, borderRadius: 5, backgroundColor: Palette.hairlineStrong },
+  dotOn: { backgroundColor: Palette.accent, width: 22 },
+  nextBtn: { paddingVertical: Spacing.two, paddingHorizontal: Spacing.three },
+  nextText: { fontSize: FontSize.md, fontWeight: Weight.bold, color: Palette.accent },
+  ctaBtn: { backgroundColor: Palette.accent, paddingVertical: Spacing.three, paddingHorizontal: Spacing.five, borderRadius: Radius.pill },
+  ctaText: { color: Palette.accentText, fontWeight: Weight.bold, fontSize: FontSize.md },
 });

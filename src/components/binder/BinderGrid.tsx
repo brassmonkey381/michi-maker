@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, type DimensionValue } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type DimensionValue, type ViewProps } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -198,6 +198,10 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   return (
     <View
       ref={rootRef}
+      // Marks the page rectangle for the editor's wheel-to-flip hit test (web): only a wheel
+      // DIRECTLY over a page flips, not one over the surrounding mat/gaps. react-native-web renders
+      // dataSet as data-* attrs; the RN View types omit it, hence the typed spread. No-op on native.
+      {...({ dataSet: { binderPage: '1' } } as unknown as ViewProps)}
       style={[
         styles.page,
         { width, padding: pad, borderRadius: radius, backgroundColor: page.backgroundColor ?? BinderSurface.mat },

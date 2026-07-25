@@ -124,6 +124,19 @@ export function BinderPages({
     const forward = doubleSided ? (idx === 0 ? 1 : leftOfSpread + 2) : idx + 1;
     const backward = doubleSided ? (leftOfSpread === 0 ? -1 : Math.max(0, leftOfSpread - 2)) : idx - 1;
     const onWheel = (e: WheelEvent) => {
+      // Flip ONLY when the pointer is directly over a page rectangle (data-binder-page, set on the
+      // BinderGrid root). A wheel over the surrounding mat, the gaps between spread columns, or the
+      // empty bands beside the centred pages falls straight through to normal editor scrolling.
+      let node = e.target as HTMLElement | null;
+      let overPage = false;
+      while (node && node !== el) {
+        if (node.dataset?.binderPage) {
+          overPage = true;
+          break;
+        }
+        node = node.parentElement;
+      }
+      if (!overPage) return;
       const delta = Math.abs(e.deltaX) >= Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
       if (Math.abs(delta) < 2) return;
       const next = delta > 0 ? forward : backward;

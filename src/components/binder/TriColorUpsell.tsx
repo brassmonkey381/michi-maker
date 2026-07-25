@@ -31,6 +31,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { sheet } from '@/constants/ui';
+import { isPremiumRarity } from '@/data/premiumRarity';
 import type { Catalog } from '@/lib/catalog';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 
@@ -91,12 +92,16 @@ export function TriColorUpsell({
     if (!visible || !catalog) return;
     let alive = true;
     const t = setTimeout(() => {
-      searchByColors(query, 'noborder', { limit: 18 })
+      // Rank deep, then keep the AESTHETIC cards: premium full-art / illustration / secret / special
+      // rarities (isPremiumRarity) with a real mirrored cover — so the whole walkthrough shows only
+      // gorgeous cards. Full-art region ('noborder') matches on the whole illustration.
+      searchByColors(query, 'noborder', { limit: 150 })
         .then((ids) => {
           if (!alive) return;
-          // Keep only ids that resolve to a real, mirrored cover so no pocket renders blank.
           const real = ids.filter((id) => catalog.getCard(id) && cardThumbUrl(id, 245));
-          setResults(real.length ? real : FALLBACK_IDS);
+          const premium = real.filter((id) => isPremiumRarity(catalog.getCard(id)?.rarity));
+          // Prefer premium; fall back to any real match, then a curated spread — never blank.
+          setResults(premium.length >= 5 ? premium : real.length ? real : FALLBACK_IDS);
         })
         .catch(() => alive && setResults(FALLBACK_IDS));
     }, 350);

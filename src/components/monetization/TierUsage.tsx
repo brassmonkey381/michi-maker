@@ -128,6 +128,21 @@ export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }
   const printAllocation = printWindow?.allocation ?? caps.includedPrintsPerMonth;
   const [confirmingPool, setConfirmingPool] = useState(false);
 
+  // The date this print allowance next refills (printWindow.resetsAtMs already handles calendar
+  // month for grants, billing anniversary for monthly, and +12mo for a released yearly pool), shown
+  // on the meter so monthly (and yearly) subscribers see when their included prints come back.
+  const fmtDay = (ms: number) =>
+    new Date(ms).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  const printBaseNote =
+    printWindow?.kind === 'year'
+      ? 'Full-binder fill-sheet PDFs. You released your whole year at once.'
+      : 'Full-binder fill-sheet PDFs included with your plan each month.';
+  const printNote = !Number.isFinite(printAllocation)
+    ? undefined
+    : printWindow
+      ? `${printBaseNote} Resets ${fmtDay(printWindow.resetsAtMs)}.`
+      : printBaseNote;
+
   // Server-counted usage: artworks kept (live saved slices).
   // Meters appear once counted; a failed count just leaves that meter off (never a spinner).
   const [artCount, setArtCount] = useState<number | null>(null);
@@ -249,13 +264,7 @@ export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }
               }
               used={printCount}
               limit={printAllocation}
-              note={
-                Number.isFinite(printAllocation)
-                  ? printWindow?.kind === 'year'
-                    ? 'Full-binder fill-sheet PDFs. You released your whole year at once.'
-                    : 'Full-binder fill-sheet PDFs included with your plan each month.'
-                  : undefined
-              }
+              note={printNote}
             />
           ) : null}
 

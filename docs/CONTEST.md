@@ -80,6 +80,19 @@ Market as: **"Over $1,700 in prizes, including a once-ever LIFETIME VIP grand pr
 - Binder viewer — a contest entry shows at most its first 16 public pages (with a note) to
   everyone but the owner.
 
+## Testing
+
+- `npm test` → `src/data/contest.test.ts` pins the prize table (exactly ONE lifetime, six
+  categories, 10 slots each, every 1st is a VIP year), the phase gate, and the copy rules.
+- `supabase/tests/contest_rls_test.sql` exercises the real policies against a live database
+  and is NON-DESTRUCTIVE: it runs inside a DO block ending in `RAISE EXCEPTION`, so the whole
+  transaction rolls back and the results arrive as the error message. Every line should read
+  [PASS]. Covers: the public-page cap at entry, the final-category lock, contest_winners being
+  server-write-only, non-owner enter/withdraw, entry visibility, voting, and the leaderboard
+  (vote count, category isolation, privacy drop-off). Re-run it before announcing.
+- Not covered by either: the UI flow itself (chips, toasts, Discover boards). Walk that
+  through by hand, or drive it with the Playwright harness (`scripts/screenshots.mjs`).
+
 ## Prize fulfillment (post-contest runbook)
 
 Manual SQL grants to the shared `entitlements` ledger (see docs/PAYMENTS.md "manual grant"):

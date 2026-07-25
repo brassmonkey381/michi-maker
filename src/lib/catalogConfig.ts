@@ -49,6 +49,10 @@ configureBrowse({
   // EXPO_PUBLIC_TCGPLAYER_DEEPLINK to the Impact tracking URL with a {url} token, e.g.
   // https://partner.tcgplayer.com/c/<ids>?subId1=michi&u={url}
   affiliateDeeplink: process.env.EXPO_PUBLIC_TCGPLAYER_DEEPLINK ?? '',
+  // eBay Partner Network: campaign id (shared "TCGScan" campaign) + customid for the Recent &
+  // Upcoming feed's "Find on eBay" links. Powers the kit's ebaySearchUrl (RecentProducts).
+  ebayCampaignId: '5339173456',
+  ebayCustomId: 'michi-recent',
 });
 
 export { cardThumbUrl, resolveImageUrl, hydrateImageManifest, useImageManifest };

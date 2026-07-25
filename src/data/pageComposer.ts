@@ -10,8 +10,11 @@
  *  - evolutionLine  → the seed's evolution family, reading Basic → final stage (Themed/Story)
  *  - sameArtist     → the seed illustrator's other work, spread across eras (Card Artist)
  *  - trainerPage    → a trainer's partner/team/supporter world (Trainer)
+ *  - colorType      → cards sharing the seed's ENERGY TYPE, with tonal inserts (the free, offline
+ *                     "Color by type" — a simpler cousin of colorTheme)
  *  - colorTheme     → cards whose PALETTE is closest to the seed (the Tri-Color Search —
- *                     findSimilarByColor), with tonal inserts for cohesion (Color-Themed)
+ *                     findSimilarByColor), with tonal inserts for cohesion (Color-Themed). PAID
+ *                     (PRO/VIP) — the premium composer; free users see it locked with an upsell.
  *  - fullPageSpread → one of our OWNED procedural "color sheets" (themeBackgrounds — 3 palettes ×
  *                     18 energy families = 54) sliced across every empty pocket; the placed cards
  *                     read as accents on the sheet (Full-Page Spread)
@@ -47,6 +50,7 @@ export type ComposeMethod =
   | 'moreLikeThis'
   | 'trainerPage'
   | 'pokemonFriends'
+  | 'colorType'
   | 'colorTheme'
   | 'fullPageSpread';
 
@@ -70,6 +74,8 @@ export const COMPOSE_METHODS: {
   key: ComposeMethod;
   label: string;
   description: string;
+  /** Requires a paid (PRO/VIP) subscription. Free users see the method locked with an upsell. */
+  paid?: boolean;
 }[] = [
   {
     key: 'moreLikeThis',
@@ -102,9 +108,15 @@ export const COMPOSE_METHODS: {
     description: 'More cards illustrated by the same artist, sampled across eras.',
   },
   {
+    key: 'colorType',
+    label: 'Color by type',
+    description: 'Cards sharing this one’s energy type, with tonal inserts for cohesion.',
+  },
+  {
     key: 'colorTheme',
-    label: 'Color match',
-    description: 'Cards whose palette is closest to this one (tri-color search), with tonal inserts.',
+    label: 'Color match · tri-color',
+    description: 'Ranks every card by its actual palette (tri-color search) for a page that flows edge to edge.',
+    paid: true,
   },
   {
     key: 'fullPageSpread',
@@ -123,8 +135,12 @@ export function availableMethods(seed: CatalogCard, catalog: Catalog): ComposeMe
   if (species && partnersFor(species, catalog).length > 0) out.push('pokemonFriends');
   if (trainerFor(seed.name)) out.push('trainerPage');
   if (seed.illustrator.trim()) out.push('sameArtist');
-  // Color match ranks by palette (findSimilarByColor) — offered whenever a color path is usable
-  // (on-device index OR the server RPC), regardless of the seed's type.
+  // Color BY TYPE (free): needs only the seed's energy type + its tonal palette — pure catalog
+  // scan, works fully offline. Offered whenever the seed has a type we have tones for.
+  if (TYPE_STYLES[seed.types[0] ?? '']) out.push('colorType');
+  // Color MATCH / tri-color (paid): ranks by palette (findSimilarByColor) — offered whenever a
+  // color path is usable (on-device index OR the server RPC), regardless of the seed's type. The
+  // paid gate itself is applied in the UI (AutoFillSheet), not here — this stays tier-agnostic.
   if (colorSearchAvailable()) out.push('colorTheme');
   // Full-page spread now sources from our OWNED procedural color sheets (themeBackgrounds), so it
   // always works — no external art, no licensing.
@@ -391,6 +407,43 @@ export async function composePage(
         h: 1 / page.rows,
       },
     }));
+  }
+
+  if (method === 'colorType') {
+    // FREE: the seed's energy colour across eras — a simple type match (no palette ranking). A few
+    // pockets become tonal inserts (the michi negative-space look) and any card shortfall falls
+    // back to inserts too, so the page always reads finished. Pure catalog scan, works offline.
+    const type = seed.types[0] ?? '';
+    const style = TYPE_STYLES[type];
+    if (!style) return [];
+    const cards = varietyRank(
+      filterAndDedupe(
+        catalog.listAll().filter((c) => c.types.includes(type)),
+        page,
+        pool,
+      ),
+    );
+    // Deliberate tonal inserts: ~1 per 4 pockets, scattered (never the first pocket, which
+    // usually neighbours the seed).
+    const insertCount = Math.min(3, Math.floor(cells.length / 4));
+    const insertAt = new Set<number>();
+    for (let k = 1; k <= insertCount; k += 1) {
+      insertAt.add(Math.round((k * cells.length) / (insertCount + 1)));
+    }
+    const placements: ComposePlacement[] = [];
+    let cardIdx = 0;
+    let tone = 0;
+    for (let i = 0; i < cells.length; i += 1) {
+      if (insertAt.has(i) || cardIdx >= cards.length) {
+        placements.push({ ...cells[i], insertColor: style.tones[tone % style.tones.length] });
+        tone += 1;
+      } else {
+        placements.push({ ...cells[i], cardId: cards[cardIdx].id });
+        cardIdx += 1;
+      }
+    }
+    // All inserts and no cards would be an empty-looking page — bail to "nothing found".
+    return cardIdx > 0 ? placements : [];
   }
 
   if (method === 'colorTheme') {

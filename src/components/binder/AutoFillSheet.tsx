@@ -10,10 +10,11 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
+import { TriColorUpsell } from '@/components/binder/TriColorUpsell';
 import { LogoLoader } from '@/components/brand/LogoLoader';
 import { ThemedText } from '@/components/themed-text';
 import { DialogCard } from '@/components/ui/DialogCard';
-import { Palette, Radius, Spacing } from '@/constants/theme';
+import { FontSize, Palette, Radius, Spacing } from '@/constants/theme';
 import { pillChip } from '@/constants/ui';
 import { occupiedCells, type DemoPage } from '@/data/binderTypes';
 import { fetchUserCards } from '@/data/collectionRepo';
@@ -27,6 +28,7 @@ import {
 } from '@/data/pageComposer';
 import { resolveCatalogCardWith } from '@/data/cardResolver';
 import { useCatalog } from '@/hooks/use-catalog';
+import { useTier } from '@/hooks/use-tier';
 import { isSupabaseConfigured } from '@/lib/env';
 
 // Session-remembered preference: once a collector fills from their collection, keep doing so.
@@ -47,8 +49,11 @@ export function AutoFillSheet({
   onPlaced: (placements: ComposePlacement[], methodLabel: string) => void;
 }) {
   const { catalog, guestGated } = useCatalog(visible);
+  const { isPaid } = useTier();
   const [busy, setBusy] = useState<ComposeMethod | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The tri-color upsell (opened when a free user taps the locked paid method).
+  const [upsell, setUpsell] = useState(false);
   // Trainer/partner tables come from the tcgscan-data server — load them alongside the catalog
   // so availableMethods sees them (load-once; instant after the first open).
   const [partnersReady, setPartnersReady] = useState(false);
@@ -114,6 +119,7 @@ export function AutoFillSheet({
   };
 
   return (
+    <>
     <DialogCard visible={visible} onClose={onClose} maxWidth={420} title="Fill page">
             {guestGated ? (
               // The composer scans the full catalog, which is a signed-in perk — say so instead
@@ -150,25 +156,36 @@ export function AutoFillSheet({
                     The page is full. Clear a pocket or two first.
                   </ThemedText>
                 ) : (
-                  COMPOSE_METHODS.filter((m) => methods.includes(m.key)).map((m) => (
-                    <Pressable
-                      key={m.key}
-                      onPress={() => run(m.key)}
-                      disabled={busy !== null}
-                      style={({ pressed }) => [
-                        styles.method,
-                        (pressed || busy === m.key) && styles.pressed,
-                        busy !== null && busy !== m.key && styles.dimmed,
-                      ]}>
-                      <View style={styles.methodText}>
-                        <ThemedText type="smallBold">{m.label}</ThemedText>
-                        <ThemedText type="small" themeColor="textSecondary">
-                          {m.description}
-                        </ThemedText>
-                      </View>
-                      {busy === m.key ? <ActivityIndicator /> : null}
-                    </Pressable>
-                  ))
+                  COMPOSE_METHODS.filter((m) => methods.includes(m.key)).map((m) => {
+                    const locked = !!m.paid && !isPaid;
+                    return (
+                      <Pressable
+                        key={m.key}
+                        onPress={() => (locked ? setUpsell(true) : run(m.key))}
+                        disabled={busy !== null}
+                        style={({ pressed }) => [
+                          styles.method,
+                          locked && styles.methodLocked,
+                          (pressed || busy === m.key) && styles.pressed,
+                          busy !== null && busy !== m.key && styles.dimmed,
+                        ]}>
+                        <View style={styles.methodText}>
+                          <View style={styles.methodTitleRow}>
+                            <ThemedText type="smallBold">{m.label}</ThemedText>
+                            {locked ? (
+                              <View style={styles.proPill}>
+                                <Text style={styles.proPillText}>🔒 PRO</Text>
+                              </View>
+                            ) : null}
+                          </View>
+                          <ThemedText type="small" themeColor="textSecondary">
+                            {m.description}
+                          </ThemedText>
+                        </View>
+                        {busy === m.key ? <ActivityIndicator /> : null}
+                      </Pressable>
+                    );
+                  })
                 )}
 
                 {error ? (
@@ -179,6 +196,12 @@ export function AutoFillSheet({
               </>
             )}
     </DialogCard>
+    <TriColorUpsell
+      visible={upsell}
+      onClose={() => setUpsell(false)}
+      onBeforeUpgrade={onClose}
+    />
+    </>
   );
 }
 
@@ -196,6 +219,17 @@ const styles = StyleSheet.create({
     borderColor: Palette.hairlineStrong,
   },
   methodText: { flex: 1, gap: 2 },
+  methodTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  methodLocked: { borderStyle: 'dashed' },
+  proPill: {
+    paddingVertical: 1,
+    paddingHorizontal: Spacing.two,
+    borderRadius: Radius.pill,
+    backgroundColor: Palette.panel,
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
+  },
+  proPillText: { fontSize: FontSize.tag, color: Palette.ink2, fontWeight: '700', letterSpacing: 0.5 },
   pressed: { opacity: 0.7 },
   dimmed: { opacity: 0.4 },
   error: { color: Palette.danger, lineHeight: 20 },

@@ -28,7 +28,8 @@ series/eras so a page samples styles instead of dumping one set's run).
 | `pokemonFriends` | Friends & partners | Curated duos / TAG-TEAM lore + species proven to share card art. | `pokemonPartners` (tcgscan-data) + catalog | partners exist for species |
 | `trainerPage` | Trainer page | A trainer's signature partner(s), trainer cards, and canonical team. | `trainerPartners` (tcgscan-data) + catalog | `trainerFor(name)` matches |
 | `sameArtist` | Same artist | More cards by the same illustrator, sampled across eras. | catalog scan by `illustrator` | illustrator known |
-| `colorTheme` | Color match | Cards whose **palette** is closest to the seed (nearest-first, order kept — no variety re-rank), with scattered tonal inserts for the michi negative-space look. | **Tri-Color Search** — `findSimilarByColor(seed.id, 'noborder')` (kit, hybrid on-device/server) + `TYPE_STYLES` tones for inserts | `colorSearchAvailable()` |
+| `colorType` | Color by type | **(Free)** Cards sharing the seed's energy type, with scattered tonal inserts. Simple match, no palette ranking; pure catalog scan, works offline. | catalog scan by `types` + `TYPE_STYLES` tones for inserts | seed has a type in `TYPE_STYLES` |
+| `colorTheme` | Color match · tri-color | **(Paid — PRO/VIP)** Cards whose **palette** is closest to the seed (nearest-first, order kept — no variety re-rank), with scattered tonal inserts for the michi negative-space look. Free users see it locked with an upsell (`TriColorUpsell`). | **Tri-Color Search** — `findSimilarByColor(seed.id, 'noborder')` (kit, hybrid on-device/server) + `TYPE_STYLES` tones for inserts | `colorSearchAvailable()` |
 | `fullPageSpread` | Full-page spread | One owned **color sheet** flows across every empty pocket (each shows its crop window); cards read as accents. Sheet family from the seed's type, palette + arrangement seeded by the card id. | **`themeBackgrounds`** — our procedural sheets (3 palettes × 18 families = 54), fully owned | always |
 
 ### "Fill from my collection" (pool)
@@ -55,13 +56,27 @@ families) across every empty pocket:
 
 Fully owned, offline, no licensing — so it's **always** offered.
 
-### `colorTheme` — the Tri-Color Search
+### `colorType` (free) vs `colorTheme` / tri-color (paid)
 
-Rebuilt **2026-07-24** to rank by **palette** instead of energy type. It calls the kit's
-`findSimilarByColor(seed.id, 'noborder', { limit })` (the same colour engine behind the Search-by-color
-sheet's "similar" mode — hybrid on-device index / server RPC, fails soft to `[]`), keeps that
-nearest-first order (no `varietyRank`, which would scramble it), and scatters a few `TYPE_STYLES`
-tonal inserts (when the seed has a type) for cohesion. Offered whenever `colorSearchAvailable()`.
+There are **two** colour methods, split free/paid (owner decision 2026-07-24):
+
+- **`colorType` — "Color by type" (free).** The pre-2026-07-24 behaviour: match the seed's energy
+  type (`c.types.includes(type)`), variety-rank across eras, scatter `TYPE_STYLES` tonal inserts.
+  No palette ranking, no RPC — a pure catalog scan that works fully offline. Offered whenever the
+  seed has a type in `TYPE_STYLES`.
+- **`colorTheme` — "Color match · tri-color" (PAID, PRO/VIP).** Rebuilt 2026-07-24 to rank by
+  **palette**: it calls the kit's `findSimilarByColor(seed.id, 'noborder', { limit })` (the same
+  colour engine behind the Search-by-color sheet's "similar" mode — hybrid on-device index / server
+  RPC, fails soft to `[]`), keeps that nearest-first order (no `varietyRank`, which would scramble
+  it), and scatters a few tonal inserts for cohesion. Offered whenever `colorSearchAvailable()`.
+
+**The paid gate is applied in the UI, not the composer.** `availableMethods` stays tier-agnostic
+(returns `colorTheme` whenever the colour path is usable); `AutoFillSheet` reads `useTier().isPaid`
+and, for a free user, renders `colorTheme` as a **locked** row (🔒 PRO) that opens `TriColorUpsell`
+(`src/components/binder/TriColorUpsell.tsx`) — a DialogCard with a procedural infographic (triad
+swatches → a palette-matched binder page) and a "See plans" CTA. This is a **client-side** gate,
+the same enforcement class as all other composer access (which is only sign-in-gated); there is no
+server-side per-method check. `composePage('colorTheme', …)` still runs if called directly.
 
 ---
 

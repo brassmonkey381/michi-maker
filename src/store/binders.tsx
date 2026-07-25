@@ -161,6 +161,15 @@ interface BinderStore {
   setBinderPageSize: (binderId: string, rows: number, cols: number) => { ok: boolean; reason?: string };
   /** Delete a page; the remainder is re-spaced with blanks so later folded art keeps its side. */
   removePage: (binderId: string, pageId: string) => { blanksInserted: number } | null;
+  /** Copy (or move) a page into another binder. See the implementation for the refusal reasons. */
+  sendPageToBinder: (
+    fromBinderId: string,
+    pageId: string,
+    toBinderId: string,
+    opts?: { move?: boolean },
+  ) =>
+    | { status: 'ok'; move: boolean; blanksInserted: number }
+    | { status: 'size-mismatch' | 'target-full' | 'last-page' | 'not-found' };
   /** Move a page; the result is re-spaced with blanks so all folded art keeps its side. Returns
    *  the moved page's final index (spacers can shift it past the raw drop index). */
   reorderPages: (
@@ -595,6 +604,68 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       // rewrites pages + slots with correct positions — avoids the unique(position) dance).
       if (!target.isExample) persist(() => repo.replaceBinder({ ...target, pages }));
       return { pageIndex: pages.findIndex((p) => p.id === copy.id), blanksInserted };
+    },
+    [binders, limits.pagesPerBinder, commit, persist],
+  );
+
+  /**
+   * Send a page to ANOTHER binder — copy it there, or move it (copy + remove from the source).
+   *
+   * Guards, each reported so the UI can explain rather than fail silently:
+   *  · 'size-mismatch' — real binders run ONE pocket layout throughout (see addPage), so a 3×3
+   *    page can't join a 4×4 binder; we refuse instead of producing a binder that can't exist.
+   *  · 'target-full'   — the destination is at the tier's page cap (same rule as addPage).
+   *  · 'last-page'     — moving would leave the source with zero pages; copy instead.
+   * The page is re-minted (new page id + new slot ids) so the two binders never share rows.
+   */
+  const sendPageToBinder = useCallback(
+    (
+      fromBinderId: string,
+      pageId: string,
+      toBinderId: string,
+      opts?: { move?: boolean },
+    ):
+      | { status: 'ok'; move: boolean; blanksInserted: number }
+      | { status: 'size-mismatch' | 'target-full' | 'last-page' | 'not-found' } => {
+      const source = binders.find((b) => b.id === fromBinderId);
+      const target = binders.find((b) => b.id === toBinderId);
+      const src = source?.pages.find((p) => p.id === pageId);
+      if (!source || !target || !src || source.id === target.id) return { status: 'not-found' };
+
+      const shape = target.pages[0];
+      if (shape && (shape.rows !== src.rows || shape.cols !== src.cols)) return { status: 'size-mismatch' };
+      if (LIMITS_ENFORCED && !target.isExample && target.pages.length >= limits.pagesPerBinder)
+        return { status: 'target-full' };
+      const move = Boolean(opts?.move);
+      if (move && source.pages.length <= 1) return { status: 'last-page' };
+
+      const copy: DemoPage = {
+        ...src,
+        id: uuidv4(),
+        slots: src.slots.map((slot) => ({ ...slot, id: uuidv4() })),
+      };
+      const targetPages = [...target.pages, copy];
+      // Moving flips the side of every page after the one that left, so re-space the SOURCE the
+      // same way removePage does (folded art must stay on its pocket pairs).
+      const sourceAfter = move
+        ? withParitySpacers(source.pages.filter((p) => p.id !== pageId))
+        : { pages: source.pages, blanksInserted: 0 };
+
+      commit((prev) =>
+        prev.map((b) =>
+          b.id === toBinderId
+            ? { ...b, pages: targetPages }
+            : move && b.id === fromBinderId
+              ? { ...b, pages: sourceAfter.pages }
+              : b,
+        ),
+      );
+      // Wholesale on both sides: the target gains a page WITH slots and the source's positions
+      // shift, which the granular calls don't cover (same reasoning as duplicatePage).
+      if (!target.isExample) persist(() => repo.replaceBinder({ ...target, pages: targetPages }));
+      if (move && !source.isExample)
+        persist(() => repo.replaceBinder({ ...source, pages: sourceAfter.pages }));
+      return { status: 'ok', move, blanksInserted: sourceAfter.blanksInserted };
     },
     [binders, limits.pagesPerBinder, commit, persist],
   );
@@ -1417,6 +1488,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       updatePage,
       setBinderPageSize,
       removePage,
+      sendPageToBinder,
       reorderPages,
       compactBlankPages,
       upsertSlot,
@@ -1457,6 +1529,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       updatePage,
       setBinderPageSize,
       removePage,
+      sendPageToBinder,
       reorderPages,
       compactBlankPages,
       upsertSlot,

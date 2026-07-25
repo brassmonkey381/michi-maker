@@ -3,6 +3,7 @@
  * binders (plus a "New binder" row) so a found card can go straight into a binder without first
  * opening the editor. A bottom sheet, matching the card picker's language.
  */
+import type { ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -16,11 +17,20 @@ export function AddToBinderSheet({
   onPick,
   onNew,
   onClose,
+  title = 'Add to a binder',
+  emptyText = 'You don’t have any binders yet. “New binder” starts one with this card.',
+  accessory,
 }: {
   binders: DemoBinder[];
   onPick: (binderId: string) => void;
-  onNew: () => void;
+  /** Omit to hide the "New binder" row (e.g. sending a page — there's nothing to seed a new one with). */
+  onNew?: () => void;
   onClose: () => void;
+  /** Sheet heading; defaults to the card-adding wording. */
+  title?: string;
+  emptyText?: string;
+  /** Optional controls under the header (e.g. the send-page copy/move switch). */
+  accessory?: ReactNode;
 }) {
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
@@ -30,17 +40,20 @@ export function AddToBinderSheet({
           <View style={sheet.handle} />
           <View style={styles.header}>
             <ThemedText type="subtitle" style={styles.title}>
-              Add to a binder
+              {title}
             </ThemedText>
             <Pressable onPress={onClose} hitSlop={10}>
               <Text style={styles.close}>Cancel</Text>
             </Pressable>
           </View>
 
+          {accessory}
           <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
-            <Pressable onPress={onNew} style={({ pressed }) => [styles.newRow, pressed && styles.pressed]}>
-              <Text style={styles.newText}>＋  New binder</Text>
-            </Pressable>
+            {onNew ? (
+              <Pressable onPress={onNew} style={({ pressed }) => [styles.newRow, pressed && styles.pressed]}>
+                <Text style={styles.newText}>＋  New binder</Text>
+              </Pressable>
+            ) : null}
             {binders.map((binder) => (
               <Pressable
                 key={binder.id}
@@ -56,7 +69,7 @@ export function AddToBinderSheet({
             ))}
             {binders.length === 0 ? (
               <ThemedText type="small" themeColor="textSecondary" style={styles.empty}>
-                You don’t have any binders yet. “New binder” starts one with this card.
+                {emptyText}
               </ThemedText>
             ) : null}
           </ScrollView>

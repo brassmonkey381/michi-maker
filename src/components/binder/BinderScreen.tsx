@@ -131,6 +131,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const multiIdsRef = useRef(multiIds);
   // "Keep adding" fast-fill: after placing a card the picker stays open and jumps to the next pocket.
   const [keepAdding, setKeepAdding] = useState(false);
+  // "Send page to…" — the destination picker, and whether it moves or copies.
+  const [sendPageOpen, setSendPageOpen] = useState(false);
+  const [sendAsMove, setSendAsMove] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(null);
   // Bulk multi-select "Add to another binder…" — the card ids awaiting a target binder.
   const [addElsewhereIds, setAddElsewhereIds] = useState<string[] | null>(null);
@@ -389,6 +392,39 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
       setPageIndex(result.pageIndex);
       showToast(parityNote('Page duplicated', result.blanksInserted));
     }
+  };
+
+  /**
+   * Send the current page to another binder. `move` also removes it here, so the page ends up in
+   * exactly one binder; a plain send leaves this one untouched. Every refusal the store can
+   * return is explained in a toast rather than failing silently.
+   */
+  const handleSendPage = (toBinderId: string, move: boolean) => {
+    setSendPageOpen(false);
+    const target = store.getBinder(toBinderId);
+    const result = store.sendPageToBinder(binder.id, page.id, toBinderId, { move });
+    if (result.status !== 'ok') {
+      showToast(
+        result.status === 'size-mismatch'
+          ? `“${target?.title ?? 'That binder'}” uses a different pocket layout, so this page won’t fit.`
+          : result.status === 'target-full'
+            ? pageLimitMessage(store.tier, store.limits)
+            : result.status === 'last-page'
+              ? 'This is the binder’s only page — send a copy instead of moving it.'
+              : 'Could not send that page.',
+      );
+      return;
+    }
+    if (move) {
+      setSelectedSlotId(null);
+      setPageIndex(0);
+    }
+    showToast(
+      parityNote(
+        `Page ${move ? 'moved' : 'copied'} to “${target?.title ?? 'binder'}”`,
+        result.blanksInserted,
+      ),
+    );
   };
 
   const selectedSlot = selectedSlotId
@@ -900,6 +936,10 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           }
         />
         <PillButton label="Duplicate page" onPress={handleDuplicatePage} />
+        {/* Send this page into ANOTHER of your binders (copy, or move it out of this one). */}
+        {store.userBinders.some((b) => b.id !== binder.id) && (
+          <PillButton label="Send page to…" onPress={() => setSendPageOpen(true)} />
+        )}
         {binder.pages.length > 1 && (
           <PillButton
             label="Delete page"
@@ -1267,6 +1307,30 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           onSetPagePublic={(pageId, v) => store.updatePage(binder.id, pageId, { isPublic: v })}
           onToast={showToast}
         />
+        {sendPageOpen && (
+          <AddToBinderSheet
+            title={`Send page ${idx + 1} to…`}
+            binders={store.userBinders.filter((b) => b.id !== binder.id)}
+            emptyText="You don’t have another binder to send this page to yet."
+            accessory={
+              <Pressable
+                onPress={() => setSendAsMove((v) => !v)}
+                accessibilityRole="switch"
+                accessibilityState={{ checked: sendAsMove }}
+                style={styles.sendModeRow}
+                hitSlop={4}>
+                <View style={[styles.sendModeBox, sendAsMove && styles.sendModeBoxOn]}>
+                  {sendAsMove ? <Text style={styles.sendModeTick}>✓</Text> : null}
+                </View>
+                <ThemedText type="small" themeColor="textSecondary" style={styles.sendModeText}>
+                  Move it (remove this page from “{binder.title}”). Off = send a copy.
+                </ThemedText>
+              </Pressable>
+            }
+            onPick={(toId) => handleSendPage(toId, sendAsMove)}
+            onClose={() => setSendPageOpen(false)}
+          />
+        )}
         <LikersSheet visible={likesOpen} binderId={binder.id} onClose={() => setLikesOpen(false)} />
       </ThemedView>
   );
@@ -1464,6 +1528,26 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   editPanelTitle: { textTransform: 'uppercase', letterSpacing: 0.5 },
+  // "Send page to…" copy/move switch, shown above the destination list.
+  sendModeRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.two,
+    paddingBottom: Spacing.three,
+  },
+  sendModeBox: {
+    width: 18,
+    height: 18,
+    borderRadius: Radius.xs,
+    borderWidth: 1.5,
+    borderColor: Palette.hairlineStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  sendModeBoxOn: { backgroundColor: Palette.accent, borderColor: Palette.accent },
+  sendModeTick: { color: Palette.accentText, fontSize: 12, fontWeight: Weight.bold, lineHeight: 14 },
+  sendModeText: { flex: 1, lineHeight: 18 },
   btnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   inlineRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   // Segmented control (matches the studio's fit/view toggles).

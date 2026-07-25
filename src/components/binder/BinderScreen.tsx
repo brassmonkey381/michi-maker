@@ -1477,7 +1477,16 @@ const styles = StyleSheet.create({
   pillText: { fontSize: FontSize.body, fontWeight: Weight.semibold, color: Palette.ink2 },
   pillTextDanger: { color: Palette.dangerAlt },
   pressed: { opacity: 0.7 },
-  deleteBinder: { marginTop: 20, alignItems: 'center', paddingVertical: 10 },
+  // A contained danger chip, centred and sized to its label — so the tap target is the button,
+  // not the whole row width (an easy place to fat-finger a destructive action).
+  deleteBinder: {
+    marginTop: 20,
+    alignSelf: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: Radius.control,
+    backgroundColor: Palette.dangerBg,
+  },
   deleteBinderText: { color: Palette.dangerAlt, fontSize: FontSize.control, fontWeight: Weight.semibold },
   // Clearance so scrolled content isn't hidden behind the docked slice tray.
   traySpacer: { height: 150 },

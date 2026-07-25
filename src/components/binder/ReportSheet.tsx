@@ -44,7 +44,7 @@ export function ReportSheet({ binderId, onClose }: { binderId: string; onClose: 
             {done ? (
               <>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.body}>
-                  Thanks — your report is in. We review reports and remove content that breaks the
+                  Thanks, your report is in. We review reports and remove content that breaks the
                   rules or that a rights holder asks us to take down. Rights holders can also file a
                   formal notice on our DMCA page.
                 </ThemedText>

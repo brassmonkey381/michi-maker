@@ -49,7 +49,7 @@ export function ShareSheet({
     }
     const priv = privateArtInBinder(binder);
     if (priv.length > 0) {
-      setPrivateArt(priv); // block — has URL-sourced (private) art
+      setPrivateArt(priv); // block, has URL-sourced (private) art
       setAwaitingAttest(false);
       return;
     }
@@ -92,13 +92,13 @@ export function ShareSheet({
               <Switch value={isPublic} onValueChange={handleToggle} trackColor={{ true: Palette.accent, false: theme.backgroundSelected }} />
             </View>
 
-            {/* Per-page visibility — a public binder can still keep individual pages private. Only
+            {/* Per-page visibility, a public binder can still keep individual pages private. Only
                 meaningful once the binder itself is public, so it lives here rather than the editor. */}
             {isPublic && binder.pages.length > 0 ? (
               <View style={styles.pagesBlock}>
                 <ThemedText type="smallBold">Pages shown publicly</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.pagesHint}>
-                  Tap a page to hide it from public viewers. Hidden pages stay in your binder — only
+                  Tap a page to hide it from public viewers. Hidden pages stay in your binder, only
                   you see them.
                 </ThemedText>
                 <View style={styles.pageChips}>
@@ -129,7 +129,7 @@ export function ShareSheet({
                 <ThemedText type="small" themeColor="textSecondary" style={styles.gateText}>
                   {privateArt.length} art {privateArt.length === 1 ? 'piece was' : 'pieces were'}{' '}
                   brought in from a link, so {privateArt.length === 1 ? 'it stays' : 'they stay'}{' '}
-                  private — a binder with them can’t be shared. Replace{' '}
+                  private, a binder with them can’t be shared. Replace{' '}
                   {privateArt.length === 1 ? 'it' : 'them'} with your own uploaded art to share this
                   binder.
                 </ThemedText>

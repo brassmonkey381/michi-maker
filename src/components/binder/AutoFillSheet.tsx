@@ -174,7 +174,7 @@ export function AutoFillSheet({
                             <ThemedText type="smallBold">{m.label}</ThemedText>
                             {locked ? (
                               <View style={styles.proPill}>
-                                <Text style={styles.proPillText}>🔒 PRO</Text>
+                                <Text style={styles.proPillText}>PRO</Text>
                               </View>
                             ) : null}
                           </View>

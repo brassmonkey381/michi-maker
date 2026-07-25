@@ -97,7 +97,7 @@ function AuthForm({ onClose, isGuest }: { onClose: () => void; isGuest: boolean 
         setInfo(`Check ${email.trim()} for a link to confirm your account.`);
         return;
       }
-      onClose(); // session established — onAuthStateChange updates the app
+      onClose(); // session established, onAuthStateChange updates the app
     } finally {
       setBusy(false);
     }

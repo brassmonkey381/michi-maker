@@ -19,7 +19,7 @@ test('an active PRO trial (future expiry) resolves to pro', () => {
   assert.equal(signedIn([{ product: 'tier_pro', expires_at: inDays(14) }]), 'pro');
 });
 
-test('a lapsed PRO trial falls back to free — no special-casing needed', () => {
+test('a lapsed PRO trial falls back to free, no special-casing needed', () => {
   assert.equal(signedIn([{ product: 'tier_pro', expires_at: inDays(-1) }]), 'free');
 });
 

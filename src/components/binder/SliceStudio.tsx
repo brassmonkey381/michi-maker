@@ -807,7 +807,7 @@ export function SliceStudio({
   const body = (
     <>
         {/* Standalone (e.g. the tray's "New") keeps a full-screen header with Close on the left and
-            the studio actions on the right. Embedded has no header row at all — the same actions
+            the studio actions on the right. Embedded has no header row at all, the same actions
             live at the top of the left controls column (see studioActions below). */}
         {!embedded ? (
           <View style={styles.header}>
@@ -892,12 +892,12 @@ export function SliceStudio({
           {/* Provenance status for the loaded image — private (URL-pulled) vs shareable (uploaded). */}
           {hasImage && origin === 'external' ? (
             <Text style={styles.privateNote}>
-              PRIVATE — this art came from a link, so binders using it can’t be shared publicly. To
+              PRIVATE, this art came from a link, so binders using it can’t be shared publicly. To
               share, upload your own art (art you own or created) instead.
             </Text>
           ) : hasImage && origin === 'upload' ? (
             <Text style={styles.attribHint}>
-              Your upload — this can go in binders you share, once you confirm you have the rights.
+              Your upload, this can go in binders you share, once you confirm you have the rights.
             </Text>
           ) : null}
 
@@ -918,7 +918,7 @@ export function SliceStudio({
               <TextInput
                 value={sourceUrl}
                 onChangeText={setSourceUrl}
-                placeholder="Source URL (the original post — required to make public)"
+                placeholder="Source URL (the original post, required to make public)"
                 placeholderTextColor={Palette.muted3}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -927,7 +927,7 @@ export function SliceStudio({
             </View>
           ) : null}
 
-          {/* Framing controls only exist once there's something to frame — the empty studio stays
+          {/* Framing controls only exist once there's something to frame, the empty studio stays
               quiet. Grouped, hairline-separated clusters replace the old five stacked toolbars. */}
           {hasImage ? (
             <View style={styles.controlBar}>
@@ -1116,7 +1116,7 @@ export function SliceStudio({
                 <ScrollView contentContainerStyle={styles.sourcesList}>
                   <Text style={styles.sourcesResponsibility}>
                     michi-maker is a layout tool for art you supply. These are places to find art
-                    for your own personal binders — only use images you have the right to use, and
+                    for your own personal binders, only use images you have the right to use, and
                     credit the artist and source. You are responsible for the art you add.
                   </Text>
                   {ART_SOURCES.map((s) => (
@@ -1157,7 +1157,7 @@ export function SliceStudio({
                   </Pressable>
                 </View>
                 {/* Rendered even without the catalog: CatalogBrowser runs cold (server search +
-                    taxonomy drill-down) for guests — a `catalog ?` gate here left guests staring
+                    taxonomy drill-down) for guests, a `catalog ?` gate here left guests staring
                     at a spinner that never resolved (the catalog is a signed-in perk). */}
                 <CardBrowse
                   catalog={catalog}

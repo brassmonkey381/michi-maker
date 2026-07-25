@@ -70,7 +70,7 @@ export function KeepBindersModal({
   return (
     <DialogCard visible={visible} onClose={onClose} title="Choose which binders to keep">
       <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-        Free keeps {cap} binder{cap === 1 ? '' : 's'}. Pick the {cap} to keep — the other{' '}
+        Free keeps {cap} binder{cap === 1 ? '' : 's'}. Pick the {cap} to keep, the other{' '}
         {archiveCount === 1 ? 'one' : archiveCount} will be locked (not deleted) and come back if you
         subscribe.
       </ThemedText>

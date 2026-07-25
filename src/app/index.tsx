@@ -165,7 +165,7 @@ export default function HomeScreen() {
           {/* Catalog-free sealed carousel: renders for everyone (guests included). */}
           <HomeSealed languages={HOME_LANGUAGES} />
 
-          {/* Recent & Upcoming — ONE feed for every auth state (the kit's RecentProducts runs
+          {/* Recent & Upcoming, ONE feed for every auth state (the kit's RecentProducts runs
               catalog-free for guests/cold and from the catalog when signed-in). */}
           <HomeRecent
             onFindSimilar={driveSimilar}

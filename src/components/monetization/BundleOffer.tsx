@@ -112,7 +112,7 @@ export function BundleOffer() {
   };
   return (
     <CrossAppCard
-      message="You’re a Michi member — save 60% on your TCGScan add-on: scan, price-track & value this exact collection."
+      message="You’re a Michi member, save 60% on your TCGScan add-on: scan, price-track & value this exact collection."
       cta={CHECKOUT_OPEN ? 'Save 60% on TCGScan →' : 'Add TCGScan Pro →'}
       onPress={() => void onPress()}
       busy={busy}
@@ -129,7 +129,7 @@ export function TcgscanSynergyNote() {
   if (loading || hasTcgscanPro) return null;
   return (
     <CrossAppCard
-      message="Powered by TCGScan. Scan your cards to keep this collection accurate & valued — TCGScan Pro members get live prices and ROI."
+      message="Powered by TCGScan. Scan your cards to keep this collection accurate & valued, TCGScan Pro members get live prices and ROI."
       cta="Meet TCGScan →"
       onPress={openTcgscan}
     />

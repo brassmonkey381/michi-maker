@@ -212,7 +212,7 @@ function SliceChip({
       <GestureDetector gesture={gesture}>
         <View style={[styles.chip, { width: w, height: THUMB_H }, armed && styles.chipArmed]}>
           <SliceThumb slice={slice} style={StyleSheet.absoluteFill} />
-          {/* URL-pulled art (or any non-bucket hotlink) is PRIVATE — it can't go in a shared
+          {/* URL-pulled art (or any non-bucket hotlink) is PRIVATE, it can't go in a shared
               binder (see the sharing gate). */}
           {isPrivateArt(slice.attribution, slice.imageUrl) ? (
             <View style={styles.privateBadge}>

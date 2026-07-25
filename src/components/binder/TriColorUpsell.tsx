@@ -236,7 +236,7 @@ function SlidePicker({
     <>
       <StepHead n={1} kicker="The picker" title="Mix up to three colours" />
       <ThemedText type="small" themeColor="textSecondary" style={styles.lead}>
-        Drag the stops to weight each colour. This is the exact tool the search runs on — no energy
+        Drag the stops to weight each colour. This is the exact tool the search runs on, no energy
         type, just the palette you want.
       </ThemedText>
       <View style={styles.pickerWrap}>
@@ -264,7 +264,7 @@ function SlideMatch({
     <>
       <StepHead n={2} kicker="The match" title="A real card in your palette" />
       <ThemedText type="small" themeColor="textSecondary" style={styles.lead}>
-        Tri-color reads each card’s actual artwork. Here’s the closest match to your mix — the same
+        Tri-color reads each card’s actual artwork. Here’s the closest match to your mix, the same
         card the paid search puts first.
       </ThemedText>
       <View style={styles.matchWrap}>
@@ -303,7 +303,7 @@ function SlideResults({ results, pagerW, active }: { results: string[] | null; p
     <>
       <StepHead n={3} kicker="The results" title="Your page, palette-matched" />
       <ThemedText type="small" themeColor="textSecondary" style={styles.lead}>
-        The real cards the Tri-Color Search returns for your mix — a whole binder page in your exact
+        The real cards the Tri-Color Search returns for your mix, a whole binder page in your exact
         colours, composed in one tap.
       </ThemedText>
       <View style={[styles.grid, { width: cell * 3 + GRID_GAP * 2 }]}>

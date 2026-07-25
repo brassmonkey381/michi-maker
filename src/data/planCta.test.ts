@@ -25,7 +25,7 @@ test('guest: Free is a sign-up, paid plans are purchases', () => {
 
 test('free: on their own plan, both paid columns are upgrades they can buy', () => {
   assert.equal(kindOf('free', 'free'), 'current');
-  assert.equal(kindOf('pro', 'free'), 'buy', 'no subscription yet — Checkout is safe here');
+  assert.equal(kindOf('pro', 'free'), 'buy', 'no subscription yet, Checkout is safe here');
   assert.equal(labelOf('pro', 'free'), 'Upgrade to PRO');
   assert.equal(labelOf('vip', 'free'), 'Upgrade to VIP');
 });

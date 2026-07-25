@@ -265,7 +265,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     // PRIVATE art (pulled from a URL, or any non-bucket hotlink) can never enter a shared binder —
     // deny, don't silently drop.
     if (binder.isPublic && isPrivateArt(slice.attribution, slice.imageUrl)) {
-      showToast('This is a shared binder — private art (added from a link) can’t go in it. Upload your own art instead.', true);
+      showToast('This is a shared binder, private art (added from a link) can’t go in it. Upload your own art instead.', true);
       return;
     }
     if (row + slice.rs > pg.rows || col + slice.cs > pg.cols) {
@@ -1064,8 +1064,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               </ThemedText>
             ) : null}
 
-            {/* One shared page-browsing surface — arrows · prev·current·next spread · filmstrip ·
-                Card labels — identical to the public viewer. Only what each grid *does* differs by
+            {/* One shared page-browsing surface, arrows · prev·current·next spread · filmstrip ·
+                Card labels, identical to the public viewer. Only what each grid *does* differs by
                 mode, injected through renderGrid; edit adds the value badge, page-detail inputs and
                 filmstrip reordering. */}
             <BinderPages

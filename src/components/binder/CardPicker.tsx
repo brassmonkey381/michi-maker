@@ -180,7 +180,7 @@ export function CardPicker({
         })}
       </View>
 
-      {/* Themed backgrounds — procedural, fully owned elemental art (themeBackgrounds.ts). One
+      {/* Themed backgrounds, procedural, fully owned elemental art (themeBackgrounds.ts). One
           swatch per energy family; the Variant chip flips every swatch to its alternate palette. */}
       <View style={styles.themeHeaderRow}>
         <Text style={styles.sectionLabel}>Themed background · {sizeLabel}</Text>
@@ -199,7 +199,7 @@ export function CardPicker({
           return (
             <Pressable
               key={fam.family}
-              accessibilityLabel={`${t.name} themed background — ${t.vibe}`}
+              accessibilityLabel={`${t.name} themed background, ${t.vibe}`}
               onPress={() => placeTheme(t.id)}
               style={styles.themeSwatch}>
               <Image
@@ -225,7 +225,7 @@ export function CardPicker({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={sheet.bottomBackdrop}>
         <Pressable style={styles.backdropFill} onPress={onClose} />
-        {/* Always tall, whatever the tab — Cards, Artwork, and Insert all rise to the same height
+        {/* Always tall, whatever the tab, Cards, Artwork, and Insert all rise to the same height
             so switching between them doesn't resize the sheet. */}
         <View style={[sheet.bottomSheet, styles.sheetTall]}>
           <View style={sheet.handle} />
@@ -263,7 +263,7 @@ export function CardPicker({
             })}
           </View>
 
-          {/* Shape selector — inserts take any shape. Cards derive their footprint from the card's
+          {/* Shape selector, inserts take any shape. Cards derive their footprint from the card's
               kind at drop time; the Artwork tab's Slice Studio slices the whole page, so neither
               needs a shape here. */}
           {tab === 'insert' ? (

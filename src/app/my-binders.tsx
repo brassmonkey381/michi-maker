@@ -147,7 +147,7 @@ export default function MyBindersScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.flex} edges={['top']}>
         <ScrollView contentContainerStyle={styles.scroll}>
-          {/* No page title — the "My binders" section header is the top of the page. Where the
+          {/* No page title, the "My binders" section header is the top of the page. Where the
               rail is hidden (native / narrow web), keep a way back Home. */}
           {railHidden ? (
             <View style={styles.backRow}>

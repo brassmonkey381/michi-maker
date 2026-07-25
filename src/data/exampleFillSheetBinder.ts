@@ -36,7 +36,7 @@ export const EXAMPLE_FILL_SHEET_BINDER: DemoBinder = {
   id: 'example-fill-sheet',
   title: 'michi sampler binder',
   description:
-    'A sample binder for the print feature — folded 1×2 art panels tucked among card placeholders, a picture sliced across a page, and tonal inserts. View only: this reference can’t be edited or copied.',
+    'A sample binder for the print feature, folded 1×2 art panels tucked among card placeholders, a picture sliced across a page, and tonal inserts. View only: this reference can’t be edited or copied.',
   layoutStyle: 'freeform',
   isExample: true,
   // View-only: resolvable at /binder/example-fill-sheet but never editable or duplicable.

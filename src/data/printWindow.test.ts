@@ -52,7 +52,7 @@ test('an unlocked pool opens the whole term at the STORED allocation', () => {
   });
   assert.equal(w.kind, 'year');
   assert.equal(w.startMs, TERM, 'counts across the whole term');
-  assert.equal(w.allocation, 28, 'NOT 36 — the stored figure wins');
+  assert.equal(w.allocation, 28, 'NOT 36, the stored figure wins');
 });
 
 test('pool total falls back to a full year only when nothing is stored', () => {

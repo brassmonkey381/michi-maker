@@ -96,7 +96,7 @@ test('print allocation: fresh subscriptions get the whole year', () => {
   assert.equal(termPrintAllocation(null, 'tier_vip', 'year', TERM_START_SEC, utc(2026, 1, 15, 13)), 36);
 });
 
-test('print allocation: the owner’s worked example — VIP 8 months into a PRO year', () => {
+test('print allocation: the owner’s worked example, VIP 8 months into a PRO year', () => {
   // "full 12 months of PRO, plus 4 months of VIP, minus the 4 months of PRO" = 20.
   assert.equal(12 + 4 * 3 - 4 * 1, 20);
   assert.equal(

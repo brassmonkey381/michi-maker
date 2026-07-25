@@ -173,7 +173,7 @@ export function BinderPages({
             fields={labelFields}
             onToggleField={toggleLabelField}
           />
-          {/* Owned overlay — only offered when the viewer has an inventory (own cards). A green ✓
+          {/* Owned overlay, only offered when the viewer has an inventory (own cards). A green ✓
               corner badge lights up on card slots they own. */}
           {ownedCards ? (
             <Pressable

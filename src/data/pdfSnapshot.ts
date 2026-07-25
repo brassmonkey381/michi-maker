@@ -107,7 +107,7 @@ export async function purchaseStatus(binder: DemoBinder): Promise<PurchaseStatus
   if (versions.length === 0) return { state: 'unspent', versions };
   const grant = details.find((d) => d.product === `pdf_binder:${binder.id}`);
   if (grant?.grantedAt && Date.parse(grant.grantedAt) > Date.parse(versions[0].spentAt)) {
-    return { state: 'unspent', versions }; // bought again after the last spend — re-armed
+    return { state: 'unspent', versions }; // bought again after the last spend, re-armed
   }
   return { state: versions.some((v) => v.fingerprint === fingerprint) ? 'current' : 'edited', versions };
 }

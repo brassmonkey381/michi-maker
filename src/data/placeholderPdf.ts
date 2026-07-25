@@ -48,7 +48,7 @@ import type { ArtLoader, LoadedArt } from '@/data/fillSheetArt';
 const PT = 72;
 const SHEET_W = 8.5 * PT; // US Letter
 const SHEET_H = 11 * PT;
-const CARD_W = 2.5 * PT; // real card size — fits a pocket sleeved or bare
+const CARD_W = 2.5 * PT; // real card size, fits a pocket sleeved or bare
 const CARD_H = 3.5 * PT;
 /** Physical webbing between pockets on a side-load page (Ultra Pro / Vault X ballpark). */
 const POCKET_GAP = 0.125 * PT;
@@ -937,8 +937,8 @@ function drawCover(
   drawCentered(
     page,
     isArt
-      ? 'Your card placeholders print in a separate file — put plain paper in for that one.'
-      : 'Your artwork prints in a separate file — swap to matte cardstock for that one.',
+      ? 'Your card placeholders print in a separate file, put plain paper in for that one.'
+      : 'Your artwork prints in a separate file, swap to matte cardstock for that one.',
     y,
     regular,
     9.5,
@@ -962,12 +962,12 @@ function drawCover(
     ? [
         'Print at 100% scale (“Actual size”), NOT “Fit to page”. Matte-coated cardstock holds the ink and slides into a pocket best.',
         'Check the calibration square below: it must measure exactly 1 inch (2.54 cm).',
-        'Pieces print spaced apart — nothing is ever printed on your artwork. Cut just inside each dashed outline; the pocket location prints in the margin below each piece.',
+        'Pieces print spaced apart, nothing is ever printed on your artwork. Cut just inside each dashed outline; the pocket location prints in the margin below each piece.',
         'Wide pieces fold at the tick marks above and below the fold line, then each half slides into its pocket pair.',
         'Slide each piece into its pocket. Neighboring pieces are gap-compensated, so the picture reads continuous across the dividers.',
       ]
     : [
-        'Print at 100% scale (“Actual size”), NOT “Fit to page”. Plain paper is fine — these are backings behind your cards, not display pieces.',
+        'Print at 100% scale (“Actual size”), NOT “Fit to page”. Plain paper is fine, these are backings behind your cards, not display pieces.',
         'Check the calibration square below: it must measure exactly 1 inch (2.54 cm).',
         'Cut along the dashed lines. Pieces print edge to edge: neighbors share a cut line, so one straight cut frees two edges at once.',
         'Slide every piece into its pocket: each placeholder prints its page/row/column. When a real card arrives, its placeholder shows exactly which pocket to swap.',

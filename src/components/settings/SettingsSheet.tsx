@@ -73,7 +73,7 @@ function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => 
               APPEARANCE
             </ThemedText>
 
-            {/* The signature look leads; the alternates sit demoted under "More looks" —
+            {/* The signature look leads; the alternates sit demoted under "More looks", 
                 one opinionated default, not four equals. */}
             <View style={styles.options}>
               {VARIANT_LIST.map((v, i) => {

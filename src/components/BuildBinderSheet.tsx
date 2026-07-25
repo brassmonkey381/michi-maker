@@ -132,14 +132,14 @@ export function BuildBinderSheet({
             ) : (
               <>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-                  Theme pages found in your unplaced cards — evolution lines, single species,
+                  Theme pages found in your unplaced cards, evolution lines, single species,
                   artists, colours and more. Untick any you don’t want. Every open pocket becomes a
                   “Your Art Here” space for your own art, and Reclaim can take any card back out.
                 </ThemedText>
 
                 {trimmed > 0 ? (
                   <ThemedText type="small" themeColor="textSecondary" style={styles.trimNote}>
-                    Capped at {maxPages} pages — {trimmed} extra bulk/evolution page
+                    Capped at {maxPages} pages, {trimmed} extra bulk/evolution page
                     {trimmed === 1 ? '' : 's'} left out. Untick pages above to swap which ones make it in.
                   </ThemedText>
                 ) : null}

@@ -226,11 +226,11 @@ export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }
                   }
                 />
               ) : tier === 'free' ? (
-                <DetailRow label="Billing" value="None — Free is free forever" />
+                <DetailRow label="Billing" value="None, Free is free forever" />
               ) : null}
               {details.termEnds && details.manualGrant && !CHECKOUT_OPEN ? (
                 <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
-                  Plans don’t auto-renew during the beta — your term was granted directly and is
+                  Plans don’t auto-renew during the beta, your term was granted directly and is
                   extended the same way. Automatic renewal arrives with checkout.
                 </ThemedText>
               ) : null}

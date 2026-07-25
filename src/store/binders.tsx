@@ -1223,7 +1223,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       if (row === slot.row && col === slot.col) return;
 
       const candidate = { row, col, rowSpan: slot.rowSpan, colSpan: slot.colSpan };
-      if (!canPlaceSlot(page, candidate, slot.id)) return; // overlaps — caller handles it
+      if (!canPlaceSlot(page, candidate, slot.id)) return; // overlaps, caller handles it
 
       const moved: DemoSlot = { ...slot, row, col };
       commit((prev) =>

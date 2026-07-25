@@ -87,7 +87,7 @@ function SectionRows({
       </ThemedText>
       {failed ? (
         <ThemedText type="small" themeColor="textSecondary">
-          Couldn’t load this section right now — try again in a moment.
+          Couldn’t load this section right now, try again in a moment.
         </ThemedText>
       ) : rows === null ? (
         <ThemedText type="small" themeColor="textSecondary">
@@ -179,7 +179,7 @@ export default function PurchasesScreen() {
     fetchBinder(binderId)
       .then((b) => {
         if (b) setPrintTarget(b);
-        else setPdfError('That binder is no longer available — its archived PDFs above still download.');
+        else setPdfError('That binder is no longer available, its archived PDFs above still download.');
       })
       .catch((e) => setPdfError((e as Error).message));
   };
@@ -334,7 +334,7 @@ export default function PurchasesScreen() {
                           setPdfError(null);
                           downloadPurchasedPdf(v)
                             .then((blob) => {
-                              if (!blob) throw new Error('This PDF’s archive is missing — contact support and we’ll sort it out.');
+                              if (!blob) throw new Error('This PDF’s archive is missing, contact support and we’ll sort it out.');
                               const url = URL.createObjectURL(blob);
                               const a = document.createElement('a');
                               a.href = url;
@@ -388,7 +388,7 @@ export default function PurchasesScreen() {
       </View>
 
       {/* The standard print fill-sheets modal (same options, confirm step, and credit/unlock
-          logic as the home page) — opened from a purchase row's Print action. */}
+          logic as the home page), opened from a purchase row's Print action. */}
       {printTarget ? (
         <PrintPlaceholdersSheet binder={printTarget} onClose={() => setPrintTarget(null)} />
       ) : null}

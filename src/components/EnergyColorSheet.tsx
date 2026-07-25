@@ -63,11 +63,11 @@ export function EnergyColorSheet({ catalog, onClose }: { catalog: Catalog | null
           {/* Upsell to the paid palette search. */}
           <Pressable onPress={() => setUpsell(true)} style={styles.upsellRow}>
             <View style={styles.upsellText}>
-              <Text style={styles.upsellTitle}>✨ Tri-Color Search</Text>
-              <Text style={styles.upsellDesc}>Match cards by their exact palette — mix up to three colours.</Text>
+              <Text style={styles.upsellTitle}>Tri-Color Search</Text>
+              <Text style={styles.upsellDesc}>Match cards by their exact palette. Mix up to three colours.</Text>
             </View>
             <View style={styles.proPill}>
-              <Text style={styles.proPillText}>🔒 PRO</Text>
+              <Text style={styles.proPillText}>PRO</Text>
             </View>
           </Pressable>
         </Pressable>

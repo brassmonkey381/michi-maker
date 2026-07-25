@@ -70,26 +70,26 @@ export function ProStatusBanner() {
     const d = daysUntil(trial.graceEndsAt);
     body = inGrace
       ? {
-          text: `Your PRO access ended. Free keeps ${cap} binders — you have ${binderCount}. In ${d} day${d === 1 ? '' : 's'}, ${liveExcess} will be locked unless you subscribe.`,
-          cta: 'Keep them — subscribe',
+          text: `Your PRO access ended. Free keeps ${cap} binders, you have ${binderCount}. In ${d} day${d === 1 ? '' : 's'}, ${liveExcess} will be locked unless you subscribe.`,
+          cta: 'Keep them, subscribe',
           pick: true,
         }
       : {
           text: `You're over the Free limit of ${cap} binders (${binderCount}). ${liveExcess} will be locked soon; we keep your ${cap} most recent. Subscribe to keep them all.`,
-          cta: 'Keep them — subscribe',
+          cta: 'Keep them, subscribe',
           pick: true,
         };
   } else if (archived > 0 && !isPaid) {
     body = {
       text: `${archived} binder${archived === 1 ? ' is' : 's are'} locked (over the Free limit). Subscribe to unlock ${archived === 1 ? 'it' : 'them'} again.`,
-      cta: 'Unlock — subscribe',
+      cta: 'Unlock, subscribe',
     };
   } else if (trial.state === 'active' && trial.daysLeft != null && trial.daysLeft <= 3) {
     const d = trial.daysLeft;
     body = {
       text:
         liveExcess > 0
-          ? `${d} day${d === 1 ? '' : 's'} of PRO left. You have ${binderCount} binders — subscribe before it ends or ${liveExcess} will be locked.`
+          ? `${d} day${d === 1 ? '' : 's'} of PRO left. You have ${binderCount} binders, subscribe before it ends or ${liveExcess} will be locked.`
           : `${d} day${d === 1 ? '' : 's'} of your PRO trial left. Keep your binders and prints with a plan.`,
       cta: 'See plans',
     };

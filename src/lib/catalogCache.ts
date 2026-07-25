@@ -19,7 +19,7 @@
 const DB_NAME = 'tcgscan-catalog';
 const DB_VERSION = 1;
 const STORE = 'kv';
-const WRAP_KEY_ID = 'deviceKey'; // non-extractable AES-GCM key — the "device secret"
+const WRAP_KEY_ID = 'deviceKey'; // non-extractable AES-GCM key, the "device secret"
 const CATALOG_ID = 'catalog';
 
 // `Uint8Array<ArrayBuffer>` (not the default `<ArrayBufferLike>`) is what Web Crypto's BufferSource

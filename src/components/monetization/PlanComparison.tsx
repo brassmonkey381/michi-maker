@@ -84,7 +84,7 @@ export function PlanComparison() {
     }
     if (!lookupKey || busyKey) return;
     if (!isSignedIn) {
-      setNote({ tier: plan.tier, text: 'Sign in (free) first — plans attach to your account.' });
+      setNote({ tier: plan.tier, text: 'Sign in (free) first, plans attach to your account.' });
       return;
     }
     setNote(null);
@@ -149,7 +149,7 @@ export function PlanComparison() {
         for (const [key, preview] of pairs) if (preview) next[key] = preview;
         setPreviews(next);
       })
-      .catch(() => {}); // a missing price is better than a wrong one — just omit it
+      .catch(() => {}); // a missing price is better than a wrong one, just omit it
     return () => {
       live = false;
     };
@@ -198,7 +198,7 @@ export function PlanComparison() {
             {price
               ? `Charge ${price} to your card on file now and move to ${plan.name} for the rest of your year?`
               : `Move to ${plan.name} for the rest of your year?`}
-            {/* The PRORATED print total, from the same server maths that writes the ledger —
+            {/* The PRORATED print total, from the same server maths that writes the ledger, 
                 never the fresh-year number, which over-promised 36 to a mid-term upgrader. */}
             {preview?.termPrints != null
               ? ` You’ll have ${preview.termPrints} included prints for your year in total.`
@@ -277,7 +277,7 @@ export function PlanComparison() {
           <Text style={styles.prorated}>
             {preview.amountDue > 0
               ? `${formatMoney(preview.amountDue, preview.currency)} to upgrade, prorated for the rest of your year`
-              : 'Nothing to pay — your remaining credit covers it'}
+              : 'Nothing to pay, your remaining credit covers it'}
           </Text>
         ) : null}
         {/* The month-to-month link is a NEW-subscription choice. Offering it on an upgrade would

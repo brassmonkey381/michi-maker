@@ -129,7 +129,7 @@ async function fetchGated(onProgress: Progress): Promise<RawCatalog> {
     if (err instanceof TypeError) {
       const cached = await readCatalogCache();
       if (cached) {
-        onProgress?.(1, 1); // no download — fill the bar's download portion
+        onProgress?.(1, 1); // no download, fill the bar's download portion
         return decodeCatalog(cached.enc, cached.key);
       }
     }

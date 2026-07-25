@@ -97,7 +97,7 @@ export default function PlansScreen() {
       {/* Eligible free users: the trial offer, front and centre. Self-gates (null unless eligible
           and checkout is open), so it simply doesn't show for subscribers or the ineligible. */}
       <View style={styles.trialHero}>
-        <TrialCta message="Try everything PRO before you decide — free for 14 days." />
+        <TrialCta message="Try everything PRO before you decide, free for 14 days." />
       </View>
 
       {bundleEligible ? (
@@ -125,13 +125,13 @@ export default function PlansScreen() {
             Payment received
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            Your purchase unlocks in a moment — this page checks automatically.
+            Your purchase unlocks in a moment, this page checks automatically.
           </ThemedText>
         </View>
       ) : checkout === 'cancelled' ? (
         <View style={styles.banner}>
           <ThemedText type="small" themeColor="textSecondary">
-            Checkout cancelled — nothing was charged.
+            Checkout cancelled, nothing was charged.
           </ThemedText>
         </View>
       ) : null}

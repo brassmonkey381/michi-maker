@@ -135,7 +135,7 @@ export function usePrintAllowance(input: PrintAllowanceInput): PrintAllowance {
       }
       const termCount =
         w.kind === 'year'
-          ? windowCount // the pool window IS the term — no second query needed
+          ? windowCount // the pool window IS the term, no second query needed
           : await countPrintsSince(new Date(periodStartMs!).toISOString()).catch(() => 0);
       if (!live) return;
       setOffer(

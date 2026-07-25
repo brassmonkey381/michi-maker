@@ -281,7 +281,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
           );
         })}
 
-        {/* Metadata captions under each card — an independent layer so it doesn't disturb the
+        {/* Metadata captions under each card, an independent layer so it doesn't disturb the
             draggable slot wrappers. Only cards (slots with a cardId) get a caption. */}
         {captionOn &&
           page.slots.map((slot) => {
@@ -303,7 +303,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
             );
           })}
 
-        {/* Source attribution under custom artwork — every piece carries its credit, so a
+        {/* Source attribution under custom artwork, every piece carries its credit, so a
             sliced scene labels each pocket. Derived from the stored source URL; slices are
             never re-hosted. */}
         {captionOn &&

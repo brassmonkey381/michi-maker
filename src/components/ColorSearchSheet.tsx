@@ -24,8 +24,8 @@ const REGIONS: { value: ColorRegion; label: string }[] = [
  *  colors.py `explain` / MODE_INFO). */
 const REGION_HELP: { label: string; desc: string; img: number }[] = [
   {
-    label: 'Full art — no border',
-    desc: 'Uses the whole card face — illustration, text box and background. Only the outer border is ignored.',
+    label: 'Full art, no border',
+    desc: 'Uses the whole card face, illustration, text box and background. Only the outer border is ignored.',
     img: require('@/assets/images/color-help-noborder.png'),
   },
   {

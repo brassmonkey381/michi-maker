@@ -192,7 +192,7 @@ export function PrintPlaceholdersSheet({
       .then((rows) => {
         if (live) setOwnedIds(new Set(rows.filter((r) => r.quantity > 0).map((r) => r.cardId)));
       })
-      .catch(() => {}); // no collection is fine — everything prints gray
+      .catch(() => {}); // no collection is fine, everything prints gray
     return () => {
       live = false;
     };
@@ -301,7 +301,7 @@ export function PrintPlaceholdersSheet({
             pages: version.content.pages,
           }
         : (await binderFingerprint(binder)) === version.fingerprint
-          ? binder // pre-column row, but the live binder IS this version — regenerate from it
+          ? binder // pre-column row, but the live binder IS this version, regenerate from it
           : null;
       if (source && catalog) {
         // Recoverable version → regenerate BOTH files (placeholders + art) with current options.
@@ -354,7 +354,7 @@ export function PrintPlaceholdersSheet({
     },
     spend: {
       title: 'Lock your unlock to this version?',
-      body: 'This download locks your $3.99 unlock to the binder as it is right now — re-download this version anytime, forever. Printing future edits will need a new unlock or a plan.',
+      body: 'This download locks your $3.99 unlock to the binder as it is right now, re-download this version anytime, forever. Printing future edits will need a new unlock or a plan.',
       cta: 'Download and lock in',
     },
     buy: {
@@ -429,7 +429,7 @@ export function PrintPlaceholdersSheet({
                   cut along the guides, slide in.
                 </ThemedText>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.legalNote}>
-                  michi-maker lays out and exports your arrangement — the file is generated on
+                  michi-maker lays out and exports your arrangement, the file is generated on
                   your device from art you supplied, for your personal collection. You print it
                   yourself, and you are responsible for the rights to any art it contains.
                 </ThemedText>
@@ -545,7 +545,7 @@ export function PrintPlaceholdersSheet({
                       )}
                     </Pressable>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-                      You already printed this exact version — re-downloads are always free.
+                      You already printed this exact version, re-downloads are always free.
                     </ThemedText>
                   </>
                 ) : purchased && pState === null ? (
@@ -569,7 +569,7 @@ export function PrintPlaceholdersSheet({
                     </Pressable>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
                       Your unlock covers this binder as it is right now. Downloading locks in
-                      this version — re-download it anytime, forever.
+                      this version, re-download it anytime, forever.
                     </ThemedText>
                   </>
                 ) : hasFullPrint && !metered ? (
@@ -658,7 +658,7 @@ export function PrintPlaceholdersSheet({
                       <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
                         {poolOffer.state === 'needsFirstPrint'
                           ? ANNUAL_POOL.needsFirstPrint(poolOffer.total)
-                          : `Included prints renew ${printWindow?.kind === 'year' ? 'when your plan renews' : 'at the start of your next billing month'}. Need this one now? Unlock just this binder once for $3.99 — that version is yours to re-download forever.`}
+                          : `Included prints renew ${printWindow?.kind === 'year' ? 'when your plan renews' : 'at the start of your next billing month'}. Need this one now? Unlock just this binder once for $3.99, that version is yours to re-download forever.`}
                       </ThemedText>
                     )}
                     {allowance.error ? (
@@ -693,7 +693,7 @@ export function PrintPlaceholdersSheet({
                   <View style={styles.lockedBox}>
                     <ThemedText type="smallBold">This binder changed since you bought its PDF</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-                      Your purchased version{versions.length === 1 ? ' is' : 's are'} below —
+                      Your purchased version{versions.length === 1 ? ' is' : 's are'} below, 
                       download them anytime. Printing the edited version needs its own unlock, or
                       a PRO/VIP plan.
                     </ThemedText>
@@ -715,10 +715,10 @@ export function PrintPlaceholdersSheet({
                     <ThemedText type="smallBold">Printing is a paid feature</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
                       Fill-sheet PDFs come with a PRO or VIP plan. Or unlock just this binder once
-                      for $3.99 — that download is this binder as it is today, yours to re-download
+                      for $3.99, that download is this binder as it is today, yours to re-download
                       forever (later edits need a new unlock).
                     </ThemedText>
-                    {/* Eligible free users see the trial first — start it and the sheet re-renders
+                    {/* Eligible free users see the trial first, start it and the sheet re-renders
                         to the subscriber Download button. Renders null when not eligible. */}
                     <TrialCta message="New here? Try PRO free and print this binder." />
                     <Pressable
@@ -734,13 +734,13 @@ export function PrintPlaceholdersSheet({
                     <ThemedText type="smallBold">Printing is a paid feature</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
                       Fill-sheet PDFs of your own binders come with a PRO/VIP plan, or a one-time
-                      unlock for this binder (covering it as it is at purchase — later edits need a
+                      unlock for this binder (covering it as it is at purchase, later edits need a
                       new unlock). Purchases aren’t open quite yet; check back soon.
                     </ThemedText>
                   </View>
                 )}
 
-                {/* Every printed/purchased version, newest first — each downloadable forever,
+                {/* Every printed/purchased version, newest first, each downloadable forever,
                     whatever the binder looks like now ("print a previous version"). */}
                 {versions.length > 0 ? (
                   <View style={styles.versionsBox}>
@@ -779,7 +779,7 @@ export function PrintPlaceholdersSheet({
                   </View>
                 ) : null}
 
-                {/* Example PDFs — the curated 6-page sampler (placeholders + art), so both output
+                {/* Example PDFs, the curated 6-page sampler (placeholders + art), so both output
                     files download. Always available (never hidden behind the catalog load): the
                     button shows a spinner until the catalog is ready, then generates. Non-payers
                     see the format before buying; payers test printer scale without spending a credit. */}
@@ -798,7 +798,7 @@ export function PrintPlaceholdersSheet({
                   </Pressable>
                 )}
 
-                {/* View the same sampler as a binder (read-only reference — can't be edited or
+                {/* View the same sampler as a binder (read-only reference, can't be edited or
                     copied), so you can see how the pages map to the printed files. */}
                 <ThemedText
                   type="linkPrimary"

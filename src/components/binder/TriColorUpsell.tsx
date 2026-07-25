@@ -1,18 +1,18 @@
 /**
  * Upsell shown when a FREE user taps the locked "Color match · tri-color" composer method in the
- * AutoFill sheet. A 3-step SLIDING flow that sells the paid Tri-Color Search with the REAL pieces:
+ * AutoFill sheet. A 3-step SLIDING flow that is a genuine LIVE demo of the paid Tri-Color Search —
+ * everything is computed client-side from the loaded catalog + colour engine:
  *
- *   1. The picker  — the actual `GradientMixBar` + `HsvColorPicker` (interactive), so they feel the
- *                    up-to-three-colour mixing that drives the search.
- *   2. The fill    — the real composer method row + a pulsing "Fill page" button: one tap composes.
- *   3. The output  — an ACTUAL binder page: we run `composePage('colorTheme', …)` on a showcase
- *                    seed (a Charizard) and render the real card covers, revealed one by one.
+ *   1. The picker  — the actual `GradientMixBar` + `HsvColorPicker`. Drag the three stops; the
+ *                    colour mix drives a real `searchByColors` (debounced) behind the scenes.
+ *   2. The match   — the closest REAL card the search returns for that mix, beside the swatches.
+ *   3. The results — a binder page of the real cards the search returned, revealed one by one.
  *
- * CTA routes to /plans. Everything is computed client-side from the already-loaded catalog; the
- * gate itself lives in AutoFillSheet (this is just the sell).
+ * Because pages 2 & 3 read off the same live query, dragging a colour on page 1 changes the match
+ * and the results. CTA routes to /plans. The gate itself lives in AutoFillSheet (this is the sell).
  */
 import { useRouter } from 'expo-router';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   Animated,
   Image,
@@ -24,104 +24,87 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { searchByColors, srgbToLab, useColorIndex, type Lab } from 'tcgscan-browse';
 
-import { GradientMixBar, HsvColorPicker, type Stop } from '@/components/color/ColorPicker';
+import { GradientMixBar, HsvColorPicker, rgbToHex, stopWeights, type Stop } from '@/components/color/ColorPicker';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { sheet } from '@/constants/ui';
-import { uuidv4, type DemoPage } from '@/data/binderTypes';
-import { composePage } from '@/data/pageComposer';
-import type { Catalog, CatalogCard } from '@/lib/catalog';
+import type { Catalog } from '@/lib/catalog';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 
-// A colourful, well-mirrored showcase seed (Charizard ex — SV 151). Falls back to the user's own
-// seed, then to a hand-picked spread, if it isn't in the loaded catalog.
-const SHOWCASE_SEED_ID = '517045';
-
-// One filled pocket in the output preview.
-type Cell = { row: number; col: number; cardId?: string; insertColor?: string };
-
-// Safety net if the live compose returns nothing (e.g. the colour RPC blips): real, colourful
-// cards in a page so slide 3 is never empty. Ids from data/exampleCollection.ts.
-const FALLBACK: Cell[] = [
-  { row: 0, col: 0, cardId: '517017' },
-  { row: 0, col: 1, cardId: '509980' },
-  { row: 0, col: 2, insertColor: '#F4BCA0' },
-  { row: 1, col: 0, cardId: '662184' },
-  { row: 1, col: 1, cardId: SHOWCASE_SEED_ID },
-  { row: 1, col: 2, cardId: '590026' },
-  { row: 2, col: 0, insertColor: '#FAE0D2' },
-  { row: 2, col: 1, cardId: '610516' },
-  { row: 2, col: 2, insertColor: '#F6E4A0' },
+// The palette the flow opens on: purple → magenta → orange (the colours the story names).
+const TRIAD: Stop[] = [
+  { pos: 0.2, rgb: [108, 77, 255] },
+  { pos: 0.5, rgb: [214, 74, 168] },
+  { pos: 0.8, rgb: [251, 140, 78] },
 ];
+
+// Safety net if the colour search returns nothing (e.g. the on-device index isn't warm and the
+// server path is down): real, colourful cards so the flow is never empty. Ids from
+// data/exampleCollection.ts.
+const FALLBACK_IDS = ['517045', '610516', '590026', '509980', '517017', '662184'];
 
 export function TriColorUpsell({
   visible,
   onClose,
   catalog,
-  seed,
   /** Runs just before navigating to /plans — close the covering AutoFill sheet so /plans shows. */
   onBeforeUpgrade,
 }: {
   visible: boolean;
   onClose: () => void;
   catalog: Catalog | null | undefined;
-  seed?: CatalogCard;
   onBeforeUpgrade?: () => void;
 }) {
   const router = useRouter();
   const { height: winH } = useWindowDimensions();
   useImageManifest(); // so cardThumbUrl resolves once the hashed manifest hydrates
+  useColorIndex(true); // warm the on-device colour index so searchByColors has a path
 
   const [step, setStep] = useState(0);
   const [pagerW, setPagerW] = useState(0);
-  // Lazy state (not a ref) so the Animated.Value is stable AND readable during render — the repo's
-  // pattern (see GradientMixBar) that satisfies react-hooks/refs.
   const [tx] = useState(() => new Animated.Value(0));
-  const pagerH = Math.min(430, Math.round(winH * 0.62));
+  const pagerH = Math.min(440, Math.round(winH * 0.64));
+
+  // The live colour mix (shared by all three slides).
+  const [stops, setStops] = useState<Stop[]>(TRIAD);
+  const [active, setActive] = useState(0);
+  const query = useMemo<Lab[]>(() => {
+    const w = stopWeights(stops);
+    return stops.map((s, i) => ({ ...srgbToLab(s.rgb[0], s.rgb[1], s.rgb[2]), w: w[i] })).filter((c) => c.w > 0);
+  }, [stops]);
 
   useEffect(() => {
     Animated.timing(tx, { toValue: -step * pagerW, duration: 300, useNativeDriver: true }).start();
   }, [step, pagerW, tx]);
 
-  // Reset to the first slide each time the upsell opens.
   useEffect(() => {
     if (visible) setStep(0); // eslint-disable-line react-hooks/set-state-in-effect
   }, [visible]);
 
-  // Live tri-color output for a real binder page (showcase seed, framed centre).
-  const [cells, setCells] = useState<Cell[] | null>(null);
+  // Live results for the current mix — the exact `searchByColors` the real Tri-Color Search runs,
+  // debounced so dragging a stop doesn't fire a request per frame.
+  const [results, setResults] = useState<string[] | null>(null);
   useEffect(() => {
     if (!visible || !catalog) return;
-    let active = true;
-    const showcase = catalog.getCard(SHOWCASE_SEED_ID) ?? seed;
-    if (!showcase) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setCells(FALLBACK);
-      return;
-    }
-    const page: DemoPage = {
-      id: uuidv4(),
-      rows: 3,
-      cols: 3,
-      slots: [{ id: uuidv4(), row: 1, col: 1, rowSpan: 1, colSpan: 1, type: 'card', cardId: showcase.id }],
-    };
-    composePage('colorTheme', showcase, catalog, page)
-      .then((placements) => {
-        if (!active) return;
-        const filled: Cell[] = [
-          { row: 1, col: 1, cardId: showcase.id },
-          ...placements.map((p) => ({ row: p.row, col: p.col, cardId: p.cardId, insertColor: p.insertColor })),
-        ];
-        // A real fill covers most pockets; if it came back thin, show the curated fallback instead.
-        setCells(filled.filter((c) => c.cardId).length >= 5 ? filled : FALLBACK);
-      })
-      .catch(() => active && setCells(FALLBACK));
+    let alive = true;
+    const t = setTimeout(() => {
+      searchByColors(query, 'noborder', { limit: 18 })
+        .then((ids) => {
+          if (!alive) return;
+          // Keep only ids that resolve to a real, mirrored cover so no pocket renders blank.
+          const real = ids.filter((id) => catalog.getCard(id) && cardThumbUrl(id, 245));
+          setResults(real.length ? real : FALLBACK_IDS);
+        })
+        .catch(() => alive && setResults(FALLBACK_IDS));
+    }, 350);
     return () => {
-      active = false;
+      alive = false;
+      clearTimeout(t);
     };
-  }, [visible, catalog, seed]);
+  }, [visible, catalog, query]);
 
   const goTo = (i: number) => setStep(Math.max(0, Math.min(2, i)));
   const upgrade = () => {
@@ -130,12 +113,14 @@ export function TriColorUpsell({
     router.push('/plans');
   };
 
+  const heroId = results?.[0];
+  const heroCard = heroId && catalog ? catalog.getCard(heroId) : undefined;
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={sheet.dialogBackdrop} onPress={onClose}>
         <Pressable onPress={(e) => e.stopPropagation()} style={styles.wrap}>
           <ThemedView type="backgroundElement" style={styles.card}>
-            {/* Header */}
             <View style={styles.header}>
               <ThemedText type="subtitle" style={styles.title}>
                 Color match · tri-color <Text style={styles.pro}>PRO</Text>
@@ -147,24 +132,22 @@ export function TriColorUpsell({
               </Pressable>
             </View>
 
-            {/* Pager viewport */}
             <View
               style={[styles.viewport, { height: pagerH }]}
               onLayout={(e) => setPagerW(e.nativeEvent.layout.width)}>
               <Animated.View style={[styles.row, { width: pagerW * 3, transform: [{ translateX: tx }] }]}>
                 <Slide width={pagerW}>
-                  <SlidePicker />
+                  <SlidePicker stops={stops} active={active} onChange={setStops} onActive={setActive} />
                 </Slide>
                 <Slide width={pagerW}>
-                  <SlideFill />
+                  <SlideMatch card={heroCard} name={heroCard?.name} setName={heroCard?.setName} stops={stops} />
                 </Slide>
                 <Slide width={pagerW}>
-                  <SlideOutput cells={cells} pagerW={pagerW} active={step === 2} />
+                  <SlideResults results={results} pagerW={pagerW} active={step === 2} />
                 </Slide>
               </Animated.View>
             </View>
 
-            {/* Footer: dots + nav */}
             <View style={styles.footer}>
               <Pressable onPress={() => goTo(step - 1)} disabled={step === 0} hitSlop={8}>
                 <Text style={[styles.back, step === 0 && styles.hidden]}>‹ Back</Text>
@@ -195,10 +178,7 @@ export function TriColorUpsell({
 function Slide({ width, children }: { width: number; children: ReactNode }) {
   return (
     <View style={{ width }}>
-      <ScrollView
-        style={styles.slideScroll}
-        contentContainerStyle={styles.slideBody}
-        showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.slideScroll} contentContainerStyle={styles.slideBody} showsVerticalScrollIndicator={false}>
         {children}
       </ScrollView>
     </View>
@@ -207,16 +187,19 @@ function Slide({ width, children }: { width: number; children: ReactNode }) {
 
 // ---- Slide 1: the real picker ------------------------------------------------
 
-function SlidePicker() {
-  const [stops, setStops] = useState<Stop[]>([
-    { pos: 0.15, rgb: [108, 77, 255] },
-    { pos: 0.5, rgb: [214, 74, 168] },
-    { pos: 0.85, rgb: [251, 140, 78] },
-  ]);
-  const [active, setActive] = useState(0);
+function SlidePicker({
+  stops,
+  active,
+  onChange,
+  onActive,
+}: {
+  stops: Stop[];
+  active: number;
+  onChange: (s: Stop[]) => void;
+  onActive: (i: number) => void;
+}) {
   const setActiveRgb = (rgb: [number, number, number]) =>
-    setStops((prev) => prev.map((s, i) => (i === active ? { ...s, rgb } : s)));
-
+    onChange(stops.map((s, i) => (i === active ? { ...s, rgb } : s)));
   return (
     <>
       <StepHead n={1} kicker="The picker" title="Mix up to three colours" />
@@ -225,99 +208,87 @@ function SlidePicker() {
         type, just the palette you want.
       </ThemedText>
       <View style={styles.pickerWrap}>
-        <GradientMixBar stops={stops} active={active} onChange={setStops} onActive={setActive} />
+        <GradientMixBar stops={stops} active={active} onChange={onChange} onActive={onActive} />
         <HsvColorPicker rgb={stops[active].rgb} onChange={setActiveRgb} />
       </View>
     </>
   );
 }
 
-// ---- Slide 2: the fill button -----------------------------------------------
+// ---- Slide 2: the closest real card -----------------------------------------
 
-function SlideFill() {
-  const [pulse] = useState(() => new Animated.Value(0));
-  useEffect(() => {
-    const anim = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 1, duration: 800, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0, duration: 800, useNativeDriver: true }),
-      ]),
-    );
-    anim.start();
-    return () => anim.stop();
-  }, [pulse]);
-  const scale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.05] });
-
+function SlideMatch({
+  card,
+  name,
+  setName,
+  stops,
+}: {
+  card: { id: string } | undefined;
+  name?: string;
+  setName?: string;
+  stops: Stop[];
+}) {
   return (
     <>
-      <StepHead n={2} kicker="The fill" title="One tap composes the page" />
+      <StepHead n={2} kicker="The match" title="A real card in your palette" />
       <ThemedText type="small" themeColor="textSecondary" style={styles.lead}>
-        Pick a card as the seed, choose the method, and tri-color ranks every card by its real
-        palette and lays a whole page — empty pockets only, your placed cards untouched.
+        Tri-color reads each card’s actual artwork. Here’s the closest match to your mix — the same
+        card the paid search puts first.
       </ThemedText>
-      {/* A facsimile of the real AutoFill method row. */}
-      <View style={styles.methodRow}>
-        <View style={styles.methodText}>
-          <View style={styles.methodTitleRow}>
-            <ThemedText type="smallBold">Color match · tri-color</ThemedText>
-            <View style={styles.proPill}>
-              <Text style={styles.proPillText}>PRO</Text>
-            </View>
-          </View>
-          <ThemedText type="small" themeColor="textSecondary">
-            Ranks every card by its actual palette for a page that flows edge to edge.
-          </ThemedText>
+      <View style={styles.matchWrap}>
+        <View style={styles.swatchCol}>
+          {stops.map((s, i) => (
+            <View key={i} style={[styles.swatchSm, { backgroundColor: rgbToHex(s.rgb) }]} />
+          ))}
+        </View>
+        <View style={styles.heroCard}>
+          {card ? (
+            <Image source={{ uri: cardThumbUrl(card.id, 640) }} style={styles.heroImg} resizeMode="cover" />
+          ) : (
+            <View style={styles.heroLoading} />
+          )}
         </View>
       </View>
-      <Animated.View style={[styles.fillBtn, { transform: [{ scale }] }]}>
-        <Text style={styles.fillBtnText}>✨ Fill page</Text>
-      </Animated.View>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.hintCenter}>
-        ↓ and the page fills like this
-      </ThemedText>
+      {name ? (
+        <ThemedText type="small" themeColor="textSecondary" style={styles.matchCaption}>
+          {name}
+          {setName ? ` · ${setName}` : ''}
+        </ThemedText>
+      ) : null}
     </>
   );
 }
 
-// ---- Slide 3: the real binder output ----------------------------------------
+// ---- Slide 3: the real search results as a binder page ----------------------
 
-function SlideOutput({ cells, pagerW, active }: { cells: Cell[] | null; pagerW: number; active: boolean }) {
+function SlideResults({ results, pagerW, active }: { results: string[] | null; pagerW: number; active: boolean }) {
   const gridW = Math.min(pagerW - Spacing.four * 2, 300);
   const cell = Math.floor((gridW - GRID_GAP * 2) / 3);
   const cellH = Math.round(cell * 1.39);
-  const byPos = new Map((cells ?? []).map((c) => [`${c.row},${c.col}`, c]));
+  const ids = (results ?? []).slice(0, 9);
 
   return (
     <>
-      <StepHead n={3} kicker="The output" title="Your page, palette-matched" />
+      <StepHead n={3} kicker="The results" title="Your page, palette-matched" />
       <ThemedText type="small" themeColor="textSecondary" style={styles.lead}>
-        A real fill from the Tri-Color Search — eight pockets composed around one card into a single
-        colour story.
+        The real cards the Tri-Color Search returns for your mix — a whole binder page in your exact
+        colours, composed in one tap.
       </ThemedText>
       <View style={[styles.grid, { width: cell * 3 + GRID_GAP * 2 }]}>
         {Array.from({ length: 9 }, (_, i) => {
-          const r = Math.floor(i / 3);
-          const c = i % 3;
-          const item = byPos.get(`${r},${c}`);
+          const id = ids[i];
           const pocket = (
             <View style={[styles.pocket, { width: cell, height: cellH }]}>
-              {!cells ? (
+              {!results ? (
                 <View style={styles.pocketLoading} />
-              ) : item?.cardId ? (
-                <Image
-                  source={{ uri: cardThumbUrl(item.cardId, 245) }}
-                  style={{ width: cell, height: cellH }}
-                  resizeMode="cover"
-                />
-              ) : item?.insertColor ? (
-                <View style={[styles.insert, { backgroundColor: item.insertColor }]} />
+              ) : id ? (
+                <Image source={{ uri: cardThumbUrl(id, 245) }} style={{ width: cell, height: cellH }} resizeMode="cover" />
               ) : (
                 <View style={styles.pocketLoading} />
               )}
             </View>
           );
-          // Reveal the cards one by one once the fill is ready and we're on this slide.
-          return cells && active ? (
+          return results && active ? (
             <Reveal key={i} delay={i * 70}>
               {pocket}
             </Reveal>
@@ -339,8 +310,7 @@ function Reveal({ delay, children }: { delay: number; children: ReactNode }) {
     Animated.timing(a, { toValue: 1, duration: 340, delay, useNativeDriver: true }).start();
   }, [a, delay]);
   return (
-    <Animated.View
-      style={{ opacity: a, transform: [{ scale: a.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }) }] }}>
+    <Animated.View style={{ opacity: a, transform: [{ scale: a.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }) }] }}>
       {children}
     </Animated.View>
   );
@@ -381,50 +351,19 @@ const styles = StyleSheet.create({
 
   pickerWrap: { gap: Spacing.two, marginTop: Spacing.one },
 
-  methodRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.three,
-    borderRadius: Radius.panel,
-    borderWidth: 1,
-    borderColor: Palette.hairlineStrong,
-    marginTop: Spacing.one,
-  },
-  methodText: { flex: 1, gap: 2 },
-  methodTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  proPill: {
-    paddingVertical: 1,
-    paddingHorizontal: Spacing.two,
-    borderRadius: Radius.pill,
-    backgroundColor: Palette.panel,
-    borderWidth: 1,
-    borderColor: Palette.hairlineStrong,
-  },
-  proPillText: { fontSize: FontSize.tag, color: Palette.ink2, fontWeight: '700', letterSpacing: 0.5 },
-  fillBtn: {
-    alignSelf: 'center',
-    backgroundColor: Palette.accent,
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.five,
-    borderRadius: Radius.pill,
-    marginTop: Spacing.two,
-  },
-  fillBtnText: { color: Palette.accentText, fontWeight: Weight.bold, fontSize: FontSize.control },
+  // Slide 2 hero
+  matchWrap: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.three, marginTop: Spacing.two },
+  swatchCol: { gap: Spacing.two },
+  swatchSm: { width: 30, height: 30, borderRadius: Radius.thumb, borderWidth: 2, borderColor: '#FFFFFF' },
+  heroCard: { width: 150, height: 209, borderRadius: Radius.control, overflow: 'hidden', backgroundColor: Palette.panel },
+  heroImg: { width: 150, height: 209 },
+  heroLoading: { flex: 1, backgroundColor: Palette.panel },
+  matchCaption: { textAlign: 'center', marginTop: Spacing.two },
 
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: GRID_GAP,
-    alignSelf: 'center',
-    marginTop: Spacing.one,
-  },
-  pocket: {
-    borderRadius: Radius.thumb,
-    overflow: 'hidden',
-    backgroundColor: Palette.panel,
-  },
+  // Slide 3 grid
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GRID_GAP, alignSelf: 'center', marginTop: Spacing.one },
+  pocket: { borderRadius: Radius.thumb, overflow: 'hidden', backgroundColor: Palette.panel },
   pocketLoading: { flex: 1, backgroundColor: Palette.panel },
-  insert: { flex: 1 },
 
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   back: { fontSize: FontSize.control, fontWeight: Weight.semibold, color: Palette.muted },
@@ -434,11 +373,6 @@ const styles = StyleSheet.create({
   dotOn: { backgroundColor: Palette.accent, width: 18 },
   nextBtn: { paddingVertical: Spacing.one, paddingHorizontal: Spacing.two },
   nextText: { fontSize: FontSize.control, fontWeight: Weight.bold, color: Palette.accent },
-  ctaBtn: {
-    backgroundColor: Palette.accent,
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.four,
-    borderRadius: Radius.pill,
-  },
+  ctaBtn: { backgroundColor: Palette.accent, paddingVertical: Spacing.two, paddingHorizontal: Spacing.four, borderRadius: Radius.pill },
   ctaText: { color: Palette.accentText, fontWeight: Weight.bold, fontSize: FontSize.control },
 });

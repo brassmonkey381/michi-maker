@@ -200,7 +200,6 @@ export function AutoFillSheet({
       visible={upsell}
       onClose={() => setUpsell(false)}
       catalog={catalog}
-      seed={seed}
       onBeforeUpgrade={onClose}
     />
     </>

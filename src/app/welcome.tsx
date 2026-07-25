@@ -13,7 +13,7 @@ import { AnimatedLogoMark } from '@/components/brand/AnimatedLogoMark';
 import { AutoFlipBinder } from '@/components/landing/AutoFlipBinder';
 import { HoverLift } from '@/components/landing/HoverLift';
 import { Reveal } from '@/components/landing/Reveal';
-import { FooterLinks } from '@/components/layout/SiteFooter';
+import { AFFILIATE_DISCLOSURE, FooterLinks } from '@/components/layout/SiteFooter';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import {
@@ -385,6 +385,9 @@ export default function WelcomeScreen() {
               <ThemedText type="small" themeColor="textSecondary" style={styles.footerText}>
                 Card images belong to their respective owners. michi-maker is a fan-made tool
                 and is not affiliated with Nintendo, Creatures, or The Pokémon Company.
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary" style={styles.footerText}>
+                {AFFILIATE_DISCLOSURE}
               </ThemedText>
             </View>
           </View>

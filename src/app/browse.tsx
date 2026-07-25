@@ -12,8 +12,10 @@
 import { useRouter, type Href } from 'expo-router';
 import { type CardAction, type CardActionsFactory } from 'tcgscan-browse';
 import { useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { ebayCardQuery, ebaySearchLink } from '@/lib/ebay';
 
 import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
 import { CardBrowse } from '@/components/binder/CardBrowse';
@@ -69,6 +71,14 @@ export default function BrowseScreen() {
       label: 'Add to a binder…',
       onPress: (c) => setAddCardIds([c.id]),
     };
+    const findOnEbay: CardAction = {
+      key: 'ebay',
+      label: 'Find on eBay ↗',
+      onPress: (c) =>
+        void Linking.openURL(
+          ebaySearchLink(ebayCardQuery(c.name, c.setName, c.number), 'michi-browse'),
+        ).catch(() => {}),
+    };
     return [
       add,
       builtins.moreLikeThis,
@@ -76,6 +86,7 @@ export default function BrowseScreen() {
       builtins.findSimilar,
       builtins.viewSet,
       builtins.viewIllustrator,
+      findOnEbay,
     ].filter(Boolean) as CardAction[];
   };
 

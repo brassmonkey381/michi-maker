@@ -15,6 +15,12 @@ export const FAN_DISCLAIMER =
   'Card images belong to their respective owners. michi-maker is a fan-made tool and is not ' +
   'affiliated with Nintendo, Creatures, or The Pokémon Company.';
 
+/** FTC affiliate-compensation disclosure. Some outbound card links are affiliate links
+ *  (eBay Partner Network, TCGplayer affiliate program). Must stay clear + conspicuous. */
+export const AFFILIATE_DISCLOSURE =
+  'As an eBay Partner Network and TCGplayer affiliate, michi-maker may earn a commission on ' +
+  'qualifying purchases made through outbound links, at no extra cost to you.';
+
 export const TAGLINE = 'michi-maker, made with a love for the craft.';
 
 const LINKS: { label: string; href: Href }[] = [
@@ -65,6 +71,9 @@ export function SiteFooter({ compact = false }: { compact?: boolean }) {
       ) : null}
       <ThemedText type="small" themeColor="textSecondary" style={styles.line}>
         {FAN_DISCLAIMER}
+      </ThemedText>
+      <ThemedText type="small" themeColor="textSecondary" style={styles.line}>
+        {AFFILIATE_DISCLOSURE}
       </ThemedText>
     </View>
   );

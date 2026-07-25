@@ -27,12 +27,24 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
 const OUT = join(ROOT, 'src', 'data', 'featuredBinders.json');
 
-/** The binders to bundle, in display order. `key` becomes the stable bundled id (`ex-<key>`). */
+/**
+ * The binders to bundle, in display order. `key` becomes the stable bundled id (`ex-<key>`).
+ *
+ * These now point at the WORKING COPIES in the bstockman1@gmail.com account (@fakemichi), where
+ * the landing-page binders are being art-directed. The originals they were copied from (kept
+ * here for provenance) are no longer the source of truth for the landing page:
+ *   pikachu-and-friends ← bb6a56b4-cce4-44dd-826d-5dab2e732370 (official@michi-maker.com)
+ *   ideas-in-flight     ← df338785-1041-4494-aeac-11be94e5186c (bstockman1@hotmail.com)
+ *   pitch-black-chase   ← d1d44c9c-8da4-438a-9cdd-02343dcb36ff (bstockman1@hotmail.com)
+ *
+ * ⚠️ Export reads via anonymous PostgREST, so before running this script each source binder must
+ * be PUBLIC and the owning profile (@fakemichi) must be PUBLIC too — otherwise RLS hides it and
+ * the previous (stale) JSON entry is kept instead. Private PAGES are always excluded.
+ */
 const FEATURED = [
-  // "Pikachu and Friends" — the original "My First Binder" remade under the @michimaker account.
-  { sourceId: 'bb6a56b4-cce4-44dd-826d-5dab2e732370', key: 'pikachu-and-friends' },
-  { sourceId: 'df338785-1041-4494-aeac-11be94e5186c', key: 'ideas-in-flight' },
-  { sourceId: 'd1d44c9c-8da4-438a-9cdd-02343dcb36ff', key: 'pitch-black-chase' },
+  { sourceId: '3da6f892-420f-4d38-a253-a266b65101b9', key: 'pikachu-and-friends' },
+  { sourceId: 'c3eb55a2-81cd-4f46-baa5-ed76614fe2a2', key: 'ideas-in-flight' },
+  { sourceId: 'b7395020-0c65-42d2-b111-98279265d63a', key: 'pitch-black-chase' },
 ];
 
 const env = Object.fromEntries(

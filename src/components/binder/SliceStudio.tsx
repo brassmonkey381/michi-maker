@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image as RNImage,
@@ -225,17 +225,27 @@ interface SliceStudioProps {
   embedded?: boolean;
 }
 
-export function SliceStudio({
-  rows,
-  cols,
-  imageUrl: initUrl,
-  onSaveSlices,
-  onClose,
-  trayCount = 0,
-  trayLimit = Infinity,
-  guest = false,
-  embedded = false,
-}: SliceStudioProps) {
+export interface SliceStudioHandle {
+  /** Commit any UNSAVED framing to the tray before the host closes ("Done" saves your work).
+   *  A no-op when there's nothing to save, the framing is unchanged since the last save, or
+   *  saving would pass the tray cap — so it never duplicates already-saved slices. */
+  commit: () => void;
+}
+
+export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(function SliceStudio(
+  {
+    rows,
+    cols,
+    imageUrl: initUrl,
+    onSaveSlices,
+    onClose,
+    trayCount = 0,
+    trayLimit = Infinity,
+    guest = false,
+    embedded = false,
+  },
+  ref,
+) {
   const { width, height } = useWindowDimensions();
 
   // The grid is fixed to the binder's page size (passed in); slicing across the page is the point,
@@ -250,6 +260,9 @@ export function SliceStudio({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sliced, setSliced] = useState(true);
   const [failed, setFailed] = useState(false);
+  // Signature of the framing at the last Save — lets "Done" save only genuinely unsaved work
+  // (see currentSig + the imperative commit), so it never re-sends unchanged slices to the tray.
+  const [savedSig, setSavedSig] = useState<string | null>(null);
   // The source image's natural pixel size (via Image.getSize) — the key to true-aspect windows
   // (no accidental stretching) and to rotation. Null until it resolves; everything falls back.
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
@@ -638,6 +651,18 @@ export function SliceStudio({
     void loadRemoteUrl(u);
   }, [urlInput, loadRemoteUrl]);
 
+  // A fingerprint of the current framing (source + orientation + window + piece layout). Two
+  // consecutive saves with the same signature would tray-duplicate, so "Done" saves only when this
+  // differs from the last-saved signature. Pan/zoom counts as a change — re-saving reframed art is
+  // intended; saving twice with zero edits in between is not.
+  const currentSig = useMemo(
+    () =>
+      imageUrl
+        ? JSON.stringify({ imageUrl, rot, flipH, flipV, win, p: panels.map((p) => [p.r, p.c, p.rs, p.cs]) })
+        : '',
+    [imageUrl, rot, flipH, flipV, win, panels],
+  );
+
   // Save the studio's pieces to the tray. Each grid piece (1×1, or a merged folded 1×2) becomes a
   // SavedSlice carrying its window of the image — the source is never re-encoded. Where each slice
   // legally fits is decided later, when it's dragged/tapped into a pocket.
@@ -681,7 +706,8 @@ export function SliceStudio({
       attribution,
     }));
     onSaveSlices(slices);
-  }, [imageUrl, rot, flipH, flipV, panels, rows, cols, win, onSaveSlices, artist, sourceUrl, srcName, origin]);
+    setSavedSig(currentSig); // this framing is now on the tray — "Done" won't re-save it
+  }, [imageUrl, rot, flipH, flipV, panels, rows, cols, win, onSaveSlices, artist, sourceUrl, srcName, origin, currentSig]);
 
   // Web: keyboard shortcuts + tracking Shift/Ctrl for multi-select.
   useEffect(() => {
@@ -776,6 +802,19 @@ export function SliceStudio({
   const selCount = selected.size;
   // Saving would pass the account's artwork cap (a retention cap: slices KEPT, not a rate).
   const wouldExceedTray = hasImage && panels.length > 0 && trayCount + panels.length > trayLimit;
+
+  // "Done" (in the host sheet header) commits unsaved framing before closing, so reaching for the
+  // conventional finish button no longer silently discards your slices. Same guards as the Save
+  // button (need art + pieces + headroom) plus the dirty check, so it never duplicates a save.
+  useImperativeHandle(
+    ref,
+    () => ({
+      commit: () => {
+        if (hasImage && panels.length > 0 && !wouldExceedTray && currentSig !== savedSig) saveSlices();
+      },
+    }),
+    [hasImage, panels.length, wouldExceedTray, currentSig, savedSig, saveSlices],
+  );
 
   // The three studio-level controls — title, help, and Save slices. Shared so they can sit in the
   // full-screen header (standalone) OR at the top of the left controls column (embedded), where
@@ -1183,7 +1222,7 @@ export function SliceStudio({
       </SafeAreaView>
     </Modal>
   );
-}
+});
 
 /** A filled/neutral action button — source actions and the primary "Fold & merge". */
 function Btn({

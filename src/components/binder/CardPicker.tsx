@@ -1,9 +1,9 @@
 import { Image } from 'expo-image';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { CardBrowse } from '@/components/binder/CardBrowse';
-import { SliceStudio } from '@/components/binder/SliceStudio';
+import { SliceStudio, type SliceStudioHandle } from '@/components/binder/SliceStudio';
 import { ThemedText } from '@/components/themed-text';
 import { THEME_FAMILIES, themeBackgroundDataUri } from '@/data/themeBackgrounds';
 import type { DemoPage, DemoSlot } from '@/data/binderTypes';
@@ -124,6 +124,13 @@ export function CardPicker({
   // variants) across every swatch at once.
   const [themePaletteIdx, setThemePaletteIdx] = useState(0);
   const [tab, setTab] = useState<PickerTab>('cards');
+  // On the Artwork (Slice Studio) tab, "Done" commits any unsaved framing to the tray before
+  // closing (the studio saves only genuinely-unsaved work); on other tabs it's a plain close.
+  const studioRef = useRef<SliceStudioHandle>(null);
+  const onDone = () => {
+    if (tab === 'artwork') studioRef.current?.commit();
+    onClose();
+  };
 
   const fits = (rows: number, cols: number) =>
     !!cell && !!page && cell.row + rows <= page.rows && cell.col + cols <= page.cols;
@@ -233,17 +240,21 @@ export function CardPicker({
             <ThemedText type="subtitle" style={styles.headerTitle}>
               {title}
             </ThemedText>
-            <Pressable
-              onPress={onToggleKeepAdding}
-              hitSlop={8}
-              accessibilityRole="switch"
-              accessibilityState={{ checked: keepAdding }}
-              style={[styles.keepAdding, keepAdding && styles.keepAddingOn]}>
-              <Text style={[styles.keepAddingText, keepAdding && styles.keepAddingTextOn]}>
-                {keepAdding ? '✓ Keep adding' : 'Keep adding'}
-              </Text>
-            </Pressable>
-            <Pressable onPress={onClose} hitSlop={12}>
+            {/* "Keep adding" only does something on the Cards tab (place → jump to next pocket);
+                it's a no-op in the Slice Studio, so hide it there. */}
+            {tab !== 'artwork' ? (
+              <Pressable
+                onPress={onToggleKeepAdding}
+                hitSlop={8}
+                accessibilityRole="switch"
+                accessibilityState={{ checked: keepAdding }}
+                style={[styles.keepAdding, keepAdding && styles.keepAddingOn]}>
+                <Text style={[styles.keepAddingText, keepAdding && styles.keepAddingTextOn]}>
+                  {keepAdding ? '✓ Keep adding' : 'Keep adding'}
+                </Text>
+              </Pressable>
+            ) : null}
+            <Pressable onPress={onDone} hitSlop={12}>
               <Text style={styles.close}>Done</Text>
             </Pressable>
           </View>
@@ -311,6 +322,7 @@ export function CardPicker({
             // shape/source to reset the framing when the pocket context changes.
             <SliceStudio
               key={`${page?.rows ?? 1}x${page?.cols ?? 1}-${slot?.id ?? 'new'}`}
+              ref={studioRef}
               embedded
               rows={page?.rows ?? 1}
               cols={page?.cols ?? 1}

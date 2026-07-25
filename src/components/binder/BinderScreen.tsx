@@ -679,7 +679,17 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
 
   const handlePickInsert = (insertColor: string, rowSpan: number, colSpan: number) => {
     if (!pickerCell) return;
-    store.upsertSlot(binder.id, page.id, { ...pickerCell, type: 'insert', insertColor, rowSpan, colSpan });
+    const { row, col } = pickerCell;
+    store.upsertSlot(binder.id, page.id, { row, col, type: 'insert', insertColor, rowSpan, colSpan });
+    // Keep adding: jump to the next empty pocket that fits this insert's footprint (mirrors cards),
+    // so a run of dividers/spacers can be laid down without reopening the sheet each time.
+    if (keepAdding) {
+      const next = nextEmptyCell(row, col, rowSpan, colSpan);
+      if (next) {
+        setPickerCell(next);
+        return;
+      }
+    }
     closePicker();
   };
 

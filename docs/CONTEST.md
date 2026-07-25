@@ -31,7 +31,8 @@ Market as: **"Over $1,900 in prizes — including a once-ever LIFETIME VIP grand
 ## Rules (user-facing summary — the /contest page is authoritative)
 
 - No purchase necessary to enter or win.
-- One binder = one category, chosen at entry (changeable until the entry deadline).
+- One binder = one category, chosen at entry. The choice is FINAL (no update path — DB-enforced);
+  withdrawing and re-entering is possible but resets the entry time (the final tie-breaker).
 - Entries must be PUBLIC binders (public binder + public profile — the standard sharing gate).
 - 16-page cap: binders with more than 16 pages can't enter; only the first 16 pages of an
   entry are shown in contest views.
@@ -47,9 +48,10 @@ Market as: **"Over $1,900 in prizes — including a once-ever LIFETIME VIP grand
 
 - `contest_entries` (migration `20260725130000_binder_contest.sql`): one row per entered
   binder — `binder_id` (PK → binders), `owner_id`, `contest` (slug, `first-annual-2026`),
-  `category` (checked against the six slugs), `created_at`. RLS: owners insert/update/delete
-  their own entries (INSERT/UPDATE gated on owning the binder AND the binder having ≤16
-  pages); reads are public for entries whose binder passes the public gate (or your own).
+  `category` (checked against the six slugs), `created_at`. RLS: owners insert/delete their
+  own entries (INSERT gated on owning the binder AND the binder having ≤16 pages; NO update
+  policy — the category is final, `20260725140000_contest_no_category_switch.sql`); reads
+  are public for entries whose binder passes the public gate (or your own).
 - `contest_winners` (Hall of Fame): written by us post-contest (service role / manual SQL —
   no client write policies), read by everyone. `contest`, `category`, `place`, `binder_id`,
   `owner_id`. The /contest page renders a Hall of Fame section once rows exist; winning

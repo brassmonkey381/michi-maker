@@ -16,7 +16,11 @@ export interface ContestEntry {
   createdAt: string;
 }
 
-/** Enter a binder (or move an existing entry to a different category) — upsert on binder_id. */
+/**
+ * Enter a binder. Category choice is FINAL — there is no update path (the DB has no UPDATE
+ * policy); the only way to re-pick is withdraw + re-enter, which resets created_at (the final
+ * tie-breaker), so flip-flopping costs ranking priority.
+ */
 export async function enterContest(binderId: string, category: ContestCategory): Promise<void> {
   const supabase = requireSupabase();
   const { data: auth } = await supabase.auth.getUser();
@@ -24,11 +28,9 @@ export async function enterContest(binderId: string, category: ContestCategory):
   if (!uid) throw new Error('Sign in to enter the contest.');
   const { error } = await supabase
     .from('contest_entries')
-    .upsert(
-      { binder_id: binderId, owner_id: uid, contest: CONTEST.id, category },
-      { onConflict: 'binder_id' },
-    );
+    .insert({ binder_id: binderId, owner_id: uid, contest: CONTEST.id, category });
   if (error) {
+    if (error.code === '23505') throw new Error('This binder is already entered.');
     // The RLS page-cap gate surfaces as a bare policy violation — translate it for people.
     if (error.message.includes('row-level security')) {
       throw new Error(

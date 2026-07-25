@@ -158,13 +158,10 @@ export default function ContestScreen() {
             </ThemedText>
             {CATEGORIES.map((c) => (
               <View key={c.slug} style={[styles.catCard, c.flagship && styles.catCardFlagship]}>
-                <View style={styles.catHead}>
-                  <ThemedText type="smallBold" style={styles.catLabel}>
-                    {c.flagship ? '★ ' : ''}
-                    {c.label}
-                  </ThemedText>
-                  {c.flagship ? <Text style={styles.flagshipTag}>FLAGSHIP</Text> : null}
-                </View>
+                <ThemedText type="smallBold" style={styles.catLabel}>
+                  {c.flagship ? '★ ' : ''}
+                  {c.label}
+                </ThemedText>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.catBlurb}>
                   {c.blurb}
                 </ThemedText>
@@ -206,7 +203,7 @@ export default function ContestScreen() {
             {[
               'No purchase necessary to enter or win.',
               `Entries open ${fmtDate(CONTEST.opensAt)} and close ${fmtDate(CONTEST.endsAt)}. Winners are determined by vote counts at the close time.`,
-              'Enter by marking a public binder with exactly one category. You can switch categories or withdraw until the close time. One category per binder; you may enter multiple binders.',
+              'Enter by marking a public binder with exactly one category. The category choice is final. You may withdraw an entry until the close time (re-entering resets your entry time). One category per binder; you may enter multiple binders.',
               `Entries are capped at ${CONTEST.pageCap} pages — binders with more pages can’t enter, and only the first ${CONTEST.pageCap} pages of an entry are shown in contest views.`,
               'Winners are determined purely by most votes (binder likes) in the entered category; Community’s Choice goes to the most-voted entry overall. Vote-count ties display in shuffled order but final ties are broken by earliest entry time.',
               'We reserve the right to disqualify entries that violate the Terms of Service or DMCA (use art you have the rights to, and credit your sources), and entries with fraudulent votes (bots, scripts, or multiple accounts).',
@@ -294,19 +291,7 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   catCardFlagship: { borderColor: Palette.accent, backgroundColor: Palette.selectionSoft },
-  catHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
   catLabel: { fontSize: FontSize.md },
-  flagshipTag: {
-    fontSize: 10,
-    fontWeight: Weight.bold,
-    letterSpacing: 1,
-    color: Palette.accentText,
-    backgroundColor: Palette.accent,
-    borderRadius: Radius.pill,
-    paddingVertical: 2,
-    paddingHorizontal: Spacing.two,
-    overflow: 'hidden',
-  },
   catBlurb: { lineHeight: 18 },
   prizeRows: { marginTop: Spacing.one, gap: 2 },
   prizeRow: { flexDirection: 'row', gap: Spacing.two },

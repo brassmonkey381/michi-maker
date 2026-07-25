@@ -100,50 +100,64 @@ export function ContestEntrySection({ binder }: { binder: DemoBinder }) {
         <ActivityIndicator />
       ) : (
         <>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
-            {entry
-              ? 'Entered! You can switch categories or withdraw until the contest ends.'
-              : 'Enter this binder in exactly one category — community votes pick the winners.'}
-          </ThemedText>
-          <View style={styles.chips}>
-            {CATEGORIES.map((c) => {
-              const active = picked === c.slug;
-              return (
-                <Pressable
-                  key={c.slug}
-                  onPress={() => setPicked(c.slug)}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: active }}
-                  style={[styles.chip, active && styles.chipActive]}
-                  hitSlop={2}>
-                  <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                    {c.flagship ? '★ ' : ''}
-                    {c.label}
+          {entry ? (
+            // Entered: the category is FINAL (no update path server-side). Show it locked;
+            // withdrawing is the only exit — and re-entering resets your entry time.
+            <>
+              <View style={styles.chips}>
+                <View style={[styles.chip, styles.chipActive]}>
+                  <Text style={[styles.chipText, styles.chipTextActive]}>
+                    ✓ {CATEGORIES.find((c) => c.slug === entry)?.label ?? entry}
                   </Text>
+                </View>
+              </View>
+              <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
+                Entered — category choice is final. Withdrawing removes the entry (re-entering
+                later resets your entry time).
+              </ThemedText>
+              <View style={styles.actions}>
+                <Pressable onPress={withdraw} disabled={busy} hitSlop={6} style={styles.withdraw}>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Withdraw entry
+                  </ThemedText>
                 </Pressable>
-              );
-            })}
-          </View>
-          <View style={styles.actions}>
-            <Pressable
-              onPress={submit}
-              disabled={!picked || picked === entry || busy}
-              style={({ pressed }) => [
-                styles.enterBtn,
-                (!picked || picked === entry || busy || pressed) && styles.dim,
-              ]}>
-              <Text style={styles.enterText}>
-                {entry ? (picked === entry ? 'Entered ✓' : 'Switch category') : 'Enter contest'}
-              </Text>
-            </Pressable>
-            {entry ? (
-              <Pressable onPress={withdraw} disabled={busy} hitSlop={6} style={styles.withdraw}>
-                <ThemedText type="small" themeColor="textSecondary">
-                  Withdraw
-                </ThemedText>
-              </Pressable>
-            ) : null}
-          </View>
+              </View>
+            </>
+          ) : (
+            <>
+              <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
+                Enter this binder in exactly one category — community votes pick the winners.
+                Choose carefully: the category can’t be changed after entering.
+              </ThemedText>
+              <View style={styles.chips}>
+                {CATEGORIES.map((c) => {
+                  const active = picked === c.slug;
+                  return (
+                    <Pressable
+                      key={c.slug}
+                      onPress={() => setPicked(c.slug)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: active }}
+                      style={[styles.chip, active && styles.chipActive]}
+                      hitSlop={2}>
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                        {c.flagship ? '★ ' : ''}
+                        {c.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <View style={styles.actions}>
+                <Pressable
+                  onPress={submit}
+                  disabled={!picked || busy}
+                  style={({ pressed }) => [styles.enterBtn, (!picked || busy || pressed) && styles.dim]}>
+                  <Text style={styles.enterText}>Enter contest</Text>
+                </Pressable>
+              </View>
+            </>
+          )}
           {error ? (
             <ThemedText type="small" style={styles.error}>
               {error}

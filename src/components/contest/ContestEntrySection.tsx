@@ -16,16 +16,30 @@ import { enterContest, fetchEntry, withdrawEntry } from '@/data/contestRepo';
 import type { DemoBinder } from '@/data/binderTypes';
 import { isSupabaseConfigured } from '@/lib/env';
 
-export function ContestEntrySection({ binder }: { binder: DemoBinder }) {
+export function ContestEntrySection({
+  binder,
+  onEntryChange,
+}: {
+  binder: DemoBinder;
+  /** Reports the entry state up (on load and after enter/withdraw) — the ShareSheet uses it to
+   *  gate flipping pages public past the contest cap. */
+  onEntryChange?: (category: ContestCategory | null) => void;
+}) {
   const router = useRouter();
   const phase = contestPhase();
-  const overCap = binder.pages.length > CONTEST.pageCap;
+  // The cap counts PUBLIC pages — a binder of any size can enter by hiding pages down to the cap.
+  const publicPages = binder.pages.filter((p) => p.isPublic ?? true).length;
+  const overCap = publicPages > CONTEST.pageCap;
 
-  const [entry, setEntry] = useState<ContestCategory | null>(null);
+  const [entry, setEntryState] = useState<ContestCategory | null>(null);
   const [picked, setPicked] = useState<ContestCategory | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const setEntry = (c: ContestCategory | null) => {
+    setEntryState(c);
+    onEntryChange?.(c);
+  };
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -33,7 +47,8 @@ export function ContestEntrySection({ binder }: { binder: DemoBinder }) {
     fetchEntry(binder.id)
       .then((e) => {
         if (stale) return;
-        setEntry(e?.category ?? null);
+        setEntryState(e?.category ?? null);
+        onEntryChange?.(e?.category ?? null);
         setPicked(e?.category ?? null);
         setLoaded(true);
       })
@@ -43,6 +58,7 @@ export function ContestEntrySection({ binder }: { binder: DemoBinder }) {
     return () => {
       stale = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [binder.id]);
 
   if (!isSupabaseConfigured || phase === 'ended') return null;
@@ -89,12 +105,13 @@ export function ContestEntrySection({ binder }: { binder: DemoBinder }) {
 
       {phase === 'upcoming' ? (
         <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
-          Entries open soon — {CONTEST.headline}
+          Entries open soon. {CONTEST.headline}
         </ThemedText>
-      ) : overCap ? (
+      ) : overCap && !entry ? (
         <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
-          Contest entries are capped at {CONTEST.pageCap} pages; this binder has{' '}
-          {binder.pages.length}. Trim it to {CONTEST.pageCap} pages to enter.
+          Contest entries can show at most {CONTEST.pageCap} public pages; this binder has{' '}
+          {publicPages}. Hide pages (tap them above) down to {CONTEST.pageCap} to enter. Binders of
+          any size can enter this way.
         </ThemedText>
       ) : !loaded ? (
         <ActivityIndicator />
@@ -112,7 +129,7 @@ export function ContestEntrySection({ binder }: { binder: DemoBinder }) {
                 </View>
               </View>
               <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
-                Entered — category choice is final. Withdrawing removes the entry (re-entering
+                Entered! Category choice is final. Withdrawing removes the entry (re-entering
                 later resets your entry time).
               </ThemedText>
               <View style={styles.actions}>
@@ -126,7 +143,7 @@ export function ContestEntrySection({ binder }: { binder: DemoBinder }) {
           ) : (
             <>
               <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
-                Enter this binder in exactly one category — community votes pick the winners.
+                Enter this binder in exactly one category, and community votes pick the winners.
                 Choose carefully: the category can’t be changed after entering.
               </ThemedText>
               <View style={styles.chips}>

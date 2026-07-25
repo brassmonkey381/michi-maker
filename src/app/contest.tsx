@@ -22,7 +22,7 @@ import {
   Weight,
 } from '@/constants/theme';
 import { fetchBinderTitles } from '@/data/binderRepo';
-import { CATEGORIES, COMMUNITY_CHOICE, CONTEST, contestPhase, categoryLabel } from '@/data/contest';
+import { CATEGORIES, CONTEST, contestPhase, categoryLabel } from '@/data/contest';
 import { fetchContestWinners, type ContestWinner } from '@/data/contestRepo';
 import { isSupabaseConfigured } from '@/lib/env';
 
@@ -85,7 +85,7 @@ export default function ContestScreen() {
               {phase === 'upcoming'
                 ? `Entries open ${fmtDate(CONTEST.opensAt)}`
                 : phase === 'open'
-                  ? `Open now — voting ends ${fmtDate(CONTEST.endsAt)}`
+                  ? `Open now! Voting ends ${fmtDate(CONTEST.endsAt)}`
                   : `Ended ${fmtDate(CONTEST.endsAt)}`}
             </Text>
           </View>
@@ -136,11 +136,10 @@ export default function ContestScreen() {
               How to enter
             </ThemedText>
             {[
-              'Build a binder (up to 16 pages) and make it public from the Share sheet.',
+              'Build a binder and make it public from the Share sheet. Any size binder can enter, as long as at most 16 pages are public.',
               'In the Share sheet, pick exactly ONE category and tap Enter contest.',
               'Rally votes! Anyone can ♥ your binder on its public page or from Discover.',
-              'Every entry also competes automatically for Community’s Choice (most votes overall).',
-              'Enter early — leaderboards run all contest long, and early votes mean more eyes on your binder.',
+              'Enter early: leaderboards run all contest long, and early votes mean more eyes on your binder.',
             ].map((s, i) => (
               <View key={i} style={styles.stepRow}>
                 <Text style={styles.stepNum}>{i + 1}</Text>
@@ -177,22 +176,6 @@ export default function ContestScreen() {
                 </View>
               </View>
             ))}
-            <View style={styles.catCard}>
-              <ThemedText type="smallBold" style={styles.catLabel}>
-                {COMMUNITY_CHOICE.label}
-              </ThemedText>
-              <ThemedText type="small" themeColor="textSecondary" style={styles.catBlurb}>
-                {COMMUNITY_CHOICE.blurb}
-              </ThemedText>
-              <View style={styles.prizeRows}>
-                {COMMUNITY_CHOICE.prizes.map((p) => (
-                  <View key={p.place} style={styles.prizeRow}>
-                    <Text style={styles.prizePlace}>{p.place}</Text>
-                    <Text style={styles.prizeName}>{p.prize}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
           </View>
 
           {/* Official rules */}
@@ -204,8 +187,8 @@ export default function ContestScreen() {
               'No purchase necessary to enter or win.',
               `Entries open ${fmtDate(CONTEST.opensAt)} and close ${fmtDate(CONTEST.endsAt)}. Winners are determined by vote counts at the close time.`,
               'Enter by marking a public binder with exactly one category. The category choice is final. You may withdraw an entry until the close time (re-entering resets your entry time). One category per binder; you may enter multiple binders.',
-              `Entries are capped at ${CONTEST.pageCap} pages — binders with more pages can’t enter, and only the first ${CONTEST.pageCap} pages of an entry are shown in contest views.`,
-              'Winners are determined purely by most votes (binder likes) in the entered category; Community’s Choice goes to the most-voted entry overall. Vote-count ties display in shuffled order but final ties are broken by earliest entry time.',
+              `Entries may show at most ${CONTEST.pageCap} public pages. Binders of any size can enter by hiding pages down to ${CONTEST.pageCap} public ones, and only the first ${CONTEST.pageCap} public pages of an entry are shown in contest views.`,
+              'Winners are determined purely by most votes (binder likes) in the entered category. Vote-count ties display in shuffled order but final ties are broken by earliest entry time.',
               'We reserve the right to disqualify entries that violate the Terms of Service or DMCA (use art you have the rights to, and credit your sources), and entries with fraudulent votes (bots, scripts, or multiple accounts).',
               'Prizes are michi-maker subscription grants applied to the winning account; they have no cash value and are not transferable.',
               'Entering requires a free michi-maker account and a public profile. Void where prohibited.',

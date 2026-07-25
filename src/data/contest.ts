@@ -28,10 +28,11 @@ export const CONTEST = {
   // computed from the vote counts at endsAt.
   opensAt: '2026-08-01T00:00:00Z',
   endsAt: '2026-09-30T23:59:59Z',
-  /** Submission cap — binders with more pages can't enter; only the first N pages show. */
+  /** Submission cap on PUBLIC pages — any size binder can enter with ≤N pages public; only the
+   *  first N public pages show in contest views. */
   pageCap: 16,
-  headline: 'Over $1,900 in prizes — including a once-ever LIFETIME VIP grand prize.',
-  subhead: '61 winners across 7 categories. Winners are decided purely by community votes.',
+  headline: 'Over $1,700 in prizes, including a once-ever LIFETIME VIP grand prize.',
+  subhead: '60 winners across 6 categories. Winners are decided purely by community votes.',
 } as const;
 
 /** Where the contest is in its lifecycle right now. */
@@ -64,7 +65,7 @@ export const CATEGORIES: CategorySpec[] = [
   {
     slug: 'trainer',
     label: 'Best Trainer Showcase',
-    blurb: 'A binder built around trainers — supporters, gym leaders, rivals, the humans of the hobby.',
+    blurb: 'A binder built around trainers: supporters, gym leaders, rivals, the humans of the hobby.',
     prizes: STANDARD_PRIZES,
   },
   {
@@ -76,13 +77,13 @@ export const CATEGORIES: CategorySpec[] = [
   {
     slug: 'creativity',
     label: 'Best Creativity',
-    blurb: 'The most inventive concept — themes, stories, layouts nobody has tried before.',
+    blurb: 'The most inventive concept: themes, stories, layouts nobody has tried before.',
     prizes: STANDARD_PRIZES,
   },
   {
     slug: 'meme',
     label: 'Best Meme',
-    blurb: 'Make us laugh. The funniest binder wins — in-jokes, absurdity, perfect timing.',
+    blurb: 'Make us laugh. The funniest binder wins: in-jokes, absurdity, perfect timing.',
     prizes: STANDARD_PRIZES,
   },
   {
@@ -93,15 +94,6 @@ export const CATEGORIES: CategorySpec[] = [
   },
 ];
 
-/** The derived 7th category — every entry competes automatically; most votes overall wins. */
-export const COMMUNITY_CHOICE = {
-  slug: 'community',
-  label: "Community's Choice",
-  blurb: 'Every entry competes automatically. The most-voted binder across ALL categories.',
-  prizes: [{ place: '1st', prize: '1 Year VIP' }] as PrizeRow[],
-} as const;
-
 export function categoryLabel(slug: string): string {
-  if (slug === COMMUNITY_CHOICE.slug) return COMMUNITY_CHOICE.label;
   return CATEGORIES.find((c) => c.slug === slug)?.label ?? slug;
 }

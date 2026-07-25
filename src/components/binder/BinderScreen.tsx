@@ -1265,6 +1265,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           onClose={() => setShareOpen(false)}
           onSetPublic={(v) => store.updateBinder(binder.id, { isPublic: v })}
           onSetPagePublic={(pageId, v) => store.updatePage(binder.id, pageId, { isPublic: v })}
+          onToast={showToast}
         />
         <LikersSheet visible={likesOpen} binderId={binder.id} onClose={() => setLikesOpen(false)} />
       </ThemedView>

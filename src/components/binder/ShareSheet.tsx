@@ -12,6 +12,7 @@ import { DialogCard } from '@/components/ui/DialogCard';
 import { Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { privateArtInBinder, type PrivateArtRef } from '@/data/artAttributionCheck';
 import type { DemoBinder } from '@/data/binderTypes';
+import { CONTEST } from '@/data/contest';
 import { useTheme } from '@/hooks/use-theme';
 import { binderShareUrl } from '@/lib/appUrl';
 
@@ -22,6 +23,7 @@ export function ShareSheet({
   onClose,
   onSetPublic,
   onSetPagePublic,
+  onToast,
 }: {
   visible: boolean;
   binder: DemoBinder;
@@ -30,10 +32,26 @@ export function ShareSheet({
   onSetPublic: (v: boolean) => void;
   /** Toggle a single page's visibility to public viewers (only meaningful when the binder is public). */
   onSetPagePublic: (pageId: string, isPublic: boolean) => void;
+  /** Surface a blocked action (e.g. the contest public-page cap) as a toast in the host screen. */
+  onToast?: (message: string) => void;
 }) {
   const theme = useTheme();
   const url = binderShareUrl(binder.id);
   const [copied, setCopied] = useState(false);
+  // Whether this binder is a contest entry (reported up by ContestEntrySection, which loads it).
+  // An ENTERED binder may show at most CONTEST.pageCap public pages, so flipping one more page
+  // public past the cap is blocked here with a toast.
+  const [entered, setEntered] = useState(false);
+  const publicPageCount = binder.pages.filter((p) => p.isPublic ?? true).length;
+  const setPagePublic = (pageId: string, next: boolean) => {
+    if (next && entered && publicPageCount >= CONTEST.pageCap) {
+      onToast?.(
+        `Contest entries can show at most ${CONTEST.pageCap} public pages. Hide another page first.`,
+      );
+      return;
+    }
+    onSetPagePublic(pageId, next);
+  };
   // Sharing gate. Two blockers before a binder can go public:
   //  1. PRIVATE art (pulled from a URL) — must be removed first.
   //  2. Rights attestation — the user must confirm they hold the rights to the remaining art.
@@ -108,7 +126,7 @@ export function ShareSheet({
                     return (
                       <Pressable
                         key={p.id}
-                        onPress={() => onSetPagePublic(p.id, !pub)}
+                        onPress={() => setPagePublic(p.id, !pub)}
                         accessibilityRole="switch"
                         accessibilityState={{ checked: pub }}
                         accessibilityLabel={`Page ${i + 1}, ${pub ? 'public' : 'hidden from public'}`}
@@ -173,7 +191,9 @@ export function ShareSheet({
             ) : null}
 
             {/* Contest entry — entering requires a public binder, so it lives with sharing. */}
-            {isPublic ? <ContestEntrySection binder={binder} /> : null}
+            {isPublic ? (
+              <ContestEntrySection binder={binder} onEntryChange={(c) => setEntered(c != null)} />
+            ) : null}
 
             {isPublic ? (
               <View style={styles.linkArea}>

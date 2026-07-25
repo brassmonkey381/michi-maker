@@ -84,9 +84,10 @@ function PublicViewer({ id }: { id?: string }) {
     let active = true;
     setState({ status: 'loading' });
     setPageIndex(0);
-    // A contest ENTRY shows only its first N pages to public viewers (the submission cap) —
-    // the entry gate blocks >cap binders at entry time, but pages added afterwards must not
-    // extend the visible entry either. The owner's own view (store path above) is uncapped.
+    // A contest ENTRY shows at most the first N public pages (the submission cap). RLS already
+    // filters this fetch to public pages; the entry gate + ShareSheet cap public pages at N, and
+    // this slice is the backstop for any that slip past (e.g. pages added after entering). The
+    // owner's own view (store path above) is uncapped.
     Promise.all([fetchBinder(id), fetchEntry(id).catch(() => null)])
       .then(([binder, entry]) => {
         if (!active) return;

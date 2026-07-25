@@ -7,8 +7,8 @@ copy, prize table) live in `src/data/contest.ts`.
 
 ## Categories & prizes
 
-Six entered categories + one derived. A binder enters EXACTLY ONE category; every entry
-automatically also competes for Community's Choice (most votes overall).
+Six categories. A binder enters EXACTLY ONE category. (Community's Choice was cut: it would
+double-pay whatever wins Best Aesthetic.)
 
 | Category | 1st | 2nd | 3rd–5th | 6th–10th |
 | --- | --- | --- | --- | --- |
@@ -18,15 +18,13 @@ automatically also competes for Community's Choice (most votes overall).
 | Best Creativity | 1 Year VIP | 1 Year PRO | 3 Months PRO | 1 Month PRO |
 | Best Meme | 1 Year VIP | 1 Year PRO | 3 Months PRO | 1 Month PRO |
 | Best 2×2 | 1 Year VIP | 1 Year PRO | 3 Months PRO | 1 Month PRO |
-| **Community's Choice** (derived — most votes overall) | 1 Year VIP | — | — | — |
 
-61 prize slots (Aesthetic 10, five categories × 10, Community's Choice 1; one binder can win
-its category AND Community's Choice).
+60 prize slots (Aesthetic 10, five categories × 10).
 
 **Headline value** (monthly-rate basis: PRO $3.99/mo, VIP $9.99/mo):
-Aesthetic ex-lifetime $175.74 + five categories × $223.62 + Community's Choice $119.88
-≈ **$1,414**, plus the LIFETIME VIP grand prize (valued at $500+ = 5 years of annual VIP).
-Market as: **"Over $1,900 in prizes — including a once-ever LIFETIME VIP grand prize."**
+Aesthetic ex-lifetime $175.74 + five categories × $223.62 ≈ **$1,294**, plus the LIFETIME VIP
+grand prize (valued at $500+ = 5 years of annual VIP).
+Market as: **"Over $1,700 in prizes, including a once-ever LIFETIME VIP grand prize."**
 
 ## Rules (user-facing summary — the /contest page is authoritative)
 
@@ -34,8 +32,10 @@ Market as: **"Over $1,900 in prizes — including a once-ever LIFETIME VIP grand
 - One binder = one category, chosen at entry. The choice is FINAL (no update path — DB-enforced);
   withdrawing and re-entering is possible but resets the entry time (the final tie-breaker).
 - Entries must be PUBLIC binders (public binder + public profile — the standard sharing gate).
-- 16-page cap: binders with more than 16 pages can't enter; only the first 16 pages of an
-  entry are shown in contest views.
+- 16-page cap on PUBLIC pages: a binder of any size can enter, but at most 16 of its pages may
+  be public (hide the rest from the Share sheet). Entering past the cap is blocked (DB gate,
+  `20260725150000_contest_public_page_cap.sql`); flipping a 17th page public on an entered
+  binder is blocked with a toast; and contest views show at most the first 16 public pages.
 - Winners are determined purely by most votes (binder likes) at the contest end time.
 - We reserve the right to disqualify entries violating DMCA (the existing attribution /
   public-sharing provenance gate is the first line) and vote fraud (bots, scripts,
@@ -49,17 +49,19 @@ Market as: **"Over $1,900 in prizes — including a once-ever LIFETIME VIP grand
 - `contest_entries` (migration `20260725130000_binder_contest.sql`): one row per entered
   binder — `binder_id` (PK → binders), `owner_id`, `contest` (slug, `first-annual-2026`),
   `category` (checked against the six slugs), `created_at`. RLS: owners insert/delete their
-  own entries (INSERT gated on owning the binder AND the binder having ≤16 pages; NO update
-  policy — the category is final, `20260725140000_contest_no_category_switch.sql`); reads
-  are public for entries whose binder passes the public gate (or your own).
+  own entries (INSERT gated on owning the binder AND the binder having ≤16 PUBLIC pages,
+  `20260725150000_contest_public_page_cap.sql`; NO update policy — the category is final,
+  `20260725140000_contest_no_category_switch.sql`); reads are public for entries whose
+  binder passes the public gate (or your own).
 - `contest_winners` (Hall of Fame): written by us post-contest (service role / manual SQL —
   no client write policies), read by everyone. `contest`, `category`, `place`, `binder_id`,
   `owner_id`. The /contest page renders a Hall of Fame section once rows exist; winning
   binders stay enshrined ("Winner — First Annual Michi Binder Contest").
 - RPC `contest_leaderboard(p_contest, p_category default null, p_limit)`: SECURITY DEFINER,
   entries joined to binders/profiles under the standard public gate, ranked by ALL-TIME like
-  count; `p_category = null` = every entry (Community's Choice). Same
-  `(binder_id, like_count, author_name, category)` hydration contract as `featured_binders`.
+  count; `p_category = null` returns every entry (unused by the UI since Community's Choice
+  was cut, but handy for admin queries). Same `(binder_id, like_count, author_name, category)`
+  hydration contract as `featured_binders`.
 
 ## Client surfaces
 
@@ -69,13 +71,14 @@ Market as: **"Over $1,900 in prizes — including a once-ever LIFETIME VIP grand
   `fetchContestLeaderboard(category|null)` (hydrated `DemoBinder`s, vote-tie shuffle),
   `fetchContestWinners`.
 - ShareSheet — a Contest section on public binders: category chips, Enter/Withdraw, the
-  16-page guard message, link to /contest.
-- Discover — a Contest strip above search while the contest runs: category chips (+
-  Community's Choice) → vote-ranked grid of entries.
+  public-page-cap guard message, link to /contest. The page-visibility chips also refuse to
+  flip a page public past the cap on an ENTERED binder (toast via the host screen).
+- Discover — a Contest strip above search while the contest runs: category chips →
+  vote-ranked grid of entries.
 - `/contest` — marketing + official rules page (prize table, dates, how to enter,
   eligibility, disqualification, sponsor line), Hall of Fame section when winners exist.
-- Binder viewer — a contest entry shows only its first 16 pages (with a note) to everyone
-  but the owner.
+- Binder viewer — a contest entry shows at most its first 16 public pages (with a note) to
+  everyone but the owner.
 
 ## Prize fulfillment (post-contest runbook)
 

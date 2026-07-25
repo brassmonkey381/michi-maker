@@ -24,7 +24,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BinderThumb } from '@/components/binder/BinderThumb';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { CATEGORIES, COMMUNITY_CHOICE, CONTEST, contestPhase, type ContestCategory } from '@/data/contest';
+import { CATEGORIES, CONTEST, contestPhase, type ContestCategory } from '@/data/contest';
 import { fetchContestLeaderboard } from '@/data/contestRepo';
 import {
   BottomTabInset,
@@ -54,9 +54,9 @@ export default function DiscoverScreen() {
   const reqId = useRef(0);
 
   // Contest leaderboards — a selected category chip swaps the grid to that category's
-  // vote-ranked entries ('community' = every entry). Typing a search clears the selection.
+  // vote-ranked entries. Typing a search clears the selection.
   const contestOn = contestPhase() === 'open' && isSupabaseConfigured;
-  const [contestCat, setContestCat] = useState<ContestCategory | 'community' | null>(null);
+  const [contestCat, setContestCat] = useState<ContestCategory | null>(null);
   const [board, setBoard] = useState<DemoBinder[] | null>(null);
   const boardReq = useRef(0);
   // The board is reset to null (spinner) where contestCat is SET (the chip press), so this
@@ -64,7 +64,7 @@ export default function DiscoverScreen() {
   useEffect(() => {
     if (!contestCat) return;
     const id = ++boardReq.current;
-    fetchContestLeaderboard(contestCat === 'community' ? null : contestCat)
+    fetchContestLeaderboard(contestCat)
       .then((rows) => {
         if (id === boardReq.current) setBoard(rows);
       })
@@ -137,31 +137,28 @@ export default function DiscoverScreen() {
                 {CONTEST.headline} Tap a category to see its entries, ranked by votes.
               </ThemedText>
               <View style={styles.contestChips}>
-                {[...CATEGORIES.map((c) => ({ slug: c.slug as string, label: c.label, flagship: c.flagship })),
-                  { slug: COMMUNITY_CHOICE.slug as string, label: COMMUNITY_CHOICE.label, flagship: false }].map(
-                  (c) => {
-                    const active = contestCat === c.slug;
-                    return (
-                      <Pressable
-                        key={c.slug}
-                        onPress={() => {
-                          setBoard(null);
-                          setContestCat(active ? null : (c.slug as ContestCategory | 'community'));
-                        }}
-                        accessibilityRole="tab"
-                        accessibilityState={{ selected: active }}
-                        style={[styles.contestChip, active && styles.contestChipActive]}
-                        hitSlop={2}>
-                        <ThemedText
-                          type="small"
-                          style={[styles.contestChipText, active && styles.contestChipTextActive]}>
-                          {c.flagship ? '★ ' : ''}
-                          {c.label}
-                        </ThemedText>
-                      </Pressable>
-                    );
-                  },
-                )}
+                {CATEGORIES.map((c) => {
+                  const active = contestCat === c.slug;
+                  return (
+                    <Pressable
+                      key={c.slug}
+                      onPress={() => {
+                        setBoard(null);
+                        setContestCat(active ? null : c.slug);
+                      }}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: active }}
+                      style={[styles.contestChip, active && styles.contestChipActive]}
+                      hitSlop={2}>
+                      <ThemedText
+                        type="small"
+                        style={[styles.contestChipText, active && styles.contestChipTextActive]}>
+                        {c.flagship ? '★ ' : ''}
+                        {c.label}
+                      </ThemedText>
+                    </Pressable>
+                  );
+                })}
               </View>
             </View>
           ) : null}
@@ -187,7 +184,7 @@ export default function DiscoverScreen() {
               </View>
             ) : board.length === 0 ? (
               <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
-                No entries in this category yet — yours could be first! Make a binder public, then
+                No entries in this category yet, yours could be first! Make a binder public, then
                 enter it from the Share sheet.
               </ThemedText>
             ) : (

@@ -657,7 +657,9 @@ export type Database = {
           like_count: number
         }[]
       }
+      normalize_username: { Args: { p: string }; Returns: string }
       profile_upvote_count: { Args: { p_profile_id: string }; Returns: number }
+      username_available: { Args: { p_username: string }; Returns: Json }
       search_binders: {
         Args: { p_query?: string; p_limit?: number }
         Returns: {

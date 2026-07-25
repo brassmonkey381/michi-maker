@@ -96,6 +96,21 @@ interface AuthStore {
 
 const AuthContext = createContext<AuthStore | null>(null);
 
+/**
+ * Why a reserved handle was refused, in the user's words. Deliberately vague about WHICH rule
+ * matched (the reserved list stays server-side and unenumerable), but specific enough that a
+ * person with a legitimate name knows to try a variation rather than assume a bug.
+ */
+function reservedMessage(detail?: string): string {
+  if (detail === 'held for its owner') {
+    return 'That username is reserved for someone else. Try another.';
+  }
+  if (detail === 'brand') {
+    return 'That username is too close to michi-maker’s own name. Try another.';
+  }
+  return 'That username is reserved. Try another.';
+}
+
 /** Turn any thrown/returned Supabase error into a short, user-facing string. */
 function msg(error: unknown, fallback = 'Something went wrong. Please try again.'): string {
   if (error && typeof error === 'object' && 'message' in error) {
@@ -329,14 +344,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!/^[a-z0-9_]{3,20}$/.test(uname)) {
         return { error: 'Usernames are 3–20 characters, lowercase letters, numbers, or underscores.' };
       }
-      // Best-effort availability check; the unique index is authoritative on the write below.
-      const { data: taken } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('username', uname)
-        .neq('id', user.id)
-        .maybeSingle();
-      if (taken) return { error: 'That username is taken. Try another.' };
+      // Best-effort pre-check: taken, or reserved (brand / staff role / a name held for someone).
+      // Advisory only — the unique index and the profiles_username_not_reserved trigger are
+      // authoritative on the write below, which is why the error mapping repeats the reasons.
+      const { data: verdict } = await supabase.rpc('username_available', { p_username: uname });
+      const check = verdict as { available: boolean; reason?: string; detail?: string } | null;
+      if (check && !check.available) {
+        if (check.reason === 'taken') return { error: 'That username is taken. Try another.' };
+        if (check.reason === 'reserved') return { error: reservedMessage(check.detail) };
+      }
 
       const { data, error } = await supabase
         .from('profiles')
@@ -348,6 +364,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const m = error.message.toLowerCase();
         if (m.includes('duplicate') || m.includes('unique')) return { error: 'That username is taken. Try another.' };
         if (m.includes('cannot be changed')) return { error: 'Your username is already set and can’t be changed.' };
+        if (m.includes('is reserved')) return { error: reservedMessage() };
         return { error: msg(error) };
       }
       if (data) setProfile(data as Profile);

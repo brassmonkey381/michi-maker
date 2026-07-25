@@ -16,6 +16,8 @@ import { Platform } from 'react-native';
 import { CatalogBrowser, sendBrowseCommand, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
 
 import { ColorSearchSheet } from '@/components/ColorSearchSheet';
+import { EnergyColorSheet } from '@/components/EnergyColorSheet';
+import { useTier } from '@/hooks/use-tier';
 import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { useBrowseTheme } from '@/lib/browseTheme';
 
@@ -73,7 +75,14 @@ export function CardBrowse({
   // Color search lives IN the browser (a "Color" toolbar button) so it's available on every surface
   // that uses this wrapper — the /browse page AND the binder card picker. Results are pushed back
   // into the browser as a result set (showCards), so filters / multi-select / actions all apply.
+  //
+  // The palette-based Tri-Color Search is a PAID (PRO/VIP) feature; free/guest users get the simple
+  // energy-type search instead (with an upsell to tri-color). The gate is host-side — the kit stays
+  // tier-agnostic and just fires onColorSearch; we branch on the tier here. This single site covers
+  // both kit entry points (the Tri-Color button + the Color facet chip) on every surface.
+  const { isPaid } = useTier();
   const [colorOpen, setColorOpen] = useState(false);
+  const [energyOpen, setEnergyOpen] = useState(false);
   return (
     <>
       <CatalogBrowser
@@ -87,7 +96,7 @@ export function CardBrowse({
         initialSimilar={initialSimilar}
         languages={languages}
         ownedIds={ownedIds}
-        onColorSearch={() => setColorOpen(true)}
+        onColorSearch={() => (isPaid ? setColorOpen(true) : setEnergyOpen(true))}
         footer={null}
         cardTileWidth={CARD_BROWSE_TILE_WIDTH}
         taxTileHeight={CARD_BROWSE_TAX_TILE_HEIGHT}
@@ -101,6 +110,7 @@ export function CardBrowse({
           onClose={() => setColorOpen(false)}
         />
       ) : null}
+      {energyOpen ? <EnergyColorSheet catalog={catalog} onClose={() => setEnergyOpen(false)} /> : null}
     </>
   );
 }

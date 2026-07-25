@@ -233,6 +233,76 @@ export type Database = {
         }
         Relationships: []
       }
+      contest_entries: {
+        Row: {
+          binder_id: string
+          category: string
+          contest: string
+          created_at: string
+          owner_id: string
+        }
+        Insert: {
+          binder_id: string
+          category: string
+          contest?: string
+          created_at?: string
+          owner_id: string
+        }
+        Update: {
+          binder_id?: string
+          category?: string
+          contest?: string
+          created_at?: string
+          owner_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contest_entries_binder_id_fkey"
+            columns: ["binder_id"]
+            isOneToOne: true
+            referencedRelation: "binders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contest_winners: {
+        Row: {
+          binder_id: string
+          category: string
+          contest: string
+          created_at: string
+          id: string
+          owner_id: string
+          place: number
+        }
+        Insert: {
+          binder_id: string
+          category: string
+          contest: string
+          created_at?: string
+          id?: string
+          owner_id: string
+          place: number
+        }
+        Update: {
+          binder_id?: string
+          category?: string
+          contest?: string
+          created_at?: string
+          id?: string
+          owner_id?: string
+          place?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contest_winners_binder_id_fkey"
+            columns: ["binder_id"]
+            isOneToOne: false
+            referencedRelation: "binders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       binders: {
         Row: {
           cover_card_id: string | null
@@ -570,6 +640,15 @@ export type Database = {
     }
     Functions: {
       binder_like_count: { Args: { p_binder_id: string }; Returns: number }
+      contest_leaderboard: {
+        Args: { p_contest?: string; p_category?: string | null; p_limit?: number }
+        Returns: {
+          author_name: string
+          binder_id: string
+          category: string
+          like_count: number
+        }[]
+      }
       featured_binders: {
         Args: { p_limit?: number }
         Returns: {

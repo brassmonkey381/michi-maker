@@ -7,7 +7,7 @@
  * Guests can browse too (the RPC is granted to anon) — this is discovery, not a personal surface.
  * Reached from the web rail's Explore group and, where the rail is hidden, the Home quick-nav.
  */
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -24,6 +24,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BinderThumb } from '@/components/binder/BinderThumb';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { CATEGORIES, COMMUNITY_CHOICE, CONTEST, contestPhase, type ContestCategory } from '@/data/contest';
+import { fetchContestLeaderboard } from '@/data/contestRepo';
 import {
   BottomTabInset,
   Breakpoints,
@@ -50,6 +52,26 @@ export default function DiscoverScreen() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<DemoBinder[] | null>(null);
   const reqId = useRef(0);
+
+  // Contest leaderboards — a selected category chip swaps the grid to that category's
+  // vote-ranked entries ('community' = every entry). Typing a search clears the selection.
+  const contestOn = contestPhase() === 'open' && isSupabaseConfigured;
+  const [contestCat, setContestCat] = useState<ContestCategory | 'community' | null>(null);
+  const [board, setBoard] = useState<DemoBinder[] | null>(null);
+  const boardReq = useRef(0);
+  // The board is reset to null (spinner) where contestCat is SET (the chip press), so this
+  // effect only fetches — no synchronous setState in the effect body.
+  useEffect(() => {
+    if (!contestCat) return;
+    const id = ++boardReq.current;
+    fetchContestLeaderboard(contestCat === 'community' ? null : contestCat)
+      .then((rows) => {
+        if (id === boardReq.current) setBoard(rows);
+      })
+      .catch(() => {
+        if (id === boardReq.current) setBoard([]);
+      });
+  }, [contestCat]);
 
   // Covers resolve straight from card ids, so hydrate the lite image manifest for hashed URLs.
   useImageManifest();
@@ -100,9 +122,56 @@ export default function DiscoverScreen() {
             Search everyone’s public binders by title, description, or creator.
           </ThemedText>
 
+          {/* Contest strip — category leaderboards while the contest runs. */}
+          {contestOn ? (
+            <View style={styles.contestBox}>
+              <View style={styles.contestHead}>
+                <ThemedText type="smallBold">🏆 {CONTEST.name}</ThemedText>
+                <Pressable onPress={() => router.push('/contest' as Href)} hitSlop={6}>
+                  <ThemedText type="small" style={styles.contestLink}>
+                    Prizes & rules ›
+                  </ThemedText>
+                </Pressable>
+              </View>
+              <ThemedText type="small" themeColor="textSecondary" style={styles.contestSub}>
+                {CONTEST.headline} Tap a category to see its entries, ranked by votes.
+              </ThemedText>
+              <View style={styles.contestChips}>
+                {[...CATEGORIES.map((c) => ({ slug: c.slug as string, label: c.label, flagship: c.flagship })),
+                  { slug: COMMUNITY_CHOICE.slug as string, label: COMMUNITY_CHOICE.label, flagship: false }].map(
+                  (c) => {
+                    const active = contestCat === c.slug;
+                    return (
+                      <Pressable
+                        key={c.slug}
+                        onPress={() => {
+                          setBoard(null);
+                          setContestCat(active ? null : (c.slug as ContestCategory | 'community'));
+                        }}
+                        accessibilityRole="tab"
+                        accessibilityState={{ selected: active }}
+                        style={[styles.contestChip, active && styles.contestChipActive]}
+                        hitSlop={2}>
+                        <ThemedText
+                          type="small"
+                          style={[styles.contestChipText, active && styles.contestChipTextActive]}>
+                          {c.flagship ? '★ ' : ''}
+                          {c.label}
+                        </ThemedText>
+                      </Pressable>
+                    );
+                  },
+                )}
+              </View>
+            </View>
+          ) : null}
+
           <TextInput
             value={query}
-            onChangeText={setQuery}
+            onChangeText={(t) => {
+              setQuery(t);
+              if (t.trim()) setContestCat(null);
+            }}
             placeholder="Search public binders…"
             placeholderTextColor={Palette.muted}
             autoCorrect={false}
@@ -111,7 +180,34 @@ export default function DiscoverScreen() {
             style={styles.search}
           />
 
-          {!isSupabaseConfigured ? (
+          {contestCat ? (
+            board === null ? (
+              <View style={styles.center}>
+                <ActivityIndicator />
+              </View>
+            ) : board.length === 0 ? (
+              <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
+                No entries in this category yet — yours could be first! Make a binder public, then
+                enter it from the Share sheet.
+              </ThemedText>
+            ) : (
+              <View style={[styles.grid, { gap: GRID_GAP }]}>
+                {board.map((b) => (
+                  <BinderThumb
+                    key={b.id}
+                    binder={b}
+                    width={tileW}
+                    onPress={() => openBinder(b.id)}
+                    accessory={
+                      <ThemedText type="small" themeColor="textSecondary">
+                        ♥ {b.likeCount ?? 0}
+                      </ThemedText>
+                    }
+                  />
+                ))}
+              </View>
+            )
+          ) : !isSupabaseConfigured ? (
             <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
               Public binder search isn’t available in this build.
             </ThemedText>
@@ -176,4 +272,28 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   center: { paddingVertical: Spacing.six, alignItems: 'center' },
   note: { paddingVertical: Spacing.three },
+  contestBox: {
+    gap: Spacing.two,
+    padding: Spacing.three,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Palette.accent,
+    backgroundColor: Palette.selectionSoft,
+    marginBottom: Spacing.four,
+  },
+  contestHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
+  contestLink: { color: Palette.accent, fontWeight: '600' },
+  contestSub: { lineHeight: 18 },
+  contestChips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  contestChip: {
+    paddingVertical: Spacing.one,
+    paddingHorizontal: Spacing.two,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
+    backgroundColor: Palette.surface,
+  },
+  contestChipActive: { borderColor: Palette.accent, backgroundColor: Palette.accent },
+  contestChipText: { fontSize: 12 },
+  contestChipTextActive: { color: Palette.accentText },
 });

@@ -22,6 +22,8 @@ import { ThemedView } from '@/components/themed-view';
 import { Fonts, FontSize, MaxContentWidthWide, Palette, Spacing } from '@/constants/theme';
 import { fetchBinder } from '@/data/binderRepo';
 import type { DemoBinder } from '@/data/binderTypes';
+import { CONTEST } from '@/data/contest';
+import { fetchEntry } from '@/data/contestRepo';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useBinders } from '@/store/binders';
 
@@ -57,7 +59,10 @@ export default function BinderRoute() {
   return <PublicViewer id={id} />;
 }
 
-type State = { status: 'loading' } | { status: 'ok'; binder: DemoBinder } | { status: 'missing' };
+type State =
+  | { status: 'loading' }
+  | { status: 'ok'; binder: DemoBinder; contestCapped?: boolean }
+  | { status: 'missing' };
 
 /** Read-only viewer for a shared link (a public binder that isn't in your local store). */
 function PublicViewer({ id }: { id?: string }) {
@@ -79,9 +84,22 @@ function PublicViewer({ id }: { id?: string }) {
     let active = true;
     setState({ status: 'loading' });
     setPageIndex(0);
-    fetchBinder(id)
-      .then((binder) => {
-        if (active) setState(binder ? { status: 'ok', binder } : { status: 'missing' });
+    // A contest ENTRY shows only its first N pages to public viewers (the submission cap) —
+    // the entry gate blocks >cap binders at entry time, but pages added afterwards must not
+    // extend the visible entry either. The owner's own view (store path above) is uncapped.
+    Promise.all([fetchBinder(id), fetchEntry(id).catch(() => null)])
+      .then(([binder, entry]) => {
+        if (!active) return;
+        if (!binder) {
+          setState({ status: 'missing' });
+          return;
+        }
+        const capped = Boolean(entry) && binder.pages.length > CONTEST.pageCap;
+        setState({
+          status: 'ok',
+          binder: capped ? { ...binder, pages: binder.pages.slice(0, CONTEST.pageCap) } : binder,
+          contestCapped: capped,
+        });
       })
       .catch(() => {
         if (active) setState({ status: 'missing' });
@@ -131,12 +149,19 @@ function PublicViewer({ id }: { id?: string }) {
             </Link>
           </View>
         ) : (
-          <Viewer
-            binder={state.binder}
-            pageIndex={Math.min(pageIndex, state.binder.pages.length - 1)}
-            onPage={setPageIndex}
-            availableWidth={availableWidth}
-          />
+          <>
+            {state.contestCapped ? (
+              <ThemedText type="small" themeColor="textSecondary" style={styles.capNote}>
+                Contest entry — showing the first {CONTEST.pageCap} pages.
+              </ThemedText>
+            ) : null}
+            <Viewer
+              binder={state.binder}
+              pageIndex={Math.min(pageIndex, state.binder.pages.length - 1)}
+              onPage={setPageIndex}
+              availableWidth={availableWidth}
+            />
+          </>
         )}
       </SafeAreaView>
     </ThemedView>
@@ -212,6 +237,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   flex: { flex: 1 },
   topbar: { paddingHorizontal: Spacing.four, paddingVertical: Spacing.three },
+  capNote: { textAlign: 'center', paddingBottom: Spacing.one },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.four, gap: Spacing.two },
   missTitle: { fontSize: FontSize.title, lineHeight: 30, textAlign: 'center' },
   missText: { textAlign: 'center' },

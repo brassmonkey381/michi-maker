@@ -21,6 +21,7 @@ type RailItem = { label: string; href: Href; match: (path: string) => boolean };
 const EXPLORE: RailItem[] = [
   { label: 'Home', href: '/', match: (p) => p === '/' },
   { label: 'Discover binders', href: '/discover' as Href, match: (p) => p.startsWith('/discover') },
+  { label: 'Contest 🏆', href: '/contest' as Href, match: (p) => p.startsWith('/contest') },
   { label: 'Browse cards', href: '/browse' as Href, match: (p) => p.startsWith('/browse') },
   { label: 'Plans', href: '/plans' as Href, match: (p) => p.startsWith('/plans') || p.startsWith('/subscriptions') || p.startsWith('/pricing') },
   { label: 'How-to', href: '/learn' as Href, match: (p) => p.startsWith('/learn') },

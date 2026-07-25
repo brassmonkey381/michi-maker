@@ -18,6 +18,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { pagesForCards } from '@/data/binderTypes';
+import { CONTEST, contestPhase } from '@/data/contest';
 import { binderLimitMessage, pageLimitMessage } from '@/data/limitMessages';
 import { useImageManifest } from '@/lib/catalogConfig';
 import { shouldShowLanding } from '@/lib/landing';
@@ -159,6 +160,16 @@ export default function HomeScreen() {
             </ThemedText>
           </Pressable>
 
+          {/* Contest promo — runs until the contest ends. */}
+          {contestPhase() !== 'ended' ? (
+            <Pressable
+              onPress={() => router.push('/contest' as Href)}
+              style={({ pressed }) => [styles.contestPromo, pressed && styles.pressed]}>
+              <Text style={styles.contestPromoTitle}>🏆 {CONTEST.name}</Text>
+              <Text style={styles.contestPromoBody}>{CONTEST.headline} Tap for prizes & rules ›</Text>
+            </Pressable>
+          ) : null}
+
           <GuestBanner />
 
           {store.featuredBinders.length > 0 ? (
@@ -228,4 +239,15 @@ const styles = StyleSheet.create({
   quickChipText: { color: Palette.ink2, fontSize: FontSize.label, fontWeight: Weight.semibold },
   methodLink: { alignSelf: 'flex-start', marginTop: -Spacing.two, marginBottom: Spacing.three },
   pressed: { opacity: 0.7 },
+  contestPromo: {
+    borderWidth: 1,
+    borderColor: Palette.accent,
+    backgroundColor: Palette.selectionSoft,
+    borderRadius: Radius.lg,
+    padding: Spacing.three,
+    gap: 2,
+    marginBottom: Spacing.three,
+  },
+  contestPromoTitle: { fontSize: FontSize.control, fontWeight: Weight.bold, color: Palette.ink },
+  contestPromoBody: { fontSize: FontSize.sm, color: Palette.ink2, lineHeight: 18 },
 });

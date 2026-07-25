@@ -1,0 +1,149 @@
+/**
+ * Binder contest data access (docs/CONTEST.md). Entries are owner-managed rows in
+ * `contest_entries` (one binder → exactly one category; RLS enforces ownership and the
+ * page cap); leaderboards come from the `contest_leaderboard` RPC (vote-ranked, public
+ * entries only) and hydrate through the shared ranked-binder path; winners (the Hall of
+ * Fame) are read-only rows we insert after the contest.
+ */
+import { CONTEST, type ContestCategory } from '@/data/contest';
+import { hydrateRankedBinders } from '@/data/binderRepo';
+import type { DemoBinder } from '@/data/binderTypes';
+import { requireSupabase } from '@/lib/supabase';
+
+export interface ContestEntry {
+  binderId: string;
+  category: ContestCategory;
+  createdAt: string;
+}
+
+/** Enter a binder (or move an existing entry to a different category) — upsert on binder_id. */
+export async function enterContest(binderId: string, category: ContestCategory): Promise<void> {
+  const supabase = requireSupabase();
+  const { data: auth } = await supabase.auth.getUser();
+  const uid = auth.user?.id;
+  if (!uid) throw new Error('Sign in to enter the contest.');
+  const { error } = await supabase
+    .from('contest_entries')
+    .upsert(
+      { binder_id: binderId, owner_id: uid, contest: CONTEST.id, category },
+      { onConflict: 'binder_id' },
+    );
+  if (error) {
+    // The RLS page-cap gate surfaces as a bare policy violation — translate it for people.
+    if (error.message.includes('row-level security')) {
+      throw new Error(
+        `Couldn't enter — check the binder is yours and has at most ${CONTEST.pageCap} pages.`,
+      );
+    }
+    throw new Error(`enter contest: ${error.message}`);
+  }
+}
+
+export async function withdrawEntry(binderId: string): Promise<void> {
+  const supabase = requireSupabase();
+  const { error } = await supabase.from('contest_entries').delete().eq('binder_id', binderId);
+  if (error) throw new Error(`withdraw entry: ${error.message}`);
+}
+
+/** The current user's entries for the running contest, keyed by binder id. */
+export async function fetchMyEntries(ownerId: string): Promise<Map<string, ContestEntry>> {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from('contest_entries')
+    .select('binder_id, category, created_at')
+    .eq('owner_id', ownerId)
+    .eq('contest', CONTEST.id);
+  if (error) throw new Error(`my entries: ${error.message}`);
+  return new Map(
+    (data ?? []).map((r) => [
+      r.binder_id,
+      { binderId: r.binder_id, category: r.category as ContestCategory, createdAt: r.created_at },
+    ]),
+  );
+}
+
+/** One binder's entry (any owner — RLS shows public entries + your own), or null. */
+export async function fetchEntry(binderId: string): Promise<ContestEntry | null> {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from('contest_entries')
+    .select('binder_id, category, created_at')
+    .eq('binder_id', binderId)
+    .eq('contest', CONTEST.id)
+    .maybeSingle();
+  if (error) throw new Error(`entry: ${error.message}`);
+  if (!data) return null;
+  return { binderId: data.binder_id, category: data.category as ContestCategory, createdAt: data.created_at };
+}
+
+/**
+ * Vote-ranked public entries for one category — or ALL entries (category null) for the derived
+ * Community's Choice board. Vote-count TIES are shuffled per call so a new entry at 0 votes
+ * isn't forever last: the ranking stays purely by votes, but equal-vote binders trade places
+ * between page loads and everyone gets eyes.
+ */
+export async function fetchContestLeaderboard(
+  category: ContestCategory | null,
+  limit = 100,
+): Promise<DemoBinder[]> {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase.rpc('contest_leaderboard', {
+    p_contest: CONTEST.id,
+    p_category: category,
+    p_limit: limit,
+  });
+  if (error) throw new Error(`leaderboard: ${error.message}`);
+  const rows = (data ?? []) as {
+    binder_id: string;
+    like_count: number;
+    author_name: string | null;
+    category: string;
+  }[];
+
+  // Shuffle within each vote-count tier (Fisher–Yates per group), keeping tiers in order.
+  const byVotes = new Map<number, typeof rows>();
+  for (const r of rows) {
+    const k = Number(r.like_count);
+    const g = byVotes.get(k);
+    if (g) g.push(r);
+    else byVotes.set(k, [r]);
+  }
+  const shuffled: typeof rows = [];
+  for (const votes of [...byVotes.keys()].sort((a, b) => b - a)) {
+    const g = byVotes.get(votes)!;
+    for (let i = g.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [g[i], g[j]] = [g[j], g[i]];
+    }
+    shuffled.push(...g);
+  }
+
+  return hydrateRankedBinders(shuffled);
+}
+
+export interface ContestWinner {
+  contest: string;
+  category: string; // a category slug, or 'community'
+  place: number;
+  binderId: string;
+  ownerId: string;
+}
+
+/** Hall of Fame rows (empty until we declare winners post-contest). */
+export async function fetchContestWinners(contest = CONTEST.id): Promise<ContestWinner[]> {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from('contest_winners')
+    .select('contest, category, place, binder_id, owner_id')
+    .eq('contest', contest)
+    .order('category')
+    .order('place');
+  if (error) throw new Error(`winners: ${error.message}`);
+  return (data ?? []).map((r) => ({
+    contest: r.contest,
+    category: r.category,
+    place: r.place,
+    binderId: r.binder_id,
+    ownerId: r.owner_id,
+  }));
+}

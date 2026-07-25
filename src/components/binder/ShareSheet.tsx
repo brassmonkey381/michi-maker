@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, View } from 'react-native';
 
+import { ContestEntrySection } from '@/components/contest/ContestEntrySection';
 import { ThemedText } from '@/components/themed-text';
 import { DialogCard } from '@/components/ui/DialogCard';
 import { Palette, Radius, Spacing, Weight } from '@/constants/theme';
@@ -170,6 +171,9 @@ export function ShareSheet({
                 </Pressable>
               </View>
             ) : null}
+
+            {/* Contest entry — entering requires a public binder, so it lives with sharing. */}
+            {isPublic ? <ContestEntrySection binder={binder} /> : null}
 
             {isPublic ? (
               <View style={styles.linkArea}>

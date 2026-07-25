@@ -515,6 +515,42 @@ export async function fetchFeaturedBinders(limit = 12): Promise<DemoBinder[]> {
 }
 
 /**
+ * Shared hydration for vote-ranked RPC rows (featured_binders / search_binders /
+ * contest_leaderboard all return this shape): load the ranked ids' pages/slots via the public
+ * read path and re-attach author + like count, preserving the RPC's order. Rows whose binder
+ * vanished or went private between the ranking and the fetch are dropped.
+ */
+export interface RankedBinderRow {
+  binder_id: string;
+  like_count: number;
+  author_name: string | null;
+}
+
+export async function hydrateRankedBinders(rows: RankedBinderRow[]): Promise<DemoBinder[]> {
+  if (rows.length === 0) return [];
+  const supabase = requireSupabase();
+  const ids = rows.map((r) => r.binder_id);
+  const { data: binders, error } = await supabase
+    .from('binders')
+    .select('*, binder_pages(*, binder_slots(*))')
+    .in('id', ids)
+    .order('position', { referencedTable: 'binder_pages', ascending: true });
+  if (error) throw new Error(`hydrate binders: ${error.message}`);
+  const byId = new Map(((binders ?? []) as unknown as BinderRowIn[]).map((b) => [b.id, b]));
+  return rows.flatMap((r) => {
+    const row = byId.get(r.binder_id);
+    if (!row) return [];
+    return [
+      {
+        ...mapBinder(row),
+        authorName: r.author_name ?? undefined,
+        likeCount: Number(r.like_count),
+      },
+    ];
+  });
+}
+
+/**
  * Search ALL public binders (the Discover page) by title, description, or owner @username. The
  * `search_binders` RPC (SECURITY DEFINER, gated on is_public + a public owner profile, excluding
  * archived/demo binders) returns the ranking; an empty query yields the most-liked public binders.

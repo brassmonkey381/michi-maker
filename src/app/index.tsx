@@ -150,7 +150,7 @@ export default function HomeScreen() {
             hitSlop={6}
             style={({ pressed }) => [styles.methodLink, pressed && styles.pressed]}>
             <ThemedText type="small" themeColor="textSecondary">
-              Search the card database with the search quickstart cheatsheet ↗
+              Search all cards with the quickstart cheatsheet ↗
             </ThemedText>
           </Pressable>
 

@@ -10,7 +10,7 @@
  * the pending command lands the moment this page's CatalogBrowser subscribes.
  */
 import { useRouter, type Href } from 'expo-router';
-import { type CardAction, type CardActionsFactory } from 'tcgscan-browse';
+import { productUrl, type CardAction, type CardActionsFactory } from 'tcgscan-browse';
 import { useRef, useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -71,6 +71,13 @@ export default function BrowseScreen() {
       label: 'Add to a binder…',
       onPress: (c) => setAddCardIds([c.id]),
     };
+    // Both affiliate destinations, every card: TCGPlayer (affiliate-deeplinked via
+    // productUrl) for market/NM buying, eBay for singles + deals.
+    const viewOnTcgplayer: CardAction = {
+      key: 'tcgplayer',
+      label: 'View on TCGPlayer ↗',
+      onPress: (c) => void Linking.openURL(productUrl(c.id)).catch(() => {}),
+    };
     const findOnEbay: CardAction = {
       key: 'ebay',
       label: 'Find on eBay ↗',
@@ -86,6 +93,7 @@ export default function BrowseScreen() {
       builtins.findSimilar,
       builtins.viewSet,
       builtins.viewIllustrator,
+      viewOnTcgplayer,
       findOnEbay,
     ].filter(Boolean) as CardAction[];
   };

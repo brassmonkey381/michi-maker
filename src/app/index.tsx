@@ -129,6 +129,11 @@ export default function HomeScreen() {
                 <Text style={styles.quickChipText}>My binders ›</Text>
               </Pressable>
               <Pressable
+                onPress={() => router.push('/discover' as Href)}
+                style={({ pressed }) => [styles.quickChip, pressed && styles.pressed]}>
+                <Text style={styles.quickChipText}>Discover binders ›</Text>
+              </Pressable>
+              <Pressable
                 onPress={openBrowse}
                 style={({ pressed }) => [styles.quickChip, pressed && styles.pressed]}>
                 <Text style={styles.quickChipText}>Browse all cards ›</Text>

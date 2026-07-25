@@ -579,6 +579,14 @@ export type Database = {
         }[]
       }
       profile_upvote_count: { Args: { p_profile_id: string }; Returns: number }
+      search_binders: {
+        Args: { p_query?: string; p_limit?: number }
+        Returns: {
+          author_name: string
+          binder_id: string
+          like_count: number
+        }[]
+      }
       search_profiles: {
         Args: { p_query?: string; p_limit?: number }
         Returns: {

@@ -23,8 +23,13 @@ with cases(u, should_block) as (values
   ('peeplop',true),('peep_lop',true),('p33plop',true),('peeeplop',true),('peplop',true),
   ('admin',true),('adm1n',true),('support',true),('m0derator',true),('n0reply',true),
   ('discover',true),('contest',true),('null',true),
-  -- legitimate handles (must ALL be allowed)
-  ('michelle',false),('mitchell',false),('brassmonkey381',false),('pokefan',false),
+  -- phonetic near-misses: read as the brand without containing "michi" (exact rules)
+  ('mitchi',true),('mishi',true),('meechi',true),('michee',true),('mychi',true),
+  ('mitchimaker',true),('m1tch1',true),('mitchii',true),
+  -- legitimate handles (must ALL be allowed) — the near-miss rules are EXACT precisely so these
+  -- names, which sit right next to them, stay claimable.
+  ('michelle',false),('mitchell',false),('mishima',false),('michaela',false),('mitch',false),
+  ('michel',false),('missy',false),('brassmonkey381',false),('pokefan',false),
   ('theresa',false),('matthew',false),('mike',false),('modest_mouse',false),
   ('binderqueen',false),('charizard',false)
 )

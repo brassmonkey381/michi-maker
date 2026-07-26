@@ -938,6 +938,11 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
             <Text style={styles.attribHint}>
               Your upload, this can go in binders you share, once you confirm you have the rights.
             </Text>
+          ) : hasImage && origin === 'card' ? (
+            <Text style={styles.attribHint}>
+              Official card art from the catalog, this can go in binders you share, the same as
+              showing the whole card.
+            </Text>
           ) : null}
 
           {/* Credit — captured with the art. A SOURCE (link to the original post/shop/artist
@@ -1201,7 +1206,13 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
                 <CardBrowse
                   catalog={catalog}
                   onPickCard={(id) => {
-                    loadImage(cardThumbUrl(id, 'full'));
+                    // Our own catalog art: stamp origin 'card' so the sharing gate treats it as
+                    // public-eligible (the app already shows these images publicly). Without this
+                    // the generic URL path files it as 'external' and the binder can't be shared.
+                    loadImage(cardThumbUrl(id, 'full'), {
+                      sourceName: 'official card art',
+                      origin: 'card',
+                    });
                     setCardPickOpen(false);
                   }}
                 />

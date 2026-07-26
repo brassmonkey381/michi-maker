@@ -56,9 +56,14 @@ export interface ArtAttribution {
    *  - 'external' — pulled from an outside URL (we can't verify the user's rights). PRIVATE: a
    *    binder containing this art can never be made public/shared.
    *  - 'upload' — a file the user brought from their device. Public-eligible (with attestation).
+   *  - 'card' — cropped from OUR OWN card catalog (the tcgscan image bucket). Public-eligible:
+   *    it's the same artwork, rightsholder and host as the full card images the app already
+   *    shows publicly in every binder and in Browse, so a crop of one is no different in kind.
+   *    Distinct from 'upload' on purpose — the user didn't supply it, and the gate's audit trail
+   *    is only worth having if it says what actually happened.
    * Absent ⇒ legacy/official content (card art, our own AI art) — not treated as private.
    */
-  origin?: 'external' | 'upload';
+  origin?: 'external' | 'upload' | 'card';
 }
 
 const PLATFORM_NAMES: Record<string, string> = {

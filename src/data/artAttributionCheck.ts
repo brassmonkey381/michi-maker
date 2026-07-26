@@ -2,11 +2,21 @@
  * Public-binder PRIVATE-ART gate. A binder can hold ANY art while it's private — but it can only
  * be made public/shared if it contains no PRIVATE art. Art pulled from an outside URL is private
  * (`attribution.origin === 'external'`): we can't verify the user's rights to it, so it never
- * leaves their account. Only art the user UPLOADED from their device (with a rights attestation
- * at share time) is public-eligible. Card images and our own content are never private.
+ * leaves their account. Public-eligible sources are art the user UPLOADED from their device (with
+ * a rights attestation at share time) and OUR OWN card art (`origin: 'card'`, or an image served
+ * from the catalog image base) — the app already displays those same card images publicly, so a
+ * crop taken from one in Slice Studio is no different in kind from the whole card.
  */
 import type { ArtAttribution } from '@/data/artworkLibrary';
 import type { DemoBinder, DemoSlot } from '@/data/binderTypes';
+
+/**
+ * Catalog image base, read straight from the env rather than imported from `@/lib/catalogConfig`.
+ * That module configures the browse package and pulls in AsyncStorage on import; this one is pure
+ * data logic that `npm test` loads directly, so it must stay free of runtime dependencies. Same
+ * value, no side effects.
+ */
+const CARD_IMG_BASE: string = process.env.EXPO_PUBLIC_CATALOG_IMG_BASE ?? '';
 
 /** Does this slot hold user-supplied artwork (vs. a card image / insert)? */
 export function isCustomArtwork(slot: DemoSlot): boolean {
@@ -23,6 +33,22 @@ export function isBucketHostedArt(imageUrl?: string | null): boolean {
 }
 
 /**
+ * Is this image OUR OWN card art — served from the configured catalog image base (the tcgscan
+ * card bucket)? Slice Studio's "Card art" picker crops straight from those URLs, and the app
+ * already renders the very same images publicly in every binder and in Browse, so a crop of one
+ * carries no rights posture the app hasn't already taken. Keyed off `imgBase` rather than a
+ * hardcoded host so it follows the configured catalog.
+ */
+export function isCardCatalogArt(imageUrl?: string | null): boolean {
+  if (!imageUrl) return false;
+  if (CARD_IMG_BASE && imageUrl.startsWith(CARD_IMG_BASE)) return true;
+  // Host-agnostic fallback: the catalog's storage layout, site-root-relative card paths (imgBase
+  // is '' on local web), and the legacy card-imgs layout. Deliberately shaped so the user's own
+  // /binder-art/ bucket can never match.
+  return /(^\/?cards?\/)|(\/object\/public\/cards?\/)|(\/card-imgs\/)/i.test(imageUrl);
+}
+
+/**
  * Is this artwork PRIVATE — so it can't live in a shared binder? Two independent reasons, either
  * one is enough:
  *   1. It's explicitly flagged external (`attribution.origin === 'external'`) — pulled from a URL.
@@ -33,6 +59,12 @@ export function isBucketHostedArt(imageUrl?: string | null): boolean {
  * flag only.
  */
 export function isPrivateArt(attribution?: ArtAttribution | null, imageUrl?: string | null): boolean {
+  // Our own card catalog is never private — the app already shows these images publicly, so a
+  // crop of one is the same posture. Checked BEFORE the flag because art cropped from the card
+  // picker was historically stamped 'external' by the generic URL path (it arrived as a URL), and
+  // that misfiled provenance shouldn't outrank where the image demonstrably lives.
+  if (isCardCatalogArt(imageUrl)) return false;
+  if (attribution?.origin === 'card') return false;
   if (attribution?.origin === 'external') return true;
   if (attribution?.origin === 'upload') return false;
   // Origin unknown (legacy art): trust where it's hosted. Non-bucket ⇒ hotlink ⇒ private.

@@ -10,10 +10,17 @@
  * for the selected highlight). To reset browse state (e.g. per pocket) pass a React `key` on the
  * element — it remounts this wrapper and the browser inside it.
  */
-import { useState } from 'react';
+import { useRouter, type Href } from 'expo-router';
+import { useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 
-import { CatalogBrowser, sendBrowseCommand, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
+import {
+  CatalogBrowser,
+  sendBrowseCommand,
+  type BrowseFeature,
+  type CardActionsFactory,
+  type CardLanguage,
+} from 'tcgscan-browse';
 
 import { ColorSearchSheet } from '@/components/ColorSearchSheet';
 import { EnergyColorSheet } from '@/components/EnergyColorSheet';
@@ -80,9 +87,17 @@ export function CardBrowse({
   // energy-type search instead (with an upsell to tri-color). The gate is host-side — the kit stays
   // tier-agnostic and just fires onColorSearch; we branch on the tier here. This single site covers
   // both kit entry points (the Tri-Color button + the Color facet chip) on every surface.
-  const { isPaid } = useTier();
+  const { isPaid, hasAdvancedSearch } = useTier();
   const [colorOpen, setColorOpen] = useState(false);
   const [energyOpen, setEnergyOpen] = useState(false);
+  const router = useRouter();
+  // "Advanced Search" (PRO/VIP) as the kit's feature locks. The kit enforces them — including
+  // against typed `sort:value` / `>$100`, not just the chips — and calls back here for the upsell.
+  // colorSearch is listed for completeness even though the swap below is what actually gates it.
+  const lockedFeatures = useMemo<BrowseFeature[] | undefined>(
+    () => (hasAdvancedSearch ? undefined : ['sortByValue', 'priceFilter', 'similarRefine', 'colorSearch']),
+    [hasAdvancedSearch],
+  );
   return (
     <>
       <CatalogBrowser
@@ -96,6 +111,14 @@ export function CardBrowse({
         initialSimilar={initialSimilar}
         languages={languages}
         ownedIds={ownedIds}
+        lockedFeatures={lockedFeatures}
+        // Value sort / price filters / similarity refine all route here when locked. Colour has
+        // its own richer path (the tri-colour upsell below), so it is deliberately not sent to
+        // the plans page — a live demo converts better than a price table.
+        onLockedFeature={(f) => {
+          if (f === 'colorSearch') setEnergyOpen(true);
+          else router.push('/plans' as Href);
+        }}
         onColorSearch={() => (isPaid ? setColorOpen(true) : setEnergyOpen(true))}
         footer={null}
         cardTileWidth={CARD_BROWSE_TILE_WIDTH}

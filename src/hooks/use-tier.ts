@@ -15,6 +15,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { BillingInterval } from '@/data/printWindow';
 import {
   hasFullPrint as computeFullPrint,
+  hasAdvancedSearch as computeAdvancedSearch,
   hasTcgscanPro as computeTcgscanPro,
   tcgscanLevel as computeTcgscanLevel,
   isActive,
@@ -45,6 +46,8 @@ export interface UseTier {
   limits: TierLimits;
   /** Full fill-sheet / placeholder PDF export of your own binders (included with PRO/VIP). */
   hasFullPrint: boolean;
+  /** "Advanced Search" (PRO/VIP): sort by value, price filters, tri-colour, refine by similarity. */
+  hasAdvancedSearch: boolean;
   /** A paid subscriber (PRO or VIP). */
   isPaid: boolean;
   /** CROSS-APP: holds ANY paid TCGScan tier (PRO or VIP) — unlocks scan-powered features. */
@@ -140,6 +143,7 @@ export function useTier(): UseTier {
     tier,
     limits: limitsForTier(tier),
     hasFullPrint: known ? state!.hasFullPrint : false,
+    hasAdvancedSearch: computeAdvancedSearch(tier),
     isPaid: tier === 'pro' || tier === 'vip',
     hasTcgscanPro: known ? state!.hasTcgscanPro : false,
     tcgscanLevel: known ? state!.tcgscanLevel : null,

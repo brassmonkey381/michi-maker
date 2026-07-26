@@ -196,11 +196,23 @@ export const COMPARISON: CompareRow[] = [
     vip: { text: 'Full catalog' },
   },
   {
+    // Still the "included at every tier" promise (owner decision 2026-07-16), but narrowed to
+    // what is ACTUALLY free now that Advanced Search exists: matching itself and the composer
+    // methods are included; the paid refinements are the row below. The old wording said
+    // "Similarity matching + composer methods: Included" while tri-colour was already PRO in
+    // code, which over-promised.
     capability: 'Similarity matching + composer methods',
     highlight: true,
-    free: { text: 'Included', strong: true },
+    free: { text: 'Included', strong: true, sub: 'find similar, single-colour match' },
     pro: { text: 'Included', strong: true, sub: 'upgraded binder composers coming soon' },
     vip: { text: 'Included', strong: true, sub: 'upgraded binder composers coming soon' },
+  },
+  {
+    capability: 'Advanced Search',
+    mark: '¶',
+    free: { text: '—' },
+    pro: { text: '✓', strong: true },
+    vip: { text: '✓', strong: true },
   },
   {
     capability: 'Slice Studio',
@@ -274,6 +286,14 @@ export const FOOTNOTES: { mark: string; text: string; link?: { label: string; ur
     mark: '‡',
     text: 'Included at every tier. Scan and track the cards you own with our partner app TCGScan and your collection syncs straight into michi-maker. PRO and VIP get bundle discounts on TCGScan memberships.',
     link: { label: 'Meet TCGScan →', url: TCGSCAN_URL },
+  },
+  {
+    mark: '¶',
+    text:
+      'Advanced Search is the paid half of the card browser: sort the catalog by value, filter by ' +
+      'price, search by a three-colour palette with weights, and refine results by similarity ' +
+      '(more like this, less like this). Free and guest keep the full search grammar, every other ' +
+      'sort, all filters, find-similar, and single-colour search.',
   },
   {
     mark: '§',

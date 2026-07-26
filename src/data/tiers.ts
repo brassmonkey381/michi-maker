@@ -81,6 +81,16 @@ export interface TierLimits {
   /** Full fill-sheet / placeholder PDF export of any binder. */
   fullPrint: boolean;
   /**
+   * "Advanced Search" (PRO/VIP) — the paid half of the card browser, as one capability so the
+   * plans page can advertise a single row instead of four:
+   *   · sort by value, and price filters (>$100 / <$500 / value>N)
+   *   · tri-colour search (the 3-stop weighted palette; free/guest get the energy-colour picker)
+   *   · refine by similarity ("more/less like this"; the one-shot Find Similar stays free)
+   * Boolean, so like `fullPrint` it is NOT mirrored in the `tier_caps` table (that guard covers
+   * numeric caps only — see scripts/check-tier-caps.mjs).
+   */
+  advancedSearch: boolean;
+  /**
    * Full-binder prints INCLUDED with the subscription each month (extra prints are the
    * one-time per-binder purchase). Metering not built yet — until it is, `fullPrint` alone
    * gates the Download button and included prints are effectively unlimited.
@@ -107,6 +117,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     composerPagesPerMonth: 0,
     artUploads: 10,
     fullPrint: false,
+    advancedSearch: false,
     includedPrintsPerMonth: 0,
   },
   // 3 binders × 16 pages × 16 cards (4×4) = 768 ("over 750 cards").
@@ -116,6 +127,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     composerPagesPerMonth: Infinity,
     artUploads: 100,
     fullPrint: false,
+    advancedSearch: false,
     includedPrintsPerMonth: 0,
   },
   // 12 binders × 40 pages × 16 cards = 7,680 ("over 7,500 cards"). $3.99/mo or $39.99/yr.
@@ -125,6 +137,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     composerPagesPerMonth: Infinity,
     artUploads: 1000,
     fullPrint: true,
+    advancedSearch: true,
     includedPrintsPerMonth: 1,
   },
   // $9.99/mo or $99.99/yr. Included prints cut 5 -> 3 (owner call 2026-07-19): a yearly VIP pool
@@ -135,6 +148,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     composerPagesPerMonth: Infinity,
     artUploads: Infinity,
     fullPrint: true,
+    advancedSearch: true,
     includedPrintsPerMonth: 3,
   },
 };
@@ -160,6 +174,7 @@ const UNLIMITED: TierLimits = {
   composerPagesPerMonth: Infinity,
   artUploads: Infinity,
   fullPrint: false, // print eligibility is decided by tier/entitlement, not by this switch
+  advancedSearch: false, // likewise: a paid capability, not a cap the dev switch should hand out
   includedPrintsPerMonth: Infinity,
 };
 
@@ -214,6 +229,17 @@ export function resolveTier(
  */
 export function hasFullPrint(tier: Tier): boolean {
   return tier === 'pro' || tier === 'vip';
+}
+
+/**
+ * Does this tier get "Advanced Search"? (sort by value + price filters + tri-colour + refine by
+ * similarity — see TierLimits.advancedSearch.)
+ *
+ * Reads the tier directly rather than `limitsForTier`, exactly like `hasFullPrint`: this is a paid
+ * capability, so the LIMITS_ENFORCED dev switch must not hand it out (or take it away).
+ */
+export function hasAdvancedSearch(tier: Tier): boolean {
+  return TIER_LIMITS[tier].advancedSearch;
 }
 
 /** The active limits for a tier — permissive (all unlimited) while LIMITS_ENFORCED is off. */

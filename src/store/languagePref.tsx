@@ -1,9 +1,16 @@
 /**
- * Shared EN/JP browse-language preference — ONE setting for the whole app (the Home "Recent &
- * Upcoming" feed and the Browse page read/write the same value). Persisted so it survives page
- * refresh / app reload and, for signed-in accounts, follows the collector across devices:
+ * Shared EN/JP browse-language preference — the app-side ADAPTER over the kit's shared store.
  *
- *   - device-local:  AsyncStorage — instant first paint, and the ONLY store for guests.
+ * The value itself now lives in `tcgscan-browse` (`useBrowseLanguages`), because the kit is what
+ * has to act on it: the choice is passed as an ARGUMENT to every server call it makes — query
+ * search, facets, the set drill-down, the recent feed, embedding similarity, and colour search —
+ * so results are cut BEFORE the top-N rather than filtered after. A value that lived only here
+ * could never reach the similarity call the browser fires internally.
+ *
+ * This file owns the two things the kit deliberately has no access to, storage and auth:
+ *
+ *   - device-local:  AsyncStorage — instant first paint, and the ONLY store for guests. Wired to
+ *                    the kit via `configureBrowse({ languageStore })` in `lib/catalogConfig.ts`.
  *   - account:       profiles.preferences.cardLanguages — authoritative when signed in (adopted
  *                    when the profile loads, and written through on every change).
  *
@@ -11,83 +18,73 @@
  * the app quietly degrades to device-local, so nothing breaks in the meantime.
  *
  * At least one language is always selected (a browse surface constrained to nothing shows no
- * cards); the LanguageToggle enforces that on input and `normalize` re-enforces it here.
+ * cards); the kit's LanguageToggle enforces that on input and `normalizeLanguages` re-enforces it.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCallback, useEffect, useSyncExternalStore } from 'react';
-import { type CardLanguage } from 'tcgscan-browse';
+import { useCallback, useEffect } from 'react';
+import {
+  normalizeLanguages,
+  setBrowseLanguages,
+  useBrowseLanguages,
+  type CardLanguage,
+  type LanguageStore,
+} from 'tcgscan-browse';
 
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/store/auth';
 
-const DEFAULT: CardLanguage[] = ['en'];
 const STORAGE_KEY = 'michi.cardLanguages';
-const ORDER: CardLanguage[] = ['en', 'ja'];
 
-/** Canonical order, valid codes only, never empty. */
-function normalize(v: unknown): CardLanguage[] {
-  const arr = Array.isArray(v) ? v : [];
-  const picked = ORDER.filter((c) => arr.includes(c));
-  return picked.length ? picked : DEFAULT;
-}
-function same(a: CardLanguage[], b: CardLanguage[]): boolean {
-  return a.length === b.length && a.every((c, i) => c === b[i]);
-}
+/**
+ * michi-maker opens on ENGLISH ONLY when nothing is stored, unlike the kit's both-languages
+ * default — a new collector here is browsing English printings until they say otherwise.
+ * `catalogConfig.ts` also applies this synchronously at startup so first paint is EN before
+ * AsyncStorage resolves.
+ */
+export const LANGUAGE_DEFAULT: CardLanguage[] = ['en'];
 
-// Module-level shared store so every consumer resolves to ONE value (and one identity, which
-// useSyncExternalStore requires between renders unless it actually changes).
-let current: CardLanguage[] = DEFAULT;
-const listeners = new Set<() => void>();
-function subscribe(l: () => void): () => void {
-  listeners.add(l);
-  return () => listeners.delete(l);
-}
-function getSnapshot(): CardLanguage[] {
-  return current;
-}
-function set(next: CardLanguage[]): void {
-  const norm = normalize(next);
-  if (same(norm, current)) return; // no-op keeps the snapshot identity stable
-  current = norm;
-  listeners.forEach((l) => l());
-}
+/**
+ * Device-local persistence handed to `configureBrowse`. `load` runs once at startup; returning
+ * LANGUAGE_DEFAULT for an empty store is what pins the EN-only opening state.
+ */
+export const languageStore: LanguageStore = {
+  load: async () => {
+    try {
+      const raw = await AsyncStorage.getItem(STORAGE_KEY);
+      return raw ? normalizeLanguages(JSON.parse(raw)) : LANGUAGE_DEFAULT;
+    } catch {
+      return LANGUAGE_DEFAULT; // absent / corrupt cache
+    }
+  },
+  save: (langs) => {
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(langs)).catch(() => {});
+  },
+};
 
-let localHydrated = false;
-async function hydrateLocal(): Promise<void> {
-  if (localHydrated) return;
-  localHydrated = true;
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    if (raw) set(JSON.parse(raw) as CardLanguage[]);
-  } catch {
-    /* absent/corrupt cache — DEFAULT stands */
-  }
-}
-
-/** The app-wide EN/JP browse-language preference and a setter that persists it (local + account). */
+/**
+ * The app-wide EN/JP preference and a setter. Thin wrapper over the kit store that additionally
+ * syncs the signed-in account: the profile's saved choice is adopted when it loads, and every
+ * change is written back so it follows the collector across devices.
+ */
 export function useLanguagePref(): [CardLanguage[], (v: CardLanguage[]) => void] {
-  const langs = useSyncExternalStore(subscribe, getSnapshot, () => DEFAULT);
+  const [langs, setKit] = useBrowseLanguages();
   const { user, profile } = useAuth();
 
-  // 1) Device-local first — fast, and the only store guests have.
-  useEffect(() => {
-    void hydrateLocal();
-  }, []);
-
-  // 2) Account is authoritative once the profile loads — adopt its saved choice.
+  // Account is authoritative once the profile loads — adopt its saved choice WITHOUT persisting,
+  // so adopting doesn't echo straight back to storage as if the user had just picked it.
   useEffect(() => {
     const prefs = (profile?.preferences ?? null) as { cardLanguages?: unknown } | null;
-    if (prefs && Array.isArray(prefs.cardLanguages)) set(normalize(prefs.cardLanguages));
+    if (prefs && Array.isArray(prefs.cardLanguages)) {
+      setBrowseLanguages(normalizeLanguages(prefs.cardLanguages), { persist: false });
+    }
   }, [profile]);
 
   const setLangs = useCallback(
     (v: CardLanguage[]) => {
-      set(v);
-      const next = current;
-      // device-local: always (survives reload; covers guests)
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next)).catch(() => {});
-      // account: real (non-guest) sessions only — the choice then follows the collector across
-      // devices. Fail-soft: pre-migration this errors and we simply keep the device-local copy.
+      const next = normalizeLanguages(v);
+      setKit(next); // kit store + AsyncStorage (via languageStore.save)
+      // account: real (non-guest) sessions only. Fail-soft — pre-migration this errors and we
+      // simply keep the device-local copy.
       if (supabase && user && !user.is_anonymous) {
         const merged = { ...((profile?.preferences as object) ?? {}), cardLanguages: next };
         void supabase.from('profiles').update({ preferences: merged }).eq('id', user.id).then(
@@ -96,7 +93,7 @@ export function useLanguagePref(): [CardLanguage[], (v: CardLanguage[]) => void]
         );
       }
     },
-    [user, profile],
+    [setKit, user, profile],
   );
 
   return [langs, setLangs];

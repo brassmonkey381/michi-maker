@@ -10,7 +10,7 @@
  * the pending command lands the moment this page's CatalogBrowser subscribes.
  */
 import { useRouter, type Href } from 'expo-router';
-import { productUrl, type CardAction, type CardActionsFactory } from 'tcgscan-browse';
+import { LanguageToggle, productUrl, type CardAction, type CardActionsFactory } from 'tcgscan-browse';
 import { useRef, useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,7 +20,6 @@ import { ebayCardQuery, ebaySearchLink } from '@/lib/ebay';
 import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
 import { CardBrowse } from '@/components/binder/CardBrowse';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
-import { LanguageToggle } from '@/components/LanguageToggle';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Spacing } from '@/constants/theme';
@@ -29,6 +28,7 @@ import { binderLimitMessage, pageLimitMessage } from '@/data/limitMessages';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useOwnedCards } from '@/hooks/use-owned-cards';
 import { useBinders } from '@/store/binders';
+import { useBrowseTheme } from '@/lib/browseTheme';
 import { useLanguagePref } from '@/store/languagePref';
 
 export default function BrowseScreen() {
@@ -44,6 +44,7 @@ export default function BrowseScreen() {
   // EN / JP filter for the browser (cards + series/set drill-down). The app-wide, persisted
   // preference (shared with Home) — EN only by default, remembered per account across devices.
   const [langs, changeLangs] = useLanguagePref();
+  const browseTheme = useBrowseTheme();
 
   // The signed-in user's owned cards → collection overlays in the browser (tile checks, set
   // completion %, the Collection have: filter). Undefined for guests, so the UI stays off.
@@ -144,7 +145,7 @@ export default function BrowseScreen() {
                   Cheatsheet ↗
                 </ThemedText>
               </Pressable>
-              <LanguageToggle value={langs} onChange={changeLangs} />
+              <LanguageToggle value={langs} onChange={changeLangs} theme={browseTheme} />
               {railHidden ? (
                 <Pressable onPress={() => router.push('/')} hitSlop={8}>
                   <ThemedText type="smallBold" themeColor="textSecondary">

@@ -18,10 +18,12 @@ import {
   getApiUrl,
   hydrateImageManifest,
   resolveImageUrl,
+  setBrowseLanguages,
   useImageManifest,
 } from 'tcgscan-browse';
 
 import { gatedCatalogSource } from '@/lib/catalogSource';
+import { LANGUAGE_DEFAULT, languageStore } from '@/store/languagePref';
 
 /** Base URL the catalog JSON (and prices/alternates) are served from. */
 export const browseUrl: string = process.env.EXPO_PUBLIC_CATALOG_BROWSE_URL ?? '/browse';
@@ -53,7 +55,17 @@ configureBrowse({
   // Upcoming feed's "Find on eBay" links. Powers the kit's ebaySearchUrl (RecentProducts).
   ebayCampaignId: '5339173456',
   ebayCustomId: 'michi-recent',
+  // Device-local persistence for the shared EN/JP preference. The kit holds the value (so it can
+  // pass it to every search RPC); this supplies the storage and the EN-only default. The signed-in
+  // account layer is added on top in store/languagePref.tsx.
+  languageStore,
 });
+
+// Pin the SYNCHRONOUS default before AsyncStorage resolves. The kit opens on both languages
+// (unconstrained), michi opens on English — without this, first paint would show JP cards for the
+// tick or two until languageStore.load() lands. Not persisted: it's a default, not a user choice,
+// so a stored preference still wins the moment it arrives.
+setBrowseLanguages(LANGUAGE_DEFAULT, { persist: false });
 
 export { cardThumbUrl, resolveImageUrl, hydrateImageManifest, useImageManifest };
 

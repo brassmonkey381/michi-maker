@@ -82,6 +82,9 @@ export function ColorSearchSheet({
   const findMatches = async () => {
     setBusy(true);
     setNote('');
+    // No `languages` argument: both helpers inherit the shared EN/JP preference, and the bound is
+    // applied inside the search (server `p_lang`, or the on-device index's scan) rather than to the
+    // 120 ids we get back — otherwise an EN-only collector saw roughly half a result set.
     const ids = seedCardId
       ? await findSimilarByColor(seedCardId, region, { limit: 120 })
       : await searchByColors(query, region, { limit: 120 });

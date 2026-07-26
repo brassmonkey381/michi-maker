@@ -16,10 +16,9 @@
  * keeps home's cold start catalog-free. `onFindSimilar` / `onViewSet` / `onOpenSet` bubble up so
  * the home screen can drive the "Browse all cards" browser below (see index.tsx).
  */
-import { RecentProducts } from 'tcgscan-browse';
+import { LanguageToggle, RecentProducts } from 'tcgscan-browse';
 
 import { HomeSection } from '@/components/HomeSection';
-import { LanguageToggle } from '@/components/LanguageToggle';
 import { isPremiumRarity } from '@/data/premiumRarity';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useBrowseTheme } from '@/lib/browseTheme';
@@ -46,7 +45,9 @@ export function HomeRecent({
   return (
     // A collapsible section like the rest of the home screen. The shared header supplies the title
     // + disclosure, so the feed's own header is suppressed (title="").
-    <HomeSection title="Recent & Upcoming" action={<LanguageToggle value={langs} onChange={changeLangs} />}>
+    <HomeSection
+      title="Recent & Upcoming"
+      action={<LanguageToggle value={langs} onChange={changeLangs} theme={browseTheme} />}>
       <RecentProducts
         theme={browseTheme}
         catalog={catalog}

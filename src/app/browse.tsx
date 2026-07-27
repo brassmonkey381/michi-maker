@@ -10,7 +10,7 @@
  * the pending command lands the moment this page's CatalogBrowser subscribes.
  */
 import { useRouter, type Href } from 'expo-router';
-import { LanguageToggle, productUrl, type CardAction, type CardActionsFactory } from 'tcgscan-browse';
+import { productUrl, type CardAction, type CardActionsFactory } from 'tcgscan-browse';
 import { useRef, useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -28,8 +28,6 @@ import { binderLimitMessage, pageLimitMessage } from '@/data/limitMessages';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useOwnedCards } from '@/hooks/use-owned-cards';
 import { useBinders } from '@/store/binders';
-import { useBrowseTheme } from '@/lib/browseTheme';
-import { useLanguagePref } from '@/store/languagePref';
 
 export default function BrowseScreen() {
   const store = useBinders();
@@ -40,11 +38,6 @@ export default function BrowseScreen() {
 
   // A dedicated page loads the catalog on mount (the browser runs cold/server-search until it's in).
   const { catalog } = useCatalog(true);
-
-  // EN / JP filter for the browser (cards + series/set drill-down). The app-wide, persisted
-  // preference (shared with Home) — EN only by default, remembered per account across devices.
-  const [langs, changeLangs] = useLanguagePref();
-  const browseTheme = useBrowseTheme();
 
   // The signed-in user's owned cards → collection overlays in the browser (tile checks, set
   // completion %, the Collection have: filter). Undefined for guests, so the UI stays off.
@@ -145,7 +138,10 @@ export default function BrowseScreen() {
                   Cheatsheet ↗
                 </ThemedText>
               </Pressable>
-              <LanguageToggle value={langs} onChange={changeLangs} theme={browseTheme} />
+              {/* The EN/JP toggle used to sit here. It now lives INSIDE the browser (kit
+                  `showLanguageToggle`, on by default) so every entry point that opens a browser —
+                  this page, the binder card picker, Slice Studio — has the same control in the
+                  same place, instead of only the one surface whose header happened to carry it. */}
               {railHidden ? (
                 <Pressable onPress={() => router.push('/')} hitSlop={8}>
                   <ThemedText type="smallBold" themeColor="textSecondary">
@@ -163,7 +159,9 @@ export default function BrowseScreen() {
               catalog={catalog}
               cardActions={cardActions}
               onPickCards={(cardIds) => setAddCardIds(cardIds)}
-              languages={langs}
+              // No `languages` pin: the browser reads the SHARED preference itself, which is the
+              // same value this page used to thread through. Pinning it would suppress the
+              // in-browser toggle (a pinned browser must not show a control that does nothing).
               ownedIds={ownedIds}
             />
           </View>

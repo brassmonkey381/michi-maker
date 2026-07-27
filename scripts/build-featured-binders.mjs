@@ -30,21 +30,29 @@ const OUT = join(ROOT, 'src', 'data', 'featuredBinders.json');
 /**
  * The binders to bundle, in display order. `key` becomes the stable bundled id (`ex-<key>`).
  *
- * These now point at the WORKING COPIES in the bstockman1@gmail.com account (@fakemichi), where
- * the landing-page binders are being art-directed. The originals they were copied from (kept
- * here for provenance) are no longer the source of truth for the landing page:
+ * These point at the art-directed binders in the bstockman1@gmail.com account (@fakemichi).
+ * Every page across all four carries a black background (2026-07-27) so the spread and the
+ * gallery read as one set rather than four unrelated binders.
+ *
+ * Provenance of the earlier copies, kept for history:
  *   pikachu-and-friends ← bb6a56b4-cce4-44dd-826d-5dab2e732370 (official@michi-maker.com)
  *   ideas-in-flight     ← df338785-1041-4494-aeac-11be94e5186c (bstockman1@hotmail.com)
  *   pitch-black-chase   ← d1d44c9c-8da4-438a-9cdd-02343dcb36ff (bstockman1@hotmail.com)
+ * `pikachu-and-friends` was dropped from the landing page on 2026-07-27; its @fakemichi copies
+ * are private, so it could not be exported anyway.
  *
  * ⚠️ Export reads via anonymous PostgREST, so before running this script each source binder must
  * be PUBLIC and the owning profile (@fakemichi) must be PUBLIC too — otherwise RLS hides it and
  * the previous (stale) JSON entry is kept instead. Private PAGES are always excluded.
  */
 const FEATURED = [
-  { sourceId: '3da6f892-420f-4d38-a253-a266b65101b9', key: 'pikachu-and-friends' },
-  { sourceId: 'c3eb55a2-81cd-4f46-baa5-ed76614fe2a2', key: 'ideas-in-flight' },
+  // The HERO: the landing page's open spread. Deliberately the owner's *first* binder — the
+  // page it sells is "this is what your first binder can look like".
+  { sourceId: '5e7e17c8-2685-4feb-9b46-e7aea6c4ccc9', key: 'my-first-binder' },
+  // The three gallery binders, in display order.
   { sourceId: 'b7395020-0c65-42d2-b111-98279265d63a', key: 'pitch-black-chase' },
+  { sourceId: 'c3eb55a2-81cd-4f46-baa5-ed76614fe2a2', key: 'ideas-in-flight' },
+  { sourceId: 'dcd54d1d-a6db-42bc-93c1-75f080e4ebd5', key: 'color-play' },
 ];
 
 const env = Object.fromEntries(

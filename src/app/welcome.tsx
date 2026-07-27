@@ -76,12 +76,17 @@ function isDarkBackground(hex: string): boolean {
   return luminance < 128;
 }
 
-/** One page that tells a story at a glance: the rarity ladder, common → hyper. */
-const HERO_ID = 'gen-prismatic-rarity-ladder';
-/** Wide screens get an OPEN SPREAD instead: the owner's real binder, auto-flipping its facing pages. */
-const SPREAD_ID = 'ex-pikachu-and-friends';
-/** The owner's real binders (bundled by scripts/build-featured-binders.mjs), not mockups. */
-const GALLERY_IDS = ['ex-pikachu-and-friends', 'ex-ideas-in-flight', 'ex-pitch-black-chase'];
+/**
+ * The HERO binder: the owner's real "My First Binder", auto-flipping its pages (an open spread on
+ * wide screens, a single page on phones). Deliberately their FIRST binder — the promise the page
+ * makes is "this is what your first one can look like", which a curated showcase binder undercuts.
+ * Both ids point at it so the phone fallback shows the same binder as the desktop spread.
+ */
+const HERO_ID = 'ex-my-first-binder';
+const SPREAD_ID = 'ex-my-first-binder';
+/** The gallery: the owner's real binders (bundled by scripts/build-featured-binders.mjs), not
+ *  mockups. Kept distinct from the hero so the page shows four different binders, not three. */
+const GALLERY_IDS = ['ex-pitch-black-chase', 'ex-ideas-in-flight', 'ex-color-play'];
 
 const VALUE_PROPS = [
   {

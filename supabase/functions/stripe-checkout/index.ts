@@ -677,6 +677,37 @@ Deno.serve(async (req: Request) => {
   const cancel = new URL(returnUrl);
   cancel.searchParams.set('checkout', 'cancelled');
 
+  /**
+   * If the buyer holds a LIVE free trial of the very product they're buying, carry its expiry onto
+   * the new subscription so the trial is honoured rather than cancelled by the purchase.
+   *
+   * Stripe requires `trial_end` to be at least 48 HOURS in the future and rejects anything sooner,
+   * so a trial with less than two days left is rounded UP to now+48h (owner call 2026-07-27). That
+   * gifts a few hours rather than failing the checkout or silently charging today — the amount is
+   * trivial and the alternative is an error at the worst possible moment, right as someone is
+   * trying to give us money.
+   *
+   * Looked up by (user, product, source='trial') so it only ever matches a real free trial of the
+   * SAME tier: buying VIP while trialling PRO is a different product and correctly gets no
+   * trial_end. Ordered newest-first because the ledger can hold lapsed rows for the same product.
+   */
+  let trialEnd: number | undefined;
+  if (mode === 'subscription' && michiProduct) {
+    const { data: trialRows } = await service
+      .from('entitlements')
+      .select('expires_at')
+      .eq('user_id', user.id)
+      .eq('product', michiProduct)
+      .eq('source', 'trial')
+      .order('expires_at', { ascending: false })
+      .limit(1);
+    const endMs = trialRows?.[0]?.expires_at ? Date.parse(trialRows[0].expires_at) : NaN;
+    if (Number.isFinite(endMs) && endMs > Date.now()) {
+      const STRIPE_MIN_MS = Date.now() + 48 * 60 * 60 * 1000;
+      trialEnd = Math.ceil(Math.max(endMs, STRIPE_MIN_MS) / 1000);
+    }
+  }
+
   const session = await stripe.checkout.sessions.create({
     mode,
     line_items: [{ price: price.id, quantity: 1 }],
@@ -688,6 +719,12 @@ Deno.serve(async (req: Request) => {
       ? {
           subscription_data: {
             metadata: { supabase_user_id: user.id, michi_product: michiProduct },
+            // Buying the tier you are already TRIALLING must not cut the trial short. Without
+            // this, deciding early to keep PRO would charge immediately and bin the remaining free
+            // days — strictly worse than waiting, which is not a choice anyone should be punished
+            // for making. With it, Checkout collects the card now and the first charge lands when
+            // the free trial would have ended anyway, so access never gaps.
+            ...(trialEnd ? { trial_end: trialEnd } : {}),
           },
         }
       : {}),

@@ -708,7 +708,7 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  const session = await stripe.checkout.sessions.create({
+  const params: Stripe.Checkout.SessionCreateParams = {
     mode,
     line_items: [{ price: price.id, quantity: 1 }],
     client_reference_id: user.id,
@@ -736,7 +736,34 @@ Deno.serve(async (req: Request) => {
     success_url: success.toString(),
     cancel_url: cancel.toString(),
     ...(discounts ? { discounts } : { allow_promotion_codes: true }),
-  });
+  };
+
+  /**
+   * A BAD COUPON MUST NOT TAKE THE BUY BUTTON DOWN.
+   *
+   * Stripe validates `discounts` when it creates the session, so a coupon id that is missing,
+   * expired, or configured in the other mode fails the whole call — and with it every checkout,
+   * for everyone, including people buying at full price. That turns a misconfigured promotion into
+   * a total outage on the one path that makes money.
+   *
+   * So a discount-specific failure is retried once WITHOUT the discount. Selling at list price is
+   * a bad outcome; selling nothing is a much worse one. It is deliberately narrow: only errors
+   * that name the coupon or discount are retried, because a card/price/customer error must still
+   * surface rather than be silently retried into a full-price sale. It is logged loudly, since the
+   * only symptom otherwise is revenue quietly arriving at the wrong price.
+   */
+  let session;
+  try {
+    session = await stripe.checkout.sessions.create(params);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const aboutDiscount = /coupon|discount|promotion/i.test(msg);
+    if (!discounts || !aboutDiscount) throw e;
+    console.error(`[stripe-checkout] discount rejected, selling at list price instead: ${msg}`);
+    delete params.discounts;
+    params.allow_promotion_codes = true;
+    session = await stripe.checkout.sessions.create(params);
+  }
 
   return json(200, { url: session.url });
 });

@@ -32,7 +32,7 @@
     "react-native-url-polyfill": "^3.0.0",
     "react-native-web": "~0.21.0",
     "react-native-worklets": "0.8.3",
-    "tcgscan-browse": "github:brassmonkey381/tcgscan-browse#b9ed6c6e8f944f6fc8ceeca7e6255cb710611f25",
+    "tcgscan-browse": "github:brassmonkey381/tcgscan-browse#b4891c1bc3c4918e1ff7b0625087f2b599444c17",
     "tcgscan-theme": "github:brassmonkey381/tcgscan-theme#35c23bee3e36842a8734727aa5b547b02b1548dc"
   },
   "devDependencies": {

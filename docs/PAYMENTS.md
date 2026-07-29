@@ -208,6 +208,24 @@ kept" when PRO's cap is 1,000** (100 is the Free limit) — wrong since the cata
 The product ids above are the **test-mode** objects. Live mode has its own, created at go-live with
 the same descriptions — when you edit copy, edit it in both modes or invoices drift.
 
+### Limited-time promotion (20% off, all plans)
+
+A flat percentage off every SUBSCRIPTION plan in both apps, applied as a Stripe coupon at checkout
+(`STRIPE_PROMO_COUPON`). Percentage and end date live in `src/data/promo.ts`; the plans page reads
+the same constants to draw the struck-through price and the running banner.
+
+**It does not stack with the bundle.** `stripe-checkout` applies the BETTER of the two, which is
+always the bundle's 60% — applying both would compound to 68% off, a deeper discount than either
+offer promises. A bundle customer keeps 60% and is never made worse off by a promotion.
+
+Expiry is enforced three times on purpose: the client stops drawing the sale, the edge function
+refuses to attach the coupon past `ENDS_AT` (the clock that decides money, and one the user cannot
+set), and the coupon's own `redeem_by` backstops both.
+
+When changing the offer, change all three or the app advertises a price it doesn't honour:
+`src/data/promo.ts`, `tcgscan-app/src/lib/promo.ts`, and the coupon in **both** Stripe modes.
+`src/data/promo.test.ts` and `tcgscan-app/scripts/promo.test.ts` pin the numbers.
+
 ### Cross-app bundle — LIVE (60% off)
 
 `stripe-checkout` sells BOTH apps' products and applies a server-verified **bundle discount**

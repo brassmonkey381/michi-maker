@@ -38,6 +38,7 @@ import {
 } from '../../../src/data/proration.ts';
 // Bundle-discount eligibility, same shared-module discipline as the proration maths above.
 import { bundleQualifies, bundleSiblingsFor } from '../../../src/data/bundle.ts';
+import { promoActive } from '../../../src/data/promo.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -642,7 +643,7 @@ Deno.serve(async (req: Request) => {
 
   // Cross-app BUNDLE discount — verified SERVER-SIDE (a client claiming bundle:true gets the
   // coupon only if it actually owns an active sibling Pro; see docs/SYNERGY.md). Stripe rejects
-  // `discounts` together with `allow_promotion_codes`, so a bundle checkout gives up promo codes.
+  // `discounts` together with `allow_promotion_codes`, so a discounted checkout gives up promo codes.
   let discounts: { coupon: string }[] | undefined;
   if (body.bundle === true) {
     const coupon = Deno.env.get('STRIPE_BUNDLE_COUPON');
@@ -655,6 +656,20 @@ Deno.serve(async (req: Request) => {
         .in('product', siblings);
       if (bundleQualifies(rows ?? [], lookupKey)) discounts = [{ coupon }];
     }
+  }
+
+  // LIMITED-TIME promotion — a flat percentage off every subscription plan (src/data/promo.ts).
+  //
+  // BETTER-OF, never stacked. Stripe would happily apply both, compounding 60% and 20% into 68%
+  // off, which is a deeper discount than either offer promises and one nobody decided to give. The
+  // bundle is always the larger of the two, so a bundle customer keeps their 60% and a promotion
+  // can never quietly make an existing offer more generous than intended.
+  //
+  // The expiry check runs HERE because this is the clock that decides money. The client's copy of
+  // the same date only decides whether a banner is painted, and a user can set their own clock.
+  if (!discounts && mode === 'subscription' && promoActive()) {
+    const promo = Deno.env.get('STRIPE_PROMO_COUPON');
+    if (promo) discounts = [{ coupon: promo }];
   }
 
   const success = new URL(returnUrl);

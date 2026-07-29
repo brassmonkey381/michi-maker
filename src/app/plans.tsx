@@ -14,6 +14,7 @@ import { SignInPerk } from '@/components/auth/SignInPerk';
 import { PageShell } from '@/components/layout/PageShell';
 import { BundleOffer } from '@/components/monetization/BundleOffer';
 import { PlanComparison } from '@/components/monetization/PlanComparison';
+import { PromoBanner } from '@/components/monetization/PromoBanner';
 import { TrialCta } from '@/components/monetization/TrialCta';
 import { PlanUsageSection } from '@/components/monetization/TierUsage';
 import { WelcomeAboardModal } from '@/components/monetization/WelcomeAboardModal';
@@ -30,6 +31,7 @@ import {
 } from '@/constants/theme';
 import { redeemHandoffHashFromLocation } from '@/data/handoff';
 import { ONE_TIME_PDF } from '@/data/subscriptions';
+import { promoActive } from '@/data/promo';
 import { useTier } from '@/hooks/use-tier';
 import { useAuth } from '@/store/auth';
 
@@ -93,6 +95,10 @@ export default function PlansScreen() {
           shelves.
         </ThemedText>
       </View>
+
+      {/* The limited-time sale. michi's checkouts already went through the shared stripe-checkout
+          coupon, so the discount was being GIVEN here before it was ever advertised here. */}
+      {promoActive() ? <PromoBanner /> : null}
 
       {/* Eligible free users: the trial offer, front and centre. Self-gates (null unless eligible
           and checkout is open), so it simply doesn't show for subscribers or the ineligible. */}

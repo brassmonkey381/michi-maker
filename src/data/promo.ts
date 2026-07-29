@@ -55,3 +55,8 @@ export function promoActive(now: number = Date.now()): boolean {
 export function promoPriceMinor(minor: number, percentOff: number = PERCENT_OFF): number {
   return Math.round(minor * (1 - percentOff / 100));
 }
+
+/** Minor units → "$31.99". Trailing ".00" is kept: a price is a price, not a number. */
+export function formatMinor(minor: number): string {
+  return `$${(minor / 100).toFixed(2)}`;
+}

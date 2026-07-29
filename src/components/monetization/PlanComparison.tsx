@@ -43,6 +43,7 @@ import {
   type CompareCell,
   type PlanHeader,
 } from '@/data/subscriptions';
+import { formatMinor, promoActive, promoPriceMinor } from '@/data/promo';
 import { useTier } from '@/hooks/use-tier';
 import { useAuth } from '@/store/auth';
 
@@ -69,8 +70,23 @@ function ValueCell({ cell, vip }: { cell: CompareCell; vip?: boolean }) {
   );
 }
 
+/**
+ * The billing subline at the sale price. The stored `sub` quotes list prices in prose ("about
+ * $3.33 a month ... or $3.99 month to month"), which would contradict a struck-out header the
+ * moment a promotion runs. Derived from the same minor amounts as the headline so the whole
+ * column moves together.
+ */
+function saleSub(head: PlanHeader): string {
+  const perMonth = formatMinor(Math.round(promoPriceMinor(head.yearlyMinor ?? 0) / 12));
+  const monthly = head.monthlyMinor ? formatMinor(promoPriceMinor(head.monthlyMinor)) : null;
+  return `about ${perMonth} a month, billed yearly${monthly ? ` · or ${monthly} month to month` : ''}`;
+}
+
 export function PlanComparison() {
   const { tier, loading, refresh } = useTier();
+  // The limited-time sale. Display only — the coupon is attached server-side at checkout, by the
+  // same stripe-checkout that already applies it to michi's own lookup keys.
+  const onSale = promoActive();
   const { isSignedIn } = useAuth();
   // The note under the pressed CTA: the coming-soon line while checkout is closed, a sign-in
   // nudge for guests, or a checkout error. Never a silent no-op.
@@ -285,7 +301,11 @@ export function PlanComparison() {
         {CHECKOUT_OPEN && !isSwitch && plan.monthlyKey ? (
           <Pressable onPress={() => buy(plan, plan.monthlyKey)} disabled={!!busyKey} hitSlop={4}>
             <Text style={styles.monthlyLink}>
-              {busyKey === plan.monthlyKey ? 'Opening checkout…' : plan.monthlyLabel}
+              {busyKey === plan.monthlyKey
+                ? 'Opening checkout…'
+                : onSale && plan.monthlyMinor
+                  ? `or ${formatMinor(promoPriceMinor(plan.monthlyMinor))} month to month`
+                  : plan.monthlyLabel}
             </Text>
           </Pressable>
         ) : null}
@@ -322,11 +342,14 @@ export function PlanComparison() {
                 <Text style={styles.badgeProText}>{proHead.badge}</Text>
               </View>
               <Text style={styles.tierName}>{proHead.name}</Text>
+              {onSale ? <Text style={styles.tierWas}>{proHead.price}</Text> : null}
               <Text style={styles.tierPrice}>
-                {proHead.price}
+                {onSale && proHead.yearlyMinor
+                  ? formatMinor(promoPriceMinor(proHead.yearlyMinor))
+                  : proHead.price}
                 <Text style={styles.tierPer}>{proHead.per}</Text>
               </Text>
-              <Text style={styles.tierSub}>{proHead.sub}</Text>
+              <Text style={styles.tierSub}>{onSale ? saleSub(proHead) : proHead.sub}</Text>
               {!loading && tier === 'pro' ? <Text style={styles.current}>Your current plan</Text> : null}
             </View>
             <View style={[styles.cell, styles.vipCol, styles.headCell, styles.vipHead]}>
@@ -334,11 +357,16 @@ export function PlanComparison() {
                 <Text style={styles.badgeVipText}>{vipHead.badge}</Text>
               </View>
               <Text style={[styles.tierName, styles.vipText]}>{vipHead.name}</Text>
+              {onSale ? <Text style={[styles.tierWas, styles.vipSubText]}>{vipHead.price}</Text> : null}
               <Text style={[styles.tierPrice, styles.vipText]}>
-                {vipHead.price}
+                {onSale && vipHead.yearlyMinor
+                  ? formatMinor(promoPriceMinor(vipHead.yearlyMinor))
+                  : vipHead.price}
                 <Text style={[styles.tierPer, styles.vipSubText]}>{vipHead.per}</Text>
               </Text>
-              <Text style={[styles.tierSub, styles.vipSubText]}>{vipHead.sub}</Text>
+              <Text style={[styles.tierSub, styles.vipSubText]}>
+                {onSale ? saleSub(vipHead) : vipHead.sub}
+              </Text>
               {!loading && tier === 'vip' ? (
                 <Text style={styles.current}>Your current plan</Text>
               ) : null}
@@ -479,6 +507,9 @@ const styles = StyleSheet.create({
   },
   tierName: { fontSize: FontSize.control, fontWeight: Weight.bold, color: Palette.ink },
   tierPrice: { fontSize: FontSize.title, fontWeight: Weight.bold, color: Palette.ink, marginTop: 2 },
+  // The struck list price above the sale figure: smaller and quieter, so the column still leads
+  // with what you would actually pay, while leaving something to compare it against.
+  tierWas: { fontSize: FontSize.sm, color: Palette.muted, textDecorationLine: 'line-through', marginTop: 2 },
   tierPer: { fontSize: FontSize.label, fontWeight: Weight.medium, color: Palette.muted },
   tierSub: { fontSize: FontSize.sm, color: Palette.muted, lineHeight: 16 },
   current: { fontSize: FontSize.sm, fontWeight: Weight.semibold, color: Palette.link, marginTop: 4 },

@@ -43,6 +43,13 @@ export interface PlanHeader {
   monthlyKey?: string;
   /** Label for the secondary month-to-month CTA link. */
   monthlyLabel?: string;
+  /**
+   * List price in MINOR units (cents) per term. The strings above are marketing copy; these are
+   * the numbers, so a promotional price is DERIVED rather than typed a second time and left to
+   * drift from the Stripe coupon. Absent on Free, which has nothing to discount.
+   */
+  yearlyMinor?: number;
+  monthlyMinor?: number;
 }
 
 /** Column headers, ascending order — the table reads as an upgrade path left to right. */
@@ -58,6 +65,8 @@ export const PLAN_HEADERS: PlanHeader[] = [
     yearlyKey: 'michi_pro_yearly',
     monthlyKey: 'michi_pro_monthly',
     monthlyLabel: 'or $3.99 month to month',
+    yearlyMinor: 3999,
+    monthlyMinor: 399,
   },
   {
     tier: 'vip',
@@ -69,6 +78,8 @@ export const PLAN_HEADERS: PlanHeader[] = [
     yearlyKey: 'michi_vip_yearly',
     monthlyKey: 'michi_vip_monthly',
     monthlyLabel: 'or $9.99 month to month',
+    yearlyMinor: 9999,
+    monthlyMinor: 999,
   },
 ];
 

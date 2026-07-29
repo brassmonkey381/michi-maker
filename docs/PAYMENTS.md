@@ -214,8 +214,9 @@ the same descriptions — when you edit copy, edit it in both modes or invoices 
 (`bundle: true` in the request): owning an active michi tier discounts TCGScan PRO/VIP and
 vice-versa (`bundleSiblingsFor`). The webhook grants `tcgscan_pro` / `tcgscan_vip` from their
 lookup keys and never lets the PRO↔VIP sibling hygiene touch them. The live coupon is `Si93JqYS`
-(60% off), set as `STRIPE_BUNDLE_COUPON`; without a coupon set, the CTA still works and simply
-applies no discount.
+(60% off, `duration: once`), set as `STRIPE_BUNDLE_COUPON`; without a coupon set, the CTA still
+works and simply applies no discount. Eligibility is **term-matched** — a yearly discount requires
+a yearly sibling plan — via the shared `src/data/bundle.ts`; see docs/SYNERGY.md for why.
 
 Surfaces: michi `BundleOffer` — Settings, the post-checkout modal, **and a standing home on
 `/subscriptions`** for as long as the coupon is active (it started life as a one-time banner that

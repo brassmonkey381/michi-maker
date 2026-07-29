@@ -59,9 +59,23 @@ data from scanning + michi's binder builder), so it's the natural cross-app upse
 ## Bundle cross-sell — LIVE, 60% off
 
 Holding one app's plan surfaces a **discounted add-on** of the other. Live Stripe coupon
-`Si93JqYS` (60% off), set as `STRIPE_BUNDLE_COUPON`; the discount is enforced **server-side** in
-`stripe-checkout` (`bundleSiblingsFor` re-checks the entitlement — the client asking for
-`bundle: true` proves nothing).
+`Si93JqYS` (60% off, `duration: once`), set as `STRIPE_BUNDLE_COUPON`; the discount is enforced
+**server-side** in `stripe-checkout` (`bundleQualifies` re-checks the entitlement ledger — the
+client asking for `bundle: true` proves nothing).
+
+**The TERM must match; the TIER need not** (owner call 2026-07-28, `src/data/bundle.ts`):
+
+| you hold | you can discount |
+| --- | --- |
+| a **yearly** sibling plan | yearly **or** monthly |
+| a **monthly** sibling plan | monthly only |
+| a trial or manual grant (no Stripe interval) | monthly only |
+
+Until then it was enough to hold *any* active sibling entitlement, which let a **$3.99** tcgscan
+PRO monthly buy michi VIP **yearly** for $40 instead of $99.99 — a $59.99 discount off a $3.99
+ticket, ~15x the entry price, and the same trick in both directions. A free 14-day trial did it
+for $0. `duration: once` meant one shot rather than a permanent repricing, but one shot is the
+whole margin on that sale. Pinned by `src/data/bundle.test.ts`.
 
 - michi PRO/VIP **and not** `tcgscan_pro` → michi's `<BundleOffer/>`
   (`src/components/monetization/BundleOffer.tsx`), on Settings, in the post-checkout modal, **and
@@ -139,4 +153,8 @@ fresh grant shows up next time the surface opens — no deploy.
 - **tcgscan has never had a real-card smoke test** — its checkout, upgrade, and reclaim paths went
   live on code parity with michi, not on an exercised live purchase.
 - **Should tcgscan VIP earn a deeper michi discount than tcgscan PRO does** (and vice versa)?
-  Today the bundle is one flat 60% regardless of which tier you hold.
+  Today the bundle is one flat 60% regardless of which TIER you hold — deliberately kept
+  tier-agnostic on 2026-07-28 when the TERM was matched. Still open.
+- **Should a free trial earn the bundle discount at all?** It can no longer unlock a yearly plan
+  (no Stripe interval ⇒ no yearly commitment), but a live trial still earns 60% off a MONTHLY
+  sibling plan having paid nothing. Small (~$6) and deliberate-by-omission rather than decided.

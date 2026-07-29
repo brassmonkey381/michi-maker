@@ -36,6 +36,8 @@ import {
   termPrintAllocation,
   upgradeQuoteMinor,
 } from '../../../src/data/proration.ts';
+// Bundle-discount eligibility, same shared-module discipline as the proration maths above.
+import { bundleQualifies, bundleSiblingsFor } from '../../../src/data/bundle.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -70,19 +72,6 @@ const ALLOWED_RETURN_ORIGINS = new Set([
   'https://idontgitit.com',
   'http://localhost:8081',
 ]);
-
-/** The sibling products whose ACTIVE ownership qualifies a lookup key for the bundle discount:
- *  own any michi tier → discounted TCGScan tier; own any TCGScan tier → discounted michi tier.
- *  Level-agnostic on purpose — holding EITHER sibling tier earns the cross-app discount. */
-function bundleSiblingsFor(lookupKey: string): string[] | null {
-  if (lookupKey.startsWith('tcgscan_pro') || lookupKey.startsWith('tcgscan_vip')) {
-    return ['tier_pro', 'tier_vip'];
-  }
-  if (lookupKey.startsWith('michi_pro') || lookupKey.startsWith('michi_vip')) {
-    return ['tcgscan_pro', 'tcgscan_vip'];
-  }
-  return null; // one-time products have no bundle
-}
 
 /** michi lookup key → the entitlement product the shared print maths keys on. */
 function tierProductFromLookupKey(lookupKey: string | null | undefined): string | null {
@@ -661,14 +650,10 @@ Deno.serve(async (req: Request) => {
     if (coupon && siblings) {
       const { data: rows } = await service
         .from('entitlements')
-        .select('product, expires_at')
+        .select('product, expires_at, interval')
         .eq('user_id', user.id)
         .in('product', siblings);
-      const now = Date.now();
-      const qualifies = (rows ?? []).some(
-        (r) => !r.expires_at || Date.parse(r.expires_at as string) > now,
-      );
-      if (qualifies) discounts = [{ coupon }];
+      if (bundleQualifies(rows ?? [], lookupKey)) discounts = [{ coupon }];
     }
   }
 

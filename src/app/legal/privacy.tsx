@@ -4,8 +4,13 @@
  * tcgscan portfolio imports, Stripe payments, on-device preferences). Finalized 2026-07-22 at
  * billing go-live: subprocessors verified (Supabase on AWS us-east-1, Vercel, Stripe), the
  * no-ads/no-trackers claim checked against the dependency tree (only @vercel/og, which is OG
- * image generation, not analytics), and account deletion routed through support email (no
- * in-app path exists yet — if one ships, update §7).
+ * image generation, not analytics).
+ *
+ * §7 updated 2026-07-28: in-app account deletion shipped (the `delete-account` edge function,
+ * required for iOS by App Store Review Guideline 5.1.1(v)), so the policy no longer routes
+ * deletion through support email as the only path. It now also states the two things that
+ * deliberately survive deletion — anonymised scan photos and legally-required payment records —
+ * because a policy that promises everything is erased would be false.
  */
 import { StyleSheet, View } from 'react-native';
 
@@ -66,7 +71,9 @@ const SECTIONS: Section[] = [
     heading: '7. Data retention and deletion',
     paragraphs: [
       'Your binders and profile persist until you delete them. Deleting a binder removes its pages and contents.',
-      'To delete your account entirely, email support@michi-maker.com from the address on the account. We will delete the account and its data within 30 days, except records we are required to keep (such as payment records) for legal or accounting reasons.',
+      'You can delete your account from inside the app, at any time, from your account menu. Deletion is immediate and cannot be undone: it removes your profile, binders, saved cards, portfolio, uploaded art, and entitlements. If you have an active paid plan it is cancelled first, so you are not billed again; we do not automatically refund the unused part of a term, so contact us before deleting if you want to ask about one.',
+      'Two things deliberately outlive the account. Scan photos you contributed to improve card recognition are kept, with the link to your account removed, because they are pictures of cards rather than personal information. Payment records are kept where we are required to for legal or accounting reasons.',
+      'You can also email support@michi-maker.com from the address on the account and we will do it for you within 30 days.',
     ],
   },
   {

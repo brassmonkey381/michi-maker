@@ -11,11 +11,18 @@
  * Because pages 2 & 3 read off the same live query, dragging a colour on page 1 changes the match
  * and the results. CTA routes to /plans. The gate itself lives in AutoFillSheet (this is the sell).
  *
- * GUESTS SEE A SIGN-IN PROMPT INSTEAD. Every slide past the first is computed from the loaded
- * catalog, and the catalog is a signed-in perk — so for a guest the query effect returned early and
- * slides 2 and 3 stayed permanently blank. The picker dragged, and nothing ever appeared: a demo
- * that silently demonstrated nothing, to exactly the audience it exists to convert. Signing in is
- * FREE and is all it takes; tri-colour itself stays PRO, which is what the CTA is for.
+ * IT RUNS FOR GUESTS TOO. Slides 2 and 3 used to require the loaded catalog, which is a signed-in
+ * perk, so a guest got two permanently blank pages: the picker dragged and nothing ever appeared —
+ * a demo that silently demonstrated nothing, to exactly the audience it exists to convert.
+ *
+ * Nothing here actually needed the catalog. `searchByColors` already falls back to the
+ * `search_by_colors` server RPC when no on-device index is loaded, and that RPC is granted to anon;
+ * card thumbnails resolve from an id alone. The only genuinely catalog-shaped need was card
+ * METADATA — `rarity`, to keep the walkthrough on full-art cards, plus the match's name and set —
+ * and `fetchCardsByIds` reads those same columns over PostgREST with the anon key. So the demo is
+ * ungated (see resolveDemoCards): warm users take the local catalog, everyone else the server.
+ *
+ * Tri-colour itself stays PRO. Only the SELL is open to everyone, which is the point of a sell.
  */
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -30,9 +37,8 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { searchByColors, srgbToLab, useColorIndex, type Lab } from 'tcgscan-browse';
+import { fetchCardsByIds, searchByColors, srgbToLab, useColorIndex, type Lab } from 'tcgscan-browse';
 
-import { SignInPerk } from '@/components/auth/SignInPerk';
 import { GradientMixBar, HsvColorPicker, rgbToHex, stopWeights, type Stop } from '@/components/color/ColorPicker';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -77,6 +83,32 @@ function isAesthetic(rarity: string | undefined | null): boolean {
 // data/exampleCollection.ts.
 const FALLBACK_IDS = ['517045', '610516', '590026', '509980', '517017', '662184'];
 
+/** The card fields the walkthrough needs, from either source. */
+type DemoCard = { name: string; setName: string; rarity: string };
+
+/**
+ * Metadata for a batch of ids, warm OR cold.
+ *
+ * Signed-in users have the catalog in memory, so use it — free and instant. Everyone else reads
+ * the same columns over PostgREST with the anon key. That second path is the whole reason a guest
+ * now sees a real demo instead of two blank slides.
+ */
+async function resolveDemoCards(
+  ids: string[],
+  catalog: Catalog | null | undefined,
+): Promise<Map<string, DemoCard>> {
+  if (catalog) {
+    const m = new Map<string, DemoCard>();
+    for (const id of ids) {
+      const c = catalog.getCard(id);
+      if (c) m.set(id, { name: c.name, setName: c.setName, rarity: c.rarity });
+    }
+    return m;
+  }
+  const rows = await fetchCardsByIds(ids);
+  return new Map(rows.map((c) => [c.id, { name: c.name, setName: c.setName, rarity: c.rarity }]));
+}
+
 export function TriColorUpsell({
   visible,
   onClose,
@@ -118,24 +150,36 @@ export function TriColorUpsell({
   // Live results for the current mix — the exact `searchByColors` the real Tri-Color Search runs,
   // debounced so dragging a stop doesn't fire a request per frame.
   const [results, setResults] = useState<string[] | null>(null);
+  /** Resolved metadata for whatever the current mix returned (see resolveDemoCards). */
+  const [cards, setCards] = useState<Map<string, DemoCard>>(new Map());
   useEffect(() => {
-    if (!visible || !catalog) return;
+    if (!visible) return;
     let alive = true;
     const t = setTimeout(() => {
       // Rank deep, then keep ONLY the aesthetic full-art / chase rarities (isAesthetic) that have a
       // real mirrored cover — so the whole walkthrough shows gorgeous cards, never plain ones.
       // Full-art region ('noborder') matches on the whole illustration.
       searchByColors(query, 'noborder', { limit: 200 })
-        .then((ids) => {
+        .then(async (ids) => {
+          if (!alive) return;
+          const meta = await resolveDemoCards(ids, catalog);
           if (!alive) return;
           const nice = ids.filter((id) => {
-            const c = catalog.getCard(id);
+            const c = meta.get(id);
             return c && isAesthetic(c.rarity) && cardThumbUrl(id, 245);
           });
           // Never drop to plain rarities: pad a thin result from the curated (also full-art)
           // fallback rather than backfilling with non-aesthetic cards.
           const chosen = nice.length >= 9 ? nice : [...nice, ...FALLBACK_IDS.filter((f) => !nice.includes(f))];
-          setResults(chosen.length ? chosen : FALLBACK_IDS);
+          const final = chosen.length ? chosen : FALLBACK_IDS;
+          // The padding ids need captions too, or the match slide loses its name when a mix is thin.
+          const missing = final.filter((id) => !meta.has(id));
+          if (missing.length) {
+            for (const [id, c] of await resolveDemoCards(missing, catalog)) meta.set(id, c);
+            if (!alive) return;
+          }
+          setCards(meta);
+          setResults(final);
         })
         .catch(() => alive && setResults(FALLBACK_IDS));
     }, 350);
@@ -153,7 +197,7 @@ export function TriColorUpsell({
   };
 
   const heroId = results?.[0];
-  const heroCard = heroId && catalog ? catalog.getCard(heroId) : undefined;
+  const heroCard = heroId ? cards.get(heroId) : undefined;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -171,12 +215,6 @@ export function TriColorUpsell({
               </Pressable>
             </View>
 
-            {/* No catalog ⇒ no colour index ⇒ nothing for the live demo to find. Say so, with the
-                one action that fixes it, rather than letting the walkthrough run empty. */}
-            {catalog ? null : (
-              <SignInPerk message="Log in to see tri-color in action. A signed-in free account is all it takes — the walkthrough searches the full card catalog live." />
-            )}
-
             <View
               style={[styles.viewport, { height: pagerH }]}
               onLayout={(e) => setPagerW(e.nativeEvent.layout.width)}>
@@ -185,7 +223,7 @@ export function TriColorUpsell({
                   <SlidePicker stops={stops} active={active} onChange={setStops} onActive={setActive} />
                 </Slide>
                 <Slide width={pagerW}>
-                  <SlideMatch card={heroCard} name={heroCard?.name} setName={heroCard?.setName} stops={stops} />
+                  <SlideMatch cardId={heroId} name={heroCard?.name} setName={heroCard?.setName} stops={stops} />
                 </Slide>
                 <Slide width={pagerW}>
                   <SlideResults results={results} pagerW={pagerW} active={step === 2} />
@@ -263,12 +301,13 @@ function SlidePicker({
 // ---- Slide 2: the closest real card -----------------------------------------
 
 function SlideMatch({
-  card,
+  cardId,
   name,
   setName,
   stops,
 }: {
-  card: { id: string } | undefined;
+  /** Only the id is needed — the thumbnail resolves from it, and the caption comes in separately. */
+  cardId: string | undefined;
   name?: string;
   setName?: string;
   stops: Stop[];
@@ -287,8 +326,8 @@ function SlideMatch({
           ))}
         </View>
         <View style={styles.heroCard}>
-          {card ? (
-            <Image source={{ uri: cardThumbUrl(card.id, 640) }} style={styles.heroImg} resizeMode="cover" />
+          {cardId ? (
+            <Image source={{ uri: cardThumbUrl(cardId, 640) }} style={styles.heroImg} resizeMode="cover" />
           ) : (
             <View style={styles.heroLoading} />
           )}

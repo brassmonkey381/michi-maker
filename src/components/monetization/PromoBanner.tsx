@@ -23,8 +23,15 @@ import { AccessibilityInfo, Animated, Easing, StyleSheet, Text, View } from 'rea
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { PROMO_LABEL } from '@/data/promo';
 
-/** How long one copy of the text takes to travel its own width. Slow enough to read while moving. */
-const SCROLL_MS = 14000;
+/**
+ * How long one copy of the text takes to travel its own width.
+ *
+ * 140s — a tenth of the original pace (owner call 2026-07-29). At 14s the offer read as a ticker
+ * you had to catch; this is a slow drift you notice without being pulled away from the prices it
+ * sits above. The band is decoration around numbers the user is trying to compare, so barely
+ * moving is the right amount of moving.
+ */
+const SCROLL_MS = 140000;
 /** Height of the band. The type is sized to fill it, so these move together. */
 const BAND_H = 48;
 /**

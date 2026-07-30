@@ -10,6 +10,12 @@
  *
  * Because pages 2 & 3 read off the same live query, dragging a colour on page 1 changes the match
  * and the results. CTA routes to /plans. The gate itself lives in AutoFillSheet (this is the sell).
+ *
+ * GUESTS SEE A SIGN-IN PROMPT INSTEAD. Every slide past the first is computed from the loaded
+ * catalog, and the catalog is a signed-in perk — so for a guest the query effect returned early and
+ * slides 2 and 3 stayed permanently blank. The picker dragged, and nothing ever appeared: a demo
+ * that silently demonstrated nothing, to exactly the audience it exists to convert. Signing in is
+ * FREE and is all it takes; tri-colour itself stays PRO, which is what the CTA is for.
  */
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -26,6 +32,7 @@ import {
 } from 'react-native';
 import { searchByColors, srgbToLab, useColorIndex, type Lab } from 'tcgscan-browse';
 
+import { SignInPerk } from '@/components/auth/SignInPerk';
 import { GradientMixBar, HsvColorPicker, rgbToHex, stopWeights, type Stop } from '@/components/color/ColorPicker';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -163,6 +170,12 @@ export function TriColorUpsell({
                 </ThemedText>
               </Pressable>
             </View>
+
+            {/* No catalog ⇒ no colour index ⇒ nothing for the live demo to find. Say so, with the
+                one action that fixes it, rather than letting the walkthrough run empty. */}
+            {catalog ? null : (
+              <SignInPerk message="Log in to see tri-color in action. A signed-in free account is all it takes — the walkthrough searches the full card catalog live." />
+            )}
 
             <View
               style={[styles.viewport, { height: pagerH }]}

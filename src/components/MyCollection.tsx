@@ -217,8 +217,12 @@ function CollectionStrip({
   const { catalog } = useCatalog(mode === 'sets' || q.length > 0 || actionCard != null);
   // tcgscan portfolios, fetched the first time that view opens.
   const [portfolios, setPortfolios] = useState<PortfolioGroup[] | null>(null);
+  // Collection multi-select that runs BEFORE the wizard: pick which tcgscan collection(s) to draft
+  // from. Declared here (not with the other build state) so the portfolio fetch below can depend on
+  // it — the picker needs portfolios regardless of the current view mode.
+  const [pickerOpen, setPickerOpen] = useState(false);
   useEffect(() => {
-    if (mode !== 'portfolios' || portfolios) return;
+    if ((mode !== 'portfolios' && !pickerOpen) || portfolios) return;
     let active = true;
     fetchPortfolioGroups()
       .then((g) => {
@@ -230,7 +234,7 @@ function CollectionStrip({
     return () => {
       active = false;
     };
-  }, [mode, portfolios]);
+  }, [mode, portfolios, pickerOpen]);
   // Which chooser is open: pick a binder to ADD the placeable selection to, or to RECLAIM the
   // single selected card from.
   const [chooser, setChooser] = useState<'add' | 'reclaim' | null>(null);
@@ -273,6 +277,12 @@ function CollectionStrip({
   const available = cards.reduce((n, c) => n + freeOf(c), 0);
   const headline = `${copies} card${copies === 1 ? '' : 's'} · ${available} available to place`;
   const [wizardOpen, setWizardOpen] = useState(false);
+  // `buildIds` is the scoped free-id list handed to BuildBinderSheet (null = whole collection, the
+  // "Try it out!" onboarding path, which skips the picker). Excluded-set semantics mirror the
+  // wizard's own page toggles: empty = every collection ticked. (`pickerOpen` is declared above,
+  // beside the portfolio fetch it drives.)
+  const [excludedCollections, setExcludedCollections] = useState<Set<string>>(new Set());
+  const [buildIds, setBuildIds] = useState<string[] | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   // Portfolio pending deletion (confirm dialog) — e.g. the "Try it out!" example cards.
   const [pfDelete, setPfDelete] = useState<{ id: string; name: string } | null>(null);
@@ -373,6 +383,38 @@ function CollectionStrip({
     return groups;
   }, [mode, portfolios, filtered]);
 
+  // Options for the "build from which collection(s)" picker: each portfolio's PLACEABLE cards (a
+  // card in several portfolios counts under each — selection is a union, so no dedupe across groups),
+  // plus an "unsorted" bucket of free cards in no portfolio (CSV imports, manual adds). Unlike the
+  // portfolio VIEW above this ignores the search query — the picker builds from the whole collection.
+  const buildGroups = useMemo(() => {
+    if (!portfolios) return null;
+    const freeSet = new Set(freeIds);
+    const claimed = new Set<string>();
+    const groups = portfolios
+      .map((p) => {
+        const ids = [...p.quantities.keys()].filter((id) => freeSet.has(id));
+        for (const id of ids) claimed.add(id);
+        return { id: p.id, name: p.name, ids };
+      })
+      .filter((g) => g.ids.length > 0);
+    const unsorted = freeIds.filter((id) => !claimed.has(id));
+    if (unsorted.length > 0)
+      groups.push({ id: '__unsorted', name: 'Not in a portfolio', ids: unsorted });
+    return groups;
+  }, [portfolios, freeIds]);
+
+  // The unplaced cards spanned by the currently-ticked collections (union, deduped).
+  const selectedBuildIds = useMemo(() => {
+    const s = new Set<string>();
+    if (buildGroups)
+      for (const g of buildGroups)
+        if (!excludedCollections.has(g.id)) for (const id of g.ids) s.add(id);
+    return s;
+  }, [buildGroups, excludedCollections]);
+  const allCollectionsSelected =
+    !!buildGroups && buildGroups.every((g) => !excludedCollections.has(g.id));
+
   // Only cards with a free copy can be placed — an exhausted (0/n) selection is reclaim-only.
   const placeableIds = [...selected].filter((id) => {
     const card = cards.find((c) => c.cardId === id);
@@ -438,6 +480,36 @@ function CollectionStrip({
     }
   };
 
+  // "Build binder" pressed. The example ("Try it out!") flow is a single curated collection with a
+  // guided 3-step arc, so it skips the picker and drafts from everything; the normal path opens the
+  // collection multi-select first.
+  const startBuild = () => {
+    if (exampleFlow) {
+      setBuildIds(null);
+      setWizardOpen(true);
+      return;
+    }
+    setExcludedCollections(new Set()); // reopen with every collection ticked
+    setPickerOpen(true);
+  };
+  const toggleCollection = (id: string) =>
+    setExcludedCollections((cur) => {
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const toggleAllCollections = () =>
+    setExcludedCollections(
+      allCollectionsSelected && buildGroups ? new Set(buildGroups.map((g) => g.id)) : new Set(),
+    );
+  const confirmPicker = () => {
+    if (selectedBuildIds.size === 0) return;
+    setBuildIds([...selectedBuildIds]);
+    setPickerOpen(false);
+    setWizardOpen(true);
+  };
+
   return (
     <HomeSection
       title="My collection"
@@ -448,7 +520,7 @@ function CollectionStrip({
           </ThemedText>
           {freeIds.length > 0 ? (
             <Pressable
-              onPress={() => setWizardOpen(true)}
+              onPress={startBuild}
               style={({ pressed }) => [styles.buildChip, pressed && styles.pressed]}>
               <Text style={styles.buildChipText}>Build binder</Text>
             </Pressable>
@@ -462,7 +534,7 @@ function CollectionStrip({
             curated pages.
           </Text>
           <Pressable
-            onPress={() => setWizardOpen(true)}
+            onPress={startBuild}
             style={({ pressed }) => [styles.buildChip, pressed && styles.pressed]}>
             <Text style={styles.buildChipText}>Build binder</Text>
           </Pressable>
@@ -760,9 +832,83 @@ function CollectionStrip({
         onClose={() => setPfDelete(null)}
       />
 
+      {pickerOpen ? (
+        <Modal visible transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
+          <Pressable style={styles.backdrop} onPress={() => setPickerOpen(false)}>
+            <Pressable onPress={(e) => e.stopPropagation()} style={styles.pickerWrap}>
+              <ThemedView type="backgroundElement" style={styles.picker}>
+                <View style={styles.pickerHead}>
+                  <ThemedText type="smallBold">Build from which collections?</ThemedText>
+                  <Pressable onPress={() => setPickerOpen(false)} hitSlop={8}>
+                    <ThemedText type="link" themeColor="textSecondary">
+                      Close
+                    </ThemedText>
+                  </Pressable>
+                </View>
+                {!buildGroups ? (
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.emptyNote}>
+                    Loading your collections…
+                  </ThemedText>
+                ) : buildGroups.length === 0 ? (
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.emptyNote}>
+                    Nothing left to place. Every owned copy is already in a binder.
+                  </ThemedText>
+                ) : (
+                  <>
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.pickerSub}>
+                      Pick one or more collections. We’ll draft a binder from their unplaced cards.
+                    </ThemedText>
+                    <Pressable onPress={toggleAllCollections} hitSlop={6} style={styles.pickerSelectAll}>
+                      <Text style={styles.pickerSelectAllText}>
+                        {allCollectionsSelected ? 'Clear all' : 'Select all'}
+                      </Text>
+                    </Pressable>
+                    <ScrollView style={styles.pickerList}>
+                      {buildGroups.map((g) => {
+                        const on = !excludedCollections.has(g.id);
+                        return (
+                          <Pressable
+                            key={g.id}
+                            onPress={() => toggleCollection(g.id)}
+                            style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
+                            <View style={[styles.check, on && styles.checkOn]}>
+                              {on ? <Text style={styles.checkMark}>✓</Text> : null}
+                            </View>
+                            <View style={styles.rowText}>
+                              <ThemedText type="smallBold" numberOfLines={1}>
+                                {g.name}
+                                <ThemedText type="small" themeColor="textSecondary">
+                                  {'  '}· {g.ids.length} card{g.ids.length === 1 ? '' : 's'}
+                                </ThemedText>
+                              </ThemedText>
+                            </View>
+                          </Pressable>
+                        );
+                      })}
+                    </ScrollView>
+                    <Pressable
+                      onPress={confirmPicker}
+                      disabled={selectedBuildIds.size === 0}
+                      style={({ pressed }) => [
+                        styles.buildChip,
+                        styles.pickerConfirm,
+                        (pressed || selectedBuildIds.size === 0) && styles.pressed,
+                      ]}>
+                      <Text style={styles.buildChipText}>
+                        Continue · {selectedBuildIds.size} card{selectedBuildIds.size === 1 ? '' : 's'}
+                      </Text>
+                    </Pressable>
+                  </>
+                )}
+              </ThemedView>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      ) : null}
+
       <BuildBinderSheet
         visible={wizardOpen}
-        freeIds={freeIds}
+        freeIds={buildIds ?? freeIds}
         asDemo={exampleFlow}
         onClose={() => setWizardOpen(false)}
         onBuilt={(binderId, pageCount) => {
@@ -1271,6 +1417,27 @@ const styles = StyleSheet.create({
   chooserTitle: { marginBottom: Spacing.two },
   chooserRow: { paddingVertical: Spacing.two },
   chooserNew: { color: Palette.accent, fontSize: FontSize.control, fontWeight: Weight.semibold },
+  pickerWrap: { width: '100%', maxWidth: 420 },
+  picker: { borderRadius: Radii.page, padding: Spacing.four, gap: Spacing.two, maxHeight: '100%' },
+  pickerHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  pickerSub: { lineHeight: 18 },
+  pickerSelectAll: { alignSelf: 'flex-end' },
+  pickerSelectAllText: { color: Palette.accent, fontSize: FontSize.sm, fontWeight: Weight.semibold },
+  pickerList: { maxHeight: 320 },
+  pickerConfirm: { alignItems: 'center', marginTop: Spacing.one, paddingVertical: Spacing.two },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.two },
+  rowText: { flex: 1, gap: 1 },
+  check: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: Palette.hairlineStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkOn: { backgroundColor: Palette.accent, borderColor: Palette.accent },
+  checkMark: { color: Palette.accentText, fontSize: FontSize.sm, fontWeight: Weight.bold },
   controlsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',

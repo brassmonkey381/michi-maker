@@ -28,6 +28,7 @@ import {
 } from 'react-native';
 
 import { BuildBinderSheet } from '@/components/BuildBinderSheet';
+import type { FreeCard } from '@/data/binderWizard';
 import { ConfirmDialog } from '@/components/binder/ConfirmDialog';
 import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { HomeSection } from '@/components/HomeSection';
@@ -60,6 +61,16 @@ const CARD_ASPECT = 88 / 63;
 type ViewMode = 'all' | 'sets' | 'portfolios';
 // Session-remembered preference, like the binder double-sided toggle.
 let viewModePref: ViewMode = 'all';
+
+/**
+ * "109 cards" but "109 cards, 47 distinct" when a collection holds duplicates — `copies` is the
+ * total owned count (sum of quantities), `distinct` the number of different cards. The distinct
+ * clause is dropped when it equals the total (every card a singleton), where it would just be noise.
+ */
+function cardCountLabel(copies: number, distinct: number): string {
+  const base = `${copies} card${copies === 1 ? '' : 's'}`;
+  return distinct !== copies ? `${base}, ${distinct} distinct` : base;
+}
 
 export function MyCollection({
   onToast,
@@ -275,14 +286,14 @@ function CollectionStrip({
   const freeOf = (c: UserCard) => Math.max(0, c.quantity - (placedCounts.get(c.cardId) ?? 0));
   const copies = cards.reduce((n, c) => n + c.quantity, 0);
   const available = cards.reduce((n, c) => n + freeOf(c), 0);
-  const headline = `${copies} card${copies === 1 ? '' : 's'} · ${available} available to place`;
+  const headline = `${cardCountLabel(copies, cards.length)} · ${available} available to place`;
   const [wizardOpen, setWizardOpen] = useState(false);
-  // `buildIds` is the scoped free-id list handed to BuildBinderSheet (null = whole collection, the
-  // "Try it out!" onboarding path, which skips the picker). Excluded-set semantics mirror the
-  // wizard's own page toggles: empty = every collection ticked. (`pickerOpen` is declared above,
-  // beside the portfolio fetch it drives.)
+  // `buildCards` is the scoped free-card list (id + free-copy count) handed to BuildBinderSheet
+  // (null = whole collection, the "Try it out!" onboarding path, which skips the picker).
+  // Excluded-set semantics mirror the wizard's own page toggles: empty = every collection ticked.
+  // (`pickerOpen` is declared above, beside the portfolio fetch it drives.)
   const [excludedCollections, setExcludedCollections] = useState<Set<string>>(new Set());
-  const [buildIds, setBuildIds] = useState<string[] | null>(null);
+  const [buildCards, setBuildCards] = useState<FreeCard[] | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   // Portfolio pending deletion (confirm dialog) — e.g. the "Try it out!" example cards.
   const [pfDelete, setPfDelete] = useState<{ id: string; name: string } | null>(null);
@@ -298,7 +309,24 @@ function CollectionStrip({
       onToast?.((e as Error).message);
     }
   };
-  const freeIds = cards.filter((c) => freeOf(c) > 0).map((c) => c.cardId);
+  // Free COPIES per card id (owned across all condition rows, minus what's placed from collection).
+  // The build now places every free copy, so it needs counts, not just a distinct id list.
+  const freeByCard = useMemo(() => {
+    const owned = new Map<string, number>();
+    for (const c of cards) owned.set(c.cardId, (owned.get(c.cardId) ?? 0) + c.quantity);
+    const free = new Map<string, number>();
+    for (const [id, n] of owned) {
+      const f = Math.max(0, n - (placedCounts.get(id) ?? 0));
+      if (f > 0) free.set(id, f);
+    }
+    return free;
+  }, [cards, placedCounts]);
+  const freeIds = [...freeByCard.keys()];
+  // Whole-collection free cards for the onboarding ("Try it out!") build, which skips the picker.
+  const allFreeCards = useMemo<FreeCard[]>(
+    () => [...freeByCard].map(([id, qty]) => ({ id, qty })),
+    [freeByCard],
+  );
 
   const toggle = (cardId: string) =>
     setSelected((cur) => {
@@ -383,35 +411,55 @@ function CollectionStrip({
     return groups;
   }, [mode, portfolios, filtered]);
 
-  // Options for the "build from which collection(s)" picker: each portfolio's PLACEABLE cards (a
-  // card in several portfolios counts under each — selection is a union, so no dedupe across groups),
-  // plus an "unsorted" bucket of free cards in no portfolio (CSV imports, manual adds). Unlike the
-  // portfolio VIEW above this ignores the search query — the picker builds from the whole collection.
+  // Options for the "build from which collection(s)" picker: each portfolio's PLACEABLE cards paired
+  // with their free-copy count (a card in several portfolios counts under each — selection is a
+  // union, so no dedupe across groups), plus an "unsorted" bucket of free cards in no portfolio (CSV
+  // imports, manual adds). `copies` is the total free copies in the group — the count the row shows,
+  // since the build now places every copy. Unlike the portfolio VIEW above this ignores the search
+  // query: the picker builds from the whole collection.
   const buildGroups = useMemo(() => {
     if (!portfolios) return null;
-    const freeSet = new Set(freeIds);
     const claimed = new Set<string>();
     const groups = portfolios
       .map((p) => {
-        const ids = [...p.quantities.keys()].filter((id) => freeSet.has(id));
-        for (const id of ids) claimed.add(id);
-        return { id: p.id, name: p.name, ids };
+        const groupCards: FreeCard[] = [];
+        for (const id of p.quantities.keys()) {
+          const qty = freeByCard.get(id);
+          if (qty) {
+            groupCards.push({ id, qty });
+            claimed.add(id);
+          }
+        }
+        const copies = groupCards.reduce((n, f) => n + f.qty, 0);
+        return { id: p.id, name: p.name, cards: groupCards, copies };
       })
-      .filter((g) => g.ids.length > 0);
-    const unsorted = freeIds.filter((id) => !claimed.has(id));
+      .filter((g) => g.cards.length > 0);
+    const unsorted: FreeCard[] = [];
+    for (const [id, qty] of freeByCard) if (!claimed.has(id)) unsorted.push({ id, qty });
     if (unsorted.length > 0)
-      groups.push({ id: '__unsorted', name: 'Not in a portfolio', ids: unsorted });
+      groups.push({
+        id: '__unsorted',
+        name: 'Not in a portfolio',
+        cards: unsorted,
+        copies: unsorted.reduce((n, f) => n + f.qty, 0),
+      });
     return groups;
-  }, [portfolios, freeIds]);
+  }, [portfolios, freeByCard]);
 
-  // The unplaced cards spanned by the currently-ticked collections (union, deduped).
-  const selectedBuildIds = useMemo(() => {
-    const s = new Set<string>();
+  // The unplaced cards (id → free copies) spanned by the currently-ticked collections. A Map dedupes
+  // a card shared by two selected collections to one entry — its global free-copy count.
+  const selectedBuildCards = useMemo(() => {
+    const m = new Map<string, number>();
     if (buildGroups)
       for (const g of buildGroups)
-        if (!excludedCollections.has(g.id)) for (const id of g.ids) s.add(id);
-    return s;
+        if (!excludedCollections.has(g.id)) for (const f of g.cards) m.set(f.id, f.qty);
+    return m;
   }, [buildGroups, excludedCollections]);
+  const selectedCopyCount = useMemo(() => {
+    let n = 0;
+    for (const qty of selectedBuildCards.values()) n += qty;
+    return n;
+  }, [selectedBuildCards]);
   const allCollectionsSelected =
     !!buildGroups && buildGroups.every((g) => !excludedCollections.has(g.id));
 
@@ -485,7 +533,7 @@ function CollectionStrip({
   // collection multi-select first.
   const startBuild = () => {
     if (exampleFlow) {
-      setBuildIds(null);
+      setBuildCards(null);
       setWizardOpen(true);
       return;
     }
@@ -504,8 +552,8 @@ function CollectionStrip({
       allCollectionsSelected && buildGroups ? new Set(buildGroups.map((g) => g.id)) : new Set(),
     );
   const confirmPicker = () => {
-    if (selectedBuildIds.size === 0) return;
-    setBuildIds([...selectedBuildIds]);
+    if (selectedBuildCards.size === 0) return;
+    setBuildCards([...selectedBuildCards].map(([id, qty]) => ({ id, qty })));
     setPickerOpen(false);
     setWizardOpen(true);
   };
@@ -652,7 +700,11 @@ function CollectionStrip({
                 <ThemedText type="smallBold" style={styles.groupSeries}>
                   {g.name}
                   <ThemedText type="small" themeColor="textSecondary">
-                    {'  '}· {g.cards.length} card{g.cards.length === 1 ? '' : 's'}
+                    {'  '}·{' '}
+                    {cardCountLabel(
+                      g.cards.reduce((n, c) => n + c.quantity, 0),
+                      g.cards.length,
+                    )}
                   </ThemedText>
                 </ThemedText>
                 <Pressable onPress={() => setPfDelete({ id: g.id, name: g.name })} hitSlop={6}>
@@ -878,7 +930,7 @@ function CollectionStrip({
                               <ThemedText type="smallBold" numberOfLines={1}>
                                 {g.name}
                                 <ThemedText type="small" themeColor="textSecondary">
-                                  {'  '}· {g.ids.length} card{g.ids.length === 1 ? '' : 's'}
+                                  {'  '}· {g.copies} card{g.copies === 1 ? '' : 's'}
                                 </ThemedText>
                               </ThemedText>
                             </View>
@@ -888,14 +940,14 @@ function CollectionStrip({
                     </ScrollView>
                     <Pressable
                       onPress={confirmPicker}
-                      disabled={selectedBuildIds.size === 0}
+                      disabled={selectedBuildCards.size === 0}
                       style={({ pressed }) => [
                         styles.buildChip,
                         styles.pickerConfirm,
-                        (pressed || selectedBuildIds.size === 0) && styles.pressed,
+                        (pressed || selectedBuildCards.size === 0) && styles.pressed,
                       ]}>
                       <Text style={styles.buildChipText}>
-                        Continue · {selectedBuildIds.size} card{selectedBuildIds.size === 1 ? '' : 's'}
+                        Continue · {selectedCopyCount} card{selectedCopyCount === 1 ? '' : 's'}
                       </Text>
                     </Pressable>
                   </>
@@ -908,7 +960,7 @@ function CollectionStrip({
 
       <BuildBinderSheet
         visible={wizardOpen}
-        freeIds={buildIds ?? freeIds}
+        freeCards={buildCards ?? allFreeCards}
         asDemo={exampleFlow}
         onClose={() => setWizardOpen(false)}
         onBuilt={(binderId, pageCount) => {

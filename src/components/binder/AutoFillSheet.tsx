@@ -6,8 +6,9 @@
  *
  * Forces the catalog load on open (like the CardPicker) — composition scans real metadata.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { fetchCardDetail } from 'tcgscan-browse';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { TriColorUpsell } from '@/components/binder/TriColorUpsell';
@@ -88,16 +89,42 @@ export function AutoFillSheet({
 
   const ready = !!catalog && partnersReady;
   const seed = catalog && seedCardId ? resolveCatalogCardWith(catalog, seedCardId) : undefined;
-  const methods = seed && catalog && ready ? availableMethods(seed, catalog) : [];
+
+  // Evolution family for the seed. The slim catalog ships evolutionLine: [] in bulk (it's lazy-loaded
+  // via rpc/card_detail), which hid the "Evolution line" fill option and broke its composer. Fetch it
+  // per seed (cached forever) and merge onto the seed so availableMethods offers the option and
+  // composePage can find the family. Keyed by id so switching seeds never shows stale data.
+  const [seedEvoById, setSeedEvoById] = useState<ReadonlyMap<string, string[]>>(new Map());
+  useEffect(() => {
+    if (!visible || !seedCardId || !seed || seed.evolutionLine.length > 0 || seedEvoById.has(seedCardId))
+      return;
+    let active = true;
+    fetchCardDetail([seedCardId])
+      .then((d) => {
+        if (active) setSeedEvoById((m) => new Map(m).set(seedCardId, d[seedCardId]?.evolutionLine ?? []));
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [visible, seedCardId, seed, seedEvoById]);
+  const enrichedSeed = useMemo(() => {
+    const evo = seedCardId ? seedEvoById.get(seedCardId) : undefined;
+    return seed && evo && evo.length > 0 && seed.evolutionLine.length === 0
+      ? { ...seed, evolutionLine: evo }
+      : seed;
+  }, [seed, seedCardId, seedEvoById]);
+
+  const methods = enrichedSeed && catalog && ready ? availableMethods(enrichedSeed, catalog) : [];
   const emptyCount = page.rows * page.cols - occupiedCells(page).size;
 
   const poolActive = fromCollection && !!ownedIds && ownedIds.size > 0;
   const run = async (method: ComposeMethod) => {
-    if (!seed || !catalog || busy) return;
+    if (!enrichedSeed || !catalog || busy) return;
     setBusy(method);
     setError(null);
     try {
-      let placements = await composePage(method, seed, catalog, page, poolActive ? ownedIds : null);
+      let placements = await composePage(method, enrichedSeed, catalog, page, poolActive ? ownedIds : null);
       // Pool fills consume owned copies — tag card pockets with collection provenance so the
       // (free/owned) inventory accounting and Reclaim see them.
       if (poolActive) {

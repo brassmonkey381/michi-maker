@@ -21,8 +21,16 @@ export interface WizardProposal {
   title: string;
   /** One-line description for the picker row. */
   blurb: string;
-  /** Placement order, capped at one 3×3 page. */
+  /** Placement order, capped at one 3×3 page. May repeat a card id: the bulk sweep gives every
+   *  extra copy its own pocket, so a multiple shows up as a short run of the same card. */
   cardIds: string[];
+}
+
+/** A placeable card and how many FREE copies of it the user holds (owned minus collection-placed). */
+export interface FreeCard {
+  id: string;
+  /** ≥1. Curated pages take one copy; the rest flow into the bulk sweep. */
+  qty: number;
 }
 
 const PAGE_ROWS = 3;
@@ -59,6 +67,19 @@ const cap = (s: string) => s.replace(/(^|\s)\w/g, (m) => m.toUpperCase());
 const byRelease = (a: CatalogCard, b: CatalogCard) =>
   (a.releaseDate || '9999').localeCompare(b.releaseDate || '9999');
 
+/**
+ * A card's Basic→final position within its evolution family. Prefers the catalog's own stage index;
+ * falls back to the species' spot in the (ordered, Basic-first) `evolutionLine` — which is all the
+ * slim catalog gives us after the lazy evolutionLine backfill, since `evolution_stage_index` isn't
+ * shipped in bulk. So an evolution page still reads Basic → final even with no stage index.
+ */
+function evolutionStageOf(c: CatalogCard): number {
+  if (c.evolutionStage > 0) return c.evolutionStage;
+  const n = c.name.toLowerCase();
+  const idx = c.evolutionLine.findIndex((s) => n.includes(s));
+  return idx >= 0 ? idx : 99;
+}
+
 interface Cluster {
   kind: WizardProposal['kind'];
   key: string;
@@ -69,19 +90,35 @@ interface Cluster {
 }
 
 /**
- * Propose theme pages + a bulk sweep from the free inventory. `freeIds` are card ids with at
- * least one unplaced copy (one page pocket per distinct print, extra copies stay available).
- * `prices` (the shared price summary) unlocks the CHASE BOARD: the most valuable hits claim
- * page one before any theme cluster can bury them in bulk.
+ * Propose theme pages + a bulk sweep from the free inventory. `freeCards` pair each card id with
+ * its free-copy count. Curated pages (chase, evolution, artist, …) take ONE copy of a card so they
+ * stay clean; every extra copy flows into the colour-blocked bulk sweep, kept adjacent — so owning
+ * 3× of a card yields three pockets, not one. `prices` (the shared price summary) unlocks the CHASE
+ * BOARD: the most valuable hits claim page one before any theme cluster can bury them in bulk.
+ *
+ * `evolutionLines` backfills the per-card evolution family the slim catalog no longer ships in bulk
+ * (id → ordered family species, from rpc/card_detail). Without it evolution theme pages can't
+ * cluster — every card's `evolutionLine` is []. The caller (BuildBinderSheet) fetches it; when
+ * absent or empty the wizard simply proposes no evolution pages, same as before.
  */
 export function proposePages(
-  freeIds: string[],
+  freeCards: FreeCard[],
   catalog: Catalog,
   prices?: PriceSummary | null,
+  evolutionLines?: ReadonlyMap<string, string[]>,
 ): { proposals: WizardProposal[]; bulk: WizardProposal[] } {
-  const cards = freeIds
-    .map((id) => catalog.getCard(id))
-    .filter((c): c is CatalogCard => !!c && c.kind === 'standard');
+  // Free copies per card id (≥1). Curated pages consume one; the bulk sweep takes the remainder.
+  const qtyOf = new Map<string, number>();
+  for (const f of freeCards) qtyOf.set(f.id, Math.max(1, Math.floor(f.qty)));
+  const cards = freeCards
+    .map((f) => catalog.getCard(f.id))
+    .filter((c): c is CatalogCard => !!c && c.kind === 'standard')
+    .map((c) => {
+      // Backfill the slim catalog's empty evolutionLine from the fetched detail so evolution pages
+      // cluster again. Never clobber a value the catalog already carries (a fat catalog / cache hit).
+      const evo = evolutionLines?.get(c.id);
+      return evo && evo.length > 0 && c.evolutionLine.length === 0 ? { ...c, evolutionLine: evo } : c;
+    });
 
   // Chase board first: every hit above the value floor, most valuable in the CENTRE pocket
   // (the anchor-page crown), the rest ringed around it by value. Claimed cards are off the
@@ -137,7 +174,7 @@ export function proposePages(
         key: `evo|${c.evolutionLine.join('>')}`,
         title: `${cap(c.evolutionLine[0])} line`,
         blurb: `The ${cap(c.evolutionLine[0])} evolution family, Basic → final stage.`,
-        order: (cs) => [...cs].sort((a, b) => a.evolutionStage - b.evolutionStage || byRelease(a, b)),
+        order: (cs) => [...cs].sort((a, b) => evolutionStageOf(a) - evolutionStageOf(b) || byRelease(a, b)),
       });
     }
     const species = speciesOf(c);
@@ -202,26 +239,34 @@ export function proposePages(
     });
   }
 
-  // Bulk sweep: everything unclaimed, colour-blocked by energy type, 9 to a page.
-  const leftovers = cards.filter((c) => !used.has(c.id));
-  const byType = new Map<string, CatalogCard[]>();
-  for (const c of leftovers) {
+  // Bulk sweep: every card a theme didn't take, PLUS every extra copy of the ones it did — a card
+  // used on a curated page contributes its remaining (qty - 1) copies here. Colour-blocked by energy
+  // type, 9 to a page, copies of the same card kept contiguous so a multiple reads as a short run.
+  type BulkUnit = { card: CatalogCard; copies: number };
+  const sumCopies = (us: BulkUnit[]) => us.reduce((n, u) => n + u.copies, 0);
+  const byType = new Map<string, BulkUnit[]>();
+  for (const c of cards) {
+    const copies = (qtyOf.get(c.id) ?? 1) - (used.has(c.id) ? 1 : 0);
+    if (copies <= 0) continue;
     const t = c.types[0] ?? 'Colorless';
     const list = byType.get(t) ?? [];
-    list.push(c);
+    list.push({ card: c, copies });
     byType.set(t, list);
   }
   const bulk: WizardProposal[] = [];
-  for (const [type, list] of [...byType.entries()].sort((a, b) => b[1].length - a[1].length)) {
-    const ordered = [...list].sort(byRelease);
-    for (let i = 0; i < ordered.length; i += PAGE_CELLS) {
-      const chunk = ordered.slice(i, i + PAGE_CELLS);
+  for (const [type, units] of [...byType.entries()].sort((a, b) => sumCopies(b[1]) - sumCopies(a[1]))) {
+    const ordered = [...units].sort((a, b) => byRelease(a.card, b.card));
+    // Expand copies into a flat id list, duplicates back-to-back, then chunk into pages.
+    const ids: string[] = [];
+    for (const u of ordered) for (let k = 0; k < u.copies; k += 1) ids.push(u.card.id);
+    for (let i = 0; i < ids.length; i += PAGE_CELLS) {
+      const chunk = ids.slice(i, i + PAGE_CELLS);
       bulk.push({
         key: `bulk|${type}|${i}`,
         kind: 'type',
         title: `${type} bulk`,
         blurb: `Colour-blocked ${type.toLowerCase()} sweep.`,
-        cardIds: chunk.map((c) => c.id),
+        cardIds: chunk,
       });
     }
   }

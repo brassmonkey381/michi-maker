@@ -9,6 +9,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { fetchCardDetail, type CardDetail } from 'tcgscan-browse';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { TcgscanSynergyNote } from '@/components/monetization/BundleOffer';
@@ -17,7 +18,14 @@ import { LogoLoader } from '@/components/brand/LogoLoader';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
-import { buildPages, capProposals, proposePages, wizardMaxPages, type WizardProposal } from '@/data/binderWizard';
+import {
+  buildPages,
+  capProposals,
+  proposePages,
+  wizardMaxPages,
+  type FreeCard,
+  type WizardProposal,
+} from '@/data/binderWizard';
 import { binderLimitMessage } from '@/data/limitMessages';
 import { useCatalog } from '@/hooks/use-catalog';
 import { usePriceSummary } from '@/lib/prices';
@@ -25,14 +33,15 @@ import { useBinders } from '@/store/binders';
 
 export function BuildBinderSheet({
   visible,
-  freeIds,
+  freeCards,
   onClose,
   onBuilt,
   asDemo = false,
 }: {
   visible: boolean;
-  /** Card ids with at least one unplaced copy. */
-  freeIds: string[];
+  /** Cards with at least one unplaced copy, paired with their free-copy count. Curated pages take
+   *  one copy each; extra copies flow into the bulk sweep. */
+  freeCards: FreeCard[];
   onClose: () => void;
   /** Called with the new binder's id (the parent navigates + toasts). */
   onBuilt: (binderId: string, pageCount: number) => void;
@@ -47,9 +56,36 @@ export function BuildBinderSheet({
   // simply proposes without a chase page rather than blocking the wizard.
   const priceSummary = usePriceSummary();
 
+  // Evolution families (id → ordered species) for the free pool. The slim catalog no longer ships
+  // evolutionLine in bulk (it's lazy-loaded via rpc/card_detail), so without this every card reads
+  // evolutionLine: [] and the wizard proposes NO evolution pages. Fetch it here — chunked at the
+  // RPC's 50-id cap, cached forever — and feed it into proposePages. Fails soft to an empty map.
+  const freeIdsKey = useMemo(() => freeCards.map((f) => f.id).join(','), [freeCards]);
+  const [evoLines, setEvoLines] = useState<ReadonlyMap<string, string[]>>(new Map());
+  useEffect(() => {
+    if (!visible) return;
+    const ids = freeIdsKey ? freeIdsKey.split(',') : [];
+    if (ids.length === 0) return;
+    let active = true;
+    const chunks: string[][] = [];
+    for (let i = 0; i < ids.length; i += 50) chunks.push(ids.slice(i, i + 50));
+    Promise.all(chunks.map((c) => fetchCardDetail(c).catch((): Record<string, CardDetail> => ({}))))
+      .then((results) => {
+        if (!active) return;
+        const m = new Map<string, string[]>();
+        for (const r of results)
+          for (const [id, d] of Object.entries(r)) if (d.evolutionLine.length > 0) m.set(id, d.evolutionLine);
+        if (m.size > 0) setEvoLines(m);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [visible, freeIdsKey]);
+
   const rawPlan = useMemo(
-    () => (visible && catalog ? proposePages(freeIds, catalog, priceSummary) : null),
-    [visible, catalog, priceSummary, freeIds],
+    () => (visible && catalog ? proposePages(freeCards, catalog, priceSummary, evoLines) : null),
+    [visible, catalog, priceSummary, freeCards, evoLines],
   );
   // Hold the "Reading your collection…" state for a deliberate minimum so the build
   // animation is actually seen — the plan itself computes near-instantly on a warm catalog.

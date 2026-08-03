@@ -5,7 +5,7 @@
  * and rolls into My collection automatically via the database trigger + realtime.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { TcgscanLink } from '@/components/monetization/BundleOffer';
@@ -63,6 +63,29 @@ export function ImportCsvSheet({
     return analyzeCsv(parseCsv(text), catalog);
   }, [catalog, text]);
 
+  // Web: let desktop users pick a .csv from disk instead of only pasting. Opens the native file
+  // dialog, reads the file, and drops its text into the same paste box (so preview/import are
+  // unchanged). No-op off web — native has no file dialog here, paste stays the path.
+  const pickCsvFile = () => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv,text/csv,text/plain';
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      file
+        .text()
+        .then((t) => {
+          setText(t);
+          if (!name.trim()) setName(file.name.replace(/\.[^.]+$/, ''));
+          setError(null);
+        })
+        .catch(() => setError('Could not read that file. Try pasting its contents instead.'));
+    };
+    input.click();
+  };
+
   const runImport = async () => {
     if (!analysis || analysis.matches.length === 0 || busy) return;
     setBusy(true);
@@ -118,6 +141,18 @@ export function ImportCsvSheet({
                   cards again.
                 </ThemedText>
 
+                {Platform.OS === 'web' ? (
+                  <View style={styles.uploadRow}>
+                    <Pressable
+                      onPress={pickCsvFile}
+                      style={({ pressed }) => [styles.uploadBtn, pressed && styles.dim]}>
+                      <Text style={styles.uploadBtnText}>Choose a .csv file…</Text>
+                    </Pressable>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      or paste below
+                    </ThemedText>
+                  </View>
+                ) : null}
                 <TextInput
                   value={text}
                   onChangeText={setText}
@@ -235,6 +270,15 @@ const styles = StyleSheet.create({
     fontSize: FontSize.control,
   },
   csvBox: { minHeight: 120, maxHeight: 200, textAlignVertical: 'top', fontFamily: 'monospace' },
+  uploadRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, flexWrap: 'wrap' },
+  uploadBtn: {
+    borderWidth: 1,
+    borderColor: Palette.controlBorder,
+    borderRadius: Radius.pill,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.four,
+  },
+  uploadBtnText: { color: Palette.accent, fontSize: FontSize.control, fontWeight: Weight.semibold },
   unmatchedBox: { maxHeight: 110 },
   unmatchedText: { fontSize: FontSize.sm, color: Palette.muted2, lineHeight: 17 },
   importBtn: {

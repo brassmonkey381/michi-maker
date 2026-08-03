@@ -147,10 +147,10 @@ export function ShareSheet({
                 <ThemedText type="smallBold">Remove private art before sharing</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.gateText}>
                   {privateArt.length} art {privateArt.length === 1 ? 'piece was' : 'pieces were'}{' '}
-                  brought in from a link, so {privateArt.length === 1 ? 'it stays' : 'they stay'}{' '}
-                  private, a binder with them can’t be shared. Replace{' '}
-                  {privateArt.length === 1 ? 'it' : 'them'} with your own uploaded art to share this
-                  binder.
+                  brought in from a link or copied from another binder, so{' '}
+                  {privateArt.length === 1 ? 'it stays' : 'they stay'} private, a binder with them
+                  can’t be shared. Replace {privateArt.length === 1 ? 'it' : 'them'} with your own
+                  uploaded art to share this binder.
                 </ThemedText>
                 <ScrollView style={styles.gateList} contentContainerStyle={styles.gateListInner}>
                   {privateArt.map((u) => (

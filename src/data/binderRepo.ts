@@ -266,6 +266,27 @@ export async function insertBinder(binder: DemoBinder): Promise<void> {
   }
 }
 
+/**
+ * Provenance ledger: record that `copyId` was duplicated from `source`, so a binder's reshare chain
+ * can always be traced (walk `source_binder_id` back up). Best-effort and fire-and-forget — any
+ * failure (RLS, or the `binder_reshares` table not existing until its migration is applied) is
+ * swallowed so it can never affect the duplicate itself. `source_binder_id` is TEXT because bundled
+ * example ids ('ex-…') aren't uuids and a source may later be deleted.
+ */
+export async function recordReshare(copyId: string, source: DemoBinder): Promise<void> {
+  try {
+    const supabase = requireSupabase();
+    await supabase.from('binder_reshares').insert({
+      binder_id: copyId,
+      source_binder_id: source.id,
+      source_title: source.title,
+      source_is_example: source.isExample ?? false,
+    });
+  } catch {
+    /* ledger is best-effort — never block or surface on a duplicate */
+  }
+}
+
 export async function updateBinder(id: string, patch: Partial<DemoBinder>): Promise<void> {
   const supabase = requireSupabase();
   const row: BinderUpdate = {};

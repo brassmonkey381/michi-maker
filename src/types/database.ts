@@ -49,6 +49,44 @@ export type Database = {
           },
         ]
       }
+      binder_reshares: {
+        Row: {
+          binder_id: string
+          copied_by: string
+          created_at: string
+          id: string
+          source_binder_id: string | null
+          source_is_example: boolean
+          source_title: string | null
+        }
+        Insert: {
+          binder_id: string
+          copied_by?: string
+          created_at?: string
+          id?: string
+          source_binder_id?: string | null
+          source_is_example?: boolean
+          source_title?: string | null
+        }
+        Update: {
+          binder_id?: string
+          copied_by?: string
+          created_at?: string
+          id?: string
+          source_binder_id?: string | null
+          source_is_example?: boolean
+          source_title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "binder_reshares_binder_id_fkey"
+            columns: ["binder_id"]
+            isOneToOne: false
+            referencedRelation: "binders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       binder_pages: {
         Row: {
           background_color: string | null

@@ -26,6 +26,7 @@ import {
   type ReactNode,
 } from 'react';
 
+import { markCopiedArtBorrowed } from '@/data/artAttributionCheck';
 import * as repo from '@/data/binderRepo';
 import { slotSignature } from '@/data/savedSlices';
 import { legalizeArtPanels, pageSide, requiredPageSide } from '@/data/binderPhysics';
@@ -522,10 +523,17 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       if (LIMITS_ENFORCED && binderCount >= limits.binders) return undefined;
       // A duplicate gets a fresh short filler name (not "<title> (copy)") — same rationale as a
       // new binder. Stamp its content signature so an immediate, unedited delete can skip the gate.
-      const copy = cloneBinder(source, { title: fillerName() });
+      const clone = cloneBinder(source, { title: fillerName() });
+      // Copied CUSTOM art loses reshare rights UNLESS you authored the source: examples/demos are
+      // curated content you didn't create, so their art is borrowed on copy (origin 'copied' →
+      // private, must be removed before the copy can go public). Duplicating your OWN binder keeps
+      // your art. Card art + procedural inserts are never touched. (A future "duplicate someone's
+      // public binder" path should route through markCopiedArtBorrowed too.)
+      const copy = source.isExample || source.isDemo ? markCopiedArtBorrowed(clone) : clone;
       pristineDupSigs.current.set(copy.id, binderSignature(copy));
       commit((prev) => [...prev, copy]);
-      persist(() => repo.insertBinder(copy));
+      // Provenance ledger: record source → copy (best-effort; no-ops until the migration is applied).
+      persist(() => repo.insertBinder(copy).then(() => repo.recordReshare(copy.id, source)));
       return copy;
     },
     [binders, binderCount, limits.binders, commit, persist],

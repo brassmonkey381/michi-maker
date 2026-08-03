@@ -66,10 +66,54 @@ export function isPrivateArt(attribution?: ArtAttribution | null, imageUrl?: str
   if (isCardCatalogArt(imageUrl)) return false;
   if (attribution?.origin === 'card') return false;
   if (attribution?.origin === 'external') return true;
+  // Inherited by duplicating another binder — the copier holds no rights to it.
+  if (attribution?.origin === 'copied') return true;
   if (attribution?.origin === 'upload') return false;
   // Origin unknown (legacy art): trust where it's hosted. Non-bucket ⇒ hotlink ⇒ private.
   if (imageUrl !== undefined && imageUrl !== null) return !isBucketHostedArt(imageUrl);
   return false;
+}
+
+/**
+ * Does this copied slot hold CUSTOM art the copier has no rights to reshare? True for hosted custom
+ * artwork (the `binder-art` bucket / an outside URL / an `upload`|`external` origin). False for our
+ * own card art and for procedural `data:`/`blob:` inserts (the app's colour sheets) — those stay
+ * shareable when a binder is duplicated. Used by `markCopiedArtBorrowed`.
+ */
+function isBorrowableCustomArt(slot: DemoSlot): boolean {
+  if (!isCustomArtwork(slot)) return false;
+  const url = slot.imageUrl;
+  if (isCardCatalogArt(url)) return false; // our card art — always shareable
+  if (slot.attribution?.origin === 'card') return false;
+  if (url && /^(blob|data):/i.test(url)) return false; // procedural app inserts (themeBackgrounds)
+  return true;
+}
+
+/**
+ * Stamp every copied CUSTOM-artwork slot as `origin: 'copied'` (→ private) when a binder is
+ * duplicated, so the copy can't be reshared with art the new owner didn't create. Catalog card art
+ * and procedural inserts are left untouched. Original artist/source fields are preserved for
+ * attribution; only the provenance CLASS changes. Returns a new binder (pure); call it on the clone
+ * BEFORE persisting. Note: `binderSignature` ignores `attribution`, so this never disturbs the
+ * pristine-duplicate delete gate.
+ */
+export function markCopiedArtBorrowed(binder: DemoBinder): DemoBinder {
+  return {
+    ...binder,
+    pages: binder.pages.map((page) => ({
+      ...page,
+      slots: page.slots.map((slot) => {
+        if (!isBorrowableCustomArt(slot)) return slot;
+        return {
+          ...slot,
+          attribution: {
+            ...(slot.attribution ?? { sourceName: 'copied from a binder' }),
+            origin: 'copied',
+          },
+        };
+      }),
+    })),
+  };
 }
 
 export interface PrivateArtRef {

@@ -61,9 +61,14 @@ export interface ArtAttribution {
    *    shows publicly in every binder and in Browse, so a crop of one is no different in kind.
    *    Distinct from 'upload' on purpose — the user didn't supply it, and the gate's audit trail
    *    is only worth having if it says what actually happened.
+   *  - 'copied' — custom art inherited by DUPLICATING another binder (incl. examples). The copier
+   *    didn't create or supply it, so they hold no rights to reshare it. PRIVATE: it must be
+   *    removed before the copy can go public. (A future "grant rights to my art" toggle from the
+   *    original owner is what would lift this.) Card art / procedural inserts are never stamped
+   *    'copied' — those stay shareable on copy.
    * Absent ⇒ legacy/official content (card art, our own AI art) — not treated as private.
    */
-  origin?: 'external' | 'upload' | 'card';
+  origin?: 'external' | 'upload' | 'card' | 'copied';
 }
 
 const PLATFORM_NAMES: Record<string, string> = {

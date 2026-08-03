@@ -8,7 +8,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { fetchCardDetail } from 'tcgscan-browse';
+import { fetchCardDetail, LanguageToggle } from 'tcgscan-browse';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { TriColorUpsell } from '@/components/binder/TriColorUpsell';
@@ -30,7 +30,9 @@ import {
 import { resolveCatalogCardWith } from '@/data/cardResolver';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useTier } from '@/hooks/use-tier';
+import { useBrowseTheme } from '@/lib/browseTheme';
 import { isSupabaseConfigured } from '@/lib/env';
+import { useLanguagePref } from '@/store/languagePref';
 
 // Session-remembered preference: once a collector fills from their collection, keep doing so.
 let fromCollectionPref = false;
@@ -51,6 +53,10 @@ export function AutoFillSheet({
 }) {
   const { catalog, guestGated } = useCatalog(visible);
   const { isPaid } = useTier();
+  // EN/JP bound, shared with the browse surfaces (persisted, account-synced). Passed INTO the
+  // composer's ranking RPCs (p_lang) + local scans, so a fill honours the chosen printing language.
+  const [languages, setLanguages] = useLanguagePref();
+  const browseTheme = useBrowseTheme();
   const [busy, setBusy] = useState<ComposeMethod | null>(null);
   const [error, setError] = useState<string | null>(null);
   // The tri-color upsell (opened when a free user taps the locked paid method).
@@ -124,7 +130,14 @@ export function AutoFillSheet({
     setBusy(method);
     setError(null);
     try {
-      let placements = await composePage(method, enrichedSeed, catalog, page, poolActive ? ownedIds : null);
+      let placements = await composePage(
+        method,
+        enrichedSeed,
+        catalog,
+        page,
+        poolActive ? ownedIds : null,
+        languages,
+      );
       // Pool fills consume owned copies — tag card pockets with collection provenance so the
       // (free/owned) inventory accounting and Reclaim see them.
       if (poolActive) {
@@ -167,16 +180,25 @@ export function AutoFillSheet({
                   already placed. Undo reverses the whole fill.
                 </ThemedText>
 
-                {/* Restrict every method to cards the user owns (the tcgscan-fed inventory). */}
-                {ownedIds && ownedIds.size > 0 ? (
-                  <Pressable
-                    onPress={toggleFromCollection}
-                    style={[pillChip.base, styles.poolChip, poolActive && pillChip.active]}>
-                    <Text style={[pillChip.text, poolActive && pillChip.textActive]}>
-                      {poolActive ? '✓ ' : ''}From my collection ({ownedIds.size})
-                    </Text>
-                  </Pressable>
-                ) : null}
+                <View style={styles.controls}>
+                  {/* Restrict every method to cards the user owns (the tcgscan-fed inventory). */}
+                  {ownedIds && ownedIds.size > 0 ? (
+                    <Pressable
+                      onPress={toggleFromCollection}
+                      style={[pillChip.base, poolActive && pillChip.active]}>
+                      <Text style={[pillChip.text, poolActive && pillChip.textActive]}>
+                        {poolActive ? '✓ ' : ''}From my collection ({ownedIds.size})
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                  {/* EN/JP printing language — multi-select, shared with browse. Fills honour it. */}
+                  <View style={styles.langRow}>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      Language
+                    </ThemedText>
+                    <LanguageToggle value={languages} onChange={setLanguages} theme={browseTheme} />
+                  </View>
+                </View>
 
                 {emptyCount === 0 ? (
                   <ThemedText type="small" themeColor="textSecondary">
@@ -236,7 +258,8 @@ export function AutoFillSheet({
 const styles = StyleSheet.create({
   sub: { lineHeight: 20 },
   center: { paddingVertical: Spacing.four, alignItems: 'center', gap: Spacing.two },
-  poolChip: { alignSelf: 'flex-start' },
+  controls: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.three, rowGap: Spacing.two },
+  langRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   method: {
     flexDirection: 'row',
     alignItems: 'center',

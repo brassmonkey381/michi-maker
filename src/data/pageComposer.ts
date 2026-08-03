@@ -26,7 +26,14 @@
  * candidates are round-robined across series so a page samples eras/styles instead of dumping
  * one set's run.
  */
-import { colorSearchAvailable, findSimilar, findSimilarByColor, similarAvailable } from 'tcgscan-browse';
+import {
+  colorSearchAvailable,
+  effectiveLanguages,
+  findSimilar,
+  findSimilarByColor,
+  similarAvailable,
+  type CardLanguage,
+} from 'tcgscan-browse';
 
 import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { occupiedCells, type DemoPage } from '@/data/binderTypes';
@@ -259,12 +266,15 @@ function filterAndDedupe(
   candidates: CatalogCard[],
   page: DemoPage,
   pool?: ReadonlySet<string> | null,
+  /** EN/JP bound (the EFFECTIVE list — undefined = unconstrained). Drops off-language prints. */
+  languages?: CardLanguage[],
 ): CatalogCard[] {
   const onPage = idsOnPage(page);
   const seenPrint = new Set<string>();
   const out: CatalogCard[] = [];
   for (const c of candidates) {
     if (c.kind !== 'standard') continue;
+    if (languages && !languages.includes(c.language)) continue;
     if (pool && !pool.has(c.id)) continue;
     if (onPage.has(c.id)) continue;
     const print = `${c.name.toLowerCase()}|${c.setId}`;
@@ -365,19 +375,27 @@ export async function composePage(
   /** "Fill from my collection": when given, every card candidate must be one of these ids
    *  (the user's `user_cards`). Artwork slices and tonal inserts aren't cards — unaffected. */
   pool?: ReadonlySet<string> | null,
+  /** EN/JP bound. Passed INTO the similarity/colour RPCs as p_lang (a pre-filter cut server-side
+   *  before the top-N — never a post-filter of ranked results) and applied to the local catalog
+   *  scans via filterAndDedupe. The SEED stays unbound: you can seed from a JP card and fill with
+   *  EN neighbours. Omit / "both" languages = unconstrained, exactly as before. */
+  languages?: CardLanguage[],
 ): Promise<ComposePlacement[]> {
   const cells = method === 'evolutionLine' ? emptyCellsColMajor(page) : emptyCellsRowMajor(page);
   if (cells.length === 0) return [];
+  // Effective bound for the LOCAL scans (undefined when unconstrained). The RPCs take the raw list
+  // and normalise it themselves, so they're handed `languages` directly.
+  const langs = effectiveLanguages(languages);
 
   if (method === 'moreLikeThis') {
     // Ask for extra hits: some resolve to jumbo/V-UNION or cards already placed and get
     // filtered. A pool run casts a much wider net — the owned subset of a global ranking is
     // sparse, so rank deep and keep whichever owned cards surface.
-    const hits = await findSimilar(seed.id, pool ? 200 : cells.length * 3 + 8);
+    const hits = await findSimilar(seed.id, pool ? 200 : cells.length * 3 + 8, { languages });
     const cards = hits
       .map((h) => catalog.getCard(h.id))
       .filter((c): c is CatalogCard => !!c);
-    return place(cells, filterAndDedupe(cards, page, pool).slice(0, cells.length));
+    return place(cells, filterAndDedupe(cards, page, pool, langs).slice(0, cells.length));
   }
 
   if (method === 'fullPageSpread') {
@@ -421,6 +439,7 @@ export async function composePage(
         catalog.listAll().filter((c) => c.types.includes(type)),
         page,
         pool,
+        langs,
       ),
     );
     // Deliberate tonal inserts: ~1 per 4 pockets, scattered (never the first pocket, which
@@ -451,11 +470,12 @@ export async function composePage(
     // on-device/server, fails soft to []). Nearest-first, so we KEEP that order (no variety re-rank,
     // which would scramble the colour ranking). A few pockets become tonal inserts (the seed's type
     // tones) for the michi negative-space look; a card shortfall falls back to inserts too.
-    const ids = await findSimilarByColor(seed.id, 'noborder', { limit: cells.length * 3 + 8 });
+    const ids = await findSimilarByColor(seed.id, 'noborder', { limit: cells.length * 3 + 8, languages });
     const cards = filterAndDedupe(
       ids.map((id) => catalog.getCard(id)).filter((c): c is CatalogCard => !!c),
       page,
       pool,
+      langs,
     );
     if (cards.length === 0) return [];
     const style = TYPE_STYLES[seed.types[0] ?? ''];
@@ -488,14 +508,14 @@ export async function composePage(
     const artist = seed.illustrator.trim().toLowerCase();
     if (!artist) return [];
     const cards = catalog.listAll().filter((c) => c.illustrator.trim().toLowerCase() === artist);
-    return place(cells, varietyRank(filterAndDedupe(cards, page, pool)).slice(0, cells.length));
+    return place(cells, varietyRank(filterAndDedupe(cards, page, pool, langs)).slice(0, cells.length));
   }
 
   if (method === 'samePokemon') {
     const species = speciesOf(seed);
     if (!species) return [];
     const cards = catalog.listAll().filter((c) => c.name.toLowerCase().includes(species));
-    return place(cells, varietyRank(filterAndDedupe(cards, page, pool)).slice(0, cells.length));
+    return place(cells, varietyRank(filterAndDedupe(cards, page, pool, langs)).slice(0, cells.length));
   }
 
   if (method === 'pokemonFriends') {
@@ -510,6 +530,7 @@ export async function composePage(
       catalog.listAll().filter((c) => partners.some((p) => hasToken(c.name, p))),
       page,
       pool,
+      langs,
     );
     const buckets = partners.map((p) => varietyRank(deduped.filter((c) => hasToken(c.name, p))));
     // A tag-team print matches two partners — drop repeats introduced by the per-partner split.
@@ -539,7 +560,7 @@ export async function composePage(
     const signature: CatalogCard[] = [];
     const trainerCards: CatalogCard[] = [];
     const team: CatalogCard[] = [];
-    for (const c of filterAndDedupe(catalog.listAll(), page, pool)) {
+    for (const c of filterAndDedupe(catalog.listAll(), page, pool, langs)) {
       // Owned prints like "Cynthia's Garchomp" count as signature/team — the Pokémon is the art.
       if (sigOf(c)) signature.push(c);
       else if (isTrainerCard(c)) trainerCards.push(c);
@@ -563,7 +584,7 @@ export async function composePage(
   const members = catalog
     .listAll()
     .filter((c) => family.some((s) => c.name.toLowerCase().includes(s)));
-  const deduped = filterAndDedupe(members, page, pool);
+  const deduped = filterAndDedupe(members, page, pool, langs);
   const stageOf = (c: CatalogCard) => {
     // Prefer the card's own stage index; fall back to its species' position in the family.
     if (c.evolutionStage > 0) return c.evolutionStage;

@@ -975,54 +975,50 @@ function CardImage({
   small: boolean;
   contentFit: 'cover' | 'contain';
 }) {
-  // Subscribe to the content-hashed image manifest so this re-renders when it hydrates.
-  const manifestReady = useImageManifest();
+  // Kick off image-manifest hydration (and re-render if its subscription fires). We do NOT rely on
+  // that re-render — see the poll below.
+  useImageManifest();
   const [stage, setStage] = useState<'tier' | 'full' | 'failed'>('tier');
   const [loaded, setLoaded] = useState(false);
-  // HOLD until the manifest lands (or a grace timeout for static/offline mode, where images.json
-  // never resolves). Loading before it lands fires convention-path 404s that burn the tier→full
-  // retry budget and race the manifest's mid-flight URL swap — cards latched on "?" until reload.
-  // With the manifest in hand the FIRST attempt is already the right URL (hashed tier), and a
-  // wholly unmirrored card (e.g. upcoming sets) resolves to '' → the placeholder below.
-  const [graceOver, setGraceOver] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setGraceOver(true), 4000);
-    return () => clearTimeout(t);
-  }, []);
-  const canLoad = manifestReady || graceOver;
+  const [attempts, setAttempts] = useState(0);
   const tier: 245 | 640 = small ? 245 : 640;
   const uri = stage === 'full' ? cardThumbUrl(id, 'full') : cardThumbUrl(id, tier);
 
-  // On a cold load the covers render BEFORE the manifest hydrates, so cardThumbUrl returns a
-  // fallback that 404s and latches this to 'failed'. When the manifest lands (or the card id
-  // changes) the id now resolves to a real hashed URL — retry from the top so it recovers
-  // without needing a remount (previously the cover stayed broken until the binder was opened).
-  /* eslint-disable react-hooks/set-state-in-effect -- deliberate retry on manifest/id change */
+  // cardThumbUrl resolves to '' until the content-hashed image manifest lands. On a COLD load the
+  // manifest's own re-render can't be relied on (a module-state read the React Compiler memoises,
+  // so `manifestReady` stayed stale and cards sat blank until an unrelated re-render — paging the
+  // binder). So actively re-attempt on a short interval until the id resolves to a URL, then stop.
+  // Bounded (~6s) so a wholly unmirrored card (never in the manifest) settles on the placeholder
+  // rather than polling forever.
+  const MAX_ATTEMPTS = 24;
+  /* eslint-disable react-hooks/set-state-in-effect -- deliberate poll until the manifest resolves */
+  useEffect(() => {
+    if (uri || stage === 'failed' || attempts >= MAX_ATTEMPTS) return;
+    const t = setTimeout(() => setAttempts((a) => a + 1), 250);
+    return () => clearTimeout(t);
+  }, [uri, stage, attempts]);
+  // Recycled pocket: a new card id starts fresh (retry the tier and re-poll from zero).
   useEffect(() => {
     setStage('tier');
     setLoaded(false);
-  }, [manifestReady, id]);
+    setAttempts(0);
+  }, [id]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   if (stage === 'failed') {
-    return (
-      <CardPlaceholder radius={radius} />
-    );
+    return <CardPlaceholder radius={radius} />;
   }
 
-  if (!canLoad) {
+  // Empty URL = manifest not resolved yet. Skeleton while we're still polling; once the retry
+  // budget is spent, a wholly unmirrored card settles on the placeholder (an empty <img> source
+  // may never fire onError, which would leave the skeleton pulsing forever).
+  if (!uri) {
+    if (attempts >= MAX_ATTEMPTS) return <CardPlaceholder radius={radius} />;
     return (
       <View style={styles.fill}>
         <Skeleton radius={radius} />
       </View>
     );
-  }
-
-  // A wholly unmirrored card resolves to '' (the TCGPlayer CDN fallback is gone) — nothing to
-  // load, so show the placeholder outright instead of waiting on an onError that an empty
-  // source may never fire (which would leave the skeleton pulsing forever).
-  if (!uri) {
-    return <CardPlaceholder radius={radius} />;
   }
 
   return (

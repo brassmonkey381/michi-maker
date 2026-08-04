@@ -23,6 +23,7 @@ export function ShareSheet({
   onClose,
   onSetPublic,
   onSetPagePublic,
+  onSetSharePages,
   onToast,
 }: {
   visible: boolean;
@@ -32,6 +33,8 @@ export function ShareSheet({
   onSetPublic: (v: boolean) => void;
   /** Toggle a single page's visibility to public viewers (only meaningful when the binder is public). */
   onSetPagePublic: (pageId: string, isPublic: boolean) => void;
+  /** Set the up-to-2 pages featured in the shared-link preview ([] = auto, the fullest pages). */
+  onSetSharePages: (pageIds: string[]) => void;
   /** Surface a blocked action (e.g. the contest public-page cap) as a toast in the host screen. */
   onToast?: (message: string) => void;
 }) {
@@ -51,6 +54,13 @@ export function ShareSheet({
       return;
     }
     onSetPagePublic(pageId, next);
+  };
+  // Up-to-2 pages featured in the shared-link preview ([] = auto). Tap to add/remove.
+  const sharePageIds = binder.sharePageIds ?? [];
+  const toggleFeatured = (pageId: string) => {
+    if (sharePageIds.includes(pageId)) onSetSharePages(sharePageIds.filter((x) => x !== pageId));
+    else if (sharePageIds.length < 2) onSetSharePages([...sharePageIds, pageId]);
+    else onToast?.('You can feature up to 2 pages. Tap one to remove it first.');
   };
   // Sharing gate. Two blockers before a binder can go public:
   //  1. PRIVATE art (pulled from a URL) — must be removed first.
@@ -139,6 +149,47 @@ export function ShareSheet({
                     );
                   })}
                 </View>
+              </View>
+            ) : null}
+
+            {/* Which page(s) show in the link preview (og:image). Up to 2; blank = auto. Only public
+                pages are offered — a hidden page can't be featured (and the OG endpoint skips it). */}
+            {isPublic && binder.pages.filter((p) => p.isPublic ?? true).length > 1 ? (
+              <View style={styles.pagesBlock}>
+                <ThemedText type="smallBold">Featured in the link preview</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary" style={styles.pagesHint}>
+                  Pick up to 2 pages to show in the image when you share the link. Leave blank to
+                  auto-pick your fullest pages.
+                </ThemedText>
+                <View style={styles.pageChips}>
+                  {binder.pages.map((p, i) =>
+                    (p.isPublic ?? true) ? (
+                      <Pressable
+                        key={p.id}
+                        onPress={() => toggleFeatured(p.id)}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: sharePageIds.includes(p.id) }}
+                        accessibilityLabel={`Feature page ${i + 1} in the link preview`}
+                        style={[styles.pageChip, !sharePageIds.includes(p.id) && styles.featOff]}
+                        hitSlop={4}>
+                        <Text
+                          style={[
+                            styles.pageChipText,
+                            !sharePageIds.includes(p.id) && styles.featOffText,
+                          ]}>
+                          {i + 1}
+                        </Text>
+                      </Pressable>
+                    ) : null,
+                  )}
+                </View>
+                {sharePageIds.length > 0 ? (
+                  <Pressable onPress={() => onSetSharePages([])} hitSlop={6}>
+                    <ThemedText type="small" style={styles.autoReset}>
+                      Reset to auto
+                    </ThemedText>
+                  </Pressable>
+                ) : null}
               </View>
             ) : null}
 
@@ -237,6 +288,11 @@ const styles = StyleSheet.create({
   pageChipHidden: { borderColor: Palette.hairlineStrong, backgroundColor: Palette.panel },
   pageChipText: { fontSize: 13, fontWeight: Weight.semibold, color: Palette.accent },
   pageChipTextHidden: { color: Palette.muted2, textDecorationLine: 'line-through' },
+  // Featured-page picker: selected reuses pageChip (accent); unselected is a plain grey chip (no
+  // strikethrough — it's an unpicked option, not a hidden page).
+  featOff: { borderColor: Palette.hairlineStrong, backgroundColor: Palette.panel },
+  featOffText: { color: Palette.muted2 },
+  autoReset: { color: Palette.accent, fontWeight: Weight.semibold, marginTop: Spacing.one },
   linkArea: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   linkBox: {
     flex: 1,

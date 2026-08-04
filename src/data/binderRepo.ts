@@ -22,7 +22,7 @@ type PageUpdate = Tables['binder_pages']['Update'];
 
 function binderRow(binder: DemoBinder): Tables['binders']['Insert'] {
   // owner_id is omitted so the DB default (auth.uid()) applies.
-  return {
+  const row: Tables['binders']['Insert'] = {
     id: binder.id,
     title: binder.title,
     description: binder.description ?? null,
@@ -31,6 +31,11 @@ function binderRow(binder: DemoBinder): Tables['binders']['Insert'] {
     is_public: binder.isPublic ?? false,
     is_demo: binder.isDemo ?? false,
   };
+  // Only send share_page_ids when actually set. Keeping it OFF the insert payload by default means
+  // binder creation never references the column, so it can't break before the share_page_ids
+  // migration is applied (new binders + clones have no selection anyway).
+  if (binder.sharePageIds && binder.sharePageIds.length) row.share_page_ids = binder.sharePageIds;
+  return row;
 }
 
 function pageRow(page: DemoPage, binderId: string, position: number): Tables['binder_pages']['Insert'] {
@@ -108,6 +113,7 @@ interface BinderRowIn {
   cover_card_id: string | null;
   is_public: boolean;
   is_demo: boolean | null;
+  share_page_ids: string[] | null;
   binder_pages: PageRowIn[] | null;
 }
 
@@ -155,6 +161,7 @@ function mapBinder(row: BinderRowIn): DemoBinder {
     isDemo: row.is_demo ?? undefined,
     coverCardId: row.cover_card_id ?? undefined,
     isPublic: row.is_public,
+    sharePageIds: row.share_page_ids ?? undefined,
     pages,
   };
 }
@@ -295,6 +302,8 @@ export async function updateBinder(id: string, patch: Partial<DemoBinder>): Prom
   if (patch.layoutStyle !== undefined) row.layout_style = patch.layoutStyle;
   if (patch.coverCardId !== undefined) row.cover_card_id = patch.coverCardId ?? null;
   if (patch.isPublic !== undefined) row.is_public = patch.isPublic;
+  if (patch.sharePageIds !== undefined)
+    row.share_page_ids = patch.sharePageIds && patch.sharePageIds.length ? patch.sharePageIds : null;
   if (Object.keys(row).length === 0) return;
   const { error } = await supabase.from('binders').update(row).eq('id', id);
   if (error) throw new Error(`update binder: ${error.message}`);

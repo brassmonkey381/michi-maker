@@ -47,16 +47,21 @@ async function fetchJson(url, headers) {
 
 async function fetchBinder(id) {
   if (!SUPABASE_URL || !SUPABASE_KEY) return null;
-  const select =
-    'title,cover_card_id,binder_pages(position,rows,cols,binder_slots(row_index,col_index,card_id))';
-  const url = `${SUPABASE_URL}/rest/v1/binders?id=eq.${encodeURIComponent(
-    id,
-  )}&is_public=eq.true&select=${encodeURIComponent(select)}`;
-  const rows = await fetchJson(url, {
-    apikey: SUPABASE_KEY,
-    Authorization: `Bearer ${SUPABASE_KEY}`,
-  });
-  return Array.isArray(rows) ? rows[0] : null;
+  const base =
+    'title,cover_card_id,binder_pages(id,position,rows,cols,binder_slots(row_index,col_index,card_id))';
+  const headers = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
+  // Try WITH the featured-pages column first; if the share_page_ids migration hasn't landed yet that
+  // select 400s (fetchJson → null), so fall back to the base select. Keeps the composed image working
+  // regardless of migration timing — the featured-page selection simply activates once the column
+  // exists. (A genuinely private/missing binder returns [] on the first try and resolves to null.)
+  for (const select of [`share_page_ids,${base}`, base]) {
+    const url = `${SUPABASE_URL}/rest/v1/binders?id=eq.${encodeURIComponent(
+      id,
+    )}&is_public=eq.true&select=${encodeURIComponent(select)}`;
+    const rows = await fetchJson(url, headers);
+    if (Array.isArray(rows)) return rows[0] || null;
+  }
+  return null;
 }
 
 /** The lite id→content-hashed-image manifest. Fetched once per render (the PNG is edge-cached). */
@@ -100,6 +105,14 @@ const pageCells = (page) => (page.cols || 3) * (page.rows || 3);
  */
 function pickPages(binder) {
   const pages = (binder.binder_pages || []).slice().sort((a, b) => a.position - b.position);
+  // Owner-chosen featured pages (up to 2), when set. RLS already filtered the fetch to PUBLIC pages,
+  // so a hidden/deleted selection just isn't found here; require cards (the composer only draws card
+  // slots) so a blank pick falls through to the auto choice below.
+  const chosenIds = Array.isArray(binder.share_page_ids) ? binder.share_page_ids : null;
+  if (chosenIds && chosenIds.length) {
+    const chosen = pages.filter((p) => chosenIds.includes(p.id) && cardCount(p) > 0).slice(0, 2);
+    if (chosen.length) return chosen; // already in position order
+  }
   const withCards = pages.filter((p) => cardCount(p) > 0);
   if (withCards.length === 0) return [];
   if (withCards.length === 1) return [withCards[0]];

@@ -1305,6 +1305,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           onClose={() => setShareOpen(false)}
           onSetPublic={(v) => store.updateBinder(binder.id, { isPublic: v })}
           onSetPagePublic={(pageId, v) => store.updatePage(binder.id, pageId, { isPublic: v })}
+          onSetSharePages={(ids) => store.updateBinder(binder.id, { sharePageIds: ids })}
           onToast={showToast}
         />
         {sendPageOpen && (

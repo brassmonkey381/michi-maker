@@ -351,6 +351,7 @@ export type Database = {
           is_public: boolean
           layout_style: Database["public"]["Enums"]["michi_layout_style"]
           owner_id: string
+          share_page_ids: string[] | null
           title: string
           updated_at: string
         }
@@ -363,6 +364,7 @@ export type Database = {
           is_public?: boolean
           layout_style?: Database["public"]["Enums"]["michi_layout_style"]
           owner_id?: string
+          share_page_ids?: string[] | null
           title: string
           updated_at?: string
         }
@@ -375,6 +377,7 @@ export type Database = {
           is_public?: boolean
           layout_style?: Database["public"]["Enums"]["michi_layout_style"]
           owner_id?: string
+          share_page_ids?: string[] | null
           title?: string
           updated_at?: string
         }

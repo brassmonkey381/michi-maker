@@ -134,6 +134,9 @@ export interface DemoBinder {
   coverCardId?: string;
   /** When true, anyone with the link can view this binder (see the `/binder/[id]` route). */
   isPublic?: boolean;
+  /** Up to 2 page ids to feature in the shared-link OG preview. Absent/empty = auto (fullest pages).
+   *  Persisted to binders.share_page_ids; read by api/og-image-binder.js. */
+  sharePageIds?: string[];
   /** Total likes this binder has received. Populated for Featured + when viewing a public binder. */
   likeCount?: number;
   /** Whether the current signed-in viewer has liked this binder. */
@@ -363,6 +366,7 @@ export function cloneBinder(binder: DemoBinder, overrides?: Partial<DemoBinder>)
     isDemo: false, // a duplicate of the demo showcase becomes a real, editable, counted binder
     locked: false, // a copy is a real, freely editable binder (locked references can't be copied anyway)
     isPublic: false, // a copy is private until the new owner shares it
+    sharePageIds: undefined, // the copy's pages get fresh ids, so the source's featured picks are stale
     pages: binder.pages.map((page) => ({
       ...page,
       id: uuidv4(),

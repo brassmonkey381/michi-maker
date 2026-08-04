@@ -22,7 +22,7 @@ module.exports = async (req, res) => {
   if (!id) return sendHtml(res, ogHtml(fallback));
 
   const rows = await sbSelect(
-    `binders?id=eq.${encodeURIComponent(id)}&is_public=eq.true&select=id,title,description`,
+    `binders?id=eq.${encodeURIComponent(id)}&is_public=eq.true&select=id,title,description,updated_at`,
   );
   const binder = Array.isArray(rows) ? rows[0] : null;
   if (!binder) return sendHtml(res, ogHtml(fallback));
@@ -30,12 +30,14 @@ module.exports = async (req, res) => {
   const title = binder.title ? `${binder.title} · ${SITE_NAME}` : fallback.title;
   const description =
     binder.description || 'A michi-method Pokémon binder on michi-maker. Open to see the full layout.';
-  // The composed page image (1200×630). It self-heals to the cover card on any error.
-  // `r` is a manual cache-bust: image scrapers (Discord, etc.) cache the og:image BY URL, so when
-  // the image OUTPUT changes but the URL doesn't, they keep serving the stale copy. Bump this
-  // whenever the composed image changes so re-shared links re-fetch. (r5: 1.95× render, 2340×1229 —
-  // pushed as high as possible below the ~4MB size Discord balked on.)
-  const image = `${SITE}/api/og-image-binder?id=${encodeURIComponent(id)}&r=5`;
+  // The composed page image. It self-heals to the cover card on any error.
+  // `r` is a manual cache-bust for the RENDER logic (image scrapers cache the og:image BY URL, so a
+  // changed output with an unchanged URL keeps serving the stale copy). `t` is the binder's
+  // updated_at, so editing the binder OR changing its featured share pages (both bump updated_at via
+  // the binders_set_updated_at trigger) changes the URL and a re-shared link re-fetches.
+  // (r5: 1.95× render, 2340×1229 — pushed as high as possible below the ~4MB size Discord balked on.)
+  const stamp = binder.updated_at ? Date.parse(binder.updated_at) || 0 : 0;
+  const image = `${SITE}/api/og-image-binder?id=${encodeURIComponent(id)}&r=5&t=${stamp}`;
   return sendHtml(
     res,
     ogHtml({ title, description, image, imageWidth: 2340, imageHeight: 1229, url, imageAlt: binder.title }),

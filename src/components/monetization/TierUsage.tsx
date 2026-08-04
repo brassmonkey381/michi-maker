@@ -245,8 +245,8 @@ export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }
               ) : null}
               {details.termEnds && details.manualGrant && !CHECKOUT_OPEN ? (
                 <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
-                  Plans don’t auto-renew during the beta, your term was granted directly and is
-                  extended the same way. Automatic renewal arrives with checkout.
+                  Your term was granted directly and is extended the same way, so it doesn’t
+                  auto-renew. Automatic renewal arrives with checkout.
                 </ThemedText>
               ) : null}
             </View>

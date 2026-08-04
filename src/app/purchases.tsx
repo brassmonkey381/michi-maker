@@ -245,7 +245,7 @@ export default function PurchasesScreen() {
                 title: grantName(r.product),
                 detail: [
                   binderId ? named(binderId) : undefined,
-                  r.source === 'manual' ? 'granted directly (beta)' : r.source ? `via ${r.source}` : undefined,
+                  r.source === 'manual' ? 'granted directly' : r.source ? `via ${r.source}` : undefined,
                   r.expiresAt ? `runs through ${fmtDateTime(r.expiresAt)}` : 'lifetime',
                 ]
                   .filter(Boolean)

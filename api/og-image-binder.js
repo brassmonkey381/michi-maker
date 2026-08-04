@@ -25,14 +25,14 @@ const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
 const BROWSE_URL = process.env.EXPO_PUBLIC_CATALOG_BROWSE_URL || '';
 const SITE = process.env.EXPO_PUBLIC_APP_URL || 'https://michi-maker.com';
 
-// Render scale. @vercel/og only outputs PNG (no JPEG/WebP), so file size scales with resolution:
-// 2× (2400×1260) was a ~4MB PNG that Discord's fetcher balked on; 1× (1200×630, ~1MB) rendered but
-// looked soft. 1.5× (1800×945) is the middle ground — crisper card art at ~2–2.5MB, comfortably
-// under the size that failed. All pixel sizes below are multiplied by S, scaling the layout
-// uniformly. (Fractional S is fine — Satori accepts sub-pixel styles; card sizes are floored.)
-const S = 1.5;
-const W = 1200 * S;
-const H = 630 * S;
+// Render scale. @vercel/og only outputs PNG (no JPEG/WebP), so file size scales with resolution.
+// Reference points: 1× (1200×630) ≈ 1MB (rendered but soft); 2× (2400×1260) ≈ 4MB (balked). Pushed
+// as high as possible below that ceiling: 1.95× (2340×1229) ≈ 3.8MB. If a share ever stops
+// rendering, this is the first knob to turn back down. All pixel sizes below are multiplied by S,
+// scaling the layout uniformly (fractional S is fine — Satori accepts sub-pixel styles).
+const S = 1.95;
+const W = Math.round(1200 * S); // 2340 — ImageResponse needs integer dimensions
+const H = Math.round(630 * S); // 1229
 const GAP = 8 * S;
 const CARD_ASPECT = 2.5 / 3.5; // real card proportions
 

@@ -25,11 +25,12 @@ const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
 const BROWSE_URL = process.env.EXPO_PUBLIC_CATALOG_BROWSE_URL || '';
 const SITE = process.env.EXPO_PUBLIC_APP_URL || 'https://michi-maker.com';
 
-// Render at the STANDARD OG size (1200×630). We used to supersample at 2× for crisper card art,
-// but that produced a ~4MB PNG that Discord's image fetcher balked at (nothing rendered). At 1×
-// the PNG is ~1MB — comfortably within scraper limits — and still perfectly legible as a preview.
-// All pixel sizes below are multiplied by S, so this scales the whole layout uniformly.
-const S = 1;
+// Render scale. @vercel/og only outputs PNG (no JPEG/WebP), so file size scales with resolution:
+// 2× (2400×1260) was a ~4MB PNG that Discord's fetcher balked on; 1× (1200×630, ~1MB) rendered but
+// looked soft. 1.5× (1800×945) is the middle ground — crisper card art at ~2–2.5MB, comfortably
+// under the size that failed. All pixel sizes below are multiplied by S, scaling the layout
+// uniformly. (Fractional S is fine — Satori accepts sub-pixel styles; card sizes are floored.)
+const S = 1.5;
 const W = 1200 * S;
 const H = 630 * S;
 const GAP = 8 * S;

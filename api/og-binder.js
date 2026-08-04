@@ -33,11 +33,11 @@ module.exports = async (req, res) => {
   // The composed page image (1200×630). It self-heals to the cover card on any error.
   // `r` is a manual cache-bust: image scrapers (Discord, etc.) cache the og:image BY URL, so when
   // the image OUTPUT changes but the URL doesn't, they keep serving the stale copy. Bump this
-  // whenever the composed image changes so re-shared links re-fetch. (r3: dropped 2× supersample —
-  // the 4MB PNG was too heavy for Discord's fetcher — to a ~1MB 1200×630 render.)
-  const image = `${SITE}/api/og-image-binder?id=${encodeURIComponent(id)}&r=3`;
+  // whenever the composed image changes so re-shared links re-fetch. (r4: 1.5× render, 1800×945 —
+  // crisper than 1× but under the ~4MB size Discord balked on.)
+  const image = `${SITE}/api/og-image-binder?id=${encodeURIComponent(id)}&r=4`;
   return sendHtml(
     res,
-    ogHtml({ title, description, image, imageWidth: 1200, imageHeight: 630, url, imageAlt: binder.title }),
+    ogHtml({ title, description, image, imageWidth: 1800, imageHeight: 945, url, imageAlt: binder.title }),
   );
 };

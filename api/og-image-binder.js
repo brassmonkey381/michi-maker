@@ -65,12 +65,24 @@ async function fetchManifest() {
   return m;
 }
 
-/** id → absolute URL for a manifest field, or null. `image` is the full JPEG (Satori-safe). */
+/** id → absolute URL for a manifest field, or null. `image` is the full JPEG (Satori-safe).
+ * Handles BOTH manifest schemas: schema 1 (single-language: base={field→url}, cards[id]=[keys]) and
+ * schema 2 (EN+JP: base={lang→{field→url}}, cards[id]=[lang, ...keys] shifted right by one). The
+ * live manifest is schema 2 — reading it as schema 1 returns null for every card, which is what was
+ * forcing this endpoint to always fall back to the generic cover image. */
 function manifestUrl(manifest, id, field) {
   if (!manifest || !id) return null;
   const i = manifest.fields.indexOf(field);
   if (i < 0) return null;
-  const key = manifest.cards[id]?.[i];
+  const entry = manifest.cards[id];
+  if (!entry) return null;
+  if (manifest.schema === 2) {
+    const lang = entry[0]; // 'en' | 'ja'
+    const key = entry[i + 1]; // keys shift right by one for the leading lang tag
+    const base = manifest.base[lang] && manifest.base[lang][field];
+    return key && base ? `${base}/${key}` : null;
+  }
+  const key = entry[i];
   const base = manifest.base[field];
   return key && base ? `${base}/${key}` : null;
 }
@@ -296,7 +308,24 @@ export default async function handler(req) {
       }
     }
   } catch {
-    // fall through to the cover redirect
+    // fall through to the cover fallback
+  }
+  // Serve the fallback as a real 200 image, NOT a 302 redirect: Discord (and some other scrapers)
+  // don't follow redirects on og:image, so a redirect reads as "no preview image" — which is what
+  // made shares show no image whenever the composer fell back.
+  try {
+    const res = await fetch(cover);
+    if (res.ok) {
+      return new Response(res.body, {
+        status: 200,
+        headers: {
+          'content-type': res.headers.get('content-type') || 'image/png',
+          'cache-control': 'public, max-age=0, s-maxage=300, stale-while-revalidate=86400',
+        },
+      });
+    }
+  } catch {
+    /* fall through to the redirect as a last resort */
   }
   return Response.redirect(cover, 302);
 }

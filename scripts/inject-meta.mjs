@@ -15,7 +15,7 @@ const shell = path.join(root, 'dist/index.html');
 
 const TITLE = 'michi-maker: build beautiful Pokémon card binders';
 const DESCRIPTION =
-  'Compose curated Pokémon card binder pages: rarity ladders, color spreads, artist galleries. Print true-size fill sheets and build the real thing. Free while in beta.';
+  'Compose curated Pokémon card binder pages and print true-size fill sheets to build the real thing.';
 const ORIGIN = 'https://michi-maker.com';
 
 const META = `

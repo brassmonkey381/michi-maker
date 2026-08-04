@@ -9,6 +9,7 @@ import { useRouter, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { ConfirmDialog } from '@/components/binder/ConfirmDialog';
 import { ThemedText } from '@/components/themed-text';
 import { Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { CATEGORIES, CONTEST, contestPhase, type ContestCategory } from '@/data/contest';
@@ -36,6 +37,9 @@ export function ContestEntrySection({
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Withdrawing is destructive (it drops the entry and, on re-entry, resets the tie-breaker time),
+  // so it goes through a confirm dialog rather than firing on the first tap.
+  const [confirmingWithdraw, setConfirmingWithdraw] = useState(false);
   const setEntry = (c: ContestCategory | null) => {
     setEntryState(c);
     onEntryChange?.(c);
@@ -133,10 +137,11 @@ export function ContestEntrySection({
                 later resets your entry time).
               </ThemedText>
               <View style={styles.actions}>
-                <Pressable onPress={withdraw} disabled={busy} hitSlop={6} style={styles.withdraw}>
-                  <ThemedText type="small" themeColor="textSecondary">
-                    Withdraw entry
-                  </ThemedText>
+                <Pressable
+                  onPress={() => setConfirmingWithdraw(true)}
+                  disabled={busy}
+                  style={({ pressed }) => [styles.withdrawBtn, (busy || pressed) && styles.dim]}>
+                  <Text style={styles.withdrawText}>Withdraw entry</Text>
                 </Pressable>
               </View>
             </>
@@ -182,6 +187,22 @@ export function ContestEntrySection({
           ) : null}
         </>
       )}
+
+      <ConfirmDialog
+        spec={
+          confirmingWithdraw
+            ? {
+                title: 'Withdraw your entry?',
+                message:
+                  'This removes this binder from the contest. You can re-enter until entries close, but re-entering resets your entry time (the final tie-breaker).',
+                confirmLabel: 'Withdraw entry',
+                destructive: true,
+                onConfirm: withdraw,
+              }
+            : null
+        }
+        onClose={() => setConfirmingWithdraw(false)}
+      />
     </View>
   );
 }
@@ -221,7 +242,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   enterText: { color: Palette.accentText, fontSize: 13, fontWeight: Weight.bold },
-  withdraw: { paddingVertical: Spacing.one },
+  withdrawBtn: {
+    backgroundColor: Palette.danger,
+    borderRadius: Radius.pill,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.four,
+    minHeight: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  withdrawText: { color: Palette.accentText, fontSize: 13, fontWeight: Weight.bold },
   dim: { opacity: 0.55 },
   error: { color: Palette.dangerAlt, lineHeight: 18 },
 });

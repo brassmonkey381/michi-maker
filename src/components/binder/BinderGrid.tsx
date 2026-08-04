@@ -975,14 +975,26 @@ function CardImage({
   small: boolean;
   contentFit: 'cover' | 'contain';
 }) {
-  // Kick off image-manifest hydration (and re-render if its subscription fires). We do NOT rely on
-  // that re-render — see the poll below.
-  useImageManifest();
+  // Kick off image-manifest hydration; the return re-renders us when it lands.
+  const manifestReady = useImageManifest();
   const [stage, setStage] = useState<'tier' | 'full' | 'failed'>('tier');
   const [loaded, setLoaded] = useState(false);
   const [attempts, setAttempts] = useState(0);
   const tier: 245 | 640 = small ? 245 : 640;
-  const uri = stage === 'full' ? cardThumbUrl(id, 'full') : cardThumbUrl(id, tier);
+  // THE fix for blank slots on a cold refresh: cardThumbUrl reads the image manifest, which is
+  // mutable MODULE state the React Compiler can't track. A plain `const uri = cardThumbUrl(...)`
+  // gets memoised on [id, tier, stage] and returns the first '' forever — the slot only fills in
+  // when a REMOUNT (paging the binder) recomputes it, which is exactly the "blank until I scroll"
+  // symptom. Recompute via a useMemo whose deps include the reactive manifest signal (and the poll
+  // counter below), so the '' → real-URL swap happens in place the instant the manifest lands.
+  const uri = useMemo(
+    () => (stage === 'full' ? cardThumbUrl(id, 'full') : cardThumbUrl(id, tier)),
+    // manifestReady + attempts are DELIBERATE extra deps: the callback doesn't reference them, but
+    // cardThumbUrl's result changes with the (untrackable) module-level manifest, so we recompute
+    // whenever the manifest flips or the poll ticks. Not unnecessary — the fix depends on them.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [id, tier, stage, manifestReady, attempts],
+  );
 
   // cardThumbUrl resolves to '' until the content-hashed image manifest lands. On a COLD load the
   // manifest's own re-render can't be relied on (a module-state read the React Compiler memoises,

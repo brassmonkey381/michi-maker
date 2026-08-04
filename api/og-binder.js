@@ -31,7 +31,11 @@ module.exports = async (req, res) => {
   const description =
     binder.description || 'A michi-method Pokémon binder on michi-maker. Open to see the full layout.';
   // The composed page image (1200×630). It self-heals to the cover card on any error.
-  const image = `${SITE}/api/og-image-binder?id=${encodeURIComponent(id)}`;
+  // `r` is a manual cache-bust: image scrapers (Discord, etc.) cache the og:image BY URL, so when
+  // the image OUTPUT changes but the URL doesn't, they keep serving the stale copy. Bump this
+  // whenever the composed image changes so re-shared links re-fetch. (r2: the endpoint used to 302
+  // to a static fallback that Discord cached; it now composes the real page.)
+  const image = `${SITE}/api/og-image-binder?id=${encodeURIComponent(id)}&r=2`;
   return sendHtml(
     res,
     ogHtml({ title, description, image, imageWidth: 2400, imageHeight: 1260, url, imageAlt: binder.title }),

@@ -25,10 +25,11 @@ const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
 const BROWSE_URL = process.env.EXPO_PUBLIC_CATALOG_BROWSE_URL || '';
 const SITE = process.env.EXPO_PUBLIC_APP_URL || 'https://michi-maker.com';
 
-// Supersample: render at 2× the display size (2400×1260) so the viewer (Discord, etc.)
-// downscales from a higher-res source and card art stays crisp instead of soft. All pixel
-// sizes below are in this 2×-space.
-const S = 2;
+// Render at the STANDARD OG size (1200×630). We used to supersample at 2× for crisper card art,
+// but that produced a ~4MB PNG that Discord's image fetcher balked at (nothing rendered). At 1×
+// the PNG is ~1MB — comfortably within scraper limits — and still perfectly legible as a preview.
+// All pixel sizes below are multiplied by S, so this scales the whole layout uniformly.
+const S = 1;
 const W = 1200 * S;
 const H = 630 * S;
 const GAP = 8 * S;

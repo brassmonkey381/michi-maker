@@ -44,6 +44,14 @@ export interface EntitlementRow {
   product: string;
   /** ISO timestamp; null = lifetime (one-time unlock). */
   expires_at: string | null;
+  /**
+   * Stripe recurring interval ('month' | 'year'), or null for a trial / manual / comp grant that
+   * never came from a subscription. Mirrors the cross-app bundle TERM-MATCHING in bundle.ts: a
+   * YEARLY bundle discount requires a YEARLY sibling entitlement, so the plans page needs the
+   * sibling's interval to avoid advertising a yearly 60% the checkout won't honour. Optional so
+   * existing callers and fixtures stay valid.
+   */
+  interval?: string | null;
 }
 
 /**
@@ -205,6 +213,22 @@ export function tcgscanLevel(rows: EntitlementRow[], nowMs: number): 'pro' | 'vi
  */
 export function hasTcgscanPro(rows: EntitlementRow[], nowMs: number): boolean {
   return tcgscanLevel(rows, nowMs) !== null;
+}
+
+/**
+ * CROSS-APP: holds an ACTIVE TCGScan tier billed YEARLY. This is the exact condition the server's
+ * bundleQualifies (src/data/bundle.ts) requires before it grants the 60% bundle on a YEARLY michi
+ * purchase — a monthly, trial, or manual (interval null) sibling qualifies only the monthly bundle.
+ * The plans page reads it so a yearly 60% price is never shown to someone checkout would charge the
+ * 20%/list price. Mirrors bundleQualifies: ANY active sibling tier row with interval === 'year'.
+ */
+export function tcgscanIsYearly(rows: EntitlementRow[], nowMs: number): boolean {
+  return rows.some(
+    (r) =>
+      (r.product === PRODUCTS.tcgscanPro || r.product === PRODUCTS.tcgscanVip) &&
+      isActive(r, nowMs) &&
+      r.interval === 'year',
+  );
 }
 
 /**

@@ -35,6 +35,14 @@
 /** Percent off every plan while the promotion runs. MUST equal the Stripe coupon's percent_off. */
 export const PERCENT_OFF = 20;
 
+/**
+ * CROSS-APP BUNDLE: percent off PRO/VIP for a member who holds a sibling TCGScan tier. MUST equal
+ * the live STRIPE_BUNDLE_COUPON's percent_off (and tcgscan's BUNDLE_PERCENT_OFF). The bundle is the
+ * BETTER-OF against the promo, never stacked (see the module note + bundle.ts) — stripe-checkout is
+ * the source of truth for the charged price and for term-level matching; this only drives display.
+ */
+export const BUNDLE_PERCENT_OFF = 60;
+
 /** When the promotion stops, ISO 8601. MUST equal the Stripe coupon's redeem_by. */
 export const ENDS_AT = '2026-08-31T23:59:59Z';
 

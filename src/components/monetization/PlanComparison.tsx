@@ -43,8 +43,9 @@ import {
   type CompareCell,
   type PlanHeader,
 } from '@/data/subscriptions';
-import { formatMinor, promoActive, promoPriceMinor } from '@/data/promo';
+import { BUNDLE_PERCENT_OFF, formatMinor, PERCENT_OFF, promoActive, promoPriceMinor } from '@/data/promo';
 import { useTier } from '@/hooks/use-tier';
+import { useTrial } from '@/hooks/use-trial';
 import { useAuth } from '@/store/auth';
 
 /** How far the PRO/VIP header tabs rise above the table body. */
@@ -76,18 +77,33 @@ function ValueCell({ cell, vip }: { cell: CompareCell; vip?: boolean }) {
  * moment a promotion runs. Derived from the same minor amounts as the headline so the whole
  * column moves together.
  */
-function saleSub(head: PlanHeader): string {
-  const perMonth = formatMinor(Math.round(promoPriceMinor(head.yearlyMinor ?? 0) / 12));
-  const monthly = head.monthlyMinor ? formatMinor(promoPriceMinor(head.monthlyMinor)) : null;
+function saleSub(head: PlanHeader, percentOff: number): string {
+  const perMonth = formatMinor(Math.round(promoPriceMinor(head.yearlyMinor ?? 0, percentOff) / 12));
+  const monthly = head.monthlyMinor ? formatMinor(promoPriceMinor(head.monthlyMinor, percentOff)) : null;
   return `about ${perMonth} a month, billed yearly${monthly ? ` · or ${monthly} month to month` : ''}`;
 }
 
 export function PlanComparison() {
-  const { tier, loading, refresh } = useTier();
-  // The limited-time sale. Display only — the coupon is attached server-side at checkout, by the
-  // same stripe-checkout that already applies it to michi's own lookup keys.
-  const onSale = promoActive();
+  const { tier, loading, refresh, isPaid, hasTcgscanPro, tcgscanIsYearly } = useTier();
   const { isSignedIn } = useAuth();
+  // Cross-app bundle: a member holding a sibling TCGScan tier earns 60% off PRO/VIP. Mirror the
+  // /plans banner gate exactly — shown to FREE and TRIAL holders, hidden from a fully-paid plan.
+  // The server (stripe-checkout) is the source of truth for the charged price and for term-level
+  // bundle matching; this only mirrors the banner's promise on the page.
+  const onTrial = useTrial().state === 'active';
+  const bundleEligible = !loading && hasTcgscanPro && !(isPaid && !onTrial);
+  // PER-TERM, mirroring the server's bundleQualifies (src/data/bundle.ts): a YEARLY plan gets the
+  // 60% bundle ONLY when the qualifying tcgscan sibling is itself billed yearly; a MONTHLY plan
+  // gets it for any active sibling. So a monthly/trial/comp-sibling holder sees 60% on monthly and
+  // the normal 20%/list on yearly — never a yearly 60% the checkout won't honour.
+  const bundleYearly = bundleEligible && tcgscanIsYearly;
+  // BETTER-OF (mirrors stripe-checkout): the bundle beats the promo, and unlike the promo it does
+  // NOT depend on the promo clock — a bundle-eligible user sees 60% even when promoActive() is off.
+  // Both are display only: the coupon is attached server-side at checkout.
+  const onSaleYearly = bundleYearly || promoActive();
+  const yearlyPercentOff = bundleYearly ? BUNDLE_PERCENT_OFF : PERCENT_OFF;
+  const onSaleMonthly = bundleEligible || promoActive();
+  const monthlyPercentOff = bundleEligible ? BUNDLE_PERCENT_OFF : PERCENT_OFF;
   // The note under the pressed CTA: the coming-soon line while checkout is closed, a sign-in
   // nudge for guests, or a checkout error. Never a silent no-op.
   const [note, setNote] = useState<{ tier: string; text: string; error?: boolean } | null>(null);
@@ -303,8 +319,8 @@ export function PlanComparison() {
             <Text style={styles.monthlyLink}>
               {busyKey === plan.monthlyKey
                 ? 'Opening checkout…'
-                : onSale && plan.monthlyMinor
-                  ? `or ${formatMinor(promoPriceMinor(plan.monthlyMinor))} month to month`
+                : onSaleMonthly && plan.monthlyMinor
+                  ? `or ${formatMinor(promoPriceMinor(plan.monthlyMinor, monthlyPercentOff))} month to month`
                   : plan.monthlyLabel}
             </Text>
           </Pressable>
@@ -342,14 +358,14 @@ export function PlanComparison() {
                 <Text style={styles.badgeProText}>{proHead.badge}</Text>
               </View>
               <Text style={styles.tierName}>{proHead.name}</Text>
-              {onSale ? <Text style={styles.tierWas}>{proHead.price}</Text> : null}
+              {onSaleYearly ? <Text style={styles.tierWas}>{proHead.price}</Text> : null}
               <Text style={styles.tierPrice}>
-                {onSale && proHead.yearlyMinor
-                  ? formatMinor(promoPriceMinor(proHead.yearlyMinor))
+                {onSaleYearly && proHead.yearlyMinor
+                  ? formatMinor(promoPriceMinor(proHead.yearlyMinor, yearlyPercentOff))
                   : proHead.price}
                 <Text style={styles.tierPer}>{proHead.per}</Text>
               </Text>
-              <Text style={styles.tierSub}>{onSale ? saleSub(proHead) : proHead.sub}</Text>
+              <Text style={styles.tierSub}>{onSaleYearly ? saleSub(proHead, yearlyPercentOff) : proHead.sub}</Text>
               {!loading && tier === 'pro' ? <Text style={styles.current}>Your current plan</Text> : null}
             </View>
             <View style={[styles.cell, styles.vipCol, styles.headCell, styles.vipHead]}>
@@ -357,15 +373,15 @@ export function PlanComparison() {
                 <Text style={styles.badgeVipText}>{vipHead.badge}</Text>
               </View>
               <Text style={[styles.tierName, styles.vipText]}>{vipHead.name}</Text>
-              {onSale ? <Text style={[styles.tierWas, styles.vipSubText]}>{vipHead.price}</Text> : null}
+              {onSaleYearly ? <Text style={[styles.tierWas, styles.vipSubText]}>{vipHead.price}</Text> : null}
               <Text style={[styles.tierPrice, styles.vipText]}>
-                {onSale && vipHead.yearlyMinor
-                  ? formatMinor(promoPriceMinor(vipHead.yearlyMinor))
+                {onSaleYearly && vipHead.yearlyMinor
+                  ? formatMinor(promoPriceMinor(vipHead.yearlyMinor, yearlyPercentOff))
                   : vipHead.price}
                 <Text style={[styles.tierPer, styles.vipSubText]}>{vipHead.per}</Text>
               </Text>
               <Text style={[styles.tierSub, styles.vipSubText]}>
-                {onSale ? saleSub(vipHead) : vipHead.sub}
+                {onSaleYearly ? saleSub(vipHead, yearlyPercentOff) : vipHead.sub}
               </Text>
               {!loading && tier === 'vip' ? (
                 <Text style={styles.current}>Your current plan</Text>

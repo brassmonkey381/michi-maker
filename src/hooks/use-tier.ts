@@ -17,6 +17,7 @@ import {
   hasFullPrint as computeFullPrint,
   hasAdvancedSearch as computeAdvancedSearch,
   hasTcgscanPro as computeTcgscanPro,
+  tcgscanIsYearly as computeTcgscanIsYearly,
   tcgscanLevel as computeTcgscanLevel,
   isActive,
   limitsForTier,
@@ -35,6 +36,7 @@ interface TierState {
   hasFullPrint: boolean;
   hasTcgscanPro: boolean;
   tcgscanLevel: 'pro' | 'vip' | null;
+  tcgscanIsYearly: boolean;
   products: string[];
   interval: BillingInterval | null;
   periodStart: string | null;
@@ -54,6 +56,9 @@ export interface UseTier {
   hasTcgscanPro: boolean;
   /** CROSS-APP: the sibling tcgscan account's exact paid level ('vip' > 'pro' > null). */
   tcgscanLevel: 'pro' | 'vip' | null;
+  /** CROSS-APP: the qualifying tcgscan tier is billed YEARLY — gates the YEARLY bundle price so the
+   *  page never shows a yearly 60% the server's bundleQualifies won't honour. */
+  tcgscanIsYearly: boolean;
   /** ACTIVE product keys, for direct checks (e.g. the per-binder `pdf_binder:<id>` unlock). */
   products: string[];
   /**
@@ -96,6 +101,8 @@ export function useTier(): UseTier {
         const rows: EntitlementRow[] = (data ?? []).map((r) => ({
           product: r.product,
           expires_at: (r as { expires_at?: string | null }).expires_at ?? null,
+          // Carried for the cross-app bundle's yearly term-match (tcgscanIsYearly); absent → null.
+          interval: (r as { interval?: string | null }).interval ?? null,
         }));
         // Resolve against "now" here in the effect — never call the clock during render.
         const now = Date.now();
@@ -122,6 +129,7 @@ export function useTier(): UseTier {
           hasFullPrint: computeFullPrint(tier),
           hasTcgscanPro: computeTcgscanPro(rows, now),
           tcgscanLevel: computeTcgscanLevel(rows, now),
+          tcgscanIsYearly: computeTcgscanIsYearly(rows, now),
           products: rows.filter((r) => isActive(r, now)).map((r) => r.product),
           interval: rawInterval === 'month' || rawInterval === 'year' ? rawInterval : null,
           periodStart:
@@ -147,6 +155,7 @@ export function useTier(): UseTier {
     isPaid: tier === 'pro' || tier === 'vip',
     hasTcgscanPro: known ? state!.hasTcgscanPro : false,
     tcgscanLevel: known ? state!.tcgscanLevel : null,
+    tcgscanIsYearly: known ? state!.tcgscanIsYearly : false,
     products: known ? state!.products : [],
     interval: known ? state!.interval : null,
     periodStart: known ? state!.periodStart : null,

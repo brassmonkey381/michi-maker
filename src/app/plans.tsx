@@ -33,6 +33,7 @@ import { redeemHandoffHashFromLocation } from '@/data/handoff';
 import { ONE_TIME_PDF } from '@/data/subscriptions';
 import { promoActive } from '@/data/promo';
 import { useTier } from '@/hooks/use-tier';
+import { useTrial } from '@/hooks/use-trial';
 import { useAuth } from '@/store/auth';
 
 export default function PlansScreen() {
@@ -40,6 +41,10 @@ export default function PlansScreen() {
   const { user } = useAuth();
   const { checkout, bundle } = useLocalSearchParams<{ checkout?: string; bundle?: string }>();
   const { isPaid, hasTcgscanPro, loading: tierLoading, refresh } = useTier();
+  // A michi free trial reads as isPaid (tier 'pro') but has no paid subscription — so the bundle
+  // offer must reach trial holders too; only a truly paid (non-trial) plan hides it. This is the
+  // existing trial signal (entitlement source='trial', resolved by useTrial), reused verbatim.
+  const isTrial = useTrial().state === 'active';
 
   // Inbound cross-app SSO: a "save 60% on michi" link from tcgscan carries a one-time #th=
   // hash — redeem it into a session here (no-op without one), then re-read the tier so the
@@ -52,7 +57,11 @@ export default function PlansScreen() {
 
   // The reverse bundle moment (mirrors tcgscan's /plans): a TCGScan member without a michi
   // tier sees the discount banner; a signed-out ?bundle=1 arrival gets the sign-in nudge.
-  const bundleEligible = !tierLoading && !isPaid && hasTcgscanPro;
+  // Show the 60% bundle offer to bundle-eligible users who are FREE or on a TRIAL; keep hiding it
+  // from a fully-paid (non-trial) plan. `!(isPaid && !isTrial)` is the trial-vs-paid distinction.
+  // Granularity matches the banner (hasTcgscanPro = tcgscan pro∪vip); the server (stripe-checkout)
+  // remains the source of truth for the charged price and its term-level bundle matching.
+  const bundleEligible = !tierLoading && hasTcgscanPro && !(isPaid && !isTrial);
   const bundleArrival = bundle === '1' && !tierLoading && !isPaid && !hasTcgscanPro;
 
   // Back from Stripe Checkout: fulfillment is webhook-driven and lags the redirect by a few
@@ -98,7 +107,7 @@ export default function PlansScreen() {
 
       {/* The limited-time sale. michi's checkouts already went through the shared stripe-checkout
           coupon, so the discount was being GIVEN here before it was ever advertised here. */}
-      {promoActive() ? <PromoBanner /> : null}
+      {promoActive() && !bundleEligible && !bundleArrival ? <PromoBanner /> : null}
 
       {/* Eligible free users: the trial offer, front and centre. Self-gates (null unless eligible
           and checkout is open), so it simply doesn't show for subscribers or the ineligible. */}
@@ -112,8 +121,8 @@ export default function PlansScreen() {
             Your TCGScan membership earns 60% off
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            Pick PRO or VIP below. The bundle discount applies automatically at checkout,
-            whichever you choose.
+            Pick PRO or VIP below. Your bundle discount applies automatically at checkout to your
+            eligible plan.
           </ThemedText>
         </View>
       ) : bundleArrival ? (

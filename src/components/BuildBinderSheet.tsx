@@ -28,6 +28,7 @@ import {
 } from '@/data/binderWizard';
 import { binderLimitMessage } from '@/data/limitMessages';
 import { useCatalog } from '@/hooks/use-catalog';
+import { track } from '@/lib/analytics';
 import { usePriceSummary } from '@/lib/prices';
 import { useBinders } from '@/store/binders';
 
@@ -135,6 +136,7 @@ export function BuildBinderSheet({
     });
     // The store refuses past the binder cap — leave the sheet open on the perk note below.
     if (!binder) return;
+    if (asDemo) track('demo.curation', { pages: chosen.length });
     onBuilt(binder.id, chosen.length);
     onClose();
   };

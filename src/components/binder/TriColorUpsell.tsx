@@ -25,7 +25,7 @@
  * Tri-colour itself stays PRO. Only the SELL is open to everyone, which is the point of a sell.
  */
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Animated,
   Image,
@@ -44,6 +44,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { sheet } from '@/constants/ui';
+import { track } from '@/lib/analytics';
 import type { Catalog } from '@/lib/catalog';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 
@@ -152,8 +153,21 @@ export function TriColorUpsell({
   const [results, setResults] = useState<string[] | null>(null);
   /** Resolved metadata for whatever the current mix returned (see resolveDemoCards). */
   const [cards, setCards] = useState<Map<string, DemoCard>>(new Map());
+  // Emit the demo funnel event once per open — the mix reruns searchByColors on every drag, so a
+  // per-search emit would spam. Reset when the sheet closes so the next open counts again.
+  const searchTracked = useRef(false);
+  useEffect(() => {
+    if (!visible) {
+      searchTracked.current = false;
+      return;
+    }
+  }, [visible]);
   useEffect(() => {
     if (!visible) return;
+    if (!searchTracked.current) {
+      searchTracked.current = true;
+      track('demo.tricolor_search');
+    }
     let alive = true;
     const t = setTimeout(() => {
       // Rank deep, then keep ONLY the aesthetic full-art / chase rarities (isAesthetic) that have a

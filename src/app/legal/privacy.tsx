@@ -58,7 +58,7 @@ const SECTIONS: Section[] = [
   {
     heading: '5. What we do not do',
     paragraphs: [
-      'No ads, no ad trackers, and no third-party analytics tools run in michi-maker. We never sell your personal information or share it for advertising. Beyond the content you create, the only records are the standard infrastructure logs our hosting providers keep to run and secure the service.',
+      'No ads, no ad trackers, and no third-party analytics tools run in michi-maker. We do keep first-party usage records on our own servers: which pages you open and product actions like creating a binder, importing a collection, or starting a trial, tied to your account. We use this only to understand how the product is used and to make it better. It stays on our own infrastructure (the same Supabase backend that holds your binders), and we never sell it or share it with third parties. We never sell your personal information or share it for advertising. Beyond the content you create and this first-party usage record, the only other records are the standard infrastructure logs our hosting providers keep to run and secure the service.',
     ],
   },
   {

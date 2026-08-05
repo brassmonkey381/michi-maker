@@ -4,6 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Platform, useColorScheme, View } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import { RouteTracker } from '@/components/analytics/RouteTracker';
 import { UsernameGate } from '@/components/auth/UsernameGate';
 import { ProStatusBanner } from '@/components/monetization/ProStatusBanner';
 import { AppRail } from '@/components/nav/AppRail';
@@ -30,6 +31,8 @@ export default function TabLayout() {
         <AuthProvider>
           <BinderProvider>
             <AnimatedSplashOverlay />
+            {/* Emits page.view on route changes. Renders nothing; always mounted. */}
+            <RouteTracker />
             {/* Site frame: the wide-web left rail beside the routed screen. On native (and on
                 narrow web / excluded routes) AppRail renders null and the row collapses. */}
             <View style={{ flex: 1, flexDirection: 'row' }}>

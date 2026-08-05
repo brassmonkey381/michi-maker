@@ -20,6 +20,7 @@ import { BottomTabInset, Breakpoints, Fonts, FontSize, MaxContentWidthWide, Pale
 import { pagesForCards } from '@/data/binderTypes';
 import { CONTEST, contestPhase } from '@/data/contest';
 import { binderLimitMessage, pageLimitMessage } from '@/data/limitMessages';
+import { track } from '@/lib/analytics';
 import { useImageManifest } from '@/lib/catalogConfig';
 import { shouldShowLanding } from '@/lib/landing';
 import { useBinders } from '@/store/binders';
@@ -49,16 +50,22 @@ export default function HomeScreen() {
   // The card browser lives on /browse now; the Recent & Upcoming feed drives it through the
   // shared command bus (which holds one pending command) and navigates there.
   const openBrowse = () => router.push('/browse' as Href);
+  // NOTE: only these michi-side search INITIATORS are captured. Free-typed queries the user runs
+  // inside CatalogBrowser (in the external tcgscan-browse package) are NOT captured yet — that
+  // needs a package-level onEvent callback (a later task). No PII: no query text here, only kind.
   const driveSimilar = (cardId: string) => {
+    track('card.search', { kind: 'similar' });
     sendBrowseCommand({ type: 'similar', cardId });
     openBrowse();
   };
   const driveViewSet = (cardId: string) => {
+    track('card.search', { kind: 'viewSet' });
     sendBrowseCommand({ type: 'viewSet', cardId });
     openBrowse();
   };
   // Sets carousel → open that set in the browser (catalog-free command, works for guests).
   const driveViewSetById = (setId: string, series: string) => {
+    track('card.search', { kind: 'viewSetById' });
     sendBrowseCommand({ type: 'viewSetById', setId, seriesId: series || undefined });
     openBrowse();
   };

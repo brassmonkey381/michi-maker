@@ -16,6 +16,7 @@ import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/t
 import { analyzeCsv, importAsPortfolio, parseCsv } from '@/data/csvImport';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useTheme } from '@/hooks/use-theme';
+import { track } from '@/lib/analytics';
 
 export function ImportCsvSheet({
   visible,
@@ -24,6 +25,7 @@ export function ImportCsvSheet({
   initialCsv,
   initialName,
   intro,
+  isDemoImport,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -34,6 +36,8 @@ export function ImportCsvSheet({
   initialName?: string;
   /** A guided-step banner shown above the paste box (e.g. "Step 1 of 3 …"). */
   intro?: string;
+  /** The seeded demo/example flow — its funnel event fires at the trigger, so skip csv.import here. */
+  isDemoImport?: boolean;
 }) {
   const theme = useTheme();
   // Name matching + id validation read the catalog (signed-in perk, on-demand load).
@@ -93,6 +97,9 @@ export function ImportCsvSheet({
     try {
       const portfolioName = name.trim() || `CSV import (${analysis.matches.length} cards)`;
       await importAsPortfolio(portfolioName, analysis.matches);
+      // A real import completed. The demo flow reports demo.csv_import at its trigger instead,
+      // so it doesn't double-count here.
+      if (!isDemoImport) track('csv.import', { cards: analysis.matches.length });
       onImported(portfolioName, analysis.matches.length, analysis.totalCopies);
       setText('');
       setName('');

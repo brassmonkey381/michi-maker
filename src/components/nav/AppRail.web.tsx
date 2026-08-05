@@ -13,6 +13,7 @@ import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { LogoMark } from '@/components/brand/LogoMark';
 import { ThemedText } from '@/components/themed-text';
 import { Breakpoints, Fonts, FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { useAuth } from '@/store/auth';
 
 type RailItem = { label: string; href: Href; match: (path: string) => boolean };
 
@@ -36,6 +37,8 @@ export function AppRail() {
   const { width } = useWindowDimensions();
   const pathname = usePathname();
   const router = useRouter();
+  const { profile } = useAuth();
+  const isAdmin = !!profile?.is_admin;
 
   if (width < Breakpoints.rail) return null;
   if (pathname === '/welcome' || pathname.startsWith('/binder/')) return null;
@@ -67,6 +70,15 @@ export function AppRail() {
             Privacy
           </ThemedText>
         </Pressable>
+        {/* Admin-only entry to the analytics studio. Hidden for everyone else; the route is
+            server-side gated regardless. */}
+        {isAdmin ? (
+          <Pressable onPress={() => router.push('/studio' as Href)} hitSlop={4}>
+            <ThemedText type="small" themeColor="textSecondary" style={styles.bottomLink}>
+              Studio
+            </ThemedText>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );

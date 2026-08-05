@@ -23,6 +23,77 @@ export type Database = {
   }
   public: {
     Tables: {
+      analytics_events: {
+        Row: {
+          app: string
+          id: string
+          name: string
+          props: Json
+          session_id: string | null
+          ts: string
+          user_id: string
+        }
+        Insert: {
+          app: string
+          id?: string
+          name: string
+          props?: Json
+          session_id?: string | null
+          ts?: string
+          user_id?: string
+        }
+        Update: {
+          app?: string
+          id?: string
+          name?: string
+          props?: Json
+          session_id?: string | null
+          ts?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_events_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "analytics_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      analytics_sessions: {
+        Row: {
+          app: string
+          app_version: string | null
+          id: string
+          is_guest: boolean
+          last_seen_at: string
+          platform: string | null
+          started_at: string
+          user_id: string
+        }
+        Insert: {
+          app: string
+          app_version?: string | null
+          id?: string
+          is_guest?: boolean
+          last_seen_at?: string
+          platform?: string | null
+          started_at?: string
+          user_id?: string
+        }
+        Update: {
+          app?: string
+          app_version?: string | null
+          id?: string
+          is_guest?: boolean
+          last_seen_at?: string
+          platform?: string | null
+          started_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       binder_likes: {
         Row: {
           binder_id: string
@@ -567,6 +638,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          is_admin: boolean
           is_public: boolean
           preferences: Json
           updated_at: string
@@ -577,6 +649,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id: string
+          is_admin?: boolean
           is_public?: boolean
           preferences?: Json
           updated_at?: string
@@ -587,6 +660,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          is_admin?: boolean
           is_public?: boolean
           preferences?: Json
           updated_at?: string
@@ -680,6 +754,35 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_recent_users: {
+        Args: { p_app?: string | null; p_limit?: number }
+        Returns: {
+          user_id: string
+          username: string | null
+          display_name: string | null
+          event_count: number
+          session_count: number
+          first_seen: string
+          last_seen: string
+        }[]
+      }
+      admin_user_journey: {
+        Args: { target_user: string; p_app?: string | null }
+        Returns: {
+          app: string
+          id: string
+          name: string
+          props: Json
+          session_id: string | null
+          ts: string
+          user_id: string
+        }[]
+      }
+      admin_event_funnel: {
+        Args: { p_app?: string | null }
+        Returns: { name: string; event_count: number; user_count: number }[]
+      }
+      is_admin: { Args: Record<string, never>; Returns: boolean }
       binder_like_count: { Args: { p_binder_id: string }; Returns: number }
       contest_leaderboard: {
         Args: { p_contest?: string; p_category?: string | null; p_limit?: number }

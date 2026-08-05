@@ -32,6 +32,7 @@ import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Breakpoints, FontSize, MaxContentWidth, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { fillerName } from '@/data/binderTypes';
 import { binderLimitMessage } from '@/data/limitMessages';
+import { track } from '@/lib/analytics';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useImageManifest } from '@/lib/catalogConfig';
 import { useBinders } from '@/store/binders';
@@ -63,13 +64,17 @@ export default function MyBindersScreen() {
   // Collection tiles drive the card browser on /browse. The command bus holds one pending
   // command, so it lands the moment /browse's CatalogBrowser subscribes.
   const openBrowse = () => router.push('/browse' as Href);
+  // Only these michi-side search initiators are captured; free-typed CatalogBrowser queries need a
+  // package-level onEvent callback (a later task). No PII: just the kind and a count, no ids/text.
   const driveSimilarIds = (cardIds: string[]) => {
     if (cardIds.length === 0) return;
+    track('card.search', { kind: 'similar', count: cardIds.length });
     if (cardIds.length === 1) sendBrowseCommand({ type: 'similar', cardId: cardIds[0] });
     else sendBrowseCommand({ type: 'similarMany', cardIds });
     openBrowse();
   };
   const driveViewSet = (cardId: string) => {
+    track('card.search', { kind: 'viewSet' });
     sendBrowseCommand({ type: 'viewSet', cardId });
     openBrowse();
   };

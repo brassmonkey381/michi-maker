@@ -10,6 +10,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { track } from '@/lib/analytics';
 import { CHECKOUT_OPEN } from '@/data/subscriptions';
 import { useTier } from '@/hooks/use-tier';
 import { useTrial } from '@/hooks/use-trial';
@@ -34,6 +35,9 @@ export function TrialCta({
     onBeforeStart?.();
     try {
       await trial.start();
+      // Client-side signal. Emitting this server-side from the start_pro_trial RPC would be more
+      // authoritative (it can't be lost to a crash or a blocked request) — a future improvement.
+      track('trial.start');
       refreshTier(); // the new tier_pro row is readable immediately (no webhook lag)
     } catch {
       // trial.error is set; shown below

@@ -48,6 +48,7 @@ import {
 } from '@/data/collectionRepo';
 import { EXAMPLE_COLLECTION_CSV, EXAMPLE_COLLECTION_NAME } from '@/data/exampleCollection';
 import { binderLimitMessage, pageLimitMessage } from '@/data/limitMessages';
+import { track } from '@/lib/analytics';
 import { isSupabaseConfigured } from '@/lib/env';
 import { cardThumbUrl } from '@/lib/catalogConfig';
 import { useCatalog } from '@/hooks/use-catalog';
@@ -144,6 +145,9 @@ function EmptyCollection({
   const [seedExample, setSeedExample] = useState(false);
   if (!isSignedIn) return null;
   const openExample = () => {
+    // Emit the demo funnel signal at the unambiguous trigger point (the "Try it out!" example),
+    // rather than trying to tell demo from real inside the shared import sheet.
+    track('demo.csv_import');
     setSeedExample(true);
     onStartExample?.();
     setImportOpen(true);
@@ -171,6 +175,7 @@ function EmptyCollection({
       <ImportCsvSheet
         visible={importOpen}
         onClose={() => setImportOpen(false)}
+        isDemoImport={seedExample}
         initialCsv={seedExample ? EXAMPLE_COLLECTION_CSV : ''}
         initialName={seedExample ? EXAMPLE_COLLECTION_NAME : ''}
         intro={

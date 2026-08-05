@@ -32,6 +32,7 @@ import {
 } from 'react';
 import { Platform } from 'react-native';
 
+import { track, startSession, resetSessionUser, endSession } from '@/lib/analytics';
 import { authRedirectUrl } from '@/lib/authRedirect';
 import { isSupabaseConfigured } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
@@ -125,6 +126,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [anonymousUnavailable, setAnonymousUnavailable] = useState(false);
   const bootstrapped = useRef(false);
+  // Analytics session lifecycle: the uid we last opened a session for, and a best-effort hint of
+  // HOW the user is signing in (set just before a sign-in call) so auth.login can carry a method.
+  const analyticsUid = useRef<string | null>(null);
+  const loginMethod = useRef<'password' | 'otp' | 'oauth' | null>(null);
 
   const user = session?.user ?? null;
 
@@ -145,14 +150,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     bootstrapped.current = true;
     let active = true;
 
-    const sub = supabase.auth.onAuthStateChange((_event, next) => {
+    const sub = supabase.auth.onAuthStateChange((event, next) => {
       if (!active) return;
       setSession(next);
+      // Keep the analytics emitter pointed at the current identity (handles guest→account upgrade
+      // in place, and clears on sign-out).
+      resetSessionUser(next?.user ?? null);
       // In a session (signed in, or continued as guest) → clear the explicit-sign-out flag and
       // any "anonymous unavailable" state.
       if (next) {
         setAnonymousUnavailable(false);
         void AsyncStorage.removeItem(OPTED_OUT_KEY);
+        // Analytics lifecycle. A NEW uid (cold-start adopt, fresh guest, or a real sign-in to a
+        // different account) starts a session and records session.start — for guests too, which
+        // is correct. A genuine sign-in to a non-anonymous identity also records auth.login; the
+        // uid-change guard keeps token refreshes (same uid) from re-emitting either.
+        const prevUid = analyticsUid.current;
+        const uid = next.user?.id ?? null;
+        if (uid && uid !== prevUid) {
+          analyticsUid.current = uid;
+          startSession();
+          track('session.start', { is_guest: !!next.user?.is_anonymous });
+          if (event === 'SIGNED_IN' && next.user && !next.user.is_anonymous) {
+            track('auth.login', loginMethod.current ? { method: loginMethod.current } : {});
+          }
+        }
+        loginMethod.current = null;
+      } else {
+        endSession();
+        analyticsUid.current = null;
       }
       void loadProfile(next?.user?.id ?? null);
     });
@@ -222,6 +248,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       });
       if (error) return { error: msg(error) };
+      // Fresh email/password signup. Records under whatever session is active (an anonymous guest,
+      // if one exists); "first" is derived later via min(ts), so no dedup is needed here.
+      track('account.created', { via: 'password' });
       // With email confirmations on, there's no session until the user confirms.
       return { error: null, needsEmailConfirmation: !data.session };
     },
@@ -231,6 +260,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithPassword = useCallback(
     async (email: string, password: string): Promise<AuthResult> => {
       if (!supabase) return NOT_CONFIGURED;
+      loginMethod.current = 'password'; // hint for the auth.login event fired from onAuthStateChange
       const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       return error ? { error: msg(error) } : OK;
     },
@@ -250,6 +280,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const verifyEmailCode = useCallback(async (email: string, token: string): Promise<AuthResult> => {
     if (!supabase) return NOT_CONFIGURED;
+    loginMethod.current = 'otp'; // hint for the auth.login event fired from onAuthStateChange
     const { error } = await supabase.auth.verifyOtp({
       email: email.trim(),
       token: token.trim(),
@@ -263,6 +294,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const runOAuth = useCallback(
     async (provider: OAuthProvider, link: boolean): Promise<AuthResult> => {
       if (!supabase) return NOT_CONFIGURED;
+      if (!link) loginMethod.current = 'oauth'; // hint for auth.login (onAuthStateChange)
       const redirectTo = authRedirectUrl();
       const options = { redirectTo, skipBrowserRedirect: Platform.OS !== 'web' };
 
@@ -270,6 +302,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ? await supabase.auth.linkIdentity({ provider, options })
         : await supabase.auth.signInWithOAuth({ provider, options });
       if (error) return { error: msg(error) };
+
+      // account.created for the OAuth signup / guest-upgrade path. This also fires for a RETURNING
+      // OAuth user (we can't distinguish fresh vs returning here); the studio treats min(ts) of
+      // account.created as the signup moment, so the extra rows are harmless.
+      track('account.created', { via: link ? 'guest_upgrade' : 'oauth' });
 
       // On web the call above navigates the page to the provider; nothing more to do here.
       if (Platform.OS === 'web' || !data?.url) return OK;
@@ -307,6 +344,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         { emailRedirectTo: authRedirectUrl() },
       );
       if (error) return { error: msg(error) };
+      // Guest → permanent account, same uid: records under the guest's own session/user.
+      track('account.created', { via: 'guest_upgrade' });
       const confirmed = !!data.user?.email_confirmed_at;
       return { error: null, needsEmailConfirmation: !confirmed };
     },

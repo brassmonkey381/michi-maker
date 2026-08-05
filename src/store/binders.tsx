@@ -49,6 +49,7 @@ import {
   type MichiLayoutStyle,
 } from '@/data/binderTypes';
 import { SAMPLE_BINDERS } from '@/data/sampleData';
+import { track } from '@/lib/analytics';
 import { LIMITS_ENFORCED, type Tier, type TierLimits } from '@/data/tiers';
 import { useTier } from '@/hooks/use-tier';
 import { isSupabaseConfigured } from '@/lib/env';
@@ -499,6 +500,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         commit((prev) => [...prev, binder]);
       }
       persist(() => repo.insertBinder(binder));
+      track('binder.add', { isDemo: !!binder.isDemo });
       return binder;
     },
     [binders, binderCount, limits.binders, commit, persist],
@@ -884,6 +886,10 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         for (const removedId of removedSlotIds) persist(() => repo.deleteSlot(removedId));
         persist(() => repo.upsertSlot(pageId, slot));
       }
+      // Count only a NEW card landing in a pocket (not span/edit tweaks of an existing slot).
+      if (!existing && slot.type === 'card' && slot.cardId) {
+        track('card.add', { source: 'manual', count: 1 });
+      }
     },
     [binders, commit, persist],
   );
@@ -941,6 +947,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         if (appendedPage) persist(() => repo.insertPage(binderId, landedPage, pageIndex));
         persist(() => repo.upsertSlot(landedPage.id, newSlot));
       }
+      track('card.add', { source: 'manual', count: 1 });
       return { pageIndex };
     },
     [binders, limits.pagesPerBinder, commit, persist],
@@ -1018,6 +1025,10 @@ export function BinderProvider({ children }: { children: ReactNode }) {
           }
         });
       }
+      track('card.add', {
+        source: opts?.fromCollection ? 'collection' : 'manual',
+        count: placed.length,
+      });
       return { added: placed.length, unplaced };
     },
     [binders, limits.pagesPerBinder, commit, persist],

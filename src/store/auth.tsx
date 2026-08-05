@@ -162,15 +162,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAnonymousUnavailable(false);
         void AsyncStorage.removeItem(OPTED_OUT_KEY);
         // Analytics lifecycle. A NEW uid (cold-start adopt, fresh guest, or a real sign-in to a
-        // different account) starts a session and records session.start — for guests too, which
-        // is correct. A genuine sign-in to a non-anonymous identity also records auth.login; the
-        // uid-change guard keeps token refreshes (same uid) from re-emitting either.
+        // different account) starts a session; the emitter itself records session.start exactly
+        // once, when it actually creates a new session row (a web reload reuses the persisted
+        // session and does NOT re-emit). A genuine sign-in to a non-anonymous identity also records
+        // auth.login; the uid-change guard keeps token refreshes (same uid) from re-emitting it.
         const prevUid = analyticsUid.current;
         const uid = next.user?.id ?? null;
         if (uid && uid !== prevUid) {
           analyticsUid.current = uid;
           startSession();
-          track('session.start', { is_guest: !!next.user?.is_anonymous });
           if (event === 'SIGNED_IN' && next.user && !next.user.is_anonymous) {
             track('auth.login', loginMethod.current ? { method: loginMethod.current } : {});
           }

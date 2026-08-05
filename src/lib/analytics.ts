@@ -13,8 +13,9 @@
  * NO PII: only ids and counts belong in props — never emails, tokens, or full card lists.
  */
 import Constants from 'expo-constants';
-import { Platform } from 'react-native';
+import { AppState, type AppStateStatus, Platform } from 'react-native';
 
+import { supabasePublishableKey, supabaseUrl } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 import type { Json } from '@/types/database';
 
@@ -45,6 +46,17 @@ let sessionId: string | null = null;
 let starting: Promise<string | null> | null = null;
 /** Timestamp (ms) of the last `last_seen_at` write, for throttling. */
 let lastSeenAt = 0;
+/** Have we already recorded this session's landing_route (its first page.view)? Once per session. */
+let landingRouteRecorded = false;
+/** Cached access token for the web `pagehide` keepalive PATCH (a supabase-js call is often
+ *  cancelled during unload). Refreshed on every auth change; null when signed out / unknown. */
+let accessToken: string | null = null;
+/** Whether the app-lifecycle listeners (visibility/pagehide on web, AppState on native) are bound. */
+let listenersBound = false;
+/** Teardown for the web listeners; null when unbound or off web. */
+let webUnbind: (() => void) | null = null;
+/** Native AppState subscription; null when unbound or off native. */
+let appStateSub: { remove: () => void } | null = null;
 
 /** Is this Supabase user an anonymous guest? Prefer the flag, fall back to the missing email. */
 function guestOf(user: { is_anonymous?: boolean; email?: string | null }): boolean {
@@ -132,6 +144,7 @@ async function ensureSession(): Promise<string | null> {
       if (stored && stored.userId === user.id && Date.now() - stored.lastSeen < IDLE_MS) {
         sessionId = stored.id;
         writeStoredSession({ ...stored, lastSeen: Date.now() });
+        bindLifecycleListeners(); // flush last_seen_at when this reused session's app goes away
         return sessionId;
       }
 
@@ -149,8 +162,10 @@ async function ensureSession(): Promise<string | null> {
         .single();
       if (error || !data) return null;
       sessionId = data.id;
+      landingRouteRecorded = false; // a brand-new session captures its own first page.view
       // Persist so a web reload reuses this session (no-op on native).
       writeStoredSession({ id: sessionId, userId: user.id, lastSeen: Date.now() });
+      bindLifecycleListeners(); // flush last_seen_at when this session's app goes away
       // The emitter owns session.start now: emit it EXACTLY ONCE, here, when a brand-new session
       // row is created (never on reuse). Insert directly rather than via track(), which would
       // recurse back through ensureSession.
@@ -191,6 +206,155 @@ async function touchSession(id: string): Promise<void> {
 }
 
 /**
+ * Cache the current access token for the `pagehide` keepalive PATCH. Refreshed on every auth
+ * change (resetSessionUser). Fire-and-forget; never throws.
+ */
+function refreshAccessToken(): void {
+  try {
+    void supabase?.auth
+      .getSession()
+      .then(({ data }) => {
+        accessToken = data.session?.access_token ?? null;
+      })
+      .catch(() => {
+        // swallow — a stale/absent token just means the beacon falls back to the client call
+      });
+  } catch {
+    // swallow
+  }
+}
+
+/**
+ * Force `last_seen_at = now` for the live session, bypassing LAST_SEEN_THROTTLE_MS. No-op when
+ * there's no session or backend. Fire-and-forget; never throws. Called when the app goes away
+ * (tab hidden / native background) so a session's tail reflects real time-in-app, not the last
+ * tracked action.
+ */
+export function flushLastSeen(): void {
+  try {
+    const id = sessionId;
+    if (!supabase || !id) return;
+    lastSeenAt = Date.now(); // count as a heartbeat so a following throttled touch doesn't double-write
+    touchStoredSession(); // keep the web reload-reuse window fresh (no-op on native)
+    void supabase.from('analytics_sessions').update({ last_seen_at: new Date().toISOString() }).eq('id', id);
+  } catch {
+    // swallow — a missed flush is harmless
+  }
+}
+
+/**
+ * `pagehide`-only flush. A normal supabase-js call is usually cancelled as the page unloads, so
+ * prefer a keepalive fetch straight at PostgREST with the cached access token; fall back to the
+ * client call when no token (or no fetch) is available. Never throws.
+ */
+function flushLastSeenBeacon(): void {
+  try {
+    const id = sessionId;
+    if (!id) return;
+    if (typeof fetch === 'function' && supabaseUrl && supabasePublishableKey && accessToken) {
+      void fetch(`${supabaseUrl}/rest/v1/analytics_sessions?id=eq.${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        keepalive: true,
+        headers: {
+          apikey: supabasePublishableKey,
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal',
+        },
+        body: JSON.stringify({ last_seen_at: new Date().toISOString() }),
+      }).catch(() => {
+        // swallow — best effort on unload
+      });
+      return;
+    }
+    // No cached token / no fetch: the client call may still be cancelled, but it's the best we have.
+    flushLastSeen();
+  } catch {
+    // swallow — never throw out of an unload handler
+  }
+}
+
+/**
+ * Record this session's landing_route from its FIRST page.view, exactly once. The `.is(null)`
+ * filter makes it idempotent across a web reload (which reuses the row) so it never overwrites the
+ * real entry point. Fire-and-forget; never throws.
+ */
+function recordLandingRoute(id: string, route: unknown): void {
+  if (landingRouteRecorded) return;
+  if (typeof route !== 'string' || !route) return;
+  landingRouteRecorded = true;
+  try {
+    void supabase?.from('analytics_sessions').update({ landing_route: route }).eq('id', id).is('landing_route', null);
+  } catch {
+    // swallow — a missed landing route is harmless
+  }
+}
+
+/**
+ * Bind the app-lifecycle listeners that flush `last_seen_at` when the app goes away. Web gets
+ * `visibilitychange` (the reliable one mobile browsers fire before freezing a tab) plus `pagehide`
+ * (best-effort on real navigation away); native gets AppState background/inactive. Bound once when
+ * the session is created, torn down in endSession(). Guarded and never throws.
+ */
+function bindLifecycleListeners(): void {
+  if (listenersBound) return;
+  try {
+    if (Platform.OS === 'web') {
+      if (typeof window === 'undefined' || typeof document === 'undefined') return;
+      const onVisibility = () => {
+        try {
+          if (document.visibilityState === 'hidden') flushLastSeen();
+        } catch {
+          // swallow — a listener must never throw
+        }
+      };
+      const onPageHide = () => {
+        try {
+          flushLastSeenBeacon();
+        } catch {
+          // swallow
+        }
+      };
+      document.addEventListener('visibilitychange', onVisibility);
+      window.addEventListener('pagehide', onPageHide);
+      webUnbind = () => {
+        document.removeEventListener('visibilitychange', onVisibility);
+        window.removeEventListener('pagehide', onPageHide);
+      };
+      listenersBound = true;
+    } else {
+      appStateSub = AppState.addEventListener('change', (state: AppStateStatus) => {
+        try {
+          if (state === 'background' || state === 'inactive') flushLastSeen();
+        } catch {
+          // swallow — a listener must never throw
+        }
+      });
+      listenersBound = true;
+    }
+  } catch {
+    // swallow — a failed bind must never surface
+  }
+}
+
+/** Remove the lifecycle listeners bound by bindLifecycleListeners(). Never throws. */
+function unbindLifecycleListeners(): void {
+  try {
+    webUnbind?.();
+  } catch {
+    // swallow
+  }
+  try {
+    appStateSub?.remove();
+  } catch {
+    // swallow
+  }
+  webUnbind = null;
+  appStateSub = null;
+  listenersBound = false;
+}
+
+/**
  * Record an event. Fire-and-forget: returns immediately, does the work on a floating promise,
  * and swallows every error. Skips silently when there's no backend or no auth user yet.
  */
@@ -203,7 +367,11 @@ export function track(name: string, props?: Record<string, unknown>): void {
         await supabase!
           .from('analytics_events')
           .insert({ app: APP, name, props: (props ?? {}) as Json, session_id: sid });
-        if (sid) void touchSession(sid);
+        if (sid) {
+          // The first page.view of the session backfills landing_route (once, cheaply).
+          if (name === 'page.view') recordLandingRoute(sid, props?.route);
+          void touchSession(sid);
+        }
       } catch {
         // swallow — analytics failures must never surface
       }
@@ -224,7 +392,8 @@ export function startSession(): void {
 /**
  * Point the emitter at a new (or cleared) auth identity. Called by the auth store on every auth
  * change. A different uid starts a fresh session on next use; a same-uid guest→account upgrade
- * updates the live session's is_guest in place.
+ * records the transition on the live session's `upgraded_at` (is_guest is immutable — it means
+ * "this session STARTED anonymous").
  */
 export function resetSessionUser(
   user: { id: string; is_anonymous?: boolean; email?: string | null } | null,
@@ -236,6 +405,7 @@ export function resetSessionUser(
   const isGuest = guestOf(user);
   const prev = cachedUser;
   cachedUser = { id: user.id, isGuest };
+  refreshAccessToken(); // keep the pagehide-beacon token in step with the current identity
 
   if (prev && prev.id !== user.id) {
     // A genuinely different account — drop the old session (in-memory AND the persisted web entry)
@@ -243,12 +413,16 @@ export function resetSessionUser(
     sessionId = null;
     starting = null;
     lastSeenAt = 0;
+    landingRouteRecorded = false;
     clearStoredSession();
   } else if (prev && prev.id === user.id && prev.isGuest !== isGuest && sessionId) {
-    // Same uid, guest upgraded to a real account: reflect it on the existing session row.
+    // Same uid, a guest upgraded to a real account in place. is_guest is IMMUTABLE (it records that
+    // this session started anonymous); stamp the transition on upgraded_at instead of overwriting
+    // it. cachedUser above already reflects the new reality, so a later NEW session's session.start
+    // props are still correct.
     void (async () => {
       try {
-        await supabase?.from('analytics_sessions').update({ is_guest: isGuest }).eq('id', sessionId!);
+        await supabase?.from('analytics_sessions').update({ upgraded_at: new Date().toISOString() }).eq('id', sessionId!);
       } catch {
         // swallow
       }
@@ -262,5 +436,8 @@ export function endSession(): void {
   starting = null;
   cachedUser = null;
   lastSeenAt = 0;
+  landingRouteRecorded = false;
+  accessToken = null;
+  unbindLifecycleListeners();
   clearStoredSession();
 }

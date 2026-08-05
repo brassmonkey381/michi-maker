@@ -85,7 +85,10 @@ export function ImportCsvSheet({
           if (!name.trim()) setName(file.name.replace(/\.[^.]+$/, ''));
           setError(null);
         })
-        .catch(() => setError('Could not read that file. Try pasting its contents instead.'));
+        .catch(() => {
+          setError('Could not read that file. Try pasting its contents instead.');
+          track('csv.import_failed', { reason: 'unreadable_file' });
+        });
     };
     input.click();
   };
@@ -106,6 +109,7 @@ export function ImportCsvSheet({
       onClose();
     } catch (e) {
       setError((e as Error).message);
+      track('csv.import_failed', { reason: 'parse' });
     } finally {
       setBusy(false);
     }

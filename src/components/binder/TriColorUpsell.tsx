@@ -166,7 +166,7 @@ export function TriColorUpsell({
     if (!visible) return;
     if (!searchTracked.current) {
       searchTracked.current = true;
-      track('demo.tricolor_search');
+      track('demo.tricolor_search', { surface: 'tricolor_upsell' });
     }
     let alive = true;
     const t = setTimeout(() => {

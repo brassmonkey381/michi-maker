@@ -147,7 +147,7 @@ function EmptyCollection({
   const openExample = () => {
     // Emit the demo funnel signal at the unambiguous trigger point (the "Try it out!" example),
     // rather than trying to tell demo from real inside the shared import sheet.
-    track('demo.csv_import');
+    track('demo.csv_import', { surface: 'collection' });
     setSeedExample(true);
     onStartExample?.();
     setImportOpen(true);

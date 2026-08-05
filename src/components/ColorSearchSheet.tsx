@@ -14,6 +14,7 @@ import { findSimilarByColor, searchByColors, srgbToLab, useColorIndex, type Colo
 
 import { GradientMixBar, HsvColorPicker, stopWeights, type Stop } from '@/components/color/ColorPicker';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { track } from '@/lib/analytics';
 
 const REGIONS: { value: ColorRegion; label: string }[] = [
   { value: 'noborder', label: 'Full art' },
@@ -90,7 +91,12 @@ export function ColorSearchSheet({
       : await searchByColors(query, region, { limit: 120 });
     setBusy(false);
     if (ids.length) onResults(ids, seedCardId ? `Similar: ${seedName ?? 'card'}` : 'Color mix');
-    else setNote('No color matches.');
+    else {
+      setNote('No color matches.');
+      // A real search the user ran returned nothing. `kind` pairs with card.search: the seed path is
+      // 'similar' (findSimilarByColor); the free color mix is its own stable kind. No PII: kind only.
+      track('search.no_results', { kind: seedCardId ? 'similar' : 'color' });
+    }
   };
 
   return (

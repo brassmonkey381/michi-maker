@@ -10,7 +10,7 @@
  */
 import { useRouter } from 'expo-router';
 import { zipSync } from 'fflate';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
@@ -391,7 +391,7 @@ export function PrintPlaceholdersSheet({
   // spinner ("Preparing…") until the catalog is ready, then generates and downloads.
   const downloadExample = () => {
     if (exBusy) return;
-    track('demo.print');
+    track('demo.print', { surface: 'print_gate' });
     setError(null);
     setExBusy(true);
   };
@@ -418,8 +418,26 @@ export function PrintPlaceholdersSheet({
     };
   }, [exBusy, catalog]);
 
+  // PRO-trial offer attribution for this surface. The offer (TrialCta) only renders for eligible
+  // users; mark when it was actually shown, and when a start was initiated, so dismissing the sheet
+  // records pro.offer_declined ONLY when a real, unstarted impression is being walked away from.
+  const offerShown = useRef(false);
+  const trialStarted = useRef(false);
+  const markOfferShown = useCallback(() => {
+    offerShown.current = true;
+  }, []);
+  const markTrialStarted = useCallback(() => {
+    trialStarted.current = true;
+  }, []);
+  const closeWithDecline = useCallback(() => {
+    if (offerShown.current && !trialStarted.current) {
+      track('pro.offer_declined', { surface: 'print_gate' });
+    }
+    onClose();
+  }, [onClose]);
+
   return (
-    <DialogCard title="Print fill sheets" onClose={onClose}>
+    <DialogCard title="Print fill sheets" onClose={closeWithDecline}>
             {guestGated ? (
               <SignInPerk message="Placeholder labels read the full card catalog. Sign in (free) to print them." />
             ) : Platform.OS !== 'web' ? (
@@ -729,7 +747,12 @@ export function PrintPlaceholdersSheet({
                     </ThemedText>
                     {/* Eligible free users see the trial first, start it and the sheet re-renders
                         to the subscriber Download button. Renders null when not eligible. */}
-                    <TrialCta message="New here? Try PRO free and print this binder." />
+                    <TrialCta
+                      message="New here? Try PRO free and print this binder."
+                      surface="print_gate"
+                      onImpression={markOfferShown}
+                      onBeforeStart={markTrialStarted}
+                    />
                     <Pressable
                       onPress={() => setConfirming('buy')}
                       disabled={buying}

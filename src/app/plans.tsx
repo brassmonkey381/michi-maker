@@ -112,7 +112,7 @@ export default function PlansScreen() {
       {/* Eligible free users: the trial offer, front and centre. Self-gates (null unless eligible
           and checkout is open), so it simply doesn't show for subscribers or the ineligible. */}
       <View style={styles.trialHero}>
-        <TrialCta message="Try everything PRO before you decide, free for 14 days." />
+        <TrialCta message="Try everything PRO before you decide, free for 14 days." surface="plans" />
       </View>
 
       {bundleEligible ? (

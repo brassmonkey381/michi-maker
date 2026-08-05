@@ -67,9 +67,11 @@ export type Database = {
           app_version: string | null
           id: string
           is_guest: boolean
+          landing_route: string | null
           last_seen_at: string
           platform: string | null
           started_at: string
+          upgraded_at: string | null
           user_id: string
         }
         Insert: {
@@ -77,9 +79,11 @@ export type Database = {
           app_version?: string | null
           id?: string
           is_guest?: boolean
+          landing_route?: string | null
           last_seen_at?: string
           platform?: string | null
           started_at?: string
+          upgraded_at?: string | null
           user_id?: string
         }
         Update: {
@@ -87,9 +91,11 @@ export type Database = {
           app_version?: string | null
           id?: string
           is_guest?: boolean
+          landing_route?: string | null
           last_seen_at?: string
           platform?: string | null
           started_at?: string
+          upgraded_at?: string | null
           user_id?: string
         }
         Relationships: []

@@ -6,6 +6,7 @@
  * Renders nothing when the user isn't trial-eligible — callers pair it with their existing
  * UpgradePerk, which covers the used/ineligible cases.
  */
+import { useEffect, useRef } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -20,16 +21,37 @@ export function TrialCta({
   message,
   /** Runs before the trial starts (e.g. close a covering modal so the result is visible). */
   onBeforeStart,
+  /** Where this offer is shown, for impression attribution ('plans' | 'print_gate' | ...). Required
+   *  so pro.offer_shown / trial.start can be attributed to the surface that produced them. */
+  surface,
+  /** Called once when the offer is actually shown (pro.offer_shown fired), so a dismissible surface
+   *  can pair a decline to a real impression. */
+  onImpression,
 }: {
   message?: string;
   onBeforeStart?: () => void;
+  surface: string;
+  onImpression?: () => void;
 }) {
   const trial = useTrial();
   const { refresh: refreshTier } = useTier();
+  const shown = useRef(false);
 
   // Only the eligible-and-open case renders. Everything else (used, ineligible, checkout closed,
   // loading) defers to the caller's UpgradePerk.
-  if (!CHECKOUT_OPEN || trial.loading || trial.state !== 'eligible') return null;
+  const eligible = CHECKOUT_OPEN && !trial.loading && trial.state === 'eligible';
+
+  // Impression: fire pro.offer_shown exactly once, only when the button actually renders — never on
+  // the return-null path below, which is the ABSENCE of an offer (recording it would inflate
+  // awareness). Ref-guarded so a re-render or tab switch back doesn't re-emit.
+  useEffect(() => {
+    if (!eligible || shown.current) return;
+    shown.current = true;
+    track('pro.offer_shown', { surface });
+    onImpression?.();
+  }, [eligible, surface, onImpression]);
+
+  if (!eligible) return null;
 
   const start = async () => {
     onBeforeStart?.();
@@ -37,10 +59,12 @@ export function TrialCta({
       await trial.start();
       // Client-side signal. Emitting this server-side from the start_pro_trial RPC would be more
       // authoritative (it can't be lost to a crash or a blocked request) — a future improvement.
-      track('trial.start');
+      track('trial.start', { surface });
       refreshTier(); // the new tier_pro row is readable immediately (no webhook lag)
     } catch {
-      // trial.error is set; shown below
+      // trial.error is set and shown below. Record the failure too — a fixed reason, NEVER the
+      // caught message (which can carry URLs/emails).
+      track('trial.start_failed', { reason: 'rpc_error' });
     }
   };
 

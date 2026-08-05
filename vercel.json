@@ -38,6 +38,7 @@
       ],
       "destination": "/api/og-michi"
     },
+    { "source": "/welcome_v2", "destination": "/welcome_v2.html" },
     { "source": "/:path*", "destination": "/" }
   ]
 }

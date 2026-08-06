@@ -9,19 +9,19 @@
  * caller can tell the user to download the image and use Upload instead — we do NOT fall back to
  * storing the remote URL.
  */
+import { sniffImageMime } from '@/lib/imageBytes';
 import { uploadArtImage } from '@/lib/uploadArt';
 import { supabasePublishableKey, supabaseUrl } from '@/lib/env';
 
-const MIME_BY_SIG: { test: (b: Uint8Array) => boolean; type: string }[] = [
-  { test: (b) => b[0] === 0x89 && b[1] === 0x50, type: 'image/png' },
-  { test: (b) => b[0] === 0xff && b[1] === 0xd8, type: 'image/jpeg' },
-  { test: (b) => b[0] === 0x47 && b[1] === 0x49, type: 'image/gif' },
-  { test: (b) => b[8] === 0x57 && b[9] === 0x45, type: 'image/webp' }, // 'WE' of WEBP at offset 8
-];
-
+/**
+ * BYTES first, the remote header only as a fallback. Trusting the header is what put AVIF in the
+ * bucket under `image/jpeg` — plenty of hosts (and image CDNs that content-negotiate) label an
+ * AVIF/WebP response with whatever the original URL's extension implied.
+ */
 function sniffType(bytes: Uint8Array, contentType: string | null): string {
-  if (contentType && contentType.startsWith('image/')) return contentType;
-  for (const m of MIME_BY_SIG) if (m.test(bytes)) return m.type;
+  const real = sniffImageMime(bytes);
+  if (real) return real;
+  if (contentType && contentType.startsWith('image/')) return contentType.split(';')[0].trim();
   return 'image/png';
 }
 

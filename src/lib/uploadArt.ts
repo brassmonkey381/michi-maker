@@ -7,16 +7,46 @@
  */
 
 import { uuidv4 } from '@/data/binderTypes';
+import { extForMime, needsTranscode, sniffImageMime } from '@/lib/imageBytes';
 import { requireSupabase } from '@/lib/supabase';
+import { transcodeToRenderable } from '@/lib/transcodeArt';
 
 const BUCKET = 'binder-art';
 
-const EXT_BY_TYPE: Record<string, string> = {
-  'image/png': 'png',
-  'image/jpeg': 'jpg',
-  'image/webp': 'webp',
-  'image/gif': 'gif',
-};
+/**
+ * Settle what actually gets stored: the real format from the bytes (never the declared type — see
+ * `imageBytes.ts`), re-encoded to PNG/JPEG when it's a format the share-image renderer can't read.
+ * Every art upload funnels through here, so neither the picker nor the remote import can put a
+ * mislabelled object in the bucket.
+ */
+async function prepareArt(file: Blob, filename?: string) {
+  const declared = file.type && file.type.startsWith('image/') ? file.type : null;
+  let blob = file;
+  let mime = declared;
+
+  // `slice` keeps this to the header — no need to buffer a whole image to identify it. Guarded
+  // because React Native's Blob has no arrayBuffer(); there we simply keep the declared type.
+  let sniffed: string | null = null;
+  try {
+    if (typeof file.slice === 'function' && typeof file.arrayBuffer === 'function') {
+      sniffed = sniffImageMime(new Uint8Array(await file.slice(0, 12).arrayBuffer()));
+    }
+  } catch {
+    /* unreadable head — fall back to the declared type */
+  }
+  if (sniffed) mime = sniffed;
+
+  if (needsTranscode(sniffed)) {
+    const out = await transcodeToRenderable(file);
+    if (out) {
+      blob = out.blob;
+      mime = out.mime;
+    }
+  }
+
+  const ext = extForMime(mime) ?? (filename?.split('.').pop() || 'png').toLowerCase();
+  return { blob, mime, ext };
+}
 
 /** Upload an image blob; resolves to its public URL. Throws with a user-facing message on failure. */
 export async function uploadArtImage(file: Blob, filename?: string): Promise<string> {
@@ -27,11 +57,11 @@ export async function uploadArtImage(file: Blob, filename?: string): Promise<str
   } = await supabase.auth.getUser();
   if (!user) throw new Error('Sign in to upload your own images.');
 
-  const ext = EXT_BY_TYPE[file.type] ?? (filename?.split('.').pop() || 'png').toLowerCase();
+  const { blob, mime, ext } = await prepareArt(file, filename);
   const path = `${user.id}/${uuidv4()}.${ext}`;
 
-  const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
-    contentType: file.type || undefined,
+  const { error } = await supabase.storage.from(BUCKET).upload(path, blob, {
+    contentType: mime || undefined,
     upsert: false,
   });
   if (error) throw new Error(error.message);

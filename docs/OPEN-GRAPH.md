@@ -80,10 +80,15 @@ core layouts, and links out to the community guides. Crawlers get its preview fr
 
 ## Follow-ups
 
-- **Re-encode the mislabelled art in `binder-art`.** At least one object in the bucket is AVIF
-  stored under a `.jpg` name and served as `image/jpeg` (whatever the import source returned).
-  `loadArt` skips it, so that pocket unfurls empty. Re-encoding those objects to PNG/JPEG at
-  upload time would make them render — and would stop the app paying an AVIF decode too.
+- **Backfill the art already in `binder-art`.** New uploads are fixed — `uploadArt.ts` now
+  identifies art by its bytes and re-encodes WebP/AVIF/HEIC to PNG/JPEG before storing it (see
+  `imageBytes.ts` / `transcodeArt.web.ts`). But objects uploaded before that stay as they are: at
+  least one is AVIF under a `.jpg` name served as `image/jpeg`, which `loadArt` skips, so that
+  pocket still unfurls empty. A one-off pass to re-encode the existing objects (and correct their
+  `content-type`) would close it out; the slot URLs don't change if the bytes are replaced in place.
+- **GIF art doesn't appear in share images.** `loadArt` only accepts PNG/JPEG, and upload
+  deliberately does NOT transcode GIF (flattening it would kill the animation). An animated slot
+  is a blank pocket in the unfurl. Rendering the first frame server-side would fix it.
 - **Branded static image for `/michi-method`.** Add `public/og/michi-method.png`
   (1200×630 — remember the image itself isn't supersampled) and set it as the `image` in
   `api/og-michi.js`.

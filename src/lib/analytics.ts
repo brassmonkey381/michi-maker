@@ -236,7 +236,17 @@ export function flushLastSeen(): void {
     if (!supabase || !id) return;
     lastSeenAt = Date.now(); // count as a heartbeat so a following throttled touch doesn't double-write
     touchStoredSession(); // keep the web reload-reuse window fresh (no-op on native)
-    void supabase.from('analytics_sessions').update({ last_seen_at: new Date().toISOString() }).eq('id', id);
+    // MUST be awaited, even though we discard the result. A PostgrestFilterBuilder is a lazy
+    // thenable: it only issues its HTTP request when something calls .then(). `void builder`
+    // never does, so the write silently never happens. See recordLandingRoute for the bug this
+    // caused there.
+    void (async () => {
+      try {
+        await supabase!.from('analytics_sessions').update({ last_seen_at: new Date().toISOString() }).eq('id', id);
+      } catch {
+        // swallow — a missed flush is harmless
+      }
+    })();
   } catch {
     // swallow — a missed flush is harmless
   }
@@ -278,16 +288,28 @@ function flushLastSeenBeacon(): void {
  * Record this session's landing_route from its FIRST page.view, exactly once. The `.is(null)`
  * filter makes it idempotent across a web reload (which reuses the row) so it never overwrites the
  * real entry point. Fire-and-forget; never throws.
+ *
+ * The update MUST be awaited even though nothing reads the result. supabase-js returns a
+ * PostgrestFilterBuilder, which is a LAZY thenable — it only issues its HTTP request when
+ * something calls .then() on it. `void builder` builds the query and drops it on the floor, so
+ * the request is never sent and nothing errors, because there is nothing to error. That is
+ * exactly what happened: landing_route was null on all 91 sessions while last_seen_at (written
+ * through an awaited call in touchSession) updated normally.
+ *
+ * The flag is set BEFORE the await deliberately, so two page.views racing on the same tick
+ * cannot both fire. A lost write here is preferable to overwriting a real entry point.
  */
 function recordLandingRoute(id: string, route: unknown): void {
   if (landingRouteRecorded) return;
   if (typeof route !== 'string' || !route) return;
   landingRouteRecorded = true;
-  try {
-    void supabase?.from('analytics_sessions').update({ landing_route: route }).eq('id', id).is('landing_route', null);
-  } catch {
-    // swallow — a missed landing route is harmless
-  }
+  void (async () => {
+    try {
+      await supabase?.from('analytics_sessions').update({ landing_route: route }).eq('id', id).is('landing_route', null);
+    } catch {
+      // swallow — a missed landing route is harmless
+    }
+  })();
 }
 
 /**

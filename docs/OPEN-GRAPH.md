@@ -25,8 +25,16 @@ tags. Humans keep hitting the untouched SPA.
   from the lite `images.json` manifest (the hosted buckets key images by content hash, so a
   URL is not constructible from a card id); it resolves the `image` field, the full-size
   **JPEG** — Satori rasterises JPEG/PNG but not WebP, and the 245/640 thumb tiers are WebP.
-  On any error (or no resolvable art) it redirects to the cover image, so a share always has
-  something.
+  **Custom artwork slots** (`slot_type: 'artwork'`) draw their own `image_url` with the slot's
+  `image_crop` window applied, so a sliced wordart still reads as one image across several
+  pockets — mirroring `ArtworkImage` in `src/components/binder/BinderGrid.tsx`, dark panel and
+  all. Slot **spans are honoured**: the page is laid out as absolutely-positioned boxes on a
+  step grid (Satori has no CSS grid), so a 2×2 jumbo reads as one card and a spanning sliced
+  artwork gets the wide box its crop was cut for. Art bytes are fetched and **format-sniffed**
+  by `loadArt` before Satori sees them: filenames and content-types in `binder-art` can't be
+  trusted (see Follow-ups), and Satori doesn't throw on a format it can't read — it silently
+  draws nothing, which on the dark artwork panel looks like a black pocket. On any error (or
+  no resolvable art) it redirects to the cover image, so a share always has something.
 - **`api/og-profile.js`** — previews a public profile's `@username` with their avatar,
   or the cover of their first public binder.
 - **`api/og-michi.js`** — static preview for the Michi Method page.
@@ -72,9 +80,10 @@ core layouts, and links out to the community guides. Crawlers get its preview fr
 
 ## Follow-ups
 
-- **Slot spans in the composed image.** `og-image-binder.js` lays out with flexbox (all
-  Satori supports), so a spanned card (jumbo, folded art) shows only in its origin cell.
-  Honouring `row_span`/`col_span` would need a spanning grid model.
+- **Re-encode the mislabelled art in `binder-art`.** At least one object in the bucket is AVIF
+  stored under a `.jpg` name and served as `image/jpeg` (whatever the import source returned).
+  `loadArt` skips it, so that pocket unfurls empty. Re-encoding those objects to PNG/JPEG at
+  upload time would make them render — and would stop the app paying an AVIF decode too.
 - **Branded static image for `/michi-method`.** Add `public/og/michi-method.png`
   (1200×630 — remember the image itself isn't supersampled) and set it as the `image` in
   `api/og-michi.js`.

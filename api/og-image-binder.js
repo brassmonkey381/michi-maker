@@ -10,9 +10,14 @@
  *    (fields ["image","image_small","image_medium"]). Satori can rasterise JPEG/PNG but
  *    NOT WebP, and the two thumb tiers are WebP, so we resolve the `image` field (the
  *    full-size JPEG). See tcgscan-browse `images.ts` / `cardThumbUrl`.
- *  - Satori supports flexbox only, so the page is laid out as nested flex rows. Slot
- *    spans are not honoured yet (a spanned card shows in its origin cell) — see the
- *    follow-up in docs/OPEN-GRAPH.md.
+ *  - CUSTOM ARTWORK: `slot_type: 'artwork'` slots carry their own `image_url` (the public
+ *    `binder-art` bucket, or an imported source) plus the `image_crop` window that makes one
+ *    image read as a sliced scene across several pockets. Those are drawn here too — without
+ *    them a page whose centre row is a sliced wordart unfurled with three blank pockets.
+ *    Art bytes are fetched and format-sniffed here, not handed to Satori blind — see `loadArt`.
+ *  - Satori has no CSS grid, so the page is laid out as absolutely-positioned boxes on a
+ *    step grid (`pageGrid`). That honours `row_span`/`col_span`, so a 2×2 jumbo reads as one
+ *    card and a spanning sliced artwork gets the wide box its crop window was cut for.
  *  - On ANY failure it redirects to the binder's cover image (or the site image), so a
  *    share always has something.
  */
@@ -48,7 +53,7 @@ async function fetchJson(url, headers) {
 async function fetchBinder(id) {
   if (!SUPABASE_URL || !SUPABASE_KEY) return null;
   const base =
-    'title,cover_card_id,binder_pages(id,position,rows,cols,binder_slots(row_index,col_index,card_id))';
+    'title,cover_card_id,binder_pages(id,position,rows,cols,binder_slots(row_index,col_index,row_span,col_span,card_id,slot_type,image_url,image_fit,image_crop,image_transform))';
   const headers = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
   // Try WITH the featured-pages column first; if the share_page_ids migration hasn't landed yet that
   // select 400s (fetchJson → null), so fall back to the base select. Keeps the composed image working
@@ -94,7 +99,98 @@ function manifestUrl(manifest, id, field) {
   return key && base ? `${base}/${key}` : null;
 }
 
-const cardCount = (page) => (page.binder_slots || []).filter((s) => s.card_id).length;
+/** A custom-artwork source worth trying, or null. Format is decided later, from the bytes. */
+function artUrl(u) {
+  if (typeof u !== 'string' || !u) return null;
+  if (/^data:image\/svg\+xml[,;]/i.test(u)) return u; // Satori rasterises SVG data URIs itself
+  if (/^data:/i.test(u)) return null;
+  return /^https?:\/\//i.test(u) ? u : null;
+}
+
+/**
+ * PNG/JPEG magic numbers — the ONLY reliable format check for slot art. Filenames and
+ * content-types both lie here: the `binder-art` bucket holds AVIF bytes stored under a `.jpg`
+ * name and served as `image/jpeg` (whatever the import source handed over). Satori decodes
+ * PNG/JPEG but not WebP/AVIF, and it doesn't throw on one it can't read — it silently draws
+ * nothing, leaving a black pocket. So anything else is skipped and reads as an empty pocket.
+ */
+function sniffImage(b) {
+  if (b.length > 3 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) {
+    return 'image/png';
+  }
+  if (b.length > 2 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg';
+  return null;
+}
+
+/** Bytes → data URI. Chunked: `fromCharCode(...bytes)` overflows the stack on a real image. */
+function toDataUri(type, bytes) {
+  let s = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  }
+  return `data:${type};base64,${btoa(s)}`;
+}
+
+const MAX_ART_BYTES = 4 * 1024 * 1024;
+
+/**
+ * url → inlineable data URI, for every distinct artwork on the chosen pages. Fetched here
+ * rather than left to Satori so the bytes can be sniffed first (see `sniffImage`) — and so a
+ * 404 or a slow host costs one empty pocket instead of the whole render.
+ */
+async function loadArt(pages) {
+  const urls = new Set();
+  for (const page of pages) {
+    for (const s of page.binder_slots || []) {
+      if (s.card_id || s.slot_type !== 'artwork') continue;
+      const u = artUrl(s.image_url);
+      if (u) urls.add(u);
+    }
+  }
+  const out = new Map();
+  await Promise.all(
+    [...urls].map(async (u) => {
+      if (u.startsWith('data:')) return void out.set(u, u);
+      try {
+        const res = await fetch(u);
+        if (!res.ok) return;
+        const bytes = new Uint8Array(await res.arrayBuffer());
+        if (bytes.length > MAX_ART_BYTES) return;
+        const type = sniffImage(bytes);
+        if (type) out.set(u, toDataUri(type, bytes));
+      } catch {
+        /* leave the pocket empty */
+      }
+    }),
+  );
+  return out;
+}
+
+/** What a slot draws: a manifest card image, or its own artwork. null = empty pocket. */
+function slotArt(slot, manifest, art) {
+  if (!slot) return null;
+  if (slot.card_id) {
+    const src = manifestUrl(manifest, slot.card_id, 'image');
+    // `hero` = an 'artwork' slot holding a CARD (card art used as full-bleed art, no pocket frame).
+    return src ? { src, hero: slot.slot_type === 'artwork' } : null;
+  }
+  if (slot.slot_type !== 'artwork') return null;
+  const key = artUrl(slot.image_url);
+  const src = key && art ? art.get(key) : null;
+  if (!src) return null;
+  return {
+    src,
+    artwork: true,
+    crop: slot.image_crop,
+    fit: slot.image_fit,
+    xform: slot.image_transform,
+  };
+}
+
+// A pocket counts as filled if it draws anything — an art-only page is as much a page as a
+// card one, and ranking by card count alone would skip it.
+const filledCount = (page) =>
+  (page.binder_slots || []).filter((s) => s.card_id || s.image_url).length;
 const pageCells = (page) => (page.cols || 3) * (page.rows || 3);
 
 /**
@@ -106,17 +202,17 @@ const pageCells = (page) => (page.cols || 3) * (page.rows || 3);
 function pickPages(binder) {
   const pages = (binder.binder_pages || []).slice().sort((a, b) => a.position - b.position);
   // Owner-chosen featured pages (up to 2), when set. RLS already filtered the fetch to PUBLIC pages,
-  // so a hidden/deleted selection just isn't found here; require cards (the composer only draws card
-  // slots) so a blank pick falls through to the auto choice below.
+  // so a hidden/deleted selection just isn't found here; require a filled pocket so a blank pick
+  // falls through to the auto choice below.
   const chosenIds = Array.isArray(binder.share_page_ids) ? binder.share_page_ids : null;
   if (chosenIds && chosenIds.length) {
-    const chosen = pages.filter((p) => chosenIds.includes(p.id) && cardCount(p) > 0).slice(0, 2);
+    const chosen = pages.filter((p) => chosenIds.includes(p.id) && filledCount(p) > 0).slice(0, 2);
     if (chosen.length) return chosen; // already in position order
   }
-  const withCards = pages.filter((p) => cardCount(p) > 0);
+  const withCards = pages.filter((p) => filledCount(p) > 0);
   if (withCards.length === 0) return [];
   if (withCards.length === 1) return [withCards[0]];
-  const topTwo = withCards.slice().sort((a, b) => cardCount(b) - cardCount(a)).slice(0, 2);
+  const topTwo = withCards.slice().sort((a, b) => filledCount(b) - filledCount(a)).slice(0, 2);
   if (pageCells(topTwo[0]) + pageCells(topTwo[1]) > 18) return [topTwo[0]];
   return topTwo.sort((a, b) => a.position - b.position);
 }
@@ -134,38 +230,150 @@ function cardSize(cols, rows, maxGridW, maxGridH) {
   return { cw: Math.floor(cw), ch: Math.floor(ch) };
 }
 
-/** One page's grid of cards at a fixed card size. */
-function pageGrid(page, cw, ch, manifest) {
+/**
+ * The <img> for one pocket, sized to the cw×ch box.
+ *
+ * A sliced artwork carries a normalised crop window {x,y,w,h} in SOURCE space: the image is
+ * blown up to box/crop and offset so this pocket shows just its sub-rectangle — which is what
+ * makes one wordart read as three pieces across three pockets. Mirrors `ArtworkImage` in
+ * `src/components/binder/BinderGrid.tsx`; keep the two in step.
+ */
+function slotImage(art, boxW, boxH, spanning) {
+  const { src, crop, fit, xform } = art;
+  if (!art.artwork) {
+    // A card image. Framed pockets letterbox it (the box is card-shaped, so this is a no-op
+    // there); a spanning hero-art slot covers its box edge-to-edge — matching `SlotBody`.
+    return h('img', {
+      src,
+      width: boxW,
+      height: boxH,
+      style: { objectFit: art.hero && spanning ? 'cover' : 'contain' },
+    });
+  }
+  const contain = fit === 'contain'; // whole image, letterboxed — a crop window doesn't apply
+  const usable = !contain && crop && ['x', 'y', 'w', 'h'].every((k) => Number.isFinite(crop[k]));
+  if (!usable) {
+    return h('img', {
+      src,
+      width: boxW,
+      height: boxH,
+      style: { objectFit: contain ? 'contain' : 'cover' },
+    });
+  }
+  // Clamp the divisor: a degenerate slice (w≈0) would size the image to hundreds of thousands
+  // of px and hang the render.
+  const kw = Math.max(0.05, crop.w);
+  const kh = Math.max(0.05, crop.h);
+  const w = Math.round(boxW / kw);
+  const hgt = Math.round(boxH / kh);
+  const left = Math.round(-(crop.x / kw) * boxW);
+  const top = Math.round(-(crop.y / kh) * boxH);
+  const rot = (xform && xform.rot) || 0;
+  if (!rot && !(xform && (xform.flipH || xform.flipV))) {
+    return h('img', {
+      src,
+      width: w,
+      height: hgt,
+      style: { position: 'absolute', left, top, objectFit: 'cover' },
+    });
+  }
+  // Transformed slice: a quarter turn swaps the element's width and height, so it's laid out
+  // pre-rotation and centre-rotated into place. Slice Studio windows are aspect-true here, so
+  // stretching to the box ('fill') is exact.
+  const quarter = rot === 90 || rot === 270;
+  const parts = [`rotate(${rot}deg)`];
+  if (xform.flipH) parts.push('scaleX(-1)');
+  if (xform.flipV) parts.push('scaleY(-1)');
+  return h('img', {
+    src,
+    width: quarter ? hgt : w,
+    height: quarter ? w : hgt,
+    style: {
+      position: 'absolute',
+      left: quarter ? Math.round(left + (w - hgt) / 2) : left,
+      top: quarter ? Math.round(top + (hgt - w) / 2) : top,
+      objectFit: 'fill',
+      transform: parts.join(' '),
+    },
+  });
+}
+
+/** One pocket: a positioned box, tinted by what it holds, clipping its image. */
+function pocket(left, top, w, hgt, art, spanning) {
+  return h(
+    'div',
+    {
+      style: {
+        display: 'flex',
+        position: 'absolute',
+        left,
+        top,
+        width: w,
+        height: hgt,
+        borderRadius: 9 * S,
+        overflow: 'hidden',
+        // Artwork is often a transparent PNG, and the app backs it with the dark
+        // `Palette.chromeDeep` panel — light art on a light pocket would vanish.
+        backgroundColor: !art ? 'rgba(120,116,108,0.10)' : art.artwork ? '#11111a' : '#e9e4da',
+      },
+    },
+    art ? slotImage(art, w, hgt, spanning) : null,
+  );
+}
+
+/**
+ * One page's pockets at a fixed card size.
+ *
+ * Laid out as absolutely-positioned boxes on a `cols`×`rows` step grid rather than nested flex
+ * rows, so `row_span`/`col_span` are honoured: a spanning slot gets one box covering its whole
+ * footprint (a 2×2 jumbo reads as one card, a 1×2 sliced artwork gets the two-pocket-wide box
+ * its crop window was cut for). Same model as `box()` in BinderGrid.tsx, minus the caption
+ * strip this frame doesn't draw. Cells no slot covers get the empty-pocket tint.
+ */
+function pageGrid(page, cw, ch, manifest, art) {
   const cols = page.cols || 3;
   const rows = page.rows || 3;
-  const byCell = new Map();
-  for (const s of page.binder_slots || []) byCell.set(`${s.row_index}:${s.col_index}`, s);
-  const rowEls = [];
-  for (let r = 0; r < rows; r++) {
-    const cells = [];
-    for (let c = 0; c < cols; c++) {
-      const slot = byCell.get(`${r}:${c}`);
-      const src = slot && slot.card_id ? manifestUrl(manifest, slot.card_id, 'image') : null;
-      cells.push(
-        h(
-          'div',
-          {
-            style: {
-              display: 'flex',
-              width: cw,
-              height: ch,
-              borderRadius: 9 * S,
-              overflow: 'hidden',
-              backgroundColor: src ? '#e9e4da' : 'rgba(120,116,108,0.10)',
-            },
-          },
-          src ? h('img', { src, width: cw, height: ch, style: { objectFit: 'cover' } }) : null,
-        ),
-      );
-    }
-    rowEls.push(h('div', { style: { display: 'flex', flexDirection: 'row', gap: GAP } }, cells));
+  const colStep = cw + GAP;
+  const rowStep = ch + GAP;
+  const covered = new Set();
+  const boxes = [];
+  for (const s of page.binder_slots || []) {
+    const r = Math.trunc(s.row_index);
+    const c = Math.trunc(s.col_index);
+    if (!(r >= 0 && r < rows && c >= 0 && c < cols)) continue; // stale slot outside the grid
+    // Clamp to the page: a span reaching past the edge would otherwise draw outside the mat.
+    const rs = Math.max(1, Math.min(Math.trunc(s.row_span) || 1, rows - r));
+    const cs = Math.max(1, Math.min(Math.trunc(s.col_span) || 1, cols - c));
+    for (let i = 0; i < rs; i++) for (let j = 0; j < cs; j++) covered.add(`${r + i}:${c + j}`);
+    boxes.push(
+      pocket(
+        c * colStep,
+        r * rowStep,
+        cs * cw + (cs - 1) * GAP,
+        rs * ch + (rs - 1) * GAP,
+        slotArt(s, manifest, art),
+        rs > 1 || cs > 1,
+      ),
+    );
   }
-  return h('div', { style: { display: 'flex', flexDirection: 'column', gap: GAP } }, rowEls);
+  const empties = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (!covered.has(`${r}:${c}`)) empties.push(pocket(c * colStep, r * rowStep, cw, ch, null));
+    }
+  }
+  return h(
+    'div',
+    {
+      style: {
+        display: 'flex',
+        position: 'relative',
+        width: cols * cw + (cols - 1) * GAP,
+        height: rows * ch + (rows - 1) * GAP,
+      },
+    },
+    [...empties, ...boxes], // empties first so a slot always paints over the tint
+  );
 }
 
 /** The ringed binder spine between two facing pages. */
@@ -271,7 +479,7 @@ const mat = (children, tilt) =>
     children,
   );
 
-function compose(pages, manifest) {
+function compose(pages, manifest, art) {
   if (pages.length >= 2) {
     // Open spread: shared card size so both pages align; sized to a half-frame box.
     const cols = Math.max(pages[0].cols || 3, pages[1].cols || 3);
@@ -281,9 +489,9 @@ function compose(pages, manifest) {
     return frame(
       mat(
         [
-          pageGrid(pages[0], cw, ch, manifest),
+          pageGrid(pages[0], cw, ch, manifest, art),
           spine(spineH),
-          pageGrid(pages[1], cw, ch, manifest),
+          pageGrid(pages[1], cw, ch, manifest, art),
         ],
         -1,
       ),
@@ -291,7 +499,7 @@ function compose(pages, manifest) {
   }
   const page = pages[0];
   const { cw, ch } = cardSize(page.cols || 3, page.rows || 3, 760 * S, 540 * S);
-  return frame(mat(pageGrid(page, cw, ch, manifest), -1.5));
+  return frame(mat(pageGrid(page, cw, ch, manifest, art), -1.5));
 }
 
 export default async function handler(req) {
@@ -304,15 +512,14 @@ export default async function handler(req) {
       if (binder) {
         cover = manifestUrl(manifest, binder.cover_card_id, 'image') || cover;
         const pages = pickPages(binder);
-        // Only compose when at least one card actually resolves to an image — otherwise
+        const art = await loadArt(pages);
+        // Only compose when at least one pocket actually resolves to an image — otherwise
         // an all-blank page is worse than the cover fallback.
         const anyImage = pages.some((page) =>
-          (page.binder_slots || []).some(
-            (s) => s.card_id && manifestUrl(manifest, s.card_id, 'image'),
-          ),
+          (page.binder_slots || []).some((s) => slotArt(s, manifest, art)),
         );
         if (pages.length && anyImage) {
-          return new ImageResponse(compose(pages, manifest), {
+          return new ImageResponse(compose(pages, manifest, art), {
             width: W,
             height: H,
             headers: {

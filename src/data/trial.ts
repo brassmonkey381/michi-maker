@@ -35,9 +35,11 @@ export async function fetchTrialLedger(): Promise<TrialLedger> {
 }
 
 /** Start the 14-day PRO trial. Resolves to the trial's end (ISO). Throws the RPC's message on
- *  refusal (already used / not eligible / guest) so the CTA can surface it honestly. */
-export async function startProTrial(): Promise<{ expiresAt: string }> {
-  const { data, error } = await db().rpc('start_pro_trial');
+ *  refusal (already used / not eligible / guest) so the CTA can surface it honestly. `surface` is
+ *  passed to the RPC, which emits `trial.start` server-side (un-droppable, unlike the old client
+ *  track — see ../ANALYTICS-TRIAL-START-DROPPED.md). */
+export async function startProTrial(surface?: string): Promise<{ expiresAt: string }> {
+  const { data, error } = await db().rpc('start_pro_trial', { p_surface: surface ?? null });
   if (error) throw new Error(error.message);
   return { expiresAt: data as string };
 }

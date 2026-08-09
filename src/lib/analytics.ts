@@ -40,6 +40,17 @@ type StoredSession = { id: string; userId: string; lastSeen: number };
 /** The current auth identity, mirrored from the auth store via resetSessionUser(). */
 let cachedUser: { id: string; isGuest: boolean } | null = null;
 
+/**
+ * Events that arrived before the identity did. supabase-js can hold a valid session for seconds
+ * before the auth store calls resetSessionUser(), and track() used to DROP everything in that
+ * window silently — which is how a real trial.start never reached the stream. Buffer instead, then
+ * flush in resetSessionUser() with each event's original time. Bounded; oldest dropped on overflow.
+ */
+const PENDING_MAX = 20;
+let pending: { name: string; props?: Record<string, unknown>; at: string }[] = [];
+/** Events dropped on overflow since the last flush — surfaced once in dev so the loss isn't silent. */
+let droppedPending = 0;
+
 /** The active app-open session row id, created lazily on first use. */
 let sessionId: string | null = null;
 /** In-flight session creation, so concurrent tracks share one insert. */
@@ -382,25 +393,46 @@ function unbindLifecycleListeners(): void {
  */
 export function track(name: string, props?: Record<string, unknown>): void {
   try {
-    if (!supabase || !cachedUser) return;
-    void (async () => {
-      try {
-        const sid = await ensureSession();
-        await supabase!
-          .from('analytics_events')
-          .insert({ app: APP, name, props: (props ?? {}) as Json, session_id: sid });
-        if (sid) {
-          // The first page.view of the session backfills landing_route (once, cheaply).
-          if (name === 'page.view') recordLandingRoute(sid, props?.route);
-          void touchSession(sid);
-        }
-      } catch {
-        // swallow — analytics failures must never surface
+    if (!supabase) return;
+    if (!cachedUser) {
+      // No identity yet. Buffer rather than drop (the trial.start hole), keeping the real time so a
+      // later flush can't reorder the funnel by stamping everything now().
+      pending.push({ name, props, at: new Date().toISOString() });
+      if (pending.length > PENDING_MAX) {
+        pending.shift();
+        droppedPending += 1;
+        if (__DEV__) console.warn(`[analytics] event buffer full, dropped oldest (${droppedPending} since last flush)`);
       }
-    })();
+      return;
+    }
+    emit(name, props);
   } catch {
     // swallow — even the synchronous setup must not throw
   }
+}
+
+/**
+ * Insert one event now. `ts` overrides the server `now()` default so a buffered event keeps the
+ * time it actually happened. Assumes an identity is present. Fire-and-forget; never throws.
+ */
+function emit(name: string, props?: Record<string, unknown>, ts?: string): void {
+  void (async () => {
+    try {
+      const sid = await ensureSession();
+      // `ts` is undefined for live events (supabase-js omits it, so the server default now() wins)
+      // and set only for a buffered event being flushed, to keep the time it actually happened.
+      await supabase!
+        .from('analytics_events')
+        .insert({ app: APP, name, props: (props ?? {}) as Json, session_id: sid, ts });
+      if (sid) {
+        // The first page.view of the session backfills landing_route (once, cheaply).
+        if (name === 'page.view') recordLandingRoute(sid, props?.route);
+        void touchSession(sid);
+      }
+    } catch {
+      // swallow — analytics failures must never surface
+    }
+  })();
 }
 
 /**
@@ -422,12 +454,23 @@ export function resetSessionUser(
 ): void {
   if (!user) {
     cachedUser = null;
+    pending = []; // a buffered event never outlives the sign-out that cleared its identity
+    droppedPending = 0;
     return;
   }
   const isGuest = guestOf(user);
   const prev = cachedUser;
   cachedUser = { id: user.id, isGuest };
   refreshAccessToken(); // keep the pagehide-beacon token in step with the current identity
+
+  // Drain events that arrived before this identity landed (see track()'s buffer), keeping each
+  // event's captured time so the funnel order is preserved.
+  if (pending.length) {
+    const drained = pending;
+    pending = [];
+    droppedPending = 0;
+    for (const e of drained) emit(e.name, e.props, e.at);
+  }
 
   if (prev && prev.id !== user.id) {
     // A genuinely different account — drop the old session (in-memory AND the persisted web entry)
@@ -457,6 +500,8 @@ export function endSession(): void {
   sessionId = null;
   starting = null;
   cachedUser = null;
+  pending = [];
+  droppedPending = 0;
   lastSeenAt = 0;
   landingRouteRecorded = false;
   accessToken = null;

@@ -71,8 +71,9 @@ export interface UseTrial {
   isDowngraded: boolean;
   /** When the over-cap reclaim grace ends (ISO); null if not a downgrade. */
   graceEndsAt: string | null;
-  /** Start the trial (RPC). Rejects with the server's message on refusal. */
-  start: () => Promise<void>;
+  /** Start the trial (RPC). `surface` is forwarded so the RPC can emit `trial.start` server-side.
+   *  Rejects with the server's message on refusal. */
+  start: (surface?: string) => Promise<void>;
   starting: boolean;
   error: string | null;
   refresh: () => void;
@@ -101,11 +102,11 @@ export function useTrial(): UseTrial {
     };
   }, [isSignedIn, user, generation]);
 
-  const start = useCallback(async () => {
+  const start = useCallback(async (surface?: string) => {
     setStarting(true);
     setError(null);
     try {
-      await startProTrial();
+      await startProTrial(surface);
       refresh();
     } catch (e) {
       setError((e as Error).message);

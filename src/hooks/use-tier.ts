@@ -79,11 +79,31 @@ export interface UseTier {
   refresh: () => void;
 }
 
+/**
+ * Shared tier invalidation. `refresh()` re-polls EVERY mounted useTier, not only the caller's own
+ * instance — so a tier change made in one place (a trial started in TrialCta) is reflected on the
+ * screens that keep their own useTier (the plans page, the print sheet) instead of reading stale
+ * until they remount. Mirrors useEntitlements' shared store on the tcgscan side.
+ */
+const tierListeners = new Set<() => void>();
+export function refreshAllTiers(): void {
+  for (const bump of tierListeners) bump();
+}
+
 export function useTier(): UseTier {
   const { user, isSignedIn } = useAuth();
   const [state, setState] = useState<TierState | null>(null);
   const [generation, setGeneration] = useState(0);
-  const refresh = useCallback(() => setGeneration((g) => g + 1), []);
+  const refresh = useCallback(() => refreshAllTiers(), []);
+
+  // Re-poll this instance whenever ANY caller invalidates the tier (see refreshAllTiers).
+  useEffect(() => {
+    const bump = () => setGeneration((g) => g + 1);
+    tierListeners.add(bump);
+    return () => {
+      tierListeners.delete(bump);
+    };
+  }, []);
 
   useEffect(() => {
     // Only real accounts can hold paid tiers; guests never query (they're always 'guest').

@@ -56,11 +56,14 @@ export function TrialCta({
   const start = async () => {
     onBeforeStart?.();
     try {
-      await trial.start();
-      // Client-side signal. Emitting this server-side from the start_pro_trial RPC would be more
-      // authoritative (it can't be lost to a crash or a blocked request) — a future improvement.
-      track('trial.start', { surface });
-      refreshTier(); // the new tier_pro row is readable immediately (no webhook lag)
+      // surface is forwarded so start_pro_trial emits `trial.start` server-side, in the same
+      // transaction as the grant — un-droppable, unlike the old client track() that this replaces
+      // (see ../ANALYTICS-TRIAL-START-DROPPED.md).
+      await trial.start(surface);
+      // Reflect PRO immediately. refreshTier() now invalidates EVERY useTier instance (see
+      // use-tier), so the plans screen / print sheet re-poll too — not just this CTA, which is
+      // about to unmount itself (it returns null once the user is no longer `eligible`).
+      refreshTier();
     } catch {
       // trial.error is set and shown below. Record the failure too — a fixed reason, NEVER the
       // caught message (which can carry URLs/emails).
@@ -86,7 +89,7 @@ export function TrialCta({
         )}
       </Pressable>
       <ThemedText type="small" themeColor="textSecondary" style={styles.fine}>
-        No card. Full PRO for 14 days, then back to Free.
+        No card. Starts now: full PRO for 14 days, then back to Free.
       </ThemedText>
       {trial.error ? (
         <ThemedText type="small" style={styles.error}>

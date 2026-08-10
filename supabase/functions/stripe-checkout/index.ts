@@ -39,6 +39,7 @@ import {
 // Bundle-discount eligibility, same shared-module discipline as the proration maths above.
 import { bundleQualifies, bundleSiblingsFor } from '../../../src/data/bundle.ts';
 import { promoActive } from '../../../src/data/promo.ts';
+import { publishableKey, secretKey } from '../_shared/keys.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -201,7 +202,7 @@ Deno.serve(async (req: Request) => {
   const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
   const authClient = createClient(
     Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_ANON_KEY')!,
+    publishableKey(),
   );
   const {
     data: { user },
@@ -214,7 +215,7 @@ Deno.serve(async (req: Request) => {
   // Service client for the billing_customers mapping (no client write policies exist).
   const service = createClient(
     Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    secretKey(),
   );
 
   let body: {

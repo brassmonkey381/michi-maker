@@ -50,11 +50,13 @@
  * ever delete THEMSELVES; no id is accepted from the request body. Anonymous (guest) sessions are
  * rejected: they own nothing server-side and have nothing to delete.
  *
- * Secrets: STRIPE_SECRET_KEY, SUPABASE_SERVICE_ROLE_KEY (supabase secrets).
+ * Secrets: STRIPE_SECRET_KEY, SUPABASE_SECRET_KEY (falls back to the legacy
+ *          SUPABASE_SERVICE_ROLE_KEY until the new key is set - see _shared/keys.ts).
  */
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@18.5.0';
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { publishableKey, secretKey } from '../_shared/keys.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -74,13 +76,21 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
   const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const url = Deno.env.get('SUPABASE_URL');
-  if (!serviceKey || !url) return json({ error: 'server_misconfigured' }, 500);
+  // secretKey() throws when neither the new nor the legacy key is present. Caught here so a missing
+  // key still answers the caller with the same clean 500 this endpoint has always returned, rather
+  // than an unhandled rejection — this one is user-facing (account deletion).
+  let serviceKey: string;
+  try {
+    serviceKey = secretKey();
+  } catch {
+    return json({ error: 'server_misconfigured' }, 500);
+  }
+  if (!url) return json({ error: 'server_misconfigured' }, 500);
 
   // 1. Who is calling? Resolved from THEIR token — never from the body.
   const authHeader = req.headers.get('Authorization') ?? '';
-  const asUser = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, {
+  const asUser = createClient(url, publishableKey(), {
     global: { headers: { Authorization: authHeader } },
   });
   const { data: userData, error: userErr } = await asUser.auth.getUser();

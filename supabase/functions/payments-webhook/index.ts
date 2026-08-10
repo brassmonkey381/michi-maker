@@ -25,6 +25,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 // function boots, so Deno resolves this relative .ts). Only the DB lookup below is webhook-local;
 // the arithmetic lives in one place so a mid-term upgrade can never grant a fresh year again.
 import { PRINTS_PER_MONTH, termPrintAllocation } from '../../../src/data/proration.ts';
+import { secretKey } from '../_shared/keys.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   httpClient: Stripe.createFetchHttpClient(),
@@ -32,7 +33,7 @@ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
 const cryptoProvider = Stripe.createSubtleCryptoProvider();
 
 const service = () =>
-  createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+  createClient(Deno.env.get('SUPABASE_URL')!, secretKey());
 
 /** Our subscription price lookup_keys map onto the entitlement products. `tcgscan_pro`/`tcgscan_vip`
  *  are the CROSS-APP subscriptions (sold by either app, read by both — see docs/SYNERGY.md); they

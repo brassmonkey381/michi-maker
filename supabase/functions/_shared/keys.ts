@@ -21,21 +21,32 @@
  * flag day.
  */
 
+/**
+ * NAMES: the `SUPABASE_` prefix is RESERVED — `supabase secrets set SUPABASE_...` is rejected — so
+ * the settable names are `APP_SECRET_KEY` / `APP_PUBLISHABLE_KEY`. The `SUPABASE_*_KEY` names are
+ * still read second, in case the platform starts injecting them itself, before the legacy fallback.
+ */
+
 /** Service-role-equivalent key. Bypasses RLS — server-side only, never returned to a caller. */
 export function secretKey(): string {
-  const k = Deno.env.get('SUPABASE_SECRET_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  if (!k) throw new Error('no secret key: set SUPABASE_SECRET_KEY (sb_secret_...)');
+  const k = Deno.env.get('APP_SECRET_KEY')
+    ?? Deno.env.get('SUPABASE_SECRET_KEY')
+    ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!k) throw new Error('no secret key: set APP_SECRET_KEY (sb_secret_...)');
   return k;
 }
 
 /** Anon-equivalent key, for the RLS-respecting client used to resolve a caller from their token. */
 export function publishableKey(): string {
-  const k = Deno.env.get('SUPABASE_PUBLISHABLE_KEY') ?? Deno.env.get('SUPABASE_ANON_KEY');
-  if (!k) throw new Error('no publishable key: set SUPABASE_PUBLISHABLE_KEY (sb_publishable_...)');
+  const k = Deno.env.get('APP_PUBLISHABLE_KEY')
+    ?? Deno.env.get('SUPABASE_PUBLISHABLE_KEY')
+    ?? Deno.env.get('SUPABASE_ANON_KEY');
+  if (!k) throw new Error('no publishable key: set APP_PUBLISHABLE_KEY (sb_publishable_...)');
   return k;
 }
 
 /** True once this deployment is off the legacy keys entirely — handy for a health check. */
 export function usingNewKeys(): boolean {
-  return !!Deno.env.get('SUPABASE_SECRET_KEY') && !!Deno.env.get('SUPABASE_PUBLISHABLE_KEY');
+  return !!(Deno.env.get('APP_SECRET_KEY') ?? Deno.env.get('SUPABASE_SECRET_KEY'))
+    && !!(Deno.env.get('APP_PUBLISHABLE_KEY') ?? Deno.env.get('SUPABASE_PUBLISHABLE_KEY'));
 }

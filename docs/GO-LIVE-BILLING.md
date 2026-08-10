@@ -175,6 +175,32 @@ supabase secrets set STRIPE_BUNDLE_COUPON=<live coupon id># the bundle is live �
       `--no-verify-jwt` to checkout or auth-handoff.
 - [x] `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_ANON_KEY` already set — no change
 
+### JWT signing-key rotation (2026-08-10)
+
+Rotating the project's JWT signing key invalidates the legacy `anon` / `service_role` keys —
+those ARE JWTs signed with the legacy secret. All four functions read the platform-injected
+values, so revoking the legacy key breaks every one of them, **including `payments-webhook`**
+(it runs with `verify_jwt` off, so it is untouched by JWT *verification*, but it still reads
+`SUPABASE_SERVICE_ROLE_KEY`).
+
+The functions now read `APP_SECRET_KEY` / `APP_PUBLISHABLE_KEY` first and fall back to the legacy
+names (`supabase/functions/_shared/keys.ts`). The `SUPABASE_` prefix is reserved by the platform,
+which is why these are `APP_*`.
+
+```bash
+supabase secrets set APP_SECRET_KEY=sb_secret_...          # replaces service_role
+supabase secrets set APP_PUBLISHABLE_KEY=sb_publishable_... # replaces anon
+```
+
+Order matters, and every step before the last is reversible:
+1. deploy the functions (no behaviour change — the fallbacks return today's values)
+2. set the two secrets above
+3. verify sign-in, checkout, cross-app handoff, and one Stripe webhook
+4. **only then** revoke the legacy JWT key
+
+`verify_jwt` must still read: payments-webhook = false, stripe-checkout = true,
+auth-handoff = true, delete-account = true. A plain `functions deploy` keeps them.
+
 ---
 
 ## 5. Clean the test-mode data from the production DB

@@ -57,3 +57,7 @@ example
 /android
 .vercel
 .env*
+
+# The real secrets file belongs at the WORKSPACE ROOT (outside every repo).
+# Ignored here too, in case a copy is ever dropped into a repo by mistake.
+tcgscan.secrets

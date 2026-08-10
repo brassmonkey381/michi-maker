@@ -9,12 +9,16 @@
 # token and reports "Invalid access token format" - which looks like a bad token rather than a shell
 # mistake. This sets things the one way that works in both shells and validates before acting.
 #
-# CREDENTIALS are read SILENTLY from environment variables, else from gitignored files beside this
-# script (*.key is already ignored in this repo). Values are NEVER printed.
+# CREDENTIALS come from ONE workspace file, via tcgscan-secrets.ps1:
 #
-#   SUPABASE_ACCESS_TOKEN  or  supabase-access-token.key   personal token, starts sbp_
-#   APP_SECRET_KEY         or  app-secret.key              new secret key,      starts sb_secret_
-#   APP_PUBLISHABLE_KEY    or  app-publishable.key         new publishable key, starts sb_publishable_
+#   C:\Users\Brian\source\repos\tcgscan\tcgscan.secrets
+#     SUPABASE_ACCESS_TOKEN=sbp_...
+#     APP_SECRET_KEY=sb_secret_...
+#     APP_PUBLISHABLE_KEY=sb_publishable_...
+#
+# That folder is not a git repo, so the file cannot be committed from anywhere - a stronger
+# guarantee than .gitignore, which already let a key through once. Values are NEVER printed;
+# an environment variable of the same name still wins if one is set.
 #
 # ORDERING. Deploying is safe BEFORE the secrets exist: _shared/keys.ts falls back to the legacy
 # injected values, so a deploy with no APP_* set changes nothing. Only revoking the legacy JWT key
@@ -46,46 +50,21 @@ function Invoke-Native($file, $argList) {
   $script:ErrorActionPreference = 'Stop'
   return $code
 }
-function Read-Secret($envName, $fileName, $prefix, $label) {
-  $v = [Environment]::GetEnvironmentVariable($envName)
-  $src = "`$env:$envName"
-  if ([string]::IsNullOrWhiteSpace($v)) {
-    $p = Join-Path $Repo $fileName
-    if (Test-Path $p) {
-      $v = ((Get-Content $p) | Where-Object { $_.Trim() -ne '' } | Select-Object -First 1).Trim()
-      $src = $fileName
-    }
-  }
-  if ([string]::IsNullOrWhiteSpace($v)) {
-    Write-Host "  missing $label." -ForegroundColor Yellow
-    Write-Host "    set `$env:$envName = '<value>'   (PowerShell)" -ForegroundColor Yellow
-    Write-Host "    or save it to $(Join-Path $Repo $fileName)" -ForegroundColor Yellow
-    return $null
-  }
-  # Validate the SHAPE, never the value. This is the check that would have caught the shell mistake.
-  if ($prefix -and -not $v.StartsWith($prefix)) {
-    Write-Host "  $label from $src does not start with '$prefix' (length $($v.Length))." -ForegroundColor Red
-    Write-Host "    A placeholder like sbp_[...] pasted literally looks exactly like this." -ForegroundColor Red
-    return $null
-  }
-  Write-Host "  $label ok, from $src  (value not shown)"
-  return $v
-}
-
+. "$Repo	cgscan-secrets.ps1"
 Set-Location $Repo
 if (-not (Test-Path (Join-Path $Repo 'supabase\functions'))) {
   Fail 'STEP 0' "no supabase\functions here - run this from the michi-maker repo"
 }
 
 Step '1/4' 'credentials'
-$token = Read-Secret 'SUPABASE_ACCESS_TOKEN' 'supabase-access-token.key' 'sbp_' 'access token'
+$token = Get-TcgSecret -Name SUPABASE_ACCESS_TOKEN -Prefix 'sbp_' -Required
 if (-not $token) { Fail 'STEP 1/4' 'no valid access token' }
 $env:SUPABASE_ACCESS_TOKEN = $token
 
 $secret = $null; $publishable = $null
 if (-not $DeployOnly) {
-  $secret = Read-Secret 'APP_SECRET_KEY' 'app-secret.key' 'sb_secret_' 'secret key'
-  $publishable = Read-Secret 'APP_PUBLISHABLE_KEY' 'app-publishable.key' 'sb_publishable_' 'publishable key'
+  $secret = Get-TcgSecret -Name APP_SECRET_KEY -Prefix 'sb_secret_' -Required
+  $publishable = Get-TcgSecret -Name APP_PUBLISHABLE_KEY -Prefix 'sb_publishable_' -Required
   if (-not $secret -or -not $publishable) {
     Write-Host ''
     Write-Host '  No new keys yet? Deploying alone is safe and changes nothing -' -ForegroundColor Yellow

@@ -69,7 +69,8 @@ client asking for `bundle: true` proves nothing).
 | --- | --- |
 | a **yearly** sibling plan | yearly **or** monthly |
 | a **monthly** sibling plan | monthly only |
-| a trial or manual grant (no Stripe interval) | monthly only |
+| a manual/comp grant (no Stripe interval) | monthly only |
+| **a trial** | **nothing — decided 2026-08-10, see below** |
 
 Until then it was enough to hold *any* active sibling entitlement, which let a **$3.99** tcgscan
 PRO monthly buy michi VIP **yearly** for $40 instead of $99.99 — a $59.99 discount off a $3.99
@@ -155,6 +156,12 @@ fresh grant shows up next time the surface opens — no deploy.
 - **Should tcgscan VIP earn a deeper michi discount than tcgscan PRO does** (and vice versa)?
   Today the bundle is one flat 60% regardless of which TIER you hold — deliberately kept
   tier-agnostic on 2026-07-28 when the TERM was matched. Still open.
-- **Should a free trial earn the bundle discount at all?** It can no longer unlock a yearly plan
-  (no Stripe interval ⇒ no yearly commitment), but a live trial still earns 60% off a MONTHLY
-  sibling plan having paid nothing. Small (~$6) and deliberate-by-omission rather than decided.
+- ~~**Should a free trial earn the bundle discount at all?**~~ **DECIDED 2026-08-10: no, nowhere.**
+  Term-matching had already stopped a trial unlocking a yearly plan, but a live trial still earned
+  60% off a MONTHLY sibling plan having paid nothing. The bundle is a thank-you for paying, so it
+  now requires a real subscription. Excluded on `source === 'trial'`, NOT on the null interval —
+  manual/comp grants also have a null interval and stay eligible, because a comp is a deliberate
+  gift from us rather than someone helping themselves. Enforced in `bundleQualifies` and in the
+  `stripe-checkout` select (which had to start fetching `source` — without it every row reads
+  undefined and the hole reopens silently), and mirrored on both plans pages so the advertised
+  price matches what checkout charges. Pinned by `src/data/bundle.test.ts`.

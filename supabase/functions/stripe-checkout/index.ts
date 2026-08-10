@@ -652,7 +652,9 @@ Deno.serve(async (req: Request) => {
     if (coupon && siblings) {
       const { data: rows } = await service
         .from('entitlements')
-        .select('product, expires_at, interval')
+        // `source` is required, not decorative: bundleQualifies excludes trials by it, and a select
+        // that omits it would hand every row source=undefined and silently restore the trial hole.
+        .select('product, expires_at, interval, source')
         .eq('user_id', user.id)
         .in('product', siblings);
       if (bundleQualifies(rows ?? [], lookupKey)) discounts = [{ coupon }];

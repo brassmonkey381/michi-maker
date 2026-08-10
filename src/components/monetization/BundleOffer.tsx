@@ -88,9 +88,11 @@ function CrossAppCard({
  * guests, free users (they see michi's own UpgradePerk first), or existing TCGScan Pro holders.
  */
 export function BundleOffer() {
-  const { isPaid, hasTcgscanPro, loading } = useTier();
+  const { michiIsPaid, hasTcgscanPro, loading } = useTier();
   const [busy, setBusy] = useState(false);
-  if (loading || !isPaid || hasTcgscanPro) return null;
+  // michiIsPaid, not isPaid: isPaid is true on a TRIAL, and the copy below both calls the
+  // reader a member and promises 60% - neither of which a trial has earned.
+  if (loading || !michiIsPaid || hasTcgscanPro) return null;
   const onPress = async () => {
     if (!CHECKOUT_OPEN) {
       openTcgscan();

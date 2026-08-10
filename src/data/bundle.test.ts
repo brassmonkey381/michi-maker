@@ -17,10 +17,12 @@ const NOW = Date.parse('2026-07-28T12:00:00Z');
 const LATER = '2027-01-01T00:00:00Z';
 const PAST = '2026-01-01T00:00:00Z';
 
-const monthly = { expires_at: LATER, interval: 'month' };
-const yearly = { expires_at: LATER, interval: 'year' };
-/** A free trial or a manual/comp grant: never came from a Stripe subscription. */
-const noInterval = { expires_at: LATER, interval: null };
+const monthly = { expires_at: LATER, interval: 'month', source: 'stripe' };
+const yearly = { expires_at: LATER, interval: 'year', source: 'stripe' };
+/** A manual/comp grant: never came from a Stripe subscription, but WAS given deliberately. */
+const noInterval = { expires_at: LATER, interval: null, source: 'manual' };
+/** A live 14-day free trial. Paid nothing, so earns nothing. */
+const trial = { expires_at: LATER, interval: null, source: 'trial' };
 
 test('THE EXPLOIT: monthly does not unlock a yearly discount', () => {
   // $3.99 tcgscan PRO monthly must not buy michi VIP yearly at $40.
@@ -31,7 +33,28 @@ test('THE EXPLOIT: monthly does not unlock a yearly discount', () => {
 
 test('a FREE trial unlocks no yearly discount either', () => {
   // The worse version of the same hole: $0 in, $59.99 of discount out.
+  assert.equal(bundleQualifies([trial], 'michi_vip_yearly', NOW), false);
   assert.equal(bundleQualifies([noInterval], 'michi_vip_yearly', NOW), false);
+});
+
+test('A TRIAL EARNS NOTHING, on either term (owner call 2026-08-10)', () => {
+  // Matching the term closed the yearly hole but left this one: a live trial bought 60% off a
+  // MONTHLY sibling plan having paid nothing. The bundle is a thank-you for paying.
+  assert.equal(bundleQualifies([trial], 'michi_vip_monthly', NOW), false);
+  assert.equal(bundleQualifies([trial], 'tcgscan_pro_monthly', NOW), false);
+  // ...and a trial sitting beside a real subscription must not spoil the real one.
+  assert.equal(bundleQualifies([trial, monthly], 'michi_vip_monthly', NOW), true);
+});
+
+test('a manual/comp grant still qualifies monthly: we gave it deliberately', () => {
+  // Excluded on SOURCE, not on the null interval, so comps are unaffected by the trial rule.
+  assert.equal(bundleQualifies([noInterval], 'michi_vip_monthly', NOW), true);
+});
+
+test('an unknown or missing source keeps the old behaviour', () => {
+  // Fail toward honouring a discount someone may have paid for, rather than silently removing it.
+  assert.equal(bundleQualifies([{ expires_at: LATER, interval: 'month' }], 'michi_vip_monthly', NOW), true);
+  assert.equal(bundleQualifies([{ expires_at: LATER, interval: 'month', source: null }], 'michi_vip_monthly', NOW), true);
 });
 
 test('yearly unlocks yearly — the bundle working as intended', () => {

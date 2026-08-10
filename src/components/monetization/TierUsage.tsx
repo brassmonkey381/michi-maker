@@ -91,6 +91,8 @@ interface PlanDetails {
   planSince?: string;
   /** Term end of the active subscription row (manual grants lapse; webhooks will extend). */
   termEnds?: string;
+  /** Set INSTEAD of termEnds while trialling: a trial ends, it does not renew. */
+  trialEnds?: string;
   daysLeft?: number;
   /** The grant came from a manual SQL grant, not a checkout. */
   manualGrant?: boolean;
@@ -183,10 +185,19 @@ export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }
             : sub?.expiresAt
               ? Date.parse(sub.expiresAt)
               : NaN;
+        // A TRIAL DOES NOT RENEW. It is an entitlement grant, not a Stripe subscription — no card,
+        // no interval, no period_start (docs/PRO-TRIALS.md) — so it fell through the branches above
+        // into the manual-grant fallback and its EXPIRY was displayed under the label "Renews".
+        // That told a trialling user their free trial would bill them on the day it actually ends.
+        // The countdown is still true and still useful, so keep daysLeft and drop only the date.
+        const onTrial = sub?.source === 'trial';
         setDetails({
           memberSince: fmt(memberSinceIso),
           planSince: fmt(sub?.grantedAt),
-          termEnds: Number.isNaN(renewalMs) ? undefined : fmt(new Date(renewalMs).toISOString()),
+          termEnds:
+            onTrial || Number.isNaN(renewalMs) ? undefined : fmt(new Date(renewalMs).toISOString()),
+          trialEnds:
+            onTrial && !Number.isNaN(renewalMs) ? fmt(new Date(renewalMs).toISOString()) : undefined,
           daysLeft: Number.isNaN(renewalMs)
             ? undefined
             : Math.max(0, Math.ceil((renewalMs - now) / 86400000)),
@@ -231,7 +242,18 @@ export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }
               {details.planSince ? (
                 <DetailRow label={`${TIER_NAMES[tier]} member since`} value={details.planSince} />
               ) : null}
-              {details.termEnds ? (
+              {details.trialEnds ? (
+                /* A trial has no renewal date to show — saying "Renews" here promised a charge on
+                   the day the trial actually ends. Same countdown, honest label. */
+                <DetailRow
+                  label="Trial ends"
+                  value={
+                    details.daysLeft != null
+                      ? `${details.trialEnds} · ${details.daysLeft} day${details.daysLeft === 1 ? '' : 's'} left`
+                      : details.trialEnds
+                  }
+                />
+              ) : details.termEnds ? (
                 <DetailRow
                   label={CHECKOUT_OPEN ? 'Renews' : 'Current term ends'}
                   value={
@@ -242,6 +264,12 @@ export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }
                 />
               ) : tier === 'free' ? (
                 <DetailRow label="Billing" value="None, Free is free forever" />
+              ) : null}
+              {details.trialEnds ? (
+                <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
+                  Free trial — no card on file and nothing to cancel. It simply ends and you go back
+                  to Free.
+                </ThemedText>
               ) : null}
               {details.termEnds && details.manualGrant && !CHECKOUT_OPEN ? (
                 <ThemedText type="small" themeColor="textSecondary" style={styles.note}>

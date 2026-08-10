@@ -40,7 +40,7 @@ export default function PlansScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { checkout, bundle } = useLocalSearchParams<{ checkout?: string; bundle?: string }>();
-  const { isPaid, hasTcgscanPro, loading: tierLoading, refresh } = useTier();
+  const { isPaid, hasTcgscanPro, tcgscanIsPaid, loading: tierLoading, refresh } = useTier();
   // A michi free trial reads as isPaid (tier 'pro') but has no paid subscription — so the bundle
   // offer must reach trial holders too; only a truly paid (non-trial) plan hides it. This is the
   // existing trial signal (entitlement source='trial', resolved by useTrial), reused verbatim.
@@ -59,9 +59,11 @@ export default function PlansScreen() {
   // tier sees the discount banner; a signed-out ?bundle=1 arrival gets the sign-in nudge.
   // Show the 60% bundle offer to bundle-eligible users who are FREE or on a TRIAL; keep hiding it
   // from a fully-paid (non-trial) plan. `!(isPaid && !isTrial)` is the trial-vs-paid distinction.
-  // Granularity matches the banner (hasTcgscanPro = tcgscan pro∪vip); the server (stripe-checkout)
-  // remains the source of truth for the charged price and its term-level bundle matching.
-  const bundleEligible = !tierLoading && hasTcgscanPro && !(isPaid && !isTrial);
+  // The SIBLING must be PAYING, not trialling: a trial earns no bundle (owner call 2026-08-10),
+  // and tcgscanIsPaid is the exact condition the server's bundleQualifies now applies. Reading
+  // hasTcgscanPro here advertised a 60% that checkout refuses. The server (stripe-checkout) remains
+  // the source of truth for the charged price and its term-level matching.
+  const bundleEligible = !tierLoading && tcgscanIsPaid && !(isPaid && !isTrial);
   const bundleArrival = bundle === '1' && !tierLoading && !isPaid && !hasTcgscanPro;
 
   // Back from Stripe Checkout: fulfillment is webhook-driven and lags the redirect by a few

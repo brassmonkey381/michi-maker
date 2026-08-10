@@ -84,17 +84,19 @@ function saleSub(head: PlanHeader, percentOff: number): string {
 }
 
 export function PlanComparison() {
-  const { tier, loading, refresh, isPaid, hasTcgscanPro, tcgscanIsYearly } = useTier();
+  const { tier, loading, refresh, isPaid, tcgscanIsPaid, tcgscanIsYearly } = useTier();
   const { isSignedIn } = useAuth();
   // Cross-app bundle: a member holding a sibling TCGScan tier earns 60% off PRO/VIP. Mirror the
   // /plans banner gate exactly — shown to FREE and TRIAL holders, hidden from a fully-paid plan.
   // The server (stripe-checkout) is the source of truth for the charged price and for term-level
   // bundle matching; this only mirrors the banner's promise on the page.
   const onTrial = useTrial().state === 'active';
-  const bundleEligible = !loading && hasTcgscanPro && !(isPaid && !onTrial);
+  // tcgscanIsPaid, not hasTcgscanPro: a TRIALLING sibling earns no bundle, so quoting 60% off
+  // monthly here would advertise a price stripe-checkout now refuses.
+  const bundleEligible = !loading && tcgscanIsPaid && !(isPaid && !onTrial);
   // PER-TERM, mirroring the server's bundleQualifies (src/data/bundle.ts): a YEARLY plan gets the
   // 60% bundle ONLY when the qualifying tcgscan sibling is itself billed yearly; a MONTHLY plan
-  // gets it for any active sibling. So a monthly/trial/comp-sibling holder sees 60% on monthly and
+  // gets it for any active sibling. So a monthly/comp-sibling holder sees 60% on monthly and
   // the normal 20%/list on yearly — never a yearly 60% the checkout won't honour.
   const bundleYearly = bundleEligible && tcgscanIsYearly;
   // BETTER-OF (mirrors stripe-checkout): the bundle beats the promo, and unlike the promo it does

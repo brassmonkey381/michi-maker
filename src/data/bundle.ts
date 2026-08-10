@@ -33,6 +33,13 @@
  * a manual/comp grant — so it proves no yearly commitment and cannot unlock a yearly discount.
  * That also closes the worse version of the same hole: a FREE 14-day tcgscan PRO trial buying
  * michi VIP yearly for $40 with nothing paid at all.
+ *
+ * A TRIAL EARNS NOTHING (owner call 2026-08-10). Matching the term closed the yearly hole but left
+ * the monthly one open: a live 14-day trial still bought 60% off a MONTHLY sibling plan having paid
+ * nothing, which docs/SYNERGY.md carried as "deliberate-by-omission rather than decided". It is
+ * decided now — the bundle is a thank-you for paying, so only a real subscription earns it. Trials
+ * are excluded on the SOURCE, not on the interval: `interval` is null for manual/comp grants too,
+ * and a comp is a deliberate gift from us rather than someone helping themselves.
  */
 
 /** The shape `bundleQualifies` needs from an entitlements row. */
@@ -41,6 +48,8 @@ export interface BundleEntitlement {
   expires_at: string | null;
   /** Stripe recurring interval ('month' | 'year'), or null for trial / manual grants. */
   interval: string | null;
+  /** How the grant arose — 'trial' | 'stripe' | 'manual' | … . Trials never qualify. */
+  source?: string | null;
 }
 
 /** Billing term a subscription lookup key is sold on. Null for one-time products. */
@@ -71,8 +80,13 @@ export function bundleSiblingsFor(lookupKey: string): string[] | null {
  * expiry is checked here so a lapsed row can never qualify.
  */
 export function bundleQualifies(rows: BundleEntitlement[], lookupKey: string, now = Date.now()): boolean {
-  const active = rows.filter((r) => !r.expires_at || Date.parse(r.expires_at) > now);
-  // Buying yearly demands a yearly commitment; anything else only needs an active sibling.
+  const active = rows
+    .filter((r) => !r.expires_at || Date.parse(r.expires_at) > now)
+    // A trial has paid nothing, so it earns nothing — on either term. Note this is `=== 'trial'`
+    // rather than `!== 'stripe'`: a row whose source is missing or unrecognised keeps the old
+    // behaviour instead of silently losing a discount someone paid for.
+    .filter((r) => r.source !== 'trial');
+  // Buying yearly demands a yearly commitment; anything else only needs an active PAID sibling.
   if (termFor(lookupKey) === 'year') return active.some((r) => r.interval === 'year');
   return active.length > 0;
 }

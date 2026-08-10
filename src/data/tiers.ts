@@ -52,6 +52,12 @@ export interface EntitlementRow {
    * existing callers and fixtures stay valid.
    */
   interval?: string | null;
+  /**
+   * How the grant arose - 'trial' | 'stripe' | 'manual' | ... . A TRIAL earns no bundle discount
+   * (owner call 2026-08-10), so this is what separates "has PRO" from "is paying for PRO".
+   * Optional so existing callers and fixtures stay valid.
+   */
+  source?: string | null;
 }
 
 /**
@@ -213,6 +219,41 @@ export function tcgscanLevel(rows: EntitlementRow[], nowMs: number): 'pro' | 'vi
  */
 export function hasTcgscanPro(rows: EntitlementRow[], nowMs: number): boolean {
   return tcgscanLevel(rows, nowMs) !== null;
+}
+
+/**
+ * Did this grant come from someone actually paying?
+ *
+ * `!== 'trial'` rather than `=== 'stripe'`, matching the server (src/data/bundle.ts): a row with a
+ * missing or unrecognised source keeps its discount rather than silently losing one it may have
+ * paid for, and a manual/comp grant stays eligible because we gave it deliberately.
+ */
+export function isPaidGrant(row: EntitlementRow): boolean {
+  return row.source !== 'trial';
+}
+
+/**
+ * CROSS-APP: holds a PAID (non-trial) TCGScan tier - the exact condition the server requires before
+ * granting the bundle coupon. A trial earns nothing (owner call 2026-08-10, docs/SYNERGY.md), so
+ * the plans page must read THIS, not hasTcgscanPro, or it advertises a 60% checkout will refuse.
+ */
+export function tcgscanIsPaid(rows: EntitlementRow[], nowMs: number): boolean {
+  return rows.some(
+    (r) =>
+      (r.product === PRODUCTS.tcgscanPro || r.product === PRODUCTS.tcgscanVip) &&
+      isActive(r, nowMs) &&
+      isPaidGrant(r),
+  );
+}
+
+/** Holds a PAID (non-trial) michi tier. Gates copy that claims "you're a paying member". */
+export function michiIsPaid(rows: EntitlementRow[], nowMs: number): boolean {
+  return rows.some(
+    (r) =>
+      (r.product === PRODUCTS.tierPro || r.product === PRODUCTS.tierVip) &&
+      isActive(r, nowMs) &&
+      isPaidGrant(r),
+  );
 }
 
 /**

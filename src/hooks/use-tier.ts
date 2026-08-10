@@ -17,6 +17,8 @@ import {
   hasFullPrint as computeFullPrint,
   hasAdvancedSearch as computeAdvancedSearch,
   hasTcgscanPro as computeTcgscanPro,
+  michiIsPaid as computeMichiIsPaid,
+  tcgscanIsPaid as computeTcgscanIsPaid,
   tcgscanIsYearly as computeTcgscanIsYearly,
   tcgscanLevel as computeTcgscanLevel,
   isActive,
@@ -35,6 +37,10 @@ interface TierState {
   tier: Tier;
   hasFullPrint: boolean;
   hasTcgscanPro: boolean;
+  /** CROSS-APP: holds a PAID (non-trial) tcgscan tier - the server's bundle condition. */
+  tcgscanIsPaid: boolean;
+  /** Holds a PAID (non-trial) michi tier. False while trialling. */
+  michiIsPaid: boolean;
   tcgscanLevel: 'pro' | 'vip' | null;
   tcgscanIsYearly: boolean;
   products: string[];
@@ -52,8 +58,13 @@ export interface UseTier {
   hasAdvancedSearch: boolean;
   /** A paid subscriber (PRO or VIP). */
   isPaid: boolean;
-  /** CROSS-APP: holds ANY paid TCGScan tier (PRO or VIP) — unlocks scan-powered features. */
+  /** CROSS-APP: holds ANY ACTIVE TCGScan tier (PRO or VIP) — unlocks scan-powered features.
+   *  TRUE ON A TRIAL; for bundle pricing use tcgscanIsPaid. */
   hasTcgscanPro: boolean;
+  /** CROSS-APP: holds a PAID (non-trial) TCGScan tier — the server's bundle condition. */
+  tcgscanIsPaid: boolean;
+  /** Holds a PAID (non-trial) michi tier. False while trialling, unlike isPaid. */
+  michiIsPaid: boolean;
   /** CROSS-APP: the sibling tcgscan account's exact paid level ('vip' > 'pro' > null). */
   tcgscanLevel: 'pro' | 'vip' | null;
   /** CROSS-APP: the qualifying tcgscan tier is billed YEARLY — gates the YEARLY bundle price so the
@@ -123,6 +134,10 @@ export function useTier(): UseTier {
           expires_at: (r as { expires_at?: string | null }).expires_at ?? null,
           // Carried for the cross-app bundle's yearly term-match (tcgscanIsYearly); absent → null.
           interval: (r as { interval?: string | null }).interval ?? null,
+          // Carried so the bundle price shown matches what checkout will charge: a TRIAL earns no
+          // bundle (src/data/bundle.ts), and without this the page cannot tell a trialling sibling
+          // from a paying one and would advertise a 60% the server refuses.
+          source: (r as { source?: string | null }).source ?? null,
         }));
         // Resolve against "now" here in the effect — never call the clock during render.
         const now = Date.now();
@@ -148,6 +163,8 @@ export function useTier(): UseTier {
           tier,
           hasFullPrint: computeFullPrint(tier),
           hasTcgscanPro: computeTcgscanPro(rows, now),
+          tcgscanIsPaid: computeTcgscanIsPaid(rows, now),
+          michiIsPaid: computeMichiIsPaid(rows, now),
           tcgscanLevel: computeTcgscanLevel(rows, now),
           tcgscanIsYearly: computeTcgscanIsYearly(rows, now),
           products: rows.filter((r) => isActive(r, now)).map((r) => r.product),
@@ -174,6 +191,8 @@ export function useTier(): UseTier {
     hasAdvancedSearch: computeAdvancedSearch(tier),
     isPaid: tier === 'pro' || tier === 'vip',
     hasTcgscanPro: known ? state!.hasTcgscanPro : false,
+    tcgscanIsPaid: known ? state!.tcgscanIsPaid : false,
+    michiIsPaid: known ? state!.michiIsPaid : false,
     tcgscanLevel: known ? state!.tcgscanLevel : null,
     tcgscanIsYearly: known ? state!.tcgscanIsYearly : false,
     products: known ? state!.products : [],

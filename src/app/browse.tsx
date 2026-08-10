@@ -25,6 +25,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Spacing } from '@/constants/theme';
 import { pagesForCards } from '@/data/binderTypes';
 import { binderLimitMessage, pageLimitMessage } from '@/data/limitMessages';
+import { trackCapGate } from '@/lib/analytics';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useOwnedCards } from '@/hooks/use-owned-cards';
 import { useBinders } from '@/store/binders';
@@ -103,8 +104,16 @@ export default function BrowseScreen() {
     const { added, unplaced } = store.addCardsToBinder(binderId, addCardIds);
     setAddCardIds(null);
     // Anything the binder's page cap left out is named, never dropped in silence.
-    if (unplaced > 0) showToast(pageLimitMessage(store.tier, store.limits));
-    else if (added > 0) showAdded(binderId, title, added);
+    if (unplaced > 0) {
+      showToast(pageLimitMessage(store.tier, store.limits));
+      trackCapGate({
+        limit: 'pagesPerBinder',
+        surface: 'browse',
+        tier: store.tier,
+        used: store.getBinder(binderId)?.pages.length ?? 0,
+        cap: store.limits.pagesPerBinder,
+      });
+    } else if (added > 0) showAdded(binderId, title, added);
   };
   const addToNew = () => {
     if (!addCardIds?.length) return;
@@ -118,10 +127,25 @@ export default function BrowseScreen() {
     // The store refuses past the binder cap — say so instead of silently doing nothing.
     if (!binder) {
       showToast(binderLimitMessage(store.tier, store.limits));
+      trackCapGate({
+        limit: 'binders',
+        surface: 'browse',
+        tier: store.tier,
+        used: store.binderCount,
+        cap: store.limits.binders,
+      });
       return;
     }
-    if (short > 0) showToast(pageLimitMessage(store.tier, store.limits));
-    else showAdded(binder.id, binder.title, ids.length);
+    if (short > 0) {
+      showToast(pageLimitMessage(store.tier, store.limits));
+      trackCapGate({
+        limit: 'pagesPerBinder',
+        surface: 'browse',
+        tier: store.tier,
+        used: binder.pages.length,
+        cap: store.limits.pagesPerBinder,
+      });
+    } else showAdded(binder.id, binder.title, ids.length);
   };
 
   return (

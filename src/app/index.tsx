@@ -20,7 +20,7 @@ import { BottomTabInset, Breakpoints, Fonts, FontSize, MaxContentWidthWide, Pale
 import { pagesForCards } from '@/data/binderTypes';
 import { CONTEST, contestPhase } from '@/data/contest';
 import { binderLimitMessage, pageLimitMessage } from '@/data/limitMessages';
-import { track } from '@/lib/analytics';
+import { track, trackCapGate } from '@/lib/analytics';
 import { useImageManifest } from '@/lib/catalogConfig';
 import { shouldShowLanding } from '@/lib/landing';
 import { useBinders } from '@/store/binders';
@@ -92,13 +92,29 @@ export default function HomeScreen() {
     const { added, unplaced } = store.addCardsToBinder(binderId, [addCardId]);
     setAddCardId(null);
     if (added > 0) showAddedToast(binderId, title);
-    else if (unplaced > 0) showToast(pageLimitMessage(store.tier, store.limits));
+    else if (unplaced > 0) {
+      showToast(pageLimitMessage(store.tier, store.limits));
+      trackCapGate({
+        limit: 'pagesPerBinder',
+        surface: 'home',
+        tier: store.tier,
+        used: store.getBinder(binderId)?.pages.length ?? 0,
+        cap: store.limits.pagesPerBinder,
+      });
+    }
   };
   const addToNewBinder = () => {
     if (!addCardId) return;
     if (store.atBinderLimit) {
       setAddCardId(null);
       showToast(binderLimitMessage(store.tier, store.limits));
+      trackCapGate({
+        limit: 'binders',
+        surface: 'home',
+        tier: store.tier,
+        used: store.binderCount,
+        cap: store.limits.binders,
+      });
       return;
     }
     // Atomic create-with-card — creating then adding would race the store snapshot.

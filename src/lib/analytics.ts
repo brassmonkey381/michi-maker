@@ -412,6 +412,72 @@ export function track(name: string, props?: Record<string, unknown>): void {
 }
 
 /**
+ * Where a gate was shown. A FIXED enum, never free text and never a route string — the studio
+ * segments on it, so a new value is a deliberate contract change. Deliberately the union across
+ * BOTH apps (michi uses the binder surfaces, tcgscan the collection/scan ones) so the two
+ * emitters stay the near-identical mirrors AGENTS.md requires. Values shared with TrialCta's
+ * `surface` ('plans', 'print_gate') must keep spelling exactly, or the funnel stops joining.
+ */
+export type CapSurface =
+  | 'home'
+  | 'browse'
+  | 'my_binders'
+  | 'binder_editor'
+  | 'build_wizard'
+  | 'slice_studio'
+  | 'print_gate'
+  | 'plans'
+  | 'collection_list'
+  | 'add_to_collection'
+  | 'scan_quota'
+  /** A cap met during a live scan / auto-add run, as opposed to the manual add sheet. */
+  | 'scan'
+  /** The server refused an attempt, as opposed to the client warning someone they're at the cap.
+   *  Kept distinct so the two can never double-count one impression. */
+  | 'scan_quota_refused';
+
+/**
+ * A cap-gate impression: the moment a plan limit was actually SHOWN to the user, not merely
+ * computed. Hitting a wall is the highest-intent moment the product has, and it was the one moment
+ * the stream could not see (ANALYTICS-CAP-GATES.md).
+ *
+ * `limit` MUST be the tier_caps limit_key verbatim ('binders', 'pagesPerBinder', 'artUploads', …)
+ * — the studio joins on it directly, and a prettier name means a lookup table that will drift.
+ * `surface` is a fixed enum chosen at the call site (see CapSurface), never a route string; where a
+ * gate also renders TrialCta, pass the SAME string so the gate→offer→trial funnel is a join.
+ *
+ * `tier` is stamped HERE, at the moment of the gate, rather than inferred later: tier is read from
+ * the entitlements ledger as of now, so a user who upgrades next week would be retro-labelled and
+ * their guest-era gate would silently move funnels.
+ */
+export function trackCapGate(input: {
+  limit: string;
+  surface: CapSurface;
+  tier: string;
+  /** Their count at the moment of the gate. */
+  used: number;
+  /** The limit they hit. */
+  cap: number;
+}): void {
+  track('cap.gate_shown', { ...input, used: capCount(input.used), cap: capCount(input.cap) });
+}
+
+/** The user backed out of a gate without acting. Pairs with trackCapGate on {limit, surface}. */
+export function trackCapGateDismissed(limit: string, surface: CapSurface): void {
+  track('cap.gate_dismissed', { limit, surface });
+}
+
+/**
+ * Counts are Infinity for an unlimited tier (and for every tier when LIMITS_ENFORCED is off).
+ * JSON.stringify(Infinity) is `null`, which would land in props indistinguishable from "not
+ * captured" — so unlimited becomes an explicit -1 sentinel. In practice a gate cannot fire on an
+ * unlimited cap; this exists so a future one can't silently write nulls.
+ */
+function capCount(n: number): number {
+  return Number.isFinite(n) ? n : -1;
+}
+
+/**
  * Insert one event now. `ts` overrides the server `now()` default so a buffered event keeps the
  * time it actually happened. Assumes an identity is present. Fire-and-forget; never throws.
  */

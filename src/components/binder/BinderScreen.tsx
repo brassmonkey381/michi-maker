@@ -47,6 +47,7 @@ import { footprintForKind } from '@/data/cardSizing';
 import { resolveCard } from '@/data/cardResolver';
 import { addSavedSlices, removeSavedSlice, sliceSignature, slotSignature, useSavedSlices, useSavedSlicesSync, type SavedSlice } from '@/data/savedSlices';
 import { binderLimitMessage, pageLimitMessage } from '@/data/limitMessages';
+import { trackCapGate } from '@/lib/analytics';
 import { TIER_LIMITS } from '@/data/tiers';
 import { SliceTray, SliceThumb } from '@/components/binder/SliceTray';
 import type { CatalogCard } from '@/lib/catalog';
@@ -680,8 +681,16 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     closePicker();
     // The binder can run out of pages at the tier cap — name it (with the upgrade route) rather
     // than quietly placing fewer cards than the user picked.
-    if (unplaced > 0) showToast(pageLimitMessage(store.tier, store.limits));
-    else if (added > 0) showToast(`Added ${added} card${added === 1 ? '' : 's'}`);
+    if (unplaced > 0) {
+      showToast(pageLimitMessage(store.tier, store.limits));
+      trackCapGate({
+        limit: 'pagesPerBinder',
+        surface: 'binder_editor',
+        tier: store.tier,
+        used: binder.pages.length,
+        cap: store.limits.pagesPerBinder,
+      });
+    } else if (added > 0) showToast(`Added ${added} card${added === 1 ? '' : 's'}`);
   };
 
   // The artworks-kept cap covers EVERY way new art enters the account: studio saves are gated
@@ -695,6 +704,15 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         ? `Guests can keep ${store.limits.artUploads} artworks. Sign in (free) to keep up to ${TIER_LIMITS.free.artUploads}.`
         : `You’ve reached your ${store.limits.artUploads}-artwork limit. Upgrade for more room.`,
     );
+    // This is the single choke point for art entering the account, so one event here covers
+    // every path (tray import, direct placement, studio save).
+    trackCapGate({
+      limit: 'artUploads',
+      surface: 'binder_editor',
+      tier: store.tier,
+      used: keptArtworks,
+      cap: store.limits.artUploads,
+    });
     return true;
   };
 

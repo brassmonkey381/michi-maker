@@ -7,7 +7,7 @@
  * Needs the catalog (a signed-in perk) to read species/artist/set metadata — same gating story
  * as the ✨ Fill sheet.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { fetchCardDetail, type CardDetail } from 'tcgscan-browse';
 
@@ -28,7 +28,7 @@ import {
 } from '@/data/binderWizard';
 import { binderLimitMessage } from '@/data/limitMessages';
 import { useCatalog } from '@/hooks/use-catalog';
-import { track } from '@/lib/analytics';
+import { track, trackCapGate, trackCapGateDismissed } from '@/lib/analytics';
 import { usePriceSummary } from '@/lib/prices';
 import { useBinders } from '@/store/binders';
 
@@ -127,6 +127,31 @@ export function BuildBinderSheet({
   // createBinder guard. At the cap the button goes quiet and the perk note explains why.
   const atBinderLimit = !asDemo && store.atBinderLimit;
 
+  // The wizard is the one michi gate with a real "backed out" signal: the wall is a persistent
+  // perk inside a sheet the user can close, rather than a toast that always auto-expires. So this
+  // is the only place a shown/dismissed pair carries information — see the note in ANALYTICS-
+  // CAP-GATES.md about not emitting dismissals for non-interactive toasts.
+  const capShown = useRef(false);
+  useEffect(() => {
+    if (!visible || !atBinderLimit) return;
+    if (capShown.current) return; // once per appearance, not once per re-render
+    capShown.current = true;
+    trackCapGate({
+      limit: 'binders',
+      surface: 'build_wizard',
+      tier: store.tier,
+      used: store.binderCount,
+      cap: store.limits.binders,
+    });
+  }, [visible, atBinderLimit, store.tier, store.binderCount, store.limits.binders]);
+  useEffect(() => {
+    if (visible) return;
+    // Closed. If the wall was shown and no binder was built, that is a dismissal; a successful
+    // build clears the flag first (see build()), so this cannot fire on the converting path.
+    if (capShown.current) trackCapGateDismissed('binders', 'build_wizard');
+    capShown.current = false;
+  }, [visible]);
+
   const build = () => {
     if (chosen.length === 0) return;
     const binder = store.createBinder({
@@ -136,6 +161,7 @@ export function BuildBinderSheet({
     });
     // The store refuses past the binder cap — leave the sheet open on the perk note below.
     if (!binder) return;
+    capShown.current = false; // built successfully; the close below is not a dismissal
     if (asDemo) track('demo.curation', { pages: chosen.length });
     onBuilt(binder.id, chosen.length);
     onClose();

@@ -32,7 +32,7 @@ import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Breakpoints, FontSize, MaxContentWidth, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { fillerName } from '@/data/binderTypes';
 import { binderLimitMessage } from '@/data/limitMessages';
-import { track } from '@/lib/analytics';
+import { track, trackCapGate } from '@/lib/analytics';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useImageManifest } from '@/lib/catalogConfig';
 import { useBinders } from '@/store/binders';
@@ -85,6 +85,13 @@ export default function MyBindersScreen() {
   const handleNew = () => {
     if (store.atBinderLimit) {
       showToast(binderLimitMessage(store.tier, store.limits));
+      trackCapGate({
+        limit: 'binders',
+        surface: 'my_binders',
+        tier: store.tier,
+        used: store.binderCount,
+        cap: store.limits.binders,
+      });
       return;
     }
     const binder = store.createBinder({ title: 'New binder' });
@@ -116,7 +123,19 @@ export default function MyBindersScreen() {
   const duplicateFromMenu = () => {
     if (menuBinder) {
       const copy = store.duplicateBinder(menuBinder.id);
-      showToast(copy ? 'Binder duplicated' : binderLimitMessage(store.tier, store.limits));
+      if (copy) showToast('Binder duplicated');
+      else {
+        // The store refused past the binder cap — the same wall as handleNew, reached by a
+        // different door, so it reports the same limit on the same surface.
+        showToast(binderLimitMessage(store.tier, store.limits));
+        trackCapGate({
+          limit: 'binders',
+          surface: 'my_binders',
+          tier: store.tier,
+          used: store.binderCount,
+          cap: store.limits.binders,
+        });
+      }
     }
     setMenuId(null);
   };

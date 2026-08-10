@@ -50,7 +50,7 @@ function Invoke-Native($file, $argList) {
   $script:ErrorActionPreference = 'Stop'
   return $code
 }
-. "$Repo	cgscan-secrets.ps1"
+. (Join-Path $PSScriptRoot 'tcgscan-secrets.ps1')
 Set-Location $Repo
 if (-not (Test-Path (Join-Path $Repo 'supabase\functions'))) {
   Fail 'STEP 0' "no supabase\functions here - run this from the michi-maker repo"

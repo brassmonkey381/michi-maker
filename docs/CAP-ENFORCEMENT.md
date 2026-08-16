@@ -151,6 +151,13 @@ select count(*) from (
 
 ## Metering (prints and scans)
 
+> **tcgscan scans are UNLIMITED on every tier since 2026-08-15** (migration
+> `20260815120000_tcgscan_unlimited_scans.sql`): the `tier_caps` rows for
+> `tcgscan/cardScansPerMonth` are NULL, so `record_scan_event` still records — the meter survives
+> as usage analytics — but can never raise `tier_cap_exceeded:cardScansPerMonth` again. Print
+> metering (michi) is unchanged. Everything below still applies mechanically and stays live for
+> prints; for scans it is dormant until a cap number ever returns.
+
 `record_print_event()` and `record_scan_event(card_id)` check the allowance and insert the ledger
 row **atomically**, under a per-user advisory lock so two tabs cannot both spend the last credit.
 They return `{used, left, ...}` so the client can show the authoritative number instead of an

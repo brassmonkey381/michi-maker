@@ -26,6 +26,7 @@ import {
   Spacing,
   Weight,
 } from '@/constants/theme';
+import { useCommunityStats } from '@/data/communityStats';
 import { SAMPLE_BINDERS } from '@/data/sampleData';
 import { useTheme } from '@/hooks/use-theme';
 import { markLandingSeen } from '@/lib/landing';
@@ -138,6 +139,8 @@ export default function WelcomeScreen() {
   const paper = dark ? Paper.dark : Paper.light;
   const mat = dark ? Mat.dark : Mat.light;
   const bronze = dark ? Bronze.dark : Bronze.light;
+  // Cached community totals; starts at the bundled seed so the band never paints empty.
+  const stats = useCommunityStats();
 
   const scrollRef = useRef<ScrollView>(null);
   const galleryY = useRef(0);
@@ -340,6 +343,36 @@ export default function WelcomeScreen() {
               </View>
             </Reveal>
 
+            {/* ── Community totals ────────────────────────────────────── */}
+            {/*
+              Live numbers from the cached `community_stats` row (src/data/communityStats.ts).
+              The wording is load-bearing: these totals count every binder built, private ones
+              included, so the verbs must stay "built" and "placed". "Showcased" / "public" /
+              "on display" would be false — most of these binders aren't viewable, and the
+              Gallery section right below invites the reader to go check.
+            */}
+            <Reveal style={[styles.statsBand, { backgroundColor: mat }]}>
+              <ThemedText style={[styles.kicker, { color: bronze }]}>MADE HERE SO FAR</ThemedText>
+              <View style={styles.statsRow}>
+                {[
+                  { n: stats.collectors, label: 'collectors' },
+                  { n: stats.bindersBuilt, label: 'binders built' },
+                  { n: stats.pagesBuilt, label: 'pages built' },
+                  { n: stats.cardsPlaced, label: 'cards placed' },
+                  { n: stats.artworkPlaced, label: 'artworks placed' },
+                ].map((stat) => (
+                  <View key={stat.label} style={styles.stat}>
+                    <ThemedText style={[styles.statNum, { color: bronze }]}>
+                      {stat.n.toLocaleString()}
+                    </ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.statLabel}>
+                      {stat.label}
+                    </ThemedText>
+                  </View>
+                ))}
+              </View>
+            </Reveal>
+
             {/* ── Gallery ─────────────────────────────────────────────── */}
             <View style={styles.section} onLayout={(e) => (galleryY.current = e.nativeEvent.layout.y)}>
               <ThemedText style={[styles.kicker, { color: bronze }]}>OPEN A REAL BINDER</ThemedText>
@@ -524,6 +557,26 @@ const styles = StyleSheet.create({
   printStat: { alignItems: 'flex-start', gap: Spacing.one, minWidth: 220 },
   printSize: { fontFamily: BrandFont, fontSize: FontSize.display, fontWeight: '900', lineHeight: 40 },
   printCopy: { flex: 1, gap: Spacing.two, minWidth: 240 },
+
+  statsBand: {
+    marginTop: Spacing.six,
+    borderRadius: 24,
+    paddingVertical: Spacing.five,
+    paddingHorizontal: Spacing.four,
+    gap: Spacing.four,
+    alignItems: 'center',
+  },
+  // Wraps to two rows on phones rather than shrinking the numerals.
+  statsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    rowGap: Spacing.four,
+    columnGap: Spacing.six,
+  },
+  stat: { alignItems: 'center', gap: Spacing.one, minWidth: 110 },
+  statNum: { fontFamily: BrandFont, fontSize: 34, lineHeight: 40, fontWeight: '900' },
+  statLabel: { textAlign: 'center' },
 
   galleryGrid: {
     flexDirection: 'row',

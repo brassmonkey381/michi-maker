@@ -15,6 +15,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { GrowthPanel } from '@/components/analytics/GrowthPanel';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Breakpoints, FontSize, MaxContentWidthWide, Palette, Radius, Spacing } from '@/constants/theme';
@@ -233,6 +234,12 @@ export default function StudioScreen() {
           </View>
           <AppSwitcher app={app} onChange={setApp} />
         </View>
+
+        {/*
+          Community growth. michi-only: these totals count binders, pages and slots, which
+          tcgscan does not have — the app switcher must not appear to filter them.
+        */}
+        {app === 'michi' ? <GrowthPanel /> : null}
 
         <View style={[styles.body, wide && styles.bodyWide]}>
           {showList ? (

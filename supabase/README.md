@@ -39,6 +39,13 @@ here — it lives in the shared **tcgscan-data** server and is consumed read-onl
 [../docs/DATA-SERVER.md](../docs/DATA-SERVER.md)). Binder slots reference a card by its source id as
 plain `text` (no FK), so binders save independently of catalogue completeness.
 
+The one exception to "only user data owned by a signed-in user" is **`community_stats`** and
+**`community_stats_daily`** (`20260819120000`, `20260819130000`): aggregate-only totals of what
+the userbase has built, holding no per-row or identifying data. The singleton row is
+world-readable and feeds the public landing band on `/welcome`; the daily history is admin-only,
+read through `admin_community_growth()`. Both are maintained by `pg_cron` — hourly refresh at
+:23, daily snapshot at 00:07 UTC.
+
 ## How the app persists binders
 
 The auth store (`src/store/auth.tsx`) owns the Supabase session; the binder store

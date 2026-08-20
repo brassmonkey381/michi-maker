@@ -348,6 +348,36 @@ export type Database = {
         }
         Relationships: []
       }
+      community_stats: {
+        Row: {
+          artwork_placed: number
+          binders_built: number
+          cards_placed: number
+          collectors: number
+          computed_at: string
+          id: boolean
+          pages_built: number
+        }
+        Insert: {
+          artwork_placed?: number
+          binders_built?: number
+          cards_placed?: number
+          collectors?: number
+          computed_at?: string
+          id?: boolean
+          pages_built?: number
+        }
+        Update: {
+          artwork_placed?: number
+          binders_built?: number
+          cards_placed?: number
+          collectors?: number
+          computed_at?: string
+          id?: boolean
+          pages_built?: number
+        }
+        Relationships: []
+      }
       contest_entries: {
         Row: {
           binder_id: string
@@ -787,6 +817,23 @@ export type Database = {
       admin_event_funnel: {
         Args: { p_app?: string | null }
         Returns: { name: string; event_count: number; user_count: number }[]
+      }
+      admin_community_growth: {
+        Args: { p_days?: number }
+        Returns: {
+          day: string
+          collectors: number
+          binders_built: number
+          pages_built: number
+          cards_placed: number
+          artwork_placed: number
+          is_backfilled: boolean
+          new_collectors: number | null
+          new_binders: number | null
+          new_pages: number | null
+          new_cards: number | null
+          new_artwork: number | null
+        }[]
       }
       is_admin: { Args: Record<string, never>; Returns: boolean }
       binder_like_count: { Args: { p_binder_id: string }; Returns: number }

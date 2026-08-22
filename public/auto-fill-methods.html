@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Build a page around one card · michi-maker</title>
+<meta name="description" content="Drop one card into a pocket, press Fill, and michi-maker finishes the binder page around it. A walkthrough of all eight auto fill methods, each shown as the page it produced.">
+<meta property="og:title" content="Build a page around one card">
+<meta property="og:description" content="Drop one card into a pocket, press Fill, and michi-maker finishes the page around it. All eight fill methods, each shown as a finished page.">
+<meta property="og:image" content="https://michi-maker.com/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,800&display=swap">
+<style>/* michi's own binder-surface tokens, so the page looks like the product it documents. */
+:root {
+  --ground: #EFECE4;
+  --mat: #FBFAF7;
+  --ink: #221F1A;
+  --ink-2: #4A443B;
+  --muted: #7C7568;
+  --hairline: rgba(120, 116, 108, 0.22);
+  --hairline-soft: rgba(120, 116, 108, 0.12);
+  --pocket-fill: rgba(120, 116, 108, 0.05);
+  --pocket-border: rgba(120, 116, 108, 0.20);
+  --pocket-shadow: rgba(80, 76, 70, 0.10);
+  --card-frame-border: rgba(40, 34, 28, 0.12);
+  --accent: #3B82F6;
+  --accent-ink: #1656DA;
+  --accent-soft: #E7EEFD;
+  --shadow-page: 0 1px 2px rgba(60,54,44,.06), 0 10px 28px rgba(60,54,44,.10);
+  --shadow-lift: 0 2px 4px rgba(60,54,44,.10), 0 18px 40px rgba(60,54,44,.16);
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --brand: "Fraunces", Georgia, "Times New Roman", serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #141210;
+    --mat: #232019;
+    --ink: #F2EEE5;
+    --ink-2: #D2CABB;
+    --muted: #9B9284;
+    --hairline: rgba(232, 224, 208, 0.16);
+    --hairline-soft: rgba(232, 224, 208, 0.09);
+    --pocket-fill: rgba(232, 224, 208, 0.05);
+    --pocket-border: rgba(232, 224, 208, 0.18);
+    --pocket-shadow: rgba(0, 0, 0, 0.35);
+    --card-frame-border: rgba(232, 224, 208, 0.14);
+    --accent: #7BA6FF;
+    --accent-ink: #A9C4FF;
+    --accent-soft: rgba(123, 166, 255, 0.14);
+    --shadow-page: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.5);
+    --shadow-lift: 0 2px 6px rgba(0,0,0,.45), 0 20px 44px rgba(0,0,0,.6);
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+img { max-width: 100%; }
+a { color: var(--accent-ink); }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px 72px; }
+
+.masthead { padding: 48px 0 8px; }
+.eyebrow {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--muted); margin: 0 0 18px;
+}
+.eyebrow a { color: inherit; text-decoration: none; border-bottom: 1px solid var(--hairline); }
+.eyebrow a:hover { color: var(--accent-ink); }
+h1 {
+  font-family: var(--brand); font-weight: 800; font-size: clamp(34px, 6vw, 58px);
+  line-height: 1.03; letter-spacing: -0.022em; margin: 0 0 16px; text-wrap: balance;
+}
+.standfirst { font-size: 18px; line-height: 1.6; color: var(--ink-2); max-width: 64ch; margin: 0 0 14px; }
+.byline { font-family: var(--mono); font-size: 11px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--muted); margin: 0; }
+
+.seed {
+  display: grid; grid-template-columns: 210px 1fr; gap: 40px; align-items: start;
+  margin: 36px 0 0; padding: 28px 32px 30px;
+  background: var(--mat); border: 1px solid var(--hairline-soft);
+  border-radius: 16px; box-shadow: var(--shadow-page);
+}
+.seed-shot { border-radius: 10px; overflow: hidden; box-shadow: var(--shadow-lift); aspect-ratio: 5/7; }
+.seed-shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.seed h2 { font-family: var(--brand); font-weight: 600; font-size: 26px; margin: 0 0 4px; letter-spacing: -0.012em; }
+.seed-sub { font-family: var(--mono); font-size: 12px; color: var(--muted); margin: 0 0 18px; }
+.seed p { margin: 0 0 14px; color: var(--ink-2); max-width: 62ch; font-size: 15px; line-height: 1.62; }
+.seed p:last-child { margin-bottom: 0; }
+
+.rule {
+  display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+  margin: 60px 0 8px; padding-bottom: 12px; border-bottom: 1px solid var(--hairline);
+}
+.rule h2 { font-family: var(--brand); font-weight: 600; font-size: 24px; margin: 0; letter-spacing: -0.012em; }
+.rule span { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+
+/* Walkthrough */
+.steps { list-style: none; counter-reset: step; margin: 26px 0 0; padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 26px 32px; }
+.steps li { counter-increment: step; position: relative; padding-left: 44px; }
+.steps li::before {
+  content: counter(step); position: absolute; left: 0; top: 1px;
+  width: 30px; height: 30px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--accent-soft); color: var(--accent-ink);
+  font-family: var(--mono); font-size: 13px; font-weight: 600;
+}
+.steps h3 { font-family: var(--brand); font-weight: 600; font-size: 18px; margin: 4px 0 6px; line-height: 1.25; }
+.steps p { margin: 0; font-size: 14.5px; color: var(--ink-2); line-height: 1.6; }
+.steps b { color: var(--ink); font-weight: 600; }
+
+.page {
+  display: grid; grid-template-columns: minmax(280px, 400px) 1fr; gap: 44px;
+  align-items: start; padding: 36px 0 40px; border-bottom: 1px solid var(--hairline-soft);
+}
+.page:last-of-type { border-bottom: 0; }
+
+.mat {
+  background: var(--mat); border: 1px solid var(--hairline-soft); border-radius: 16px;
+  padding: 14px; box-shadow: var(--shadow-page);
+}
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+.pocket {
+  position: relative; aspect-ratio: 5/7; border-radius: 8px;
+  background: var(--pocket-fill); border: 1px solid var(--pocket-border);
+  box-shadow: inset 0 1px 3px var(--pocket-shadow); overflow: hidden;
+}
+.pocket img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pocket.card::after {
+  content: ""; position: absolute; inset: 0; border-radius: 7px; pointer-events: none;
+  box-shadow: inset 0 0 0 1px var(--card-frame-border), inset 0 1px 3px var(--pocket-shadow);
+}
+.pocket.seedslot { outline: 2px solid var(--accent); outline-offset: 1px; z-index: 2; }
+.pocket.seedslot .tag {
+  position: absolute; left: 5px; bottom: 5px; z-index: 3;
+  font-family: var(--mono); font-size: 9px; letter-spacing: .06em; text-transform: uppercase;
+  background: var(--accent); color: #fff; padding: 2px 6px; border-radius: 3px;
+}
+.pocket.art { background-size: 300% 300%; background-repeat: no-repeat; }
+.pocket .peek {
+  position: absolute; inset: auto 0 0 0; z-index: 4; padding: 10px 7px 7px;
+  background: linear-gradient(to top, rgba(20,17,14,.95), rgba(20,17,14,.74) 62%, rgba(20,17,14,0));
+  color: #F6F2EA; opacity: 0; transition: opacity .16s ease;
+}
+.pocket:hover .peek, .pocket:focus-within .peek { opacity: 1; }
+.peek b { display: block; font-size: 11px; font-weight: 600; line-height: 1.25; }
+.peek span { display: block; font-family: var(--mono); font-size: 9px; color: #C9C0B2; margin-top: 2px; }
+
+.rail { padding-top: 2px; }
+.step { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--muted); margin: 0 0 10px; }
+.method { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 12px; }
+.method h3 { font-family: var(--brand); font-weight: 600; font-size: 27px; margin: 0; letter-spacing: -0.016em; }
+.pitch { font-size: 16px; color: var(--ink-2); margin: 0 0 14px; max-width: 54ch; line-height: 1.55; }
+.when { font-size: 14px; color: var(--muted); margin: 0 0 20px; max-width: 56ch; }
+.when b { color: var(--ink-2); font-weight: 600; }
+
+.stats { display: flex; flex-wrap: wrap; margin: 0; padding: 0; list-style: none;
+  border-top: 1px solid var(--hairline-soft); border-bottom: 1px solid var(--hairline-soft); }
+.stats li { padding: 10px 22px 10px 0; margin-right: 22px; border-right: 1px solid var(--hairline-soft); }
+.stats li:last-child { border-right: 0; margin-right: 0; padding-right: 0; }
+.stats b { display: block; font-family: var(--brand); font-weight: 600; font-size: 20px; line-height: 1.15;
+  font-variant-numeric: tabular-nums; }
+.stats span { display: block; font-family: var(--mono); font-size: 10px; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--muted); margin-top: 3px; }
+
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 28px; padding-top: 26px; }
+.note h4 { font-family: var(--brand); font-weight: 600; font-size: 18px; margin: 0 0 8px; line-height: 1.25; }
+.note p { margin: 0; font-size: 14px; color: var(--ink-2); line-height: 1.6; }
+
+.plans { margin: 30px 0 0; padding: 18px 22px; border-radius: 12px;
+  background: var(--mat); border: 1px solid var(--hairline-soft); }
+.plans p { margin: 0; font-size: 14px; color: var(--ink-2); line-height: 1.6; max-width: 72ch; }
+
+.cta {
+  display: inline-block; margin-top: 4px; padding: 11px 24px; border-radius: 999px;
+  background: var(--accent); color: #fff; font-weight: 600; font-size: 15px; text-decoration: none;
+}
+.cta:hover { filter: brightness(1.08); }
+.cta:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+footer { margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--hairline); }
+footer p { font-family: var(--mono); font-size: 11px; color: var(--muted); line-height: 1.75;
+  margin: 20px 0 0; max-width: 70ch; }
+
+@media (max-width: 880px) {
+  .seed { grid-template-columns: 1fr; gap: 24px; }
+  .seed-shot { max-width: 190px; }
+  .page { grid-template-columns: 1fr; gap: 24px; }
+  .rail { order: -1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: .001ms !important; }
+}
+
+.pocket.art { background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20750%201050%22%20preserveAspectRatio%3D%22xMidYMid%20slice%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g-pebble%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23e6e2d8%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23b8b0a0%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%22750%22%20height%3D%221050%22%20fill%3D%22url(%23g-pebble)%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(268.5%20807.2)%20rotate(96)%20scale(561.4)%22%20fill%3D%22%23cfc8b8%22%20opacity%3D%220.18%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(374.1%20164.5)%20rotate(332)%20scale(132.4)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.45%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(581.1%20751.7)%20rotate(127)%20scale(75.9)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.56%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(599.2%20755.3)%20rotate(360)%20scale(172.5)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.44%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(538.6%20695.8)%20rotate(273)%20scale(112.2)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.51%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(496.1%20124.9)%20rotate(97)%20scale(152.0)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.39%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(558.2%20473.3)%20rotate(182)%20scale(156.0)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.42%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(177.0%20210.9)%20rotate(67)%20scale(164.2)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.77%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(486.2%20878.2)%20rotate(308)%20scale(168.9)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.44%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(270.2%20651.3)%20rotate(279)%20scale(129.6)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.72%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(188.6%20753.7)%20rotate(226)%20scale(150.8)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.60%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(19.8%20404.9)%20rotate(244)%20scale(155.6)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.72%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(474.0%20171.0)%20rotate(52)%20scale(143.4)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.74%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(510.2%20645.6)%20rotate(178)%20scale(130.9)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.65%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(693.1%20313.8)%20rotate(179)%20scale(89.8)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.75%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(303.5%20908.5)%20rotate(250)%20scale(148.6)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.53%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(73.4%20634.6)%20rotate(285)%20scale(165.8)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.47%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(154.2%20749.8)%20rotate(257)%20scale(61.5)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.76%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(125.1%20955.4)%20rotate(158)%20scale(102.1)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.49%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(246.6%20935.8)%20rotate(164)%20scale(133.7)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.64%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(673.9%20706.2)%20rotate(286)%20scale(171.0)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.63%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(1.5%20150.9)%20rotate(242)%20scale(167.0)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.59%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(19.1%20507.3)%20rotate(350)%20scale(176.2)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.49%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(740.7%20273.4)%20rotate(212)%20scale(122.1)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.70%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(136.4%20831.9)%20rotate(116)%20scale(122.7)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.64%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(302.5%20690.1)%20rotate(112)%20scale(114.6)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.66%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(419.5%20739.0)%20rotate(94)%20scale(147.8)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.47%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(398.8%20922.4)%20rotate(305)%20scale(108.0)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.39%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(392.0%20946.3)%20rotate(109)%20scale(98.6)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.38%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(79.3%20366.1)%20rotate(100)%20scale(91.2)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.72%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(304.1%20188.6)%20rotate(181)%20scale(132.1)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.52%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(476.6%20737.8)%20rotate(215)%20scale(158.6)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.38%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(281.8%20729.2)%20rotate(218)%20scale(122.3)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.66%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(31.3%20918.6)%20rotate(83)%20scale(143.7)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.51%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(746.7%20181.7)%20rotate(318)%20scale(91.6)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.70%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(624.4%20545.4)%20rotate(144)%20scale(153.4)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.61%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(37.7%20756.1)%20rotate(307)%20scale(145.9)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.58%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(339.7%20314.1)%20rotate(106)%20scale(139.6)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.65%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(330.6%20483.8)%20rotate(225)%20scale(105.8)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.70%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(654.3%200.8)%20rotate(97)%20scale(111.6)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.77%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(215.5%20476.4)%20rotate(198)%20scale(76.5)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.39%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(652.5%20604.8)%20rotate(219)%20scale(163.7)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.74%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(363.5%20297.3)%20rotate(310)%20scale(61.4)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.43%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(62.5%20213.4)%20rotate(282)%20scale(73.5)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.75%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(228.9%20956.1)%20rotate(192)%20scale(149.2)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.70%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(643.1%20133.4)%20rotate(41)%20scale(113.3)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.37%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(12.8%20512.3)%20rotate(287)%20scale(95.5)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.43%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(191.1%20220.6)%20rotate(117)%20scale(94.6)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.59%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(93.9%20740.0)%20rotate(309)%20scale(99.2)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.59%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(449.0%20864.6)%20rotate(65)%20scale(60.7)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.68%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(569.6%20664.7)%20rotate(297)%20scale(82.4)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.48%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(376.2%2073.5)%20rotate(104)%20scale(179.4)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.59%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(380.6%2066.5)%20rotate(192)%20scale(77.9)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.68%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(124.5%20445.3)%20rotate(73)%20scale(144.7)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.42%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(726.8%20252.8)%20rotate(333)%20scale(152.3)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.42%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(312.2%20849.6)%20rotate(47)%20scale(105.1)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.46%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(516.7%20414.4)%20rotate(111)%20scale(172.6)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.63%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(39.5%20639.1)%20rotate(99)%20scale(88.4)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.43%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(449.2%20306.0)%20rotate(76)%20scale(149.6)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.69%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(156.3%20363.2)%20rotate(144)%20scale(77.2)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.77%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(329.3%2011.8)%20rotate(232)%20scale(105.8)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.51%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(415.1%20618.1)%20rotate(283)%20scale(84.5)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.70%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(538.6%20570.3)%20rotate(100)%20scale(99.0)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.39%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(83.3%20880.5)%20rotate(92)%20scale(144.5)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.53%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(290.7%20240.2)%20rotate(111)%20scale(99.8)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.78%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(643.4%20829.1)%20rotate(70)%20scale(98.7)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.80%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(657.4%20160.1)%20rotate(195)%20scale(74.1)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.79%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(444.9%20462.9)%20rotate(247)%20scale(149.2)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.76%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(391.8%20140.5)%20rotate(21)%20scale(168.8)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.49%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(520.7%20691.2)%20rotate(345)%20scale(142.3)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.71%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(281.3%20254.4)%20rotate(14)%20scale(121.7)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.49%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(320.9%20116.7)%20rotate(206)%20scale(146.6)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.79%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(287.0%20756.6)%20rotate(56)%20scale(115.8)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.54%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(298.1%20278.6)%20rotate(207)%20scale(170.0)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.67%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(196.4%20201.4)%20rotate(38)%20scale(112.3)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.44%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(239.7%20706.6)%20rotate(189)%20scale(110.5)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.42%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(121.5%2058.3)%20rotate(123)%20scale(86.1)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.62%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(605.8%20288.8)%20rotate(67)%20scale(66.0)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.80%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(678.4%20695.9)%20rotate(237)%20scale(154.3)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.63%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(283.2%20872.7)%20rotate(258)%20scale(86.4)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.35%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(497.3%20601.2)%20rotate(40)%20scale(139.9)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.56%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(592.4%20685.3)%20rotate(246)%20scale(148.0)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.79%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(174.4%20605.5)%20rotate(356)%20scale(106.1)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.74%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(21.6%20595.0)%20rotate(44)%20scale(71.5)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.48%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(148.0%20961.3)%20rotate(55)%20scale(132.5)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.41%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(643.7%20673.0)%20rotate(6)%20scale(75.6)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.57%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(141.3%20964.9)%20rotate(350)%20scale(121.7)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.42%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(20.3%20982.3)%20rotate(14)%20scale(71.0)%22%20fill%3D%22%237a7365%22%20opacity%3D%220.61%22%2F%3E%3Cpath%20d%3D%22M0%2C-1%20C0.55%2C-1%201%2C-0.55%201%2C0%20C1%2C0.55%200.55%2C1%200%2C1%20C-0.55%2C1%20-1%2C0.55%20-1%2C0%20C-1%2C-0.55%20-0.55%2C-1%200%2C-1%20Z%22%20transform%3D%22translate(184.0%20377.0)%20rotate(328)%20scale(65.4)%22%20fill%3D%22%23f5f2ea%22%20opacity%3D%220.51%22%2F%3E%3C%2Fsvg%3E"); }</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow"><a href="/learn">michi-maker guides</a></p>
+  <h1>Build a page around one card</h1>
+  <p class="standfirst">
+    Put a card in a pocket, press Fill, and michi-maker finishes the page around it. There are
+    eight ways it can do that, and each one has a different idea of what the page is about.
+    Here is the walkthrough, and here is what all eight produced from the same card.
+  </p>
+  <p class="byline">A michi-maker how-to</p>
+</header>
+
+<div class="seed">
+  <div class="seed-shot"><img src="/auto-fill-art/610758-hero.webp" alt="Eevee, SV Scarlet &amp; Violet Promo 173"></div>
+  <div>
+    <h2>The card we started with</h2>
+    <p class="seed-sub">Eevee &middot; SV: Scarlet &amp; Violet Promo Cards &middot; 173 &middot; illustrated by Makura Tami</p>
+    <p>
+      Every fill starts from one card you have already placed. We used this Eevee and changed
+      nothing else. Nothing on this page was arranged by hand.
+    </p>
+    <p>
+      michi-maker reads what it can off the card you seed from: its species, its evolution
+      family, its energy type, its illustrator, its palette, and the Pokémon it is known to
+      appear beside. Those readings are what the methods are made of, which is why a card with
+      more to read is offered more ways to fill the page. An Eevee has a big family and a famous
+      partner, so it gets all eight.
+    </p>
+  </div>
+</div>
+
+<div class="rule"><h2>How to do it</h2><span>about a minute</span></div>
+<ol class="steps">
+  <li><h3>Place the card the page is about</h3><p>Open a binder, tap an empty pocket and pick your card. Anywhere works, though the middle of a 3x3 reads best. This is the seed: everything else gets chosen to sit with it.</p></li>
+  <li><h3>Select it and press Fill</h3><p>Tap the card you just placed. A small toolbar appears over the pocket, and <b>Fill</b> opens the Fill page sheet.</p></li>
+  <li><h3>Pick what the page is about</h3><p>You are offered the methods that suit this particular card, so the list changes with the card. A Pokémon with a family gets an evolution page. A card with a recorded illustrator gets an artist page. A Trainer gets a Trainer page instead.</p></li>
+  <li><h3>Narrow it first if you want to</h3><p>Two switches sit above the list. <b>From my collection</b> draws only from cards you actually own, once your collection is synced from TCGScan. The language toggle decides whether English, Japanese, or both printings are eligible.</p></li>
+  <li><h3>Keep it, or take it straight back</h3><p>A fill only writes into empty pockets, so nothing you placed by hand moves. The whole fill counts as one step, so a single Undo reverses all of it and you can try another method right away.</p></li>
+</ol>
+
+<div class="rule"><h2>The eight methods</h2><span>each shown as a finished page</span></div>
+
+<section class="page">
+  <div class="mat"><div class="grid"><div class="pocket card" tabindex="0"><img src="/auto-fill-art/45154.webp" alt="Eevee, Jungle" loading="lazy" decoding="async"><div class="peek"><b>Eevee</b><span>Jungle</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/86850.webp" alt="Lt. Surge's Eevee, Gym Challenge" loading="lazy" decoding="async"><div class="peek"><b>Lt. Surge's Eevee</b><span>Gym Challenge</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/183907.webp" alt="Eevee &amp; Snorlax GX, SM - Team Up" loading="lazy" decoding="async"><div class="peek"><b>Eevee &amp; Snorlax GX</b><span>SM - Team Up</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/477251.webp" alt="Eevee V, SWSH: Crown Zenith" loading="lazy" decoding="async"><div class="peek"><b>Eevee V</b><span>SWSH: Crown Zenith</span></div></div><div class="pocket card seedslot"><img src="/auto-fill-art/610758.webp" alt="Eevee, the card the page is built around" loading="lazy" decoding="async"><span class="tag">your card</span></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/610430.webp" alt="Eevee ex, SV: Prismatic Evolutions" loading="lazy" decoding="async"><div class="peek"><b>Eevee ex</b><span>SV: Prismatic Evolutions</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/183560.webp" alt="Eevee GX, SM Promos" loading="lazy" decoding="async"><div class="peek"><b>Eevee GX</b><span>SM Promos</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/232611.webp" alt="Eevee VMAX, SWSH: Sword &amp; Shield Promo Cards" loading="lazy" decoding="async"><div class="peek"><b>Eevee VMAX</b><span>SWSH: Sword &amp; Shield Promo Cards</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/270724.webp" alt="Radiant Eevee, SWSH: Sword &amp; Shield Promo Cards" loading="lazy" decoding="async"><div class="peek"><b>Radiant Eevee</b><span>SWSH: Sword &amp; Shield Promo Cards</span></div></div></div></div>
+  <div class="rail">
+    <p class="step">Method 1 of 8</p>
+    <div class="method"><h3>Same Pokémon</h3></div>
+    <p class="pitch">Every printing of that Pokémon the catalog knows, sampled across eras rather than run set by set, so one page can carry 1999 and 2023 side by side.</p>
+    <p class="when"><b>Reach for it when:</b> You have one Pokémon you love and you want to see it grow up.</p>
+    <ul class="stats"><li><b>8</b><span>cards</span></li><li><b>1999-2025</b><span>years</span></li><li><b>7</b><span>sets</span></li></ul>
+  </div>
+</section>
+<section class="page">
+  <div class="mat"><div class="grid"><div class="pocket card" tabindex="0"><img src="/auto-fill-art/45123.webp" alt="Vaporeon (12), Jungle" loading="lazy" decoding="async"><div class="peek"><b>Vaporeon (12)</b><span>Jungle</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/85316.webp" alt="Espeon (1), Neo Discovery" loading="lazy" decoding="async"><div class="peek"><b>Espeon (1)</b><span>Neo Discovery</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/86678.webp" alt="Leafeon (24), Majestic Dawn" loading="lazy" decoding="async"><div class="peek"><b>Leafeon (24)</b><span>Majestic Dawn</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/106982.webp" alt="Jolteon (20), Jungle" loading="lazy" decoding="async"><div class="peek"><b>Jolteon (20)</b><span>Jungle</span></div></div><div class="pocket card seedslot"><img src="/auto-fill-art/610758.webp" alt="Eevee, the card the page is built around" loading="lazy" decoding="async"><span class="tag">your card</span></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/85745.webp" alt="Glaceon (20), Majestic Dawn" loading="lazy" decoding="async"><div class="peek"><b>Glaceon (20)</b><span>Majestic Dawn</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/106981.webp" alt="Flareon (19), Jungle" loading="lazy" decoding="async"><div class="peek"><b>Flareon (19)</b><span>Jungle</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/90137.webp" alt="Umbreon (13), Neo Discovery" loading="lazy" decoding="async"><div class="peek"><b>Umbreon (13)</b><span>Neo Discovery</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/89729.webp" alt="Sylveon, XY Promos" loading="lazy" decoding="async"><div class="peek"><b>Sylveon</b><span>XY Promos</span></div></div></div></div>
+  <div class="rail">
+    <p class="step">Method 2 of 8</p>
+    <div class="method"><h3>Evolution line</h3></div>
+    <p class="pitch">Its whole evolution line, laid out column by column so the page reads through the stages. Eevee has eight evolutions and a 3x3 page has eight free pockets, so this one comes out complete.</p>
+    <p class="when"><b>Reach for it when:</b> The card belongs to a family and the family is the story.</p>
+    <ul class="stats"><li><b>8</b><span>cards</span></li><li><b>1999-2013</b><span>years</span></li><li><b>4</b><span>sets</span></li></ul>
+  </div>
+</section>
+<section class="page">
+  <div class="mat"><div class="grid"><div class="pocket card" tabindex="0"><img src="/auto-fill-art/542809.webp" alt="Azumarill, SV05: Temporal Forces" loading="lazy" decoding="async"><div class="peek"><b>Azumarill</b><span>SV05: Temporal Forces</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/686342.webp" alt="Chikorita (Cosmos Holo), ME: Mega Evolution Promo" loading="lazy" decoding="async"><div class="peek"><b>Chikorita (Cosmos Holo)</b><span>ME: Mega Evolution Promo</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/542888.webp" alt="Litten, SV05: Temporal Forces" loading="lazy" decoding="async"><div class="peek"><b>Litten</b><span>SV05: Temporal Forces</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/550097.webp" alt="Froslass, SV06: Twilight Masquerade" loading="lazy" decoding="async"><div class="peek"><b>Froslass</b><span>SV06: Twilight Masquerade</span></div></div><div class="pocket card seedslot"><img src="/auto-fill-art/610758.webp" alt="Eevee, the card the page is built around" loading="lazy" decoding="async"><span class="tag">your card</span></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/567278.webp" alt="Charjabug, SV07: Stellar Crown" loading="lazy" decoding="async"><div class="peek"><b>Charjabug</b><span>SV07: Stellar Crown</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/642469.webp" alt="Panpour, SV: Black Bolt" loading="lazy" decoding="async"><div class="peek"><b>Panpour</b><span>SV: Black Bolt</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/642470.webp" alt="Simipour, SV: Black Bolt" loading="lazy" decoding="async"><div class="peek"><b>Simipour</b><span>SV: Black Bolt</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/642269.webp" alt="Herdier, SV: White Flare" loading="lazy" decoding="async"><div class="peek"><b>Herdier</b><span>SV: White Flare</span></div></div></div></div>
+  <div class="rail">
+    <p class="step">Method 3 of 8</p>
+    <div class="method"><h3>Same artist</h3></div>
+    <p class="pitch">Other cards by the same illustrator, spread across eras and across subjects. An artist gallery in nine pockets.</p>
+    <p class="when"><b>Reach for it when:</b> You noticed the art before you noticed the card.</p>
+    <ul class="stats"><li><b>8</b><span>cards</span></li><li><b>2024-2025</b><span>years</span></li><li><b>6</b><span>sets</span></li></ul>
+  </div>
+</section>
+<section class="page">
+  <div class="mat"><div class="grid"><div class="pocket card" tabindex="0"><img src="/auto-fill-art/42402.webp" alt="Pikachu, Base Set" loading="lazy" decoding="async"><div class="peek"><b>Pikachu</b><span>Base Set</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/45122.webp" alt="Snorlax (11), Jungle" loading="lazy" decoding="async"><div class="peek"><b>Snorlax (11)</b><span>Jungle</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/85534.webp" alt="Flying Pikachu, WoTC Promo" loading="lazy" decoding="async"><div class="peek"><b>Flying Pikachu</b><span>WoTC Promo</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/89385.webp" alt="Snorlax, WoTC Promo" loading="lazy" decoding="async"><div class="peek"><b>Snorlax</b><span>WoTC Promo</span></div></div><div class="pocket card seedslot"><img src="/auto-fill-art/610758.webp" alt="Eevee, the card the page is built around" loading="lazy" decoding="async"><span class="tag">your card</span></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/86859.webp" alt="Lt. Surge's Pikachu, Gym Heroes" loading="lazy" decoding="async"><div class="peek"><b>Lt. Surge's Pikachu</b><span>Gym Heroes</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/88795.webp" alt="Rocket's Snorlax, Gym Heroes" loading="lazy" decoding="async"><div class="peek"><b>Rocket's Snorlax</b><span>Gym Heroes</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/88072.webp" alt="Pikachu, Neo Genesis" loading="lazy" decoding="async"><div class="peek"><b>Pikachu</b><span>Neo Genesis</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/89386.webp" alt="Snorlax, Legendary Collection" loading="lazy" decoding="async"><div class="peek"><b>Snorlax</b><span>Legendary Collection</span></div></div></div></div>
+  <div class="rail">
+    <p class="step">Method 4 of 8</p>
+    <div class="method"><h3>Friends &amp; partners</h3></div>
+    <p class="pitch">Pokémon this one is known to appear beside, from curated pairings plus any card whose name puts them together. With two partners and eight pockets it alternates, four cards each.</p>
+    <p class="when"><b>Reach for it when:</b> The pairing is the point: duos, rivals, TAG TEAMs.</p>
+    <ul class="stats"><li><b>8</b><span>cards</span></li><li><b>1999-2002</b><span>years</span></li><li><b>6</b><span>sets</span></li></ul>
+  </div>
+</section>
+<section class="page">
+  <div class="mat"><div class="grid"><div class="pocket card" tabindex="0"><img src="/auto-fill-art/632083.webp" alt="Eevee ex, SV: Scarlet &amp; Violet Promo Cards" loading="lazy" decoding="async"><div class="peek"><b>Eevee ex</b><span>SV: Scarlet &amp; Violet Promo Cards</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/101512.webp" alt="Machamp EX (90 Full Art), XY - Ancient Origins" loading="lazy" decoding="async"><div class="peek"><b>Machamp EX (90 Full Art)</b><span>XY - Ancient Origins</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/478093.webp" alt="Melony, SWSH: Crown Zenith: Galarian Gallery" loading="lazy" decoding="async"><div class="peek"><b>Melony</b><span>SWSH: Crown Zenith: Galarian Gallery</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/623591.webp" alt="Lillie's Ribombee, SV09: Journey Together" loading="lazy" decoding="async"><div class="peek"><b>Lillie's Ribombee</b><span>SV09: Journey Together</span></div></div><div class="pocket card seedslot"><img src="/auto-fill-art/610758.webp" alt="Eevee, the card the page is built around" loading="lazy" decoding="async"><span class="tag">your card</span></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/108613.webp" alt="Arceus, XY Promos" loading="lazy" decoding="async"><div class="peek"><b>Arceus</b><span>XY Promos</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/452017.webp" alt="Flaaffy, SWSH12: Silver Tempest Trainer Gallery" loading="lazy" decoding="async"><div class="peek"><b>Flaaffy</b><span>SWSH12: Silver Tempest Trainer Gallery</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/272475.webp" alt="Frosmoth, SWSH10: Astral Radiance Trainer Gallery" loading="lazy" decoding="async"><div class="peek"><b>Frosmoth</b><span>SWSH10: Astral Radiance Trainer Gallery</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/205465.webp" alt="Meowth V, SWSH: Sword &amp; Shield Promo Cards" loading="lazy" decoding="async"><div class="peek"><b>Meowth V</b><span>SWSH: Sword &amp; Shield Promo Cards</span></div></div></div></div>
+  <div class="rail">
+    <p class="step">Method 5 of 8</p>
+    <div class="method"><h3>More like this</h3></div>
+    <p class="pitch">The visually nearest cards in the whole catalog, matched on the artwork itself rather than on any label.</p>
+    <p class="when"><b>Reach for it when:</b> You want the page to look like the card rather than be about it.</p>
+    <ul class="stats"><li><b>8</b><span>cards</span></li><li><b>2013-2025</b><span>years</span></li><li><b>8</b><span>sets</span></li></ul>
+  </div>
+</section>
+<section class="page">
+  <div class="mat"><div class="grid"><div class="pocket card" tabindex="0"><img src="/auto-fill-art/42371.webp" alt="Chansey, Base Set" loading="lazy" decoding="async"><div class="peek"><b>Chansey</b><span>Base Set</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/154997.webp" alt="Clefable (Prerelease), WoTC Promo" loading="lazy" decoding="async"><div class="peek"><b>Clefable (Prerelease)</b><span>WoTC Promo</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/83871.webp" alt="Blaine's Kangaskhan, Gym Heroes" loading="lazy" decoding="async"><div class="peek"><b>Blaine's Kangaskhan</b><span>Gym Heroes</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/83485.webp" alt="Aipom, Neo Genesis" loading="lazy" decoding="async"><div class="peek"><b>Aipom</b><span>Neo Genesis</span></div></div><div class="pocket card seedslot"><img src="/auto-fill-art/610758.webp" alt="Eevee, the card the page is built around" loading="lazy" decoding="async"><span class="tag">your card</span></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/46482.webp" alt="Jigglypuff, Southern Islands" loading="lazy" decoding="async"><div class="peek"><b>Jigglypuff</b><span>Southern Islands</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/83690.webp" alt="Azurill, Diamond and Pearl" loading="lazy" decoding="async"><div class="peek"><b>Azurill</b><span>Diamond and Pearl</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/83517.webp" alt="Altaria, Platinum" loading="lazy" decoding="async"><div class="peek"><b>Altaria</b><span>Platinum</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/83923.webp" alt="Blissey, HeartGold SoulSilver" loading="lazy" decoding="async"><div class="peek"><b>Blissey</b><span>HeartGold SoulSilver</span></div></div></div></div>
+  <div class="rail">
+    <p class="step">Method 6 of 8</p>
+    <div class="method"><h3>Color by type</h3></div>
+    <p class="pitch">Cards sharing this one’s energy type, sampled across eras. Works offline, from the catalog already on your device.</p>
+    <p class="when"><b>Reach for it when:</b> You are building a binder that runs by colour.</p>
+    <ul class="stats"><li><b>8</b><span>cards</span></li><li><b>1999-2010</b><span>years</span></li><li><b>8</b><span>sets</span></li></ul>
+  </div>
+</section>
+<section class="page">
+  <div class="mat"><div class="grid"><div class="pocket card" tabindex="0"><img src="/auto-fill-art/154998.webp" alt="Aerodactyl (Prerelease), WoTC Promo" loading="lazy" decoding="async"><div class="peek"><b>Aerodactyl (Prerelease)</b><span>WoTC Promo</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/83509.webp" alt="Alph Lithograph, HeartGold SoulSilver" loading="lazy" decoding="async"><div class="peek"><b>Alph Lithograph</b><span>HeartGold SoulSilver</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/90337.webp" alt="Vibrava, Secret Wonders" loading="lazy" decoding="async"><div class="peek"><b>Vibrava</b><span>Secret Wonders</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/90085.webp" alt="TV Reporter, EX Dragon Frontiers" loading="lazy" decoding="async"><div class="peek"><b>TV Reporter</b><span>EX Dragon Frontiers</span></div></div><div class="pocket card seedslot"><img src="/auto-fill-art/610758.webp" alt="Eevee, the card the page is built around" loading="lazy" decoding="async"><span class="tag">your card</span></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/86083.webp" alt="Hippowdon, Diamond and Pearl" loading="lazy" decoding="async"><div class="peek"><b>Hippowdon</b><span>Diamond and Pearl</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/90643.webp" alt="Wormadam Sandy Cloak, POP Series 7" loading="lazy" decoding="async"><div class="peek"><b>Wormadam Sandy Cloak</b><span>POP Series 7</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/497692.webp" alt="Meowscarada ex, SV02: Paldea Evolved" loading="lazy" decoding="async"><div class="peek"><b>Meowscarada ex</b><span>SV02: Paldea Evolved</span></div></div><div class="pocket card" tabindex="0"><img src="/auto-fill-art/89576.webp" alt="Strength Charm, EX Dragon Frontiers" loading="lazy" decoding="async"><div class="peek"><b>Strength Charm</b><span>EX Dragon Frontiers</span></div></div></div></div>
+  <div class="rail">
+    <p class="step">Method 7 of 8</p>
+    <div class="method"><h3>Color match · tri-color</h3></div>
+    <p class="pitch">Every card ranked by its actual palette against this one, nearest first. This is the tri-colour search doing the picking.</p>
+    <p class="when"><b>Reach for it when:</b> You want a page that flows edge to edge.</p>
+    <ul class="stats"><li><b>8</b><span>cards</span></li><li><b>1999-2023</b><span>years</span></li><li><b>7</b><span>sets</span></li></ul>
+  </div>
+</section>
+<section class="page">
+  <div class="mat"><div class="grid"><div class="pocket art" style="background-position:0% 0%"></div><div class="pocket art" style="background-position:50% 0%"></div><div class="pocket art" style="background-position:100% 0%"></div><div class="pocket art" style="background-position:0% 50%"></div><div class="pocket card seedslot"><img src="/auto-fill-art/610758.webp" alt="Eevee, the card the page is built around" loading="lazy" decoding="async"><span class="tag">your card</span></div><div class="pocket art" style="background-position:100% 50%"></div><div class="pocket art" style="background-position:0% 100%"></div><div class="pocket art" style="background-position:50% 100%"></div><div class="pocket art" style="background-position:100% 100%"></div></div></div>
+  <div class="rail">
+    <p class="step">Method 8 of 8</p>
+    <div class="method"><h3>Full-page spread</h3></div>
+    <p class="pitch">One of our own colour sheets flows across every empty pocket, and your cards become the accents on top of it.</p>
+    <p class="when"><b>Reach for it when:</b> You want the page itself to be the artwork.</p>
+    <ul class="stats"><li><b>8</b><span>pockets, one sheet</span></li><li><b>54</b><span>colour sheets</span></li><li><b>0</b><span>licensed art</span></li></ul>
+  </div>
+</section>
+
+<div class="rule"><h2>A few things worth knowing</h2><span>before you fill</span></div>
+<div class="notes">
+  <div class="note">
+    <h4>One of each before two of any</h4>
+    <p>No page repeats a Pokémon while it still has someone new to show. Where there are fewer
+      subjects than pockets it cycles instead, so two partners across eight pockets come out as
+      four cards each rather than four of one and then the other.</p>
+  </div>
+  <div class="note">
+    <h4>It never touches what you placed</h4>
+    <p>A fill only writes into empty pockets. Cards you put down yourself, including the one you
+      seeded from, stay exactly where they are.</p>
+  </div>
+  <div class="note">
+    <h4>English, Japanese, or both</h4>
+    <p>The language toggle in the fill sheet is the same one the browser uses, and it is applied
+      while the page is being chosen rather than filtered out afterwards, so you get a full page
+      either way.</p>
+  </div>
+  <div class="note">
+    <h4>Not every method suits every card</h4>
+    <p>You are only offered the ones that can actually produce a page. A card with no recorded
+      illustrator gets no artist page, and a Pokémon with no evolutions gets no family page.</p>
+  </div>
+</div>
+
+<div class="plans">
+  <p>
+    Seven of the eight are included on every plan, signed in. Color match, the palette ranking
+    behind method seven, comes with PRO, and VIP can build every method at once and choose
+    between the finished pages. <a href="/plans">See plans</a>.
+  </p>
+</div>
+
+<div class="rule"><h2>Try it on a card of your own</h2><span>free to start</span></div>
+<p class="pitch">
+  Pick the card you like most, drop it in the middle of a page, and see which of the eight
+  suits it. The fill is one step, so nothing you try costs you anything.
+</p>
+<a class="cta" href="/">Start a binder</a>
+
+<footer>
+  <p>
+    michi-maker is a fan project for personal collection display and is not affiliated with or
+    endorsed by Nintendo, Creatures Inc., or GAME FREAK inc. Pokémon and all related card artwork
+    are &copy; their respective owners. Method credited to Michi (@peeplop).
+  </p>
+</footer>
+
+</div>
+</body>
+</html>

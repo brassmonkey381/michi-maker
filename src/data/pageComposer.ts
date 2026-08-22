@@ -10,11 +10,11 @@
  *  - evolutionLine  → the seed's evolution family, reading Basic → final stage (Themed/Story)
  *  - sameArtist     → the seed illustrator's other work, spread across eras (Card Artist)
  *  - trainerPage    → a trainer's partner/team/supporter world (Trainer)
- *  - colorType      → cards sharing the seed's ENERGY TYPE, with tonal inserts (the free, offline
- *                     "Color by type" — a simpler cousin of colorTheme)
+ *  - colorType      → cards sharing the seed's ENERGY TYPE (the free, offline "Color by type" —
+ *                     a simpler cousin of colorTheme)
  *  - colorTheme     → cards whose PALETTE is closest to the seed (the Tri-Color Search —
- *                     findSimilarByColor), with tonal inserts for cohesion (Color-Themed). PAID
- *                     (PRO/VIP) — the premium composer; free users see it locked with an upsell.
+ *                     findSimilarByColor) (Color-Themed). PAID (PRO/VIP) — the premium
+ *                     composer; free users see it locked with an upsell.
  *  - fullPageSpread → one of our OWNED procedural "color sheets" (themeBackgrounds — 3 palettes ×
  *                     18 energy families = 54) sliced across every empty pocket; the placed cards
  *                     read as accents on the sheet (Full-Page Spread)
@@ -25,12 +25,22 @@
  * no card already on the page, no duplicate (name, set) print twice, and "variety ranking" —
  * candidates are round-robined across series so a page samples eras/styles instead of dumping
  * one set's run.
+ *
+ * On top of that every card method SPREADS BY SUBJECT (`spreadBySubject`): no page places a
+ * second card of a Pokemon until every other subject its method found has had one, and then it
+ * cycles. Nine pockets around an Eevee are nine different eeveelutions; four partners across
+ * eight pockets are two cards each. What each method treats as a subject is the interesting
+ * part — the species for most, the evolution family member for evolutionLine, the partner for
+ * pokemonFriends, and the name variant (Eevee / Eevee ex / Eevee V) for samePokemon, where the
+ * species is the whole point of the page.
  */
 import {
+  cardThumbUrl,
   colorSearchAvailable,
   effectiveLanguages,
   findSimilar,
   findSimilarByColor,
+  imageManifestReady,
   similarAvailable,
   type CardLanguage,
 } from 'tcgscan-browse';
@@ -62,14 +72,17 @@ export type ComposeMethod =
   | 'fullPageSpread';
 
 /**
- * One filled pocket: a card, a tonal insert (Color-Themed), or an artwork slice
- * (Full-Page Spread). Exactly one of cardId / insertColor / imageUrl is set.
+ * One filled pocket: a card, or an artwork slice (Full-Page Spread). Exactly one of
+ * cardId / imageUrl is set.
+ *
+ * No composer emits a tonal insert any more — see the note above COMPOSE_METHODS. A pocket can
+ * still HOLD one (`DemoSlot.insertColor`); the user places those by hand from the card picker,
+ * and binders that already contain them keep rendering unchanged.
  */
 export interface ComposePlacement {
   row: number;
   col: number;
   cardId?: string;
-  insertColor?: string;
   imageUrl?: string;
   /** Sub-rectangle of `imageUrl` this pocket shows (fractions 0–1 of the whole image). */
   imageCrop?: { x: number; y: number; w: number; h: number };
@@ -77,6 +90,17 @@ export interface ComposePlacement {
   fromCollection?: boolean;
 }
 
+/**
+ * NO TONAL INSERTS. `colorType` and `colorTheme` used to scatter ~1 flat coloured tile per 4
+ * pockets, and to fall back to more of them whenever the candidate list ran short. They are gone
+ * on purpose: a solid rectangle sitting between real card art doesn't read as deliberate
+ * negative space, it reads as a pocket we couldn't fill — and the fallback meant the thinner the
+ * results, the more of the page was blank colour. Every composer now fills pockets with cards or
+ * with a slice of a real colour sheet, and simply places fewer when it finds fewer.
+ *
+ * This is about what the app GENERATES. A tonal insert is still a slot type a user can place by
+ * hand from the card picker's Insert tab, and existing binders keep theirs.
+ */
 export const COMPOSE_METHODS: {
   key: ComposeMethod;
   label: string;
@@ -117,7 +141,7 @@ export const COMPOSE_METHODS: {
   {
     key: 'colorType',
     label: 'Color by type',
-    description: 'Cards sharing this one’s energy type, with tonal inserts for cohesion.',
+    description: 'Cards sharing this one’s energy type, sampled across eras.',
   },
   {
     key: 'colorTheme',
@@ -142,9 +166,9 @@ export function availableMethods(seed: CatalogCard, catalog: Catalog): ComposeMe
   if (species && partnersFor(species, catalog).length > 0) out.push('pokemonFriends');
   if (trainerFor(seed.name)) out.push('trainerPage');
   if (seed.illustrator.trim()) out.push('sameArtist');
-  // Color BY TYPE (free): needs only the seed's energy type + its tonal palette — pure catalog
-  // scan, works fully offline. Offered whenever the seed has a type we have tones for.
-  if (TYPE_STYLES[seed.types[0] ?? '']) out.push('colorType');
+  // Color BY TYPE (free): needs only the seed's energy type — pure catalog scan, works fully
+  // offline. Offered whenever the seed has a type at all (an item/trainer seed has none).
+  if (seed.types[0]) out.push('colorType');
   // Color MATCH / tri-color (paid): ranks by palette (findSimilarByColor) — offered whenever a
   // color path is usable (on-device index OR the server RPC), regardless of the seed's type. The
   // paid gate itself is applied in the UI (AutoFillSheet), not here — this stays tier-agnostic.
@@ -154,25 +178,6 @@ export function availableMethods(seed: CatalogCard, catalog: Catalog): ComposeMe
   out.push('fullPageSpread');
   return out;
 }
-
-/**
- * Per-energy-type tonal insert colours (light → deeper, echoing the card frame palette) — the
- * scattered negative-space tiles the Color-match method drops in for cohesion. The card FRAME is
- * coloured by its energy type, so type is a faithful colour-palette proxy for the inserts.
- */
-const TYPE_STYLES: Record<string, { tones: string[] }> = {
-  Grass: { tones: ['#E3EEDA', '#C4DCB0', '#9CC584'] },
-  Fire: { tones: ['#FAE0D2', '#F4BCA0', '#EC9273'] },
-  Water: { tones: ['#DCEAF7', '#B4D3EE', '#86B8E2'] },
-  Lightning: { tones: ['#FBF2CC', '#F6E4A0', '#EFD16F'] },
-  Psychic: { tones: ['#EBDFF3', '#D4BCE7', '#B994D8'] },
-  Fighting: { tones: ['#F1E3D3', '#E0C5A5', '#CBA377'] },
-  Darkness: { tones: ['#DCDFE4', '#AEB4BF', '#767E8C'] },
-  Metal: { tones: ['#EBEDEF', '#D2D7DC', '#B3BAC3'] },
-  Fairy: { tones: ['#FAE2EA', '#F4C0D3', '#EC9CBB'] },
-  Dragon: { tones: ['#F0E6CC', '#E0D0A0', '#CBB373'] },
-  Colorless: { tones: ['#F3F2EF', '#E3E1DB', '#CFCCC4'] },
-};
 
 /**
  * TCG energy type → themeBackgrounds family (our owned "color sheets"). The families ice / poison /
@@ -256,9 +261,14 @@ function idsOnPage(page: DemoPage): Set<string> {
   return new Set(page.slots.filter((s) => s.cardId).map((s) => s.cardId as string));
 }
 
+/** The (name, set) key a print is deduped on — one printing per page, whatever its product id. */
+function printKey(c: CatalogCard): string {
+  return `${c.name.toLowerCase()}|${c.setId}`;
+}
+
 /**
  * Base candidate filter: standard footprint only (jumbo/V-UNION need multi-pocket handling the
- * composer doesn't attempt), a real image-worthy card, not already on the page, each
+ * composer doesn't attempt), a card we can actually render, not already on the page, each
  * (name, set) print at most once across the result — and, when `pool` is given ("fill from my
  * collection"), only cards the user owns.
  */
@@ -268,21 +278,49 @@ function filterAndDedupe(
   pool?: ReadonlySet<string> | null,
   /** EN/JP bound (the EFFECTIVE list — undefined = unconstrained). Drops off-language prints. */
   languages?: CardLanguage[],
+  /** Resolves the ids already on the page so their PRINTS can be excluded too (see below). */
+  catalog?: Catalog,
 ): CatalogCard[] {
   const onPage = idsOnPage(page);
   const seenPrint = new Set<string>();
+  // A card already on the page claims its (name, set) print as well as its id. TCGPlayer
+  // carries some printings as SEVERAL products — this Eevee promo is both 610758 and 610757 —
+  // and without this the sibling id is a legal candidate that lands next to the seed looking
+  // like the identical card placed twice. It is also the similarity RPC's top hit (0.955), so
+  // the anchor page opened on the duplicate every time.
+  if (catalog) {
+    for (const id of onPage) {
+      const c = catalog.getCard(id);
+      if (c) seenPrint.add(printKey(c));
+    }
+  }
   const out: CatalogCard[] = [];
   for (const c of candidates) {
     if (c.kind !== 'standard') continue;
+    if (!isRenderable(c)) continue;
     if (languages && !languages.includes(c.language)) continue;
     if (pool && !pool.has(c.id)) continue;
     if (onPage.has(c.id)) continue;
-    const print = `${c.name.toLowerCase()}|${c.setId}`;
+    const print = printKey(c);
     if (seenPrint.has(print)) continue;
     seenPrint.add(print);
     out.push(c);
   }
   return out;
+}
+
+/**
+ * Can the app actually show this card? `cardThumbUrl` resolves through the mirror manifest and
+ * returns '' for a card we have no image for, so placing one leaves a visible hole in the page.
+ * Eevee (JR East Stamp Rally) is exactly that: variety ranking put it second on the Same Pokémon
+ * page, directly above the seed, because it was the only 1999 promo in its bucket.
+ *
+ * Only enforced once the manifest has actually loaded — before that `cardThumbUrl` returns ''
+ * for EVERY card, and filtering on it would empty every method's candidate list.
+ */
+function isRenderable(c: CatalogCard): boolean {
+  if (!imageManifestReady()) return true;
+  return cardThumbUrl(c.id, 640) !== '';
 }
 
 /**
@@ -314,18 +352,15 @@ function varietyRank(cards: CatalogCard[]): CatalogCard[] {
   return out;
 }
 
-/** Round-robin across buckets keyed by `keyFn` (bucket order = first appearance). */
-function interleaveBy(cards: CatalogCard[], keyFn: (c: CatalogCard) => string): CatalogCard[] {
-  const buckets = new Map<string, CatalogCard[]>();
-  for (const c of cards) {
-    const k = keyFn(c);
-    const list = buckets.get(k) ?? [];
-    list.push(c);
-    buckets.set(k, list);
-  }
-  const lists = [...buckets.values()];
+/**
+ * Round-robin across ordered lists: one card from each in turn, cycling until every list is
+ * drained. Nothing is dropped, so slicing the result to the pocket count is what decides how
+ * many of each get in — one of everything before two of anything.
+ */
+function roundRobin(lists: CatalogCard[][]): CatalogCard[] {
+  const total = lists.reduce((n, l) => n + l.length, 0);
   const out: CatalogCard[] = [];
-  for (let i = 0; out.length < cards.length; i += 1) {
+  for (let i = 0; out.length < total; i += 1) {
     let advanced = false;
     for (const list of lists) {
       if (i < list.length) {
@@ -338,21 +373,88 @@ function interleaveBy(cards: CatalogCard[], keyFn: (c: CatalogCard) => string): 
   return out;
 }
 
+/** Round-robin across buckets keyed by `keyFn` (bucket order = first appearance). */
+function interleaveBy(cards: CatalogCard[], keyFn: (c: CatalogCard) => string): CatalogCard[] {
+  const buckets = new Map<string, CatalogCard[]>();
+  for (const c of cards) {
+    const k = keyFn(c);
+    const list = buckets.get(k) ?? [];
+    list.push(c);
+    buckets.set(k, list);
+  }
+  return roundRobin([...buckets.values()]);
+}
+
+/** What a card is OF, for spreading purposes: its species, or its name when it has none. */
+function subjectOf(c: CatalogCard): string {
+  return speciesOf(c) || c.name.toLowerCase();
+}
+
 /**
- * Share `total` picks across ordered buckets (earlier buckets absorb the remainder), then
- * backfill any shortfall from the leftovers — so one huge bucket can't starve the others.
+ * Subject spreading — no page places a second card of the same Pokemon until every other
+ * subject in the candidate list has had one, and then it keeps cycling. Four partners across
+ * eight pockets is two cards of each, not eight of the first.
+ *
+ * This only decides HOW MANY of each subject get in, never WHICH ONE wins: buckets keep
+ * first-appearance order and their contents keep the order they arrived in, so a palette- or
+ * similarity-ranked list still leads with its nearest card of each subject, and a
+ * variety-ranked one still leads with its oldest era.
+ *
+ * `demote` pushes one subject behind all the others (its cards become pure backfill). Pass the
+ * seed's own species where the seed is already on the page and repeating it wastes a pocket:
+ * an Eevee's evolution page should be its eight evolutions before it is ever a second Eevee.
  */
-function allocateAcross(buckets: CatalogCard[][], total: number): CatalogCard[] {
-  const nonEmpty = buckets.filter((b) => b.length > 0);
-  if (nonEmpty.length === 0) return [];
-  const base = Math.floor(total / nonEmpty.length);
-  const remainder = total % nonEmpty.length;
+function spreadBySubject(cards: CatalogCard[], demote?: string): CatalogCard[] {
+  if (!demote) return interleaveBy(cards, subjectOf);
+  const own: CatalogCard[] = [];
+  const rest: CatalogCard[] = [];
+  for (const c of cards) (subjectOf(c) === demote ? own : rest).push(c);
+  return [...interleaveBy(rest, subjectOf), ...own];
+}
+
+/**
+ * Share `total` picks across ordered buckets, then backfill any shortfall from the leftovers —
+ * so one huge bucket can't starve the others.
+ *
+ * `weights` biases the shares (default: even). Weighting a bucket by how many DISTINCT SUBJECTS
+ * it can offer is what stops a group that only has one from claiming an even share and spending
+ * it on repeats: a trainer's ace is usually a single species, and an even third of the page
+ * bought three prints of Garchomp while Milotic and Lucario never got a pocket.
+ *
+ * Every non-empty bucket still keeps at least one pick while there are pockets to go round, so
+ * a lopsided weight can't silence a group outright.
+ */
+function allocateAcross(buckets: CatalogCard[][], total: number, weights?: number[]): CatalogCard[] {
+  const idx = buckets.map((_, i) => i).filter((i) => buckets[i].length > 0);
+  if (idx.length === 0) return [];
+  const w = idx.map((i) => Math.max(1, weights?.[i] ?? 1));
+  const sum = w.reduce((a, b) => a + b, 0);
+  // Largest-remainder apportionment: floor every share, then hand the spare pockets to the
+  // biggest fractional claims. With even weights that is the old "earlier buckets absorb the
+  // remainder" behaviour exactly, since every remainder ties and ties go to the earlier bucket.
+  const exact = w.map((x) => (total * x) / sum);
+  const quota = exact.map((e) => Math.floor(e));
+  let spare = total - quota.reduce((a, b) => a + b, 0);
+  const byClaim = quota
+    .map((_, i) => i)
+    .sort((a, b) => exact[b] - quota[b] - (exact[a] - quota[a]) || a - b);
+  for (let k = 0; spare > 0 && quota.length; k += 1, spare -= 1) quota[byClaim[k % quota.length]] += 1;
+  if (total >= idx.length) {
+    for (let i = 0; i < quota.length; i += 1) {
+      if (quota[i] > 0) continue;
+      let big = 0;
+      for (let j = 1; j < quota.length; j += 1) if (quota[j] > quota[big]) big = j;
+      if (quota[big] > 1) {
+        quota[big] -= 1;
+        quota[i] = 1;
+      }
+    }
+  }
   const picked: CatalogCard[] = [];
   const leftovers: CatalogCard[] = [];
-  nonEmpty.forEach((bucket, i) => {
-    const quota = base + (i < remainder ? 1 : 0);
-    picked.push(...bucket.slice(0, quota));
-    leftovers.push(...bucket.slice(quota));
+  idx.forEach((b, i) => {
+    picked.push(...buckets[b].slice(0, quota[i]));
+    leftovers.push(...buckets[b].slice(quota[i]));
   });
   return [...picked, ...leftovers].slice(0, total);
 }
@@ -395,7 +497,11 @@ export async function composePage(
     const cards = hits
       .map((h) => catalog.getCard(h.id))
       .filter((c): c is CatalogCard => !!c);
-    return place(cells, filterAndDedupe(cards, page, pool, langs).slice(0, cells.length));
+    // Spread by subject: the ranking is visual, so a distinctive card can have its five nearest
+    // neighbours all be other prints of itself. Keep the nearest of each, and only come back for
+    // a second of one once every other subject has had a pocket.
+    const ranked = spreadBySubject(filterAndDedupe(cards, page, pool, langs, catalog));
+    return place(cells, ranked.slice(0, cells.length));
   }
 
   if (method === 'fullPageSpread') {
@@ -428,94 +534,67 @@ export async function composePage(
   }
 
   if (method === 'colorType') {
-    // FREE: the seed's energy colour across eras — a simple type match (no palette ranking). A few
-    // pockets become tonal inserts (the michi negative-space look) and any card shortfall falls
-    // back to inserts too, so the page always reads finished. Pure catalog scan, works offline.
+    // FREE: the seed's energy colour across eras — a simple type match (no palette ranking).
+    // Pure catalog scan, works offline. Every pocket gets a CARD (see the note above
+    // COMPOSE_METHODS on why the tonal inserts are gone).
     const type = seed.types[0] ?? '';
-    const style = TYPE_STYLES[type];
-    if (!style) return [];
-    const cards = varietyRank(
-      filterAndDedupe(
-        catalog.listAll().filter((c) => c.types.includes(type)),
-        page,
-        pool,
-        langs,
+    if (!type) return [];
+    const cards = spreadBySubject(
+      varietyRank(
+        filterAndDedupe(
+          catalog.listAll().filter((c) => c.types.includes(type)),
+          page,
+          pool,
+          langs,
+          catalog,
+        ),
       ),
     );
-    // Deliberate tonal inserts: ~1 per 4 pockets, scattered (never the first pocket, which
-    // usually neighbours the seed).
-    const insertCount = Math.min(3, Math.floor(cells.length / 4));
-    const insertAt = new Set<number>();
-    for (let k = 1; k <= insertCount; k += 1) {
-      insertAt.add(Math.round((k * cells.length) / (insertCount + 1)));
-    }
-    const placements: ComposePlacement[] = [];
-    let cardIdx = 0;
-    let tone = 0;
-    for (let i = 0; i < cells.length; i += 1) {
-      if (insertAt.has(i) || cardIdx >= cards.length) {
-        placements.push({ ...cells[i], insertColor: style.tones[tone % style.tones.length] });
-        tone += 1;
-      } else {
-        placements.push({ ...cells[i], cardId: cards[cardIdx].id });
-        cardIdx += 1;
-      }
-    }
-    // All inserts and no cards would be an empty-looking page — bail to "nothing found".
-    return cardIdx > 0 ? placements : [];
+    return place(cells, cards.slice(0, cells.length));
   }
 
   if (method === 'colorTheme') {
     // Cards whose PALETTE is closest to the seed — the Tri-Color Search (findSimilarByColor, hybrid
     // on-device/server, fails soft to []). Nearest-first, so we KEEP that order (no variety re-rank,
-    // which would scramble the colour ranking). A few pockets become tonal inserts (the seed's type
-    // tones) for the michi negative-space look; a card shortfall falls back to inserts too.
+    // which would scramble the colour ranking). Every pocket gets a CARD (see the note above
+    // COMPOSE_METHODS on why the tonal inserts are gone).
     const ids = await findSimilarByColor(seed.id, 'noborder', { limit: cells.length * 3 + 8, languages });
     const cards = filterAndDedupe(
       ids.map((id) => catalog.getCard(id)).filter((c): c is CatalogCard => !!c),
       page,
       pool,
       langs,
+      catalog,
     );
     if (cards.length === 0) return [];
-    const style = TYPE_STYLES[seed.types[0] ?? ''];
-    // No type (item/trainer seed) → no tonal palette; just lay the colour-matched cards in.
-    if (!style) return place(cells, cards.slice(0, cells.length));
-    // Deliberate tonal inserts: ~1 per 4 pockets, scattered (never the first pocket, which
-    // usually neighbours the seed).
-    const insertCount = Math.min(3, Math.floor(cells.length / 4));
-    const insertAt = new Set<number>();
-    for (let k = 1; k <= insertCount; k += 1) {
-      insertAt.add(Math.round((k * cells.length) / (insertCount + 1)));
-    }
-    const placements: ComposePlacement[] = [];
-    let cardIdx = 0;
-    let tone = 0;
-    for (let i = 0; i < cells.length; i += 1) {
-      if (insertAt.has(i) || cardIdx >= cards.length) {
-        placements.push({ ...cells[i], insertColor: style.tones[tone % style.tones.length] });
-        tone += 1;
-      } else {
-        placements.push({ ...cells[i], cardId: cards[cardIdx].id });
-        cardIdx += 1;
-      }
-    }
-    // All inserts and no cards would be an empty-looking page — bail to "nothing found".
-    return cardIdx > 0 ? placements : [];
+    // Nearest-first is kept WITHIN each subject; across subjects the page takes the closest
+    // match of each before doubling up, so a colour page is a palette, not one Pokemon five times.
+    return place(cells, spreadBySubject(cards).slice(0, cells.length));
   }
 
   if (method === 'sameArtist') {
     const artist = seed.illustrator.trim().toLowerCase();
     if (!artist) return [];
     const cards = catalog.listAll().filter((c) => c.illustrator.trim().toLowerCase() === artist);
-    return place(cells, varietyRank(filterAndDedupe(cards, page, pool, langs)).slice(0, cells.length));
+    // An illustrator gallery should show the range of what they drew: one Pokemon each before a
+    // second of any, so a prolific Pikachu artist doesn't hand back a page of Pikachu.
+    const ordered = spreadBySubject(varietyRank(filterAndDedupe(cards, page, pool, langs, catalog)));
+    return place(cells, ordered.slice(0, cells.length));
   }
 
   if (method === 'samePokemon') {
     const species = speciesOf(seed);
     if (!species) return [];
     const cards = catalog.listAll().filter((c) => c.name.toLowerCase().includes(species));
-    return place(cells, varietyRank(filterAndDedupe(cards, page, pool, langs)).slice(0, cells.length));
+    // One species by definition, so the spreading happens a level down — across the NAME
+    // VARIANTS (Eevee, Eevee GX, Eevee ex, Eevee V, Radiant Eevee), one of each before a second
+    // of any. The trailing disambiguator the catalog appends to same-named prints ("Eevee (62)")
+    // is stripped first, or every variant would be its own bucket and this would do nothing.
+    const ordered = interleaveBy(
+      varietyRank(filterAndDedupe(cards, page, pool, langs, catalog)),
+      (c) => c.name.toLowerCase().replace(/\s*\([^)]*\)\s*$/, ''),
+    );
+    return place(cells, ordered.slice(0, cells.length));
   }
 
   if (method === 'pokemonFriends') {
@@ -532,15 +611,24 @@ export async function composePage(
       pool,
       langs,
     );
-    const buckets = partners.map((p) => varietyRank(deduped.filter((c) => hasToken(c.name, p))));
-    // A tag-team print matches two partners — drop repeats introduced by the per-partner split.
+    // A tag-team print matches two partners, so de-duplicate ACROSS the buckets (first bucket
+    // wins), then take one card per partner in turn and keep cycling: four partners over eight
+    // pockets is two apiece, and a partner only gets a second card once all four have had a
+    // first. Quota-based allocation was wrong twice over here — `allocateAcross` lays its
+    // buckets end to end, so Eevee's friends page came back as eight Pikachu, and even with the
+    // quotas honoured a partner with a thin bucket handed its unused pockets to whoever came
+    // first rather than back to the cycle.
     const seen = new Set<string>();
-    const unique = allocateAcross(buckets, cells.length * 2).filter((c) => {
-      if (seen.has(c.id)) return false;
-      seen.add(c.id);
-      return true;
-    });
-    return place(cells, unique.slice(0, cells.length));
+    const buckets = partners.map((p) =>
+      varietyRank(
+        deduped.filter((c) => {
+          if (!hasToken(c.name, p) || seen.has(c.id)) return false;
+          seen.add(c.id);
+          return true;
+        }),
+      ),
+    );
+    return place(cells, roundRobin(buckets).slice(0, cells.length));
   }
 
   if (method === 'trainerPage') {
@@ -560,21 +648,27 @@ export async function composePage(
     const signature: CatalogCard[] = [];
     const trainerCards: CatalogCard[] = [];
     const team: CatalogCard[] = [];
-    for (const c of filterAndDedupe(catalog.listAll(), page, pool, langs)) {
+    for (const c of filterAndDedupe(catalog.listAll(), page, pool, langs, catalog)) {
       // Owned prints like "Cynthia's Garchomp" count as signature/team — the Pokémon is the art.
       if (sigOf(c)) signature.push(c);
       else if (isTrainerCard(c)) trainerCards.push(c);
       else if (teamOf(c)) team.push(c);
     }
-    const ordered = allocateAcross(
-      [
-        interleaveBy(varietyRank(signature), (c) => sigOf(c) ?? ''),
-        varietyRank(trainerCards),
-        interleaveBy(varietyRank(team), (c) => teamOf(c) ?? ''),
-      ],
-      cells.length,
-    );
-    return place(cells, ordered);
+    // Each group cycles its own subjects (the ace's Pokemon, the trainer's card names, the team
+    // members), and the groups share the pockets in proportion to how many subjects they have to
+    // show. An ace is usually one species, so it takes about one pocket per cycle instead of an
+    // even third of the page spent on prints of the same Pokemon.
+    const groups = [
+      interleaveBy(varietyRank(signature), (c) => sigOf(c) ?? ''),
+      interleaveBy(varietyRank(trainerCards), subjectOf),
+      interleaveBy(varietyRank(team), (c) => teamOf(c) ?? ''),
+    ];
+    const subjectCounts = [
+      new Set(signature.map((c) => sigOf(c) ?? '')).size,
+      new Set(trainerCards.map(subjectOf)).size,
+      new Set(team.map((c) => teamOf(c) ?? '')).size,
+    ];
+    return place(cells, allocateAcross(groups, cells.length, subjectCounts));
   }
 
   // evolutionLine — family members ordered Basic → final; column-major cells make the page
@@ -584,34 +678,38 @@ export async function composePage(
   const members = catalog
     .listAll()
     .filter((c) => family.some((s) => c.name.toLowerCase().includes(s)));
-  const deduped = filterAndDedupe(members, page, pool, langs);
-  const stageOf = (c: CatalogCard) => {
-    // Prefer the card's own stage index; fall back to its species' position in the family.
-    if (c.evolutionStage > 0) return c.evolutionStage;
-    const n = c.name.toLowerCase();
-    const idx = family.findIndex((s) => n.includes(s));
-    return idx >= 0 ? idx + 1 : 99;
-  };
-  const byStage = new Map<number, CatalogCard[]>();
-  for (const c of deduped) {
-    const s = stageOf(c);
-    const list = byStage.get(s) ?? [];
-    list.push(c);
-    byStage.set(s, list);
-  }
-  const stages = [...byStage.keys()].sort((a, b) => a - b);
-
-  // Share the pockets across the stages present (earlier stages absorb the remainder) —
-  // otherwise a popular basic (Eevee has 100+ prints) fills every cell and the evolutions
-  // never appear. Within a stage, interleave by species (Vaporeon/Jolteon/… all get a look),
-  // then variety-rank across eras. Any shortfall backfills from the leftover pool.
+  const deduped = filterAndDedupe(members, page, pool, langs, catalog);
   const speciesOfMember = (c: CatalogCard) => {
     const n = c.name.toLowerCase();
     return family.find((s) => n.includes(s)) ?? '';
   };
-  const ordered = allocateAcross(
-    stages.map((s) => interleaveBy(varietyRank(byStage.get(s)!), speciesOfMember)),
-    cells.length,
-  );
-  return place(cells, ordered);
+
+  // One bucket per FAMILY MEMBER, not per stage, and then one pocket to each in turn. Stages
+  // were the wrong unit: Eevee's family is one basic and eight evolutions, so splitting the
+  // pockets evenly between the two stages spent half the page on repeat Eevee prints and could
+  // only fit four of the eight eeveelutions — which is how that page came back with Flareon
+  // twice and no Vaporeon or Sylveon. Per species, an 8-pocket page is all eight evolutions.
+  //
+  // Buckets follow the family's own Basic → final order, so the column-major cells read through
+  // the line. That order comes from the evolution chain itself, not from each card's printed
+  // stage: a Sylveon V is a Basic, and ranking species by the lowest stage any of their cards
+  // carries put Sylveon at the head of the line ahead of Vaporeon.
+  //
+  // The seed's own species sorts last: it is already sitting on the page, so its other prints
+  // are backfill for a family too small to fill the pockets (Farfetch'd, a two-card line on a
+  // 3x3), never the point of the page.
+  const bySpecies = new Map<string, CatalogCard[]>();
+  for (const c of deduped) {
+    const s = speciesOfMember(c);
+    const list = bySpecies.get(s) ?? [];
+    list.push(c);
+    bySpecies.set(s, list);
+  }
+  const own = speciesOf(seed);
+  const order = [...bySpecies.keys()].sort((a, b) => {
+    if ((a === own) !== (b === own)) return a === own ? 1 : -1;
+    return family.indexOf(a) - family.indexOf(b);
+  });
+  const ordered = roundRobin(order.map((s) => varietyRank(bySpecies.get(s)!)));
+  return place(cells, ordered.slice(0, cells.length));
 }

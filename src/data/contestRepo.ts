@@ -34,7 +34,7 @@ export async function enterContest(binderId: string, category: ContestCategory):
     // The RLS page-cap gate surfaces as a bare policy violation — translate it for people.
     if (error.message.includes('row-level security')) {
       throw new Error(
-        `Couldn't enter — check the binder is yours and has at most ${CONTEST.pageCap} pages.`,
+        `Couldn't enter. Check the binder is yours and has at most ${CONTEST.pageCap} pages.`,
       );
     }
     throw new Error(`enter contest: ${error.message}`);

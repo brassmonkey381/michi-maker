@@ -5,6 +5,7 @@
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { ExternalLink } from '@/components/external-link';
 import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
 import { Fonts, FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
@@ -41,11 +42,21 @@ export default function GuideScreen() {
       </ThemedText>
 
       {guide.ctaHref ? (
-        <Pressable
-          onPress={() => router.push(guide.ctaHref as Href)}
-          style={({ pressed }) => [styles.cta, styles.ctaTop, pressed && styles.pressed]}>
-          <ThemedText style={styles.ctaText}>{guide.ctaLabel ?? 'Open'} →</ThemedText>
-        </Pressable>
+        guide.ctaExternal ? (
+          // A real URL (a static page in public/), not a route: router.push would fall through
+          // the SPA catch-all to the home screen, so this has to be a browser navigation.
+          <ExternalLink href={guide.ctaHref as Href & string} asChild>
+            <Pressable style={({ pressed }) => [styles.cta, styles.ctaTop, pressed && styles.pressed]}>
+              <ThemedText style={styles.ctaText}>{guide.ctaLabel ?? 'Open'} →</ThemedText>
+            </Pressable>
+          </ExternalLink>
+        ) : (
+          <Pressable
+            onPress={() => router.push(guide.ctaHref as Href)}
+            style={({ pressed }) => [styles.cta, styles.ctaTop, pressed && styles.pressed]}>
+            <ThemedText style={styles.ctaText}>{guide.ctaLabel ?? 'Open'} →</ThemedText>
+          </Pressable>
+        )
       ) : null}
 
       <View style={styles.steps}>

@@ -105,6 +105,19 @@ export interface TierLimits {
    */
   advancedSearch: boolean;
   /**
+   * "Pages around this card" (VIP) — the composer runs EVERY method a seed supports at once,
+   * previews each as a finished page, and appends the ones you keep as new pages.
+   *
+   * This is the "UPGRADED COMPOSER" that `composerPagesPerMonth` above says PRO/VIP differentiate
+   * by. Individual methods stay included at every signed-in tier; what VIP buys is running them
+   * all in one pass and choosing between the results, which is the difference between filling a
+   * page and being shown eight ways to build one.
+   *
+   * Boolean, so like `fullPrint` and `advancedSearch` it is NOT mirrored in the `tier_caps` table
+   * (that guard covers numeric caps only — see scripts/check-tier-caps.mjs).
+   */
+  multiPageCompose: boolean;
+  /**
    * Full-binder prints INCLUDED with the subscription each month (extra prints are the
    * one-time per-binder purchase). Metering not built yet — until it is, `fullPrint` alone
    * gates the Download button and included prints are effectively unlimited.
@@ -132,6 +145,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     artUploads: 10,
     fullPrint: false,
     advancedSearch: false,
+    multiPageCompose: false,
     includedPrintsPerMonth: 0,
   },
   // 3 binders × 16 pages × 16 cards (4×4) = 768 ("over 750 cards").
@@ -142,6 +156,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     artUploads: 100,
     fullPrint: false,
     advancedSearch: false,
+    multiPageCompose: false,
     includedPrintsPerMonth: 0,
   },
   // 12 binders × 40 pages × 16 cards = 7,680 ("over 7,500 cards"). $3.99/mo or $39.99/yr.
@@ -152,6 +167,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     artUploads: 1000,
     fullPrint: true,
     advancedSearch: true,
+    multiPageCompose: false,
     includedPrintsPerMonth: 1,
   },
   // $9.99/mo or $99.99/yr. Included prints cut 5 -> 3 (owner call 2026-07-19): a yearly VIP pool
@@ -163,6 +179,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     artUploads: Infinity,
     fullPrint: true,
     advancedSearch: true,
+    multiPageCompose: true,
     includedPrintsPerMonth: 3,
   },
 };
@@ -189,6 +206,7 @@ const UNLIMITED: TierLimits = {
   artUploads: Infinity,
   fullPrint: false, // print eligibility is decided by tier/entitlement, not by this switch
   advancedSearch: false, // likewise: a paid capability, not a cap the dev switch should hand out
+  multiPageCompose: false, // likewise — VIP's upgraded composer, not something LIMITS_ENFORCED=0 grants
   includedPrintsPerMonth: Infinity,
 };
 

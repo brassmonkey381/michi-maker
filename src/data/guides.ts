@@ -12,6 +12,17 @@
  */
 export const WOAHPOKE_GUIDE = 'https://woahpoke.com/michi-method/';
 
+/**
+ * The Auto Page Fill showcase: every fill method built around one card, as finished pages.
+ *
+ * A STATIC page in `public/` (rewritten to this clean URL in vercel.json), not an Expo route — so
+ * it can never be reached with `router.push`, which would fall through the SPA catch-all back to
+ * the home screen. It is linked as an EXTERNAL url everywhere, absolute so native opens it in the
+ * in-app browser rather than looking for a route that does not exist. Regenerate it with the
+ * demo builder rather than editing the HTML by hand.
+ */
+export const AUTO_FILL_SHOWCASE = 'https://michi-maker.com/auto-fill-methods';
+
 export interface GuideStep {
   title: string;
   body: string;
@@ -30,6 +41,8 @@ export interface Guide {
   /** Optional call-to-action button (e.g. an interactive companion page). Shown under the lede. */
   ctaLabel?: string;
   ctaHref?: string;
+  /** `ctaHref` is a real URL, not an Expo route — open it in the browser, never router.push. */
+  ctaExternal?: boolean;
 }
 
 export const GUIDE_LIST: Guide[] = [
@@ -162,6 +175,47 @@ export const GUIDE_LIST: Guide[] = [
     ],
     tip: 'The interactive cheatsheet puts a Try it button on every example, so you can run a query and keep building on it.',
     relatedSlugs: ['first-binder'],
+  },
+  {
+    slug: 'auto-page-fill',
+    title: 'Use Auto Page Fill Methods',
+    lede: 'Put one card in a pocket and let michi-maker build the rest of the page around it. Eight ways, each a different idea of what the page is about.',
+    minutes: 5,
+    ctaLabel: 'See all eight methods as finished pages',
+    ctaHref: AUTO_FILL_SHOWCASE,
+    ctaExternal: true,
+    steps: [
+      {
+        title: 'Place the card the page is about',
+        body: 'Fill one pocket with the card you want the page built around. It can go anywhere, though the middle of a 3x3 reads best. This is the seed: everything else is chosen to sit with it.',
+      },
+      {
+        title: 'Open Fill page',
+        body: 'Tap the placed card to select it, then choose Fill page in the pocket toolbar. You get the list of methods that actually suit this card, so what you see depends on what the card is.',
+      },
+      {
+        title: 'Pick what the page is about',
+        body: 'Same Pokemon follows the species across the years. Evolution line lays out the family. Same artist is a gallery for one illustrator. Friends and partners brings in who it canonically appears beside. More like this picks the cards that look closest to it.',
+      },
+      {
+        title: 'Or make the page about colour',
+        body: 'Color by type gathers cards sharing its energy type and is included on every plan. Color match ranks every card by its actual palette, nearest first, for a page that flows edge to edge. Full-page spread flows one of our own colour sheets across the empty pockets so your cards read as accents on it.',
+      },
+      {
+        title: 'Expect one of each, not eight of one',
+        body: 'No fill repeats a Pokemon while it still has someone new to show. Eevee has eight evolutions and a 3x3 page has eight free pockets, so the family page is all eight of them. When there are fewer subjects than pockets it cycles instead: two friends across eight pockets is four cards each, alternating.',
+      },
+      {
+        title: 'Narrow it to cards you own',
+        body: 'If your collection is synced from TCGScan, turn on From my collection and every method draws only from cards you actually have. The language toggle beside it decides whether English, Japanese, or both printings are eligible.',
+      },
+      {
+        title: 'Keep it or take it back',
+        body: 'A fill only writes into empty pockets, so nothing you placed yourself moves. The whole fill is a single step, so one Undo reverses all of it and you can try a different method straight away.',
+      },
+    ],
+    tip: 'VIP adds Pages around this card: it builds every method at once, shows you each finished page, and adds the ones you keep to the binder as new pages.',
+    relatedSlugs: ['first-binder', 'slice-studio'],
   },
 ];
 

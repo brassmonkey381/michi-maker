@@ -11,6 +11,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { fetchCardDetail, LanguageToggle } from 'tcgscan-browse';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
+import { UpgradePerk } from '@/components/monetization/UpgradePerk';
 import { TriColorUpsell } from '@/components/binder/TriColorUpsell';
 import { LogoLoader } from '@/components/brand/LogoLoader';
 import { ThemedText } from '@/components/themed-text';
@@ -28,6 +29,7 @@ import {
   type ComposePlacement,
 } from '@/data/pageComposer';
 import { resolveCatalogCardWith } from '@/data/cardResolver';
+import type { CatalogCard } from '@/lib/catalog';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useTier } from '@/hooks/use-tier';
 import { useBrowseTheme } from '@/lib/browseTheme';
@@ -43,6 +45,7 @@ export function AutoFillSheet({
   page,
   onClose,
   onPlaced,
+  onComposeAll,
 }: {
   visible: boolean;
   seedCardId: string | null;
@@ -50,9 +53,13 @@ export function AutoFillSheet({
   onClose: () => void;
   /** Deliver the composed placements (the parent owns the store write + toast). */
   onPlaced: (placements: ComposePlacement[], methodLabel: string) => void;
+  /** VIP "Pages around this card": hand the seed up so the parent can open ComposeAllSheet. */
+  onComposeAll?: (seed: CatalogCard, pool: ReadonlySet<string> | null) => void;
 }) {
   const { catalog, guestGated } = useCatalog(visible);
-  const { isPaid } = useTier();
+  const { isPaid, limits } = useTier();
+  // VIP's upgraded composer (tiers.ts multiPageCompose). Free/PRO see the sell instead.
+  const vipCompose = limits.multiPageCompose && !!onComposeAll;
   // EN/JP bound, shared with the browse surfaces (persisted, account-synced). Passed INTO the
   // composer's ranking RPCs (p_lang) + local scans, so a fill honours the chosen printing language.
   const [languages, setLanguages] = useLanguagePref();
@@ -200,6 +207,37 @@ export function AutoFillSheet({
                   </View>
                 </View>
 
+                {/* VIP: run every method at once and choose between finished pages, instead of
+                    committing to one method against the page you are standing on. */}
+                {methods.length > 1 && enrichedSeed ? (
+                  vipCompose ? (
+                    <Pressable
+                      onPress={() => onComposeAll?.(enrichedSeed, poolActive ? ownedIds : null)}
+                      disabled={busy !== null}
+                      style={({ pressed }) => [styles.allBtn, pressed && styles.pressed]}>
+                      <View style={styles.methodText}>
+                        <View style={styles.methodTitleRow}>
+                          <ThemedText type="smallBold" style={styles.allTitle}>
+                            Pages around this card
+                          </ThemedText>
+                          <View style={styles.vipPill}>
+                            <Text style={styles.proPillText}>VIP</Text>
+                          </View>
+                        </View>
+                        <ThemedText type="small" style={styles.allSub}>
+                          Build all {methods.length} as separate pages, then keep the ones you like.
+                        </ThemedText>
+                      </View>
+                    </Pressable>
+                  ) : (
+                    <UpgradePerk
+                      message={`VIP builds all ${methods.length} of these as finished pages at once, so you can pick between them instead of choosing blind.`}
+                      cta="See VIP"
+                      onBeforePress={onClose}
+                    />
+                  )
+                ) : null}
+
                 {emptyCount === 0 ? (
                   <ThemedText type="small" themeColor="textSecondary">
                     The page is full. Clear a pocket or two first.
@@ -257,6 +295,24 @@ export function AutoFillSheet({
 
 const styles = StyleSheet.create({
   sub: { lineHeight: 20 },
+  allBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    padding: Spacing.three,
+    borderRadius: Radius.panel,
+    borderWidth: 1,
+    borderColor: Palette.accent,
+    backgroundColor: Palette.accentSoft,
+  },
+  allTitle: { color: Palette.link },
+  allSub: { color: Palette.link },
+  vipPill: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: Radius.tag,
+    backgroundColor: Palette.accent,
+  },
   center: { paddingVertical: Spacing.four, alignItems: 'center', gap: Spacing.two },
   controls: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.three, rowGap: Spacing.two },
   langRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },

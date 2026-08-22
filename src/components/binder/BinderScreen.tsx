@@ -15,6 +15,7 @@ import { similarAvailable } from 'tcgscan-browse';
 
 import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
 import { AutoFillSheet } from '@/components/binder/AutoFillSheet';
+import { ComposeAllSheet } from '@/components/binder/ComposeAllSheet';
 import { BinderGrid, type BinderGridHandle } from '@/components/binder/BinderGrid';
 import { CardPicker } from '@/components/binder/CardPicker';
 import { BinderPages, type GridRole } from '@/components/binder/BinderPages';
@@ -160,6 +161,12 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // a drag so the floating preview follows without re-rendering.
   const [armedSlice, setArmedSlice] = useState<SavedSlice | null>(null);
   const [dragSlice, setDragSlice] = useState<SavedSlice | null>(null);
+  // VIP "Pages around this card": the fill sheet hands up the (evolution-enriched) seed and the
+  // active collection pool, and this owns the preview sheet + the store write.
+  const [composeAll, setComposeAll] = useState<{
+    seed: CatalogCard;
+    pool: ReadonlySet<string> | null;
+  } | null>(null);
   const ghostOn = useSharedValue(0);
   const ghostX = useSharedValue(0);
   const ghostY = useSharedValue(0);
@@ -411,7 +418,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           : result.status === 'target-full'
             ? pageLimitMessage(store.tier, store.limits)
             : result.status === 'last-page'
-              ? 'This is the binder’s only page — send a copy instead of moving it.'
+              ? 'This is the binder’s only page. Send a copy instead of moving it.'
               : 'Could not send that page.',
       );
       return;
@@ -563,6 +570,27 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   };
 
   // ✨ Fill page: place the composer's picks (one commit → one Undo) and report the result.
+  const handleComposeAll = (seed: CatalogCard, pool: ReadonlySet<string> | null) => {
+    setAutoFillOpen(false);
+    setComposeAll({ seed, pool });
+  };
+  const handleKeepComposed = (
+    kept: { title: string; seedCardId: string; placements: ComposePlacement[] }[],
+  ) => {
+    const { added, skipped } = store.appendComposedPages(binder.id, kept);
+    setSelectedSlotId(null);
+    if (added === 0) {
+      showToast('This binder is at its page limit');
+      return;
+    }
+    showToast(
+      skipped > 0
+        ? `Added ${added} page${added === 1 ? '' : 's'}, ${skipped} left out at the page limit`
+        : `Added ${added} page${added === 1 ? '' : 's'}`,
+      true,
+    );
+  };
+
   const handleAutoFillPlaced = (placements: ComposePlacement[], methodLabel: string) => {
     const { placed } = store.placeCards(binder.id, page.id, placements);
     setSelectedSlotId(null);
@@ -1261,7 +1289,22 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           page={page}
           onClose={() => setAutoFillOpen(false)}
           onPlaced={handleAutoFillPlaced}
+          onComposeAll={handleComposeAll}
         />
+
+        {/* Mounted only while open, keyed by seed: each invocation gets fresh state, so the
+            build effect never resets anything synchronously. */}
+        {composeAll ? (
+        <ComposeAllSheet
+          key={composeAll.seed.id}
+          visible
+          seed={composeAll.seed}
+          page={page}
+          pool={composeAll.pool}
+          onClose={() => setComposeAll(null)}
+          onKeep={handleKeepComposed}
+        />
+        ) : null}
 
         {studio && (
           <SliceStudio

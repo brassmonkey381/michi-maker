@@ -19,7 +19,7 @@ import {
   Spacing,
   Weight,
 } from '@/constants/theme';
-import { WOAHPOKE_GUIDE } from '@/data/guides';
+import { AUTO_FILL_SHOWCASE, WOAHPOKE_GUIDE } from '@/data/guides';
 import { MICHI_LAYOUT_STYLES } from '@/types/domain';
 
 // The collector credited with creating and popularising the method, and the community
@@ -104,6 +104,11 @@ export default function MichiMethodScreen() {
           <View style={styles.linkList}>
             <ExternalLink href={WOAHPOKE_GUIDE}>
               <ThemedText type="linkPrimary">woahpoke: A Full Guide to the Michi Method →</ThemedText>
+            </ExternalLink>
+            <ExternalLink href={AUTO_FILL_SHOWCASE}>
+              <ThemedText type="linkPrimary">
+                Build a page around one card: all eight auto fill methods →
+              </ThemedText>
             </ExternalLink>
             <ExternalLink href={ARTOFPKM}>
               <ThemedText type="linkPrimary">The Art of Pokémon: browse card art by illustrator →</ThemedText>

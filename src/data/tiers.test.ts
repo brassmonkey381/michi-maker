@@ -8,7 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { resolveTier, isActive, type EntitlementRow } from './tiers.ts';
+import { resolveTier, isActive, TIER_LIMITS, type EntitlementRow } from './tiers.ts';
 
 const NOW = Date.parse('2026-07-21T12:00:00Z');
 const inDays = (n: number) => new Date(NOW + n * 86_400_000).toISOString();
@@ -41,4 +41,30 @@ test('isActive: future = active, past = lapsed, null = lifetime', () => {
   assert.equal(isActive({ product: 'tier_pro', expires_at: inDays(1) }, NOW), true);
   assert.equal(isActive({ product: 'tier_pro', expires_at: inDays(-1) }, NOW), false);
   assert.equal(isActive({ product: 'tier_pro', expires_at: null }, NOW), true);
+});
+
+/**
+ * "Pages around this card" is the ONLY thing VIP has that PRO does not, other than caps and
+ * print volume. If PRO ever reads true here the tier stops being distinguishable on features,
+ * so pin the whole column rather than just the VIP cell.
+ */
+test('multiPageCompose is VIP-only', () => {
+  assert.equal(TIER_LIMITS.vip.multiPageCompose, true);
+  for (const tier of ['guest', 'free', 'pro'] as const) {
+    assert.equal(TIER_LIMITS[tier].multiPageCompose, false, `${tier} must not have it`);
+  }
+});
+
+test('a VIP entitlement is what actually unlocks it', () => {
+  const NOW2 = Date.parse('2026-08-20T12:00:00Z');
+  const tierOf = (rows: EntitlementRow[]) => resolveTier({ isSignedIn: true, rows }, NOW2);
+  const proRow: EntitlementRow = { product: 'tier_pro', expires_at: null };
+  const vipRow: EntitlementRow = { product: 'tier_vip', expires_at: null };
+  assert.equal(TIER_LIMITS[tierOf([proRow])].multiPageCompose, false);
+  assert.equal(TIER_LIMITS[tierOf([vipRow])].multiPageCompose, true);
+  // A lapsed VIP loses it, same as every other paid capability.
+  assert.equal(
+    TIER_LIMITS[tierOf([{ product: 'tier_vip', expires_at: '2026-01-01T00:00:00Z' }])].multiPageCompose,
+    false,
+  );
 });

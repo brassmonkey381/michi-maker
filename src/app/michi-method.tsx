@@ -4,6 +4,7 @@
  * more. Doubles as a shareable marketing/SEO surface (crawlers get rich meta via
  * api/og-michi.js). Reachable from the home header and from a shared link.
  */
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,7 +20,7 @@ import {
   Spacing,
   Weight,
 } from '@/constants/theme';
-import { AUTO_FILL_SHOWCASE, WOAHPOKE_GUIDE } from '@/data/guides';
+import { AUTO_FILL_SHOWCASE, AUTO_FILL_SHOWCASE_ART, WOAHPOKE_GUIDE } from '@/data/guides';
 import { MICHI_LAYOUT_STYLES } from '@/types/domain';
 
 // The collector credited with creating and popularising the method, and the community
@@ -97,6 +98,34 @@ export default function MichiMethodScreen() {
             ))}
           </View>
 
+          {/* Our own how-to, featured above the reading list: it is the one that shows the
+              method being built rather than described. */}
+          <ExternalLink href={AUTO_FILL_SHOWCASE} asChild>
+            <Pressable style={({ pressed }) => [pressed && styles.pressed]}>
+              <ThemedView type="backgroundElement" style={styles.featureCard}>
+                <Image
+                  source={{ uri: AUTO_FILL_SHOWCASE_ART }}
+                  style={styles.featureArt}
+                  contentFit="cover"
+                  transition={150}
+                  accessibilityLabel="Eevee, the card the walkthrough builds its pages around"
+                />
+                <View style={styles.featureBody}>
+                  <ThemedText type="smallBold" style={styles.featureTitle}>
+                    Build a page around one card
+                  </ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.featureLede}>
+                    Drop one card into a pocket and michi-maker finishes the page around it. A
+                    walkthrough of all eight fill methods, each shown as the page it produced.
+                  </ThemedText>
+                  <ThemedText type="linkPrimary" style={styles.featureLink}>
+                    Read the walkthrough →
+                  </ThemedText>
+                </View>
+              </ThemedView>
+            </Pressable>
+          </ExternalLink>
+
           {/* Learn more */}
           <ThemedText type="smallBold" style={styles.sectionTitle}>
             Learn more
@@ -104,11 +133,6 @@ export default function MichiMethodScreen() {
           <View style={styles.linkList}>
             <ExternalLink href={WOAHPOKE_GUIDE}>
               <ThemedText type="linkPrimary">woahpoke: A Full Guide to the Michi Method →</ThemedText>
-            </ExternalLink>
-            <ExternalLink href={AUTO_FILL_SHOWCASE}>
-              <ThemedText type="linkPrimary">
-                Build a page around one card: all eight auto fill methods →
-              </ThemedText>
             </ExternalLink>
             <ExternalLink href={ARTOFPKM}>
               <ThemedText type="linkPrimary">The Art of Pokémon: browse card art by illustrator →</ThemedText>
@@ -163,6 +187,20 @@ const styles = StyleSheet.create({
   creditKicker: { fontSize: FontSize.label },
   creditBody: { lineHeight: 22 },
   creditLink: { marginTop: Spacing.one },
+  featureCard: {
+    flexDirection: 'row',
+    gap: Spacing.three,
+    alignItems: 'center',
+    borderRadius: Radius.lg,
+    padding: Spacing.three,
+    marginBottom: Spacing.five,
+  },
+  // 63:88 is the real card aspect, so the art sits in the row like a card in a pocket.
+  featureArt: { width: 72, height: 100, borderRadius: Radius.sm },
+  featureBody: { flex: 1, gap: Spacing.one },
+  featureTitle: { fontSize: FontSize.control },
+  featureLede: { lineHeight: 20 },
+  featureLink: { fontSize: FontSize.label },
   sectionTitle: { fontSize: FontSize.md, marginBottom: Spacing.three },
   layoutList: { gap: Spacing.three, marginBottom: Spacing.five },
   layoutRow: { gap: Spacing.half },

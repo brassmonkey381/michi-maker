@@ -23,6 +23,14 @@ export const WOAHPOKE_GUIDE = 'https://woahpoke.com/michi-method/';
  */
 export const AUTO_FILL_SHOWCASE = 'https://michi-maker.com/auto-fill-methods';
 
+/**
+ * The card the showcase is built around (Eevee, SV promo 173), as a static asset of our own
+ * deploy. Absolute on purpose: a root-relative path only resolves on web, and this is shown on
+ * native too. It ships in public/auto-fill-art/ alongside the page, so it needs no catalog
+ * manifest and cannot break when an image content hash changes.
+ */
+export const AUTO_FILL_SHOWCASE_ART = 'https://michi-maker.com/auto-fill-art/610758.webp';
+
 export interface GuideStep {
   title: string;
   body: string;
@@ -43,6 +51,12 @@ export interface Guide {
   ctaHref?: string;
   /** `ctaHref` is a real URL, not an Expo route — open it in the browser, never router.push. */
   ctaExternal?: boolean;
+  /**
+   * When set, the /learn hub card opens THIS url instead of the in-app guide route. Used where a
+   * hosted page covers the subject better than the in-app steps can (the fill methods want the
+   * finished pages next to them). The in-app route stays reachable by direct link.
+   */
+  externalHref?: string;
 }
 
 export const GUIDE_LIST: Guide[] = [
@@ -178,9 +192,12 @@ export const GUIDE_LIST: Guide[] = [
   },
   {
     slug: 'auto-page-fill',
-    title: 'Use Auto Page Fill Methods',
+    title: 'Build a page around one card',
     lede: 'Put one card in a pocket and let michi-maker build the rest of the page around it. Eight ways, each a different idea of what the page is about.',
     minutes: 5,
+    // The hosted article shows all eight methods as the pages they produced, which is the whole
+    // point of the subject, so the hub card goes there rather than to the steps below.
+    externalHref: AUTO_FILL_SHOWCASE,
     ctaLabel: 'See all eight methods as finished pages',
     ctaHref: AUTO_FILL_SHOWCASE,
     ctaExternal: true,

@@ -5,6 +5,7 @@
 import { useRouter, type Href } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { ExternalLink } from '@/components/external-link';
 import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -26,12 +27,8 @@ export default function LearnHubScreen() {
       </ThemedText>
 
       <View style={styles.list}>
-        {GUIDE_LIST.map((g) => (
-          <Pressable
-            key={g.slug}
-            onPress={() => router.push(`/learn/${g.slug}` as Href)}
-            accessibilityRole="link"
-            style={({ pressed }) => [pressed && styles.pressed]}>
+        {GUIDE_LIST.map((g) => {
+          const card = (
             <ThemedView type="backgroundElement" style={styles.card}>
               <View style={styles.cardHead}>
                 <ThemedText type="smallBold" style={styles.cardTitle}>
@@ -50,8 +47,27 @@ export default function LearnHubScreen() {
                 Read the guide →
               </ThemedText>
             </ThemedView>
-          </Pressable>
-        ))}
+          );
+          // A guide can point at a hosted page instead of its in-app steps (see Guide.externalHref).
+          // Those are real URLs, not Expo routes, so they must never go through router.push.
+          return g.externalHref ? (
+            <ExternalLink key={g.slug} href={g.externalHref as Href & string} asChild>
+              <Pressable
+                accessibilityRole="link"
+                style={({ pressed }) => [pressed && styles.pressed]}>
+                {card}
+              </Pressable>
+            </ExternalLink>
+          ) : (
+            <Pressable
+              key={g.slug}
+              onPress={() => router.push(`/learn/${g.slug}` as Href)}
+              accessibilityRole="link"
+              style={({ pressed }) => [pressed && styles.pressed]}>
+              {card}
+            </Pressable>
+          );
+        })}
       </View>
     </PageShell>
   );

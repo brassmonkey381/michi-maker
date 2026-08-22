@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ebayCardQuery, ebaySearchLink } from '@/lib/ebay';
 
 import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
+import { SimilarityModelPicker } from '@/components/SimilarityModelPicker';
 import { CardBrowse } from '@/components/binder/CardBrowse';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { ThemedText } from '@/components/themed-text';
@@ -175,6 +176,11 @@ export default function BrowseScreen() {
               ) : null}
             </View>
           </View>
+
+          {/* Admin-only, and renders nothing for everyone else. Above the browser rather than
+              inside it: the kit owns the result list, and the control has to sit where it is
+              visible BEFORE a find-similar action rather than appearing with the results. */}
+          <SimilarityModelPicker />
 
           {/* The browser owns the remaining height; its inner FlatList scrolls (no page ScrollView
               around it, so the list gets a bounded viewport). */}

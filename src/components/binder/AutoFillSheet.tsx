@@ -11,6 +11,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { fetchCardDetail, LanguageToggle } from 'tcgscan-browse';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
+import { SimilarityModelPicker } from '@/components/SimilarityModelPicker';
 import { UpgradePerk } from '@/components/monetization/UpgradePerk';
 import { TriColorUpsell } from '@/components/binder/TriColorUpsell';
 import { LogoLoader } from '@/components/brand/LogoLoader';
@@ -237,6 +238,8 @@ export function AutoFillSheet({
                     />
                   )
                 ) : null}
+
+                <SimilarityModelPicker compact />
 
                 {emptyCount === 0 ? (
                   <ThemedText type="small" themeColor="textSecondary">

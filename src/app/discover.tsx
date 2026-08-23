@@ -1,11 +1,21 @@
 /**
- * Discover — search across EVERYONE's public binders. A debounced query hits the `search_binders`
- * RPC (title / description / owner @username, gated on public binder + public profile); an empty
- * query shows the most-liked public binders ("popular"), so the page has life before anyone types.
- * Results render as a responsive grid of the shared BinderThumb; tapping one opens `/binder/[id]`.
+ * Discover — everyone's public binders. Three views share one screen:
  *
- * Guests can browse too (the RPC is granted to anon) — this is discovery, not a personal surface.
- * Reached from the web rail's Explore group and, where the rail is hidden, the Home quick-nav.
+ *   • TYPED QUERY — the debounced `search_binders` RPC (title / description / owner @username).
+ *   • A CONTEST CATEGORY CHIP — that category's entries, ranked by votes.
+ *   • NEITHER (the default) — two stacked sections: a feed of every contest entry, newest entry
+ *     first, then every binder that is NOT an entry, ordered by when it was made public or by
+ *     likes. The reader picks between those two orderings; publish date is the default.
+ *
+ * The default used to be one grid of the most-liked binders, which is a leaderboard rather than a
+ * discovery surface: the same binders hold the top, and something published today is invisible
+ * until it earns votes. Splitting entries out and defaulting to publish date fixes both, and the
+ * popularity ordering is still one tap away.
+ *
+ * Results render as a responsive grid of the shared BinderThumb; tapping one opens `/binder/[id]`.
+ * Guests can browse too (every RPC here is granted to anon) — this is discovery, not a personal
+ * surface. Reached from the web rail's Explore group and, where the rail is hidden, the Home
+ * quick-nav.
  */
 import { useRouter, type Href } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -25,7 +35,11 @@ import { BinderThumb } from '@/components/binder/BinderThumb';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { CATEGORIES, CONTEST, contestPhase, type ContestCategory } from '@/data/contest';
-import { fetchContestLeaderboard } from '@/data/contestRepo';
+import {
+  fetchContestEntryFeed,
+  fetchContestLeaderboard,
+  type FeedEntry,
+} from '@/data/contestRepo';
 import {
   BottomTabInset,
   Breakpoints,
@@ -35,13 +49,28 @@ import {
   Radius,
   Spacing,
 } from '@/constants/theme';
-import { searchBinders } from '@/data/binderRepo';
+import { fetchDiscoverBinders, searchBinders, type DiscoverSort } from '@/data/binderRepo';
 import type { DemoBinder } from '@/data/binderTypes';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useImageManifest } from '@/lib/catalogConfig';
 
 const GRID_GAP = Spacing.four;
 const MIN_TILE = 220;
+
+/** Category slug to label, so a feed tile can say which category it was entered in. */
+const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
+  CATEGORIES.map((c) => [c.slug, c.label]),
+);
+
+/**
+ * The orderings offered for the "everything else" section. Order matters: the first is the
+ * default, and it is publish date rather than likes so a binder published today is findable on
+ * the day, instead of waiting to earn its way up a leaderboard that the same few binders hold.
+ */
+const SORTS: { key: DiscoverSort; label: string }[] = [
+  { key: 'recent', label: 'Recently public' },
+  { key: 'likes', label: 'Most liked' },
+];
 
 export default function DiscoverScreen() {
   const router = useRouter();
@@ -73,6 +102,44 @@ export default function DiscoverScreen() {
       });
   }, [contestCat]);
 
+  // The two default sections, shown when nobody has typed a query or picked a category.
+  //
+  //   1. the entry feed — every public contest entry, newest entry first
+  //   2. everything else — public binders that are NOT entries, by publish date or by likes
+  //
+  // Kept as separate fetches rather than one: they answer different questions, the feed is
+  // contest-scoped and disappears when the contest ends, and a failure in one should not blank
+  // the other.
+  const [feed, setFeed] = useState<FeedEntry[] | null>(null);
+  const [sort, setSort] = useState<DiscoverSort>('recent');
+  const [others, setOthers] = useState<DemoBinder[] | null>(null);
+
+  useEffect(() => {
+    if (!contestOn) return;
+    let alive = true;
+    fetchContestEntryFeed()
+      .then((rows) => alive && setFeed(rows))
+      .catch(() => alive && setFeed([]));
+    return () => {
+      alive = false;
+    };
+  }, [contestOn]);
+
+  // Re-fetches when the sort flips. The contest id is passed so entries are left out of this
+  // section: they are already the feed above, and showing them twice makes the page look shorter
+  // than it is. Like the leaderboard above, `others` is cleared to null by the PRESS that changes
+  // the sort, so this effect only fetches and never sets state synchronously.
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let alive = true;
+    fetchDiscoverBinders(sort, 40, contestOn ? CONTEST.id : undefined)
+      .then((rows) => alive && setOthers(rows))
+      .catch(() => alive && setOthers([]));
+    return () => {
+      alive = false;
+    };
+  }, [sort, contestOn]);
+
   // Covers resolve straight from card ids, so hydrate the lite image manifest for hashed URLs.
   useImageManifest();
 
@@ -81,7 +148,10 @@ export default function DiscoverScreen() {
   // null), so there's no synchronous setState here.
   useEffect(() => {
     if (!isSupabaseConfigured) return;
+    // Bump the request id even when we don't search, so an in-flight query that the user has
+    // since cleared cannot land and repaint the grid behind the default sections.
     const id = ++reqId.current;
+    if (!query.trim()) return;
     const handle = setTimeout(async () => {
       try {
         const rows = await searchBinders(query.trim());
@@ -208,25 +278,117 @@ export default function DiscoverScreen() {
             <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
               Public binder search isn’t available in this build.
             </ThemedText>
-          ) : results === null ? (
-            <View style={styles.center}>
-              <ActivityIndicator />
-            </View>
-          ) : results.length === 0 ? (
-            <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
-              {q ? `No public binders match “${q}”.` : 'No public binders to show yet.'}
-            </ThemedText>
-          ) : (
-            <>
-              {!q ? (
-                <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionLabel}>
-                  Popular right now
-                </ThemedText>
-              ) : null}
+          ) : q ? (
+            results === null ? (
+              <View style={styles.center}>
+                <ActivityIndicator />
+              </View>
+            ) : results.length === 0 ? (
+              <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
+                {`No public binders match “${q}”.`}
+              </ThemedText>
+            ) : (
               <View style={[styles.grid, { gap: GRID_GAP }]}>
                 {results.map((b) => (
                   <BinderThumb key={b.id} binder={b} width={tileW} onPress={() => openBinder(b.id)} />
                 ))}
+              </View>
+            )
+          ) : (
+            <>
+              {/* 1. Every entry in the running contest, newest first. */}
+              {contestOn && feed && feed.length > 0 ? (
+                <View style={styles.section}>
+                  <View style={styles.sectionHead}>
+                    <ThemedText
+                      type="smallBold"
+                      themeColor="textSecondary"
+                      style={styles.sectionLabel}>
+                      Contest entries
+                    </ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {feed.length} entered
+                    </ThemedText>
+                  </View>
+                  <View style={[styles.grid, { gap: GRID_GAP }]}>
+                    {feed.map((e) => (
+                      <BinderThumb
+                        key={e.binder.id}
+                        binder={e.binder}
+                        width={tileW}
+                        onPress={() => openBinder(e.binder.id)}
+                        accessory={
+                          <ThemedText type="small" themeColor="textSecondary">
+                            {CATEGORY_LABEL[e.category] ?? e.category} · ♥ {e.binder.likeCount ?? 0}
+                          </ThemedText>
+                        }
+                      />
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+
+              {/* 2. Everything that is not an entry, in the order the reader chooses. */}
+              <View style={styles.section}>
+                <View style={styles.sectionHead}>
+                  <ThemedText
+                    type="smallBold"
+                    themeColor="textSecondary"
+                    style={styles.sectionLabel}>
+                    {contestOn && feed && feed.length > 0 ? 'Every other binder' : 'All binders'}
+                  </ThemedText>
+                  <View style={styles.sortRow}>
+                    {SORTS.map((s) => {
+                      const active = sort === s.key;
+                      return (
+                        <Pressable
+                          key={s.key}
+                          onPress={() => {
+                            if (active) return;
+                            setOthers(null);
+                            setSort(s.key);
+                          }}
+                          accessibilityRole="tab"
+                          accessibilityState={{ selected: active }}
+                          style={[styles.sortChip, active && styles.sortChipActive]}
+                          hitSlop={2}>
+                          <ThemedText
+                            type="small"
+                            style={[styles.sortChipText, active && styles.sortChipTextActive]}>
+                            {s.label}
+                          </ThemedText>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+                {others === null ? (
+                  <View style={styles.center}>
+                    <ActivityIndicator />
+                  </View>
+                ) : others.length === 0 ? (
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
+                    No public binders to show yet.
+                  </ThemedText>
+                ) : (
+                  <View style={[styles.grid, { gap: GRID_GAP }]}>
+                    {others.map((b) => (
+                      <BinderThumb
+                        key={b.id}
+                        binder={b}
+                        width={tileW}
+                        onPress={() => openBinder(b.id)}
+                        accessory={
+                          sort === 'likes' ? (
+                            <ThemedText type="small" themeColor="textSecondary">
+                              ♥ {b.likeCount ?? 0}
+                            </ThemedText>
+                          ) : undefined
+                        }
+                      />
+                    ))}
+                  </View>
+                )}
               </View>
             </>
           )}
@@ -260,12 +422,28 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.four,
     maxWidth: 520,
   },
-  sectionLabel: {
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    fontSize: FontSize.sm,
+  sectionLabel: { textTransform: 'uppercase', letterSpacing: 0.5, fontSize: FontSize.sm },
+  section: { marginBottom: Spacing.five },
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
     marginBottom: Spacing.three,
   },
+  sortRow: { flexDirection: 'row', gap: Spacing.one },
+  sortChip: {
+    paddingVertical: Spacing.one,
+    paddingHorizontal: Spacing.two,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
+    backgroundColor: Palette.surface,
+  },
+  sortChipActive: { borderColor: Palette.accent, backgroundColor: Palette.accent },
+  sortChipText: { fontSize: 12 },
+  sortChipTextActive: { color: Palette.accentText },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   center: { paddingVertical: Spacing.six, alignItems: 'center' },
   note: { paddingVertical: Spacing.three },

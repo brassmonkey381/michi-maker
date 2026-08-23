@@ -615,3 +615,36 @@ export async function searchBinders(query: string, limit = 40): Promise<DemoBind
     ];
   });
 }
+
+/** Discover's ordering for the "everything else" section. */
+export type DiscoverSort = 'recent' | 'likes';
+
+/**
+ * Public binders for the Discover page, ordered by when they were made public or by likes, with
+ * the running contest's entries left out (they have their own feed above). Backed by the
+ * `discover_binders` RPC, which carries the same visibility gate as `search_binders`.
+ *
+ * FALLS BACK when the RPC is absent (PGRST202 — the migration has not been applied to this
+ * project yet): the page then shows the most-liked binders via `search_binders`, contest entries
+ * included. Discover degrades to what it did before instead of rendering an error, which matters
+ * because the client ships ahead of the migration on any deploy where the two are not in step.
+ */
+export async function fetchDiscoverBinders(
+  sort: DiscoverSort,
+  limit = 40,
+  excludeContest?: string,
+): Promise<DemoBinder[]> {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase.rpc('discover_binders', {
+    p_sort: sort,
+    p_limit: limit,
+    p_contest: excludeContest ?? null,
+  });
+  if (error) {
+    if (error.code === 'PGRST202') return searchBinders('', limit);
+    throw new Error(`discover binders: ${error.message}`);
+  }
+  return hydrateRankedBinders(
+    (data ?? []) as { binder_id: string; like_count: number; author_name: string | null }[],
+  );
+}

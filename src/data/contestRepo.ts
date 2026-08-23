@@ -149,3 +149,51 @@ export async function fetchContestWinners(contest = CONTEST.id): Promise<Contest
     ownerId: r.owner_id,
   }));
 }
+
+/** One entry in the Discover feed: the binder plus which category it was entered in. */
+export interface FeedEntry {
+  binder: DemoBinder;
+  category: ContestCategory;
+  enteredAt: string;
+}
+
+/**
+ * Every public entry in the running contest, NEWEST FIRST — the feed at the top of Discover.
+ *
+ * Deliberately not the leaderboard. `fetchContestLeaderboard(null)` returns the same entries
+ * ranked by votes, which leaves the same binders parked at the top until the voting moves and
+ * gives a brand new entry nowhere to appear. A feed ordered by entry time means entering a
+ * binder puts it in front of people straight away, and the vote-ranked view is still one chip
+ * away.
+ *
+ * Falls back to the leaderboard when the RPC is absent (PGRST202 — migration not applied yet).
+ */
+export async function fetchContestEntryFeed(limit = 60): Promise<FeedEntry[]> {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase.rpc('contest_entry_feed', {
+    p_contest: CONTEST.id,
+    p_limit: limit,
+  });
+  if (error) {
+    if (error.code === 'PGRST202') {
+      const binders = await fetchContestLeaderboard(null, limit);
+      return binders.map((b) => ({ binder: b, category: 'aesthetic' as ContestCategory, enteredAt: '' }));
+    }
+    throw new Error(`entry feed: ${error.message}`);
+  }
+  const rows = (data ?? []) as {
+    binder_id: string;
+    like_count: number;
+    author_name: string | null;
+    category: string;
+    entered_at: string;
+  }[];
+  const binders = await hydrateRankedBinders(rows);
+  // hydrateRankedBinders drops binders that vanished between ranking and fetch, so match on id
+  // rather than assuming the two arrays line up.
+  const meta = new Map(rows.map((r) => [r.binder_id, r]));
+  return binders.flatMap((b) => {
+    const r = meta.get(b.id);
+    return r ? [{ binder: b, category: r.category as ContestCategory, enteredAt: r.entered_at }] : [];
+  });
+}

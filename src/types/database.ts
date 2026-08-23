@@ -846,6 +846,25 @@ export type Database = {
           like_count: number
         }[]
       }
+      contest_entry_feed: {
+        Args: { p_contest: string; p_limit?: number }
+        Returns: {
+          author_name: string
+          binder_id: string
+          category: string
+          entered_at: string
+          like_count: number
+        }[]
+      }
+      discover_binders: {
+        Args: { p_sort?: string; p_limit?: number; p_contest?: string | null }
+        Returns: {
+          author_name: string
+          binder_id: string
+          like_count: number
+          made_public_at: string
+        }[]
+      }
       featured_binders: {
         Args: { p_limit?: number }
         Returns: {

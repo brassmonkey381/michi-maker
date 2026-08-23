@@ -3,9 +3,10 @@
  *
  *   • TYPED QUERY — the debounced `search_binders` RPC (title / description / owner @username).
  *   • A CONTEST CATEGORY CHIP — that category's entries, ranked by votes.
- *   • NEITHER (the default) — two stacked sections: a feed of every contest entry, newest entry
- *     first, then every binder that is NOT an entry, ordered by when it was made public or by
- *     likes. The reader picks between those two orderings; publish date is the default.
+ *   • NEITHER (the default) — three stacked sections: a feed of every contest entry, newest entry
+ *     first; then Public binders, everything that is not an entry, ordered by when it was made
+ *     public or by likes (the reader picks, and publish date is the default); then the house
+ *     account's own reference binders, which are deliberately last.
  *
  * The default used to be one grid of the most-liked binders, which is a leaderboard rather than a
  * discovery surface: the same binders hold the top, and something published today is invisible
@@ -49,7 +50,12 @@ import {
   Radius,
   Spacing,
 } from '@/constants/theme';
-import { fetchDiscoverBinders, searchBinders, type DiscoverSort } from '@/data/binderRepo';
+import {
+  fetchDiscoverBinders,
+  OFFICIAL_AUTHOR,
+  searchBinders,
+  type DiscoverSort,
+} from '@/data/binderRepo';
 import type { DemoBinder } from '@/data/binderTypes';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useImageManifest } from '@/lib/catalogConfig';
@@ -132,13 +138,31 @@ export default function DiscoverScreen() {
   useEffect(() => {
     if (!isSupabaseConfigured) return;
     let alive = true;
-    fetchDiscoverBinders(sort, 40, contestOn ? CONTEST.id : undefined)
+    fetchDiscoverBinders(sort, {
+      excludeContest: contestOn ? CONTEST.id : undefined,
+      excludeAuthor: OFFICIAL_AUTHOR,
+    })
       .then((rows) => alive && setOthers(rows))
       .catch(() => alive && setOthers([]));
     return () => {
       alive = false;
     };
   }, [sort, contestOn]);
+
+  // The house account's own binders, kept out of the section above and shown last. Fetched once,
+  // not re-fetched on the sort chips: this is a shelf of reference material rather than a ranking,
+  // so newest-published is the only order it needs.
+  const [house, setHouse] = useState<DemoBinder[] | null>(null);
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let alive = true;
+    fetchDiscoverBinders('recent', { author: OFFICIAL_AUTHOR, limit: 24 })
+      .then((rows) => alive && setHouse(rows))
+      .catch(() => alive && setHouse([]));
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // Covers resolve straight from card ids, so hydrate the lite image manifest for hashed URLs.
   useImageManifest();
@@ -335,7 +359,7 @@ export default function DiscoverScreen() {
                     type="smallBold"
                     themeColor="textSecondary"
                     style={styles.sectionLabel}>
-                    {contestOn && feed && feed.length > 0 ? 'Every other binder' : 'All binders'}
+                    Public binders
                   </ThemedText>
                   <View style={styles.sortRow}>
                     {SORTS.map((s) => {
@@ -390,6 +414,35 @@ export default function DiscoverScreen() {
                   </View>
                 )}
               </View>
+
+              {/* 3. The house account's reference binders, last. Hidden entirely when it has
+                  published none, so the heading never sits above an empty shelf. */}
+              {house && house.length > 0 ? (
+                <View style={styles.section}>
+                  <View style={styles.sectionHead}>
+                    <ThemedText
+                      type="smallBold"
+                      themeColor="textSecondary"
+                      style={styles.sectionLabel}>
+                      From michi-maker
+                    </ThemedText>
+                  </View>
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.sectionNote}>
+                    Reference binders from the house account: plain card layouts to copy and build
+                    on, rather than finished pieces.
+                  </ThemedText>
+                  <View style={[styles.grid, { gap: GRID_GAP }]}>
+                    {house.map((b) => (
+                      <BinderThumb
+                        key={b.id}
+                        binder={b}
+                        width={tileW}
+                        onPress={() => openBinder(b.id)}
+                      />
+                    ))}
+                  </View>
+                </View>
+              ) : null}
             </>
           )}
         </ScrollView>
@@ -432,6 +485,7 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     marginBottom: Spacing.three,
   },
+  sectionNote: { lineHeight: 18, marginTop: -Spacing.two, marginBottom: Spacing.three },
   sortRow: { flexDirection: 'row', gap: Spacing.one },
   sortChip: {
     paddingVertical: Spacing.one,

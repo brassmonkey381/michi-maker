@@ -616,32 +616,53 @@ export async function searchBinders(query: string, limit = 40): Promise<DemoBind
   });
 }
 
-/** Discover's ordering for the "everything else" section. */
+/** Discover's ordering for the main "Public binders" section. */
 export type DiscoverSort = 'recent' | 'likes';
 
 /**
- * Public binders for the Discover page, ordered by when they were made public or by likes, with
- * the running contest's entries left out (they have their own feed above). Backed by the
- * `discover_binders` RPC, which carries the same visibility gate as `search_binders`.
+ * The house account. It publishes plain reference binders (ordinary cards, little or no art),
+ * which are worth keeping browsable but not worth putting ahead of real people's work, so
+ * Discover gives them their own section at the bottom and leaves them out of the main one.
+ */
+export const OFFICIAL_AUTHOR = 'michimaker';
+
+export interface DiscoverOptions {
+  limit?: number;
+  /** Leave out entries of this contest (they have their own feed above). */
+  excludeContest?: string;
+  /** Only this @username. */
+  author?: string;
+  /** Everything except this @username. */
+  excludeAuthor?: string;
+}
+
+/**
+ * Public binders for the Discover page, ordered by when they were made public or by likes.
+ * Backed by the `discover_binders` RPC, which carries the same visibility gate as
+ * `search_binders`.
  *
- * FALLS BACK when the RPC is absent (PGRST202 — the migration has not been applied to this
- * project yet): the page then shows the most-liked binders via `search_binders`, contest entries
- * included. Discover degrades to what it did before instead of rendering an error, which matters
- * because the client ships ahead of the migration on any deploy where the two are not in step.
+ * FALLS BACK when the RPC is absent or has an older signature (PGRST202 — the migration has not
+ * reached this project yet). An unfiltered call degrades to the most-liked binders via
+ * `search_binders`, which is what Discover showed before any of this existed. An AUTHOR-scoped
+ * call cannot degrade that way — `search_binders` has no author filter, and returning everyone's
+ * binders under a section headed with one person's name would be a lie — so it returns nothing
+ * and the caller drops the section.
  */
 export async function fetchDiscoverBinders(
   sort: DiscoverSort,
-  limit = 40,
-  excludeContest?: string,
+  opts: DiscoverOptions = {},
 ): Promise<DemoBinder[]> {
   const supabase = requireSupabase();
+  const limit = opts.limit ?? 40;
   const { data, error } = await supabase.rpc('discover_binders', {
     p_sort: sort,
     p_limit: limit,
-    p_contest: excludeContest ?? null,
+    p_contest: opts.excludeContest ?? null,
+    p_author: opts.author ?? null,
+    p_exclude_author: opts.excludeAuthor ?? null,
   });
   if (error) {
-    if (error.code === 'PGRST202') return searchBinders('', limit);
+    if (error.code === 'PGRST202') return opts.author ? [] : searchBinders('', limit);
     throw new Error(`discover binders: ${error.message}`);
   }
   return hydrateRankedBinders(

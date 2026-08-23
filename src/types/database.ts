@@ -857,7 +857,13 @@ export type Database = {
         }[]
       }
       discover_binders: {
-        Args: { p_sort?: string; p_limit?: number; p_contest?: string | null }
+        Args: {
+          p_sort?: string
+          p_limit?: number
+          p_contest?: string | null
+          p_author?: string | null
+          p_exclude_author?: string | null
+        }
         Returns: {
           author_name: string
           binder_id: string

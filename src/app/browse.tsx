@@ -25,7 +25,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Spacing } from '@/constants/theme';
 import { pagesForCards } from '@/data/binderTypes';
-import { binderLimitMessage, pageLimitMessage } from '@/data/limitMessages';
+import { binderLimitMessage, pageLimitCta, pageLimitMessage } from '@/data/limitMessages';
 import { trackCapGate } from '@/lib/analytics';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useOwnedCards } from '@/hooks/use-owned-cards';
@@ -99,6 +99,23 @@ export default function BrowseScreen() {
     setToast({ id: toastId.current, message });
   };
 
+  // The page cap ends the action the user was mid-way through, so it gets the prominent tone
+  // and a route to the plans page instead of a pill that fades before it is read. Guests get no
+  // button (pageLimitCta returns null) — their route out is a free account, not a plan.
+  const showPageLimitToast = () => {
+    const cta = pageLimitCta(store.tier);
+    toastId.current += 1;
+    setToast({
+      id: toastId.current,
+      message: pageLimitMessage(store.tier, store.limits),
+      // No CTA means no card: a guest's route out is a free account, not a plan, so their
+      // message keeps its existing "Sign in (free)" wording and its quiet pill. Shouting at
+      // someone without handing them a button is just a louder toast.
+      tone: cta ? 'limit' : 'default',
+      cta: cta ?? undefined,
+    });
+  };
+
   const addToExisting = (binderId: string) => {
     if (!addCardIds?.length) return;
     const title = store.getBinder(binderId)?.title ?? 'binder';
@@ -106,7 +123,7 @@ export default function BrowseScreen() {
     setAddCardIds(null);
     // Anything the binder's page cap left out is named, never dropped in silence.
     if (unplaced > 0) {
-      showToast(pageLimitMessage(store.tier, store.limits));
+      showPageLimitToast();
       trackCapGate({
         limit: 'pagesPerBinder',
         surface: 'browse',
@@ -138,7 +155,7 @@ export default function BrowseScreen() {
       return;
     }
     if (short > 0) {
-      showToast(pageLimitMessage(store.tier, store.limits));
+      showPageLimitToast();
       trackCapGate({
         limit: 'pagesPerBinder',
         surface: 'browse',

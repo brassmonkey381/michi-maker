@@ -47,7 +47,7 @@ import { isSupabaseConfigured } from '@/lib/env';
 import { footprintForKind } from '@/data/cardSizing';
 import { resolveCard } from '@/data/cardResolver';
 import { addSavedSlices, removeSavedSlice, sliceSignature, slotSignature, useSavedSlices, useSavedSlicesSync, type SavedSlice } from '@/data/savedSlices';
-import { binderLimitMessage, pageLimitMessage } from '@/data/limitMessages';
+import { binderLimitMessage, pageLimitCta, pageLimitMessage } from '@/data/limitMessages';
 import { trackCapGate } from '@/lib/analytics';
 import { TIER_LIMITS } from '@/data/tiers';
 import { SliceTray, SliceThumb } from '@/components/binder/SliceTray';
@@ -391,7 +391,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // before the new page lands) — the render clamps `pageIndex` to bounds once it does.
   const handleDuplicatePage = () => {
     if (store.pageLimitReached(binder.id)) {
-      showToast(pageLimitMessage(store.tier, store.limits));
+      showPageLimitToast();
       return;
     }
     const result = store.duplicatePage(binder.id, page.id);
@@ -412,15 +412,18 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     const target = store.getBinder(toBinderId);
     const result = store.sendPageToBinder(binder.id, page.id, toBinderId, { move });
     if (result.status !== 'ok') {
-      showToast(
-        result.status === 'size-mismatch'
-          ? `“${target?.title ?? 'That binder'}” uses a different pocket layout, so this page won’t fit.`
-          : result.status === 'target-full'
-            ? pageLimitMessage(store.tier, store.limits)
+      // A full target is the page cap like any other, so it gets the same prominent tone and
+      // route out rather than being flattened into the generic "couldn't send" line.
+      if (result.status === 'target-full') showPageLimitToast();
+      else {
+        showToast(
+          result.status === 'size-mismatch'
+            ? `“${target?.title ?? 'That binder'}” uses a different pocket layout, so this page won’t fit.`
             : result.status === 'last-page'
               ? 'This is the binder’s only page. Send a copy instead of moving it.'
               : 'Could not send that page.',
-      );
+        );
+      }
       return;
     }
     if (move) {
@@ -446,6 +449,23 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         ? { id: toastId.current, message, actionLabel: 'Undo', onAction: store.undo }
         : { id: toastId.current, message },
     );
+  };
+
+  // Hitting the page cap ends the thing the user was doing, so it gets the prominent tone and a
+  // route to the plans page rather than a pill that fades before it is read. Guests get no
+  // button (pageLimitCta returns null) — their route out is a free account, not a plan.
+  const showPageLimitToast = () => {
+    const cta = pageLimitCta(store.tier);
+    toastId.current += 1;
+    setToast({
+      id: toastId.current,
+      message: pageLimitMessage(store.tier, store.limits),
+      // No CTA means no card: a guest's route out is a free account, not a plan, so their
+      // message keeps its existing "Sign in (free)" wording and its quiet pill. Shouting at
+      // someone without handing them a button is just a louder toast.
+      tone: cta ? 'limit' : 'default',
+      cta: cta ?? undefined,
+    });
   };
 
   const clearMulti = () => setMultiIds((cur) => (cur.size ? new Set() : cur));
@@ -663,7 +683,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     const title = store.getBinder(targetId)?.title ?? 'binder';
     setAddElsewhereIds(null);
     // Anything the target binder's page cap left out is named, never dropped in silence.
-    if (unplaced > 0) showToast(pageLimitMessage(store.tier, store.limits));
+    if (unplaced > 0) showPageLimitToast();
     else if (added > 0) showToast(`Added ${added} card${added === 1 ? '' : 's'} to ${title}`);
   };
   const addElsewhereNew = () => {
@@ -710,7 +730,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     // The binder can run out of pages at the tier cap — name it (with the upgrade route) rather
     // than quietly placing fewer cards than the user picked.
     if (unplaced > 0) {
-      showToast(pageLimitMessage(store.tier, store.limits));
+      showPageLimitToast();
       trackCapGate({
         limit: 'pagesPerBinder',
         surface: 'binder_editor',
@@ -977,7 +997,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           label="+ Page"
           onPress={() =>
             store.pageLimitReached(binder.id)
-              ? showToast(pageLimitMessage(store.tier, store.limits))
+              ? showPageLimitToast()
               : store.addPage(binder.id)
           }
         />

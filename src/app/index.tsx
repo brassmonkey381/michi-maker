@@ -19,7 +19,7 @@ import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { pagesForCards } from '@/data/binderTypes';
 import { CONTEST, contestPhase } from '@/data/contest';
-import { binderLimitMessage, pageLimitMessage } from '@/data/limitMessages';
+import { binderLimitMessage, pageLimitCta, pageLimitMessage } from '@/data/limitMessages';
 import { track, trackCapGate } from '@/lib/analytics';
 import { useImageManifest } from '@/lib/catalogConfig';
 import { shouldShowLanding } from '@/lib/landing';
@@ -73,6 +73,23 @@ export default function HomeScreen() {
     toastId.current += 1;
     setToast({ id: toastId.current, message });
   };
+
+  // The page cap ends the action the user was mid-way through, so it gets the prominent tone
+  // and a route to the plans page instead of a pill that fades before it is read. Guests get no
+  // button (pageLimitCta returns null) — their route out is a free account, not a plan.
+  const showPageLimitToast = () => {
+    const cta = pageLimitCta(store.tier);
+    toastId.current += 1;
+    setToast({
+      id: toastId.current,
+      message: pageLimitMessage(store.tier, store.limits),
+      // No CTA means no card: a guest's route out is a free account, not a plan, so their
+      // message keeps its existing "Sign in (free)" wording and its quiet pill. Shouting at
+      // someone without handing them a button is just a louder toast.
+      tone: cta ? 'limit' : 'default',
+      cta: cta ?? undefined,
+    });
+  };
   const showAddedToast = (binderId: string, title: string) => {
     toastId.current += 1;
     setToast({
@@ -93,7 +110,7 @@ export default function HomeScreen() {
     setAddCardId(null);
     if (added > 0) showAddedToast(binderId, title);
     else if (unplaced > 0) {
-      showToast(pageLimitMessage(store.tier, store.limits));
+      showPageLimitToast();
       trackCapGate({
         limit: 'pagesPerBinder',
         surface: 'home',

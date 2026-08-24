@@ -369,16 +369,22 @@ function ProfileView({ onClose }: { onClose: () => void }) {
       if (r.error) setPublicProfile(!v); // revert on failure
     });
   };
-  // Product email. Defaults to OFF for everyone, including every account that existed before the
-  // column did: consent has to be given, never inherited. The privacy policy promises this switch
-  // by name, so it is not optional decoration.
+  // Product email. Opt-OUT since 2026-08-24: accounts are enrolled by default and this is how
+  // someone leaves without waiting for a message to arrive. Writing 'settings' as the source is
+  // what separates a real yes from an enrolment, and that distinction is the only defensible
+  // audience for an EU send. The privacy policy promises this switch by name.
   const [emailOptIn, setEmailOptIn] = useState<boolean | null>(null);
   const marketingOn = emailOptIn ?? auth.profile?.marketing_consent ?? false;
   const toggleMarketing = (v: boolean) => {
     setEmailOptIn(v);
-    void auth.updateProfile({ marketing_consent: v }).then((r) => {
-      if (r.error) setEmailOptIn(!v);
-    });
+    void auth
+      .updateProfile({
+        marketing_consent: v,
+        marketing_consent_source: v ? 'settings' : 'settings_off',
+      })
+      .then((r) => {
+        if (r.error) setEmailOptIn(!v);
+      });
   };
 
   const email = auth.user?.email ?? '';

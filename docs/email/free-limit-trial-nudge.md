@@ -4,9 +4,16 @@ Status: **draft, not cleared to send.** See `../../EMAIL-MARKETING.md` for what 
 (consent column, signup checkbox, Settings toggle, working unsubscribe endpoint). The headers
 below assume all four.
 
-Audience: signed-in accounts at or over `TIER_LIMITS.free.binders` (3), who have never started a
-michi trial and hold no paid entitlement. Compute from binder counts, not from `cap.gate_shown`,
-which only reaches back to 2026-08-13.
+Audience: **`public.campaign_free_limit_reached`**, and nothing else. That view is free-tier
+accounts, already enrolled for product email, who are at the binder cap OR hold a binder at the
+page cap. Both walls count: either one is somebody who wanted more room and did not get it.
+
+Do not hand-write a variant. The caps come from `tier_caps` so the audience follows the plan if it
+ever changes, archived and demo binders are excluded exactly as the app excludes them, and paying
+tiers are filtered out. Every one of those is a condition that gets forgotten when the query is
+retyped, and forgetting the last one means mailing customers about the free plan.
+
+The view includes the owner's own accounts. Use one as the test send, drop the rest.
 
 Two things this message exists to correct, both real misunderstandings rather than guesses:
 
@@ -52,8 +59,9 @@ class of rendering and filtering problems.
 ```
 Hi{{#if username}} {{username}}{{/if}},
 
-You are at three binders in michi-maker, the free plan's limit. The PRO trial
-takes you to 12, and pages per binder from 16 to 40.
+{{#if at_binder_cap}}You are at three binders in michi-maker, the free plan's
+limit.{{else}}You have a binder at 16 pages, which is the free plan's limit.{{/if}}
+The PRO trial takes you to 12 binders and 40 pages each.
 
 It needs no credit card. Nothing renews, there is nothing to cancel, and after
 14 days the account goes back to Free on its own.
@@ -73,14 +81,18 @@ You have a michi-maker account. Unsubscribe from product email:
 https://tcgscan.ai/unsubscribe?t={{token}}
 Account email (sign-in, receipts, plan notices) still reaches you.
 
-{{postal_address}}
+michi-maker
+2350 Saratoga St
+Alameda, CA 94501
 ```
 
 ---
 
 ## Before sending
 
-- [ ] Decide the postal address for `{{postal_address}}`. CAN-SPAM requires a real one, and it is
+- [ ] Decide the postal address for `michi-maker
+2350 Saratoga St
+Alameda, CA 94501`. CAN-SPAM requires a real one, and it is
       now the only blocker that is not code. See the options in ../../../EMAIL-MARKETING.md; do not
       use a home address.
 - [ ] Confirm at least one person has actually opted in. `marketing_recipients` is empty by design

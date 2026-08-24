@@ -678,6 +678,7 @@ export type Database = {
           is_public: boolean
           marketing_consent: boolean
           marketing_consent_at: string | null
+          marketing_consent_source: string | null
           marketing_unsubscribed_at: string | null
           preferences: Json
           updated_at: string
@@ -692,6 +693,7 @@ export type Database = {
           is_public?: boolean
           marketing_consent?: boolean
           marketing_consent_at?: string | null
+          marketing_consent_source?: string | null
           marketing_unsubscribed_at?: string | null
           preferences?: Json
           updated_at?: string
@@ -706,6 +708,7 @@ export type Database = {
           is_public?: boolean
           marketing_consent?: boolean
           marketing_consent_at?: string | null
+          marketing_consent_source?: string | null
           marketing_unsubscribed_at?: string | null
           preferences?: Json
           updated_at?: string

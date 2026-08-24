@@ -77,16 +77,38 @@ Brian
 michi-maker
 
 ---
-You have a michi-maker account. Unsubscribe from product email:
-https://tcgscan.ai/unsubscribe?t={{token}}
-Account email (sign-in, receipts, plan notices) still reaches you.
+Promotional message from michi-maker. You are getting it because you have an
+account with us.
+
+Unsubscribe from product email: https://tcgscan.ai/unsubscribe?t={{token}}
+One click, takes effect straight away, no sign-in. Account email (sign-in,
+receipts, plan notices) still reaches you.
 
 michi-maker
 2350 Saratoga St
 Alameda, CA 94501
 ```
 
+The footer is not decoration. Every line in it is one of the CAN-SPAM elements: the ad disclosure,
+the opt-out that costs nothing but a click, and the postal address. Trimming it to look friendlier
+is how a compliant message stops being one.
+
 ---
+
+## CAN-SPAM, line by line
+
+This message is commercial (its purpose is to sell PRO), so all seven rules apply rather than the
+narrow transactional exemption.
+
+| Rule | How this message satisfies it |
+| --- | --- |
+| 1. No false or misleading headers | `From: michi-maker <hello@tcgscan.ai>` names the business the recipient actually has an account with; tcgscan.ai is our authenticated sending domain, and the same operator runs both. `Reply-To` is a monitored human inbox. |
+| 2. No deceptive subject | The subject names the product and the offer. It is not a tease and it promises nothing the body does not deliver. |
+| 3. Identify it as an ad | "Promotional message from michi-maker" opens the footer. **This is the rule the earlier draft failed**, and it is the easiest one to lose by tidying the footer. |
+| 4. Your physical address | The Alameda address, in every message. |
+| 5. How to opt out | A plain-language line and a visible link, not buried in an image or a light-grey pixel. |
+| 6. Honor opt-outs promptly | The law allows 10 business days. The link is instant, needs no sign-in and no information beyond the click, and never expires (the law's floor is 30 days). `marketing_recipients` filters on the suppression, so a later send cannot reach them. |
+| 7. Watch your provider | Resend delivers, but liability stays with us. |
 
 ## Before sending
 

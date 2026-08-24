@@ -88,8 +88,13 @@ export function TrialCta({
           <Text style={styles.btnText}>Start free 14-day PRO trial</Text>
         )}
       </Pressable>
+      {/* "No card" was too terse to do its job. The trial creates a `tier_pro` entitlement with an
+          expires_at and no Stripe subscription, so there is genuinely nothing to charge and
+          nothing to cancel — but a reader who has been burned by other trials assumes otherwise
+          and does not start one. Say all three parts plainly. */}
       <ThemedText type="small" themeColor="textSecondary" style={styles.fine}>
-        No card. Starts now: full PRO for 14 days, then back to Free.
+        No credit card required. Full PRO for 14 days, starting now, then back to Free on its own.
+        Nothing to cancel, and you are never charged.
       </ThemedText>
       {trial.error ? (
         <ThemedText type="small" style={styles.error}>

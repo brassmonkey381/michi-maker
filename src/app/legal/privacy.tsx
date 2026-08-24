@@ -40,13 +40,15 @@ const SECTIONS: Section[] = [
     heading: '2. How we use it',
     paragraphs: [
       'To run the product: saving your binders, syncing them across your devices, and showing your public pages to others only when you have marked them public. We do not use your content for anything else.',
+      'To email you. Some of it the service cannot work without: confirming your address, resetting a password, receipts, and notices about your plan or a change to these terms. Those arrive whatever your settings, because they are the account itself rather than promotion. Separately, and only if you have said yes, we may email you about the product: that you have reached a limit on your plan, that a feature you were blocked from now works, or that something new has shipped. Every one of those carries a one-click unsubscribe that takes effect immediately and for good, and you can also turn it off in Settings.',
+      'Both kinds are sent by Resend, our email provider, and arrive from tcgscan.ai, the account system michi-maker shares with TCGScan. We never sell or rent your address, we never hand it to anyone else to mail you, and we never put another company’s advertising in front of you.',
     ],
   },
   {
     heading: '3. Where it lives',
     paragraphs: [
       'Your data is stored with Supabase, our database and authentication provider, which runs on Amazon Web Services in the US East (Northern Virginia) region.',
-      'Two other providers handle parts of the service: Vercel hosts the web app, and Stripe processes payments (see Payments below). Each stores only what it needs to do its job.',
+      'Three other providers handle parts of the service: Vercel hosts the web app, Stripe processes payments (see Payments below), and Resend delivers our email. Each stores only what it needs to do its job.',
     ],
   },
   {

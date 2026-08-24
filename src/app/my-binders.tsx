@@ -31,7 +31,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Breakpoints, FontSize, MaxContentWidth, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { fillerName } from '@/data/binderTypes';
-import { binderLimitMessage } from '@/data/limitMessages';
+import { binderLimitMessage, limitCta } from '@/data/limitMessages';
 import { track, trackCapGate } from '@/lib/analytics';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useImageManifest } from '@/lib/catalogConfig';
@@ -61,6 +61,15 @@ export default function MyBindersScreen() {
     setToast({ id: toastId.current, message });
   };
 
+  // Hitting a cap ends the action the user was mid-way through, so every cap toast gets the
+  // prominent tone and a button out. Which way out depends on the tier (see limitCta): the plans
+  // page for accounts that can pay, the auth sheet for guests, whose cap is lifted by the free
+  // tier rather than by a plan. Passed to MyCollection too, which reaches the same binder cap.
+  const showLimitToast = (message: string) => {
+    toastId.current += 1;
+    setToast({ id: toastId.current, message, tone: 'limit', cta: limitCta(store.tier) });
+  };
+
   // Collection tiles drive the card browser on /browse. The command bus holds one pending
   // command, so it lands the moment /browse's CatalogBrowser subscribes.
   const openBrowse = () => router.push('/browse' as Href);
@@ -84,7 +93,7 @@ export default function MyBindersScreen() {
 
   const handleNew = () => {
     if (store.atBinderLimit) {
-      showToast(binderLimitMessage(store.tier, store.limits));
+      showLimitToast(binderLimitMessage(store.tier, store.limits));
       trackCapGate({
         limit: 'binders',
         surface: 'my_binders',
@@ -127,7 +136,7 @@ export default function MyBindersScreen() {
       else {
         // The store refused past the binder cap — the same wall as handleNew, reached by a
         // different door, so it reports the same limit on the same surface.
-        showToast(binderLimitMessage(store.tier, store.limits));
+        showLimitToast(binderLimitMessage(store.tier, store.limits));
         trackCapGate({
           limit: 'binders',
           surface: 'my_binders',
@@ -251,6 +260,7 @@ export default function MyBindersScreen() {
           {/* My collection — the tcgscan-fed inventory; appears with the first scan/import. */}
           <MyCollection
             onToast={showToast}
+            onLimitToast={showLimitToast}
             onOpenBinder={openBinder}
             onFindSimilar={driveSimilarIds}
             onViewSet={driveViewSet}

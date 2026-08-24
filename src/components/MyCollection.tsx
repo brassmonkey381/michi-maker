@@ -75,11 +75,15 @@ function cardCountLabel(copies: number, distinct: number): string {
 
 export function MyCollection({
   onToast,
+  onLimitToast,
   onOpenBinder,
   onFindSimilar,
   onViewSet,
 }: {
   onToast?: (message: string) => void;
+  /** Cap toasts, which carry a tier-appropriate button (plans, or the auth sheet for guests).
+   *  Separate from onToast because a cap is not a confirmation and does not look like one. */
+  onLimitToast?: (message: string) => void;
   onOpenBinder?: (binderId: string) => void;
   /** Drive the home browser: find-similar for one or many cards. */
   onFindSimilar?: (cardIds: string[]) => void;
@@ -117,6 +121,7 @@ export function MyCollection({
     <CollectionStrip
       cards={cards}
       onToast={onToast}
+      onLimitToast={onLimitToast}
       onOpenBinder={onOpenBinder}
       onFindSimilar={onFindSimilar}
       onViewSet={onViewSet}
@@ -194,6 +199,7 @@ function EmptyCollection({
 function CollectionStrip({
   cards,
   onToast,
+  onLimitToast,
   onOpenBinder,
   onFindSimilar,
   onViewSet,
@@ -202,6 +208,8 @@ function CollectionStrip({
 }: {
   cards: UserCard[];
   onToast?: (message: string) => void;
+  /** See MyCollection's prop of the same name: cap toasts carry a tier-appropriate button. */
+  onLimitToast?: (message: string) => void;
   onOpenBinder?: (binderId: string) => void;
   onFindSimilar?: (cardIds: string[]) => void;
   onViewSet?: (cardId: string) => void;
@@ -508,7 +516,7 @@ function CollectionStrip({
     const binder = store.createBinder({ title: 'My collection picks' });
     // The store refuses past the binder cap — say so instead of silently doing nothing.
     if (!binder) {
-      onToast?.(binderLimitMessage(store.tier, store.limits));
+      (onLimitToast ?? onToast)?.(binderLimitMessage(store.tier, store.limits));
       return;
     }
     setPendingAdd({ binderId: binder.id, ids });

@@ -24,14 +24,33 @@ export function pageLimitMessage(tier: Tier, limits: TierLimits): string {
 }
 
 /**
- * The button a page-limit toast carries, or null for no button.
- *
- * Guests get null, and that is the same rule as the copy above rather than an oversight: their
- * next step is a free account, not a price table, and signing in is an AuthSheet rather than a
- * route — so their toast keeps the "Sign in (free)" wording and stays the quiet pill. Everyone
- * from free upward gets a real route to the plans page, which is the whole point of the
- * prominent tone: a cap that ends the interaction should hand back a way forward.
+ * Kept artwork is a RETENTION cap, so the wording is "keeping N of M" rather than "you have hit
+ * a wall" — the way out is deleting a slice as much as it is a bigger allowance. Lived inline in
+ * BinderScreen until the gate toasts were given buttons; it is here now so all three caps word
+ * themselves the same way and share one CTA rule.
  */
-export function pageLimitCta(tier: Tier): { label: string; href: '/plans' } | null {
-  return tier === 'guest' ? null : { label: 'See plans', href: '/plans' };
+export function artLimitMessage(tier: Tier, limits: TierLimits): string {
+  if (tier === 'guest') {
+    return `Guests can keep ${limits.artUploads} artworks. Sign in (free) to keep up to ${TIER_LIMITS.free.artUploads}.`;
+  }
+  return `You’ve reached your ${limits.artUploads}-artwork limit. Upgrade for more room.`;
+}
+
+/**
+ * The button a cap toast carries. Every tier gets one: a cap that ends the action the user was
+ * mid-way through should hand back a way forward, and which way forward differs by tier.
+ *
+ * Guests are routed to the auth sheet, NEVER to the price table — the free tier is what lifts
+ * their cap, so a plans pitch would be selling to someone who has not signed up yet. That is the
+ * same rule the copy above follows, expressed as a button. The label matches the sentence it sits
+ * under ("Sign in (free)") rather than inventing a second phrasing for the same action.
+ */
+export type LimitCta =
+  | { kind: 'plans'; label: string }
+  | { kind: 'signin'; label: string };
+
+export function limitCta(tier: Tier): LimitCta {
+  return tier === 'guest'
+    ? { kind: 'signin', label: 'Sign in (free)' }
+    : { kind: 'plans', label: 'See plans' };
 }

@@ -25,7 +25,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Spacing } from '@/constants/theme';
 import { pagesForCards } from '@/data/binderTypes';
-import { binderLimitMessage, pageLimitCta, pageLimitMessage } from '@/data/limitMessages';
+import { binderLimitMessage, limitCta, pageLimitMessage } from '@/data/limitMessages';
 import { trackCapGate } from '@/lib/analytics';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useOwnedCards } from '@/hooks/use-owned-cards';
@@ -94,26 +94,14 @@ export default function BrowseScreen() {
     ].filter(Boolean) as CardAction[];
   };
 
-  const showToast = (message: string) => {
-    toastId.current += 1;
-    setToast({ id: toastId.current, message });
-  };
 
-  // The page cap ends the action the user was mid-way through, so it gets the prominent tone
-  // and a route to the plans page instead of a pill that fades before it is read. Guests get no
-  // button (pageLimitCta returns null) — their route out is a free account, not a plan.
-  const showPageLimitToast = () => {
-    const cta = pageLimitCta(store.tier);
+  // Hitting a cap ends the action the user was mid-way through, so every cap toast gets the
+  // prominent tone and a button out. Which way out depends on the tier (see limitCta): the plans
+  // page for accounts that can pay, the auth sheet for guests, whose cap is lifted by the free
+  // tier rather than by a plan.
+  const showLimitToast = (message: string) => {
     toastId.current += 1;
-    setToast({
-      id: toastId.current,
-      message: pageLimitMessage(store.tier, store.limits),
-      // No CTA means no card: a guest's route out is a free account, not a plan, so their
-      // message keeps its existing "Sign in (free)" wording and its quiet pill. Shouting at
-      // someone without handing them a button is just a louder toast.
-      tone: cta ? 'limit' : 'default',
-      cta: cta ?? undefined,
-    });
+    setToast({ id: toastId.current, message, tone: 'limit', cta: limitCta(store.tier) });
   };
 
   const addToExisting = (binderId: string) => {
@@ -123,7 +111,7 @@ export default function BrowseScreen() {
     setAddCardIds(null);
     // Anything the binder's page cap left out is named, never dropped in silence.
     if (unplaced > 0) {
-      showPageLimitToast();
+      showLimitToast(pageLimitMessage(store.tier, store.limits));
       trackCapGate({
         limit: 'pagesPerBinder',
         surface: 'browse',
@@ -144,7 +132,7 @@ export default function BrowseScreen() {
     setAddCardIds(null);
     // The store refuses past the binder cap — say so instead of silently doing nothing.
     if (!binder) {
-      showToast(binderLimitMessage(store.tier, store.limits));
+      showLimitToast(binderLimitMessage(store.tier, store.limits));
       trackCapGate({
         limit: 'binders',
         surface: 'browse',
@@ -155,7 +143,7 @@ export default function BrowseScreen() {
       return;
     }
     if (short > 0) {
-      showPageLimitToast();
+      showLimitToast(pageLimitMessage(store.tier, store.limits));
       trackCapGate({
         limit: 'pagesPerBinder',
         surface: 'browse',

@@ -19,7 +19,7 @@ import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { pagesForCards } from '@/data/binderTypes';
 import { CONTEST, contestPhase } from '@/data/contest';
-import { binderLimitMessage, pageLimitCta, pageLimitMessage } from '@/data/limitMessages';
+import { binderLimitMessage, limitCta, pageLimitMessage } from '@/data/limitMessages';
 import { track, trackCapGate } from '@/lib/analytics';
 import { useImageManifest } from '@/lib/catalogConfig';
 import { shouldShowLanding } from '@/lib/landing';
@@ -69,26 +69,14 @@ export default function HomeScreen() {
     sendBrowseCommand({ type: 'viewSetById', setId, seriesId: series || undefined });
     openBrowse();
   };
-  const showToast = (message: string) => {
-    toastId.current += 1;
-    setToast({ id: toastId.current, message });
-  };
 
-  // The page cap ends the action the user was mid-way through, so it gets the prominent tone
-  // and a route to the plans page instead of a pill that fades before it is read. Guests get no
-  // button (pageLimitCta returns null) — their route out is a free account, not a plan.
-  const showPageLimitToast = () => {
-    const cta = pageLimitCta(store.tier);
+  // Hitting a cap ends the action the user was mid-way through, so every cap toast gets the
+  // prominent tone and a button out. Which way out depends on the tier (see limitCta): the plans
+  // page for accounts that can pay, the auth sheet for guests, whose cap is lifted by the free
+  // tier rather than by a plan.
+  const showLimitToast = (message: string) => {
     toastId.current += 1;
-    setToast({
-      id: toastId.current,
-      message: pageLimitMessage(store.tier, store.limits),
-      // No CTA means no card: a guest's route out is a free account, not a plan, so their
-      // message keeps its existing "Sign in (free)" wording and its quiet pill. Shouting at
-      // someone without handing them a button is just a louder toast.
-      tone: cta ? 'limit' : 'default',
-      cta: cta ?? undefined,
-    });
+    setToast({ id: toastId.current, message, tone: 'limit', cta: limitCta(store.tier) });
   };
   const showAddedToast = (binderId: string, title: string) => {
     toastId.current += 1;
@@ -110,7 +98,7 @@ export default function HomeScreen() {
     setAddCardId(null);
     if (added > 0) showAddedToast(binderId, title);
     else if (unplaced > 0) {
-      showPageLimitToast();
+      showLimitToast(pageLimitMessage(store.tier, store.limits));
       trackCapGate({
         limit: 'pagesPerBinder',
         surface: 'home',
@@ -124,7 +112,7 @@ export default function HomeScreen() {
     if (!addCardId) return;
     if (store.atBinderLimit) {
       setAddCardId(null);
-      showToast(binderLimitMessage(store.tier, store.limits));
+      showLimitToast(binderLimitMessage(store.tier, store.limits));
       trackCapGate({
         limit: 'binders',
         surface: 'home',

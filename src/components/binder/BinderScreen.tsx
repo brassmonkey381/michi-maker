@@ -47,9 +47,13 @@ import { isSupabaseConfigured } from '@/lib/env';
 import { footprintForKind } from '@/data/cardSizing';
 import { resolveCard } from '@/data/cardResolver';
 import { addSavedSlices, removeSavedSlice, sliceSignature, slotSignature, useSavedSlices, useSavedSlicesSync, type SavedSlice } from '@/data/savedSlices';
-import { binderLimitMessage, pageLimitCta, pageLimitMessage } from '@/data/limitMessages';
+import {
+  artLimitMessage,
+  binderLimitMessage,
+  limitCta,
+  pageLimitMessage,
+} from '@/data/limitMessages';
 import { trackCapGate } from '@/lib/analytics';
-import { TIER_LIMITS } from '@/data/tiers';
 import { SliceTray, SliceThumb } from '@/components/binder/SliceTray';
 import type { CatalogCard } from '@/lib/catalog';
 import { isBlankPage, useBinders } from '@/store/binders';
@@ -376,7 +380,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     const copy = store.duplicateBinder(binder.id);
     if (copy) onOpenBinder?.(copy.id);
     // The store refuses past the binder cap — say so instead of silently doing nothing.
-    else showToast(binderLimitMessage(store.tier, store.limits));
+    else showLimitToast(binderLimitMessage(store.tier, store.limits));
   };
 
   // Structural page edits re-space the binder with blank pages when folded 1×2 art would land
@@ -391,7 +395,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // before the new page lands) — the render clamps `pageIndex` to bounds once it does.
   const handleDuplicatePage = () => {
     if (store.pageLimitReached(binder.id)) {
-      showPageLimitToast();
+      showLimitToast(pageLimitMessage(store.tier, store.limits));
       return;
     }
     const result = store.duplicatePage(binder.id, page.id);
@@ -414,7 +418,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     if (result.status !== 'ok') {
       // A full target is the page cap like any other, so it gets the same prominent tone and
       // route out rather than being flattened into the generic "couldn't send" line.
-      if (result.status === 'target-full') showPageLimitToast();
+      if (result.status === 'target-full') showLimitToast(pageLimitMessage(store.tier, store.limits));
       else {
         showToast(
           result.status === 'size-mismatch'
@@ -451,21 +455,13 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     );
   };
 
-  // Hitting the page cap ends the thing the user was doing, so it gets the prominent tone and a
-  // route to the plans page rather than a pill that fades before it is read. Guests get no
-  // button (pageLimitCta returns null) — their route out is a free account, not a plan.
-  const showPageLimitToast = () => {
-    const cta = pageLimitCta(store.tier);
+  // Hitting a cap ends the action the user was mid-way through, so every cap toast gets the
+  // prominent tone and a button out. Which way out depends on the tier (see limitCta): the plans
+  // page for accounts that can pay, the auth sheet for guests, whose cap is lifted by the free
+  // tier rather than by a plan.
+  const showLimitToast = (message: string) => {
     toastId.current += 1;
-    setToast({
-      id: toastId.current,
-      message: pageLimitMessage(store.tier, store.limits),
-      // No CTA means no card: a guest's route out is a free account, not a plan, so their
-      // message keeps its existing "Sign in (free)" wording and its quiet pill. Shouting at
-      // someone without handing them a button is just a louder toast.
-      tone: cta ? 'limit' : 'default',
-      cta: cta ?? undefined,
-    });
+    setToast({ id: toastId.current, message, tone: 'limit', cta: limitCta(store.tier) });
   };
 
   const clearMulti = () => setMultiIds((cur) => (cur.size ? new Set() : cur));
@@ -683,7 +679,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     const title = store.getBinder(targetId)?.title ?? 'binder';
     setAddElsewhereIds(null);
     // Anything the target binder's page cap left out is named, never dropped in silence.
-    if (unplaced > 0) showPageLimitToast();
+    if (unplaced > 0) showLimitToast(pageLimitMessage(store.tier, store.limits));
     else if (added > 0) showToast(`Added ${added} card${added === 1 ? '' : 's'} to ${title}`);
   };
   const addElsewhereNew = () => {
@@ -693,7 +689,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     setAddElsewhereIds(null);
     // The store refuses past the binder cap — say so instead of silently doing nothing.
     if (!copy) {
-      showToast(binderLimitMessage(store.tier, store.limits));
+      showLimitToast(binderLimitMessage(store.tier, store.limits));
       return;
     }
     showToast(`Added ${count} card${count === 1 ? '' : 's'} to ${copy.title}`);
@@ -730,7 +726,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     // The binder can run out of pages at the tier cap — name it (with the upgrade route) rather
     // than quietly placing fewer cards than the user picked.
     if (unplaced > 0) {
-      showPageLimitToast();
+      showLimitToast(pageLimitMessage(store.tier, store.limits));
       trackCapGate({
         limit: 'pagesPerBinder',
         surface: 'binder_editor',
@@ -747,11 +743,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // silently. `newPieces` is the footprint's piece count (an upper bound: folded pairs merge).
   const artCapBlocks = (newPieces: number): boolean => {
     if (keptArtworks + newPieces <= store.limits.artUploads) return false;
-    showToast(
-      store.tier === 'guest'
-        ? `Guests can keep ${store.limits.artUploads} artworks. Sign in (free) to keep up to ${TIER_LIMITS.free.artUploads}.`
-        : `You’ve reached your ${store.limits.artUploads}-artwork limit. Upgrade for more room.`,
-    );
+    showLimitToast(artLimitMessage(store.tier, store.limits));
     // This is the single choke point for art entering the account, so one event here covers
     // every path (tray import, direct placement, studio save).
     trackCapGate({
@@ -997,7 +989,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           label="+ Page"
           onPress={() =>
             store.pageLimitReached(binder.id)
-              ? showPageLimitToast()
+              ? showLimitToast(pageLimitMessage(store.tier, store.limits))
               : store.addPage(binder.id)
           }
         />

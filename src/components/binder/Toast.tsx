@@ -10,21 +10,21 @@
  * real button instead of a bare word, and lives long enough to read and press (a 3.5s pill is not
  * long enough to notice, parse and hit a target). It also gets an explicit dismiss, because
  * anything that lingers needs a way to go away.
+ *
+ * The button's destination differs by tier and comes from `limitCta`: paid-capable accounts get
+ * the plans page, guests get the auth sheet. The sheet is owned HERE rather than by each caller,
+ * and deliberately outlives the toast — the toast is dismissed the moment the button is pressed,
+ * so a sheet mounted inside the `spec` branch would unmount with it and never open.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 
+import { AuthSheet } from '@/components/auth/AuthSheet';
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
-
-/** Where a limit toast sends the user. Guests are never given one: their next step is a free
- *  account, not a price table, and that is an AuthSheet rather than a route. */
-export interface ToastCta {
-  label: string;
-  href: Href;
-}
+import type { LimitCta } from '@/data/limitMessages';
 
 export interface ToastSpec {
   /** Bumped on every show so repeated identical messages still re-trigger. */
@@ -34,75 +34,84 @@ export interface ToastSpec {
   onAction?: () => void;
   /** 'limit' = the prominent card described above. Anything else is the quiet pill. */
   tone?: 'default' | 'limit';
-  cta?: ToastCta;
+  cta?: LimitCta;
 }
 
 const DISMISS_MS = { default: 3500, limit: 9000 } as const;
+const PLANS: Href = '/plans';
 
 export function Toast({ spec, onDismiss }: { spec: ToastSpec | null; onDismiss: () => void }) {
   const router = useRouter();
+  const [authOpen, setAuthOpen] = useState(false);
   const id = spec?.id;
   const tone = spec?.tone ?? 'default';
+
   useEffect(() => {
     if (id == null) return;
     const handle = setTimeout(onDismiss, DISMISS_MS[tone]);
     return () => clearTimeout(handle);
   }, [id, tone, onDismiss]);
 
-  if (!spec) return null;
-
-  if (tone === 'limit') {
-    return (
-      <View pointerEvents="box-none" style={styles.wrap}>
-        <View style={styles.card}>
-          <View style={styles.cardHead}>
-            <ThemedText type="default" style={styles.cardMessage} numberOfLines={3}>
-              {spec.message}
-            </ThemedText>
-            <Pressable onPress={onDismiss} hitSlop={10} accessibilityLabel="Dismiss">
-              <ThemedText type="small" style={styles.close}>
-                ✕
-              </ThemedText>
-            </Pressable>
-          </View>
-          {spec.cta ? (
-            <Pressable
-              onPress={() => {
-                const { href } = spec.cta!;
-                onDismiss();
-                router.push(href);
-              }}
-              style={({ pressed }) => [styles.ctaBtn, pressed && styles.dim]}>
-              <ThemedText type="smallBold" style={styles.ctaText}>
-                {spec.cta.label}
-              </ThemedText>
-            </Pressable>
-          ) : null}
-        </View>
-      </View>
-    );
-  }
+  const runCta = (cta: LimitCta) => {
+    onDismiss();
+    if (cta.kind === 'plans') router.push(PLANS);
+    else setAuthOpen(true);
+  };
 
   return (
-    <View pointerEvents="box-none" style={styles.wrap}>
-      <View style={styles.toast}>
-        <ThemedText type="small" style={styles.message} numberOfLines={2}>
-          {spec.message}
-        </ThemedText>
-        {spec.actionLabel && spec.onAction ? (
-          <Pressable
-            onPress={() => {
-              spec.onAction?.();
-              onDismiss();
-            }}
-            hitSlop={8}>
-            <ThemedText type="smallBold" style={styles.action}>
-              {spec.actionLabel}
+    <>
+      {spec && tone === 'limit' ? (
+        <View pointerEvents="box-none" style={styles.wrap}>
+          <View style={styles.card}>
+            <View style={styles.cardHead}>
+              <ThemedText type="default" style={styles.cardMessage} numberOfLines={3}>
+                {spec.message}
+              </ThemedText>
+              <Pressable onPress={onDismiss} hitSlop={10} accessibilityLabel="Dismiss">
+                <ThemedText type="small" style={styles.close}>
+                  ✕
+                </ThemedText>
+              </Pressable>
+            </View>
+            {spec.cta ? (
+              <Pressable
+                onPress={() => runCta(spec.cta!)}
+                style={({ pressed }) => [styles.ctaBtn, pressed && styles.dim]}>
+                <ThemedText type="smallBold" style={styles.ctaText}>
+                  {spec.cta.label}
+                </ThemedText>
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
+
+      {spec && tone !== 'limit' ? (
+        <View pointerEvents="box-none" style={styles.wrap}>
+          <View style={styles.toast}>
+            <ThemedText type="small" style={styles.message} numberOfLines={2}>
+              {spec.message}
             </ThemedText>
-          </Pressable>
-        ) : null}
-      </View>
-    </View>
+            {spec.actionLabel && spec.onAction ? (
+              <Pressable
+                onPress={() => {
+                  spec.onAction?.();
+                  onDismiss();
+                }}
+                hitSlop={8}>
+                <ThemedText type="smallBold" style={styles.action}>
+                  {spec.actionLabel}
+                </ThemedText>
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
+
+      {/* Mounted only while open: the toast that launched it is already gone by then, and an
+          always-mounted Modal in every screen that renders a Toast earns nothing. */}
+      {authOpen ? <AuthSheet visible onClose={() => setAuthOpen(false)} /> : null}
+    </>
   );
 }
 

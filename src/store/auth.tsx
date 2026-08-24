@@ -344,6 +344,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         { emailRedirectTo: authRedirectUrl() },
       );
       if (error) return { error: msg(error) };
+      // updateUser flips auth.users.is_anonymous but does NOT reissue the access token, so the
+      // one in hand keeps claiming `is_anonymous: true` until it expires — up to an hour of the
+      // server treating a brand-new account as a guest (no trial, no likes, guest caps). Force a
+      // fresh token now. Best-effort: the upgrade itself already succeeded, and the server no
+      // longer trusts the claim anyway (20260824120000_anonymity_from_auth_users.sql).
+      await supabase.auth.refreshSession().catch(() => undefined);
       // Guest → permanent account, same uid: records under the guest's own session/user.
       track('account.created', { via: 'guest_upgrade' });
       const confirmed = !!data.user?.email_confirmed_at;

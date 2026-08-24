@@ -27,13 +27,19 @@ From: michi-maker <hello@tcgscan.ai>
 Reply-To: support@michi-maker.com
 To: {{email}}
 Subject: Your michi-maker binders, and the PRO trial that needs no card
-List-Unsubscribe: <https://tcgscan.ai/u/{{token}}>, <mailto:unsubscribe@tcgscan.ai?subject={{token}}>
+List-Unsubscribe: <https://tcgscan.ai/unsubscribe?t={{token}}>, <mailto:unsubscribe@tcgscan.ai?subject={{token}}>
 List-Unsubscribe-Post: List-Unsubscribe=One-Click
 Content-Type: text/plain; charset=utf-8
 ```
 
-`{{token}}` is the signed, non-expiring unsubscribe token. It is not the user id. The URL must
-accept `POST` with body `List-Unsubscribe=One-Click`, act without a session, and return 200.
+`{{token}}` comes from `scripts/unsubscribe-token.mjs`, which reads `public.marketing_recipients`
+(the one definition of who may be mailed) and signs each id. Do not assemble a send from a
+hand-written query: the view exists so a condition cannot be forgotten.
+
+The path is `/unsubscribe`, **not** `/u/`, which is michi-maker's public-profile route. It is a
+Vercel rewrite on tcgscan.ai onto the `unsubscribe` edge function, so the link stays on our own
+domain: a raw `supabase.co` functions URL in a List-Unsubscribe header reads as phishing to both
+the recipient and the filter.
 
 Send `text/plain` only, at least for the first one. There is nothing here that HTML improves, a
 text message from a small product reads as a person rather than a campaign, and it removes a whole
@@ -46,35 +52,26 @@ class of rendering and filtering problems.
 ```
 Hi{{#if username}} {{username}}{{/if}},
 
-You have three binders in michi-maker, which is the free plan's limit. I wanted to
-make sure you knew what the PRO trial actually is, because most people assume it is
-the usual kind and it is not.
+You are at three binders in michi-maker, the free plan's limit. The PRO trial
+takes you to 12, and pages per binder from 16 to 40.
 
-It takes no credit card. You never enter payment details, nothing renews, and there
-is nothing to cancel. You get full PRO for 14 days, starting the moment you press the
-button, and then the account goes back to Free on its own. If you do nothing at the
-end, nothing happens.
+It needs no credit card. Nothing renews, there is nothing to cancel, and after
+14 days the account goes back to Free on its own.
 
-On PRO that binder limit goes from 3 to 12, and pages per binder from 16 to 40.
+[If the trial ever told you it "requires a signed-in account", that was our bug,
+not something you did. It is fixed.]
 
-[If you tried to start the trial before today and it told you a trial requires a
-signed-in account, that was a bug on our end, not something you did. It affected
-accounts that had just been created from a guest session. It is fixed, and the trial
-will start for you now.]
+https://michi-maker.com/plans
 
-Start it here: https://michi-maker.com/plans
-
-If it does not work, reply to this email and tell me what it said. It comes straight
-to me.
+If it does not work, reply and tell me what it said. It comes straight to me.
 
 Brian
 michi-maker
 
 ---
-You are getting this because you have a michi-maker account.
-Unsubscribe from product email: https://tcgscan.ai/u/{{token}}
-This stops product email only. Messages about your account, like password resets and
-receipts, will still reach you.
+You have a michi-maker account. Unsubscribe from product email:
+https://tcgscan.ai/unsubscribe?t={{token}}
+Account email (sign-in, receipts, plan notices) still reaches you.
 
 {{postal_address}}
 ```
@@ -83,9 +80,14 @@ receipts, will still reach you.
 
 ## Before sending
 
-- [ ] Decide the postal address for `{{postal_address}}`. CAN-SPAM requires a real one and this is
-      the only blocker that is not code.
-- [ ] Confirm the unsubscribe endpoint answers `POST` and writes `marketing_unsubscribed_at`.
+- [ ] Decide the postal address for `{{postal_address}}`. CAN-SPAM requires a real one, and it is
+      now the only blocker that is not code. See the options in ../../../EMAIL-MARKETING.md; do not
+      use a home address.
+- [ ] Confirm at least one person has actually opted in. `marketing_recipients` is empty by design
+      until someone ticks the switch, and a send to nobody is the correct outcome until then.
+- [ ] Run `apply-marketing-consent.ps1` if it has not been run. Its step 5 makes the exact
+      one-click POST a mail client makes and reads the row back, and its step 6 proves a forged
+      token changes nothing.
 - [ ] Send one to yourself first, at a Gmail address and an iCloud address, and check where it
       lands. iCloud is the stricter of the two.
 - [ ] Check the `From` display name renders as "michi-maker" and not "TCGScan". This is the single

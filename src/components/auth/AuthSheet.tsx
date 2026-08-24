@@ -369,6 +369,17 @@ function ProfileView({ onClose }: { onClose: () => void }) {
       if (r.error) setPublicProfile(!v); // revert on failure
     });
   };
+  // Product email. Defaults to OFF for everyone, including every account that existed before the
+  // column did: consent has to be given, never inherited. The privacy policy promises this switch
+  // by name, so it is not optional decoration.
+  const [emailOptIn, setEmailOptIn] = useState<boolean | null>(null);
+  const marketingOn = emailOptIn ?? auth.profile?.marketing_consent ?? false;
+  const toggleMarketing = (v: boolean) => {
+    setEmailOptIn(v);
+    void auth.updateProfile({ marketing_consent: v }).then((r) => {
+      if (r.error) setEmailOptIn(!v);
+    });
+  };
 
   const email = auth.user?.email ?? '';
   const username = auth.profile?.username ?? null;
@@ -427,6 +438,22 @@ function ProfileView({ onClose }: { onClose: () => void }) {
         <Switch
           value={profilePublic}
           onValueChange={toggleProfilePublic}
+          trackColor={{ true: Palette.accent, false: theme.backgroundSelected }}
+        />
+      </View>
+
+      <View style={styles.privacyRow}>
+        <View style={styles.privacyText}>
+          <ThemedText type="smallBold">Product email</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {marketingOn
+              ? 'Occasional email about new features and your plan. Account email always arrives.'
+              : 'Off. You will only get account email: sign-in, receipts, and plan notices.'}
+          </ThemedText>
+        </View>
+        <Switch
+          value={marketingOn}
+          onValueChange={toggleMarketing}
           trackColor={{ true: Palette.accent, false: theme.backgroundSelected }}
         />
       </View>

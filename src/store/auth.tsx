@@ -88,7 +88,7 @@ interface AuthStore {
   /** Start (or restart) an anonymous guest session on demand — used after an explicit sign-out. */
   continueAsGuest: () => Promise<AuthResult>;
   updateProfile: (
-    patch: Partial<Pick<Profile, 'avatar_url' | 'is_public'>>,
+    patch: Partial<Pick<Profile, 'avatar_url' | 'is_public' | 'marketing_consent'>>,
   ) => Promise<AuthResult>;
   /** Claim a permanent, unique @username (only when none is set yet — usernames are immutable). */
   claimUsername: (username: string) => Promise<AuthResult>;
@@ -362,7 +362,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateProfile = useCallback(
     async (
-      patch: Partial<Pick<Profile, 'avatar_url' | 'is_public'>>,
+      patch: Partial<Pick<Profile, 'avatar_url' | 'is_public' | 'marketing_consent'>>,
     ): Promise<AuthResult> => {
       if (!supabase) return NOT_CONFIGURED;
       if (!user) return { error: 'You need to be signed in to edit your profile.' };

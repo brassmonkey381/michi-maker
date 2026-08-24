@@ -8,6 +8,10 @@ Audience: **`public.campaign_free_limit_reached`**, and nothing else. That view 
 accounts, already enrolled for product email, who are at the binder cap OR hold a binder at the
 page cap. Both walls count: either one is somebody who wanted more room and did not get it.
 
+The opening line deliberately states the LIMITS rather than the recipient's counts. Both walls
+lead to the same sentence, and it stays true for accounts sitting above a cap: brassmonkey381 holds
+8 binders on the free plan, and "you are at three binders" would have been simply false for them.
+
 Do not hand-write a variant. The caps come from `tier_caps` so the audience follows the plan if it
 ever changes, archived and demo binders are excluded exactly as the app excludes them, and paying
 tiers are filtered out. Every one of those is a condition that gets forgotten when the query is
@@ -59,9 +63,8 @@ class of rendering and filtering problems.
 ```
 Hi{{#if username}} {{username}}{{/if}},
 
-{{#if at_binder_cap}}You are at three binders in michi-maker, the free plan's
-limit.{{else}}You have a binder at 16 pages, which is the free plan's limit.{{/if}}
-The PRO trial takes you to 12 binders and 40 pages each.
+You have run into michi-maker's free limits: 3 binders, 16 pages each. The PRO
+trial lifts those to 12 binders and 40 pages.
 
 It needs no credit card. Nothing renews, there is nothing to cancel, and after
 14 days the account goes back to Free on its own.

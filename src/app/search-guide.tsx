@@ -17,18 +17,15 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Fonts, FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 
-/** Curated combinations — the "wait, you can do that?" moments. Each is a runnable query. */
+/**
+ * Curated combinations — the "wait, you can do that?" moments. Each is a runnable query.
+ *
+ * ORDER IS DELIBERATE: the `have:` recipes go LAST. They are the most impressive ones once you
+ * own cards, and the worst possible opener before you do — a new reader who taps the first box on
+ * the page and gets an empty grid learns that search is broken, not that it is powerful. Every
+ * recipe above them works against the whole catalog and returns something for everyone.
+ */
 const RECIPES: { title: string; query: string; blurb: string }[] = [
-  {
-    title: 'See your whole collection',
-    query: 'have:yes',
-    blurb: 'Every card you own, in the grid. Then keep stacking: sort it, narrow to a set, filter by type. It becomes the base for everything below.',
-  },
-  {
-    title: 'Your most valuable cards',
-    query: 'have:yes sort:value',
-    blurb: 'Owned cards, priciest first (the tiles show values). Add a set: or type: to focus.',
-  },
   {
     title: 'Finish a set',
     query: 'set:"evolving skies" have:no',
@@ -48,6 +45,16 @@ const RECIPES: { title: string; query: string; blurb: string }[] = [
     title: 'Modern heavy hitters',
     query: 'hp>=300 date>2022 sort:hp',
     blurb: 'Numeric and date compares together, sorted by HP for recent, high-HP cards.',
+  },
+  {
+    title: 'See your whole collection',
+    query: 'have:yes',
+    blurb: 'Every card you own, in the grid. Then keep stacking: sort it, narrow to a set, filter by type. Any recipe above works on just your cards this way.',
+  },
+  {
+    title: 'Your most valuable cards',
+    query: 'have:yes sort:value',
+    blurb: 'Owned cards, priciest first (the tiles show values). Add a set: or type: to focus.',
   },
 ];
 

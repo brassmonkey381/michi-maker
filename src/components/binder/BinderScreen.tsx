@@ -716,12 +716,18 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     closePicker();
   };
 
-  // Batch "Add all to a binder" (multi-select): add each card to the next free 1×1 pocket
-  // (addCardToBinder), collect any that don't fit, then report the result in one toast.
+  // Batch "Add all to a binder" (multi-select): fill THIS page, then keep going on fresh pages
+  // inserted directly behind it, and report the result in one toast.
   const handlePickCards = (cardIds: string[]) => {
-    // One batch pass — each card lands in the next free pocket (pages appended as needed), so they
-    // never collide on a cell. A per-card loop re-read stale state and 409'd on every card but the first.
-    const { added, unplaced } = store.addCardsToBinder(binder.id, cardIds);
+    // One batch pass, so the cards never collide on a cell — a per-card loop re-read stale state
+    // and 409'd on every card but the first.
+    //
+    // `startPageIndex` is what makes a batch land where the user is looking. Without it placement
+    // scans from page 1 for any gap and appends the rest at the very end, so picking nine cards
+    // while on page 4 could scatter them across pages 1, 2 and the back of the binder.
+    const { added, unplaced, blanksInserted } = store.addCardsToBinder(binder.id, cardIds, {
+      startPageIndex: pageIndex,
+    });
     closePicker();
     // The binder can run out of pages at the tier cap — name it (with the upgrade route) rather
     // than quietly placing fewer cards than the user picked.
@@ -734,7 +740,11 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         used: binder.pages.length,
         cap: store.limits.pagesPerBinder,
       });
-    } else if (added > 0) showToast(`Added ${added} card${added === 1 ? '' : 's'}`);
+    } else if (added > 0) {
+      // parityNote names any blank page the insertion forced, same as duplicate/send do, so a
+      // page appearing out of nowhere is explained rather than looking like a bug.
+      showToast(parityNote(`Added ${added} card${added === 1 ? '' : 's'}`, blanksInserted));
+    }
   };
 
   // The artworks-kept cap covers EVERY way new art enters the account: studio saves are gated

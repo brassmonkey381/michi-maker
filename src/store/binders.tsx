@@ -195,12 +195,18 @@ interface BinderStore {
    *  past the tier's per-binder page cap), in ONE commit + persist pass — avoids the stale-closure
    *  re-placement that a per-card loop hits. `fromCollection` marks the pockets as consuming owned
    *  copies (My-collection provenance). `unplaced` is how many cards the cap left out, so callers
-   *  can surface the upgrade note instead of dropping them silently. */
+   *  can surface the upgrade note instead of dropping them silently.
+   *
+   *  `startPageIndex` switches to CONTIGUOUS placement, which is what the editor wants: fill the
+   *  page the user is looking at, then insert fresh pages immediately AFTER it and keep going.
+   *  Without it, placement scans from page 1 for any gap and appends overflow at the very end,
+   *  which scatters one batch across a binder the user has already arranged. `blanksInserted` is
+   *  the parity spacers that insertion forced (see withParitySpacers), for the caller's toast. */
   addCardsToBinder: (
     binderId: string,
     cardIds: string[],
-    opts?: { fromCollection?: boolean },
-  ) => { added: number; unplaced: number };
+    opts?: { fromCollection?: boolean; startPageIndex?: number },
+  ) => { added: number; unplaced: number; blanksInserted: number };
   /**
    * Append whole composed pages ("Pages around this card", VIP). Each entry becomes ONE new page
    * carrying the seed plus that method's placements. One commit, so the whole batch is one Undo.
@@ -1051,9 +1057,13 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   );
 
   const addCardsToBinder = useCallback(
-    (binderId: string, cardIds: string[], opts?: { fromCollection?: boolean }) => {
+    (
+      binderId: string,
+      cardIds: string[],
+      opts?: { fromCollection?: boolean; startPageIndex?: number },
+    ) => {
       const target = binders.find((b) => b.id === binderId);
-      if (!target || cardIds.length === 0) return { added: 0, unplaced: 0 };
+      if (!target || cardIds.length === 0) return { added: 0, unplaced: 0, blanksInserted: 0 };
 
       // Appending pages is capped by the tier, same rule as addPage — examples are never
       // persisted, so leave their in-session editing unlimited.
@@ -1069,27 +1079,64 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       // than quietly losing them.
       let unplaced = 0;
 
+      // CONTIGUOUS mode: start on the page the user is looking at and grow forward from there,
+      // inserting each new page directly after the one that just filled up. `cursor` is the page
+      // being filled and only ever moves forward, so a batch lands as one run instead of being
+      // sprinkled into whatever gaps exist earlier in the binder.
+      const contiguous = opts?.startPageIndex != null;
+      // A binder is never supposed to reach zero pages (sendPageToBinder refuses the move that
+      // would), but the contiguous path indexes pages[cursor] directly, so an empty one would
+      // crash rather than degrade. Seed a page instead. The scanning path needs no equivalent:
+      // its loop simply runs zero times and falls through to the append branch.
+      if (contiguous && pages.length === 0) pages.push(emptyPage(3, 3, 'Page 1'));
+      let cursor = contiguous
+        ? Math.min(Math.max(opts?.startPageIndex ?? 0, 0), Math.max(pages.length - 1, 0))
+        : -1;
+      // New pages inherit the binder's pocket layout. The old code hardcoded 3×3, which is wrong
+      // for a 4×4 binder (real binders run ONE layout throughout — see addPage).
+      const proto = pages[contiguous ? cursor : pages.length - 1];
+      const protoRows = proto?.rows ?? 3;
+      const protoCols = proto?.cols ?? 3;
+
       for (const cardId of cardIds) {
         let pageIndex = -1;
         let cell: { row: number; col: number } | null = null;
-        for (let i = 0; i < pages.length; i += 1) {
-          const spot = firstFreePlacement(pages[i], 1, 1);
-          if (spot) {
-            pageIndex = i;
-            cell = spot;
-            break;
+
+        if (contiguous) {
+          cell = firstFreePlacement(pages[cursor], 1, 1);
+          if (!cell) {
+            // The current page is full. Insert the next one right behind it, unless the cap says
+            // no — in which case this card and every one after it stays out.
+            if (pages.length >= maxPages) {
+              unplaced += 1;
+              continue;
+            }
+            pages.splice(cursor + 1, 0, emptyPage(protoRows, protoCols));
+            cursor += 1;
+            cell = { row: 0, col: 0 };
           }
-        }
-        if (pageIndex < 0 || !cell) {
-          // Every page is full → append a fresh page and start at its top-left, unless the binder
-          // is already at the tier's page cap: then this card (and every one after it) stays out.
-          if (pages.length >= maxPages) {
-            unplaced += 1;
-            continue;
+          pageIndex = cursor;
+        } else {
+          for (let i = 0; i < pages.length; i += 1) {
+            const spot = firstFreePlacement(pages[i], 1, 1);
+            if (spot) {
+              pageIndex = i;
+              cell = spot;
+              break;
+            }
           }
-          pages.push(emptyPage(3, 3, `Page ${pages.length + 1}`));
-          pageIndex = pages.length - 1;
-          cell = { row: 0, col: 0 };
+          if (pageIndex < 0 || !cell) {
+            // Every page is full → append a fresh page and start at its top-left, unless the
+            // binder is already at the tier's page cap: then this card stays out, and so does
+            // every one after it.
+            if (pages.length >= maxPages) {
+              unplaced += 1;
+              continue;
+            }
+            pages.push(emptyPage(protoRows, protoCols, `Page ${pages.length + 1}`));
+            pageIndex = pages.length - 1;
+            cell = { row: 0, col: 0 };
+          }
         }
         const slot: DemoSlot = {
           id: uuidv4(),
@@ -1106,27 +1153,39 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       }
 
       // Nothing fitted → no commit at all, so the cap can't burn an empty undo step.
-      if (placed.length === 0) return { added: 0, unplaced };
+      if (placed.length === 0) return { added: 0, unplaced, blanksInserted: 0 };
 
-      commit((prev) => prev.map((b) => (b.id === binderId ? { ...b, pages } : b)));
+      // Inserting mid-binder can move a later page to the wrong side of the spine, so re-run the
+      // parity pass that duplicatePage and sendPageToBinder use. Appending never does, so the
+      // non-contiguous path keeps its cheaper per-page persist.
+      const spaced = contiguous ? withParitySpacers(pages) : { pages, blanksInserted: 0 };
+
+      commit((prev) => prev.map((b) => (b.id === binderId ? { ...b, pages: spaced.pages } : b)));
       if (!target.isExample) {
-        // One ordered op: create any appended pages FIRST (FK), then the slots (distinct cells,
-        // so no unique-constraint collision). persist() is fire-and-forget and unordered, so the
-        // page→slot ordering must live inside a single awaited op.
-        persist(async () => {
-          for (let i = firstAppended; i < pages.length; i += 1) {
-            await repo.insertPage(binderId, pages[i], i);
-          }
-          for (const { pageId, slot } of placed) {
-            await repo.upsertSlot(pageId, slot);
-          }
-        });
+        if (contiguous) {
+          // Mid-list insertion shifts every later page's position, so rewrite the binder rather
+          // than trying to renumber around a unique(position) constraint — same call, and same
+          // reason, as duplicatePage.
+          persist(() => repo.replaceBinder({ ...target, pages: spaced.pages }));
+        } else {
+          // One ordered op: create any appended pages FIRST (FK), then the slots (distinct cells,
+          // so no unique-constraint collision). persist() is fire-and-forget and unordered, so the
+          // page→slot ordering must live inside a single awaited op.
+          persist(async () => {
+            for (let i = firstAppended; i < pages.length; i += 1) {
+              await repo.insertPage(binderId, pages[i], i);
+            }
+            for (const { pageId, slot } of placed) {
+              await repo.upsertSlot(pageId, slot);
+            }
+          });
+        }
       }
       track('card.add', {
         source: opts?.fromCollection ? 'collection' : 'manual',
         count: placed.length,
       });
-      return { added: placed.length, unplaced };
+      return { added: placed.length, unplaced, blanksInserted: spaced.blanksInserted };
     },
     [binders, limits.pagesPerBinder, commit, persist],
   );

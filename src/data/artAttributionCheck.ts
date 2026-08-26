@@ -1,11 +1,25 @@
 /**
- * Public-binder PRIVATE-ART gate. A binder can hold ANY art while it's private — but it can only
- * be made public/shared if it contains no PRIVATE art. Art pulled from an outside URL is private
- * (`attribution.origin === 'external'`): we can't verify the user's rights to it, so it never
- * leaves their account. Public-eligible sources are art the user UPLOADED from their device (with
- * a rights attestation at share time) and OUR OWN card art (`origin: 'card'`, or an image served
- * from the catalog image base) — the app already displays those same card images publicly, so a
- * crop taken from one in Slice Studio is no different in kind from the whole card.
+ * Public-binder PRIVATE-ART gate. A binder can hold ANY art while it's private; this decides what
+ * may also appear in a SHARED one.
+ *
+ * LOOSENED 2026-08-26 (docs/roadmap/ART-RIGHTS.md): imported art (`origin: 'external'`) is now
+ * public-eligible, provided we re-hosted it (importArt always does). The user attests, account
+ * wide, that they accept responsibility for the rights to what they share
+ * (profiles.rights_attested_at), every piece renders with its credit strip, and the takedown
+ * path is operational (binders.removed_at + /studio). The STAMPING is deliberately unchanged:
+ * every import still records `origin: 'external'`, so re-tightening later is one revert of
+ * `isPrivateArt` plus a jsonb query over binder_slots.image_attribution to find the public
+ * binders holding external art. Never stop stamping to make a looser rule simpler.
+ *
+ * What is STILL private:
+ *   - `origin: 'copied'`: art inherited by duplicating an example/demo binder. The copier holds
+ *     no rights and made no import; resharing it would republish someone else's upload.
+ *   - Raw hotlinks: an image we do not host (legacy slots that predate re-hosting, or any
+ *     unknown-origin off-site URL). We cannot stand behind bytes we do not serve.
+ *
+ * Public-eligible: uploads, imports we host, OUR OWN card art (`origin: 'card'` or an image
+ * served from the catalog image base; the app already shows those same images publicly), and
+ * procedural inserts.
  */
 import type { ArtAttribution } from '@/data/artworkLibrary';
 import type { DemoBinder, DemoSlot } from '@/data/binderTypes';
@@ -65,10 +79,16 @@ export function isPrivateArt(attribution?: ArtAttribution | null, imageUrl?: str
   // that misfiled provenance shouldn't outrank where the image demonstrably lives.
   if (isCardCatalogArt(imageUrl)) return false;
   if (attribution?.origin === 'card') return false;
-  if (attribution?.origin === 'external') return true;
   // Inherited by duplicating another binder — the copier holds no rights to it.
   if (attribution?.origin === 'copied') return true;
   if (attribution?.origin === 'upload') return false;
+  // Imported art (loosened 2026-08-26): public-eligible when WE host the bytes: importArt
+  // re-uploads every pull into the user's own bucket, so modern imports pass. A URL we cannot
+  // check, or one pointing off-site (a pre-rehosting legacy slot), stays private: the credit is
+  // recorded either way, but we only stand behind images we serve.
+  if (attribution?.origin === 'external') {
+    return imageUrl !== undefined && imageUrl !== null ? !isBucketHostedArt(imageUrl) : true;
+  }
   // Origin unknown (legacy art): trust where it's hosted. Non-bucket ⇒ hotlink ⇒ private.
   if (imageUrl !== undefined && imageUrl !== null) return !isBucketHostedArt(imageUrl);
   return false;
@@ -126,9 +146,10 @@ export interface PrivateArtRef {
 }
 
 /**
- * Every PRIVATE (external-origin) custom-artwork slot in the binder, in reading order. Empty ⇒ the
- * binder has no private art and is clear to go public (after the rights attestation). Card pockets,
- * inserts, uploads, and our own content are never included.
+ * Every PRIVATE custom-artwork slot in the binder (copied-origin art and unhosted hotlinks), in
+ * reading order. Empty ⇒ the binder has no private art and is clear to go public (after the
+ * account-level rights attestation). Card pockets, inserts, uploads, hosted imports, and our own
+ * content are never included.
  */
 export function privateArtInBinder(binder: DemoBinder): PrivateArtRef[] {
   const out: PrivateArtRef[] = [];

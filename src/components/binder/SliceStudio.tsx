@@ -928,11 +928,14 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
           ) : null}
           {importError ? <Text style={styles.importError}>{importError}</Text> : null}
 
-          {/* Provenance status for the loaded image — private (URL-pulled) vs shareable (uploaded). */}
+          {/* Provenance status for the loaded image. Imported art is shareable since the
+              2026-08-26 loosening (it is re-hosted and credited); the note carries the
+              responsibility line instead of a PRIVATE block. */}
           {hasImage && origin === 'external' ? (
-            <Text style={styles.privateNote}>
-              PRIVATE, this art came from a link, so binders using it can’t be shared publicly. To
-              share, upload your own art (art you own or created) instead.
+            <Text style={styles.attribHint}>
+              Imported from a link. A copy is saved to your account and this can go in binders you
+              share, with its credit shown. Make sure you have the rights, you are responsible for
+              what you share.
             </Text>
           ) : hasImage && origin === 'upload' ? (
             <Text style={styles.attribHint}>

@@ -111,3 +111,43 @@ user-brought art, not for us serving a gallery.)
 ## Not blocking
 Nothing current is blocked. This brief keeps the risk on the record and the design pointed at the
 neutral-tool / user-supplied model.
+
+## The 2026-08-26 loosening: imported art may go public (owner decision)
+
+**What changed.** `isPrivateArt` no longer treats `origin: 'external'` as private when we host
+the bytes (importArt re-hosts every pull into the user's bucket). Imported art can now appear in
+public binders, credited by the attribution strip. The owner accepted the added DMCA exposure in
+favor of growing traffic, explicitly and with the option to re-tighten later.
+
+**What did NOT change, and must not:**
+- **Stamping.** Every import still records `origin: 'external'`. The gate moved; the ledger did
+  not. This is what keeps the re-tighten path one revert away, never remove the stamp to make a
+  looser rule simpler.
+- **The supply-side line.** Option A stays DROPPED. Users importing art they choose is 512(c)
+  territory (we host at a user's direction and take down on notice); an in-app gallery would be
+  us supplying the art, which safe harbor does not cover.
+- **`origin: 'copied'` stays private.** Duplicating a binder still cannot republish someone
+  else's art.
+- **Raw hotlinks stay private.** We only stand behind images we serve.
+
+**What carries the risk now (shipped with or before the loosening):**
+- Account-level rights attestation, persisted (`profiles.rights_attested_at`), shown before a
+  user's binders default public and required before any manual share.
+- The moderation kit (20260826120000): `binders.removed_at` honored by every public read path,
+  the /studio report queue with one-tap takedown/restore, the copyright-strikes ledger, and the
+  guarded Discord alert on new reports.
+- The credit strip under every custom art panel, which renders on public pages.
+
+**RE-TIGHTEN RUNBOOK** (if exposure stops being worth it):
+1. Revert the `origin === 'external'` branch in `src/data/artAttributionCheck.ts` to
+   `return true;` (and its test).
+2. Find the public binders holding external art, then flip them private or notify owners:
+   ```sql
+   select distinct b.id, b.owner_id
+   from public.binders b
+   join public.binder_pages pg on pg.binder_id = b.id
+   join public.binder_slots s on s.page_id = pg.id
+   where b.is_public
+     and s.image_attribution ->> 'origin' = 'external';
+   ```
+3. Nothing else moves: stamping never changed, so there is no backfill to reconstruct.

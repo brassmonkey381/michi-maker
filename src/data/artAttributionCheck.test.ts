@@ -50,9 +50,14 @@ test('user uploads in our own bucket stay public-eligible', () => {
   assert.equal(isPrivateArt(null, 'blob:http://localhost/abc'), false);
 });
 
-test('an external flag still wins over a bucket-hosted copy (imported hotlinks)', () => {
-  // importRemoteArtToBucket re-hosts a pulled image; the ORIGIN is what marks it unverifiable.
-  assert.equal(isPrivateArt({ sourceName: 'Pinterest', origin: 'external' }, OWN_BUCKET), true);
+test('imported art WE HOST is public-eligible (the 2026-08-26 loosening)', () => {
+  // importRemoteArtToBucket re-hosts every pull into the user's bucket, and the account-level
+  // rights attestation plus the credit strip plus a working takedown path carry the risk. The
+  // origin stamp is unchanged; only what the gate does with it moved.
+  assert.equal(isPrivateArt({ sourceName: 'Pinterest', origin: 'external' }, OWN_BUCKET), false);
+  // No URL to verify hosting with, so still private: eligibility is about where the bytes
+  // live, not the flag alone.
+  assert.equal(isPrivateArt({ sourceName: 'Pinterest', origin: 'external' }, undefined), true);
 });
 
 test("copied-origin art is PRIVATE, even hosted in our own bucket", () => {

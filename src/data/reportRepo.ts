@@ -99,6 +99,16 @@ export async function adminRestoreBinder(binderId: string): Promise<void> {
   if (error) throw new Error(`restore binder: ${error.message}`);
 }
 
+/**
+ * The profile analogue of a takedown: clear the reported content (bio + avatar). The account is
+ * untouched; suspension stays a human decision informed by the strikes ledger.
+ */
+export async function adminClearProfile(profileId: string): Promise<void> {
+  const supabase = requireSupabase();
+  const { error } = await supabase.rpc('admin_clear_profile', { p_profile_id: profileId });
+  if (error) throw new Error(`clear profile: ${error.message}`);
+}
+
 /** The repeat-infringer ledger behind the DMCA page's suspension sentence. */
 export async function adminCopyrightStrikes(): Promise<CopyrightStrike[]> {
   const supabase = requireSupabase();

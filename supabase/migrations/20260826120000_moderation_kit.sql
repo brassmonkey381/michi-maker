@@ -35,6 +35,30 @@ alter table public.binders add column if not exists removed_at timestamptz;
 create index if not exists binders_removed_at_idx on public.binders (removed_at)
   where removed_at is not null;
 
+-- ADMIN-ONLY, enforced. The owner UPDATE policy on binders is table-wide (RLS cannot scope
+-- columns), so without this a taken-down owner could PATCH removed_at back to null themselves
+-- and the takedown would be a suggestion. The trigger allows a change when the caller is an
+-- admin, or when there is no uid at all (service role, migrations, cron): those are the only
+-- writers a takedown flag should have.
+create or replace function public.binders_guard_removed_at()
+returns trigger
+language plpgsql security definer set search_path = ''
+as $
+begin
+  if new.removed_at is distinct from old.removed_at then
+    if (select auth.uid()) is not null and not public.is_admin() then
+      raise exception 'removed_at is managed by moderation';
+    end if;
+  end if;
+  return new;
+end;
+$;
+
+drop trigger if exists binders_guard_removed_at on public.binders;
+create trigger binders_guard_removed_at
+  before update on public.binders
+  for each row execute function public.binders_guard_removed_at();
+
 -- Public read policies grow `removed_at is null`. Owner policies are untouched.
 drop policy if exists "Public binders are viewable by everyone" on public.binders;
 create policy "Public binders are viewable by everyone"
@@ -260,28 +284,44 @@ create index if not exists content_reports_subject_idx
   on public.content_reports (subject_owner_id, reason, status);
 
 -- Snapshot the owner at filing time. BEFORE INSERT so the value is on the row from birth; definer
--- because the reporter has no business reading the binder owner directly.
+-- because the reporter has no business reading the binder owner directly. ALWAYS derived, never
+-- trusted from the client: a caller-supplied subject_owner_id would let anyone hang strikes on
+-- any account, and the WITH CHECK below cannot catch it (policy checks run on the post-trigger
+-- row, so by then a legitimate snapshot is non-null too).
 create or replace function public.content_report_fill_subject()
 returns trigger
 language plpgsql security definer set search_path = ''
-as $$
+as $
 begin
-  if new.subject_owner_id is null then
-    if new.profile_id is not null then
-      new.subject_owner_id := new.profile_id;
-    elsif new.binder_id is not null then
-      select b.owner_id into new.subject_owner_id
-        from public.binders b where b.id = new.binder_id;
-    end if;
+  new.subject_owner_id := null;
+  if new.profile_id is not null then
+    new.subject_owner_id := new.profile_id;
+  elsif new.binder_id is not null then
+    select b.owner_id into new.subject_owner_id
+      from public.binders b where b.id = new.binder_id;
   end if;
   return new;
 end;
-$$;
+$;
 
 drop trigger if exists content_reports_fill_subject on public.content_reports;
 create trigger content_reports_fill_subject
   before insert on public.content_reports
   for each row execute function public.content_report_fill_subject();
+
+-- A filed report is OPEN, un-notified, and about exactly one thing. Without this, a hostile
+-- client could file reports born 'actioned' (invisible to the /studio open queue, never pinged
+-- to Discord) to poison the strikes ledger, or reports about nothing at all.
+drop policy if exists "Signed-in users can file a report" on public.content_reports;
+create policy "Signed-in users can file a report"
+  on public.content_reports for insert
+  to authenticated
+  with check (
+    (select auth.uid()) = reporter_id
+    and status = 'open'
+    and notified_at is null
+    and num_nonnulls(binder_id, profile_id) = 1
+  );
 
 -- Admins read and resolve reports from /studio. Everyone else stays insert-only.
 drop policy if exists "Admins can read reports" on public.content_reports;
@@ -351,8 +391,27 @@ as $$
   order by strikes desc, last_at desc;
 $$;
 
+-- The profile analogue of a binder takedown: clear the reported content. Bio and avatar are the
+-- only content a profile carries, so clearing them IS the removal; the account itself is not
+-- touched (suspension stays a human decision informed by the strikes ledger). Marks the
+-- profile's open reports actioned, same as the binder path.
+create or replace function public.admin_clear_profile(p_profile_id uuid)
+returns void
+language plpgsql security definer set search_path = ''
+as $
+begin
+  if not public.is_admin() then
+    raise exception 'admin only';
+  end if;
+  update public.profiles set bio = null, avatar_url = null where id = p_profile_id;
+  update public.content_reports set status = 'actioned'
+    where profile_id = p_profile_id and status = 'open';
+end;
+$;
+
 grant execute on function public.admin_remove_binder(uuid) to authenticated;
 grant execute on function public.admin_restore_binder(uuid) to authenticated;
+grant execute on function public.admin_clear_profile(uuid) to authenticated;
 grant execute on function public.admin_copyright_strikes() to authenticated;
 
 -- ---------------------------------------------------------------------------

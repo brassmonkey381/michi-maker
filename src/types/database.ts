@@ -830,6 +830,10 @@ export type Database = {
         Args: { p_binder_id: string }
         Returns: undefined
       }
+      admin_clear_profile: {
+        Args: { p_profile_id: string }
+        Returns: undefined
+      }
       admin_restore_binder: {
         Args: { p_binder_id: string }
         Returns: undefined

@@ -84,6 +84,7 @@ create policy "Avatar deletes in own folder"
 -- 3. The read policy
 -- ---------------------------------------------------------------------------
 drop policy if exists "Profiles are viewable by everyone" on public.profiles;
+drop policy if exists "Public profiles are viewable; owners see their own" on public.profiles;
 create policy "Public profiles are viewable; owners see their own"
   on public.profiles for select to anon, authenticated
   using (is_public or id = (select auth.uid()));

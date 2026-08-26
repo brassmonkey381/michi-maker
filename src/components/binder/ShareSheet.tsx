@@ -247,8 +247,10 @@ export function ShareSheet({
                   <ThemedText type="small" themeColor="textSecondary" style={styles.attestText}>
                     I own, created, or have the rights to the art I put in binders I share, and I
                     agree to the Terms of Service. I understand I am responsible for what I share.
-                    This applies to binders I share from now on, and new binders will start out
-                    public.
+                    This applies to binders I share from now on.
+                    {auth.profile && !auth.isGuest
+                      ? ' New binders will start out public.'
+                      : ''}
                   </ThemedText>
                 </Pressable>
                 <Pressable

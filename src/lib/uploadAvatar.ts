@@ -61,17 +61,30 @@ export async function uploadAvatarImage(file: Blob, filename?: string): Promise<
   });
   if (error) throw new Error(error.message);
 
-  // Best-effort cleanup of prior avatars. The new file is already in place, so a failure here
-  // costs an orphaned old image, not the change.
+  return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
+/**
+ * Delete every avatar file EXCEPT the one the given URL points at. Call AFTER the profile row
+ * has been updated to that URL; deleting first would leave a failed update pointing at a file
+ * that no longer exists. Best-effort: a failure costs an orphaned old image, and delete-account
+ * purges the whole folder regardless.
+ */
+export async function pruneAvatars(keepUrl: string): Promise<void> {
+  const supabase = requireSupabase();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
   try {
+    const keep = keepUrl.split('/').pop();
     const { data: existing } = await supabase.storage.from(BUCKET).list(user.id);
     const stale = (existing ?? [])
-      .map((f) => `${user.id}/${f.name}`)
-      .filter((p) => p !== path);
+      .map((f) => f.name)
+      .filter((name) => name !== keep)
+      .map((name) => `${user.id}/${name}`);
     if (stale.length) await supabase.storage.from(BUCKET).remove(stale);
   } catch {
-    /* orphaned old avatar; delete-account still purges the folder */
+    /* orphaned old avatar */
   }
-
-  return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 }

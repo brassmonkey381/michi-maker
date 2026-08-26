@@ -21,6 +21,7 @@ import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import {
+  adminClearProfile,
   adminCopyrightStrikes,
   adminListReports,
   adminRemoveBinder,
@@ -61,15 +62,17 @@ export function ReportsPanel() {
   useEffect(load, [load]);
 
   const act = useCallback(
-    (report: AdminReport, action: 'remove' | 'restore' | 'dismiss' | 'reopen') => {
+    (report: AdminReport, action: 'remove' | 'restore' | 'dismiss' | 'reopen' | 'clearProfile') => {
       if (busy) return;
       setBusy(report.id);
       const run =
         action === 'remove' && report.binderId
           ? adminRemoveBinder(report.binderId)
-          : action === 'restore' && report.binderId
-            ? adminRestoreBinder(report.binderId).then(() => adminSetReportStatus(report.id, 'open'))
-            : adminSetReportStatus(report.id, action === 'dismiss' ? 'dismissed' : 'open');
+          : action === 'clearProfile' && report.profileId
+            ? adminClearProfile(report.profileId)
+            : action === 'restore' && report.binderId
+              ? adminRestoreBinder(report.binderId).then(() => adminSetReportStatus(report.id, 'open'))
+              : adminSetReportStatus(report.id, action === 'dismiss' ? 'dismissed' : 'open');
       run
         .then(load)
         .catch((e) => setError((e as Error).message))
@@ -129,9 +132,11 @@ export function ReportsPanel() {
               ) : null}
             </View>
             <View style={styles.actions}>
-              {r.binderId ? (
+              {r.binderId || r.profileId ? (
                 <Pressable
-                  onPress={() => router.push(`/binder/${r.binderId}`)}
+                  onPress={() =>
+                    router.push(r.binderId ? `/binder/${r.binderId}` : `/u/${r.profileId}`)
+                  }
                   style={styles.quietBtn}
                   hitSlop={4}>
                   <ThemedText type="small" style={styles.quietText}>
@@ -147,6 +152,17 @@ export function ReportsPanel() {
                   hitSlop={4}>
                   <ThemedText type="small" style={styles.dangerText}>
                     Take down
+                  </ThemedText>
+                </Pressable>
+              ) : null}
+              {r.profileId ? (
+                <Pressable
+                  onPress={() => act(r, 'clearProfile')}
+                  disabled={busy === r.id}
+                  style={[styles.dangerBtn, busy === r.id && styles.dim]}
+                  hitSlop={4}>
+                  <ThemedText type="small" style={styles.dangerText}>
+                    Clear content
                   </ThemedText>
                 </Pressable>
               ) : null}

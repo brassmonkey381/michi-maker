@@ -31,7 +31,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { uploadAvatarImage } from '@/lib/uploadAvatar';
+import { pruneAvatars, uploadAvatarImage } from '@/lib/uploadAvatar';
 import { useAuth, type OAuthProvider } from '@/store/auth';
 
 export function AuthSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
@@ -408,9 +408,11 @@ function ProfileView({ onClose }: { onClose: () => void }) {
       setAvatarBusy(true);
       setAvatarError(null);
       uploadAvatarImage(file, file.name)
-        .then((url) => auth.updateProfile({ avatar_url: url }))
-        .then((r) => {
+        .then(async (url) => {
+          const r = await auth.updateProfile({ avatar_url: url });
           if (r.error) setAvatarError(r.error);
+          // Old files go only after the row points at the new one.
+          else void pruneAvatars(url);
         })
         .catch((e) => setAvatarError((e as Error).message))
         .finally(() => setAvatarBusy(false));
@@ -427,10 +429,13 @@ function ProfileView({ onClose }: { onClose: () => void }) {
   const saveBio = () => {
     if (!bioDirty || bioBusy) return;
     setBioBusy(true);
+    const saving = bio;
     void auth
-      .updateProfile({ bio: bio.trim() || null })
+      .updateProfile({ bio: saving.trim() || null })
       .then((r) => {
-        if (!r.error) setBioDraft(null);
+        // Only settle the draft if nothing was typed while the save was in flight; a newer
+        // draft stays dirty and saveable rather than being silently thrown away.
+        if (!r.error) setBioDraft((cur) => (cur === saving ? null : cur));
       })
       .finally(() => setBioBusy(false));
   };
@@ -564,10 +569,6 @@ function ProfileView({ onClose }: { onClose: () => void }) {
           <ThemedText type="small" themeColor="textSecondary">
             On. New binders start out public; make any binder private from Share. Accepted{' '}
             {new Date(attestedAt).toLocaleDateString()}.
-          </ThemedText>
-        ) : auth.isGuest ? (
-          <ThemedText type="small" themeColor="textSecondary">
-            Create an account to share binders. Guest binders stay private.
           </ThemedText>
         ) : (
           <>

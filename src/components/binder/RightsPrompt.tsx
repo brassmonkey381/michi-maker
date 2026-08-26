@@ -78,8 +78,9 @@ export function RightsPrompt({ binder }: { binder: DemoBinder }) {
     <DialogCard visible title="Share your binders" onClose={() => setOpen(false)} maxWidth={420}>
       <ThemedText type="small" themeColor="textSecondary" style={styles.body}>
         michi-maker is better when binders are shared: they can be discovered, liked, and entered
-        in contests. Turn sharing on and your binders start out public, this one included. You can
-        make any binder private from Share, any time.
+        in contests. Turn sharing on and new binders start out public
+        {!binder.isPublic && privateArtInBinder(binder).length === 0 ? ', this one included' : ''}.
+        You can make any binder private from Share, any time.
       </ThemedText>
       <Pressable
         onPress={() => setChecked((v) => !v)}

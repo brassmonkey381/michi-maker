@@ -3,7 +3,7 @@
  * and surfaces the shareable `/binder/[id]` link. Web copies to the clipboard; native uses
  * the system share sheet. Only shown for the owner's own cloud binders.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { ContestEntrySection } from '@/components/contest/ContestEntrySection';
@@ -14,7 +14,7 @@ import { privateArtInBinder, type PrivateArtRef } from '@/data/artAttributionChe
 import type { DemoBinder } from '@/data/binderTypes';
 import { CONTEST } from '@/data/contest';
 import { useTheme } from '@/hooks/use-theme';
-import { binderShareUrl } from '@/lib/appUrl';
+import { binderShareUrl, warmBinderPreview } from '@/lib/appUrl';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
 
@@ -144,7 +144,18 @@ export function ShareSheet({
       });
   };
 
+  // Start rendering the link preview the moment this sheet opens on a public binder, so the image
+  // is in the CDN by the time the link is pasted anywhere. Re-runs when the binder is flipped
+  // public here, and again on every open — an edit since the last share invalidates the preview
+  // URL (it is keyed on updated_at), so re-warming IS the re-arm.
+  useEffect(() => {
+    if (visible && isPublic) warmBinderPreview(binder.id);
+  }, [visible, isPublic, binder.id]);
+
   const onShare = async () => {
+    // Again on the way out: the sheet may have been open across an edit, and this is the last
+    // moment before the link is actually somewhere. Already warm costs a CDN hit.
+    warmBinderPreview(binder.id);
     try {
       if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
         await navigator.clipboard.writeText(url);

@@ -4,6 +4,14 @@
   "devCommand": "expo",
   "cleanUrls": true,
   "framework": null,
+  "functions": {
+    "api/og-image-binder.js": {
+      "maxDuration": 30
+    },
+    "api/og-warm.js": {
+      "maxDuration": 30
+    }
+  },
   "rewrites": [
     {
       "source": "/binder/:id",

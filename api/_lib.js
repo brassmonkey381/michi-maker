@@ -21,6 +21,24 @@ const IMG_BASE = process.env.EXPO_PUBLIC_CATALOG_IMG_BASE || '';
 const SITE = process.env.EXPO_PUBLIC_APP_URL || 'https://michi-maker.com';
 const SITE_NAME = 'michi-maker';
 
+/**
+ * Collapse a description to something that unfurls on ONE line, ellipsised.
+ *
+ * Scrapers wrap the description themselves and no tag caps the line count, so the only lever is
+ * the string: cut it short enough that no client has anything to wrap. 60 is sized to Discord's
+ * embed column (~57-62 characters at its default width), the narrowest of the places these links
+ * get shared; iMessage and Slack are wider and simply have room to spare. Cuts on a word boundary
+ * when there is one in the last third, so the ellipsis follows a whole word.
+ */
+function oneLine(s, max = 60) {
+  const t = String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max - 1);
+  const space = cut.lastIndexOf(' ');
+  const kept = space > max * 0.66 ? cut.slice(0, space) : cut;
+  return `${kept.replace(/[\s,.;:—-]+$/, '')}…`;
+}
+
 /** Escape a value for safe interpolation into an HTML attribute or text node. */
 function esc(s) {
   return String(s == null ? '' : s)
@@ -42,6 +60,33 @@ function cardImage(cardId) {
 }
 
 /**
+ * Revision of the composed-image RENDER. Image scrapers cache og:image BY URL, so changing what
+ * the renderer outputs without changing the URL keeps serving the stale copy forever. Bump this
+ * on any visible change to api/og-image-binder.js — and note that doing so goes cold for EVERY
+ * binder at once, which is what `npm run warm:og` exists to repair after a deploy.
+ *
+ *   r5  1.95× render, 2340×1229 PNG
+ *   r6  michi-maker.com + logo stamped into the footer
+ *   r7  JPEG at 2.4× (2880×1512) — bigger picture, a fifth the bytes
+ */
+const OG_IMAGE_REV = 7;
+
+/**
+ * The composed-page image URL for a binder. ONE definition, shared by the meta tags and the
+ * warmer, because the two must agree exactly — a warmer that heats a URL the meta tags don't emit
+ * is worse than no warmer at all, since it looks like it worked.
+ *
+ * `t` is the binder's updated_at, so editing a binder (or changing its featured share pages, which
+ * bumps updated_at via the binders_set_updated_at trigger) changes the URL and a re-shared link
+ * re-fetches instead of unfurling the old layout. It also means every edit puts the preview back
+ * on a cold cache — see `api/og-warm.js`.
+ */
+function ogImageUrl(id, updatedAt) {
+  const stamp = updatedAt ? Date.parse(updatedAt) || 0 : 0;
+  return `${SITE}/api/og-image-binder?id=${encodeURIComponent(id)}&r=${OG_IMAGE_REV}&t=${stamp}`;
+}
+
+/**
  * PostgREST read with the publishable (anon) key. RLS exposes only public rows to
  * an anonymous caller, so a private binder/profile simply comes back empty and the
  * caller falls back to a generic preview. Returns the parsed JSON array, or null on
@@ -60,10 +105,22 @@ async function sbSelect(path) {
   }
 }
 
-/** The minimal HTML document a crawler receives: meta in <head>, a human link in <body>. */
-function ogHtml({ title, description, image, url, imageAlt, imageWidth, imageHeight }) {
+/**
+ * The minimal HTML document a crawler receives: meta in <head>, a human link in <body>.
+ *
+ * `ogDescription` is the UNFURL copy and `description` the SEO copy — they are deliberately
+ * allowed to differ. An embed shows a line or two and reads better trimmed to one; a search
+ * snippet has ~155 characters to work with and is worse for being cut to 60. Callers that want
+ * a one-line embed pass `ogDescription: oneLine(description)` and keep the full text here.
+ *
+ * NO `og:site_name`: Discord and Slack render it as a provider line ABOVE the title, and every
+ * title here already ends in "· michi-maker", so it read as the word twice in a row. The brand
+ * now rides on the composed image instead (see api/og-image-binder.js).
+ */
+function ogHtml({ title, description, ogDescription, image, url, imageAlt, imageWidth, imageHeight }) {
   const t = esc(title);
   const d = esc(description);
+  const od = esc(ogDescription == null ? description : ogDescription);
   const u = esc(url);
   const img = image ? esc(image) : '';
   const dims =
@@ -89,12 +146,11 @@ function ogHtml({ title, description, image, url, imageAlt, imageWidth, imageHei
     <meta name="description" content="${d}" />
     <link rel="canonical" href="${u}" />
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="${esc(SITE_NAME)}" />
     <meta property="og:title" content="${t}" />
-    <meta property="og:description" content="${d}" />
+    <meta property="og:description" content="${od}" />
     <meta property="og:url" content="${u}" />${imageTags}
     <meta name="twitter:title" content="${t}" />
-    <meta name="twitter:description" content="${d}" />
+    <meta name="twitter:description" content="${od}" />
   </head>
   <body>
     <h1>${t}</h1>
@@ -119,4 +175,14 @@ function sendHtml(res, html, { status = 200, maxAge = 300 } = {}) {
   res.end(html);
 }
 
-module.exports = { SITE, SITE_NAME, esc, cardImage, sbSelect, ogHtml, sendHtml };
+module.exports = {
+  SITE,
+  SITE_NAME,
+  esc,
+  oneLine,
+  cardImage,
+  ogImageUrl,
+  sbSelect,
+  ogHtml,
+  sendHtml,
+};

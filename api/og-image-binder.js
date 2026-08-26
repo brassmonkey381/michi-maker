@@ -1,10 +1,19 @@
 /**
- * Composed page image for a shared binder — a 1200×630 render of the binder's fullest
+ * Composed page image for a shared binder — a 2880×1512 render of the binder's fullest
  * page (its cards laid out the way the page looks), used as the og:image for
  * `/binder/:id`. So a shared link unfurls as the actual page, not a single card.
  *
- * Runs on the Edge runtime via @vercel/og (Satori → resvg). Design notes:
- *  - No text nodes → no font dependency (the title/description ride in the meta tags).
+ * Runs on the NODE runtime, not Edge, and that is deliberate: @vercel/og can only emit PNG, which
+ * for nine card photographs is megabytes, and an og:image that is too large simply doesn't render.
+ * On Node the PNG can be handed to sharp and re-encoded as JPEG — ~7× smaller — which is what buys
+ * the headroom to render at a HIGHER resolution than the Edge version could. (Node is also where
+ * @vercel/og already rasterises with sharp internally, so the dependency is not a new one.) The
+ * cost is CJS: an Edge function is always ESM, a Node one here is not, so @vercel/og — which is
+ * ESM-only — is pulled in with a dynamic import inside the handler.
+ *
+ * Design notes:
+ *  - The only text is the footer: the fan disclaimer and the michi-maker.com brand stamp, both
+ *    in @vercel/og's bundled font. The title and description ride in the meta tags instead.
  *  - CARD ART: the hosted buckets key images by content hash, so a URL is NOT
  *    constructible from a card id — it comes from the lite `images.json` manifest
  *    (fields ["image","image_small","image_medium"]). Satori can rasterise JPEG/PNG but
@@ -21,23 +30,33 @@
  *  - On ANY failure it redirects to the binder's cover image (or the site image), so a
  *    share always has something.
  */
-import { ImageResponse } from '@vercel/og';
-
-export const config = { runtime: 'edge' };
+const sharp = require('sharp');
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
 const BROWSE_URL = process.env.EXPO_PUBLIC_CATALOG_BROWSE_URL || '';
 const SITE = process.env.EXPO_PUBLIC_APP_URL || 'https://michi-maker.com';
 
-// Render scale. @vercel/og only outputs PNG (no JPEG/WebP), so file size scales with resolution.
-// Reference points: 1× (1200×630) ≈ 1MB (rendered but soft); 2× (2400×1260) ≈ 4MB (balked). Pushed
-// as high as possible below that ceiling: 1.95× (2340×1229) ≈ 3.8MB. If a share ever stops
-// rendering, this is the first knob to turn back down. All pixel sizes below are multiplied by S,
-// scaling the layout uniformly (fractional S is fine — Satori accepts sub-pixel styles).
-const S = 1.95;
-const W = Math.round(1200 * S); // 2340 — ImageResponse needs integer dimensions
-const H = Math.round(630 * S); // 1229
+// Render scale. @vercel/og only outputs PNG, and a PNG of nine card photographs is enormous — which
+// used to be the binding constraint (1.95× ≈ 3.94MB, against the ~4MB that made Discord balk). The
+// PNG is now re-encoded to JPEG before it leaves (see the handler), so size is no longer what caps
+// this: at 2.4×/q84 the response is ~0.78MB, a fifth of what 1.95× used to ship.
+//
+// The cap is now TIME. Measured end-to-end on this binder: 1.95× 3.4s, 2.4× 4.4s, 3× 6.4s, and
+// 3.6× falls off a cliff to 20s. A scraper that times out shows no image at all, so 2.4× is chosen
+// as the last scale that rasterises comfortably inside the function's maxDuration (vercel.json) —
+// and it is already ~2.6× the pixels Discord actually displays (~550 CSS px wide), so the scales
+// above it buy nothing anyone can see. All pixel sizes below are multiplied by S, scaling the
+// layout uniformly (fractional S is fine — Satori accepts sub-pixel styles).
+const S = 2.4;
+const W = Math.round(1200 * S); // 2880 — ImageResponse needs integer dimensions
+const H = Math.round(630 * S); // 1512
+
+// JPEG settings. 4:4:4 (no chroma subsampling) costs ~0.2MB over 4:2:0 and is worth it here: the
+// frame is dense small card text and saturated red/blue art edges, which is precisely what
+// subsampling smears. mozjpeg is what gets it back under a megabyte.
+const JPEG = { quality: 84, progressive: true, mozjpeg: true, chromaSubsampling: '4:4:4' };
+const CACHE = 'public, max-age=0, s-maxage=300, stale-while-revalidate=86400';
 const GAP = 8 * S;
 const CARD_ASPECT = 2.5 / 3.5; // real card proportions
 
@@ -415,6 +434,80 @@ function spine(height) {
 const DISCLAIMER =
   'Fan-made tool — not affiliated with, endorsed by, or sponsored by Nintendo, Creatures, or The Pokémon Company. Card images belong to their respective owners.';
 
+// Brand colours as the shipped og.png draws them (scripts/brand-assets.mjs) rather than as the
+// app's `Palette.accent` (#2F6FED) — this image belongs to the same family of cream share cards.
+const BRAND_ACCENT = '#3B82F6';
+const BRAND_POCKET = '#cfc7b7'; // a shade darker than og.png's mark, which is drawn far larger
+const MARK = 30 * S; // the mark's edge
+const BRAND_W = 190 * S; // reserved on BOTH sides of the footer, so the disclaimer stays centred
+
+/**
+ * The michi-maker mark: a 3×3 pocket grid with one piece of art spanning two pockets — the
+ * signature michi move, drawn as geometry, so the stamp costs no image fetch and can't fail the
+ * way a fetched logo could.
+ *
+ * A THIRD copy of a shape that already lives in src/components/brand/LogoMark.tsx (Views) and
+ * scripts/brand-assets.mjs (HTML/CSS); Satori shares a runtime with neither. Same proportions —
+ * gap = size/12, radius = 24% of a cell — so keep all three in step if the mark changes.
+ * Absolutely positioned rather than nested flex rows for the same reason `pageGrid` is: it's the
+ * layout model Satori is reliable at, and the spanning tile falls out of it for free.
+ */
+function logoMark(size) {
+  const gap = Math.max(1, Math.round(size / 12));
+  const cell = (size - gap * 2) / 3;
+  const radius = Math.max(1, cell * 0.24);
+  const stepPx = cell + gap;
+  const tile = (left, top, w, color) =>
+    h('div', {
+      style: {
+        display: 'flex',
+        position: 'absolute',
+        left,
+        top,
+        width: w,
+        height: cell,
+        borderRadius: radius,
+        backgroundColor: color,
+      },
+    });
+  const tiles = [];
+  for (let r = 0; r < 3; r++) {
+    for (let c = 0; c < 3; c++) {
+      if (r === 1 && c < 2) continue; // the two pockets the spanning art covers
+      tiles.push(tile(c * stepPx, r * stepPx, cell, BRAND_POCKET));
+    }
+  }
+  tiles.push(tile(0, stepPx, cell * 2 + gap, BRAND_ACCENT));
+  return h(
+    'div',
+    { style: { display: 'flex', position: 'relative', width: size, height: size } },
+    tiles,
+  );
+}
+
+/** Mark + wordmark, so the image still says where it came from once it's out of the app. */
+const brand = () =>
+  h('div', { style: { display: 'flex', alignItems: 'center', width: BRAND_W } }, [
+    logoMark(MARK),
+    h(
+      'div',
+      {
+        style: { display: 'flex', marginLeft: 11 * S, fontSize: 17 * S, color: 'rgba(70,58,42,0.80)' },
+      },
+      'michi-maker.com',
+    ),
+  ]);
+
+/**
+ * Content over a footer of [brand | disclaimer | spacer]. The empty spacer is load-bearing: it
+ * matches the brand's width so the disclaimer stays centred on the FRAME, not on the space left
+ * over beside the logo.
+ *
+ * The footer is the only thing between the mat and the bottom edge and the mat's height is a
+ * fixed constant, so the disclaimer dropped from 16 to 14 to pay for the width the brand takes.
+ * At 16 it would have wrapped to a third line in the narrower column and pushed the mat off the
+ * frame; at 14 it holds two lines with headroom to spare.
+ */
 const frame = (inner) =>
   h(
     'div',
@@ -439,25 +532,29 @@ const frame = (inner) =>
           style: {
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
             paddingLeft: 40 * S,
             paddingRight: 40 * S,
             paddingBottom: 12 * S,
           },
         },
-        h(
-          'div',
-          {
-            style: {
-              display: 'flex',
-              textAlign: 'center',
-              fontSize: 16 * S,
-              lineHeight: 1.3,
-              color: 'rgba(70,58,42,0.62)',
+        [
+          brand(),
+          h(
+            'div',
+            {
+              style: {
+                display: 'flex',
+                flex: 1,
+                textAlign: 'center',
+                fontSize: 14 * S,
+                lineHeight: 1.3,
+                color: 'rgba(70,58,42,0.62)',
+              },
             },
-          },
-          DISCLAIMER,
-        ),
+            DISCLAIMER,
+          ),
+          h('div', { style: { display: 'flex', width: BRAND_W } }),
+        ],
       ),
     ],
   );
@@ -502,9 +599,22 @@ function compose(pages, manifest, art) {
   return frame(mat(pageGrid(page, cw, ch, manifest, art), -1.5));
 }
 
-export default async function handler(req) {
-  const { searchParams } = new URL(req.url);
-  const id = (searchParams.get('id') || '').trim();
+/** Rasterise, then re-encode. If sharp ever fails, the PNG still ships — big beats nothing. */
+async function render(pages, manifest, art) {
+  // @vercel/og is ESM-only and this file is CJS; the import is cached after the first invocation.
+  const { ImageResponse } = await import('@vercel/og');
+  const png = Buffer.from(
+    await new ImageResponse(compose(pages, manifest, art), { width: W, height: H }).arrayBuffer(),
+  );
+  try {
+    return { body: await sharp(png).jpeg(JPEG).toBuffer(), type: 'image/jpeg' };
+  } catch {
+    return { body: png, type: 'image/png' };
+  }
+}
+
+module.exports = async (req, res) => {
+  const id = String((req.query && req.query.id) || '').trim();
   let cover = `${SITE}/og.png`;
   try {
     if (id) {
@@ -519,13 +629,10 @@ export default async function handler(req) {
           (page.binder_slots || []).some((s) => slotArt(s, manifest, art)),
         );
         if (pages.length && anyImage) {
-          return new ImageResponse(compose(pages, manifest, art), {
-            width: W,
-            height: H,
-            headers: {
-              'cache-control': 'public, max-age=0, s-maxage=300, stale-while-revalidate=86400',
-            },
-          });
+          const { body, type } = await render(pages, manifest, art);
+          res.setHeader('content-type', type);
+          res.setHeader('cache-control', CACHE);
+          return res.end(body);
         }
       }
     }
@@ -536,18 +643,16 @@ export default async function handler(req) {
   // don't follow redirects on og:image, so a redirect reads as "no preview image" — which is what
   // made shares show no image whenever the composer fell back.
   try {
-    const res = await fetch(cover);
-    if (res.ok) {
-      return new Response(res.body, {
-        status: 200,
-        headers: {
-          'content-type': res.headers.get('content-type') || 'image/png',
-          'cache-control': 'public, max-age=0, s-maxage=300, stale-while-revalidate=86400',
-        },
-      });
+    const r = await fetch(cover);
+    if (r.ok) {
+      res.setHeader('content-type', r.headers.get('content-type') || 'image/png');
+      res.setHeader('cache-control', CACHE);
+      return res.end(Buffer.from(await r.arrayBuffer()));
     }
   } catch {
     /* fall through to the redirect as a last resort */
   }
-  return Response.redirect(cover, 302);
-}
+  res.statusCode = 302;
+  res.setHeader('location', cover);
+  return res.end();
+};

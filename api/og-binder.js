@@ -8,14 +8,16 @@
  * To revert to the single-cover-card image (e.g. if the composer misbehaves), point
  * `image` at the cover thumbnail instead — see git history for the pickImage() helper.
  */
-const { SITE, SITE_NAME, sbSelect, ogHtml, sendHtml } = require('./_lib');
+const { SITE, SITE_NAME, oneLine, ogImageUrl, sbSelect, ogHtml, sendHtml } = require('./_lib');
 
 module.exports = async (req, res) => {
   const id = String((req.query && req.query.id) || '').trim();
   const url = `${SITE}/binder/${id}`;
+  // Both canned descriptions are written to fit oneLine()'s 60 characters, so a generic preview
+  // reads as a finished sentence instead of an ellipsis.
   const fallback = {
     title: `A michi binder · ${SITE_NAME}`,
-    description: 'Aesthetically curated Pokémon card binders — plan it, price it, print it.',
+    description: 'Curated Pokémon binders — plan it, price it, print it.',
     image: null,
     url,
   };
@@ -29,17 +31,22 @@ module.exports = async (req, res) => {
 
   const title = binder.title ? `${binder.title} · ${SITE_NAME}` : fallback.title;
   const description =
-    binder.description || 'A michi-method Pokémon binder on michi-maker. Open to see the full layout.';
-  // The composed page image. It self-heals to the cover card on any error.
-  // `r` is a manual cache-bust for the RENDER logic (image scrapers cache the og:image BY URL, so a
-  // changed output with an unchanged URL keeps serving the stale copy). `t` is the binder's
-  // updated_at, so editing the binder OR changing its featured share pages (both bump updated_at via
-  // the binders_set_updated_at trigger) changes the URL and a re-shared link re-fetches.
-  // (r5: 1.95× render, 2340×1229 — pushed as high as possible below the ~4MB size Discord balked on.)
-  const stamp = binder.updated_at ? Date.parse(binder.updated_at) || 0 : 0;
-  const image = `${SITE}/api/og-image-binder?id=${encodeURIComponent(id)}&r=5&t=${stamp}`;
+    binder.description || 'A michi-method Pokémon binder. Open to see the layout.';
+  // The composed page image (see `ogImageUrl` for how the URL busts caches). Self-heals to the
+  // cover card on any error.
+  const image = ogImageUrl(id, binder.updated_at);
   return sendHtml(
     res,
-    ogHtml({ title, description, image, imageWidth: 2340, imageHeight: 1229, url, imageAlt: binder.title }),
+    ogHtml({
+      title,
+      description,
+      // One line in the embed; the full text still carries the SEO <meta name="description">.
+      ogDescription: oneLine(description),
+      image,
+      imageWidth: 2880,
+      imageHeight: 1512,
+      url,
+      imageAlt: binder.title,
+    }),
   );
 };

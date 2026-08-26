@@ -34,11 +34,106 @@ const SESSION_STORAGE_KEY = 'mm_analytics_session';
 /** Reuse a persisted web session only if its last activity was within this idle window. */
 const IDLE_MS = 30 * 60 * 1000;
 
-/** Shape of the persisted web session entry. */
-type StoredSession = { id: string; userId: string; lastSeen: number };
+/** Shape of the persisted web session entry. `code` carries the landing campaign code across a
+ *  reload so a signup after a refresh still attributes (see CAMPAIGN_PARAMS below). */
+type StoredSession = { id: string; userId: string; lastSeen: number; code?: string };
+
+/**
+ * Durable device id (see ../tcgscan repo root: ANALYTICS-GUEST-DEVICE-ID.md). A RANDOM, OPAQUE
+ * UUID minted once on first use and never regenerated — deliberately derived from nothing about
+ * the device (no hardware, IP, or UA), so it is a coincidence key, not a fingerprint. It survives
+ * reloads, sign-outs and guest upgrades; it dies only with the storage that holds it (cleared
+ * site data / reinstall), which is exactly the churn it exists to measure. Web: localStorage —
+ * NOT sessionStorage, which dies with the tab. Native: AsyncStorage. Distinct from StoredSession
+ * by design: never expires, never scoped to a userId, never cleared on sign-out or in endSession.
+ */
+const DEVICE_STORAGE_KEY = 'mm_analytics_device';
+
+/** Resolved device id: undefined = not yet resolved, null = storage unavailable. */
+let deviceId: string | null | undefined;
+
+/** A v4 UUID. crypto.randomUUID is absent on Hermes; fall back to getRandomValues, then
+ *  Math.random — this is a coincidence key, not a security boundary. */
+function uuidv4(): string {
+  const c = globalThis.crypto as
+    | { randomUUID?: () => string; getRandomValues?: (a: Uint8Array) => Uint8Array }
+    | undefined;
+  if (typeof c?.randomUUID === 'function') return c.randomUUID();
+  const b = new Uint8Array(16);
+  if (typeof c?.getRandomValues === 'function') c.getRandomValues(b);
+  else for (let i = 0; i < 16; i++) b[i] = Math.floor(Math.random() * 256);
+  b[6] = (b[6] & 0x0f) | 0x40; // version 4
+  b[8] = (b[8] & 0x3f) | 0x80; // variant
+  const h = [...b].map((x) => x.toString(16).padStart(2, '0'));
+  return `${h.slice(0, 4).join('')}-${h.slice(4, 6).join('')}-${h.slice(6, 8).join('')}-${h
+    .slice(8, 10)
+    .join('')}-${h.slice(10, 16).join('')}`;
+}
+
+/** Read-or-mint the device id. Returns null when storage is unavailable — a storage failure must
+ *  never cost the session row. Never throws. */
+async function getDeviceId(): Promise<string | null> {
+  if (deviceId !== undefined) return deviceId;
+  try {
+    if (Platform.OS === 'web') {
+      if (typeof window === 'undefined' || typeof localStorage === 'undefined') return (deviceId = null);
+      const existing = localStorage.getItem(DEVICE_STORAGE_KEY);
+      if (existing) return (deviceId = existing);
+      const minted = uuidv4();
+      localStorage.setItem(DEVICE_STORAGE_KEY, minted);
+      return (deviceId = minted);
+    }
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+    const existing = await AsyncStorage.getItem(DEVICE_STORAGE_KEY);
+    if (existing) return (deviceId = existing);
+    const minted = uuidv4();
+    await AsyncStorage.setItem(DEVICE_STORAGE_KEY, minted);
+    return (deviceId = minted);
+  } catch {
+    return (deviceId = null);
+  }
+}
+
+/**
+ * Print/QR campaign attribution (the analytics studio's
+ * requests/2026-08-14-print-campaign-attribution.md). STRICT allowlist: only these self-chosen
+ * params ever reach the database, so an arbitrary third-party parameter can never ride in. This
+ * is the narrow campaign-code carve-out — general referrer capture stays deferred
+ * (config/events.json → gaps.referrer in the studio).
+ */
+const CAMPAIGN_PARAMS = ['code', 'utm_source', 'utm_medium', 'utm_campaign'] as const;
+
+/**
+ * Parsed ONCE at module load (web only): the only moment the URL is guaranteed to still be the
+ * printed URL — expo-router strips the query from usePathname(), and by the first page.view the
+ * SPA may already have navigated. `suffix` is the sanitized query for landing_route; `code` rides
+ * on account.created.
+ */
+const landingCampaign = (() => {
+  try {
+    if (typeof window === 'undefined' || !window.location?.search) return null;
+    const q = new URLSearchParams(window.location.search);
+    const kept = new URLSearchParams();
+    for (const k of CAMPAIGN_PARAMS) {
+      const v = q.get(k);
+      if (v && v.length <= 64) kept.append(k, v); // printed codes are short; anything huge is not ours
+    }
+    const s = kept.toString();
+    return s ? { suffix: `?${s}`, code: kept.get('code') } : null;
+  } catch {
+    return null; // never throw at module load
+  }
+})();
+
+/** The campaign code a signup attributes to: this page load's landing code, or one persisted with
+ *  the reused web session (a reload loses the query string but must not lose the attribution). */
+let campaignCode: string | null = landingCampaign?.code ?? null;
 
 /** The current auth identity, mirrored from the auth store via resetSessionUser(). */
 let cachedUser: { id: string; isGuest: boolean } | null = null;
+/** Has ANY identity ever been cached this page load? Distinguishes "signed out" (wipe the
+ *  buffer) from "bootstrap settled before the guest was minted" (keep it — see resetSessionUser). */
+let everHadIdentity = false;
 
 /**
  * Events that arrived before the identity did. supabase-js can hold a valid session for seconds
@@ -154,7 +249,10 @@ async function ensureSession(): Promise<string | null> {
       const stored = readStoredSession();
       if (stored && stored.userId === user.id && Date.now() - stored.lastSeen < IDLE_MS) {
         sessionId = stored.id;
-        writeStoredSession({ ...stored, lastSeen: Date.now() });
+        // A fresh landing code wins; else inherit the one persisted with the session, so a signup
+        // after a reload still attributes to the QR scan that started the visit.
+        campaignCode = landingCampaign?.code ?? stored.code ?? null;
+        writeStoredSession({ ...stored, lastSeen: Date.now(), ...(campaignCode ? { code: campaignCode } : {}) });
         bindLifecycleListeners(); // flush last_seen_at when this reused session's app goes away
         return sessionId;
       }
@@ -167,6 +265,8 @@ async function ensureSession(): Promise<string | null> {
           app: APP,
           is_guest: user.isGuest,
           platform: Platform.OS,
+          // Session-level, set on insert only (never on the reuse path — the row already has it).
+          device_id: await getDeviceId(),
           ...(appVersion ? { app_version: appVersion } : {}),
         })
         .select('id')
@@ -174,8 +274,13 @@ async function ensureSession(): Promise<string | null> {
       if (error || !data) return null;
       sessionId = data.id;
       landingRouteRecorded = false; // a brand-new session captures its own first page.view
-      // Persist so a web reload reuses this session (no-op on native).
-      writeStoredSession({ id: sessionId, userId: user.id, lastSeen: Date.now() });
+      // Persist so a web reload reuses this session (no-op on native), carrying the campaign code.
+      writeStoredSession({
+        id: sessionId,
+        userId: user.id,
+        lastSeen: Date.now(),
+        ...(campaignCode ? { code: campaignCode } : {}),
+      });
       bindLifecycleListeners(); // flush last_seen_at when this session's app goes away
       // The emitter owns session.start now: emit it EXACTLY ONCE, here, when a brand-new session
       // row is created (never on reuse). Insert directly rather than via track(), which would
@@ -314,9 +419,12 @@ function recordLandingRoute(id: string, route: unknown): void {
   if (landingRouteRecorded) return;
   if (typeof route !== 'string' || !route) return;
   landingRouteRecorded = true;
+  // The landing URL's allowlisted campaign query (if any) rides into landing_route, so a printed
+  // QR scan is distinguishable from someone typing the URL. No params → no suffix, unchanged.
+  const landing = landingCampaign ? `${route}${landingCampaign.suffix}` : route;
   void (async () => {
     try {
-      await supabase?.from('analytics_sessions').update({ landing_route: route }).eq('id', id).is('landing_route', null);
+      await supabase?.from('analytics_sessions').update({ landing_route: landing }).eq('id', id).is('landing_route', null);
     } catch {
       // swallow — a missed landing route is harmless
     }
@@ -482,6 +590,12 @@ function capCount(n: number): number {
  * time it actually happened. Assumes an identity is present. Fire-and-forget; never throws.
  */
 function emit(name: string, props?: Record<string, unknown>, ts?: string): void {
+  // A signup carries its campaign attribution. Merged HERE, centrally, so every account.created
+  // call site (password / oauth / guest_upgrade) attributes without repeating it — and an explicit
+  // `code` prop from a call site still wins.
+  if (name === 'account.created' && campaignCode && !(props && 'code' in props)) {
+    props = { ...props, code: campaignCode };
+  }
   void (async () => {
     try {
       const sid = await ensureSession();
@@ -520,10 +634,18 @@ export function resetSessionUser(
 ): void {
   if (!user) {
     cachedUser = null;
-    pending = []; // a buffered event never outlives the sign-out that cleared its identity
-    droppedPending = 0;
+    // Wipe the buffer ONLY when an identity existed to sign out of. For a brand-new visitor the
+    // bootstrap settles signed-out (INITIAL_SESSION null) BEFORE the guest is minted, and wiping
+    // here deleted the landing page.view of every first-time visitor — with it landing_route and
+    // the QR campaign code, i.e. the one event campaign attribution exists for. Found live: two
+    // fresh-context scans wrote session.start and nothing else.
+    if (everHadIdentity) {
+      pending = []; // a buffered event never outlives the sign-out that cleared its identity
+      droppedPending = 0;
+    }
     return;
   }
+  everHadIdentity = true;
   const isGuest = guestOf(user);
   const prev = cachedUser;
   cachedUser = { id: user.id, isGuest };
@@ -566,8 +688,13 @@ export function endSession(): void {
   sessionId = null;
   starting = null;
   cachedUser = null;
-  pending = [];
-  droppedPending = 0;
+  // Same guard as resetSessionUser(null): the auth store calls endSession on the signed-out
+  // bootstrap path too, and a fresh visitor's buffered landing must survive until their guest
+  // identity arrives moments later.
+  if (everHadIdentity) {
+    pending = [];
+    droppedPending = 0;
+  }
   lastSeenAt = 0;
   landingRouteRecorded = false;
   accessToken = null;

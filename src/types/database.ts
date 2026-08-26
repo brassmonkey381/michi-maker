@@ -65,6 +65,7 @@ export type Database = {
         Row: {
           app: string
           app_version: string | null
+          device_id: string | null
           id: string
           is_guest: boolean
           landing_route: string | null
@@ -77,6 +78,7 @@ export type Database = {
         Insert: {
           app: string
           app_version?: string | null
+          device_id?: string | null
           id?: string
           is_guest?: boolean
           landing_route?: string | null
@@ -89,6 +91,7 @@ export type Database = {
         Update: {
           app?: string
           app_version?: string | null
+          device_id?: string | null
           id?: string
           is_guest?: boolean
           landing_route?: string | null

@@ -28,6 +28,7 @@ const LINKS: { label: string; href: Href }[] = [
   { label: 'My Purchases', href: '/purchases' as Href },
   { label: 'How-to', href: '/learn' as Href },
   { label: 'The Michi Method', href: '/michi-method' },
+  { label: 'What’s new', href: '/whats-new' as Href },
   { label: 'Terms', href: '/legal/terms' },
   { label: 'Privacy', href: '/legal/privacy' },
   { label: 'Copyright', href: '/legal/dmca' as Href },

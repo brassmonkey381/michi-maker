@@ -27,6 +27,7 @@ const EXPLORE: RailItem[] = [
   { label: 'Plans', href: '/plans' as Href, match: (p) => p.startsWith('/plans') || p.startsWith('/subscriptions') || p.startsWith('/pricing') },
   { label: 'How-to', href: '/learn' as Href, match: (p) => p.startsWith('/learn') },
   { label: 'The Michi Method', href: '/michi-method', match: (p) => p.startsWith('/michi-method') },
+  { label: 'What’s new', href: '/whats-new' as Href, match: (p) => p.startsWith('/whats-new') },
 ];
 const YOU: RailItem[] = [
   { label: 'My Binders', href: '/my-binders' as Href, match: (p) => p.startsWith('/my-binders') },

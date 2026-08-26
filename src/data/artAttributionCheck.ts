@@ -11,15 +11,21 @@
  * `isPrivateArt` plus a jsonb query over binder_slots.image_attribution to find the public
  * binders holding external art. Never stop stamping to make a looser rule simpler.
  *
- * What is STILL private:
- *   - `origin: 'copied'`: art inherited by duplicating an example/demo binder. The copier holds
- *     no rights and made no import; resharing it would republish someone else's upload.
- *   - Raw hotlinks: an image we do not host (legacy slots that predate re-hosting, or any
- *     unknown-origin off-site URL). We cannot stand behind bytes we do not serve.
+ * WIDENED 2026-08-26, same owner decision: `origin: 'copied'` is public-eligible on the same
+ * hosted-bytes condition as 'external'. Today the ONLY source of copied art is duplicating OUR
+ * example/demo binders (markCopiedArtBorrowed fires solely on isExample || isDemo), so the art
+ * behind the stamp is house-curated content the owner chose to let circulate. THE GUARD THAT
+ * MUST HOLD: if duplication ever extends to other USERS' binders, 'copied' goes back to private
+ * (or gains per-source consent), because a copier would be republishing another user's uploads
+ * without that user's attestation. The stamp itself is unchanged either way.
  *
- * Public-eligible: uploads, imports we host, OUR OWN card art (`origin: 'card'` or an image
- * served from the catalog image base; the app already shows those same images publicly), and
- * procedural inserts.
+ * What is STILL private: raw hotlinks, an image we do not host (legacy slots that predate
+ * re-hosting). We cannot stand behind bytes we do not serve, and the ShareSheet now offers to
+ * convert them: fetch, re-host into the user's bucket, keep the credit (rehostBinderArt).
+ *
+ * Public-eligible: uploads, imports we host, copies we host, OUR OWN card art (`origin: 'card'`
+ * or an image served from the catalog image base; the app already shows those same images
+ * publicly), and procedural inserts.
  */
 import type { ArtAttribution } from '@/data/artworkLibrary';
 import type { DemoBinder, DemoSlot } from '@/data/binderTypes';
@@ -79,14 +85,13 @@ export function isPrivateArt(attribution?: ArtAttribution | null, imageUrl?: str
   // that misfiled provenance shouldn't outrank where the image demonstrably lives.
   if (isCardCatalogArt(imageUrl)) return false;
   if (attribution?.origin === 'card') return false;
-  // Inherited by duplicating another binder — the copier holds no rights to it.
-  if (attribution?.origin === 'copied') return true;
   if (attribution?.origin === 'upload') return false;
-  // Imported art (loosened 2026-08-26): public-eligible when WE host the bytes: importArt
-  // re-uploads every pull into the user's own bucket, so modern imports pass. A URL we cannot
-  // check, or one pointing off-site (a pre-rehosting legacy slot), stays private: the credit is
-  // recorded either way, but we only stand behind images we serve.
-  if (attribution?.origin === 'external') {
+  // Imported and copied art (loosened 2026-08-26): public-eligible when WE host the bytes.
+  // importArt re-uploads every pull into the user's own bucket, and copied slots point at the
+  // source binder's bucket art, so both normally pass. A URL we cannot check, or one pointing
+  // off-site (a pre-rehosting legacy slot), stays private: the credit is recorded either way,
+  // but we only stand behind images we serve. See the header for the copied-art guard.
+  if (attribution?.origin === 'external' || attribution?.origin === 'copied') {
     return imageUrl !== undefined && imageUrl !== null ? !isBucketHostedArt(imageUrl) : true;
   }
   // Origin unknown (legacy art): trust where it's hosted. Non-bucket ⇒ hotlink ⇒ private.
@@ -110,12 +115,14 @@ function isBorrowableCustomArt(slot: DemoSlot): boolean {
 }
 
 /**
- * Stamp every copied CUSTOM-artwork slot as `origin: 'copied'` (→ private) when a binder is
- * duplicated, so the copy can't be reshared with art the new owner didn't create. Catalog card art
- * and procedural inserts are left untouched. Original artist/source fields are preserved for
- * attribution; only the provenance CLASS changes. Returns a new binder (pure); call it on the clone
- * BEFORE persisting. Note: `binderSignature` ignores `attribution`, so this never disturbs the
- * pristine-duplicate delete gate.
+ * Stamp every copied CUSTOM-artwork slot as `origin: 'copied'` when a binder is duplicated.
+ * Since 2026-08-26 the stamp no longer BLOCKS sharing (hosted copies are public-eligible); it
+ * remains the provenance ledger: it is what makes re-tightening possible, keeps the credit
+ * honest, and is the switch that goes back to private if cross-user duplication ever ships.
+ * Catalog card art and procedural inserts are left untouched. Original artist/source fields are
+ * preserved for attribution; only the provenance CLASS changes. Returns a new binder (pure);
+ * call it on the clone BEFORE persisting. Note: `binderSignature` ignores `attribution`, so
+ * this never disturbs the pristine-duplicate delete gate.
  */
 export function markCopiedArtBorrowed(binder: DemoBinder): DemoBinder {
   return {
@@ -146,10 +153,10 @@ export interface PrivateArtRef {
 }
 
 /**
- * Every PRIVATE custom-artwork slot in the binder (copied-origin art and unhosted hotlinks), in
- * reading order. Empty ⇒ the binder has no private art and is clear to go public (after the
- * account-level rights attestation). Card pockets, inserts, uploads, hosted imports, and our own
- * content are never included.
+ * Every PRIVATE custom-artwork slot in the binder (unhosted hotlinks), in reading order. Empty ⇒
+ * the binder has no private art and is clear to go public (after the account-level rights
+ * attestation). Card pockets, inserts, uploads, hosted imports, hosted copies, and our own
+ * content are never included. The ShareSheet offers to convert what this lists (rehostBinderArt).
  */
 export function privateArtInBinder(binder: DemoBinder): PrivateArtRef[] {
   const out: PrivateArtRef[] = [];

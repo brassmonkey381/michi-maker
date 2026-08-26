@@ -64,8 +64,9 @@ export function RightsPrompt({ binder }: { binder: DemoBinder }) {
       .updateProfile({ rights_attested_at: new Date().toISOString() })
       .then((r) => {
         if (r.error) return;
-        // The binder they accepted over goes public too, unless something in it is private art
-        // (copied from another binder). New binders default public from here on.
+        // The binder they accepted over goes public too, unless something in it is still private
+        // art (a hotlink we do not host yet; Share offers to convert those). New binders default
+        // public from here on.
         if (!binder.isPublic && privateArtInBinder(binder).length === 0) {
           store.updateBinder(binder.id, { isPublic: true });
         }

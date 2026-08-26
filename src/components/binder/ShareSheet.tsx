@@ -16,6 +16,7 @@ import { CONTEST } from '@/data/contest';
 import { useTheme } from '@/hooks/use-theme';
 import { binderShareUrl } from '@/lib/appUrl';
 import { useAuth } from '@/store/auth';
+import { useBinders } from '@/store/binders';
 
 export function ShareSheet({
   visible,
@@ -69,11 +70,43 @@ export function ShareSheet({
   //     binder. An account that accepted it (here, in the RightsPrompt, or in Settings) flips
   //     public with no further ceremony; accepting here records it for every future share too.
   const auth = useAuth();
+  const store = useBinders();
   const accountAttested = !!auth.profile?.rights_attested_at;
   const [privateArt, setPrivateArt] = useState<PrivateArtRef[] | null>(null);
   const [awaitingAttest, setAwaitingAttest] = useState(false);
   const [attested, setAttested] = useState(false);
   const [attestBusy, setAttestBusy] = useState(false);
+  // Converting hotlink art into copies we host. Since the only thing that still blocks sharing
+  // is an image we do not serve, the blocker box offers to FIX itself: fetch each off-site
+  // image, save it to the user's bucket, keep the credit. What converts is public-eligible;
+  // what a site refuses to hand over stays private until uploaded by hand.
+  const [converting, setConverting] = useState(false);
+  const [convertNote, setConvertNote] = useState<string | null>(null);
+  const rehost = () => {
+    if (converting) return;
+    setConverting(true);
+    setConvertNote(null);
+    void store
+      .rehostBinderArt(binder.id)
+      .then(({ fixed, failed, binder: updated }) => {
+        const left = updated ? privateArtInBinder(updated) : privateArtInBinder(binder);
+        if (left.length === 0) {
+          // Everything converted: pick the flow up exactly where the toggle would have.
+          setPrivateArt(null);
+          if (accountAttested) onSetPublic(true);
+          else setAwaitingAttest(true);
+          if (fixed) onToast?.(`Saved ${fixed} ${fixed === 1 ? 'copy' : 'copies'} to your account.`);
+        } else {
+          setPrivateArt(left);
+          setConvertNote(
+            `Saved ${fixed} ${fixed === 1 ? 'copy' : 'copies'}. ${failed} couldn’t be fetched, ` +
+              'download those images and use Upload in Slice Studio instead.',
+          );
+        }
+      })
+      .catch(() => setConvertNote('Couldn’t save copies just now. Try again in a moment.'))
+      .finally(() => setConverting(false));
+  };
 
   const handleToggle = (next: boolean) => {
     if (!next) {
@@ -213,15 +246,27 @@ export function ShareSheet({
 
             {privateArt && privateArt.length > 0 ? (
               <View style={styles.gateBox}>
-                <ThemedText type="smallBold">Remove private art before sharing</ThemedText>
+                <ThemedText type="smallBold">Some art isn’t saved to your account yet</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.gateText}>
-                  {privateArt.length} art {privateArt.length === 1 ? 'piece was' : 'pieces were'}{' '}
-                  copied from another binder or brought in before importing saved a copy, so{' '}
-                  {privateArt.length === 1 ? 'it stays' : 'they stay'} private and a binder with{' '}
-                  {privateArt.length === 1 ? 'it' : 'them'} can’t be shared. Replace{' '}
-                  {privateArt.length === 1 ? 'it' : 'them'} with your own uploaded or imported art
-                  to share this binder.
+                  {privateArt.length} art {privateArt.length === 1 ? 'piece links' : 'pieces link'}{' '}
+                  to {privateArt.length === 1 ? 'an image' : 'images'} we don’t host, so{' '}
+                  {privateArt.length === 1 ? 'it stays' : 'they stay'} private and this binder
+                  can’t be shared yet. Save {privateArt.length === 1 ? 'a copy' : 'copies'} to
+                  your account and sharing unlocks, with the original credited.
                 </ThemedText>
+                <Pressable
+                  onPress={rehost}
+                  disabled={converting}
+                  style={({ pressed }) => [styles.publicBtn, (converting || pressed) && styles.dim]}>
+                  <ThemedText type="smallBold" style={styles.publicBtnText}>
+                    {converting ? 'Saving copies…' : 'Save copies to your account'}
+                  </ThemedText>
+                </Pressable>
+                {convertNote ? (
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.gateText}>
+                    {convertNote}
+                  </ThemedText>
+                ) : null}
                 <ScrollView style={styles.gateList} contentContainerStyle={styles.gateListInner}>
                   {privateArt.map((u) => (
                     <ThemedText key={u.slotId} type="small" themeColor="textSecondary">

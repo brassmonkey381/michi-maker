@@ -26,7 +26,8 @@ import {
   type ReactNode,
 } from 'react';
 
-import { markCopiedArtBorrowed } from '@/data/artAttributionCheck';
+import { isCustomArtwork, isPrivateArt, markCopiedArtBorrowed } from '@/data/artAttributionCheck';
+import { deriveAttribution } from '@/data/artworkLibrary';
 import type { ComposePlacement } from '@/data/pageComposer';
 import * as repo from '@/data/binderRepo';
 import { slotSignature } from '@/data/savedSlices';
@@ -55,6 +56,7 @@ import { LIMITS_ENFORCED, type Tier, type TierLimits } from '@/data/tiers';
 import { useTier } from '@/hooks/use-tier';
 import { isSupabaseConfigured } from '@/lib/env';
 import { defaultBinderPublic } from '@/data/sharingDefaults';
+import { importRemoteArtToBucket } from '@/lib/importArt';
 import { useAuth } from '@/store/auth';
 
 const CLOUD = isSupabaseConfigured;
@@ -185,6 +187,15 @@ interface BinderStore {
    *  need as a spacer. Returns how many were removed and how many blanks remain. */
   compactBlankPages: (binderId: string) => { removed: number; kept: number } | null;
   upsertSlot: (binderId: string, pageId: string, slot: SlotInput) => void;
+  /**
+   * Save OUR OWN copies of a binder's unhosted (hotlink) art: fetch each off-site image, upload
+   * it to the user's bucket, and point the slot at the copy, keeping the credit (the old URL
+   * becomes attribution.sourceUrl when none was recorded). What converts becomes public-eligible
+   * under the hosted-bytes rule; what cannot be fetched (a site that blocks both CORS and the
+   * art-proxy) is counted in `failed` and stays private until uploaded by hand. Returns the
+   * updated binder so the caller (ShareSheet) can re-run the gate without waiting on state.
+   */
+  rehostBinderArt: (binderId: string) => Promise<{ fixed: number; failed: number; binder: DemoBinder | null }>;
   /**
    * Drop a card into a binder's first free 1×1 pocket (scanning pages in order; appends a new
    * page if every page is full, but never past the tier's per-binder page cap). Atomic — one
@@ -1010,6 +1021,62 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     [binders, commit, persist],
   );
 
+  const rehostBinderArt = useCallback(
+    async (binderId: string) => {
+      const target = binders.find((b) => b.id === binderId);
+      // Examples never persist and never share; nothing to convert.
+      if (!target || target.isExample) return { fixed: 0, failed: 0, binder: target ?? null };
+      const changes: { pageId: string; slot: DemoSlot }[] = [];
+      let failed = 0;
+      // Sequential on purpose: each conversion is a fetch plus an upload, and a binder with many
+      // hotlinks fanning out in parallel is how a phone tab dies mid-share.
+      for (const page of target.pages) {
+        for (const slot of page.slots) {
+          if (!isCustomArtwork(slot) || !isPrivateArt(slot.attribution, slot.imageUrl)) continue;
+          const oldUrl = slot.imageUrl as string;
+          if (!/^https?:/i.test(oldUrl)) {
+            failed += 1; // not fetchable (broken/relative legacy value); needs a manual upload
+            continue;
+          }
+          try {
+            const hosted = await importRemoteArtToBucket(oldUrl);
+            changes.push({
+              pageId: page.id,
+              slot: {
+                ...slot,
+                imageUrl: hosted,
+                // The provenance is honest: this is imported art, and the place it came from is
+                // the credit. Existing artist/source fields win; the old URL fills sourceUrl so
+                // the link back survives the move.
+                attribution: {
+                  ...(slot.attribution ?? deriveAttribution(oldUrl)),
+                  origin: 'external',
+                  sourceUrl: slot.attribution?.sourceUrl ?? oldUrl,
+                },
+              },
+            });
+          } catch {
+            failed += 1; // site blocks both direct CORS and the art-proxy; Upload is the way
+          }
+        }
+      }
+      if (changes.length) {
+        const apply = (b: DemoBinder): DemoBinder => ({
+          ...b,
+          pages: b.pages.map((p) => ({
+            ...p,
+            slots: p.slots.map((s) => changes.find((c) => c.slot.id === s.id)?.slot ?? s),
+          })),
+        });
+        commit((prev) => prev.map((b) => (b.id === binderId ? apply(b) : b)));
+        for (const c of changes) persist(() => repo.upsertSlot(c.pageId, c.slot));
+        return { fixed: changes.length, failed, binder: apply(target) };
+      }
+      return { fixed: 0, failed, binder: target };
+    },
+    [binders, commit, persist],
+  );
+
   const addCardToBinder = useCallback(
     (binderId: string, cardId: string) => {
       const target = binders.find((b) => b.id === binderId);
@@ -1680,6 +1747,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       reorderPages,
       compactBlankPages,
       upsertSlot,
+      rehostBinderArt,
       addCardToBinder,
       addCardsToBinder,
       appendComposedPages,
@@ -1722,6 +1790,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       reorderPages,
       compactBlankPages,
       upsertSlot,
+      rehostBinderArt,
       addCardToBinder,
       addCardsToBinder,
       appendComposedPages,

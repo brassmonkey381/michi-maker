@@ -60,16 +60,20 @@ test('imported art WE HOST is public-eligible (the 2026-08-26 loosening)', () =>
   assert.equal(isPrivateArt({ sourceName: 'Pinterest', origin: 'external' }, undefined), true);
 });
 
-test("copied-origin art is PRIVATE, even hosted in our own bucket", () => {
-  // The reshare case: art inherited by duplicating another binder. The copier holds no rights,
-  // so it's private regardless of where the image lives.
-  assert.equal(isPrivateArt({ sourceName: 'copied from a binder', origin: 'copied' }, OWN_BUCKET), true);
+test('copied art WE HOST is public-eligible (widened 2026-08-26)', () => {
+  // Today's only copied source is duplicating OUR example/demo binders, so the art behind the
+  // stamp is house content the owner chose to let circulate. If cross-user duplication ever
+  // ships, this test is the one to flip back (see the header guard in artAttributionCheck).
+  assert.equal(isPrivateArt({ sourceName: 'copied from a binder', origin: 'copied' }, OWN_BUCKET), false);
+  // No URL to verify hosting with ⇒ still private, same as external.
   assert.equal(isPrivateArt({ sourceName: 'x', origin: 'copied' }, undefined), true);
-  // ...but copied CARD art is still fine — a card image is public wherever it comes from.
+  // A copied slot pointing at an off-site image stays private on host alone.
+  assert.equal(isPrivateArt({ sourceName: 'x', origin: 'copied' }, HOTLINK), true);
+  // Copied CARD art was always fine: a card image is public wherever it comes from.
   assert.equal(isPrivateArt({ sourceName: 'x', origin: 'copied' }, CARD), false);
 });
 
-test('markCopiedArtBorrowed privatizes inherited custom art, spares cards + inserts', () => {
+test('markCopiedArtBorrowed stamps inherited custom art, spares cards + inserts', () => {
   const before = binderWith([
     slot({ imageUrl: OWN_BUCKET }), // custom bucket art, no origin — was PUBLIC on copy (the leak)
     slot({ imageUrl: OWN_BUCKET, attribution: { sourceName: 'your upload', origin: 'upload' } }),
@@ -89,8 +93,10 @@ test('markCopiedArtBorrowed privatizes inherited custom art, spares cards + inse
   assert.equal(slots[3].attribution, undefined); // a card slot → untouched
   assert.equal(slots[4].attribution, undefined); // procedural insert → untouched
 
-  // The two inherited custom-art pieces now block sharing; cards/inserts/catalog do not.
-  assert.equal(privateArtInBinder(after).length, 2);
+  // Since the 2026-08-26 widening the stamp no longer blocks: both copied pieces are hosted in
+  // our bucket, so the copy is shareable and the stamp is provenance, not a lock. This assertion
+  // is the one to flip back to 2 if cross-user duplication ever ships.
+  assert.equal(privateArtInBinder(after).length, 0);
 });
 
 test('isCardCatalogArt recognises catalog URLs and nothing else', () => {

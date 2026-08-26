@@ -151,3 +151,23 @@ favor of growing traffic, explicitly and with the option to re-tighten later.
      and s.image_attribution ->> 'origin' = 'external';
    ```
 3. Nothing else moves: stamping never changed, so there is no backfill to reconstruct.
+
+## 2026-08-26 follow-up: copied art opens, hotlinks convert (owner decision)
+
+**Copied art is public-eligible** on the same hosted-bytes condition as imported art. Today the
+only source of `origin: 'copied'` is duplicating OUR example/demo binders (markCopiedArtBorrowed
+fires solely on isExample || isDemo), so the art behind the stamp is house-curated content the
+owner chose to let circulate. **The guard that must hold:** if binder duplication ever extends to
+other USERS' binders, `copied` goes back to private (or gains per-source consent), because a
+copier would be republishing another user's uploads without that user's attestation. The stamp is
+unchanged; `artAttributionCheck.test.ts` marks the assertions to flip.
+
+**Hotlinks stop being a dead end.** The ShareSheet blocker now offers "Save copies to your
+account" (`store.rehostBinderArt`): each off-site image is fetched (direct CORS, then the
+art-proxy), uploaded into the user's own bucket, and the slot re-pointed, with the old URL kept
+as the credit's sourceUrl. What converts is public-eligible under the hosted-bytes rule; what a
+site refuses to serve stays private with a pointer to manual Upload. The no-hotlink rule itself
+is unchanged: we still never serve bytes we do not host.
+
+The re-tighten runbook above still applies; for copied art the jsonb query is the same with
+`'copied'` in place of `'external'`.

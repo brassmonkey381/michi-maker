@@ -16,6 +16,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, useWindowDimensio
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GrowthPanel } from '@/components/analytics/GrowthPanel';
+import { ReportsPanel } from '@/components/analytics/ReportsPanel';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Breakpoints, FontSize, MaxContentWidthWide, Palette, Radius, Spacing } from '@/constants/theme';
@@ -240,6 +241,10 @@ export default function StudioScreen() {
           tcgscan does not have — the app switcher must not appear to filter them.
         */}
         {app === 'michi' ? <GrowthPanel /> : null}
+
+        {/* The takedown queue. michi-only: reports are filed on binders and profiles, which
+            tcgscan does not have. */}
+        {app === 'michi' ? <ReportsPanel /> : null}
 
         <View style={[styles.body, wide && styles.bodyWide]}>
           {showList ? (

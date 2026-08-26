@@ -327,27 +327,36 @@ export type Database = {
           created_at: string
           details: string | null
           id: string
+          notified_at: string | null
+          profile_id: string | null
           reason: string
           reporter_id: string | null
           status: string
+          subject_owner_id: string | null
         }
         Insert: {
           binder_id?: string | null
           created_at?: string
           details?: string | null
           id?: string
+          notified_at?: string | null
+          profile_id?: string | null
           reason: string
           reporter_id?: string | null
           status?: string
+          subject_owner_id?: string | null
         }
         Update: {
           binder_id?: string | null
           created_at?: string
           details?: string | null
           id?: string
+          notified_at?: string | null
+          profile_id?: string | null
           reason?: string
           reporter_id?: string | null
           status?: string
+          subject_owner_id?: string | null
         }
         Relationships: []
       }
@@ -461,6 +470,7 @@ export type Database = {
           is_public: boolean
           layout_style: Database["public"]["Enums"]["michi_layout_style"]
           owner_id: string
+          removed_at: string | null
           share_page_ids: string[] | null
           title: string
           updated_at: string
@@ -474,6 +484,7 @@ export type Database = {
           is_public?: boolean
           layout_style?: Database["public"]["Enums"]["michi_layout_style"]
           owner_id?: string
+          removed_at?: string | null
           share_page_ids?: string[] | null
           title: string
           updated_at?: string
@@ -487,6 +498,7 @@ export type Database = {
           is_public?: boolean
           layout_style?: Database["public"]["Enums"]["michi_layout_style"]
           owner_id?: string
+          removed_at?: string | null
           share_page_ids?: string[] | null
           title?: string
           updated_at?: string
@@ -684,6 +696,8 @@ export type Database = {
           marketing_consent_source: string | null
           marketing_unsubscribed_at: string | null
           preferences: Json
+          rights_attested_at: string | null
+          rights_prompt_at: string | null
           updated_at: string
           username: string | null
         }
@@ -699,6 +713,8 @@ export type Database = {
           marketing_consent_source?: string | null
           marketing_unsubscribed_at?: string | null
           preferences?: Json
+          rights_attested_at?: string | null
+          rights_prompt_at?: string | null
           updated_at?: string
           username?: string | null
         }
@@ -714,6 +730,8 @@ export type Database = {
           marketing_consent_source?: string | null
           marketing_unsubscribed_at?: string | null
           preferences?: Json
+          rights_attested_at?: string | null
+          rights_prompt_at?: string | null
           updated_at?: string
           username?: string | null
         }
@@ -805,6 +823,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_remove_binder: {
+        Args: { p_binder_id: string }
+        Returns: undefined
+      }
+      admin_restore_binder: {
+        Args: { p_binder_id: string }
+        Returns: undefined
+      }
+      admin_copyright_strikes: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          owner_id: string
+          username: string | null
+          strikes: number
+          last_at: string
+        }[]
+      }
       admin_recent_users: {
         Args: { p_app?: string | null; p_limit?: number }
         Returns: {

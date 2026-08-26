@@ -4,6 +4,7 @@
  * entirely in local mode (no Supabase configured).
  */
 
+import { Image } from 'expo-image';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -34,9 +35,17 @@ export function AccountButton() {
         accessibilityLabel="Account"
         style={({ pressed }) => pressed && styles.pressed}>
         {auth.isSignedIn ? (
-          <View style={[styles.avatar, { backgroundColor: Palette.accent }]}>
-            <ThemedText style={styles.avatarText}>{initial}</ThemedText>
-          </View>
+          auth.profile?.avatar_url ? (
+            <Image
+              source={{ uri: auth.profile.avatar_url }}
+              style={styles.avatar}
+              contentFit="cover"
+            />
+          ) : (
+            <View style={[styles.avatar, { backgroundColor: Palette.accent }]}>
+              <ThemedText style={styles.avatarText}>{initial}</ThemedText>
+            </View>
+          )
         ) : (
           <View style={styles.pill}>
             <ThemedText type="smallBold" style={styles.pillText}>

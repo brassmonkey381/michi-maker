@@ -4,6 +4,7 @@
  * binders (and binder likes) live. Private and nameless (guest) profiles never appear (the search
  * RPC filters them out).
  */
+import { Image } from 'expo-image';
 import { useRouter, type Href } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
@@ -91,9 +92,13 @@ export function PeopleSearch({ visible, onClose }: { visible: boolean; onClose: 
                   return (
                     <View key={p.id} style={styles.row}>
                       <Pressable style={styles.rowMain} onPress={() => open(p.id)} hitSlop={4}>
-                        <View style={styles.avatar}>
-                          <ThemedText style={styles.avatarText}>{initial}</ThemedText>
-                        </View>
+                        {p.avatarUrl ? (
+                          <Image source={{ uri: p.avatarUrl }} style={styles.avatar} contentFit="cover" />
+                        ) : (
+                          <View style={styles.avatar}>
+                            <ThemedText style={styles.avatarText}>{initial}</ThemedText>
+                          </View>
+                        )}
                         <View style={styles.nameCol}>
                           <ThemedText type="smallBold" numberOfLines={1}>
                             {name}

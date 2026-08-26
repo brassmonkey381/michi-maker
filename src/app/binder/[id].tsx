@@ -228,7 +228,9 @@ function Viewer({
           Report this binder
         </ThemedText>
       </Pressable>
-      {reporting ? <ReportSheet binderId={binder.id} onClose={() => setReporting(false)} /> : null}
+      {reporting ? (
+        <ReportSheet target={{ binderId: binder.id }} onClose={() => setReporting(false)} />
+      ) : null}
     </ScrollView>
   );
 }

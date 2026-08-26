@@ -1,7 +1,8 @@
 /**
- * Report a public binder — the viewer-facing half of the takedown flow (see
- * docs/roadmap/ART-RIGHTS.md). Pick a reason, optionally add detail (for copyright: who holds the
- * rights + a link), submit. The report lands in `content_reports` for the owner to action.
+ * Report public content: the viewer-facing half of the takedown flow (see
+ * docs/roadmap/ART-RIGHTS.md). The target is a binder or, since profiles carry bios and avatars,
+ * a profile. Pick a reason, optionally add detail (for copyright: who holds the rights + a
+ * link), submit. The report lands in `content_reports` for /studio to action.
  *
  * Honest UX: on success we thank the reporter and close; a failed insert shows the error, never a
  * dead spinner. Guests can file (they're anonymous-authenticated).
@@ -12,7 +13,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 import { ThemedText } from '@/components/themed-text';
 import { DialogCard } from '@/components/ui/DialogCard';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
-import { submitContentReport, type ReportReason } from '@/data/reportRepo';
+import { submitContentReport, type ReportReason, type ReportTarget } from '@/data/reportRepo';
 
 const REASONS: { key: ReportReason; label: string; hint: string }[] = [
   { key: 'copyright', label: 'Copyright / uses art without permission', hint: 'Tell us who holds the rights and link the original, if you can.' },
@@ -20,7 +21,7 @@ const REASONS: { key: ReportReason; label: string; hint: string }[] = [
   { key: 'other', label: 'Something else', hint: 'Add any detail that helps us look into it.' },
 ];
 
-export function ReportSheet({ binderId, onClose }: { binderId: string; onClose: () => void }) {
+export function ReportSheet({ target, onClose }: { target: ReportTarget; onClose: () => void }) {
   const [reason, setReason] = useState<ReportReason>('copyright');
   const [details, setDetails] = useState('');
   const [busy, setBusy] = useState(false);
@@ -31,7 +32,7 @@ export function ReportSheet({ binderId, onClose }: { binderId: string; onClose: 
     if (busy) return;
     setBusy(true);
     setError(null);
-    submitContentReport(binderId, reason, details)
+    submitContentReport(target, reason, details)
       .then(() => setDone(true))
       .catch((e) => setError((e as Error).message))
       .finally(() => setBusy(false));
@@ -40,7 +41,7 @@ export function ReportSheet({ binderId, onClose }: { binderId: string; onClose: 
   const hint = REASONS.find((r) => r.key === reason)?.hint ?? '';
 
   return (
-    <DialogCard title="Report this binder" onClose={onClose}>
+    <DialogCard title={target.profileId ? 'Report this profile' : 'Report this binder'} onClose={onClose}>
             {done ? (
               <>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.body}>

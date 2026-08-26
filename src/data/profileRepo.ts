@@ -20,6 +20,7 @@ export interface PublicProfile {
   id: string;
   username: string | null;
   avatarUrl: string | null;
+  bio: string | null;
   isPublic: boolean;
 }
 
@@ -49,7 +50,7 @@ export async function fetchProfile(id: string): Promise<PublicProfile | null> {
   const supabase = requireSupabase();
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, username, avatar_url, is_public')
+    .select('id, username, avatar_url, bio, is_public')
     .eq('id', id)
     .maybeSingle();
   if (error) throw new Error(`load profile: ${error.message}`);
@@ -58,6 +59,7 @@ export async function fetchProfile(id: string): Promise<PublicProfile | null> {
     id: data.id,
     username: data.username,
     avatarUrl: data.avatar_url,
+    bio: data.bio,
     isPublic: data.is_public,
   };
 }

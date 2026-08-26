@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
   let filesRemoved = 0;
   let storageError: string | undefined;
   try {
-    for (const bucket of ['binder-art', 'binder-pdfs']) {
+    for (const bucket of ['binder-art', 'binder-pdfs', 'avatars']) {
       // list() pages at 100, and a silent truncation would leave files behind while reporting
       // success — so drain: take the first page, delete it, look again. No offset arithmetic,
       // because each removal shifts the listing under us; the prefix is empty when list() is.

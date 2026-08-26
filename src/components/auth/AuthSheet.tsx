@@ -11,6 +11,7 @@
  * All Supabase calls go through the auth store (src/store/auth.tsx); this file is only UI.
  */
 
+import { Image } from 'expo-image';
 import { useRouter, type Href } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -30,6 +31,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { uploadAvatarImage } from '@/lib/uploadAvatar';
 import { useAuth, type OAuthProvider } from '@/store/auth';
 
 export function AuthSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
@@ -390,6 +392,48 @@ function ProfileView({ onClose }: { onClose: () => void }) {
   const email = auth.user?.email ?? '';
   const username = auth.profile?.username ?? null;
   const initial = (username || email || '?').trim().charAt(0).toUpperCase();
+  const avatarUrl = auth.profile?.avatar_url ?? null;
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  // Web-only picker, built imperatively so this shared file needs no .web variant: the app ships
+  // web-only, and on native the control simply does not render (same posture as ArtUploadButton).
+  const pickAvatar = () => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined' || avatarBusy) return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      setAvatarBusy(true);
+      setAvatarError(null);
+      uploadAvatarImage(file, file.name)
+        .then((url) => auth.updateProfile({ avatar_url: url }))
+        .then((r) => {
+          if (r.error) setAvatarError(r.error);
+        })
+        .catch((e) => setAvatarError((e as Error).message))
+        .finally(() => setAvatarBusy(false));
+    };
+    input.click();
+  };
+  // The bio. Draft-then-save rather than save-per-keystroke: a 280-char field written live would
+  // hammer the profiles row and flash half-sentences to anyone on the public page.
+  const [bioDraft, setBioDraft] = useState<string | null>(null);
+  const [bioBusy, setBioBusy] = useState(false);
+  const savedBio = auth.profile?.bio ?? '';
+  const bio = bioDraft ?? savedBio;
+  const bioDirty = bio !== savedBio;
+  const saveBio = () => {
+    if (!bioDirty || bioBusy) return;
+    setBioBusy(true);
+    void auth
+      .updateProfile({ bio: bio.trim() || null })
+      .then((r) => {
+        if (!r.error) setBioDraft(null);
+      })
+      .finally(() => setBioBusy(false));
+  };
 
   return (
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.form}>
@@ -405,9 +449,19 @@ function ProfileView({ onClose }: { onClose: () => void }) {
       </View>
 
       <View style={styles.profileRow}>
-        <View style={[styles.avatar, { backgroundColor: Palette.accent }]}>
-          <ThemedText style={styles.avatarText}>{initial}</ThemedText>
-        </View>
+        <Pressable
+          onPress={pickAvatar}
+          disabled={Platform.OS !== 'web' || avatarBusy}
+          accessibilityRole="button"
+          accessibilityLabel="Change avatar">
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.avatar} contentFit="cover" />
+          ) : (
+            <View style={[styles.avatar, { backgroundColor: Palette.accent }]}>
+              <ThemedText style={styles.avatarText}>{initial}</ThemedText>
+            </View>
+          )}
+        </Pressable>
         <View style={styles.flex}>
           <ThemedText type="smallBold" numberOfLines={1}>
             {username ? `@${username}` : 'Collector'}
@@ -416,6 +470,48 @@ function ProfileView({ onClose }: { onClose: () => void }) {
             {email || 'Signed in'}
           </ThemedText>
         </View>
+        {Platform.OS === 'web' ? (
+          <Pressable onPress={pickAvatar} disabled={avatarBusy} hitSlop={6}>
+            <ThemedText type="small" style={styles.avatarChange}>
+              {avatarBusy ? 'Uploading…' : avatarUrl ? 'Change photo' : 'Add photo'}
+            </ThemedText>
+          </Pressable>
+        ) : null}
+      </View>
+      {avatarError ? (
+        <ThemedText type="small" style={styles.error}>
+          {avatarError}
+        </ThemedText>
+      ) : null}
+
+      {/* The bio: the profile page's one block of self-description. Shown on /u/[id] when the
+          profile is public, and reportable there like any other user content. */}
+      <View style={styles.bioBlock}>
+        <View style={styles.bioHead}>
+          <ThemedText type="smallBold">About you</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {bio.length}/280
+          </ThemedText>
+        </View>
+        <TextInput
+          value={bio}
+          onChangeText={(t) => setBioDraft(t.slice(0, 280))}
+          placeholder="Tell collectors what you collect, trade, or build."
+          placeholderTextColor={theme.textSecondary}
+          multiline
+          maxLength={280}
+          style={[styles.bioInput, { color: theme.text, borderColor: theme.backgroundSelected }]}
+        />
+        {bioDirty ? (
+          <Pressable
+            onPress={saveBio}
+            disabled={bioBusy}
+            style={({ pressed }) => [styles.bioSave, (bioBusy || pressed) && styles.pressed]}>
+            <ThemedText type="smallBold" style={styles.bioSaveText}>
+              {bioBusy ? 'Saving…' : 'Save bio'}
+            </ThemedText>
+          </Pressable>
+        ) : null}
       </View>
 
       {username && auth.user ? (
@@ -631,7 +727,27 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
+  avatarChange: { color: Palette.accent, fontWeight: Weight.semibold },
+  bioBlock: { gap: Spacing.two },
+  bioHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  bioInput: {
+    minHeight: 72,
+    borderWidth: 1,
+    borderRadius: Radius.control,
+    padding: Spacing.two,
+    fontSize: FontSize.sm,
+    textAlignVertical: 'top',
+  },
+  bioSave: {
+    alignSelf: 'flex-end',
+    backgroundColor: Palette.accent,
+    borderRadius: Radius.pill,
+    paddingVertical: Spacing.one,
+    paddingHorizontal: Spacing.three,
+  },
+  bioSaveText: { color: Palette.accentText },
   avatarText: { color: Palette.accentText, fontWeight: Weight.bold, fontSize: FontSize.lg },
   label: { marginBottom: -Spacing.two },
   readonlyField: { gap: 2 },

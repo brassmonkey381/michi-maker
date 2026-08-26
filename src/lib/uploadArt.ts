@@ -19,7 +19,7 @@ const BUCKET = 'binder-art';
  * Every art upload funnels through here, so neither the picker nor the remote import can put a
  * mislabelled object in the bucket.
  */
-async function prepareArt(file: Blob, filename?: string) {
+export async function prepareArt(file: Blob, filename?: string) {
   const declared = file.type && file.type.startsWith('image/') ? file.type : null;
   let blob = file;
   let mime = declared;

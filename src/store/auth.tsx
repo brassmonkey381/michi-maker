@@ -89,7 +89,16 @@ interface AuthStore {
   continueAsGuest: () => Promise<AuthResult>;
   updateProfile: (
     patch: Partial<
-      Pick<Profile, 'avatar_url' | 'is_public' | 'marketing_consent' | 'marketing_consent_source'>
+      Pick<
+        Profile,
+        | 'avatar_url'
+        | 'bio'
+        | 'is_public'
+        | 'marketing_consent'
+        | 'marketing_consent_source'
+        | 'rights_attested_at'
+        | 'rights_prompt_at'
+      >
     >,
   ) => Promise<AuthResult>;
   /** Claim a permanent, unique @username (only when none is set yet — usernames are immutable). */
@@ -365,8 +374,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updateProfile = useCallback(
     async (
       patch: Partial<
-      Pick<Profile, 'avatar_url' | 'is_public' | 'marketing_consent' | 'marketing_consent_source'>
-    >,
+        Pick<
+          Profile,
+          | 'avatar_url'
+          | 'bio'
+          | 'is_public'
+          | 'marketing_consent'
+          | 'marketing_consent_source'
+          | 'rights_attested_at'
+          | 'rights_prompt_at'
+        >
+      >,
     ): Promise<AuthResult> => {
       if (!supabase) return NOT_CONFIGURED;
       if (!user) return { error: 'You need to be signed in to edit your profile.' };

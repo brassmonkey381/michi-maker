@@ -1,15 +1,21 @@
 /**
- * Public profile route (`/u/[id]`) — a person's page: their name and the
- * public binders they've shared. Reached from the People search window or a shared profile link.
- * A private profile (or one that doesn't exist) shows a friendly "not available" state, except to
- * its owner. Card images resolve from ids, so the page paints without the catalog.
+ * Public profile route (`/u/[id]`): a person's page: avatar, name, bio, and the public binders
+ * they've shared. Reached from the People search window or a shared profile link.
+ *
+ * A private profile and one that doesn't exist are THE SAME state to a visitor, on purpose and
+ * now at the RLS level too (20260826130000): a non-owner's read of a private profile returns no
+ * row, so this page cannot distinguish them and the copy claims nothing it can't know. The owner
+ * still sees their own page whatever the flag says.
  */
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Image } from 'expo-image';
+
 import { BinderCarousel } from '@/components/binder/BinderCarousel';
+import { ReportSheet } from '@/components/binder/ReportSheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
@@ -22,7 +28,6 @@ import { useAuth } from '@/store/auth';
 type State =
   | { status: 'loading' }
   | { status: 'ok'; profile: PublicProfile; binders: DemoBinder[] }
-  | { status: 'private' }
   | { status: 'missing' };
 
 export default function ProfileRoute() {
@@ -30,7 +35,7 @@ export default function ProfileRoute() {
   const router = useRouter();
   const { user } = useAuth();
   const [state, setState] = useState<State>({ status: 'loading' });
-  const [needAccount, setNeedAccount] = useState(false);
+  const [reporting, setReporting] = useState(false);
 
   /* eslint-disable react-hooks/set-state-in-effect -- fetch-on-id-change: reset to loading, then resolve. */
   useEffect(() => {
@@ -48,11 +53,8 @@ export default function ProfileRoute() {
           setState({ status: 'missing' });
           return;
         }
-        const isSelf = user?.id === profile.id;
-        if (!profile.isPublic && !isSelf) {
-          setState({ status: 'private' });
-          return;
-        }
+        // RLS only returns a private profile to its owner, so reaching here with isPublic false
+        // IS the owner's own view; no second check needed.
         const binders = await fetchPublicBinders(profile.id);
         if (active) setState({ status: 'ok', profile, binders });
       } catch {
@@ -96,27 +98,38 @@ export default function ProfileRoute() {
           <View style={styles.center}>
             <ActivityIndicator />
           </View>
-        ) : state.status === 'missing' || state.status === 'private' ? (
+        ) : state.status === 'missing' ? (
           <View style={styles.center}>
             <ThemedText type="subtitle" style={styles.missTitle}>
-              {state.status === 'private' ? 'This profile is private' : 'Profile not available'}
+              Profile not available
             </ThemedText>
             <ThemedText type="small" themeColor="textSecondary" style={styles.missText}>
-              {state.status === 'private'
-                ? 'This collector has made their profile private.'
-                : 'This profile doesn’t exist or is no longer available.'}
+              This profile is private, doesn’t exist, or is no longer available.
             </ThemedText>
           </View>
         ) : (
           <ScrollView contentContainerStyle={styles.scroll}>
-            <View style={styles.avatar}>
-              <ThemedText style={styles.avatarText}>
-                {(state.profile.username || '?').trim().charAt(0).toUpperCase()}
-              </ThemedText>
-            </View>
+            {state.profile.avatarUrl ? (
+              <Image
+                source={{ uri: state.profile.avatarUrl }}
+                style={styles.avatar}
+                contentFit="cover"
+              />
+            ) : (
+              <View style={styles.avatar}>
+                <ThemedText style={styles.avatarText}>
+                  {(state.profile.username || '?').trim().charAt(0).toUpperCase()}
+                </ThemedText>
+              </View>
+            )}
             <ThemedText type="subtitle" style={styles.name}>
               {name}
             </ThemedText>
+            {state.profile.bio ? (
+              <ThemedText type="small" themeColor="textSecondary" style={styles.bio}>
+                {state.profile.bio}
+              </ThemedText>
+            ) : null}
 
             <View style={styles.section}>
               <ThemedText type="smallBold" style={styles.sectionTitle}>
@@ -133,8 +146,24 @@ export default function ProfileRoute() {
                 />
               )}
             </View>
+
+            {/* The takedown intake for profile content (bio, avatar), the same flow as reporting a
+                binder, filed with profile_id instead. Hidden on your own page. */}
+            {user?.id !== state.profile.id ? (
+              <Pressable onPress={() => setReporting(true)} hitSlop={6} style={styles.reportLink}>
+                <ThemedText type="small" themeColor="textSecondary">
+                  Report this profile
+                </ThemedText>
+              </Pressable>
+            ) : null}
           </ScrollView>
         )}
+        {reporting && state.status === 'ok' ? (
+          <ReportSheet
+            target={{ profileId: state.profile.id }}
+            onClose={() => setReporting(false)}
+          />
+        ) : null}
       </SafeAreaView>
     </ThemedView>
   );
@@ -163,9 +192,12 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.accent,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   avatarText: { color: Palette.accentText, fontWeight: Weight.bold, fontSize: FontSize.display },
   name: { marginTop: Spacing.two, textAlign: 'center' },
+  bio: { marginTop: Spacing.two, textAlign: 'center', maxWidth: 480, lineHeight: 20 },
+  reportLink: { marginTop: Spacing.five, alignSelf: 'center', opacity: 0.8 },
   hint: { marginTop: Spacing.two, textAlign: 'center' },
   section: { width: '100%', marginTop: Spacing.five, gap: Spacing.three },
   sectionTitle: { fontSize: FontSize.md },

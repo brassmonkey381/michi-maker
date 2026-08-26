@@ -9,16 +9,23 @@ import { requireSupabase } from '@/lib/supabase';
 
 export type ReportReason = 'copyright' | 'inappropriate' | 'other';
 
+/** What is being reported: a binder, or a profile (bio, avatar). Exactly one id. */
+export type ReportTarget = { binderId: string; profileId?: never } | { binderId?: never; profileId: string };
+
 export async function submitContentReport(
-  binderId: string,
+  target: ReportTarget,
   reason: ReportReason,
   details: string,
 ): Promise<void> {
   const supabase = requireSupabase();
-  // reporter_id defaults to auth.uid() server-side (same pattern as print_events / saved_slices).
-  const { error } = await supabase
-    .from('content_reports')
-    .insert({ binder_id: binderId, reason, details: details.trim() || null });
+  // reporter_id defaults to auth.uid() server-side (same pattern as print_events / saved_slices);
+  // subject_owner_id is snapshotted by trigger.
+  const { error } = await supabase.from('content_reports').insert({
+    binder_id: target.binderId ?? null,
+    profile_id: target.profileId ?? null,
+    reason,
+    details: details.trim() || null,
+  });
   if (error) throw error;
 }
 

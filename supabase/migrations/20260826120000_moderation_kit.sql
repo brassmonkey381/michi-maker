@@ -43,7 +43,7 @@ create index if not exists binders_removed_at_idx on public.binders (removed_at)
 create or replace function public.binders_guard_removed_at()
 returns trigger
 language plpgsql security definer set search_path = ''
-as $
+as $$
 begin
   if new.removed_at is distinct from old.removed_at then
     if (select auth.uid()) is not null and not public.is_admin() then
@@ -52,7 +52,7 @@ begin
   end if;
   return new;
 end;
-$;
+$$;
 
 drop trigger if exists binders_guard_removed_at on public.binders;
 create trigger binders_guard_removed_at
@@ -291,7 +291,7 @@ create index if not exists content_reports_subject_idx
 create or replace function public.content_report_fill_subject()
 returns trigger
 language plpgsql security definer set search_path = ''
-as $
+as $$
 begin
   new.subject_owner_id := null;
   if new.profile_id is not null then
@@ -302,7 +302,7 @@ begin
   end if;
   return new;
 end;
-$;
+$$;
 
 drop trigger if exists content_reports_fill_subject on public.content_reports;
 create trigger content_reports_fill_subject
@@ -398,7 +398,7 @@ $$;
 create or replace function public.admin_clear_profile(p_profile_id uuid)
 returns void
 language plpgsql security definer set search_path = ''
-as $
+as $$
 begin
   if not public.is_admin() then
     raise exception 'admin only';
@@ -407,7 +407,7 @@ begin
   update public.content_reports set status = 'actioned'
     where profile_id = p_profile_id and status = 'open';
 end;
-$;
+$$;
 
 grant execute on function public.admin_remove_binder(uuid) to authenticated;
 grant execute on function public.admin_restore_binder(uuid) to authenticated;

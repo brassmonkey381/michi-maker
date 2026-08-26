@@ -54,6 +54,7 @@ import { track } from '@/lib/analytics';
 import { LIMITS_ENFORCED, type Tier, type TierLimits } from '@/data/tiers';
 import { useTier } from '@/hooks/use-tier';
 import { isSupabaseConfigured } from '@/lib/env';
+import { defaultBinderPublic } from '@/data/sharingDefaults';
 import { useAuth } from '@/store/auth';
 
 const CLOUD = isSupabaseConfigured;
@@ -294,7 +295,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   // The auth store owns the session. We load the signed-in user's binders and reload whenever
   // the user identity changes (sign in / out / new guest). A guest → account *upgrade* keeps
   // the same user id, so those binders stay put without a reload.
-  const { ready: authReady, user } = useAuth();
+  const { ready: authReady, user, profile } = useAuth();
   const userId = user?.id ?? null;
 
   // Effective tier + limits gate binder/page creation. While LIMITS_ENFORCED is off, `limits`
@@ -497,10 +498,22 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       // name (e.g. "Miko") — trivial to type into the delete gate, and an obvious nudge to rename.
       // A meaningful title a caller passed (e.g. "My collection picks") is kept as-is.
       const title = init?.title && !GENERIC_BINDER_TITLES.has(init.title.trim()) ? init.title : fillerName();
+      // PUBLIC BY DEFAULT once the account holds the rights attestation, and never for guests:
+      // an anonymous account's binders would surface with no username to stand behind them, and
+      // the attestation flow is only ever offered to signed-in accounts. Demo/example stay
+      // private, and an explicit init.isPublic (none exists today) would win via the spread.
+      // Duplicates are unaffected: cloneBinder hard-codes copies private (borrowed-art rule).
+      const defaultPublic = defaultBinderPublic({
+        attestedAt: profile?.rights_attested_at,
+        isAnonymous: !user || !!user.is_anonymous,
+        isDemo: init?.isDemo,
+        isExample: init?.isExample,
+      });
       const binder: DemoBinder = {
         id: uuidv4(),
         layoutStyle: 'freeform' as MichiLayoutStyle,
         isExample: false,
+        ...(defaultPublic ? { isPublic: true } : {}),
         pages: [emptyPage()],
         ...init,
         title,
@@ -518,7 +531,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       track('binder.add', { isDemo: !!binder.isDemo });
       return binder;
     },
-    [binders, binderCount, limits.binders, commit, persist],
+    [binders, binderCount, limits.binders, commit, persist, profile?.rights_attested_at, user],
   );
 
   const createBinderWithCard = useCallback(

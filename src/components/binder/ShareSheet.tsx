@@ -15,6 +15,7 @@ import type { DemoBinder } from '@/data/binderTypes';
 import { CONTEST } from '@/data/contest';
 import { useTheme } from '@/hooks/use-theme';
 import { binderShareUrl } from '@/lib/appUrl';
+import { useAuth } from '@/store/auth';
 
 export function ShareSheet({
   visible,
@@ -63,11 +64,16 @@ export function ShareSheet({
     else onToast?.('You can feature up to 2 pages. Tap one to remove it first.');
   };
   // Sharing gate. Two blockers before a binder can go public:
-  //  1. PRIVATE art (pulled from a URL) — must be removed first.
-  //  2. Rights attestation — the user must confirm they hold the rights to the remaining art.
+  //  1. PRIVATE art (copied from another binder, or a legacy unhosted hotlink): remove first.
+  //  2. The rights attestation, ONCE PER ACCOUNT (profiles.rights_attested_at) rather than per
+  //     binder. An account that accepted it (here, in the RightsPrompt, or in Settings) flips
+  //     public with no further ceremony; accepting here records it for every future share too.
+  const auth = useAuth();
+  const accountAttested = !!auth.profile?.rights_attested_at;
   const [privateArt, setPrivateArt] = useState<PrivateArtRef[] | null>(null);
   const [awaitingAttest, setAwaitingAttest] = useState(false);
   const [attested, setAttested] = useState(false);
+  const [attestBusy, setAttestBusy] = useState(false);
 
   const handleToggle = (next: boolean) => {
     if (!next) {
@@ -78,19 +84,31 @@ export function ShareSheet({
     }
     const priv = privateArtInBinder(binder);
     if (priv.length > 0) {
-      setPrivateArt(priv); // block, has URL-sourced (private) art
+      setPrivateArt(priv); // block: copied art / unhosted legacy art
       setAwaitingAttest(false);
       return;
     }
-    // Clean of private art → require the rights attestation before flipping public.
     setPrivateArt(null);
+    if (accountAttested) {
+      onSetPublic(true); // the account already answered the rights question
+      return;
+    }
     setAwaitingAttest(true);
   };
 
   const confirmPublic = () => {
-    if (!attested) return;
-    setAwaitingAttest(false);
-    onSetPublic(true);
+    if (!attested || attestBusy) return;
+    setAttestBusy(true);
+    // Persist the acceptance on the account, then flip. If the write fails the binder still goes
+    // public (the user did just attest, on this device, with the box checked); the next share
+    // will simply ask again, which is the safe direction to fail in.
+    void auth
+      .updateProfile({ rights_attested_at: new Date().toISOString() })
+      .finally(() => {
+        setAttestBusy(false);
+        setAwaitingAttest(false);
+        onSetPublic(true);
+      });
   };
 
   const onShare = async () => {
@@ -227,8 +245,10 @@ export function ShareSheet({
                     {attested ? <Text style={styles.checkTick}>✓</Text> : null}
                   </View>
                   <ThemedText type="small" themeColor="textSecondary" style={styles.attestText}>
-                    I own, created, or have the rights to all art in this binder, and I agree to the
-                    Terms of Service. I understand I am responsible for what I share.
+                    I own, created, or have the rights to the art I put in binders I share, and I
+                    agree to the Terms of Service. I understand I am responsible for what I share.
+                    This applies to binders I share from now on, and new binders will start out
+                    public.
                   </ThemedText>
                 </Pressable>
                 <Pressable

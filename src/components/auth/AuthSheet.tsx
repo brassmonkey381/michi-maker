@@ -434,6 +434,20 @@ function ProfileView({ onClose }: { onClose: () => void }) {
       })
       .finally(() => setBioBusy(false));
   };
+  // Sharing default. The account-level rights attestation lives here for anyone who said "not
+  // now" to the RightsPrompt: same checkbox, same effect (new binders start public). There is no
+  // un-accept, because the attestation is a statement of fact about rights, not a preference;
+  // individual binders go private from Share.
+  const attestedAt = auth.profile?.rights_attested_at ?? null;
+  const [shareChecked, setShareChecked] = useState(false);
+  const [shareBusy, setShareBusy] = useState(false);
+  const acceptSharing = () => {
+    if (!shareChecked || shareBusy) return;
+    setShareBusy(true);
+    void auth
+      .updateProfile({ rights_attested_at: new Date().toISOString() })
+      .finally(() => setShareBusy(false));
+  };
 
   return (
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.form}>
@@ -542,6 +556,52 @@ function ProfileView({ onClose }: { onClose: () => void }) {
           onValueChange={toggleProfilePublic}
           trackColor={{ true: Palette.accent, false: theme.backgroundSelected }}
         />
+      </View>
+
+      <View style={styles.privacyBlock}>
+        <ThemedText type="smallBold">Sharing</ThemedText>
+        {attestedAt ? (
+          <ThemedText type="small" themeColor="textSecondary">
+            On. New binders start out public; make any binder private from Share. Accepted{' '}
+            {new Date(attestedAt).toLocaleDateString()}.
+          </ThemedText>
+        ) : auth.isGuest ? (
+          <ThemedText type="small" themeColor="textSecondary">
+            Create an account to share binders. Guest binders stay private.
+          </ThemedText>
+        ) : (
+          <>
+            <ThemedText type="small" themeColor="textSecondary">
+              Turn sharing on and new binders start out public, so they can be discovered, liked,
+              and entered in contests. You can make any binder private from Share.
+            </ThemedText>
+            <Pressable
+              onPress={() => setShareChecked((v) => !v)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: shareChecked }}
+              style={styles.attestRow}
+              hitSlop={4}>
+              <View style={[styles.attestBox, shareChecked && styles.attestBoxOn]}>
+                {shareChecked ? <ThemedText style={styles.attestTick}>✓</ThemedText> : null}
+              </View>
+              <ThemedText type="small" themeColor="textSecondary" style={styles.attestLabel}>
+                I own, created, or have the rights to the art I put in binders I share, and I
+                agree to the Terms of Service. I understand I am responsible for what I share.
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              onPress={acceptSharing}
+              disabled={!shareChecked || shareBusy}
+              style={({ pressed }) => [
+                styles.bioSave,
+                (!shareChecked || shareBusy || pressed) && styles.pressed,
+              ]}>
+              <ThemedText type="smallBold" style={styles.bioSaveText}>
+                {shareBusy ? 'Turning on…' : 'Turn on sharing'}
+              </ThemedText>
+            </Pressable>
+          </>
+        )}
       </View>
 
       <View style={styles.privacyRow}>
@@ -748,6 +808,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
   },
   bioSaveText: { color: Palette.accentText },
+  privacyBlock: { gap: Spacing.two },
+  attestRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
+  attestBox: {
+    width: 18,
+    height: 18,
+    borderRadius: Radius.xs,
+    borderWidth: 1.5,
+    borderColor: Palette.hairlineStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  attestBoxOn: { backgroundColor: Palette.accent, borderColor: Palette.accent },
+  attestTick: { color: Palette.accentText, fontSize: 12, fontWeight: Weight.bold, lineHeight: 14 },
+  attestLabel: { flex: 1, lineHeight: 18 },
   avatarText: { color: Palette.accentText, fontWeight: Weight.bold, fontSize: FontSize.lg },
   label: { marginBottom: -Spacing.two },
   readonlyField: { gap: 2 },

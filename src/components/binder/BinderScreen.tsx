@@ -22,6 +22,7 @@ import { BinderPages, type GridRole } from '@/components/binder/BinderPages';
 import { ColorField } from '@/components/binder/ColorField';
 import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
 import { LikersSheet } from '@/components/binder/LikersSheet';
+import { RightsPrompt } from '@/components/binder/RightsPrompt';
 import { ShareSheet } from '@/components/binder/ShareSheet';
 import { SliceStudio } from '@/components/binder/SliceStudio';
 import { SlotMultiActions } from '@/components/binder/SlotMultiActions';
@@ -1381,6 +1382,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
             onClose={() => setAddElsewhereIds(null)}
           />
         ) : null}
+        {/* The account-level attestation, offered on an editable binder when due (first binder,
+            then at most every 7 days until accepted). Decides everything internally. */}
+        {canEdit ? <RightsPrompt binder={binder} /> : null}
         <ShareSheet
           visible={shareOpen}
           binder={binder}

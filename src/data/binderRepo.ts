@@ -246,6 +246,9 @@ export async function fetchPublicBinders(ownerId: string): Promise<DemoBinder[]>
     .select('*, binder_pages(*, binder_slots(*))')
     .eq('owner_id', ownerId)
     .eq('is_public', true)
+    // A removed (taken-down) binder is hidden from the public by RLS regardless; this filter is
+    // for the OWNER, whose profile page should not present a removed binder as shared.
+    .is('removed_at', null)
     .order('created_at', { ascending: true })
     .order('position', { referencedTable: 'binder_pages', ascending: true });
   if (error) throw new Error(`load public binders: ${error.message}`);

@@ -38,8 +38,20 @@
       ],
       "destination": "/api/og-michi"
     },
-    { "source": "/welcome_v2", "destination": "/welcome_v2.html" },
-    { "source": "/auto-fill-methods", "destination": "/auto-fill-methods.html" },
-    { "source": "/:path*", "destination": "/" }
-  ]
+    {
+      "source": "/welcome_v2",
+      "destination": "/welcome_v2.html"
+    },
+    {
+      "source": "/auto-fill-methods",
+      "destination": "/auto-fill-methods.html"
+    },
+    {
+      "source": "/:path*",
+      "destination": "/"
+    }
+  ],
+  "git": {
+    "deploymentEnabled": false
+  }
 }

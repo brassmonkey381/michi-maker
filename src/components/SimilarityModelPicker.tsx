@@ -1,5 +1,10 @@
 /**
- * ADMIN-ONLY: which embedding model answers "find similar" / "✨ Fill page · More like this".
+ * Which embedding model answers "find similar" / "✨ Fill page · More like this".
+ *
+ * TWO AUDIENCES. Everyone sees the VERSION of the model that is answering — similarity results
+ * change when the model changes, on a cadence nothing in the app version tracks, and "find similar
+ * started returning different cards" previously had no answer anyone could check. Only admins see
+ * the PICKER.
  *
  * WHY THIS IS GATED AND NOT A SETTING. Candidate models are unproven. Two of them return
  * materially different neighbours on ordinary cards (measured against capG-e15: 2 of 5 shared
@@ -29,6 +34,11 @@ import {
 } from 'tcgscan-browse';
 
 import { useAuth } from '@/store/auth';
+import {
+  formatPublished,
+  getSimilarityModelInfo,
+  type SimilarityModel,
+} from '@/lib/similarity-model';
 
 /** The live model, as an option. Its absence from listSimilarityModels() is deliberate — live is
  *  `null`, not a row in the candidate table. */
@@ -39,6 +49,16 @@ export function SimilarityModelPicker({ compact = false }: { compact?: boolean }
   const isAdmin = !!profile?.is_admin;
   const [models, setModels] = useState<SimilarityModelInfo[]>([]);
   const [active, setActive] = useState<string | null>(getSimilarityModel());
+  const [live, setLive] = useState<SimilarityModel | null>(null);
+
+  // Everyone gets the version line; only admins get the chips. Fetched regardless of isAdmin.
+  useEffect(() => {
+    let alive = true;
+    getSimilarityModelInfo().then((m) => alive && setLive(m));
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -51,18 +71,36 @@ export function SimilarityModelPicker({ compact = false }: { compact?: boolean }
     };
   }, [isAdmin]);
 
-  // Nothing to choose between: no admin, or a server with no candidates pushed. Render nothing at
-  // all rather than a one-option control that implies a choice exists.
-  if (!isAdmin || models.length === 0) return null;
-
   const pick = (id: string | null) => {
     setSimilarityModel(id);
     setActive(id);
   };
 
+  // What is ACTUALLY answering: an admin's selected candidate, else the server's live model. The
+  // label has to follow the selection, or an admin comparing models would read the live version
+  // over candidate results.
+  const version = active
+    ? `${active} · experimental`
+    : live?.publicVersion ?? live?.modelVersion ?? null;
+  const updated = active ? null : formatPublished(live?.publishedAt ?? null);
+  const versionLine = version ? (
+    <Text style={styles.caption}>
+      Similarity model {version}
+      {updated ? ` · updated ${updated}` : ''}
+    </Text>
+  ) : null;
+
+  // A non-admin, or a server with no candidates pushed, gets the version line and no control —
+  // rather than a one-option picker implying a choice exists.
+  if (!isAdmin || models.length === 0) {
+    return versionLine ? (
+      <View style={[styles.row, compact && styles.rowCompact]}>{versionLine}</View>
+    ) : null;
+  }
+
   return (
     <View style={[styles.row, compact && styles.rowCompact]}>
-      <Text style={styles.caption}>Similarity model</Text>
+      {versionLine}
       <View style={styles.chips}>
         {[LIVE, ...models.map((m) => ({ id: m.modelVersion, label: m.modelVersion }))].map((o) => {
           const on = active === o.id;

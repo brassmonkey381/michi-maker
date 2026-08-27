@@ -19,7 +19,7 @@
  * Not a mutation and not authenticated: it can only cause a PUBLIC binder's own preview to be
  * rendered, which is exactly what any scraper does anyway.
  */
-const { ogImageUrl, sbSelect } = require('./_lib');
+const { ogImageUrl, OG_PAGES_SELECT, sbSelect } = require('./_lib');
 
 module.exports = async (req, res) => {
   const id = String((req.query && req.query.id) || '').trim();
@@ -37,12 +37,12 @@ module.exports = async (req, res) => {
   // share_page_ids matters here as much as updated_at: it decides which CANVAS the meta tags point
   // at, and warming the other one would heat a URL nobody ever requests while looking like success.
   const rows = await sbSelect(
-    `binders?id=eq.${encodeURIComponent(id)}&is_public=eq.true&select=id,updated_at,share_page_ids`,
+    `binders?id=eq.${encodeURIComponent(id)}&is_public=eq.true&select=id,updated_at,share_page_ids,${OG_PAGES_SELECT}`,
   );
   const binder = Array.isArray(rows) ? rows[0] : null;
   if (!binder) return send(404, { warmed: false, reason: 'not public' });
 
-  const { url } = ogImageUrl(id, binder.updated_at, binder.share_page_ids);
+  const { url } = ogImageUrl(id, binder.updated_at, binder);
   const started = Date.now();
   try {
     // Through the public URL, NOT by calling the renderer in-process: the point is to populate the

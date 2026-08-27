@@ -8,7 +8,16 @@
  * To revert to the single-cover-card image (e.g. if the composer misbehaves), point
  * `image` at the cover thumbnail instead — see git history for the pickImage() helper.
  */
-const { SITE, SITE_NAME, oneLine, ogImageUrl, sbSelect, ogHtml, sendHtml } = require('./_lib');
+const {
+  SITE,
+  SITE_NAME,
+  oneLine,
+  ogImageUrl,
+  OG_PAGES_SELECT,
+  sbSelect,
+  ogHtml,
+  sendHtml,
+} = require('./_lib');
 
 module.exports = async (req, res) => {
   const id = String((req.query && req.query.id) || '').trim();
@@ -37,7 +46,7 @@ module.exports = async (req, res) => {
   // share_page_ids rides along on the row we already fetch: one featured page means the image gets
   // the narrower canvas cut to a single page's shape. Free — no extra query.
   const rows = await sbSelect(
-    `binders?id=eq.${encodeURIComponent(id)}&is_public=eq.true&select=id,title,description,updated_at,share_page_ids,share_key`,
+    `binders?id=eq.${encodeURIComponent(id)}&is_public=eq.true&select=id,title,description,updated_at,share_page_ids,share_key,${OG_PAGES_SELECT}`,
   );
   const binder = Array.isArray(rows) ? rows[0] : null;
   if (!binder) return sendHtml(res, ogHtml(fallback));
@@ -51,7 +60,7 @@ module.exports = async (req, res) => {
     binder.description || 'A michi-method Pokémon binder. Open to see the layout.';
   // The composed page image (see `ogImageUrl` for how the URL busts caches). Self-heals to the
   // cover card on any error.
-  const image = ogImageUrl(id, binder.updated_at, binder.share_page_ids);
+  const image = ogImageUrl(id, binder.updated_at, binder);
   return sendHtml(
     res,
     ogHtml({

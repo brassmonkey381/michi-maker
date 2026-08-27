@@ -70,8 +70,9 @@ function cardImage(cardId) {
  *   r7  JPEG at 2.4× (2880×1512) — bigger picture, a fifth the bytes
  *   r8  single featured page gets its own 1800×1512 canvas over a blurred backdrop
  *   r9  single-page disclaimer runs wider, two lines instead of three
+ *   r10 a binder whose preview is ONE page gets the narrow canvas even with nothing featured
  */
-const OG_IMAGE_REV = 9;
+const OG_IMAGE_REV = 10;
 
 /**
  * The two canvases the renderer knows how to draw. A SPREAD needs the width for two facing pages;
@@ -82,27 +83,65 @@ const OG_SPREAD = { w: 2880, h: 1512 };
 const OG_SINGLE = { w: 1800, h: 1512 };
 
 /**
+ * Would the renderer draw ONE page rather than an open spread? Mirrors `pickPages` in
+ * api/og-image-binder.js — keep the two in step.
+ *
+ * THIS USED TO BE "share_page_ids has exactly one entry", which was wrong for the commonest case
+ * of all: a binder with a single page and nothing explicitly featured got the wide frame and its
+ * empty margins. The reason given was that knowing the auto-pick meant pulling pages and slots on
+ * the path a scraper hits first. Measured on the largest public binder, 21 pages: the extra costs
+ * 9ms and 9.5KB. The concern was assumed rather than checked, and it did not survive checking.
+ *
+ * A disagreement with `pickPages` can only ever be COSMETIC, never a broken preview: the renderer
+ * is handed the canvas in the URL and draws that, using only the first page whenever the narrow one
+ * is asked for. So the declared size and the rendered size cannot drift apart — the worst case is
+ * a page laid out on a frame that suits it slightly less well.
+ */
+function previewIsSingle(binder) {
+  const pages = ((binder && binder.binder_pages) || []).slice().sort((a, b) => a.position - b.position);
+  const filled = (p) => (p.binder_slots || []).filter((s) => s.card_id || s.image_url).length;
+  const cells = (p) => (p.cols || 3) * (p.rows || 3);
+
+  // An explicit selection wins, exactly as pickPages has it: up to two featured pages, and one
+  // that has been emptied or hidden falls through to the automatic choice below.
+  const chosen = Array.isArray(binder && binder.share_page_ids) ? binder.share_page_ids : null;
+  if (chosen && chosen.length) {
+    const picked = pages.filter((p) => chosen.includes(p.id) && filled(p) > 0).slice(0, 2);
+    if (picked.length) return picked.length === 1;
+  }
+
+  const withCards = pages.filter((p) => filled(p) > 0);
+  // Nothing to draw: the renderer falls back to the cover image, whose size matches neither
+  // canvas. Harmless, and narrow is the better guess for the one-page binders that land here.
+  if (withCards.length <= 1) return true;
+  const topTwo = withCards.slice().sort((a, b) => filled(b) - filled(a)).slice(0, 2);
+  // The same 18-pocket ceiling pickPages uses before it commits to a spread.
+  return cells(topTwo[0]) + cells(topTwo[1]) > 18;
+}
+
+/** The page/slot columns `previewIsSingle` needs, for callers building their select. */
+const OG_PAGES_SELECT = 'binder_pages(id,position,rows,cols,binder_slots(card_id,image_url))';
+
+/**
  * The composed-page image URL for a binder, and the size it will be. ONE definition, shared by the
  * meta tags and the warmer, because the two must agree exactly — a warmer that heats a URL the
  * meta tags don't emit is worse than no warmer at all, since it looks like it worked.
  *
  * THE SIZE TRAVELS IN THE URL. og:image:width/height is a promise, and the renderer is the only
- * thing that could break it; passing the chosen canvas as `w`/`h` means the renderer draws what
- * was declared instead of deciding for itself and possibly disagreeing. Working the page count out
- * here instead would mean repeating the renderer's page-picking query on the path a scraper hits
- * first, which is the path that most needs to stay fast.
+ * thing that could break it; passing the chosen canvas as `w`/`h` means the renderer draws what was
+ * declared rather than deciding for itself and possibly disagreeing.
+ *
+ * `binder` is the row, not just its id: `previewIsSingle` reads its pages to decide the shape, so
+ * callers must include OG_PAGES_SELECT in their select.
  *
  * `t` is the binder's updated_at, so editing a binder (or changing its featured share pages, which
  * bumps updated_at via the binders_set_updated_at trigger) changes the URL and a re-shared link
  * re-fetches instead of unfurling the old layout. It also means every edit puts the preview back
  * on a cold cache — see `api/og-warm.js`.
  */
-function ogImageUrl(id, updatedAt, sharePageIds) {
+function ogImageUrl(id, updatedAt, binder) {
   const stamp = updatedAt ? Date.parse(updatedAt) || 0 : 0;
-  // Only an EXPLICIT single featured page takes the narrow canvas. A binder that happens to have
-  // one filled page keeps the wide frame — the renderer's auto-pick isn't knowable from here, and
-  // a wrong guess would declare a size the image doesn't have.
-  const single = Array.isArray(sharePageIds) && sharePageIds.length === 1;
+  const single = previewIsSingle(binder);
   const size = single ? OG_SINGLE : OG_SPREAD;
   const url =
     `${SITE}/api/og-image-binder?id=${encodeURIComponent(id)}` +
@@ -201,6 +240,8 @@ function sendHtml(res, html, { status = 200, maxAge = 300 } = {}) {
 
 module.exports = {
   SITE,
+  OG_PAGES_SELECT,
+  previewIsSingle,
   SITE_NAME,
   esc,
   oneLine,

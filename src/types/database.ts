@@ -690,6 +690,8 @@ export type Database = {
         Row: {
           avatar_consented_at: string | null
           avatar_prompt_at: string | null
+          pro_trial_offer_due: boolean
+          pro_trial_prompt_at: string | null
           avatar_url: string | null
           bio: string | null
           created_at: string
@@ -710,6 +712,8 @@ export type Database = {
         Insert: {
           avatar_consented_at?: string | null
           avatar_prompt_at?: string | null
+          pro_trial_offer_due?: boolean
+          pro_trial_prompt_at?: string | null
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
@@ -730,6 +734,8 @@ export type Database = {
         Update: {
           avatar_consented_at?: string | null
           avatar_prompt_at?: string | null
+          pro_trial_offer_due?: boolean
+          pro_trial_prompt_at?: string | null
           avatar_url?: string | null
           bio?: string | null
           created_at?: string

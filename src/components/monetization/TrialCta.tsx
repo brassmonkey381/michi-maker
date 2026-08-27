@@ -14,7 +14,18 @@ import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { track } from '@/lib/analytics';
 import { CHECKOUT_OPEN } from '@/data/subscriptions';
 import { useTier } from '@/hooks/use-tier';
-import { useTrial } from '@/hooks/use-trial';
+import { useTrial, type UseTrial } from '@/hooks/use-trial';
+
+/**
+ * Exactly the condition TrialCta draws under, as a pure predicate.
+ *
+ * Exported because a caller that needs a FALLBACK when there is no offer (a cap gate, which must
+ * still say something to the used/ineligible/subscribed) cannot otherwise tell whether this
+ * component rendered — it returns null on its own. Re-deriving the rule at the call site is how
+ * the two quietly disagree, so there is one copy and both read it.
+ */
+export const trialOfferVisible = (trial: Pick<UseTrial, 'loading' | 'state'>): boolean =>
+  CHECKOUT_OPEN && !trial.loading && trial.state === 'eligible';
 
 export function TrialCta({
   /** One line above the button, e.g. "Want more binders? Try PRO free." */
@@ -39,7 +50,7 @@ export function TrialCta({
 
   // Only the eligible-and-open case renders. Everything else (used, ineligible, checkout closed,
   // loading) defers to the caller's UpgradePerk.
-  const eligible = CHECKOUT_OPEN && !trial.loading && trial.state === 'eligible';
+  const eligible = trialOfferVisible(trial);
 
   // Impression: fire pro.offer_shown exactly once, only when the button actually renders — never on
   // the return-null path below, which is the ABSENCE of an offer (recording it would inflate

@@ -26,13 +26,14 @@ import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { MyCollection } from '@/components/MyCollection';
 import { HomeSection } from '@/components/HomeSection';
-import { UpgradePerk } from '@/components/monetization/UpgradePerk';
+import { CapGateOffer } from '@/components/monetization/CapGateOffer';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Breakpoints, FontSize, MaxContentWidth, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { ProTrialPrompt } from '@/components/monetization/ProTrialPrompt';
 import { RightsPrompt } from '@/components/binder/RightsPrompt';
 import { fillerName } from '@/data/binderTypes';
-import { binderLimitMessage, limitCta } from '@/data/limitMessages';
+import { binderLimitMessage, binderTrialMessage, limitCta } from '@/data/limitMessages';
 import { track, trackCapGate } from '@/lib/analytics';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useImageManifest } from '@/lib/catalogConfig';
@@ -184,6 +185,9 @@ export default function MyBindersScreen() {
           editor would otherwise never be asked. No binder in hand, so accepting turns sharing on
           without publishing anything that already exists. */}
       <RightsPrompt surface="my-binders" />
+      {/* One-time second chance for the accounts the trial was wasted on. Self-gates to a fixed
+          migration-set cohort and asks once; renders null for everyone else. */}
+      <ProTrialPrompt surface="my-binders" />
       <SafeAreaView style={styles.flex} edges={['top']}>
         <ScrollView contentContainerStyle={styles.scroll}>
           {/* No page title, the "My binders" section header is the top of the page. Where the
@@ -222,7 +226,11 @@ export default function MyBindersScreen() {
                     {store.tier === 'guest' ? (
                       <SignInPerk message={binderLimitMessage(store.tier, store.limits)} />
                     ) : (
-                      <UpgradePerk message={binderLimitMessage(store.tier, store.limits)} />
+                      <CapGateOffer
+                        message={binderLimitMessage(store.tier, store.limits)}
+                        trialMessage={binderTrialMessage(store.limits)}
+                        surface="my_binders"
+                      />
                     )}
                   </View>
                 ) : null}

@@ -90,20 +90,14 @@ export default function PlansScreen() {
       title="Plans"
       description="michi-maker plans: Free, PRO, and VIP."
       maxWidth={MaxContentWidthWide}>
-      {/* ── masthead ─────────────────────────────────── */}
+      {/* ── masthead ───────────────────────────────────
+          Two lines, not four. The chip read "michi-maker plans" on a page whose title is already
+          "Plans", and the lede spent three lines listing what every plan includes — which the
+          table now says once, underneath itself (INCLUDED_EVERYWHERE). What a visitor needs here
+          is the shape of the offer and then the offer. */}
       <View style={styles.masthead}>
-        <View style={styles.chip}>
-          <ThemedText type="smallBold" style={styles.chipText}>
-            michi-maker plans
-          </ThemedText>
-        </View>
         <ThemedText type="subtitle" style={styles.h1}>
           Build binders free. Upgrade when your collection outgrows them.
-        </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
-          Every plan includes the full binder editor, Slice Studio, and your pages synced across
-          web, iOS, and Android. Start free, and upgrade when your collection outgrows the
-          shelves.
         </ThemedText>
       </View>
 

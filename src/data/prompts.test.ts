@@ -31,12 +31,15 @@ const fresh = (over: Partial<PromptProfile> = {}): PromptProfile => ({
   avatar_consented_at: null,
   avatar_prompt_at: null,
   avatar_url: null,
+  pro_trial_offer_due: false,
+  pro_trial_prompt_at: null,
   ...over,
 });
 const ctx = (over: Partial<PromptContext> = {}): PromptContext => ({
   profile: fresh(),
   isGuest: false,
   providerAvatarUrl: PHOTO,
+  trialEligible: true,
   now: NOW,
   ...over,
 });
@@ -114,4 +117,49 @@ test('every prompt declares a surface, or it could never appear', () => {
     assert.ok(p.surfaces.length > 0, `${p.id} has no surface`);
     assert.ok(p.audience.length > 20, `${p.id} does not say who it is for`);
   }
+});
+
+/* ── the one-time PRO trial recovery prompt ──────────────────────────────────────────────────
+ * Its whole risk is asking twice: it exists because the offer was already spent on these people
+ * once, at a bad moment. A second unwanted ask is the failure mode, so that is what is tested.
+ */
+const cohort = (over: Partial<PromptProfile> = {}) => fresh({ pro_trial_offer_due: true, ...over });
+
+test('nobody is in the trial cohort unless a migration put them there', () => {
+  // The default profile has the flag off, which is why every test above still sees two prompts.
+  assert.ok(!ids('home').includes('pro-trial-offer'));
+  assert.ok(ids('home', { profile: cohort() }).includes('pro-trial-offer'));
+});
+
+test('the trial offer asks ONCE, and never again after it has been shown', () => {
+  const shown = { profile: cohort({ pro_trial_prompt_at: ago(1000) }) };
+  assert.ok(!ids('home', shown).includes('pro-trial-offer'));
+  // Not even after the seven-day gap that brings the other two prompts back.
+  const longAgo = { profile: cohort({ pro_trial_prompt_at: ago(PROMPT_GAP_MS * 10) }) };
+  assert.ok(!ids('home', longAgo).includes('pro-trial-offer'), 'this prompt has no second ask');
+});
+
+test('starting a trial anywhere retires it, with no stamp on the profile', () => {
+  // Acceptance lives in pro_trials, written by the RPC; the client reports it as trialEligible.
+  assert.ok(!ids('home', { profile: cohort(), trialEligible: false }).includes('pro-trial-offer'));
+});
+
+test('the trial offer never outranks the two prompts that are owed to the user', () => {
+  const all = duePrompts('home', ctx({ profile: cohort() }));
+  assert.equal(all[all.length - 1].id, 'pro-trial-offer');
+});
+
+test('it stays off the binder screen, which is a working surface', () => {
+  assert.ok(!ids('binder', { profile: cohort() }).includes('pro-trial-offer'));
+});
+
+test('guests are not offered a trial the server would refuse', () => {
+  assert.ok(!ids('home', { profile: cohort(), isGuest: true }).includes('pro-trial-offer'));
+});
+
+test('status reports the showing, and does not invent an acceptance it cannot see', () => {
+  const st = promptById('pro-trial-offer').status(cohort({ pro_trial_prompt_at: ago(5) }));
+  assert.equal(st.seenAt, ago(5));
+  assert.equal(st.acceptedAt, null);
+  assert.equal(st.response, 'no-answer');
 });

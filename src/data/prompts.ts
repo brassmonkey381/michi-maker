@@ -25,7 +25,7 @@
  * decline rate is a number anyone plans to act on.
  */
 
-export type PromptId = 'avatar-consent' | 'rights-attestation';
+export type PromptId = 'avatar-consent' | 'rights-attestation' | 'pro-trial-offer';
 
 /** Where a prompt is allowed to open. A surface renders the prompts that list it. */
 export type PromptSurface = 'home' | 'my-binders' | 'binder';
@@ -48,6 +48,9 @@ export interface PromptProfile {
   avatar_consented_at?: string | null;
   avatar_prompt_at?: string | null;
   avatar_url?: string | null;
+  /** One-time recovery cohort, set only by migration 20260827140000. The app never sets it true. */
+  pro_trial_offer_due?: boolean | null;
+  pro_trial_prompt_at?: string | null;
 }
 
 export interface PromptContext {
@@ -56,6 +59,14 @@ export interface PromptContext {
   isGuest: boolean;
   /** The photo the OAuth provider still holds, if any. Only the avatar prompt reads it. */
   providerAvatarUrl?: string | null;
+  /**
+   * Whether start_pro_trial() would still say yes (useTrial().state === 'eligible'). Only the
+   * trial prompt reads it, and it is what RETIRES that prompt: there is no "accepted" stamp on the
+   * profile, because the acceptance record is the pro_trials row the RPC writes in the same
+   * transaction as the grant — server-side and un-droppable, which is better evidence than
+   * anything the client could stamp.
+   */
+  trialEligible?: boolean;
   now?: number;
 }
 
@@ -129,6 +140,34 @@ export const PROMPTS: PromptDefinition[] = [
       return cadence(profile.rights_prompt_at, profile.rights_attested_at, now);
     },
     status: (p) => statusFrom(p?.rights_prompt_at, p?.rights_attested_at),
+  },
+  {
+    id: 'pro-trial-offer',
+    audience:
+      'The accounts that were shown the free PRO trial back when it only lived on /plans and the '
+      + 'print gate — nearly all of them minutes into their first session, before they had a '
+      + 'binder worth upgrading for, and four of them into a server bug that refused the trial '
+      + 'outright. Flagged once by migration 20260827140000 from the impressions we actually '
+      + 'recorded, and only while they are still eligible. Nothing in the app adds anyone.',
+    when:
+      'Once, on Home or My binders, next time they open the app. Never again after that — see the '
+      + 'cadence note below.',
+    surfaces: ['home', 'my-binders'],
+    // Last. The photo is a correction we owe them and the attestation gates their sharing; an
+    // offer, however well aimed, waits behind both.
+    priority: 3,
+    due: ({ profile, isGuest, trialEligible }) => {
+      if (isGuest || !profile) return false;
+      if (!profile.pro_trial_offer_due) return false;
+      // They started one (or never could) — the offer has nothing left to say.
+      if (!trialEligible) return false;
+      // Deliberately NOT `cadence`: this asks exactly once, ever. The other two prompts ask again
+      // after a week because the thing they want is still outstanding; this one is a second
+      // chance at an offer already ignored, and a third would be the nagging that putting the
+      // offer at the cap gates exists to make unnecessary.
+      return !profile.pro_trial_prompt_at;
+    },
+    status: (p) => statusFrom(p?.pro_trial_prompt_at, null),
   },
 ];
 

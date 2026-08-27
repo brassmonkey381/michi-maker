@@ -54,3 +54,26 @@ export function limitCta(tier: Tier): LimitCta {
     ? { kind: 'signin', label: 'Sign in (free)' }
     : { kind: 'plans', label: 'See plans' };
 }
+
+/**
+ * The same three caps, phrased as what the free PRO trial OPENS rather than what the current plan
+ * refuses — the copy CapGateOffer uses when the user is still trial-eligible.
+ *
+ * Always PRO's numbers, never `limits`: this is shown to someone standing at their own cap, and
+ * naming the ceiling they are about to leave tells them nothing. No guest branch, because the
+ * trial requires a real account (start_pro_trial refuses anons) and guests get SignInPerk first.
+ *
+ * The wall is named before the offer — "you're at 3, PRO gives 12" answers the question the user
+ * just asked, where "try PRO free!" is an advert that happens to have appeared.
+ */
+export function binderTrialMessage(limits: TierLimits): string {
+  return `You’ve reached your ${limits.binders}-binder limit. PRO holds ${TIER_LIMITS.pro.binders} — try it free for 14 days.`;
+}
+
+export function pageTrialMessage(limits: TierLimits): string {
+  return `You’ve reached the ${limits.pagesPerBinder}-page limit. PRO binders hold ${TIER_LIMITS.pro.pagesPerBinder} — try it free for 14 days.`;
+}
+
+export function artTrialMessage(limits: TierLimits): string {
+  return `You’re keeping ${limits.artUploads} artworks, all this plan allows. PRO keeps ${TIER_LIMITS.pro.artUploads} — try it free for 14 days.`;
+}

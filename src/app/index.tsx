@@ -12,6 +12,7 @@ import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { HomeRecent } from '@/components/HomeRecent';
 import { HomeSealed } from '@/components/HomeSealed';
 import { HomeSection } from '@/components/HomeSection';
+import { ProTrialPrompt } from '@/components/monetization/ProTrialPrompt';
 import { PeopleButton } from '@/components/people/PeopleButton';
 import { ProfileAvatarButton, TILE_AVATAR } from '@/components/people/ProfileAvatarButton';
 import { SettingsButton } from '@/components/settings/SettingsSheet';
@@ -272,6 +273,8 @@ export default function HomeScreen() {
         />
       ) : null}
       <Toast spec={toast} onDismiss={() => setToast(null)} />
+      {/* See ProTrialPrompt: a fixed cohort, asked once. Null for everyone else. */}
+      <ProTrialPrompt surface="home" />
     </ThemedView>
   );
 }

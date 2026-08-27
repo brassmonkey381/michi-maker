@@ -21,7 +21,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { ArtUploadButton } from '@/components/binder/ArtUploadButton';
 import { CardBrowse } from '@/components/binder/CardBrowse';
-import { UpgradePerk } from '@/components/monetization/UpgradePerk';
+import { CapGateOffer } from '@/components/monetization/CapGateOffer';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
@@ -868,8 +868,10 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
                 message={`You’re keeping ${trayCount} of ${trayLimit} guest artworks. Sign in (free) to keep up to ${TIER_LIMITS.free.artUploads}.`}
               />
             ) : (
-              <UpgradePerk
+              <CapGateOffer
                 message={`You’re keeping ${trayCount} of ${trayLimit} artworks. Saving ${panels.length} more needs a bigger plan.`}
+                trialMessage={`You’re keeping ${trayCount} of ${trayLimit} artworks. PRO keeps ${TIER_LIMITS.pro.artUploads} — try it free for 14 days.`}
+                surface="slice_studio"
                 onBeforePress={onClose}
               />
             )}

@@ -180,6 +180,21 @@ export const YEARLY_PRINT_VALUE = {
   vip: { each: '$2.78', off: '30%' },
 };
 
+/**
+ * What every plan has, so the comparison table can stop saying it three times.
+ *
+ * A row reading "Full catalog · Full catalog · Full catalog" costs a reader a row of attention to
+ * learn nothing; it was in the table to reassure, not to differentiate, and it reassures just as
+ * well as one line underneath. Only ever move a row here when all THREE cells are identical —
+ * a differing `sub` (Sharing's VIP featured boost, the composer rows) is real information and
+ * belongs in the grid.
+ */
+export const INCLUDED_EVERYWHERE = [
+  'The full card catalog',
+  'Slice Studio',
+  'Your pages synced across web, iOS and Android',
+];
+
 /** The capability comparison, Free/PRO/VIP only (guest is unadvertised). */
 export const COMPARISON: CompareRow[] = [
   {
@@ -201,12 +216,6 @@ export const COMPARISON: CompareRow[] = [
     vip: { text: 'Unlimited', strong: true },
   },
   {
-    capability: 'Card catalog',
-    free: { text: 'Full catalog' },
-    pro: { text: 'Full catalog' },
-    vip: { text: 'Full catalog' },
-  },
-  {
     // Still the "included at every tier" promise (owner decision 2026-07-16), but narrowed to
     // what is ACTUALLY free now that Advanced Search exists: matching itself and the composer
     // methods are included; the paid refinements are the row below. The old wording said
@@ -224,12 +233,6 @@ export const COMPARISON: CompareRow[] = [
     free: { text: '—' },
     pro: { text: '✓', strong: true },
     vip: { text: '✓', strong: true },
-  },
-  {
-    capability: 'Slice Studio',
-    free: { text: '✓' },
-    pro: { text: '✓' },
-    vip: { text: '✓' },
   },
   {
     capability: 'Slice Studio artworks in your account',

@@ -13,7 +13,7 @@ import { fetchCardDetail, type CardDetail } from 'tcgscan-browse';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { TcgscanSynergyNote } from '@/components/monetization/BundleOffer';
-import { UpgradePerk } from '@/components/monetization/UpgradePerk';
+import { CapGateOffer } from '@/components/monetization/CapGateOffer';
 import { LogoLoader } from '@/components/brand/LogoLoader';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -26,7 +26,7 @@ import {
   type FreeCard,
   type WizardProposal,
 } from '@/data/binderWizard';
-import { binderLimitMessage } from '@/data/limitMessages';
+import { binderLimitMessage, binderTrialMessage } from '@/data/limitMessages';
 import { useCatalog } from '@/hooks/use-catalog';
 import { track, trackCapGate, trackCapGateDismissed } from '@/lib/analytics';
 import { usePriceSummary } from '@/lib/prices';
@@ -262,8 +262,10 @@ export function BuildBinderSheet({
                   store.tier === 'guest' ? (
                     <SignInPerk message={binderLimitMessage(store.tier, store.limits)} />
                   ) : (
-                    <UpgradePerk
+                    <CapGateOffer
                       message={binderLimitMessage(store.tier, store.limits)}
+                      trialMessage={binderTrialMessage(store.limits)}
+                      surface="build_wizard"
                       onBeforePress={onClose}
                     />
                   )

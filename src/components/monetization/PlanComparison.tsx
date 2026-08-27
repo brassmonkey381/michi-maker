@@ -38,6 +38,7 @@ import {
   CHECKOUT_OPEN,
   COMPARISON,
   FOOTNOTES,
+  INCLUDED_EVERYWHERE,
   PLAN_HEADERS,
   planCta,
   type CompareCell,
@@ -106,6 +107,8 @@ export function PlanComparison() {
   const yearlyPercentOff = bundleYearly ? BUNDLE_PERCENT_OFF : PERCENT_OFF;
   const onSaleMonthly = bundleEligible || promoActive();
   const monthlyPercentOff = bundleEligible ? BUNDLE_PERCENT_OFF : PERCENT_OFF;
+  // Footnotes start folded; see the block that renders them.
+  const [notesOpen, setNotesOpen] = useState(false);
   // The note under the pressed CTA: the coming-soon line while checkout is closed, a sign-in
   // nudge for guests, or a checkout error. Never a silent no-op.
   const [note, setNote] = useState<{ tier: string; text: string; error?: boolean } | null>(null);
@@ -428,8 +431,28 @@ export function PlanComparison() {
         </View>
       </ScrollView>
 
-      {/* ── footnotes ─────────────────────────────────── */}
-      <View style={styles.footnotes}>
+      {/* Everything the three columns agreed on, said once. */}
+      <View style={styles.everyPlan}>
+        <Text style={styles.everyPlanText}>
+          <Text style={styles.everyPlanLead}>In every plan: </Text>
+          {INCLUDED_EVERYWHERE.join(' · ')}
+        </Text>
+      </View>
+
+      {/* ── footnotes ─────────────────────────────────────
+          Folded away by default. Six paragraphs of small print were the last thing on the page,
+          and the terms they carry (print pools, proration, what a one-time unlock covers) matter
+          to someone comparing plans and to nobody else. Present, one tap away, not the closing
+          impression. */}
+      <Pressable
+        onPress={() => setNotesOpen((v) => !v)}
+        hitSlop={6}
+        style={({ pressed }) => [styles.notesToggle, pressed && { opacity: 0.7 }]}>
+        <Text style={styles.notesToggleText}>
+          {notesOpen ? 'Hide the details ▴' : `What the marks mean, and the fine print ▾`}
+        </Text>
+      </Pressable>
+      <View style={[styles.footnotes, !notesOpen && styles.hidden]}>
         {FOOTNOTES.map((f) => (
           <Text key={f.mark} style={styles.footnote}>
             <Text style={styles.mark}>{f.mark}</Text> {f.text}
@@ -452,6 +475,14 @@ export function PlanComparison() {
 const BLOCK_WIDTH = 1040;
 
 const styles = StyleSheet.create({
+  everyPlan: { paddingTop: Spacing.three, paddingHorizontal: Spacing.two },
+  everyPlanText: { color: Palette.muted, fontSize: FontSize.sm, lineHeight: 18 },
+  everyPlanLead: { fontWeight: Weight.semibold, color: Palette.ink },
+  notesToggle: { alignSelf: 'flex-start', paddingVertical: Spacing.two, paddingHorizontal: Spacing.two },
+  notesToggleText: { color: Palette.link, fontSize: FontSize.sm, fontWeight: Weight.semibold },
+  // display:none rather than unmounting: the marks in the table point at these, and a reader who
+  // opens them should not have the page reflow underneath the row they were reading.
+  hidden: { display: 'none' },
   block: { width: '100%', maxWidth: BLOCK_WIDTH, alignSelf: 'center' },
   // The block already caps the width, so the content container just fills it. (Horizontal
   // alignment inside a horizontal ScrollView is justifyContent, never alignSelf on the child —

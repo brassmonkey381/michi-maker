@@ -99,6 +99,7 @@ interface AuthStore {
         | 'marketing_consent'
         | 'marketing_consent_source'
         | 'preferences'
+        | 'pro_trial_prompt_at'
         | 'rights_attested_at'
         | 'rights_prompt_at'
       >
@@ -387,6 +388,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           | 'marketing_consent'
           | 'marketing_consent_source'
           | 'preferences'
+          | 'pro_trial_prompt_at'
           | 'rights_attested_at'
           | 'rights_prompt_at'
         >

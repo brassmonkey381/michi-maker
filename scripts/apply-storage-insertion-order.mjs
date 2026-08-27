@@ -5,9 +5,11 @@
  *
  * THE CHECKS THAT MATTER:
  *   2. The column exists, is NOT NULL, defaults 'lifo', and the CHECK rejects anything else.
- *   3. EVERY EXISTING ROW READS 'lifo'. Rows written before today were recorded under the
- *      first-scanned-is-the-bottom rule, so the default has to preserve that meaning rather than
- *      silently reinterpret piles that are already on a shelf.
+ *   3. THE DEFAULT REACHED EVERY EXISTING ROW (no nulls). Rows written before today were
+ *      recorded under the first-scanned-is-the-bottom rule, so the default has to preserve that
+ *      meaning rather than leave piles already on a shelf unlabelled. It does NOT demand that
+ *      every unit reads lifo: a deliberate "front to back" answer is the point of the migration,
+ *      and one can land mid-run (see the note at step 3).
  *   4. An old client's insert (no insertion_order column) still lands and still reads 'lifo'.
  *
  * Safe to re-run: idempotent DDL.
@@ -69,12 +71,33 @@ try {
   else console.log('  OK (default lifo; no rows to probe the CHECK with)');
 
   console.log('Step 3: every existing unit still means what it meant...');
+  // WHAT THIS CAN AND CANNOT ASSERT. The risk being guarded is a column default that silently
+  // reinterprets piles already on a shelf, and the evidence for that is a row the default did not
+  // reach: NOT NULL plus a default means every pre-existing row now says 'lifo', which is what
+  // they were recorded under.
+  //
+  // It deliberately does NOT assert that every unit reads 'lifo'. A person answering "front to
+  // back" is the entire point of this migration, and a device that had been unable to push that
+  // answer (no column to push it into) lands it the moment step 1 runs, which is inside this
+  // script. The first run failed exactly there: a real 'fifo' answer arrived between step 1 and
+  // step 3, and the applier reported its own success as a failure.
   const [census] = await sql(`
     select count(*)::int as total,
-           count(*) filter (where insertion_order = 'lifo')::int as lifo
+           count(*) filter (where insertion_order = 'lifo')::int as lifo,
+           count(*) filter (where insertion_order = 'fifo')::int as fifo,
+           count(*) filter (where insertion_order is null)::int as unset
     from public.storage_units;`);
-  if (census.total !== census.lifo) fail(`${census.total - census.lifo} unit(s) are not 'lifo'`);
-  console.log(`  OK (${census.total} unit(s), all reading 'lifo')`);
+  if (census.unset) fail(`${census.unset} unit(s) have no order at all, so the default did not apply`);
+  console.log(`  OK (${census.total} unit(s): ${census.lifo} lifo, ${census.fifo} fifo)`);
+  if (census.fifo) {
+    // Named rather than merely counted: a stack that fills the other way is a claim about a
+    // physical pile, and the only person who can confirm it is the one holding the box.
+    const chosen = await sql(`
+      select name, kind from public.storage_units where insertion_order = 'fifo' order by name;`);
+    for (const u of chosen) {
+      console.log(`     "${u.name}" (${u.kind}) fills FRONT TO BACK, someone answered that deliberately`);
+    }
+  }
 
   console.log('Step 4: an old client’s insert still lands...');
   const legacy = await sql(`

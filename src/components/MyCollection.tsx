@@ -317,6 +317,10 @@ function CollectionStrip({
     try {
       await deletePortfolio(id);
       setPortfolios(null); // refetch the portfolio list; user_cards realtime refreshes the strip
+      // The delete also demoted any binder pockets this portfolio was backing (server-side, at
+      // commit). Re-pull the binders so placed counts drop with the owned counts; without this
+      // the stale fromCollection flags keep subtracting copies that no longer exist.
+      void store.refreshUserBinders().catch(() => {});
       onToast?.('Portfolio deleted');
     } catch (e) {
       onToast?.((e as Error).message);
@@ -884,7 +888,7 @@ function CollectionStrip({
             ? {
                 title: `Delete “${pfDelete.name}”?`,
                 message:
-                  'This removes the portfolio and its cards from your collection. Cards you already placed in a binder stay there. This can’t be undone.',
+                  'This removes the portfolio and its cards from your collection. Cards already placed in a binder stay in their pockets, but they no longer count as owned unless another portfolio still has a copy. This can’t be undone.',
                 confirmLabel: 'Delete',
                 destructive: true,
                 // The bundled "Example cards (safe to delete)" portfolio deletes immediately; a

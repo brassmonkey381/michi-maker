@@ -278,6 +278,13 @@ interface BinderStore {
   /** Remove every placed artwork slot whose content matches `signature` (slotSignature) across
    *  the user's binders. One undo entry; returns how many pockets were cleared. */
   removeArtworkBySignature: (signature: string) => number;
+  /**
+   * Re-pull the user's binders from the server, replacing local state. For when the SERVER
+   * changed them out from under us (deleting a portfolio demotes from_collection pockets at
+   * commit, via 20260827220000): the in-memory slots still carry the old provenance, and any
+   * undo snapshot could re-persist it, so the history resets like an identity change.
+   */
+  refreshUserBinders: () => Promise<void>;
   undo: () => void;
   redo: () => void;
   canUndo: boolean;
@@ -1723,6 +1730,12 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     [commit, persist],
   );
 
+  const refreshUserBinders = useCallback(async () => {
+    if (!CLOUD || !userId) return;
+    const userBinders = await repo.fetchUserBinders(userId);
+    setHistory({ past: [], present: [...SAMPLE_BINDERS, ...userBinders], future: [] });
+  }, [userId]);
+
   const value = useMemo<BinderStore>(
     () => ({
       binders,
@@ -1764,6 +1777,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       moveSlotAcrossPages,
       removeSlot,
       removeArtworkBySignature,
+      refreshUserBinders,
       undo,
       redo,
       canUndo: history.past.length > 0,
@@ -1807,6 +1821,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       moveSlotAcrossPages,
       removeSlot,
       removeArtworkBySignature,
+      refreshUserBinders,
       undo,
       redo,
       history.past.length,

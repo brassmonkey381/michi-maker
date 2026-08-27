@@ -69,9 +69,15 @@ const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
 );
 
 /**
- * The orderings offered for the "everything else" section. Order matters: the first is the
- * default, and it is publish date rather than likes so a binder published today is findable on
- * the day, instead of waiting to earn its way up a leaderboard that the same few binders hold.
+ * The orderings offered for the "everything else" section. This list is the chip ORDER only — the
+ * default lives where the state is initialised (`useState<DiscoverSort>` below), so change it
+ * there, not by reordering this.
+ *
+ * The default is "most liked": someone arriving at /discover for the first time should meet the
+ * binders the community rated highest, not whatever happened to go public most recently. The cost
+ * is real and is what this list used to be ordered around — a binder published today has to earn
+ * its way up a leaderboard the same few binders hold — which is what the "Recently public" chip
+ * is still here for.
  */
 const SORTS: { key: DiscoverSort; label: string }[] = [
   { key: 'recent', label: 'Recently public' },
@@ -117,7 +123,8 @@ export default function DiscoverScreen() {
   // contest-scoped and disappears when the contest ends, and a failure in one should not blank
   // the other.
   const [feed, setFeed] = useState<FeedEntry[] | null>(null);
-  const [sort, setSort] = useState<DiscoverSort>('recent');
+  // The default ordering for public binders — see SORTS above for why it is likes and not recency.
+  const [sort, setSort] = useState<DiscoverSort>('likes');
   const [others, setOthers] = useState<DemoBinder[] | null>(null);
 
   useEffect(() => {

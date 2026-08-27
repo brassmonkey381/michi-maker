@@ -18,6 +18,8 @@
  */
 import { readFileSync } from 'node:fs';
 
+import { purgeTestAccounts, reportPurge } from './_purge-test-accounts.mjs';
+
 const SECRETS = 'C:/Users/Brian/source/repos/tcgscan/tcgscan.secrets';
 const ENV = 'C:/Users/Brian/source/repos/tcgscan/michi-maker/.env';
 const EMAIL_PREFIX = 'michi-flowtest-';
@@ -97,19 +99,14 @@ function rightsPromptDue(p, now = Date.now()) {
   return Number.isNaN(last) || now - last >= 7 * DAY;
 }
 
+// Sweeps this run's user AND any orphan from a crashed run, then checks that it worked: a
+// cleanup that reports success without looking is how test binders reached the live site.
 async function cleanup() {
-  // Sweep this run's user AND any orphan from a crashed run.
-  try {
-    const rows = await sql(
-      `select id from auth.users where email like '${EMAIL_PREFIX}%';`,
-    );
-    for (const r of rows) {
-      await api(`/auth/v1/admin/users/${r.id}`, { method: 'DELETE', key: SERVICE });
-    }
-    if (rows.length) console.log(`\nCleaned up ${rows.length} test account(s).`);
-  } catch (e) {
-    console.log('\nCleanup warning:', String(e.message).slice(0, 200));
-  }
+  console.log('');
+  const swept = await purgeTestAccounts({
+    sql, urlBase: URL_BASE, serviceKey: SERVICE, emailPrefixes: [EMAIL_PREFIX],
+  });
+  if (!reportPurge(swept)) failures++;
 }
 
 async function main() {

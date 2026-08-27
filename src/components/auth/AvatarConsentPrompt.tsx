@@ -27,7 +27,7 @@
  * back after seven days. avatarConsent.ts holds both rules, with tests.
  */
 import { Image } from 'expo-image';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -58,12 +58,26 @@ export function AvatarConsentPrompt() {
   const offeredRef = useRef(false);
 
   const providerUrl = providerAvatarUrl(auth.user?.user_metadata);
+  /** The conditions for offering, shared by the claim below and the fetch that follows it. */
+  const due = isSupabaseConfigured && auth.ready && auth.isSignedIn && !!providerUrl
+    && avatarOfferDue(auth.profile, providerUrl);
+
+  // THE TURN IS TAKEN IN A LAYOUT EFFECT, deliberately. Both uninvited dialogs become due in the
+  // same commit (both wait on the same profile load), so whichever effect React happened to run
+  // first was winning, and a browser run could go either way. Layout effects for the WHOLE tree
+  // flush before any passive effect, so claiming here settles the order without depending on
+  // where each prompt sits in the tree. The photo question goes first because it is a privacy
+  // remediation we owe these accounts; the sharing question has its own seven-day cadence and
+  // loses nothing by waiting a visit.
+  useLayoutEffect(() => {
+    if (offeredRef.current || photo || !due) return;
+    claimPromptSlot(SLOT);
+  }, [due, photo]);
 
   useEffect(() => {
-    if (offeredRef.current || photo) return;
-    if (!isSupabaseConfigured || !auth.ready || !auth.isSignedIn) return; // guests have no photo
-    if (!providerUrl || !avatarOfferDue(auth.profile, providerUrl)) return;
-    // Take a turn before doing any work, so this never draws over the rights attestation.
+    if (offeredRef.current || photo || !due || !providerUrl) return;
+    // Re-claiming our own turn from the layout effect above; false here means the rights
+    // attestation got there first (it became due in an earlier commit) and this waits.
     if (!claimPromptSlot(SLOT)) return;
     offeredRef.current = true;
 
@@ -93,7 +107,7 @@ export function AvatarConsentPrompt() {
     return () => {
       alive = false;
     };
-  }, [auth, providerUrl, photo]);
+  }, [auth, due, providerUrl, photo]);
 
   // Give the slot back on unmount, or a navigation away mid-dialog would strand it and silence
   // the rights prompt for the rest of the session.

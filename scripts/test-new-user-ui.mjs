@@ -17,6 +17,8 @@ import { chromium } from 'playwright-core';
 import { mkdirSync } from 'node:fs';
 import { readFileSync } from 'node:fs';
 
+import { purgeTestAccounts, reportPurge } from './_purge-test-accounts.mjs';
+
 const SITE = process.argv[2] ?? 'https://michi-maker.com';
 const SECRETS = 'C:/Users/Brian/source/repos/tcgscan/tcgscan.secrets';
 const ENV = 'C:/Users/Brian/source/repos/tcgscan/michi-maker/.env';
@@ -66,12 +68,14 @@ async function sql(query) {
   if (!res.ok) throw new Error(`${res.status} ${t.slice(0, 200)}`);
   return t ? JSON.parse(t) : [];
 }
+// Deletes AND verifies. This used to call GoTrue's admin endpoint and ignore the answer, which
+// left two public test binders on the live site the day that endpoint started returning 500.
 async function cleanup() {
-  try {
-    const rows = await sql(`select id from auth.users where email like '${EMAIL_PREFIX}%';`);
-    for (const r of rows) await api(`/auth/v1/admin/users/${r.id}`, { method: 'DELETE', key: SERVICE });
-    if (rows.length) console.log(`\nCleaned up ${rows.length} test account(s).`);
-  } catch (e) { console.log('\nCleanup warning:', String(e.message).slice(0, 160)); }
+  console.log('');
+  const swept = await purgeTestAccounts({
+    sql, urlBase: URL_BASE, serviceKey: SERVICE, emailPrefixes: [EMAIL_PREFIX],
+  });
+  if (!reportPurge(swept)) failures++;
 }
 
 mkdirSync(OUT, { recursive: true });

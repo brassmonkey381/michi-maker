@@ -28,6 +28,8 @@ import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { purgeTestAccounts, reportPurge } from './_purge-test-accounts.mjs';
+
 const SITE = process.argv[2] ?? 'https://michi-maker.com';
 const SECRETS = 'C:/Users/Brian/source/repos/tcgscan/tcgscan.secrets';
 const ENV = 'C:/Users/Brian/source/repos/tcgscan/michi-maker/.env';
@@ -96,11 +98,10 @@ async function putFixture(name, localPath) {
 }
 
 async function cleanup() {
-  try {
-    const rows = await sql(`select id from auth.users where email like '${EMAIL_PREFIX}%';`);
-    for (const r of rows) await api(`/auth/v1/admin/users/${r.id}`, { method: 'DELETE', key: SERVICE });
-    if (rows.length) console.log(`Cleaned up ${rows.length} test account(s).`);
-  } catch (e) { console.log('Cleanup warning (accounts):', String(e.message).slice(0, 160)); }
+  const swept = await purgeTestAccounts({
+    sql, urlBase: URL_BASE, serviceKey: SERVICE, emailPrefixes: [EMAIL_PREFIX],
+  });
+  if (!reportPurge(swept)) failures++;
   try {
     const list = await fetch(`${URL_BASE}/storage/v1/object/list/avatars`, {
       method: 'POST',

@@ -537,7 +537,9 @@ function ProfileView({ onClose }: { onClose: () => void }) {
         <Pressable
           onPress={() => {
             onClose();
-            router.push(`/u/${auth.user!.id}` as Href);
+            // The username, not the id: this link only renders when one exists, and it is what
+            // the address bar should show when the owner previews their own page.
+            router.push(`/u/${username}` as Href);
           }}
           style={({ pressed }) => [styles.profileLink, pressed && styles.pressed]}>
           <ThemedText type="small">View public profile</ThemedText>

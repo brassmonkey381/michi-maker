@@ -12,7 +12,7 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, TextInput,
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
-import { searchProfiles, type PersonResult } from '@/data/profileRepo';
+import { profileHandle, searchProfiles, type PersonResult } from '@/data/profileRepo';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/store/auth';
 
@@ -40,10 +40,11 @@ export function PeopleSearch({ visible, onClose }: { visible: boolean; onClose: 
     return () => clearTimeout(handle);
   }, [query, visible, user]);
 
-  const open = (id: string) => {
+  // `handle` is the person's username when they have one, else their id — see `profileHandle`.
+  const open = (handle: string) => {
     onClose();
     // Cast: the typed-routes generator registers `/u/[id]` on the next dev-server run.
-    router.push(`/u/${id}` as Href);
+    router.push(`/u/${handle}` as Href);
   };
 
   const placeholder = useMemo(() => 'Search people by name…', []);
@@ -91,7 +92,7 @@ export function PeopleSearch({ visible, onClose }: { visible: boolean; onClose: 
                   const initial = (p.username || '?').trim().charAt(0).toUpperCase();
                   return (
                     <View key={p.id} style={styles.row}>
-                      <Pressable style={styles.rowMain} onPress={() => open(p.id)} hitSlop={4}>
+                      <Pressable style={styles.rowMain} onPress={() => open(profileHandle(p))} hitSlop={4}>
                         {p.avatarUrl ? (
                           <Image source={{ uri: p.avatarUrl }} style={styles.avatar} contentFit="cover" />
                         ) : (

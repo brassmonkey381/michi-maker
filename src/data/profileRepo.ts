@@ -45,14 +45,41 @@ export async function searchProfiles(query: string, limit = 30): Promise<PersonR
   }));
 }
 
-/** One profile's public detail, or null if it doesn't exist. */
-export async function fetchProfile(id: string): Promise<PublicProfile | null> {
-  const supabase = requireSupabase();
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, username, avatar_url, bio, is_public')
-    .eq('id', id)
-    .maybeSingle();
+/**
+ * A UUID, as opposed to a username. The two can never be confused: a username is constrained to
+ * `^[a-z0-9_]{3,20}$` (20260711010000), so it carries no dashes and is far too short to be a UUID.
+ */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * What a profile is addressed by in a URL: the username when there is one, else the id.
+ *
+ * Username is the better key, and not only because it is readable — it is UNIQUE and IMMUTABLE
+ * (20260711010000: once set, a username can never change), so a link built from it cannot rot the
+ * way one built from a renameable handle would. It is already lowercase `[a-z0-9_]`, so it needs
+ * no slugging or escaping either.
+ *
+ * The id fallback is not decoration: most accounts have no username, and one of those still needs
+ * a working page.
+ */
+export function profileHandle(profile: { id: string; username?: string | null }): string {
+  return profile.username || profile.id;
+}
+
+/**
+ * One profile's public detail, or null if it doesn't exist.
+ *
+ * Takes EITHER a username or an id, because both are live: links are built from usernames now, and
+ * every /u/<uuid> link shared before that is still out there and has to keep resolving.
+ */
+export async function fetchProfile(handle: string): Promise<PublicProfile | null> {
+  const base = requireSupabase().from('profiles').select('id, username, avatar_url, bio, is_public');
+  // Usernames are stored lowercase by the format constraint, so a typed-in capital still has to
+  // match — hence ilike (an exact match; the value carries no wildcards) rather than eq.
+  const { data, error } = await (UUID.test(handle)
+    ? base.eq('id', handle)
+    : base.ilike('username', handle)
+  ).maybeSingle();
   if (error) throw new Error(`load profile: ${error.message}`);
   if (!data) return null;
   return {

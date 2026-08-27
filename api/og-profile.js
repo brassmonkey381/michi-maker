@@ -6,6 +6,9 @@
  */
 const { SITE, SITE_NAME, cardImage, sbSelect, ogHtml, sendHtml } = require('./_lib');
 
+/** A UUID, as opposed to a username. See the note at the lookup below. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** Cover image for a profile's first public binder: chosen cover, else first placed card. */
 function binderCover(binder) {
   if (!binder) return null;
@@ -29,9 +32,13 @@ module.exports = async (req, res) => {
   };
   if (!id) return sendHtml(res, ogHtml(fallback));
 
-  const profs = await sbSelect(
-    `profiles?id=eq.${encodeURIComponent(id)}&is_public=eq.true&select=id,username,avatar_url`,
-  );
+  // /u/:handle takes a username OR an id, and both are live: links are built from usernames now,
+  // and every /u/<uuid> shared before that still has to unfurl. The two can never be confused —
+  // a username is `^[a-z0-9_]{3,20}$` (20260711010000), so it has no dashes and is far too short.
+  const match = UUID.test(id)
+    ? `id=eq.${encodeURIComponent(id)}`
+    : `username=eq.${encodeURIComponent(id.toLowerCase())}`;
+  const profs = await sbSelect(`profiles?${match}&is_public=eq.true&select=id,username,avatar_url`);
   const profile = Array.isArray(profs) ? profs[0] : null;
   if (!profile) return sendHtml(res, ogHtml(fallback));
 
@@ -39,8 +46,9 @@ module.exports = async (req, res) => {
   let image = profile.avatar_url || null;
   if (!image) {
     const select = 'cover_card_id,binder_pages(position,binder_slots(card_id))';
+    // profile.id, NOT the URL param: the param may now be a username, and owner_id is a uuid.
     const binders = await sbSelect(
-      `binders?owner_id=eq.${encodeURIComponent(id)}&is_public=eq.true&limit=1&select=${encodeURIComponent(select)}`,
+      `binders?owner_id=eq.${encodeURIComponent(profile.id)}&is_public=eq.true&limit=1&select=${encodeURIComponent(select)}`,
     );
     image = binderCover(Array.isArray(binders) ? binders[0] : null);
   }

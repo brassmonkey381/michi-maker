@@ -2,6 +2,15 @@
  * Public profile route (`/u/[id]`): a person's page: avatar, name, bio, and the public binders
  * they've shared. Reached from the People search window or a shared profile link.
  *
+ * THE PARAM IS A HANDLE, not necessarily an id. It is the person's username when they have one
+ * (`/u/fakemichi`) and their uuid when they don't, and `fetchProfile` accepts either — every
+ * /u/<uuid> link shared before usernames were used in URLs still has to resolve. The file keeps
+ * the `[id]` name because renaming a route param is churn the router would feel and nobody else
+ * would; read `id` here as "handle".
+ *
+ * A visitor who arrives by uuid on a profile that HAS a username is redirected to the username
+ * form, so the URL they copy from the address bar is the readable one.
+ *
  * A private profile and one that doesn't exist are THE SAME state to a visitor, on purpose and
  * now at the RLS level too (20260826130000): a non-owner's read of a private profile returns no
  * row, so this page cannot distinguish them and the copy claims nothing it can't know. The owner
@@ -53,6 +62,13 @@ export default function ProfileRoute() {
           setState({ status: 'missing' });
           return;
         }
+        // Arrived by id but the person has a username: swap the address bar over to it, so the
+        // link someone copies from here is the readable one. `replace`, not `push`, so Back still
+        // leaves the profile rather than bouncing between two spellings of the same page. Old
+        // /u/<uuid> links keep working — this upgrades them rather than breaking them.
+        if (Platform.OS === 'web' && profile.username && profile.username !== id) {
+          router.replace(`/u/${profile.username}` as never);
+        }
         // RLS only returns a private profile to its owner, so reaching here with isPublic false
         // IS the owner's own view; no second check needed.
         const binders = await fetchPublicBinders(profile.id);
@@ -64,7 +80,7 @@ export default function ProfileRoute() {
     return () => {
       active = false;
     };
-  }, [id, user]);
+  }, [id, user, router]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const name =

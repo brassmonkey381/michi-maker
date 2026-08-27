@@ -1,12 +1,14 @@
 /**
- * Apply supabase/migrations/20260826150000_share_version.sql: binders.share_version, bumped by
- * trigger when the link preview changes, so a re-shared link is a URL scrapers have not cached.
+ * Apply 20260826150000_share_version.sql + 20260826160000_preview_freshness.sql:
+ * binders.share_version, bumped when the link preview changes so a re-shared link is a URL
+ * scrapers have not cached, plus the propagation that makes a card edit count as a change.
  *
  * THE CHECKS THAT MATTER, all on a probe binder that is deleted afterwards:
  *   4. An EDIT bumps it (that is the whole feature).
  *   5. Changing the featured share pages bumps it (the other preview input).
- *   6. A change that does NOT alter the preview leaves it alone. This is the one worth guarding:
- *      if every update bumped, a takedown or a privacy flip would churn everyone's links.
+ *   6. A CARD edit bumps it. This is the one that matters and the one that was broken: slot
+ *      writes never touched the binders row, so the preview image URL never changed and the CDN
+ *      kept serving the old picture while warming reported success.
  *
  * Safe to re-run: idempotent DDL, and the column defaults to 1 for existing rows.
  *
@@ -18,7 +20,12 @@ import { dirname, join } from 'node:path';
 
 const PROJECT_REF = 'piikwvntldytjejxmcla';
 const here = dirname(fileURLToPath(import.meta.url));
-const MIGRATION = join(here, '..', 'supabase', 'migrations', '20260826150000_share_version.sql');
+const MIGRATIONS = [
+  // In order: the column and its trigger, then the propagation that makes a CARD edit reach the
+  // binder row at all. Step 6 fails without the second.
+  '20260826150000_share_version.sql',
+  '20260826160000_preview_freshness.sql',
+].map((f) => join(here, '..', 'supabase', 'migrations', f));
 
 const token = process.env.SUPABASE_ACCESS_TOKEN;
 function fail(msg, code = 2) {
@@ -43,9 +50,9 @@ const versionOf = async () =>
   (await sql(`select share_version from public.binders where id = '${probe}';`))[0]?.share_version;
 
 try {
-  console.log('Step 1: applying the migration...');
-  await sql(readFileSync(MIGRATION, 'utf8'));
-  console.log('  OK');
+  console.log('Step 1: applying the migrations...');
+  for (const m of MIGRATIONS) await sql(readFileSync(m, 'utf8'));
+  console.log(`  OK (${MIGRATIONS.length} applied)`);
 
   console.log('Step 2: every existing binder starts at v1 (a clean link)...');
   const [census] = await sql(
@@ -79,18 +86,23 @@ try {
   if (afterFeature <= afterEdit) fail(`featuring a page left the version at ${afterFeature}`);
   console.log(`  OK (v${afterEdit} -> v${afterFeature})`);
 
-  console.log('Step 6: a change that does NOT touch the preview leaves it alone...');
-  // updated_at is what the edit path moves; a direct write that touches neither preview input
-  // must not churn the link. Set updated_at back to itself so only share_version could move.
+  console.log('Step 6: a CARD edit bumps it (the edit that used to go unnoticed)...');
+  // The one that was broken. Slot writes go to binder_slots and never touched the binders row, so
+  // updated_at did not move, so ogImageUrl's cache key did not move, so the CDN kept serving the
+  // old picture and warming re-fetched that same stale entry while reporting success.
+  const [page] = await sql(`
+    insert into public.binder_pages (binder_id, position, rows, cols)
+    values ('${probe}', 0, 3, 3) returning id;`);
+  const afterPage = await versionOf();
+  if (afterPage <= afterFeature) fail(`adding a page left the version at ${afterPage}`);
   await sql(`
-    update public.binders
-       set removed_at = removed_at, updated_at = updated_at
-     where id = '${probe}';`);
-  const afterNoop = await versionOf();
-  if (afterNoop !== afterFeature) {
-    fail(`a non-preview update bumped the version ${afterFeature} -> ${afterNoop}`);
+    insert into public.binder_slots (page_id, row_index, col_index, type, card_id)
+    values ('${page.id}', 0, 0, 'card', 'sv1-25');`);
+  const afterSlot = await versionOf();
+  if (afterSlot <= afterPage) {
+    fail(`placing a card left the version at ${afterSlot}: the preview would stay stale`);
   }
-  console.log(`  OK (still v${afterNoop})`);
+  console.log(`  OK (page v${afterFeature} -> v${afterPage}, card -> v${afterSlot})`);
 
   console.log('\nDONE. Share links now change exactly when their preview does.');
 } catch (e) {

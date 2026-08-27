@@ -21,7 +21,7 @@ import { ThemedText } from '@/components/themed-text';
 import { DialogCard } from '@/components/ui/DialogCard';
 import { Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { privateArtInBinder, type PrivateArtRef } from '@/data/artAttributionCheck';
-import { fetchShareVersion } from '@/data/binderRepo';
+import { fetchShareKey } from '@/data/binderRepo';
 import type { DemoBinder } from '@/data/binderTypes';
 import { CONTEST } from '@/data/contest';
 import { useTheme } from '@/hooks/use-theme';
@@ -55,18 +55,18 @@ export function ShareSheet({
   // The authoritative version, re-read when the sheet opens: the store's copy is stale after any
   // edit (the trigger bumps server-side), and a stale v is the one case where the link would land
   // on a cached embed. Falls back to the store's value if the read fails.
-  const [liveVersion, setLiveVersion] = useState<number | null>(null);
+  const [liveKey, setLiveKey] = useState<string | null>(null);
   useEffect(() => {
     if (!visible || binder.isExample) return;
     let live = true;
-    void fetchShareVersion(binder.id).then((v) => {
-      if (live && v != null) setLiveVersion(v);
+    void fetchShareKey(binder.id).then((v) => {
+      if (live && v != null) setLiveKey(v);
     });
     return () => {
       live = false;
     };
   }, [visible, binder.id, binder.isExample]);
-  const url = binderShareUrl(binder.id, liveVersion ?? binder.shareVersion);
+  const url = binderShareUrl(binder.id, liveKey ?? binder.shareKey);
   const [copied, setCopied] = useState(false);
   // Whether this binder is a contest entry (reported up by ContestEntrySection, which loads it).
   // An ENTERED binder may show at most CONTEST.pageCap public pages, so flipping one more page
@@ -176,11 +176,11 @@ export function ShareSheet({
   // different page changes the preview and must put the indicator honestly back to "preparing".
   // Deriving the state from that key means any change re-arms it with no reset to remember.
   const featured = (binder.sharePageIds ?? []).join(',');
-  // shareVersion is the server's own "the preview changed" signal — a trigger bumps it whenever the
+  // shareKey is the server's own "the preview changed" signal — a trigger rewrites it whenever the
   // image would differ — so it belongs in the key next to the featured pages. Without it, an edit
   // made while this sheet is open could leave a stale tick claiming a preview the link no longer
   // points at.
-  const warmKey = `${binder.id}:${featured}:${binder.shareVersion ?? 0}`;
+  const warmKey = `${binder.id}:${featured}:${binder.shareKey ?? ''}`;
   const [warmed, setWarmed] = useState<{ key: string; state: 'ready' | 'failed' } | null>(null);
   const warmth = !isPublic ? 'idle' : warmed?.key === warmKey ? warmed.state : 'warming';
 

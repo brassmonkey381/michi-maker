@@ -138,10 +138,10 @@ export interface DemoBinder {
    *  Persisted to binders.share_page_ids; read by api/og-image-binder.js. */
   sharePageIds?: string[];
   /**
-   * Cache-busting version for the share link (`?v=`). Server-owned: a trigger bumps it whenever
+   * Cache-busting fingerprint for the share link (`?v=`). Server-owned: a trigger rewrites it when
    * the preview changes. Never written by the client, so it is absent on a local/example binder.
    */
-  shareVersion?: number;
+  shareKey?: string;
   /**
    * When this binder was first made public (binders.made_public_at). Server-owned. Used by the
    * "New" badge; absent on a local/example binder and on one that has never been shared.

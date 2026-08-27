@@ -15,19 +15,24 @@ export function appOrigin(): string {
 /**
  * The public, shareable URL for a binder (the `/binder/[id]` route).
  *
- * `?v=` is the binder's share_version, and it exists for the scrapers rather than for us. Discord,
+ * `?v=` is the binder's share_key, and it exists for the scrapers rather than for us. Discord,
  * Slack and iMessage cache an unfurl against the URL that was posted, for a day or more, and
  * nothing in the page can shorten that: busting the IMAGE url (see ogImageUrl) does nothing for a
  * scraper that never re-fetches the PAGE. A different v is a URL they have not seen, so the new
  * preview shows immediately instead of after their cache expires.
  *
- * The version changes only when the preview changes (any edit, or a change to the featured
- * pages), so copying the same unedited binder twice yields the same link. Omitting it is safe and
- * resolves identically: nothing in the app reads `v`.
+ * It is a short HASH of the preview's inputs, not a count. All the URL needs is to differ when the
+ * preview differs — it is never ordered, compared or parsed — and a running total would instead
+ * publish how many times the owner has edited the page (a six-minute-old binder reached ?v=157
+ * once page and slot writes started touching the parent row). Same preview → same link; changed
+ * preview → new link; and that is the whole contract.
+ *
+ * Omitting it is safe and resolves identically: nothing in the app reads `v`, so every link shared
+ * before this — including ones carrying the old integer — still opens the same binder.
  */
-export function binderShareUrl(id: string, shareVersion?: number | null): string {
+export function binderShareUrl(id: string, shareKey?: string | null): string {
   const base = `${appOrigin()}/binder/${id}`;
-  return shareVersion && shareVersion > 1 ? `${base}?v=${shareVersion}` : base;
+  return shareKey ? `${base}?v=${encodeURIComponent(shareKey)}` : base;
 }
 
 /**

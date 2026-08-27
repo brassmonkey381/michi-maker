@@ -13,7 +13,7 @@ import { StyleSheet, View } from 'react-native';
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { PageShell } from '@/components/layout/PageShell';
 import { BundleOffer } from '@/components/monetization/BundleOffer';
-import { PlanComparison } from '@/components/monetization/PlanComparison';
+import { PlanComparison, PLAN_BLOCK_WIDTH } from '@/components/monetization/PlanComparison';
 import { PromoBanner } from '@/components/monetization/PromoBanner';
 import { TrialCta } from '@/components/monetization/TrialCta';
 import { PlanUsageSection } from '@/components/monetization/TierUsage';
@@ -25,12 +25,9 @@ import {
   MaxContentWidthWide,
   Palette,
   Radius,
-  Shadows,
   Spacing,
-  Weight,
 } from '@/constants/theme';
 import { redeemHandoffHashFromLocation } from '@/data/handoff';
-import { ONE_TIME_PDF } from '@/data/subscriptions';
 import { promoActive } from '@/data/promo';
 import { useTier } from '@/hooks/use-tier';
 import { useTrial } from '@/hooks/use-trial';
@@ -153,16 +150,10 @@ export default function PlansScreen() {
       {/* Remount on tier flip so the table's own entitlement read (Current plan tag) refreshes. */}
       <PlanComparison key={`plans-${isPaid}`} />
 
-      {/* ── one-time product ─────────────────────────── */}
-      <View style={styles.oneTime}>
-        <ThemedText type="smallBold" style={styles.oneTimeTitle}>
-          Not ready to subscribe? One-time unlock
-        </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.oneTimeBlurb}>
-          <ThemedText type="smallBold">{ONE_TIME_PDF.price}</ThemedText> · {ONE_TIME_PDF.name}.{' '}
-          {ONE_TIME_PDF.blurb}
-        </ThemedText>
-      </View>
+      {/* The one-time $3.99 unlock used to be advertised here, in a panel with no way to buy it —
+          a paragraph of purchase terms for a product you cannot reach from this page. It is sold
+          where someone actually wants it (the print gate), and the § footnote still quotes its
+          price against the per-print maths, which is the only place on /plans it earns its space. */}
 
       {/* ── signed-in: current plan + usage ──────────── */}
       {user ? (
@@ -210,19 +201,6 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     marginBottom: Spacing.five,
   },
-  chip: {
-    backgroundColor: Palette.selectionSoft,
-    borderRadius: Radius.pill,
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.three,
-  },
-  chipText: {
-    fontSize: FontSize.sm,
-    color: Palette.link,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    fontWeight: Weight.semibold,
-  },
   h1: { textAlign: 'center' },
   lede: { lineHeight: 22, textAlign: 'center' },
   banner: {
@@ -246,23 +224,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.four,
   },
-  prose: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center' },
-  oneTime: {
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    alignSelf: 'center',
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Palette.hairline,
-    backgroundColor: Palette.panelAlt,
-    padding: Spacing.four,
-    marginTop: Spacing.five,
-    marginBottom: Spacing.five,
-    gap: Spacing.two,
-    ...Shadows.page,
-  },
-  oneTimeTitle: { fontSize: FontSize.control },
-  oneTimeBlurb: { lineHeight: 19 },
+  // Same cap as the comparison table, so 'Your plan' and the closing note share its left edge.
+  prose: { width: '100%', maxWidth: PLAN_BLOCK_WIDTH, alignSelf: 'center' },
   sectionLabel: {
     textTransform: 'uppercase',
     letterSpacing: 0.5,

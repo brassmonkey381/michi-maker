@@ -471,8 +471,14 @@ export function PlanComparison() {
   );
 }
 
-/** The shared width for the table AND its footnotes — see the `block` comment above. */
-const BLOCK_WIDTH = 1040;
+/**
+ * The shared width for the table, its footnotes, and anything on /plans that is supposed to line
+ * up with it. Exported because the sections BELOW the table were capped at MaxContentWidth (800)
+ * and centred, which inset their left edge by 120px against a 1040 table — close enough to look
+ * like a mistake rather than a margin.
+ */
+export const PLAN_BLOCK_WIDTH = 1040;
+const BLOCK_WIDTH = PLAN_BLOCK_WIDTH;
 
 const styles = StyleSheet.create({
   everyPlan: { paddingTop: Spacing.three, paddingHorizontal: Spacing.two },

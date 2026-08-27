@@ -58,6 +58,13 @@ interface BinderGridProps {
   /** Card ids the viewer owns (own ≥ 1) — card slots for these get a green ✓ corner badge.
    *  Undefined/omitted = the owned overlay is off. */
   ownedIds?: ReadonlySet<string>;
+  /**
+   * Real-scan lookup for the "Scans" pill: the owner's own photo of a card, by id (public
+   * scan-images URL from their portfolio entries). Card pockets prefer it and error-fall back
+   * into the normal catalog march; artwork heroes never use it (a phone crop as full-bleed art
+   * would read as a glitch). Undefined/omitted = catalog images, the default.
+   */
+  scanUrlOf?: (cardId: string) => string | undefined;
 }
 
 export interface BinderGridHandle {
@@ -100,6 +107,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
     onDragStart,
     dropTargets,
     ownedIds,
+    scanUrlOf,
   }: BinderGridProps,
   ref,
 ) {
@@ -252,6 +260,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               small={small}
               catalog={catalog}
               owned={!!(slot.cardId && ownedIds?.has(slot.cardId))}
+              scanUri={slot.cardId ? scanUrlOf?.(slot.cardId) : undefined}
             />
           );
           if (!editable) {
@@ -343,6 +352,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               small={small}
               catalog={catalog}
               owned={!!(dragged.cardId && ownedIds?.has(dragged.cardId))}
+              scanUri={dragged.cardId ? scanUrlOf?.(dragged.cardId) : undefined}
             />
           </Animated.View>
         ) : null}
@@ -786,6 +796,7 @@ function SlotContent({
   small,
   catalog,
   owned = false,
+  scanUri,
 }: {
   slot: DemoSlot;
   radius: number;
@@ -793,6 +804,8 @@ function SlotContent({
   catalog: Catalog | null;
   /** The viewer owns this card (own ≥ 1) — show the green ✓ corner badge. */
   owned?: boolean;
+  /** This card's real scan (see BinderGridProps.scanUrlOf); card pockets only. */
+  scanUri?: string;
 }) {
   if (slot.type === 'insert') {
     // Tonal negative-space filler: solid colour with a soft top inner highlight
@@ -863,7 +876,7 @@ function SlotContent({
   return (
     <View style={[styles.fill, styles.cardFrame, { borderRadius: radius }]}>
       <View style={[styles.fill, { backgroundColor: SlotBackingFallback }]}>
-        <CardImage key={id} id={id} radius={radius} small={small} contentFit="contain" />
+        <CardImage key={id} id={id} radius={radius} small={small} contentFit="contain" scanUri={scanUri} />
         {/* Diagonal foil sheen: two translucent rotated bars layered as plain Views. */}
         <View pointerEvents="none" style={styles.foil}>
           <View style={[styles.foilBar, styles.foilBarA]} />
@@ -969,15 +982,19 @@ function CardImage({
   radius,
   small,
   contentFit,
+  scanUri,
 }: {
   id: string;
   radius: number;
   small: boolean;
   contentFit: 'cover' | 'contain';
+  /** The owner's real scan of this card. Tried FIRST; an error (upload pending, object gone)
+   *  falls into the normal tier march. See BinderGridProps.scanUrlOf. */
+  scanUri?: string;
 }) {
   // Kick off image-manifest hydration; the return re-renders us when it lands.
   const manifestReady = useImageManifest();
-  const [stage, setStage] = useState<'tier' | 'full' | 'failed'>('tier');
+  const [stage, setStage] = useState<'scan' | 'tier' | 'full' | 'failed'>(scanUri ? 'scan' : 'tier');
   const [loaded, setLoaded] = useState(false);
   const [attempts, setAttempts] = useState(0);
   const tier: 245 | 640 = small ? 245 : 640;
@@ -988,12 +1005,17 @@ function CardImage({
   // symptom. Recompute via a useMemo whose deps include the reactive manifest signal (and the poll
   // counter below), so the '' → real-URL swap happens in place the instant the manifest lands.
   const uri = useMemo(
-    () => (stage === 'full' ? cardThumbUrl(id, 'full') : cardThumbUrl(id, tier)),
+    () =>
+      stage === 'scan'
+        ? (scanUri ?? '')
+        : stage === 'full'
+          ? cardThumbUrl(id, 'full')
+          : cardThumbUrl(id, tier),
     // manifestReady + attempts are DELIBERATE extra deps: the callback doesn't reference them, but
     // cardThumbUrl's result changes with the (untrackable) module-level manifest, so we recompute
     // whenever the manifest flips or the poll ticks. Not unnecessary — the fix depends on them.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [id, tier, stage, manifestReady, attempts],
+    [id, tier, stage, manifestReady, attempts, scanUri],
   );
 
   // cardThumbUrl resolves to '' until the content-hashed image manifest lands. On a COLD load the
@@ -1009,12 +1031,13 @@ function CardImage({
     const t = setTimeout(() => setAttempts((a) => a + 1), 250);
     return () => clearTimeout(t);
   }, [uri, stage, attempts]);
-  // Recycled pocket: a new card id starts fresh (retry the tier and re-poll from zero).
+  // Recycled pocket, or the Scans pill flipping: a new card id (or the scan appearing /
+  // disappearing without a remount — CardImage is keyed by id) starts fresh.
   useEffect(() => {
-    setStage('tier');
+    setStage(scanUri ? 'scan' : 'tier');
     setLoaded(false);
     setAttempts(0);
-  }, [id]);
+  }, [id, scanUri]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   if (stage === 'failed') {
@@ -1052,7 +1075,7 @@ function CardImage({
         // mode moves them via a gesture pan, not native drag). No-op on native.
         draggable={false}
         onLoad={() => setLoaded(true)}
-        onError={() => setStage((s) => (s === 'tier' ? 'full' : 'failed'))}
+        onError={() => setStage((s) => (s === 'scan' ? 'tier' : s === 'tier' ? 'full' : 'failed'))}
       />
       {!loaded ? <Skeleton radius={radius} /> : null}
     </View>

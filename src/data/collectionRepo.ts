@@ -84,6 +84,44 @@ export async function deletePortfolio(id: string): Promise<void> {
   if (error) throw new Error(`delete portfolio: ${error.message}`);
 }
 
+/**
+ * The user's real-scan lookup: cardId → public URL of the card's newest scanned crop.
+ *
+ * tcgscan stamps portfolio_entries.scan_path at ENTRY CREATION (a birth field; the bytes upload
+ * asynchronously into the public scan-images bucket). Newest lot wins per card, by scanned_at
+ * (the camera moment) falling back to added_at. RLS scopes the read to the owner, which is what
+ * makes the whole REAL_SCAN feature owner-only by construction: a stranger viewing a public
+ * binder cannot run this query at all. A URL may 404 while its upload is still in flight (or
+ * forever, if it failed) — display layers error-fall back to the catalog image.
+ */
+export async function fetchScanImages(): Promise<Map<string, string>> {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from('portfolio_entries')
+    .select('card_id, scan_path, scanned_at, added_at')
+    .not('scan_path', 'is', null);
+  if (error) throw new Error(`scan images: ${error.message}`);
+  const best = new Map<string, { path: string; seen: number }>();
+  // Through unknown: the generated database.ts predates every tcgscan column added since 07-14
+  // (storage_id, scanned_at, scan_path, ...) and is tolerated stale because michi only READS
+  // these tables; the runtime shape is the migration's (20260828120000).
+  for (const r of (data ?? []) as unknown as {
+    card_id: string;
+    scan_path: string;
+    scanned_at: string | null;
+    added_at: string;
+  }[]) {
+    const seen = Date.parse(r.scanned_at ?? r.added_at) || 0;
+    const cur = best.get(r.card_id);
+    if (!cur || seen >= cur.seen) best.set(r.card_id, { path: r.scan_path, seen });
+  }
+  const out = new Map<string, string>();
+  for (const [id, { path }] of best) {
+    out.set(id, supabase.storage.from('scan-images').getPublicUrl(path).data.publicUrl);
+  }
+  return out;
+}
+
 /** Monotonic suffix so every subscription gets a UNIQUE channel topic (see subscribeUserCards). */
 let channelSeq = 0;
 

@@ -46,6 +46,7 @@ import {
   type PortfolioGroup,
   type UserCard,
 } from '@/data/collectionRepo';
+import { useScanImages } from '@/hooks/use-scan-images';
 import { EXAMPLE_COLLECTION_CSV, EXAMPLE_COLLECTION_NAME } from '@/data/exampleCollection';
 import { binderLimitMessage, pageLimitMessage } from '@/data/limitMessages';
 import { track } from '@/lib/analytics';
@@ -219,6 +220,12 @@ function CollectionStrip({
   onExampleDone?: () => void;
 }) {
   const store = useBinders();
+  // Real scans: show each card as the camera saw it (tcgscan's scan crops). Chip hidden until
+  // the account has any; session-only toggle, like the binder view's Scans pill.
+  const scanImages = useScanImages();
+  const [showScans, setShowScans] = useState(false);
+  const scanUrlOf =
+    showScans && scanImages ? (cardId: string) => scanImages.get(cardId) : undefined;
   const [selected, setSelected] = useState<Set<string>>(new Set());
   // Tap behaviour mirrors the card browser: a tap opens the card's ACTION MODAL; flip on
   // "Select multiple" and taps toggle a selection for the bulk action bar instead.
@@ -641,6 +648,15 @@ function CollectionStrip({
         <Pressable onPress={() => setImportOpen(true)} style={pillChip.base}>
           <Text style={pillChip.text}>Import</Text>
         </Pressable>
+        {scanImages ? (
+          <Pressable
+            onPress={() => setShowScans((v) => !v)}
+            style={[pillChip.base, showScans && pillChip.active]}>
+            <Text style={[pillChip.text, showScans && pillChip.textActive]}>
+              {showScans ? '✓ Real scans' : 'Real scans'}
+            </Text>
+          </Pressable>
+        ) : null}
         <TextInput
           value={query}
           onChangeText={setQuery}
@@ -668,6 +684,7 @@ function CollectionStrip({
             placedCounts={placedCounts}
             selected={selected}
             onPress={pressTile}
+            scanUrlOf={scanUrlOf}
           />
         )
       ) : null}
@@ -693,6 +710,7 @@ function CollectionStrip({
                     placedCounts={placedCounts}
                     selected={selected}
                     onPress={pressTile}
+                    scanUrlOf={scanUrlOf}
                   />
                 </View>
               ))}
@@ -733,6 +751,7 @@ function CollectionStrip({
                 placedCounts={placedCounts}
                 selected={selected}
                 onPress={pressTile}
+                scanUrlOf={scanUrlOf}
               />
             </View>
           ))
@@ -1040,11 +1059,14 @@ function TileStrip({
   placedCounts,
   selected,
   onPress,
+  scanUrlOf,
 }: {
   cards: UserCard[];
   placedCounts: Map<string, number>;
   selected: Set<string>;
   onPress: (card: UserCard) => void;
+  /** Real-scan lookup while the chip is on; tiles fall back to catalog art per-URL on error. */
+  scanUrlOf?: (cardId: string) => string | undefined;
 }) {
   const [width, setWidth] = useState(0);
   const [page, setPage] = useState(0);
@@ -1111,6 +1133,7 @@ function TileStrip({
                   placed={placedCounts.get(item.cardId) ?? 0}
                   selected={selected.has(item.cardId)}
                   onPress={() => onPress(item)}
+                  scanUri={scanUrlOf?.(item.cardId)}
                 />
               ))}
             </View>
@@ -1347,13 +1370,20 @@ function CardTile({
   placed,
   selected,
   onPress,
+  scanUri,
 }: {
   card: UserCard;
   placed: number;
   selected: boolean;
   onPress: () => void;
+  /** The card's real scan; tried first, falls back to the catalog thumb on error. */
+  scanUri?: string;
 }) {
-  const uri = cardThumbUrl(card.cardId, 245);
+  // Per-URL failure memo: a scan whose upload has not landed (or never will) drops this tile
+  // back to catalog without a retry loop; a NEW scan URL gets a fresh chance automatically.
+  const [brokenScan, setBrokenScan] = useState<string | null>(null);
+  const useScan = !!scanUri && scanUri !== brokenScan;
+  const uri = useScan ? scanUri! : cardThumbUrl(card.cardId, 245);
   const free = Math.max(0, card.quantity - placed);
   const exhausted = free === 0;
   return (
@@ -1367,6 +1397,9 @@ function CardTile({
 
         {uri ? (
           <Image
+            // Keyed by uri so the scan → catalog swap remounts: a stale onError from the aborted
+            // request must not march the fresh image (same fix as the binder grid's CardImage).
+            key={uri}
             source={{ uri }}
             style={[
               styles.image,
@@ -1376,9 +1409,10 @@ function CardTile({
             ]}
             contentFit="contain"
             cachePolicy="memory-disk"
-            recyclingKey={card.cardId}
+            recyclingKey={useScan ? `${card.cardId}:scan` : card.cardId}
             transition={100}
             draggable={false}
+            onError={useScan ? () => setBrokenScan(scanUri!) : undefined}
           />
         ) : (
           <CardPlaceholder radius={Radius.control} />

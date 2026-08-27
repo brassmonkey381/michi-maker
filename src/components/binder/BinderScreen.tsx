@@ -891,16 +891,18 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     role,
     captionFields,
     ownedIds,
+    scanUrlOf,
   }: {
     page: DemoPage;
     width: number;
     role: GridRole;
     captionFields: CaptionFieldKey[];
     ownedIds?: ReadonlySet<string>;
+    scanUrlOf?: (cardId: string) => string | undefined;
   }) => {
     if (!editing) {
       return (
-        <BinderGrid page={p} width={width} editable={false} captionFields={captionFields} ownedIds={ownedIds} />
+        <BinderGrid page={p} width={width} editable={false} captionFields={captionFields} ownedIds={ownedIds} scanUrlOf={scanUrlOf} />
       );
     }
     if (role === 'prev' || role === 'next') {
@@ -912,7 +914,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           width={width}
           editable
           captionFields={captionFields}
-          ownedIds={ownedIds}
+          ownedIds={ownedIds} scanUrlOf={scanUrlOf}
           // A tray slice reaches the neighbours too: show its legal pockets here, and let an
           // armed slice tap-place onto them (drags resolve via resolveSpreadHit regardless).
           dropTargets={role === 'prev' ? prevDropTargets : nextDropTargets}
@@ -938,7 +940,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           width={width}
           editable
           captionFields={captionFields}
-          ownedIds={ownedIds}
+          ownedIds={ownedIds} scanUrlOf={scanUrlOf}
           // The facing page is a first-class drop surface for tray slices too.
           dropTargets={isPrev ? prevDropTargets : nextDropTargets}
           onCellPress={(row, col) => {
@@ -968,7 +970,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         width={width}
         editable
         captionFields={captionFields}
-        ownedIds={ownedIds}
+        ownedIds={ownedIds} scanUrlOf={scanUrlOf}
         selectedSlotId={selectedSlotId}
         multiSelectedIds={multiIds}
         onCellPress={handleAddCell}

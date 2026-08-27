@@ -22,6 +22,7 @@ import { pillChip } from '@/constants/ui';
 import { DEFAULT_CAPTION_FIELDS, type CaptionFieldKey } from '@/data/cardCaption';
 import type { DemoBinder, DemoPage } from '@/data/binderTypes';
 import { useOwnedCards } from '@/hooks/use-owned-cards';
+import { useScanImages } from '@/hooks/use-scan-images';
 
 /** Which slot a rendered grid occupies — lets the caller wire the right handlers/refs per grid.
  *  'partner' is the facing page of a double-sided spread: fully interactive in edit mode (the
@@ -48,6 +49,8 @@ export interface BinderPagesProps {
     role: GridRole;
     captionFields: CaptionFieldKey[];
     ownedIds?: ReadonlySet<string>;
+    /** Real-scan lookup while the Scans pill is on (owner-only; see useScanImages). */
+    scanUrlOf?: (cardId: string) => string | undefined;
   }) => ReactNode;
   /** Enables drag-to-reorder in the filmstrip (edit only). Omit → tap-to-jump only. */
   onReorderPages?: (from: number, to: number) => void;
@@ -80,6 +83,13 @@ export function BinderPages({
   const ownedCards = useOwnedCards();
   const [showOwned, setShowOwned] = useState(false);
   const ownedIds = showOwned ? ownedCards : undefined;
+  // Real scans: card pockets show the owner's own photo of each card instead of catalog art.
+  // Session-only like the other pills; the map is undefined for guests and for accounts with no
+  // scanned lots, which hides the pill entirely (a public viewer's renderGrid may also simply
+  // ignore the lookup — the pill then toggles nothing, same inert-pill parity as Owned).
+  const scanImages = useScanImages();
+  const [showScans, setShowScans] = useState(false);
+  const scanUrlOf = showScans && scanImages ? (cardId: string) => scanImages.get(cardId) : undefined;
   // Double-sided: pages pair like a physical binder — page 1 alone (the cover face), then
   // 2·3 facing, 4·5, … Both sides of the open spread are shown (and edited) together.
   const [doubleSided, setDoubleSided] = useState(doubleSidedPref);
@@ -197,6 +207,17 @@ export function BinderPages({
               </Text>
             </Pressable>
           ) : null}
+          {/* Real scans: pockets show the owner's own photos (cards they scanned into their
+              collection). Only offered when they have any. */}
+          {scanImages ? (
+            <Pressable
+              onPress={() => setShowScans((v) => !v)}
+              style={[pillChip.base, showScans && pillChip.active]}>
+              <Text style={[pillChip.text, showScans && pillChip.textActive]}>
+                {showScans ? '✓ Scans' : 'Scans'}
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
       </View>
 
@@ -227,6 +248,7 @@ export function BinderPages({
                     role: spreadLeftIdx === idx ? 'current' : 'partner',
                     captionFields,
                     ownedIds,
+                    scanUrlOf,
                   })
                 : null}
             </SpreadColumn>
@@ -247,6 +269,7 @@ export function BinderPages({
                     role: spreadRightIdx === idx ? 'current' : 'partner',
                     captionFields,
                     ownedIds,
+                    scanUrlOf,
                   })
                 : null}
             </SpreadColumn>
@@ -262,7 +285,7 @@ export function BinderPages({
               dragCol={dragCol}
               columnIndex={0}>
               {prevPage
-                ? renderGrid({ page: prevPage, width: spreadWidth, role: 'prev', captionFields, ownedIds })
+                ? renderGrid({ page: prevPage, width: spreadWidth, role: 'prev', captionFields, ownedIds, scanUrlOf })
                 : null}
             </SpreadColumn>
             <SpreadColumn
@@ -272,7 +295,7 @@ export function BinderPages({
               editable={editable}
               dragCol={dragCol}
               columnIndex={1}>
-              {renderGrid({ page, width: spreadWidth, role: 'current', captionFields, ownedIds })}
+              {renderGrid({ page, width: spreadWidth, role: 'current', captionFields, ownedIds, scanUrlOf })}
             </SpreadColumn>
             <SpreadColumn
               page={nextPage}
@@ -283,12 +306,12 @@ export function BinderPages({
               dragCol={dragCol}
               columnIndex={2}>
               {nextPage
-                ? renderGrid({ page: nextPage, width: spreadWidth, role: 'next', captionFields, ownedIds })
+                ? renderGrid({ page: nextPage, width: spreadWidth, role: 'next', captionFields, ownedIds, scanUrlOf })
                 : null}
             </SpreadColumn>
           </View>
         ) : (
-          renderGrid({ page, width: pageWidth, role: 'single', captionFields, ownedIds })
+          renderGrid({ page, width: pageWidth, role: 'single', captionFields, ownedIds, scanUrlOf })
         )}
       </View>
 

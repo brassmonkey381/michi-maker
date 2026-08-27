@@ -1384,7 +1384,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         ) : null}
         {/* The account-level attestation, offered on an editable binder when due (first binder,
             then at most every 7 days until accepted). Decides everything internally. */}
-        {canEdit ? <RightsPrompt binder={binder} /> : null}
+        {canEdit ? <RightsPrompt binder={binder} surface="binder" /> : null}
         <ShareSheet
           visible={shareOpen}
           binder={binder}

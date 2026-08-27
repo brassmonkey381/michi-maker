@@ -48,9 +48,10 @@ export default function TabLayout() {
             <UsernameGate />
             {/* Offers back the profile photo withdrawn by 20260826140000. Mounted here rather
                 than on a screen because it is owed to the account, not to a page: whatever they
-                open after signing in, the ask is waiting. It never draws over the UsernameGate
-                (a nameless account is not asked) nor over the rights attestation (both take
-                turns through promptSlot). */}
+                open after signing in — the home page included — the ask is waiting. It never
+                draws over the UsernameGate (a nameless account is not asked) nor over the rights
+                attestation: the two take turns through promptQueue, and BOTH can now happen in a
+                single visit. See src/data/prompts.ts for who gets which prompt, and where. */}
             <AvatarConsentPrompt />
           </BinderProvider>
         </AuthProvider>

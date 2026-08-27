@@ -27,19 +27,28 @@ import { DialogCard } from '@/components/ui/DialogCard';
 import { Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { privateArtInBinder } from '@/data/artAttributionCheck';
 import type { DemoBinder } from '@/data/binderTypes';
-import { rightsPromptDue } from '@/data/sharingDefaults';
-import { claimPromptSlot, releasePromptSlot, spendPromptSlot } from '@/lib/promptSlot';
+import { promptById, type PromptSurface } from '@/data/prompts';
+import { endTurn, onTurnFree, takeTurn } from '@/lib/promptQueue';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
 
-const SLOT = 'rights-attestation';
+const ID = 'rights-attestation';
 
-export function RightsPrompt({ binder }: { binder: DemoBinder }) {
+/**
+ * `binder` is OPTIONAL, because this now also opens on My binders, where there is no binder in
+ * hand. With one, accepting publishes it too; without one, accepting simply turns sharing on for
+ * everything made afterwards.
+ */
+export function RightsPrompt({ binder, surface }: { binder?: DemoBinder; surface: PromptSurface }) {
   const auth = useAuth();
   const store = useBinders();
   const [open, setOpen] = useState(false);
   const [checked, setChecked] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Re-check when another prompt hands the turn back. Losing the turn is no longer losing the
+  // visit, but a component that lost it has no reason to re-render on its own.
+  const [, recheck] = useState(0);
+  useEffect(() => onTurnFree(() => recheck((n) => n + 1)), []);
   // One showing per mount, whatever the profile row does afterwards: writing rights_prompt_at
   // re-renders the profile, and without this the effect would immediately re-evaluate a state
   // it just changed.
@@ -49,28 +58,27 @@ export function RightsPrompt({ binder }: { binder: DemoBinder }) {
   useEffect(() => {
     if (shownRef.current || open) return;
     if (!auth.ready || !auth.isSignedIn) return; // guests are never asked
-    if (binder.isDemo || binder.isExample) return;
-    if (!rightsPromptDue(auth.profile)) return;
-    // One uninvited dialog at a time. The avatar consent offer can become due on the same screen
-    // (of the twelve accounts it was written for, none had attested), and a prompt that loses the
-    // turn stays unshown AND unrecorded, so it is still due on the next screen.
-    if (!claimPromptSlot(SLOT)) return;
+    if (binder?.isDemo || binder?.isExample) return;
+    const def = promptById(ID);
+    if (!def.surfaces.includes(surface)) return;
+    if (!def.due({ profile: auth.profile, isGuest: !!auth.isGuest })) return;
+    // One uninvited dialog ON SCREEN at a time: iOS presents a single modal per view controller,
+    // and two legal-ish dialogs at once is an obstacle course. Losing here no longer costs the
+    // visit — nothing is recorded, and onTurnFree brings us back when the other one closes.
+    if (!takeTurn(ID)) return;
     shownRef.current = true;
-    // Shown, so no other uninvited dialog opens this visit. Answering this one must not summon
-    // the photo offer a second later.
-    spendPromptSlot(SLOT);
     setOpen(true);
     // Record the showing whether or not they accept, so every surface honours the 7-day gap.
     void auth.updateProfile({ rights_prompt_at: new Date().toISOString() });
-  }, [auth, binder.isDemo, binder.isExample, open]);
+  }, [auth, binder?.isDemo, binder?.isExample, surface, open]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  // Hand the turn back on unmount too: navigating away mid-dialog would otherwise strand the
-  // slot and silence the avatar offer for the rest of the session.
-  useEffect(() => () => releasePromptSlot(SLOT), []);
+  // Hand the turn back on unmount too: navigating away mid-dialog would otherwise strand it and
+  // silence the avatar offer for the rest of the session.
+  useEffect(() => () => endTurn(ID), []);
 
   const close = () => {
-    releasePromptSlot(SLOT);
+    endTurn(ID);
     setOpen(false);
   };
 
@@ -86,7 +94,9 @@ export function RightsPrompt({ binder }: { binder: DemoBinder }) {
         // The binder they accepted over goes public too, unless something in it is still private
         // art (a hotlink we do not host yet; Share offers to convert those). New binders default
         // public from here on.
-        if (!binder.isPublic && privateArtInBinder(binder).length === 0) {
+        // Only when a binder is in hand (the editor). From My binders there is nothing to flip,
+        // and acceptance simply governs what gets made next.
+        if (binder && !binder.isPublic && privateArtInBinder(binder).length === 0) {
           store.updateBinder(binder.id, { isPublic: true });
         }
         close();
@@ -99,7 +109,9 @@ export function RightsPrompt({ binder }: { binder: DemoBinder }) {
       <ThemedText type="small" themeColor="textSecondary" style={styles.body}>
         michi-maker is better when binders are shared: they can be discovered, liked, and entered
         in contests. Turn sharing on and new binders start out public
-        {!binder.isPublic && privateArtInBinder(binder).length === 0 ? ', this one included' : ''}.
+        {binder && !binder.isPublic && privateArtInBinder(binder).length === 0
+          ? ', this one included'
+          : ''}.
         You can make any binder private from Share, any time.
       </ThemedText>
       <Pressable

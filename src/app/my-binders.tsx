@@ -30,6 +30,7 @@ import { UpgradePerk } from '@/components/monetization/UpgradePerk';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Breakpoints, FontSize, MaxContentWidth, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { RightsPrompt } from '@/components/binder/RightsPrompt';
 import { fillerName } from '@/data/binderTypes';
 import { binderLimitMessage, limitCta } from '@/data/limitMessages';
 import { track, trackCapGate } from '@/lib/analytics';
@@ -178,6 +179,11 @@ export default function MyBindersScreen() {
 
   return (
     <ThemedView style={styles.container}>
+      {/* The sharing attestation also opens HERE, not only inside a binder: this is where a
+          returning builder with existing binders actually lands, and someone who never opens the
+          editor would otherwise never be asked. No binder in hand, so accepting turns sharing on
+          without publishing anything that already exists. */}
+      <RightsPrompt surface="my-binders" />
       <SafeAreaView style={styles.flex} edges={['top']}>
         <ScrollView contentContainerStyle={styles.scroll}>
           {/* No page title, the "My binders" section header is the top of the page. Where the

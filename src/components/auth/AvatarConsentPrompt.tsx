@@ -41,7 +41,7 @@ import {
   withAvatarOfferDeclined,
 } from '@/data/avatarConsent';
 import { isSupabaseConfigured } from '@/lib/env';
-import { claimPromptSlot, releasePromptSlot, spendPromptSlot } from '@/lib/promptSlot';
+import { endTurn, takeTurn } from '@/lib/promptQueue';
 import { pruneAvatars, uploadAvatarImage } from '@/lib/uploadAvatar';
 import { useAuth } from '@/store/auth';
 import type { Profile } from '@/types/domain';
@@ -71,14 +71,14 @@ export function AvatarConsentPrompt() {
   // loses nothing by waiting a visit.
   useLayoutEffect(() => {
     if (offeredRef.current || photo || !due) return;
-    claimPromptSlot(SLOT);
+    takeTurn(SLOT);
   }, [due, photo]);
 
   useEffect(() => {
     if (offeredRef.current || photo || !due || !providerUrl) return;
     // Re-claiming our own turn from the layout effect above; false here means the rights
     // attestation got there first (it became due in an earlier commit) and this waits.
-    if (!claimPromptSlot(SLOT)) return;
+    if (!takeTurn(SLOT)) return;
     offeredRef.current = true;
 
     let alive = true;
@@ -90,19 +90,18 @@ export function AvatarConsentPrompt() {
       .then((blob) => {
         if (!alive) return;
         if (isGeneratedAvatar(blob)) {
-          releasePromptSlot(SLOT);
+          endTurn(SLOT);
           return;
         }
         // Shown, so the rights attestation waits for the next visit rather than opening the
         // moment this one is answered.
-        spendPromptSlot(SLOT);
         setPhoto({ url: providerUrl, blob });
         // Recorded whatever they answer, so a second device honours the same seven-day gap.
         void auth.updateProfile({ avatar_prompt_at: new Date().toISOString() });
       })
       .catch(() => {
         offeredRef.current = false;
-        releasePromptSlot(SLOT);
+        endTurn(SLOT);
       });
     return () => {
       alive = false;
@@ -111,12 +110,12 @@ export function AvatarConsentPrompt() {
 
   // Give the slot back on unmount, or a navigation away mid-dialog would strand it and silence
   // the rights prompt for the rest of the session.
-  useEffect(() => () => releasePromptSlot(SLOT), []);
+  useEffect(() => () => endTurn(SLOT), []);
 
   if (!photo) return null;
 
   const close = () => {
-    releasePromptSlot(SLOT);
+    endTurn(SLOT);
     setPhoto(null);
   };
 

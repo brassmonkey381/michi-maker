@@ -664,6 +664,26 @@ const INK_LIGHT = [253, 252, 249];
 /** WCAG AA for large text. Below this the lockup stops being legible at the size it is displayed. */
 const MIN_CONTRAST = 4.5;
 const MAT_EDGE = Math.round(2 * S);
+/** Opaque enough to be a ground of its own; the 6% of art left showing keeps it from reading flat. */
+const BAND_FILL_ALPHA = 0.94;
+const BAND_FILL = `rgba(250,246,239,${BAND_FILL_ALPHA})`;
+
+/**
+ * Which of the two treatments a render gets: the blurred collage edge to edge, or opaque cream
+ * bands behind the header and footer. Owner call 2026-08-27, having liked both: flip a coin, every
+ * time the image is rendered, which in practice means every time a share preview is warmed.
+ *
+ * A FRESH FLIP PER RENDER, not a stable assignment per binder. That is the ask, and the reasoning
+ * is that this is shaped like an A/B test without being one: nothing is being measured, so there is
+ * no arm to keep anyone in and no result to protect.
+ *
+ * The consequence, said once here so nobody rediscovers it as a bug: the image is cached per URL,
+ * so a binder wears whichever face it drew until that cache entry is replaced, and a later re-warm
+ * can hand an already-shared link the other one. A link's look is therefore not a promise. Both
+ * faces are held to the same contrast guarantee (see chromeInk), so whichever one it lands on is
+ * legible; only the styling is left to chance.
+ */
+const flipChrome = () => (Math.random() < 0.5 ? 'collage' : 'bands');
 
 /** WCAG relative luminance. */
 function relLum(rgb) {
@@ -718,12 +738,17 @@ function chromeInk(bg, scrim) {
  */
 const SCRIM = 0.34;
 
-function singleFrame(page, manifest, art, backdrop) {
+function singleFrame(page, manifest, art, backdrop, chrome) {
+  const bands = chrome === 'bands';
+  // The SAME measurement serves both faces; only the ground differs. Under bands the chrome sits
+  // on 94% cream, so this reliably returns the dark ink at about 11:1 — which is the point: the
+  // band face is not exempt from the guarantee, it simply always passes it.
+  const groundScrim = bands ? BAND_FILL_ALPHA : SCRIM;
   // With no backdrop the frame is flat cream, where the dark ink already reads at about 12:1, so
   // the fallback needs no measurement.
   const flat = { ink: 'rgb(38,30,20)', pocket: BRAND_POCKET, halo: null };
-  const topInk = backdrop ? chromeInk(backdrop.top, SCRIM) : flat;
-  const botInk = backdrop ? chromeInk(backdrop.bottom, SCRIM) : flat;
+  const topInk = backdrop ? chromeInk(backdrop.top, groundScrim) : flat;
+  const botInk = backdrop ? chromeInk(backdrop.bottom, groundScrim) : flat;
   const cols = page.cols || 3;
   const rows = page.rows || 3;
   // 470, not 455: dropping the disclaimer from three lines to two frees vertical space, and it goes
@@ -781,6 +806,7 @@ function singleFrame(page, manifest, art, backdrop) {
               height: topBand,
               alignItems: 'center',
               justifyContent: 'center',
+              ...(bands ? { backgroundColor: BAND_FILL } : {}),
             },
           },
           h(
@@ -818,6 +844,7 @@ function singleFrame(page, manifest, art, backdrop) {
               display: 'flex',
               justifyContent: 'center',
               paddingBottom: 22 * S,
+              ...(bands ? { backgroundColor: BAND_FILL, paddingTop: 18 * S } : {}),
             },
           },
           h(
@@ -884,11 +911,17 @@ function compose(pages, manifest, art) {
  * committed to a width and a height, and the render must match what was declared. So when the
  * narrow canvas is asked for, only the first page is drawn even if `pickPages` found two.
  */
-async function render(pages, manifest, art, single) {
+async function render(pages, manifest, art, single, chrome) {
   // @vercel/og is ESM-only and this file is CJS; the import is cached after the first invocation.
   const { ImageResponse } = await import('@vercel/og');
   const node = single
-    ? singleFrame(pages[0], manifest, art, await blurBackdrop(backdropSource(pages[0], manifest, art)))
+    ? singleFrame(
+        pages[0],
+        manifest,
+        art,
+        await blurBackdrop(backdropSource(pages[0], manifest, art)),
+        chrome || flipChrome(),
+      )
     : compose(pages, manifest, art);
   const png = Buffer.from(
     await new ImageResponse(node, {
@@ -962,5 +995,6 @@ module.exports.__tooling = {
   blurBackdrop,
   backdropSource,
   chromeInk,
+  flipChrome,
   SCRIM,
 };

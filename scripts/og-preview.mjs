@@ -69,9 +69,11 @@ if (args[0] === '--contrast') {
   process.exit(0);
 }
 
-const [id, outDir = '.'] = args;
+// Production never passes a face: render() flips a coin per render (see flipChrome). Forcing one
+// here is the only way to look at a specific face on purpose, which is what this script is for.
+const [id, outDir = '.', ...faces] = args;
 if (!id) {
-  console.log('FAILED: pass a binder id');
+  console.log('FAILED: pass a binder id [outDir] [collage|bands ...]');
   process.exit(2);
 }
 const [binder, manifest] = await Promise.all([fetchBinder(id), fetchManifest()]);
@@ -85,8 +87,11 @@ const single = pages.length === 1;
 console.log(`"${binder.title}" -> ${pages.length} page(s), ${single ? 'narrow 1800x1512' : 'spread 2880x1512'}`);
 
 mkdirSync(outDir, { recursive: true });
-const { body, type } = await render(pages, manifest, art, single);
-const file = join(outDir, `og-${id.slice(0, 8)}.${type === 'image/jpeg' ? 'jpg' : 'png'}`);
-writeFileSync(file, body);
-console.log(`  ${String(Math.round(body.length / 1024)).padStart(5)} KB  ${file}`);
+for (const face of faces.length ? faces : [undefined]) {
+  const { body, type } = await render(pages, manifest, art, single, face);
+  const label = face || 'flipped';
+  const file = join(outDir, `og-${id.slice(0, 8)}-${label}.${type === 'image/jpeg' ? 'jpg' : 'png'}`);
+  writeFileSync(file, body);
+  console.log(`  ${label.padEnd(8)} ${String(Math.round(body.length / 1024)).padStart(5)} KB  ${file}`);
+}
 console.log('DONE.');

@@ -97,26 +97,54 @@ const OG_SINGLE = { w: 1800, h: 1512 };
  * is asked for. So the declared size and the rendered size cannot drift apart — the worst case is
  * a page laid out on a frame that suits it slightly less well.
  */
-function previewIsSingle(binder) {
+/**
+ * The page or pages a shared preview draws, in page order.
+ *
+ * PREFER TWO. An open spread is more of the binder and it fills the wide frame; a single page is
+ * the fallback for a binder that has nothing to pair. The two are chosen by how much art is
+ * actually ON them, not by position, so the fullest work leads.
+ *
+ * WHY THE OLD 18-POCKET CEILING WENT. It compared page CAPACITY (cols x rows), so a 4x3 page beside
+ * a 3x3 came to 21 and fell back to one page even when the two together held fewer cards than a
+ * pair of full 3x3s. Capacity was never the thing worth bounding: what costs render time is the
+ * number of full-size card JPEGs fetched, which is the FILLED count. Measured against every public
+ * binder on 2026-08-27, the fullest two pages come to at most 19 filled pockets, and 18 (two full
+ * 3x3s) ships routinely today. So the cap is now on fetches, set above every real binder with room
+ * to spare, and it exists only as a backstop against a page shape nobody has made yet. If large
+ * pages become common, measure the render again before raising it rather than assuming.
+ *
+ * ONE SOURCE OF TRUTH, deliberately. The meta tags declare og:image:width/height and the renderer
+ * has to draw exactly that shape; when this rule lived in two files it could drift, and a drift
+ * means a preview whose declared size and real size disagree. api/og-image-binder.js imports this.
+ */
+const PREVIEW_FETCH_CAP = 24;
+
+function choosePreviewPages(binder) {
   const pages = ((binder && binder.binder_pages) || []).slice().sort((a, b) => a.position - b.position);
   const filled = (p) => (p.binder_slots || []).filter((s) => s.card_id || s.image_url).length;
-  const cells = (p) => (p.cols || 3) * (p.rows || 3);
 
-  // An explicit selection wins, exactly as pickPages has it: up to two featured pages, and one
-  // that has been emptied or hidden falls through to the automatic choice below.
+  // An explicit selection wins outright: the owner featuring one page in Share is a decision, not
+  // a shortfall, and no cap applies to what they asked for.
   const chosen = Array.isArray(binder && binder.share_page_ids) ? binder.share_page_ids : null;
   if (chosen && chosen.length) {
     const picked = pages.filter((p) => chosen.includes(p.id) && filled(p) > 0).slice(0, 2);
-    if (picked.length) return picked.length === 1;
+    if (picked.length) return picked;
   }
 
-  const withCards = pages.filter((p) => filled(p) > 0);
-  // Nothing to draw: the renderer falls back to the cover image, whose size matches neither
-  // canvas. Harmless, and narrow is the better guess for the one-page binders that land here.
-  if (withCards.length <= 1) return true;
-  const topTwo = withCards.slice().sort((a, b) => filled(b) - filled(a)).slice(0, 2);
-  // The same 18-pocket ceiling pickPages uses before it commits to a spread.
-  return cells(topTwo[0]) + cells(topTwo[1]) > 18;
+  const withArt = pages.filter((p) => filled(p) > 0);
+  if (withArt.length <= 1) return withArt;
+  const topTwo = withArt.slice().sort((a, b) => filled(b) - filled(a)).slice(0, 2);
+  if (filled(topTwo[0]) + filled(topTwo[1]) > PREVIEW_FETCH_CAP) return [topTwo[0]];
+  return topTwo.sort((a, b) => a.position - b.position);
+}
+
+/**
+ * Narrow canvas or wide? True for one page (and for none, where the renderer falls back to the
+ * cover image and narrow is the better guess). Derived from the choice above so the two can never
+ * disagree about what is being drawn.
+ */
+function previewIsSingle(binder) {
+  return choosePreviewPages(binder).length <= 1;
 }
 
 /** The page/slot columns `previewIsSingle` needs, for callers building their select. */
@@ -242,6 +270,7 @@ module.exports = {
   SITE,
   OG_PAGES_SELECT,
   previewIsSingle,
+  choosePreviewPages,
   SITE_NAME,
   esc,
   oneLine,

@@ -37,7 +37,7 @@ module.exports = async (req, res) => {
   // reads as a finished sentence instead of an ellipsis.
   const fallback = {
     title: `A michi binder · ${SITE_NAME}`,
-    description: 'Curated Pokémon binders — plan it, price it, print it.',
+    description: 'Curated Pokémon binders. Plan it, price it, print it.',
     image: null,
     url,
   };

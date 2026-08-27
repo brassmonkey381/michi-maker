@@ -31,6 +31,9 @@
  *    share always has something.
  */
 const sharp = require('sharp');
+// The page choice is shared with the meta endpoint on purpose: og:image:width/height is declared
+// there and drawn here, so a second copy of the rule is a preview whose shape can disagree.
+const { choosePreviewPages } = require('./_lib');
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
@@ -217,35 +220,8 @@ function slotArt(slot, manifest, art) {
   };
 }
 
-// A pocket counts as filled if it draws anything — an art-only page is as much a page as a
-// card one, and ranking by card count alone would skip it.
-const filledCount = (page) =>
-  (page.binder_slots || []).filter((s) => s.card_id || s.image_url).length;
-const pageCells = (page) => (page.cols || 3) * (page.rows || 3);
-
-/**
- * The page(s) to show. Prefer an OPEN SPREAD (the two fullest pages, in page order) —
- * more art, and it fills the wide frame — falling back to a single page. The spread is
- * capped at ~18 pockets total so a render never fetches an unreasonable pile of
- * full-size card JPEGs.
- */
-function pickPages(binder) {
-  const pages = (binder.binder_pages || []).slice().sort((a, b) => a.position - b.position);
-  // Owner-chosen featured pages (up to 2), when set. RLS already filtered the fetch to PUBLIC pages,
-  // so a hidden/deleted selection just isn't found here; require a filled pocket so a blank pick
-  // falls through to the auto choice below.
-  const chosenIds = Array.isArray(binder.share_page_ids) ? binder.share_page_ids : null;
-  if (chosenIds && chosenIds.length) {
-    const chosen = pages.filter((p) => chosenIds.includes(p.id) && filledCount(p) > 0).slice(0, 2);
-    if (chosen.length) return chosen; // already in position order
-  }
-  const withCards = pages.filter((p) => filledCount(p) > 0);
-  if (withCards.length === 0) return [];
-  if (withCards.length === 1) return [withCards[0]];
-  const topTwo = withCards.slice().sort((a, b) => filledCount(b) - filledCount(a)).slice(0, 2);
-  if (pageCells(topTwo[0]) + pageCells(topTwo[1]) > 18) return [topTwo[0]];
-  return topTwo.sort((a, b) => a.position - b.position);
-}
+/** The page(s) to show. See choosePreviewPages in api/_lib.js for the rule and its history. */
+const pickPages = choosePreviewPages;
 
 /** Card size that fits `cols`×`rows` inside the given box while staying card-shaped. */
 function cardSize(cols, rows, maxGridW, maxGridH) {
@@ -443,7 +419,7 @@ function spine(height) {
 // visible — so it rides along the bottom of the image itself. @vercel/og renders text with its
 // bundled Geist font, no font fetch needed.
 const DISCLAIMER =
-  'Fan-made tool — not affiliated with, endorsed by, or sponsored by Nintendo, Creatures, or The Pokémon Company. Card images belong to their respective owners.';
+  'Fan-made tool. Not affiliated with, endorsed by, or sponsored by Nintendo, Creatures, or The Pokémon Company. Card images belong to their respective owners.';
 
 // Brand colours as the shipped og.png draws them (scripts/brand-assets.mjs) rather than as the
 // app's `Palette.accent` (#2F6FED) — this image belongs to the same family of cream share cards.
@@ -463,7 +439,7 @@ const BRAND_W = 190 * S; // reserved on BOTH sides of the footer, so the disclai
  * Absolutely positioned rather than nested flex rows for the same reason `pageGrid` is: it's the
  * layout model Satori is reliable at, and the spanning tile falls out of it for free.
  */
-function logoMark(size) {
+function logoMark(size, pocket) {
   const gap = Math.max(1, Math.round(size / 12));
   const cell = (size - gap * 2) / 3;
   const radius = Math.max(1, cell * 0.24);
@@ -485,7 +461,7 @@ function logoMark(size) {
   for (let r = 0; r < 3; r++) {
     for (let c = 0; c < 3; c++) {
       if (r === 1 && c < 2) continue; // the two pockets the spanning art covers
-      tiles.push(tile(c * stepPx, r * stepPx, cell, BRAND_POCKET));
+      tiles.push(tile(c * stepPx, r * stepPx, cell, pocket || BRAND_POCKET));
     }
   }
   tiles.push(tile(0, stepPx, cell * 2 + gap, BRAND_ACCENT));
@@ -570,7 +546,13 @@ const frame = (inner) =>
     ],
   );
 
-const mat = (children, tilt) =>
+/**
+ * The page's cream card. `edge` draws a hairline around it, which the banded single-page frame
+ * needs and the spread does not: there the mat sits on open cream and its shadow is enough, but
+ * over the bands it is cream on cream, so the part of the page that overhangs the header and
+ * footer simply disappears. The line is what makes the overhang read as an overhang.
+ */
+const mat = (children, tilt, edge) =>
   h(
     'div',
     {
@@ -580,6 +562,9 @@ const mat = (children, tilt) =>
         padding: 18 * S,
         borderRadius: 24 * S,
         backgroundColor: '#fbfaf7',
+        ...(edge
+          ? { borderWidth: MAT_EDGE, borderStyle: 'solid', borderColor: '#000000' }
+          : {}),
         boxShadow: `0 ${26 * S}px ${70 * S}px rgba(60,50,35,0.30)`,
         transform: `rotate(${tilt}deg)`,
       },
@@ -609,7 +594,20 @@ async function blurBackdrop(src) {
       .modulate({ brightness: 1.06, saturation: 1.15 })
       .jpeg({ quality: 62 })
       .toBuffer();
-    return `data:image/jpeg;base64,${out.toString('base64')}`;
+    // Mean colour of the top and bottom strips, so the chrome can be coloured against what is
+    // actually behind it. The blurred image and the canvas share an aspect ratio to within 0.1%
+    // (560/470 vs 1800/1512) and it is drawn objectFit:cover, so a strip here maps to the same
+    // fraction of the canvas. Approximate by design: the blur has no detail for a finer sample to
+    // find, and chromeInk only needs the ground it is judging against.
+    const strip = async (top, height) => {
+      const st = await sharp(out).extract({ left: 0, top, width: 560, height }).stats();
+      return st.channels.slice(0, 3).map((c) => c.mean);
+    };
+    return {
+      uri: `data:image/jpeg;base64,${out.toString('base64')}`,
+      top: await strip(0, 100),
+      bottom: await strip(370, 100),
+    };
   } catch {
     return null;
   }
@@ -640,6 +638,77 @@ const SINGLE_LEGAL_LINES = 2;
 const SINGLE_LEGAL_BAND = Math.round(SINGLE_LEGAL_LINES * SINGLE_LEGAL_SIZE * 1.38 + 22 * S);
 
 /**
+ * The single-page frame's chrome, settled 2026-08-27 after rendering five variants through this
+ * same path (scripts/og-preview.mjs).
+ *
+ * THE PROBLEM. The mark is a 3x3 grid of pale cream pockets and the backdrop is an enlargement of
+ * whatever art the page holds, so over a light busy blur the mark's nine tiles and the caption
+ * beneath it all but vanish. At Discord's ~550px that chrome is the one part of the image that has
+ * to survive being seen.
+ *
+ * WHAT WAS REJECTED, and why it is worth recording. Opaque bands behind the header and footer fix
+ * the contrast completely, and so does deepening the scrim until any ink reads. Both work by
+ * covering the blurred collage, which is the thing this frame exists to show (owner call: do not
+ * sacrifice a good blurred background collage). So the scrim stays where it is and the CHROME
+ * adapts instead.
+ *
+ * HOW THE GUARANTEE WORKS. We render the blur ourselves, so we can measure the strip each piece of
+ * chrome sits on and pick whichever ink, near-black or near-white, scores higher against it. Two
+ * inks at opposite ends of the range mean the worst case is a mid-grey ground, where the better of
+ * the two still clears about 3:1; where the winner lands under MIN_CONTRAST a halo in the opposing
+ * colour separates the glyphs from the art without hiding any of it.
+ */
+const CREAM = [250, 246, 239];
+const INK_DARK = [38, 30, 20];
+const INK_LIGHT = [253, 252, 249];
+/** WCAG AA for large text. Below this the lockup stops being legible at the size it is displayed. */
+const MIN_CONTRAST = 4.5;
+const MAT_EDGE = Math.round(2 * S);
+
+/** WCAG relative luminance. */
+function relLum(rgb) {
+  const f = (c) => {
+    const x = c / 255;
+    return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * f(rgb[0]) + 0.7152 * f(rgb[1]) + 0.0722 * f(rgb[2]);
+}
+const contrastRatio = (a, b) => {
+  const pair = [relLum(a), relLum(b)].sort((x, y) => y - x);
+  return (pair[0] + 0.05) / (pair[1] + 0.05);
+};
+const blend = (over, under, alpha) => under.map((c, i) => Math.round(over[i] * alpha + c * (1 - alpha)));
+
+/**
+ * Ink for a piece of chrome sitting on `bg`, the mean colour of the blurred strip behind it, seen
+ * through the frame's cream scrim.
+ *
+ * Never touches the backdrop. Returns the better of the two inks, a pocket colour for the mark a
+ * step softer than the ink (so the grid reads as a mark rather than nine solid blocks), and a halo
+ * that is null whenever the ink already clears MIN_CONTRAST on its own.
+ */
+function chromeInk(bg, scrim) {
+  const ground = blend(CREAM, bg, scrim);
+  const dark = contrastRatio(INK_DARK, ground);
+  const light = contrastRatio(INK_LIGHT, ground);
+  const useDark = dark >= light;
+  const ratio = Math.max(dark, light);
+  const halo = useDark ? INK_LIGHT : INK_DARK;
+  return {
+    ink: 'rgb(' + (useDark ? INK_DARK : INK_LIGHT).join(',') + ')',
+    pocket: useDark ? '#6f6656' : '#efe9dd',
+    // Alpha rises with the shortfall, so a near miss gets a whisper and a mid-grey ground gets a
+    // real edge. Only ever drawn when the ink needs the help.
+    halo:
+      ratio >= MIN_CONTRAST
+        ? null
+        : '0 0 ' + Math.round(6 * S) + 'px rgba(' + halo.join(',') + ',' +
+          Math.min(0.95, 0.45 + (MIN_CONTRAST - ratio) * 0.3).toFixed(2) + ')',
+    ratio,
+  };
+}
+
+/**
  * One page on the narrow canvas, over a blurred enlargement of its own art.
  *
  * The brand lockup is centred in the band ABOVE the page, and that band's height is DERIVED from
@@ -647,21 +716,30 @@ const SINGLE_LEGAL_BAND = Math.round(SINGLE_LEGAL_LINES * SINGLE_LEGAL_SIZE * 1.
  * edge and the top of the page whatever shape the page turns out to be (a 2-row page and a 4-row
  * page do not share a magic number).
  */
+const SCRIM = 0.34;
+
 function singleFrame(page, manifest, art, backdrop) {
+  // With no backdrop the frame is flat cream, where the dark ink already reads at about 12:1, so
+  // the fallback needs no measurement.
+  const flat = { ink: 'rgb(38,30,20)', pocket: BRAND_POCKET, halo: null };
+  const topInk = backdrop ? chromeInk(backdrop.top, SCRIM) : flat;
+  const botInk = backdrop ? chromeInk(backdrop.bottom, SCRIM) : flat;
   const cols = page.cols || 3;
   const rows = page.rows || 3;
   // 470, not 455: dropping the disclaimer from three lines to two frees vertical space, and it goes
   // to the PAGE. Left in the top band it would only widen the gap above the page and drop the
   // lockup down with it.
   const { cw, ch } = cardSize(cols, rows, 540 * S, 470 * S);
-  const matH = rows * ch + (rows - 1) * GAP + 36 * S; // + the mat's own padding
+  // + the mat's own padding, + its hairline: both sides of each, or the lockup above the page
+  // stops being centred on the space it is supposed to be centred in.
+  const matH = rows * ch + (rows - 1) * GAP + 36 * S + 2 * MAT_EDGE;
   const below = 24 * S; // a little air between the page and the disclaimer
   const topBand = Math.max(70 * S, SINGLE_H - SINGLE_LEGAL_BAND - matH - below);
   const layers = [];
   if (backdrop) {
     layers.push(
       h('img', {
-        src: backdrop,
+        src: backdrop.uri,
         width: SINGLE_W,
         height: SINGLE_H,
         style: { position: 'absolute', left: 0, top: 0, objectFit: 'cover' },
@@ -675,7 +753,7 @@ function singleFrame(page, manifest, art, backdrop) {
           top: 0,
           width: SINGLE_W,
           height: SINGLE_H,
-          backgroundColor: 'rgba(250,246,239,0.34)',
+          backgroundColor: `rgba(250,246,239,${SCRIM})`,
         },
       }),
     );
@@ -697,24 +775,51 @@ function singleFrame(page, manifest, art, backdrop) {
       [
         h(
           'div',
-          { style: { display: 'flex', height: topBand, alignItems: 'center', justifyContent: 'center' } },
-          h('div', { style: { display: 'flex', alignItems: 'center' } }, [
-            logoMark(28 * S),
-            h(
-              'div',
-              { style: { display: 'flex', marginLeft: 11 * S, fontSize: 17 * S, color: 'rgba(45,36,24,0.88)' } },
-              'michi-maker.com',
-            ),
-          ]),
+          {
+            style: {
+              display: 'flex',
+              height: topBand,
+              alignItems: 'center',
+              justifyContent: 'center',
+            },
+          },
+          h(
+            'div',
+            {
+              style: { display: 'flex', alignItems: 'center' },
+            },
+            [
+              logoMark(28 * S, topInk.pocket),
+              h(
+                'div',
+                {
+                  style: {
+                    display: 'flex',
+                    marginLeft: 11 * S,
+                    fontSize: 17 * S,
+                    color: topInk.ink,
+                    ...(topInk.halo ? { textShadow: topInk.halo } : {}),
+                  },
+                },
+                'michi-maker.com',
+              ),
+            ],
+          ),
         ),
         h(
           'div',
           { style: { display: 'flex', flex: 1, alignItems: 'flex-start', justifyContent: 'center' } },
-          mat(pageGrid(page, cw, ch, manifest, art), -1.5),
+          mat(pageGrid(page, cw, ch, manifest, art), -1.5, true),
         ),
         h(
           'div',
-          { style: { display: 'flex', justifyContent: 'center', paddingBottom: 22 * S } },
+          {
+            style: {
+              display: 'flex',
+              justifyContent: 'center',
+              paddingBottom: 22 * S,
+            },
+          },
           h(
             'div',
             {
@@ -724,7 +829,8 @@ function singleFrame(page, manifest, art, backdrop) {
                 textAlign: 'center',
                 fontSize: SINGLE_LEGAL_SIZE,
                 lineHeight: 1.38,
-                color: 'rgba(45,36,24,0.72)',
+                color: botInk.ink,
+                ...(botInk.halo ? { textShadow: botInk.halo } : {}),
               },
             },
             DISCLAIMER,
@@ -842,4 +948,19 @@ module.exports = async (req, res) => {
   res.statusCode = 302;
   res.setHeader('location', cover);
   return res.end();
+};
+
+// Tooling seam for scripts/og-preview.mjs, which renders a binder's real share image to a file so
+// a design change can be judged on the shipping path rather than on a mock. Not reachable from the
+// handler.
+module.exports.__tooling = {
+  fetchBinder,
+  fetchManifest,
+  pickPages,
+  loadArt,
+  render,
+  blurBackdrop,
+  backdropSource,
+  chromeInk,
+  SCRIM,
 };

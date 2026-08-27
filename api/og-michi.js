@@ -13,9 +13,9 @@ module.exports = async (req, res) => {
   sendHtml(
     res,
     ogHtml({
-      title: `The Michi Method — a guide & credit · ${SITE_NAME}`,
+      title: `The Michi Method: a guide & credit · ${SITE_NAME}`,
       description:
-        'The Michi Method, created by the collector Michi (@peeplop), turns a binder page into a canvas — anchor pages, single-Pokémon spreads, colour themes, and art sliced across pockets. Learn it and build your own on michi-maker.',
+        'The Michi Method, created by the collector Michi (@peeplop), turns a binder page into a canvas: anchor pages, single-Pokémon spreads, colour themes, and art sliced across pockets. Learn it and build your own on michi-maker.',
       image: null,
       url,
       imageAlt: 'The Michi Method',

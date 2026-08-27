@@ -52,6 +52,17 @@ export interface BinderPagesProps {
     /** Real-scan lookup while the Scans pill is on (owner-only; see useScanImages). */
     scanUrlOf?: (cardId: string) => string | undefined;
   }) => ReactNode;
+  /**
+   * Does the person looking at this own it? Gates the Real-scans pill, and defaults to FALSE so
+   * a call site that forgets it shows catalog art rather than the wrong person's photos.
+   *
+   * The lookup behind the pill (useScanImages) reads the VIEWER's own portfolio under owner-RLS
+   * and knows nothing about whose binder is on screen, so on a stranger's public binder it would
+   * happily paint the viewer's photos into the owner's pockets. Nothing leaks today only because
+   * the public viewer's renderGrid drops the prop; that is a call site remembering, not a
+   * guarantee. This makes it one.
+   */
+  viewerIsOwner?: boolean;
   /** Enables drag-to-reorder in the filmstrip (edit only). Omit → tap-to-jump only. */
   onReorderPages?: (from: number, to: number) => void;
   /** Optional override for the per-page title/description area (edit passes text inputs here);
@@ -68,6 +79,7 @@ export function BinderPages({
   onPageChange,
   availableWidth,
   editable,
+  viewerIsOwner = false,
   renderGrid,
   onReorderPages,
   pageHeader,
@@ -84,10 +96,11 @@ export function BinderPages({
   const [showOwned, setShowOwned] = useState(false);
   const ownedIds = showOwned ? ownedCards : undefined;
   // Real scans: card pockets show the owner's own photo of each card instead of catalog art.
-  // Session-only like the other pills; the map is undefined for guests and for accounts with no
-  // scanned lots, which hides the pill entirely (a public viewer's renderGrid may also simply
-  // ignore the lookup — the pill then toggles nothing, same inert-pill parity as Owned).
-  const scanImages = useScanImages();
+  // Session-only like the other pills; the map is undefined for guests, for accounts with no
+  // scanned lots, and for anyone who does not own this binder (see viewerIsOwner), which hides
+  // the pill entirely rather than offering a toggle that would show the wrong person's photos.
+  const ownScans = useScanImages();
+  const scanImages = viewerIsOwner ? ownScans : undefined;
   const [showScans, setShowScans] = useState(false);
   const scanUrlOf = showScans && scanImages ? (cardId: string) => scanImages.get(cardId) : undefined;
   // Double-sided: pages pair like a physical binder — page 1 alone (the cover face), then

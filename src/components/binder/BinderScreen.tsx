@@ -1200,6 +1200,10 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               onPageChange={changePage}
               availableWidth={available}
               editable={editing}
+              // Binders reachable here come from the signed-in user's own store (userBinders) or
+              // are bundled examples, so the viewer is the owner. The public route decides for
+              // itself by comparing owner_id (see app/binder/[id].tsx).
+              viewerIsOwner
               dragCol={dragCol}
               onReorderPages={
                 editing

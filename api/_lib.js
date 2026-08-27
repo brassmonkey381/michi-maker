@@ -68,22 +68,45 @@ function cardImage(cardId) {
  *   r5  1.95× render, 2340×1229 PNG
  *   r6  michi-maker.com + logo stamped into the footer
  *   r7  JPEG at 2.4× (2880×1512) — bigger picture, a fifth the bytes
+ *   r8  single featured page gets its own 1800×1512 canvas over a blurred backdrop
  */
-const OG_IMAGE_REV = 7;
+const OG_IMAGE_REV = 8;
 
 /**
- * The composed-page image URL for a binder. ONE definition, shared by the meta tags and the
- * warmer, because the two must agree exactly — a warmer that heats a URL the meta tags don't emit
- * is worse than no warmer at all, since it looks like it worked.
+ * The two canvases the renderer knows how to draw. A SPREAD needs the width for two facing pages;
+ * a single page is about 0.75:1 and left roughly two thirds of the wide frame empty, so it gets a
+ * canvas cut to its own shape. See the header of api/og-image-binder.js.
+ */
+const OG_SPREAD = { w: 2880, h: 1512 };
+const OG_SINGLE = { w: 1800, h: 1512 };
+
+/**
+ * The composed-page image URL for a binder, and the size it will be. ONE definition, shared by the
+ * meta tags and the warmer, because the two must agree exactly — a warmer that heats a URL the
+ * meta tags don't emit is worse than no warmer at all, since it looks like it worked.
+ *
+ * THE SIZE TRAVELS IN THE URL. og:image:width/height is a promise, and the renderer is the only
+ * thing that could break it; passing the chosen canvas as `w`/`h` means the renderer draws what
+ * was declared instead of deciding for itself and possibly disagreeing. Working the page count out
+ * here instead would mean repeating the renderer's page-picking query on the path a scraper hits
+ * first, which is the path that most needs to stay fast.
  *
  * `t` is the binder's updated_at, so editing a binder (or changing its featured share pages, which
  * bumps updated_at via the binders_set_updated_at trigger) changes the URL and a re-shared link
  * re-fetches instead of unfurling the old layout. It also means every edit puts the preview back
  * on a cold cache — see `api/og-warm.js`.
  */
-function ogImageUrl(id, updatedAt) {
+function ogImageUrl(id, updatedAt, sharePageIds) {
   const stamp = updatedAt ? Date.parse(updatedAt) || 0 : 0;
-  return `${SITE}/api/og-image-binder?id=${encodeURIComponent(id)}&r=${OG_IMAGE_REV}&t=${stamp}`;
+  // Only an EXPLICIT single featured page takes the narrow canvas. A binder that happens to have
+  // one filled page keeps the wide frame — the renderer's auto-pick isn't knowable from here, and
+  // a wrong guess would declare a size the image doesn't have.
+  const single = Array.isArray(sharePageIds) && sharePageIds.length === 1;
+  const size = single ? OG_SINGLE : OG_SPREAD;
+  const url =
+    `${SITE}/api/og-image-binder?id=${encodeURIComponent(id)}` +
+    `&r=${OG_IMAGE_REV}&t=${stamp}&w=${size.w}&h=${size.h}`;
+  return { url, width: size.w, height: size.h };
 }
 
 /**

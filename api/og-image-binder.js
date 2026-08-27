@@ -52,6 +52,17 @@ const S = 2.4;
 const W = Math.round(1200 * S); // 2880 — ImageResponse needs integer dimensions
 const H = Math.round(630 * S); // 1512
 
+// A SINGLE page is a different shape of problem. A 3×3 page is about 0.75:1, so scaled to the full
+// height of a 1.9:1 frame it can only occupy about a third of the width — roughly two thirds of a
+// single-page render was empty. This narrower canvas is sized to the page instead, and what space
+// is left is filled by a blurred enlargement of the page's own art rather than left blank.
+//
+// SPREADS ARE UNCHANGED and still render at W×H: two facing pages genuinely need the width.
+// Which shape is used is decided by api/og-binder.js and passed in the URL (see `ogImageUrl`), so
+// the og:image:width/height it declares and what this renders can never disagree.
+const SINGLE_W = 1800;
+const SINGLE_H = 1512;
+
 // JPEG settings. 4:4:4 (no chroma subsampling) costs ~0.2MB over 4:2:0 and is worth it here: the
 // frame is dense small card text and saturated red/blue art edges, which is precisely what
 // subsampling smears. mozjpeg is what gets it back under a megabyte.
@@ -576,6 +587,159 @@ const mat = (children, tilt) =>
     children,
   );
 
+/**
+ * A small, heavily blurred JPEG of one card, as a data URI, to sit behind a single page.
+ *
+ * Blurred at LOW resolution ON PURPOSE: enlarging an already-blurred 560px image is
+ * indistinguishable from blurring the full-size one and costs a fraction of the time. The result
+ * is a few KB, so it inlines without meaningfully changing the response size.
+ *
+ * Returns null on any failure — a missing backdrop just means the plain cream frame, never a
+ * failed render.
+ */
+async function blurBackdrop(src) {
+  if (!src) return null;
+  try {
+    const bytes = src.startsWith('data:')
+      ? Buffer.from(src.slice(src.indexOf(',') + 1), 'base64')
+      : Buffer.from(await (await fetch(src)).arrayBuffer());
+    const out = await sharp(bytes)
+      .resize(560, 470, { fit: 'cover' })
+      .blur(22)
+      .modulate({ brightness: 1.06, saturation: 1.15 })
+      .jpeg({ quality: 62 })
+      .toBuffer();
+    return `data:image/jpeg;base64,${out.toString('base64')}`;
+  } catch {
+    return null;
+  }
+}
+
+/** Whatever this page can offer as backdrop art: a card image, else a custom artwork. */
+function backdropSource(page, manifest, art) {
+  const slots = page.binder_slots || [];
+  const card = slots.find((s) => s.card_id && manifestUrl(manifest, s.card_id, 'image'));
+  if (card) return manifestUrl(manifest, card.card_id, 'image');
+  for (const s of slots) {
+    const key = artUrl(s.image_url);
+    const inlined = key && art ? art.get(key) : null;
+    if (inlined) return inlined;
+  }
+  return null;
+}
+
+const SINGLE_LEGAL_SIZE = 12 * S;
+// Held to a deliberately narrow measure so the disclaimer breaks into three even, centred lines.
+// A short measure is what makes centred text read as a caption rather than a stray sentence.
+const SINGLE_MEASURE = Math.round(SINGLE_W * 0.62);
+const SINGLE_LEGAL_BAND = Math.round(3 * SINGLE_LEGAL_SIZE * 1.38 + 22 * S);
+
+/**
+ * One page on the narrow canvas, over a blurred enlargement of its own art.
+ *
+ * The brand lockup is centred in the band ABOVE the page, and that band's height is DERIVED from
+ * the mat rather than set as a padding — so the lockup stays optically centred between the top
+ * edge and the top of the page whatever shape the page turns out to be (a 2-row page and a 4-row
+ * page do not share a magic number).
+ */
+function singleFrame(page, manifest, art, backdrop) {
+  const cols = page.cols || 3;
+  const rows = page.rows || 3;
+  const { cw, ch } = cardSize(cols, rows, 540 * S, 455 * S);
+  const matH = rows * ch + (rows - 1) * GAP + 36 * S; // + the mat's own padding
+  const below = 24 * S; // a little air between the page and the disclaimer
+  const topBand = Math.max(70 * S, SINGLE_H - SINGLE_LEGAL_BAND - matH - below);
+  const layers = [];
+  if (backdrop) {
+    layers.push(
+      h('img', {
+        src: backdrop,
+        width: SINGLE_W,
+        height: SINGLE_H,
+        style: { position: 'absolute', left: 0, top: 0, objectFit: 'cover' },
+      }),
+      // Scrim: the text has to stay readable over whatever art happens to land behind it.
+      h('div', {
+        style: {
+          display: 'flex',
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          width: SINGLE_W,
+          height: SINGLE_H,
+          backgroundColor: 'rgba(250,246,239,0.34)',
+        },
+      }),
+    );
+  }
+  layers.push(
+    h(
+      'div',
+      {
+        style: {
+          display: 'flex',
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          width: SINGLE_W,
+          height: SINGLE_H,
+          flexDirection: 'column',
+        },
+      },
+      [
+        h(
+          'div',
+          { style: { display: 'flex', height: topBand, alignItems: 'center', justifyContent: 'center' } },
+          h('div', { style: { display: 'flex', alignItems: 'center' } }, [
+            logoMark(28 * S),
+            h(
+              'div',
+              { style: { display: 'flex', marginLeft: 11 * S, fontSize: 17 * S, color: 'rgba(45,36,24,0.88)' } },
+              'michi-maker.com',
+            ),
+          ]),
+        ),
+        h(
+          'div',
+          { style: { display: 'flex', flex: 1, alignItems: 'flex-start', justifyContent: 'center' } },
+          mat(pageGrid(page, cw, ch, manifest, art), -1.5),
+        ),
+        h(
+          'div',
+          { style: { display: 'flex', justifyContent: 'center', paddingBottom: 22 * S } },
+          h(
+            'div',
+            {
+              style: {
+                display: 'flex',
+                width: SINGLE_MEASURE,
+                textAlign: 'center',
+                fontSize: SINGLE_LEGAL_SIZE,
+                lineHeight: 1.38,
+                color: 'rgba(45,36,24,0.72)',
+              },
+            },
+            DISCLAIMER,
+          ),
+        ),
+      ],
+    ),
+  );
+  return h(
+    'div',
+    {
+      style: {
+        display: 'flex',
+        position: 'relative',
+        width: SINGLE_W,
+        height: SINGLE_H,
+        background: 'linear-gradient(135deg, #FAF6EF 0%, #EFE7D9 100%)',
+      },
+    },
+    layers,
+  );
+}
+
 function compose(pages, manifest, art) {
   if (pages.length >= 2) {
     // Open spread: shared card size so both pages align; sized to a half-frame box.
@@ -599,12 +763,24 @@ function compose(pages, manifest, art) {
   return frame(mat(pageGrid(page, cw, ch, manifest, art), -1.5));
 }
 
-/** Rasterise, then re-encode. If sharp ever fails, the PNG still ships — big beats nothing. */
-async function render(pages, manifest, art) {
+/**
+ * Rasterise, then re-encode. If sharp ever fails, the PNG still ships — big beats nothing.
+ *
+ * `single` comes from the URL, not from counting pages here: whoever wrote the meta tags already
+ * committed to a width and a height, and the render must match what was declared. So when the
+ * narrow canvas is asked for, only the first page is drawn even if `pickPages` found two.
+ */
+async function render(pages, manifest, art, single) {
   // @vercel/og is ESM-only and this file is CJS; the import is cached after the first invocation.
   const { ImageResponse } = await import('@vercel/og');
+  const node = single
+    ? singleFrame(pages[0], manifest, art, await blurBackdrop(backdropSource(pages[0], manifest, art)))
+    : compose(pages, manifest, art);
   const png = Buffer.from(
-    await new ImageResponse(compose(pages, manifest, art), { width: W, height: H }).arrayBuffer(),
+    await new ImageResponse(node, {
+      width: single ? SINGLE_W : W,
+      height: single ? SINGLE_H : H,
+    }).arrayBuffer(),
   );
   try {
     return { body: await sharp(png).jpeg(JPEG).toBuffer(), type: 'image/jpeg' };
@@ -615,6 +791,9 @@ async function render(pages, manifest, art) {
 
 module.exports = async (req, res) => {
   const id = String((req.query && req.query.id) || '').trim();
+  // The shape the meta tags committed to. Only the two known canvases are honoured, so a hand-typed
+  // width can't make this render something no og:image:width ever declared.
+  const single = String((req.query && req.query.w) || '') === String(SINGLE_W);
   let cover = `${SITE}/og.png`;
   try {
     if (id) {
@@ -629,7 +808,7 @@ module.exports = async (req, res) => {
           (page.binder_slots || []).some((s) => slotArt(s, manifest, art)),
         );
         if (pages.length && anyImage) {
-          const { body, type } = await render(pages, manifest, art);
+          const { body, type } = await render(pages, manifest, art, single);
           res.setHeader('content-type', type);
           res.setHeader('cache-control', CACHE);
           return res.end(body);

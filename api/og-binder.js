@@ -23,8 +23,10 @@ module.exports = async (req, res) => {
   };
   if (!id) return sendHtml(res, ogHtml(fallback));
 
+  // share_page_ids rides along on the row we already fetch: one featured page means the image gets
+  // the narrower canvas cut to a single page's shape. Free — no extra query.
   const rows = await sbSelect(
-    `binders?id=eq.${encodeURIComponent(id)}&is_public=eq.true&select=id,title,description,updated_at`,
+    `binders?id=eq.${encodeURIComponent(id)}&is_public=eq.true&select=id,title,description,updated_at,share_page_ids`,
   );
   const binder = Array.isArray(rows) ? rows[0] : null;
   if (!binder) return sendHtml(res, ogHtml(fallback));
@@ -34,7 +36,7 @@ module.exports = async (req, res) => {
     binder.description || 'A michi-method Pokémon binder. Open to see the layout.';
   // The composed page image (see `ogImageUrl` for how the URL busts caches). Self-heals to the
   // cover card on any error.
-  const image = ogImageUrl(id, binder.updated_at);
+  const image = ogImageUrl(id, binder.updated_at, binder.share_page_ids);
   return sendHtml(
     res,
     ogHtml({
@@ -42,9 +44,9 @@ module.exports = async (req, res) => {
       description,
       // One line in the embed; the full text still carries the SEO <meta name="description">.
       ogDescription: oneLine(description),
-      image,
-      imageWidth: 2880,
-      imageHeight: 1512,
+      image: image.url,
+      imageWidth: image.width,
+      imageHeight: image.height,
       url,
       imageAlt: binder.title,
     }),

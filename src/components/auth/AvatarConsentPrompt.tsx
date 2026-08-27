@@ -68,7 +68,7 @@ export function AvatarConsentPrompt() {
   // flush before any passive effect, so claiming here settles the order without depending on
   // where each prompt sits in the tree. The photo question goes first because it is a privacy
   // remediation we owe these accounts; the sharing question has its own seven-day cadence and
-  // loses nothing by waiting a visit.
+  // loses nothing by waiting for this dialog to close.
   useLayoutEffect(() => {
     if (offeredRef.current || photo || !due) return;
     takeTurn(SLOT);
@@ -77,7 +77,8 @@ export function AvatarConsentPrompt() {
   useEffect(() => {
     if (offeredRef.current || photo || !due || !providerUrl) return;
     // Re-claiming our own turn from the layout effect above; false here means the rights
-    // attestation got there first (it became due in an earlier commit) and this waits.
+    // attestation got there first (it became due in an earlier commit) and this waits for it to
+    // close, not for the next visit.
     if (!takeTurn(SLOT)) return;
     offeredRef.current = true;
 
@@ -93,8 +94,8 @@ export function AvatarConsentPrompt() {
           endTurn(SLOT);
           return;
         }
-        // Shown, so the rights attestation waits for the next visit rather than opening the
-        // moment this one is answered.
+        // On screen now, so the rights attestation waits for this to CLOSE rather than for the
+        // next visit: both prompts are allowed in one visit, just never at the same time.
         setPhoto({ url: providerUrl, blob });
         // Recorded whatever they answer, so a second device honours the same seven-day gap.
         void auth.updateProfile({ avatar_prompt_at: new Date().toISOString() });
@@ -108,7 +109,7 @@ export function AvatarConsentPrompt() {
     };
   }, [auth, due, providerUrl, photo]);
 
-  // Give the slot back on unmount, or a navigation away mid-dialog would strand it and silence
+  // Give the turn back on unmount, or a navigation away mid-dialog would strand it and silence
   // the rights prompt for the rest of the session.
   useEffect(() => () => endTurn(SLOT), []);
 

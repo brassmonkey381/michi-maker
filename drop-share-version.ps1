@@ -24,6 +24,42 @@ function Fail($step, $msg, $code) {
   exit $code
 }
 
+# Invoke-RestMethod throws on a 4xx and $_.Exception.Message is only ever "Bad Request" — the
+# server's actual explanation is in the response BODY, which is thrown away unless it is read off
+# the stream. This script once reported a bare 400 for what was a mangled request body; without the
+# body there was nothing to go on.
+function ErrorBody($err) {
+  try {
+    $resp = $err.Exception.Response
+    if (-not $resp) { return $err.Exception.Message }
+    $reader = New-Object IO.StreamReader($resp.GetResponseStream())
+    $text = $reader.ReadToEnd()
+    $reader.Close()
+    if ([string]::IsNullOrWhiteSpace($text)) { return $err.Exception.Message }
+    return "$($err.Exception.Message) :: $text"
+  } catch {
+    return $err.Exception.Message
+  }
+}
+
+# [string] IS LOAD-BEARING. `Get-Content -Raw` does not return a bare String: it returns one
+# WRAPPED IN A PSOBJECT carrying note properties (PSPath, PSParentPath, ReadCount, ...). ConvertTo-
+# Json serialises the wrapper, so the body goes out as
+#
+#     {"query":{"value":"-- tcgscan...","PSPath":"...", ...}}
+#
+# instead of {"query":"-- tcgscan..."} — query is an OBJECT, the API rejects it, and the 400 comes
+# back with an EMPTY body, so nothing on the wire says what is wrong.
+#
+# It is a genuinely nasty one to see: `$raw -ceq $unwrapped` reports True, because -ceq compares
+# the underlying values and ignores the wrapper. Only the emitted JSON gives it away. Anything that
+# returns a fresh String (a -replace, a .ToString(), a [string] cast) makes the symptom vanish,
+# which is what makes it so easy to "fix" by coincidence and record the wrong reason.
+function PostSql($url, $headers, $sql) {
+  $json = @{ query = [string]$sql } | ConvertTo-Json -Compress
+  return Invoke-RestMethod -Method POST -Uri $url -Headers $headers -Body $json -ContentType 'application/json'
+}
+
 Write-Host ""
 Write-Host "[1] Is production already serving share_key?" -ForegroundColor Cyan
 try {
@@ -49,7 +85,7 @@ foreach ($line in Get-Content $SecretsFile) {
   if ($line -match '^\s*SUPABASE_ACCESS_TOKEN\s*=\s*(.+?)\s*$') { $token = $Matches[1] }
 }
 if ([string]::IsNullOrWhiteSpace($token)) { Fail '2' 'SUPABASE_ACCESS_TOKEN not found' 2 }
-$headers = @{ Authorization = "Bearer $token"; 'Content-Type' = 'application/json' }
+$headers = @{ Authorization = "Bearer $token" }
 $queryUrl = "https://api.supabase.com/v1/projects/$ProjectRef/database/query"
 Write-Host "    ok"
 
@@ -57,11 +93,11 @@ Write-Host ""
 Write-Host "[3] Dropping binders.share_version" -ForegroundColor Cyan
 $sqlFile = Join-Path $Repo 'supabase\migrations\20260826180000_drop_share_version.sql'
 if (-not (Test-Path $sqlFile)) { Fail '3' "migration not found at $sqlFile" 3 }
-$sql = Get-Content $sqlFile -Raw
+$sql = Get-Content $sqlFile -Raw -Encoding UTF8
 try {
-  $null = Invoke-RestMethod -Method POST -Uri $queryUrl -Headers $headers -Body (@{ query = $sql } | ConvertTo-Json -Compress)
+  $null = PostSql $queryUrl $headers $sql
 } catch {
-  Fail '3' "the drop failed: $($_.Exception.Message)" 3
+  Fail '3' "the drop failed: $(ErrorBody $_)" 3
 }
 Write-Host "    applied"
 
@@ -76,9 +112,9 @@ select
     where share_key is distinct from public.binder_share_key(updated_at, share_page_ids))::int as drifted;
 "@
 try {
-  $r = Invoke-RestMethod -Method POST -Uri $queryUrl -Headers $headers -Body (@{ query = $check } | ConvertTo-Json -Compress)
+  $r = PostSql $queryUrl $headers $check
 } catch {
-  Fail '4' "could not verify: $($_.Exception.Message)" 4
+  Fail '4' "could not verify: $(ErrorBody $_)" 4
 }
 $row = $r[0]
 Write-Host "    share_version columns left : $($row.counter_left)"

@@ -97,12 +97,21 @@ try {
   const binderPublic = async (id) => (await sql(
     `select is_public from public.binders where id='${id}';`))[0]?.is_public;
 
-  // Two private binders, made the way an un-attested account's client would make them.
-  const mk = async (title) => (await api('/rest/v1/binders', {
-    method: 'POST', token: session.access_token,
-    headers: { Prefer: 'return=representation' },
-    body: { title, layout_style: 'freeform', is_public: false },
-  })).json[0];
+  // Two private binders, made the way an un-attested account's client would make them: a binder
+  // AND its first page. The editor reads pages[0], so a pageless binder row will not open.
+  const mk = async (title) => {
+    const b = (await api('/rest/v1/binders', {
+      method: 'POST', token: session.access_token,
+      headers: { Prefer: 'return=representation' },
+      body: { title, layout_style: 'freeform', is_public: false },
+    })).json[0];
+    const p = await api('/rest/v1/binder_pages', {
+      method: 'POST', token: session.access_token,
+      body: { binder_id: b.id, position: 0, rows: 3, cols: 3, is_public: true },
+    });
+    if (p.status >= 400) throw new Error(`page insert: ${p.text.slice(0, 200)}`);
+    return b;
+  };
   const b1 = await mk('uitest one');
   const b2 = await mk('uitest two');
 

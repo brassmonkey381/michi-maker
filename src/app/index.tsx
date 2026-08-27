@@ -1,5 +1,5 @@
 import { Redirect, useRouter, type Href } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { sendBrowseCommand, type CardLanguage } from 'tcgscan-browse';
@@ -13,6 +13,7 @@ import { HomeRecent } from '@/components/HomeRecent';
 import { HomeSealed } from '@/components/HomeSealed';
 import { HomeSection } from '@/components/HomeSection';
 import { PeopleButton } from '@/components/people/PeopleButton';
+import { ProfileAvatarButton } from '@/components/people/ProfileAvatarButton';
 import { SettingsButton } from '@/components/settings/SettingsSheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -20,8 +21,10 @@ import { BottomTabInset, Breakpoints, Fonts, FontSize, MaxContentWidthWide, Pale
 import { pagesForCards } from '@/data/binderTypes';
 import { CONTEST, contestPhase } from '@/data/contest';
 import { binderLimitMessage, limitCta, pageLimitMessage } from '@/data/limitMessages';
+import { fetchAvatarsByUsername } from '@/data/profileRepo';
 import { track, trackCapGate } from '@/lib/analytics';
 import { useImageManifest } from '@/lib/catalogConfig';
+import { isSupabaseConfigured } from '@/lib/env';
 import { shouldShowLanding } from '@/lib/landing';
 import { useBinders } from '@/store/binders';
 
@@ -45,6 +48,29 @@ export default function HomeScreen() {
   const openBinder = (id: string) => router.push(`/binder/${id}`);
 
   const [toast, setToast] = useState<ToastSpec | null>(null);
+  // Avatars for the builders of the featured binders, so a face on the shelf leads to the person
+  // who made it. Keyed by username because `authorName` is the only thing a featured row knows
+  // about its owner, and it doubles as the profile's address. One query for the whole carousel,
+  // after the binders are already on screen: a slow or failed lookup must never delay or blank a
+  // tile, it just leaves the lettered circle.
+  const [featuredAvatars, setFeaturedAvatars] = useState<Map<string, string | null>>(new Map());
+  const featuredAuthorKey = [
+    ...new Set(store.featuredBinders.map((b) => b.authorName).filter(Boolean) as string[]),
+  ]
+    .sort()
+    .join(',');
+  useEffect(() => {
+    if (!isSupabaseConfigured || !featuredAuthorKey) return;
+    let alive = true;
+    fetchAvatarsByUsername(featuredAuthorKey.split(','))
+      .then((m) => alive && setFeaturedAvatars(m))
+      .catch(() => {
+        /* no pictures; the lettered circles still render */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [featuredAuthorKey]);
   const toastId = useRef(0);
 
   // The card browser lives on /browse now; the Recent & Upcoming feed drives it through the
@@ -202,7 +228,19 @@ export default function HomeScreen() {
 
           {store.featuredBinders.length > 0 ? (
             <HomeSection title="Featured binders">
-              <BinderCarousel binders={store.featuredBinders} onOpen={openBinder} />
+              <BinderCarousel
+                binders={store.featuredBinders}
+                onOpen={openBinder}
+                accessory={(b) =>
+                  b.authorName ? (
+                    <ProfileAvatarButton
+                      username={b.authorName}
+                      avatarUrl={featuredAvatars.get(b.authorName.toLowerCase())}
+                      onPress={() => router.push(`/u/${b.authorName}` as Href)}
+                    />
+                  ) : null
+                }
+              />
             </HomeSection>
           ) : null}
 

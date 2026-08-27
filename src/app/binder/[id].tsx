@@ -12,7 +12,6 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BinderBadges } from '@/components/binder/BinderBadges';
 import { BinderGrid } from '@/components/binder/BinderGrid';
 import { ProfileAvatarButton } from '@/components/people/ProfileAvatarButton';
 import { BinderScreen } from '@/components/binder/BinderScreen';
@@ -211,7 +210,6 @@ function Viewer({
       <ThemedText type="subtitle" style={styles.title}>
         {binder.title}
       </ThemedText>
-      <BinderBadges binder={binder} max={3} size="regular" />
       {author ? (
         <View style={styles.authorRow}>
           <ProfileAvatarButton

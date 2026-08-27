@@ -21,16 +21,27 @@
 alter table public.storage_units add column if not exists grid_rows integer;
 alter table public.storage_units add column if not exists grid_cols integer;
 
-do $$
-begin
-  if not exists (select 1 from pg_constraint where conname = 'storage_units_grid_check') then
-    alter table public.storage_units add constraint storage_units_grid_check
-      check (
-        (grid_rows is null and grid_cols is null)
-        or (grid_rows between 1 and 12 and grid_cols between 1 and 12)
-      );
-  end if;
-end $$;
+-- NUM_NONNULLS, not `is null` branches, and the difference is a real bug this had:
+--
+--   (grid_rows is null and grid_cols is null) or (grid_rows between 1 and 12 and grid_cols ...)
+--
+-- with rows = 3 and cols = null evaluates to FALSE or NULL, which is NULL, and a CHECK rejects
+-- only on FALSE. A half-known grid sailed straight through the constraint written to forbid it.
+-- num_nonnulls counts instead of comparing, so it is never null and the arithmetic cannot go
+-- three-valued on us. (Same reason the moderation kit counts its subject columns that way.)
+--
+-- Dropped and recreated rather than guarded by `if not exists`: the broken definition already
+-- exists on the live database, and a guard would leave it there forever.
+alter table public.storage_units drop constraint if exists storage_units_grid_check;
+alter table public.storage_units add constraint storage_units_grid_check
+  check (
+    num_nonnulls(grid_rows, grid_cols) = 0
+    or (
+      num_nonnulls(grid_rows, grid_cols) = 2
+      and grid_rows between 1 and 12
+      and grid_cols between 1 and 12
+    )
+  );
 
 comment on column public.storage_units.grid_cols is
   'Pockets across one page. storage_pos = row * grid_cols + col, so this is what turns a pocket '

@@ -3,7 +3,7 @@
  * and surfaces the shareable `/binder/[id]` link. Web copies to the clipboard; native uses
  * the system share sheet. Only shown for the owner's own cloud binders.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -52,22 +52,72 @@ export function ShareSheet({
   onToast?: (message: string) => void;
 }) {
   const theme = useTheme();
-  // The authoritative version, re-read when the sheet opens: the store's copy is stale after any
-  // edit (the trigger bumps server-side), and a stale v is the one case where the link would land
-  // on a cached embed. Falls back to the store's value if the read fails.
-  const [liveKey, setLiveKey] = useState<string | null>(null);
+  // The up-to-2 pages featured in the link preview ([] = auto), as a comparable string. It is also
+  // the input the server keys share_key on, so it drives the link refresh below as well as the
+  // chips further down and the preview warmth at the bottom.
+  const featured = (binder.sharePageIds ?? []).join(',');
+
+  // THE LINK'S ?v=, kept current for as long as the sheet is open.
+  //
+  // share_key is written SERVER-SIDE by a trigger, so the store's copy goes stale the moment the
+  // preview changes — and featuring a different page changes it. Re-reading it only when the sheet
+  // OPENED was why "Copy link" kept handing over the previous link right through the re-render that
+  // followed, until the sheet was closed and reopened. So it is re-read on every featured-page
+  // change too: the tap that starts the preview rendering starts this.
+  //
+  // Held AGAINST the selection it was read for, so a key belonging to the old selection can never
+  // be shown as the current one. The retries are not decoration: the featured-page write is
+  // optimistic, so for a round trip the row still holds the previous share_page_ids and answers
+  // with the key we already have. That answer means "not written yet", and asking again is the
+  // whole fix — the last attempt takes whatever it gets rather than waiting for ever.
+  const [liveKey, setLiveKey] = useState<{ featured: string; value: string } | null>(null);
+  const lastRead = useRef<{ featured: string; value: string } | null>(null);
   useEffect(() => {
     if (!visible || binder.isExample) return;
     let live = true;
-    void fetchShareKey(binder.id).then((v) => {
-      if (live && v != null) setLiveKey(v);
-    });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let attempt = 0;
+    // Only a CHANGED selection has a key to out-wait; a sheet's first read takes what it gets.
+    const stale =
+      lastRead.current && lastRead.current.featured !== featured ? lastRead.current.value : null;
+    const GAPS = [0, 400, 1200, 3000];
+    const read = () => {
+      timer = setTimeout(() => {
+        void fetchShareKey(binder.id).then((value) => {
+          if (!live) return;
+          const last = attempt >= GAPS.length - 1;
+          if (value != null && (value !== stale || last)) {
+            lastRead.current = { featured, value };
+            setLiveKey({ featured, value });
+            return;
+          }
+          if (last) return; // the read itself failed; the store's key still opens the binder
+          attempt += 1;
+          read();
+        });
+      }, GAPS[attempt]);
+    };
+    read();
     return () => {
       live = false;
+      if (timer) clearTimeout(timer);
     };
-  }, [visible, binder.id, binder.isExample]);
-  const url = binderShareUrl(binder.id, liveKey ?? binder.shareKey);
+  }, [visible, binder.id, binder.isExample, featured]);
+  // While the new key is in flight the link on show still points at the previous preview — the box
+  // dims and copying is held for the moment it takes, rather than putting a link at the old preview
+  // on the clipboard. It resolves itself; nothing here needs the user to do anything.
+  const linkStale = liveKey != null && liveKey.featured !== featured;
+  const url = binderShareUrl(binder.id, liveKey?.value ?? binder.shareKey);
   const [copied, setCopied] = useState(false);
+
+  // Park the link box at its FAR RIGHT, where ?v= lives. The tail is the only part that ever
+  // changes, so keeping it in view is what makes a refreshed link visible at a glance.
+  const linkScroll = useRef<ScrollView>(null);
+  useEffect(() => {
+    // A new key is the same LENGTH as the old one, so the content never resizes and
+    // onContentSizeChange (which handles first layout) does not fire for it — this does.
+    linkScroll.current?.scrollToEnd({ animated: true });
+  }, [url]);
   // Whether this binder is a contest entry (reported up by ContestEntrySection, which loads it).
   // An ENTERED binder may show at most CONTEST.pageCap public pages, so flipping one more page
   // public past the cap is blocked here with a toast.
@@ -174,8 +224,8 @@ export function ShareSheet({
   //
   // The result is stored AGAINST WHAT WAS WARMED rather than as a bare flag, because featuring a
   // different page changes the preview and must put the indicator honestly back to "preparing".
-  // Deriving the state from that key means any change re-arms it with no reset to remember.
-  const featured = (binder.sharePageIds ?? []).join(',');
+  // Deriving the state from that key means any change re-arms it with no reset to remember
+  // (`featured` is declared at the top, with the link refresh the same input drives).
   // shareKey is the server's own "the preview changed" signal — a trigger rewrites it whenever the
   // image would differ — so it belongs in the key next to the featured pages. Without it, an edit
   // made while this sheet is open could leave a stale tick claiming a preview the link no longer
@@ -233,6 +283,7 @@ export function ShareSheet({
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const onShare = async () => {
+    if (linkStale) return; // a re-read away from the current link; do not hand over the old one
     // A last attempt if the preview isn't already warm — this is the final moment before the link
     // is actually somewhere. Skipped when it's ready, since that call would only cost a CDN hit.
     if (warmth !== 'ready') {
@@ -410,14 +461,33 @@ export function ShareSheet({
             {isPublic ? (
               <>
                 <View style={styles.linkArea}>
-                  <View style={[styles.linkBox, { borderColor: theme.backgroundSelected }]}>
-                    <ThemedText type="small" numberOfLines={1} style={styles.linkText}>
+                  <ScrollView
+                    ref={linkScroll}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    onContentSizeChange={() => linkScroll.current?.scrollToEnd({ animated: false })}
+                    style={[styles.linkBox, { borderColor: theme.backgroundSelected }]}
+                    contentContainerStyle={styles.linkInner}>
+                    <ThemedText
+                      type="small"
+                      numberOfLines={1}
+                      style={[styles.linkText, linkStale && styles.dim]}>
                       {url}
                     </ThemedText>
-                  </View>
-                  <Pressable onPress={onShare} style={styles.copyBtn} hitSlop={6}>
+                  </ScrollView>
+                  <Pressable
+                    onPress={onShare}
+                    disabled={linkStale}
+                    style={({ pressed }) => [styles.copyBtn, (linkStale || pressed) && styles.dim]}
+                    hitSlop={6}>
                     <ThemedText type="smallBold" style={styles.copyText}>
-                      {copied ? 'Copied ✓' : Platform.OS === 'web' ? 'Copy link' : 'Share'}
+                      {linkStale
+                        ? 'Updating…'
+                        : copied
+                          ? 'Copied ✓'
+                          : Platform.OS === 'web'
+                            ? 'Copy link'
+                            : 'Share'}
                     </ThemedText>
                   </Pressable>
                 </View>
@@ -481,12 +551,18 @@ const styles = StyleSheet.create({
   featOffText: { color: Palette.muted2 },
   autoReset: { color: Palette.accent, fontWeight: Weight.semibold, marginTop: Spacing.one },
   linkArea: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  // A horizontal scroller rather than a box that ellipsises: the interesting end of a share link is
+  // the right-hand one, and it is kept in view (see linkScroll). The padding lives on the content
+  // container, since a ScrollView's own padding would scroll away with the text.
   linkBox: {
     flex: 1,
     borderWidth: 1,
     borderRadius: Radius.control,
+  },
+  linkInner: {
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
+    alignItems: 'center',
   },
   linkText: { color: Palette.accent },
   previewRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two, minHeight: 20 },

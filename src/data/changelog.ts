@@ -10,6 +10,10 @@
  *   - One entry per shipped batch, dated by the day it reached michi-maker.com. Append at the
  *     TOP; the page renders this array in order.
  *   - Plain punctuation. No em-dashes, no decorative emoji.
+ *   - ONE OR TWO SENTENCES PER ITEM. Nobody reads a changelog the way it was written; they scan
+ *     it for the one line that affects them. A paragraph explaining the reasoning behind a change
+ *     buries the four other items next to it. Say what changed and what the reader should do, and
+ *     let the ones who want the story ask.
  */
 
 export interface ChangelogItem {
@@ -33,40 +37,31 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         head: 'Your profile photo is yours to give',
         body:
-          'Signing in with Google used to copy your account photo across, and when profile pages '
-          + 'arrived it started showing publicly without anyone asking you. We have taken every '
-          + 'copied photo down. Next time you sign in we will show you yours and ask: put it on '
-          + 'your profile, or leave it off. Either answer sticks, and you can change it whenever '
-          + 'you like from Account settings.',
+          'Photos copied from your Google account have been taken down. Next time you sign in we '
+          + 'will show you yours and ask whether to put it on your profile.',
       },
       {
         head: 'Share once, and new binders start out public',
         body:
-          'Turn on sharing (a one-time confirmation that you have the rights to the art you '
-          + 'share) and every binder you create from then on starts out public: it can be '
-          + 'discovered, liked, and entered in contests. Existing binders are untouched, and any '
-          + 'binder can be made private again from Share. Find the switch in Account settings, '
-          + 'or accept it when we ask.',
+          'Turn sharing on once and every binder you make after that starts out public, ready to '
+          + 'be discovered, liked, and entered in contests. Existing binders are untouched, and '
+          + 'anything can be made private again from Share.',
       },
       {
         head: 'Profiles get a face and a voice',
         body:
           'Add a photo and a short bio from your account sheet. Both show on your public profile '
-          + 'and in people search, so a shared binder finally lands somewhere that feels like '
-          + 'yours.',
+          + 'and in people search.',
       },
       {
         head: 'Imported art can be shared',
         body:
           'Art you bring in from a link can now appear in your public binders, shown with its '
-          + 'credit. If older art in a binder is not saved to your account yet, Share offers to '
-          + 'save copies for you in one tap.',
+          + 'credit. If it is not saved to your account yet, Share offers to save copies in one tap.',
       },
       {
         head: 'Better reporting',
-        body:
-          'Profiles can be reported as well as binders, and reports now reach us faster, so '
-          + 'takedown requests get acted on sooner.',
+        body: 'Profiles can be reported as well as binders, and reports reach us faster.',
       },
     ],
   },

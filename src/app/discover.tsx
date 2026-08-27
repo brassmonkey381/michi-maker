@@ -33,6 +33,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BinderBadges } from '@/components/binder/BinderBadges';
 import { BinderThumb } from '@/components/binder/BinderThumb';
 import { ProfileAvatarButton } from '@/components/people/ProfileAvatarButton';
 import { ThemedText } from '@/components/themed-text';
@@ -436,6 +437,7 @@ export default function DiscoverScreen() {
                           // Like count then avatar, so the avatar is hard against the right edge
                           // and lands in the same spot on every tile whether or not a count shows.
                           <View style={styles.tileAccessory}>
+                            <BinderBadges binder={b} max={2} />
                             {sort === 'likes' ? (
                               <ThemedText type="small" themeColor="textSecondary">
                                 ♥ {b.likeCount ?? 0}

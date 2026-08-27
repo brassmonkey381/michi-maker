@@ -115,6 +115,7 @@ interface BinderRowIn {
   is_demo: boolean | null;
   share_page_ids: string[] | null;
   share_version: number | null;
+  made_public_at: string | null;
   binder_pages: PageRowIn[] | null;
 }
 
@@ -164,6 +165,7 @@ function mapBinder(row: BinderRowIn): DemoBinder {
     isPublic: row.is_public,
     sharePageIds: row.share_page_ids ?? undefined,
     shareVersion: row.share_version ?? undefined,
+    madePublicAt: row.made_public_at ?? undefined,
     pages,
   };
 }

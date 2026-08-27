@@ -142,6 +142,11 @@ export interface DemoBinder {
    * the preview changes. Never written by the client, so it is absent on a local/example binder.
    */
   shareVersion?: number;
+  /**
+   * When this binder was first made public (binders.made_public_at). Server-owned. Used by the
+   * "New" badge; absent on a local/example binder and on one that has never been shared.
+   */
+  madePublicAt?: string;
   /** Total likes this binder has received. Populated for Featured + when viewing a public binder. */
   likeCount?: number;
   /** Whether the current signed-in viewer has liked this binder. */

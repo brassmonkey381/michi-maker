@@ -71,8 +71,11 @@ function cardImage(cardId) {
  *   r8  single featured page gets its own 1800×1512 canvas over a blurred backdrop
  *   r9  single-page disclaimer runs wider, two lines instead of three
  *   r10 a binder whose preview is ONE page gets the narrow canvas even with nothing featured
+ *   r11 single-page chrome: a coin flip per render between the blurred collage and cream bands,
+ *       ink measured against the backdrop so it reads on any art, a hairline round the page, and
+ *       a picker that prefers two pages over one
  */
-const OG_IMAGE_REV = 10;
+const OG_IMAGE_REV = 11;
 
 /**
  * The two canvases the renderer knows how to draw. A SPREAD needs the width for two facing pages;

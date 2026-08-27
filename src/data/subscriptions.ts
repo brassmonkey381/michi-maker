@@ -230,7 +230,7 @@ export const COMPARISON: CompareRow[] = [
   {
     capability: 'Advanced Search',
     mark: '¶',
-    free: { text: '—' },
+    free: { text: 'No' },
     pro: { text: '✓', strong: true },
     vip: { text: '✓', strong: true },
   },

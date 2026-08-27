@@ -9,6 +9,8 @@ import { GuestBanner } from '@/components/auth/GuestBanner';
 import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
 import { BinderCarousel } from '@/components/binder/BinderCarousel';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
+import { CapGateDialog } from '@/components/monetization/CapGateDialog';
+import { useCapGate } from '@/hooks/use-cap-gate';
 import { HomeRecent } from '@/components/HomeRecent';
 import { HomeSealed } from '@/components/HomeSealed';
 import { HomeSection } from '@/components/HomeSection';
@@ -21,9 +23,9 @@ import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { pagesForCards } from '@/data/binderTypes';
 import { CONTEST, contestPhase } from '@/data/contest';
-import { binderLimitMessage, limitCta, pageLimitMessage } from '@/data/limitMessages';
+import { binderLimitMessage, binderTrialMessage, limitCta, pageLimitMessage, pageTrialMessage } from '@/data/limitMessages';
 import { fetchAvatarsByUsername } from '@/data/profileRepo';
-import { track, trackCapGate } from '@/lib/analytics';
+import { track } from '@/lib/analytics';
 import { useImageManifest } from '@/lib/catalogConfig';
 import { isSupabaseConfigured } from '@/lib/env';
 import { shouldShowLanding } from '@/lib/landing';
@@ -105,6 +107,8 @@ export default function HomeScreen() {
     toastId.current += 1;
     setToast({ id: toastId.current, message, tone: 'limit', cta: limitCta(store.tier) });
   };
+  // One wall, one report: a dialog on its first hit today, the toast after that.
+  const capGate = useCapGate(showLimitToast);
   const showAddedToast = (binderId: string, title: string) => {
     toastId.current += 1;
     setToast({
@@ -125,10 +129,13 @@ export default function HomeScreen() {
     setAddCardId(null);
     if (added > 0) showAddedToast(binderId, title);
     else if (unplaced > 0) {
-      showLimitToast(pageLimitMessage(store.tier, store.limits));
-      trackCapGate({
+      capGate.hit({
         limit: 'pagesPerBinder',
         surface: 'home',
+        isGuest: store.tier === 'guest',
+        title: 'This binder is full',
+        message: pageLimitMessage(store.tier, store.limits),
+        trialMessage: pageTrialMessage(store.limits),
         tier: store.tier,
         used: store.getBinder(binderId)?.pages.length ?? 0,
         cap: store.limits.pagesPerBinder,
@@ -139,10 +146,13 @@ export default function HomeScreen() {
     if (!addCardId) return;
     if (store.atBinderLimit) {
       setAddCardId(null);
-      showLimitToast(binderLimitMessage(store.tier, store.limits));
-      trackCapGate({
+      capGate.hit({
         limit: 'binders',
         surface: 'home',
+        isGuest: store.tier === 'guest',
+        title: 'You are at your binder limit',
+        message: binderLimitMessage(store.tier, store.limits),
+        trialMessage: binderTrialMessage(store.limits),
         tier: store.tier,
         used: store.binderCount,
         cap: store.limits.binders,
@@ -273,6 +283,7 @@ export default function HomeScreen() {
         />
       ) : null}
       <Toast spec={toast} onDismiss={() => setToast(null)} />
+      <CapGateDialog wall={capGate.wall} onClose={capGate.closeWall} />
       {/* See ProTrialPrompt: a fixed cohort, asked once. Null for everyone else. */}
       <ProTrialPrompt surface="home" />
     </ThemedView>

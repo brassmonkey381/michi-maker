@@ -566,6 +566,13 @@ export function trackCapGate(input: {
   used: number;
   /** The limit they hit. */
   cap: number;
+  /**
+   * How it was shown. A wall opens a dialog on its first hit of the day and toasts after that
+   * (src/lib/capPromptPacing.ts), and the two are not the same impression: one stops the user and
+   * one can be missed entirely. Without this the change that introduced the dialog could never be
+   * judged. Absent on events recorded before 2026-08-27.
+   */
+  as?: 'dialog' | 'toast';
 }): void {
   track('cap.gate_shown', { ...input, used: capCount(input.used), cap: capCount(input.cap) });
 }

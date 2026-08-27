@@ -490,7 +490,7 @@ export function PrintPlaceholdersSheet({
                     {sheets === 1 ? '' : 's'}
                     {counts.art > 0 ? (
                       <>
-                        {' — '}
+                        {': '}
                         <ThemedText type="smallBold">{counts.placeholderSheets}</ThemedText> on plain
                         paper, <ThemedText type="smallBold">{counts.artSheets}</ThemedText> on matte
                         cardstock (two files, each with its own cover).

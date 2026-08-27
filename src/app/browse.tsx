@@ -21,12 +21,14 @@ import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
 import { SimilarityModelPicker } from '@/components/SimilarityModelPicker';
 import { CardBrowse } from '@/components/binder/CardBrowse';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
+import { CapGateDialog } from '@/components/monetization/CapGateDialog';
+import { useCapGate } from '@/hooks/use-cap-gate';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Spacing } from '@/constants/theme';
 import { pagesForCards } from '@/data/binderTypes';
-import { binderLimitMessage, limitCta, pageLimitMessage } from '@/data/limitMessages';
-import { trackCapGate } from '@/lib/analytics';
+import { binderLimitMessage, binderTrialMessage, limitCta, pageLimitMessage, pageTrialMessage } from '@/data/limitMessages';
+
 import { useCatalog } from '@/hooks/use-catalog';
 import { useOwnedCards } from '@/hooks/use-owned-cards';
 import { useBinders } from '@/store/binders';
@@ -94,7 +96,6 @@ export default function BrowseScreen() {
     ].filter(Boolean) as CardAction[];
   };
 
-
   // Hitting a cap ends the action the user was mid-way through, so every cap toast gets the
   // prominent tone and a button out. Which way out depends on the tier (see limitCta): the plans
   // page for accounts that can pay, the auth sheet for guests, whose cap is lifted by the free
@@ -103,6 +104,8 @@ export default function BrowseScreen() {
     toastId.current += 1;
     setToast({ id: toastId.current, message, tone: 'limit', cta: limitCta(store.tier) });
   };
+  // One wall, one report: a dialog on its first hit today, the toast after that.
+  const capGate = useCapGate(showLimitToast);
 
   const addToExisting = (binderId: string) => {
     if (!addCardIds?.length) return;
@@ -111,10 +114,13 @@ export default function BrowseScreen() {
     setAddCardIds(null);
     // Anything the binder's page cap left out is named, never dropped in silence.
     if (unplaced > 0) {
-      showLimitToast(pageLimitMessage(store.tier, store.limits));
-      trackCapGate({
+      capGate.hit({
         limit: 'pagesPerBinder',
         surface: 'browse',
+        isGuest: store.tier === 'guest',
+        title: 'This binder is full',
+        message: pageLimitMessage(store.tier, store.limits),
+        trialMessage: pageTrialMessage(store.limits),
         tier: store.tier,
         used: store.getBinder(binderId)?.pages.length ?? 0,
         cap: store.limits.pagesPerBinder,
@@ -132,10 +138,13 @@ export default function BrowseScreen() {
     setAddCardIds(null);
     // The store refuses past the binder cap — say so instead of silently doing nothing.
     if (!binder) {
-      showLimitToast(binderLimitMessage(store.tier, store.limits));
-      trackCapGate({
+      capGate.hit({
         limit: 'binders',
         surface: 'browse',
+        isGuest: store.tier === 'guest',
+        title: 'You are at your binder limit',
+        message: binderLimitMessage(store.tier, store.limits),
+        trialMessage: binderTrialMessage(store.limits),
         tier: store.tier,
         used: store.binderCount,
         cap: store.limits.binders,
@@ -143,10 +152,13 @@ export default function BrowseScreen() {
       return;
     }
     if (short > 0) {
-      showLimitToast(pageLimitMessage(store.tier, store.limits));
-      trackCapGate({
+      capGate.hit({
         limit: 'pagesPerBinder',
         surface: 'browse',
+        isGuest: store.tier === 'guest',
+        title: 'This binder is full',
+        message: pageLimitMessage(store.tier, store.limits),
+        trialMessage: pageTrialMessage(store.limits),
         tier: store.tier,
         used: binder.pages.length,
         cap: store.limits.pagesPerBinder,
@@ -212,6 +224,7 @@ export default function BrowseScreen() {
         />
       ) : null}
       <Toast spec={toast} onDismiss={() => setToast(null)} />
+      <CapGateDialog wall={capGate.wall} onClose={capGate.closeWall} />
     </ThemedView>
   );
 }

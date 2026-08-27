@@ -267,7 +267,7 @@ export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }
               ) : null}
               {details.trialEnds ? (
                 <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
-                  Free trial — no card on file and nothing to cancel. It simply ends and you go back
+                  Free trial: no card on file and nothing to cancel. It simply ends and you go back
                   to Free.
                 </ThemedText>
               ) : null}

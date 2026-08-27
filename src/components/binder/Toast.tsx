@@ -63,16 +63,21 @@ export function Toast({ spec, onDismiss }: { spec: ToastSpec | null; onDismiss: 
       {spec && tone === 'limit' ? (
         <View pointerEvents="box-none" style={styles.wrap}>
           <View style={styles.card}>
-            <View style={styles.cardHead}>
-              <ThemedText type="default" style={styles.cardMessage} numberOfLines={3}>
-                {spec.message}
+            {/* The dismiss sits OUTSIDE the flow rather than beside the message: in a row it
+                stole width from one side only, so a centred message was centred against the
+                text's box and visibly off-centre in the card. */}
+            <Pressable
+              onPress={onDismiss}
+              hitSlop={10}
+              accessibilityLabel="Dismiss"
+              style={styles.close}>
+              <ThemedText type="small" style={styles.closeGlyph}>
+                ✕
               </ThemedText>
-              <Pressable onPress={onDismiss} hitSlop={10} accessibilityLabel="Dismiss">
-                <ThemedText type="small" style={styles.close}>
-                  ✕
-                </ThemedText>
-              </Pressable>
-            </View>
+            </Pressable>
+            <ThemedText type="default" style={styles.cardMessage} numberOfLines={3}>
+              {spec.message}
+            </ThemedText>
             {spec.cta ? (
               <Pressable
                 onPress={() => runCta(spec.cta!)}
@@ -126,6 +131,7 @@ const styles = StyleSheet.create({
   toast: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 16,
     maxWidth: 420,
     paddingVertical: 12,
@@ -138,7 +144,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
-  message: { color: Palette.white, flexShrink: 1 },
+  message: { color: Palette.white, flexShrink: 1, textAlign: 'center' },
   action: { color: Palette.accentSoft },
 
   // --- the `limit` tone ---------------------------------------------------------------------
@@ -158,16 +164,18 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     elevation: 10,
   },
-  cardHead: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   cardMessage: {
     color: Palette.white,
-    flexShrink: 1,
     lineHeight: 21,
     fontWeight: Weight.semibold,
+    textAlign: 'center',
+    // Clear of the pinned dismiss, on BOTH sides, so the centre line stays the card's centre.
+    paddingHorizontal: Spacing.four,
   },
-  close: { color: Palette.white, opacity: 0.7 },
+  close: { position: 'absolute', top: Spacing.two, right: Spacing.three, zIndex: 1 },
+  closeGlyph: { color: Palette.white, opacity: 0.7 },
   ctaBtn: {
-    alignSelf: 'flex-start',
+    alignSelf: 'center',
     backgroundColor: Palette.accent,
     borderRadius: Radius.pill,
     paddingVertical: Spacing.two,

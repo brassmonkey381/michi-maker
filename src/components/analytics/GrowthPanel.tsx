@@ -99,7 +99,7 @@ export function GrowthPanel() {
               </ThemedText>
               <View style={styles.valueRow}>
                 <ThemedText style={styles.value}>
-                  {typeof total === 'number' ? fmt(total) : '—'}
+                  {typeof total === 'number' ? fmt(total) : 'n/a'}
                 </ThemedText>
                 <ThemedText type="small" style={styles.added}>
                   +{fmt(added)} in {WINDOW_DAYS}d

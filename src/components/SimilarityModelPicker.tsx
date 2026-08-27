@@ -119,7 +119,7 @@ export function SimilarityModelPicker({ compact = false }: { compact?: boolean }
       </View>
       {active ? (
         <Text style={styles.warn}>
-          Experimental model — results below are not what users see.
+          Experimental model. Results below are not what users see.
         </Text>
       ) : null}
     </View>

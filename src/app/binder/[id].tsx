@@ -155,7 +155,7 @@ function PublicViewer({ id }: { id?: string }) {
           <>
             {state.contestCapped ? (
               <ThemedText type="small" themeColor="textSecondary" style={styles.capNote}>
-                Contest entry — showing the first {CONTEST.pageCap} pages.
+                Contest entry, showing the first {CONTEST.pageCap} pages.
               </ThemedText>
             ) : null}
             <Viewer

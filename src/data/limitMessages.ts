@@ -67,13 +67,13 @@ export function limitCta(tier: Tier): LimitCta {
  * just asked, where "try PRO free!" is an advert that happens to have appeared.
  */
 export function binderTrialMessage(limits: TierLimits): string {
-  return `You’ve reached your ${limits.binders}-binder limit. PRO holds ${TIER_LIMITS.pro.binders} — try it free for 14 days.`;
+  return `You’ve reached your ${limits.binders}-binder limit. PRO holds ${TIER_LIMITS.pro.binders}. Try it free for 14 days.`;
 }
 
 export function pageTrialMessage(limits: TierLimits): string {
-  return `You’ve reached the ${limits.pagesPerBinder}-page limit. PRO binders hold ${TIER_LIMITS.pro.pagesPerBinder} — try it free for 14 days.`;
+  return `You’ve reached the ${limits.pagesPerBinder}-page limit. PRO binders hold ${TIER_LIMITS.pro.pagesPerBinder}. Try it free for 14 days.`;
 }
 
 export function artTrialMessage(limits: TierLimits): string {
-  return `You’re keeping ${limits.artUploads} artworks, all this plan allows. PRO keeps ${TIER_LIMITS.pro.artUploads} — try it free for 14 days.`;
+  return `You’re keeping ${limits.artUploads} artworks, all this plan allows. PRO keeps ${TIER_LIMITS.pro.artUploads}. Try it free for 14 days.`;
 }

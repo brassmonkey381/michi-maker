@@ -23,6 +23,8 @@ import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDial
 import { PrintPlaceholdersSheet } from '@/components/binder/PrintPlaceholdersSheet';
 import { ShareSheet } from '@/components/binder/ShareSheet';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
+import { CapGateDialog } from '@/components/monetization/CapGateDialog';
+import { useCapGate } from '@/hooks/use-cap-gate';
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { MyCollection } from '@/components/MyCollection';
 import { HomeSection } from '@/components/HomeSection';
@@ -34,7 +36,7 @@ import { ProTrialPrompt } from '@/components/monetization/ProTrialPrompt';
 import { RightsPrompt } from '@/components/binder/RightsPrompt';
 import { fillerName } from '@/data/binderTypes';
 import { binderLimitMessage, binderTrialMessage, limitCta } from '@/data/limitMessages';
-import { track, trackCapGate } from '@/lib/analytics';
+import { track } from '@/lib/analytics';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useImageManifest } from '@/lib/catalogConfig';
 import { useBinders } from '@/store/binders';
@@ -71,6 +73,8 @@ export default function MyBindersScreen() {
     toastId.current += 1;
     setToast({ id: toastId.current, message, tone: 'limit', cta: limitCta(store.tier) });
   };
+  // One wall, one report: a dialog on its first hit today, the toast after that.
+  const capGate = useCapGate(showLimitToast);
 
   // Collection tiles drive the card browser on /browse. The command bus holds one pending
   // command, so it lands the moment /browse's CatalogBrowser subscribes.
@@ -95,10 +99,13 @@ export default function MyBindersScreen() {
 
   const handleNew = () => {
     if (store.atBinderLimit) {
-      showLimitToast(binderLimitMessage(store.tier, store.limits));
-      trackCapGate({
+      capGate.hit({
         limit: 'binders',
         surface: 'my_binders',
+        isGuest: store.tier === 'guest',
+        title: 'You are at your binder limit',
+        message: binderLimitMessage(store.tier, store.limits),
+        trialMessage: binderTrialMessage(store.limits),
         tier: store.tier,
         used: store.binderCount,
         cap: store.limits.binders,
@@ -138,10 +145,13 @@ export default function MyBindersScreen() {
       else {
         // The store refused past the binder cap — the same wall as handleNew, reached by a
         // different door, so it reports the same limit on the same surface.
-        showLimitToast(binderLimitMessage(store.tier, store.limits));
-        trackCapGate({
+        capGate.hit({
           limit: 'binders',
           surface: 'my_binders',
+          isGuest: store.tier === 'guest',
+          title: 'You are at your binder limit',
+          message: binderLimitMessage(store.tier, store.limits),
+          trialMessage: binderTrialMessage(store.limits),
           tier: store.tier,
           used: store.binderCount,
           cap: store.limits.binders,
@@ -324,6 +334,7 @@ export default function MyBindersScreen() {
       ) : null}
       <ConfirmDialog spec={confirm} onClose={() => setConfirm(null)} />
       <Toast spec={toast} onDismiss={() => setToast(null)} />
+      <CapGateDialog wall={capGate.wall} onClose={capGate.closeWall} />
     </ThemedView>
   );
 }

@@ -27,6 +27,8 @@ import { ShareSheet } from '@/components/binder/ShareSheet';
 import { SliceStudio } from '@/components/binder/SliceStudio';
 import { SlotMultiActions } from '@/components/binder/SlotMultiActions';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
+import { CapGateDialog } from '@/components/monetization/CapGateDialog';
+import { useCapGate } from '@/hooks/use-cap-gate';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Fonts, Palette, Radius, Spacing, Weight, FontSize } from '@/constants/theme';
@@ -48,13 +50,8 @@ import { isSupabaseConfigured } from '@/lib/env';
 import { footprintForKind } from '@/data/cardSizing';
 import { resolveCard } from '@/data/cardResolver';
 import { addSavedSlices, removeSavedSlice, sliceSignature, slotSignature, useSavedSlices, useSavedSlicesSync, type SavedSlice } from '@/data/savedSlices';
-import {
-  artLimitMessage,
-  binderLimitMessage,
-  limitCta,
-  pageLimitMessage,
-} from '@/data/limitMessages';
-import { trackCapGate } from '@/lib/analytics';
+import { artLimitMessage, artTrialMessage, binderLimitMessage, limitCta, pageLimitMessage, pageTrialMessage } from '@/data/limitMessages';
+
 import { SliceTray, SliceThumb } from '@/components/binder/SliceTray';
 import type { CatalogCard } from '@/lib/catalog';
 import { isBlankPage, useBinders } from '@/store/binders';
@@ -232,6 +229,17 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [binderId, binder?.isExample]);
+
+  // Hitting a cap ends the action the user was mid-way through, so every cap toast gets the
+  // prominent tone and a button out. Which way out depends on the tier (see limitCta): the plans
+  // page for accounts that can pay, the auth sheet for guests, whose cap is lifted by the free
+  // tier rather than by a plan.
+  const showLimitToast = (message: string) => {
+    toastId.current += 1;
+    setToast({ id: toastId.current, message, tone: 'limit', cta: limitCta(store.tier) });
+  };
+  // One wall, one report: a dialog on its first hit today, the toast after that.
+  const capGate = useCapGate(showLimitToast);
 
   if (!binder) {
     return (
@@ -454,15 +462,6 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         ? { id: toastId.current, message, actionLabel: 'Undo', onAction: store.undo }
         : { id: toastId.current, message },
     );
-  };
-
-  // Hitting a cap ends the action the user was mid-way through, so every cap toast gets the
-  // prominent tone and a button out. Which way out depends on the tier (see limitCta): the plans
-  // page for accounts that can pay, the auth sheet for guests, whose cap is lifted by the free
-  // tier rather than by a plan.
-  const showLimitToast = (message: string) => {
-    toastId.current += 1;
-    setToast({ id: toastId.current, message, tone: 'limit', cta: limitCta(store.tier) });
   };
 
   const clearMulti = () => setMultiIds((cur) => (cur.size ? new Set() : cur));
@@ -733,10 +732,13 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     // The binder can run out of pages at the tier cap — name it (with the upgrade route) rather
     // than quietly placing fewer cards than the user picked.
     if (unplaced > 0) {
-      showLimitToast(pageLimitMessage(store.tier, store.limits));
-      trackCapGate({
+      capGate.hit({
         limit: 'pagesPerBinder',
         surface: 'binder_editor',
+        isGuest: store.tier === 'guest',
+        title: 'This binder is full',
+        message: pageLimitMessage(store.tier, store.limits),
+        trialMessage: pageTrialMessage(store.limits),
         tier: store.tier,
         used: binder.pages.length,
         cap: store.limits.pagesPerBinder,
@@ -754,12 +756,15 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // silently. `newPieces` is the footprint's piece count (an upper bound: folded pairs merge).
   const artCapBlocks = (newPieces: number): boolean => {
     if (keptArtworks + newPieces <= store.limits.artUploads) return false;
-    showLimitToast(artLimitMessage(store.tier, store.limits));
     // This is the single choke point for art entering the account, so one event here covers
     // every path (tray import, direct placement, studio save).
-    trackCapGate({
+    capGate.hit({
       limit: 'artUploads',
       surface: 'binder_editor',
+      isGuest: store.tier === 'guest',
+      title: 'Your artwork shelf is full',
+      message: artLimitMessage(store.tier, store.limits),
+      trialMessage: artTrialMessage(store.limits),
       tier: store.tier,
       used: keptArtworks,
       cap: store.limits.artUploads,
@@ -1361,6 +1366,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         />
 
         <Toast spec={toast} onDismiss={() => setToast(null)} />
+        <CapGateDialog wall={capGate.wall} onClose={capGate.closeWall} />
         <ConfirmDialog spec={confirm} onClose={() => setConfirm(null)} />
         {multiActionsOpen ? (
           <SlotMultiActions

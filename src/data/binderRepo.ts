@@ -10,6 +10,7 @@
  * this module assumes one exists and simply reads/writes the current user's rows.
  */
 
+import { demoteHouseAccounts } from '@/data/houseAccounts';
 import { requireSupabase } from '@/lib/supabase';
 import type { Database } from '@/types/database';
 import type { DemoBinder, DemoPage, DemoSlot, MichiLayoutStyle } from '@/data/binderTypes';
@@ -544,8 +545,11 @@ export async function fetchFeaturedBinders(limit = 12): Promise<DemoBinder[]> {
   const supabase = requireSupabase();
   const { data, error } = await supabase.rpc('featured_binders', { p_limit: limit });
   if (error) throw new Error(`featured: ${error.message}`);
-  const rows = (data ?? []) as { binder_id: string; like_count: number; author_name: string | null }[];
-  if (rows.length === 0) return [];
+  const ranked = (data ?? []) as { binder_id: string; like_count: number; author_name: string | null }[];
+  if (ranked.length === 0) return [];
+  // Community binders first. The house's own binders out-like everyone by seniority, which would
+  // make this shelf a permanent showcase of the project's work instead of its members'.
+  const rows = demoteHouseAccounts(ranked);
 
   const ids = rows.map((r) => r.binder_id);
   const { data: binders, error: bErr } = await supabase

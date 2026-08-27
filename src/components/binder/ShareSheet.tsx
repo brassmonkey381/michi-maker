@@ -441,7 +441,7 @@ export function ShareSheet({
                     {warmth === 'warming'
                       ? 'Building the preview image… you can share the link now, but it may post without a picture until this finishes.'
                       : warmth === 'ready'
-                        ? 'Preview image ready — shared links will show the page.'
+                        ? 'Preview image ready. Shared links will show the page.'
                         : 'The preview image isn’t ready. The link works, but it may post without a picture.'}
                   </ThemedText>
                 </View>

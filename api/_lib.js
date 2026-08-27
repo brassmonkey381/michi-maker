@@ -69,8 +69,9 @@ function cardImage(cardId) {
  *   r6  michi-maker.com + logo stamped into the footer
  *   r7  JPEG at 2.4× (2880×1512) — bigger picture, a fifth the bytes
  *   r8  single featured page gets its own 1800×1512 canvas over a blurred backdrop
+ *   r9  single-page disclaimer runs wider, two lines instead of three
  */
-const OG_IMAGE_REV = 8;
+const OG_IMAGE_REV = 9;
 
 /**
  * The two canvases the renderer knows how to draw. A SPREAD needs the width for two facing pages;

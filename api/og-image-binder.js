@@ -629,10 +629,15 @@ function backdropSource(page, manifest, art) {
 }
 
 const SINGLE_LEGAL_SIZE = 12 * S;
-// Held to a deliberately narrow measure so the disclaimer breaks into three even, centred lines.
-// A short measure is what makes centred text read as a caption rather than a stray sentence.
-const SINGLE_MEASURE = Math.round(SINGLE_W * 0.62);
-const SINGLE_LEGAL_BAND = Math.round(3 * SINGLE_LEGAL_SIZE * 1.38 + 22 * S);
+// Held to a measure so the disclaimer breaks into two even, centred lines — wide enough to avoid a
+// stubby third line, narrow enough that centred text still reads as a caption rather than a
+// sentence stretched wall to wall. At this size the text runs ~15px per character, so ~80
+// characters per line need ~1200px; 0.74 of the canvas leaves slack for the word breaks.
+const SINGLE_MEASURE = Math.round(SINGLE_W * 0.74);
+const SINGLE_LEGAL_LINES = 2;
+// Derived, not guessed: `singleFrame` sizes the band above the page from what is left after this,
+// so a wrong line count here moves the brand lockup off centre.
+const SINGLE_LEGAL_BAND = Math.round(SINGLE_LEGAL_LINES * SINGLE_LEGAL_SIZE * 1.38 + 22 * S);
 
 /**
  * One page on the narrow canvas, over a blurred enlargement of its own art.
@@ -645,7 +650,10 @@ const SINGLE_LEGAL_BAND = Math.round(3 * SINGLE_LEGAL_SIZE * 1.38 + 22 * S);
 function singleFrame(page, manifest, art, backdrop) {
   const cols = page.cols || 3;
   const rows = page.rows || 3;
-  const { cw, ch } = cardSize(cols, rows, 540 * S, 455 * S);
+  // 470, not 455: dropping the disclaimer from three lines to two frees vertical space, and it goes
+  // to the PAGE. Left in the top band it would only widen the gap above the page and drop the
+  // lockup down with it.
+  const { cw, ch } = cardSize(cols, rows, 540 * S, 470 * S);
   const matH = rows * ch + (rows - 1) * GAP + 36 * S; // + the mat's own padding
   const below = 24 * S; // a little air between the page and the disclaimer
   const topBand = Math.max(70 * S, SINGLE_H - SINGLE_LEGAL_BAND - matH - below);

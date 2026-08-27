@@ -28,17 +28,23 @@ export function binderShareUrl(id: string): string {
  * Call it whenever a share link is about to be handed over, INCLUDING repeatedly for the same
  * binder: the preview URL is keyed on the binder's updated_at, so any edit puts it back on a cold
  * cache and the next call re-arms it rather than wasting a round trip. An already-warm binder
- * costs a CDN hit. Deliberately fire-and-forget — nothing in the UI should wait on it, and a
- * failure just means the scraper pays what it would have paid anyway.
+ * costs a CDN hit.
+ *
+ * Resolves when the image is actually in the CDN, so the share UI can say whether a link posted
+ * right now would carry a picture. Nothing should BLOCK on it — the link works immediately either
+ * way; a cold preview only means the first scraper to see it may get no image.
  */
-export function warmBinderPreview(id: string): void {
-  if (!id) return;
+export async function warmBinderPreview(id: string): Promise<'ready' | 'failed'> {
+  if (!id) return 'failed';
   try {
     // keepalive: the request must survive the tab navigating away right after a copy.
-    void fetch(`${appOrigin()}/api/og-warm?id=${encodeURIComponent(id)}`, {
+    const res = await fetch(`${appOrigin()}/api/og-warm?id=${encodeURIComponent(id)}`, {
       keepalive: true,
-    }).catch(() => {});
+    });
+    const body = await res.json().catch(() => null);
+    return res.ok && body && body.warmed ? 'ready' : 'failed';
   } catch {
-    /* offline, or no fetch — the preview just renders on demand */
+    /* offline, or the render timed out — the preview just falls back to rendering on demand */
+    return 'failed';
   }
 }

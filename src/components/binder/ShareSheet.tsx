@@ -4,7 +4,17 @@
  * the system share sheet. Only shown for the owner's own cloud binders.
  */
 import { useEffect, useState } from 'react';
-import { Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from 'react-native';
 
 import { ContestEntrySection } from '@/components/contest/ContestEntrySection';
 import { ThemedText } from '@/components/themed-text';
@@ -144,18 +154,39 @@ export function ShareSheet({
       });
   };
 
-  // Start rendering the link preview the moment this sheet opens on a public binder, so the image
-  // is in the CDN by the time the link is pasted anywhere. Re-runs when the binder is flipped
-  // public here, and again on every open — an edit since the last share invalidates the preview
-  // URL (it is keyed on updated_at), so re-warming IS the re-arm.
+  // PREVIEW WARMTH. Composing the link-preview image takes ten seconds or more, and no link
+  // scraper waits that long — so it is rendered here, up front, the moment this sheet opens.
+  //
+  // The result is stored AGAINST WHAT WAS WARMED rather than as a bare flag, because featuring a
+  // different page changes the preview and must put the indicator honestly back to "preparing".
+  // Deriving the state from that key means any change re-arms it with no reset to remember.
+  const featured = (binder.sharePageIds ?? []).join(',');
+  const warmKey = `${binder.id}:${featured}`;
+  const [warmed, setWarmed] = useState<{ key: string; state: 'ready' | 'failed' } | null>(null);
+  const warmth = !isPublic ? 'idle' : warmed?.key === warmKey ? warmed.state : 'warming';
+
   useEffect(() => {
-    if (visible && isPublic) warmBinderPreview(binder.id);
-  }, [visible, isPublic, binder.id]);
+    if (!visible || !isPublic) return;
+    let live = true;
+    // Debounced: featuring pages is a burst of taps, and each change would otherwise kick off its
+    // own several-second render on the server.
+    const t = setTimeout(() => {
+      warmBinderPreview(binder.id).then((state) => {
+        if (live) setWarmed({ key: warmKey, state });
+      });
+    }, 400);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+  }, [visible, isPublic, binder.id, warmKey]);
 
   const onShare = async () => {
-    // Again on the way out: the sheet may have been open across an edit, and this is the last
-    // moment before the link is actually somewhere. Already warm costs a CDN hit.
-    warmBinderPreview(binder.id);
+    // A last attempt if the preview isn't already warm — this is the final moment before the link
+    // is actually somewhere. Skipped when it's ready, since that call would only cost a CDN hit.
+    if (warmth !== 'ready') {
+      void warmBinderPreview(binder.id).then((state) => setWarmed({ key: warmKey, state }));
+    }
     try {
       if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
         await navigator.clipboard.writeText(url);
@@ -326,18 +357,44 @@ export function ShareSheet({
             ) : null}
 
             {isPublic ? (
-              <View style={styles.linkArea}>
-                <View style={[styles.linkBox, { borderColor: theme.backgroundSelected }]}>
-                  <ThemedText type="small" numberOfLines={1} style={styles.linkText}>
-                    {url}
+              <>
+                <View style={styles.linkArea}>
+                  <View style={[styles.linkBox, { borderColor: theme.backgroundSelected }]}>
+                    <ThemedText type="small" numberOfLines={1} style={styles.linkText}>
+                      {url}
+                    </ThemedText>
+                  </View>
+                  <Pressable onPress={onShare} style={styles.copyBtn} hitSlop={6}>
+                    <ThemedText type="smallBold" style={styles.copyText}>
+                      {copied ? 'Copied ✓' : Platform.OS === 'web' ? 'Copy link' : 'Share'}
+                    </ThemedText>
+                  </Pressable>
+                </View>
+                {/* Says whether a link posted RIGHT NOW would carry a picture. Deliberately not a
+                    blocker: the link works the moment it exists, and the only cost of posting
+                    early is a preview without its image. */}
+                <View style={styles.previewRow}>
+                  {warmth === 'warming' ? (
+                    <ActivityIndicator size="small" color={Palette.accent} />
+                  ) : (
+                    <ThemedText
+                      type="small"
+                      style={[
+                        styles.previewMark,
+                        { color: warmth === 'ready' ? Palette.success : Palette.warning },
+                      ]}>
+                      {warmth === 'ready' ? '✓' : '!'}
+                    </ThemedText>
+                  )}
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.previewText}>
+                    {warmth === 'warming'
+                      ? 'Building the preview image… you can share the link now, but it may post without a picture until this finishes.'
+                      : warmth === 'ready'
+                        ? 'Preview image ready — shared links will show the page.'
+                        : 'The preview image isn’t ready. The link works, but it may post without a picture.'}
                   </ThemedText>
                 </View>
-                <Pressable onPress={onShare} style={styles.copyBtn} hitSlop={6}>
-                  <ThemedText type="smallBold" style={styles.copyText}>
-                    {copied ? 'Copied ✓' : Platform.OS === 'web' ? 'Copy link' : 'Share'}
-                  </ThemedText>
-                </Pressable>
-              </View>
+              </>
             ) : (
               <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
                 Turn on public sharing to get a link you can send to anyone.
@@ -381,6 +438,9 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
   },
   linkText: { color: Palette.accent },
+  previewRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two, minHeight: 20 },
+  previewMark: { width: 14, textAlign: 'center' },
+  previewText: { flex: 1, lineHeight: 18 },
   copyBtn: {
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.four,

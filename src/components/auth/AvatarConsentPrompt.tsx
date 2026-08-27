@@ -41,7 +41,7 @@ import {
   withAvatarOfferDeclined,
 } from '@/data/avatarConsent';
 import { isSupabaseConfigured } from '@/lib/env';
-import { claimPromptSlot, releasePromptSlot } from '@/lib/promptSlot';
+import { claimPromptSlot, releasePromptSlot, spendPromptSlot } from '@/lib/promptSlot';
 import { pruneAvatars, uploadAvatarImage } from '@/lib/uploadAvatar';
 import { useAuth } from '@/store/auth';
 import type { Profile } from '@/types/domain';
@@ -79,6 +79,9 @@ export function AvatarConsentPrompt() {
           releasePromptSlot(SLOT);
           return;
         }
+        // Shown, so the rights attestation waits for the next visit rather than opening the
+        // moment this one is answered.
+        spendPromptSlot(SLOT);
         setPhoto({ url: providerUrl, blob });
         // Recorded whatever they answer, so a second device honours the same seven-day gap.
         void auth.updateProfile({ avatar_prompt_at: new Date().toISOString() });

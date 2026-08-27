@@ -28,7 +28,7 @@ import { Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { privateArtInBinder } from '@/data/artAttributionCheck';
 import type { DemoBinder } from '@/data/binderTypes';
 import { rightsPromptDue } from '@/data/sharingDefaults';
-import { claimPromptSlot, releasePromptSlot } from '@/lib/promptSlot';
+import { claimPromptSlot, releasePromptSlot, spendPromptSlot } from '@/lib/promptSlot';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
 
@@ -56,6 +56,9 @@ export function RightsPrompt({ binder }: { binder: DemoBinder }) {
     // turn stays unshown AND unrecorded, so it is still due on the next screen.
     if (!claimPromptSlot(SLOT)) return;
     shownRef.current = true;
+    // Shown, so no other uninvited dialog opens this visit. Answering this one must not summon
+    // the photo offer a second later.
+    spendPromptSlot(SLOT);
     setOpen(true);
     // Record the showing whether or not they accept, so every surface honours the 7-day gap.
     void auth.updateProfile({ rights_prompt_at: new Date().toISOString() });

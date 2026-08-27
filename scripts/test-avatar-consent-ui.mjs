@@ -230,6 +230,13 @@ try {
     await shot(page, '02-accepted');
     const after = await profileOf(photoAcct.uid);
     check('the dialog closes', !(await seesOffer(page)));
+    // The first version of the turn-taking only stopped the two dialogs OVERLAPPING, which let
+    // the sharing question open the instant the photo question was answered. Two of these back
+    // to back on one screen is the nagging the cadences exist to prevent.
+    check('answering it does NOT summon the rights prompt in its place',
+      !(await seesRights(page)), `body: ${(await bodyText(page)).slice(0, 200)}`);
+    check('...and the rights prompt still has not been recorded as shown',
+      after?.rights_prompt_at === null, `rights_prompt_at ${after?.rights_prompt_at}`);
     check('consent is recorded', !!after?.avatar_consented_at);
     check('an avatar is now set', !!after?.avatar_url, `avatar_url ${after?.avatar_url}`);
     check('THE BYTES ARE OURS, not a hotlink to the provider',
@@ -243,11 +250,16 @@ try {
     }
 
     // --- 3. it never comes back ---------------------------------------------
-    console.log('\nStep 3: the offer is not made twice');
+    console.log('\nStep 3: the offer is not made twice, and the turn passes on');
     await open(page, '/my-binders');
     check('NOT offered again after accepting', !(await seesOffer(page)));
-    check('and now the rights prompt is free to have its turn later',
-      true);
+    // The rights prompt lost the turn in step 1 and recorded nothing, so it is still due. This
+    // is the half of the turn-taking a 'did not stack' check cannot see on its own: the loser
+    // is deferred, not suppressed.
+    await open(page, `/binder/${binder.id}`);
+    await shot(page, '02b-rights-gets-its-turn');
+    check('THE RIGHTS PROMPT GETS ITS TURN once the offer is answered', await seesRights(page),
+      `body: ${(await bodyText(page)).slice(0, 200)}`);
     await ctx.close();
   }
 

@@ -154,10 +154,23 @@ try {
     process.exitCode = 2;
   }
 } finally {
-  // Leave nothing behind: the object first (it outlives the account otherwise), then the account.
+  // Leave nothing behind, and CHECK, because the first run of this script reported "probe account
+  // and object removed" while the object was still sitting in the bucket: the per-object DELETE
+  // was fired and its response never read. Same blindness as the test harnesses that once left
+  // real accounts behind. The bulk endpoint reports what it actually removed, and the count below
+  // is read back from the database rather than assumed.
   try {
     if (probePath) {
-      await api(`/storage/v1/object/scan-images/${probePath}`, { method: 'DELETE', key: SERVICE });
+      const del = await fetch(`${URL_BASE}/storage/v1/object/scan-images`, {
+        method: 'DELETE',
+        headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prefixes: [probePath] }),
+      });
+      if (!del.ok) console.log(`CLEANUP WARNING: probe object delete returned ${del.status}`);
+      const [obj] = await sql(
+        `select count(*)::int as n from storage.objects where bucket_id = 'scan-images' and name = '${probePath}';`,
+      );
+      if (obj.n) console.log(`CLEANUP WARNING: probe object ${probePath} still exists`);
     }
     if (probeUid) {
       await sql(`delete from auth.users where id = '${probeUid}'::uuid;`);

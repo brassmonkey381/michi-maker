@@ -5,6 +5,7 @@ import { Platform, useColorScheme, View } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { RouteTracker } from '@/components/analytics/RouteTracker';
+import { AvatarConsentPrompt } from '@/components/auth/AvatarConsentPrompt';
 import { UsernameGate } from '@/components/auth/UsernameGate';
 import { ProStatusBanner } from '@/components/monetization/ProStatusBanner';
 import { AppRail } from '@/components/nav/AppRail';
@@ -45,6 +46,12 @@ export default function TabLayout() {
             </View>
             {/* Blocks any real account with no @username yet — required, immutable, once per account. */}
             <UsernameGate />
+            {/* Offers back the profile photo withdrawn by 20260826140000. Mounted here rather
+                than on a screen because it is owed to the account, not to a page: whatever they
+                open after signing in, the ask is waiting. It never draws over the UsernameGate
+                (a nameless account is not asked) nor over the rights attestation (both take
+                turns through promptSlot). */}
+            <AvatarConsentPrompt />
           </BinderProvider>
         </AuthProvider>
       </ThemeProvider>

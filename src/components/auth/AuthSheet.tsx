@@ -31,8 +31,10 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { providerAvatarUrl, withAvatarOfferAccepted } from '@/data/avatarConsent';
 import { pruneAvatars, uploadAvatarImage } from '@/lib/uploadAvatar';
 import { useAuth, type OAuthProvider } from '@/store/auth';
+import type { Profile } from '@/types/domain';
 
 export function AuthSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const auth = useAuth();
@@ -409,7 +411,12 @@ function ProfileView({ onClose }: { onClose: () => void }) {
       setAvatarError(null);
       uploadAvatarImage(file, file.name)
         .then(async (url) => {
-          const r = await auth.updateProfile({ avatar_url: url });
+          const r = await auth.updateProfile({
+            avatar_url: url,
+            // Picking a file IS the consent, and the audit of who has a photo reads this column.
+            avatar_consented_at: new Date().toISOString(),
+            preferences: withAvatarOfferAccepted(auth.profile?.preferences) as Profile['preferences'],
+          });
           if (r.error) setAvatarError(r.error);
           // Old files go only after the row points at the new one.
           else void pruneAvatars(url);
@@ -418,6 +425,32 @@ function ProfileView({ onClose }: { onClose: () => void }) {
         .finally(() => setAvatarBusy(false));
     };
     input.click();
+  };
+  // The photo the account signed in with, still sitting in the auth session where the provider
+  // put it. Offered here as a one-tap alternative to picking a file, which is also the way back
+  // for anyone who declined the consent prompt: a permanent "no thanks" has to be reversible by
+  // the person who said it, or it is a trap rather than a choice.
+  const providerPhoto = providerAvatarUrl(auth.user?.user_metadata);
+  const useProviderPhoto = () => {
+    if (!providerPhoto || avatarBusy) return;
+    setAvatarBusy(true);
+    setAvatarError(null);
+    // Re-hosted rather than linked: profiles.avatar_url is CHECK-constrained to our own bucket,
+    // and a provider URL in a public column is a hotlink to bytes we do not hold.
+    fetch(providerPhoto)
+      .then((r) => (r.ok ? r.blob() : Promise.reject(new Error("That photo could not be loaded."))))
+      .then((blob) => uploadAvatarImage(blob, 'profile-photo'))
+      .then(async (url) => {
+        const r = await auth.updateProfile({
+          avatar_url: url,
+          avatar_consented_at: new Date().toISOString(),
+          preferences: withAvatarOfferAccepted(auth.profile?.preferences) as Profile['preferences'],
+        });
+        if (r.error) setAvatarError(r.error);
+        else void pruneAvatars(url);
+      })
+      .catch((e) => setAvatarError((e as Error).message))
+      .finally(() => setAvatarBusy(false));
   };
   // The bio. Draft-then-save rather than save-per-keystroke: a 280-char field written live would
   // hammer the profiles row and flash half-sentences to anyone on the public page.
@@ -501,6 +534,15 @@ function ProfileView({ onClose }: { onClose: () => void }) {
         <ThemedText type="small" style={styles.error}>
           {avatarError}
         </ThemedText>
+      ) : null}
+      {/* Only when there is nothing on the profile: with a photo already set, "Change photo"
+          covers it and this would just be a second button doing nearly the same thing. */}
+      {Platform.OS === 'web' && providerPhoto && !avatarUrl ? (
+        <Pressable onPress={useProviderPhoto} disabled={avatarBusy} hitSlop={6}>
+          <ThemedText type="small" style={styles.avatarChange}>
+            Use the photo from my sign-in account
+          </ThemedText>
+        </Pressable>
       ) : null}
 
       {/* The bio: the profile page's one block of self-description. Shown on /u/[id] when the

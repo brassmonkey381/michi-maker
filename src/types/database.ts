@@ -688,6 +688,8 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_consented_at: string | null
+          avatar_prompt_at: string | null
           avatar_url: string | null
           bio: string | null
           created_at: string
@@ -706,6 +708,8 @@ export type Database = {
           username: string | null
         }
         Insert: {
+          avatar_consented_at?: string | null
+          avatar_prompt_at?: string | null
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
@@ -724,6 +728,8 @@ export type Database = {
           username?: string | null
         }
         Update: {
+          avatar_consented_at?: string | null
+          avatar_prompt_at?: string | null
           avatar_url?: string | null
           bio?: string | null
           created_at?: string

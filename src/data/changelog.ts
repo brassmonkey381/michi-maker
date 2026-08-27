@@ -31,6 +31,15 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: 'Sharing, opened up',
     items: [
       {
+        head: 'Your profile photo is yours to give',
+        body:
+          'Signing in with Google used to copy your account photo across, and when profile pages '
+          + 'arrived it started showing publicly without anyone asking you. We have taken every '
+          + 'copied photo down. Next time you sign in we will show you yours and ask: put it on '
+          + 'your profile, or leave it off. Either answer sticks, and you can change it whenever '
+          + 'you like from Account settings.',
+      },
+      {
         head: 'Share once, and new binders start out public',
         body:
           'Turn on sharing (a one-time confirmation that you have the rights to the art you '

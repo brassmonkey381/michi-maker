@@ -92,10 +92,13 @@ interface AuthStore {
       Pick<
         Profile,
         | 'avatar_url'
+        | 'avatar_consented_at'
+        | 'avatar_prompt_at'
         | 'bio'
         | 'is_public'
         | 'marketing_consent'
         | 'marketing_consent_source'
+        | 'preferences'
         | 'rights_attested_at'
         | 'rights_prompt_at'
       >
@@ -377,10 +380,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         Pick<
           Profile,
           | 'avatar_url'
+          | 'avatar_consented_at'
+          | 'avatar_prompt_at'
           | 'bio'
           | 'is_public'
           | 'marketing_consent'
           | 'marketing_consent_source'
+          | 'preferences'
           | 'rights_attested_at'
           | 'rights_prompt_at'
         >

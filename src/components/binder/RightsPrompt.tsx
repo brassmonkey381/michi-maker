@@ -28,8 +28,11 @@ import { Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { privateArtInBinder } from '@/data/artAttributionCheck';
 import type { DemoBinder } from '@/data/binderTypes';
 import { rightsPromptDue } from '@/data/sharingDefaults';
+import { claimPromptSlot, releasePromptSlot } from '@/lib/promptSlot';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
+
+const SLOT = 'rights-attestation';
 
 export function RightsPrompt({ binder }: { binder: DemoBinder }) {
   const auth = useAuth();
@@ -48,12 +51,25 @@ export function RightsPrompt({ binder }: { binder: DemoBinder }) {
     if (!auth.ready || !auth.isSignedIn) return; // guests are never asked
     if (binder.isDemo || binder.isExample) return;
     if (!rightsPromptDue(auth.profile)) return;
+    // One uninvited dialog at a time. The avatar consent offer can become due on the same screen
+    // (of the twelve accounts it was written for, none had attested), and a prompt that loses the
+    // turn stays unshown AND unrecorded, so it is still due on the next screen.
+    if (!claimPromptSlot(SLOT)) return;
     shownRef.current = true;
     setOpen(true);
     // Record the showing whether or not they accept, so every surface honours the 7-day gap.
     void auth.updateProfile({ rights_prompt_at: new Date().toISOString() });
   }, [auth, binder.isDemo, binder.isExample, open]);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Hand the turn back on unmount too: navigating away mid-dialog would otherwise strand the
+  // slot and silence the avatar offer for the rest of the session.
+  useEffect(() => () => releasePromptSlot(SLOT), []);
+
+  const close = () => {
+    releasePromptSlot(SLOT);
+    setOpen(false);
+  };
 
   if (!open) return null;
 
@@ -70,13 +86,13 @@ export function RightsPrompt({ binder }: { binder: DemoBinder }) {
         if (!binder.isPublic && privateArtInBinder(binder).length === 0) {
           store.updateBinder(binder.id, { isPublic: true });
         }
-        setOpen(false);
+        close();
       })
       .finally(() => setBusy(false));
   };
 
   return (
-    <DialogCard visible title="Share your binders" onClose={() => setOpen(false)} maxWidth={420}>
+    <DialogCard visible title="Share your binders" onClose={close} maxWidth={420}>
       <ThemedText type="small" themeColor="textSecondary" style={styles.body}>
         michi-maker is better when binders are shared: they can be discovered, liked, and entered
         in contests. Turn sharing on and new binders start out public
@@ -105,7 +121,7 @@ export function RightsPrompt({ binder }: { binder: DemoBinder }) {
           {busy ? 'Turning on…' : 'Turn on sharing'}
         </ThemedText>
       </Pressable>
-      <Pressable onPress={() => setOpen(false)} hitSlop={6} style={styles.later}>
+      <Pressable onPress={close} hitSlop={6} style={styles.later}>
         <ThemedText type="small" themeColor="textSecondary">
           Not now. Binders stay private; you can turn this on in Account settings.
         </ThemedText>

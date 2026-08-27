@@ -6,6 +6,17 @@
  * run as a one-off so the two sessions @fakemichi scanned can be seen as pages rather than as
  * rows in a table.
  *
+ * EVERY POCKET IS MARKED from_collection. That is michi's existing provenance flag (DemoSlot
+ * .fromCollection, binder_slots.from_collection) and it is not decoration: MyCollection counts
+ * only from-collection pockets as PLACED, so each tile reads (free/owned) with placed copies
+ * subtracted, and Reclaim can only pull a card back out of a pocket carrying it. A pocket without
+ * it is aspirational — a card you would like, placed from browsing, consuming nothing.
+ *
+ * These pockets are the opposite of aspirational. The card is physically in that binder; a scan
+ * is the strongest possible evidence of ownership. Leaving them unmarked would show a collection
+ * where every copy is still free while 66 of them sit in a binder on the desk, and would make
+ * those pockets unreclaimable.
+ *
  * WHAT IT DOES NOT DO. It does not sync, subscribe, or run on a schedule, and nothing in either
  * app calls it. It reads tcgscan's portfolio_entries and writes michi's binders/binder_pages/
  * binder_slots for the same account (one identity, one project, see 20260714120000). Re-running
@@ -150,11 +161,11 @@ try {
         // onto another pocket's cell.
         .filter(([slot]) => slot >= 0 && slot < rows * cols)
         .map(([slot, cardId]) =>
-          `(${q(page.id)}, ${Math.floor(slot / cols)}, ${slot % cols}, 1, 1, 'card', ${q(cardId)})`);
+          `(${q(page.id)}, ${Math.floor(slot / cols)}, ${slot % cols}, 1, 1, 'card', ${q(cardId)}, true)`);
       if (values.length) {
         await sql(`
           insert into public.binder_slots
-            (page_id, row_index, col_index, row_span, col_span, slot_type, card_id)
+            (page_id, row_index, col_index, row_span, col_span, slot_type, card_id, from_collection)
           values ${values.join(', ')};`);
         slotCount += values.length;
       }

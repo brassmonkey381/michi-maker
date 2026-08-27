@@ -55,14 +55,17 @@ try {
   if (!col) fail('scan_path is missing');
   if (col.is_nullable !== 'YES') fail('scan_path is NOT NULL, which can poison a sync batch');
   if (col.column_default !== null) fail(`scan_path has a default (${col.column_default})`);
+  // The subquery is correlated (unnest(c.conkey) references the outer row) rather than a
+  // comma-join next to a JOIN, which PostgreSQL rejects with "invalid reference to FROM-clause
+  // entry" — the first version of this probe died exactly there.
   const cons = await sql(`
     select c.conname from pg_constraint c
     join pg_class t on t.oid = c.conrelid
     where t.relname = 'portfolio_entries'
-      and c.oid in (
-        select con.oid from pg_constraint con, unnest(con.conkey) k
-        join pg_attribute a on a.attrelid = con.conrelid and a.attnum = k
-        where con.conrelid = t.oid and a.attname = 'scan_path');`);
+      and exists (
+        select 1 from unnest(c.conkey) k
+        join pg_attribute a on a.attrelid = c.conrelid and a.attnum = k
+        where a.attname = 'scan_path');`);
   if (cons.length) fail(`scan_path joined constraint(s): ${cons.map((c) => c.conname).join(', ')}`);
   console.log('  OK (nullable, no default, no constraints)');
 

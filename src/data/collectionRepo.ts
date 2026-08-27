@@ -96,16 +96,27 @@ export async function deletePortfolio(id: string): Promise<void> {
  */
 export async function fetchScanImages(): Promise<Map<string, string>> {
   const supabase = requireSupabase();
-  const { data, error } = await supabase
-    .from('portfolio_entries')
-    .select('card_id, scan_path, scanned_at, added_at')
-    .not('scan_path', 'is', null);
-  if (error) throw new Error(`scan images: ${error.message}`);
+  // Paged: PostgREST silently caps an unranged select (default 1000 rows), and an active
+  // scanner's scan-bearing entries grow toward their whole collection. Page order is arbitrary
+  // but complete, which is all the newest-wins reduction below needs.
+  const PAGE = 1000;
+  const rows: unknown[] = [];
+  for (let from = 0; from < 50_000; from += PAGE) {
+    const { data, error } = await supabase
+      .from('portfolio_entries')
+      .select('card_id, scan_path, scanned_at, added_at')
+      .not('scan_path', 'is', null)
+      .order('id', { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error) throw new Error(`scan images: ${error.message}`);
+    rows.push(...(data ?? []));
+    if ((data ?? []).length < PAGE) break;
+  }
   const best = new Map<string, { path: string; seen: number }>();
   // Through unknown: the generated database.ts predates every tcgscan column added since 07-14
   // (storage_id, scanned_at, scan_path, ...) and is tolerated stale because michi only READS
   // these tables; the runtime shape is the migration's (20260828120000).
-  for (const r of (data ?? []) as unknown as {
+  for (const r of rows as unknown as {
     card_id: string;
     scan_path: string;
     scanned_at: string | null;

@@ -28,11 +28,18 @@ const MIGRATIONS = [
 ].map((f) => join(here, '..', 'supabase', 'migrations', f));
 
 const token = process.env.SUPABASE_ACCESS_TOKEN;
-function fail(msg, code = 2) {
-  console.log(`FAILED: ${msg}`);
-  process.exit(code);
+/**
+ * Abort the run. THROWS rather than exiting: process.exit skips `finally`, and this script's
+ * finally is what deletes the probe binder from the live table. A failed step used to leave that
+ * probe behind, and the next run then failed on it.
+ */
+function fail(msg) {
+  throw new Error(msg);
 }
-if (!token) fail('SUPABASE_ACCESS_TOKEN is not set (the .ps1 wrapper loads it).');
+if (!token) {
+  console.log('FAILED: SUPABASE_ACCESS_TOKEN is not set (the .ps1 wrapper loads it).');
+  process.exit(2); // nothing created yet, so nothing to clean up
+}
 
 async function sql(query) {
   const res = await fetch(`https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`, {
@@ -46,6 +53,7 @@ async function sql(query) {
 }
 
 let probe = null;
+let failure = null;
 const versionOf = async () =>
   (await sql(`select share_version from public.binders where id = '${probe}';`))[0]?.share_version;
 
@@ -54,13 +62,16 @@ try {
   for (const m of MIGRATIONS) await sql(readFileSync(m, 'utf8'));
   console.log(`  OK (${MIGRATIONS.length} applied)`);
 
-  console.log('Step 2: every existing binder starts at v1 (a clean link)...');
+  console.log('Step 2: where existing binders sit...');
+  // Reported, not asserted. Every binder starts at v1 and climbs as it is edited, so "all v1" is
+  // true exactly once, on the first run, and asserting it would fail every run after.
   const [census] = await sql(
-    `select count(*)::int as total, count(*) filter (where share_version = 1)::int as at_one
+    `select count(*)::int as total,
+            count(*) filter (where share_version = 1)::int as untouched,
+            max(share_version)::int as highest
        from public.binders;`,
   );
-  if (census.total !== census.at_one) fail(`${census.total - census.at_one} binder(s) are not at v1`);
-  console.log(`  OK (${census.total} binders, all v1)`);
+  console.log(`  ${census.total} binders, ${census.untouched} still at v1, highest v${census.highest}`);
 
   console.log('Step 3: making a probe binder...');
   const [row] = await sql(`
@@ -96,8 +107,9 @@ try {
   const afterPage = await versionOf();
   if (afterPage <= afterFeature) fail(`adding a page left the version at ${afterPage}`);
   await sql(`
-    insert into public.binder_slots (page_id, row_index, col_index, type, card_id)
-    values ('${page.id}', 0, 0, 'card', 'sv1-25');`);
+    insert into public.binder_slots
+      (page_id, row_index, col_index, row_span, col_span, slot_type, card_id)
+    values ('${page.id}', 0, 0, 1, 1, 'card', 'sv1-25');`);
   const afterSlot = await versionOf();
   if (afterSlot <= afterPage) {
     fail(`placing a card left the version at ${afterSlot}: the preview would stay stale`);
@@ -106,14 +118,20 @@ try {
 
   console.log('\nDONE. Share links now change exactly when their preview does.');
 } catch (e) {
-  fail(e.message ?? String(e));
+  failure = e.message ?? String(e);
 } finally {
+  // Always, and BEFORE reporting: the probe is a row in the live binders table and must not
+  // outlive this process whatever happened above.
   if (probe) {
     try {
       await sql(`delete from public.binders where id = '${probe}';`);
       console.log('Probe binder removed.');
     } catch {
-      console.log(`Cleanup warning: probe binder ${probe} may remain.`);
+      console.log(`Cleanup warning: probe binder ${probe} may remain (id ${probe}).`);
     }
+  }
+  if (failure) {
+    console.log(`FAILED: ${failure}`);
+    process.exit(2);
   }
 }

@@ -15,6 +15,13 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Palette, Radius } from '@/constants/theme';
 
+/**
+ * The author avatar on a binder tile, sized to the two text lines it sits beside (a 20px title
+ * and a 20px meta line, 2px apart). Big enough to read as a face and to be an obvious tap target,
+ * rather than a decoration in the corner.
+ */
+export const TILE_AVATAR = 40;
+
 export function ProfileAvatarButton({
   username,
   avatarUrl,

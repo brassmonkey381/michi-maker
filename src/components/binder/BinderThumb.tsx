@@ -20,16 +20,18 @@ export function BinderThumb({ binder, width, onPress, accessory }: BinderThumbPr
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [{ width }, pressed && styles.pressed]}>
-      <View style={styles.titleRow}>
-        <ThemedText type="smallBold" numberOfLines={1} style={styles.title}>
-          {binder.title}
-        </ThemedText>
+      <View style={styles.header}>
+        <View style={styles.textCol}>
+          <ThemedText type="smallBold" numberOfLines={1} style={styles.title}>
+            {binder.title}
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+            {binder.authorName ? `by ${binder.authorName} · ` : ''}
+            {pageCount} {pageCount === 1 ? 'page' : 'pages'}
+          </ThemedText>
+        </View>
         {accessory}
       </View>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.meta} numberOfLines={1}>
-        {binder.authorName ? `by ${binder.authorName} · ` : ''}
-        {pageCount} {pageCount === 1 ? 'page' : 'pages'}
-      </ThemedText>
       {firstPage ? (
         // The soft page shadow makes the binder page read as a physical object on the shelf —
         // shared by every carousel (home, Featured, examples, profiles) for one consistent look.
@@ -52,17 +54,16 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     backgroundColor: 'rgba(128,128,128,0.12)',
   },
-  titleRow: {
+  // Two text lines and the accessory, side by side. The gap under the block lives HERE rather
+  // than on the meta line, so the header's height is exactly the two lines (20 + 2 + 20 = 42) and
+  // a centred accessory sits square against them instead of being dragged low by trailing space.
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     gap: 6,
-  },
-  title: {
-    flex: 1,
-    marginBottom: 2,
-  },
-  meta: {
     marginBottom: 8,
   },
+  // minWidth 0 so a long title truncates instead of shoving the accessory off the tile.
+  textCol: { flex: 1, minWidth: 0 },
+  title: { marginBottom: 2 },
 });

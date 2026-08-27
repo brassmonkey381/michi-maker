@@ -13,7 +13,7 @@ import { HomeRecent } from '@/components/HomeRecent';
 import { HomeSealed } from '@/components/HomeSealed';
 import { HomeSection } from '@/components/HomeSection';
 import { PeopleButton } from '@/components/people/PeopleButton';
-import { ProfileAvatarButton } from '@/components/people/ProfileAvatarButton';
+import { ProfileAvatarButton, TILE_AVATAR } from '@/components/people/ProfileAvatarButton';
 import { SettingsButton } from '@/components/settings/SettingsSheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -236,6 +236,7 @@ export default function HomeScreen() {
                     <ProfileAvatarButton
                       username={b.authorName}
                       avatarUrl={featuredAvatars.get(b.authorName.toLowerCase())}
+                      size={TILE_AVATAR}
                       onPress={() => router.push(`/u/${b.authorName}` as Href)}
                     />
                   ) : null

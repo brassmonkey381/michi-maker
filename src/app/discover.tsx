@@ -34,7 +34,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BinderThumb } from '@/components/binder/BinderThumb';
-import { ProfileAvatarButton } from '@/components/people/ProfileAvatarButton';
+import { ProfileAvatarButton, TILE_AVATAR } from '@/components/people/ProfileAvatarButton';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { CATEGORIES, CONTEST, contestPhase, type ContestCategory } from '@/data/contest';
@@ -433,22 +433,14 @@ export default function DiscoverScreen() {
                         width={tileW}
                         onPress={() => openBinder(b.id)}
                         accessory={
-                          // Like count then avatar, so the avatar is hard against the right edge
-                          // and lands in the same spot on every tile whether or not a count shows.
-                          <View style={styles.tileAccessory}>
-                            {sort === 'likes' ? (
-                              <ThemedText type="small" themeColor="textSecondary">
-                                ♥ {b.likeCount ?? 0}
-                              </ThemedText>
-                            ) : null}
-                            {b.authorName ? (
-                              <ProfileAvatarButton
-                                username={b.authorName}
-                                avatarUrl={avatars.get(b.authorName.toLowerCase())}
-                                onPress={() => router.push(`/u/${b.authorName}` as Href)}
-                              />
-                            ) : null}
-                          </View>
+                          b.authorName ? (
+                            <ProfileAvatarButton
+                              username={b.authorName}
+                              avatarUrl={avatars.get(b.authorName.toLowerCase())}
+                              size={TILE_AVATAR}
+                              onPress={() => router.push(`/u/${b.authorName}` as Href)}
+                            />
+                          ) : null
                         }
                       />
                     ))}
@@ -528,7 +520,6 @@ const styles = StyleSheet.create({
   },
   sectionNote: { lineHeight: 18, marginTop: -Spacing.two, marginBottom: Spacing.three },
   sortRow: { flexDirection: 'row', gap: Spacing.one },
-  tileAccessory: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   sortChip: {
     paddingVertical: Spacing.one,
     paddingHorizontal: Spacing.two,

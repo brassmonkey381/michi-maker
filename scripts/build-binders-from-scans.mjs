@@ -10,7 +10,7 @@
  * .fromCollection, binder_slots.from_collection) and it is not decoration: MyCollection counts
  * only from-collection pockets as PLACED, so each tile reads (free/owned) with placed copies
  * subtracted, and Reclaim can only pull a card back out of a pocket carrying it. A pocket without
- * it is aspirational — a card you would like, placed from browsing, consuming nothing.
+ * it is aspirational: a card you would like, placed from browsing, consuming nothing.
  *
  * These pockets are the opposite of aspirational. The card is physically in that binder; a scan
  * is the strongest possible evidence of ownership. Leaving them unmarked would show a collection

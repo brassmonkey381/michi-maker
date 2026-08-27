@@ -12,27 +12,29 @@ import { PROMPT_GAP_MS, defaultBinderPublic, rightsPromptDue } from './sharingDe
 
 const NOW = Date.parse('2026-08-26T12:00:00Z');
 const iso = (msAgo: number) => new Date(NOW - msAgo).toISOString();
+/** A profile that has cleared the UsernameGate; the rules require a name before either applies. */
+const named = (p: Record<string, unknown>) => ({ username: 'collector', ...p });
 
 test('never shown before: the prompt is due (the first-binder moment)', () => {
-  assert.equal(rightsPromptDue({ rights_attested_at: null, rights_prompt_at: null }, NOW), true);
+  assert.equal(rightsPromptDue(named({ rights_attested_at: null, rights_prompt_at: null }), NOW), true);
 });
 
 test('an accepted attestation ends the prompting forever', () => {
   assert.equal(
-    rightsPromptDue({ rights_attested_at: iso(0), rights_prompt_at: null }, NOW),
+    rightsPromptDue(named({ rights_attested_at: iso(0), rights_prompt_at: null }), NOW),
     false,
   );
   // ...even if a stale prompt stamp says it has been ages.
   assert.equal(
-    rightsPromptDue({ rights_attested_at: iso(0), rights_prompt_at: iso(PROMPT_GAP_MS * 10) }, NOW),
+    rightsPromptDue(named({ rights_attested_at: iso(0), rights_prompt_at: iso(PROMPT_GAP_MS * 10) }), NOW),
     false,
   );
 });
 
 test('declined recently: not due again until the gap passes', () => {
-  const declined = { rights_attested_at: null, rights_prompt_at: iso(PROMPT_GAP_MS - 60_000) };
+  const declined = named({ rights_attested_at: null, rights_prompt_at: iso(PROMPT_GAP_MS - 60_000) });
   assert.equal(rightsPromptDue(declined, NOW), false);
-  const overdue = { rights_attested_at: null, rights_prompt_at: iso(PROMPT_GAP_MS + 60_000) };
+  const overdue = named({ rights_attested_at: null, rights_prompt_at: iso(PROMPT_GAP_MS + 60_000) });
   assert.equal(rightsPromptDue(overdue, NOW), true);
 });
 
@@ -43,22 +45,33 @@ test('no profile loaded yet: never prompt (better late than wrong)', () => {
 
 test('an unparseable prompt stamp fails open to due, not to silence', () => {
   assert.equal(
-    rightsPromptDue({ rights_attested_at: null, rights_prompt_at: 'not-a-date' }, NOW),
+    rightsPromptDue(named({ rights_attested_at: null, rights_prompt_at: 'not-a-date' }), NOW),
     true,
   );
 });
 
-test('binders default public only for attested, signed-in, ordinary binders', () => {
-  const attested = iso(0);
-  assert.equal(defaultBinderPublic({ attestedAt: attested, isAnonymous: false }), true);
-  // The four ways to stay private-by-default:
-  assert.equal(defaultBinderPublic({ attestedAt: null, isAnonymous: false }), false);
-  assert.equal(defaultBinderPublic({ attestedAt: attested, isAnonymous: true }), false);
-  assert.equal(defaultBinderPublic({ attestedAt: attested, isAnonymous: false, isDemo: true }), false);
-  assert.equal(
-    defaultBinderPublic({ attestedAt: attested, isAnonymous: false, isExample: true }),
-    false,
-  );
+test('binders default public only for attested, named, signed-in, ordinary binders', () => {
+  const base = { attestedAt: iso(0), isAnonymous: false, username: 'collector' };
+  assert.equal(defaultBinderPublic(base), true);
+  // The five ways to stay private-by-default:
+  assert.equal(defaultBinderPublic({ ...base, attestedAt: null }), false);
+  assert.equal(defaultBinderPublic({ ...base, isAnonymous: true }), false);
+  assert.equal(defaultBinderPublic({ ...base, username: null }), false);
+  assert.equal(defaultBinderPublic({ ...base, isDemo: true }), false);
+  assert.equal(defaultBinderPublic({ ...base, isExample: true }), false);
+});
+
+test('a name comes before sharing: no username, no prompt and no public default', () => {
+  // A new account meets the UsernameGate and this prompt at the same moment, and the gate is a
+  // modal another modal can cover. Without this order an account could turn sharing on before it
+  // had a public identity, and every feed credits the author from profiles.username, so the
+  // result was a public binder credited to nobody whose owner people search cannot find.
+  assert.equal(rightsPromptDue({ username: null, rights_attested_at: null, rights_prompt_at: null }, NOW), false);
+  assert.equal(rightsPromptDue({ username: '', rights_attested_at: null, rights_prompt_at: null }, NOW), false);
+  // ...and once the name is claimed, the prompt is due exactly as before.
+  assert.equal(rightsPromptDue(named({ rights_attested_at: null, rights_prompt_at: null }), NOW), true);
+  // Belt and braces: even an attested account with no name does not publish by default.
+  assert.equal(defaultBinderPublic({ attestedAt: iso(0), isAnonymous: false, username: null }), false);
 });
 
 test('the gap is the owner-specified 7 days', () => {

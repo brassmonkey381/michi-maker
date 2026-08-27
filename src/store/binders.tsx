@@ -517,6 +517,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       const defaultPublic = defaultBinderPublic({
         attestedAt: profile?.rights_attested_at,
         isAnonymous: !user || !!user.is_anonymous,
+        username: profile?.username,
         isDemo: init?.isDemo,
         isExample: init?.isExample,
       });
@@ -542,7 +543,10 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       track('binder.add', { isDemo: !!binder.isDemo });
       return binder;
     },
-    [binders, binderCount, limits.binders, commit, persist, profile?.rights_attested_at, user],
+    [
+      binders, binderCount, limits.binders, commit, persist,
+      profile?.rights_attested_at, profile?.username, user,
+    ],
   );
 
   const createBinderWithCard = useCallback(

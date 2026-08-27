@@ -149,15 +149,30 @@ try {
     return /Turn on sharing/i.test(body) && /rights to the art/i.test(body);
   };
 
+  // --- 0. the username gate comes first --------------------------------------
+  console.log('\nStep 0: a brand new account is asked for a name before anything else');
+  await open(`/binder/${b1.id}`);
+  await shot('00-username-gate');
+  const cold = await text();
+  check('the app painted', cold.trim().length > 40, `body: ${JSON.stringify(cold.slice(0, 120))}`);
+  check('the injected session signs the browser in',
+    cold.trim().length > 40 && !/^\s*Sign in\s*$/im.test(cold) && !/Continue as guest/i.test(cold),
+    `body: ${JSON.stringify(cold.slice(0, 160))}`);
+  check('the USERNAME GATE is up', /username/i.test(cold));
+  check('NOT asked to turn on sharing before having a name', !(await seesPrompt()));
+  check('...and nothing recorded a sharing prompt that never showed',
+    (await profile())?.rights_prompt_at === null);
+
+  const handle = `t${Date.now().toString(36)}`.slice(0, 20);
+  await api(`/rest/v1/profiles?id=eq.${uid}`, {
+    method: 'PATCH', token: session.access_token, body: { username: handle },
+  });
+
   // --- 1. the prompt on the first binder ------------------------------------
-  console.log('\nStep 1: opening the first binder as a brand new account');
+  console.log('\nStep 1: with a name claimed, opening the first binder');
   await open(`/binder/${b1.id}`);
   await shot('01-first-binder');
-  const first = await text();
-  check('the app painted', first.trim().length > 40, `body: ${JSON.stringify(first.slice(0, 120))}`);
-  check('the injected session signs the browser in',
-    first.trim().length > 40 && !/^\s*Sign in\s*$/im.test(first) && !/Continue as guest/i.test(first),
-    `body: ${JSON.stringify(first.slice(0, 160))}`);
+  check('the username gate is gone', !/Claim|choose a username/i.test(await text()));
   check('THE RIGHTS PROMPT APPEARS on the first binder', await seesPrompt());
   check('...and it records that it was shown', !!(await profile())?.rights_prompt_at);
 

@@ -447,7 +447,7 @@ function ProfileView({ onClose }: { onClose: () => void }) {
   const [shareChecked, setShareChecked] = useState(false);
   const [shareBusy, setShareBusy] = useState(false);
   const acceptSharing = () => {
-    if (!shareChecked || shareBusy) return;
+    if (!shareChecked || shareBusy || !auth.profile?.username) return;
     setShareBusy(true);
     void auth
       .updateProfile({ rights_attested_at: new Date().toISOString() })

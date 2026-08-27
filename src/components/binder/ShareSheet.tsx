@@ -176,25 +176,61 @@ export function ShareSheet({
   // different page changes the preview and must put the indicator honestly back to "preparing".
   // Deriving the state from that key means any change re-arms it with no reset to remember.
   const featured = (binder.sharePageIds ?? []).join(',');
-  const warmKey = `${binder.id}:${featured}`;
+  // shareVersion is the server's own "the preview changed" signal — a trigger bumps it whenever the
+  // image would differ — so it belongs in the key next to the featured pages. Without it, an edit
+  // made while this sheet is open could leave a stale tick claiming a preview the link no longer
+  // points at.
+  const warmKey = `${binder.id}:${featured}:${binder.shareVersion ?? 0}`;
   const [warmed, setWarmed] = useState<{ key: string; state: 'ready' | 'failed' } | null>(null);
   const warmth = !isPublic ? 'idle' : warmed?.key === warmKey ? warmed.state : 'warming';
 
+  /* eslint-disable react-hooks/set-state-in-effect -- see the stale-failure note below. */
   useEffect(() => {
     if (!visible || !isPublic) return;
     let live = true;
-    // Debounced: featuring pages is a burst of taps, and each change would otherwise kick off its
-    // own several-second render on the server.
-    const t = setTimeout(() => {
-      warmBinderPreview(binder.id).then((state) => {
-        if (live) setWarmed({ key: warmKey, state });
-      });
-    }, 400);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let attempt = 0;
+
+    // A failure recorded during a PREVIOUS opening of this sheet is stale — the preview has very
+    // likely finished since. Drop it so this opening starts by re-checking rather than by showing
+    // a red line about a picture that is now sitting in the CDN. Only ever clears a failure; a
+    // "ready" is still true and is kept so the tick does not flicker on reopen.
+    setWarmed((prev) => (prev?.state === 'failed' ? null : prev));
+
+    // RETRIES — and the first gap is not merely a debounce for a burst of featured-page taps.
+    //
+    // Flipping a binder public is OPTIMISTIC: the store updates local state immediately and writes
+    // to the database in the background, so `isPublic` is true here a round trip before the server
+    // agrees. A warm sent inside that window asks about a binder the server still reads as private
+    // and is answered "not public" — and with a single attempt that raced answer was FINAL. The
+    // indicator then sat on "isn't ready" for a preview that was fine a moment later, because
+    // nothing in the deps ever changed to make it look again.
+    //
+    // So a failure is not believed until the attempts run out. Anything transient — the publish
+    // race, a network blip, a cold render that timed out — corrects itself, and the spinner goes
+    // on saying "preparing", which is the honest thing to show while the answer isn't known yet.
+    const GAPS = [400, 1500, 4000];
+    const attemptWarm = () => {
+      timer = setTimeout(() => {
+        void warmBinderPreview(binder.id).then((state) => {
+          if (!live) return;
+          if (state === 'ready' || attempt >= GAPS.length - 1) {
+            setWarmed({ key: warmKey, state });
+            return;
+          }
+          attempt += 1;
+          attemptWarm();
+        });
+      }, GAPS[attempt]);
+    };
+    attemptWarm();
+
     return () => {
       live = false;
-      clearTimeout(t);
+      if (timer) clearTimeout(timer);
     };
   }, [visible, isPublic, binder.id, warmKey]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const onShare = async () => {
     // A last attempt if the preview isn't already warm — this is the final moment before the link

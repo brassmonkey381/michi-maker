@@ -13,6 +13,7 @@ import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View, u
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BinderGrid } from '@/components/binder/BinderGrid';
+import { ProfileAvatarButton } from '@/components/people/ProfileAvatarButton';
 import { BinderScreen } from '@/components/binder/BinderScreen';
 import { BinderPages } from '@/components/binder/BinderPages';
 import { LikeButton } from '@/components/binder/LikeButton';
@@ -22,6 +23,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Fonts, FontSize, MaxContentWidthWide, Palette, Spacing } from '@/constants/theme';
 import { fetchBinder } from '@/data/binderRepo';
 import type { DemoBinder } from '@/data/binderTypes';
+import { fetchBinderOwner, profileHandle, type PublicProfile } from '@/data/profileRepo';
 import { CONTEST } from '@/data/contest';
 import { fetchEntry } from '@/data/contestRepo';
 import { isSupabaseConfigured } from '@/lib/env';
@@ -182,11 +184,47 @@ function Viewer({
 }) {
   const [needAccount, setNeedAccount] = useState(false);
   const [reporting, setReporting] = useState(false);
+  const router = useRouter();
+
+  // Who made this. A shared binder arrives with no owner attached — a DemoBinder carries pages,
+  // not people — so the author is resolved separately and appears when it lands. Deliberately NOT
+  // folded into the page's loading state: the binder is the point and should never wait on a
+  // byline. A private or missing profile resolves to null and simply shows nothing.
+  const [author, setAuthor] = useState<PublicProfile | null>(null);
+  useEffect(() => {
+    if (!isSupabaseConfigured || !binder.id) return;
+    let alive = true;
+    fetchBinderOwner(binder.id)
+      .then((p) => alive && setAuthor(p))
+      .catch(() => {
+        /* no byline; the binder still reads fine without one */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [binder.id]);
+  const openAuthor = () => author && router.push(`/u/${profileHandle(author)}` as never);
+
   return (
     <ScrollView contentContainerStyle={styles.scroll}>
       <ThemedText type="subtitle" style={styles.title}>
         {binder.title}
       </ThemedText>
+      {author ? (
+        <View style={styles.authorRow}>
+          <ProfileAvatarButton
+            username={author.username}
+            avatarUrl={author.avatarUrl}
+            size={28}
+            onPress={openAuthor}
+          />
+          <Pressable onPress={openAuthor} hitSlop={6} accessibilityRole="link">
+            <ThemedText type="small" themeColor="textSecondary">
+              by {author.username ? `@${author.username}` : 'a collector'}
+            </ThemedText>
+          </Pressable>
+        </View>
+      ) : null}
       {binder.description ? (
         <ThemedText type="small" themeColor="textSecondary" style={styles.description}>
           {binder.description}
@@ -258,6 +296,7 @@ const styles = StyleSheet.create({
   title: { textAlign: 'center', fontFamily: Fonts?.brand, fontSize: FontSize.nav, lineHeight: 34 },
   description: { textAlign: 'center', marginTop: Spacing.two, maxWidth: 520 },
   likeRow: { marginTop: Spacing.three, alignItems: 'center' },
+  authorRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginBottom: Spacing.two },
   likeHint: { marginTop: Spacing.two, textAlign: 'center' },
   madeWith: { marginTop: Spacing.five },
   madeWithText: { textAlign: 'center' },

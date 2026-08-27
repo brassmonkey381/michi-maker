@@ -4,14 +4,15 @@
  *   • TYPED QUERY — the debounced `search_binders` RPC (title / description / owner @username).
  *   • A CONTEST CATEGORY CHIP — that category's entries, ranked by votes.
  *   • NEITHER (the default) — three stacked sections: a feed of every contest entry, newest entry
- *     first; then Public binders, everything that is not an entry, ordered by when it was made
- *     public or by likes (the reader picks, and publish date is the default); then the house
- *     account's own reference binders, which are deliberately last.
+ *     first; then Public binders, everything that is not an entry, ordered by likes or by when it
+ *     was made public (the reader picks; likes is the default); then the house account's own
+ *     reference binders, which are deliberately last.
  *
- * The default used to be one grid of the most-liked binders, which is a leaderboard rather than a
- * discovery surface: the same binders hold the top, and something published today is invisible
- * until it earns votes. Splitting entries out and defaulting to publish date fixes both, and the
- * popularity ordering is still one tap away.
+ * This page was once a single grid of the most-liked binders, which is a leaderboard rather than a
+ * discovery surface: the same binders hold the top and something published today is invisible
+ * until it earns votes. Splitting the contest entries into their own feed is what fixed that —
+ * newly published work has a section of its own to appear in — which is why the main grid can
+ * default to likes without swallowing everything new. "Recently public" is one tap away.
  *
  * Results render as a responsive grid of the shared BinderThumb; tapping one opens `/binder/[id]`.
  * Guests can browse too (every RPC here is granted to anon) — this is discovery, not a personal
@@ -33,6 +34,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BinderThumb } from '@/components/binder/BinderThumb';
+import { ProfileAvatarButton } from '@/components/people/ProfileAvatarButton';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { CATEGORIES, CONTEST, contestPhase, type ContestCategory } from '@/data/contest';
@@ -57,6 +59,7 @@ import {
   type DiscoverSort,
 } from '@/data/binderRepo';
 import type { DemoBinder } from '@/data/binderTypes';
+import { fetchAvatarsByUsername } from '@/data/profileRepo';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useImageManifest } from '@/lib/catalogConfig';
 
@@ -155,6 +158,26 @@ export default function DiscoverScreen() {
       alive = false;
     };
   }, [sort, contestOn]);
+
+  // Avatars for the people whose binders are on show. Keyed by username because that is the only
+  // thing a listed binder knows about its owner (`authorName`), and it is enough: the username is
+  // also the profile's address. One query for the whole grid, resolved after the binders land so a
+  // slow or failed avatar lookup never delays or blanks the tiles.
+  const [avatars, setAvatars] = useState<Map<string, string | null>>(new Map());
+  const authorNames = (others ?? []).map((b) => b.authorName).filter(Boolean) as string[];
+  const authorKey = [...new Set(authorNames)].sort().join(',');
+  useEffect(() => {
+    if (!isSupabaseConfigured || !authorKey) return;
+    let alive = true;
+    fetchAvatarsByUsername(authorKey.split(','))
+      .then((m) => alive && setAvatars(m))
+      .catch(() => {
+        /* no pictures; the lettered tiles still render */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [authorKey]);
 
   // The house account's own binders, kept out of the section above and shown last. Fetched once,
   // not re-fetched on the sort chips: this is a shelf of reference material rather than a ranking,
@@ -410,11 +433,22 @@ export default function DiscoverScreen() {
                         width={tileW}
                         onPress={() => openBinder(b.id)}
                         accessory={
-                          sort === 'likes' ? (
-                            <ThemedText type="small" themeColor="textSecondary">
-                              ♥ {b.likeCount ?? 0}
-                            </ThemedText>
-                          ) : undefined
+                          // Like count then avatar, so the avatar is hard against the right edge
+                          // and lands in the same spot on every tile whether or not a count shows.
+                          <View style={styles.tileAccessory}>
+                            {sort === 'likes' ? (
+                              <ThemedText type="small" themeColor="textSecondary">
+                                ♥ {b.likeCount ?? 0}
+                              </ThemedText>
+                            ) : null}
+                            {b.authorName ? (
+                              <ProfileAvatarButton
+                                username={b.authorName}
+                                avatarUrl={avatars.get(b.authorName.toLowerCase())}
+                                onPress={() => router.push(`/u/${b.authorName}` as Href)}
+                              />
+                            ) : null}
+                          </View>
                         }
                       />
                     ))}
@@ -494,6 +528,7 @@ const styles = StyleSheet.create({
   },
   sectionNote: { lineHeight: 18, marginTop: -Spacing.two, marginBottom: Spacing.three },
   sortRow: { flexDirection: 'row', gap: Spacing.one },
+  tileAccessory: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   sortChip: {
     paddingVertical: Spacing.one,
     paddingHorizontal: Spacing.two,

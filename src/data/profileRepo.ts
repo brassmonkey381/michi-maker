@@ -132,6 +132,52 @@ export async function upvoteProfile(profileId: string): Promise<void> {
   if (error) throw new Error(`upvote: ${error.message}`);
 }
 
+/**
+ * username -> avatar url, for a batch of people. One query for a whole grid rather than one per
+ * tile: Discover shows up to 40 binders and would otherwise fire 40 requests to draw 40 avatars.
+ *
+ * Only PUBLIC profiles are returned, which is also the gate on whether the avatar may be shown at
+ * all. A username with no entry in the returned map simply has no picture, which is the common
+ * case (see ProfileAvatarButton) and not an error.
+ */
+export async function fetchAvatarsByUsername(
+  usernames: string[],
+): Promise<Map<string, string | null>> {
+  const names = [...new Set(usernames.filter(Boolean).map((n) => n.toLowerCase()))];
+  if (names.length === 0) return new Map();
+  const { data, error } = await requireSupabase()
+    .from('profiles')
+    .select('username, avatar_url')
+    .eq('is_public', true)
+    .in('username', names);
+  if (error) throw new Error(`load avatars: ${error.message}`);
+  return new Map(
+    ((data ?? []) as { username: string | null; avatar_url: string | null }[])
+      .filter((r) => r.username)
+      .map((r) => [r.username!.toLowerCase(), r.avatar_url]),
+  );
+}
+
+/**
+ * The public profile of whoever owns a binder.
+ *
+ * Starts from the binder because that is what the binder page has — it loads a binder, not a
+ * person, and `DemoBinder` carries no owner. Two hops rather than a join so it needs no change to
+ * the binder read path, and RLS still decides both halves: a private profile yields null and the
+ * page simply shows no author.
+ */
+export async function fetchBinderOwner(binderId: string): Promise<PublicProfile | null> {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from('binders')
+    .select('owner_id')
+    .eq('id', binderId)
+    .maybeSingle();
+  if (error) throw new Error(`load binder owner: ${error.message}`);
+  const ownerId = (data as { owner_id?: string } | null)?.owner_id;
+  return ownerId ? fetchProfile(ownerId) : null;
+}
+
 /** Remove the current user's upvote from a profile. */
 export async function removeUpvote(profileId: string, voterId: string): Promise<void> {
   const supabase = requireSupabase();

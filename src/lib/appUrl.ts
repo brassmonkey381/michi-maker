@@ -12,9 +12,22 @@ export function appOrigin(): string {
   return process.env.EXPO_PUBLIC_APP_URL ?? FALLBACK_ORIGIN;
 }
 
-/** The public, shareable URL for a binder (the `/binder/[id]` route). */
-export function binderShareUrl(id: string): string {
-  return `${appOrigin()}/binder/${id}`;
+/**
+ * The public, shareable URL for a binder (the `/binder/[id]` route).
+ *
+ * `?v=` is the binder's share_version, and it exists for the scrapers rather than for us. Discord,
+ * Slack and iMessage cache an unfurl against the URL that was posted, for a day or more, and
+ * nothing in the page can shorten that: busting the IMAGE url (see ogImageUrl) does nothing for a
+ * scraper that never re-fetches the PAGE. A different v is a URL they have not seen, so the new
+ * preview shows immediately instead of after their cache expires.
+ *
+ * The version changes only when the preview changes (any edit, or a change to the featured
+ * pages), so copying the same unedited binder twice yields the same link. Omitting it is safe and
+ * resolves identically: nothing in the app reads `v`.
+ */
+export function binderShareUrl(id: string, shareVersion?: number | null): string {
+  const base = `${appOrigin()}/binder/${id}`;
+  return shareVersion && shareVersion > 1 ? `${base}?v=${shareVersion}` : base;
 }
 
 /**

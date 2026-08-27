@@ -21,6 +21,7 @@ import { ThemedText } from '@/components/themed-text';
 import { DialogCard } from '@/components/ui/DialogCard';
 import { Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { privateArtInBinder, type PrivateArtRef } from '@/data/artAttributionCheck';
+import { fetchShareVersion } from '@/data/binderRepo';
 import type { DemoBinder } from '@/data/binderTypes';
 import { CONTEST } from '@/data/contest';
 import { useTheme } from '@/hooks/use-theme';
@@ -51,7 +52,21 @@ export function ShareSheet({
   onToast?: (message: string) => void;
 }) {
   const theme = useTheme();
-  const url = binderShareUrl(binder.id);
+  // The authoritative version, re-read when the sheet opens: the store's copy is stale after any
+  // edit (the trigger bumps server-side), and a stale v is the one case where the link would land
+  // on a cached embed. Falls back to the store's value if the read fails.
+  const [liveVersion, setLiveVersion] = useState<number | null>(null);
+  useEffect(() => {
+    if (!visible || binder.isExample) return;
+    let live = true;
+    void fetchShareVersion(binder.id).then((v) => {
+      if (live && v != null) setLiveVersion(v);
+    });
+    return () => {
+      live = false;
+    };
+  }, [visible, binder.id, binder.isExample]);
+  const url = binderShareUrl(binder.id, liveVersion ?? binder.shareVersion);
   const [copied, setCopied] = useState(false);
   // Whether this binder is a contest entry (reported up by ContestEntrySection, which loads it).
   // An ENTERED binder may show at most CONTEST.pageCap public pages, so flipping one more page

@@ -137,6 +137,11 @@ export interface DemoBinder {
   /** Up to 2 page ids to feature in the shared-link OG preview. Absent/empty = auto (fullest pages).
    *  Persisted to binders.share_page_ids; read by api/og-image-binder.js. */
   sharePageIds?: string[];
+  /**
+   * Cache-busting version for the share link (`?v=`). Server-owned: a trigger bumps it whenever
+   * the preview changes. Never written by the client, so it is absent on a local/example binder.
+   */
+  shareVersion?: number;
   /** Total likes this binder has received. Populated for Featured + when viewing a public binder. */
   likeCount?: number;
   /** Whether the current signed-in viewer has liked this binder. */

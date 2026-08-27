@@ -114,6 +114,7 @@ interface BinderRowIn {
   is_public: boolean;
   is_demo: boolean | null;
   share_page_ids: string[] | null;
+  share_version: number | null;
   binder_pages: PageRowIn[] | null;
 }
 
@@ -162,6 +163,7 @@ function mapBinder(row: BinderRowIn): DemoBinder {
     coverCardId: row.cover_card_id ?? undefined,
     isPublic: row.is_public,
     sharePageIds: row.share_page_ids ?? undefined,
+    shareVersion: row.share_version ?? undefined,
     pages,
   };
 }
@@ -310,6 +312,25 @@ export async function updateBinder(id: string, patch: Partial<DemoBinder>): Prom
   if (Object.keys(row).length === 0) return;
   const { error } = await supabase.from('binders').update(row).eq('id', id);
   if (error) throw new Error(`update binder: ${error.message}`);
+}
+
+/**
+ * The binder's CURRENT share_version, straight from the row.
+ *
+ * The column is server-owned: a trigger bumps it on every edit, so the copy in the store goes
+ * stale the moment anything changes and the share sheet would hand out the pre-edit link. That is
+ * precisely the link a scraper may already have cached, which would defeat the versioning. One
+ * row, read when the sheet opens.
+ */
+export async function fetchShareVersion(id: string): Promise<number | null> {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from('binders')
+    .select('share_version')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) return null; // fall back to whatever the store holds; a link is better than none
+  return data?.share_version ?? null;
 }
 
 export async function deleteBinder(id: string): Promise<void> {

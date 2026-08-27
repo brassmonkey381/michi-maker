@@ -751,15 +751,35 @@ function singleFrame(page, manifest, art, backdrop, chrome) {
   const botInk = backdrop ? chromeInk(backdrop.bottom, groundScrim) : flat;
   const cols = page.cols || 3;
   const rows = page.rows || 3;
-  // 470, not 455: dropping the disclaimer from three lines to two frees vertical space, and it goes
-  // to the PAGE. Left in the top band it would only widen the gap above the page and drop the
-  // lockup down with it.
-  const { cw, ch } = cardSize(cols, rows, 540 * S, 470 * S);
-  // + the mat's own padding, + its hairline: both sides of each, or the lockup above the page
-  // stops being centred on the space it is supposed to be centred in.
-  const matH = rows * ch + (rows - 1) * GAP + 36 * S + 2 * MAT_EDGE;
-  const below = 24 * S; // a little air between the page and the disclaimer
-  const topBand = Math.max(70 * S, SINGLE_H - SINGLE_LEGAL_BAND - matH - below);
+
+  // ── vertical geometry, derived rather than clamped ──────────────────────────────────────
+  //
+  // Everything below hangs off ONE fixed point: the disclaimer's top edge, which sits at
+  // SINGLE_H - SINGLE_LEGAL_BAND no matter what the band does (the band's padding pushes its own
+  // top up, never the text down). From there:
+  //
+  //   page bottom = text top - FOOTER_CLEARANCE      (so the gap is exactly FOOTER_CLEARANCE)
+  //   band top    = page bottom - FOOTER_OVERHANG    (so the page laps over it by that much)
+  //   top band    = page bottom - matH               (whatever is left above the page)
+  //
+  // WHY THE PAGE IS SIZED TO FIT RATHER THAN CLAMPED. This used to read
+  // `Math.max(70 * S, SINGLE_H - ... - matH - below)`, with the card box capped at a fixed height.
+  // On a tall page the computed band went under the floor, the floor won, and the mat was pushed
+  // DOWN by the difference — straight through the disclaimer. The clamp silently spent the
+  // clearance, so adding more clearance did nothing, which is exactly how it presented. Sizing the
+  // card grid to the room that actually exists means the floor can never bind and the three lines
+  // above hold for every page shape.
+  const FOOTER_CLEARANCE = 30 * S;
+  const FOOTER_OVERHANG = 26 * S;
+  const MIN_TOP_BAND = 70 * S;
+  const TEXT_TOP = SINGLE_H - SINGLE_LEGAL_BAND;
+  const pageBottom = TEXT_TOP - FOOTER_CLEARANCE;
+  // The mat's own padding and hairline, both sides of each, are not available to the cards.
+  const matChrome = 36 * S + 2 * MAT_EDGE;
+  const { cw, ch } = cardSize(cols, rows, 540 * S, pageBottom - MIN_TOP_BAND - matChrome);
+  const matH = rows * ch + (rows - 1) * GAP + matChrome;
+  const topBand = pageBottom - matH;
+  const bandBottomH = SINGLE_LEGAL_BAND + FOOTER_CLEARANCE + FOOTER_OVERHANG;
   const layers = [];
   if (backdrop) {
     layers.push(
@@ -782,6 +802,29 @@ function singleFrame(page, manifest, art, backdrop, chrome) {
         },
       }),
     );
+  }
+  // The bands are drawn HERE, as layers beneath the content, and deliberately not as backgrounds
+  // on the header and footer rows.
+  //
+  // As a row background the footer painted AFTER the page, and BAND_FILL is 94% cream, so the part
+  // of the page overhanging it kept its cream body (cream over cream, no difference) while its
+  // black edge came through at 6% and vanished. The header looked right only by accident of being
+  // an earlier sibling. Underneath both, the page overhangs both bands with its edge intact, which
+  // is the whole point of the treatment: a page laid over the frame, not slotted between two strips.
+  if (bands) {
+    const band = (edge, height) =>
+      h('div', {
+        style: {
+          display: 'flex',
+          position: 'absolute',
+          left: 0,
+          [edge]: 0,
+          width: SINGLE_W,
+          height,
+          backgroundColor: BAND_FILL,
+        },
+      });
+    layers.push(band('top', topBand), band('bottom', bandBottomH));
   }
   layers.push(
     h(
@@ -806,7 +849,6 @@ function singleFrame(page, manifest, art, backdrop, chrome) {
               height: topBand,
               alignItems: 'center',
               justifyContent: 'center',
-              ...(bands ? { backgroundColor: BAND_FILL } : {}),
             },
           },
           h(
@@ -844,7 +886,13 @@ function singleFrame(page, manifest, art, backdrop, chrome) {
               display: 'flex',
               justifyContent: 'center',
               paddingBottom: 22 * S,
-              ...(bands ? { backgroundColor: BAND_FILL, paddingTop: 18 * S } : {}),
+              // Matches the bottom band's height above; the band is painted beneath, so this only
+              // reserves the room the page laps into.
+              ...(bands ? { paddingTop: FOOTER_CLEARANCE + FOOTER_OVERHANG } : {}),
+              // Fixed, so the footer row cannot take height from the middle row and shift the page
+              // off the geometry above. Without this the row grows with its padding and the mat
+              // lands somewhere the three lines of arithmetic never predicted.
+              height: bands ? bandBottomH : SINGLE_LEGAL_BAND,
             },
           },
           h(

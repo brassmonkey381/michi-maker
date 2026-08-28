@@ -914,7 +914,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     role: GridRole;
     captionFields: CaptionFieldKey[];
     ownedIds?: ReadonlySet<string>;
-    scanUrlOf?: (cardId: string) => string | undefined;
+    scanUrlOf?: (slot: DemoSlot) => string | undefined;
   }) => {
     if (!editing) {
       return (

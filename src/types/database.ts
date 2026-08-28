@@ -267,6 +267,7 @@ export type Database = {
           row_index: number
           row_span: number
           slot_type: Database["public"]["Enums"]["binder_slot_type"]
+          source_entry_id: string | null
           updated_at: string
         }
         Insert: {
@@ -288,6 +289,7 @@ export type Database = {
           row_index: number
           row_span?: number
           slot_type?: Database["public"]["Enums"]["binder_slot_type"]
+          source_entry_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -309,6 +311,7 @@ export type Database = {
           row_index?: number
           row_span?: number
           slot_type?: Database["public"]["Enums"]["binder_slot_type"]
+          source_entry_id?: string | null
           updated_at?: string
         }
         Relationships: [

@@ -56,6 +56,25 @@ test('a pocket index becomes the row and column it came from', () => {
   assert.equal(r.placed, 3);
 });
 
+test('every placed pocket is stamped with the entry it depicts', () => {
+  // The real-scan join key: two copies of one card land as two slots, each naming ITS entry,
+  // which is what lets each pocket later resolve its own copy's photo instead of the newest.
+  const r = rebuildTcgscanBinder(
+    binder({
+      entries: [
+        pocket({ cardId: 'zard', page: 1, pos: 0, entryId: 'entry-scuffed' }),
+        pocket({ cardId: 'zard', page: 1, pos: 1, entryId: 'entry-mint' }),
+      ],
+    }),
+    CAP,
+  );
+  const stamps = r.pages[0].slots
+    .filter((x) => x.cardId === 'zard')
+    .sort((a, b) => a.col - b.col)
+    .map((x) => x.sourceEntryId);
+  assert.deepEqual(stamps, ['entry-scuffed', 'entry-mint']);
+});
+
 test('every page keeps its number, including the ones holding nothing', () => {
   const r = rebuildTcgscanBinder(
     binder({ entries: [pocket({ cardId: 'a', page: 4, pos: 2 })] }),

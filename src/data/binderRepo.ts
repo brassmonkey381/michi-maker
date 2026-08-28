@@ -72,6 +72,7 @@ function slotRow(slot: DemoSlot, pageId: string): Tables['binder_slots']['Insert
     image_transform: slot.imageTransform ?? null,
     image_attribution: (slot.attribution ?? null) as Tables['binder_slots']['Insert']['image_attribution'],
     from_collection: slot.fromCollection ?? null,
+    source_entry_id: slot.sourceEntryId ?? null,
   };
 }
 
@@ -92,6 +93,7 @@ interface SlotRowIn {
   image_transform: DemoSlot['imageTransform'] | null;
   image_attribution: DemoSlot['attribution'] | null;
   from_collection: boolean | null;
+  source_entry_id?: string | null;
 }
 
 interface PageRowIn {
@@ -136,6 +138,7 @@ function mapSlot(row: SlotRowIn): DemoSlot {
     imageTransform: row.image_transform ?? undefined,
     attribution: row.image_attribution ?? undefined,
     fromCollection: row.from_collection ?? undefined,
+    sourceEntryId: row.source_entry_id ?? undefined,
   };
 }
 

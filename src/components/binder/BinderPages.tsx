@@ -20,7 +20,7 @@ import { ThemedText } from '@/components/themed-text';
 import { BinderPageMaxWidth } from '@/constants/theme';
 import { pillChip } from '@/constants/ui';
 import { DEFAULT_CAPTION_FIELDS, type CaptionFieldKey } from '@/data/cardCaption';
-import type { DemoBinder, DemoPage } from '@/data/binderTypes';
+import type { DemoBinder, DemoPage, DemoSlot } from '@/data/binderTypes';
 import { useOwnedCards } from '@/hooks/use-owned-cards';
 import { useScanImages } from '@/hooks/use-scan-images';
 
@@ -50,7 +50,7 @@ export interface BinderPagesProps {
     captionFields: CaptionFieldKey[];
     ownedIds?: ReadonlySet<string>;
     /** Real-scan lookup while the Scans pill is on (owner-only; see useScanImages). */
-    scanUrlOf?: (cardId: string) => string | undefined;
+    scanUrlOf?: (slot: DemoSlot) => string | undefined;
   }) => ReactNode;
   /**
    * Does the person looking at this own it? Gates the Real-scans pill, and defaults to FALSE so
@@ -102,7 +102,15 @@ export function BinderPages({
   const ownScans = useScanImages();
   const scanImages = viewerIsOwner ? ownScans : undefined;
   const [showScans, setShowScans] = useState(false);
-  const scanUrlOf = showScans && scanImages ? (cardId: string) => scanImages.get(cardId) : undefined;
+  // Per COPY first: a rebuilt pocket knows which owned entry it depicts (sourceEntryId) and shows
+  // that card's own photo, so two copies of one card stop wearing the same face. Newest-per-card
+  // is the fallback for hand-placed slots, pre-stamp binders, and entries since deleted.
+  const scanUrlOf =
+    showScans && scanImages
+      ? (slot: DemoSlot) =>
+          (slot.sourceEntryId ? scanImages.byEntry.get(slot.sourceEntryId) : undefined) ??
+          (slot.cardId ? scanImages.byCard.get(slot.cardId) : undefined)
+      : undefined;
   // Double-sided: pages pair like a physical binder — page 1 alone (the cover face), then
   // 2·3 facing, 4·5, … Both sides of the open spread are shown (and edited) together.
   const [doubleSided, setDoubleSided] = useState(doubleSidedPref);

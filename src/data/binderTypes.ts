@@ -83,6 +83,14 @@ export interface DemoSlot {
    */
   attribution?: ArtAttribution;
   /**
+   * The tcgscan `portfolio_entries` row this pocket depicts — stamped by "Rebuild in michi"
+   * (tcgscanBinderImport), which knows exactly which owned copy sits in each physical pocket.
+   * A SOFT POINTER: the entry may be gone (lot removed, collection deleted) and the pointer just
+   * dangles — display falls back to the card's newest scan. Never set for hand-placed slots.
+   * Owner-meaningful only: to anyone else it is an opaque uuid that joins to nothing (RLS).
+   */
+  sourceEntryId?: string;
+  /**
    * True when this pocket was filled FROM the owner's card inventory ("My collection" /
    * fill-from-my-collection) — it consumes one owned copy in the (free/owned) accounting and
    * can be reclaimed. Absent/false ⇒ placed from general browsing (aspirational; doesn't

@@ -289,8 +289,11 @@ function CollectionStrip({
   // the account has any; session-only toggle, like the binder view's Scans pill.
   const scanImages = useScanImages();
   const [showScans, setShowScans] = useState(false);
+  // Tiles are per-CARD aggregates (a UserCard row, not a lot), so the card's newest scan is the
+  // right face here; per-copy display lives where copies exist — binder pockets and tcgscan's
+  // lot rows.
   const scanUrlOf =
-    showScans && scanImages ? (cardId: string) => scanImages.get(cardId) : undefined;
+    showScans && scanImages ? (cardId: string) => scanImages.byCard.get(cardId) : undefined;
   const [selected, setSelected] = useState<Set<string>>(new Set());
   // Tap behaviour mirrors the card browser: a tap opens the card's ACTION MODAL; flip on
   // "Select multiple" and taps toggle a selection for the bulk action bar instead.

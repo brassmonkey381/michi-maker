@@ -64,7 +64,7 @@ interface BinderGridProps {
    * into the normal catalog march; artwork heroes never use it (a phone crop as full-bleed art
    * would read as a glitch). Undefined/omitted = catalog images, the default.
    */
-  scanUrlOf?: (cardId: string) => string | undefined;
+  scanUrlOf?: (slot: DemoSlot) => string | undefined;
 }
 
 export interface BinderGridHandle {
@@ -260,7 +260,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               small={small}
               catalog={catalog}
               owned={!!(slot.cardId && ownedIds?.has(slot.cardId))}
-              scanUri={slot.cardId ? scanUrlOf?.(slot.cardId) : undefined}
+              scanUri={slot.cardId ? scanUrlOf?.(slot) : undefined}
             />
           );
           if (!editable) {
@@ -352,7 +352,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               small={small}
               catalog={catalog}
               owned={!!(dragged.cardId && ownedIds?.has(dragged.cardId))}
-              scanUri={dragged.cardId ? scanUrlOf?.(dragged.cardId) : undefined}
+              scanUri={dragged.cardId ? scanUrlOf?.(dragged) : undefined}
             />
           </Animated.View>
         ) : null}

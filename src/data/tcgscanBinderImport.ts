@@ -261,6 +261,10 @@ export function rebuildTcgscanBinder(binder: TcgscanBinder, maxPages: number): R
       // These are the owner's actual cards, so the pockets consume owned copies exactly as a
       // placement made from "My collection" does — and can be reclaimed the same way.
       fromCollection: true,
+      // WHICH copy: the entry whose storage address is this pocket. This is the join key the
+      // real-scan display needs to show the photo of the card actually sitting here, rather
+      // than the newest photo of any copy of it (see DemoSlot.sourceEntryId).
+      sourceEntryId: e.entryId,
     });
     placed += 1;
   }

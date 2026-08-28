@@ -972,6 +972,11 @@ export function BinderProvider({ children }: { children: ReactNode }) {
             colSpan,
             type: input.type ?? existing.type,
             cardId: input.cardId ?? existing.cardId,
+            // The rebuild stamp names the OWNED COPY this pocket depicts (real-scan pairing).
+            // It is true of the card the rebuild placed, not of the pocket — so placing a
+            // different card here must drop it, or the pocket would wear the old copy's photo.
+            sourceEntryId:
+              input.cardId && input.cardId !== existing.cardId ? undefined : existing.sourceEntryId,
             insertColor: input.insertColor ?? existing.insertColor,
             imageUrl: input.imageUrl ?? existing.imageUrl,
           }

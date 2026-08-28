@@ -23,13 +23,11 @@ Set-Location $repo
 function Say([string]$m) { if (-not $Hook) { Write-Host $m } }
 
 # The hook's only channel to the user is a JSON systemMessage; anything else is
-# transcript noise. Silence is deliberate for the uninteresting outcomes.
+# transcript noise, and silence is deliberate for the uninteresting outcomes. A
+# run by hand has already said the same thing through Say, so this prints
+# nothing there rather than saying it twice.
 function Finish([string]$message) {
-  if ($Hook) {
-    if ($message) { Write-Output (@{ systemMessage = $message } | ConvertTo-Json -Compress) }
-  } elseif ($message) {
-    Write-Host $message
-  }
+  if ($Hook -and $message) { Write-Output (@{ systemMessage = $message } | ConvertTo-Json -Compress) }
   exit 0
 }
 

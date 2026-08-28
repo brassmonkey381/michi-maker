@@ -289,6 +289,60 @@ test('a shape smaller than any real page grows into the smallest one that holds 
   assert.equal(r.normalizedPages, 1);
 });
 
+test('a sideways page is turned upright onto the real page it is a transpose of', () => {
+  // tcgscan's rows/cols are camera-relative: a 3 x 4 page photographed turned is honestly reported
+  // as 4 x 3. michi has no 4 x 3 page (binderPhysics: it does not exist), so the page is rotated.
+  const r = rebuildTcgscanBinder(
+    binder({
+      entries: [
+        // On the 4 x 3 the camera saw: pos 0 is (0,0), pos 5 is (1,2), pos 11 is (3,2).
+        pocket({ cardId: 'first', page: 1, pos: 0, rows: 4, cols: 3 }),
+        pocket({ cardId: 'middle', page: 1, pos: 5, rows: 4, cols: 3 }),
+        pocket({ cardId: 'last', page: 1, pos: 11, rows: 4, cols: 3 }),
+      ],
+    }),
+    CAP,
+  );
+  assert.deepEqual([r.pages[0].rows, r.pages[0].cols], [3, 4]);
+  assert.equal(r.rotatedPages, 1);
+  assert.equal(r.normalizedPages, 0);
+  const at = (id: string) => {
+    const x = r.pages[0].slots.find((y) => y.cardId === id);
+    return x ? [x.row, x.col] : null;
+  };
+  // A quarter turn clockwise: (row, col) -> (col, lastRow - row). Nothing is dropped and every
+  // card keeps its neighbours.
+  assert.deepEqual(at('first'), [0, 3]);
+  assert.deepEqual(at('middle'), [2, 2]);
+  assert.deepEqual(at('last'), [2, 0]);
+  assert.equal(r.placed, 3);
+});
+
+test('a rotated page loses nothing: 12 pockets in, 12 pockets out', () => {
+  const r = rebuildTcgscanBinder(
+    binder({
+      entries: Array.from({ length: 12 }, (_, i) =>
+        pocket({ cardId: `c${i}`, page: 1, pos: i, rows: 4, cols: 3, entryId: `e${i}` }),
+      ),
+    }),
+    CAP,
+  );
+  assert.equal(r.placed, 12);
+  assert.equal(r.offGrid, 0);
+  // Every cell of the 3 x 4 is filled exactly once.
+  const cells = r.pages[0].slots.map((x) => `${x.row}:${x.col}`);
+  assert.equal(new Set(cells).size, 12);
+});
+
+test('a square shape is never treated as sideways', () => {
+  const r = rebuildTcgscanBinder(
+    binder({ entries: [pocket({ cardId: 'a', pos: 1, rows: 2, cols: 2 })] }),
+    CAP,
+  );
+  assert.equal(r.rotatedPages, 0);
+  assert.deepEqual([r.pages[0].slots[0].row, r.pages[0].slots[0].col], [0, 1]);
+});
+
 test('a real shape is not counted as normalised', () => {
   const r = rebuildTcgscanBinder(
     binder({ entries: [pocket({ cardId: 'a', rows: 4, cols: 4 })] }),

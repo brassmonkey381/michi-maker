@@ -116,6 +116,14 @@ function rebuildMessage(r: RebuildResult, maxPages: number): string {
         'Every card keeps the row and column it was scanned in.',
     );
   }
+  if (r.rotatedPages > 0) {
+    parts.push(
+      `${r.rotatedPages} page${s(r.rotatedPages)} ${r.rotatedPages === 1 ? 'was' : 'were'} ` +
+        'scanned sideways, so they are turned back upright here. Which way round is a guess — the ' +
+        'camera angle is not recorded — so check one page and rotate it in the editor if it reads ' +
+        'the wrong way.',
+    );
+  }
   const stray = r.collided + r.offGrid + r.loose;
   if (stray > 0) {
     parts.push(

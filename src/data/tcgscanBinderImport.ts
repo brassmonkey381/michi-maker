@@ -53,9 +53,18 @@ export const ASSUMED_COLS = 4;
  * lands perfectly on a 3 × 4; a 2 × 3 becomes the top two rows of a 3 × 3. Only a coordinate with
  * nowhere to go on any real page is dropped, and it is counted.
  */
-function realSizeFor(rows: number, cols: number): { rows: number; cols: number; exact: boolean } {
+function realSizeFor(
+  rows: number,
+  cols: number,
+): { rows: number; cols: number; exact: boolean; rotated: boolean } {
   const exact = REAL_PAGE_SIZES.find((z) => z.rows === rows && z.cols === cols);
-  if (exact) return { rows: exact.rows, cols: exact.cols, exact: true };
+  if (exact) return { rows: exact.rows, cols: exact.cols, exact: true, rotated: false };
+  // SIDEWAYS, NOT WRONG. tcgscan's rows and cols are camera-relative, so a 3 × 4 page photographed
+  // turned is honestly reported as 4 × 3 — a shape michi has no page for, and the transpose of one
+  // it does. Rotating it back is the only reading that keeps the real page shape AND every card's
+  // neighbours; drawing it on a 4 × 4 instead would keep the camera's framing and lose the binder.
+  const turned = REAL_PAGE_SIZES.find((z) => z.rows === cols && z.cols === rows);
+  if (turned) return { rows: turned.rows, cols: turned.cols, exact: false, rotated: true };
   // Otherwise: keep the most pockets, then take the smallest page that keeps them. Coverage first
   // because every cell it cannot reach is a card dropped; smallest second so a 3 × 5 becomes a
   // 3 × 4 rather than a 4 × 4 that keeps no more cards and invents an empty row. A page that
@@ -65,7 +74,7 @@ function realSizeFor(rows: number, cols: number): { rows: number; cols: number; 
     const cb = Math.min(b.rows, rows) * Math.min(b.cols, cols);
     return cb - ca || a.rows * a.cols - b.rows * b.cols;
   })[0];
-  return { rows: best.rows, cols: best.cols, exact: false };
+  return { rows: best.rows, cols: best.cols, exact: false, rotated: false };
 }
 
 /** Is this a page michi has? Used for the unit-grid fallback, which has no pockets to decode. */
@@ -122,6 +131,12 @@ export interface RebuildResult {
   droppedCards: number;
   /** Pages scanned at a shape michi has no page for, drawn on the nearest real one. */
   normalizedPages: number;
+  /**
+   * Pages scanned sideways and rotated back upright. WHICH WAY IS A GUESS — a quarter turn
+   * clockwise — because the camera's orientation is not recorded, so the page is right and its
+   * rotation is 50/50. Surfaced to the user for exactly that reason.
+   */
+  rotatedPages: number;
   /** True when no shape was recorded anywhere and ASSUMED_ROWS/COLS had to stand in. */
   assumedShape: boolean;
 }
@@ -184,14 +199,16 @@ export function rebuildTcgscanBinder(binder: TcgscanBinder, maxPages: number): R
   // Two shapes per page, and the difference is the whole trick: `scanned` is what the pocket index
   // means, `drawn` is the real michi page it goes onto. They are the same shape for any page
   // scanned at a size michi has, which is nearly all of them.
-  const scannedOf: { rows: number; cols: number }[] = [];
+  const scannedOf: { rows: number; cols: number; rotated: boolean }[] = [];
   let normalizedPages = 0;
+  let rotatedPages = 0;
   const pages: DemoPage[] = [];
   for (let p = 1; p <= kept; p += 1) {
     const scanned = shapeOf.get(p) ?? fallback;
     const drawn = realSizeFor(scanned.rows, scanned.cols);
-    if (!drawn.exact) normalizedPages += 1;
-    scannedOf.push(scanned);
+    if (drawn.rotated) rotatedPages += 1;
+    else if (!drawn.exact) normalizedPages += 1;
+    scannedOf.push({ ...scanned, rotated: drawn.rotated });
     pages.push({ id: uuidv4(), rows: drawn.rows, cols: drawn.cols, slots: [] as DemoSlot[] });
   }
 
@@ -216,9 +233,14 @@ export function rebuildTcgscanBinder(binder: TcgscanBinder, maxPages: number): R
     // normalise — the exact silent wrongness this import exists to avoid.
     const page = pages[e.page - 1];
     const scanned = scannedOf[e.page - 1];
-    const row = Math.floor(e.pos / scanned.cols);
-    const col = e.pos % scanned.cols;
-    if (row >= page.rows || col >= page.cols) {
+    const seenRow = Math.floor(e.pos / scanned.cols);
+    const seenCol = e.pos % scanned.cols;
+    // A quarter turn clockwise: the camera's leftmost column becomes the page's top row. Adjacency
+    // survives either way round, so a wrong guess is a rotated page the owner can see at a glance,
+    // never a scrambled one.
+    const row = scanned.rotated ? seenCol : seenRow;
+    const col = scanned.rotated ? scanned.rows - 1 - seenRow : seenCol;
+    if (row >= page.rows || col >= page.cols || row < 0 || col < 0) {
       offGrid += 1;
       continue;
     }
@@ -272,6 +294,7 @@ export function rebuildTcgscanBinder(binder: TcgscanBinder, maxPages: number): R
     droppedPages: total - kept,
     droppedCards,
     normalizedPages,
+    rotatedPages,
     // Only a binder where NOTHING recorded a shape — no page, no unit — is running on the guess.
     assumedShape: !recordedAny && (binder.rows == null || binder.cols == null),
   };

@@ -15,13 +15,17 @@
  * because the shape of the gaps is the thing being carried over.
  *
  * ITS OFFLINE SIBLING is `scripts/build-binders-from-scans.mjs`, which does the same job straight
- * to SQL for one account. THE RULES BELOW MUST MATCH ITS RULES — per-page shape with the unit grid
- * as fallback, first non-null shape wins, first claim wins a contested pocket, and a shape michi
- * cannot draw is refused rather than rounded. Two implementations that disagree would put the same
- * card in two different pockets depending on which one ran.
+ * to SQL for one account. Most rules are shared and must stay shared — per-page shape with the unit
+ * grid as fallback, first non-null shape wins, first claim wins a contested pocket — because two
+ * implementations that disagree put the same card in two different pockets depending on which one
+ * ran. ONE RULE HERE IS STRICTER, and the script should follow: a page is drawn on one of michi's
+ * REAL page sizes (see realSizeFor). The script tests rows/cols against binder_pages' 1..6 CHECK,
+ * which passes shapes michi has no page for — a 3 × 5 is legal to the database and does not exist
+ * on a shelf.
  *
  * Pure and dependency-light so `node --test` can run it (see tcgscanBinderImport.test.ts).
  */
+import { REAL_PAGE_SIZES } from './binderPhysics.ts';
 import { uuidv4, type DemoPage, type DemoSlot } from './binderTypes.ts';
 
 /**
@@ -34,12 +38,40 @@ export const ASSUMED_ROWS = 3;
 export const ASSUMED_COLS = 4;
 
 /**
- * michi's own limit: `binder_pages` CHECKs rows and cols into 1..6, while tcgscan tolerates up to
- * 12 and its grid inference has reported phantom shapes. A page outside this cannot be drawn as a
- * michi page at all, so it is refused rather than rounded into a lie about where the cards are.
+ * WHICH SHAPES MICHI ACTUALLY HAS. `binder_pages` CHECKs 1..6 a side, but that is a backstop, not
+ * the model: michi draws REAL side-load pages — 2×2, 3×3, 3×4, 4×4 — and 4 rows × 3 columns is not
+ * among them because it does not exist physically (binderPhysics). The whole fold-a-pair geometry
+ * downstream assumes 2, 3 or 4 columns.
+ *
+ * tcgscan is looser on both counts: it tolerates 12 a side, and its grid inference has reported a
+ * phantom 3 × 5. So a scanned page can carry a shape michi has no page for, and the choice is
+ * between refusing the page and drawing it on the nearest real one.
+ *
+ * IT IS DRAWN, and the pocket index is what makes that safe: `pos` means row and column against
+ * the shape it was SCANNED at, so decoding with that shape and then drawing on a real page keeps
+ * every card in the row and column it physically occupies. A 3 × 5 whose cards only reach column 3
+ * lands perfectly on a 3 × 4; a 2 × 3 becomes the top two rows of a 3 × 3. Only a coordinate with
+ * nowhere to go on any real page is dropped, and it is counted.
  */
-export const MIN_SIDE = 1;
-export const MAX_SIDE = 6;
+function realSizeFor(rows: number, cols: number): { rows: number; cols: number; exact: boolean } {
+  const exact = REAL_PAGE_SIZES.find((z) => z.rows === rows && z.cols === cols);
+  if (exact) return { rows: exact.rows, cols: exact.cols, exact: true };
+  // Otherwise: keep the most pockets, then take the smallest page that keeps them. Coverage first
+  // because every cell it cannot reach is a card dropped; smallest second so a 3 × 5 becomes a
+  // 3 × 4 rather than a 4 × 4 that keeps no more cards and invents an empty row. A page that
+  // CONTAINS the scanned shape wins on coverage automatically, so this is one rule, not two.
+  const best = [...REAL_PAGE_SIZES].sort((a, b) => {
+    const ca = Math.min(a.rows, rows) * Math.min(a.cols, cols);
+    const cb = Math.min(b.rows, rows) * Math.min(b.cols, cols);
+    return cb - ca || a.rows * a.cols - b.rows * b.cols;
+  })[0];
+  return { rows: best.rows, cols: best.cols, exact: false };
+}
+
+/** Is this a page michi has? Used for the unit-grid fallback, which has no pockets to decode. */
+function isRealSize(rows: number, cols: number): boolean {
+  return REAL_PAGE_SIZES.some((z) => z.rows === rows && z.cols === cols);
+}
 
 /** One entry's claim on a pocket. Page/pos are nullable: an entry can be loose in the binder. */
 export interface TcgscanPocket {
@@ -88,8 +120,8 @@ export interface RebuildResult {
   /** Pages the per-binder page cap left behind, and the cards that were on them. */
   droppedPages: number;
   droppedCards: number;
-  /** Pages whose recorded shape is outside michi's 1..6; kept, numbered, and left empty. */
-  unusablePages: number;
+  /** Pages scanned at a shape michi has no page for, drawn on the nearest real one. */
+  normalizedPages: number;
   /** True when no shape was recorded anywhere and ASSUMED_ROWS/COLS had to stand in. */
   assumedShape: boolean;
 }
@@ -97,10 +129,6 @@ export interface RebuildResult {
 /** Every card that did not make it into a pocket, for one honest number in the UI. */
 export function unplacedCount(r: RebuildResult): number {
   return r.collided + r.offGrid + r.loose + r.droppedCards;
-}
-
-function drawable(rows: number, cols: number): boolean {
-  return rows >= MIN_SIDE && rows <= MAX_SIDE && cols >= MIN_SIDE && cols <= MAX_SIDE;
 }
 
 /**
@@ -111,12 +139,13 @@ function drawable(rows: number, cols: number): boolean {
  * tail to fit would silently break that for every page after the first gap.
  */
 export function rebuildTcgscanBinder(binder: TcgscanBinder, maxPages: number): RebuildResult {
-  // The unit's grid is the fallback for every page that recorded none, and the assumed shape is
-  // the fallback for that. A unit grid tcgscan allows but michi cannot draw (7..12 a side) is not
-  // a usable fallback either, so it falls through to the assumed one.
+  // The unit's grid is the fallback for every page that recorded none. Unlike a page's own shape
+  // it decodes nothing — a page with no entries has no pockets to place — so a unit grid that is
+  // not one of michi's real pages is simply not used: 3 × 4 (which is real, and tcgscan's own
+  // backfill default) stands in instead of normalising a shape nothing depends on.
   const unitRows = binder.rows ?? ASSUMED_ROWS;
   const unitCols = binder.cols ?? ASSUMED_COLS;
-  const fallback = drawable(unitRows, unitCols)
+  const fallback = isRealSize(unitRows, unitCols)
     ? { rows: unitRows, cols: unitCols }
     : { rows: ASSUMED_ROWS, cols: ASSUMED_COLS };
 
@@ -138,9 +167,10 @@ export function rebuildTcgscanBinder(binder: TcgscanBinder, maxPages: number): R
   const shapeOf = new Map<number, { rows: number; cols: number }>();
   let recordedAny = false;
   for (const e of sorted) {
-    if (e.page == null || e.cols == null || shapeOf.has(e.page)) continue;
+    if (e.page == null || e.cols == null || e.cols < 1 || shapeOf.has(e.page)) continue;
+    const r = e.rows ?? fallback.rows;
     recordedAny = true;
-    shapeOf.set(e.page, { rows: e.rows ?? fallback.rows, cols: e.cols });
+    shapeOf.set(e.page, { rows: r < 1 ? fallback.rows : r, cols: e.cols });
   }
 
   // How many pages the binder HAS, which is not how many hold a card: page_count remembers a tail
@@ -151,21 +181,18 @@ export function rebuildTcgscanBinder(binder: TcgscanBinder, maxPages: number): R
   const total = Math.max(binder.pageCount ?? 0, highestEntryPage, 1);
   const kept = Math.min(total, Math.max(1, maxPages));
 
-  // A page michi cannot draw still EXISTS on the shelf, so it keeps its number and is drawn at the
-  // fallback shape with no cards in it. Losing the page would renumber everything after it, which
-  // is the one thing this import must never do.
-  const unusable = new Set<number>();
+  // Two shapes per page, and the difference is the whole trick: `scanned` is what the pocket index
+  // means, `drawn` is the real michi page it goes onto. They are the same shape for any page
+  // scanned at a size michi has, which is nearly all of them.
+  const scannedOf: { rows: number; cols: number }[] = [];
+  let normalizedPages = 0;
   const pages: DemoPage[] = [];
   for (let p = 1; p <= kept; p += 1) {
-    const shape = shapeOf.get(p) ?? fallback;
-    const ok = drawable(shape.rows, shape.cols);
-    if (!ok) unusable.add(p);
-    pages.push({
-      id: uuidv4(),
-      rows: ok ? shape.rows : fallback.rows,
-      cols: ok ? shape.cols : fallback.cols,
-      slots: [] as DemoSlot[],
-    });
+    const scanned = shapeOf.get(p) ?? fallback;
+    const drawn = realSizeFor(scanned.rows, scanned.cols);
+    if (!drawn.exact) normalizedPages += 1;
+    scannedOf.push(scanned);
+    pages.push({ id: uuidv4(), rows: drawn.rows, cols: drawn.cols, slots: [] as DemoSlot[] });
   }
 
   const taken = new Set<string>();
@@ -184,10 +211,14 @@ export function rebuildTcgscanBinder(binder: TcgscanBinder, maxPages: number): R
       droppedCards += 1;
       continue;
     }
-    // Its own page's shape decides the pocket — never the binder's, and never the page it would
-    // have had if every page were the same.
+    // DECODED against the shape it was SCANNED at, then checked against the page it is DRAWN on.
+    // Decoding with the drawn shape instead would move cards sideways on any page michi had to
+    // normalise — the exact silent wrongness this import exists to avoid.
     const page = pages[e.page - 1];
-    if (unusable.has(e.page) || e.pos >= page.rows * page.cols) {
+    const scanned = scannedOf[e.page - 1];
+    const row = Math.floor(e.pos / scanned.cols);
+    const col = e.pos % scanned.cols;
+    if (row >= page.rows || col >= page.cols) {
       offGrid += 1;
       continue;
     }
@@ -199,8 +230,8 @@ export function rebuildTcgscanBinder(binder: TcgscanBinder, maxPages: number): R
     taken.add(key);
     page.slots.push({
       id: uuidv4(),
-      row: Math.floor(e.pos / page.cols),
-      col: e.pos % page.cols,
+      row,
+      col,
       rowSpan: 1,
       colSpan: 1,
       type: 'card',
@@ -240,7 +271,7 @@ export function rebuildTcgscanBinder(binder: TcgscanBinder, maxPages: number): R
     loose,
     droppedPages: total - kept,
     droppedCards,
-    unusablePages: unusable.size,
+    normalizedPages,
     // Only a binder where NOTHING recorded a shape — no page, no unit — is running on the guess.
     assumedShape: !recordedAny && (binder.rows == null || binder.cols == null),
   };

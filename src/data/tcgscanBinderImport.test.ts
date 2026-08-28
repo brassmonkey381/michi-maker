@@ -244,26 +244,62 @@ test('one shape throughout is not reported as mixed', () => {
   assert.equal(r.mixedShapes, false);
 });
 
-test('a page shape michi cannot draw keeps its number, empty, and reports its cards', () => {
-  // michi's binder_pages CHECKs 1..6 a side; tcgscan tolerates 12 and has inferred phantom grids.
+test('a shape michi has no page for is drawn on the nearest real one', () => {
+  // michi draws real side-load pages (2x2, 3x3, 3x4, 4x4); tcgscan's grid inference has reported a
+  // phantom 3 x 5. Pocket 6 on a 5-wide page is row 1 col 1 - and lands there on the 3 x 4.
+  const r = rebuildTcgscanBinder(
+    binder({ entries: [pocket({ cardId: 'a', page: 1, pos: 6, rows: 3, cols: 5 })] }),
+    CAP,
+  );
+  assert.equal(r.normalizedPages, 1);
+  // 3 x 4 and 4 x 4 both keep 12 of the 15 pockets; the smaller one wins, so no empty row is
+  // invented for a binder that never had one.
+  assert.deepEqual([r.pages[0].rows, r.pages[0].cols], [3, 4]);
+  assert.deepEqual([r.pages[0].slots[0].row, r.pages[0].slots[0].col], [1, 1]);
+});
+
+test('a card in a column no real page has is dropped, not folded onto another pocket', () => {
+  // Pocket 4 on a 3 x 5 page is row 0 col 4, and no michi page is 5 wide.
+  const r = rebuildTcgscanBinder(
+    binder({ entries: [pocket({ cardId: 'a', page: 1, pos: 4, rows: 3, cols: 5 })] }),
+    CAP,
+  );
+  assert.equal(r.placed, 0);
+  assert.equal(r.offGrid, 1);
+});
+
+test('a shape smaller than any real page grows into the smallest one that holds it', () => {
+  // A 2 x 3 is not a michi page; a 3 x 3 is, and the cards keep their row and column in it.
   const r = rebuildTcgscanBinder(
     binder({
       entries: [
-        pocket({ cardId: 'ok', page: 1, pos: 0, rows: 3, cols: 4 }),
-        pocket({ cardId: 'undrawable', page: 2, pos: 0, rows: 3, cols: 8 }),
-        pocket({ cardId: 'later', page: 3, pos: 0, rows: 3, cols: 4 }),
+        pocket({ cardId: 'a', page: 1, pos: 0, rows: 2, cols: 3 }),
+        pocket({ cardId: 'b', page: 1, pos: 5, rows: 2, cols: 3 }),
       ],
     }),
     CAP,
   );
-  assert.equal(r.unusablePages, 1);
-  assert.equal(r.offGrid, 1);
-  assert.equal(r.pages[1].slots.length, 0);
-  // Page 3 is still page 3: refusing a page must never renumber the ones after it.
-  assert.equal(r.pages[2].slots[0].cardId, 'later');
+  assert.deepEqual([r.pages[0].rows, r.pages[0].cols], [3, 3]);
+  const at = (id: string) => {
+    const s = r.pages[0].slots.find((x) => x.cardId === id);
+    return s ? [s.row, s.col] : null;
+  };
+  assert.deepEqual(at('a'), [0, 0]);
+  assert.deepEqual(at('b'), [1, 2]);
+  assert.equal(r.normalizedPages, 1);
 });
 
-test('a unit grid michi cannot draw falls through to the assumed shape', () => {
+test('a real shape is not counted as normalised', () => {
+  const r = rebuildTcgscanBinder(
+    binder({ entries: [pocket({ cardId: 'a', rows: 4, cols: 4 })] }),
+    CAP,
+  );
+  assert.equal(r.normalizedPages, 0);
+  assert.deepEqual([r.pages[0].rows, r.pages[0].cols], [4, 4]);
+});
+
+test('a unit grid that is not a real page falls through to the assumed shape', () => {
+  // Nothing decodes against it (an entry-less page has no pockets), so it is replaced, not fitted.
   const r = rebuildTcgscanBinder(binder({ rows: 3, cols: 12, entries: [] }), CAP);
   assert.deepEqual([r.pages[0].rows, r.pages[0].cols], [ASSUMED_ROWS, ASSUMED_COLS]);
 });
@@ -297,15 +333,15 @@ test('placed pockets consume owned copies, like any placement from the collectio
 
 test('every page carries the binder page shape', () => {
   const r = rebuildTcgscanBinder(
-    binder({ rows: 4, cols: 2, pageCount: 3, entries: [] }),
+    binder({ rows: 2, cols: 2, pageCount: 3, entries: [] }),
     CAP,
   );
   assert.deepEqual(
     r.pages.map((p) => [p.rows, p.cols]),
     [
-      [4, 2],
-      [4, 2],
-      [4, 2],
+      [2, 2],
+      [2, 2],
+      [2, 2],
     ],
   );
 });

@@ -40,6 +40,7 @@ import {
   withAvatarOfferAccepted,
   withAvatarOfferDeclined,
 } from '@/data/avatarConsent';
+import { trackPromptAnswered, trackPromptShown } from '@/lib/analytics';
 import { isSupabaseConfigured } from '@/lib/env';
 import { endTurn, takeTurn } from '@/lib/promptQueue';
 import { pruneAvatars, uploadAvatarImage } from '@/lib/uploadAvatar';
@@ -47,6 +48,8 @@ import { useAuth } from '@/store/auth';
 import type { Profile } from '@/types/domain';
 
 const SLOT = 'avatar-consent';
+/** Mounted in the root layout, not on a screen — see PromptEventSurface for why `app` exists. */
+const SURFACE = 'app' as const;
 
 export function AvatarConsentPrompt() {
   const auth = useAuth();
@@ -99,6 +102,10 @@ export function AvatarConsentPrompt() {
         setPhoto({ url: providerUrl, blob });
         // Recorded whatever they answer, so a second device honours the same seven-day gap.
         void auth.updateProfile({ avatar_prompt_at: new Date().toISOString() });
+        // Emitted HERE and not where the turn is taken: a generated monogram ends the turn above
+        // without ever painting, and the file's own rule is that those are "skipped silently,
+        // without being recorded as a showing". The event obeys the same rule as the stamp.
+        trackPromptShown('avatar-consent', SURFACE);
       })
       .catch(() => {
         offeredRef.current = false;
@@ -109,13 +116,37 @@ export function AvatarConsentPrompt() {
     };
   }, [auth, due, providerUrl, photo]);
 
+  // Whether an answer has already been reported. The profile stamps cannot stand in: avatar_prompt_at
+  // is written on showing, and only ACCEPTANCE has a stamp of its own — a decline lives in
+  // preferences and a close writes nothing at all, which is the hole this closes.
+  const answeredRef = useRef(false);
+  const answer = (response: 'accepted' | 'declined' | 'dismissed') => {
+    if (answeredRef.current) return;
+    answeredRef.current = true;
+    trackPromptAnswered('avatar-consent', SURFACE, response);
+  };
+
   // Give the turn back on unmount, or a navigation away mid-dialog would strand it and silence
-  // the rights prompt for the rest of the session.
-  useEffect(() => () => endTurn(SLOT), []);
+  // the rights prompt for the rest of the session. A dialog still open then was abandoned: they
+  // never said yes or no to publishing their photograph, and that is not the same as declining.
+  useEffect(
+    () => () => {
+      endTurn(SLOT);
+      if (offeredRef.current && !answeredRef.current) {
+        answeredRef.current = true;
+        trackPromptAnswered('avatar-consent', SURFACE, 'abandoned');
+      }
+    },
+    [],
+  );
 
   if (!photo) return null;
 
   const close = () => {
+    // The X only. "No thanks" routes through decline() below, which records the stronger answer
+    // first — this prompt is the one place the product keeps a real decline, and flattening the
+    // two would throw away the distinction it went to the trouble of storing.
+    answer('dismissed');
     endTurn(SLOT);
     setPhoto(null);
   };
@@ -137,6 +168,7 @@ export function AvatarConsentPrompt() {
           return;
         }
         void pruneAvatars(hosted); // only after the row points at the new file
+        answer('accepted');
         close();
       })
       .catch((e) => setError((e as Error).message))
@@ -157,6 +189,7 @@ export function AvatarConsentPrompt() {
       })
       .finally(() => {
         setBusy(false);
+        answer('declined');
         close();
       });
   };

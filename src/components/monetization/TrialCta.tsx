@@ -11,7 +11,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
-import { track } from '@/lib/analytics';
+import { track, trackTrialStartClick, trackTrialStartFailed } from '@/lib/analytics';
 import { CHECKOUT_OPEN } from '@/data/subscriptions';
 import { useTier } from '@/hooks/use-tier';
 import { useTrial, type UseTrial } from '@/hooks/use-trial';
@@ -66,6 +66,11 @@ export function TrialCta({
 
   const start = async () => {
     onBeforeStart?.();
+    // The PRESS, before the RPC. `trial.start` is emitted server-side and is the only trustworthy
+    // record that a trial happened — but that means a press which never becomes one leaves nothing
+    // behind, and "they never pressed" and "they pressed and it did not come back" were the same
+    // silence. See trackTrialStartClick.
+    trackTrialStartClick(surface);
     try {
       // surface is forwarded so start_pro_trial emits `trial.start` server-side, in the same
       // transaction as the grant — un-droppable, unlike the old client track() that this replaces
@@ -75,10 +80,17 @@ export function TrialCta({
       // use-tier), so the plans screen / print sheet re-poll too — not just this CTA, which is
       // about to unmount itself (it returns null once the user is no longer `eligible`).
       refreshTier();
-    } catch {
+    } catch (e) {
       // trial.error is set and shown below. Record the failure too — a fixed reason, NEVER the
-      // caught message (which can carry URLs/emails).
-      track('trial.start_failed', { reason: 'rpc_error' });
+      // caught message (which can carry URLs/emails), and with the surface, so a refusal can be
+      // traced back to the wall that produced it.
+      //
+      // A message at all means the RPC answered and said no: startProTrial rethrows the server's
+      // own message, and postgrest-js only reaches here with an `error` payload. That is a real
+      // disagreement between what the client believed and what the server enforces — the failure
+      // class ANALYTICS-TRIAL-START-DROPPED.md was written about — and it must not be pooled with
+      // the network dropping the request.
+      trackTrialStartFailed(surface, (e as Error)?.message ? 'refused' : 'rpc_error');
     }
   };
 

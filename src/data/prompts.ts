@@ -15,14 +15,20 @@
  * and are none of this file's business. This is only for the ones that appear uninvited, which is
  * exactly the set that needs a rule about not ganging up on people.
  *
- * WHAT TRACKING CANNOT DO YET, said plainly so nobody reads more into it than it holds: each
- * prompt stores its own `*_prompt_at` (seen) and its own acceptance stamp (`rights_attested_at`,
- * `avatar_consented_at`). That answers "seen?" and "accepted?" but NOT "declined?" — a dialog
- * closed with the X and one closed by navigating away are indistinguishable, because neither
- * writes anything. Telling those apart needs somewhere to put a decline: one column per prompt, or
- * better, a `prompt_events` table (profile_id, prompt_id, shown_at, responded_at, response) that
- * would also let a third prompt arrive without a migration each time. Worth doing when a prompt's
- * decline rate is a number anyone plans to act on.
+ * WHAT `status()` HOLDS, and what it does not. Each prompt stores its own `*_prompt_at` (seen) and
+ * its own acceptance stamp (`rights_attested_at`, `avatar_consented_at`). Those are the CADENCE and
+ * the CONSENT RECORD: they gate re-asking, they must survive a dropped request, and one of them is
+ * evidence that a user affirmed something. They answer "seen?" and "accepted?" and nothing else — a
+ * dialog closed with the X and one closed by navigating away both write nothing, so `response` here
+ * can only ever read 'accepted' or 'no-answer'.
+ *
+ * The missing half is now MEASURED RATHER THAN STORED. `prompt.shown` / `prompt.answered` in
+ * src/lib/analytics.ts carry the four real endings — accepted, declined, dismissed, abandoned — on
+ * the event spine that already exists, which is what the `prompt_events` table sketched here was
+ * for, without the migration or the second place to look. The two are deliberately allowed to
+ * disagree: an event lost to a closed tab costs a row in a report, while a lost stamp would cost
+ * the user a repeat of a question they already answered. Do not read the stream for cadence, and
+ * do not add response columns here for reporting.
  */
 
 export type PromptId = 'avatar-consent' | 'rights-attestation' | 'pro-trial-offer';

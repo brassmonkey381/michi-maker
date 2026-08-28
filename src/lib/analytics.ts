@@ -15,6 +15,7 @@
 import Constants from 'expo-constants';
 import { AppState, type AppStateStatus, Platform } from 'react-native';
 
+import type { PromptId, PromptSurface } from '@/data/prompts';
 import { supabasePublishableKey, supabaseUrl } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 import type { Json } from '@/types/database';
@@ -571,15 +572,51 @@ export function trackCapGate(input: {
    * (src/lib/capPromptPacing.ts), and the two are not the same impression: one stops the user and
    * one can be missed entirely. Without this the change that introduced the dialog could never be
    * judged. Absent on events recorded before 2026-08-27.
+   *
+   * `inline` is the third and quietest: a note that appears inside a sheet the user already had
+   * open (the build wizard), which nobody had to be interrupted to see and nobody can miss either.
+   * It is neither of the other two and must not be pooled with them.
    */
-  as?: 'dialog' | 'toast';
+  as?: 'dialog' | 'toast' | 'inline';
+  /**
+   * Whether the person behind the wall had an account. A guest gate draws SignInPerk and a member
+   * gate draws CapGateOffer — two different walls, with two different next steps, that until now
+   * landed in the stream as one event. `tier` does carry 'guest', but only because the guest tier
+   * happens to be named that; this states it rather than leaving the studio to infer it from a
+   * tier string that is free to be renamed.
+   */
+  is_guest?: boolean;
+  /**
+   * What the impression actually put in front of them, which is NOT derivable from the other props:
+   * the same wall shows the trial to an eligible member, the plans note to one who has used it, and
+   * the sign-in offer to a guest. Without this, "gates that led nowhere" and "gates that offered the
+   * trial and were ignored" are the same row.
+   *
+   *   trial   — CapGateOffer rendered TrialCta (and so also emitted pro.offer_shown)
+   *   upgrade — CapGateOffer fell through to UpgradePerk (used / ineligible / checkout closed)
+   *   signin  — a guest, so SignInPerk: the free account is what lifts their cap, not a plan
+   *   toast   — paced down to a toast, which carries its own button and no offer
+   */
+  offer?: 'trial' | 'upgrade' | 'signin' | 'toast';
 }): void {
   track('cap.gate_shown', { ...input, used: capCount(input.used), cap: capCount(input.cap) });
 }
 
-/** The user backed out of a gate without acting. Pairs with trackCapGate on {limit, surface}. */
-export function trackCapGateDismissed(limit: string, surface: CapSurface): void {
-  track('cap.gate_dismissed', { limit, surface });
+/**
+ * The user backed out of a gate without acting. Pairs with trackCapGate on {limit, surface}.
+ *
+ * `via` is the point of the object form: "Not now" is a decision and the X is closer to one, but a
+ * dialog left behind by navigating away is not an answer at all, and counting the three together
+ * would read as a refusal rate that is partly just people leaving. Only a dialog can be dismissed —
+ * a toast fades on its own and nobody can tell whether it was read — so this never fires for one,
+ * and a dismissal rate must be taken over `cap.gate_shown` where `as = 'dialog'`, not over all.
+ */
+export function trackCapGateDismissed(input: {
+  limit: string;
+  surface: CapSurface;
+  via: 'not_now' | 'close' | 'navigate';
+}): void {
+  track('cap.gate_dismissed', input);
 }
 
 /**
@@ -590,6 +627,105 @@ export function trackCapGateDismissed(limit: string, surface: CapSurface): void 
  */
 function capCount(n: number): number {
   return Number.isFinite(n) ? n : -1;
+}
+
+/**
+ * The uninvited prompts (src/data/prompts.ts), from the moment one opens to whatever came back.
+ *
+ * WHAT THIS REPLACES. Each prompt used to record itself on the profile: a `*_prompt_at` for "seen"
+ * and its own acceptance stamp for "accepted". That answered two questions and could not answer the
+ * one that decides whether a prompt is worth showing — a dialog closed with the X and one closed by
+ * navigating away both wrote nothing, so a decline was indistinguishable from a departure. The fix
+ * prompts.ts proposed was a `prompt_events` table; this is the same record in the stream we already
+ * have, with no migration and no second place to look. The profile stamps STAY: they are what the
+ * cadence reads, they must survive a dropped event, and they are the consent record. This is
+ * measurement, and the two are allowed to disagree — an event lost to a closed tab is a lost row,
+ * not a re-ask.
+ *
+ * ONE SHOWN, ONE ANSWERED, always paired. A prompt that opens and is never answered is the abandon
+ * case and emits both, with response 'abandoned' — a shown with no answer would otherwise be
+ * indistinguishable from an event that simply failed to send.
+ *
+ * GUESTS NEVER APPEAR HERE, because no prompt is due for one (they have no profile to record on).
+ */
+/**
+ * Where a prompt was seen. The screen surfaces from prompts.ts, plus `app` for the one that is
+ * mounted at the root layout rather than on a screen (the avatar consent offer, which is a
+ * correction owed to an account and follows it everywhere). Kept as its own alias rather than
+ * widened into PromptSurface: `app` is not somewhere a prompt can be ROUTED to, so it has no
+ * business in the type duePrompts() filters on.
+ */
+export type PromptEventSurface = PromptSurface | 'app';
+
+export function trackPromptShown(prompt: PromptId, surface: PromptEventSurface): void {
+  track('prompt.shown', { prompt, surface });
+}
+
+/**
+ * How a prompt ended.
+ *
+ *   accepted  — they took the thing it offered (photo published, sharing turned on, trial started)
+ *   declined  — an explicit no that the product records ("No thanks"), not merely a closed dialog
+ *   dismissed — closed with the X or "Not now": an answer about this moment, not about the offer
+ *   abandoned — unmounted while still open. They navigated away; nothing was said either way.
+ */
+export function trackPromptAnswered(
+  prompt: PromptId,
+  surface: PromptEventSurface,
+  response: 'accepted' | 'declined' | 'dismissed' | 'abandoned',
+): void {
+  track('prompt.answered', { prompt, surface, response });
+}
+
+/**
+ * A PRO offer that was shown and then walked away from, closing the loop `pro.offer_shown` opens.
+ *
+ * ONLY where walking away is an ACT. A dismissible surface — the print gate, a cap dialog, the
+ * recovery prompt — put the offer in front of someone who then closed it, and that is a decline.
+ * Navigating off /plans, or leaving the screen entirely, is not: they went there to look, or they
+ * left for reasons that have nothing to do with the offer, and counting either as a refusal would
+ * quietly turn "was not interested" into a number about the offer's wording. Never emit this from
+ * a bare unmount; see the `abandoned` case on prompt.answered for the same distinction.
+ *
+ * `surface` must match the `pro.offer_shown` it answers, or the pair does not join.
+ */
+export function trackProOfferDeclined(surface: string): void {
+  track('pro.offer_declined', { surface });
+}
+
+/**
+ * The trial button was PRESSED, before the RPC is called.
+ *
+ * `trial.start` is emitted server-side by start_pro_trial() precisely so a grant can never go
+ * unrecorded (ANALYTICS-TRIAL-START-DROPPED.md), and that is still the only trustworthy record that
+ * one happened. But it means the client half of the press is invisible: between `pro.offer_shown`
+ * and a `trial.start` that never arrives sit three different stories — they never pressed, they
+ * pressed and the RPC refused, or they pressed and the request never came back. The first is a copy
+ * problem, the second is a bug, the third is the network, and no report could tell them apart.
+ *
+ * Deliberately NOT a substitute for trial.start: this says a button was pressed, nothing more. A
+ * conversion rate is still counted from the server ledger.
+ */
+export function trackTrialStartClick(surface: string): void {
+  track('trial.start_click', { surface });
+}
+
+/**
+ * A trial that was asked for and did not happen.
+ *
+ * `surface` matters as much here as on the offer: a refusal at the print gate and one at the binder
+ * cap are the same event with very different meanings, and until now this event carried no surface
+ * at all, so a failure could not be traced back to the wall that produced it.
+ *
+ * `reason` is a FIXED classification, never the caught message — a server error string can carry a
+ * URL or an address, and this table is read by name.
+ *
+ *   refused   — the RPC answered, saying no. The client thought they were eligible and the server
+ *               disagreed, which is a real disagreement worth seeing rather than a transport fault.
+ *   rpc_error — anything else: no answer, a transport failure, a thrown client error.
+ */
+export function trackTrialStartFailed(surface: string, reason: 'refused' | 'rpc_error'): void {
+  track('trial.start_failed', { surface, reason });
 }
 
 /**

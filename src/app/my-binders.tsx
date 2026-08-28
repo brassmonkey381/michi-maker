@@ -284,7 +284,7 @@ export default function MyBindersScreen() {
           {/* My collection — the tcgscan-fed inventory; appears with the first scan/import. */}
           <MyCollection
             onToast={showToast}
-            onLimitToast={showLimitToast}
+            onCapHit={capGate.hit}
             onOpenBinder={openBinder}
             onFindSimilar={driveSimilarIds}
             onViewSet={driveViewSet}
@@ -334,7 +334,7 @@ export default function MyBindersScreen() {
       ) : null}
       <ConfirmDialog spec={confirm} onClose={() => setConfirm(null)} />
       <Toast spec={toast} onDismiss={() => setToast(null)} />
-      <CapGateDialog wall={capGate.wall} onClose={capGate.closeWall} />
+      <CapGateDialog wall={capGate.wall} onDismiss={capGate.dismissWall} onResolve={capGate.resolveWall} />
     </ThemedView>
   );
 }

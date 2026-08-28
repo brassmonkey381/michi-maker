@@ -50,7 +50,7 @@ import { isSupabaseConfigured } from '@/lib/env';
 import { footprintForKind } from '@/data/cardSizing';
 import { resolveCard } from '@/data/cardResolver';
 import { addSavedSlices, removeSavedSlice, sliceSignature, slotSignature, useSavedSlices, useSavedSlicesSync, type SavedSlice } from '@/data/savedSlices';
-import { artLimitMessage, artTrialMessage, binderLimitMessage, limitCta, pageLimitMessage, pageTrialMessage } from '@/data/limitMessages';
+import { artLimitMessage, artTrialMessage, binderLimitMessage, binderTrialMessage, limitCta, pageLimitMessage, pageTrialMessage } from '@/data/limitMessages';
 
 import { SliceTray, SliceThumb } from '@/components/binder/SliceTray';
 import type { CatalogCard } from '@/lib/catalog';
@@ -387,9 +387,25 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
 
   const handleDuplicate = () => {
     const copy = store.duplicateBinder(binder.id);
-    if (copy) onOpenBinder?.(copy.id);
-    // The store refuses past the binder cap — say so instead of silently doing nothing.
-    else showLimitToast(binderLimitMessage(store.tier, store.limits));
+    if (copy) {
+      onOpenBinder?.(copy.id);
+      return;
+    }
+    // The store refuses past the binder cap. This used to be a bare toast with no event, which is
+    // exactly the drift useCapGate exists to stop: a wall that a user meets and the stream cannot
+    // see. Through the gate it gets the same dialog-then-toast pacing and the same impression as
+    // every other binder cap.
+    capGate.hit({
+      limit: 'binders',
+      surface: 'binder_editor',
+      isGuest: store.tier === 'guest',
+      title: 'You are at your binder limit',
+      message: binderLimitMessage(store.tier, store.limits),
+      trialMessage: binderTrialMessage(store.limits),
+      tier: store.tier,
+      used: store.binderCount,
+      cap: store.limits.binders,
+    });
   };
 
   // Structural page edits re-space the binder with blank pages when folded 1×2 art would land
@@ -1372,7 +1388,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         />
 
         <Toast spec={toast} onDismiss={() => setToast(null)} />
-        <CapGateDialog wall={capGate.wall} onClose={capGate.closeWall} />
+        <CapGateDialog wall={capGate.wall} onDismiss={capGate.dismissWall} onResolve={capGate.resolveWall} />
         <ConfirmDialog spec={confirm} onClose={() => setConfirm(null)} />
         {multiActionsOpen ? (
           <SlotMultiActions

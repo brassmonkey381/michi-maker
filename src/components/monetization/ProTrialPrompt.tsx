@@ -16,7 +16,7 @@
  * of them do not recognise. What is true of all of them is the only thing it says: the 14 days are
  * still there.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { TrialCta } from '@/components/monetization/TrialCta';
@@ -24,6 +24,7 @@ import { ThemedText } from '@/components/themed-text';
 import { DialogCard } from '@/components/ui/DialogCard';
 import { promptById, type PromptSurface } from '@/data/prompts';
 import { useTrial } from '@/hooks/use-trial';
+import { trackPromptAnswered, trackPromptShown, trackProOfferDeclined } from '@/lib/analytics';
 import { endTurn, onTurnFree, takeTurn } from '@/lib/promptQueue';
 import { useAuth } from '@/store/auth';
 
@@ -56,13 +57,63 @@ export function ProTrialPrompt({ surface }: { surface: PromptSurface }) {
     // Stamped on SHOWING, not on answering: this prompt asks once either way, and a stamp that
     // waited for an answer would re-ask everyone who closed it.
     void auth.updateProfile({ pro_trial_prompt_at: new Date().toISOString() });
+    // The stamp says it was put in front of them. It cannot say what came back, and for a one-shot
+    // recovery offer aimed at a fixed cohort that is the ONLY interesting number: this asks once,
+    // ever, so whether it worked is a question with exactly one chance to be answered.
+    trackPromptShown(ID, surface);
   }, [auth, surface, open, trial.loading, trial.state]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  // Hand the turn back on unmount, so navigating away mid-dialog never strands the queue.
-  useEffect(() => () => endTurn(ID), []);
+  // Set when TrialCta actually painted its button (see its onImpression).
+  const offerShownRef = useRef(false);
+  const answeredRef = useRef(false);
+  const answer = (response: 'accepted' | 'dismissed') => {
+    if (answeredRef.current) return;
+    answeredRef.current = true;
+    trackPromptAnswered(ID, surface, response);
+  };
+
+  // Hand the turn back on unmount, so navigating away mid-dialog never strands the queue — and
+  // record that they left with it open, which is neither taking the offer nor refusing it.
+  const surfaceRef = useRef(surface);
+  useEffect(() => {
+    surfaceRef.current = surface;
+  }, [surface]);
+  useEffect(
+    () => () => {
+      endTurn(ID);
+      if (shownRef.current && !answeredRef.current) {
+        answeredRef.current = true;
+        trackPromptAnswered(ID, surfaceRef.current, 'abandoned');
+      }
+    },
+    [],
+  );
+
+  const markOfferShown = useCallback(() => {
+    offerShownRef.current = true;
+  }, []);
 
   const close = () => {
+    answer('dismissed');
+    // This dialog IS the offer, so closing it declines the `pro.offer_shown { surface:
+    // 'trial_recovery' }` that TrialCta fired inside it. Guarded on a REAL impression, the same
+    // way the print gate guards its own: TrialCta returns null for anyone who stopped being
+    // eligible between `due()` and the paint, and a decline with no offer behind it is a lie.
+    // Emitted here and not in the unmount cleanup, where nobody chose anything.
+    if (offerShownRef.current) trackProOfferDeclined('trial_recovery');
+    endTurn(ID);
+    setOpen(false);
+  };
+
+  /**
+   * They pressed the trial button. TrialCta closes this first so the result is visible, and that
+   * close must not read as a refusal — `trial.start_click` and the server's `trial.start` say what
+   * happened next, but only this distinguishes the dialog that converted from the dialog that was
+   * shrugged off.
+   */
+  const closeForStart = () => {
+    answer('accepted');
     endTurn(ID);
     setOpen(false);
   };
@@ -78,7 +129,11 @@ export function ProTrialPrompt({ surface }: { surface: PromptSurface }) {
       </ThemedText>
       {/* Renders null if they are somehow no longer eligible by the time this paints, which is the
           honest outcome — better an empty dialog than a button the server will refuse. */}
-      <TrialCta surface="trial_recovery" onBeforeStart={close} />
+      <TrialCta
+        surface="trial_recovery"
+        onBeforeStart={closeForStart}
+        onImpression={markOfferShown}
+      />
     </DialogCard>
   );
 }

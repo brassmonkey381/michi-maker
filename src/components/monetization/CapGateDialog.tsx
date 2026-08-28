@@ -22,6 +22,12 @@ import { DialogCard } from '@/components/ui/DialogCard';
 import { Palette, Spacing } from '@/constants/theme';
 import type { CapSurface } from '@/lib/analytics';
 
+/**
+ * The two ways a user can close a cap dialog on purpose. `navigate` (they left the screen with it
+ * open) is not one of these: nobody chose it, and it is raised by useCapGate's unmount cleanup.
+ */
+export type CapDismissal = 'not_now' | 'close';
+
 /** Everything a wall needs to describe and answer itself. */
 export interface CapWall {
   /** The tier_caps limit_key, verbatim ('binders', 'pagesPerBinder', 'artUploads'). */
@@ -37,10 +43,28 @@ export interface CapWall {
   title: string;
 }
 
-export function CapGateDialog({ wall, onClose }: { wall: CapWall | null; onClose: () => void }) {
+/**
+ * THREE WAYS OUT, and the stream has to keep them apart (see trackCapGateDismissed).
+ *
+ *   onDismiss('not_now') — the explicit decline at the foot of the dialog
+ *   onDismiss('close')   — the X, which is a softer version of the same
+ *   onResolve()          — they pressed the offer. The dialog closes so the trial, the plans page
+ *                          or the auth sheet is actually visible, and NOTHING is recorded here:
+ *                          this exit is a conversion, and the old single `onClose` counted it as
+ *                          a back-out because it was the same function.
+ */
+export function CapGateDialog({
+  wall,
+  onDismiss,
+  onResolve,
+}: {
+  wall: CapWall | null;
+  onDismiss: (via: CapDismissal) => void;
+  onResolve: () => void;
+}) {
   if (!wall) return null;
   return (
-    <DialogCard visible title={wall.title} onClose={onClose} maxWidth={420}>
+    <DialogCard visible title={wall.title} onClose={() => onDismiss('close')} maxWidth={420}>
       {wall.isGuest ? (
         <SignInPerk message={wall.message} />
       ) : (
@@ -48,10 +72,10 @@ export function CapGateDialog({ wall, onClose }: { wall: CapWall | null; onClose
           message={wall.message}
           trialMessage={wall.trialMessage}
           surface={wall.surface}
-          onBeforePress={onClose}
+          onBeforePress={onResolve}
         />
       )}
-      <Pressable onPress={onClose} hitSlop={6} style={styles.later}>
+      <Pressable onPress={() => onDismiss('not_now')} hitSlop={6} style={styles.later}>
         <ThemedText type="small" themeColor="textSecondary" style={styles.laterText}>
           Not now
         </ThemedText>

@@ -14,6 +14,7 @@ import { fetchCardDetail, type CardDetail } from 'tcgscan-browse';
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { TcgscanSynergyNote } from '@/components/monetization/BundleOffer';
 import { CapGateOffer } from '@/components/monetization/CapGateOffer';
+import { trialOfferVisible } from '@/components/monetization/TrialCta';
 import { LogoLoader } from '@/components/brand/LogoLoader';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -28,6 +29,7 @@ import {
 } from '@/data/binderWizard';
 import { binderLimitMessage, binderTrialMessage } from '@/data/limitMessages';
 import { useCatalog } from '@/hooks/use-catalog';
+import { useTrial } from '@/hooks/use-trial';
 import { track, trackCapGate, trackCapGateDismissed } from '@/lib/analytics';
 import { usePriceSummary } from '@/lib/prices';
 import { useBinders } from '@/store/binders';
@@ -127,6 +129,11 @@ export function BuildBinderSheet({
   // createBinder guard. At the cap the button goes quiet and the perk note explains why.
   const atBinderLimit = !asDemo && store.atBinderLimit;
 
+  // Read only for the `offer` prop on the impression below: what a wall put in front of someone is
+  // not recoverable after the fact. Held as the boolean rather than the object so the effect does
+  // not re-run on every render (useTrial returns a fresh object each time).
+  const offersTrial = trialOfferVisible(useTrial());
+
   // The wizard is the one michi gate with a real "backed out" signal: the wall is a persistent
   // perk inside a sheet the user can close, rather than a toast that always auto-expires. So this
   // is the only place a shown/dismissed pair carries information — see the note in ANALYTICS-
@@ -142,13 +149,19 @@ export function BuildBinderSheet({
       tier: store.tier,
       used: store.binderCount,
       cap: store.limits.binders,
+      // Neither a dialog nor a toast: a note inside a sheet they already had open. See `as`.
+      as: 'inline',
+      is_guest: store.tier === 'guest',
+      // The same three-way branch the markup below draws, from the same predicate, so the event
+      // and the screen cannot disagree about what was offered.
+      offer: store.tier === 'guest' ? 'signin' : offersTrial ? 'trial' : 'upgrade',
     });
-  }, [visible, atBinderLimit, store.tier, store.binderCount, store.limits.binders]);
+  }, [visible, atBinderLimit, store.tier, store.binderCount, store.limits.binders, offersTrial]);
   useEffect(() => {
     if (visible) return;
     // Closed. If the wall was shown and no binder was built, that is a dismissal; a successful
     // build clears the flag first (see build()), so this cannot fire on the converting path.
-    if (capShown.current) trackCapGateDismissed('binders', 'build_wizard');
+    if (capShown.current) trackCapGateDismissed({ limit: 'binders', surface: 'build_wizard', via: 'close' });
     capShown.current = false;
   }, [visible]);
 
@@ -266,7 +279,13 @@ export function BuildBinderSheet({
                       message={binderLimitMessage(store.tier, store.limits)}
                       trialMessage={binderTrialMessage(store.limits)}
                       surface="build_wizard"
-                      onBeforePress={onClose}
+                      onBeforePress={() => {
+                        // They pressed the offer. Clear the flag BEFORE closing, or the close
+                        // effect above records a dismissal against someone who converted --
+                        // the same mistake the cap dialog's single onClose used to make.
+                        capShown.current = false;
+                        onClose();
+                      }}
                     />
                   )
                 ) : null}

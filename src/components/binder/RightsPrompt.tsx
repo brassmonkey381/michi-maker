@@ -28,6 +28,7 @@ import { Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { privateArtInBinder } from '@/data/artAttributionCheck';
 import type { DemoBinder } from '@/data/binderTypes';
 import { promptById, type PromptSurface } from '@/data/prompts';
+import { trackPromptAnswered, trackPromptShown } from '@/lib/analytics';
 import { endTurn, onTurnFree, takeTurn } from '@/lib/promptQueue';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
@@ -70,14 +71,41 @@ export function RightsPrompt({ binder, surface }: { binder?: DemoBinder; surface
     setOpen(true);
     // Record the showing whether or not they accept, so every surface honours the 7-day gap.
     void auth.updateProfile({ rights_prompt_at: new Date().toISOString() });
+    trackPromptShown(ID, surface);
   }, [auth, binder?.isDemo, binder?.isExample, surface, open]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  // Whether an answer has already been reported, so the unmount below cannot file a second one.
+  // The profile stamp cannot serve here: it is written on SHOWING, not on answering.
+  const answeredRef = useRef(false);
+  const answer = (response: 'accepted' | 'dismissed') => {
+    if (answeredRef.current) return;
+    answeredRef.current = true;
+    trackPromptAnswered(ID, surface, response);
+  };
+
   // Hand the turn back on unmount too: navigating away mid-dialog would otherwise strand it and
-  // silence the avatar offer for the rest of the session.
-  useEffect(() => () => endTurn(ID), []);
+  // silence the avatar offer for the rest of the session. A dialog still open at that moment was
+  // abandoned — they left rather than answered, and the two must not be counted together.
+  const surfaceRef = useRef(surface);
+  useEffect(() => {
+    surfaceRef.current = surface;
+  }, [surface]);
+  useEffect(
+    () => () => {
+      endTurn(ID);
+      if (shownRef.current && !answeredRef.current) {
+        answeredRef.current = true;
+        trackPromptAnswered(ID, surfaceRef.current, 'abandoned');
+      }
+    },
+    [],
+  );
 
   const close = () => {
+    // "Not now" and the X are the same answer here: both leave the attestation outstanding and
+    // both come back after the seven-day gap. Only leaving the screen is a different thing.
+    answer('dismissed');
     endTurn(ID);
     setOpen(false);
   };
@@ -99,6 +127,7 @@ export function RightsPrompt({ binder, surface }: { binder?: DemoBinder; surface
         if (binder && !binder.isPublic && privateArtInBinder(binder).length === 0) {
           store.updateBinder(binder.id, { isPublic: true });
         }
+        answer('accepted'); // before close(), which would otherwise file this as a dismissal
         close();
       })
       .finally(() => setBusy(false));

@@ -37,7 +37,7 @@ import {
 import { PrintCapExceededError, recordPrintEvent, type RecordedPrint } from '@/data/printRepo';
 import { ANNUAL_POOL, BINDER_PDF_LOOKUP_KEY, CHECKOUT_OPEN } from '@/data/subscriptions';
 import { useCatalog } from '@/hooks/use-catalog';
-import { track } from '@/lib/analytics';
+import { track, trackProOfferDeclined } from '@/lib/analytics';
 import { usePrintAllowance } from '@/hooks/use-print-allowance';
 import { useTier } from '@/hooks/use-tier';
 import { useAuth } from '@/store/auth';
@@ -431,7 +431,7 @@ export function PrintPlaceholdersSheet({
   }, []);
   const closeWithDecline = useCallback(() => {
     if (offerShown.current && !trialStarted.current) {
-      track('pro.offer_declined', { surface: 'print_gate' });
+      trackProOfferDeclined('print_gate');
     }
     onClose();
   }, [onClose]);

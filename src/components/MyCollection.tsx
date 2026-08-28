@@ -41,14 +41,22 @@ import { pillChip } from '@/constants/ui';
 import {
   deletePortfolio,
   fetchPortfolioGroups,
+  fetchTcgscanBinders,
   fetchUserCards,
   subscribeUserCards,
   type PortfolioGroup,
   type UserCard,
 } from '@/data/collectionRepo';
+import {
+  rebuildTcgscanBinder,
+  unplacedCount,
+  type RebuildResult,
+  type TcgscanBinder,
+} from '@/data/tcgscanBinderImport';
+import type { CapHit } from '@/hooks/use-cap-gate';
 import { useScanImages } from '@/hooks/use-scan-images';
 import { EXAMPLE_COLLECTION_CSV, EXAMPLE_COLLECTION_NAME } from '@/data/exampleCollection';
-import { binderLimitMessage, pageLimitMessage } from '@/data/limitMessages';
+import { binderLimitMessage, binderTrialMessage, pageLimitMessage, pageTrialMessage } from '@/data/limitMessages';
 import { track } from '@/lib/analytics';
 import { isSupabaseConfigured } from '@/lib/env';
 import { cardThumbUrl } from '@/lib/catalogConfig';
@@ -74,17 +82,66 @@ function cardCountLabel(copies: number, distinct: number): string {
   return distinct !== copies ? `${base}, ${distinct} distinct` : base;
 }
 
+/**
+ * What a rebuild is about to do, in the confirm dialog. Everything it would leave out is named
+ * here rather than discovered afterwards in the binder — a page cap, an assumed page shape, a
+ * pocket two cards both claim. The reassurance at the end is load-bearing: the word "rebuild"
+ * next to a scanned collection invites the fear that this MOVES something.
+ */
+function rebuildMessage(r: RebuildResult, maxPages: number): string {
+  const s = (n: number) => (n === 1 ? '' : 's');
+  const parts = [
+    `${r.pages.length} page${s(r.pages.length)} of ${r.rows} × ${r.cols} pockets` +
+      `${r.mixedShapes ? ' (and the odd page scanned at another shape, kept as it was)' : ''}, ` +
+      `with ${r.placed} card${s(r.placed)} in the pocket it sits in on the shelf. Empty pockets ` +
+      'and empty pages come across too.',
+  ];
+  if (r.assumedShape) {
+    parts.push(
+      `tcgscan never recorded this binder’s page shape, so ${r.rows} × ${r.cols} is assumed. ` +
+        'You can change it in the binder if that’s wrong.',
+    );
+  }
+  if (r.droppedPages > 0) {
+    parts.push(
+      `Your plan allows ${maxPages} pages per binder, so the last ${r.droppedPages} ` +
+        `page${s(r.droppedPages)} (${r.droppedCards} card${s(r.droppedCards)}) stay behind.`,
+    );
+  }
+  if (r.normalizedPages > 0) {
+    parts.push(
+      `${r.normalizedPages} page${s(r.normalizedPages)} ${r.normalizedPages === 1 ? 'was' : 'were'} ` +
+        'scanned at a shape michi has no page for — michi draws real pages: 2×2, 3×3, 3×4 and 4×4 — ' +
+        `so ${r.normalizedPages === 1 ? 'it is' : 'they are'} drawn on the nearest one that fits. ` +
+        'Every card keeps the row and column it was scanned in.',
+    );
+  }
+  const stray = r.collided + r.offGrid + r.loose;
+  if (stray > 0) {
+    parts.push(
+      `${stray} card${s(stray)} ${stray === 1 ? 'has' : 'have'} no pocket to land in — two cards ` +
+        'claiming one pocket, or a pocket outside the page — and stay out of the binder.',
+    );
+  }
+  parts.push('Nothing in tcgscan changes; this only builds a michi binder from what it scanned.');
+  return parts.join('\n\n');
+}
+
 export function MyCollection({
   onToast,
-  onLimitToast,
+  onCapHit,
   onOpenBinder,
   onFindSimilar,
   onViewSet,
 }: {
   onToast?: (message: string) => void;
-  /** Cap toasts, which carry a tier-appropriate button (plans, or the auth sheet for guests).
-   *  Separate from onToast because a cap is not a confirmation and does not look like one. */
-  onLimitToast?: (message: string) => void;
+  /**
+   * Report a plan limit. Raised to the screen's useCapGate rather than shown here, so a cap met in
+   * the collection gets the same pacing, the same dialog and the same `cap.gate_shown` as every
+   * other wall. It was `onLimitToast` — a bare message — and the two walls below were the last
+   * uninstrumented ones in the app because a toast is all a message can become.
+   */
+  onCapHit?: (hit: CapHit) => void;
   onOpenBinder?: (binderId: string) => void;
   /** Drive the home browser: find-similar for one or many cards. */
   onFindSimilar?: (cardIds: string[]) => void;
@@ -122,7 +179,7 @@ export function MyCollection({
     <CollectionStrip
       cards={cards}
       onToast={onToast}
-      onLimitToast={onLimitToast}
+      onCapHit={onCapHit}
       onOpenBinder={onOpenBinder}
       onFindSimilar={onFindSimilar}
       onViewSet={onViewSet}
@@ -200,7 +257,7 @@ function EmptyCollection({
 function CollectionStrip({
   cards,
   onToast,
-  onLimitToast,
+  onCapHit,
   onOpenBinder,
   onFindSimilar,
   onViewSet,
@@ -209,8 +266,8 @@ function CollectionStrip({
 }: {
   cards: UserCard[];
   onToast?: (message: string) => void;
-  /** See MyCollection's prop of the same name: cap toasts carry a tier-appropriate button. */
-  onLimitToast?: (message: string) => void;
+  /** See MyCollection's prop of the same name: the screen's cap gate, not a toast. */
+  onCapHit?: (hit: CapHit) => void;
   onOpenBinder?: (binderId: string) => void;
   onFindSimilar?: (cardIds: string[]) => void;
   onViewSet?: (cardId: string) => void;
@@ -266,6 +323,35 @@ function CollectionStrip({
       active = false;
     };
   }, [mode, portfolios, pickerOpen]);
+  // The user's PHYSICAL tcgscan binders, for "rebuild this one in michi". Fetched alongside the
+  // portfolios, since the rows live under them; a failure leaves the section absent rather than
+  // breaking the portfolio view around it.
+  const [tcgBinders, setTcgBinders] = useState<TcgscanBinder[] | null>(null);
+  useEffect(() => {
+    if (mode !== 'portfolios' || tcgBinders) return;
+    let active = true;
+    fetchTcgscanBinders()
+      .then((b) => {
+        if (active) setTcgBinders(b);
+      })
+      .catch(() => {
+        if (active) setTcgBinders([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [mode, tcgBinders]);
+  // The rebuild is previewed BEFORE it is offered: the same function that builds the pages counts
+  // what would be left out, so the chip, the confirm dialog and the result can never disagree.
+  const maxPages = store.limits.pagesPerBinder;
+  const rebuilds = useMemo(() => {
+    const out = new Map<string, RebuildResult>();
+    for (const b of tcgBinders ?? []) out.set(b.id, rebuildTcgscanBinder(b, maxPages));
+    return out;
+  }, [tcgBinders, maxPages]);
+  // The binder awaiting the confirm dialog.
+  const [rebuildUnit, setRebuildUnit] = useState<TcgscanBinder | null>(null);
+
   // Which chooser is open: pick a binder to ADD the placeable selection to, or to RECLAIM the
   // single selected card from.
   const [chooser, setChooser] = useState<'add' | 'reclaim' | null>(null);
@@ -333,6 +419,47 @@ function CollectionStrip({
       onToast?.((e as Error).message);
     }
   };
+  /**
+   * Rebuild one tcgscan binder as a michi binder: the pages the scanner recorded, each card in the
+   * pocket it sits in on the shelf. Created in ONE call with its pages attached — createBinder
+   * persists the whole thing atomically, where creating then filling would race the store snapshot.
+   */
+  const runRebuild = () => {
+    const unit = rebuildUnit;
+    if (!unit) return;
+    setRebuildUnit(null);
+    // Rebuilt rather than reused from the preview: the preview's slot ids are minted per render,
+    // and the binder that gets saved should own ids nothing else has ever held.
+    const r = rebuildTcgscanBinder(unit, maxPages);
+    const binder = store.createBinder({ title: unit.name, pages: r.pages });
+    if (!binder) {
+      onCapHit?.({
+        limit: 'binders',
+        surface: 'collection_list',
+        isGuest: store.tier === 'guest',
+        title: 'You are at your binder limit',
+        message: binderLimitMessage(store.tier, store.limits),
+        trialMessage: binderTrialMessage(store.limits),
+        tier: store.tier,
+        used: store.binderCount,
+        cap: store.limits.binders,
+      });
+      return;
+    }
+    track('binder.rebuild_from_tcgscan', {
+      pages: r.pages.length,
+      placed: r.placed,
+      unplaced: unplacedCount(r),
+    });
+    const left = unplacedCount(r);
+    onToast?.(
+      `Rebuilt “${unit.name}” — ${r.placed} card${r.placed === 1 ? '' : 's'} in ${r.pages.length} page${
+        r.pages.length === 1 ? '' : 's'
+      }${left > 0 ? `, ${left} left out` : ''}`,
+    );
+    onOpenBinder?.(binder.id);
+  };
+
   // Free COPIES per card id (owned across all condition rows, minus what's placed from collection).
   // The build now places every free copy, so it needs counts, not just a distinct id list.
   const freeByCard = useMemo(() => {
@@ -513,11 +640,25 @@ function CollectionStrip({
     const ids = placeableIds;
     setChooser(null);
     setSelected(new Set());
+    const target = store.userBinders.find((b) => b.id === binderId);
     const { added, unplaced } = store.addCardsToBinder(binderId, ids, { fromCollection: true });
-    const title = store.userBinders.find((b) => b.id === binderId)?.title ?? 'binder';
-    // Anything the page cap left out is named, not dropped in silence.
-    if (unplaced > 0) onToast?.(pageLimitMessage(store.tier, store.limits));
-    else if (added > 0) onToast?.(`Added ${added} card${added === 1 ? '' : 's'} to ${title}`);
+    const title = target?.title ?? 'binder';
+    // Anything the page cap left out is named, not dropped in silence — and reported, which it was
+    // not: this went out as a plain confirmation toast, so a binder that filled up mid-add looked
+    // in the stream exactly like one that did not.
+    if (unplaced > 0) {
+      onCapHit?.({
+        limit: 'pagesPerBinder',
+        surface: 'collection_list',
+        isGuest: store.tier === 'guest',
+        title: 'That binder is full',
+        message: pageLimitMessage(store.tier, store.limits),
+        trialMessage: pageTrialMessage(store.limits),
+        tier: store.tier,
+        used: target?.pages.length ?? 0,
+        cap: store.limits.pagesPerBinder,
+      });
+    } else if (added > 0) onToast?.(`Added ${added} card${added === 1 ? '' : 's'} to ${title}`);
   };
 
   const addToNew = () => {
@@ -525,9 +666,20 @@ function CollectionStrip({
     setChooser(null);
     setSelected(new Set());
     const binder = store.createBinder({ title: 'My collection picks' });
-    // The store refuses past the binder cap — say so instead of silently doing nothing.
+    // The store refuses past the binder cap — say so instead of silently doing nothing, and say it
+    // through the gate so it is paced, offered and recorded like every other binder wall.
     if (!binder) {
-      (onLimitToast ?? onToast)?.(binderLimitMessage(store.tier, store.limits));
+      onCapHit?.({
+        limit: 'binders',
+        surface: 'collection_list',
+        isGuest: store.tier === 'guest',
+        title: 'You are at your binder limit',
+        message: binderLimitMessage(store.tier, store.limits),
+        trialMessage: binderTrialMessage(store.limits),
+        tier: store.tier,
+        used: store.binderCount,
+        cap: store.limits.binders,
+      });
       return;
     }
     setPendingAdd({ binderId: binder.id, ids });
@@ -746,6 +898,32 @@ function CollectionStrip({
                   <Text style={styles.portfolioDelete}>Delete</Text>
                 </Pressable>
               </View>
+              {/* The physical binders inside this collection. One tap opens the confirm; the
+                  counts here are the same preview the dialog reads, so they cannot disagree. */}
+              {(tcgBinders ?? [])
+                .filter((b) => b.collectionId === g.id)
+                .map((b) => {
+                  const r = rebuilds.get(b.id);
+                  if (!r) return null;
+                  return (
+                    <Pressable
+                      key={b.id}
+                      onPress={() => setRebuildUnit(b)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Rebuild ${b.name} in michi`}
+                      style={({ pressed }) => [styles.rebuildRow, pressed && styles.pressed]}>
+                      <Text style={styles.rebuildName} numberOfLines={1}>
+                        📒 {b.name}
+                      </Text>
+                      <ThemedText type="small" themeColor="textSecondary" style={styles.rebuildMeta}>
+                        {r.pages.length} page{r.pages.length === 1 ? '' : 's'} · {r.placed} card
+                        {r.placed === 1 ? '' : 's'} · {r.rows} × {r.cols}
+                        {r.mixedShapes ? ' and other shapes' : ''}
+                      </ThemedText>
+                      <Text style={styles.rebuildCta}>Rebuild in michi ▸</Text>
+                    </Pressable>
+                  );
+                })}
               <TileStrip
                 cards={g.cards}
                 placedCounts={placedCounts}
@@ -918,6 +1096,23 @@ function CollectionStrip({
             : null
         }
         onClose={() => setPfDelete(null)}
+      />
+
+      <ConfirmDialog
+        spec={
+          rebuildUnit && rebuilds.get(rebuildUnit.id)
+            ? {
+                title: `Rebuild “${rebuildUnit.name}” in michi?`,
+                message: rebuildMessage(
+                  rebuilds.get(rebuildUnit.id) as RebuildResult,
+                  maxPages,
+                ),
+                confirmLabel: 'Rebuild binder',
+                onConfirm: runRebuild,
+              }
+            : null
+        }
+        onClose={() => setRebuildUnit(null)}
       />
 
       {pickerOpen ? (
@@ -1577,6 +1772,27 @@ const styles = StyleSheet.create({
   guideText: { flex: 1, minWidth: 200, color: Palette.accent, fontSize: FontSize.sm, lineHeight: 18, fontWeight: Weight.semibold },
   portfolioHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
   portfolioDelete: { color: Palette.danger, fontSize: FontSize.sm, fontWeight: Weight.semibold },
+  rebuildRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: Spacing.two,
+    marginTop: Spacing.two,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.control,
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
+    backgroundColor: Palette.panel,
+  },
+  rebuildName: { fontSize: FontSize.sm, fontWeight: Weight.semibold, color: Palette.ink },
+  rebuildMeta: { flexShrink: 1 },
+  rebuildCta: {
+    marginLeft: 'auto',
+    fontSize: FontSize.sm,
+    fontWeight: Weight.semibold,
+    color: Palette.accent,
+  },
   groupSeries: { marginTop: Spacing.three },
   groupSet: { marginTop: Spacing.one },
   cardModalWrap: { width: '100%', maxWidth: 320 },

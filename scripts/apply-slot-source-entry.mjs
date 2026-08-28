@@ -67,30 +67,52 @@ try {
   console.log('  OK (uuid, nullable, no default, no constraint)');
 
   console.log('Step 3: probing both slot-insert shapes, rolled back...');
-  // service-level SQL bypasses RLS, which is fine: the question here is the SCHEMA (does the
-  // column reject either write shape), not the policies — those are unchanged by this migration.
+  // The raise-to-roll-back idiom from apply-demote-placed.mjs: the whole probe lives in one
+  // do-block that ends by raising, so PostgreSQL unwinds every insert whatever the outcome —
+  // nothing can be left behind by a probe that dies halfway. Service-level SQL bypasses RLS,
+  // which is fine: the question here is the SCHEMA (can the column reject either write shape),
+  // and this migration touches no policy.
   const probe = await sql(`
-    begin;
-    with owner as (select id from auth.users limit 1),
-    b as (insert into public.binders (id, user_id, title)
-            select gen_random_uuid(), id, '__probe_slot_source_entry' from owner returning id),
-    p as (insert into public.binder_pages (id, binder_id, position, rows, cols)
-            select gen_random_uuid(), id, 0, 3, 4 from b returning id),
-    s_old as (insert into public.binder_slots (id, page_id, row_index, col_index, slot_type, card_id)
-            select gen_random_uuid(), id, 0, 0, 'card', 'probe-card' from p returning id),
-    s_new as (insert into public.binder_slots
-              (id, page_id, row_index, col_index, slot_type, card_id, source_entry_id)
-            select gen_random_uuid(), id, 0, 1, 'card', 'probe-card',
-                   '00000000-0000-0000-0000-000000000001' from p
-            returning source_entry_id)
-    select (select count(*) from s_old) as old_ok, (select source_entry_id from s_new) as round_trip;
-    rollback;`);
-  const row = Array.isArray(probe) ? probe[0] : null;
-  if (!row || Number(row.old_ok) !== 1) fail('the without-column insert did not land');
-  if (row.round_trip !== '00000000-0000-0000-0000-000000000001') {
-    fail(`the with-column insert did not round-trip (${row?.round_trip})`);
+    do $probe$
+    declare
+      v_user uuid; v_binder uuid; v_page uuid; v_old uuid; v_new uuid; v_back uuid;
+    begin
+      select id into v_user from auth.users limit 1;
+      if v_user is null then raise exception 'PROBE-SKIP: no user to own a probe binder'; end if;
+
+      insert into public.binders (owner_id, title, layout_style, is_public)
+        values (v_user, 'probe slot source entry', 'freeform', false) returning id into v_binder;
+      insert into public.binder_pages (binder_id, position, rows, cols)
+        values (v_binder, 0, 3, 4) returning id into v_page;
+
+      -- The shape every write path in the wild sends: no source_entry_id at all.
+      insert into public.binder_slots (page_id, row_index, col_index, slot_type, card_id)
+        values (v_page, 0, 0, 'card', 'probe-card-source-entry') returning id into v_old;
+      if v_old is null then raise exception 'PROBE-FAIL: the without-column insert did not land'; end if;
+
+      -- The shape slotRow sends from now on.
+      insert into public.binder_slots
+          (page_id, row_index, col_index, slot_type, card_id, source_entry_id)
+        values (v_page, 0, 1, 'card', 'probe-card-source-entry',
+                '00000000-0000-0000-0000-000000000001') returning id into v_new;
+      select source_entry_id into v_back from public.binder_slots where id = v_new;
+      if v_back is distinct from '00000000-0000-0000-0000-000000000001'::uuid then
+        raise exception 'PROBE-FAIL: stamp did not round-trip (got %)', v_back;
+      end if;
+
+      -- A dangling pointer must be legal: no FK means an id no entry has is still storable.
+      update public.binder_slots
+        set source_entry_id = '00000000-0000-0000-0000-000000000002' where id = v_old;
+
+      raise exception 'PROBE-OK';
+    end $probe$;`).catch((e) => String(e.message));
+  if (String(probe).includes('PROBE-OK')) {
+    console.log('  OK (old shape lands, stamp round-trips, dangling allowed, all rolled back)');
+  } else if (String(probe).includes('PROBE-SKIP')) {
+    console.log('  SKIPPED (no user to own a probe binder)');
+  } else {
+    fail(`slot probe: ${String(probe).slice(0, 400)}`);
   }
-  console.log('  OK (old shape lands, new shape round-trips, transaction rolled back)');
 
   console.log('');
   console.log('Done. binder_slots.source_entry_id is live; rebuilt binders stamp it from now on.');

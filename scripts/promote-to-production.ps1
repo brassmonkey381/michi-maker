@@ -94,8 +94,22 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host ''
 Write-Host '=== Step 6/6: vercel --prod ==='
-& npx vercel --prod
-if ($LASTEXITCODE -ne 0) { Fail 'vercel --prod failed' $LASTEXITCODE }
+# --yes because this runs with no TTY: a CLI prompt ("set up and deploy?") has no one to answer it,
+# and an unanswered prompt is how a scripted deploy ends up attempting the wrong scope.
+#
+# GIT PUSHES DO NOT DEPLOY PRODUCTION for this project - the Vercel Git integration builds PREVIEWS
+# only (verified 2026-08-28: the push above produced a Preview, and the newest Production
+# deployment was hours older). This step is the only thing that moves michi-maker.com.
+& npx vercel --prod --yes
+if ($LASTEXITCODE -ne 0) {
+  Write-Host ''
+  Write-Host 'If that said "Not authorized": the CLI token is readable but cannot deploy.'
+  Write-Host '  npx vercel login          # re-auth, then re-run this script'
+  Write-Host '  npx vercel link --yes     # if it still refuses: re-link the project, then re-run'
+  Write-Host 'Nothing is half-done - main and development are already pushed; only the deploy is'
+  Write-Host 'left, and re-running this script after fixing auth picks up exactly where it stopped.'
+  Fail 'vercel --prod failed' $LASTEXITCODE
+}
 
 Write-Host ''
 Write-Host "DONE: https://michi-maker.com is deploying $($head.Substring(0,7))."

@@ -3,6 +3,7 @@
  * fed by tcgscan-app scans (and, later, michi's own CSV import). Read-only from michi's side
  * for now; RLS scopes every query to the signed-in user. See docs/TCGSCAN-PORTFOLIO.md.
  */
+import type { TcgscanBinder } from '@/data/tcgscanBinderImport';
 import { requireSupabase } from '@/lib/supabase';
 
 /** One inventory line: a card the user owns (per condition), with a quantity. */
@@ -82,6 +83,80 @@ export async function deletePortfolio(id: string): Promise<void> {
   const supabase = requireSupabase();
   const { error } = await supabase.from('collections').delete().eq('id', id);
   if (error) throw new Error(`delete portfolio: ${error.message}`);
+}
+
+/**
+ * The user's tcgscan BINDERS — the physical ones, with the page shape and the pocket each card
+ * sits in (`storage_units` of kind 'binder' plus the entries that claim a place in one). Michi
+ * reads these, never writes them; tcgscan owns the shelf.
+ *
+ * The whole point is fidelity, so nothing is filtered on the way through: an entry with no pocket,
+ * a pocket outside the page shape and two entries claiming one pocket all arrive as they are and
+ * are counted by rebuildTcgscanBinder, which is the one place that decides what they mean.
+ *
+ * Binders holding no entries are kept too. A binder scanned into existence and then emptied is
+ * still a binder on the shelf, and the caller shows it with its own zero.
+ */
+export async function fetchTcgscanBinders(): Promise<TcgscanBinder[]> {
+  const supabase = requireSupabase();
+  // Paged for the same reason fetchScanImages is: PostgREST silently caps an unranged select at
+  // 1000 rows, and a binder-scanning collector passes that in a few hundred pages of binder.
+  const PAGE = 1000;
+  const rows: {
+    id: string;
+    card_id: string;
+    storage_id: string | null;
+    storage_page: number | null;
+    storage_pos: number | null;
+    scanned_at: string | null;
+  }[] = [];
+  const units = supabase
+    .from('storage_units')
+    .select('id, collection_id, name, grid_rows, grid_cols, page_count')
+    .eq('kind', 'binder');
+  const readEntries = async () => {
+    for (let from = 0; from < 50_000; from += PAGE) {
+      const { data, error } = await supabase
+        .from('portfolio_entries')
+        .select('id, card_id, storage_id, storage_page, storage_pos, scanned_at')
+        .not('storage_id', 'is', null)
+        .order('id', { ascending: true })
+        .range(from, from + PAGE - 1);
+      if (error) throw new Error(`binder entries: ${error.message}`);
+      rows.push(...(data ?? []));
+      if ((data ?? []).length < PAGE) break;
+    }
+  };
+  const [unitRes] = await Promise.all([units, readEntries()]);
+  if (unitRes.error) throw new Error(`binders: ${unitRes.error.message}`);
+
+  const binders = new Map<string, TcgscanBinder>();
+  for (const u of unitRes.data ?? []) {
+    binders.set(u.id, {
+      id: u.id,
+      collectionId: u.collection_id,
+      name: u.name,
+      rows: u.grid_rows,
+      cols: u.grid_cols,
+      pageCount: u.page_count,
+      entries: [],
+    });
+  }
+  for (const e of rows) {
+    const b = e.storage_id ? binders.get(e.storage_id) : undefined;
+    // A storage_id pointing at nothing is legal, not corruption: the reference is soft by design
+    // (no FK, see 20260827130000), and a stack's entries land here too. Both simply aren't binder
+    // pockets, so they're skipped rather than repaired.
+    if (!b) continue;
+    b.entries.push({
+      cardId: e.card_id,
+      page: e.storage_page,
+      pos: e.storage_pos,
+      scannedAt: e.scanned_at,
+      entryId: e.id,
+    });
+  }
+  return [...binders.values()];
 }
 
 /**

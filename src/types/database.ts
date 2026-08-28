@@ -620,6 +620,11 @@ export type Database = {
           purchase_date: string | null
           purchase_price: number | null
           quantity: number
+          scan_path: string | null
+          scanned_at: string | null
+          storage_id: string | null
+          storage_page: number | null
+          storage_pos: number | null
           updated_at: string
           user_id: string
           variant: string
@@ -633,6 +638,11 @@ export type Database = {
           purchase_date?: string | null
           purchase_price?: number | null
           quantity?: number
+          scan_path?: string | null
+          scanned_at?: string | null
+          storage_id?: string | null
+          storage_page?: number | null
+          storage_pos?: number | null
           updated_at?: string
           user_id?: string
           variant: string
@@ -646,6 +656,11 @@ export type Database = {
           purchase_date?: string | null
           purchase_price?: number | null
           quantity?: number
+          scan_path?: string | null
+          scanned_at?: string | null
+          storage_id?: string | null
+          storage_page?: number | null
+          storage_pos?: number | null
           updated_at?: string
           user_id?: string
           variant?: string
@@ -802,6 +817,56 @@ export type Database = {
           transform?: Json | null
         }
         Relationships: []
+      }
+      storage_units: {
+        Row: {
+          collection_id: string
+          created_at: string
+          grid_cols: number | null
+          grid_rows: number | null
+          id: string
+          insertion_order: string
+          kind: string
+          name: string
+          page_count: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          collection_id: string
+          created_at?: string
+          grid_cols?: number | null
+          grid_rows?: number | null
+          id: string
+          insertion_order?: string
+          kind: string
+          name: string
+          page_count?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          collection_id?: string
+          created_at?: string
+          grid_cols?: number | null
+          grid_rows?: number | null
+          id?: string
+          insertion_order?: string
+          kind?: string
+          name?: string
+          page_count?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "storage_units_user_id_collection_id_fkey"
+            columns: ["user_id", "collection_id"]
+            isOneToOne: false
+            referencedRelation: "collections"
+            referencedColumns: ["user_id", "id"]
+          },
+        ]
       }
       user_cards: {
         Row: {

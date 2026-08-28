@@ -108,6 +108,8 @@ export async function fetchTcgscanBinders(): Promise<TcgscanBinder[]> {
     storage_id: string | null;
     storage_page: number | null;
     storage_pos: number | null;
+    storage_rows: number | null;
+    storage_cols: number | null;
     scanned_at: string | null;
   }[] = [];
   const units = supabase
@@ -118,7 +120,9 @@ export async function fetchTcgscanBinders(): Promise<TcgscanBinder[]> {
     for (let from = 0; from < 50_000; from += PAGE) {
       const { data, error } = await supabase
         .from('portfolio_entries')
-        .select('id, card_id, storage_id, storage_page, storage_pos, scanned_at')
+        .select(
+          'id, card_id, storage_id, storage_page, storage_pos, storage_rows, storage_cols, scanned_at',
+        )
         .not('storage_id', 'is', null)
         .order('id', { ascending: true })
         .range(from, from + PAGE - 1);
@@ -152,6 +156,10 @@ export async function fetchTcgscanBinders(): Promise<TcgscanBinder[]> {
       cardId: e.card_id,
       page: e.storage_page,
       pos: e.storage_pos,
+      // The shape of the PAGE this card was filed onto (20260828140000) — a binder that mixes
+      // page sizes decodes correctly only through this, with the unit's grid as the fallback.
+      rows: e.storage_rows,
+      cols: e.storage_cols,
       scannedAt: e.scanned_at,
       entryId: e.id,
     });

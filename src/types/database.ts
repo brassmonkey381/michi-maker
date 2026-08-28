@@ -622,9 +622,11 @@ export type Database = {
           quantity: number
           scan_path: string | null
           scanned_at: string | null
+          storage_cols: number | null
           storage_id: string | null
           storage_page: number | null
           storage_pos: number | null
+          storage_rows: number | null
           updated_at: string
           user_id: string
           variant: string
@@ -640,9 +642,11 @@ export type Database = {
           quantity?: number
           scan_path?: string | null
           scanned_at?: string | null
+          storage_cols?: number | null
           storage_id?: string | null
           storage_page?: number | null
           storage_pos?: number | null
+          storage_rows?: number | null
           updated_at?: string
           user_id?: string
           variant: string
@@ -658,9 +662,11 @@ export type Database = {
           quantity?: number
           scan_path?: string | null
           scanned_at?: string | null
+          storage_cols?: number | null
           storage_id?: string | null
           storage_page?: number | null
           storage_pos?: number | null
+          storage_rows?: number | null
           updated_at?: string
           user_id?: string
           variant?: string

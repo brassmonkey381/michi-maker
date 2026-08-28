@@ -19,7 +19,7 @@ import {
 const CAP = 100; // a page cap well out of the way, except where a test is about the cap
 
 function pocket(over: Partial<TcgscanPocket> & { cardId: string }): TcgscanPocket {
-  return { page: 1, pos: 0, scannedAt: null, entryId: over.cardId, ...over };
+  return { page: 1, pos: 0, rows: null, cols: null, scannedAt: null, entryId: over.cardId, ...over };
 }
 
 function binder(over: Partial<TcgscanBinder> = {}): TcgscanBinder {
@@ -176,6 +176,17 @@ test('the page cap truncates the tail and says what it left behind', () => {
   assert.equal(unplacedCount(r), 1);
 });
 
+test('a shape recorded on the page beats the missing unit grid', () => {
+  const r = rebuildTcgscanBinder(
+    binder({ rows: null, cols: null, entries: [pocket({ cardId: 'a', pos: 4, rows: 2, cols: 2 })] }),
+    CAP,
+  );
+  assert.equal(r.assumedShape, false);
+  assert.deepEqual([r.pages[0].rows, r.pages[0].cols], [2, 2]);
+  // Pocket 4 is off a 2 x 2 page - reported, not wrapped onto a third row.
+  assert.equal(r.offGrid, 1);
+});
+
 test('an unrecorded page shape is assumed, and flagged as assumed', () => {
   const r = rebuildTcgscanBinder(
     binder({ rows: null, cols: null, entries: [pocket({ cardId: 'a', page: 1, pos: 4 })] }),
@@ -189,6 +200,93 @@ test('an unrecorded page shape is assumed, and flagged as assumed', () => {
 
 test('a recorded shape is not flagged as assumed', () => {
   assert.equal(rebuildTcgscanBinder(binder(), CAP).assumedShape, false);
+});
+
+test('each page decodes through ITS OWN shape, not the binder’s', () => {
+  // The defect 20260828140000 closes: page 2 was scanned as a 2 x 2, the unit says 3 x 4. Pocket 2
+  // is row 1 col 0 on a 2-wide page and row 0 col 2 on a 4-wide one.
+  const r = rebuildTcgscanBinder(
+    binder({
+      entries: [
+        pocket({ cardId: 'wide', page: 1, pos: 2, rows: 3, cols: 4 }),
+        pocket({ cardId: 'narrow', page: 2, pos: 2, rows: 2, cols: 2 }),
+      ],
+    }),
+    CAP,
+  );
+  assert.deepEqual([r.pages[0].rows, r.pages[0].cols], [3, 4]);
+  assert.deepEqual([r.pages[1].rows, r.pages[1].cols], [2, 2]);
+  assert.deepEqual([r.pages[0].slots[0].row, r.pages[0].slots[0].col], [0, 2]);
+  assert.deepEqual([r.pages[1].slots[0].row, r.pages[1].slots[0].col], [1, 0]);
+  assert.equal(r.mixedShapes, true);
+});
+
+test('the summary shape is the commonest one, and one odd page does not rename the binder', () => {
+  const r = rebuildTcgscanBinder(
+    binder({
+      entries: [
+        pocket({ cardId: 'a', page: 1, pos: 0, rows: 3, cols: 4 }),
+        pocket({ cardId: 'b', page: 2, pos: 0, rows: 3, cols: 4 }),
+        pocket({ cardId: 'c', page: 3, pos: 0, rows: 2, cols: 2 }),
+      ],
+    }),
+    CAP,
+  );
+  assert.deepEqual([r.rows, r.cols], [3, 4]);
+  assert.equal(r.mixedShapes, true);
+});
+
+test('one shape throughout is not reported as mixed', () => {
+  const r = rebuildTcgscanBinder(
+    binder({ pageCount: 3, entries: [pocket({ cardId: 'a', rows: 3, cols: 4 })] }),
+    CAP,
+  );
+  assert.equal(r.mixedShapes, false);
+});
+
+test('a page shape michi cannot draw keeps its number, empty, and reports its cards', () => {
+  // michi's binder_pages CHECKs 1..6 a side; tcgscan tolerates 12 and has inferred phantom grids.
+  const r = rebuildTcgscanBinder(
+    binder({
+      entries: [
+        pocket({ cardId: 'ok', page: 1, pos: 0, rows: 3, cols: 4 }),
+        pocket({ cardId: 'undrawable', page: 2, pos: 0, rows: 3, cols: 8 }),
+        pocket({ cardId: 'later', page: 3, pos: 0, rows: 3, cols: 4 }),
+      ],
+    }),
+    CAP,
+  );
+  assert.equal(r.unusablePages, 1);
+  assert.equal(r.offGrid, 1);
+  assert.equal(r.pages[1].slots.length, 0);
+  // Page 3 is still page 3: refusing a page must never renumber the ones after it.
+  assert.equal(r.pages[2].slots[0].cardId, 'later');
+});
+
+test('a unit grid michi cannot draw falls through to the assumed shape', () => {
+  const r = rebuildTcgscanBinder(binder({ rows: 3, cols: 12, entries: [] }), CAP);
+  assert.deepEqual([r.pages[0].rows, r.pages[0].cols], [ASSUMED_ROWS, ASSUMED_COLS]);
+});
+
+test('entries disagreeing about one page keep the first, as the offline sibling does', () => {
+  const r = rebuildTcgscanBinder(
+    binder({
+      entries: [
+        pocket({ cardId: 'a', page: 1, pos: 0, rows: 3, cols: 4, entryId: 'e1' }),
+        pocket({ cardId: 'b', page: 1, pos: 1, rows: 2, cols: 2, entryId: 'e2' }),
+      ],
+    }),
+    CAP,
+  );
+  assert.deepEqual([r.pages[0].rows, r.pages[0].cols], [3, 4]);
+});
+
+test('a page with no entries takes the binder grid, so an empty page is still drawable', () => {
+  const r = rebuildTcgscanBinder(
+    binder({ rows: 2, cols: 2, pageCount: 2, entries: [pocket({ cardId: 'a', rows: 2, cols: 2 })] }),
+    CAP,
+  );
+  assert.deepEqual([r.pages[1].rows, r.pages[1].cols], [2, 2]);
 });
 
 test('placed pockets consume owned copies, like any placement from the collection', () => {

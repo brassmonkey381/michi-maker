@@ -22,10 +22,19 @@
  * binder_slots for the same account (one identity, one project, see 20260714120000). Re-running
  * it replaces the binders it made before, matched by title, so it is safe to iterate with.
  *
+ * THE STRUCTURAL CONTRACT (owner decision 2026-08-27): a tcgscan binder and a michi binder are
+ * the same object with two technical definitions, and this is the seam that must recreate one as
+ * the other ONE FOR ONE. michi's page carries rows/cols and its slots carry row_index/col_index;
+ * tcgscan's entries now carry the shape of the page they were filed onto (storage_rows/cols,
+ * 20260828140000), so each page is rebuilt with ITS OWN shape rather than one shape guessed for
+ * the whole binder. Two limits are michi's and are refused rather than rounded: rows and cols
+ * must be 1..6 (binder_pages CHECK), and a page's position is its physical page number, never
+ * re-spaced (withParitySpacers is a michi editing nicety and would break the mapping).
+ *
  * THE TWO SHAPES:
  *   a BINDER unit already is pages and pockets. storage_page becomes the page position and
- *   storage_pos becomes the pocket, decoded through the unit's grid (pos = row * cols + col), so
- *   a card lands in the pocket it physically occupies, holes and all.
+ *   storage_pos becomes the pocket, decoded through THAT PAGE's own grid (pos = row * cols + col),
+ *   so a card lands in the pocket it physically occupies, holes and all.
  *
  *   a STACK is a pile with no pages at all, so this deals it into pages of the same shape, in
  *   the order the pile reads: top card first (highest ordinal), which is the card you would pick
@@ -100,7 +109,7 @@ try {
 
   for (const u of units) {
     const cards = await sql(`
-      select card_id, storage_page, storage_pos
+      select card_id, storage_page, storage_pos, storage_rows, storage_cols
       from public.portfolio_entries
       where user_id = ${q(owner)} and storage_id = ${q(u.id)}
       order by storage_page nulls last, storage_pos;`);
@@ -116,6 +125,26 @@ try {
     // PAGES OF PLACED CARDS. A binder keeps the pockets it was scanned into; a stack is dealt
     // into pages in reading order (top of the pile first), because a pile has no pockets.
     const pages = new Map(); // position -> Map(slotIndex -> cardId)
+    // EACH PAGE'S OWN SHAPE, from the entries filed onto it. The unit's grid is the fallback for
+    // rows written before entries carried one. A page whose cards disagree about the shape is a
+    // real possibility (two sessions, a corrected grid); the first non-null wins and the
+    // disagreement is reported rather than silently averaged.
+    const pageShape = new Map(); // page -> {rows, cols}
+    if (u.kind === 'binder') {
+      for (const c of cards) {
+        const page = c.storage_page ?? 1;
+        if (c.storage_cols == null) continue;
+        const seen = pageShape.get(page);
+        if (!seen) pageShape.set(page, { rows: c.storage_rows ?? rows, cols: c.storage_cols });
+        else if (seen.cols !== c.storage_cols || seen.rows !== (c.storage_rows ?? seen.rows)) {
+          console.log(
+            `     page ${page}: entries disagree on shape (${seen.rows}x${seen.cols} vs `
+            + `${c.storage_rows}x${c.storage_cols}); keeping the first`,
+          );
+        }
+      }
+    }
+
     if (u.kind === 'binder') {
       for (const c of cards) {
         const page = c.storage_page ?? 1;
@@ -151,17 +180,27 @@ try {
     const pageNumbers = [...pages.keys()].sort((a, b) => a - b);
     let slotCount = 0;
     for (const [i, pageNo] of pageNumbers.entries()) {
+      // This page's shape, not the binder's. michi constrains rows/cols to 1..6, and a shape
+      // outside that cannot be drawn as a michi page at all — refuse the page rather than round
+      // it into a lie about where the cards are.
+      const shape = pageShape.get(pageNo) ?? { rows, cols };
+      const pRows = shape.rows;
+      const pCols = shape.cols;
+      if (pRows < 1 || pRows > 6 || pCols < 1 || pCols > 6) {
+        console.log(`     page ${pageNo}: ${pRows}x${pCols} is outside michi's 1..6, skipped`);
+        continue;
+      }
       const [page] = await sql(`
         insert into public.binder_pages (binder_id, position, rows, cols, title)
-        values (${q(binder.id)}, ${i}, ${rows}, ${cols}, ${q(`Page ${pageNo}`)})
+        values (${q(binder.id)}, ${i}, ${pRows}, ${pCols}, ${q(`Page ${pageNo}`)})
         returning id;`);
       const slots = pages.get(pageNo);
       const values = [...slots.entries()]
         // A pocket beyond the page's own shape cannot be drawn; skip it rather than fold it back
         // onto another pocket's cell.
-        .filter(([slot]) => slot >= 0 && slot < rows * cols)
+        .filter(([slot]) => slot >= 0 && slot < pRows * pCols)
         .map(([slot, cardId]) =>
-          `(${q(page.id)}, ${Math.floor(slot / cols)}, ${slot % cols}, 1, 1, 'card', ${q(cardId)}, true)`);
+          `(${q(page.id)}, ${Math.floor(slot / pCols)}, ${slot % pCols}, 1, 1, 'card', ${q(cardId)}, true)`);
       if (values.length) {
         await sql(`
           insert into public.binder_slots

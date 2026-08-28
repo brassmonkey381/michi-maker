@@ -169,3 +169,33 @@ archived**. Consequences for michi:
   stops serving) and `tcgscanexpo://auth-callback` (native deep link).
 - The `increment_user_card` / table migrations were authored here but applying them to the
   live project needs your go-ahead (a production DDL deploy).
+
+## ⚠️ 2026-08-28: page shapes should be constrained to the four REAL ones
+
+**Request to the tcgscan side, owner-asked.** michi does not draw arbitrary grids. It models
+PHYSICAL side-load pages, and there are four: **2×2, 3×3, 3×4, 4×4** (`src/data/binderPhysics.ts`,
+`REAL_PAGE_SIZES`). 4 rows × 3 columns is deliberately absent — it does not exist as a product —
+and the fold-a-pair geometry for printed art assumes 2, 3 or 4 columns. `binder_pages` CHECKs 1..6
+a side, but that is a backstop, not the model.
+
+tcgscan is looser at both ends: `storage_units.grid_*` allows 1..12, `portfolio_entries
+.storage_rows/cols` has no CHECK at all (correctly — see below), and the binder-tracker's grid
+inference has reported a phantom 3 × 5. Every one of those is a page nobody owns.
+
+**Where the constraint belongs: the CLIENT, at inference and review time.** Snap the inferred grid
+to the nearest real shape before it is written — keep the most pockets, then take the smallest
+shape that keeps them (a 3 × 5 becomes a 3 × 4; a 2 × 3 becomes a 3 × 3) — and let the user correct
+it, since a mis-snapped page is visible and fixable where a mis-scanned one is not.
+
+**Do NOT add a CHECK constraint for this**, on either table. Your own migrations say why
+(20260827130000, 20260828140000): the sync push is one batch upsert and a single rejected row
+poisons the queue indefinitely. A range the client can plausibly produce must never be enforced in
+the database. The range belongs to the export and the editor, where refusing is visible and
+recoverable.
+
+**What michi does meanwhile:** `src/data/tcgscanBinderImport.ts` normalises on read — it decodes
+each pocket against the shape it was SCANNED at, then draws the page on the nearest real michi
+page, so cards keep the row and column they physically occupy and only a coordinate no real page
+has (column 4 of a phantom 5-wide) is dropped, counted, and shown to the user before they confirm.
+That is a repair, not a fix: constraining inference means the scan is right in the first place, and
+the rebuild becomes lossless.

@@ -23,7 +23,9 @@ import { CardBrowse } from '@/components/binder/CardBrowse';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
-import { useCopyAssigner } from '@/hooks/use-owned-copies';
+import { CopyPickerSheet } from '@/components/binder/CopyPickerSheet';
+import type { OwnedEntry } from '@/data/ownedCopies';
+import { useAvailableCopies, useCopyAssigner } from '@/hooks/use-owned-copies';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Spacing } from '@/constants/theme';
@@ -40,6 +42,7 @@ export default function BrowseScreen() {
   // add path resolves it the same way, so what a pocket costs no longer depends on the screen
   // it was added from.
   const assignCopies = useCopyAssigner();
+  const availableCopies = useAvailableCopies();
   const router = useRouter();
   const { width } = useWindowDimensions();
   const railHidden = Platform.OS !== 'web' || width < Breakpoints.rail;
@@ -112,13 +115,29 @@ export default function BrowseScreen() {
   // One wall, one report: a dialog on its first hit today, the toast after that.
   const capGate = useCapGate(showLimitToast);
 
-  const addToExisting = (binderId: string) => {
+  // ONE card, and copies of it unplaced: the pocket could mean "my card" or "one I want", and
+  // only the user knows which. A MULTI-card add resolves automatically instead - a sheet per card
+  // for a selection of forty would be unusable, and every pocket can still be changed afterwards.
+  const [copyChoice, setCopyChoice] = useState<{
+    binderId: string;
+    cardId: string;
+    copies: OwnedEntry[];
+  } | null>(null);
+
+  const addToExisting = (binderId: string, entryIds?: (string | undefined)[]) => {
     if (!addCardIds?.length) return;
     const title = store.getBinder(binderId)?.title ?? 'binder';
+    if (!entryIds && addCardIds.length === 1) {
+      const copies = availableCopies(addCardIds[0]);
+      if (copies.length > 0) {
+        setCopyChoice({ binderId, cardId: addCardIds[0], copies });
+        return;
+      }
+    }
     // Claim one of the user's actual cards where they have a free one. Browsing used to place
     // a card you own without it costing anything, so the collection kept calling it free.
     const { added, unplaced } = store.addCardsToBinder(binderId, addCardIds, {
-      entryIds: assignCopies(addCardIds),
+      entryIds: entryIds ?? assignCopies(addCardIds),
     });
     setAddCardIds(null);
     // Anything the binder's page cap left out is named, never dropped in silence.
@@ -143,7 +162,10 @@ export default function BrowseScreen() {
     // than seeding a binder over the cap. Unlimited tiers keep the whole selection.
     const ids = addCardIds.slice(0, store.limits.pagesPerBinder * 9);
     const short = addCardIds.length - ids.length;
-    const binder = store.createBinder({ title: 'New binder', pages: pagesForCards(ids) });
+    const binder = store.createBinder({
+      title: 'New binder',
+      pages: pagesForCards(ids, assignCopies(ids)),
+    });
     setAddCardIds(null);
     // The store refuses past the binder cap — say so instead of silently doing nothing.
     if (!binder) {
@@ -230,6 +252,21 @@ export default function BrowseScreen() {
           onPick={addToExisting}
           onNew={addToNew}
           onClose={() => setAddCardIds(null)}
+        />
+      ) : null}
+      {/* Sits over the binder chooser: the binder is already decided, the copy is not. Closing it
+          without answering cancels the add and leaves the chooser open behind it. */}
+      {copyChoice ? (
+        <CopyPickerSheet
+          visible
+          cardId={copyChoice.cardId}
+          copies={copyChoice.copies}
+          onClose={() => setCopyChoice(null)}
+          onPick={(entryId) => {
+            const c = copyChoice;
+            setCopyChoice(null);
+            addToExisting(c.binderId, [entryId ?? undefined]);
+          }}
         />
       ) : null}
       <Toast spec={toast} onDismiss={() => setToast(null)} />

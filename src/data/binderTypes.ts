@@ -246,8 +246,13 @@ export function emptyPage(rows = 3, cols = 3, title?: string): DemoPage {
 /**
  * Lay card ids into fresh 3×3 pages, row-major — an atomic payload for `createBinder({ pages })`
  * (creating a binder then batch-adding races the store snapshot; this doesn't).
+ *
+ * `entryIds` (parallel to `cardIds`, from useCopyAssigner) names the owned copy each pocket claims.
+ * Without it a binder created from a selection placed every card as aspirational no matter how many
+ * of them the user owned — the same screen-dependent accounting that ownedCopies.ts exists to end,
+ * arriving through the one path that builds its pages before the binder exists.
  */
-export function pagesForCards(cardIds: string[]): DemoPage[] {
+export function pagesForCards(cardIds: string[], entryIds?: (string | undefined)[]): DemoPage[] {
   const pages: DemoPage[] = [];
   for (let i = 0; i < cardIds.length; i += 9) {
     const chunk = cardIds.slice(i, i + 9);
@@ -259,6 +264,8 @@ export function pagesForCards(cardIds: string[]): DemoPage[] {
       colSpan: 1,
       type: 'card',
       cardId,
+      sourceEntryId: entryIds?.[i + j],
+      fromCollection: entryIds?.[i + j] ? true : undefined,
     }));
     pages.push({ id: uuidv4(), rows: 3, cols: 3, slots });
   }

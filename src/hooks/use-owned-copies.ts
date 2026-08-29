@@ -18,7 +18,12 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { fetchOwnedEntries } from '@/data/collectionRepo';
-import { assignCopies, claimedByEntry, type OwnedEntry } from '@/data/ownedCopies';
+import {
+  assignCopies,
+  availableCopiesOf,
+  claimedByEntry,
+  type OwnedEntry,
+} from '@/data/ownedCopies';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
@@ -63,6 +68,26 @@ export function useCopyAssigner(): (cardIds: string[]) => (string | undefined)[]
       if (!entries || entries.length === 0) return cardIds.map(() => undefined);
       const claims = userBinders.flatMap((b) => b.pages.flatMap((p) => p.slots));
       return assignCopies(cardIds, entries, claimedByEntry(claims));
+    },
+    [entries, userBinders],
+  );
+}
+
+/**
+ * `available(cardId)` → this card's unplaced copies, best first — what the copy picker offers.
+ *
+ * The same derivation as useCopyAssigner, exposed as a list rather than a choice, because the whole
+ * point of the picker is that the choice is the user's. Empty means there is nothing to ask about:
+ * either they own none, or every copy is already in a pocket.
+ */
+export function useAvailableCopies(): (cardId: string) => OwnedEntry[] {
+  const entries = useOwnedCopies();
+  const { userBinders } = useBinders();
+  return useCallback(
+    (cardId: string) => {
+      if (!entries || entries.length === 0) return [];
+      const claims = userBinders.flatMap((b) => b.pages.flatMap((p) => p.slots));
+      return availableCopiesOf(cardId, entries, claimedByEntry(claims));
     },
     [entries, userBinders],
   );

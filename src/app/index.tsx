@@ -167,7 +167,10 @@ export default function HomeScreen() {
       return;
     }
     // Atomic create-with-card — creating then adding would race the store snapshot.
-    const binder = store.createBinder({ title: 'New binder', pages: pagesForCards([addCardId]) });
+    const binder = store.createBinder({
+      title: 'New binder',
+      pages: pagesForCards([addCardId], assignCopies([addCardId])),
+    });
     setAddCardId(null);
     if (binder) showAddedToast(binder.id, binder.title);
   };

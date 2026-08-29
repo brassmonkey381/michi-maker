@@ -29,7 +29,9 @@ import { SlotMultiActions } from '@/components/binder/SlotMultiActions';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
-import { useCopyAssigner } from '@/hooks/use-owned-copies';
+import { CopyPickerSheet } from '@/components/binder/CopyPickerSheet';
+import type { OwnedEntry } from '@/data/ownedCopies';
+import { useAvailableCopies, useCopyAssigner } from '@/hooks/use-owned-copies';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Fonts, Palette, Radius, Spacing, Weight, FontSize } from '@/constants/theme';
@@ -96,6 +98,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // add path resolves it the same way, so what a pocket costs no longer depends on the screen
   // it was added from.
   const assignCopies = useCopyAssigner();
+  const availableCopies = useAvailableCopies();
   const theme = useTheme();
   const { width } = useWindowDimensions();
   // Keep the saved-slice tray synced to the current (guest or signed-in) user while editing.
@@ -121,6 +124,18 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const [editing, setEditing] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
   const [pickerCell, setPickerCell] = useState<{ row: number; col: number } | null>(null);
+  // A placement waiting on "which copy?" - held whole, because the answer arrives from a sheet
+  // that does not know the pocket, the footprint, or whether we are still adding.
+  const [copyChoice, setCopyChoice] = useState<{
+    cardId: string;
+    cardName?: string;
+    row: number;
+    col: number;
+    rows: number;
+    cols: number;
+    copies: OwnedEntry[];
+  } | null>(null);
+
   // "Find similar to all" seed handed to the picker's card browser as an explicit prop (not via
   // the broadcast command bus, which a second mounted browser would steal — see kit initialSimilar).
   const [similarSeed, setSimilarSeed] = useState<string[] | null>(null);
@@ -559,10 +574,15 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // and advances to the next empty pocket until the page is full. The browser passes the full
   // card along; for guests (no catalog → resolveCard misses) that carried kind is what keeps a
   // jumbo landing as 2×2 instead of collapsing to 1×1.
-  const handlePickCard = (cardId: string, card?: CatalogCard) => {
-    if (!pickerCell) return;
-    const { rows, cols } = footprintForKind(card?.kind ?? resolveCard(cardId)?.kind);
-    const { row, col } = pickerCell;
+  /** Place the card, then keep the picker moving. Both answers to "which copy?" land here. */
+  const placeCardInPocket = (
+    cardId: string,
+    row: number,
+    col: number,
+    rows: number,
+    cols: number,
+    sourceEntryId: string | undefined,
+  ) => {
     store.upsertSlot(binder.id, page.id, {
       row,
       col,
@@ -570,9 +590,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
       type: 'card',
       rowSpan: rows,
       colSpan: cols,
-      // The most direct placement there is - pick a card, drop it in this pocket - and the one
-      // that most obviously means "this card of mine goes here" when the user owns one.
-      sourceEntryId: assignCopies([cardId])[0],
+      sourceEntryId,
     });
     if (keepAdding) {
       const next = nextEmptyCell(row, col, rows, cols);
@@ -582,6 +600,21 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
       }
     }
     closePicker();
+  };
+
+  const handlePickCard = (cardId: string, card?: CatalogCard) => {
+    if (!pickerCell) return;
+    const { rows, cols } = footprintForKind(card?.kind ?? resolveCard(cardId)?.kind);
+    const { row, col } = pickerCell;
+    // ASK ONLY WHEN THERE IS A QUESTION. Own an unplaced copy of this card and the pocket could
+    // mean either "here is my card" or "here is one I want" - and those are different facts about
+    // the collection, so the user says which. Own none and there is nothing to ask about.
+    const copies = availableCopies(cardId);
+    if (copies.length > 0) {
+      setCopyChoice({ cardId, cardName: card?.name, row, col, rows, cols, copies });
+      return;
+    }
+    placeCardInPocket(cardId, row, col, rows, cols, undefined);
   };
 
   const replaceSelected = () => {
@@ -723,7 +756,10 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   };
   const addElsewhereNew = () => {
     if (!addElsewhereIds?.length) return;
-    const copy = store.createBinder({ title: 'New binder', pages: pagesForCards(addElsewhereIds) });
+    const copy = store.createBinder({
+      title: 'New binder',
+      pages: pagesForCards(addElsewhereIds, assignCopies(addElsewhereIds)),
+    });
     const count = addElsewhereIds.length;
     setAddElsewhereIds(null);
     // The store refuses past the binder cap — say so instead of silently doing nothing.
@@ -1329,6 +1365,23 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
             </Animated.View>
           ) : null}
         </SafeAreaView>
+
+        {/* "Which copy?" - only ever open on top of the card picker, and closing it without an
+            answer leaves the pocket empty and the picker where it was, which is a cancel. */}
+        {copyChoice ? (
+          <CopyPickerSheet
+            visible
+            cardId={copyChoice.cardId}
+            cardName={copyChoice.cardName}
+            copies={copyChoice.copies}
+            onClose={() => setCopyChoice(null)}
+            onPick={(entryId) => {
+              const c = copyChoice;
+              setCopyChoice(null);
+              placeCardInPocket(c.cardId, c.row, c.col, c.rows, c.cols, entryId ?? undefined);
+            }}
+          />
+        ) : null}
 
         <CardPicker
           visible={pickerCell != null}

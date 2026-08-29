@@ -98,10 +98,14 @@ export async function deletePortfolio(id: string): Promise<void> {
  */
 export async function fetchOwnedEntries(): Promise<OwnedEntry[]> {
   const supabase = requireSupabase();
+  // A FAILED ARCHIVE READ MUST NOT COST THE USER THEIR COPIES. This is one refinement on top of
+  // the copies themselves, and the two failure directions are not equal: offering a copy from an
+  // archived collection places a card the owner still physically has, while losing the whole read
+  // would make every placement aspirational again and silently restore the bug this exists to fix.
+  // So an error here degrades to "nothing is archived" rather than throwing.
   const archived = new Set<string>();
   const cols = await supabase.from('collections').select('id, archived_at');
-  if (cols.error) throw new Error(`collections: ${cols.error.message}`);
-  for (const c of cols.data ?? []) if (c.archived_at) archived.add(c.id);
+  if (!cols.error) for (const c of cols.data ?? []) if (c.archived_at) archived.add(c.id);
 
   // Paged for the same reason as every other portfolio_entries read: PostgREST silently caps an
   // unranged select at 1000 rows, and this one is the whole collection by definition.

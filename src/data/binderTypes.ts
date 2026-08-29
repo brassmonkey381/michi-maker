@@ -395,7 +395,15 @@ export function cloneBinder(binder: DemoBinder, overrides?: Partial<DemoBinder>)
     pages: binder.pages.map((page) => ({
       ...page,
       id: uuidv4(),
-      slots: page.slots.map((slot) => ({ ...slot, id: uuidv4() })),
+      // A COPY SHOWS CATALOG ART, always. `sourceEntryId` names the specific owned copy a pocket
+      // depicts (the real-scan pairing), and it is true of the binder that was BUILT from those
+      // cards — not of a duplicate. Carried over, the copy would draw the owner's photographs of
+      // cards it has no claim to: a shared or repurposed binder wearing someone's scuffs and
+      // sleeve glare. Dropping it falls back to catalog images, which is what a duplicate should
+      // look like. `fromCollection` is deliberately NOT touched here: it drives the owned/placed
+      // accounting rather than the artwork, and changing what a copy claims to consume is a
+      // different decision from what a copy looks like.
+      slots: page.slots.map(({ sourceEntryId: _drop, ...slot }) => ({ ...slot, id: uuidv4() })),
     })),
     ...overrides,
   };

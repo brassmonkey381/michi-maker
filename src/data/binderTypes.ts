@@ -400,10 +400,19 @@ export function cloneBinder(binder: DemoBinder, overrides?: Partial<DemoBinder>)
       // cards — not of a duplicate. Carried over, the copy would draw the owner's photographs of
       // cards it has no claim to: a shared or repurposed binder wearing someone's scuffs and
       // sleeve glare. Dropping it falls back to catalog images, which is what a duplicate should
-      // look like. `fromCollection` is deliberately NOT touched here: it drives the owned/placed
-      // accounting rather than the artwork, and changing what a copy claims to consume is a
-      // different decision from what a copy looks like.
-      slots: page.slots.map(({ sourceEntryId: _drop, ...slot }) => ({ ...slot, id: uuidv4() })),
+      // look like.
+      //
+      // `fromCollection` goes with it, for the matching reason on the accounting side: it marks a
+      // pocket as CONSUMING one owned copy, and the copies did not multiply because a binder was
+      // duplicated. Carried over, a person owning three Pikachu who duplicates the binder holding
+      // them reads as having placed six — the placed count exceeds what they own, the free-copy
+      // maths that feeds "fill from my collection" goes negative, and the reclaim list offers
+      // copies that are not there. A duplicate's pockets are aspirational, which is exactly what
+      // an absent `fromCollection` already means (see DemoSlot: "placed from general browsing").
+      slots: page.slots.map(({ sourceEntryId: _scan, fromCollection: _owned, ...slot }) => ({
+        ...slot,
+        id: uuidv4(),
+      })),
     })),
     ...overrides,
   };

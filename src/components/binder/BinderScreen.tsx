@@ -31,7 +31,7 @@ import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
 import { CopyPickerSheet } from '@/components/binder/CopyPickerSheet';
 import type { OwnedEntry } from '@/data/ownedCopies';
-import { useAvailableCopies, useCopyAssigner } from '@/hooks/use-owned-copies';
+import { useAvailableCopies, useCopyAssigner, useOwnedCopies } from '@/hooks/use-owned-copies';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Fonts, Palette, Radius, Spacing, Weight, FontSize } from '@/constants/theme';
@@ -99,6 +99,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // it was added from.
   const assignCopies = useCopyAssigner();
   const availableCopies = useAvailableCopies();
+  const ownedCopies = useOwnedCopies();
   const theme = useTheme();
   const { width } = useWindowDimensions();
   // Keep the saved-slice tray synced to the current (guest or signed-in) user while editing.
@@ -134,6 +135,10 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     rows: number;
     cols: number;
     copies: OwnedEntry[];
+    /** True when an EXISTING pocket is changing hands rather than a new card being placed. */
+    existing?: boolean;
+    /** The copy that pocket holds right now, if any. */
+    currentEntryId?: string;
   } | null>(null);
 
   // "Find similar to all" seed handed to the picker's card browser as an explicit prop (not via
@@ -617,6 +622,38 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     placeCardInPocket(cardId, row, col, rows, cols, undefined);
   };
 
+  /**
+   * "My card" on a filled pocket: change which copy it holds, or hand the copy back.
+   *
+   * The pocket's OWN copy is not in `availableCopies` — it is unavailable precisely because this
+   * pocket has it — so it is put back at the top of the list, where it reads as the current answer
+   * rather than as a missing option.
+   */
+  const pickCopyForSelected = () => {
+    const slot = selectedSlot;
+    if (!slot?.cardId) return;
+    const held = slot.sourceEntryId
+      ? ownedCopies?.find((c) => c.entryId === slot.sourceEntryId)
+      : undefined;
+    const copies = [...(held ? [held] : []), ...availableCopies(slot.cardId)];
+    if (copies.length === 0) {
+      // Nothing to choose between: they own none of this card, and a pocket cannot claim what
+      // does not exist. Say so rather than opening an empty sheet.
+      showToast('You don’t own a copy of this card yet');
+      return;
+    }
+    setCopyChoice({
+      cardId: slot.cardId,
+      row: slot.row,
+      col: slot.col,
+      rows: slot.rowSpan,
+      cols: slot.colSpan,
+      copies,
+      existing: true,
+      currentEntryId: slot.sourceEntryId,
+    });
+  };
+
   const replaceSelected = () => {
     if (!selectedSlot) return;
     setPickerCell({ row: selectedSlot.row, col: selectedSlot.col });
@@ -1057,6 +1094,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         onRemoveSlot={removeSelected}
         onDeselectSlot={() => setSelectedSlotId(null)}
         onAutoFillSlot={() => setAutoFillOpen(true)}
+        onPickCopySlot={pickCopyForSelected}
         dropTargets={p.id === page.id ? dropTargets : undefined}
         {...(role === 'current'
           ? {
@@ -1375,9 +1413,20 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
             cardName={copyChoice.cardName}
             copies={copyChoice.copies}
             onClose={() => setCopyChoice(null)}
+            currentEntryId={copyChoice.currentEntryId}
             onPick={(entryId) => {
               const c = copyChoice;
               setCopyChoice(null);
+              // An existing pocket keeps its card and only changes hands; a new one is placed.
+              // `null` is an explicit detach, which is why it is not collapsed to undefined here.
+              if (c.existing) {
+                store.upsertSlot(binder.id, page.id, {
+                  row: c.row,
+                  col: c.col,
+                  sourceEntryId: entryId,
+                });
+                return;
+              }
               placeCardInPocket(c.cardId, c.row, c.col, c.rows, c.cols, entryId ?? undefined);
             }}
           />

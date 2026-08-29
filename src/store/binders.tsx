@@ -103,8 +103,13 @@ export interface SlotInput {
   cardId?: string;
   insertColor?: string;
   imageUrl?: string;
-  /** WHICH owned copy this pocket claims (portfolio_entries.id). Implies fromCollection. */
-  sourceEntryId?: string;
+  /**
+   * WHICH owned copy this pocket claims (portfolio_entries.id). Implies fromCollection.
+   * `null` DETACHES it — the pocket goes back to being the catalogue image and the copy goes back
+   * to being free. Undefined means "not mentioned", which leaves an existing stamp alone; the two
+   * have to be different values or "keep what is there" and "let my card go" are the same call.
+   */
+  sourceEntryId?: string | null;
 }
 
 /** One panel from the slice studio: a grid region of an image plus its crop. */
@@ -980,15 +985,23 @@ export function BinderProvider({ children }: { children: ReactNode }) {
             // It is true of the card the rebuild placed, not of the pocket — so placing a
             // different card here must drop it, or the pocket would wear the old copy's photo.
             sourceEntryId:
-              input.sourceEntryId ??
-              (input.cardId && input.cardId !== existing.cardId ? undefined : existing.sourceEntryId),
+              input.sourceEntryId === null
+                ? undefined
+                : (input.sourceEntryId ??
+                  (input.cardId && input.cardId !== existing.cardId
+                    ? undefined
+                    : existing.sourceEntryId)),
             // A pocket that names a copy is owned by definition; one that just changed to a
-            // different card is not, and must not keep the old card's provenance.
+            // different card is not, and must not keep the old card's provenance; and a detach
+            // frees the copy, which is the entire point of offering it.
             fromCollection:
-              input.sourceEntryId || (existing.fromCollection && !input.cardId) ||
-              (existing.fromCollection && input.cardId === existing.cardId)
-                ? true
-                : undefined,
+              input.sourceEntryId === null
+                ? undefined
+                : input.sourceEntryId ||
+                    (existing.fromCollection && !input.cardId) ||
+                    (existing.fromCollection && input.cardId === existing.cardId)
+                  ? true
+                  : undefined,
             insertColor: input.insertColor ?? existing.insertColor,
             imageUrl: input.imageUrl ?? existing.imageUrl,
           }
@@ -1000,7 +1013,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
             colSpan,
             type: input.type ?? 'card',
             cardId: input.cardId,
-            sourceEntryId: input.sourceEntryId,
+            sourceEntryId: input.sourceEntryId ?? undefined,
             fromCollection: input.sourceEntryId ? true : undefined,
             insertColor: input.insertColor,
             imageUrl: input.imageUrl,

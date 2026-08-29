@@ -38,14 +38,21 @@ export function CopyPickerSheet({
   cardId,
   cardName,
   copies,
+  currentEntryId,
   onPick,
   onClose,
 }: {
   visible: boolean;
   cardId: string;
   cardName?: string;
-  /** Unplaced copies, best first (see availableCopiesOf). Never empty when this is shown. */
+  /**
+   * The copies on offer: unplaced ones, best first (see availableCopiesOf), and — when an existing
+   * pocket is being changed — the copy it already holds, which is not "available" precisely
+   * because this pocket has it.
+   */
   copies: OwnedEntry[];
+  /** The copy this pocket already holds, ticked in the list. */
+  currentEntryId?: string;
   /** The copy chosen, or null for "just the catalogue image — claim nothing". */
   onPick: (entryId: string | null) => void;
   onClose: () => void;
@@ -56,9 +63,11 @@ export function CopyPickerSheet({
   return (
     <DialogCard visible={visible} onClose={onClose} maxWidth={420} title="Which copy?">
       <ThemedText type="small" themeColor="textSecondary" style={styles.intro}>
-        You own {copies.length === 1 ? 'a copy' : `${copies.length} copies`} of
-        {cardName ? ` ${cardName}` : ' this card'} that {copies.length === 1 ? 'is' : 'are'} not in a
-        binder yet. Pick the one that goes in this pocket, and it stops counting as free.
+        {currentEntryId
+          ? 'This pocket holds one of your cards. Swap it for another copy, or hand it back and let the pocket be just the catalogue image.'
+          : `You own ${copies.length === 1 ? 'a copy' : `${copies.length} copies`} of${
+              cardName ? ` ${cardName}` : ' this card'
+            } that ${copies.length === 1 ? 'is' : 'are'} not in a binder yet. Pick the one that goes in this pocket, and it stops counting as free.`}
       </ThemedText>
 
       <ScrollView style={styles.list} contentContainerStyle={styles.listInner}>
@@ -81,6 +90,7 @@ export function CopyPickerSheet({
                 <Text style={styles.rowTitle}>
                   {copies.length === 1 ? 'My copy' : `My copy ${i + 1}`}
                   {c.quantity > 1 ? ` · lot of ${c.quantity}` : ''}
+                  {c.entryId === currentEntryId ? ' ✓ in this pocket' : ''}
                 </Text>
                 <ThemedText type="small" themeColor="textSecondary">
                   {/* The photo IS the distinction between two copies, so say when there isn't one:
@@ -101,9 +111,13 @@ export function CopyPickerSheet({
         style={({ pressed }) => [styles.row, styles.catalogRow, pressed && styles.pressed]}>
         <Image source={{ uri: catalogArt }} style={styles.thumb} contentFit="cover" transition={80} />
         <View style={styles.rowText}>
-          <Text style={styles.rowTitle}>Just the catalogue image</Text>
+          <Text style={styles.rowTitle}>
+            {currentEntryId ? 'Let my card go — just the catalogue image' : 'Just the catalogue image'}
+          </Text>
           <ThemedText type="small" themeColor="textSecondary">
-            None of your cards is tied to this pocket — for a page of cards you are still after.
+            {currentEntryId
+              ? 'The copy goes back to being free, and the pocket stays as it looks.'
+              : 'None of your cards is tied to this pocket — for a page of cards you are still after.'}
           </ThemedText>
         </View>
         <Text style={styles.chev}>›</Text>

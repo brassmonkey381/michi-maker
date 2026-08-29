@@ -23,6 +23,7 @@ import { CardBrowse } from '@/components/binder/CardBrowse';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
+import { useCopyAssigner } from '@/hooks/use-owned-copies';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Spacing } from '@/constants/theme';
@@ -35,6 +36,10 @@ import { useBinders } from '@/store/binders';
 
 export default function BrowseScreen() {
   const store = useBinders();
+  // Which of the user's physical cards each placement claims (see use-owned-copies): every
+  // add path resolves it the same way, so what a pocket costs no longer depends on the screen
+  // it was added from.
+  const assignCopies = useCopyAssigner();
   const router = useRouter();
   const { width } = useWindowDimensions();
   const railHidden = Platform.OS !== 'web' || width < Breakpoints.rail;
@@ -110,7 +115,11 @@ export default function BrowseScreen() {
   const addToExisting = (binderId: string) => {
     if (!addCardIds?.length) return;
     const title = store.getBinder(binderId)?.title ?? 'binder';
-    const { added, unplaced } = store.addCardsToBinder(binderId, addCardIds);
+    // Claim one of the user's actual cards where they have a free one. Browsing used to place
+    // a card you own without it costing anything, so the collection kept calling it free.
+    const { added, unplaced } = store.addCardsToBinder(binderId, addCardIds, {
+      entryIds: assignCopies(addCardIds),
+    });
     setAddCardIds(null);
     // Anything the binder's page cap left out is named, never dropped in silence.
     if (unplaced > 0) {

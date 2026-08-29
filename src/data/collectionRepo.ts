@@ -3,6 +3,7 @@
  * fed by tcgscan-app scans (and, later, michi's own CSV import). Read-only from michi's side
  * for now; RLS scopes every query to the signed-in user. See docs/TCGSCAN-PORTFOLIO.md.
  */
+import type { OwnedEntry } from '@/data/ownedCopies';
 import type { TcgscanBinder } from '@/data/tcgscanBinderImport';
 import { requireSupabase } from '@/lib/supabase';
 
@@ -83,6 +84,51 @@ export async function deletePortfolio(id: string): Promise<void> {
   const supabase = requireSupabase();
   const { error } = await supabase.from('collections').delete().eq('id', id);
   if (error) throw new Error(`delete portfolio: ${error.message}`);
+}
+
+/**
+ * Every PHYSICAL copy the user owns, one row per tcgscan lot — the identities behind the
+ * quantities in `user_cards`, so a pocket can hold one particular card instead of "a Charizard".
+ *
+ * ARCHIVED COLLECTIONS ARE EXCLUDED, matching the rule the `user_cards` rollup already follows
+ * (docs/TCGSCAN-PORTFOLIO.md, 2026-07-23): an archived collection does not count as cards you own,
+ * so its copies must not be offered to a pocket either. Filtered here rather than in the query
+ * because the archive flag lives on `collections` and the composite FK makes the embed awkward;
+ * two small reads are cheaper than getting that wrong.
+ */
+export async function fetchOwnedEntries(): Promise<OwnedEntry[]> {
+  const supabase = requireSupabase();
+  const archived = new Set<string>();
+  const cols = await supabase.from('collections').select('id, archived_at');
+  if (cols.error) throw new Error(`collections: ${cols.error.message}`);
+  for (const c of cols.data ?? []) if (c.archived_at) archived.add(c.id);
+
+  // Paged for the same reason as every other portfolio_entries read: PostgREST silently caps an
+  // unranged select at 1000 rows, and this one is the whole collection by definition.
+  const PAGE = 1000;
+  const out: OwnedEntry[] = [];
+  for (let from = 0; from < 50_000; from += PAGE) {
+    const { data, error } = await supabase
+      .from('portfolio_entries')
+      .select('id, card_id, collection_id, quantity, scan_path, scanned_at')
+      .order('id', { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error) throw new Error(`owned copies: ${error.message}`);
+    for (const e of data ?? []) {
+      if (archived.has(e.collection_id)) continue;
+      out.push({
+        entryId: e.id,
+        cardId: e.card_id,
+        // A lot is at least one card. A zero or missing quantity would silently make a copy you
+        // own unplaceable, which is the failure this whole module exists to stop.
+        quantity: Math.max(1, e.quantity ?? 1),
+        hasScan: !!e.scan_path,
+        scannedAt: e.scanned_at,
+      });
+    }
+    if ((data ?? []).length < PAGE) break;
+  }
+  return out;
 }
 
 /**

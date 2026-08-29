@@ -29,6 +29,7 @@ import { SlotMultiActions } from '@/components/binder/SlotMultiActions';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
+import { useCopyAssigner } from '@/hooks/use-owned-copies';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Fonts, Palette, Radius, Spacing, Weight, FontSize } from '@/constants/theme';
@@ -91,6 +92,10 @@ interface BinderScreenProps {
 
 export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenProps) {
   const store = useBinders();
+  // Which of the user's physical cards each placement claims (see use-owned-copies): every
+  // add path resolves it the same way, so what a pocket costs no longer depends on the screen
+  // it was added from.
+  const assignCopies = useCopyAssigner();
   const theme = useTheme();
   const { width } = useWindowDimensions();
   // Keep the saved-slice tray synced to the current (guest or signed-in) user while editing.
@@ -558,7 +563,17 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     if (!pickerCell) return;
     const { rows, cols } = footprintForKind(card?.kind ?? resolveCard(cardId)?.kind);
     const { row, col } = pickerCell;
-    store.upsertSlot(binder.id, page.id, { row, col, cardId, type: 'card', rowSpan: rows, colSpan: cols });
+    store.upsertSlot(binder.id, page.id, {
+      row,
+      col,
+      cardId,
+      type: 'card',
+      rowSpan: rows,
+      colSpan: cols,
+      // The most direct placement there is - pick a card, drop it in this pocket - and the one
+      // that most obviously means "this card of mine goes here" when the user owns one.
+      sourceEntryId: assignCopies([cardId])[0],
+    });
     if (keepAdding) {
       const next = nextEmptyCell(row, col, rows, cols);
       if (next) {
@@ -624,7 +639,13 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   };
 
   const handleAutoFillPlaced = (placements: ComposePlacement[], methodLabel: string) => {
-    const { placed } = store.placeCards(binder.id, page.id, placements);
+    // A fill from the owned pool places the user's actual cards, so each pocket claims one -
+    // resolved here rather than in the sheet, which has the card ids but not the placed set.
+    const copies = assignCopies(placements.map((p) => p.cardId ?? ''));
+    const withCopies = placements.map((p, i) =>
+      p.cardId && p.fromCollection ? { ...p, sourceEntryId: copies[i] } : p,
+    );
+    const { placed } = store.placeCards(binder.id, page.id, withCopies);
     setSelectedSlotId(null);
     showToast(
       placed > 0 ? `Filled ${placed} pocket${placed === 1 ? '' : 's'} · ${methodLabel}` : 'Nothing placed',
@@ -691,7 +712,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   };
   const addElsewhereTo = (targetId: string) => {
     if (!addElsewhereIds?.length) return;
-    const { added, unplaced } = store.addCardsToBinder(targetId, addElsewhereIds);
+    const { added, unplaced } = store.addCardsToBinder(targetId, addElsewhereIds, {
+      entryIds: assignCopies(addElsewhereIds),
+    });
     const title = store.getBinder(targetId)?.title ?? 'binder';
     setAddElsewhereIds(null);
     // Anything the target binder's page cap left out is named, never dropped in silence.
@@ -743,6 +766,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     // while on page 4 could scatter them across pages 1, 2 and the back of the binder.
     const { added, unplaced, blanksInserted } = store.addCardsToBinder(binder.id, cardIds, {
       startPageIndex: pageIndex,
+      entryIds: assignCopies(cardIds),
     });
     closePicker();
     // The binder can run out of pages at the tier cap — name it (with the upgrade route) rather

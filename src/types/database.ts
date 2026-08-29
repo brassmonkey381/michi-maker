@@ -513,6 +513,7 @@ export type Database = {
       }
       collections: {
         Row: {
+          archived_at: string | null
           created_at: string
           id: string
           is_active: boolean

@@ -54,6 +54,7 @@ import {
   type TcgscanBinder,
 } from '@/data/tcgscanBinderImport';
 import type { CapHit } from '@/hooks/use-cap-gate';
+import { useCopyAssigner } from '@/hooks/use-owned-copies';
 import { useScanImages } from '@/hooks/use-scan-images';
 import { EXAMPLE_COLLECTION_CSV, EXAMPLE_COLLECTION_NAME } from '@/data/exampleCollection';
 import { binderLimitMessage, binderTrialMessage, pageLimitMessage, pageTrialMessage } from '@/data/limitMessages';
@@ -285,6 +286,10 @@ function CollectionStrip({
   onExampleDone?: () => void;
 }) {
   const store = useBinders();
+  // Which of the user's physical cards each placement claims (see use-owned-copies): every
+  // add path resolves it the same way, so what a pocket costs no longer depends on the screen
+  // it was added from.
+  const assignCopies = useCopyAssigner();
   // Real scans: show each card as the camera saw it (tcgscan's scan crops). Chip hidden until
   // the account has any; session-only toggle, like the binder view's Scans pill.
   const scanImages = useScanImages();
@@ -374,6 +379,7 @@ function CollectionStrip({
     if (!pendingAdd) return;
     if (!store.userBinders.some((b) => b.id === pendingAdd.binderId)) return;
     const { added, unplaced } = store.addCardsToBinder(pendingAdd.binderId, pendingAdd.ids, {
+      entryIds: assignCopies(pendingAdd.ids),
       fromCollection: true,
     });
     setPendingAdd(null);
@@ -381,7 +387,10 @@ function CollectionStrip({
     // them silently.
     if (unplaced > 0) onToast?.(pageLimitMessage(store.tier, store.limits));
     else if (added > 0) onToast?.(`Added ${added} card${added === 1 ? '' : 's'} to your new binder`);
-  }, [pendingAdd, store, onToast]);
+    // assignCopies is a dep like any other: it changes when ownership or the placed set does, and
+    // this effect must resolve the copies as they stand when the new binder actually appears, not
+    // as they stood when the tap happened.
+  }, [pendingAdd, store, onToast, assignCopies]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // How many owned copies of each card sit in binders — only pockets placed FROM the
@@ -652,7 +661,10 @@ function CollectionStrip({
     setChooser(null);
     setSelected(new Set());
     const target = store.userBinders.find((b) => b.id === binderId);
-    const { added, unplaced } = store.addCardsToBinder(binderId, ids, { fromCollection: true });
+    const { added, unplaced } = store.addCardsToBinder(binderId, ids, {
+      fromCollection: true,
+      entryIds: assignCopies(ids),
+    });
     const title = target?.title ?? 'binder';
     // Anything the page cap left out is named, not dropped in silence — and reported, which it was
     // not: this went out as a plain confirmation toast, so a binder that filled up mid-add looked

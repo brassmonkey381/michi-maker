@@ -11,6 +11,7 @@ import { BinderCarousel } from '@/components/binder/BinderCarousel';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
+import { useCopyAssigner } from '@/hooks/use-owned-copies';
 import { HomeRecent } from '@/components/HomeRecent';
 import { HomeSealed } from '@/components/HomeSealed';
 import { HomeSection } from '@/components/HomeSection';
@@ -43,6 +44,10 @@ export default function HomeScreen() {
   // before navigating back here, so this evaluates once per mount and never loops.
   const [showLanding] = useState(shouldShowLanding);
   const store = useBinders();
+  // Which of the user's physical cards each placement claims (see use-owned-copies): every
+  // add path resolves it the same way, so what a pocket costs no longer depends on the screen
+  // it was added from.
+  const assignCopies = useCopyAssigner();
   const router = useRouter();
   const { width } = useWindowDimensions();
   // Where the web rail isn't present (native, or narrow web) Home carries the quick-nav to the
@@ -125,7 +130,9 @@ export default function HomeScreen() {
   const addToExistingBinder = (binderId: string) => {
     if (!addCardId) return;
     const title = store.getBinder(binderId)?.title ?? 'binder';
-    const { added, unplaced } = store.addCardsToBinder(binderId, [addCardId]);
+    const { added, unplaced } = store.addCardsToBinder(binderId, [addCardId], {
+      entryIds: assignCopies([addCardId]),
+    });
     setAddCardId(null);
     if (added > 0) showAddedToast(binderId, title);
     else if (unplaced > 0) {

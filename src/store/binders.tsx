@@ -103,6 +103,8 @@ export interface SlotInput {
   cardId?: string;
   insertColor?: string;
   imageUrl?: string;
+  /** WHICH owned copy this pocket claims (portfolio_entries.id). Implies fromCollection. */
+  sourceEntryId?: string;
 }
 
 /** One panel from the slice studio: a grid region of an image plus its crop. */
@@ -217,7 +219,7 @@ interface BinderStore {
   addCardsToBinder: (
     binderId: string,
     cardIds: string[],
-    opts?: { fromCollection?: boolean; startPageIndex?: number },
+    opts?: { fromCollection?: boolean; startPageIndex?: number; entryIds?: (string | undefined)[] },
   ) => { added: number; unplaced: number; blanksInserted: number };
   /**
    * Append whole composed pages ("Pages around this card", VIP). Each entry becomes ONE new page
@@ -243,6 +245,8 @@ interface BinderStore {
       imageCrop?: { x: number; y: number; w: number; h: number };
       /** This pocket consumes an owned copy (fill-from-my-collection provenance). */
       fromCollection?: boolean;
+      /** WHICH owned copy it consumes (portfolio_entries.id). Implies fromCollection. */
+      sourceEntryId?: string;
     }[],
   ) => { placed: number };
   placeVUnion: (binderId: string, pageId: string, row: number, col: number, pieces: readonly string[]) => void;
@@ -976,7 +980,15 @@ export function BinderProvider({ children }: { children: ReactNode }) {
             // It is true of the card the rebuild placed, not of the pocket — so placing a
             // different card here must drop it, or the pocket would wear the old copy's photo.
             sourceEntryId:
-              input.cardId && input.cardId !== existing.cardId ? undefined : existing.sourceEntryId,
+              input.sourceEntryId ??
+              (input.cardId && input.cardId !== existing.cardId ? undefined : existing.sourceEntryId),
+            // A pocket that names a copy is owned by definition; one that just changed to a
+            // different card is not, and must not keep the old card's provenance.
+            fromCollection:
+              input.sourceEntryId || (existing.fromCollection && !input.cardId) ||
+              (existing.fromCollection && input.cardId === existing.cardId)
+                ? true
+                : undefined,
             insertColor: input.insertColor ?? existing.insertColor,
             imageUrl: input.imageUrl ?? existing.imageUrl,
           }
@@ -988,6 +1000,8 @@ export function BinderProvider({ children }: { children: ReactNode }) {
             colSpan,
             type: input.type ?? 'card',
             cardId: input.cardId,
+            sourceEntryId: input.sourceEntryId,
+            fromCollection: input.sourceEntryId ? true : undefined,
             insertColor: input.insertColor,
             imageUrl: input.imageUrl,
           };
@@ -1156,7 +1170,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     (
       binderId: string,
       cardIds: string[],
-      opts?: { fromCollection?: boolean; startPageIndex?: number },
+      opts?: { fromCollection?: boolean; startPageIndex?: number; entryIds?: (string | undefined)[] },
     ) => {
       const target = binders.find((b) => b.id === binderId);
       if (!target || cardIds.length === 0) return { added: 0, unplaced: 0, blanksInserted: 0 };
@@ -1194,7 +1208,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       const protoRows = proto?.rows ?? 3;
       const protoCols = proto?.cols ?? 3;
 
-      for (const cardId of cardIds) {
+      for (const [i, cardId] of cardIds.entries()) {
         let pageIndex = -1;
         let cell: { row: number; col: number } | null = null;
 
@@ -1234,6 +1248,11 @@ export function BinderProvider({ children }: { children: ReactNode }) {
             cell = { row: 0, col: 0 };
           }
         }
+        // WHICH physical card, when the caller resolved one (useCopyAssigner). A pocket holding
+        // a copy is owned by definition, so the stamp implies fromCollection rather than needing
+        // the caller to remember both — that split is what let a browse add place a card the
+        // collection went on calling free.
+        const entryId = opts?.entryIds?.[i];
         const slot: DemoSlot = {
           id: uuidv4(),
           row: cell.row,
@@ -1242,7 +1261,8 @@ export function BinderProvider({ children }: { children: ReactNode }) {
           colSpan: 1,
           type: 'card',
           cardId,
-          fromCollection: opts?.fromCollection || undefined,
+          sourceEntryId: entryId,
+          fromCollection: entryId || opts?.fromCollection ? true : undefined,
         };
         pages[pageIndex] = { ...pages[pageIndex], slots: [...pages[pageIndex].slots, slot] };
         placed.push({ pageId: pages[pageIndex].id, slot });
@@ -1280,6 +1300,9 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       track('card.add', {
         source: opts?.fromCollection ? 'collection' : 'manual',
         count: placed.length,
+        // How many of these pockets claimed one of the user's actual cards. The rest are
+        // aspirational, and the ratio is the only way to see that distinction in the stream.
+        owned: placed.filter((p) => p.slot.sourceEntryId).length,
       });
       return { added: placed.length, unplaced, blanksInserted: spaced.blanksInserted };
     },
@@ -1298,6 +1321,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         imageUrl?: string;
         imageCrop?: { x: number; y: number; w: number; h: number };
         fromCollection?: boolean;
+        sourceEntryId?: string;
       }[],
     ) => {
       const target = binders.find((b) => b.id === binderId);
@@ -1325,7 +1349,8 @@ export function BinderProvider({ children }: { children: ReactNode }) {
           insertColor: p.insertColor,
           imageUrl: p.imageUrl,
           imageCrop: p.imageCrop,
-          fromCollection: (p.cardId && p.fromCollection) || undefined,
+          sourceEntryId: p.cardId ? p.sourceEntryId : undefined,
+          fromCollection: (p.cardId && (p.fromCollection || !!p.sourceEntryId)) || undefined,
         });
       }
       if (newSlots.length === 0) return { placed: 0 };

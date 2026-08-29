@@ -35,9 +35,20 @@ export interface ToastSpec {
   /** 'limit' = the prominent card described above. Anything else is the quiet pill. */
   tone?: 'default' | 'limit';
   cta?: LimitCta;
+  /**
+   * A word INSIDE the message that goes somewhere — the binder a card just landed in. The thing
+   * the message names is the thing you want to reach, so it is the thing you press; a separate
+   * "Open" button makes you read the name and then aim somewhere else for it.
+   *
+   * `text` must appear in `message` verbatim; if it does not, the message renders plainly and
+   * nothing is lost.
+   */
+  link?: { text: string; onPress: () => void };
 }
 
-const DISMISS_MS = { default: 3500, limit: 9000 } as const;
+// 3.5s was not long enough to notice a confirmation, read the binder's name in it, and decide
+// whether to follow it — and now that the name is a target, the toast has to outlive the reading.
+const DISMISS_MS = { default: 5000, limit: 9000 } as const;
 const PLANS: Href = '/plans';
 
 export function Toast({ spec, onDismiss }: { spec: ToastSpec | null; onDismiss: () => void }) {
@@ -95,7 +106,29 @@ export function Toast({ spec, onDismiss }: { spec: ToastSpec | null; onDismiss: 
         <View pointerEvents="box-none" style={styles.wrap}>
           <View style={styles.toast}>
             <ThemedText type="small" style={styles.message} numberOfLines={2}>
-              {spec.message}
+              {/* Split around the linked word so the rest of the sentence stays plain text — one
+                  Text, so it wraps as a sentence rather than as three boxes in a row. */}
+              {(() => {
+                const link = spec.link;
+                const at = link ? spec.message.indexOf(link.text) : -1;
+                if (!link || at < 0) return spec.message;
+                return (
+                  <>
+                    {spec.message.slice(0, at)}
+                    <ThemedText
+                      type="smallBold"
+                      style={styles.link}
+                      accessibilityRole="link"
+                      onPress={() => {
+                        link.onPress();
+                        onDismiss();
+                      }}>
+                      {link.text}
+                    </ThemedText>
+                    {spec.message.slice(at + link.text.length)}
+                  </>
+                );
+              })()}
             </ThemedText>
             {spec.actionLabel && spec.onAction ? (
               <Pressable
@@ -121,6 +154,7 @@ export function Toast({ spec, onDismiss }: { spec: ToastSpec | null; onDismiss: 
 }
 
 const styles = StyleSheet.create({
+  link: { color: Palette.accent, textDecorationLine: 'underline' },
   wrap: {
     position: 'absolute',
     left: 0,

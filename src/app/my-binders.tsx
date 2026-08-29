@@ -34,12 +34,17 @@ import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Breakpoints, FontSize, MaxContentWidth, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { ProTrialPrompt } from '@/components/monetization/ProTrialPrompt';
 import { RightsPrompt } from '@/components/binder/RightsPrompt';
+import { pillChip } from '@/constants/ui';
 import { fillerName } from '@/data/binderTypes';
 import { binderLimitMessage, binderTrialMessage, limitCta } from '@/data/limitMessages';
 import { track } from '@/lib/analytics';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useImageManifest } from '@/lib/catalogConfig';
 import { useBinders } from '@/store/binders';
+
+/** Which binders the list shows. Module-level so it survives leaving and coming back. */
+type Visibility = 'all' | 'public' | 'private';
+let visibilityPref: Visibility = 'all';
 
 export default function MyBindersScreen() {
   const store = useBinders();
@@ -60,9 +65,13 @@ export default function MyBindersScreen() {
   const [toast, setToast] = useState<ToastSpec | null>(null);
   const toastId = useRef(0);
 
-  const showToast = (message: string) => {
+  const showToast = (message: string, link?: { text: string; binderId: string }) => {
     toastId.current += 1;
-    setToast({ id: toastId.current, message });
+    setToast({
+      id: toastId.current,
+      message,
+      link: link ? { text: link.text, onPress: () => openBinder(link.binderId) } : undefined,
+    });
   };
 
   // Hitting a cap ends the action the user was mid-way through, so every cap toast gets the
@@ -118,11 +127,25 @@ export default function MyBindersScreen() {
 
   // Show the filter once there are enough binders that scanning gets tedious.
   const showBinderSearch = store.userBinders.length >= 4;
+  // WHO CAN SEE IT is the other axis people sort their own binders by - "what have I actually
+  // shared?" is a question about the whole shelf, not about one binder's Share sheet. Shown from
+  // two binders up: with one there is nothing to filter, and the counts on the chips answer the
+  // question without a tap even when a side is empty.
+  const [visibility, setVisibility] = useState<Visibility>(visibilityPref);
+  const pickVisibility = (v: Visibility) =>
+    setVisibility(() => {
+      visibilityPref = v; // session-sticky, same pattern as My collection's view mode
+      return v;
+    });
+  const publicCount = store.userBinders.filter((b) => b.isPublic).length;
+  const privateCount = store.userBinders.length - publicCount;
+  const showVisibilityFilter = store.userBinders.length >= 2;
   const q = binderQuery.trim().toLowerCase();
-  const visibleBinders =
-    showBinderSearch && q
-      ? store.userBinders.filter((b) => b.title.toLowerCase().includes(q))
-      : store.userBinders;
+  const visibleBinders = store.userBinders.filter((b) => {
+    if (showVisibilityFilter && visibility === 'public' && !b.isPublic) return false;
+    if (showVisibilityFilter && visibility === 'private' && b.isPublic) return false;
+    return !showBinderSearch || !q || b.title.toLowerCase().includes(q);
+  });
 
   const menuBinder = menuId ? store.userBinders.find((b) => b.id === menuId) : null;
   const shareBinder = shareId ? store.getBinder(shareId) : null;
@@ -244,6 +267,29 @@ export default function MyBindersScreen() {
                     )}
                   </View>
                 ) : null}
+                {showVisibilityFilter ? (
+                  <View style={styles.visibilityRow}>
+                    {(
+                      [
+                        ['all', 'All', store.userBinders.length],
+                        ['public', 'Public', publicCount],
+                        ['private', 'Private', privateCount],
+                      ] as const
+                    ).map(([v, label, n]) => (
+                      <Pressable
+                        key={v}
+                        onPress={() => pickVisibility(v)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: visibility === v }}
+                        accessibilityLabel={`${label}, ${n} binder${n === 1 ? '' : 's'}`}
+                        style={[pillChip.base, visibility === v && pillChip.active]}>
+                        <Text style={[pillChip.text, visibility === v && pillChip.textActive]}>
+                          {label} {n}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : null}
                 {showBinderSearch ? (
                   <TextInput
                     value={binderQuery}
@@ -257,7 +303,15 @@ export default function MyBindersScreen() {
                 ) : null}
                 {visibleBinders.length === 0 ? (
                   <ThemedText type="small" themeColor="textSecondary" style={styles.noMatch}>
-                    No binders match “{binderQuery.trim()}”.
+                    {/* Name the filter that emptied the list, not "no results": with two filters
+                        running, the useful thing is knowing which one to undo. */}
+                    {q && showBinderSearch
+                      ? `No ${visibility === 'all' ? '' : `${visibility} `}binders match “${binderQuery.trim()}”.`
+                      : visibility === 'public'
+                        ? 'None of your binders are public yet. Open one and turn on sharing to get a link.'
+                        : visibility === 'private'
+                          ? 'Every one of your binders is public.'
+                          : 'No binders yet.'}
                   </ThemedText>
                 ) : (
                   <BinderCarousel
@@ -423,6 +477,12 @@ const styles = StyleSheet.create({
     color: Palette.ink,
     marginBottom: Spacing.three,
     maxWidth: 480,
+  },
+  visibilityRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+    marginBottom: Spacing.three,
   },
   noMatch: { paddingVertical: Spacing.three },
   upgradeRow: { marginBottom: Spacing.three },

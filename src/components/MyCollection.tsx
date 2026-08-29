@@ -54,7 +54,9 @@ import {
   type TcgscanBinder,
 } from '@/data/tcgscanBinderImport';
 import type { CapHit } from '@/hooks/use-cap-gate';
-import { useCopyAssigner } from '@/hooks/use-owned-copies';
+import { CopyPickerSheet } from '@/components/binder/CopyPickerSheet';
+import type { OwnedEntry } from '@/data/ownedCopies';
+import { useAvailableCopies, useCopyAssigner } from '@/hooks/use-owned-copies';
 import { useScanImages } from '@/hooks/use-scan-images';
 import { EXAMPLE_COLLECTION_CSV, EXAMPLE_COLLECTION_NAME } from '@/data/exampleCollection';
 import { binderLimitMessage, binderTrialMessage, pageLimitMessage, pageTrialMessage } from '@/data/limitMessages';
@@ -67,6 +69,12 @@ import { useBinders } from '@/store/binders';
 
 const TILE_W = 96;
 const CARD_ASPECT = 88 / 63;
+
+/**
+ * Report a toast, optionally naming a binder inside the message for the screen to turn into a link.
+ * The collection knows which binder a card landed in; only the screen can navigate to it.
+ */
+export type ToastReport = (message: string, link?: { text: string; binderId: string }) => void;
 
 /** How the collection is browsed: one carousel, a series→set drill, or by tcgscan portfolio. */
 type ViewMode = 'all' | 'sets' | 'portfolios';
@@ -143,7 +151,7 @@ export function MyCollection({
   onFindSimilar,
   onViewSet,
 }: {
-  onToast?: (message: string) => void;
+  onToast?: ToastReport;
   /**
    * Report a plan limit. Raised to the screen's useCapGate rather than shown here, so a cap met in
    * the collection gets the same pacing, the same dialog and the same `cap.gate_shown` as every
@@ -209,7 +217,7 @@ function EmptyCollection({
   onToast,
   onStartExample,
 }: {
-  onToast?: (message: string) => void;
+  onToast?: ToastReport;
   onStartExample?: () => void;
 }) {
   const { isSignedIn } = useAuth();
@@ -274,7 +282,7 @@ function CollectionStrip({
   onExampleDone,
 }: {
   cards: UserCard[];
-  onToast?: (message: string) => void;
+  onToast?: ToastReport;
   /** See MyCollection's prop of the same name: the screen's cap gate, not a toast. */
   onCapHit?: (hit: CapHit) => void;
   onOpenBinder?: (binderId: string) => void;
@@ -290,6 +298,7 @@ function CollectionStrip({
   // add path resolves it the same way, so what a pocket costs no longer depends on the screen
   // it was added from.
   const assignCopies = useCopyAssigner();
+  const availableCopies = useAvailableCopies();
   // Real scans: show each card as the camera saw it (tcgscan's scan crops). Chip hidden until
   // the account has any; session-only toggle, like the binder view's Scans pill.
   const scanImages = useScanImages();
@@ -386,7 +395,12 @@ function CollectionStrip({
     // The page cap can leave cards out — say so (with the upgrade route) rather than dropping
     // them silently.
     if (unplaced > 0) onToast?.(pageLimitMessage(store.tier, store.limits));
-    else if (added > 0) onToast?.(`Added ${added} card${added === 1 ? '' : 's'} to your new binder`);
+    else if (added > 0) {
+      onToast?.(`Added ${added} card${added === 1 ? '' : 's'} to your new binder`, {
+        text: 'your new binder',
+        binderId: pendingAdd.binderId,
+      });
+    }
     // assignCopies is a dep like any other: it changes when ownership or the placed set does, and
     // this effect must resolve the copies as they stand when the new binder actually appears, not
     // as they stood when the tap happened.
@@ -656,14 +670,32 @@ function CollectionStrip({
         .filter((r) => r.count > 0)
     : [];
 
-  const addTo = (binderId: string) => {
+  // A collection add with a real choice in it: ONE card, and more than one copy of it free.
+  // Coming from the collection already says "one of mine goes in", so the open question is only
+  // WHICH - and with a single copy there is no question at all. (Browse asks even at one copy,
+  // because there the pocket could equally mean "one I want".)
+  const [copyChoice, setCopyChoice] = useState<{
+    binderId: string;
+    cardId: string;
+    copies: OwnedEntry[];
+  } | null>(null);
+
+  const addTo = (binderId: string, entryIds?: (string | undefined)[]) => {
     const ids = placeableIds;
+    if (!entryIds && ids.length === 1) {
+      const copies = availableCopies(ids[0]);
+      if (copies.length > 1) {
+        setChooser(null);
+        setCopyChoice({ binderId, cardId: ids[0], copies });
+        return;
+      }
+    }
     setChooser(null);
     setSelected(new Set());
     const target = store.userBinders.find((b) => b.id === binderId);
     const { added, unplaced } = store.addCardsToBinder(binderId, ids, {
       fromCollection: true,
-      entryIds: assignCopies(ids),
+      entryIds: entryIds ?? assignCopies(ids),
     });
     const title = target?.title ?? 'binder';
     // Anything the page cap left out is named, not dropped in silence — and reported, which it was
@@ -681,7 +713,9 @@ function CollectionStrip({
         used: target?.pages.length ?? 0,
         cap: store.limits.pagesPerBinder,
       });
-    } else if (added > 0) onToast?.(`Added ${added} card${added === 1 ? '' : 's'} to ${title}`);
+    } else if (added > 0) {
+      onToast?.(`Added ${added} card${added === 1 ? '' : 's'} to ${title}`, { text: title, binderId });
+    }
   };
 
   const addToNew = () => {
@@ -1120,6 +1154,22 @@ function CollectionStrip({
         }
         onClose={() => setPfDelete(null)}
       />
+
+      {/* Which of your copies goes in - opened from the collection's own add, where the card is
+          already yours and only the copy is undecided. */}
+      {copyChoice ? (
+        <CopyPickerSheet
+          visible
+          cardId={copyChoice.cardId}
+          copies={copyChoice.copies}
+          onClose={() => setCopyChoice(null)}
+          onPick={(entryId) => {
+            const c = copyChoice;
+            setCopyChoice(null);
+            addTo(c.binderId, [entryId ?? undefined]);
+          }}
+        />
+      ) : null}
 
       <ConfirmDialog
         spec={

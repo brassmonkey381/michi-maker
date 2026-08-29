@@ -65,8 +65,7 @@ export default function BrowseScreen() {
     setToast({
       id: toastId.current,
       message: count > 1 ? `Added ${count} cards to ${title}` : `Added to ${title}`,
-      actionLabel: 'Open',
-      onAction: () => openBinder(binderId),
+      link: { text: title, onPress: () => openBinder(binderId) },
     });
   };
 

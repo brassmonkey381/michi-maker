@@ -119,8 +119,7 @@ export default function HomeScreen() {
     setToast({
       id: toastId.current,
       message: `Added to ${title}`,
-      actionLabel: 'Open',
-      onAction: () => openBinder(binderId),
+      link: { text: title, onPress: () => openBinder(binderId) },
     });
   };
 

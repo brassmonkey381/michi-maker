@@ -452,6 +452,9 @@ function bindLifecycleListeners(): void {
       };
       const onPageHide = () => {
         try {
+          // Prompts first: the session PATCH and this POST both ride keepalive, and an open dialog
+          // is the thing that has no other chance to be recorded.
+          abandonOpenPromptsBeacon();
           flushLastSeenBeacon();
         } catch {
           // swallow
@@ -657,7 +660,21 @@ function capCount(n: number): number {
  */
 export type PromptEventSurface = PromptSurface | 'app';
 
+/**
+ * Prompts currently ON SCREEN, so a page that goes away can still say so.
+ *
+ * The abandon path used to be a React unmount cleanup alone, and an unmount cleanup DOES NOT RUN
+ * when a tab is closed — so closing the tab on an open dialog left a `prompt.shown` with no partner
+ * for good. Seen live on 2026-08-28: a signed-in user was shown the rights attestation and their
+ * session ended one second later, with nothing after it.
+ *
+ * Held here rather than in the components because the component is exactly the thing that is gone
+ * by the time anyone can ask.
+ */
+const openPrompts = new Map<PromptId, PromptEventSurface>();
+
 export function trackPromptShown(prompt: PromptId, surface: PromptEventSurface): void {
+  openPrompts.set(prompt, surface);
   track('prompt.shown', { prompt, surface });
 }
 
@@ -667,14 +684,63 @@ export function trackPromptShown(prompt: PromptId, surface: PromptEventSurface):
  *   accepted  — they took the thing it offered (photo published, sharing turned on, trial started)
  *   declined  — an explicit no that the product records ("No thanks"), not merely a closed dialog
  *   dismissed — closed with the X or "Not now": an answer about this moment, not about the offer
- *   abandoned — unmounted while still open. They navigated away; nothing was said either way.
+ *   abandoned — the dialog went away with them. Either the screen unmounted under it, or the page
+ *               itself was closed (see abandonOpenPromptsBeacon). Nothing was said either way.
  */
 export function trackPromptAnswered(
   prompt: PromptId,
   surface: PromptEventSurface,
   response: 'accepted' | 'declined' | 'dismissed' | 'abandoned',
 ): void {
+  openPrompts.delete(prompt);
   track('prompt.answered', { prompt, surface, response });
+}
+
+/**
+ * Close out every still-open prompt as the page unloads.
+ *
+ * WHY A BEACON AND NOT track(). The supabase-js insert behind track() is an ordinary fetch, and an
+ * ordinary fetch is cancelled the moment the document goes away — which is precisely the case this
+ * exists for. Same keepalive route flushLastSeenBeacon() already takes, for the same reason.
+ *
+ * WHY `pagehide` ONLY, and not visibilitychange. `visibilitychange -> hidden` is the signal that
+ * actually survives on mobile browsers, and it is the WRONG one here: it also fires when someone
+ * switches tabs, so a person who glanced away and came back to accept would have an `abandoned`
+ * already on record, followed by their real answer. Two answers to one showing destroys the exact
+ * distinction these events exist to draw, and a false abandon is worse than a missing one. The
+ * residue — a mobile tab killed after the browser froze it — stays unpaired and is counted as such
+ * in the studio, which is honest rather than invented.
+ *
+ * Never throws: this runs inside an unload handler.
+ */
+function abandonOpenPromptsBeacon(): void {
+  try {
+    if (!openPrompts.size) return;
+    const sid = sessionId;
+    const rows = [...openPrompts].map(([prompt, surface]) => ({
+      app: APP,
+      name: 'prompt.answered',
+      props: { prompt, surface, response: 'abandoned' } as Json,
+      session_id: sid,
+    }));
+    openPrompts.clear();
+    if (typeof fetch !== 'function' || !supabaseUrl || !supabasePublishableKey || !accessToken) return;
+    void fetch(`${supabaseUrl}/rest/v1/analytics_events`, {
+      method: 'POST',
+      keepalive: true,
+      headers: {
+        apikey: supabasePublishableKey,
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify(rows),
+    }).catch(() => {
+      // swallow — best effort on unload
+    });
+  } catch {
+    // swallow — never throw out of an unload handler
+  }
 }
 
 /**
@@ -840,6 +906,7 @@ export function endSession(): void {
   }
   lastSeenAt = 0;
   landingRouteRecorded = false;
+  openPrompts.clear(); // an open dialog belongs to the identity that was shown it
   accessToken = null;
   unbindLifecycleListeners();
   clearStoredSession();

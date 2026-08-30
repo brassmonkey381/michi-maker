@@ -83,6 +83,14 @@ function isRealSize(rows: number, cols: number): boolean {
 }
 
 /** One entry's claim on a pocket. Page/pos are nullable: an entry can be loose in the binder. */
+/**
+ * tcgscan's sentinel for a pocket holding something that is NOT A CARD — page art, a divider, a
+ * photo. Mirrors ARTWORK_CARD_ID in tcgscan-app's lib/portfolio: the entry holds a real pocket
+ * and carries the scan crop of it, which IS the artwork. A pocket like this rebuilds here as an
+ * artwork slot rather than a card nobody can resolve.
+ */
+export const TCGSCAN_ARTWORK_ID = 'artwork';
+
 export interface TcgscanPocket {
   cardId: string;
   /** 1-based page number in the physical binder. Null = not placed on a page. */
@@ -96,6 +104,12 @@ export interface TcgscanPocket {
   scannedAt: string | null;
   /** The entry id, the last tie-break — it makes the result stable, never arbitrary. */
   entryId: string;
+  /**
+   * Public URL of this pocket's scan crop, when it has one. For an ARTWORK pocket this is not a
+   * nicety — it is the only thing the pocket holds, so a pocket with the artwork id and no image
+   * has nothing to draw and is skipped.
+   */
+  scanUrl?: string | null;
 }
 
 /** A tcgscan `storage_units` row of kind 'binder', with the entries that live in it. */
@@ -256,11 +270,19 @@ export function rebuildTcgscanBinder(binder: TcgscanBinder, maxPages: number): R
       col,
       rowSpan: 1,
       colSpan: 1,
-      type: 'card',
-      cardId: e.cardId,
+      ...(e.cardId === TCGSCAN_ARTWORK_ID
+        ? {
+            // NOT A CARD. The scanner asked, in front of the binder, whether this pocket held
+            // artwork worth keeping; the crop of that pocket is what it kept. It draws here as
+            // the image it is, with no card behind it to link to or to consume.
+            type: 'artwork' as const,
+            imageUrl: e.scanUrl ?? undefined,
+          }
+        : { type: 'card' as const, cardId: e.cardId }),
       // These are the owner's actual cards, so the pockets consume owned copies exactly as a
-      // placement made from "My collection" does — and can be reclaimed the same way.
-      fromCollection: true,
+      // placement made from "My collection" does — and can be reclaimed the same way. Artwork
+      // consumes nothing: there is no owned card in that pocket to spend.
+      fromCollection: e.cardId === TCGSCAN_ARTWORK_ID ? undefined : true,
       // WHICH copy: the entry whose storage address is this pocket. This is the join key the
       // real-scan display needs to show the photo of the card actually sitting here, rather
       // than the newest photo of any copy of it (see DemoSlot.sourceEntryId).

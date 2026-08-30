@@ -56,6 +56,35 @@ test('a pocket index becomes the row and column it came from', () => {
   assert.equal(r.placed, 3);
 });
 
+test('an artwork pocket rebuilds as artwork, not as a card', () => {
+  // The scanner asked, in front of the binder, whether the pocket held art worth keeping. What it
+  // kept was the crop, so the pocket has an image and no card behind it.
+  const r = rebuildTcgscanBinder(
+    binder({
+      entries: [
+        pocket({ cardId: 'zard', page: 1, pos: 0, entryId: 'e1' }),
+        {
+          ...pocket({ cardId: 'artwork', page: 1, pos: 1, entryId: 'e2' }),
+          scanUrl: 'https://example.test/crop.jpg',
+        },
+      ],
+    }),
+    CAP,
+  );
+  const art = r.pages[0].slots.find((x) => x.col === 1);
+  assert.equal(art?.type, 'artwork');
+  assert.equal(art?.imageUrl, 'https://example.test/crop.jpg');
+  assert.equal(art?.cardId, undefined, 'artwork has no card behind it');
+  // It consumes no owned copy: there is no card in that pocket to spend.
+  assert.equal(art?.fromCollection, undefined);
+  // The real card beside it is untouched.
+  const card = r.pages[0].slots.find((x) => x.col === 0);
+  assert.equal(card?.type, 'card');
+  assert.equal(card?.cardId, 'zard');
+  assert.equal(card?.fromCollection, true);
+  assert.equal(r.placed, 2, 'both pockets are placed');
+});
+
 test('every placed pocket is stamped with the entry it depicts', () => {
   // The real-scan join key: two copies of one card land as two slots, each naming ITS entry,
   // which is what lets each pocket later resolve its own copy's photo instead of the newest.

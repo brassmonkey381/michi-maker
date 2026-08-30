@@ -161,6 +161,7 @@ export async function fetchTcgscanBinders(): Promise<TcgscanBinder[]> {
     storage_rows: number | null;
     storage_cols: number | null;
     scanned_at: string | null;
+    scan_path: string | null;
   }[] = [];
   const units = supabase
     .from('storage_units')
@@ -171,7 +172,7 @@ export async function fetchTcgscanBinders(): Promise<TcgscanBinder[]> {
       const { data, error } = await supabase
         .from('portfolio_entries')
         .select(
-          'id, card_id, storage_id, storage_page, storage_pos, storage_rows, storage_cols, scanned_at',
+          'id, card_id, storage_id, storage_page, storage_pos, storage_rows, storage_cols, scanned_at, scan_path',
         )
         .not('storage_id', 'is', null)
         .order('id', { ascending: true })
@@ -212,6 +213,11 @@ export async function fetchTcgscanBinders(): Promise<TcgscanBinder[]> {
       cols: e.storage_cols,
       scannedAt: e.scanned_at,
       entryId: e.id,
+      // The crop of this pocket. Every scanned card has one; for an ARTWORK pocket it is the
+      // whole content, which is why the rebuild reads it rather than the card id.
+      scanUrl: e.scan_path
+        ? supabase.storage.from('scan-images').getPublicUrl(e.scan_path).data.publicUrl
+        : null,
     });
   }
   return [...binders.values()];

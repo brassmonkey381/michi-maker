@@ -115,6 +115,10 @@ export async function fetchOwnedEntries(): Promise<OwnedEntry[]> {
     const { data, error } = await supabase
       .from('portfolio_entries')
       .select('id, card_id, collection_id, quantity, scan_path, scanned_at')
+      // SEALED lots are not owned CARDS. Their card_id is a sealed productId that no card
+      // surface can resolve, and offering one to a binder pocket would place a booster box.
+      // `.or` rather than `.neq`, because neq excludes NULL rows and null IS the card case.
+      .or('item_kind.is.null,item_kind.neq.sealed')
       .order('id', { ascending: true })
       .range(from, from + PAGE - 1);
     if (error) throw new Error(`owned copies: ${error.message}`);

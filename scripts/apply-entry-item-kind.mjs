@@ -1,13 +1,16 @@
 /**
- * Apply supabase/migrations/20260831120000_entry_item_kind.sql: portfolio_entries.item_kind, the
- * card-vs-sealed discriminator (null = card, 'sealed' = sealed product), a birth field like
- * scan_path.
+ * Apply the sealed-entry pair: 20260831120000 (portfolio_entries.item_kind, the card-vs-sealed
+ * discriminator — null = card, 'sealed' = sealed product, a birth field like scan_path) and
+ * 20260831130000 (the user_cards rollup trigger skips sealed rows).
  *
  * THE CHECKS THAT MATTER:
  *   2. The column exists, is text, nullable, has NO default and joins NO constraint — the entries
  *      sync push is one batch upsert, and nothing about this column may ever reject a row.
  *   3. Both insert shapes land: without the column (every old client in the wild) and with it
  *      ('sealed' round-trips). Probed in a raise-to-roll-back do-block so nothing is left behind.
+ *   4. The rollup ignores sealed: in the same rolled-back probe, a card insert moves user_cards
+ *      and a sealed insert does not — proven by reading the rollup back, not by trusting the
+ *      trigger text.
  *
  * Safe to re-run: idempotent DDL. Run through apply-entry-item-kind.ps1 at the workspace root.
  */
@@ -17,7 +20,10 @@ import { dirname, join } from 'node:path';
 
 const PROJECT_REF = 'piikwvntldytjejxmcla';
 const here = dirname(fileURLToPath(import.meta.url));
-const MIGRATION = join(here, '..', 'supabase', 'migrations', '20260831120000_entry_item_kind.sql');
+const MIGRATIONS = [
+  join(here, '..', 'supabase', 'migrations', '20260831120000_entry_item_kind.sql'),
+  join(here, '..', 'supabase', 'migrations', '20260831130000_rollup_skips_sealed.sql'),
+];
 
 const token = process.env.SUPABASE_ACCESS_TOKEN;
 function fail(msg) {
@@ -39,9 +45,9 @@ async function sql(query) {
 }
 
 try {
-  console.log('Step 1: applying the migration...');
-  await sql(readFileSync(MIGRATION, 'utf8'));
-  console.log('  OK');
+  console.log('Step 1: applying the migrations...');
+  for (const m of MIGRATIONS) await sql(readFileSync(m, 'utf8'));
+  console.log('  OK (item_kind column + sealed-blind rollup trigger)');
 
   console.log('Step 2: the column, and that nothing about it can reject a row...');
   const [col] = await sql(`
@@ -83,6 +89,16 @@ try {
           (id, collection_id, user_id, card_id, variant, condition, quantity)
         values ('probe-entry-card', v_col, v_user, 'probe-card', 'Normal', 'Near Mint', 1);
 
+      -- The card insert above must have moved the rollup...
+      declare v_cards int; v_sealed int;
+      begin
+        select coalesce(sum(quantity), 0) into v_cards
+          from public.user_cards where owner_id = v_user and card_id = 'probe-card';
+        if v_cards <> 1 then
+          raise exception 'PROBE-FAIL: card insert rolled up % copies, wanted 1', v_cards;
+        end if;
+      end;
+
       -- The shape the sealed client sends.
       insert into public.portfolio_entries
           (id, collection_id, user_id, card_id, variant, condition, quantity, item_kind)
@@ -92,10 +108,20 @@ try {
         raise exception 'PROBE-FAIL: item_kind did not round-trip (got %)', v_back;
       end if;
 
+      -- ...and the sealed insert must NOT have. Read back, not assumed.
+      declare v_leak int;
+      begin
+        select coalesce(sum(quantity), 0) into v_leak
+          from public.user_cards where owner_id = v_user and card_id = '91595';
+        if v_leak <> 0 then
+          raise exception 'PROBE-FAIL: sealed insert leaked % copies into user_cards', v_leak;
+        end if;
+      end;
+
       raise exception 'PROBE-OK';
     end $probe$;`).catch((e) => String(e.message));
   if (String(probe).includes('PROBE-OK')) {
-    console.log('  OK (old shape lands, sealed shape round-trips, all rolled back)');
+    console.log('  OK (old shape lands, sealed round-trips, rollup counts a card and ignores sealed, all rolled back)');
   } else if (String(probe).includes('PROBE-SKIP')) {
     console.log('  SKIPPED (no user to own a probe collection)');
   } else {
@@ -103,7 +129,7 @@ try {
   }
 
   console.log('');
-  console.log('Done. portfolio_entries.item_kind is live; sealed adds may now ship.');
+  console.log('Done. item_kind is live and the rollup is sealed-blind; sealed adds may now ship.');
 } catch (e) {
   if (!process.exitCode) {
     console.log(`FAILED: ${e.message}`);

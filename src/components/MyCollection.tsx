@@ -55,8 +55,11 @@ import {
 } from '@/data/tcgscanBinderImport';
 import type { CapHit } from '@/hooks/use-cap-gate';
 import { CopyPickerSheet } from '@/components/binder/CopyPickerSheet';
+import { ImageSourceToggle } from '@/components/ImageSourceToggle';
 import type { OwnedEntry } from '@/data/ownedCopies';
+import { claimedByEntry } from '@/data/ownedCopies';
 import { useAvailableCopies, useCopyAssigner } from '@/hooks/use-owned-copies';
+import { useImageSource } from '@/hooks/use-image-source';
 import { useScanImages } from '@/hooks/use-scan-images';
 import { EXAMPLE_COLLECTION_CSV, EXAMPLE_COLLECTION_NAME } from '@/data/exampleCollection';
 import { binderLimitMessage, binderTrialMessage, pageLimitMessage, pageTrialMessage } from '@/data/limitMessages';
@@ -78,8 +81,9 @@ export type ToastReport = (message: string, link?: { text: string; binderId: str
 
 /** How the collection is browsed: one carousel, a series→set drill, or by tcgscan portfolio. */
 type ViewMode = 'all' | 'sets' | 'portfolios';
-// Session-remembered preference, like the binder double-sided toggle.
-let viewModePref: ViewMode = 'all';
+// Session-remembered preference, like the binder double-sided toggle. Collections first: the
+// cards arrive grouped that way from tcgscan, so it is the shelf the owner already pictures.
+let viewModePref: ViewMode = 'portfolios';
 
 /**
  * "109 cards" but "109 cards, 47 distinct" when a collection holds duplicates — `copies` is the
@@ -302,7 +306,10 @@ function CollectionStrip({
   // Real scans: show each card as the camera saw it (tcgscan's scan crops). Chip hidden until
   // the account has any; session-only toggle, like the binder view's Scans pill.
   const scanImages = useScanImages();
-  const [showScans, setShowScans] = useState(false);
+  // Which picture of a card to show. Shared with every other surface that can show either (see
+  // use-image-source), so turning photos on here does not have to be done again in a binder.
+  const [imageSource, setImageSource] = useImageSource();
+  const showScans = imageSource === 'scans';
   // Tiles are per-CARD aggregates (a UserCard row, not a lot), so the card's newest scan is the
   // right face here; per-copy display lives where copies exist — binder pockets and tcgscan's
   // lot rows.
@@ -366,14 +373,31 @@ function CollectionStrip({
       active = false;
     };
   }, [mode, tcgBinders]);
+  // A REBUILT BINDER STOPS OFFERING ITSELF. Once its cards are in pockets, "Rebuild in michi"
+  // would only make a second copy of a binder that already exists — the button's whole promise
+  // (here is your shelf, brought across) has already been kept. It comes back when every one of
+  // its cards is free again, because then there is genuinely nothing here representing it.
+  //
+  // Keyed on the CARDS, not on a "rebuilt" flag: pockets are the only honest record of whether the
+  // shelf is represented, they survive a deleted-and-rebuilt binder, and pulling the cards back
+  // out is exactly how a user says "do that again".
+  const claimedEntries = useMemo(
+    () => claimedByEntry(store.userBinders.flatMap((b) => b.pages.flatMap((p) => p.slots))),
+    [store.userBinders],
+  );
+  const rebuildableBinders = useMemo(
+    () => (tcgBinders ?? []).filter((b) => !b.entries.some((e) => claimedEntries.has(e.entryId))),
+    [tcgBinders, claimedEntries],
+  );
+
   // The rebuild is previewed BEFORE it is offered: the same function that builds the pages counts
   // what would be left out, so the chip, the confirm dialog and the result can never disagree.
   const maxPages = store.limits.pagesPerBinder;
   const rebuilds = useMemo(() => {
     const out = new Map<string, RebuildResult>();
-    for (const b of tcgBinders ?? []) out.set(b.id, rebuildTcgscanBinder(b, maxPages));
+    for (const b of rebuildableBinders) out.set(b.id, rebuildTcgscanBinder(b, maxPages));
     return out;
-  }, [tcgBinders, maxPages]);
+  }, [rebuildableBinders, maxPages]);
   // The binder awaiting the confirm dialog.
   const [rebuildUnit, setRebuildUnit] = useState<TcgscanBinder | null>(null);
 
@@ -448,7 +472,7 @@ function CollectionStrip({
       // commit). Re-pull the binders so placed counts drop with the owned counts; without this
       // the stale fromCollection flags keep subtracting copies that no longer exist.
       void store.refreshUserBinders().catch(() => {});
-      onToast?.('Portfolio deleted');
+      onToast?.('Collection deleted');
     } catch (e) {
       onToast?.((e as Error).message);
     }
@@ -592,7 +616,7 @@ function CollectionStrip({
       })
       .filter((g) => g.cards.length > 0);
     const unsorted = filtered.filter((c) => !claimed.has(c.cardId));
-    if (unsorted.length > 0) groups.push({ id: '__unsorted', name: 'Not in a portfolio', cards: unsorted });
+    if (unsorted.length > 0) groups.push({ id: '__unsorted', name: 'Not in a collection', cards: unsorted });
     return groups;
   }, [mode, portfolios, filtered]);
 
@@ -624,7 +648,7 @@ function CollectionStrip({
     if (unsorted.length > 0)
       groups.push({
         id: '__unsorted',
-        name: 'Not in a portfolio',
+        name: 'Not in a collection',
         cards: unsorted,
         copies: unsorted.reduce((n, f) => n + f.qty, 0),
       });
@@ -821,13 +845,16 @@ function CollectionStrip({
           </Pressable>
         </View>
       ) : null}
-      {/* Browse controls: view mode · multi-select toggle · search. */}
+      {/* TWO ROWS, BY WHAT THEY ANSWER. The first is "which cards am I looking at" - how they are
+          grouped, and what I am searching for - and nothing else belongs beside it. The second is
+          how they are shown and what I am about to do with them: modes and one-off actions, which
+          are used far less often and were crowding the choice that matters most. */}
       <View style={styles.controlsRow}>
         {(
           [
-            ['all', 'All'],
+            ['portfolios', 'Collections'],
             ['sets', 'By set'],
-            ['portfolios', 'Portfolios'],
+            ['all', 'All'],
           ] as const
         ).map(([m, label]) => (
           <Pressable
@@ -837,6 +864,17 @@ function CollectionStrip({
             <Text style={[pillChip.text, mode === m && pillChip.textActive]}>{label}</Text>
           </Pressable>
         ))}
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search your cards…"
+          placeholderTextColor={Palette.muted3}
+          autoCorrect={false}
+          autoCapitalize="none"
+          style={styles.search}
+        />
+      </View>
+      <View style={styles.controlsRow}>
         <Pressable
           onPress={() => {
             if (multiMode) {
@@ -854,27 +892,12 @@ function CollectionStrip({
             {multiMode ? '✓ Done selecting' : '⊕ Select multiple'}
           </Text>
         </Pressable>
-        <Pressable onPress={() => setImportOpen(true)} style={pillChip.base}>
+        {scanImages ? <ImageSourceToggle value={imageSource} onChange={setImageSource} /> : null}
+        {/* Import is a once-in-a-while errand, not a browse control - last on the second row, out
+            of the way of everything used every visit. */}
+        <Pressable onPress={() => setImportOpen(true)} style={[pillChip.base, styles.importChip]}>
           <Text style={pillChip.text}>Import</Text>
         </Pressable>
-        {scanImages ? (
-          <Pressable
-            onPress={() => setShowScans((v) => !v)}
-            style={[pillChip.base, showScans && pillChip.active]}>
-            <Text style={[pillChip.text, showScans && pillChip.textActive]}>
-              {showScans ? '✓ Real scans' : 'Real scans'}
-            </Text>
-          </Pressable>
-        ) : null}
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search your cards…"
-          placeholderTextColor={Palette.muted3}
-          autoCorrect={false}
-          autoCapitalize="none"
-          style={styles.search}
-        />
       </View>
       {q && !catalog ? (
         <ThemedText type="small" themeColor="textSecondary">
@@ -931,11 +954,11 @@ function CollectionStrip({
       {mode === 'portfolios' ? (
         !portfolioGroups ? (
           <ThemedText type="small" themeColor="textSecondary" style={styles.emptyNote}>
-            Loading your portfolios…
+            Loading your collections…
           </ThemedText>
         ) : portfolioGroups.length === 0 ? (
           <ThemedText type="small" themeColor="textSecondary" style={styles.emptyNote}>
-            No portfolios yet. Collections you make in <TcgscanLink /> appear here.
+            No collections yet. Collections you make in <TcgscanLink /> appear here.
           </ThemedText>
         ) : (
           portfolioGroups.map((g) => (
@@ -957,7 +980,7 @@ function CollectionStrip({
               </View>
               {/* The physical binders inside this collection. One tap opens the confirm; the
                   counts here are the same preview the dialog reads, so they cannot disagree. */}
-              {(tcgBinders ?? [])
+              {rebuildableBinders
                 .filter((b) => b.collectionId === g.id)
                 .map((b) => {
                   const r = rebuilds.get(b.id);
@@ -1142,7 +1165,7 @@ function CollectionStrip({
             ? {
                 title: `Delete “${pfDelete.name}”?`,
                 message:
-                  'This removes the portfolio and its cards from your collection. Cards already placed in a binder stay in their pockets, but they no longer count as owned unless another portfolio still has a copy. This can’t be undone.',
+                  'This removes the collection and its cards from your inventory. Cards already placed in a binder stay in their pockets, but they no longer count as owned unless another collection still has a copy. This can’t be undone.',
                 confirmLabel: 'Delete',
                 destructive: true,
                 // The bundled "Example cards (safe to delete)" portfolio deletes immediately; a
@@ -1816,6 +1839,8 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     marginBottom: Spacing.one,
   },
+  // Pushed to the far end of its row, away from the controls used every visit.
+  importChip: { marginLeft: 'auto' },
   search: {
     flex: 1,
     minWidth: 150,

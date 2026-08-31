@@ -23,6 +23,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS = [
   join(here, '..', 'supabase', 'migrations', '20260831120000_entry_item_kind.sql'),
   join(here, '..', 'supabase', 'migrations', '20260831130000_rollup_skips_sealed.sql'),
+  join(here, '..', 'supabase', 'migrations', '20260831140000_sealed_cap.sql'),
 ];
 
 const token = process.env.SUPABASE_ACCESS_TOKEN;
@@ -47,7 +48,7 @@ async function sql(query) {
 try {
   console.log('Step 1: applying the migrations...');
   for (const m of MIGRATIONS) await sql(readFileSync(m, 'utf8'));
-  console.log('  OK (item_kind column + sealed-blind rollup trigger)');
+  console.log('  OK (item_kind column + sealed-blind rollup + split cap trigger)');
 
   console.log('Step 2: the column, and that nothing about it can reject a row...');
   const [col] = await sql(`

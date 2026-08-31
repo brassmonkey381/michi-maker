@@ -57,6 +57,7 @@ import { SAMPLE_BINDERS } from '@/data/sampleData';
 import { loadOwnedEntriesShared } from '@/data/collectionRepo';
 import { track } from '@/lib/analytics';
 import { LIMITS_ENFORCED, type Tier, type TierLimits } from '@/data/tiers';
+import { useEditLock, type EditLockStatus } from '@/hooks/use-edit-lock';
 import { useTier } from '@/hooks/use-tier';
 import { isSupabaseConfigured } from '@/lib/env';
 import { defaultBinderPublic } from '@/data/sharingDefaults';
@@ -139,6 +140,25 @@ interface BinderStore {
   userBinders: DemoBinder[];
   /** True while user binders are loading from Supabase (always false in local mode). */
   loading: boolean;
+  /**
+   * May THIS tab write? False only while another tab of the same browser holds the editing
+   * lease, or while this one is pulling the server's state after taking it over. Surfaces are
+   * expected to go read-only rather than let an edit look accepted and then not save — every
+   * write is refused underneath either way (see persist).
+   */
+  canEdit: boolean;
+  /**
+   * The first cloud write that failed since this was last cleared, or null. What is on screen
+   * is optimistic: when a save fails the two disagree, and only the server's copy survives a
+   * reload — so this exists to say so at the time rather than let it be discovered later.
+   */
+  saveError: string | null;
+  /** Dismiss the save-failure notice (the user acknowledged it, or reloaded). */
+  clearSaveError: () => void;
+  /** Why canEdit reads as it does, for the banner that explains it. */
+  editLockStatus: EditLockStatus;
+  /** Move editing to this tab on purpose. Bringing the tab forward already does this. */
+  takeOverEditing: () => void;
   /** The signed-in user's effective tier (guest / free / pro / vip). */
   tier: Tier;
   /** Active capability limits for that tier (permissive/unlimited while LIMITS_ENFORCED is off). */
@@ -395,6 +415,37 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     };
   }, [authReady, userId]);
 
+  /**
+   * Re-pull the user's binders from the server, replacing local state and resetting the undo
+   * history. Used wherever the SERVER is the one that changed: deleting a portfolio demotes
+   * from_collection pockets at commit (20260827220000), so the in-memory slots still carry the old
+   * provenance and any undo snapshot could re-persist it — and, since the edit lease landed, on
+   * every hand-off between tabs, where the other tab is what changed underneath this one.
+   */
+  const refreshUserBinders = useCallback(async () => {
+    if (!CLOUD || !userId) return;
+    const userBinders = await repo.fetchUserBinders(userId);
+    setHistory({ past: [], present: [...SAMPLE_BINDERS, ...userBinders], future: [] });
+  }, [userId]);
+
+  /**
+   * ONE WRITER PER BROWSER. Two tabs on one account both wrote, and neither ever re-read the
+   * server — no realtime on the binder tables, no refetch on focus, no version check on any
+   * write — so the second tab saved from whatever it loaded with. A whole-binder save prunes
+   * every page and slot its payload does not name, which is how a stale tab silently deleted a
+   * card the other one had just added. The lease makes the focused tab the only writer, and a
+   * hand-off re-reads before it is allowed to write. See src/lib/editLock.ts for the mechanics
+   * and for what this deliberately does NOT cover (two browsers, two devices, two people).
+   */
+  const editLock = useEditLock(userId, refreshUserBinders);
+  const canEdit = editLock.canEdit;
+  // persist() is called from deep inside setState updaters and long-lived callbacks; a ref keeps
+  // their identities stable while still reading the CURRENT verdict at the moment of the write.
+  const canEditRef = useRef(canEdit);
+  useEffect(() => {
+    canEditRef.current = canEdit;
+  }, [canEdit]);
+
   // Load the Featured ranking (public 3-day-likes leaderboard). It's public data, but wait for the
   // session to settle so the Supabase client is ready. Reloads on identity change so a viewer's own
   // likes are reflected next time they land home. Failures degrade to an empty (hidden) section.
@@ -416,6 +467,16 @@ export function BinderProvider({ children }: { children: ReactNode }) {
 
   /** Apply an immutable update to the binders, recording it on the undo stack. */
   const commit = useCallback((updater: (prev: DemoBinder[]) => DemoBinder[]) => {
+    // A TAB THAT CANNOT SAVE MUST NOT PRETEND TO EDIT. Refusing the write in persist() alone was
+    // not enough: the local state still changed, so the pocket filled on screen, the server never
+    // heard about it, and the work vanished at the next reload with nothing ever having looked
+    // wrong. That is the same silence that made a lost binder undiagnosable, reintroduced by the
+    // guard meant to prevent it.
+    //
+    // The screen simply not responding is the honest outcome, and the banner beside it says why.
+    // This is the funnel every binder mutation goes through, which is what makes it the one place
+    // that can promise it — a per-surface check would only cover the surfaces someone remembered.
+    if (!canEditRef.current) return;
     setHistory((h) => {
       const next = updater(h.present);
       if (next === h.present) return h; // no-op updates don't pollute history
@@ -428,6 +489,18 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /**
+   * A write that failed and said nothing is how this app lost a binder: the screen went on
+   * showing the pockets, the server had none, and the mismatch only surfaced on the next
+   * reload — by which time nobody could say what had been in there. So a failure is REMEMBERED
+   * here and shown (SaveErrorBanner), not just logged where nobody looks.
+   *
+   * The first failure is the one worth showing: what follows is usually the same outage
+   * repeated, and a banner that rewrites itself every second is one nobody reads.
+   */
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const clearSaveError = useCallback(() => setSaveError(null), []);
+
+  /**
    * Run a persistence op in cloud mode; never let a failed write crash the UI. When there's no
    * session (e.g. anonymous sign-in unavailable) writes would all fail RLS, so we skip them
    * entirely — the guest banner tells the user their work isn't saving — rather than firing a
@@ -436,7 +509,20 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   const persist = useCallback(
     (op: () => Promise<void>) => {
       if (!CLOUD || !user) return;
-      op().catch((error) => console.warn(`[michi-maker] cloud save failed: ${(error as Error).message}`));
+      // THE BACKSTOP for the edit lease. The UI already stops a read-only tab from reaching most
+      // of these paths, but this is the single place every write funnels through, so it is the
+      // only place that can promise a tab without the lease never writes — including the ones
+      // that fire without a click (an undo re-sync, a queued art rehost). Not a save error:
+      // the other tab is saving, and the banner already explains why this one is read-only.
+      if (!canEditRef.current) {
+        console.warn('[michi-maker] save skipped: another tab holds editing for this account');
+        return;
+      }
+      op().catch((error) => {
+        const message = (error as Error).message;
+        console.warn(`[michi-maker] cloud save failed: ${message}`);
+        setSaveError((prev) => prev ?? message);
+      });
     },
     [user],
   );
@@ -526,7 +612,11 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     [persist],
   );
 
+  // Undo and redo swap whole snapshots through setHistory directly rather than through commit, so
+  // they need the same guard: without it a read-only tab could roll its own view back to a state
+  // the server never returns to, and then show that as the truth.
   const undo = useCallback(() => {
+    if (!canEditRef.current) return;
     setHistory((h) => {
       if (h.past.length === 0) return h;
       const previous = h.past[h.past.length - 1];
@@ -536,6 +626,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   }, [syncChanged]);
 
   const redo = useCallback(() => {
+    if (!canEditRef.current) return;
     setHistory((h) => {
       if (h.future.length === 0) return h;
       const [next, ...rest] = h.future;
@@ -1970,12 +2061,6 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     [commit, persist],
   );
 
-  const refreshUserBinders = useCallback(async () => {
-    if (!CLOUD || !userId) return;
-    const userBinders = await repo.fetchUserBinders(userId);
-    setHistory({ past: [], present: [...SAMPLE_BINDERS, ...userBinders], future: [] });
-  }, [userId]);
-
   const value = useMemo<BinderStore>(
     () => ({
       binders,
@@ -1983,6 +2068,11 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       featuredBinders: featured,
       userBinders: binders.filter((binder) => !binder.isExample),
       loading,
+      canEdit,
+      saveError,
+      clearSaveError,
+      editLockStatus: editLock.status,
+      takeOverEditing: editLock.takeOver,
       tier,
       limits,
       binderCount,
@@ -2027,6 +2117,10 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       binders,
       featured,
       loading,
+      canEdit,
+      saveError,
+      clearSaveError,
+      editLock,
       tier,
       limits,
       binderCount,

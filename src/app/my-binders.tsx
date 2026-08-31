@@ -20,6 +20,8 @@ import { sendBrowseCommand } from 'tcgscan-browse';
 import { BinderActionsMenu } from '@/components/binder/BinderActionsMenu';
 import { BinderCarousel } from '@/components/binder/BinderCarousel';
 import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
+import { EditLockBanner } from '@/components/binder/EditLockBanner';
+import { SaveErrorBanner } from '@/components/binder/SaveErrorBanner';
 import { PrintPlaceholdersSheet } from '@/components/binder/PrintPlaceholdersSheet';
 import { ShareSheet } from '@/components/binder/ShareSheet';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
@@ -223,6 +225,10 @@ export default function MyBindersScreen() {
       <ProTrialPrompt surface="my-binders" />
       <SafeAreaView style={styles.flex} edges={['top']}>
         <ScrollView contentContainerStyle={styles.scroll}>
+          {/* Read-only because another tab of this browser owns editing. It belongs here as
+              much as in the binder: adding a card from the collection saves too. */}
+          <EditLockBanner />
+          <SaveErrorBanner />
           {/* No page title, the "My binders" section header is the top of the page. Where the
               rail is hidden (native / narrow web), keep a way back Home. */}
           {railHidden ? (

@@ -17,7 +17,15 @@ import {
 } from './ownedCopies.ts';
 
 function entry(over: Partial<OwnedEntry> & { entryId: string }): OwnedEntry {
-  return { cardId: 'energy', quantity: 1, hasScan: false, scannedAt: null, ...over };
+  return {
+    cardId: 'energy',
+    quantity: 1,
+    hasScan: false,
+    scannedAt: null,
+    variant: 'Normal',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    ...over,
+  };
 }
 
 test('a pocket claiming a copy makes that copy unavailable', () => {

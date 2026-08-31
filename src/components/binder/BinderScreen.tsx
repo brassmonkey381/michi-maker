@@ -26,12 +26,23 @@ import { RightsPrompt } from '@/components/binder/RightsPrompt';
 import { ShareSheet } from '@/components/binder/ShareSheet';
 import { SliceStudio } from '@/components/binder/SliceStudio';
 import { SlotMultiActions } from '@/components/binder/SlotMultiActions';
+import { EditLockBanner } from '@/components/binder/EditLockBanner';
+import { SaveErrorBanner } from '@/components/binder/SaveErrorBanner';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
 import { CopyPickerSheet } from '@/components/binder/CopyPickerSheet';
+import { VariantPickerSheet } from '@/components/binder/VariantPickerSheet';
 import { catalogArtNote, type OwnedEntry } from '@/data/ownedCopies';
-import { useAvailableCopies, useCopyAssigner, useOwnedCopies } from '@/hooks/use-owned-copies';
+import {
+  refreshAllOwnedCopies,
+  useAvailableCopies,
+  useCopyAssigner,
+  useOwnedCopies,
+} from '@/hooks/use-owned-copies';
+import { useAuth } from '@/store/auth';
+import { EntryChangedElsewhereError, invalidateOwnedEntries, setEntryVariant } from '@/data/collectionRepo';
+import { chipFor } from '@/constants/printVariant';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Fonts, Palette, Radius, Spacing, Weight, FontSize } from '@/constants/theme';
@@ -100,6 +111,17 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const assignCopies = useCopyAssigner();
   const availableCopies = useAvailableCopies();
   const ownedCopies = useOwnedCopies();
+  const { user } = useAuth();
+  /**
+   * PRINT FINISH, pocket by pocket. Every other owned-copy lookup in this file is an O(n) find over
+   * the whole collection; the chip layer asks once per pocket per render, so this one is a map.
+   * Declared up here beside the hook that feeds it — everything past the not-found guard below is
+   * after an early return, where a hook cannot go.
+   */
+  const entryById = useMemo(
+    () => new Map((ownedCopies ?? []).map((c) => [c.entryId, c])),
+    [ownedCopies],
+  );
   const theme = useTheme();
   const { width } = useWindowDimensions();
   // Keep the saved-slice tray synced to the current (guest or signed-in) user while editing.
@@ -122,7 +144,13 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     }
     return sigs.size;
   }, [traySlices, store.userBinders]);
-  const [editing, setEditing] = useState(false);
+  // What the user ASKED for, and what they actually get. The workbench opens only while this
+  // tab may write: another tab of the same browser can hold the editing lease (see
+  // store.canEdit), and losing it has to close the workbench on the very same render, or the
+  // pockets stay draggable on a page whose saves are being refused. Derived rather than reset
+  // in an effect, so getting the lease back also reopens the workbench where it was left.
+  const [editingWanted, setEditingWanted] = useState(false);
+  const editing = editingWanted && store.canEdit;
   const [pageIndex, setPageIndex] = useState(0);
   const [pickerCell, setPickerCell] = useState<{ row: number; col: number } | null>(null);
   // A placement waiting on "which copy?" - held whole, because the answer arrives from a sheet
@@ -164,6 +192,16 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const [sendPageOpen, setSendPageOpen] = useState(false);
   const [sendAsMove, setSendAsMove] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(null);
+  // The pocket whose PRINT FINISH is being changed. Holds the slot rather than an id because the
+  // sheet needs the card and the owned copy behind it, and both are looked up once on open.
+  const [variantChoice, setVariantChoice] = useState<{
+    entryId: string;
+    cardId: string;
+    cardName?: string;
+    current: string;
+    updatedAt: string;
+    quantity: number;
+  } | null>(null);
   // Bulk multi-select "Add to another binder…" — the card ids awaiting a target binder.
   const [addElsewhereIds, setAddElsewhereIds] = useState<string[] | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
@@ -408,7 +446,12 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // user's own binders (where the copy is fully editable). Demo binders (the "Try it out!"
   // showcase) are likewise read-only and not shareable — canEdit gates both the edit toggle and
   // the share button, so a demo binder can only be viewed or deleted.
-  const canEdit = !binder.isExample && !binder.isDemo;
+  //
+  // store.canEdit joins them for a different reason: another tab of this browser holds the
+  // editing lease, so nothing saved here would stick. Offering an Edit button that quietly
+  // discards the work would be worse than not offering one.
+  const canEdit = !binder.isExample && !binder.isDemo && store.canEdit;
+
 
   const handleDuplicate = () => {
     const copy = store.duplicateBinder(binder.id);
@@ -610,6 +653,85 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // Whether the user owns ANY copy of this card, placed or not - the line between "aspirational
   // by choice" (never warn) and "ran out of free copies" (say so).
   const ownsCard = (cardId: string) => !!ownedCopies?.some((c) => c.cardId === cardId);
+
+  /**
+   * The finish to badge a pocket with, or undefined for no chip.
+   *
+   * Keyed off THE LOOKUP SUCCEEDING, never off `slot.sourceEntryId` merely being present: that
+   * stamp is persisted and handed to every viewer, so on someone else's binder it is an opaque id
+   * that joins to nothing here. A pocket whose copy sits in an archived collection also resolves
+   * to nothing, and quietly showing no chip is the right answer in both cases.
+   */
+  const variantOf = (slot: DemoSlot): string | undefined =>
+    slot.sourceEntryId ? entryById.get(slot.sourceEntryId)?.variant : undefined;
+
+  const openVariantPicker = (slot: DemoSlot) => {
+    if (!slot.sourceEntryId || !slot.cardId) return;
+    const entry = entryById.get(slot.sourceEntryId);
+    if (!entry) return;
+    // The edit lease covers binder writes; this one goes to the COLLECTION, which the lease knows
+    // nothing about. Without this check a read-only tab — the one showing "editing is open in
+    // another tab" — could still change a real card detail, which is the exact failure the lease
+    // exists to end, reintroduced through a table it does not cover.
+    if (!store.canEdit) {
+      showToast('Editing is open in another tab, so collection changes are paused here');
+      return;
+    }
+    setVariantChoice({
+      entryId: entry.entryId,
+      cardId: slot.cardId,
+      cardName: resolveCard(slot.cardId)?.name,
+      current: entry.variant,
+      updatedAt: entry.updatedAt,
+      quantity: entry.quantity,
+    });
+  };
+
+  /**
+   * Write the finish to the collection row, optimistically.
+   *
+   * Optimistic because the confirm dialog closes the instant it calls back, so the write settles
+   * with nothing on screen to hold a spinner. The cache is patched first so every pocket claiming
+   * that lot repaints at once, and rolled back on failure — a chip that silently kept a value the
+   * server rejected would be the same silence that made a lost binder undiagnosable.
+   */
+  const applyVariant = (
+    entryId: string,
+    next: string,
+    previous: { variant: string; updatedAt: string },
+  ) => {
+    const userId = user?.id;
+    if (!userId) return;
+    const patch = (variant: string, updatedAt: string) => {
+      invalidateOwnedEntries(userId, (entries) =>
+        entries.map((e) => (e.entryId === entryId ? { ...e, variant, updatedAt } : e)),
+      );
+      refreshAllOwnedCopies();
+    };
+    patch(next, new Date().toISOString());
+    setEntryVariant(entryId, next, previous)
+      .then((saved) => {
+        patch(saved.variant, saved.updatedAt);
+        toastId.current += 1;
+        setToast({
+          id: toastId.current,
+          message: `Set to ${chipFor(next).label}`,
+          actionLabel: 'Undo',
+          // A REAL undo of the collection row. Deliberately not showToast(msg, true), whose Undo
+          // is wired to the binder's in-memory snapshot stack — that would revert an unrelated
+          // binder edit and leave the collection row changed.
+          onAction: () => applyVariant(entryId, previous.variant, saved),
+        });
+      })
+      .catch((error: unknown) => {
+        patch(previous.variant, previous.updatedAt);
+        showToast(
+          error instanceof EntryChangedElsewhereError
+            ? 'That copy changed somewhere else, so nothing was altered here'
+            : 'Couldn’t change the finish — your collection is unchanged',
+        );
+      });
+  };
 
   const handlePickCard = (cardId: string, card?: CatalogCard) => {
     if (!pickerCell) return;
@@ -1051,7 +1173,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   }) => {
     if (!editing) {
       return (
-        <BinderGrid page={p} width={width} editable={false} captionFields={captionFields} ownedIds={ownedIds} scanUrlOf={scanUrlOf} />
+        <BinderGrid page={p} width={width} editable={false} captionFields={captionFields} ownedIds={ownedIds} scanUrlOf={scanUrlOf} variantOf={variantOf} onVariantPress={openVariantPicker} />
       );
     }
     if (role === 'prev' || role === 'next') {
@@ -1064,6 +1186,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           editable
           captionFields={captionFields}
           ownedIds={ownedIds} scanUrlOf={scanUrlOf}
+          variantOf={variantOf} onVariantPress={openVariantPicker}
           // A tray slice reaches the neighbours too: show its legal pockets here, and let an
           // armed slice tap-place onto them (drags resolve via resolveSpreadHit regardless).
           dropTargets={role === 'prev' ? prevDropTargets : nextDropTargets}
@@ -1090,6 +1213,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           editable
           captionFields={captionFields}
           ownedIds={ownedIds} scanUrlOf={scanUrlOf}
+          variantOf={variantOf} onVariantPress={openVariantPicker}
           // The facing page is a first-class drop surface for tray slices too.
           dropTargets={isPrev ? prevDropTargets : nextDropTargets}
           onCellPress={(row, col) => {
@@ -1120,6 +1244,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         editable
         captionFields={captionFields}
         ownedIds={ownedIds} scanUrlOf={scanUrlOf}
+        variantOf={variantOf} onVariantPress={openVariantPicker}
         selectedSlotId={selectedSlotId}
         multiSelectedIds={multiIds}
         onCellPress={handleAddCell}
@@ -1288,7 +1413,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                 ) : null}
                 <Pressable
                   onPress={() => {
-                    setEditing((e) => !e);
+                    setEditingWanted((e) => !e);
                     setSelectedSlotId(null);
                     clearMulti();
                     setMultiActionsOpen(false);
@@ -1313,6 +1438,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           </View>
 
           <ScrollView contentContainerStyle={styles.scroll}>
+            {/* Read-only because another tab of this browser owns editing — see EditLockBanner. */}
+            <EditLockBanner />
+            <SaveErrorBanner />
             {/* Editing: title/description fields and the page tools sit side by side at the top, so
                 the bottom of the editor stays clear for the slice tray. Stacks on narrow screens. */}
             {editing ? (
@@ -1439,6 +1567,39 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
             </Animated.View>
           ) : null}
         </SafeAreaView>
+
+        {/* "Which finish?" — the one sheet here that edits the COLLECTION rather than the binder.
+            Picking raises the confirmation; the write happens on confirm and is reversible from
+            the toast, which is why this is a plain confirm and not the type-the-name gate the
+            repo reserves for irreversible loss of authored work. */}
+        {variantChoice ? (
+          <VariantPickerSheet
+            visible
+            cardId={variantChoice.cardId}
+            cardName={variantChoice.cardName}
+            current={variantChoice.current}
+            quantity={variantChoice.quantity}
+            onClose={() => setVariantChoice(null)}
+            onPick={(next) => {
+              const c = variantChoice;
+              setVariantChoice(null);
+              const from = chipFor(c.current).label;
+              const to = chipFor(next).label;
+              const many = c.quantity > 1;
+              setConfirm({
+                title: 'Change this card in your collection?',
+                // Naming the count is not caution, it is accuracy: one row covers the whole lot,
+                // so a three-card lot really does change three cards.
+                message: `${c.cardName ?? 'This card'} is recorded as ${from}. Setting it to ${to} changes ${
+                  many ? `all ${c.quantity} cards in that lot` : 'that card'
+                } in your collection, not just this pocket.`,
+                confirmLabel: 'Change it',
+                onConfirm: () =>
+                  applyVariant(c.entryId, next, { variant: c.current, updatedAt: c.updatedAt }),
+              });
+            }}
+          />
+        ) : null}
 
         {/* "Which copy?" - only ever open on top of the card picker, and closing it without an
             answer leaves the pocket empty and the picker where it was, which is a cancel. */}

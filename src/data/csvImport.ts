@@ -15,6 +15,7 @@
 import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { uuidv4 } from '@/data/binderTypes';
 import { requireSupabase } from '@/lib/supabase';
+import { getPriceSummary, type PriceSummary } from '@/lib/prices';
 
 /** RFC4180-ish CSV parse: quoted fields, escaped quotes, CR/LF. Returns rows of cells. */
 export function parseCsv(text: string): string[][] {
@@ -186,6 +187,18 @@ export function analyzeCsv(rows: string[][], catalog: Catalog): ImportAnalysis {
  */
 export async function importAsPortfolio(name: string, matches: ImportMatch[]): Promise<void> {
   const supabase = requireSupabase();
+  // WHAT FINISH WAS IT? A CSV of card names does not say, and stamping every row 'Normal' is a
+  // guess that is wrong for nearly half the catalogue — many cards were never printed as Normal at
+  // all. Where a card has exactly ONE published finish there is no guessing to do, and that covers
+  // most of the catalogue; anything genuinely ambiguous still falls back to 'Normal', which is what
+  // the user can then correct from the pocket's finish chip.
+  //
+  // Best-effort: the price summary is a few megabytes and an import must not fail for want of it.
+  const priced = await getPriceSummary().catch(() => ({}) as PriceSummary);
+  const soleVariant = (cardId: string): string => {
+    const names = Object.keys(priced[cardId]?.variants ?? {});
+    return names.length === 1 ? names[0] : 'Normal';
+  };
   const collectionId = `col-${uuidv4()}`;
   const { error: colErr } = await supabase
     .from('collections')
@@ -198,7 +211,7 @@ export async function importAsPortfolio(name: string, matches: ImportMatch[]): P
         id: `lot-${uuidv4()}`,
         collection_id: collectionId,
         card_id: m.cardId,
-        variant: 'Normal',
+        variant: soleVariant(m.cardId),
         condition: 'NM',
         quantity: m.quantity,
       }));

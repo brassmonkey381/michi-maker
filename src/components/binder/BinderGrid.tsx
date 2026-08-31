@@ -13,6 +13,7 @@ import Animated, {
 
 import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { BinderSurface, FontSize, Palette, Radii, Radius, Shadows, SlotBackingFallback, Weight } from '@/constants/theme';
+import { chipFor } from '@/constants/printVariant';
 import { attributionLabel, deriveAttribution, type ArtAttribution } from '@/data/artworkLibrary';
 import { resolveCardWith, resolveCatalogCardWith } from '@/data/cardResolver';
 import { formatCaption, type CaptionFieldKey } from '@/data/cardCaption';
@@ -21,6 +22,31 @@ import { useCatalog } from '@/hooks/use-catalog';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 import type { Catalog } from '@/lib/catalog';
 import { getPriceSummary, priceSnapshot, type PriceSummary } from '@/lib/prices';
+
+/**
+ * What one pocket is worth. `cur` in the shared summary is the PRICIEST variant's market price, not
+ * the one the owner actually holds — so a Normal card in a set with an expensive holo used to
+ * quote the holo's price. When the pocket names an owned copy, quote that copy's finish instead.
+ *
+ * THE FALLBACK IS NOT OPTIONAL. Nearly half the catalogue has no 'Normal' price key at all (many
+ * cards are holo-only), and every CSV-imported lot was stamped 'Normal' regardless — so a bare
+ * `variants[owned]` would turn a real number into $0.00 across a large slice of real collections,
+ * with no error anywhere. Falling back to `cur` keeps a wrong-but-present stored finish showing a
+ * plausible price rather than nothing.
+ */
+function priceFor(
+  summary: PriceSummary | null,
+  cardId: string,
+  variant: string | undefined,
+): number | undefined {
+  const entry = summary?.[cardId];
+  if (!entry) return undefined;
+  if (variant) {
+    const priced = entry.variants?.[variant];
+    if (typeof priced === 'number') return priced;
+  }
+  return entry.cur;
+}
 
 const CARD_ASPECT = 88 / 63; // height / width of a standard card
 
@@ -49,6 +75,17 @@ interface BinderGridProps {
   onAutoFillSlot?: () => void;
   /** Open "which of my copies is this?" for the selected card pocket. */
   onPickCopySlot?: () => void;
+  /**
+   * The PRINT FINISH to badge each pocket with (constants/printVariant.ts), or undefined for
+   * pockets that depict no owned copy. OPT-IN AND DEFAULTED UNDEFINED, and that is the whole
+   * safety mechanism: this component draws every pocket in the app — the owner's editor, the
+   * public shared-link viewer, the filmstrip, every home/discover tile, the marketing animation —
+   * so anything drawn unconditionally appears on all of them at once. Only a call site that passes
+   * this gets chips.
+   */
+  variantOf?: (slot: DemoSlot) => string | undefined;
+  /** Tapping a print-finish chip. Without it the chip renders but is inert (read-only surfaces). */
+  onVariantPress?: (slot: DemoSlot) => void;
   /** Cross-page drag: report the drop point (the dragged card's centre) in THIS grid's
    *  inner-content coords. The editor maps it to window coords via the source grid's
    *  localToWindow and hit-tests every page in one frame. Replaces onDropSlot's local target. */
@@ -106,6 +143,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
     onDeselectSlot,
     onAutoFillSlot,
     onPickCopySlot,
+    variantOf,
+    onVariantPress,
     onCrossDrop,
     onDragStart,
     dropTargets,
@@ -297,6 +336,48 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
           );
         })}
 
+        {/* PRINT-FINISH CHIPS (N / H / RH …), a sibling layer rather than a child of the slot.
+            It has to be: in edit mode the slot content is wrapped by DraggableSlot's
+            Gesture.Exclusive(pan, tap), and every existing in-slot overlay — the owned tick, the
+            JUMBO badge, the foil sheen, the caption — is pointerEvents="none". SlotToolbar is the
+            precedent for something tappable, and it lives outside the draggable too.
+
+            Top-right is the only free corner: top-left is the owned ✓, bottom-left the kind badge,
+            below is the caption strip, and bottom-right is the resize knob. zIndex 20 puts it over
+            the card but under the drag ghost (50) and the resize overlay (40). */}
+        {variantOf &&
+          !small &&
+          page.slots.map((slot) => {
+            if (!slot.cardId) return null;
+            const variant = variantOf(slot);
+            if (!variant) return null;
+            const chip = chipFor(variant);
+            const b = box(slot.row, slot.col, slot.rowSpan, slot.colSpan);
+            return (
+              // A right-ALIGNED strip rather than a left-positioned chip: the label is one to
+              // three characters wide, so anchoring the left edge would push '1EH' off the pocket.
+              // box-none lets taps through everywhere except the chip itself, which matters
+              // because this strip spans the pocket's full width.
+              <View
+                key={`pv-${slot.id}`}
+                pointerEvents="box-none"
+                style={[styles.variantRow, { left: b.left, top: b.top + 4, width: b.width - 4 }]}>
+                <Pressable
+                  onPress={onVariantPress ? () => onVariantPress(slot) : undefined}
+                  disabled={!onVariantPress}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${chip.label}${onVariantPress ? ', tap to change the print finish' : ''}`}
+                  // Outward slop is free; inward it is not — the gap between pockets is only a few
+                  // pixels and this layer paints above them, so a symmetric slop would swallow taps
+                  // meant for the neighbouring card.
+                  hitSlop={{ top: 10, right: 10, bottom: 6, left: 6 }}
+                  style={[styles.variantChip, { backgroundColor: chip.fill }]}>
+                  <Text style={[styles.variantChipText, { color: chip.text }]}>{chip.letter}</Text>
+                </Pressable>
+              </View>
+            );
+          })}
+
         {/* Metadata captions under each card, an independent layer so it doesn't disturb the
             draggable slot wrappers. Only cards (slots with a cardId) get a caption. */}
         {captionOn &&
@@ -309,7 +390,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
                 cardId={slot.cardId}
                 catalog={catalog}
                 fields={captionFields}
-                price={priceSummary?.[slot.cardId]?.cur}
+                price={priceFor(priceSummary, slot.cardId, variantOf?.(slot))}
                 left={b.left}
                 top={b.top + b.height}
                 width={b.width}
@@ -1336,6 +1417,30 @@ const styles = StyleSheet.create({
   captionTextSmall: {
     fontSize: FontSize.micro,
     lineHeight: 11,
+  },
+  // The strip the chip is right-aligned within, so a one- or three-character label both sit flush
+  // to the pocket's right edge.
+  variantRow: {
+    position: 'absolute',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    zIndex: 20,
+  },
+  variantChip: {
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    // Radius.tag is 3 in every theme; Radius.sm jumps to 6 in one of them, which reads as a
+    // different component rather than the same chip.
+    borderRadius: Radius.tag,
+    // A hairline so a bright chip keeps its edge over bright card art.
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.30)',
+    zIndex: 20,
+  },
+  variantChipText: {
+    fontSize: FontSize.micro,
+    fontWeight: Weight.bold,
+    letterSpacing: 0.5,
   },
   badge: {
     position: 'absolute',

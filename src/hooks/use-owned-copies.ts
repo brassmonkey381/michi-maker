@@ -33,6 +33,20 @@ import { isSupabaseConfigured } from '@/lib/env';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
 
+/**
+ * Every mounted instance re-reads when ANY caller edits an owned lot. Evicting or patching the
+ * shared cache is not enough on its own: the effect below depends on `[userId]`, so a changed cache
+ * re-arms the next load but fires nothing, and the pockets keep painting the pre-edit value until
+ * something remounts. Same shape as refreshAllTiers in use-tier.ts, for the same reason.
+ *
+ * Still no realtime subscription on portfolio_entries — see the header. The point here is to
+ * reflect OUR OWN write immediately, not to watch the table.
+ */
+const ownedCopiesListeners = new Set<() => void>();
+export function refreshAllOwnedCopies(): void {
+  for (const bump of ownedCopiesListeners) bump();
+}
+
 /** The user's owned lots, or undefined for guests / no backend / before the first load. */
 export function useOwnedCopies(): OwnedEntry[] | undefined {
   const { user } = useAuth();
@@ -40,6 +54,15 @@ export function useOwnedCopies(): OwnedEntry[] | undefined {
   // Keyed by the identity it was loaded for, so a signed-out or switched account derives to "owns
   // nothing" during render rather than lending the previous user's cards to a pocket.
   const [loaded, setLoaded] = useState<{ userId: string; entries: OwnedEntry[] } | null>(null);
+  const [generation, setGeneration] = useState(0);
+
+  useEffect(() => {
+    const bump = () => setGeneration((g) => g + 1);
+    ownedCopiesListeners.add(bump);
+    return () => {
+      ownedCopiesListeners.delete(bump);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isSupabaseConfigured || !userId) return;
@@ -52,7 +75,7 @@ export function useOwnedCopies(): OwnedEntry[] | undefined {
     return () => {
       active = false;
     };
-  }, [userId]);
+  }, [userId, generation]);
 
   return loaded && loaded.userId === userId ? loaded.entries : undefined;
 }

@@ -114,7 +114,7 @@ export async function fetchOwnedEntries(): Promise<OwnedEntry[]> {
   for (let from = 0; from < 50_000; from += PAGE) {
     const { data, error } = await supabase
       .from('portfolio_entries')
-      .select('id, card_id, collection_id, quantity, scan_path, scanned_at')
+      .select('id, card_id, collection_id, quantity, scan_path, scanned_at, variant, updated_at')
       // SEALED lots are not owned CARDS. Their card_id is a sealed productId that no card
       // surface can resolve, and offering one to a binder pocket would place a booster box.
       // `.or` rather than `.neq`, because neq excludes NULL rows and null IS the card case.
@@ -132,6 +132,12 @@ export async function fetchOwnedEntries(): Promise<OwnedEntry[]> {
         quantity: Math.max(1, e.quantity ?? 1),
         hasScan: !!e.scan_path,
         scannedAt: e.scanned_at,
+        // Free text on the server (no CHECK, by the batch-poisoning rule the entry migrations
+        // document), so an absent value reads as the commonest finish rather than as a crash.
+        variant: e.variant ?? 'Normal',
+        // Not optional: this is the input to setEntryVariant's timestamp bump, and a write that
+        // does not advance it is never installed on any tcgscan device.
+        updatedAt: e.updated_at,
       });
     }
     if ((data ?? []).length < PAGE) break;
@@ -162,6 +168,87 @@ export function loadOwnedEntriesShared(userId: string): Promise<OwnedEntry[]> {
   });
   ownedEntriesLoads.set(userId, { p, at: Date.now() });
   return p;
+}
+
+/**
+ * Rewrite the shared owned-entries cache in place after an edit, or drop it entirely.
+ *
+ * THE `at` IS PRESERVED, not refreshed. Resetting it would push the genuine five-minute expiry out
+ * by another five minutes on every edit, so a copy scanned in tcgscan mid-session would never
+ * appear — the freshness this cache exists to keep would be spent on our own writes.
+ */
+export function invalidateOwnedEntries(
+  userId: string,
+  patch?: (entries: OwnedEntry[]) => OwnedEntry[],
+): void {
+  const hit = ownedEntriesLoads.get(userId);
+  if (!hit) return;
+  if (!patch) {
+    ownedEntriesLoads.delete(userId);
+    return;
+  }
+  // Patch the RESOLVED value, so an edit made while a load is still in flight still lands.
+  const p = hit.p.then(patch);
+  p.catch(() => {
+    if (ownedEntriesLoads.get(userId)?.p === p) ownedEntriesLoads.delete(userId);
+  });
+  ownedEntriesLoads.set(userId, { p, at: hit.at });
+}
+
+/** Raised when the row moved under us — someone edited this copy on another device. */
+export class EntryChangedElsewhereError extends Error {
+  constructor() {
+    super('This copy changed somewhere else. Reopen your collection to see the current version.');
+    this.name = 'EntryChangedElsewhereError';
+  }
+}
+
+/**
+ * Change the PRINT FINISH recorded against one owned copy — a write into the collection tcgscan
+ * owns, not into a binder. Every clause below is load-bearing; this is the one place in michi-maker
+ * that mutates a `portfolio_entries` row.
+ *
+ * WHY `updated_at` IS MANDATORY, not defensive. There is deliberately no `set_updated_at` trigger
+ * on these tables (the client sends it, so the offline-first merge can resolve by it). tcgscan-app
+ * decides what to install by comparing that column ALONE — it never looks at field content — so a
+ * bare `.update({ variant })` succeeds in Postgres, looks perfect in the SQL editor, and is then
+ * silently declined by every phone, which re-pushes the old finish on its next edit to that lot.
+ * Sending a newer timestamp is what makes the change real rather than cosmetic.
+ *
+ * `max(now, previous + 1ms)` covers the browser clock running behind a phone clock, where the
+ * write would otherwise be born already losing and be reverted with no error anywhere.
+ *
+ * `.eq('variant', …)` is a compare-and-set: if another device changed this copy since we read it,
+ * the update matches nothing and the caller is told, rather than silently flattening their edit.
+ *
+ * `.select().maybeSingle()` is required, not decoration: a PostgREST PATCH that matches zero rows
+ * under RLS returns SUCCESS WITH NO ERROR. Without reading the result back, a write against a
+ * deleted lot — or one whose stamp the server already cleared — would report that it worked.
+ *
+ * What this cannot fix: the collection is last-write-wins per whole row across devices. A phone
+ * that is offline or force-quit while holding a pre-write copy of this lot, and edits it before it
+ * next syncs, wins the row and takes the old finish with it. That is the same exposure two tcgscan
+ * phones already have with each other, not a new one — but it is real and must not be described as
+ * impossible.
+ */
+export async function setEntryVariant(
+  entryId: string,
+  next: string,
+  previous: { variant: string; updatedAt: string },
+): Promise<{ variant: string; updatedAt: string }> {
+  const supabase = requireSupabase();
+  const prevMs = Date.parse(previous.updatedAt);
+  const at = new Date(Math.max(Date.now(), (Number.isFinite(prevMs) ? prevMs : 0) + 1)).toISOString();
+  const { data, error } = await supabase
+    .from('portfolio_entries')
+    .update({ variant: next, updated_at: at })
+    .eq('id', entryId)
+    .eq('variant', previous.variant)
+    .select('id, variant, updated_at')
+    .maybeSingle();
+  if (error) throw new Error(`variant: ${error.message}`);
+  if (!data) throw new EntryChangedElsewhereError();
+  return { variant: data.variant ?? next, updatedAt: data.updated_at ?? at };
 }
 
 /**

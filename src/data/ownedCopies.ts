@@ -36,6 +36,18 @@ export interface OwnedEntry {
   hasScan: boolean;
   /** The camera moment, for a stable and sensible preference order. */
   scannedAt: string | null;
+  /**
+   * The PRINT finish this lot was recorded with — 'Normal', 'Holofoil', 'Reverse Holofoil', and
+   * the 1st Edition / Unlimited families. Nothing to do with the app's THEME variants; see
+   * constants/printVariant.ts. Free text on the server, so treat any string as possible.
+   */
+  variant: string;
+  /**
+   * The row's own last-write timestamp. Carried because the cross-app sync resolves conflicts by
+   * it and is BLIND to field content: a write that does not move this column is never installed on
+   * any tcgscan device. Anything editing this lot must send a newer value than the one it read.
+   */
+  updatedAt: string;
 }
 
 /** Anything that can claim a copy: a binder slot, reduced to the only field that matters here. */

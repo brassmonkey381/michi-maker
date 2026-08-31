@@ -1066,29 +1066,47 @@ function CardLabels({
     .map((f) => ({ key: f.key, value: valueOf(f.key) }))
     .filter((x) => x.value.length > 0);
   const artist = valueOf('artist');
+  const setName = valueOf('set');
   const corner = spotFields('bottomRight')
     .map((f) => ({ value: valueOf(f.key), tone: f.tone }))
     .filter((x) => x.value.length > 0);
 
-  if (bottom.length === 0 && !artist && corner.length === 0) return null;
+  if (bottom.length === 0 && !artist && !setName && corner.length === 0) return null;
+
+  /**
+   * The rows STACK FROM THE BOTTOM EDGE UPWARDS, and only the ones with something in them take a
+   * place. Fixed offsets per row would leave a label hovering over the gap where a row nobody
+   * switched on would have been — turning a label off would move a different label. Bottom-up
+   * because the bottom edge is the anchor: the codes stay put however many rows sit above them.
+   */
+  const ROW_STEP = 20;
+  const stack: string[] = [];
+  if (bottom.length > 0 || corner.length > 0) stack.push('codes');
+  if (setName) stack.push('set');
+  if (artist) stack.push('artist');
+  const bottomOf = (row: string) => 4 + stack.indexOf(row) * ROW_STEP;
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       {artist ? (
-        <View
-          style={[
-            styles.artistRow,
-            // Sits on the bottom edge itself when there are no codes under it to clear, rather
-            // than hovering over a gap where a row that was never switched on would have been.
-            bottom.length === 0 && corner.length === 0 && styles.artistRowAlone,
-          ]}>
+        <View style={[styles.overlayRow, { bottom: bottomOf('artist') }]}>
           {/* On its own pill rather than bare text with a shadow: a scrim is the only thing that
-              stays readable over art that might be white, black or gold. It has the row to itself
-              — illustrator names are long, and everything else that wanted to share it turned out
-              to fit on the bottom edge as a code. */}
+              stays readable over art that might be white, black or gold. */}
           <View style={[styles.onCardChip, styles.wordyChip]}>
             <Text numberOfLines={1} style={styles.badgeText}>
               {artist}
+            </Text>
+          </View>
+        </View>
+      ) : null}
+      {/* THE SET GETS A WHOLE LINE. Its name is the only label with no bound on its length, and
+          every attempt to squeeze it in beside something else either clipped it to an empty pill
+          or crowded the illustrator. A set is called Vivid Voltage, so it says Vivid Voltage. */}
+      {setName ? (
+        <View style={[styles.overlayRow, { bottom: bottomOf('set') }]}>
+          <View style={[styles.onCardChip, styles.wordyChip]}>
+            <Text numberOfLines={1} style={styles.badgeText}>
+              {setName}
             </Text>
           </View>
         </View>
@@ -1100,7 +1118,7 @@ function CardLabels({
           of arithmetic hoping they will be. The kind badge joins the codes as a leading chip when
           the row is up, so it is not a third thing quietly occupying the same corner. */}
       {bottom.length > 0 || corner.length > 0 ? (
-        <View style={styles.bottomRow}>
+        <View style={[styles.bottomRow, { bottom: bottomOf('codes') }]}>
           <View style={styles.bottomCodes}>
             {/* kindLabel, not kind: `kind` is 'normal' on most cards, and a truthy value with no
                 label to show renders as an empty pill sitting on the art. */}
@@ -1605,19 +1623,15 @@ const styles = StyleSheet.create({
   },
   // --- Labels drawn ON the card. Two stacked rows along the bottom edge plus one corner; see
   // CardLabels and the placement table in cardCaption.ts.
-  artistRow: {
+  // One stacked line of labels. `bottom` is supplied per row by CardLabels, which knows how many
+  // rows are actually showing — see the stack there.
+  overlayRow: {
     position: 'absolute',
     left: 4,
     right: 4,
-    // Clears the row below it: chip height (~16) plus a little air.
-    bottom: 24,
     flexDirection: 'row',
     alignItems: 'flex-end',
-    // Illustrator at one end, set at the other — the two ends stay apart on their own.
-    justifyContent: 'space-between',
-    gap: 3,
   },
-  artistRowAlone: { bottom: 4 },
   // The illustrator, alone on its row. It may shrink, but never below a width that could still
   // show a couple of characters — a pill squeezed to nothing reads as a rendering fault rather
   // than as a name that ran out of room.
@@ -1626,7 +1640,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 4,
     right: 4,
-    bottom: 4,
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',

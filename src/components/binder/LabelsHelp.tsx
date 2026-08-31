@@ -22,7 +22,7 @@ const TABS: { id: TabId; label: string }[] = [
 /** One-line description of what each caption field shows. */
 const FIELD_HELP: Record<CaptionFieldKey, string> = {
   series: 'Series, shortened (SWSH, SV, SM) — a chip along the bottom of the card',
-  set: 'Set, as a code beside the series — SWSH · 04 reads as Sword & Shield set 4',
+  set: 'Set name (e.g. Vivid Voltage), on its own line across the card',
   artist: 'Illustrator, on its own row across the card above the codes',
   rarityCode: 'Short rarity code, under the card (see the Rarity codes tab)',
   number: 'Collector number without the set size — 088, not 088/198',

@@ -11,7 +11,7 @@
 import type { CatalogCard } from '@/lib/catalog';
 import { formatUsd } from '@/lib/prices';
 import { rarityCode } from '@/data/rarityCode';
-import { seriesCode, setShortCode } from '@/data/seriesCode';
+import { seriesCode, setDisplayName } from '@/data/seriesCode';
 
 /** A metadata field that can be shown as a caption under a card. */
 export type CaptionFieldKey =
@@ -71,7 +71,9 @@ export type LabelSpot =
   | 'caption'
   /** The lowest row ON the card, centred — the identity of the printing at a glance. */
   | 'bottomRow'
-  /** The row just above it, left-aligned. Long values live here; they have the width for it. */
+  /** A line of its own above the codes, for the set — the one label that needs a whole row. */
+  | 'setRow'
+  /** The row above that, left-aligned. Long values live here; they have the width for it. */
   | 'artistRow'
   /** The lowest row, right-hand end. One short, high-value number. */
   | 'bottomRight'
@@ -119,19 +121,18 @@ export const CAPTION_FIELDS: {
     render: 'chip',
     chipOnly: true,
   },
-  // THE CODE, not the name. "Vivid Voltage" is the friendlier form and it was tried in both places
-  // it could go: down among the fixed-width codes it squeezed to an empty pill, and up on the
-  // artist's row it crowded the illustrator, who is the other long one and the one people asked
-  // to keep. No abbreviation of a set NAME is both short enough for this row and still
-  // recognisable — "VV" is not Vivid Voltage to anyone — so the canonical code wins.
+  // THE NAME, on a line of its own. It was tried in both of the places a short form could go and
+  // neither worked: among the fixed-width codes it squeezed to an empty pill, and sharing the
+  // illustrator's row it crowded the name people wanted kept. Shortening it was worse still —
+  // "04" and "11TG" are catalogue keys that identify nothing to someone holding the card.
   //
-  // Its series prefix comes off, because the chip immediately to its left already says SWSH: the
-  // pair reads as SWSH · 04, which is shorter than either form and loses nothing.
+  // A set is called Vivid Voltage, so it says Vivid Voltage. The row costs a little art; being
+  // unable to tell which set a card is from costs more.
   {
     key: 'set',
     label: 'Set',
-    get: (c) => setShortCode(c.setCode, seriesCode(c.seriesId)),
-    spot: 'bottomRow',
+    get: (c) => setDisplayName(c.setName),
+    spot: 'setRow',
     render: 'chip',
     chipOnly: true,
   },

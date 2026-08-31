@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { seriesCode, setShortCode } from './seriesCode.ts';
+import { seriesCode, setDisplayName } from './seriesCode.ts';
 
 test('the two that no rule can derive together', () => {
   // Identical "X & Y" shapes, different conventions. This pair is the entire reason the table
@@ -56,40 +56,25 @@ test('no name, no chip', () => {
   assert.equal(seriesCode(null), '');
 });
 
-test('the set code drops the series prefix its neighbour chip already shows', () => {
-  // The two chips are read together, so "SWSH · 04" says everything "SWSH · SWSH04" does in half
-  // the width — and width is the whole reason this exists.
-  assert.equal(setShortCode('SWSH04', 'SWSH'), '04');
-  assert.equal(setShortCode('SV02', 'SV'), '02');
-  assert.equal(setShortCode('SWSH11: TG', 'SWSH'), '11TG', 'separators go with it');
+test('the set shows its own name, with the prefix the series chip already carries removed', () => {
+  assert.equal(setDisplayName('SWSH04: Vivid Voltage'), 'Vivid Voltage');
+  assert.equal(setDisplayName('SV02: Paldea Evolved'), 'Paldea Evolved');
+  assert.equal(setDisplayName('SWSH01: Sword & Shield Base Set'), 'Sword & Shield Base Set');
 });
 
-test('a code with no series prefix is left as it is', () => {
-  assert.equal(setShortCode('BS', 'BASE'), 'BS');
-  assert.equal(setShortCode('PAF', 'SV'), 'PAF');
-  assert.equal(setShortCode('FO', 'BASE'), 'FO');
+test('a set with no prefix is left exactly as it is', () => {
+  assert.equal(setDisplayName("Champion's Path"), "Champion's Path");
+  assert.equal(setDisplayName('Shining Fates'), 'Shining Fates');
 });
 
-test('a set code equal to its series keeps its own name rather than vanishing', () => {
-  // Stripping "SV" from "SV" leaves nothing, and an empty chip is the bug this all started with.
-  assert.equal(setShortCode('SV', 'SV'), 'SV');
+test('a colon that belongs to the title keeps both halves', () => {
+  // "Shining Fates: Shiny Vault" is a name, not a code and a name — stripping to "Shiny Vault"
+  // would drop the set it belongs to.
+  assert.equal(setDisplayName('Shining Fates: Shiny Vault'), 'Shining Fates: Shiny Vault');
+  assert.equal(setDisplayName('SV: Scarlet & Violet 151'), 'Scarlet & Violet 151');
 });
 
-test('no code, no chip', () => {
-  assert.equal(setShortCode('', 'SWSH'), '');
-  assert.equal(setShortCode(undefined, 'SWSH'), '');
-  assert.equal(setShortCode(null, ''), '');
-});
-
-test('every real set code shortens to something a chip can hold', () => {
-  // The widest codes the catalogue publishes, which are what made this necessary.
-  for (const [code, series] of [
-    ['SWSH11: TG', 'SWSH'],
-    ['SWSH12: TG', 'SWSH'],
-    ['SWSH01', 'SWSH'],
-    ['HIF:SV', 'SM'],
-  ]) {
-    const out = setShortCode(code, series);
-    assert.ok(out.length > 0 && out.length <= 5, `${code} -> ${out}`);
-  }
+test('empty in, empty out', () => {
+  assert.equal(setDisplayName(''), '');
+  assert.equal(setDisplayName(undefined), '');
 });

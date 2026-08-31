@@ -19,7 +19,8 @@ import { PageStrip } from '@/components/binder/PageStrip';
 import { ThemedText } from '@/components/themed-text';
 import { BinderPageMaxWidth } from '@/constants/theme';
 import { pillChip } from '@/constants/ui';
-import { DEFAULT_CAPTION_FIELDS, type CaptionFieldKey } from '@/data/cardCaption';
+import { type CaptionFieldKey } from '@/data/cardCaption';
+import { useCardLabelPrefs } from '@/hooks/use-card-label-prefs';
 import type { DemoBinder, DemoPage, DemoSlot } from '@/data/binderTypes';
 import { allocateScanFaces } from '@/data/scanFaces';
 import { useOwnedCards } from '@/hooks/use-owned-cards';
@@ -86,10 +87,15 @@ export function BinderPages({
   pageHeader,
   dragCol,
 }: BinderPagesProps) {
-  const [labelsOn, setLabelsOn] = useState(false);
-  const [labelFields, setLabelFields] = useState<CaptionFieldKey[]>(DEFAULT_CAPTION_FIELDS);
-  const toggleLabelField = (key: CaptionFieldKey) =>
-    setLabelFields((cur) => (cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key]));
+  // Remembered per account (and per device for guests) rather than reset on every visit — see
+  // use-card-label-prefs. Which labels you want on a card is a settled preference, not a decision
+  // to re-make each time you open a binder.
+  const {
+    on: labelsOn,
+    fields: labelFields,
+    setOn: setLabelsOn,
+    toggleField: toggleLabelField,
+  } = useCardLabelPrefs();
   const captionFields = labelsOn ? labelFields : [];
   // The viewer's owned cards → an optional green ✓ on card slots they own. Undefined for guests /
   // empty inventory (the "Owned" pill then stays hidden). Off by default; the pill flips it.
@@ -216,7 +222,7 @@ export function BinderPages({
           </Pressable>
           <CaptionControls
             enabled={labelsOn}
-            onToggle={() => setLabelsOn((v) => !v)}
+            onToggle={() => setLabelsOn(!labelsOn)}
             fields={labelFields}
             onToggleField={toggleLabelField}
           />

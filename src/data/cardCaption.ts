@@ -139,13 +139,14 @@ export const CAPTION_FIELDS: {
   // Artist names run long, so this gets its own row and the card's full width to run along.
   { key: 'artist', label: 'Artist', get: (c) => c.illustrator, spot: 'artistRow', render: 'text', chipOnly: true },
   { key: 'rarityCode', label: 'Rarity code', get: (c) => rarityCode(c.rarity) },
-  // The numerator only. "001/198" is seven characters of which four say how big the set is, and
-  // tried on a real pocket the set size was what stopped the row fitting. The full form is one tap
-  // away in the card panel.
+  // The full "088/198". It was cut to the numerator twice while other things were still competing
+  // for this row — first the set name, then the spacing. With the set moved to a line of its own
+  // and the stack tightened, the four characters that say how big the set is fit again, and they
+  // earn their place: "088 of 198" says where a card sits in its set, which "088" alone does not.
   {
     key: 'number',
     label: 'Number',
-    get: (c) => c.number.split('/')[0],
+    get: (c) => c.number,
     spot: 'bottomRow',
     render: 'chip',
     chipOnly: true,
@@ -167,6 +168,41 @@ export const CAPTION_FIELDS: {
   // the card, so there is nothing for `get` to read here — BinderGrid draws it from the collection.
   { key: 'finish', label: 'Finish', get: () => '', spot: 'topRight', render: 'chip', chipOnly: true },
 ];
+
+/**
+ * THE ORDER THE TOGGLES APPEAR IN, which is not the order the labels read in.
+ *
+ * `CAPTION_FIELDS` is sequenced for the CARD — series before number because that is how a
+ * printing is read aloud. A picker is a different question: it is a list of things to choose
+ * between, and it should open with the ones people actually want. Price and finish first, the
+ * three that are reference material trailing off the right-hand end.
+ *
+ * Keeping them as two orders costs one array and stops a good reading order on the card from
+ * being traded away for a good shopping order in the picker.
+ */
+export const PICKER_ORDER: CaptionFieldKey[] = [
+  'price',
+  'finish',
+  'artist',
+  'number',
+  'set',
+  'series',
+  // Below the fold, in every sense: nobody has asked for these, and they are the ones that stay
+  // in the strip under the card rather than on it.
+  'rarityCode',
+  'stage',
+  'released',
+];
+
+/** The fields in picker order. Anything missing from PICKER_ORDER still appears, at the end, so
+ *  adding a field to CAPTION_FIELDS can never make it silently unreachable. */
+export function pickerFields(): typeof CAPTION_FIELDS {
+  const rank = (key: CaptionFieldKey) => {
+    const i = PICKER_ORDER.indexOf(key);
+    return i === -1 ? PICKER_ORDER.length : i;
+  };
+  return [...CAPTION_FIELDS].sort((a, b) => rank(a.key) - rank(b.key));
+}
 
 /** Fields shown by default the first time captions are switched on. */
 export const DEFAULT_CAPTION_FIELDS: CaptionFieldKey[] = ['set', 'number', 'rarityCode', 'finish'];

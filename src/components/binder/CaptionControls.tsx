@@ -19,7 +19,7 @@ import { SignInPerk } from '@/components/auth/SignInPerk';
 import { LabelsHelp } from '@/components/binder/LabelsHelp';
 import { FontSize, Palette, Spacing, Weight } from '@/constants/theme';
 import { pillChip } from '@/constants/ui';
-import { CAPTION_FIELDS, type CaptionFieldKey } from '@/data/cardCaption';
+import { pickerFields, type CaptionFieldKey } from '@/data/cardCaption';
 import { useCatalog } from '@/hooks/use-catalog';
 
 export function CaptionControls({
@@ -84,7 +84,7 @@ export function CaptionFieldRow({
   }
   return (
     <View style={styles.fieldRow}>
-      {CAPTION_FIELDS.map((f) => {
+      {pickerFields().map((f) => {
         const on = fields.includes(f.key);
         return (
           <Pressable

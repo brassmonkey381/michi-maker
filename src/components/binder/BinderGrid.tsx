@@ -1135,7 +1135,9 @@ function CardLabels({
                 three-digit number — so nothing here needs to shrink. The one label whose length
                 nobody controls moved up to the artist's row, which has the width for it. */}
             {bottom.map((b) => (
-              <View key={b.key} style={styles.onCardChip}>
+              <View
+                key={b.key}
+                style={[styles.onCardChip, b.key === 'number' && styles.numberChip]}>
                 <Text numberOfLines={1} style={styles.badgeText}>
                   {b.value}
                 </Text>
@@ -1656,6 +1658,11 @@ const styles = StyleSheet.create({
   // The codes shrink before the price does: if something has to give on a very narrow pocket, it
   // should be the half that is reference material, not the half people came to look at.
   bottomCodes: { flexDirection: 'row', gap: 2, flexShrink: 1 },
+  // The only thing on this row allowed to give, and only at the extremes: an unusually long price
+  // ("$1,234.56") on an unusually narrow pocket would otherwise push the number until something
+  // clipped, and what clipped would be whichever end lost. The floor keeps the numerator legible,
+  // so it shortens to "088/1…" rather than to an empty pill — the failure this row has had twice.
+  numberChip: { flexShrink: 1, minWidth: 32 },
 
   onCardChip: {
     paddingHorizontal: 3,

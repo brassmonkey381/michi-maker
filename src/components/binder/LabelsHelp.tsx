@@ -9,7 +9,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { pillChip } from '@/constants/ui';
-import { CAPTION_FIELDS, type CaptionFieldKey } from '@/data/cardCaption';
+import { pickerFields, type CaptionFieldKey } from '@/data/cardCaption';
 import { RARITY_TABLE, type RarityGroup } from '@/data/rarityCode';
 
 type TabId = 'fields' | 'rarity' | 'tiles';
@@ -25,7 +25,7 @@ const FIELD_HELP: Record<CaptionFieldKey, string> = {
   set: 'Set name (e.g. Vivid Voltage), on its own line across the card',
   artist: 'Illustrator, on its own row across the card above the codes',
   rarityCode: 'Short rarity code, under the card (see the Rarity codes tab)',
-  number: 'Collector number without the set size — 088, not 088/198',
+  number: 'Collector number with the set size (e.g. 088/198)',
   stage: 'Evolution stage (Basic, Stage 1, …), under the card',
   released: 'Full release date (e.g. Mar 15, 2022), under the card',
   price: 'Latest market value for the finish you own — bottom-right of the card',
@@ -97,7 +97,7 @@ function FieldsTab() {
         underneath, joined by “ * ”. Order is fixed however you turn them on, and a field stays
         blank when the catalog has nothing for it.
       </Text>
-      {CAPTION_FIELDS.map((f) => (
+      {pickerFields().map((f) => (
         <View key={f.key} style={styles.row}>
           <Text style={styles.rowLabel}>{f.label}</Text>
           <Text style={styles.rowDesc}>{FIELD_HELP[f.key]}</Text>

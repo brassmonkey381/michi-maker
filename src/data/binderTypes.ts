@@ -238,6 +238,35 @@ export function uuidv4(): string {
   });
 }
 
+/**
+ * COPYING A POCKET MUST NOT COPY THE CARD IN IT — the two functions below are that rule.
+ *
+ * `sourceEntryId` names one physical card (a tcgscan lot), and one physical card is in exactly one
+ * pocket. Cloning a slot with the stamp intact makes two pockets claim the same object: the copy
+ * wears the owner's photograph of a card it has no claim to, the placed count exceeds what they
+ * own, free copies go negative, and reclaim offers copies that are not there. Reported live after
+ * duplicating a page — the scans came across with it.
+ *
+ * `fromCollection` travels with the stamp for the same reason: it means this pocket CONSUMES an
+ * owned copy, and copies do not multiply because a page was duplicated.
+ */
+export function duplicatedSlots(slots: readonly DemoSlot[]): DemoSlot[] {
+  return slots.map(({ sourceEntryId: _copy, fromCollection: _owned, ...slot }) => ({
+    ...slot,
+    id: uuidv4(),
+  }));
+}
+
+/**
+ * The other half of the rule, and the reason this is not one function: a MOVED page is the same
+ * pockets in a new home. The cards did not multiply and they did not go anywhere — dropping the
+ * stamp here would quietly free copies that are still sitting in a binder, and the pocket would
+ * lose the photograph of the very card in it.
+ */
+export function movedSlots(slots: readonly DemoSlot[]): DemoSlot[] {
+  return slots.map((slot) => ({ ...slot, id: uuidv4() }));
+}
+
 /** A fresh empty page of the given grid size (persistable — uses a UUID id). */
 export function emptyPage(rows = 3, cols = 3, title?: string): DemoPage {
   return { id: uuidv4(), title, rows, cols, slots: [] };

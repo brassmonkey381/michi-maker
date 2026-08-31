@@ -13,6 +13,8 @@ export interface PersonResult {
   username: string | null;
   avatarUrl: string | null;
   upvotes: number;
+  /** Votes summed across their publicly visible binders; the second ranking term. */
+  binderVotes: number;
 }
 
 /** A public profile's own detail (for the profile page). */
@@ -25,23 +27,41 @@ export interface PublicProfile {
 }
 
 /**
- * Search public profiles by username, ranked by upvotes. Empty query → top profiles.
- * Private + username-less (guest) profiles are excluded by the RPC.
+ * Public profiles, ranked by profile upvotes then total binder votes. Private and username-less
+ * (guest) profiles are excluded by the RPC, for a typed query exactly as for an empty one.
+ *
+ * The two modes differ in what they reach, not in what they permit. An EMPTY query browses, and
+ * only shows profiles with at least one publicly visible binder, because walking into an empty
+ * profile is a dead end. A TYPED query searches everyone, ranked by how well the name matches
+ * before how popular the person is.
+ *
+ * `offset` pages the same ordering. The RPC's ORDER BY is total (it ends on username), so a page
+ * boundary cannot drop or repeat a row the way it would under a partial sort.
  */
-export async function searchProfiles(query: string, limit = 30): Promise<PersonResult[]> {
+export async function searchProfiles(
+  query: string,
+  limit = 30,
+  offset = 0,
+): Promise<PersonResult[]> {
   const supabase = requireSupabase();
-  const { data, error } = await supabase.rpc('search_profiles', { p_query: query, p_limit: limit });
+  const { data, error } = await supabase.rpc('search_profiles', {
+    p_query: query,
+    p_limit: limit,
+    p_offset: offset,
+  });
   if (error) throw new Error(`search profiles: ${error.message}`);
   return ((data ?? []) as {
     id: string;
     username: string | null;
     avatar_url: string | null;
     upvotes: number;
+    binder_votes: number;
   }[]).map((r) => ({
     id: r.id,
     username: r.username,
     avatarUrl: r.avatar_url,
     upvotes: Number(r.upvotes) || 0,
+    binderVotes: Number(r.binder_votes) || 0,
   }));
 }
 

@@ -1,8 +1,15 @@
 /**
- * "Find people" search window. Opened from the home header; searches public profiles by name /
- * username (debounced). Tapping a row opens their public profile (`/u/[id]`), where their public
- * binders (and binder likes) live. Private and nameless (guest) profiles never appear (the search
- * RPC filters them out).
+ * "Find people" window. Opened from the home header; searches public profiles by username
+ * (debounced). Tapping a row opens their public profile (`/u/[id]`), where their public binders
+ * (and binder likes) live. Private and nameless (guest) profiles never appear, for a typed query
+ * exactly as for an empty one: both go through the one `search_profiles` RPC and its one
+ * `is_public` gate.
+ *
+ * The two modes reach different sets on purpose. Scrolling BROWSES people who have published at
+ * least one public binder, ranked by profile upvotes then total binder votes. Typing SEARCHES
+ * everyone, ranked by how well the name matches first. Both page in blocks of PAGE rather than
+ * stopping at a fixed 30, which is what used to make an account late in the alphabet unreachable
+ * by scrolling however long you scrolled.
  */
 import { Image } from 'expo-image';
 import { useRouter, type Href } from 'expo-router';
@@ -16,29 +23,60 @@ import { profileHandle, searchProfiles, type PersonResult } from '@/data/profile
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/store/auth';
 
+/** Rows per request. Also the "is there another page" test: a short page is the last page. */
+const PAGE = 30;
+
 export function PeopleSearch({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const theme = useTheme();
   const router = useRouter();
   const { user } = useAuth();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PersonResult[] | null>(null);
+  /** Whether the last page came back full, i.e. there may be another one. */
+  const [more, setMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const reqId = useRef(0);
 
-  // Debounced search; also loads the top profiles for an empty query when the window opens.
+  // Debounced first page; also loads the top profiles for an empty query when the window opens.
+  // Every keystroke and every open bumps reqId, which is what invalidates anything in flight.
   useEffect(() => {
     if (!visible) return;
     const id = ++reqId.current;
     const handle = setTimeout(async () => {
       try {
-        const rows = await searchProfiles(query.trim());
+        const rows = await searchProfiles(query.trim(), PAGE, 0);
         if (id !== reqId.current) return; // a newer query superseded this one
         setResults(rows);
+        setMore(rows.length === PAGE);
       } catch {
-        if (id === reqId.current) setResults([]);
+        if (id === reqId.current) {
+          setResults([]);
+          setMore(false);
+        }
       }
     }, 220);
     return () => clearTimeout(handle);
   }, [query, visible, user]);
+
+  /**
+   * The next page, appended. Guarded by the SAME reqId as the debounce: a keystroke landing while
+   * this is in flight must discard the page rather than stitch another query's rows onto the list.
+   */
+  const loadMore = async () => {
+    if (loadingMore || !results) return;
+    const id = reqId.current;
+    setLoadingMore(true);
+    try {
+      const rows = await searchProfiles(query.trim(), PAGE, results.length);
+      if (id !== reqId.current) return;
+      setResults((prev) => [...(prev ?? []), ...rows]);
+      setMore(rows.length === PAGE);
+    } catch {
+      if (id === reqId.current) setMore(false);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   // `handle` is the person's username when they have one, else their id — see `profileHandle`.
   const open = (handle: string) => {
@@ -84,7 +122,9 @@ export function PeopleSearch({ visible, onClose }: { visible: boolean; onClose: 
                 </View>
               ) : results.length === 0 ? (
                 <ThemedText type="small" themeColor="textSecondary" style={styles.empty}>
-                  {query.trim() ? `No people match “${query.trim()}”.` : 'No public profiles yet.'}
+                  {query.trim()
+                    ? `No people match “${query.trim()}”.`
+                    : 'No one has published a public binder yet.'}
                 </ThemedText>
               ) : (
                 results.map((p) => {
@@ -110,6 +150,23 @@ export function PeopleSearch({ visible, onClose }: { visible: boolean; onClose: 
                   );
                 })
               )}
+
+              {more ? (
+                <Pressable
+                  onPress={loadMore}
+                  disabled={loadingMore}
+                  style={styles.more}
+                  accessibilityRole="button"
+                  hitSlop={4}>
+                  {loadingMore ? (
+                    <ActivityIndicator />
+                  ) : (
+                    <ThemedText type="link" themeColor="textSecondary">
+                      Show more
+                    </ThemedText>
+                  )}
+                </Pressable>
+              ) : null}
             </ScrollView>
           </ThemedView>
         </Pressable>
@@ -141,6 +198,7 @@ const styles = StyleSheet.create({
   // old 380 cap; the card's maxHeight still protects short viewports.
   list: { height: 720 },
   center: { paddingVertical: Spacing.five, alignItems: 'center' },
+  more: { paddingVertical: Spacing.three, alignItems: 'center' },
   empty: { paddingVertical: Spacing.three },
   row: {
     flexDirection: 'row',

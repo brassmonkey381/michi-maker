@@ -1038,13 +1038,13 @@ export type Database = {
         }[]
       }
       search_profiles: {
-        Args: { p_query?: string; p_limit?: number }
+        Args: { p_query?: string; p_limit?: number; p_offset?: number }
         Returns: {
           id: string
-          display_name: string
           username: string
           avatar_url: string
           upvotes: number
+          binder_votes: number
         }[]
       }
     }

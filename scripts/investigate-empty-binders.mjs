@@ -225,6 +225,91 @@ try {
   );
 
   console.log('');
+  console.log('Step 11: WHEN did the column reach production? If it landed AFTER a client that');
+  console.log('         already sent the key, every slot write 400d for everyone, stamp or not.');
+  show(
+    rows(
+      await sql(`
+      select version, name
+        from supabase_migrations.schema_migrations
+       where version >= '20260827'
+       order by version;`),
+    ),
+  );
+
+  console.log('');
+  console.log('Step 12: who could have been exposed at all - accounts holding owned copies.');
+  console.log('         A stamp needs an OWNED copy, which does not need a scan photo.');
+  show(
+    rows(
+      await sql(`
+      select count(distinct user_id) as owners_with_entries,
+             count(*)                as entries,
+             count(*) filter (where scan_path is not null) as entries_with_a_photo
+        from public.portfolio_entries;`),
+    ),
+  );
+
+  console.log('');
+  console.log('Step 13: the owner of the emptied binder - did they own copies of anything?');
+  show(
+    rows(
+      await sql(`
+      select count(*) as their_entries,
+             count(*) filter (where scan_path is not null) as with_photo
+        from public.portfolio_entries pe
+        join public.binders b on b.owner_id = pe.user_id
+       where b.title = 'Private Pages Only';`),
+    ),
+  );
+
+  console.log('');
+  console.log('Step 14: victims who deleted the evidence - removed/soft-deleted binders carrying');
+  console.log('         the same fingerprint.');
+  show(
+    rows(
+      await sql(`
+      select left(b.owner_id::text, 8) as owner_prefix, b.title, b.removed_at,
+             b.created_at as binder_made, min(p.created_at) as pages_rewritten,
+             count(s.id) as slots
+        from public.binders b
+        join public.binder_pages p on p.binder_id = b.id
+        left join public.binder_slots s on s.page_id = p.id
+       where b.removed_at is not null
+       group by b.id, b.owner_id, b.title, b.removed_at, b.created_at
+      having min(p.created_at) > b.created_at + interval '1 minute'
+       order by min(p.created_at) desc
+       limit 50;`),
+    ),
+  );
+
+  console.log('');
+  console.log('Step 15: RECOVERY + a second victim detector. A PDF snapshot holds a JSON copy of a');
+  console.log('         binder. Any snapshot whose JSON has slots for a binder that now has none is');
+  console.log('         both proof of a loss and the means to undo it.');
+  show(
+    rows(
+      await sql(`
+      with live as (
+        select b.id, left(b.owner_id::text, 8) as owner_prefix, b.title, count(s.id) as slots
+          from public.binders b
+          left join public.binder_pages p on p.binder_id = b.id
+          left join public.binder_slots s on s.page_id = p.id
+         group by b.id, b.owner_id, b.title
+      )
+      select live.owner_prefix, live.title, live.slots as slots_now,
+             sn.updated_at as snapshot_at,
+             length(sn.binder_json::text) as snapshot_bytes
+        from live
+        join public.binder_pdf_snapshots sn on sn.binder_id::text = live.id::text
+       where live.slots = 0
+         and sn.binder_json is not null
+       order by sn.updated_at desc
+       limit 50;`),
+    ),
+  );
+
+  console.log('');
   console.log('DONE (nothing was written).');
 } catch (e) {
   console.log(`FAILED: ${e.message}`);

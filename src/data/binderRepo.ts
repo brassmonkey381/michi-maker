@@ -271,16 +271,31 @@ export async function insertBinder(binder: DemoBinder): Promise<void> {
   const { error: binderErr } = await supabase.from('binders').insert(binderRow(binder));
   if (binderErr) throw new Error(`insert binder: ${binderErr.message}`);
 
-  if (binder.pages.length > 0) {
-    const pages = binder.pages.map((page, index) => pageRow(page, binder.id, index));
-    const { error: pageErr } = await supabase.from('binder_pages').insert(pages);
-    if (pageErr) throw new Error(`insert pages: ${pageErr.message}`);
+  // ALL OF IT OR NONE OF IT. Three unwrapped requests: the binder, its pages, its slots. A create
+  // whose slot batch is rejected used to leave the first two behind — a binder with pages and
+  // nothing in them, saved that way from birth, looking full in the app until the next reload.
+  // "Rebuild in michi" is exactly this shape (createBinder with pages already attached), so the
+  // rejected-stamp window could mint one of these on a single tap.
+  //
+  // It destroys nothing, which is why it is a failed save rather than the loss replaceBinder
+  // caused — but a half-created binder is not a state the user asked for, and it is
+  // indistinguishable afterwards from a binder that was emptied. Undo the halves that landed.
+  try {
+    if (binder.pages.length > 0) {
+      const pages = binder.pages.map((page, index) => pageRow(page, binder.id, index));
+      const { error: pageErr } = await supabase.from('binder_pages').insert(pages);
+      if (pageErr) throw new Error(`insert pages: ${pageErr.message}`);
 
-    const slots = binder.pages.flatMap((page) => page.slots.map((slot) => slotRow(slot, page.id)));
-    if (slots.length > 0) {
-      const { error: slotErr } = await supabase.from('binder_slots').insert(slots);
-      if (slotErr) throw new Error(`insert slots: ${slotErr.message}`);
+      const slots = binder.pages.flatMap((page) => page.slots.map((slot) => slotRow(slot, page.id)));
+      if (slots.length > 0) {
+        const { error: slotErr } = await supabase.from('binder_slots').insert(slots);
+        if (slotErr) throw new Error(`insert slots: ${slotErr.message}`);
+      }
     }
+  } catch (e) {
+    // The binder row owns its pages by cascade, so removing it removes everything that landed.
+    await supabase.from('binders').delete().eq('id', binder.id);
+    throw e;
   }
 }
 
@@ -377,6 +392,19 @@ export async function upsertSlot(pageId: string, slot: DemoSlot): Promise<void> 
   // racing/failed prior write. Otherwise inserting a new-id slot there hits the
   // unique(page_id,row_index,col_index) constraint ("...binder_slots_page_id_row_index_col_index_key").
   // Makes the write idempotent w.r.t. the cell and self-heals any local↔DB divergence.
+  //
+  // THE SAME TRAP replaceBinder fell into, one pocket wide: this deletes before it knows the
+  // replacement can land, so a rejected upsert used to leave the cell EMPTY — the incumbent gone
+  // and nothing in its place. The constraint is why the delete cannot simply move to the end (two
+  // rows cannot hold one cell), so the row is READ first and put back if the write fails.
+  const { data: displaced } = await supabase
+    .from('binder_slots')
+    .select('*')
+    .eq('page_id', pageId)
+    .eq('row_index', slot.row)
+    .eq('col_index', slot.col)
+    .neq('id', slot.id);
+
   const { error: clearErr } = await supabase
     .from('binder_slots')
     .delete()
@@ -389,7 +417,13 @@ export async function upsertSlot(pageId: string, slot: DemoSlot): Promise<void> 
   const { error } = await supabase
     .from('binder_slots')
     .upsert(slotRow(slot, pageId), { onConflict: 'id' });
-  if (error) throw new Error(`upsert slot: ${error.message}`);
+  if (error) {
+    // Put the pocket back exactly as it was. Best-effort by necessity — if this fails too the
+    // original error is still what the caller needs to hear, and it is the one rethrown.
+    const rows = displaced ?? [];
+    if (rows.length > 0) await supabase.from('binder_slots').insert(rows);
+    throw new Error(`upsert slot: ${error.message}`);
+  }
 }
 
 export async function deleteSlot(id: string): Promise<void> {

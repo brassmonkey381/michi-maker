@@ -181,6 +181,50 @@ try {
   );
 
   console.log('');
+  console.log('Step 9: THE SIGNATURE. The old save deleted every page and re-inserted it, so a');
+  console.log('        binder it emptied has pages whose created_at is LATER than the binder');
+  console.log('        itself. A binder that was simply never filled has pages as old as it is.');
+  console.log('        This tells the two apart, which updated_at cannot.');
+  show(
+    rows(
+      await sql(`
+      select left(b.owner_id::text, 8) as owner_prefix,
+             b.title,
+             b.created_at   as binder_made,
+             min(p.created_at) as pages_rewritten,
+             count(distinct p.id) as pages
+        from public.binders b
+        join public.binder_pages p on p.binder_id = b.id
+        left join public.binder_slots s on s.page_id = p.id
+       where b.removed_at is null
+       group by b.id, b.owner_id, b.title, b.created_at
+      having count(s.id) = 0
+         and min(p.created_at) > b.created_at + interval '1 minute'
+       order by min(p.created_at) desc;`),
+    ),
+  );
+
+  console.log('');
+  console.log('Step 10: the same signature on binders that still HAVE slots - a save that was');
+  console.log('         rewritten and survived. Only the count matters: it is the population');
+  console.log('         that went through the dangerous path and came out whole.');
+  show(
+    rows(
+      await sql(`
+      with rewritten as (
+        select b.id, b.owner_id
+          from public.binders b
+          join public.binder_pages p on p.binder_id = b.id
+         where b.removed_at is null
+         group by b.id, b.owner_id, b.created_at
+        having min(p.created_at) > b.created_at + interval '1 minute'
+      )
+      select count(*) as binders_rewritten, count(distinct owner_id) as owners
+        from rewritten;`),
+    ),
+  );
+
+  console.log('');
   console.log('DONE (nothing was written).');
 } catch (e) {
   console.log(`FAILED: ${e.message}`);

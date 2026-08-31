@@ -16,7 +16,7 @@ import { BinderSurface, FontSize, Palette, Radii, Radius, Shadows, SlotBackingFa
 import { chipFor } from '@/constants/printVariant';
 import { attributionLabel, deriveAttribution, type ArtAttribution } from '@/data/artworkLibrary';
 import { resolveCardWith, resolveCatalogCardWith } from '@/data/cardResolver';
-import { formatCaption, type CaptionFieldKey } from '@/data/cardCaption';
+import { formatCaption, hasTextCaption, type CaptionFieldKey } from '@/data/cardCaption';
 import { occupiedCells, type DemoCard, type DemoPage, type DemoSlot } from '@/data/binderTypes';
 import { useCatalog } from '@/hooks/use-catalog';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
@@ -157,7 +157,11 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   // grid never forces the ~25 MB catalog load just to render — covers paint immediately. When the
   // catalog is already loaded (editor/picker), we use it only to enrich (the jumbo/V-UNION badge).
   // Captions, though, need real metadata (name/set/rarity/…), so turning them on forces the load.
-  const captionOn = captionFields.length > 0;
+  // Whether a caption STRIP is needed under each card. Not simply "any field is on": the finish is
+  // drawn on the card itself, so turning only that on must not carve height out of every pocket.
+  const captionOn = hasTextCaption(captionFields);
+  // The catalog load is likewise only forced by fields that actually read card metadata.
+  const finishOn = captionFields.includes('finish');
   const { catalog } = useCatalog(captionOn);
   // The price caption reads from a separate per-card summary (~2.7MB) — load it only when the
   // Price label is actually turned on, so a plain binder view never pulls it.
@@ -346,6 +350,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
             below is the caption strip, and bottom-right is the resize knob. zIndex 20 puts it over
             the card but under the drag ghost (50) and the resize overlay (40). */}
         {variantOf &&
+          finishOn &&
           !small &&
           page.slots.map((slot) => {
             if (!slot.cardId) return null;

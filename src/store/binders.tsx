@@ -722,6 +722,10 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       // the "Try it out!" showcase still builds for a user who is already at their limit.
       const counted = !init?.isDemo && !init?.isExample;
       if (counted && LIMITS_ENFORCED && binderCount >= limits.binders) return undefined;
+      // Say so by RETURNING NOTHING when this tab cannot save. commit() would refuse the write
+      // anyway, but handing back a binder the store never took leaves the caller opening a page
+      // for something that does not exist — a "binder not found" screen as the answer to "+ New".
+      if (!canEditRef.current) return undefined;
       // Generic placeholder titles ("New binder" / "Untitled binder") become a short random filler
       // name (e.g. "Miko") — trivial to type into the delete gate, and an obvious nudge to rename.
       // A meaningful title a caller passed (e.g. "My collection picks") is kept as-is.
@@ -807,6 +811,9 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       if (source.locked) return undefined;
       // Duplicating adds a binder — refuse past the tier limit (UI shows the upgrade note).
       if (LIMITS_ENFORCED && binderCount >= limits.binders) return undefined;
+      // Same reason as createBinder: a copy this tab cannot save must not be handed back, or
+      // the caller opens a binder the store never took.
+      if (!canEditRef.current) return undefined;
       // A duplicate gets a fresh short filler name (not "<title> (copy)") — same rationale as a
       // new binder. Stamp its content signature so an immediate, unedited delete can skip the gate.
       const clone = cloneBinder(source, { title: fillerName() });

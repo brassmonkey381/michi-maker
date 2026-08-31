@@ -14,7 +14,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from 'react-native-reanimated';
 
-import { CaptionControls } from '@/components/binder/CaptionControls';
+import { CaptionControls, CaptionFieldRow } from '@/components/binder/CaptionControls';
 import { PageStrip } from '@/components/binder/PageStrip';
 import { ThemedText } from '@/components/themed-text';
 import { BinderPageMaxWidth } from '@/constants/theme';
@@ -243,6 +243,13 @@ export function BinderPages({
             </Pressable>
           ) : null}
         </View>
+        {/* The field chips get their own line. Inline they widened the Card labels pill and pushed
+            Double-sided, Owned and Scans sideways every time labels were switched on. */}
+        <CaptionFieldRow
+          enabled={labelsOn}
+          fields={labelFields}
+          onToggleField={toggleLabelField}
+        />
       </View>
 
       {/* The page — a prev · current · next spread on wide screens, else the single page. */}

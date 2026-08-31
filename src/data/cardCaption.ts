@@ -21,7 +21,9 @@ export type CaptionFieldKey =
   | 'number'
   | 'stage'
   | 'released'
-  | 'price';
+  | 'price'
+  /** The print finish — drawn as a coloured chip ON the card, not as caption text. See below. */
+  | 'finish';
 
 /**
  * Per-card extras a caption field may need that don't live on `CatalogCard` — today just the
@@ -53,6 +55,13 @@ export const CAPTION_FIELDS: {
   key: CaptionFieldKey;
   label: string;
   get: (c: CatalogCard, extras: CaptionExtras) => string;
+  /**
+   * Shown as a mark on the card itself rather than as text in the caption strip. It still belongs
+   * in this list — it is a card label, it is toggled with the others, and putting it anywhere else
+   * would mean two places to look for "what can I show on a card". `formatCaption` skips it, and
+   * so does the decision to reserve caption height, so turning ONLY this on adds no empty strip.
+   */
+  chipOnly?: boolean;
 }[] = [
   { key: 'series', label: 'Series', get: (c) => c.seriesId },
   { key: 'set', label: 'Set', get: (c) => c.setName },
@@ -62,10 +71,13 @@ export const CAPTION_FIELDS: {
   { key: 'stage', label: 'Stage', get: (c) => c.stage },
   { key: 'released', label: 'Released', get: (c) => formatFullDate(c.releaseDate) },
   { key: 'price', label: 'Price', get: (_c, extras) => formatUsd(extras.price ?? 0) },
+  // The print finish (N / H / RH …). Its value comes from the owned COPY in the pocket, not from
+  // the card, so there is nothing for `get` to read here — BinderGrid draws it from the collection.
+  { key: 'finish', label: 'Finish', get: () => '', chipOnly: true },
 ];
 
 /** Fields shown by default the first time captions are switched on. */
-export const DEFAULT_CAPTION_FIELDS: CaptionFieldKey[] = ['set', 'number', 'rarityCode'];
+export const DEFAULT_CAPTION_FIELDS: CaptionFieldKey[] = ['set', 'number', 'rarityCode', 'finish'];
 
 /**
  * Build a card's caption: the enabled fields, in `CAPTION_FIELDS` order, dropping any that are
@@ -77,8 +89,17 @@ export function formatCaption(
   extras: CaptionExtras = {},
 ): string {
   const on = new Set(enabled);
-  return CAPTION_FIELDS.filter((f) => on.has(f.key))
+  return CAPTION_FIELDS.filter((f) => !f.chipOnly && on.has(f.key))
     .map((f) => f.get(card, extras).trim())
     .filter((v) => v.length > 0)
     .join(' * ');
+}
+
+/**
+ * Do any of these fields put TEXT under the card? Chip-only fields do not, so a view showing just
+ * the finish reserves no caption strip and the pockets keep their full height.
+ */
+export function hasTextCaption(enabled: Iterable<CaptionFieldKey>): boolean {
+  const on = new Set(enabled);
+  return CAPTION_FIELDS.some((f) => !f.chipOnly && on.has(f.key));
 }

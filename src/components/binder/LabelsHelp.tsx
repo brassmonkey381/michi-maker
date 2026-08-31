@@ -29,6 +29,7 @@ const FIELD_HELP: Record<CaptionFieldKey, string> = {
   stage: 'Evolution stage (Basic, Stage 1, …)',
   released: 'Full release date (e.g. Mar 15, 2022)',
   price: 'Latest market value (USD)',
+  finish: 'Print finish of the copy you own — a coloured N / H / RH chip on the card itself',
 };
 
 const GROUP_TITLES: Record<RarityGroup, string> = {

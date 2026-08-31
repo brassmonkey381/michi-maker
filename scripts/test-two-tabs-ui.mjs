@@ -55,8 +55,50 @@ const open = async () => {
   return p;
 };
 
+// Counting binder tiles is how we tell an edit actually REGISTERED. The lease gate lives in
+// commit(), the funnel every binder mutation goes through, so if it is ever wrongly closed the
+// app does not error — it silently ignores everything, which is the worst way for this to fail.
+// Creating a binder OPENS it, so navigation is the signal. It is the only robust one available: a
+// new binder is given a RANDOM filler name, so there is no fixed string to count, and clicking
+// back out of the editor can land on a modal that swallows the click.
+// Making a binder can raise the sharing-attestation prompt, whose backdrop then swallows clicks
+// aimed at anything behind it — including the banner button a later check needs. Answering it the
+// harmless way ("Not now" leaves binders private) puts the page back in a clickable state.
+const dismissModals = async (p) => {
+  for (const label of ['Not now', 'Maybe later', 'Close']) {
+    try {
+      await p.getByText(label, { exact: false }).first().click({ timeout: 2500 });
+      await p.waitForTimeout(800);
+      return;
+    } catch {
+      // Not this one; try the next.
+    }
+  }
+};
+
+const newBinder = async (p) => {
+  try {
+    await p.getByText('+ New', { exact: false }).first().click({ timeout: 10000 });
+  } catch {
+    // Something is covering the button. Say so rather than scoring it as "creation refused",
+    // which is the answer one of these checks is hoping for and would pass for the wrong reason.
+    console.log('  (note: + New was not clickable — a modal is probably covering it)');
+    return false;
+  }
+  await p.waitForTimeout(3500);
+  return /\/binder\//.test(p.url());
+};
+
 const a = await open();
 await a.screenshot({ path: `${OUT}-a1.png` });
+
+// THE REGRESSION THAT MATTERS MOST: one ordinary tab, nothing contended, edits must just work.
+check('a lone tab can still create a binder', await newBinder(a));
+// Back to the list, while A is still the only tab — a reload re-runs the lease, so doing this
+// once B exists would have the test disturbing the very thing it is measuring.
+await a.goto(URL, { waitUntil: 'domcontentloaded', timeout: 240000 });
+await settle(a, 4000);
+await dismissModals(a);
 const l1 = await lease(a);
 // No session means no userId means no lease is possible — the mechanism steps aside by design,
 // so say so rather than report a pass on a page that was never locked.
@@ -72,6 +114,10 @@ const l2 = await lease(b);
 check('the lease moved to tab B', !!l1?.tabId && !!l2?.tabId && l2.tabId !== l1.tabId, `${l1?.tabId} -> ${l2?.tabId}`);
 check('tab B is not read-only', !(await banner(b)).readOnly);
 
+// And the read-only tab must not merely LOOK read-only: a commit that lands locally without
+// saving is the silent work loss this whole guard exists to prevent.
+check('the read-only tab cannot create one', !(await newBinder(a)));
+
 await settle(a, 1500);
 // Read A BEFORE photographing it: page.screenshot() activates the page in Chromium, which is
 // itself a focus change — photograph first and the tab takes the lease back before it is asked.
@@ -81,6 +127,7 @@ await a.screenshot({ path: `${OUT}-a2.png` });
 
 // Both directions: a hand-off that only works once is not a hand-off. Driven through the banner's
 // button because the focus rise it shares cannot be simulated (see the note at the top).
+await dismissModals(a);
 await a.getByText('Edit here', { exact: false }).first().click({ timeout: 10000 });
 await settle(a, 3000);
 const back = await banner(a);

@@ -1058,7 +1058,13 @@ function CardLabels({
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       {artist ? (
-        <View style={styles.artistRow}>
+        <View
+          style={[
+            styles.artistRow,
+            // Sits on the bottom edge itself when there are no codes under it to clear, rather
+            // than hovering over a gap where a row that was never switched on would have been.
+            bottom.length === 0 && styles.artistRowAlone,
+          ]}>
           {/* On its own pill rather than bare text with a shadow: a scrim is the only thing that
               stays readable over art that might be white, black or gold. Self-sized, so it covers
               the name and no more of the card than that. */}
@@ -1581,6 +1587,7 @@ const styles = StyleSheet.create({
     // The pill hugs the name instead of stretching the width of the card.
     justifyContent: 'flex-start',
   },
+  artistRowAlone: { bottom: 4 },
   bottomRow: {
     position: 'absolute',
     left: 4,

@@ -53,7 +53,11 @@ try {
     where table_schema = 'public' and table_name = 'binder_slots'
       and column_name = 'source_entry_id';`);
   if (!col) fail('source_entry_id is missing');
-  if (col.data_type !== 'uuid') fail(`source_entry_id is ${col.data_type}, expected uuid`);
+  // uuid was this migration's first cut; 20260831150000 rewrote it to text because entry ids are
+  // client-minted lot-... strings and the uuid column silently rejected every stamp. Either type
+  // passes here so this applier stays safe to re-run; the demote-stamp applier asserts text.
+  if (col.data_type !== 'uuid' && col.data_type !== 'text')
+    fail(`source_entry_id is ${col.data_type}, expected uuid or text`);
   if (col.is_nullable !== 'YES') fail('source_entry_id is NOT NULL');
   if (col.column_default !== null) fail(`source_entry_id has a default (${col.column_default})`);
   const cons = await sql(`

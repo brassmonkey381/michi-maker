@@ -5,23 +5,28 @@
  * binder must never show more copies of a card wearing scans than the user owns scans of it. The
  * old resolution (byEntry, then newest-per-card byCard) broke that the moment a pocket had no
  * live claim: remove a copy and re-add it, place a fourth copy when three are owned, run the
- * wizard, or upgrade a guest account (which strips every stamp), and the pocket wore the newest
- * scan anyway — presenting photos of cards that are not in that pocket, in unlimited number.
+ * wizard, or upgrade a guest account (which stripped every stamp until remintBinderIds), and the
+ * pocket wore the newest scan anyway — photos of cards that are not in that pocket, unlimited.
  *
  * THE MODEL: allocation from a finite pool, not lookup in an infinite map.
  *
  *   1. A pocket whose stamp resolves to a LIVE, SCANNED copy wears that copy's own photo — up to
  *      the lot's quantity (a lot of three identical cards with one photo can honestly back three
  *      pockets; a fourth claimant is over-subscribed and shows catalog art).
- *   2. A pocket whose stamp resolves to a LIVE, UNSCANNED copy shows CATALOG ART, locked. It
- *      knows exactly which physical card it holds and that card has no photo; borrowing another
- *      copy's photo is the wrong-face defect this module exists to end. (CopyPickerSheet promises
- *      exactly this: "No photo yet — shows the catalogue image".)
- *   3. A pocket with NO stamp, or a DEAD one (the lot was deleted; the claim names nothing), draws
+ *   2. Any OTHER stamped pocket shows CATALOG ART, locked — the copy is unscanned, its photo is
+ *      already worn to the lot's quantity, or the lot was deleted. The pocket names exactly which
+ *      physical card it holds; borrowing a different copy's photo is the wrong-face defect this
+ *      module exists to end. (CopyPickerSheet promises the unscanned case in as many words: "No
+ *      photo yet — shows the catalogue image". A deleted lot locks too: telling it from a live
+ *      unscanned one would cost a full-portfolio read, and the honest face is catalog either way.)
+ *   3. A pocket with NO stamp that CONSUMED a copy (`fromCollection`, no `sourceEntryId`) draws
  *      from the card's UNCLAIMED scans — photos of copies no other pocket is already wearing.
- *      This is what keeps legacy pre-stamp binders, wizard fills, and migrated guests showing
- *      their scans instead of going blank, while the pool's finiteness enforces the invariant:
- *      three scans across five pockets is three real faces and two catalog ones, never five.
+ *      This is what keeps legacy pre-stamp binders and wizard fills showing their scans instead
+ *      of going blank, while the pool's finiteness enforces the invariant: three scans across
+ *      five pockets is three real faces and two catalog ones, never five. A pocket with NEITHER
+ *      field takes nothing: that shape is a deliberate choice — CopyPickerSheet's "just the
+ *      catalogue image", a duplicated binder, a browse add of a card being hunted — and dressing
+ *      it in the owner's photo would override the one answer the user gave by hand.
  *
  * Everything is deterministic in slot order (pages in order, slots within each page), so the same
  * binder renders the same faces on every visit and contested capacity goes to the earliest pocket
@@ -49,6 +54,8 @@ export interface FaceSlot {
   type: string;
   cardId?: string;
   sourceEntryId?: string;
+  /** True when the pocket consumed an owned copy — the ticket into the scavenging pass. */
+  fromCollection?: boolean;
 }
 
 /**
@@ -85,7 +92,10 @@ export function allocateScanFaces(
     if (slot.type !== 'card' || !slot.cardId) continue;
     const stamp = slot.sourceEntryId;
     if (!stamp) {
-      pooled.push(slot);
+      // Only a pocket that CONSUMED a copy may scavenge (rule 3). One with neither field is a
+      // deliberately aspirational pocket — an explicit "just the catalogue image", a duplicate,
+      // a hunt — and gets exactly what it asked for.
+      if (slot.fromCollection) pooled.push(slot);
       continue;
     }
     const copy = scannedByEntry.get(stamp);

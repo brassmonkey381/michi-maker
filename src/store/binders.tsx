@@ -44,6 +44,7 @@ import {
   GENERIC_BINDER_TITLES,
   movedSlots,
   occupiedCells,
+  remintBinderIds,
   slotCells,
   uuidv4,
   type DemoBinder,
@@ -53,6 +54,7 @@ import {
   type MichiLayoutStyle,
 } from '@/data/binderTypes';
 import { SAMPLE_BINDERS } from '@/data/sampleData';
+import { loadOwnedEntriesShared } from '@/data/collectionRepo';
 import { track } from '@/lib/analytics';
 import { LIMITS_ENFORCED, type Tier, type TierLimits } from '@/data/tiers';
 import { useTier } from '@/hooks/use-tier';
@@ -227,7 +229,16 @@ interface BinderStore {
     binderId: string,
     cardIds: string[],
     opts?: { fromCollection?: boolean; startPageIndex?: number; entryIds?: (string | undefined)[] },
-  ) => { added: number; unplaced: number; blanksInserted: number };
+  ) => {
+    added: number;
+    unplaced: number;
+    blanksInserted: number;
+    /** Pockets that claimed one of the user's actual copies. The rest are aspirational. */
+    claimed: number;
+    /** Requested claims the guard refused (the entry's budget was already spent) — the caller's
+     *  cue to say a pocket shows catalogue art rather than staying silent about it. */
+    droppedClaims: number;
+  };
   /**
    * Append whole composed pages ("Pages around this card", VIP). Each entry becomes ONE new page
    * carrying the seed plus that method's placements. One commit, so the whole batch is one Undo.
@@ -255,7 +266,13 @@ interface BinderStore {
       /** WHICH owned copy it consumes (portfolio_entries.id). Implies fromCollection. */
       sourceEntryId?: string;
     }[],
-  ) => { placed: number };
+  ) => {
+    placed: number;
+    droppedClaims: number;
+    /** Created pockets that were MEANT to hold an owned copy but got no stamp (assigner dry or
+     *  claim refused) — the exact catalogue-art count for the caller's toast. */
+    placedUnclaimed: number;
+  };
   placeVUnion: (binderId: string, pageId: string, row: number, col: number, pieces: readonly string[]) => void;
   placeSlicedArtwork: (
     binderId: string,
@@ -430,13 +447,31 @@ export function BinderProvider({ children }: { children: ReactNode }) {
    * rows. This guarantees an account's binders never share an id with the guest identity they came
    * from, so a stale/reused guest session can never collide with them. Insert-then-delete per binder
    * keeps it safe: a failure mid-way leaves the original intact (a duplicate at worst, never a loss).
+   *
+   * Re-minted, not cloned: the migration is a MOVE (same pockets, new ids), so claim stamps,
+   * `fromCollection`, the demo flag and the share-preview picks all survive — routing this through
+   * cloneBinder was the defect where upgrading silently stripped every pocket's claim and turned
+   * the read-only demo showcase into a counted real binder. The stamps stay valid because the
+   * upgrade keeps the uid and the portfolio entries with it.
    */
+  // The re-mint per migration run, cached by old binder id: setHistory updaters must be pure and
+  // re-invocable, and an uncached remint would mint DIFFERENT ids on a replayed invocation - each
+  // replay firing its own inserts, landing an orphan binder set that duplicates every claim. With
+  // the cache a replay re-fires persist with the SAME ids: the duplicate insert fails the PK and
+  // is swallowed, and nothing lands twice. (Same doctrine as syncChanged's idempotence note.)
+  const remintCache = useRef(new Map<string, DemoBinder>());
   const migrateOwnBindersToFreshIds = useCallback(() => {
+    remintCache.current = new Map();
     setHistory((h) => {
       const mine = h.present.filter((b) => !b.isExample);
       if (mine.length === 0) return h;
       const examples = h.present.filter((b) => b.isExample);
-      const fresh = mine.map((b) => cloneBinder(b, { isPublic: b.isPublic }));
+      const cache = remintCache.current;
+      const fresh = mine.map((b) => {
+        const got = cache.get(b.id) ?? remintBinderIds(b);
+        cache.set(b.id, got);
+        return got;
+      });
       mine.forEach((old, i) => {
         const nu = fresh[i];
         persist(async () => {
@@ -476,14 +511,17 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       if (!CLOUD) return;
       const fromById = new Map(from.map((b) => [b.id, b]));
       const toIds = new Set(to.map((b) => b.id));
-      for (const b of to) {
-        if (b.isExample) continue;
-        if (fromById.get(b.id) !== b) persist(() => repo.replaceBinder(b)); // new or content-changed
-      }
-      for (const b of from) {
-        if (b.isExample) continue;
-        if (!toIds.has(b.id)) persist(() => repo.deleteBinder(b.id)); // removed by the undo/redo
-      }
+      const changed = to.filter((b) => !b.isExample && fromById.get(b.id) !== b); // new or content-changed
+      const removed = from.filter((b) => !b.isExample && !toIds.has(b.id)); // gone after the undo/redo
+      if (changed.length === 0 && removed.length === 0) return;
+      // ONE ordered op, not one persist() per binder: an undo of a page MOVE touches two binders,
+      // and independent fire-and-forget writes could land one side only — reviving in the DB the
+      // both-binders-claim-one-card state the move itself was fixed to avoid. Serial keeps a
+      // partial failure contiguous (everything before the failed write landed, nothing after).
+      persist(async () => {
+        for (const b of changed) await repo.replaceBinder(b);
+        for (const b of removed) await repo.deleteBinder(b.id);
+      });
     },
     [persist],
   );
@@ -516,6 +554,76 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     [binders],
   );
 
+  /**
+   * The lot sizes behind the uniqueness guard (entryId → quantity). Fetch-once per identity,
+   * exactly like use-owned-copies and for the same reason: ownership changes in tcgscan, not
+   * while cards are being placed here. Absent (guest, local mode, before the first load) every
+   * lot conservatively counts as one copy, which is the strictest reading — never a looser one.
+   * The guest→account upgrade keeps the uid, so the map stays valid straight through it.
+   */
+  const [ownedLots, setOwnedLots] = useState<{ userId: string; lots: Map<string, number> } | null>(null);
+  useEffect(() => {
+    if (!CLOUD || !userId) return;
+    let active = true;
+    let delay = 5_000;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // The SHARED load (same promise the assigner hooks read), retried with backoff on failure:
+    // a session whose budgets silently stayed at 1 while the assigner saw quantity-3 lots is how
+    // the guard came to refuse copies that were genuinely free.
+    const attempt = () => {
+      loadOwnedEntriesShared(userId)
+        .then((entries) => {
+          if (active) setOwnedLots({ userId, lots: new Map(entries.map((e) => [e.entryId, e.quantity])) });
+        })
+        .catch((error) => {
+          if (!active) return;
+          console.warn(
+            `[michi-maker] owned-lots load failed (claim budgets fall back to 1): ${(error as Error).message}`,
+          );
+          timer = setTimeout(attempt, delay);
+          delay = Math.min(delay * 2, 60_000);
+        });
+    };
+    attempt();
+    return () => {
+      active = false;
+      if (timer) clearTimeout(timer);
+    };
+  }, [userId]);
+  const lotQuantities = ownedLots && ownedLots.userId === userId ? ownedLots.lots : undefined;
+
+  /**
+   * THE UNIQUENESS GUARD. A lot's pockets never outnumber its cards: one physical card is in one
+   * pocket, and a lot of three can honestly back three — so a claim is free while the pockets
+   * already naming that entry are fewer than the lot's quantity. This is the only thing standing
+   * between that sentence and every future caller who forgets it. Callers resolve copies against
+   * their own view of what is claimed (useCopyAssigner); this checks the store's, which is the one
+   * that is actually true at the moment of the write — and it catches the paths that never asked,
+   * which is how a duplicated page came to wear the original's scans.
+   *
+   * `exceptSlotId` is the pocket being edited: re-stamping the copy it already holds is not a
+   * second claim, and refusing it would make a slot unable to keep its own card.
+   */
+  const countClaims = useCallback(
+    (entryId: string, exceptSlotId?: string) => {
+      let n = 0;
+      for (const b of binders)
+        for (const p of b.pages)
+          for (const s of p.slots) if (s.sourceEntryId === entryId && s.id !== exceptSlotId) n += 1;
+      return n;
+    },
+    [binders],
+  );
+  const claimBudget = useCallback(
+    (entryId: string) => Math.max(1, lotQuantities?.get(entryId) ?? 1),
+    [lotQuantities],
+  );
+  const claimIsFree = useCallback(
+    (entryId: string, exceptSlotId?: string) =>
+      countClaims(entryId, exceptSlotId) < claimBudget(entryId),
+    [countClaims, claimBudget],
+  );
+
   const createBinder = useCallback(
     (init?: Partial<DemoBinder>) => {
       // Creating adds a binder — refuse past the tier limit (UI shows the upgrade note), exactly
@@ -539,13 +647,37 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         isDemo: init?.isDemo,
         isExample: init?.isExample,
       });
+      // Pages can arrive pre-stamped (pagesForCards, the rebuild import), resolved against the
+      // CALLER's view of the claim ledger — so re-check every stamp against the store's view with
+      // the same budget arithmetic as every other write path, counting within this batch too. A
+      // claim that does not fit is dropped, never honoured into a duplicate. What this closes: a
+      // stale caller ledger, and a repeat create landing after the store committed (any later
+      // task — which is what a real double-tap is, since React flushes between discrete events).
+      // What it does NOT close: two invocations inside a single task, because countClaims reads
+      // the render snapshot and commit only queues the update — the same residual window every
+      // guarded batch path has.
+      const batchClaims = new Map<string, number>();
+      const pages = (init?.pages ?? [emptyPage()]).map((p) => ({
+        ...p,
+        slots: p.slots.map((s) => {
+          if (!s.sourceEntryId) return s;
+          const inBatch = batchClaims.get(s.sourceEntryId) ?? 0;
+          if (countClaims(s.sourceEntryId) + inBatch < claimBudget(s.sourceEntryId)) {
+            batchClaims.set(s.sourceEntryId, inBatch + 1);
+            return s;
+          }
+          // fromCollection goes with the stamp (same pairing as upsertSlot's new-slot branch).
+          const { sourceEntryId: _claim, fromCollection: _owned, ...rest } = s;
+          return rest;
+        }),
+      }));
       const binder: DemoBinder = {
         id: uuidv4(),
         layoutStyle: 'freeform' as MichiLayoutStyle,
         isExample: false,
         ...(defaultPublic ? { isPublic: true } : {}),
-        pages: [emptyPage()],
         ...init,
+        pages,
         title,
       };
       if (binder.isDemo) {
@@ -562,7 +694,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       return binder;
     },
     [
-      binders, binderCount, limits.binders, commit, persist,
+      binders, binderCount, limits.binders, commit, persist, countClaims, claimBudget,
       profile?.rights_attested_at, profile?.username, user,
     ],
   );
@@ -823,10 +955,18 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         ),
       );
       // Wholesale on both sides: the target gains a page WITH slots and the source's positions
-      // shift, which the granular calls don't cover (same reasoning as duplicatePage).
-      if (!target.isExample) persist(() => repo.replaceBinder({ ...target, pages: targetPages }));
-      if (move && !source.isExample)
-        persist(() => repo.replaceBinder({ ...source, pages: sourceAfter.pages }));
+      // shift, which the granular calls don't cover (same reasoning as duplicatePage). ONE
+      // ordered op, not two persist() calls — those are fire-and-forget and independent, so a
+      // move whose source write failed left the page in BOTH binders with both sides' pockets
+      // stamped with the same entry ids after reload. Target first: a mid-failure duplicates
+      // (until the source is next persisted wholesale) rather than loses the page, the same
+      // trade the guest migration makes.
+      if (!target.isExample || (move && !source.isExample)) {
+        persist(async () => {
+          if (!target.isExample) await repo.replaceBinder({ ...target, pages: targetPages });
+          if (move && !source.isExample) await repo.replaceBinder({ ...source, pages: sourceAfter.pages });
+        });
+      }
       return { status: 'ok', move, blanksInserted: sourceAfter.blanksInserted };
     },
     [binders, limits.pagesPerBinder, commit, persist],
@@ -961,26 +1101,6 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       return { removed, kept: spacersKept };
     },
     [binders, commit, persist],
-  );
-
-  /**
-   * THE UNIQUENESS GUARD. One physical card is in one pocket, and this is the only thing standing
-   * between that sentence and every future caller who forgets it. Callers resolve copies against
-   * their own view of what is claimed (useCopyAssigner); this checks the store's, which is the one
-   * that is actually true at the moment of the write — and it catches the paths that never asked,
-   * which is how a duplicated page came to wear the original's scans.
-   *
-   * `exceptSlotId` is the pocket being edited: re-stamping the copy it already holds is not a
-   * second claim, and refusing it would make a slot unable to keep its own card.
-   */
-  const claimIsFree = useCallback(
-    (entryId: string, exceptSlotId?: string) =>
-      !binders.some((b) =>
-        b.pages.some((p) =>
-          p.slots.some((s) => s.sourceEntryId === entryId && s.id !== exceptSlotId),
-        ),
-      ),
-    [binders],
   );
 
   const upsertSlot = useCallback(
@@ -1215,7 +1335,8 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       opts?: { fromCollection?: boolean; startPageIndex?: number; entryIds?: (string | undefined)[] },
     ) => {
       const target = binders.find((b) => b.id === binderId);
-      if (!target || cardIds.length === 0) return { added: 0, unplaced: 0, blanksInserted: 0 };
+      if (!target || cardIds.length === 0)
+        return { added: 0, unplaced: 0, blanksInserted: 0, claimed: 0, droppedClaims: 0 };
 
       // Appending pages is capped by the tier, same rule as addPage — examples are never
       // persisted, so leave their in-session editing unlimited.
@@ -1228,8 +1349,12 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       const firstAppended = pages.length; // pages at this index and beyond are newly appended
       const placed: { pageId: string; slot: DemoSlot }[] = [];
       // Within one batch the store's own view does not update between cards, so the batch tracks
-      // what it has handed out itself.
-      const claimedInBatch = new Set<string>();
+      // what it has handed out itself — a COUNT per entry, not a set, because a lot of three
+      // legitimately backs three pockets and assignCopies hands the same entryId out that often.
+      const claimedInBatch = new Map<string, number>();
+      // Claims the guard refused (the caller resolved against a staler ledger than the store's).
+      // Reported so the caller can say the pocket shows catalogue art instead of staying silent.
+      let droppedClaims = 0;
       // Cards the page cap left out — reported so the caller can show the upgrade note rather
       // than quietly losing them.
       let unplaced = 0;
@@ -1300,8 +1425,11 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         // Dropped rather than refused: the pocket is still worth filling, it just holds the
         // catalogue image instead of a card that is already somewhere else.
         const wanted = opts?.entryIds?.[i];
-        const entryId = wanted && claimIsFree(wanted) && !claimedInBatch.has(wanted) ? wanted : undefined;
-        if (entryId) claimedInBatch.add(entryId);
+        const inBatch = wanted ? (claimedInBatch.get(wanted) ?? 0) : 0;
+        const entryId =
+          wanted && countClaims(wanted) + inBatch < claimBudget(wanted) ? wanted : undefined;
+        if (entryId) claimedInBatch.set(entryId, inBatch + 1);
+        else if (wanted) droppedClaims += 1;
         const slot: DemoSlot = {
           id: uuidv4(),
           row: cell.row,
@@ -1311,14 +1439,18 @@ export function BinderProvider({ children }: { children: ReactNode }) {
           type: 'card',
           cardId,
           sourceEntryId: entryId,
-          fromCollection: entryId || opts?.fromCollection ? true : undefined,
+          // A REFUSED claim strips the provenance with the stamp (same pairing as createBinder's
+          // sanitiser): a fromCollection pocket with no stamp would consume a copy server-side
+          // that the client ledger cannot count, and would scavenge a scan the toast just said
+          // it does not get. The batch-wide flag still marks slots that never asked for a copy.
+          fromCollection: entryId || (opts?.fromCollection && !wanted) ? true : undefined,
         };
         pages[pageIndex] = { ...pages[pageIndex], slots: [...pages[pageIndex].slots, slot] };
         placed.push({ pageId: pages[pageIndex].id, slot });
       }
 
       // Nothing fitted → no commit at all, so the cap can't burn an empty undo step.
-      if (placed.length === 0) return { added: 0, unplaced, blanksInserted: 0 };
+      if (placed.length === 0) return { added: 0, unplaced, blanksInserted: 0, claimed: 0, droppedClaims };
 
       // Inserting mid-binder can move a later page to the wrong side of the spine, so re-run the
       // parity pass that duplicatePage and sendPageToBinder use. Appending never does, so the
@@ -1346,16 +1478,17 @@ export function BinderProvider({ children }: { children: ReactNode }) {
           });
         }
       }
+      // How many of these pockets claimed one of the user's actual cards. The rest are
+      // aspirational, and the ratio is the only way to see that distinction in the stream.
+      const claimed = placed.filter((p) => p.slot.sourceEntryId).length;
       track('card.add', {
         source: opts?.fromCollection ? 'collection' : 'manual',
         count: placed.length,
-        // How many of these pockets claimed one of the user's actual cards. The rest are
-        // aspirational, and the ratio is the only way to see that distinction in the stream.
-        owned: placed.filter((p) => p.slot.sourceEntryId).length,
+        owned: claimed,
       });
-      return { added: placed.length, unplaced, blanksInserted: spaced.blanksInserted };
+      return { added: placed.length, unplaced, blanksInserted: spaced.blanksInserted, claimed, droppedClaims };
     },
-    [binders, limits.pagesPerBinder, commit, persist, claimIsFree],
+    [binders, limits.pagesPerBinder, commit, persist, countClaims, claimBudget],
   );
 
   const placeCards = useCallback(
@@ -1375,18 +1508,30 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     ) => {
       const target = binders.find((b) => b.id === binderId);
       const page = target?.pages.find((p) => p.id === pageId);
-      if (!target || !page || placements.length === 0) return { placed: 0 };
+      if (!target || !page || placements.length === 0)
+        return { placed: 0, droppedClaims: 0, placedUnclaimed: 0 };
 
       // Only genuinely free, in-bounds cells — the composer targets empties, but the page may
       // have changed since it computed them; skipping keeps the write conflict-free.
       const occupied = occupiedCells(page);
       const newSlots: DemoSlot[] = [];
       // Same guard as the batch add, and the same reason: a fill can be handed a copy that another
-      // pocket took while the sheet was open.
-      const claimedInBatch = new Set<string>();
+      // pocket took while the sheet was open. A count per entry, not a set — a lot of three
+      // legitimately backs three pockets.
+      const claimedInBatch = new Map<string, number>();
+      let droppedClaims = 0;
+      // Pockets created FOR an owned copy that ended up with no stamp (assigner dry, or claim
+      // refused) — the exact count the caller's catalogue-art note should report, measured over
+      // slots actually created rather than placements requested.
+      let placedUnclaimed = 0;
       const claimedHere = (id: string | undefined) => {
-        if (!id || !claimIsFree(id) || claimedInBatch.has(id)) return undefined;
-        claimedInBatch.add(id);
+        if (!id) return undefined;
+        const inBatch = claimedInBatch.get(id) ?? 0;
+        if (countClaims(id) + inBatch >= claimBudget(id)) {
+          droppedClaims += 1;
+          return undefined;
+        }
+        claimedInBatch.set(id, inBatch + 1);
         return id;
       };
       for (const p of placements) {
@@ -1395,6 +1540,12 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         const key = `${p.row},${p.col}`;
         if (occupied.has(key)) continue;
         occupied.add(key);
+        // ONE claim resolution feeding both fields. Calling claimedHere twice consumed the claim
+        // on the first call and read "taken" on the second, so a stamped pocket could end up
+        // without its fromCollection provenance.
+        const wanted = p.cardId ? p.sourceEntryId : undefined;
+        const claimed = claimedHere(wanted);
+        if (p.cardId && p.fromCollection && !claimed) placedUnclaimed += 1;
         newSlots.push({
           id: uuidv4(),
           row: p.row,
@@ -1406,12 +1557,13 @@ export function BinderProvider({ children }: { children: ReactNode }) {
           insertColor: p.insertColor,
           imageUrl: p.imageUrl,
           imageCrop: p.imageCrop,
-          sourceEntryId: claimedHere(p.cardId ? p.sourceEntryId : undefined),
-          fromCollection:
-            (p.cardId && (p.fromCollection || !!claimedHere(p.sourceEntryId))) || undefined,
+          sourceEntryId: claimed,
+          // A refused claim strips fromCollection with the stamp, same pairing as the batch add:
+          // the flag survives only alongside a stamp or on a slot that never asked for a copy.
+          fromCollection: (p.cardId && (!!claimed || (p.fromCollection && !wanted))) || undefined,
         });
       }
-      if (newSlots.length === 0) return { placed: 0 };
+      if (newSlots.length === 0) return { placed: 0, droppedClaims, placedUnclaimed: 0 };
 
       commit((prev) =>
         prev.map((b) =>
@@ -1431,9 +1583,9 @@ export function BinderProvider({ children }: { children: ReactNode }) {
           for (const slot of newSlots) await repo.upsertSlot(pageId, slot);
         });
       }
-      return { placed: newSlots.length };
+      return { placed: newSlots.length, droppedClaims, placedUnclaimed };
     },
-    [binders, commit, persist, claimIsFree],
+    [binders, commit, persist, countClaims, claimBudget],
   );
 
   /**

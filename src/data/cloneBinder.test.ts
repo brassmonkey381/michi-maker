@@ -1,15 +1,19 @@
 /**
- * What a duplicated binder keeps, and what it must not.
+ * What a duplicated binder keeps, and what it must not — and the opposite rule for a re-mint.
  *
  * A copy is a new binder that happens to look like an old one. Two per-slot stamps are true of
  * the ORIGINAL and false of any copy: which owned card a pocket photographs, and whether the
  * pocket consumes one of those owned copies. Both have to be dropped at clone time, because
  * nothing downstream can tell a duplicate's slot from its source's.
+ *
+ * remintBinderIds is the MOVE twin: the guest→account migration re-creates the SAME binder under
+ * fresh ids, so everything cloneBinder strips must survive it — routing the migration through
+ * cloneBinder was the defect where upgrading silently unclaimed every pocket.
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { cloneBinder, type DemoBinder } from './binderTypes.ts';
+import { cloneBinder, remintBinderIds, type DemoBinder } from './binderTypes.ts';
 
 function binderWith(slot: Record<string, unknown>): DemoBinder {
   return {
@@ -74,4 +78,42 @@ test('a copy is private and is neither the demo nor an example', () => {
   assert.equal(clone.isPublic, false);
   assert.equal(clone.isDemo, false);
   assert.equal(clone.isExample, false);
+});
+
+test('a re-mint keeps the claims - migration is a move, not a copy', () => {
+  // Same uid, same portfolio entries, same physical cards in the same pockets: only the ids are
+  // new. Stripping the stamp here is how a converted guest's binder forgot every copy it held.
+  const fresh = remintBinderIds(
+    binderWith({ cardId: 'zard', sourceEntryId: 'entry-1', fromCollection: true }),
+  );
+  const s = slotOf(fresh);
+  assert.equal(s.sourceEntryId, 'entry-1');
+  assert.equal(s.fromCollection, true);
+  assert.equal(s.cardId, 'zard');
+  // Fresh ids throughout, exactly like a clone: no row is ever shared with the guest identity.
+  assert.notEqual(fresh.id, 'src');
+  assert.notEqual(fresh.pages[0].id, 'p1');
+  assert.notEqual(s.id, 's1');
+});
+
+test('a re-mint keeps what the binder IS: demo, visibility, lock', () => {
+  const fresh = remintBinderIds({
+    ...binderWith({ cardId: 'x' }),
+    isPublic: true,
+    isDemo: true,
+    locked: true,
+  } as DemoBinder);
+  assert.equal(fresh.isPublic, true, 'a public binder stays public through the upgrade');
+  assert.equal(fresh.isDemo, true, 'the demo showcase stays the demo, not a counted real binder');
+  assert.equal(fresh.locked, true);
+});
+
+test('a re-mint remaps the share-preview picks onto the new page ids', () => {
+  const source = { ...binderWith({ cardId: 'x' }), sharePageIds: ['p1', 'ghost'] } as DemoBinder;
+  const fresh = remintBinderIds(source);
+  // The surviving pick follows its page to the page's new id; a pick naming no page is dropped
+  // rather than carried as a dangling id.
+  assert.deepEqual(fresh.sharePageIds, [fresh.pages[0].id]);
+  const empty = remintBinderIds({ ...binderWith({ cardId: 'x' }), sharePageIds: ['ghost'] } as DemoBinder);
+  assert.equal(empty.sharePageIds, undefined, 'no surviving picks means auto, not []');
 });

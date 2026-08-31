@@ -11,7 +11,8 @@ import { BinderCarousel } from '@/components/binder/BinderCarousel';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
-import { useCopyAssigner } from '@/hooks/use-owned-copies';
+import { useCopyAssigner, useOwnedCopies } from '@/hooks/use-owned-copies';
+import { catalogArtNote } from '@/data/ownedCopies';
 import { HomeRecent } from '@/components/HomeRecent';
 import { HomeSealed } from '@/components/HomeSealed';
 import { HomeSection } from '@/components/HomeSection';
@@ -48,6 +49,9 @@ export default function HomeScreen() {
   // add path resolves it the same way, so what a pocket costs no longer depends on the screen
   // it was added from.
   const assignCopies = useCopyAssigner();
+  const ownedCopies = useOwnedCopies();
+  // Aspirational-by-choice (never owned: no warning) vs ran-out-of-free-copies (say so).
+  const ownsCard = (cardId: string) => !!ownedCopies?.some((c) => c.cardId === cardId);
   const router = useRouter();
   const { width } = useWindowDimensions();
   // Where the web rail isn't present (native, or narrow web) Home carries the quick-nav to the
@@ -114,11 +118,11 @@ export default function HomeScreen() {
   };
   // One wall, one report: a dialog on its first hit today, the toast after that.
   const capGate = useCapGate(showLimitToast);
-  const showAddedToast = (binderId: string, title: string) => {
+  const showAddedToast = (binderId: string, title: string, note = '') => {
     toastId.current += 1;
     setToast({
       id: toastId.current,
-      message: `Added to ${title}`,
+      message: `Added to ${title}${note}`,
       link: { text: title, onPress: () => openBinder(binderId) },
     });
   };
@@ -129,11 +133,15 @@ export default function HomeScreen() {
   const addToExistingBinder = (binderId: string) => {
     if (!addCardId) return;
     const title = store.getBinder(binderId)?.title ?? 'binder';
-    const { added, unplaced } = store.addCardsToBinder(binderId, [addCardId], {
-      entryIds: assignCopies([addCardId]),
+    const entryIds = assignCopies([addCardId]);
+    const { added, unplaced, droppedClaims } = store.addCardsToBinder(binderId, [addCardId], {
+      entryIds,
     });
+    // An owned card whose free copies ran out lands as a catalogue-art pocket - say so.
+    const short =
+      droppedClaims > 0 || (entryIds[0] === undefined && ownsCard(addCardId)) ? 1 : 0;
     setAddCardId(null);
-    if (added > 0) showAddedToast(binderId, title);
+    if (added > 0) showAddedToast(binderId, title, catalogArtNote(short, 1));
     else if (unplaced > 0) {
       capGate.hit({
         limit: 'pagesPerBinder',
@@ -166,12 +174,14 @@ export default function HomeScreen() {
       return;
     }
     // Atomic create-with-card — creating then adding would race the store snapshot.
+    const entryIds = assignCopies([addCardId]);
     const binder = store.createBinder({
       title: 'New binder',
-      pages: pagesForCards([addCardId], assignCopies([addCardId])),
+      pages: pagesForCards([addCardId], entryIds),
     });
+    const short = entryIds[0] === undefined && ownsCard(addCardId) ? 1 : 0;
     setAddCardId(null);
-    if (binder) showAddedToast(binder.id, binder.title);
+    if (binder) showAddedToast(binder.id, binder.title, catalogArtNote(short, 1));
   };
 
   // Binder covers resolve their image straight from the card id (cardThumbUrl) via the lite

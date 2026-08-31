@@ -120,3 +120,20 @@ export function assignCopies(
     return next.entryId;
   });
 }
+
+/**
+ * The toast suffix for pockets that stayed aspirational because the OWNED copies ran out — the
+ * feedback for over-placement, which used to happen in silence. One shared string so browse, home
+ * and the binder editor say it the same way. Empty when nothing was left out (including the
+ * never-owned case: an aspirational pocket for a card you are hunting is the design default and
+ * not worth a warning).
+ *
+ * `shortfall` counts pockets for cards the user OWNS that could not claim a free copy; `total` is
+ * how many cards the add placed (1 switches to the friendlier single-card phrasing).
+ */
+export function catalogArtNote(shortfall: number, total: number): string {
+  if (shortfall <= 0) return '';
+  // The FACT leads and the reason trails, so a clipped tail loses the why, never the what.
+  if (total === 1) return ' · this one shows catalogue art since your copies are all in pockets';
+  return ` · ${shortfall} show${shortfall === 1 ? 's' : ''} catalogue art (no free copies left)`;
+}

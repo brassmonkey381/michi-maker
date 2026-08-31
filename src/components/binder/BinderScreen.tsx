@@ -30,7 +30,7 @@ import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
 import { CopyPickerSheet } from '@/components/binder/CopyPickerSheet';
-import type { OwnedEntry } from '@/data/ownedCopies';
+import { catalogArtNote, type OwnedEntry } from '@/data/ownedCopies';
 import { useAvailableCopies, useCopyAssigner, useOwnedCopies } from '@/hooks/use-owned-copies';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -607,6 +607,10 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     closePicker();
   };
 
+  // Whether the user owns ANY copy of this card, placed or not - the line between "aspirational
+  // by choice" (never warn) and "ran out of free copies" (say so).
+  const ownsCard = (cardId: string) => !!ownedCopies?.some((c) => c.cardId === cardId);
+
   const handlePickCard = (cardId: string, card?: CatalogCard) => {
     if (!pickerCell) return;
     const { rows, cols } = footprintForKind(card?.kind ?? resolveCard(cardId)?.kind);
@@ -618,6 +622,11 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     if (copies.length > 0) {
       setCopyChoice({ cardId, cardName: card?.name, row, col, rows, cols, copies });
       return;
+    }
+    // Owned but every copy is spoken for: still place it (an aspirational pocket is the design
+    // default), but say why it will wear catalogue art - this used to happen in silence.
+    if (ownsCard(cardId)) {
+      showToast('Your copies are all in pockets, so this one shows catalogue art');
     }
     placeCardInPocket(cardId, row, col, rows, cols, undefined);
   };
@@ -637,9 +646,13 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
       : undefined;
     const copies = [...(held ? [held] : []), ...availableCopies(slot.cardId)];
     if (copies.length === 0) {
-      // Nothing to choose between: they own none of this card, and a pocket cannot claim what
-      // does not exist. Say so rather than opening an empty sheet.
-      showToast('You don’t own a copy of this card yet');
+      // Nothing to choose between - but WHY matters: owning none is different from owning copies
+      // that are all claimed by other pockets, and the old single message called owners liars.
+      showToast(
+        ownsCard(slot.cardId)
+          ? 'Your copies of this card are all in other pockets'
+          : 'You don’t own a copy of this card yet',
+      );
       return;
     }
     setCopyChoice({
@@ -715,10 +728,16 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     const withCopies = placements.map((p, i) =>
       p.cardId && p.fromCollection ? { ...p, sourceEntryId: copies[i] } : p,
     );
-    const { placed } = store.placeCards(binder.id, page.id, withCopies);
+    const { placed, placedUnclaimed } = store.placeCards(binder.id, page.id, withCopies);
     setSelectedSlotId(null);
+    // A fill FROM the owned pool that could not claim a copy for every pocket says so: either the
+    // assigner ran dry (copies already placed elsewhere) or the store's guard refused a stale
+    // claim. placedUnclaimed is counted by the store over pockets actually CREATED, so a
+    // placement skipped for an occupied cell never inflates the note.
     showToast(
-      placed > 0 ? `Filled ${placed} pocket${placed === 1 ? '' : 's'} · ${methodLabel}` : 'Nothing placed',
+      placed > 0
+        ? `Filled ${placed} pocket${placed === 1 ? '' : 's'} · ${methodLabel}${catalogArtNote(placedUnclaimed, placed)}`
+        : 'Nothing placed',
       placed > 0,
     );
   };
@@ -782,29 +801,37 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   };
   const addElsewhereTo = (targetId: string) => {
     if (!addElsewhereIds?.length) return;
-    const { added, unplaced } = store.addCardsToBinder(targetId, addElsewhereIds, {
-      entryIds: assignCopies(addElsewhereIds),
-    });
+    const ids = addElsewhereIds;
+    const entryIds = assignCopies(ids);
+    const { added, unplaced, droppedClaims } = store.addCardsToBinder(targetId, ids, { entryIds });
     const title = store.getBinder(targetId)?.title ?? 'binder';
     setAddElsewhereIds(null);
-    // Anything the target binder's page cap left out is named, never dropped in silence.
+    // Anything the target binder's page cap left out is named, never dropped in silence — and
+    // so are owned cards whose free copies ran out (they land as catalogue-art pockets).
     if (unplaced > 0) showLimitToast(pageLimitMessage(store.tier, store.limits));
-    else if (added > 0) showToast(`Added ${added} card${added === 1 ? '' : 's'} to ${title}`);
+    else if (added > 0) {
+      const short =
+        droppedClaims + ids.filter((id, i) => entryIds[i] === undefined && ownsCard(id)).length;
+      showToast(`Added ${added} card${added === 1 ? '' : 's'} to ${title}${catalogArtNote(short, added)}`);
+    }
   };
   const addElsewhereNew = () => {
     if (!addElsewhereIds?.length) return;
+    const ids = addElsewhereIds;
+    const entryIds = assignCopies(ids);
     const copy = store.createBinder({
       title: 'New binder',
-      pages: pagesForCards(addElsewhereIds, assignCopies(addElsewhereIds)),
+      pages: pagesForCards(ids, entryIds),
     });
-    const count = addElsewhereIds.length;
+    const count = ids.length;
     setAddElsewhereIds(null);
     // The store refuses past the binder cap — say so instead of silently doing nothing.
     if (!copy) {
       showLimitToast(binderLimitMessage(store.tier, store.limits));
       return;
     }
-    showToast(`Added ${count} card${count === 1 ? '' : 's'} to ${copy.title}`);
+    const short = ids.filter((id, i) => entryIds[i] === undefined && ownsCard(id)).length;
+    showToast(`Added ${count} card${count === 1 ? '' : 's'} to ${copy.title}${catalogArtNote(short, count)}`);
   };
 
   const findSimilarToAll = () => {
@@ -837,9 +864,10 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     // `startPageIndex` is what makes a batch land where the user is looking. Without it placement
     // scans from page 1 for any gap and appends the rest at the very end, so picking nine cards
     // while on page 4 could scatter them across pages 1, 2 and the back of the binder.
-    const { added, unplaced, blanksInserted } = store.addCardsToBinder(binder.id, cardIds, {
+    const entryIds = assignCopies(cardIds);
+    const { added, unplaced, blanksInserted, droppedClaims } = store.addCardsToBinder(binder.id, cardIds, {
       startPageIndex: pageIndex,
-      entryIds: assignCopies(cardIds),
+      entryIds,
     });
     closePicker();
     // The binder can run out of pages at the tier cap — name it (with the upgrade route) rather
@@ -858,8 +886,16 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
       });
     } else if (added > 0) {
       // parityNote names any blank page the insertion forced, same as duplicate/send do, so a
-      // page appearing out of nowhere is explained rather than looking like a bug.
-      showToast(parityNote(`Added ${added} card${added === 1 ? '' : 's'}`, blanksInserted));
+      // page appearing out of nowhere is explained rather than looking like a bug. The catalogue
+      // note names pockets for OWNED cards that ran out of free copies (assigner came up empty,
+      // or the store's guard refused a stale claim) - never the never-owned, which are
+      // aspirational by choice.
+      const short =
+        droppedClaims + cardIds.filter((id, i) => entryIds[i] === undefined && ownsCard(id)).length;
+      showToast(
+        parityNote(`Added ${added} card${added === 1 ? '' : 's'}`, blanksInserted) +
+          catalogArtNote(short, added),
+      );
     }
   };
 

@@ -14,10 +14,15 @@
  * dragging cards into a binder here; a realtime feed on portfolio_entries would re-derive this map
  * on every quantity edit. The cost is that a copy scanned mid-session is not offered until the next
  * load, which reads as "it isn't there yet", not as an error.
+ *
+ * THE LOAD IS SHARED (loadOwnedEntriesShared): every instance on a screen, and the store's claim
+ * budgets, read the same promise. This is load-bearing, not an optimisation - with independent
+ * fetches, one instance failing while another succeeded let ownsCard and availableCopies disagree
+ * for a whole session, and let the store's guard refuse copies the assigner was handing out.
  */
 import { useCallback, useEffect, useState } from 'react';
 
-import { fetchOwnedEntries } from '@/data/collectionRepo';
+import { loadOwnedEntriesShared } from '@/data/collectionRepo';
 import {
   assignCopies,
   availableCopiesOf,
@@ -39,7 +44,7 @@ export function useOwnedCopies(): OwnedEntry[] | undefined {
   useEffect(() => {
     if (!isSupabaseConfigured || !userId) return;
     let active = true;
-    fetchOwnedEntries()
+    loadOwnedEntriesShared(userId)
       .then((entries) => {
         if (active) setLoaded({ userId, entries });
       })

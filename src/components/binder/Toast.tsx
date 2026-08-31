@@ -105,7 +105,10 @@ export function Toast({ spec, onDismiss }: { spec: ToastSpec | null; onDismiss: 
       {spec && tone !== 'limit' ? (
         <View pointerEvents="box-none" style={styles.wrap}>
           <View style={styles.toast}>
-            <ThemedText type="small" style={styles.message} numberOfLines={2}>
+            {/* Three lines, not two: the catalogue-art notes ride the END of already-long
+                messages (binder titles are uncapped), and a two-line clamp ate exactly the new
+                information on narrow screens. */}
+            <ThemedText type="small" style={styles.message} numberOfLines={3}>
               {/* Split around the linked word so the rest of the sentence stays plain text — one
                   Text, so it wraps as a sentence rather than as three boxes in a row. */}
               {(() => {

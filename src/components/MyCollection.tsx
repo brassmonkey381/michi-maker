@@ -57,7 +57,7 @@ import type { CapHit } from '@/hooks/use-cap-gate';
 import { CopyPickerSheet } from '@/components/binder/CopyPickerSheet';
 import { ImageSourceToggle } from '@/components/ImageSourceToggle';
 import type { OwnedEntry } from '@/data/ownedCopies';
-import { claimedByEntry } from '@/data/ownedCopies';
+import { catalogArtNote, claimedByEntry } from '@/data/ownedCopies';
 import { useAvailableCopies, useCopyAssigner } from '@/hooks/use-owned-copies';
 import { useImageSource } from '@/hooks/use-image-source';
 import { useScanImages } from '@/hooks/use-scan-images';
@@ -411,19 +411,20 @@ function CollectionStrip({
   useEffect(() => {
     if (!pendingAdd) return;
     if (!store.userBinders.some((b) => b.id === pendingAdd.binderId)) return;
-    const { added, unplaced } = store.addCardsToBinder(pendingAdd.binderId, pendingAdd.ids, {
+    const { added, unplaced, droppedClaims } = store.addCardsToBinder(pendingAdd.binderId, pendingAdd.ids, {
       entryIds: assignCopies(pendingAdd.ids),
       fromCollection: true,
     });
     setPendingAdd(null);
     // The page cap can leave cards out — say so (with the upgrade route) rather than dropping
-    // them silently.
+    // them silently. Same for a claim the store's guard refused: this is the place-MY-copies
+    // surface, so a pocket that lands as catalogue art is named, not smiled over.
     if (unplaced > 0) onToast?.(pageLimitMessage(store.tier, store.limits));
     else if (added > 0) {
-      onToast?.(`Added ${added} card${added === 1 ? '' : 's'} to your new binder`, {
-        text: 'your new binder',
-        binderId: pendingAdd.binderId,
-      });
+      onToast?.(
+        `Added ${added} card${added === 1 ? '' : 's'} to your new binder${catalogArtNote(droppedClaims, added)}`,
+        { text: 'your new binder', binderId: pendingAdd.binderId },
+      );
     }
     // assignCopies is a dep like any other: it changes when ownership or the placed set does, and
     // this effect must resolve the copies as they stand when the new binder actually appears, not
@@ -717,7 +718,7 @@ function CollectionStrip({
     setChooser(null);
     setSelected(new Set());
     const target = store.userBinders.find((b) => b.id === binderId);
-    const { added, unplaced } = store.addCardsToBinder(binderId, ids, {
+    const { added, unplaced, droppedClaims } = store.addCardsToBinder(binderId, ids, {
       fromCollection: true,
       entryIds: entryIds ?? assignCopies(ids),
     });
@@ -738,7 +739,13 @@ function CollectionStrip({
         cap: store.limits.pagesPerBinder,
       });
     } else if (added > 0) {
-      onToast?.(`Added ${added} card${added === 1 ? '' : 's'} to ${title}`, { text: title, binderId });
+      // droppedClaims is the load-bearing term here: placeableIds already gates on freeOf > 0,
+      // so the assigner running dry is next to unreachable on this surface, but a claim refused
+      // by the store's fresher ledger is not.
+      onToast?.(
+        `Added ${added} card${added === 1 ? '' : 's'} to ${title}${catalogArtNote(droppedClaims, added)}`,
+        { text: title, binderId },
+      );
     }
   };
 

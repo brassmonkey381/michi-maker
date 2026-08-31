@@ -83,11 +83,13 @@ export interface DemoSlot {
    */
   attribution?: ArtAttribution;
   /**
-   * The tcgscan `portfolio_entries` row this pocket depicts — stamped by "Rebuild in michi"
-   * (tcgscanBinderImport), which knows exactly which owned copy sits in each physical pocket.
-   * A SOFT POINTER: the entry may be gone (lot removed, collection deleted) and the pointer just
-   * dangles — display falls back to the card's newest scan. Never set for hand-placed slots.
-   * Owner-meaningful only: to anyone else it is an opaque uuid that joins to nothing (RLS).
+   * The tcgscan `portfolio_entries` row this pocket depicts — WHICH owned copy is in it. Shipped
+   * for "Rebuild in michi" (tcgscanBinderImport) and now stamped by every placement path that
+   * resolves a copy (useCopyAssigner / CopyPickerSheet); the store's claim budget keeps a lot's
+   * pockets from outnumbering its cards. A SOFT POINTER: the entry may be gone (lot removed,
+   * collection deleted) and the pointer just dangles — display shows catalog art, locked (see
+   * scanFaces). Owner-meaningful only: to anyone else it is an opaque uuid that joins to nothing
+   * (RLS).
    */
   sourceEntryId?: string;
   /**
@@ -444,5 +446,36 @@ export function cloneBinder(binder: DemoBinder, overrides?: Partial<DemoBinder>)
       })),
     })),
     ...overrides,
+  };
+}
+
+/**
+ * Re-mint a binder under brand-new ids (binder, pages, slots) WITHOUT changing what it is — the
+ * MOVE twin of cloneBinder, for the in-place guest→account upgrade (see the store's
+ * migrateOwnBindersToFreshIds). The same pockets get a new home, so unlike a duplicate:
+ *
+ *   · Claim stamps and `fromCollection` are KEPT (movedSlots): the upgrade keeps the same uid,
+ *     portfolio entries survive it verbatim, and the cards neither multiplied nor went anywhere.
+ *     Stripping them here was the defect where converting a guest account silently made every
+ *     pocket forget which owned copy it held.
+ *   · `isDemo` / `locked` / `isPublic` survive: the binder is still the binder it was.
+ *   · `sharePageIds` are remapped onto the new page ids rather than dropped, so the owner's
+ *     chosen share-preview pages survive the upgrade too.
+ */
+export function remintBinderIds(binder: DemoBinder): DemoBinder {
+  const newPageIds = new Map(binder.pages.map((page) => [page.id, uuidv4()]));
+  const sharePageIds = binder.sharePageIds
+    ?.map((id) => newPageIds.get(id))
+    .filter((id): id is string => id != null);
+  return {
+    ...binder,
+    id: uuidv4(),
+    pages: binder.pages.map((page) => ({
+      ...page,
+      id: newPageIds.get(page.id) as string,
+      slots: movedSlots(page.slots),
+    })),
+    // Empty stays absent: [] and undefined both mean "auto (fullest pages)".
+    sharePageIds: sharePageIds?.length ? sharePageIds : undefined,
   };
 }

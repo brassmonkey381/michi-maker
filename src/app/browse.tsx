@@ -24,8 +24,8 @@ import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
 import { CopyPickerSheet } from '@/components/binder/CopyPickerSheet';
-import type { OwnedEntry } from '@/data/ownedCopies';
-import { useAvailableCopies, useCopyAssigner } from '@/hooks/use-owned-copies';
+import { catalogArtNote, type OwnedEntry } from '@/data/ownedCopies';
+import { useAvailableCopies, useCopyAssigner, useOwnedCopies } from '@/hooks/use-owned-copies';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Spacing } from '@/constants/theme';
@@ -43,6 +43,9 @@ export default function BrowseScreen() {
   // it was added from.
   const assignCopies = useCopyAssigner();
   const availableCopies = useAvailableCopies();
+  const ownedCopies = useOwnedCopies();
+  // Aspirational-by-choice (never owned: no warning) vs ran-out-of-free-copies (say so).
+  const ownsCard = (cardId: string) => !!ownedCopies?.some((c) => c.cardId === cardId);
   const router = useRouter();
   const { width } = useWindowDimensions();
   const railHidden = Platform.OS !== 'web' || width < Breakpoints.rail;
@@ -60,11 +63,11 @@ export default function BrowseScreen() {
   const [toast, setToast] = useState<ToastSpec | null>(null);
   const toastId = useRef(0);
 
-  const showAdded = (binderId: string, title: string, count: number) => {
+  const showAdded = (binderId: string, title: string, count: number, note = '') => {
     toastId.current += 1;
     setToast({
       id: toastId.current,
-      message: count > 1 ? `Added ${count} cards to ${title}` : `Added to ${title}`,
+      message: (count > 1 ? `Added ${count} cards to ${title}` : `Added to ${title}`) + note,
       link: { text: title, onPress: () => openBinder(binderId) },
     });
   };
@@ -135,9 +138,21 @@ export default function BrowseScreen() {
     }
     // Claim one of the user's actual cards where they have a free one. Browsing used to place
     // a card you own without it costing anything, so the collection kept calling it free.
-    const { added, unplaced } = store.addCardsToBinder(binderId, addCardIds, {
-      entryIds: entryIds ?? assignCopies(addCardIds),
+    const resolved = entryIds ?? assignCopies(addCardIds);
+    const { added, unplaced, droppedClaims } = store.addCardsToBinder(binderId, addCardIds, {
+      entryIds: resolved,
     });
+    // Owned cards whose free copies ran out land as catalogue-art pockets - named in the toast,
+    // never dropped in silence. Never-owned cards are aspirational by choice: no warning. And an
+    // undefined that CopyPickerSheet handed in explicitly (entryIds present) is the user choosing
+    // the catalogue image with copies free - counting it would scold the sanctioned choice, so
+    // only assigner-resolved undefineds count. droppedClaims stays unconditional: a picked copy
+    // the guard refused is a real shortfall whichever way it was chosen.
+    const short =
+      droppedClaims +
+      (entryIds
+        ? 0
+        : addCardIds.filter((id, i) => resolved[i] === undefined && ownsCard(id)).length);
     setAddCardIds(null);
     // Anything the binder's page cap left out is named, never dropped in silence.
     if (unplaced > 0) {
@@ -152,7 +167,7 @@ export default function BrowseScreen() {
         used: store.getBinder(binderId)?.pages.length ?? 0,
         cap: store.limits.pagesPerBinder,
       });
-    } else if (added > 0) showAdded(binderId, title, added);
+    } else if (added > 0) showAdded(binderId, title, added, catalogArtNote(short, added));
   };
   const addToNew = () => {
     if (!addCardIds?.length) return;
@@ -161,9 +176,10 @@ export default function BrowseScreen() {
     // than seeding a binder over the cap. Unlimited tiers keep the whole selection.
     const ids = addCardIds.slice(0, store.limits.pagesPerBinder * 9);
     const short = addCardIds.length - ids.length;
+    const entryIds = assignCopies(ids);
     const binder = store.createBinder({
       title: 'New binder',
-      pages: pagesForCards(ids, assignCopies(ids)),
+      pages: pagesForCards(ids, entryIds),
     });
     setAddCardIds(null);
     // The store refuses past the binder cap — say so instead of silently doing nothing.
@@ -193,7 +209,10 @@ export default function BrowseScreen() {
         used: binder.pages.length,
         cap: store.limits.pagesPerBinder,
       });
-    } else showAdded(binder.id, binder.title, ids.length);
+    } else {
+      const ownedShort = ids.filter((id, i) => entryIds[i] === undefined && ownsCard(id)).length;
+      showAdded(binder.id, binder.title, ids.length, catalogArtNote(ownedShort, ids.length));
+    }
   };
 
   return (

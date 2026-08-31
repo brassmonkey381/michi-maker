@@ -140,6 +140,31 @@ export async function fetchOwnedEntries(): Promise<OwnedEntry[]> {
 }
 
 /**
+ * ONE owned-entries load per identity, shared by every consumer: the store's claim budgets and
+ * every useOwnedCopies instance. Before this, each hook instance and the store fetched
+ * independently, and ONE failed fetch could pin the guard's budgets to 1 for the session while a
+ * sibling fetch fed the assigner quantity-3 lots - the guard then refused claims the assigner
+ * legitimately handed out, and the refusal surfaced as a false "no free copies" toast. A shared
+ * promise makes guard and assigner judge from literally the same rows, and failure uniform.
+ *
+ * A rejected load is evicted immediately so the next consumer retries rather than caching the
+ * failure; a successful one expires after a few minutes so a screen mounted later still sees a
+ * copy scanned mid-session (the old per-mount fetch's freshness, without its N parallel fetches).
+ */
+const ownedEntriesLoads = new Map<string, { p: Promise<OwnedEntry[]>; at: number }>();
+const OWNED_ENTRIES_TTL_MS = 5 * 60_000;
+export function loadOwnedEntriesShared(userId: string): Promise<OwnedEntry[]> {
+  const hit = ownedEntriesLoads.get(userId);
+  if (hit && Date.now() - hit.at < OWNED_ENTRIES_TTL_MS) return hit.p;
+  const p = fetchOwnedEntries();
+  p.catch(() => {
+    if (ownedEntriesLoads.get(userId)?.p === p) ownedEntriesLoads.delete(userId);
+  });
+  ownedEntriesLoads.set(userId, { p, at: Date.now() });
+  return p;
+}
+
+/**
  * The user's tcgscan BINDERS — the physical ones, with the page shape and the pocket each card
  * sits in (`storage_units` of kind 'binder' plus the entries that claim a place in one). Michi
  * reads these, never writes them; tcgscan owns the shelf.

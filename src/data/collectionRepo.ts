@@ -227,16 +227,35 @@ export async function fetchTcgscanBinders(): Promise<TcgscanBinder[]> {
   return [...binders.values()];
 }
 
-/** The user's real scans, at both grains a surface might key on. */
+/** The user's real scans, at every grain a surface might key on. */
 export interface ScanImages {
-  /** cardId → the card's NEWEST scanned crop. The per-card face, and every fallback. */
+  /**
+   * cardId → the card's NEWEST scanned crop. The per-card face for AGGREGATE rows only (a
+   * My-collection tile stands for every copy at once, so the newest photo is its honest face).
+   * Pocket surfaces must NOT fall back here — a pocket presents itself as one physical copy,
+   * and this map would let five pockets wear three photos. They allocate via scanFaces.ts from
+   * copiesByCard instead.
+   */
   byCard: ReadonlyMap<string, string>;
   /**
    * portfolio_entries.id → THAT copy's crop. What tells three scanned Charizards apart: a
    * rebuilt binder pocket carries the entry it depicts (DemoSlot.sourceEntryId) and resolves
-   * here first, falling into byCard when the stamp is absent or the entry is gone.
+   * its own photo through it (CopyPickerSheet reads this directly).
    */
   byEntry: ReadonlyMap<string, string>;
+  /**
+   * cardId → every scanned copy of that card, newest scan first — the finite pool that pocket
+   * allocation (scanFaces.allocateScanFaces) draws from. `quantity` is the lot's size, which is
+   * a photo's display capacity: one photo of a three-card lot can honestly back three pockets.
+   */
+  copiesByCard: ReadonlyMap<string, readonly ScannedCopyRow[]>;
+}
+
+/** One scanned lot in a card's pool. Shape shared with scanFaces.ScannedCopy. */
+export interface ScannedCopyRow {
+  entryId: string;
+  url: string;
+  quantity: number;
 }
 
 /**
@@ -257,10 +276,15 @@ export async function fetchScanImages(): Promise<ScanImages> {
   // but complete, which is all the newest-wins reduction below needs.
   const PAGE = 1000;
   const rows: unknown[] = [];
+  // Scanned rows ONLY, deliberately: every map here is scan-count-proportional, so a 10,000-lot
+  // CSV collection with three scans costs one small request, and the 50k paging guard bounds
+  // scanned lots rather than the whole portfolio. Pocket allocation is designed around not
+  // needing the live-entry set (scanFaces rule 2: any stamp without an available photo is
+  // catalog, locked), precisely so this query never has to grow to portfolio size.
   for (let from = 0; from < 50_000; from += PAGE) {
     const { data, error } = await supabase
       .from('portfolio_entries')
-      .select('id, card_id, scan_path, scanned_at, added_at')
+      .select('id, card_id, scan_path, scanned_at, added_at, quantity')
       .not('scan_path', 'is', null)
       .order('id', { ascending: true })
       .range(from, from + PAGE - 1);
@@ -270,6 +294,7 @@ export async function fetchScanImages(): Promise<ScanImages> {
   }
   const best = new Map<string, { path: string; seen: number }>();
   const byEntry = new Map<string, string>();
+  const scanned: { cardId: string; copy: ScannedCopyRow; seen: number }[] = [];
   const urlOf = (path: string) =>
     supabase.storage.from('scan-images').getPublicUrl(path).data.publicUrl;
   // Through unknown: the generated database.ts predates every tcgscan column added since 07-14
@@ -278,18 +303,34 @@ export async function fetchScanImages(): Promise<ScanImages> {
   for (const r of rows as unknown as {
     id: string;
     card_id: string;
-    scan_path: string;
+    scan_path: string | null;
     scanned_at: string | null;
     added_at: string;
+    quantity: number | null;
   }[]) {
-    byEntry.set(r.id, urlOf(r.scan_path));
+    if (!r.scan_path) continue; // belt and braces; the query already filters
+    const url = urlOf(r.scan_path);
+    byEntry.set(r.id, url);
     const seen = Date.parse(r.scanned_at ?? r.added_at) || 0;
+    scanned.push({
+      cardId: r.card_id,
+      copy: { entryId: r.id, url, quantity: Math.max(1, r.quantity ?? 1) },
+      seen,
+    });
     const cur = best.get(r.card_id);
     if (!cur || seen >= cur.seen) best.set(r.card_id, { path: r.scan_path, seen });
   }
   const byCard = new Map<string, string>();
   for (const [id, { path }] of best) byCard.set(id, urlOf(path));
-  return { byCard, byEntry };
+  // Newest first within a card, id as the tie-break so the pool order is stable across loads.
+  scanned.sort((a, b) => b.seen - a.seen || a.copy.entryId.localeCompare(b.copy.entryId));
+  const copiesByCard = new Map<string, ScannedCopyRow[]>();
+  for (const { cardId, copy } of scanned) {
+    const list = copiesByCard.get(cardId);
+    if (list) list.push(copy);
+    else copiesByCard.set(cardId, [copy]);
+  }
+  return { byCard, byEntry, copiesByCard };
 }
 
 /** Monotonic suffix so every subscription gets a UNIQUE channel topic (see subscribeUserCards). */

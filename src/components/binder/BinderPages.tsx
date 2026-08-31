@@ -10,7 +10,7 @@
  *   - edit            → an editable <BinderGrid> wired for slot editing + cross-page drag, and
  *                       `onReorderPages` enables drag-to-reorder in the filmstrip.
  */
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from 'react-native-reanimated';
 
@@ -21,6 +21,7 @@ import { BinderPageMaxWidth } from '@/constants/theme';
 import { pillChip } from '@/constants/ui';
 import { DEFAULT_CAPTION_FIELDS, type CaptionFieldKey } from '@/data/cardCaption';
 import type { DemoBinder, DemoPage, DemoSlot } from '@/data/binderTypes';
+import { allocateScanFaces } from '@/data/scanFaces';
 import { useOwnedCards } from '@/hooks/use-owned-cards';
 import { useScanImages } from '@/hooks/use-scan-images';
 
@@ -102,15 +103,17 @@ export function BinderPages({
   const ownScans = useScanImages();
   const scanImages = viewerIsOwner ? ownScans : undefined;
   const [showScans, setShowScans] = useState(false);
-  // Per COPY first: a rebuilt pocket knows which owned entry it depicts (sourceEntryId) and shows
-  // that card's own photo, so two copies of one card stop wearing the same face. Newest-per-card
-  // is the fallback for hand-placed slots, pre-stamp binders, and entries since deleted.
-  const scanUrlOf =
-    showScans && scanImages
-      ? (slot: DemoSlot) =>
-          (slot.sourceEntryId ? scanImages.byEntry.get(slot.sourceEntryId) : undefined) ??
-          (slot.cardId ? scanImages.byCard.get(slot.cardId) : undefined)
-      : undefined;
+  // ALLOCATED, not looked up: a stamped pocket wears its own copy's photo, an unclaimed pocket
+  // draws from the card's photos no other pocket is wearing, and when those run out it shows
+  // catalog art. Binder-wide (all pages at once) so two pages cannot both spend the same photo,
+  // and so the binder never presents more scans of a card than the user owns — the old
+  // newest-per-card fallback put the same photo on every claimless copy, in unlimited number.
+  // See scanFaces.ts for the full doctrine.
+  const scanFaces = useMemo(() => {
+    if (!showScans || !scanImages) return undefined;
+    return allocateScanFaces(binder.pages.flatMap((p) => p.slots), scanImages.copiesByCard);
+  }, [showScans, scanImages, binder]);
+  const scanUrlOf = scanFaces ? (slot: DemoSlot) => scanFaces.get(slot.id) : undefined;
   // Double-sided: pages pair like a physical binder — page 1 alone (the cover face), then
   // 2·3 facing, 4·5, … Both sides of the open spread are shown (and edited) together.
   const [doubleSided, setDoubleSided] = useState(doubleSidedPref);

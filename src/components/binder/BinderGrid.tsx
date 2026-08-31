@@ -16,11 +16,11 @@ import { BinderSurface, FontSize, Palette, Radii, Radius, Shadows, SlotBackingFa
 import { chipFor } from '@/constants/printVariant';
 import { attributionLabel, deriveAttribution, type ArtAttribution } from '@/data/artworkLibrary';
 import { resolveCardWith, resolveCatalogCardWith } from '@/data/cardResolver';
-import { formatCaption, hasTextCaption, type CaptionFieldKey } from '@/data/cardCaption';
+import { CAPTION_FIELDS, formatCaption, hasTextCaption, type CaptionFieldKey } from '@/data/cardCaption';
 import { occupiedCells, type DemoCard, type DemoPage, type DemoSlot } from '@/data/binderTypes';
 import { useCatalog } from '@/hooks/use-catalog';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
-import type { Catalog } from '@/lib/catalog';
+import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { getPriceSummary, priceSnapshot, type PriceSummary } from '@/lib/prices';
 
 /**
@@ -307,6 +307,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               catalog={catalog}
               owned={!!(slot.cardId && ownedIds?.has(slot.cardId))}
               scanUri={slot.cardId ? scanUrlOf?.(slot) : undefined}
+              captionFields={captionFields}
+              price={slot.cardId ? priceFor(priceSummary, slot.cardId, variantOf?.(slot)) : undefined}
             />
           );
           if (!editable) {
@@ -442,6 +444,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               catalog={catalog}
               owned={!!(dragged.cardId && ownedIds?.has(dragged.cardId))}
               scanUri={dragged.cardId ? scanUrlOf?.(dragged) : undefined}
+              captionFields={captionFields}
+              price={dragged.cardId ? priceFor(priceSummary, dragged.cardId, variantOf?.(dragged)) : undefined}
             />
           </Animated.View>
         ) : null}
@@ -898,11 +902,17 @@ function SlotContent({
   catalog,
   owned = false,
   scanUri,
+  captionFields = [],
+  price,
 }: {
   slot: DemoSlot;
   radius: number;
   small: boolean;
   catalog: Catalog | null;
+  /** Which labels are switched on. The on-card ones are drawn here; the rest go in the strip. */
+  captionFields?: CaptionFieldKey[];
+  /** This pocket's value, already resolved to the owned copy's finish (see priceFor). */
+  price?: number;
   /** The viewer owns this card (own ≥ 1) — show the green ✓ corner badge. */
   owned?: boolean;
   /** This card's real scan (see BinderGridProps.scanUrlOf); card pockets only. */
@@ -985,7 +995,110 @@ function SlotContent({
         </View>
         <KindBadge kind={kind} small={small} />
         <OwnedBadge owned={owned} small={small} />
+        <CardLabels
+          card={resolveCatalogCardWith(catalog, id)}
+          fields={captionFields}
+          price={price}
+          small={small}
+        />
       </View>
+    </View>
+  );
+}
+
+/**
+ * THE LABELS DRAWN ON THE CARD ITSELF — the printing's codes along the bottom edge, the artist on
+ * the row above, the price in the corner. Placement, chip-or-text and colour all come from the one
+ * table in cardCaption.ts; this only lays out what that table asks for.
+ *
+ * pointerEvents="none" throughout, like every other in-slot overlay: in edit mode this sits inside
+ * DraggableSlot's pan gesture, and a label that swallowed a drag would make the card unmovable.
+ * (The finish chip is the exception and lives outside the slot for exactly that reason.)
+ *
+ * Everything is on a translucent dark scrim rather than a flat colour, because a card's art can be
+ * any colour at all — a fill chosen to look good over a white Pikachu is unreadable over a black
+ * Umbreon. The scrim is the only treatment that holds over all of them.
+ */
+function CardLabels({
+  card,
+  fields,
+  price,
+  small,
+}: {
+  card: CatalogCard | undefined;
+  fields: CaptionFieldKey[];
+  price?: number;
+  small: boolean;
+}) {
+  // Nothing legible fits on a filmstrip or a discover tile, and a label nobody can read is just
+  // dirt on the art.
+  if (small || !card || fields.length === 0) return null;
+  const on = new Set(fields);
+  const valueOf = (key: CaptionFieldKey): string => {
+    const field = CAPTION_FIELDS.find((f) => f.key === key);
+    if (!field || !on.has(key)) return '';
+    return field.get(card, { price }).trim();
+  };
+  const spotFields = (spot: string) =>
+    CAPTION_FIELDS.filter((f) => f.spot === spot && on.has(f.key));
+
+  const bottom = spotFields('bottomRow')
+    .map((f) => ({ key: f.key, value: valueOf(f.key) }))
+    .filter((x) => x.value.length > 0);
+  const artist = spotFields('artistRow')
+    .map((f) => valueOf(f.key))
+    .filter((v) => v.length > 0)
+    .join(' · ');
+  const corner = spotFields('bottomRight')
+    .map((f) => ({ value: valueOf(f.key), tone: f.tone }))
+    .filter((x) => x.value.length > 0);
+
+  if (bottom.length === 0 && !artist && corner.length === 0) return null;
+
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      {artist ? (
+        <View style={styles.artistRow}>
+          {/* On its own pill rather than bare text with a shadow: a scrim is the only thing that
+              stays readable over art that might be white, black or gold. Self-sized, so it covers
+              the name and no more of the card than that. */}
+          <View style={styles.onCardChip}>
+            <Text numberOfLines={1} style={styles.badgeText}>
+              {artist}
+            </Text>
+          </View>
+        </View>
+      ) : null}
+      {bottom.length > 0 ? (
+        <View
+          style={[
+            styles.bottomRow,
+            // Reserve the corner's width on BOTH sides when a price is showing. Padding only on
+            // the right would keep them apart but shove the codes off-centre; padding both keeps
+            // them centred on the card and clear of the price, which is what was asked for.
+            corner.length > 0 && styles.bottomRowWithCorner,
+          ]}>
+          {bottom.map((b) => (
+            <View key={b.key} style={styles.onCardChip}>
+              <Text numberOfLines={1} style={styles.badgeText}>
+                {b.value}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+      {/* Absolutely placed rather than laid out in the row above, so a long price cannot shove the
+          centred codes off their centre. They can meet on a very narrow pocket; the codes are the
+          ones that give way, because the price is the thing being looked for. */}
+      {corner.map((c) => (
+        <View key={c.value} style={[styles.onCardCorner, styles.onCardChip]}>
+          <Text
+            numberOfLines={1}
+            style={[styles.badgeText, c.tone === 'accent' && styles.onCardAccent]}>
+            {c.value}
+          </Text>
+        </View>
+      ))}
     </View>
   );
 }
@@ -1456,6 +1569,38 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
     backgroundColor: Palette.scrim62,
   },
+  // --- Labels drawn ON the card. Two stacked rows along the bottom edge plus one corner; see
+  // CardLabels and the placement table in cardCaption.ts.
+  artistRow: {
+    position: 'absolute',
+    left: 4,
+    right: 4,
+    // Clears the row below it: chip height (~16) plus a little air.
+    bottom: 24,
+    flexDirection: 'row',
+    // The pill hugs the name instead of stretching the width of the card.
+    justifyContent: 'flex-start',
+  },
+  bottomRow: {
+    position: 'absolute',
+    left: 4,
+    right: 4,
+    bottom: 4,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 3,
+  },
+  // Roughly the width of a price like "$1,234" at this type size. An estimate is the right tool
+  // here: measuring would cost a layout pass per pocket per render for a few pixels of accuracy.
+  bottomRowWithCorner: { paddingHorizontal: 44 },
+  onCardChip: {
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: Radius.tag,
+    backgroundColor: Palette.scrim62,
+  },
+  onCardCorner: { position: 'absolute', right: 4, bottom: 4 },
+  onCardAccent: { color: Palette.accent },
   badgeText: {
     color: Palette.white,
     fontSize: FontSize.micro,

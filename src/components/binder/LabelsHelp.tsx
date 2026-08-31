@@ -21,14 +21,14 @@ const TABS: { id: TabId; label: string }[] = [
 
 /** One-line description of what each caption field shows. */
 const FIELD_HELP: Record<CaptionFieldKey, string> = {
-  series: 'Series / era the card belongs to',
-  set: 'Set name',
-  artist: 'Illustrator',
-  rarityCode: 'Short rarity code (see the Rarity codes tab)',
-  number: 'Collector number (e.g. 004/102)',
-  stage: 'Evolution stage (Basic, Stage 1, …)',
-  released: 'Full release date (e.g. Mar 15, 2022)',
-  price: 'Latest market value (USD)',
+  series: 'Series code, as a chip along the bottom of the card',
+  set: 'Set code (e.g. PAF) — a chip beside the series',
+  artist: 'Illustrator, on the card just above the set codes',
+  rarityCode: 'Short rarity code, under the card (see the Rarity codes tab)',
+  number: 'Collector number, as a chip beside the set code',
+  stage: 'Evolution stage (Basic, Stage 1, …), under the card',
+  released: 'Full release date (e.g. Mar 15, 2022), under the card',
+  price: 'Latest market value for the finish you own — bottom-right of the card',
   finish: 'Print finish of the copy you own — a coloured N / H / RH chip on the card itself',
 };
 
@@ -92,8 +92,10 @@ function FieldsTab() {
   return (
     <>
       <Text style={styles.intro}>
-        Show metadata under each card, joined by “ * ”. Fields display in a fixed order regardless
-        of the order you turn them on. Some fields can be blank when the catalog lacks them.
+        Show a card’s details. Most draw on the card itself — codes along the bottom edge, the
+        artist above them, the price in the corner — while the quieter ones sit in a line
+        underneath, joined by “ * ”. Order is fixed however you turn them on, and a field stays
+        blank when the catalog has nothing for it.
       </Text>
       {CAPTION_FIELDS.map((f) => (
         <View key={f.key} style={styles.row}>

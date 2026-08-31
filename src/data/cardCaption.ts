@@ -46,34 +46,91 @@ function formatFullDate(iso: string): string {
 }
 
 /**
- * The caption fields in their canonical *display* order — series → set → artist → rarity code →
- * … — each with a chip label and an accessor pulling its value off a `CatalogCard` ('' when the
- * field is absent/empty for that card). Display order is fixed here regardless of the order the
- * user toggles fields on.
+ * WHERE EACH LABEL GOES. A card has four corners and a strip beneath it, and everything competing
+ * for that space has to be placed once, deliberately, in one table — otherwise every new label is
+ * a fresh argument with the last one, and two of them quietly end up in the same corner.
+ *
+ * The card's own space is reserved as follows:
+ *
+ *      ┌──────────────────────────────┐
+ *      │ ✓ owned            finish ⬤ │   topLeft is NOT a label — the owned tick owns it
+ *      │                              │
+ *      │            (art)             │
+ *      │                              │
+ *      │ artist                       │   'artistRow'
+ *      │      [SV][PAF][091]   $12.34 │   'bottomRow' centred · 'bottomRight'
+ *      └──────────────────────────────┘
+ *        rarity · stage · released         'caption' — the strip below the card
+ *
+ * The strip below stays the home for anything nobody reads at a glance. Putting those on the card
+ * would cost art you can see for facts you would have to squint at.
+ */
+export type LabelSpot =
+  /** The text strip beneath the card. Costs pocket height, so it is for the low-traffic fields. */
+  | 'caption'
+  /** The lowest row ON the card, centred — the identity of the printing at a glance. */
+  | 'bottomRow'
+  /** The row just above it, left-aligned. Long values live here; they have the width for it. */
+  | 'artistRow'
+  /** The lowest row, right-hand end. One short, high-value number. */
+  | 'bottomRight'
+  /** The top-right corner. Drawn from the OWNED COPY rather than the card (see BinderScreen). */
+  | 'topRight';
+
+/** A chip is a filled pill for something short and scannable; text is for everything else. */
+export type LabelRender = 'chip' | 'text';
+
+/**
+ * The caption fields in their canonical *display* order, each with its label, its accessor
+ * ('' when the field is absent for that card), and where and how it draws.
+ *
+ * `tone` is the whole point of writing this down: recolouring a label is a one-line edit here
+ * rather than a hunt through JSX. Left undefined it takes the neutral scrim — white on a dark
+ * translucent pill, which is the only treatment guaranteed to stay legible over card art that
+ * may be any colour at all. Give a field a colour only when it has earned being looked at first.
  */
 export const CAPTION_FIELDS: {
   key: CaptionFieldKey;
   label: string;
   get: (c: CatalogCard, extras: CaptionExtras) => string;
+  /** Where it draws. Omitted = the caption strip below the card. */
+  spot?: LabelSpot;
+  /** How it draws. Omitted = text. */
+  render?: LabelRender;
+  /** Palette token name for the fill (chip) or the ink (text). Omitted = the neutral scrim. */
+  tone?: 'accent';
   /**
-   * Shown as a mark on the card itself rather than as text in the caption strip. It still belongs
-   * in this list — it is a card label, it is toggled with the others, and putting it anywhere else
-   * would mean two places to look for "what can I show on a card". `formatCaption` skips it, and
-   * so does the decision to reserve caption height, so turning ONLY this on adds no empty strip.
+   * Drawn on the card rather than as text in the strip beneath it. Derived from `spot`, but kept
+   * as its own flag because two things key off it — `formatCaption` skips these, and so does the
+   * decision to reserve caption height, so a view showing only on-card labels carves no empty
+   * strip out of every pocket.
    */
   chipOnly?: boolean;
 }[] = [
-  { key: 'series', label: 'Series', get: (c) => c.seriesId },
-  { key: 'set', label: 'Set', get: (c) => c.setName },
-  { key: 'artist', label: 'Artist', get: (c) => c.illustrator },
+  // The printing's identity, as three short codes read left to right along the bottom edge.
+  { key: 'series', label: 'Series', get: (c) => c.seriesId.toUpperCase(), spot: 'bottomRow', render: 'chip', chipOnly: true },
+  // setCode, not setName: "PAF" fits on a pocket, "Scarlet & Violet—Paldean Fates" does not.
+  { key: 'set', label: 'Set', get: (c) => c.setCode.toUpperCase(), spot: 'bottomRow', render: 'chip', chipOnly: true },
+  // Artist names run long, so this gets its own row and the card's full width to run along.
+  { key: 'artist', label: 'Artist', get: (c) => c.illustrator, spot: 'artistRow', render: 'text', chipOnly: true },
   { key: 'rarityCode', label: 'Rarity code', get: (c) => rarityCode(c.rarity) },
-  { key: 'number', label: 'Number', get: (c) => c.number },
+  { key: 'number', label: 'Number', get: (c) => c.number, spot: 'bottomRow', render: 'chip', chipOnly: true },
   { key: 'stage', label: 'Stage', get: (c) => c.stage },
   { key: 'released', label: 'Released', get: (c) => formatFullDate(c.releaseDate) },
-  { key: 'price', label: 'Price', get: (_c, extras) => formatUsd(extras.price ?? 0) },
+  // The one number worth its own corner, and the only field given a colour: it is what people
+  // actually came to look at.
+  {
+    key: 'price',
+    label: 'Price',
+    get: (_c, extras) => formatUsd(extras.price ?? 0),
+    spot: 'bottomRight',
+    render: 'text',
+    tone: 'accent',
+    chipOnly: true,
+  },
   // The print finish (N / H / RH …). Its value comes from the owned COPY in the pocket, not from
   // the card, so there is nothing for `get` to read here — BinderGrid draws it from the collection.
-  { key: 'finish', label: 'Finish', get: () => '', chipOnly: true },
+  { key: 'finish', label: 'Finish', get: () => '', spot: 'topRight', render: 'chip', chipOnly: true },
 ];
 
 /** Fields shown by default the first time captions are switched on. */

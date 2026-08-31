@@ -22,10 +22,10 @@ const TABS: { id: TabId; label: string }[] = [
 /** One-line description of what each caption field shows. */
 const FIELD_HELP: Record<CaptionFieldKey, string> = {
   series: 'Series, shortened (SWSH, SV, SM) — a chip along the bottom of the card',
-  set: 'Set name (e.g. Vivid Voltage), on the card beside the artist',
-  artist: 'Illustrator, on the card just above the series and number',
+  set: 'Set, as a code beside the series — SWSH · 04 reads as Sword & Shield set 4',
+  artist: 'Illustrator, on its own row across the card above the codes',
   rarityCode: 'Short rarity code, under the card (see the Rarity codes tab)',
-  number: 'Collector number without the set size — 001, not 001/198',
+  number: 'Collector number without the set size — 088, not 088/198',
   stage: 'Evolution stage (Basic, Stage 1, …), under the card',
   released: 'Full release date (e.g. Mar 15, 2022), under the card',
   price: 'Latest market value for the finish you own — bottom-right of the card',

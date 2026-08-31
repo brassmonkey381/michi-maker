@@ -1066,16 +1066,15 @@ function CardLabels({
     .map((f) => ({ key: f.key, value: valueOf(f.key) }))
     .filter((x) => x.value.length > 0);
   const artist = valueOf('artist');
-  const setName = valueOf('set');
   const corner = spotFields('bottomRight')
     .map((f) => ({ value: valueOf(f.key), tone: f.tone }))
     .filter((x) => x.value.length > 0);
 
-  if (bottom.length === 0 && !artist && !setName && corner.length === 0) return null;
+  if (bottom.length === 0 && !artist && corner.length === 0) return null;
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      {artist || setName ? (
+      {artist ? (
         <View
           style={[
             styles.artistRow,
@@ -1083,23 +1082,15 @@ function CardLabels({
             // than hovering over a gap where a row that was never switched on would have been.
             bottom.length === 0 && corner.length === 0 && styles.artistRowAlone,
           ]}>
-          {/* Each on its own pill rather than bare text with a shadow: a scrim is the only thing
-              that stays readable over art that might be white, black or gold. Both shrink, because
-              both are names and neither has a width anyone controls. */}
-          {artist ? (
-            <View style={[styles.onCardChip, styles.wordyChip]}>
-              <Text numberOfLines={1} style={styles.badgeText}>
-                {artist}
-              </Text>
-            </View>
-          ) : null}
-          {setName ? (
-            <View style={[styles.onCardChip, styles.wordyChip]}>
-              <Text numberOfLines={1} style={styles.badgeText}>
-                {setName}
-              </Text>
-            </View>
-          ) : null}
+          {/* On its own pill rather than bare text with a shadow: a scrim is the only thing that
+              stays readable over art that might be white, black or gold. It has the row to itself
+              — illustrator names are long, and everything else that wanted to share it turned out
+              to fit on the bottom edge as a code. */}
+          <View style={[styles.onCardChip, styles.wordyChip]}>
+            <Text numberOfLines={1} style={styles.badgeText}>
+              {artist}
+            </Text>
+          </View>
         </View>
       ) : null}
       {/* ONE ROW, TWO ENDS. Centring the codes and pinning the price to the corner put both on the
@@ -1627,10 +1618,10 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   artistRowAlone: { bottom: 4 },
-  // The two long ones. They share a row and give way together, but never below a width that could
-  // still show a couple of characters — a pill squeezed to nothing is the empty black panel this
-  // replaced, which reads as a rendering fault rather than as a name that ran out of room.
-  wordyChip: { flexShrink: 1, minWidth: 30, maxWidth: '62%' },
+  // The illustrator, alone on its row. It may shrink, but never below a width that could still
+  // show a couple of characters — a pill squeezed to nothing reads as a rendering fault rather
+  // than as a name that ran out of room.
+  wordyChip: { flexShrink: 1, minWidth: 30 },
   bottomRow: {
     position: 'absolute',
     left: 4,
@@ -1644,6 +1635,7 @@ const styles = StyleSheet.create({
   // The codes shrink before the price does: if something has to give on a very narrow pocket, it
   // should be the half that is reference material, not the half people came to look at.
   bottomCodes: { flexDirection: 'row', gap: 3, flexShrink: 1 },
+
   onCardChip: {
     paddingHorizontal: 4,
     paddingVertical: 1,

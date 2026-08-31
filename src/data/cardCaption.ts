@@ -11,7 +11,7 @@
 import type { CatalogCard } from '@/lib/catalog';
 import { formatUsd } from '@/lib/prices';
 import { rarityCode } from '@/data/rarityCode';
-import { seriesCode, setDisplayName } from '@/data/seriesCode';
+import { seriesCode, setShortCode } from '@/data/seriesCode';
 
 /** A metadata field that can be shown as a caption under a card. */
 export type CaptionFieldKey =
@@ -119,28 +119,28 @@ export const CAPTION_FIELDS: {
     render: 'chip',
     chipOnly: true,
   },
-  // The set's NAME, not its code: "Vivid Voltage" is what people call it, while "SWSH04" is a
-  // catalogue key nobody says out loud. The series prefix the catalogue bakes into that name is
-  // stripped, since the series chip already says SWSH.
+  // THE CODE, not the name. "Vivid Voltage" is the friendlier form and it was tried in both places
+  // it could go: down among the fixed-width codes it squeezed to an empty pill, and up on the
+  // artist's row it crowded the illustrator, who is the other long one and the one people asked
+  // to keep. No abbreviation of a set NAME is both short enough for this row and still
+  // recognisable — "VV" is not Vivid Voltage to anyone — so the canonical code wins.
   //
-  // It shares the ARTIST's row, not the code row, because it is the only label whose width nobody
-  // controls — set names run to fifty characters. Down among the fixed-width codes it was the one
-  // thing that could not fit, and it squeezed until it was an empty pill. Up here it has most of
-  // the card to run along, and an illustrator's name for company, which is the other long one.
+  // Its series prefix comes off, because the chip immediately to its left already says SWSH: the
+  // pair reads as SWSH · 04, which is shorter than either form and loses nothing.
   {
     key: 'set',
     label: 'Set',
-    get: (c) => setDisplayName(c.setName),
-    spot: 'artistRow',
+    get: (c) => setShortCode(c.setCode, seriesCode(c.seriesId)),
+    spot: 'bottomRow',
     render: 'chip',
     chipOnly: true,
   },
   // Artist names run long, so this gets its own row and the card's full width to run along.
   { key: 'artist', label: 'Artist', get: (c) => c.illustrator, spot: 'artistRow', render: 'text', chipOnly: true },
   { key: 'rarityCode', label: 'Rarity code', get: (c) => rarityCode(c.rarity) },
-  // The numerator only: "001/198" is seven characters of which four say how big the set is, which
-  // is not what anyone is reading a collector number for. The full form stays one tap away in the
-  // card panel.
+  // The numerator only. "001/198" is seven characters of which four say how big the set is, and
+  // tried on a real pocket the set size was what stopped the row fitting. The full form is one tap
+  // away in the card panel.
   {
     key: 'number',
     label: 'Number',

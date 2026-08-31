@@ -58,16 +58,27 @@ export function seriesCode(name: string | undefined | null): string {
 }
 
 /**
- * The set's own name, without the series prefix the catalogue bakes into it: sets are stored as
- * "SWSH04: Vivid Voltage", and beside a series chip already reading SWSH that prefix is saying the
- * same thing twice in the scarcest space on the card. Sets with no prefix ("Champion's Path") are
- * returned untouched.
+ * The set's code with the series prefix taken off, for the chip that sits immediately right of the
+ * series chip: "SWSH04" next to a chip already reading SWSH is saying it twice, and the pair reads
+ * perfectly well as SWSH · 04. Codes that carry no series prefix ("BS", "PAF") are left alone.
  *
- * Only a prefix that looks like a SET CODE is removed — letters and digits, no spaces — so a name
- * whose colon is part of the title ("Shining Fates: Shiny Vault") keeps both halves.
+ * This is the short form the bottom row needs. The set's NAME — "Vivid Voltage" — is the friendly
+ * form, but no abbreviation of it is both short enough for this row and still recognisable, and
+ * the row has an illustrator's name to make space for.
+ *
+ * Separators go too, so "SWSH11: TG" becomes "11TG" rather than a code with a colon adrift in it.
  */
-export function setDisplayName(name: string | undefined | null): string {
-  const trimmed = (name ?? '').trim();
-  const match = /^[A-Za-z0-9]+:\s*(.+)$/.exec(trimmed);
-  return match ? match[1].trim() : trimmed;
+export function setShortCode(code: string | undefined | null, series: string): string {
+  const trimmed = (code ?? '').trim();
+  if (!trimmed) return '';
+  const compact = (v: string) => v.replace(/[\s:]+/g, '');
+  const upper = trimmed.toUpperCase();
+  const prefix = series.toUpperCase();
+  if (prefix && upper.startsWith(prefix)) {
+    const rest = compact(trimmed.slice(prefix.length));
+    // A code that IS the series code (some series have a single eponymous set) keeps its own name
+    // rather than shortening to nothing.
+    if (rest) return rest.toUpperCase();
+  }
+  return compact(trimmed).toUpperCase();
 }

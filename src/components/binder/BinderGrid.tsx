@@ -1065,34 +1065,41 @@ function CardLabels({
   const bottom = spotFields('bottomRow')
     .map((f) => ({ key: f.key, value: valueOf(f.key) }))
     .filter((x) => x.value.length > 0);
-  const artist = spotFields('artistRow')
-    .map((f) => valueOf(f.key))
-    .filter((v) => v.length > 0)
-    .join(' · ');
+  const artist = valueOf('artist');
+  const setName = valueOf('set');
   const corner = spotFields('bottomRight')
     .map((f) => ({ value: valueOf(f.key), tone: f.tone }))
     .filter((x) => x.value.length > 0);
 
-  if (bottom.length === 0 && !artist && corner.length === 0) return null;
+  if (bottom.length === 0 && !artist && !setName && corner.length === 0) return null;
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      {artist ? (
+      {artist || setName ? (
         <View
           style={[
             styles.artistRow,
             // Sits on the bottom edge itself when there are no codes under it to clear, rather
             // than hovering over a gap where a row that was never switched on would have been.
-            bottom.length === 0 && styles.artistRowAlone,
+            bottom.length === 0 && corner.length === 0 && styles.artistRowAlone,
           ]}>
-          {/* On its own pill rather than bare text with a shadow: a scrim is the only thing that
-              stays readable over art that might be white, black or gold. Self-sized, so it covers
-              the name and no more of the card than that. */}
-          <View style={[styles.onCardChip, styles.artistChip]}>
-            <Text numberOfLines={1} style={styles.badgeText}>
-              {artist}
-            </Text>
-          </View>
+          {/* Each on its own pill rather than bare text with a shadow: a scrim is the only thing
+              that stays readable over art that might be white, black or gold. Both shrink, because
+              both are names and neither has a width anyone controls. */}
+          {artist ? (
+            <View style={[styles.onCardChip, styles.wordyChip]}>
+              <Text numberOfLines={1} style={styles.badgeText}>
+                {artist}
+              </Text>
+            </View>
+          ) : null}
+          {setName ? (
+            <View style={[styles.onCardChip, styles.wordyChip]}>
+              <Text numberOfLines={1} style={styles.badgeText}>
+                {setName}
+              </Text>
+            </View>
+          ) : null}
         </View>
       ) : null}
       {/* ONE ROW, TWO ENDS. Centring the codes and pinning the price to the corner put both on the
@@ -1104,18 +1111,20 @@ function CardLabels({
       {bottom.length > 0 || corner.length > 0 ? (
         <View style={styles.bottomRow}>
           <View style={styles.bottomCodes}>
-            {kind && bottom.length > 0 ? (
+            {/* kindLabel, not kind: `kind` is 'normal' on most cards, and a truthy value with no
+                label to show renders as an empty pill sitting on the art. */}
+            {kindLabel(kind) && bottom.length > 0 ? (
               <View style={styles.onCardChip}>
                 <Text numberOfLines={1} style={styles.badgeText}>
                   {kindLabel(kind)}
                 </Text>
               </View>
             ) : null}
+            {/* Everything left on this row is fixed-width and short — a four-letter series code, a
+                three-digit number — so nothing here needs to shrink. The one label whose length
+                nobody controls moved up to the artist's row, which has the width for it. */}
             {bottom.map((b) => (
-              // The set name is the only variable-length one — "Vivid Voltage" against a fixed
-              // SWSH and a three-digit number — so it is the one allowed to shrink and ellipsise.
-              // Letting them all shrink equally would clip a four-character series code to two.
-              <View key={b.key} style={[styles.onCardChip, b.key === 'set' && styles.onCardChipFlex]}>
+              <View key={b.key} style={styles.onCardChip}>
                 <Text numberOfLines={1} style={styles.badgeText}>
                   {b.value}
                 </Text>
@@ -1612,13 +1621,16 @@ const styles = StyleSheet.create({
     // Clears the row below it: chip height (~16) plus a little air.
     bottom: 24,
     flexDirection: 'row',
-    // The pill hugs the name instead of stretching the width of the card.
-    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+    // Illustrator at one end, set at the other — the two ends stay apart on their own.
+    justifyContent: 'space-between',
+    gap: 3,
   },
   artistRowAlone: { bottom: 4 },
-  // A long illustrator name should read as a name that ran out of room, not as a bar across the
-  // card. Ellipsised by numberOfLines once it hits this.
-  artistChip: { maxWidth: '80%' },
+  // The two long ones. They share a row and give way together, but never below a width that could
+  // still show a couple of characters — a pill squeezed to nothing is the empty black panel this
+  // replaced, which reads as a rendering fault rather than as a name that ran out of room.
+  wordyChip: { flexShrink: 1, minWidth: 30, maxWidth: '62%' },
   bottomRow: {
     position: 'absolute',
     left: 4,
@@ -1631,8 +1643,7 @@ const styles = StyleSheet.create({
   },
   // The codes shrink before the price does: if something has to give on a very narrow pocket, it
   // should be the half that is reference material, not the half people came to look at.
-  bottomCodes: { flexDirection: 'row', gap: 3, flexShrink: 1, minWidth: 0 },
-  onCardChipFlex: { flexShrink: 1, minWidth: 0 },
+  bottomCodes: { flexDirection: 'row', gap: 3, flexShrink: 1 },
   onCardChip: {
     paddingHorizontal: 4,
     paddingVertical: 1,

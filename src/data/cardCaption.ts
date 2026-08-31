@@ -121,13 +121,17 @@ export const CAPTION_FIELDS: {
   },
   // The set's NAME, not its code: "Vivid Voltage" is what people call it, while "SWSH04" is a
   // catalogue key nobody says out loud. The series prefix the catalogue bakes into that name is
-  // stripped, since the chip immediately to its left already says SWSH. It is also the field that
-  // gives way when a pocket runs out of room — see bottomCodes in BinderGrid.
+  // stripped, since the series chip already says SWSH.
+  //
+  // It shares the ARTIST's row, not the code row, because it is the only label whose width nobody
+  // controls — set names run to fifty characters. Down among the fixed-width codes it was the one
+  // thing that could not fit, and it squeezed until it was an empty pill. Up here it has most of
+  // the card to run along, and an illustrator's name for company, which is the other long one.
   {
     key: 'set',
     label: 'Set',
     get: (c) => setDisplayName(c.setName),
-    spot: 'bottomRow',
+    spot: 'artistRow',
     render: 'chip',
     chipOnly: true,
   },

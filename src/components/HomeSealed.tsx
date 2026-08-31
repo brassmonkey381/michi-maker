@@ -15,6 +15,7 @@ import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   productUrl,
   sealedLanguageOf,
+  releaseTag,
   useSealed,
   useTaxonomy,
   type CardLanguage,
@@ -174,8 +175,11 @@ function SetHeader({
 }) {
   return (
     <View style={[styles.header, { width }]}>
+      {/* The shared release ladder (kit: releaseTag), so a set reads the same here, in Recent &
+          Upcoming and on the browse tiles. This said UPCOMING or NEW SET and nothing else, so a
+          set shipping on Friday and one from last year were indistinguishable. */}
       <Text style={[styles.headerKicker, upcoming && styles.headerKickerUpcoming]}>
-        {upcoming ? 'UPCOMING' : 'NEW SET'}
+        {releaseTag(date)?.label ?? 'NEW SET'}
       </Text>
       <Text style={styles.headerName} numberOfLines={4}>
         {set.name}

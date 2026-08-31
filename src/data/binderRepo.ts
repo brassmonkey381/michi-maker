@@ -410,19 +410,79 @@ export async function replaceBinder(binder: DemoBinder): Promise<void> {
   const { error: bErr } = await supabase.from('binders').upsert(binderRow(binder), { onConflict: 'id' });
   if (bErr) throw new Error(`replace binder: ${bErr.message}`);
 
-  const { error: delErr } = await supabase.from('binder_pages').delete().eq('binder_id', binder.id);
-  if (delErr) throw new Error(`replace pages (delete): ${delErr.message}`);
+  // WRITE FIRST, DESTROY LAST. This used to delete every page (cascading its slots) and then
+  // insert the replacements, with no transaction between the two — so ANY rejected row cost the
+  // user their binder. On 2026-08-29 that stopped being hypothetical: source_entry_id shipped as
+  // uuid while entry ids are `lot-…` strings, every slot batch carrying a stamp was rejected with
+  // 22P02, and the delete had already run. One account lost a binder's entire contents; the pages
+  // survived, empty, because they had been re-inserted before the slots failed.
+  //
+  // PostgREST has no transaction to reach for, so the order does the work instead: park, upsert,
+  // and only then prune. Nothing is deleted until the new state is already in the table, which
+  // makes a rejected write a failed save rather than a data loss.
+  const { data: existing, error: exErr } = await supabase
+    .from('binder_pages')
+    .select('id, position')
+    .eq('binder_id', binder.id);
+  if (exErr) throw new Error(`replace pages (read): ${exErr.message}`);
+  const existingPages = (existing ?? []) as { id: string; position: number }[];
 
-  if (binder.pages.length > 0) {
-    const pages = binder.pages.map((page, index) => pageRow(page, binder.id, index));
-    const { error: pErr } = await supabase.from('binder_pages').insert(pages);
-    if (pErr) throw new Error(`replace pages (insert): ${pErr.message}`);
+  // PARK. unique(binder_id, position) is enforced per row, so writing the new positions while the
+  // old rows still hold them collides — the reason the old code deleted first. Parking at negative
+  // positions is an UPDATE: it moves rows out of the way and destroys nothing, the same trick
+  // reorderPages uses.
+  if (existingPages.length > 0) {
+    const parked = await Promise.all(
+      existingPages.map((p, i) =>
+        supabase.from('binder_pages').update({ position: -(i + 1) }).eq('id', p.id),
+      ),
+    );
+    const parkErr = parked.find((r) => r.error);
+    if (parkErr?.error) throw new Error(`replace pages (park): ${parkErr.error.message}`);
+  }
 
-    const slots = binder.pages.flatMap((page) => page.slots.map((slot) => slotRow(slot, page.id)));
-    if (slots.length > 0) {
-      const { error: sErr } = await supabase.from('binder_slots').insert(slots);
-      if (sErr) throw new Error(`replace slots: ${sErr.message}`);
+  try {
+    if (binder.pages.length > 0) {
+      // Upsert, not insert: page and slot ids are stable in the store, so a page that is merely
+      // moving position is UPDATED in place rather than deleted and recreated.
+      const pages = binder.pages.map((page, index) => pageRow(page, binder.id, index));
+      const { error: pErr } = await supabase
+        .from('binder_pages')
+        .upsert(pages, { onConflict: 'id' });
+      if (pErr) throw new Error(`replace pages (upsert): ${pErr.message}`);
+
+      const slots = binder.pages.flatMap((page) => page.slots.map((slot) => slotRow(slot, page.id)));
+      if (slots.length > 0) {
+        const { error: sErr } = await supabase
+          .from('binder_slots')
+          .upsert(slots, { onConflict: 'id' });
+        if (sErr) throw new Error(`replace slots: ${sErr.message}`);
+      }
     }
+  } catch (e) {
+    // Everything is still here — put the pages back where they were and let the caller hear it.
+    // A failed save that leaves the binder exactly as it was is the whole point of this ordering.
+    await Promise.all(
+      existingPages.map((p) =>
+        supabase.from('binder_pages').update({ position: p.position }).eq('id', p.id),
+      ),
+    );
+    throw e;
+  }
+
+  // PRUNE, only now that the replacement is committed: pages that left the binder (their slots go
+  // by cascade), then slots that left a page that stayed.
+  const kept = new Set(binder.pages.map((p) => p.id));
+  const goneIds = existingPages.filter((p) => !kept.has(p.id)).map((p) => p.id);
+  if (goneIds.length > 0) {
+    const { error } = await supabase.from('binder_pages').delete().in('id', goneIds);
+    if (error) throw new Error(`replace pages (prune): ${error.message}`);
+  }
+  for (const page of binder.pages) {
+    const ids = page.slots.map((slot) => slot.id);
+    const query = supabase.from('binder_slots').delete().eq('page_id', page.id);
+    const { error } = ids.length > 0 ? await query.not('id', 'in', `(${ids.join(',')})`) : await query;
+    if (error) throw new Error(`replace slots (prune): ${error.message}`);
   }
 }
 

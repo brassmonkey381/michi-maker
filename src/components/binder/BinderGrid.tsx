@@ -368,7 +368,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               <View
                 key={`pv-${slot.id}`}
                 pointerEvents="box-none"
-                style={[styles.variantRow, { left: b.left, top: b.top + 4, width: b.width - 4 }]}>
+                style={[styles.variantRow, { left: b.left, top: b.top + 2, width: b.width - 2 }]}>
                 <Pressable
                   onPress={onVariantPress ? () => onVariantPress(slot) : undefined}
                   disabled={!onVariantPress}
@@ -1079,12 +1079,14 @@ function CardLabels({
    * switched on would have been — turning a label off would move a different label. Bottom-up
    * because the bottom edge is the anchor: the codes stay put however many rows sit above them.
    */
-  const ROW_STEP = 20;
+  // A chip is one 9px line plus a pixel of padding each side, so a 15px step leaves the two
+  // pixels of air that separate the rows without wasting any on top of that.
+  const ROW_STEP = 15;
   const stack: string[] = [];
   if (bottom.length > 0 || corner.length > 0) stack.push('codes');
   if (setName) stack.push('set');
   if (artist) stack.push('artist');
-  const bottomOf = (row: string) => 4 + stack.indexOf(row) * ROW_STEP;
+  const bottomOf = (row: string) => 2 + stack.indexOf(row) * ROW_STEP;
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
@@ -1140,11 +1142,16 @@ function CardLabels({
               </View>
             ))}
           </View>
+          {/* The price is FILLED, not tinted. It is the one label people are looking for, and at
+              this size a coloured word on a dark pill is just a slightly different grey — the
+              chip has to carry the colour for it to read as the thing worth finding. */}
           {corner.map((c) => (
-            <View key={c.value} style={styles.onCardChip}>
+            <View
+              key={c.value}
+              style={[styles.onCardChip, c.tone === 'accent' && styles.onCardAccentChip]}>
               <Text
                 numberOfLines={1}
-                style={[styles.badgeText, c.tone === 'accent' && styles.onCardAccent]}>
+                style={[styles.badgeText, c.tone === 'accent' && styles.onCardAccentText]}>
                 {c.value}
               </Text>
             </View>
@@ -1597,8 +1604,8 @@ const styles = StyleSheet.create({
     zIndex: 20,
   },
   variantChip: {
-    paddingHorizontal: 5,
-    paddingVertical: 2,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
     // Radius.tag is 3 in every theme; Radius.sm jumps to 6 in one of them, which reads as a
     // different component rather than the same chip.
     borderRadius: Radius.tag,
@@ -1610,14 +1617,15 @@ const styles = StyleSheet.create({
   variantChipText: {
     fontSize: FontSize.micro,
     fontWeight: Weight.bold,
-    letterSpacing: 0.5,
+    lineHeight: 11,
+    letterSpacing: 0.2,
   },
   badge: {
     position: 'absolute',
-    bottom: 4,
-    left: 4,
-    paddingHorizontal: 5,
-    paddingVertical: 2,
+    bottom: 2,
+    left: 2,
+    paddingHorizontal: 3,
+    paddingVertical: 1,
     borderRadius: Radius.sm,
     backgroundColor: Palette.scrim62,
   },
@@ -1627,8 +1635,8 @@ const styles = StyleSheet.create({
   // rows are actually showing — see the stack there.
   overlayRow: {
     position: 'absolute',
-    left: 4,
-    right: 4,
+    left: 2,
+    right: 2,
     flexDirection: 'row',
     alignItems: 'flex-end',
   },
@@ -1638,43 +1646,50 @@ const styles = StyleSheet.create({
   wordyChip: { flexShrink: 1, minWidth: 30 },
   bottomRow: {
     position: 'absolute',
-    left: 4,
-    right: 4,
+    left: 2,
+    right: 2,
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    gap: 3,
+    gap: 2,
   },
   // The codes shrink before the price does: if something has to give on a very narrow pocket, it
   // should be the half that is reference material, not the half people came to look at.
-  bottomCodes: { flexDirection: 'row', gap: 3, flexShrink: 1 },
+  bottomCodes: { flexDirection: 'row', gap: 2, flexShrink: 1 },
 
   onCardChip: {
-    paddingHorizontal: 4,
+    paddingHorizontal: 3,
     paddingVertical: 1,
     borderRadius: Radius.tag,
     backgroundColor: Palette.scrim62,
   },
-  onCardAccent: { color: Palette.accent },
+  onCardAccentChip: { backgroundColor: Palette.accent },
+  onCardAccentText: { color: Palette.accentText },
   badgeText: {
     color: Palette.white,
     fontSize: FontSize.micro,
     fontWeight: Weight.bold,
-    letterSpacing: 0.5,
+    // Without an explicit line height the platform default leaves a couple of pixels of air above
+    // and below every label, which at this size is most of a row's worth across a stack of three.
+    lineHeight: 11,
+    // Tracking that helps five-point caps on a poster only pads a word out here.
+    letterSpacing: 0.2,
   },
   // Owned marker — the same green as the browse grid's owned check (#2e9e5b).
+  // Sized to sit level with the finish chip opposite it, and inset to match the label rows below.
+  // At 20px it was the loudest thing on a small pocket, for a mark that only says yes.
   ownedBadge: {
     position: 'absolute',
-    top: 5,
-    left: 5,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    top: 2,
+    left: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: '#2e9e5b',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ownedBadgeSmall: { top: 3, left: 3, width: 14, height: 14, borderRadius: 7 },
-  ownedBadgeText: { color: Palette.white, fontSize: 12, fontWeight: Weight.bold, lineHeight: 14 },
-  ownedBadgeTextSmall: { fontSize: 9, lineHeight: 11 },
+  ownedBadgeSmall: { top: 2, left: 2, width: 13, height: 13, borderRadius: 6.5 },
+  ownedBadgeText: { color: Palette.white, fontSize: 10, fontWeight: Weight.bold, lineHeight: 12 },
+  ownedBadgeTextSmall: { fontSize: 8, lineHeight: 10 },
 });

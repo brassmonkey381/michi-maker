@@ -21,11 +21,11 @@ const TABS: { id: TabId; label: string }[] = [
 
 /** One-line description of what each caption field shows. */
 const FIELD_HELP: Record<CaptionFieldKey, string> = {
-  series: 'Series code, as a chip along the bottom of the card',
-  set: 'Set code (e.g. PAF) — a chip beside the series',
+  series: 'Series, shortened (SWSH, SV, SM) — a chip along the bottom of the card',
+  set: 'Set name (e.g. Vivid Voltage) — a chip beside the series',
   artist: 'Illustrator, on the card just above the set codes',
   rarityCode: 'Short rarity code, under the card (see the Rarity codes tab)',
-  number: 'Collector number, as a chip beside the set code',
+  number: 'Collector number without the set size — 001, not 001/198',
   stage: 'Evolution stage (Basic, Stage 1, …), under the card',
   released: 'Full release date (e.g. Mar 15, 2022), under the card',
   price: 'Latest market value for the finish you own — bottom-right of the card',

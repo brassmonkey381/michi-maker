@@ -11,6 +11,7 @@
 import type { CatalogCard } from '@/lib/catalog';
 import { formatUsd } from '@/lib/prices';
 import { rarityCode } from '@/data/rarityCode';
+import { seriesCode, setDisplayName } from '@/data/seriesCode';
 
 /** A metadata field that can be shown as a caption under a card. */
 export type CaptionFieldKey =
@@ -107,14 +108,43 @@ export const CAPTION_FIELDS: {
    */
   chipOnly?: boolean;
 }[] = [
-  // The printing's identity, as three short codes read left to right along the bottom edge.
-  { key: 'series', label: 'Series', get: (c) => c.seriesId.toUpperCase(), spot: 'bottomRow', render: 'chip', chipOnly: true },
-  // setCode, not setName: "PAF" fits on a pocket, "Scarlet & Violet—Paldean Fates" does not.
-  { key: 'set', label: 'Set', get: (c) => c.setCode.toUpperCase(), spot: 'bottomRow', render: 'chip', chipOnly: true },
+  // `seriesId` is the full title ("Sword & Shield"), which is wider than the whole bottom edge and
+  // was being clipped to "D & SHIELD". Shortened to the form collectors use — SWSH, SV, SM — by
+  // a lookup, because no rule produces both SWSH and SV from the same "X & Y" shape.
+  {
+    key: 'series',
+    label: 'Series',
+    get: (c) => seriesCode(c.seriesId),
+    spot: 'bottomRow',
+    render: 'chip',
+    chipOnly: true,
+  },
+  // The set's NAME, not its code: "Vivid Voltage" is what people call it, while "SWSH04" is a
+  // catalogue key nobody says out loud. The series prefix the catalogue bakes into that name is
+  // stripped, since the chip immediately to its left already says SWSH. It is also the field that
+  // gives way when a pocket runs out of room — see bottomCodes in BinderGrid.
+  {
+    key: 'set',
+    label: 'Set',
+    get: (c) => setDisplayName(c.setName),
+    spot: 'bottomRow',
+    render: 'chip',
+    chipOnly: true,
+  },
   // Artist names run long, so this gets its own row and the card's full width to run along.
   { key: 'artist', label: 'Artist', get: (c) => c.illustrator, spot: 'artistRow', render: 'text', chipOnly: true },
   { key: 'rarityCode', label: 'Rarity code', get: (c) => rarityCode(c.rarity) },
-  { key: 'number', label: 'Number', get: (c) => c.number, spot: 'bottomRow', render: 'chip', chipOnly: true },
+  // The numerator only: "001/198" is seven characters of which four say how big the set is, which
+  // is not what anyone is reading a collector number for. The full form stays one tap away in the
+  // card panel.
+  {
+    key: 'number',
+    label: 'Number',
+    get: (c) => c.number.split('/')[0],
+    spot: 'bottomRow',
+    render: 'chip',
+    chipOnly: true,
+  },
   { key: 'stage', label: 'Stage', get: (c) => c.stage },
   { key: 'released', label: 'Released', get: (c) => formatFullDate(c.releaseDate) },
   // The one number worth its own corner, and the only field given a colour: it is what people

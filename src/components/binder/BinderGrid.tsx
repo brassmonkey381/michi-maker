@@ -886,11 +886,24 @@ function ArtGapPlaceholder({ radius, small }: { radius: number; small: boolean }
 }
 
 /** A small corner badge marking a card's real-world size class (jumbo / V-UNION). */
-function KindBadge({ kind, small }: { kind?: DemoCard['kind']; small: boolean }) {
-  if (small || (kind !== 'jumbo' && kind !== 'vunion')) return null;
+/** '' for an ordinary card — the two shapes worth calling out are the ones that do not fit a
+ *  normal pocket. */
+function kindLabel(kind?: DemoCard['kind']): string {
+  if (kind === 'jumbo') return 'JUMBO';
+  if (kind === 'vunion') return 'V-UNION';
+  return '';
+}
+
+/**
+ * The shape marker on its own, bottom-left, for when no card labels are switched on. With labels
+ * on it is drawn INSIDE the code row instead (see CardLabels) — otherwise it and the codes would
+ * both claim the bottom-left and overlap on any card that has one.
+ */
+function KindBadge({ kind, small, hidden }: { kind?: DemoCard['kind']; small: boolean; hidden?: boolean }) {
+  if (small || hidden || !kindLabel(kind)) return null;
   return (
     <View pointerEvents="none" style={styles.badge}>
-      <Text style={styles.badgeText}>{kind === 'jumbo' ? 'JUMBO' : 'V-UNION'}</Text>
+      <Text style={styles.badgeText}>{kindLabel(kind)}</Text>
     </View>
   );
 }
@@ -969,6 +982,9 @@ function SlotContent({
   // The image comes from the id directly (no catalog needed). The catalog, when already loaded,
   // only enriches the size badge — so covers paint immediately even before it's available.
   const kind = resolveCardWith(catalog, id)?.kind;
+  // Whether the on-card code row will be drawn, and so whether it — rather than the standalone
+  // badge bottom-left — is the thing that shows JUMBO / V-UNION.
+  const codeRowOn = captionFields.includes('set') || captionFields.includes('number');
 
   if (slot.type === 'artwork') {
     // Full-bleed hero art. A spanning slot (>1 cell) covers its box edge-to-edge so a
@@ -993,10 +1009,11 @@ function SlotContent({
           <View style={[styles.foilBar, styles.foilBarA]} />
           <View style={[styles.foilBar, styles.foilBarB]} />
         </View>
-        <KindBadge kind={kind} small={small} />
+        <KindBadge kind={kind} small={small} hidden={codeRowOn} />
         <OwnedBadge owned={owned} small={small} />
         <CardLabels
           card={resolveCatalogCardWith(catalog, id)}
+          kind={kind}
           fields={captionFields}
           price={price}
           small={small}
@@ -1021,11 +1038,14 @@ function SlotContent({
  */
 function CardLabels({
   card,
+  kind,
   fields,
   price,
   small,
 }: {
   card: CatalogCard | undefined;
+  /** Drawn as the row's leading chip so it is not a second thing claiming the bottom-left. */
+  kind?: DemoCard['kind'];
   fields: CaptionFieldKey[];
   price?: number;
   small: boolean;
@@ -1068,43 +1088,51 @@ function CardLabels({
           {/* On its own pill rather than bare text with a shadow: a scrim is the only thing that
               stays readable over art that might be white, black or gold. Self-sized, so it covers
               the name and no more of the card than that. */}
-          <View style={styles.onCardChip}>
+          <View style={[styles.onCardChip, styles.artistChip]}>
             <Text numberOfLines={1} style={styles.badgeText}>
               {artist}
             </Text>
           </View>
         </View>
       ) : null}
-      {bottom.length > 0 ? (
-        <View
-          style={[
-            styles.bottomRow,
-            // Reserve the corner's width on BOTH sides when a price is showing. Padding only on
-            // the right would keep them apart but shove the codes off-centre; padding both keeps
-            // them centred on the card and clear of the price, which is what was asked for.
-            corner.length > 0 && styles.bottomRowWithCorner,
-          ]}>
-          {bottom.map((b) => (
-            <View key={b.key} style={styles.onCardChip}>
-              <Text numberOfLines={1} style={styles.badgeText}>
-                {b.value}
+      {/* ONE ROW, TWO ENDS. Centring the codes and pinning the price to the corner put both on the
+          same line with nothing arbitrating between them, and on a real pocket they overlapped —
+          a Sword & Shield card needs about 217px of labels in about 120px of card. Codes left,
+          price right, laid out rather than absolutely placed, so flexbox keeps them apart instead
+          of arithmetic hoping they will be. The kind badge joins the codes as a leading chip when
+          the row is up, so it is not a third thing quietly occupying the same corner. */}
+      {bottom.length > 0 || corner.length > 0 ? (
+        <View style={styles.bottomRow}>
+          <View style={styles.bottomCodes}>
+            {kind && bottom.length > 0 ? (
+              <View style={styles.onCardChip}>
+                <Text numberOfLines={1} style={styles.badgeText}>
+                  {kindLabel(kind)}
+                </Text>
+              </View>
+            ) : null}
+            {bottom.map((b) => (
+              // The set name is the only variable-length one — "Vivid Voltage" against a fixed
+              // SWSH and a three-digit number — so it is the one allowed to shrink and ellipsise.
+              // Letting them all shrink equally would clip a four-character series code to two.
+              <View key={b.key} style={[styles.onCardChip, b.key === 'set' && styles.onCardChipFlex]}>
+                <Text numberOfLines={1} style={styles.badgeText}>
+                  {b.value}
+                </Text>
+              </View>
+            ))}
+          </View>
+          {corner.map((c) => (
+            <View key={c.value} style={styles.onCardChip}>
+              <Text
+                numberOfLines={1}
+                style={[styles.badgeText, c.tone === 'accent' && styles.onCardAccent]}>
+                {c.value}
               </Text>
             </View>
           ))}
         </View>
       ) : null}
-      {/* Absolutely placed rather than laid out in the row above, so a long price cannot shove the
-          centred codes off their centre. They can meet on a very narrow pocket; the codes are the
-          ones that give way, because the price is the thing being looked for. */}
-      {corner.map((c) => (
-        <View key={c.value} style={[styles.onCardCorner, styles.onCardChip]}>
-          <Text
-            numberOfLines={1}
-            style={[styles.badgeText, c.tone === 'accent' && styles.onCardAccent]}>
-            {c.value}
-          </Text>
-        </View>
-      ))}
     </View>
   );
 }
@@ -1588,25 +1616,29 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   artistRowAlone: { bottom: 4 },
+  // A long illustrator name should read as a name that ran out of room, not as a bar across the
+  // card. Ellipsised by numberOfLines once it hits this.
+  artistChip: { maxWidth: '80%' },
   bottomRow: {
     position: 'absolute',
     left: 4,
     right: 4,
     bottom: 4,
     flexDirection: 'row',
-    justifyContent: 'center',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
     gap: 3,
   },
-  // Roughly the width of a price like "$1,234" at this type size. An estimate is the right tool
-  // here: measuring would cost a layout pass per pocket per render for a few pixels of accuracy.
-  bottomRowWithCorner: { paddingHorizontal: 44 },
+  // The codes shrink before the price does: if something has to give on a very narrow pocket, it
+  // should be the half that is reference material, not the half people came to look at.
+  bottomCodes: { flexDirection: 'row', gap: 3, flexShrink: 1, minWidth: 0 },
+  onCardChipFlex: { flexShrink: 1, minWidth: 0 },
   onCardChip: {
     paddingHorizontal: 4,
     paddingVertical: 1,
     borderRadius: Radius.tag,
     backgroundColor: Palette.scrim62,
   },
-  onCardCorner: { position: 'absolute', right: 4, bottom: 4 },
   onCardAccent: { color: Palette.accent },
   badgeText: {
     color: Palette.white,

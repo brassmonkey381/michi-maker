@@ -34,7 +34,7 @@
     "react-native-web": "~0.21.0",
     "react-native-worklets": "0.8.3",
     "sharp": "^0.34.5",
-    "tcgscan-browse": "github:brassmonkey381/tcgscan-browse#4f3c935f89eb9ee02dbe413e1696562e4afb3e04",
+    "tcgscan-browse": "github:brassmonkey381/tcgscan-browse#5f47c6f704de7fb9ac6ea893359ad72b589b2004",
     "tcgscan-theme": "github:brassmonkey381/tcgscan-theme#35c23bee3e36842a8734727aa5b547b02b1548dc"
   },
   "devDependencies": {

@@ -297,7 +297,10 @@ export function BinderPages({
     if (editable) store.updateBinder(binder.id, { cover });
   };
   /** The cover swinging open or closed. Separate from pageTurn: no page is changing. */
-  const [coverTurn, setCoverTurn] = useState<null | { end: 'front' | 'back'; closing: boolean }>(null);
+  // 'tail' here is the LAST SHEET turning over, not a cover: page on its front, blank on its
+  // back. It rides the cover hinge because the tail is not a page index, so the index-driven page
+  // turn can never fire for it.
+  const [coverTurn, setCoverTurn] = useState<null | { end: 'front' | 'back' | 'tail'; closing: boolean }>(null);
   const coverT = useSharedValue(0);
   /** The page the last turn was built for. State, not a ref: this is read DURING render. */
   const [turnedAt, setTurnedAt] = useState(idx);
@@ -630,9 +633,9 @@ export function BinderPages({
               : tailPage,
         // Front runs 0 to -180 (right to left); back runs the reverse. Opening at the front and
         // closing at the back both travel leftward; the other two travel back.
-        forward: coverTurn ? (coverTurn.closing ? coverEnd === 'back' : coverEnd === 'front') : true,
-        outside: (coverEnd === 'front' ? 'front' : 'back') as CoverSurfaceId,
-        inside: (coverEnd === 'front' ? 'frontInside' : 'backInside') as CoverSurfaceId,
+        // Everything that closes travels leftward except the front cover, which lies on the right
+        // and closes rightward; opening is each one's reverse.
+        forward: coverTurn ? (coverTurn.closing ? coverEnd !== 'front' : coverEnd === 'front') : true,
       }
     : null;
 
@@ -711,9 +714,12 @@ export function BinderPages({
         setPending(null);
       };
       if (shut === 'tail') {
-        // Back into the book, or on to shut. Closing from the tail lands the cover on a blank.
-        if (dir === -1) changeShut(null);
-        else {
+        // Back into the book (the last sheet turns back), or on to shut (the cover lands on the
+        // blank back of that sheet).
+        if (dir === -1) {
+          changeShut(null);
+          setCoverTurn({ end: 'tail', closing: false });
+        } else {
           changeShut('back');
           setCoverTurn({ end: 'back', closing: true });
         }
@@ -747,8 +753,10 @@ export function BinderPages({
         if (canShut) {
           // An odd count turns its last sheet first, revealing the tail; an even one is already
           // looking at the inside back and shuts straight away.
-          if (count % 2 === 1) changeShut('tail');
-          else {
+          if (count % 2 === 1) {
+            changeShut('tail');
+            setCoverTurn({ end: 'tail', closing: true });
+          } else {
             changeShut('back');
             setCoverTurn({ end: 'back', closing: true });
           }
@@ -926,52 +934,46 @@ export function BinderPages({
             This binder doesn’t have any pages yet.
           </ThemedText>
         ) : coverStage ? (
-          // SHUT, OR ON THE WAY. Two columns the size of the spread it came from, so the binder
-          // does not jump as it closes; the cover lands in one of them and the other is the table.
+          // SHUT, ON THE WAY, OR THE TAIL. Two columns the size of the spread they came from, so
+          // the binder does not jump. Each end says what lies in each column and what the sheet
+          // carries on its two faces; the leaf itself is the same hinge for all of them.
           (() => {
             const pageH = pageHeightAt(bookW, page.rows, page.cols, captionsOn);
             const coverH = bookW / coverAspect(coverModel);
             const boxH = Math.max(pageH, coverH);
             const settled = !coverTurn;
-            const onRight = coverStage.end === 'front';
-            // The tail: nothing where the next page would be, and the inside back facing it.
-            const tail = coverStage.end === 'tail';
-            const baseGrid = coverStage.basePage
-              ? renderGrid({
-                  page: coverStage.basePage,
-                  width: bookW,
-                  role: 'partner',
-                  captionFields,
-                  ownedIds,
-                  scanUrlOf,
-                  decorative: true,
-                })
-              : null;
+            const grid = (pg: DemoPage | null) =>
+              pg
+                ? renderGrid({ page: pg, width: bookW, role: 'partner', captionFields, ownedIds, scanUrlOf, decorative: true })
+                : null;
+            let left: ReactNode = null;
+            let right: ReactNode = null;
+            let front: ReactNode = null;
+            let back: ReactNode = null;
+            if (coverStage.end === 'front') {
+              // Shut: the cover lies on the right. Turning: page one under it, table on the left.
+              right = settled ? drawCover('front', true) : grid(coverStage.basePage);
+              front = drawCover('front');
+              back = drawCover('frontInside');
+            } else if (coverStage.end === 'back') {
+              // Shut: the cover lies on the left. Turning: whatever it lands on lies under it.
+              left = settled ? drawCover('back', true) : grid(coverStage.basePage);
+              front = drawCover('backInside');
+              back = drawCover('back');
+            } else {
+              // The tail. Settled: the blank back of the last sheet facing the inside back. Turning:
+              // the last sheet IS the leaf, its page on the front and its blank on the back, over
+              // the page it lands on and the inside back it reveals.
+              left = settled ? grid(tailPage) : grid(binder.pages[count - 2] ?? null);
+              right = drawCover('backInside', true);
+              front = grid(lastPage ?? null);
+              back = grid(tailPage);
+            }
             return (
               <View style={[styles.spreadRow, { gap: bookGap }]}>
+                <View style={{ width: bookW, height: boxH }}>{left}</View>
                 <View style={{ width: bookW, height: boxH }}>
-                  {/* Settled and shut at the back, the back cover lies here. Mid-turn, the left is
-                      the last page (at the back) or bare table (at the front). */}
-                  {settled
-                    ? tail
-                      ? baseGrid
-                      : onRight
-                        ? null
-                        : drawCover(coverStage.outside, true)
-                    : onRight
-                      ? null
-                      : baseGrid}
-                </View>
-                <View style={{ width: bookW, height: boxH }}>
-                  {settled
-                    ? tail
-                      ? drawCover('backInside', true)
-                      : onRight
-                        ? drawCover(coverStage.outside, true)
-                        : null
-                    : onRight
-                      ? baseGrid
-                      : null}
+                  {right}
                   {coverTurn ? (
                     <TurnLeaf
                       t={coverT}
@@ -979,10 +981,8 @@ export function BinderPages({
                       width={bookW}
                       hingeLeft={0}
                       spine={bookGap}
-                      // The cover's two faces: outside where the world sees it, inside facing the
-                      // pages. Which one is "front" depends on which way the sheet is travelling.
-                      front={drawCover(onRight ? coverStage.outside : coverStage.inside)}
-                      back={drawCover(onRight ? coverStage.inside : coverStage.outside)}
+                      front={front}
+                      back={back}
                     />
                   ) : null}
                 </View>

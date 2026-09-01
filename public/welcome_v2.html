@@ -30,6 +30,11 @@
   and the three gallery binders as 2x stills linking to the LIVE binders at
   michi-maker.com/binder/<id>. Re-capture any of them with
   state/cap-welcome-assets.mjs (regions documented inside).
+  v6: the HERO clip is re-captured by state/cap-welcome-hero.mjs, which MEASURES
+  the binder instead of using hand-tuned offsets, so the frame is the binder and
+  nothing else. It writes hero.webm, hero.jpg and hero-frame.json; the aspect
+  ratio and the live-iframe CLIP below both come from that JSON. hero.mp4 is the
+  Safari fallback and needs a real ffmpeg to rebuild: state/cap-welcome-hero.ps1.
   Open locally: images resolve relative to dist/michi-maker/.
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -183,9 +188,11 @@
   /* The LIVE hero: the real /welcome binder in a clipped, scaled iframe
      (same origin). The captured video sits underneath as the fallback and
      first paint; the iframe fades in once the app loads. */
-  .live-hero { position: relative; overflow: hidden; border-radius: 3px; aspect-ratio: 1210 / 780; }
+  /* The frame IS the binder: the aspect comes from the measured binder box, so the clip and the
+     clip alone is what shows. Re-capture with state/cap-welcome-hero.mjs, which writes both. */
+  .live-hero { position: relative; overflow: hidden; border-radius: 3px; aspect-ratio: 1440 / 996; }
   .live-hero .media { position: absolute; inset: 0; }
-  .live-hero .media img, .live-hero .media video { height: 100%; object-fit: cover; }
+  .live-hero .media img, .live-hero .media video { width: 100%; height: 100%; object-fit: cover; }
   .live-hero iframe {
     position: absolute; width: 1920px; height: 1080px; border: 0;
     transform-origin: top left; pointer-events: none;
@@ -302,7 +309,10 @@
         <div class="live-hero" id="liveHero">
           <div class="media media-auto">
             <img src="./welcome_v2-assets/hero.jpg" alt="An open binder spread flipping through real pages">
-            <video src="./welcome_v2-assets/hero.mp4" autoplay muted loop playsinline poster="./welcome_v2-assets/hero.jpg"></video>
+            <video autoplay muted loop playsinline poster="./welcome_v2-assets/hero.jpg">
+              <source src="./welcome_v2-assets/hero.webm" type="video/webm">
+              <source src="./welcome_v2-assets/hero.mp4" type="video/mp4">
+            </video>
           </div>
           <iframe id="heroFrame" src="/welcome" title="My First Binder, flipping live" scrolling="no" tabindex="-1" aria-hidden="true"></iframe>
         </div>
@@ -563,10 +573,10 @@
     const fr = document.getElementById('heroFrame');
     if (!lh || !fr) return;
     if (location.protocol === 'file:') { fr.remove(); return; }
-    // Generous clip: the auto-flip cycle moves the binder (single-page
-    // states, 3D flip overshoot). The copy inside the embedded page is
-    // hidden below, so the margins are pure paper.
-    const CLIP = { x: 570, y: 210, w: 1210, h: 780 };
+    // MEASURED, not guessed. state/cap-welcome-hero.mjs finds the binder by its testID in the
+    // same 1920x1080 page this iframe renders and writes the box it found; these are those
+    // numbers. The old clip was hand-tuned and left paper margins on every side.
+    const CLIP = { x: 710, y: 274, w: 954, h: 661 };
     const fit = () => {
       const s = lh.clientWidth / CLIP.w;
       fr.style.transform = 'scale(' + s + ')';
@@ -575,29 +585,14 @@
     };
     new ResizeObserver(fit).observe(lh);
     fit();
-    // Same-origin: blank the embedded page's hero copy so only the binder
-    // shows in the clip (re-applied periodically across app re-renders).
-    const hideCopy = () => {
-      try {
-        const doc = fr.contentDocument;
-        if (!doc) return;
-        for (const el of doc.querySelectorAll('div, span, h1, h2, h3, p')) {
-          if (el.children.length !== 0) continue;
-          if (!(el.textContent || '').trim()) continue;
-          const r = el.getBoundingClientRect();
-          if (r.width === 0 || r.height === 0) continue;
-          if (r.right > 540 && r.bottom > 190 && r.top < 1070) {
-            el.style.setProperty('visibility', 'hidden', 'important');
-          }
-        }
-      } catch { /* cross-origin or not ready - fallback video stays */ }
-    };
+    // NOTHING LEFT TO HIDE. The clip used to be wide enough to catch the embedded page's own
+    // headline, so a timer walked that page's DOM every 2.5s blanking any text that strayed into
+    // view. Framing on the binder put the copy outside the clip, and walking a page's text nodes
+    // to hide them was always one layout change away from blanking something inside the binder.
     let ok = false;
     fr.addEventListener('load', () => {
       ok = true;
-      hideCopy();
-      setInterval(hideCopy, 2500);
-      setTimeout(() => { hideCopy(); lh.classList.add('live'); }, 1800);
+      setTimeout(() => lh.classList.add('live'), 1800);
     });
     setTimeout(() => { if (!ok) fr.remove(); }, 10000);
   })();

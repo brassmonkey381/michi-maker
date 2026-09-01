@@ -14,8 +14,6 @@ import {
   chipFor,
   effectiveFinish,
   finishIsAskable,
-  glintMask,
-  isFoil,
   isPrintVariant,
   letterFor,
   nextFinish,
@@ -139,54 +137,4 @@ test('an ambiguous card asks; a single-finish card does not', () => {
   assert.equal(finishIsAskable({ Normal: 1, 'Reverse Holofoil': 4 }), true);
   assert.equal(finishIsAskable({ Holofoil: 9 }), false);
   assert.equal(finishIsAskable(undefined), false);
-});
-
-test('only foils catch the light', () => {
-  // A Normal card that shimmered would misrepresent what is in the sleeve, which is the whole
-  // reason the finish had to become settable per pocket first.
-  assert.equal(isFoil('Holofoil'), true);
-  assert.equal(isFoil('Reverse Holofoil'), true);
-  assert.equal(isFoil('1st Edition Holofoil'), true);
-  assert.equal(isFoil('Unlimited Holofoil'), true);
-  assert.equal(isFoil('Normal'), false);
-  assert.equal(isFoil('1st Edition'), false);
-  assert.equal(isFoil('Unlimited'), false);
-  assert.equal(isFoil(undefined), false, 'an unanswered pocket does not shimmer on a guess');
-});
-
-test('a reverse holo shimmers around the art, whatever its rarity', () => {
-  // The one case needing no guesswork: a reverse holo is DEFINED by foil everywhere the art is not.
-  assert.equal(glintMask('Reverse Holofoil', 'Common'), 'frame');
-  assert.equal(glintMask('Reverse Holofoil', 'Holo Rare'), 'frame');
-  assert.equal(glintMask('Reverse Holofoil', undefined), 'frame');
-});
-
-test('a classic holo shimmers in the art window', () => {
-  assert.equal(glintMask('Holofoil', 'Holo Rare'), 'art');
-  assert.equal(glintMask('Holofoil', 'Classic Collection'), 'art');
-});
-
-test('full arts and secrets shimmer edge to edge', () => {
-  // Masking these to a rectangle would draw a hard-edged box across artwork that has no such
-  // boundary — the conspicuous failure this rule exists to avoid.
-  for (const r of [
-    'Ultra Rare', 'Secret Rare', 'Illustration Rare', 'Special Illustration Rare',
-    'Hyper Rare', 'Rainbow Rare', 'Double Rare', 'Radiant Rare', 'Prism Rare',
-    'Shiny Holo Rare', 'ACE SPEC Rare', 'Rare BREAK', 'Amazing Rare', 'Mega Hyper Rare',
-  ]) {
-    assert.equal(glintMask('Holofoil', r), 'full', r);
-  }
-});
-
-test('an unknown rarity fails in the quiet direction', () => {
-  // A too-generous shimmer goes unnoticed; a bright rectangle across a full art does not.
-  assert.equal(glintMask('Holofoil', undefined), 'full');
-  assert.equal(glintMask('Holofoil', 'Some New 2027 Rarity'), 'art');
-  assert.equal(glintMask('Holofoil', 'Ultra Rare Something New'), 'full');
-});
-
-test('nothing that is not foil ever shimmers', () => {
-  assert.equal(glintMask('Normal', 'Ultra Rare'), 'none');
-  assert.equal(glintMask('1st Edition', 'Holo Rare'), 'none');
-  assert.equal(glintMask(undefined, 'Secret Rare'), 'none');
 });

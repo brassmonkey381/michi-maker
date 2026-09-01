@@ -14,8 +14,7 @@ import Animated, {
 
 import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { BinderSurface, FontSize, Palette, Radii, Radius, Shadows, SlotBackingFallback, Weight } from '@/constants/theme';
-import { UNSET_CHIP, chipFor, glintMask } from '@/constants/printVariant';
-import { FoilGlint } from '@/components/binder/FoilGlint';
+import { UNSET_CHIP, chipFor } from '@/constants/printVariant';
 import { attributionLabel, deriveAttribution, type ArtAttribution } from '@/data/artworkLibrary';
 import { resolveCardWith, resolveCatalogCardWith } from '@/data/cardResolver';
 import { CAPTION_FIELDS, formatCaption, hasTextCaption, type CaptionFieldKey } from '@/data/cardCaption';
@@ -370,8 +369,6 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               scanUri={slot.cardId ? scanUrlOf?.(slot) : undefined}
               captionFields={captionFields}
               price={slot.cardId ? priceFor(priceSummary, slot.cardId, variantOf?.(slot)) : undefined}
-              finish={variantOf?.(slot)}
-              editable={editable}
             />
           );
           if (!editable) {
@@ -516,8 +513,6 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               scanUri={dragged.cardId ? scanUrlOf?.(dragged) : undefined}
               captionFields={captionFields}
               price={dragged.cardId ? priceFor(priceSummary, dragged.cardId, variantOf?.(dragged)) : undefined}
-              finish={variantOf?.(dragged)}
-              editable={editable}
             />
           </Animated.View>
         ) : null}
@@ -1005,8 +1000,6 @@ function SlotContent({
   scanUri,
   captionFields = [],
   price,
-  finish,
-  editable = false,
 }: {
   slot: DemoSlot;
   radius: number;
@@ -1016,10 +1009,6 @@ function SlotContent({
   captionFields?: CaptionFieldKey[];
   /** This pocket's value, already resolved to the owned copy's finish (see priceFor). */
   price?: number;
-  /** The finish this pocket shows, if known — decides whether and how the card catches light. */
-  finish?: string;
-  /** The glint is a view-mode pleasure; mid-edit it would compete with the drag it obscures. */
-  editable?: boolean;
   /** The viewer owns this card (own ≥ 1) — show the green ✓ corner badge. */
   owned?: boolean;
   /** This card's real scan (see BinderGridProps.scanUrlOf); card pockets only. */
@@ -1076,8 +1065,6 @@ function SlotContent({
   // The image comes from the id directly (no catalog needed). The catalog, when already loaded,
   // only enriches the size badge — so covers paint immediately even before it's available.
   const kind = resolveCardWith(catalog, id)?.kind;
-  // Where this card's foil sits, if any — from its finish and its rarity (see glintMask).
-  const glint = glintMask(finish, resolveCatalogCardWith(catalog, id)?.rarity);
   // Whether the on-card code row will be drawn, and so whether it — rather than the standalone
   // badge bottom-left — is the thing that shows JUMBO / V-UNION.
   const codeRowOn = captionFields.includes('set') || captionFields.includes('number');
@@ -1105,10 +1092,6 @@ function SlotContent({
           <View style={[styles.foilBar, styles.foilBarA]} />
           <View style={[styles.foilBar, styles.foilBarB]} />
         </View>
-        {/* And the foil catches the light where a foil actually is — inside the illustration
-            window on a holo, everywhere but it on a reverse holo. View mode only: while editing,
-            a highlight chasing the cursor competes with the drag it is trying to aim. */}
-        {glint !== 'none' && !small && !editable ? <FoilGlint radius={radius} mask={glint} /> : null}
         <KindBadge kind={kind} small={small} hidden={codeRowOn} />
         <OwnedBadge owned={owned} small={small} />
         <CardLabels

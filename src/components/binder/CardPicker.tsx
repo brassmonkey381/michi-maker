@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useEffect, useRef, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { CardBrowse } from '@/components/binder/CardBrowse';
 import { SliceStudio, type SliceStudioHandle } from '@/components/binder/SliceStudio';
@@ -86,6 +86,15 @@ interface CardPickerProps {
    *  card browser's mount; bypasses the broadcast command bus so it can't be intercepted. */
   initialSimilar?: string[];
 }
+
+/**
+ * Below this the screen cannot hold a binder page AND a picker side by side, so the picker goes
+ * back to being a sheet over the page. Above it, hiding the binder to choose a card for the binder
+ * is simply a worse product.
+ */
+export const CARD_PICKER_DOCK_MIN_WIDTH = 1100;
+/** Wide enough for the browse grid's 140px tiles three across, plus its chrome. */
+export const CARD_PICKER_DOCK_WIDTH = 460;
 
 export function CardPicker({
   visible,
@@ -228,119 +237,155 @@ export function CardPicker({
     </>
   );
 
+  /**
+   * DOCKED BESIDE THE BINDER, not on top of it, wherever there is room.
+   *
+   * The picker was a phone sheet everywhere: 94% of the window's height and, having no max width,
+   * the full 1920px of a desktop monitor. Choosing a card therefore hid the binder the card was
+   * for — you could not see the pocket you had tapped, the page it sat on, or where "Keep adding"
+   * had moved to next. Every deck builder worth copying does the opposite: the collection stays on
+   * screen and the search sits beside it.
+   *
+   * Docked, it is a column: no scrim, no Modal, so the binder behind stays visible AND clickable —
+   * you can tap another pocket to retarget without closing anything. The bottom sheet stays on
+   * narrow screens, where covering the page is the only honest option.
+   */
+  const { width } = useWindowDimensions();
+  const docked = width >= CARD_PICKER_DOCK_MIN_WIDTH;
+
+  const body = (
+    <>
+      <View style={styles.header}>
+        <ThemedText type="subtitle" style={styles.headerTitle}>
+          {title}
+        </ThemedText>
+        {/* "Keep adding" only does something on the Cards tab (place → jump to next pocket);
+            it's a no-op in the Slice Studio, so hide it there. */}
+        {tab !== 'artwork' ? (
+          <Pressable
+            onPress={onToggleKeepAdding}
+            hitSlop={8}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: keepAdding }}
+            style={[styles.keepAdding, keepAdding && styles.keepAddingOn]}>
+            <Text style={[styles.keepAddingText, keepAdding && styles.keepAddingTextOn]}>
+              {keepAdding ? '✓ Keep adding' : 'Keep adding'}
+            </Text>
+          </Pressable>
+        ) : null}
+        <Pressable onPress={onDone} hitSlop={12}>
+          <Text style={styles.close}>Done</Text>
+        </Pressable>
+      </View>
+
+      {/* Content type — decide *what* goes in the pocket first. */}
+      <View style={styles.segmentRow}>
+        {TABS.map((t) => {
+          const active = tab === t.id;
+          return (
+            <Pressable
+              key={t.id}
+              onPress={() => selectTab(t.id)}
+              style={[styles.segment, active && styles.segmentActive]}>
+              <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{t.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* Shape selector, inserts take any shape. Cards derive their footprint from the card's
+          kind at drop time; the Artwork tab's Slice Studio slices the whole page, so neither
+          needs a shape here. */}
+      {tab === 'insert' ? (
+        <View style={styles.shapeRow}>
+          <Text style={styles.controlsLabel}>Shape</Text>
+          {SHAPES.map((s) => {
+            const enabled = fits(s.rows, s.cols);
+            const active = is(s.rows, s.cols);
+            return (
+              <Pressable
+                key={s.label}
+                disabled={!enabled}
+                onPress={() => setShape({ rows: s.rows, cols: s.cols })}
+                style={[styles.shapeChip, active && styles.shapeChipActive, !enabled && styles.disabled]}>
+                <Text style={[flatChip.text, active && styles.shapeTextActive]}>{s.name}</Text>
+                <Text style={[styles.shapeSize, active && styles.shapeSizeActive]}>{s.size}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+
+      {tab === 'cards' ? (
+        // The unified Series → Set → Card browse (its FlatList is the primary scroller).
+        // Rendered even while the catalog loads: CatalogBrowser runs COLD (server search) so
+        // you can search instantly, then swaps to on-device once the catalog is in memory.
+        // Size (Standard / Jumbo / V-UNION) is a filter inside it; V-UNION shows assembled
+        // group tiles. Remount per pocket so browse position / search / filters don't leak
+        // between pockets — but in "keep adding" mode hold one browse so you can rattle
+        // through a set filling pockets without it resetting.
+        <CardBrowse
+          key={keepAdding ? 'fill-session' : `${cell?.row ?? 'x'}-${cell?.col ?? 'x'}-${slot?.id ?? 'new'}`}
+          catalog={catalog}
+          selectedCardId={slot?.type === 'card' ? slot.cardId : undefined}
+          onPickCard={onPickCard}
+          onPickVUnion={onPickVUnion}
+          onPickCards={onPickCards}
+          initialSimilar={initialSimilar}
+          ownedIds={ownedIds}
+        />
+      ) : tab === 'artwork' ? (
+        // Inserting artwork IS the Slice Studio now — bring art in by URL, drag, image drag, or
+        // upload, frame it, and slice to your tray. Embedded so the tab bar stays above it. It
+        // slices the whole page (its own grid = the binder's page size), so remount per page
+        // shape/source to reset the framing when the pocket context changes.
+        <SliceStudio
+          key={`${page?.rows ?? 1}x${page?.cols ?? 1}-${slot?.id ?? 'new'}`}
+          ref={studioRef}
+          embedded
+          rows={page?.rows ?? 1}
+          cols={page?.cols ?? 1}
+          imageUrl={slot?.imageUrl}
+          onSaveSlices={onSaveSlices}
+          onClose={onClose}
+          trayCount={trayCount}
+          trayLimit={trayLimit}
+          guest={guest}
+        />
+      ) : (
+        <ScrollView
+          style={styles.scrollFill}
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled">
+          {renderInsert()}
+        </ScrollView>
+      )}
+    </>
+  );
+
+  if (docked) {
+    // The Modal branch honours `visible` itself; a plain View has to be told. Rendering nothing —
+    // rather than an empty column — is also what keeps the binder at full width when closed.
+    if (!visible) return null;
+    return (
+      <View style={styles.dock} testID="card-picker-dock">
+        {/* No grab handle and no scrim: this is a column of the page, not a sheet over it. Close
+            is explicit, because the binder staying live means a stray tap outside is far more
+            likely to be someone aiming at a pocket than someone dismissing the picker. */}
+        {body}
+      </View>
+    );
+  }
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={sheet.bottomBackdrop}>
         <Pressable style={styles.backdropFill} onPress={onClose} />
         {/* Always tall, whatever the tab, Cards, Artwork, and Insert all rise to the same height
             so switching between them doesn't resize the sheet. */}
-        <View style={[sheet.bottomSheet, styles.sheetTall]}>
+        <View style={[sheet.bottomSheet, styles.sheetTall, styles.sheetCapped]}>
           <View style={sheet.handle} />
-          <View style={styles.header}>
-            <ThemedText type="subtitle" style={styles.headerTitle}>
-              {title}
-            </ThemedText>
-            {/* "Keep adding" only does something on the Cards tab (place → jump to next pocket);
-                it's a no-op in the Slice Studio, so hide it there. */}
-            {tab !== 'artwork' ? (
-              <Pressable
-                onPress={onToggleKeepAdding}
-                hitSlop={8}
-                accessibilityRole="switch"
-                accessibilityState={{ checked: keepAdding }}
-                style={[styles.keepAdding, keepAdding && styles.keepAddingOn]}>
-                <Text style={[styles.keepAddingText, keepAdding && styles.keepAddingTextOn]}>
-                  {keepAdding ? '✓ Keep adding' : 'Keep adding'}
-                </Text>
-              </Pressable>
-            ) : null}
-            <Pressable onPress={onDone} hitSlop={12}>
-              <Text style={styles.close}>Done</Text>
-            </Pressable>
-          </View>
-
-          {/* Content type — decide *what* goes in the pocket first. */}
-          <View style={styles.segmentRow}>
-            {TABS.map((t) => {
-              const active = tab === t.id;
-              return (
-                <Pressable
-                  key={t.id}
-                  onPress={() => selectTab(t.id)}
-                  style={[styles.segment, active && styles.segmentActive]}>
-                  <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{t.label}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {/* Shape selector, inserts take any shape. Cards derive their footprint from the card's
-              kind at drop time; the Artwork tab's Slice Studio slices the whole page, so neither
-              needs a shape here. */}
-          {tab === 'insert' ? (
-            <View style={styles.shapeRow}>
-              <Text style={styles.controlsLabel}>Shape</Text>
-              {SHAPES.map((s) => {
-                const enabled = fits(s.rows, s.cols);
-                const active = is(s.rows, s.cols);
-                return (
-                  <Pressable
-                    key={s.label}
-                    disabled={!enabled}
-                    onPress={() => setShape({ rows: s.rows, cols: s.cols })}
-                    style={[styles.shapeChip, active && styles.shapeChipActive, !enabled && styles.disabled]}>
-                    <Text style={[flatChip.text, active && styles.shapeTextActive]}>{s.name}</Text>
-                    <Text style={[styles.shapeSize, active && styles.shapeSizeActive]}>{s.size}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : null}
-
-          {tab === 'cards' ? (
-            // The unified Series → Set → Card browse (its FlatList is the primary scroller).
-            // Rendered even while the catalog loads: CatalogBrowser runs COLD (server search) so
-            // you can search instantly, then swaps to on-device once the catalog is in memory.
-            // Size (Standard / Jumbo / V-UNION) is a filter inside it; V-UNION shows assembled
-            // group tiles. Remount per pocket so browse position / search / filters don't leak
-            // between pockets — but in "keep adding" mode hold one browse so you can rattle
-            // through a set filling pockets without it resetting.
-            <CardBrowse
-              key={keepAdding ? 'fill-session' : `${cell?.row ?? 'x'}-${cell?.col ?? 'x'}-${slot?.id ?? 'new'}`}
-              catalog={catalog}
-              selectedCardId={slot?.type === 'card' ? slot.cardId : undefined}
-              onPickCard={onPickCard}
-              onPickVUnion={onPickVUnion}
-              onPickCards={onPickCards}
-              initialSimilar={initialSimilar}
-              ownedIds={ownedIds}
-            />
-          ) : tab === 'artwork' ? (
-            // Inserting artwork IS the Slice Studio now — bring art in by URL, drag, image drag, or
-            // upload, frame it, and slice to your tray. Embedded so the tab bar stays above it. It
-            // slices the whole page (its own grid = the binder's page size), so remount per page
-            // shape/source to reset the framing when the pocket context changes.
-            <SliceStudio
-              key={`${page?.rows ?? 1}x${page?.cols ?? 1}-${slot?.id ?? 'new'}`}
-              ref={studioRef}
-              embedded
-              rows={page?.rows ?? 1}
-              cols={page?.cols ?? 1}
-              imageUrl={slot?.imageUrl}
-              onSaveSlices={onSaveSlices}
-              onClose={onClose}
-              trayCount={trayCount}
-              trayLimit={trayLimit}
-              guest={guest}
-            />
-          ) : (
-            <ScrollView
-              style={styles.scrollFill}
-              contentContainerStyle={styles.scroll}
-              keyboardShouldPersistTaps="handled">
-              {renderInsert()}
-            </ScrollView>
-          )}
+          {body}
         </View>
       </View>
     </Modal>
@@ -349,6 +394,25 @@ export function CardPicker({
 
 const styles = StyleSheet.create({
   backdropFill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  /** The docked column. Full height, fixed width, and NOT a modal — the binder beside it stays
+   *  visible and interactive, which is the entire point. */
+  dock: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    width: CARD_PICKER_DOCK_WIDTH,
+    backgroundColor: Palette.surface,
+    borderLeftWidth: 1,
+    borderLeftColor: Palette.hairlineStrong,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 16,
+    zIndex: 70,
+  },
+  /** Even as a sheet it should not stretch to a 1920px monitor: a phone-shaped control the width
+   *  of a desktop is nobody's idea of a good picker. */
+  sheetCapped: { width: '100%', maxWidth: 720, alignSelf: 'center' },
   // A definite height (not just maxHeight) so the browse FlatList gets a bounded viewport. Overrides
   // the shared bottomSheet's 85% maxHeight to give the Slice Studio canvas more vertical room.
   sheetTall: { height: '94%', maxHeight: '94%' },

@@ -17,7 +17,11 @@ import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
 import { AutoFillSheet } from '@/components/binder/AutoFillSheet';
 import { ComposeAllSheet } from '@/components/binder/ComposeAllSheet';
 import { BinderGrid, type BinderGridHandle } from '@/components/binder/BinderGrid';
-import { CardPicker } from '@/components/binder/CardPicker';
+import {
+  CARD_PICKER_DOCK_MIN_WIDTH,
+  CARD_PICKER_DOCK_WIDTH,
+  CardPicker,
+} from '@/components/binder/CardPicker';
 import { BinderPages, type GridRole } from '@/components/binder/BinderPages';
 import { ColorField } from '@/components/binder/ColorField';
 import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
@@ -340,7 +344,11 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // Enough room to sit the title fields and page tools side by side (else they stack).
   const wideEditor = width >= 900;
   // Usable content width — BinderPages owns the spread/single layout; it just needs the breakpoint.
-  const available = width - 32;
+  // The picker DOCKS beside the binder on a wide screen rather than covering it, so the page has
+  // to make room — otherwise the column would sit on top of the very pockets it is filling. The
+  // two constants are one decision, so they are imported rather than repeated.
+  const pickerDocked = pickerCell != null && width >= CARD_PICKER_DOCK_MIN_WIDTH;
+  const available = width - 32 - (pickerDocked ? CARD_PICKER_DOCK_WIDTH : 0);
   // prev/next are kept here for the cross-page drag hit-test (resolveSpreadHit below); the spread
   // layout that shows them lives in BinderPages.
   const prevPage = idx > 0 ? binder.pages[idx - 1] : null;

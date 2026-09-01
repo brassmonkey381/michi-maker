@@ -1848,8 +1848,15 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
   hint: { fontSize: FontSize.base, color: Palette.muted2, lineHeight: 17 },
-  /** The cut picker: a label above a wrapping row of shapes, so ten options stay readable. */
-  shapeGroup: { gap: 4 },
+  /**
+   * The cut picker: a label above a wrapping row of shapes.
+   *
+   * `width: '100%'` is what makes the wrap actually happen. The control bar is itself a wrapping
+   * row, so without it this group is just another item that grows to fit its content — and the
+   * chips run off the side of the panel instead of moving to a second line. Taking the full width
+   * gives it its own line, and the wrap inside then has somewhere to go.
+   */
+  shapeGroup: { width: '100%', gap: 4 },
   shapeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   groupLabel: {
     fontSize: FontSize.sm,

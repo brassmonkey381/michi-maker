@@ -249,8 +249,25 @@ const expandedCount = await p.evaluate(() => {
   const row = label && label.parentElement ? label.parentElement.children[1] : null;
   return row ? [...row.children].length : -1;
 });
-console.log(`expanded    : ${expandedCount} chips`);
+// Expanded it must still FIT — this is the state the complaint was about, and a row that only
+// fits while collapsed has moved the problem rather than fixed it.
+const expandedFits = await p.evaluate(() => {
+  const label = [...document.querySelectorAll('*')].find(
+    (el) => el.children.length === 0 && (el.textContent || '').trim() === 'Slice into',
+  );
+  const group = label && label.parentElement ? label.parentElement : null;
+  const row = group ? group.children[1] : null;
+  if (!row || !group) return null;
+  const rr = row.getBoundingClientRect();
+  const gr = group.parentElement.getBoundingClientRect();
+  return { rowRight: Math.round(rr.right), panelRight: Math.round(gr.right), rows: Math.round(rr.height) };
+});
+console.log(`expanded    : ${expandedCount} chips, fits=${expandedFits ? expandedFits.rowRight <= expandedFits.panelRight : '?'}`, JSON.stringify(expandedFits));
 if (!(expandedCount > chipCount)) { console.log('FAIL — "+ more" revealed nothing'); ok = false; }
+if (expandedFits && expandedFits.rowRight > expandedFits.panelRight) {
+  console.log('FAIL — expanded, the cut picker still runs off the panel');
+  ok = false;
+}
 
 // Guides: quiet at rest, present while the frame is moving.
 const guides = () => p.locator('[data-testid="slice-guide"]').count();

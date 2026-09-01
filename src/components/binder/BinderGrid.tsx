@@ -1,5 +1,4 @@
 import { Image } from 'expo-image';
-import { SKELETON_DELAY_MS, SKELETON_DELAYED } from '@/lib/flashMode';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type DimensionValue, type ViewProps } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -1551,9 +1550,6 @@ function CardImage({
   const [stage, setStage] = useState<'scan' | 'tier' | 'full' | 'failed'>(scanUri ? 'scan' : 'tier');
   const [loaded, setLoaded] = useState(false);
   const [attempts, setAttempts] = useState(0);
-  // False until this load has run longer than a page turn, which is when it becomes worth
-  // admitting to. Starts true when the wait is switched off (?flash=off).
-  const [waited, setWaited] = useState(!SKELETON_DELAYED);
   const tier: 245 | 640 = small ? 245 : 640;
   // THE fix for blank slots on a cold refresh: cardThumbUrl reads the image manifest, which is
   // mutable MODULE state the React Compiler can't track. A plain `const uri = cardThumbUrl(...)`
@@ -1575,15 +1571,11 @@ function CardImage({
     [id, tier, stage, manifestReady, attempts, scanUri],
   );
 
-  // A pocket says nothing until its load has outlasted a page turn. A decorative copy says
-  // nothing at all: it is a duplicate of a pocket already on screen, so it has no news to give.
-  const quiet = Boolean(instant) || !waited;
-
-  useEffect(() => {
-    if (!SKELETON_DELAYED) return;
-    const t = setTimeout(() => setWaited(true), SKELETON_DELAY_MS);
-    return () => clearTimeout(t);
-  }, []);
+  // A COPY DRAWN FOR AN ANIMATION HAS NO NEWS TO GIVE. It duplicates a pocket already on screen,
+  // so a skeleton on it would announce a load that has, by definition, already happened. Delaying
+  // the skeleton for ordinary pockets as well was tried and made no visible difference, so the
+  // rule stops here rather than growing a timer nobody can see the effect of.
+  const quiet = Boolean(instant);
 
   // cardThumbUrl resolves to '' until the content-hashed image manifest lands. On a COLD load the
   // manifest's own re-render can't be relied on (a module-state read the React Compiler memoises,

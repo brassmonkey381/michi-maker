@@ -666,16 +666,36 @@ export function BinderPages({
                 <View style={styles.turnLayer}>
                   <View style={[styles.spreadRow, { gap: bookGap }]}>
                     <SpreadColumn
-                      page={baseLeft}
+                      // Present even when this half of the spread is not, since it is what holds
+                      // the left-hand box: same reason the right column is.
+                      page={baseLeft ?? page}
                       width={bookW}
                       label={leftPage ? `Page ${spreadLeftIdx + 1}` : ''}
                       editable={editable}
                       columnIndex={0}
                       role={leftRole}
                       flat>
-                      {baseLeft
-                        ? renderGrid({ page: baseLeft, width: bookW, role: gridRole(leftRole) as GridRole, captionFields, ownedIds, scanUrlOf, decorative: true })
-                        : null}
+                      {/* Only the STALE half is drawn, the same rule the right column follows.
+                          Going forward this is the outgoing left page, which the settled spread
+                          below has already replaced, so it has to be drawn here. Going BACKWARD it
+                          is the new left page, which that spread is already drawing in this exact
+                          position, and a second identical copy on top of it was a whole page
+                          mounted per turn for no pixels. The box is stated either way, because an
+                          empty column would collapse and take the row's centring with it. */}
+                      <View
+                        style={{
+                          width: bookW,
+                          height: pageHeightAt(
+                            bookW,
+                            (baseLeft ?? page).rows,
+                            (baseLeft ?? page).cols,
+                            captionsOn,
+                          ),
+                        }}>
+                        {pageTurn.forward && baseLeft
+                          ? renderGrid({ page: baseLeft, width: bookW, role: gridRole(leftRole) as GridRole, captionFields, ownedIds, scanUrlOf, decorative: true })
+                          : null}
+                      </View>
                     </SpreadColumn>
                     <SpreadColumn
                       // The column HOSTS the leaf, so it has to exist even on a spread whose right

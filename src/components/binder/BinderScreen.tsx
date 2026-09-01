@@ -26,6 +26,7 @@ import { RightsPrompt } from '@/components/binder/RightsPrompt';
 import { ShareSheet } from '@/components/binder/ShareSheet';
 import { SliceStudio } from '@/components/binder/SliceStudio';
 import { SlotMultiActions } from '@/components/binder/SlotMultiActions';
+import { pillChip } from '@/constants/ui';
 import { EditLockBanner } from '@/components/binder/EditLockBanner';
 import { SaveErrorBanner } from '@/components/binder/SaveErrorBanner';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
@@ -150,6 +151,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // pockets stay draggable on a page whose saves are being refused. Derived rather than reset
   // in an effect, so getting the lease back also reopens the workbench where it was left.
   const [editingWanted, setEditingWanted] = useState(false);
+  // The binder-details / page-tools disclosure. Closed on entry, and session-only on purpose: the
+  // default that matters is what you see the moment you tap Edit, and that should be the binder.
+  const [toolsOpen, setToolsOpen] = useState(false);
   const editing = editingWanted && store.canEdit;
   const [pageIndex, setPageIndex] = useState(0);
   const [pickerCell, setPickerCell] = useState<{ row: number; col: number } | null>(null);
@@ -1441,9 +1445,30 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
             {/* Read-only because another tab of this browser owns editing — see EditLockBanner. */}
             <EditLockBanner />
             <SaveErrorBanner />
-            {/* Editing: title/description fields and the page tools sit side by side at the top, so
-                the bottom of the editor stays clear for the slice tray. Stacks on narrow screens. */}
+            {/* CANVAS FIRST. Edit mode used to open with a wall of forms: the title and description
+                fields beside the tools card, roughly 330px of chrome stacked ABOVE the art. On a
+                desktop that pushed the page's bottom row under the fold; on a phone, tapping Edit
+                showed no artwork at all — two blank bands and a grey panel, with the binder
+                somewhere below it.
+
+                Same controls, now behind a disclosure that starts closed. Editing a binder should
+                begin by showing you the binder. */}
             {editing ? (
+              <View style={styles.editBar}>
+                <Pressable
+                  onPress={() => setToolsOpen((v) => !v)}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    toolsOpen ? 'Hide binder details and page tools' : 'Show binder details and page tools'
+                  }
+                  style={({ pressed }) => [pillChip.base, toolsOpen && pillChip.active, pressed && styles.pressed]}>
+                  <Text style={[pillChip.text, toolsOpen && pillChip.textActive]}>
+                    {toolsOpen ? '▾ Binder details & tools' : '▸ Binder details & tools'}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {editing && toolsOpen ? (
               <View style={[styles.editTopRow, wideEditor && styles.editTopRowWide]}>
                 <View style={styles.binderFields}>
                   <LabeledInput
@@ -1462,7 +1487,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                 </View>
                 <View style={styles.editToolsCol}>{editToolsCard}</View>
               </View>
-            ) : binder.description ? (
+            ) : null}
+            {!editing && binder.description ? (
               <ThemedText type="small" themeColor="textSecondary" style={styles.description}>
                 {binder.description}
               </ThemedText>
@@ -1480,7 +1506,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               // The header, plus the title fields and tools card that edit mode stacks above the
               // art. Until those move beside the page (audit A3) they are simply a cost the page
               // has to be told about, or it fits itself to a window taller than it really has.
-              chromeAllowance={editing ? 330 : 88}
+              // Edit mode costs a single disclosure row now, not a wall of forms — unless the
+              // user opens it, in which case the page yields the space it asked for.
+              chromeAllowance={editing ? (toolsOpen ? 330 : 130) : 88}
               editable={editing}
               // Binders reachable here come from the signed-in user's own store (userBinders) or
               // are bundled examples, so the viewer is the owner. The public route decides for
@@ -1500,7 +1528,10 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                   : undefined
               }
               pageHeader={
-                editing ? (
+                // Behind the same disclosure as the binder's own fields. Naming a page is a thing
+                // you do occasionally; looking at the page is the thing you came for, and two
+                // more text inputs above the art cost another ~280px of it.
+                editing && toolsOpen ? (
                   <View style={styles.pageDetails}>
                     <LabeledInput
                       label={`Page ${idx + 1} title`}
@@ -1934,6 +1965,9 @@ const styles = StyleSheet.create({
   // chrome reads as a single organised stack instead of page-wide boxes.
   // The top editing row: title/description fields beside the page tools (side by side when there's
   // room, stacked otherwise), leaving the bottom of the editor free for the slice tray.
+  // The one row edit mode always shows: a single disclosure of about 44px, in place of the ~330px
+  // of forms it used to open with.
+  editBar: { alignSelf: 'center', marginTop: 8, marginBottom: 2 },
   editTopRow: { width: '100%', maxWidth: 1120, alignSelf: 'center', marginTop: 8, gap: 12, flexDirection: 'column' },
   editTopRowWide: { flexDirection: 'row', alignItems: 'flex-start' },
   binderFields: { gap: 10, flexGrow: 1, flexBasis: 300, minWidth: 240 },

@@ -12,9 +12,10 @@
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from 'react-native-reanimated';
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, type SharedValue } from 'react-native-reanimated';
 
 import { CaptionControls, CaptionFieldRow } from '@/components/binder/CaptionControls';
+import { Directions, Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PageStrip } from '@/components/binder/PageStrip';
 import { ThemedText } from '@/components/themed-text';
@@ -139,7 +140,7 @@ export function BinderPages({
   const scanUrlOf = scanFaces ? (slot: DemoSlot) => scanFaces.get(slot.id) : undefined;
   // Double-sided: pages pair like a physical binder — page 1 alone (the cover face), then
   // 2·3 facing, 4·5, … Both sides of the open spread are shown (and edited) together.
-  const [doubleSided, setDoubleSided] = useState(doubleSidedPref);
+  const [doubleSidedWanted, setDoubleSided] = useState(doubleSidedPref);
   const toggleDoubleSided = () =>
     setDoubleSided((v) => {
       doubleSidedPref = !v;
@@ -174,6 +175,13 @@ export function BinderPages({
   const heightBudget = Math.max(0, windowHeight - chromeAllowance - chromeAbove - stripHeight);
   const captionsOn = hasTextCaption(captionFields);
   const spreadGap = SPREAD_GAP;
+  // THE BOOK NEEDS A FLOOR OF ITS OWN. Halving the width is only a good trade while both halves
+  // stay readable: on a 390px phone it yields two 171px pages, whose cards come out around 51px —
+  // thumbnails, not artwork. Nothing stopped that, because the book path had no width gate at all.
+  // Below the threshold the pages are shown one at a time and the toggle is not offered, which is
+  // the honest answer on a screen that cannot hold a spread.
+  const canDoubleSide = availableWidth >= PEEK_MIN_WIDTH;
+  const doubleSided = doubleSidedWanted && canDoubleSide;
   // Peeks need room for a page AND two strips; below that the page goes it alone, as on a phone.
   const showSpread = !doubleSided && count > 1 && availableWidth >= PEEK_MIN_WIDTH;
   const layout = spreadLayout({
@@ -214,15 +222,43 @@ export function BinderPages({
   // when there's a page to move to in that direction — at the first/last page it falls through to
   // the normal vertical scroll, so you can still reach the rest of the editor.
   const pageWrapRef = useRef<View>(null);
+
+  // WHERE A FLIP GOES, shared by every input that can cause one. Double-sided flips by SPREAD:
+  // cover → [1·2] → [3·4] → …; single mode flips by page. The wheel, the arrow keys and the swipe
+  // must all agree about that, so the rule is written once here rather than per handler.
+  const leftOfSpread = idx === 0 ? 0 : idx % 2 === 1 ? idx : idx - 1;
+  const forward = doubleSided ? (idx === 0 ? 1 : leftOfSpread + 2) : idx + 1;
+  const backward = doubleSided ? (leftOfSpread === 0 ? -1 : Math.max(0, leftOfSpread - 2)) : idx - 1;
+
+
+  /**
+   * SWIPE TO TURN THE PAGE. Until now the only way to change page on a phone was the filmstrip —
+   * a row of 58px thumbnails — because the wheel and the arrow keys are both web-only. A binder
+   * you cannot turn by hand is the one interaction a binder app has to get right.
+   *
+   * View mode only. In edit mode a horizontal drag is how a card is moved between pockets, and a
+   * gesture cannot be both without one of them feeling stolen; the filmstrip stays the way to flip
+   * while editing.
+   */
+  const swipe = useMemo(() => {
+    // Two directional flings raced, rather than one bidirectional fling: the fling event carries
+    // no velocity, so the direction has to come from which gesture matched.
+    const on = !editable && count > 1;
+    const to = (target: number) => {
+      'worklet';
+      if (target >= 0 && target < count) runOnJS(onPageChange)(target);
+    };
+    return Gesture.Race(
+      Gesture.Fling().enabled(on).direction(Directions.LEFT).onEnd(() => to(forward)),
+      Gesture.Fling().enabled(on).direction(Directions.RIGHT).onEnd(() => to(backward)),
+    );
+  }, [editable, count, forward, backward, onPageChange]);
+
   useEffect(() => {
     if (Platform.OS !== 'web' || count <= 1 || typeof window === 'undefined') return;
     const el = pageWrapRef.current as unknown as HTMLElement | null;
     if (!el) return;
     let cooldown = -Infinity;
-    // Double-sided flips by SPREAD: cover → [1·2] → [3·4] → …; single mode flips by page.
-    const leftOfSpread = idx === 0 ? 0 : idx % 2 === 1 ? idx : idx - 1;
-    const forward = doubleSided ? (idx === 0 ? 1 : leftOfSpread + 2) : idx + 1;
-    const backward = doubleSided ? (leftOfSpread === 0 ? -1 : Math.max(0, leftOfSpread - 2)) : idx - 1;
     const onWheel = (e: WheelEvent) => {
       // Flip ONLY when the pointer is directly over a page rectangle (data-binder-page, set on the
       // BinderGrid root). A wheel over the surrounding mat, the gaps between spread columns, or the
@@ -248,7 +284,7 @@ export function BinderPages({
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [idx, count, doubleSided, onPageChange]);
+  }, [idx, count, doubleSided, onPageChange, forward, backward]);
 
   return (
     <>
@@ -279,13 +315,15 @@ export function BinderPages({
           filmstrip / mouse wheel / neighbour taps / arrow keys — no ‹ m/n › readout. */}
       <View style={styles.labelsRow}>
         <View style={styles.viewToggles}>
-          <Pressable
-            onPress={toggleDoubleSided}
-            style={[pillChip.base, doubleSided && pillChip.active]}>
-            <Text style={[pillChip.text, doubleSided && pillChip.textActive]}>
-              {doubleSided ? '✓ Double-sided' : 'Double-sided'}
-            </Text>
-          </Pressable>
+          {canDoubleSide ? (
+            <Pressable
+              onPress={toggleDoubleSided}
+              style={[pillChip.base, doubleSided && pillChip.active]}>
+              <Text style={[pillChip.text, doubleSided && pillChip.textActive]}>
+                {doubleSided ? '✓ Double-sided' : 'Double-sided'}
+              </Text>
+            </Pressable>
+          ) : null}
           <CaptionControls
             enabled={labelsOn}
             onToggle={() => setLabelsOn(!labelsOn)}
@@ -330,6 +368,7 @@ export function BinderPages({
       {/* testID rides through to data-testid on web. It exists so a screenshot harness can MEASURE
           the rendered page rather than infer it from arithmetic — the gap that made the on-card
           label work take six rounds of guessing. Costs nothing at runtime. */}
+      <GestureDetector gesture={swipe}>
       <View ref={pageWrapRef} style={styles.pageWrap} testID="binder-page-wrap">
         {!page ? (
           <ThemedText type="small" themeColor="textSecondary">
@@ -431,6 +470,7 @@ export function BinderPages({
           </View>
         )}
       </View>
+      </GestureDetector>
 
       {/* Page filmstrip — tap a thumbnail to flip to it; long-press-drag reorders (edit only). */}
       {count > 1 ? (

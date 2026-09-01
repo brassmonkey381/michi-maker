@@ -445,7 +445,11 @@ export function CardPicker({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={sheet.bottomBackdrop}>
-        <Pressable style={styles.backdropFill} onPress={onClose} />
+        {/* The backdrop dismisses through onDone, not onClose. It used to call onClose, which
+            discards — so a tap just outside the sheet threw away a whole framing session, the exact
+            thing the studio's commit handle exists to protect, and it did it on the gesture people
+            use to mean "I'm finished". Dismissing is a way of finishing, so it saves like Done. */}
+        <Pressable style={styles.backdropFill} onPress={onDone} />
         {/* Always tall, whatever the tab, Cards, Artwork, and Insert all rise to the same height
             so switching between them doesn't resize the sheet. */}
         <View style={[sheet.bottomSheet, styles.sheetTall, tab !== 'artwork' && styles.sheetCapped]}>

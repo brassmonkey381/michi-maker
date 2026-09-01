@@ -292,6 +292,8 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
   const { rows, cols } = grid;
   /** Whether the cut picker is showing everything or just the handful people reach for. */
   const [moreShapes, setMoreShapes] = useState(false);
+  /** Whether the source + credit block is expanded on a stacked layout — see its call site. */
+  const [sourceOpen, setSourceOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState(initUrl ?? '');
   const [urlInput, setUrlInput] = useState('');
   const [win, setWin] = useState<Win>({ x: 0, y: 0, w: 1, h: 1 });
@@ -1081,7 +1083,10 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
     return { left: minC * (cellW + GAP) + cellW + GAP / 2, top: minR * (cellH + GAP), height: cellH };
   }, [mergeLegal, panels, selected, cellW, cellH]);
 
-  const hasImage = Boolean(imageUrl);
+  const hasImage = Boolean(imageUrl);
+  // Open on a wide screen (it costs nothing there) and whenever there is no art yet (it is the only
+  // way in). Folded only in the case where it is pure obstruction: a phone, mid-framing.
+  const showSource = twoCol || !hasImage || sourceOpen;
   const selCount = selected.size;
   // Saving would pass the account's artwork cap (a retention cap: slices KEPT, not a rate).
   const wouldExceedTray = hasImage && panels.length > 0 && trayCount + panels.length > trayLimit;
@@ -1103,7 +1108,7 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
   // full-screen header (standalone) OR at the top of the left controls column (embedded), where
   // they replace a whole header row and free the vertical space for the canvas.
   const titleEl = (
-    <ThemedText type="subtitle" style={styles.headerTitle}>
+    <ThemedText type="subtitle" numberOfLines={1} style={styles.headerTitle}>
       Slice studio
     </ThemedText>
   );
@@ -1164,7 +1169,18 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
         <ScrollView
           contentContainerStyle={styles.scroll}
           onLayout={(e) => setViewportH(e.nativeEvent.layout.height)}>
-         <View style={[styles.columns, twoCol && styles.columnsRow]}>
+         {/* THE ART GOES FIRST WHEN THERE IS ONLY ONE COLUMN.
+             Stacked, the controls came first and the canvas was below them — so on the device with
+             the least room, you scrolled past every control in the studio to reach the thing you
+             came to look at, and framing happened in a ~300px window at the bottom of a long page.
+             That inverts the one rule this product has.
+
+             Done with column-reverse rather than by swapping the JSX, deliberately: these are two
+             enormous blocks inside a 1500-line render, and reordering them in source to change a
+             phone layout is a lot of risk for the same pixels. The cost is that DOM order stays
+             controls-then-canvas while visual order is canvas-then-controls — which for a reader
+             who is not looking at the canvas is the more useful order anyway. */}
+         <View style={[styles.columns, twoCol ? styles.columnsRow : styles.columnsStacked]}>
           {/* LEFT: everything you touch — get art in, credit it, frame it. */}
           <View style={[styles.controlsCol, twoCol && styles.controlsColFixed]}>
           {/* Studio actions (embedded): title + help + Save, atop the controls instead of a header. */}
@@ -1177,6 +1193,23 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
               </View>
             </View>
           ) : null}
+          {/* GETTING ART IN, and crediting it, folds away once there is art in.
+
+              Stacked, this block sits between the canvas and the framing controls — so on a phone,
+              having loaded a picture, you scrolled past the loader you had just used, two
+              paragraphs of rights guidance and two credit fields to reach the zoom. All of it
+              matters once, at the start; none of it matters while you are framing. It stays open
+              on a wide screen, where it costs nothing, and whenever there is no image yet, because
+              then it is the only way in. */}
+          {!showSource ? (
+            <Pressable
+              onPress={() => setSourceOpen(true)}
+              style={({ pressed }) => [styles.sourceReopen, pressed && styles.pressed]}>
+              <Text style={styles.sourceReopenText}>▸ Bring in other art, or credit this one</Text>
+            </Pressable>
+          ) : null}
+          {showSource ? (
+            <>
           {/* Source — one calm row. Everything here is about GETTING an image in. */}
           <View style={styles.sourceBar}>
             <Btn label="Card art" onPress={() => setCardPickOpen(true)} kind="primary" />
@@ -1257,6 +1290,9 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
                 style={[styles.input, styles.creditInput]}
               />
             </View>
+          ) : null}
+
+            </>
           ) : null}
 
           {/* Framing controls only exist once there's something to frame, the empty studio stays
@@ -1709,6 +1745,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    // A gap and a wrap, because on a phone this row does not fit: Close, the title, help and Save
+    // ran into each other and rendered as "CloseSlice studio". space-between alone gives no
+    // minimum separation once the content is wider than the row — it just stops spreading.
+    flexWrap: 'wrap',
+    gap: 12,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderBottomWidth: 1,
@@ -1716,7 +1757,9 @@ const styles = StyleSheet.create({
   },
   headerAction: { fontSize: FontSize.md, fontWeight: Weight.semibold, color: Palette.ink2 },
   headerTitle: { marginRight: 4 },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  // flexShrink so the actions give way before they overlap; the title inside truncates rather
+  // than pushing Save off the edge.
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12, flexShrink: 1, minWidth: 0 },
   capNote: { paddingHorizontal: 16, paddingTop: 12 },
   primary: { color: Palette.accent },
   disabled: { opacity: 0.4 },
@@ -1744,6 +1787,8 @@ const styles = StyleSheet.create({
   // Two-column workspace (controls left, canvas right). Stacks to one column below TWO_COL_MIN.
   columns: { gap: 12 },
   columnsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: COL_GAP },
+  /** One column: the canvas on top, the controls under it. See the note at the call site. */
+  columnsStacked: { flexDirection: 'column-reverse' },
   controlsCol: { gap: 12 },
   controlsColFixed: { width: CONTROLS_W, flexShrink: 0 },
   // Embedded studio actions (title + help + Save), a hairline divider grouping them above controls.
@@ -1881,6 +1926,9 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
   hint: { fontSize: FontSize.base, color: Palette.muted2, lineHeight: 17 },
+  /** The folded-away source block's way back. Quiet: it is a door, not a control. */
+  sourceReopen: { paddingVertical: 6 },
+  sourceReopenText: { fontSize: FontSize.label, fontWeight: Weight.semibold, color: Palette.muted2 },
   /**
    * The cut picker: a label above a wrapping row of shapes.
    *

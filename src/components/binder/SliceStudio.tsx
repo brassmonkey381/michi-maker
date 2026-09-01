@@ -31,6 +31,7 @@ import { uploadArtImage } from '@/lib/uploadArt';
 import { deriveAttribution, domainOf, type ArtAttribution } from '@/data/artworkLibrary';
 import { uid, uuidv4, type ImageTransform } from '@/data/binderTypes';
 import type { SavedSlice } from '@/data/savedSlices';
+import { activeGuides, gridLines, snapAxis, zoomWindow } from '@/data/sliceSnap';
 import { TIER_LIMITS } from '@/data/tiers';
 import { useCatalog } from '@/hooks/use-catalog';
 import { cardThumbUrl } from '@/lib/catalogConfig';
@@ -483,22 +484,78 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
     setWin(fit === 'contain' ? containWin : coverWin);
   }, [fit, containWin, coverWin]);
 
+  /**
+   * SNAP TO THE PAGE'S OWN GRID.
+   *
+   * The alignment you nearly always want — art flush with a pocket edge, or its middle on the
+   * crease between two — was a pixel hunt you lose: land two pixels off and the seam between the
+   * pockets magnifies it. Now the image's edges and centre click onto the pocket lines when they
+   * come within a few pixels. It is a pull, not a cage: every position that was reachable before
+   * still is, the pull only bends the last few pixels, and this turns it off outright.
+   */
+  const [snap, setSnap] = useState(true);
+  const xLines = useMemo(() => gridLines(cols, cellW, GAP), [cols, cellW]);
+  const yLines = useMemo(() => gridLines(rows, cellH, GAP), [rows, cellH]);
+
+  /**
+   * Guides show only while you are MOVING the frame, and linger a moment after.
+   *
+   * The default framing is centred, so a guide drawn purely on "is it aligned?" is lit the instant
+   * the art loads and never goes out — permanent furniture across the middle of the canvas, which
+   * you start composing around instead of reading. Tied to the gesture instead, the canvas is
+   * quiet at rest and the line arrives exactly when it means something: you moved, and it caught.
+   */
+  const [framing, setFraming] = useState(false);
+  const touchFrame = useCallback(() => setFraming(true), []);
+  // The timer re-arms off `win`, so every pan frame pushes the fade-out back without a ref the
+  // gesture would have to reach through — one effect, cleaned up on each change and on unmount.
+  useEffect(() => {
+    if (!framing) return;
+    const t = setTimeout(() => setFraming(false), 900);
+    return () => clearTimeout(t);
+  }, [framing, win]);
+  /** Pull a window onto the grid, then re-clamp — snapping must never push it past its leash. */
+  const withSnap = useCallback(
+    (w: Win): Win => {
+      if (!snap || !canvasW || !canvasH) return w;
+      return {
+        ...w,
+        x: clampAxis(snapAxis(w.x, w.w, canvasW, xLines).value, w.w),
+        y: clampAxis(snapAxis(w.y, w.h, canvasH, yLines).value, w.h),
+      };
+    },
+    [snap, canvasW, canvasH, xLines, yLines],
+  );
+
   const panBy = useCallback(
     (dx: number, dy: number) => {
       if (fit === 'contain') return; // whole image, locked frame
       if (!canvasW || !canvasH) return;
-      setWin((prev) => ({
-        ...prev,
-        x: clampAxis(prev.x - (dx / canvasW) * prev.w, prev.w),
-        y: clampAxis(prev.y - (dy / canvasH) * prev.h, prev.h),
-      }));
+      touchFrame();
+      setWin((prev) =>
+        withSnap({
+          ...prev,
+          x: clampAxis(prev.x - (dx / canvasW) * prev.w, prev.w),
+          y: clampAxis(prev.y - (dy / canvasH) * prev.h, prev.h),
+        }),
+      );
     },
-    [fit, canvasW, canvasH],
+    [fit, canvasW, canvasH, withSnap, touchFrame],
   );
 
-  const zoomBy = useCallback(
-    (factor: number) => {
+  /**
+   * Zoom by any factor, about any point.
+   *
+   * Two changes from the old fixed-step zoom, and both are about how it FEELS. The factor is
+   * continuous, so a trackpad or a pinch moves the frame by as much as your fingers did instead of
+   * jumping a fixed 15% chunk; and it is anchored, so the thing under your pointer stays under your
+   * pointer. Centre-anchored zoom is why framing used to take three corrections — every notch
+   * shoved the subject you were aiming at back toward the middle.
+   */
+  const zoomAt = useCallback(
+    (factor: number, anchorX = 0.5, anchorY = 0.5) => {
       if (fit === 'contain') return;
+      touchFrame();
       setWin((prev) => {
         // Uniform scale so the window keeps its true aspect. Zoom-in floor ~1/8 of the image;
         // zoom-out ceiling a bit past "whole image" so you can frame with a margin.
@@ -509,18 +566,19 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
           0.12 / Math.max(prev.w, prev.h),
           Math.min(maxW / prev.w, maxH / prev.h),
         );
-        const w = prev.w * s;
-        const h = prev.h * s;
-        return {
-          w,
-          h,
-          x: clampAxis(prev.x + (prev.w - w) / 2, w),
-          y: clampAxis(prev.y + (prev.h - h) / 2, h),
-        };
+        const next = zoomWindow(prev, s, anchorX, anchorY);
+        return withSnap({
+          w: next.w,
+          h: next.h,
+          x: clampAxis(next.x, next.w),
+          y: clampAxis(next.y, next.h),
+        });
       });
     },
-    [fit, ratio, containWin],
+    [fit, ratio, containWin, withSnap, touchFrame],
   );
+  /** The buttons and the keyboard zoom about the middle — there is no pointer to anchor to. */
+  const zoomBy = useCallback((factor: number) => zoomAt(factor), [zoomAt]);
 
   const rotate = useCallback(
     (dir: 1 | -1) => {
@@ -762,11 +820,38 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
     if (!node || typeof node.addEventListener !== 'function') return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      zoomBy(e.deltaY > 0 ? 1 / 0.9 : 0.9);
+      // Scale by HOW MUCH was scrolled, not merely which way. A mouse notch reports ~100px and
+      // still moves about the old 12%; a trackpad reports a handful of pixels per frame and now
+      // gives the fine, continuous zoom it always should have. deltaMode says whether the browser
+      // is counting pixels, lines, or pages — reading deltaY without it makes Firefox lurch.
+      const px =
+        e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * node.clientHeight : e.deltaY;
+      const r = node.getBoundingClientRect();
+      zoomAt(
+        Math.exp(clamp(px, -240, 240) * 0.0011),
+        r.width ? (e.clientX - r.left) / r.width : 0.5,
+        r.height ? (e.clientY - r.top) / r.height : 0.5,
+      );
     };
     node.addEventListener('wheel', onWheel, { passive: false });
     return () => node.removeEventListener('wheel', onWheel);
-  }, [zoomBy, imageUrl]);
+  }, [zoomAt, imageUrl]);
+
+  /**
+   * PINCH TO ZOOM — the studio's one framing control that a phone simply did not have.
+   *
+   * Everything else here had a touch answer (drag pans, tap selects); zoom was a pair of + / −
+   * buttons, so framing art on the device most people photograph their cards with meant tapping a
+   * button twenty times. `e.scale` is cumulative from the start of the pinch, so the incremental
+   * factor is the ratio against the last frame — and it is inverted, because a bigger pinch means
+   * a smaller window.
+   */
+  const pinchTo = useCallback(
+    (factor: number, focalX: number, focalY: number) => {
+      zoomAt(factor, canvasW ? focalX / canvasW : 0.5, canvasH ? focalY / canvasH : 0.5);
+    },
+    [zoomAt, canvasW, canvasH],
+  );
 
   const gesture = useMemo(() => {
     const pan = Gesture.Pan().onChange((e) => {
@@ -775,8 +860,31 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
     const tap = Gesture.Tap().onEnd((e) => {
       runOnJS(selectAt)(e.x, e.y);
     });
-    return Gesture.Exclusive(pan, tap);
-  }, [panBy, selectAt]);
+    const pinch = Gesture.Pinch()
+      // `scaleChange` is the per-frame ratio the handler already computes; deriving it here from
+      // the cumulative `scale` would mean keeping running state inside a gesture built in render,
+      // which is exactly the mutation the compiler is right to refuse.
+      .onChange((e) => {
+        if (!(e.scaleChange > 0)) return;
+        runOnJS(pinchTo)(1 / e.scaleChange, e.focalX, e.focalY);
+      });
+    // Simultaneous, not raced: two fingers on the glass are usually pinching AND sliding, and
+    // making them pick one is what makes a canvas feel stiff.
+    return Gesture.Simultaneous(pinch, Gesture.Exclusive(pan, tap));
+  }, [panBy, selectAt, pinchTo]);
+
+  /**
+   * The alignment guides, read back off the window rather than remembered from the snap that
+   * caused them. A second piece of state could disagree with where the art actually sits; this
+   * cannot, and it also surfaces alignments you reached by hand rather than by snapping.
+   */
+  const guides = useMemo(() => {
+    if (!snap || !framing || !canvasW || !canvasH) return { x: [], y: [] };
+    return {
+      x: activeGuides(win.x, win.w, canvasW, xLines),
+      y: activeGuides(win.y, win.h, canvasH, yLines),
+    };
+  }, [snap, framing, win, canvasW, canvasH, xLines, yLines]);
 
   const box = (p: Panel) => ({
     position: 'absolute' as const,
@@ -998,6 +1106,15 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
                 {rot !== 0 ? <Text style={styles.rotDeg}>{rot}°</Text> : null}
                 <IconBtn label="↔" onPress={() => setFlipH((v) => !v)} active={flipH} />
                 <IconBtn label="↕" onPress={() => setFlipV((v) => !v)} active={flipV} />
+                {/* On by default. It only ever bends the last few pixels, so it costs nothing
+                    until it saves you — but framing deliberately off-grid is a real thing to want,
+                    and it should not take fighting the tool. */}
+                <IconBtn
+                  label="⌗"
+                  onPress={() => setSnap((v) => !v)}
+                  active={snap}
+                  disabled={fit === 'contain'}
+                />
               </View>
 
               <View style={styles.divider} />
@@ -1015,7 +1132,10 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
 
           {/* Interaction hint — lives with the controls (left), not over the canvas. */}
           {hasImage ? (
-            <Text style={styles.hint}>Drag to pan · scroll to zoom · click a piece to select</Text>
+            <Text style={styles.hint}>
+              Drag to pan · scroll or pinch to zoom · click a piece to select
+              {snap ? ' · edges snap to the pockets' : ''}
+            </Text>
           ) : null}
           </View>
 
@@ -1079,6 +1199,25 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
                       />
                     </View>
                   )}
+                  {/* Alignment guides. They exist only while something IS aligned, so the canvas
+                      stays quiet until the moment the click happens — which is what makes the
+                      click read as a click rather than as the art having drifted. */}
+                  {guides.x.map((gx) => (
+                    <View
+                      key={`gx${gx}`}
+                      testID="slice-guide"
+                      pointerEvents="none"
+                      style={[styles.guideV, { left: gx - 0.5 }]}
+                    />
+                  ))}
+                  {guides.y.map((gy) => (
+                    <View
+                      key={`gy${gy}`}
+                      testID="slice-guide"
+                      pointerEvents="none"
+                      style={[styles.guideH, { top: gy - 0.5 }]}
+                    />
+                  ))}
                   {/* The fold crease — makes the "fold + slide into both pockets" move visible. */}
                   {foldHint ? (
                     <View
@@ -1461,6 +1600,26 @@ const styles = StyleSheet.create({
   emptyDrag: { color: Palette.onDarkMuted2, fontSize: FontSize.sm, marginTop: 4, textAlign: 'center' },
   pieceClip: { overflow: 'hidden', borderRadius: Radius.thumb, backgroundColor: Palette.chromeDeepest },
   pieceSelected: { borderWidth: 2, borderColor: Palette.accent },
+  /** A hair of accent, full bleed across the canvas, above the art and below the fold crease.
+   *  Thin on purpose: a guide that shouts is a guide you start framing AROUND. */
+  guideV: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 1,
+    backgroundColor: Palette.accent,
+    opacity: 0.85,
+    zIndex: 4,
+  },
+  guideH: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: Palette.accent,
+    opacity: 0.85,
+    zIndex: 4,
+  },
   foldLine: {
     position: 'absolute',
     width: 0,

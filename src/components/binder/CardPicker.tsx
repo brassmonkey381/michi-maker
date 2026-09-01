@@ -261,7 +261,12 @@ export function CardPicker({
    * narrow screens, where covering the page is the only honest option.
    */
   const { width } = useWindowDimensions();
-  const docked = width >= CARD_PICKER_DOCK_MIN_WIDTH;
+  // ...but NOT for the Artwork tab. The Slice Studio is a workspace, not a side panel: a canvas
+  // shaped like the page, a control column beside it, and a two-column layout that wants 800px
+  // before it will even unstack. Docked into a 460px column it hangs off the edge of the screen.
+  // On that tab the picker goes back to being a full-width sheet, which is the room it was built
+  // for — and the sheet's 720px cap lifts there for the same reason.
+  const docked = width >= CARD_PICKER_DOCK_MIN_WIDTH && tab !== 'artwork';
 
   /**
    * ONE TAP TO PLACE.
@@ -443,7 +448,7 @@ export function CardPicker({
         <Pressable style={styles.backdropFill} onPress={onClose} />
         {/* Always tall, whatever the tab, Cards, Artwork, and Insert all rise to the same height
             so switching between them doesn't resize the sheet. */}
-        <View style={[sheet.bottomSheet, styles.sheetTall, styles.sheetCapped]}>
+        <View style={[sheet.bottomSheet, styles.sheetTall, tab !== 'artwork' && styles.sheetCapped]}>
           <View style={sheet.handle} />
           {body}
         </View>
@@ -486,7 +491,8 @@ const styles = StyleSheet.create({
   },
   chevron: { fontSize: FontSize.md, color: Palette.muted },
   /** Even as a sheet it should not stretch to a 1920px monitor: a phone-shaped control the width
-   *  of a desktop is nobody's idea of a good picker. */
+   *  of a desktop is nobody's idea of a good picker. The Slice Studio is the exception — it is a
+   *  workspace and takes every pixel it is given. */
   sheetCapped: { width: '100%', maxWidth: 720, alignSelf: 'center' },
   // A definite height (not just maxHeight) so the browse FlatList gets a bounded viewport. Overrides
   // the shared bottomSheet's 85% maxHeight to give the Slice Studio canvas more vertical room.

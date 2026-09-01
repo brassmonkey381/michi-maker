@@ -603,19 +603,31 @@ export function BinderPages({
    * The sheet is the cover itself, so it carries the outside on one face and the inside on the
    * other, which is the whole reason a cover has two sides worth decorating.
    */
+  /**
+   * THE BACK OF THE LAST SHEET. A binder with an odd page count has one more page than it has
+   * been given: the reverse of its final sheet, which is a real pocket page with nothing in it. It
+   * is what faces the inside back cover, and what the back cover closes onto. Drawn, not stored:
+   * the moment the owner adds a page, that page IS this one, and the binder is even again.
+   */
+  const lastPage = binder.pages[count - 1];
+  const tailPage: DemoPage | null =
+    count % 2 === 1 && lastPage
+      ? { id: 'tail:back-of-last-sheet', rows: lastPage.rows, cols: lastPage.cols, slots: [] }
+      : null;
+
   const coverEnd = coverTurn?.end ?? shut;
   const coverStage = coverEnd
     ? {
         end: coverEnd,
         // Under the sheet: the page it lifts off, or lands on. The other half is the table. At the
-        // back of an odd-count binder the sheet lands on the blank back of the final page, not on
-        // the page itself, which is what the tail spread shows.
+        // back of an odd-count binder that is the blank back of the final sheet, a page in its
+        // own right, which is also what the tail spread shows facing the inside back.
         basePage:
           coverEnd === 'front'
             ? (binder.pages[0] ?? null)
             : count % 2 === 0
               ? (binder.pages[count - 1] ?? null)
-              : null,
+              : tailPage,
         // Front runs 0 to -180 (right to left); back runs the reverse. Opening at the front and
         // closing at the back both travel leftward; the other two travel back.
         forward: coverTurn ? (coverTurn.closing ? coverEnd === 'back' : coverEnd === 'front') : true,
@@ -941,9 +953,11 @@ export function BinderPages({
                   {/* Settled and shut at the back, the back cover lies here. Mid-turn, the left is
                       the last page (at the back) or bare table (at the front). */}
                   {settled
-                    ? onRight || tail
-                      ? null
-                      : drawCover(coverStage.outside, true)
+                    ? tail
+                      ? baseGrid
+                      : onRight
+                        ? null
+                        : drawCover(coverStage.outside, true)
                     : onRight
                       ? null
                       : baseGrid}

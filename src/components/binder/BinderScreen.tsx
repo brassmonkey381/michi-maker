@@ -1234,6 +1234,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     captionFields,
     ownedIds,
     scanUrlOf,
+    decorative,
   }: {
     page: DemoPage;
     width: number;
@@ -1241,7 +1242,25 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     captionFields: CaptionFieldKey[];
     ownedIds?: ReadonlySet<string>;
     scanUrlOf?: (slot: DemoSlot) => string | undefined;
+    decorative?: boolean;
   }) => {
+    // A COPY FOR THE PAGE TURN IS INERT. Every editable branch below attaches prevRef / nextRef and
+    // registers drop targets, so handing the animation a live grid let a decorative duplicate take
+    // the ref the editor was holding — the reason turning misbehaved in one's own binders only.
+    if (decorative) {
+      return (
+        <BinderGrid
+          page={p}
+          width={width}
+          editable={false}
+          captionFields={captionFields}
+          ownedIds={ownedIds}
+          scanUrlOf={scanUrlOf}
+          variantOf={variantOf}
+          instantImages
+        />
+      );
+    }
     if (!editing) {
       return (
         <BinderGrid page={p} width={width} editable={false} captionFields={captionFields} ownedIds={ownedIds} scanUrlOf={scanUrlOf} variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable} />

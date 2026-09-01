@@ -82,6 +82,15 @@ export interface BinderPagesProps {
     ownedIds?: ReadonlySet<string>;
     /** Real-scan lookup while the Scans pill is on (owner-only; see useScanImages). */
     scanUrlOf?: (slot: DemoSlot) => string | undefined;
+    /**
+     * A COPY DRAWN FOR THE PAGE TURN, not the page itself. It must be inert and read-only: the
+     * editor's grids attach refs (prevRef / nextRef) and register drag surfaces, so a second live
+     * copy of the same page silently steals the ref the editor is holding — which is why turning
+     * misbehaved only in one's OWN binders and looked fine in everyone else's.
+     *
+     * It also asks for no image fade-in: the copy is of a page already on screen.
+     */
+    decorative?: boolean;
   }) => ReactNode;
   /**
    * Does the person looking at this own it? Gates the Real-scans pill, and defaults to FALSE so
@@ -244,7 +253,12 @@ export function BinderPages({
   if (turnedAt !== idx) {
     const from = turnedAt;
     setTurnedAt(idx);
-    if (count > 1 && !turnReduced()) {
+    // NO TURN WHEN THE PAGE IS ALREADY IN FRONT OF YOU. Tapping the facing half of an open spread
+    // moves the active page but turns nothing over — both pages stay exactly where they are — so
+    // animating a sheet there was pure invention. A spread is identified by its left-hand index.
+    const spreadOf = (i: number) => (i === 0 ? 0 : i % 2 === 1 ? i : i - 1);
+    const sameSpread = doubleSided && spreadOf(from) === spreadOf(idx);
+    if (count > 1 && !turnReduced() && !sameSpread) {
       const fromLeftIdx = from === 0 ? -1 : from % 2 === 1 ? from : from - 1;
       const fromRightIdx = from === 0 ? 0 : fromLeftIdx + 1 < count ? fromLeftIdx + 1 : -1;
       setPageTurn({
@@ -466,7 +480,8 @@ export function BinderPages({
               editable={editable}
               dragCol={dragCol}
               columnIndex={0}
-              role={spreadLeftIdx === idx ? 'current' : 'prev'}>
+              role={spreadLeftIdx === idx ? 'current' : 'prev'}
+              flat>
               {leftPage
                 ? renderGrid({
                     page: leftPage,
@@ -488,7 +503,8 @@ export function BinderPages({
               editable={editable}
               dragCol={dragCol}
               columnIndex={2}
-              role={spreadRightIdx === idx ? 'current' : 'next'}>
+              role={spreadRightIdx === idx ? 'current' : 'next'}
+              flat>
               {rightPage
                 ? renderGrid({
                     page: rightPage,
@@ -525,7 +541,7 @@ export function BinderPages({
               dragCol={dragCol}
               columnIndex={1}
               role="current">
-              {renderGrid({ page, width: spreadWidth, role: 'current', captionFields, ownedIds, scanUrlOf })}
+              {renderGrid({ page, width: spreadWidth, role: 'current', captionFields, ownedIds, scanUrlOf, decorative: true })}
             </SpreadColumn>
             <SpreadColumn
               page={nextPage}
@@ -544,7 +560,7 @@ export function BinderPages({
           </View>
         ) : (
           <View testID="binder-page-current">
-            {renderGrid({ page, width: pageWidth, role: 'single', captionFields, ownedIds, scanUrlOf })}
+            {renderGrid({ page, width: pageWidth, role: 'single', captionFields, ownedIds, scanUrlOf, decorative: true })}
           </View>
         )}
       </Animated.View>
@@ -590,9 +606,10 @@ export function BinderPages({
                       label={leftPage ? `Page ${spreadLeftIdx + 1}` : ''}
                       editable={editable}
                       columnIndex={0}
-                      role={leftRole}>
+                      role={leftRole}
+                      flat>
                       {baseLeft
-                        ? renderGrid({ page: baseLeft, width: bookW, role: gridRole(leftRole) as GridRole, captionFields, ownedIds, scanUrlOf })
+                        ? renderGrid({ page: baseLeft, width: bookW, role: gridRole(leftRole) as GridRole, captionFields, ownedIds, scanUrlOf, decorative: true })
                         : null}
                     </SpreadColumn>
                     <SpreadColumn
@@ -601,20 +618,21 @@ export function BinderPages({
                       label={rightPage ? `Page ${spreadRightIdx + 1}` : ''}
                       editable={editable}
                       columnIndex={2}
-                      role={rightRole}>
+                      role={rightRole}
+                      flat>
                       {/* The leaf hinges on THIS column's inner edge, so it needs no arithmetic
                           about where the spine is — it is already there. */}
                       <View>
                         {baseRight
-                          ? renderGrid({ page: baseRight, width: bookW, role: gridRole(rightRole) as GridRole, captionFields, ownedIds, scanUrlOf })
+                          ? renderGrid({ page: baseRight, width: bookW, role: gridRole(rightRole) as GridRole, captionFields, ownedIds, scanUrlOf, decorative: true })
                           : null}
                         <TurnLeaf
                           t={turnT}
                           forward={pageTurn.forward}
                           width={bookW}
                           hingeLeft={0}
-                          front={front ? renderGrid({ page: front, width: bookW, role: 'current', captionFields, ownedIds, scanUrlOf }) : null}
-                          back={back ? renderGrid({ page: back, width: bookW, role: 'current', captionFields, ownedIds, scanUrlOf }) : null}
+                          front={front ? renderGrid({ page: front, width: bookW, role: 'current', captionFields, ownedIds, scanUrlOf, decorative: true }) : null}
+                          back={back ? renderGrid({ page: back, width: bookW, role: 'current', captionFields, ownedIds, scanUrlOf, decorative: true }) : null}
                         />
                       </View>
                     </SpreadColumn>
@@ -635,7 +653,7 @@ export function BinderPages({
               <SingleTurnLeaf
                 t={turnT}
                 width={pageWidth}
-                page={renderGrid({ page: pageTurn.fromPage, width: pageWidth, role: 'single', captionFields, ownedIds, scanUrlOf })}
+                page={renderGrid({ page: pageTurn.fromPage, width: pageWidth, role: 'single', captionFields, ownedIds, scanUrlOf, decorative: true })}
               />
             </View>
           </View>
@@ -726,6 +744,7 @@ function SpreadColumn({
   columnIndex,
   role,
   peekWidth,
+  flat = false,
   children,
 }: {
   page: DemoPage | null;
@@ -739,6 +758,14 @@ function SpreadColumn({
   role: 'prev' | 'current' | 'next';
   /** When set, show only this many pixels of the page: a peek at its inner edge. */
   peekWidth?: number;
+  /**
+   * BOTH HALVES OF AN OPEN BOOK ARE LIVE. The prev/current/next scroller dims its neighbours to
+   * say which page you are reading, but a double-sided spread is one open binder: dimming half of
+   * it says the left page is somehow less real than the right, and it dimmed the turning leaf with
+   * it — which is why a page mid-turn looked transparent, and why the destination showed through
+   * it before the turn had finished.
+   */
+  flat?: boolean;
   children: ReactNode;
 }) {
   const fallback = useSharedValue(-1);
@@ -765,13 +792,13 @@ function SpreadColumn({
         labelEl
       )}
       {onFocus && !editable ? (
-        <Pressable style={styles.neighborGrid} onPress={onFocus} accessibilityLabel={label}>
+        <Pressable style={flat ? undefined : styles.neighborGrid} onPress={onFocus} accessibilityLabel={label}>
           <PeekClip peeking={peeking} peekWidth={peekWidth ?? width} width={width} role={role}>
             {children}
           </PeekClip>
         </Pressable>
       ) : (
-        <View style={role === 'current' ? styles.currentGrid : styles.neighborGrid}>
+        <View style={flat ? undefined : role === 'current' ? styles.currentGrid : styles.neighborGrid}>
           <PeekClip peeking={peeking} peekWidth={peekWidth ?? width} width={width} role={role}>
             {children}
           </PeekClip>

@@ -125,6 +125,11 @@ interface BinderGridProps {
   editable?: boolean;
   /** Metadata fields to show as a caption under each card. Empty/undefined ⇒ no captions. */
   captionFields?: CaptionFieldKey[];
+  /**
+   * Draw card images with no fade-in. For DECORATIVE copies — the page-turn overlay renders
+   * pages that are already on screen, and a fade on each one reads as the page refreshing.
+   */
+  instantImages?: boolean;
   selectedSlotId?: string | null;
   /** Extra slots shown highlighted (Ctrl/Cmd multi-select) — a border only, no per-slot toolbar. */
   multiSelectedIds?: ReadonlySet<string> | null;
@@ -205,6 +210,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
     width,
     editable = false,
     captionFields = [],
+    instantImages = false,
     selectedSlotId,
     multiSelectedIds,
     onSlotPress,
@@ -432,6 +438,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               owned={!!(slot.cardId && ownedIds?.has(slot.cardId))}
               scanUri={slot.cardId ? scanUrlOf?.(slot) : undefined}
               captionFields={captionFields}
+              instantImages={instantImages}
               price={slot.cardId ? priceFor(priceSummary, slot.cardId, variantOf?.(slot)) : undefined}
             chipScale={chipScale}
             />
@@ -593,6 +600,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               owned={!!(dragged.cardId && ownedIds?.has(dragged.cardId))}
               scanUri={dragged.cardId ? scanUrlOf?.(dragged) : undefined}
               captionFields={captionFields}
+              instantImages={instantImages}
               price={dragged.cardId ? priceFor(priceSummary, dragged.cardId, variantOf?.(dragged)) : undefined}
             chipScale={chipScale}
             />
@@ -1083,7 +1091,10 @@ function SlotContent({
   captionFields = [],
   price,
   chipScale = 1,
+  instantImages = false,
 }: {
+  /** Draw images with no fade-in (a decorative copy — see BinderGrid.instantImages). */
+  instantImages?: boolean;
   slot: DemoSlot;
   radius: number;
   small: boolean;
@@ -1160,7 +1171,7 @@ function SlotContent({
     const spanning = slot.rowSpan > 1 || slot.colSpan > 1;
     return (
       <View style={[styles.fill, { borderRadius: radius, backgroundColor: SlotBackingFallback }]}>
-        <CardImage key={id} id={id} radius={radius} small={small} contentFit={spanning ? 'cover' : 'contain'} />
+        <CardImage key={id} id={id} radius={radius} small={small} contentFit={spanning ? 'cover' : 'contain'} instant={instantImages} />
         <KindBadge kind={kind} small={small} />
         <OwnedBadge owned={owned} small={small} scale={chipScale} />
       </View>
@@ -1171,7 +1182,7 @@ function SlotContent({
   return (
     <View style={[styles.fill, styles.cardFrame, { borderRadius: radius }]}>
       <View style={[styles.fill, { backgroundColor: SlotBackingFallback }]}>
-        <CardImage key={id} id={id} radius={radius} small={small} contentFit="contain" scanUri={scanUri} />
+        <CardImage key={id} id={id} radius={radius} small={small} contentFit="contain" scanUri={scanUri} instant={instantImages} />
         {/* Diagonal foil sheen: two translucent rotated bars layered as plain Views. */}
         <View pointerEvents="none" style={styles.foil}>
           <View style={[styles.foilBar, styles.foilBarA]} />
@@ -1460,7 +1471,10 @@ function CardImage({
   small,
   contentFit,
   scanUri,
+  instant,
 }: {
+  /** Skip the fade-in: this is a copy drawn for an animation, not a picture arriving. */
+  instant?: boolean;
   id: string;
   radius: number;
   small: boolean;
@@ -1547,7 +1561,11 @@ function CardImage({
         contentFit={contentFit}
         cachePolicy="memory-disk"
         recyclingKey={`${id}-${stage}`}
-        transition={150}
+        // A DECORATIVE COPY DOES NOT FADE IN. The page-turn overlay mounts fresh copies of pages
+        // that are already on screen, and a 150ms fade on each one is exactly the "page visibly
+        // refreshing" flash a turn was reported to have. The image is in the memory cache by then,
+        // so there is nothing to cover — the transition was animating a swap that had happened.
+        transition={instant ? 0 : 150}
         // Web: disable native <img> dragging so cards can't be dragged outside edit mode (edit
         // mode moves them via a gesture pan, not native drag). No-op on native.
         draggable={false}

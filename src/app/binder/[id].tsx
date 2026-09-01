@@ -247,8 +247,15 @@ function Viewer({
         onPageChange={onPage}
         availableWidth={availableWidth}
         editable={false}
-        renderGrid={({ page, width, captionFields }) => (
-          <BinderGrid page={page} width={width} editable={false} captionFields={captionFields} />
+        renderGrid={({ page, width, captionFields, decorative }) => (
+          <BinderGrid
+            page={page}
+            width={width}
+            editable={false}
+            captionFields={captionFields}
+            // A page-turn copy of a page already on screen: no fade-in, or it reads as refreshing.
+            instantImages={decorative}
+          />
         )}
       />
 

@@ -35,6 +35,40 @@ import { usePriceSummaryWhen, type PriceSummary } from '@/lib/prices';
  * with no error anywhere. Falling back to `cur` keeps a wrong-but-present stored finish showing a
  * plausible price rather than nothing.
  */
+/**
+ * THE THREE LABELS PEOPLE ARE ACTUALLY LOOKING FOR — price, owned, finish — are drawn at twice the
+ * size of the reference labels beside them, and they SCALE WITH THE POCKET.
+ *
+ * Owner decision 2026-09-01: the bottom-left reference labels (illustrator, set, code, number) are
+ * right as they are and must not grow — they are there to be read when you go looking, and at any
+ * larger size they start competing with the art. The other three are different in kind: what a
+ * card is worth, whether you already have it, and which printing it is are the reasons someone is
+ * looking at the grid at all, and at 9px they were the same whisper as the reference material.
+ *
+ * SCALED, NOT FIXED, because a pocket is not one size: the same grid draws a 3x4 page on a phone
+ * and a two-page spread on a desktop, and a chip pinned to 18px would be a sticker on the small
+ * one and a footnote on the large. `REFERENCE_POCKET_W` is a typical pocket (a 3-column page at
+ * the width labels first appear), so the multiplier is exactly 2 there and moves with the card
+ * either side of it. Clamped at both ends: never so small it defeats the point, never so large it
+ * covers the art it sits on.
+ */
+const REFERENCE_POCKET_W = 120;
+const EMPHASIS_MIN = 0.8;
+const EMPHASIS_MAX = 1.6;
+/** How much bigger than a reference label an emphasised one is, at the reference pocket width. */
+const EMPHASIS_FACTOR = 2;
+
+function emphasisScale(cellW: number): number {
+  if (!(cellW > 0)) return 1;
+  return Math.min(EMPHASIS_MAX, Math.max(EMPHASIS_MIN, cellW / REFERENCE_POCKET_W));
+}
+
+/** Font size + line box for an emphasised label at this pocket size. */
+function emphasisType(scale: number): { fontSize: number; lineHeight: number } {
+  const fontSize = Math.round(FontSize.micro * EMPHASIS_FACTOR * scale);
+  return { fontSize, lineHeight: Math.round(fontSize * 1.22) };
+}
+
 function priceFor(
   summary: PriceSummary | null,
   cardId: string,
@@ -192,6 +226,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   const innerW = width - pad * 2;
   const cellW = (innerW - gap * (page.cols - 1)) / page.cols;
   const cellH = cellW * CARD_ASPECT;
+  // How much the emphasised labels (price / owned / finish) grow at this pocket size.
+  const chipScale = emphasisScale(cellW);
   // Vertical step includes the caption strip so every row reserves room for its labels. A card
   // box keeps the card's own height (cellH); spanning cards absorb the intermediate strips + gaps
   // so a 2×2 still reads as one rectangle, with its single caption below the whole thing.
@@ -369,6 +405,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               scanUri={slot.cardId ? scanUrlOf?.(slot) : undefined}
               captionFields={captionFields}
               price={slot.cardId ? priceFor(priceSummary, slot.cardId, variantOf?.(slot)) : undefined}
+            chipScale={chipScale}
             />
           );
           if (!editable) {
@@ -442,11 +479,18 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
                   hitSlop={{ top: 10, right: 10, bottom: 6, left: 6 }}
                   style={[
                     styles.variantChip,
-                    { backgroundColor: chip.fill },
+                    {
+                      backgroundColor: chip.fill,
+                      // Padding rides the same scale, or a big letter sits in a small pill.
+                      paddingHorizontal: Math.round(4 * chipScale),
+                      paddingVertical: Math.round(1.5 * chipScale),
+                    },
                     // Hollow, so a prompt never passes for an answer at a glance.
                     asking && styles.variantChipAsking,
                   ]}>
-                  <Text style={[styles.variantChipText, { color: chip.text }]}>{chip.letter}</Text>
+                  <Text style={[styles.variantChipText, emphasisType(chipScale), { color: chip.text }]}>
+                    {chip.letter}
+                  </Text>
                 </Pressable>
               </View>
             );
@@ -513,6 +557,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               scanUri={dragged.cardId ? scanUrlOf?.(dragged) : undefined}
               captionFields={captionFields}
               price={dragged.cardId ? priceFor(priceSummary, dragged.cardId, variantOf?.(dragged)) : undefined}
+            chipScale={chipScale}
             />
           </Animated.View>
         ) : null}
@@ -1000,11 +1045,14 @@ function SlotContent({
   scanUri,
   captionFields = [],
   price,
+  chipScale = 1,
 }: {
   slot: DemoSlot;
   radius: number;
   small: boolean;
   catalog: Catalog | null;
+  /** Emphasis scale for price / owned / finish at this pocket size (see emphasisScale). */
+  chipScale?: number;
   /** Which labels are switched on. The on-card ones are drawn here; the rest go in the strip. */
   captionFields?: CaptionFieldKey[];
   /** This pocket's value, already resolved to the owned copy's finish (see priceFor). */
@@ -1077,7 +1125,7 @@ function SlotContent({
       <View style={[styles.fill, { borderRadius: radius, backgroundColor: SlotBackingFallback }]}>
         <CardImage key={id} id={id} radius={radius} small={small} contentFit={spanning ? 'cover' : 'contain'} />
         <KindBadge kind={kind} small={small} />
-        <OwnedBadge owned={owned} small={small} />
+        <OwnedBadge owned={owned} small={small} scale={chipScale} />
       </View>
     );
   }
@@ -1093,13 +1141,14 @@ function SlotContent({
           <View style={[styles.foilBar, styles.foilBarB]} />
         </View>
         <KindBadge kind={kind} small={small} hidden={codeRowOn} />
-        <OwnedBadge owned={owned} small={small} />
+        <OwnedBadge owned={owned} small={small} scale={chipScale} />
         <CardLabels
           card={resolveCatalogCardWith(catalog, id)}
           kind={kind}
           fields={captionFields}
           price={price}
           small={small}
+          scale={chipScale}
         />
       </View>
     </View>
@@ -1125,6 +1174,7 @@ function CardLabels({
   fields,
   price,
   small,
+  scale = 1,
 }: {
   card: CatalogCard | undefined;
   /** Drawn as the row's leading chip so it is not a second thing claiming the bottom-left. */
@@ -1132,6 +1182,8 @@ function CardLabels({
   fields: CaptionFieldKey[];
   price?: number;
   small: boolean;
+  /** Emphasis scale for the price chip (see emphasisScale). 1 at a reference-width pocket. */
+  scale?: number;
 }) {
   // Nothing legible fits on a filmstrip or a discover tile, and a label nobody can read is just
   // dirt on the art.
@@ -1162,14 +1214,25 @@ function CardLabels({
    * switched on would have been — turning a label off would move a different label. Bottom-up
    * because the bottom edge is the anchor: the codes stay put however many rows sit above them.
    */
-  // A chip is one 9px line plus a pixel of padding each side, so a 15px step leaves the two
-  // pixels of air that separate the rows without wasting any on top of that.
+  // A reference chip is one 9px line plus a pixel of padding each side, so a 15px step leaves the
+  // two pixels of air that separate the rows without wasting any on top of that.
   const ROW_STEP = 15;
+  const AIR = 2;
+  const REF_ROW_H = 13;
   const stack: string[] = [];
   if (bottom.length > 0 || corner.length > 0) stack.push('codes');
   if (setName) stack.push('set');
   if (artist) stack.push('artist');
-  const bottomOf = (row: string) => 2 + stack.indexOf(row) * ROW_STEP;
+  // THE BOTTOM ROW IS NOW TALLER THAN THE ONES ABOVE IT, because the price on it is emphasised.
+  // A uniform step measured for 9px text would let the set name sit on top of a big number, so
+  // the first gap is measured from the row that is actually there.
+  const priceType = emphasisType(scale);
+  const codesRowH = Math.max(REF_ROW_H, priceType.lineHeight + Math.round(1.5 * scale) * 2);
+  const firstRowH = stack[0] === 'codes' ? codesRowH : REF_ROW_H;
+  const bottomOf = (row: string) => {
+    const i = stack.indexOf(row);
+    return i <= 0 ? 2 : 2 + firstRowH + AIR + (i - 1) * ROW_STEP;
+  };
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
@@ -1233,10 +1296,20 @@ function CardLabels({
           {corner.map((c) => (
             <View
               key={c.value}
-              style={[styles.onCardChip, c.tone === 'accent' && styles.onCardAccentChip]}>
+              style={[
+                styles.onCardChip,
+                c.tone === 'accent' && styles.onCardAccentChip,
+                // The price is the emphasised one; padding grows with the number so the pill does
+                // not strangle it.
+                { paddingHorizontal: Math.round(4 * scale), paddingVertical: Math.round(1.5 * scale) },
+              ]}>
               <Text
                 numberOfLines={1}
-                style={[styles.badgeText, c.tone === 'accent' && styles.onCardAccentText]}>
+                style={[
+                  styles.badgeText,
+                  emphasisType(scale),
+                  c.tone === 'accent' && styles.onCardAccentText,
+                ]}>
                 {c.value}
               </Text>
             </View>
@@ -1249,11 +1322,23 @@ function CardLabels({
 
 /** A green ✓ corner badge marking a card the viewer owns (own ≥ 1) — top-left, matching the
  *  browse grid's owned marker. Off unless `owned`; shrinks on small (neighbour) tiles. */
-function OwnedBadge({ owned, small }: { owned: boolean; small: boolean }) {
+function OwnedBadge({ owned, small, scale = 1 }: { owned: boolean; small: boolean; scale?: number }) {
   if (!owned) return null;
+  // Doubled and pocket-scaled, like the price and the finish chip: "I already have this" is one of
+  // the three things worth spotting without reading. Neighbour tiles keep the old small mark —
+  // they are a filmstrip, not something anyone reads.
+  const size = small ? 13 : Math.round(16 * EMPHASIS_FACTOR * scale);
+  const type = small
+    ? { fontSize: 8, lineHeight: 10 }
+    : (() => {
+        const f = Math.round(10 * EMPHASIS_FACTOR * scale);
+        return { fontSize: f, lineHeight: Math.round(f * 1.2) };
+      })();
   return (
-    <View pointerEvents="none" style={[styles.ownedBadge, small && styles.ownedBadgeSmall]}>
-      <Text style={[styles.ownedBadgeText, small && styles.ownedBadgeTextSmall]}>✓</Text>
+    <View
+      pointerEvents="none"
+      style={[styles.ownedBadge, { width: size, height: size, borderRadius: size / 2 }]}>
+      <Text style={[styles.ownedBadgeText, type]}>✓</Text>
     </View>
   );
 }

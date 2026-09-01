@@ -28,6 +28,9 @@ export interface Win {
 /** The image features that seek a grid line: its two edges and its middle. */
 export const IMAGE_FEATURES = [0, 0.5, 1] as const;
 
+/** Which alignment to keep when a scale cannot keep them all — see `snapAnchor`. */
+const ANCHOR_PREFERENCE = [0, 1, 0.5] as const;
+
 /** How close, in canvas pixels, an edge has to come before it clicks into place. */
 export const SNAP_TOLERANCE_PX = 7;
 
@@ -108,6 +111,41 @@ export function activeGuides(
     for (const line of lines) if (Math.abs(at - line) <= slackPx) out.add(line);
   }
   return [...out].sort((a, b) => a - b);
+}
+
+/**
+ * The anchor that keeps this axis lined up with whatever it is lined up with RIGHT NOW.
+ *
+ * Zooming about the middle is the correct default when nothing is aligned, and exactly wrong when
+ * something is: you push the art flush against the left-hand pockets, press +, and the alignment
+ * you just made slides away from the edge because both sides grew equally. What you meant was
+ * "grow to the right, from that edge".
+ *
+ * Returned as a fraction of the canvas, ready for `zoomWindow`: an image edge sitting at canvas
+ * pixel L stays at L if the zoom is anchored at L / canvasPx. Null when nothing is aligned, which
+ * is the caller's cue to zoom about the middle as before.
+ *
+ * Edges win over the middle, and the left/top edge wins over the right/bottom, because an image
+ * aligned on two features at once cannot keep both through a scale — only one point can stay put —
+ * and pinning the near edge is what "snapped into the corner" means.
+ */
+export function snapAnchor(
+  pos: number,
+  size: number,
+  canvasPx: number,
+  lines: readonly number[],
+  slackPx = 0.5,
+): number | null {
+  if (!(canvasPx > 0) || !(size > 0)) return null;
+  // Deliberately NOT IMAGE_FEATURES order, which puts the middle before the far edge: the search
+  // returns the first hit, so the order IS the preference.
+  for (const u of ANCHOR_PREFERENCE) {
+    const at = ((u - pos) / size) * canvasPx;
+    for (const line of lines) {
+      if (Math.abs(at - line) <= slackPx) return line / canvasPx;
+    }
+  }
+  return null;
 }
 
 /**

@@ -10,6 +10,11 @@
 // three ways to check the modifiers: ⌘/Ctrl for the crawl you frame to the pixel with, Shift for
 // crossing a lot of zoom in one gesture.
 //
+// ZOOMING OUT OF A CORNER. Zooming about the middle is right when nothing is aligned and exactly
+// wrong when something is: push the art flush into a corner, press +, and the alignment you just
+// made slides away because both sides grew equally. The button zoom now anchors on whatever the art
+// is lined up with. Checked both ways — snapped it must hold, unsnapped it must not.
+//
 // THE CUT PICKER FITS. All ten shapes in one wrapping row ran off the side of the panel and buried
 // the three people reach for, so the row is the common five plus "+ more". This checks the
 // collapsed count, that "+ more" is there, and that it actually reveals something.
@@ -269,6 +274,93 @@ if (expandedFits && expandedFits.rowRight > expandedFits.panelRight) {
   ok = false;
 }
 
+// ZOOM OUT OF A CORNER, not out of the middle. With an edge of the art snapped to a pocket line,
+// pressing + must grow the art AWAY from that line and leave the line where it is. Anchored on the
+// centre it would slide inward by half the growth, which is the whole complaint.
+//
+// The art has to actually BE snapped for this to mean anything, and a big drag does not do it — it
+// lands the edges nowhere near a line and the anchor correctly falls back to centre. So pan in
+// small steps and stop the moment a guide lights up: the guide IS the alignment, drawn from the
+// window itself, so its presence is the precondition and its position is the thing to hold still.
+const artBox = () =>
+  p.evaluate(() => {
+    const el = [...document.querySelectorAll('img')]
+      .map((i) => ({ i, r: i.getBoundingClientRect() }))
+      .filter(({ r }) => r.width > 250)
+      .sort((a, c) => c.r.width - a.r.width)[0];
+    if (!el) return null;
+    const r = el.r;
+    return { left: Math.round(r.left * 10) / 10, top: Math.round(r.top * 10) / 10, w: Math.round(r.width * 10) / 10 };
+  });
+// Guides live in canvas coordinates; read their screen positions so they can be compared across a
+// zoom without caring which line is which.
+const guideAt = () =>
+  p.evaluate(() =>
+    [...document.querySelectorAll('[data-testid="slice-guide"]')]
+      .map((el) => {
+        const r = el.getBoundingClientRect();
+        return r.width < r.height ? `x${Math.round(r.left)}` : `y${Math.round(r.top)}`;
+      })
+      .sort(),
+  );
+// By testID, not by glyph: "+" also matches the binder's empty pockets and the picker's "+ more".
+const plusBtn = () => p.locator('[data-testid="studio-zoom-in"]');
+
+// Zoom in so the art overflows the canvas and there is room to pan.
+for (let i = 0; i < 6; i++) { await plusBtn().click({ timeout: 8000 }); await settle(200); }
+await settle(700);
+
+// Pan in small steps, stopping as soon as something clicks into place.
+let lit = [];
+await p.mouse.move(cx, cy);
+await p.mouse.down();
+for (let i = 0; i < 40 && lit.length === 0; i++) {
+  await p.mouse.move(cx + (i + 1) * 12, cy + (i + 1) * 6);
+  await settle(70);
+  lit = await guideAt();
+}
+await p.mouse.up();
+await settle(300);
+const cornered = await artBox();
+await p.screenshot({ path: `${OUT}-3-cornered.png` });
+console.log(`snapped     : guides ${JSON.stringify(lit)}`);
+
+if (!lit.length) {
+  console.log('FAIL — panning never produced an alignment, so the anchor could not be tested');
+  ok = false;
+} else {
+  // Press + and read the guides again inside the same framing window, while they are still drawn.
+  await plusBtn().click({ timeout: 8000 });
+  await settle(250);
+  const after = await guideAt();
+  const grown = await artBox();
+  const stillLit = lit.filter((g) => after.includes(g));
+  console.log(`corner zoom : guides ${JSON.stringify(after)}, w ${cornered.w}->${grown.w}`);
+  if (!(grown.w > cornered.w)) { console.log('FAIL — + did not zoom in at all'); ok = false; }
+  if (!stillLit.length) {
+    console.log('FAIL — every alignment was lost on zoom; it is still anchoring on the centre');
+    ok = false;
+  }
+
+  // AND THE CONTROL, without which the check above proves nothing. With Snap off nothing is
+  // aligned, the anchor falls back to the centre, and the same press MUST move the art's edge —
+  // a broken anchor and a broken measurement look identical until the number has been seen to move.
+  await p.getByText('⌗', { exact: true }).first().click({ timeout: 8000 });
+  await settle(600);
+  const beforeOff = await artBox();
+  await plusBtn().click({ timeout: 8000 });
+  await settle(900);
+  const afterOff = await artBox();
+  const driftOff = Math.round((afterOff.left - beforeOff.left) * 10) / 10;
+  console.log(`snap off    : the same press moves the edge ${driftOff}px (centred, as before)`);
+  if (Math.abs(driftOff) < 2) {
+    console.log('FAIL — with snap off the edge should move; the corner check above proves nothing');
+    ok = false;
+  }
+  await p.getByText('⌗', { exact: true }).first().click({ timeout: 8000 });
+  await settle(400);
+}
+
 // Guides: quiet at rest, present while the frame is moving.
 const guides = () => p.locator('[data-testid="slice-guide"]').count();
 await settle(1600);
@@ -312,9 +404,11 @@ console.log(`touch merge : fold crease=${creased} mergeOffered=${mergeOffered}`)
 if (!creased) { console.log('FAIL — holding a second piece did not build a mergeable pair'); ok = false; }
 
 await p.screenshot({ path: `${OUT}-2-zoomed.png` });
+
 if (ok) {
-  console.log('PASS — zoom scales with the gesture and with its modifiers, the guides know when to');
-  console.log('       shut up, two pieces can be selected by finger, and the cut picker fits');
+  console.log('PASS — zoom scales with the gesture and with its modifiers, grows out of a snapped');
+  console.log('       corner, the guides know when to shut up, two pieces can be selected by');
+  console.log('       finger, and the cut picker fits');
 }
 else process.exitCode = 1;
 await b.close();

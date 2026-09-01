@@ -31,7 +31,7 @@ import { uploadArtImage } from '@/lib/uploadArt';
 import { deriveAttribution, domainOf, type ArtAttribution } from '@/data/artworkLibrary';
 import { uid, uuidv4, type ImageTransform } from '@/data/binderTypes';
 import type { SavedSlice } from '@/data/savedSlices';
-import { activeGuides, gridLines, snapAxis, zoomWindow } from '@/data/sliceSnap';
+import { activeGuides, gridLines, snapAnchor, snapAxis, zoomWindow } from '@/data/sliceSnap';
 import { hasMoreSliceShapes, shapeKey, shapeLabel, visibleSliceShapes } from '@/data/sliceShapes';
 import { TIER_LIMITS } from '@/data/tiers';
 import { useCatalog } from '@/hooks/use-catalog';
@@ -678,8 +678,25 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
     },
     [fit, ratio, containWin, withSnap, touchFrame],
   );
-  /** The buttons and the keyboard zoom about the middle — there is no pointer to anchor to. */
-  const zoomBy = useCallback((factor: number) => zoomAt(factor), [zoomAt]);
+  /**
+   * The buttons and the keyboard have no pointer to anchor to — so they anchor to whatever the art
+   * is LINED UP WITH.
+   *
+   * Zooming about the middle is right when nothing is aligned and exactly wrong when something is:
+   * you push the art flush into the corner, press +, and the alignment you just made slides away
+   * because both sides grew equally. Anchored on the snapped edge, the same press grows the art out
+   * of that corner and leaves the corner where it was — which is what "scale up in a direction"
+   * means. Each axis decides for itself, so an edge-snapped image grows from its edge and stays
+   * centred on the other axis.
+   */
+  const zoomBy = useCallback(
+    (factor: number) => {
+      const ax = snap ? snapAnchor(win.x, win.w, canvasW, xLines) : null;
+      const ay = snap ? snapAnchor(win.y, win.h, canvasH, yLines) : null;
+      zoomAt(factor, ax ?? 0.5, ay ?? 0.5);
+    },
+    [zoomAt, snap, win, canvasW, canvasH, xLines, yLines],
+  );
 
   const rotate = useCallback(
     (dir: 1 | -1) => {
@@ -1286,8 +1303,20 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
               <View style={styles.group}>
                 {/* Hold to keep going: one tap is a small step, so reaching a distant zoom by
                     tapping would be tedious without it. */}
-                <IconBtn label="−" onPress={() => zoomBy(1 / BUTTON_ZOOM_STEP)} disabled={fit === 'contain'} repeat />
-                <IconBtn label="+" onPress={() => zoomBy(BUTTON_ZOOM_STEP)} disabled={fit === 'contain'} repeat />
+                <IconBtn
+                  testID="studio-zoom-out"
+                  label="−"
+                  onPress={() => zoomBy(1 / BUTTON_ZOOM_STEP)}
+                  disabled={fit === 'contain'}
+                  repeat
+                />
+                <IconBtn
+                  testID="studio-zoom-in"
+                  label="+"
+                  onPress={() => zoomBy(BUTTON_ZOOM_STEP)}
+                  disabled={fit === 'contain'}
+                  repeat
+                />
                 <IconBtn label="⟲" onPress={() => rotate(-1)} disabled={!natural} />
                 <IconBtn label="⟳" onPress={() => rotate(1)} disabled={!natural} />
                 {rot !== 0 ? <Text style={styles.rotDeg}>{rot}°</Text> : null}
@@ -1616,6 +1645,7 @@ function IconBtn({
   disabled = false,
   active = false,
   repeat = false,
+  testID,
 }: {
   label: string;
   onPress: () => void;
@@ -1623,6 +1653,8 @@ function IconBtn({
   active?: boolean;
   /** Keep firing while held — for the zoom steps, which are deliberately small. */
   repeat?: boolean;
+  /** For the screenshot harnesses: a glyph is not a stable thing to look for. */
+  testID?: string;
 }) {
   const delay = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tick = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -1645,6 +1677,7 @@ function IconBtn({
   }, [repeat, onPress, stop]);
   return (
     <Pressable
+      testID={testID}
       onPress={onPress}
       onPressIn={start}
       onPressOut={stop}

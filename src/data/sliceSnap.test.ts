@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import {
   activeGuides,
   gridLines,
+  snapAnchor,
   snapAxis,
   zoomWindow,
   SNAP_TOLERANCE_PX,
@@ -156,4 +157,47 @@ test('a factor above one zooms OUT — the window grows', () => {
   const out = zoomWindow({ x: 0.25, y: 0.25, w: 0.5, h: 0.5 }, 2, 0.5, 0.5);
   assert.equal(out.w, 1);
   assert.equal(out.x, 0);
+});
+
+test('nothing aligned means no anchor, and the caller falls back to the middle', () => {
+  assert.equal(snapAnchor((-30 * 0.5) / 320, 0.5, 320, gridLines(3, 100, 10)), null);
+});
+
+test('an art edge flush with the canvas edge anchors the zoom there', () => {
+  // Left edge on 0 -> anchor 0: the zoom grows to the RIGHT and the flush edge stays flush.
+  assert.equal(snapAnchor(0, 0.5, 320, [0, 320]), 0);
+});
+
+test('a right-flush edge anchors on the right, so the art grows leftward', () => {
+  // The image's right edge (u=1) sits at 320 when the window shows exactly the right half.
+  assert.equal(snapAnchor(0.5, 0.5, 320, [320]), 1);
+});
+
+test('the near edge wins when both edges are on lines, because only one point can stay put', () => {
+  // The whole image exactly fills the canvas: u=0 on 0 AND u=1 on 320. A scale cannot hold both.
+  assert.equal(snapAnchor(0, 1, 320, [0, 320]), 0);
+});
+
+test('an edge beats the middle even when the middle is checked first elsewhere', () => {
+  // IMAGE_FEATURES runs 0, 0.5, 1 — so a naive search would return the MIDDLE here and zoom about
+  // the centre of a right-flush image, which is the whole bug this function exists to avoid.
+  // u=0.5 sits at 160 and u=1 sits at 320; both are lines.
+  assert.equal(snapAnchor(0.5, 0.5, 320, [160, 320]), 1);
+});
+
+test('the anchor really does hold the alignment through a zoom', () => {
+  // The end-to-end claim, not just the lookup: snap, zoom about the anchor, and the edge that was
+  // on the line is still on it.
+  const lines = gridLines(3, 100, 10);
+  const win = { x: 0, y: 0, w: 0.5, h: 0.5 };
+  const ax = snapAnchor(win.x, win.w, 320, lines);
+  assert.equal(ax, 0);
+  const out = zoomWindow(win, 0.6, ax, ax);
+  assert.ok(Math.abs(((0 - out.x) / out.w) * 320 - 0) < 1e-9, `left edge drifted to ${((0 - out.x) / out.w) * 320}`);
+});
+
+test('zooming about the middle would NOT have held it — the test above is not vacuous', () => {
+  const win = { x: 0, y: 0, w: 0.5, h: 0.5 };
+  const out = zoomWindow(win, 0.6, 0.5, 0.5);
+  assert.ok(Math.abs(((0 - out.x) / out.w) * 320) > 1, 'centre zoom should move the flush edge');
 });

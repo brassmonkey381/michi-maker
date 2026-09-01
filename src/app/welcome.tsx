@@ -264,7 +264,9 @@ export default function WelcomeScreen() {
               {heroFlipBinder ? (
                 <Reveal style={styles.heroArt} delay={140}>
                   <Animated.View style={heroArtStyle}>
-                    <View style={[styles.heroTilt, Shadows.page]}>
+                    {/* Named so the marketing capture can find the binder and frame on it
+                        exactly, rather than on hand-tuned pixel offsets that drift. */}
+                    <View testID="welcome-hero-binder" style={[styles.heroTilt, Shadows.page]}>
                       <AutoFlipBinder
                         binder={heroFlipBinder}
                         pageWidth={heroSpread ? spreadPageW : heroW}

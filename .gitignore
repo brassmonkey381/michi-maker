@@ -61,3 +61,6 @@ example
 # The real secrets file belongs at the WORKSPACE ROOT (outside every repo).
 # Ignored here too, in case a copy is ever dropped into a repo by mistake.
 tcgscan.secrets
+
+# Marketing capture working dir: big video intermediates, re-creatable from state/cap-welcome-hero.mjs
+state/out/

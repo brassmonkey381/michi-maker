@@ -182,20 +182,51 @@ export function AutoFlipBinder({
   const behindFrame = at(rest - 1);
   const fwd = Boolean(turn?.forward);
   const bwd = Boolean(turn && !turn.forward);
-  // The stage's two halves, each with the page it rests on and the page a turn would swap in.
-  // The resting page stays IN FLOW so the box keeps its height while the alternate is shown.
-  const half = (settled: DemoPage | null, alternate: DemoPage | null, showAlternate: boolean) => (
-    <View style={{ width: pageWidth }}>
-      <View style={showAlternate ? styles.kept : undefined}>
-        {settled ? <BinderGrid page={settled} width={pageWidth} /> : null}
+  /**
+   * A HALF OF THE STAGE HOLDS PAGES, NOT ROLES.
+   *
+   * Naming the layers "the settled one" and "the one a turn swaps in" meant that settling RENAMED
+   * them: the page that had been the alternate became the settled, at a different place in the
+   * tree, and React rebuilt both. That is a rebuild of the two halves you are looking at, at the
+   * exact moment the sheet lands, which is a flash at the END of a turn rather than the start.
+   *
+   * So the half renders a keyed window of every page that can appear in it while the reader is
+   * here, and showing a different one is only a change of which is visible. React matches keyed
+   * children by key, so the window sliding by one page keeps every instance that survives it.
+   */
+  const HALF_WINDOW = [-1, 0, 1];
+  const half = (pick: (f: Frame) => DemoPage | null, shown: DemoPage | null) => {
+    const seen = new Set<string>();
+    const pages: DemoPage[] = [];
+    for (const step of HALF_WINDOW) {
+      const frame = at(rest + step);
+      const pg = frame ? pick(frame) : null;
+      if (pg && !seen.has(pg.id)) {
+        seen.add(pg.id);
+        pages.push(pg);
+      }
+    }
+    return (
+      <View style={{ width: pageWidth }}>
+        {pages.map((pg, i) => (
+          <View
+            key={pg.id}
+            // One of them stays in the flow to give the box its height; the rest lie over it. Which
+            // one that is does not matter, since every page in a binder is the same size.
+            style={[
+              i === 0 ? undefined : StyleSheet.absoluteFill,
+              pg.id === shown?.id ? undefined : styles.kept,
+            ]}>
+            <BinderGrid page={pg} width={pageWidth} />
+          </View>
+        ))}
       </View>
-      {alternate ? (
-        <View style={[StyleSheet.absoluteFill, showAlternate ? undefined : styles.kept]}>
-          <BinderGrid page={alternate} width={pageWidth} />
-        </View>
-      ) : null}
-    </View>
-  );
+    );
+  };
+  // WHICH PAGE EACH HALF SHOWS. Turning forward, the left keeps the page the sheet is landing on
+  // and the right reveals the next frame's; turning back, the mirror of that.
+  const shownLeft = bwd ? (behindFrame ? leftOf(behindFrame) : null) : leftOf(restFrame);
+  const shownRight = fwd && aheadFrame ? rightOf(aheadFrame) : rightOf(restFrame);
 
   return (
     <View style={{ width }}>
@@ -205,15 +236,11 @@ export function AutoFlipBinder({
           // frame's left page. Both are kept, so neither arrives when the sheet lifts off it.
           <SpreadStage
             pageWidth={pageWidth}
-            left={half(leftOf(restFrame), behindFrame ? leftOf(behindFrame) : null, bwd)}
-            right={half(rightOf(restFrame), aheadFrame ? rightOf(aheadFrame) : null, fwd)}
+            left={half(leftOf, shownLeft)}
+            right={half(rightOf, shownRight)}
           />
         ) : (
-          half(
-            rightOf(restFrame),
-            turn ? rightOf(frames[turn.to]) : null,
-            Boolean(turn),
-          )
+          half(rightOf, turn ? rightOf(frames[turn.to]) : rightOf(restFrame))
         )}
 
         {spread ? (

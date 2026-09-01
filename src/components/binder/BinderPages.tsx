@@ -38,6 +38,7 @@ import { pillChip } from '@/constants/ui';
 import { hasTextCaption, type CaptionFieldKey } from '@/data/cardCaption';
 import { PEEK_MIN_WIDTH, SPREAD_GAP, bookLayout, pageHeightAt, spreadLayout } from '@/data/binderLayout';
 import { useCardLabelPrefs } from '@/hooks/use-card-label-prefs';
+import { useViewPrefs } from '@/hooks/use-view-prefs';
 import { cardThumbUrl } from '@/lib/catalogConfig';
 import type { DemoBinder, DemoPage, DemoSlot } from '@/data/binderTypes';
 import { allocateScanFaces } from '@/data/scanFaces';
@@ -55,8 +56,6 @@ export type GridRole = 'single' | 'prev' | 'current' | 'next' | 'partner';
 // RN's style types only admit 'absolute' | 'relative'; sticky is a web-only value that react-native-web
 // passes straight through to CSS. Declared once here so the cast has a name and a reason.
 const WEB_STICKY = { position: 'sticky', bottom: 0, zIndex: 5 };
-
-let doubleSidedPref = false;
 
 export interface BinderPagesProps {
   binder: DemoBinder;
@@ -141,8 +140,12 @@ export function BinderPages({
   const captionFields = labelsOn ? labelFields : [];
   // The viewer's owned cards → an optional green ✓ on card slots they own. Undefined for guests /
   // empty inventory (the "Owned" pill then stays hidden). Off by default; the pill flips it.
+  // HOW YOU LAST LOOKED AT THIS BINDER, remembered per account — Owned, Scans and Double-sided
+  // were all session-only, and none of them is a per-visit decision. See use-view-prefs.ts.
+  const view = useViewPrefs();
   const ownedCards = useOwnedCards();
-  const [showOwned, setShowOwned] = useState(false);
+  const showOwned = view.owned;
+  const setShowOwned = (on: boolean) => view.setPref('owned', on);
   const ownedIds = showOwned ? ownedCards : undefined;
   // Real scans: card pockets show the owner's own photo of each card instead of catalog art.
   // Session-only like the other pills; the map is undefined for guests, for accounts with no
@@ -150,7 +153,8 @@ export function BinderPages({
   // the pill entirely rather than offering a toggle that would show the wrong person's photos.
   const ownScans = useScanImages();
   const scanImages = viewerIsOwner ? ownScans : undefined;
-  const [showScans, setShowScans] = useState(false);
+  const showScans = view.scans;
+  const setShowScans = (on: boolean) => view.setPref('scans', on);
   // ALLOCATED, not looked up: a stamped pocket wears its own copy's photo, an unclaimed pocket
   // draws from the card's photos no other pocket is wearing, and when those run out it shows
   // catalog art. Binder-wide (all pages at once) so two pages cannot both spend the same photo,
@@ -164,12 +168,8 @@ export function BinderPages({
   const scanUrlOf = scanFaces ? (slot: DemoSlot) => scanFaces.get(slot.id) : undefined;
   // Double-sided: pages pair like a physical binder — page 1 alone (the cover face), then
   // 2·3 facing, 4·5, … Both sides of the open spread are shown (and edited) together.
-  const [doubleSidedWanted, setDoubleSided] = useState(doubleSidedPref);
-  const toggleDoubleSided = () =>
-    setDoubleSided((v) => {
-      doubleSidedPref = !v;
-      return !v;
-    });
+  const doubleSidedWanted = view.doubleSided;
+  const toggleDoubleSided = () => view.setPref('doubleSided', !doubleSidedWanted);
 
   const count = binder.pages.length;
   const idx = Math.max(0, Math.min(pageIndex, count - 1));
@@ -486,7 +486,7 @@ export function BinderPages({
               corner badge lights up on card slots they own. */}
           {ownedCards ? (
             <Pressable
-              onPress={() => setShowOwned((v) => !v)}
+              onPress={() => setShowOwned(!showOwned)}
               style={[pillChip.base, showOwned && pillChip.active]}>
               <Text style={[pillChip.text, showOwned && pillChip.textActive]}>
                 {showOwned ? '✓ Owned' : 'Owned'}
@@ -497,7 +497,7 @@ export function BinderPages({
               collection). Only offered when they have any. */}
           {scanImages ? (
             <Pressable
-              onPress={() => setShowScans((v) => !v)}
+              onPress={() => setShowScans(!showScans)}
               style={[pillChip.base, showScans && pillChip.active]}>
               <Text style={[pillChip.text, showScans && pillChip.textActive]}>
                 {showScans ? '✓ Scans' : 'Scans'}

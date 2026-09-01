@@ -11,15 +11,16 @@
  *                       `onReorderPages` enables drag-to-reorder in the filmstrip.
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from 'react-native-reanimated';
 
 import { CaptionControls, CaptionFieldRow } from '@/components/binder/CaptionControls';
 import { PageStrip } from '@/components/binder/PageStrip';
 import { ThemedText } from '@/components/themed-text';
-import { BinderPageMaxWidth } from '@/constants/theme';
+
 import { pillChip } from '@/constants/ui';
-import { type CaptionFieldKey } from '@/data/cardCaption';
+import { hasTextCaption, type CaptionFieldKey } from '@/data/cardCaption';
+import { PEEK_MIN_WIDTH, SPREAD_GAP, bookLayout, spreadLayout } from '@/data/binderLayout';
 import { useCardLabelPrefs } from '@/hooks/use-card-label-prefs';
 import type { DemoBinder, DemoPage, DemoSlot } from '@/data/binderTypes';
 import { allocateScanFaces } from '@/data/scanFaces';
@@ -42,6 +43,14 @@ export interface BinderPagesProps {
   onPageChange: (index: number) => void;
   /** Usable content width (viewport minus horizontal padding) — drives the spread breakpoint. */
   availableWidth: number;
+  /**
+   * Vertical space the surrounding chrome takes, subtracted from the window before the page is
+   * fitted to height. A prop rather than a constant because the editor stacks far more above the
+   * art than the public viewer does; too large only makes the page smaller, never broken.
+   */
+  chromeAllowance?: number;
+  /** A hard ceiling on page width, for surfaces that need one. Unset means fill the space. */
+  maxWidth?: number;
   /** Edit vs inspect: read-only neighbours flip on tap; editable ones stay drag surfaces. */
   editable: boolean;
   /** Build the <BinderGrid> for one slot of the layout — the single per-mode difference. */
@@ -80,6 +89,8 @@ export function BinderPages({
   pageIndex,
   onPageChange,
   availableWidth,
+  chromeAllowance = 320,
+  maxWidth,
   editable,
   viewerIsOwner = false,
   renderGrid,
@@ -133,18 +144,49 @@ export function BinderPages({
   const idx = Math.max(0, Math.min(pageIndex, count - 1));
   const page = binder.pages[idx];
 
-  const spreadGap = 12;
-  const showSpread = !doubleSided && availableWidth >= 900 && count > 1;
-  const pageWidth = Math.min(availableWidth, BinderPageMaxWidth);
-  const spreadWidth = showSpread
-    ? Math.min(Math.floor((availableWidth - spreadGap * 2) / 3), BinderPageMaxWidth)
-    : pageWidth;
+  // THE PAGE TAKES THE SPACE. It used to get one equal third of the width while its two dimmed
+  // neighbours took the other two — so the page being edited was the smallest live thing on a 4K
+  // screen. Now the neighbours are narrow peeks of the real adjacent page and everything left
+  // over belongs to the page you are actually looking at. See data/binderLayout.ts.
+  //
+  // The height budget is what stops that becoming a different bug: a 3x3 at 900px wide is over
+  // 1200px tall, so a width-only fit would push the bottom row under the fold on the very laptops
+  // this is meant to help. The page is sized by whichever runs out first.
+  const { height: windowHeight } = useWindowDimensions();
+  const heightBudget = Math.max(0, windowHeight - chromeAllowance);
+  const captionsOn = hasTextCaption(captionFields);
+  const spreadGap = SPREAD_GAP;
+  // Peeks need room for a page AND two strips; below that the page goes it alone, as on a phone.
+  const showSpread = !doubleSided && count > 1 && availableWidth >= PEEK_MIN_WIDTH;
+  const layout = spreadLayout({
+    availableWidth,
+    availableHeight: heightBudget,
+    rows: page.rows,
+    cols: page.cols,
+    captionsOn,
+    hasNeighbours: showSpread,
+    maxWidth,
+  });
+  const pageWidth = layout.pageWidth;
+  const spreadWidth = pageWidth;
+  const peekWidth = layout.peekWidth;
+  const showPeeks = layout.showPeeks;
   const prevPage = idx > 0 ? binder.pages[idx - 1] : null;
   const nextPage = idx < count - 1 ? binder.pages[idx + 1] : null;
 
   // The open double-sided spread around the active page: [cover] alone, then [odd, odd+1].
   const bookGap = 16;
-  const bookW = Math.min(Math.floor((availableWidth - bookGap) / 2), BinderPageMaxWidth);
+  // The book never had dimmed neighbours — both halves are live — so its only waste was the
+  // ceiling, and fitting the height is the whole of its fix.
+  const bookW = bookLayout({
+    availableWidth,
+    availableHeight: heightBudget,
+    rows: page.rows,
+    cols: page.cols,
+    captionsOn,
+    gap: bookGap,
+    maxWidth,
+  });
   const spreadLeftIdx = idx === 0 ? -1 : idx % 2 === 1 ? idx : idx - 1;
   const spreadRightIdx = idx === 0 ? 0 : spreadLeftIdx + 1 < count ? spreadLeftIdx + 1 : -1;
   const leftPage = spreadLeftIdx >= 0 ? binder.pages[spreadLeftIdx] : null;
@@ -259,7 +301,10 @@ export function BinderPages({
       </View>
 
       {/* The page — a prev · current · next spread on wide screens, else the single page. */}
-      <View ref={pageWrapRef} style={styles.pageWrap}>
+      {/* testID rides through to data-testid on web. It exists so a screenshot harness can MEASURE
+          the rendered page rather than infer it from arithmetic — the gap that made the on-card
+          label work take six rounds of guessing. Costs nothing at runtime. */}
+      <View ref={pageWrapRef} style={styles.pageWrap} testID="binder-page-wrap">
         {!page ? (
           <ThemedText type="small" themeColor="textSecondary">
             This binder doesn’t have any pages yet.
@@ -277,7 +322,8 @@ export function BinderPages({
               }
               editable={editable}
               dragCol={dragCol}
-              columnIndex={0}>
+              columnIndex={0}
+              role={spreadLeftIdx === idx ? 'current' : 'prev'}>
               {leftPage
                 ? renderGrid({
                     page: leftPage,
@@ -298,7 +344,8 @@ export function BinderPages({
               }
               editable={editable}
               dragCol={dragCol}
-              columnIndex={2}>
+              columnIndex={2}
+              role={spreadRightIdx === idx ? 'current' : 'next'}>
               {rightPage
                 ? renderGrid({
                     page: rightPage,
@@ -320,7 +367,9 @@ export function BinderPages({
               onFocus={() => onPageChange(idx - 1)}
               editable={editable}
               dragCol={dragCol}
-              columnIndex={0}>
+              columnIndex={0}
+              role="prev"
+              peekWidth={showPeeks ? peekWidth : undefined}>
               {prevPage
                 ? renderGrid({ page: prevPage, width: spreadWidth, role: 'prev', captionFields, ownedIds, scanUrlOf })
                 : null}
@@ -331,7 +380,8 @@ export function BinderPages({
               label={`Page ${idx + 1}`}
               editable={editable}
               dragCol={dragCol}
-              columnIndex={1}>
+              columnIndex={1}
+              role="current">
               {renderGrid({ page, width: spreadWidth, role: 'current', captionFields, ownedIds, scanUrlOf })}
             </SpreadColumn>
             <SpreadColumn
@@ -341,14 +391,18 @@ export function BinderPages({
               onFocus={() => onPageChange(idx + 1)}
               editable={editable}
               dragCol={dragCol}
-              columnIndex={2}>
+              columnIndex={2}
+              role="next"
+              peekWidth={showPeeks ? peekWidth : undefined}>
               {nextPage
                 ? renderGrid({ page: nextPage, width: spreadWidth, role: 'next', captionFields, ownedIds, scanUrlOf })
                 : null}
             </SpreadColumn>
           </View>
         ) : (
-          renderGrid({ page, width: pageWidth, role: 'single', captionFields, ownedIds, scanUrlOf })
+          <View testID="binder-page-current">
+            {renderGrid({ page, width: pageWidth, role: 'single', captionFields, ownedIds, scanUrlOf })}
+          </View>
         )}
       </View>
 
@@ -366,6 +420,37 @@ export function BinderPages({
 }
 
 /**
+ * A neighbour page, cropped to a strip of its inner edge — what the next page looks like sitting
+ * under your thumb in a real binder.
+ *
+ * The page inside is rendered at FULL width and slid sideways, not scaled down, so the cards in
+ * the strip are the same size as the ones on the page you are reading. A shrunken thumbnail would
+ * read as a different object; a cropped page reads as the same binder continuing.
+ */
+function PeekClip({
+  peeking,
+  peekWidth,
+  width,
+  role,
+  children,
+}: {
+  peeking: boolean;
+  peekWidth: number;
+  width: number;
+  role: 'prev' | 'current' | 'next';
+  children: ReactNode;
+}) {
+  if (!peeking) return <>{children}</>;
+  // Show the edge that faces the current page: the previous page's right, the next page's left.
+  const offset = role === 'prev' ? -(width - peekWidth) : 0;
+  return (
+    <View style={{ width: peekWidth, overflow: 'hidden' }}>
+      <View style={{ width, marginLeft: offset }}>{children}</View>
+    </View>
+  );
+}
+
+/**
  * One column of the spread: a page label above a grid. The current column is static; a neighbour
  * flips to its page — via its label always, and (read-only only) by tapping the whole page. When
  * editable the grid stays a bare drag surface. `dragCol` lifts the mid-drag column above the rest.
@@ -378,6 +463,8 @@ function SpreadColumn({
   editable,
   dragCol,
   columnIndex,
+  role,
+  peekWidth,
   children,
 }: {
   page: DemoPage | null;
@@ -387,19 +474,28 @@ function SpreadColumn({
   editable: boolean;
   dragCol?: SharedValue<number>;
   columnIndex: number;
+  /** Which of the three this column is — drives the automation testID and which edge peeks. */
+  role: 'prev' | 'current' | 'next';
+  /** When set, show only this many pixels of the page: a peek at its inner edge. */
+  peekWidth?: number;
   children: ReactNode;
 }) {
   const fallback = useSharedValue(-1);
   const col = dragCol ?? fallback;
   const columnStyle = useAnimatedStyle(() => ({ zIndex: col.value === columnIndex ? 30 : 1 }));
-  if (!page) return <View style={{ width }} />;
+  // A column with no page reserves only a peek's worth of space, not a whole page's. On page 1
+  // the old layout left a full-page-wide empty band where the previous page would have been.
+  if (!page) return <View style={{ width: peekWidth ?? width }} />;
+  const peeking = peekWidth != null && peekWidth > 0 && peekWidth < width;
   const labelEl = (
     <ThemedText type="small" themeColor="textSecondary" style={styles.neighborLabel} numberOfLines={1}>
       {label}
     </ThemedText>
   );
   return (
-    <Animated.View style={[styles.neighbor, columnStyle]}>
+    <Animated.View
+      style={[styles.neighbor, columnStyle]}
+      testID={role === 'current' ? 'binder-page-current' : `binder-page-${role}`}>
       {onFocus ? (
         <Pressable onPress={onFocus} hitSlop={6} accessibilityLabel={label}>
           {labelEl}
@@ -409,10 +505,16 @@ function SpreadColumn({
       )}
       {onFocus && !editable ? (
         <Pressable style={styles.neighborGrid} onPress={onFocus} accessibilityLabel={label}>
-          {children}
+          <PeekClip peeking={peeking} peekWidth={peekWidth ?? width} width={width} role={role}>
+            {children}
+          </PeekClip>
         </Pressable>
       ) : (
-        <View style={styles.neighborGrid}>{children}</View>
+        <View style={styles.neighborGrid}>
+          <PeekClip peeking={peeking} peekWidth={peekWidth ?? width} width={width} role={role}>
+            {children}
+          </PeekClip>
+        </View>
       )}
     </Animated.View>
   );

@@ -55,6 +55,33 @@ write policies**; grants come only from the `payments-webhook` edge function or 
   publishable key via `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 - For any non-trivial Supabase change, verify against the current docs/changelog rather than memory.
 
+### Writing to the shared collection tables — read `tcgscan-app` first
+
+`portfolio_entries`, `collections` and the rest of the tcgscan-owned tables are synced by the
+**phone app**, which is a different repo (`../tcgscan-app`). Before writing a single column of
+them from here, read its sync code (`src/lib/sync.ts`, `src/lib/sync-merge.ts`) — the merge rules
+are not discoverable from this repo, and getting them wrong fails silently rather than loudly.
+
+- **Every write must send `updated_at` itself.** There is deliberately no `set_updated_at` trigger
+  on these tables; the client supplies it so the offline-first merge can resolve by it. tcgscan-app
+  decides what to install by comparing **that column alone** and never looks at field content, so a
+  bare `.update({ some_column })` succeeds in Postgres, looks correct in the SQL editor, and is
+  then silently declined by every device — which re-pushes the old value. Send
+  `updated_at = max(now, previous + 1ms)`; the max guards a browser clock running behind a phone's.
+- **Read the result back.** A PostgREST `PATCH` matching zero rows under RLS returns success with
+  no error, so a write against a deleted row, or one the server already unstamped, reports that it
+  worked. Use `.select(...).maybeSingle()` and treat an empty return as a failure.
+- **Prefer a compare-and-set** (`.eq('column', previousValue)`) so a concurrent edit on another
+  device surfaces as a visible failure instead of a silent clobber.
+- **Know which columns are birth fields.** `scan_path`, `item_kind` and friends are written once at
+  creation and never after (see their migrations). `variant`, `quantity` and `condition` are
+  ordinary mutable last-write-wins columns that tcgscan-app edits itself.
+- Ids here are **client-minted text** (`lot-…`, `col-…`), not uuid. A new column or FK that assumes
+  uuid will reject every row — that is exactly how `binder_slots.source_entry_id` silently ate two
+  days of copy-stamps.
+
+`src/data/collectionRepo.ts` → `setEntryVariant` is the worked example of all of the above.
+
 ## Before you finish
 
 - Type-check: `npx tsc --noEmit`

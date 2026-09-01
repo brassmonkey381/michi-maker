@@ -82,6 +82,14 @@ are not discoverable from this repo, and getting them wrong fails silently rathe
 
 `src/data/collectionRepo.ts` → `setEntryVariant` is the worked example of all of the above.
 
+## Native modules change the EAS fingerprint
+
+Adding a native module means a new iOS/Android build — it cannot ship as a JS/OTA push. Several
+worthwhile changes are held back by exactly that, and they are collected in
+`docs/EAS-NEXT-BUILD.md` so the next native build can pick them up together instead of each one
+burning its own. **If you are about to add a native dependency, read that file first** — and if you
+are deferring one, add it there rather than leaving it in a commit message.
+
 ## Before you finish
 
 - Type-check: `npx tsc --noEmit`

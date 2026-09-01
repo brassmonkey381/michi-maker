@@ -151,6 +151,12 @@ export interface BinderCover {
   colourway: string;
   /** Stickers per surface. A surface with nothing on it may be absent rather than empty. */
   surfaces?: Partial<Record<CoverSurfaceId, CoverSticker[]>>;
+  /**
+   * Show the FRONT COVER as this binder's face wherever a binder is shown small: the shelf, a
+   * profile, Discover. Off by default, because a binder people recognise by its first page should
+   * not silently start showing a plain shell the moment its owner picks a model.
+   */
+  showCover?: boolean;
 }
 
 export interface DemoPage {

@@ -52,6 +52,25 @@ export function BinderCoverSheet({
               </Pressable>
             </View>
           </View>
+          {binder.cover ? (
+            <Pressable
+              onPress={() =>
+                onChange({ ...binder.cover!, showCover: !binder.cover!.showCover })
+              }
+              style={styles.showRow}
+              hitSlop={4}>
+              <View style={[styles.check, binder.cover.showCover && styles.checkOn]}>
+                {binder.cover.showCover ? (
+                  <ThemedText type="small" style={styles.checkMark}>
+                    ✓
+                  </ThemedText>
+                ) : null}
+              </View>
+              <ThemedText type="small">
+                Show cover — use the front cover as this binder&apos;s face on the shelf
+              </ThemedText>
+            </Pressable>
+          ) : null}
           {view === 'binder' ? (
             <>
               <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
@@ -105,5 +124,17 @@ const styles = StyleSheet.create({
   viewTabOn: { backgroundColor: Palette.accent, borderColor: Palette.accent },
   viewTabOnText: { color: Palette.accentText },
   sub: { marginTop: -4 },
+  showRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  check: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkOn: { backgroundColor: Palette.accent, borderColor: Palette.accent },
+  checkMark: { color: Palette.accentText },
   done: { alignSelf: 'flex-end', paddingVertical: Spacing.one, paddingHorizontal: Spacing.two },
 });

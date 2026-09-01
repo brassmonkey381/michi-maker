@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { CoverSurface } from '@/components/binder/BinderCover';
 import { BinderGrid } from '@/components/binder/BinderGrid';
 import { ThemedText } from '@/components/themed-text';
 import { Radii, Radius, Shadows } from '@/constants/theme';
+import { binderModel } from '@/data/binderModels';
 import type { DemoBinder } from '@/data/binderTypes';
 
 interface BinderThumbProps {
@@ -17,6 +19,9 @@ interface BinderThumbProps {
 export function BinderThumb({ binder, width, onPress, accessory }: BinderThumbProps) {
   const firstPage = binder.pages[0];
   const pageCount = binder.pages.length;
+  // THE FACE THIS BINDER SHOWS. Its front cover if the owner asked for that, else its first page,
+  // which is what every binder showed before covers existed.
+  const cover = binder.cover?.showCover ? binder.cover : null;
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [{ width }, pressed && styles.pressed]}>
@@ -32,7 +37,17 @@ export function BinderThumb({ binder, width, onPress, accessory }: BinderThumbPr
         </View>
         {accessory}
       </View>
-      {firstPage ? (
+      {cover ? (
+        // A cover brings its own shadow and its own proportions, so it is not wrapped in the page
+        // shadow: a binder is a different object from a page and should not be pretending to be one.
+        <CoverSurface
+          model={binderModel(cover.modelId)}
+          colourwayId={cover.colourway}
+          surface="front"
+          width={width}
+          stickers={cover.surfaces?.front}
+        />
+      ) : firstPage ? (
         // The soft page shadow makes the binder page read as a physical object on the shelf —
         // shared by every carousel (home, Featured, examples, profiles) for one consistent look.
         <View style={styles.pageShadow}>

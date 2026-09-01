@@ -39,6 +39,8 @@ import { hasTextCaption, type CaptionFieldKey } from '@/data/cardCaption';
 import { PEEK_MIN_WIDTH, SPREAD_GAP, bookLayout, pageHeightAt, spreadLayout } from '@/data/binderLayout';
 import { useCardLabelPrefs } from '@/hooks/use-card-label-prefs';
 import { useViewPrefs } from '@/hooks/use-view-prefs';
+import { CoverSurface } from '@/components/binder/BinderCover';
+import { binderColourway, binderModel, type CoverSurfaceId } from '@/data/binderModels';
 import { cardThumbUrl } from '@/lib/catalogConfig';
 import type { DemoBinder, DemoPage, DemoSlot } from '@/data/binderTypes';
 import { allocateScanFaces } from '@/data/scanFaces';
@@ -365,6 +367,37 @@ export function BinderPages({
     gap: bookGap,
     maxWidth,
   });
+  /**
+   * A HALF OF THE SPREAD IS NOT ALWAYS A PAGE.
+   *
+   * Two of them never were: the first spread has nothing facing page one, and the last has nothing
+   * facing the final page. In a real binder those two gaps are not gaps at all, they are the INSIDE
+   * of the front cover and the INSIDE of the back cover, and a dressed binder should show them.
+   *
+   * So a half is addressed by index as before, and an index of -1 resolves to whichever inside
+   * cover belongs on that side: the front's on the left, because the only left-hand gap is at the
+   * very start, and the back's on the right, because the only right-hand gap is at the very end.
+   * Nothing about the page numbering moves, which is the point: covers are drawn into the space
+   * the book already left for them.
+   */
+  const coverOf = (i: number, side: 'left' | 'right'): CoverSurfaceId | null => {
+    if (i >= 0 || !binder.cover) return null;
+    return side === 'left' ? 'frontInside' : 'backInside';
+  };
+  const coverModel = binderModel(binder.cover?.modelId);
+  const coverColour = binderColourway(coverModel, binder.cover?.colourway);
+  /** One inside cover, drawn to the page's width so the two halves of the spread line up. */
+  const drawCover = (id: CoverSurfaceId | null) =>
+    id ? (
+      <CoverSurface
+        model={coverModel}
+        colourwayId={coverColour.id}
+        surface={id}
+        width={bookW}
+        stickers={binder.cover?.surfaces?.[id]}
+      />
+    ) : null;
+
   const spreadLeftIdx = idx === 0 ? -1 : idx % 2 === 1 ? idx : idx - 1;
   const spreadRightIdx = idx === 0 ? 0 : spreadLeftIdx + 1 < count ? spreadLeftIdx + 1 : -1;
   const leftPage = spreadLeftIdx >= 0 ? binder.pages[spreadLeftIdx] : null;
@@ -537,9 +570,11 @@ export function BinderPages({
           // The non-active side is a full 'partner' surface; its label focuses it.
           <View style={[styles.spreadRow, { gap: bookGap }]}>
             <SpreadColumn
-              page={leftPage}
+              // The column has to exist for an inside cover too, and a column with no page renders
+              // nothing at all, so it is handed the active page purely as a presence check.
+              page={leftPage ?? (coverOf(spreadLeftIdx, 'left') ? page : null)}
               width={bookW}
-              label={leftPage ? `Page ${spreadLeftIdx + 1}` : ''}
+              label={leftPage ? `Page ${spreadLeftIdx + 1}` : coverOf(spreadLeftIdx, 'left') ? 'Inside front' : ''}
               onFocus={
                 leftPage && spreadLeftIdx !== idx ? () => onPageChange(spreadLeftIdx) : undefined
               }
@@ -557,12 +592,12 @@ export function BinderPages({
                     ownedIds,
                     scanUrlOf,
                   })
-                : null}
+                : drawCover(coverOf(spreadLeftIdx, 'left'))}
             </SpreadColumn>
             <SpreadColumn
-              page={rightPage}
+              page={rightPage ?? (coverOf(spreadRightIdx, 'right') ? page : null)}
               width={bookW}
-              label={rightPage ? `Page ${spreadRightIdx + 1}` : ''}
+              label={rightPage ? `Page ${spreadRightIdx + 1}` : coverOf(spreadRightIdx, 'right') ? 'Inside back' : ''}
               onFocus={
                 rightPage && spreadRightIdx !== idx ? () => onPageChange(spreadRightIdx) : undefined
               }
@@ -580,7 +615,7 @@ export function BinderPages({
                     ownedIds,
                     scanUrlOf,
                   })
-                : null}
+                : drawCover(coverOf(spreadRightIdx, 'right'))}
             </SpreadColumn>
           </View>
         ) : showSpread ? (
@@ -695,10 +730,14 @@ export function BinderPages({
             const leftRole = spreadLeftIdx === idx ? 'current' : 'prev';
             const rightRole = spreadRightIdx === idx ? 'current' : 'next';
             const gridRole = (r: string) => (r === 'current' ? 'current' : 'partner');
-            const copy = (pg: DemoPage | null, role: string) =>
+            // A copy is a page OR an inside cover, decided the same way the settled spread decides
+            // it, so the overlay cannot disagree with what is underneath it.
+            const copy = (pg: DemoPage | null, role: string, side?: 'left' | 'right', i?: number) =>
               pg
                 ? renderGrid({ page: pg, width: bookW, role: gridRole(role) as GridRole, captionFields, ownedIds, scanUrlOf, decorative: true })
-                : null;
+                : side !== undefined && i !== undefined
+                  ? drawCover(coverOf(i, side))
+                  : null;
             const boxH = (pg: DemoPage | null) =>
               pageHeightAt(bookW, (pg ?? page).rows, (pg ?? page).cols, captionsOn);
             return (
@@ -725,7 +764,7 @@ export function BinderPages({
                             already drawing, so the copy is kept but not shown. */}
                         {keep || turningFwd ? (
                           <View style={[StyleSheet.absoluteFill, !turningFwd && styles.kept]}>
-                            {copy(baseLeft, leftRole)}
+                            {copy(baseLeft, leftRole, 'left', warmLeftIdx)}
                           </View>
                         ) : null}
                       </View>
@@ -745,7 +784,7 @@ export function BinderPages({
                         {/* The outgoing right page, covered as a backward sheet lands on it. */}
                         {keep || turningBwd ? (
                           <View style={[StyleSheet.absoluteFill, !turningBwd && styles.kept]}>
-                            {copy(baseRight, rightRole)}
+                            {copy(baseRight, rightRole, 'right', warmRightIdx)}
                           </View>
                         ) : null}
                         {/* Each sheet fills the box rather than sitting in the flow of it: the leaf
@@ -761,8 +800,11 @@ export function BinderPages({
                               // The gap between the facing pages IS this book's spine, and the
                               // sheet has to cross all of it to lie down on the other one.
                               spine={bookGap}
-                              front={copy(fwdFront, 'current')}
-                              back={copy(fwdBack, 'current')}
+                              // The sheet's own two faces. Its back at the very front of the book
+                              // is the inside front cover, which is what a forward turn off the
+                              // cover spread lands on.
+                              front={copy(fwdFront, 'current', 'right', warmRightIdx)}
+                              back={copy(fwdBack, 'current', 'left', warmRightIdx >= 0 ? warmRightIdx + 1 : -1)}
                             />
                           </View>
                         ) : null}
@@ -774,8 +816,8 @@ export function BinderPages({
                               width={bookW}
                               hingeLeft={0}
                               spine={bookGap}
-                              front={copy(bwdFront, 'current')}
-                              back={copy(bwdBack, 'current')}
+                              front={copy(bwdFront, 'current', 'right', warmLeftIdx > 0 ? warmLeftIdx - 1 : -1)}
+                              back={copy(bwdBack, 'current', 'left', warmLeftIdx)}
                             />
                           </View>
                         ) : null}

@@ -322,10 +322,11 @@ export function BinderPages({
       setCoverFocus(pending.focus);
       setPending(null);
     } else {
-      if (shut) {
-        setShut(null);
-        setCoverTurn(null);
-      }
+      if (shut) setShut(null);
+      // A page change means the book is open, so no cover can still be in flight. This used to
+      // hang off `shut`, which is already null while a cover is opening, so a page turned during
+      // that swing kept the cover stage on screen until the sheet landed and then snapped.
+      if (coverTurn) setCoverTurn(null);
       if (coverFocus) setCoverFocus(null);
     }
     setCoverSelected(null);
@@ -349,6 +350,21 @@ export function BinderPages({
     } else {
       setPageTurn(null);
     }
+  }
+
+  // COVERS EXIST ONLY IN THE BOOK VIEW. Switching double-sided off, or a window narrowing below
+  // it, draws no cover anywhere, so nothing about covers may survive that: a focus on a surface
+  // that is not on screen would keep the toolbar writing to it, and a binder left shut with no
+  // way to open it (a single page loses its strip, wheel and swipe with the view) is stranded.
+  // Same adjust-during-render pattern as the page change above, so there is no frame in which the
+  // stale state is drawn.
+  if (!doubleSided && (shut || coverTurn || coverFocus || pending || coverSelected || coverDrag)) {
+    setShut(null);
+    setCoverTurn(null);
+    setCoverFocus(null);
+    setPending(null);
+    setCoverSelected(null);
+    setCoverDrag(null);
   }
 
   /**

@@ -22,6 +22,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { CaptionControls, CaptionFieldRow } from '@/components/binder/CaptionControls';
+import { markWarm } from '@/lib/flashMode';
 import {
   SingleTurnLeaf,
   TURN_EASING,
@@ -317,7 +318,12 @@ export function BinderPages({
       }
       // Best-effort by design: a warm cache is an optimisation, and a failure here must never
       // surface — the image mounts and loads normally, exactly as it did before.
-      if (urls.length) Image.prefetch(urls, { cachePolicy: 'memory-disk' }).catch(() => {});
+      if (urls.length)
+        Image.prefetch(urls, { cachePolicy: 'memory-disk' })
+          // Only once the bytes have actually landed: a URL on the warm list is one an image may
+          // draw with no skeleton at all, so a premature entry would trade a flash for a blank.
+          .then(() => urls.forEach(markWarm))
+          .catch(() => {});
     }, 250);
     return () => clearTimeout(t);
   }, [idx, binder.pages, pageTurn]);

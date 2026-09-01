@@ -30,7 +30,7 @@ import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDial
 import { LikersSheet } from '@/components/binder/LikersSheet';
 import { RightsPrompt } from '@/components/binder/RightsPrompt';
 import { ShareSheet } from '@/components/binder/ShareSheet';
-import { SliceStudio } from '@/components/binder/SliceStudio';
+import { SliceStudio, type SliceStudioHandle } from '@/components/binder/SliceStudio';
 import { SlotMultiActions } from '@/components/binder/SlotMultiActions';
 import { pillChip } from '@/constants/ui';
 import { EditLockBanner } from '@/components/binder/EditLockBanner';
@@ -192,6 +192,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // "Find similar to all" seed handed to the picker's card browser as an explicit prop (not via
   // the broadcast command bus, which a second mounted browser would steal — see kit initialSimilar).
   const [similarSeed, setSimilarSeed] = useState<string[] | null>(null);
+  // Held so a dismiss can commit unsaved framing before the studio unmounts.
+  const studioRef = useRef<SliceStudioHandle>(null);
   const [studio, setStudio] = useState<
     { rows: number; cols: number; row: number; col: number; imageUrl?: string } | null
   >(null);
@@ -1844,6 +1846,18 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           keepAdding={keepAdding}
           onToggleKeepAdding={() => setKeepAdding((v) => !v)}
           initialSimilar={similarSeed ?? undefined}
+          // The Artwork tab is the slice tray now, so it takes the tray's wiring: the same handlers
+          // the bottom tray uses, so a piece behaves identically whichever surface you pick it up
+          // from, and the drag ghost is the same one.
+          armedSliceId={armedSlice?.id ?? null}
+          onArmSlice={setArmedSlice}
+          onSliceDragStart={handleSliceDragStart}
+          onSliceDrop={handleSliceDrop}
+          onRemoveSlice={handleRemoveSlice}
+          onOpenStudio={openStudioForPage}
+          ghostOn={ghostOn}
+          ghostX={ghostX}
+          ghostY={ghostY}
           collapsed={pickerCollapsed}
           onToggleCollapsed={() => setPickerCollapsed((v) => !v)}
         />
@@ -1873,6 +1887,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
 
         {studio && (
           <SliceStudio
+            ref={studioRef}
             // The studio slices the WHOLE page, so its grid is the binder's page size. Merging is
             // position-free in the studio; pocket-pair physics applies when a slice is placed.
             rows={page.rows}
@@ -1885,7 +1900,14 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               setStudio(null);
               showToast(`Saved ${slices.length} slice${slices.length === 1 ? '' : 's'} to your tray`);
             }}
-            onClose={() => setStudio(null)}
+            // DISMISSING SAVES. The studio is the only place this work exists until it reaches the
+            // tray, and Close used to throw it away — the same defect the picker's backdrop had,
+            // which now matters more because this is the ONLY way the studio opens. commit() is a
+            // no-op unless there is genuinely unsaved framing, so this never duplicates a save.
+            onClose={() => {
+              studioRef.current?.commit();
+              setStudio(null);
+            }}
             trayCount={keptArtworks}
             trayLimit={store.limits.artUploads}
             guest={store.tier === 'guest'}

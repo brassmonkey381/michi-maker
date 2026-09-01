@@ -1,11 +1,13 @@
 import { Image } from 'expo-image';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import type { CardAction } from 'tcgscan-browse';
 
+import type { SharedValue } from 'react-native-reanimated';
+
+import { ArtworkPanel } from '@/components/binder/ArtworkPanel';
 import { CardBrowse } from '@/components/binder/CardBrowse';
-import { SliceStudio, type SliceStudioHandle } from '@/components/binder/SliceStudio';
 import { ThemedText } from '@/components/themed-text';
 import { THEME_FAMILIES, themeBackgroundDataUri } from '@/data/themeBackgrounds';
 import type { DemoPage, DemoSlot } from '@/data/binderTypes';
@@ -74,6 +76,19 @@ interface CardPickerProps {
   onPickArtwork: (imageUrl: string, rowSpan: number, colSpan: number) => void;
   /** Save the embedded Slice Studio's pieces to the slice tray (Artwork tab). */
   onSaveSlices: (slices: SavedSlice[]) => void;
+  /* The Artwork tab is the slice tray now, so it needs the tray's wiring: which piece is armed,
+     and the four things you can do to a piece. All optional so the picker still renders without
+     them (the narrow sheet on a surface that has no tray). */
+  armedSliceId?: string | null;
+  onArmSlice?: (slice: SavedSlice | null) => void;
+  onSliceDragStart?: (slice: SavedSlice) => void;
+  onSliceDrop?: (slice: SavedSlice, windowX: number, windowY: number) => void;
+  onRemoveSlice?: (slice: SavedSlice) => void;
+  /** Opens the Slice Studio full-screen — the workspace does not fit in a panel. */
+  onOpenStudio?: () => void;
+  ghostOn: SharedValue<number>;
+  ghostX: SharedValue<number>;
+  ghostY: SharedValue<number>;
   /** Live tray size + the account's artwork cap (Infinity = uncapped) — gates the studio's Save. */
   trayCount?: number;
   trayLimit?: number;
@@ -118,6 +133,15 @@ export function CardPicker({
   trayCount,
   trayLimit,
   guest,
+  armedSliceId,
+  onArmSlice,
+  onSliceDragStart,
+  onSliceDrop,
+  onRemoveSlice,
+  onOpenStudio,
+  ghostOn,
+  ghostX,
+  ghostY,
   onPickInsert,
   onClear,
   keepAdding,
@@ -145,11 +169,10 @@ export function CardPicker({
   const [tab, setTab] = useState<PickerTab>('cards');
   // On the Artwork (Slice Studio) tab, "Done" commits any unsaved framing to the tray before
   // closing (the studio saves only genuinely-unsaved work); on other tabs it's a plain close.
-  const studioRef = useRef<SliceStudioHandle>(null);
-  const onDone = () => {
-    if (tab === 'artwork') studioRef.current?.commit();
-    onClose();
-  };
+  // Done just closes now. It used to commit the embedded Slice Studio's unsaved framing first;
+  // the studio is no longer embedded, and that protection moved with it to the standalone studio's
+  // own dismiss (see BinderScreen).
+  const onDone = onClose;
 
   const fits = (rows: number, cols: number) =>
     !!cell && !!page && cell.row + rows <= page.rows && cell.col + cols <= page.cols;
@@ -261,12 +284,11 @@ export function CardPicker({
    * narrow screens, where covering the page is the only honest option.
    */
   const { width } = useWindowDimensions();
-  // ...but NOT for the Artwork tab. The Slice Studio is a workspace, not a side panel: a canvas
-  // shaped like the page, a control column beside it, and a two-column layout that wants 800px
-  // before it will even unstack. Docked into a 460px column it hangs off the edge of the screen.
-  // On that tab the picker goes back to being a full-width sheet, which is the room it was built
-  // for — and the sheet's 720px cap lifts there for the same reason.
-  const docked = width >= CARD_PICKER_DOCK_MIN_WIDTH && tab !== 'artwork';
+  // Every tab docks now. The exception here used to be the Artwork tab, because it embedded the
+  // Slice Studio — a workspace that wants 800px before its two-column layout unstacks, and hung off
+  // the edge of a 460px column. That tab is the slice tray now, which is a column of chips and docks
+  // like anything else; the studio opens full-screen from a button on it.
+  const docked = width >= CARD_PICKER_DOCK_MIN_WIDTH;
 
   /**
    * ONE TAP TO PLACE.
@@ -385,22 +407,19 @@ export function CardPicker({
           ownedIds={ownedIds}
         />
       ) : tab === 'artwork' ? (
-        // Inserting artwork IS the Slice Studio now — bring art in by URL, drag, image drag, or
-        // upload, frame it, and slice to your tray. Embedded so the tab bar stays above it. It
-        // slices the whole page (its own grid = the binder's page size), so remount per page
-        // shape/source to reset the framing when the pocket context changes.
-        <SliceStudio
-          key={`${page?.rows ?? 1}x${page?.cols ?? 1}-${slot?.id ?? 'new'}`}
-          ref={studioRef}
-          embedded
-          rows={page?.rows ?? 1}
-          cols={page?.cols ?? 1}
-          imageUrl={slot?.imageUrl}
-          onSaveSlices={onSaveSlices}
-          onClose={onClose}
-          trayCount={trayCount}
-          trayLimit={trayLimit}
-          guest={guest}
+        // THE TRAY, not the studio. This tab used to embed the whole Slice Studio, which put the
+        // cutting tool where you go to PLACE art — and the studio cannot place anything. It saves
+        // pieces; the tray is the only surface that can put one in a pocket. See ArtworkPanel.
+        <ArtworkPanel
+          armedId={armedSliceId ?? null}
+          onArm={onArmSlice ?? (() => {})}
+          onDragStart={onSliceDragStart ?? (() => {})}
+          onDrop={onSliceDrop ?? (() => {})}
+          onRemove={onRemoveSlice ?? (() => {})}
+          onNewSlice={onOpenStudio ?? (() => {})}
+          ghostOn={ghostOn}
+          ghostX={ghostX}
+          ghostY={ghostY}
         />
       ) : (
         <ScrollView
@@ -452,7 +471,7 @@ export function CardPicker({
         <Pressable style={styles.backdropFill} onPress={onDone} />
         {/* Always tall, whatever the tab, Cards, Artwork, and Insert all rise to the same height
             so switching between them doesn't resize the sheet. */}
-        <View style={[sheet.bottomSheet, styles.sheetTall, tab !== 'artwork' && styles.sheetCapped]}>
+        <View style={[sheet.bottomSheet, styles.sheetTall, styles.sheetCapped]}>
           <View style={sheet.handle} />
           {body}
         </View>

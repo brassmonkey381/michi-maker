@@ -157,7 +157,12 @@ export function SliceTray({
 }
 
 /** One draggable/tappable slice, with a shape badge and a remove control. */
-function SliceChip({
+/**
+ * One draggable piece. Exported so the Artwork panel can show the same chips without
+ * reimplementing the drag — the gesture reports WINDOW-absolute coordinates because that is what
+ * the drop hit-test works in, and a second copy of that would be a second thing to get wrong.
+ */
+export function SliceChip({
   slice,
   armed,
   onArm,

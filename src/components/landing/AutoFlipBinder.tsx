@@ -185,6 +185,8 @@ export function AutoFlipBinder({
               width={pageWidth}
               // The right page starts after the left page, a gap, the spine and another gap.
               hingeLeft={pageWidth + Spacing.two + SPINE_W + Spacing.two}
+              // ...all of which the sheet crosses on its way to lying flat on the left page.
+              spine={SPINE_W + Spacing.two * 2}
               front={<BinderGrid page={rightOf(earlier)} width={pageWidth} />}
               back={leftOf(later) ? <BinderGrid page={leftOf(later) as DemoPage} width={pageWidth} /> : null}
             />

@@ -581,7 +581,10 @@ export function BinderPages({
               dragCol={dragCol}
               columnIndex={1}
               role="current">
-              {renderGrid({ page, width: spreadWidth, role: 'current', captionFields, ownedIds, scanUrlOf, decorative: true })}
+              {/* THE LIVE PAGE. Never decorative — `decorative` renders a grid `editable={false}`
+                  with no onSlotPress and no onCellPress, which is right for the turn overlay's
+                  throwaway copies and fatal here: it is the page the editor is for. */}
+              {renderGrid({ page, width: spreadWidth, role: 'current', captionFields, ownedIds, scanUrlOf })}
             </SpreadColumn>
             <SpreadColumn
               page={nextPage}
@@ -600,7 +603,8 @@ export function BinderPages({
           </View>
         ) : (
           <View testID="binder-page-current">
-            {renderGrid({ page, width: pageWidth, role: 'single', captionFields, ownedIds, scanUrlOf, decorative: true })}
+            {/* Live, for the same reason as the spread's middle column above. */}
+            {renderGrid({ page, width: pageWidth, role: 'single', captionFields, ownedIds, scanUrlOf })}
           </View>
         )}
       </Animated.View>
@@ -653,7 +657,10 @@ export function BinderPages({
                         : null}
                     </SpreadColumn>
                     <SpreadColumn
-                      page={baseRight}
+                      // The column HOSTS the leaf, so it has to exist even on a spread whose right
+                      // half does not: a binder with an odd last page turned to it with no
+                      // animation at all, because a column with no page renders no children.
+                      page={baseRight ?? page}
                       width={bookW}
                       label={rightPage ? `Page ${spreadRightIdx + 1}` : ''}
                       editable={editable}
@@ -671,7 +678,24 @@ export function BinderPages({
                           BinderGrid lays out), because the leaf is absolutely positioned and would
                           otherwise have no height to fill. Going BACKWARD the right-hand page IS
                           the stale one, so it genuinely has to be drawn. */}
-                      <View style={{ height: pageHeightAt(bookW, page.rows, page.cols, captionsOn) }}>
+                      <View
+                        style={{
+                          // WIDTH IS NOT OPTIONAL HERE. The leaf inside is absolutely positioned,
+                          // so it adds nothing to this box's size, and a column is as wide as its
+                          // widest child — leaving the width to the content collapsed the right
+                          // half of the overlay to the width of its "Page N" label, and a centred
+                          // row then drew the whole turn off to one side of the spread beneath it.
+                          width: bookW,
+                          // Sized from whichever page the base spread has on the right, so the box
+                          // fits the grid it draws (going back) and the page it covers (going
+                          // forward) even where two pages disagree about their row count.
+                          height: pageHeightAt(
+                            bookW,
+                            (baseRight ?? page).rows,
+                            (baseRight ?? page).cols,
+                            captionsOn,
+                          ),
+                        }}>
                         {!pageTurn.forward && baseRight
                           ? renderGrid({ page: baseRight, width: bookW, role: gridRole(rightRole) as GridRole, captionFields, ownedIds, scanUrlOf, decorative: true })
                           : null}
@@ -680,6 +704,9 @@ export function BinderPages({
                           forward={pageTurn.forward}
                           width={bookW}
                           hingeLeft={0}
+                          // The gap between the facing pages IS this book's spine, and the sheet
+                          // has to cross all of it to lie down on the other one.
+                          spine={bookGap}
                           front={front ? renderGrid({ page: front, width: bookW, role: 'current', captionFields, ownedIds, scanUrlOf, decorative: true }) : null}
                           back={back ? renderGrid({ page: back, width: bookW, role: 'current', captionFields, ownedIds, scanUrlOf, decorative: true }) : null}
                         />

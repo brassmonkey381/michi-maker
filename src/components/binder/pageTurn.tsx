@@ -25,6 +25,12 @@
  *
  * Forward runs the hinge 0° → -180°; backward runs the same leaf -180° → 0°. One animation, both
  * directions.
+ *
+ * WHERE IT PIVOTS. Facing pages do not touch: there is a spine between them. So a sheet that
+ * rotates about a fixed line can be flush with ONE of them, never both, and it ends its arc a
+ * spine's width from where the page it just became is actually drawn. The pivot is therefore the
+ * MIDDLE of the spine, with the sheet riding out to meet each page as it comes round — which is
+ * also what a real page on a real ring does.
  */
 import type { ReactNode } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
@@ -70,24 +76,39 @@ export function TurnLeaf({
   forward,
   width,
   hingeLeft,
+  spine = 0,
   front,
   back,
 }: {
   t: SharedValue<number>;
   forward: boolean;
   width: number;
-  /** Distance from the stage's left edge to the hinge (the rings). */
+  /** Distance from the stage's left edge to the RIGHT page's inner edge. */
   hingeLeft: number;
+  /**
+   * The width of the rings: the space between the two facing pages. The sheet pivots around the
+   * MIDDLE of it, so it can lie flat on either page. Zero for a stage whose pages meet.
+   */
+  spine?: number;
   front: ReactNode;
   back: ReactNode;
 }) {
-  const leaf = useAnimatedStyle(() => ({
-    transform: [
-      // Perspective FIRST, or the rotation is an orthographic squash with no depth in it.
-      { perspective: 1400 },
-      { rotateY: `${angleAt(t.value, forward)}deg` },
-    ],
-  }));
+  const leaf = useAnimatedStyle(() => {
+    const a = angleAt(t.value, forward);
+    return {
+      transform: [
+        // Perspective FIRST, or the rotation is an orthographic squash with no depth in it.
+        { perspective: 1400 },
+        // THE SHEET RIDES THE RINGS. A hinge is a line, but the rings are a cylinder, and a page
+        // hooked over them has its inner edge on the circumference: hard against the right page at
+        // 0 and hard against the left page at 180, having travelled the spine's whole width in
+        // between. Listed before the rotation, so it moves the turned sheet in the stage's own
+        // space rather than in the sheet's.
+        { translateX: (spine / 2) * Math.cos((a * Math.PI) / 180) },
+        { rotateY: `${a}deg` },
+      ],
+    };
+  });
   // The hard swap at edge-on. `display` rather than opacity so the hidden face cannot catch a
   // stray pixel of anti-aliasing at the exact moment of the change.
   const frontFace = useAnimatedStyle(() => ({
@@ -107,7 +128,7 @@ export function TurnLeaf({
   return (
     <Animated.View
       pointerEvents="none"
-      style={[styles.leaf, { left: hingeLeft, width, transformOrigin: 'left center' }, leaf]}>
+      style={[styles.leaf, { left: hingeLeft - spine / 2, width, transformOrigin: 'left center' }, leaf]}>
       <Animated.View style={frontFace}>
         {front}
         <Animated.View style={[StyleSheet.absoluteFill, styles.shade, frontShade]} pointerEvents="none" />

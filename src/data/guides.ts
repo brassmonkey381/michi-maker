@@ -208,7 +208,7 @@ export const GUIDE_LIST: Guide[] = [
       },
       {
         title: 'Open Fill page',
-        body: 'Tap the placed card to select it, then choose Fill page in the pocket toolbar. You get the list of methods that actually suit this card, so what you see depends on what the card is.',
+        body: 'Tap the placed card to select it, then choose ✨ Fill page in the pocket toolbar. You get the list of methods that actually suit this card, so what you see depends on what the card is.',
       },
       {
         title: 'Pick what the page is about',

@@ -749,14 +749,22 @@ function SlotToolbar({
       style={[styles.slotToolbar, { left, top, opacity: size.w ? 1 : 0 }]}>
       <ToolButton label="Replace" onPress={onReplace} />
       <ToolButton label="Duplicate" onPress={onDuplicate} />
-      {onAutoFill ? <ToolButton label="Fill" onPress={onAutoFill} /> : null}
+      {/* "✨ Fill page" is what this feature is called EVERYWHERE else — the sheet's title, the
+          guide that tells you to look for it here, the tier limits, the sign-in perk. The button
+          said "Fill", so the one place you act on it was the one place it went by another name. */}
+      {onAutoFill ? <ToolButton label="✨ Fill page" onPress={onAutoFill} /> : null}
       {/* Whose card is in this pocket - a tick when it is one of the owner's, so the answer is
-          visible without opening anything. */}
+          visible without opening anything. The ✓ is state, not decoration, which is the line this
+          row draws: a glyph earns its place by saying something the word does not. */}
       {onPickCopy ? (
         <ToolButton label={hasCopy ? 'My card ✓' : 'My card'} onPress={onPickCopy} />
       ) : null}
+      {/* Everything left of this line changes the pocket; everything right of it ends something.
+          Remove sat flush against Duplicate in a row of six with 2px between them — one slip on a
+          crowded toolbar and the card is gone rather than copied. */}
+      <View style={styles.toolDivider} />
       <ToolButton label="Remove" tone="danger" onPress={onRemove} />
-      <ToolButton label="✕" onPress={onDeselect} />
+      <ToolButton label="✕" onPress={onDeselect} accessibilityLabel="Clear selection" />
     </View>
   );
 }
@@ -765,13 +773,21 @@ function ToolButton({
   label,
   onPress,
   tone = 'default',
+  accessibilityLabel,
 }: {
   label: string;
   onPress?: () => void;
   tone?: 'default' | 'danger';
+  /** For the one button whose label is a glyph — "✕" announces as nothing useful. */
+  accessibilityLabel?: string;
 }) {
   return (
-    <Pressable onPress={onPress} hitSlop={6} style={({ pressed }) => [styles.toolBtn, pressed && styles.dimmed]}>
+    <Pressable
+      onPress={onPress}
+      hitSlop={6}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      style={({ pressed }) => [styles.toolBtn, pressed && styles.dimmed]}>
       <Text style={[styles.toolBtnText, tone === 'danger' && styles.toolBtnTextDanger]}>{label}</Text>
     </Pressable>
   );
@@ -1836,6 +1852,8 @@ const styles = StyleSheet.create({
   },
   // The selected-pocket toolbar: the light gallery voice (surface pill, hairline, soft lift)
   // rather than a dark chrome bar, matching the studio's contextual action bars.
+  /** A hairline between "change this pocket" and "stop": the only separation Remove had was 2px. */
+  toolDivider: { width: 1, alignSelf: 'stretch', marginHorizontal: 4, backgroundColor: Palette.hairlineStrong },
   slotToolbar: {
     position: 'absolute',
     zIndex: 60,

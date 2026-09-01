@@ -203,6 +203,19 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // key-up handler read the latest selection without re-subscribing.
   const [multiIds, setMultiIds] = useState<Set<string>>(new Set());
   const [multiActionsOpen, setMultiActionsOpen] = useState(false);
+  /**
+   * MULTI-SELECT WITHOUT A KEYBOARD.
+   *
+   * Selecting several pockets was Ctrl/Cmd-click, and acting on them was RELEASING the modifier —
+   * two behaviours advertised nowhere, in a product whose editor is meant to work under a thumb.
+   * On touch there is no modifier at all, so the whole bulk-action path was unreachable; on the
+   * web it was unreachable unless you already knew.
+   *
+   * The toggle is the same thing said out loud: while it is on, a tap adds to the selection, and a
+   * second control opens the actions the modifier-release used to open. Ctrl/Cmd-click still works
+   * exactly as before — this is a second door, not a replacement.
+   */
+  const [selectMode, setSelectMode] = useState(false);
   const modifierHeld = useRef(false);
   const multiIdsRef = useRef(multiIds);
   // "Keep adding" fast-fill: after placing a card the picker stays open and jumps to the next pocket.
@@ -416,6 +429,12 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         attribution: slice.attribution,
       },
     ]);
+    // ARMING ENDS WHEN THE SLICE LANDS. It never did, so after tap-placing a slice every later
+    // pocket tap placed ANOTHER copy of the same art instead of opening the picker — the binder
+    // filling with one picture, with nothing on screen explaining why. The refusals above return
+    // before this and leave it armed, which is right: you did not place it, so you are still
+    // holding it.
+    setArmedSlice(null);
   };
   const placeSliceAt = (slice: SavedSlice, row: number, col: number) =>
     placeSliceOnPage(slice, page, idx, row, col);
@@ -601,7 +620,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // pocket opens the picker to add. Ctrl/Cmd-click instead toggles the pocket in a multi-selection
   // (seeding from any single selection so it extends). Selecting never opens the sheet.
   const handleSelectSlot = (slot: DemoSlot) => {
-    if (modifierHeld.current) {
+    if (modifierHeld.current || selectMode) {
       setMultiIds((cur) => {
         const next = new Set(cur);
         if (next.size === 0 && selectedSlotId) next.add(selectedSlotId);
@@ -1558,6 +1577,34 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                 begin by showing you the binder. */}
             {editing ? (
               <View style={styles.editBar}>
+                {/* Select mode, and the actions it leads to. Only offered while editing, because
+                    there is nothing to bulk-act on otherwise. */}
+                <Pressable
+                  onPress={() => {
+                    setSelectMode((v) => {
+                      if (v) clearMulti();
+                      return !v;
+                    });
+                    setSelectedSlotId(null);
+                  }}
+                  accessibilityRole="switch"
+                  accessibilityState={{ checked: selectMode }}
+                  accessibilityLabel="Select several pockets"
+                  style={({ pressed }) => [pillChip.base, selectMode && pillChip.active, pressed && styles.pressed]}>
+                  <Text style={[pillChip.text, selectMode && pillChip.textActive]}>
+                    {selectMode ? `✓ Selecting${multiIds.size ? ` · ${multiIds.size}` : ''}` : '⊕ Select'}
+                  </Text>
+                </Pressable>
+                {selectMode && multiIds.size > 0 ? (
+                  <Pressable
+                    onPress={() => setMultiActionsOpen(true)}
+                    accessibilityRole="button"
+                    style={({ pressed }) => [pillChip.base, pillChip.active, pressed && styles.pressed]}>
+                    <Text style={[pillChip.text, pillChip.textActive]}>
+                      Actions · {multiIds.size}
+                    </Text>
+                  </Pressable>
+                ) : null}
                 <Pressable
                   onPress={() => setToolsOpen((v) => !v)}
                   accessibilityRole="button"
@@ -2072,7 +2119,16 @@ const styles = StyleSheet.create({
   // room, stacked otherwise), leaving the bottom of the editor free for the slice tray.
   // The one row edit mode always shows: a single disclosure of about 44px, in place of the ~330px
   // of forms it used to open with.
-  editBar: { alignSelf: 'center', marginTop: 8, marginBottom: 2 },
+  // Three chips now, not one: a row that wraps rather than pushing itself off a narrow screen.
+  editBar: {
+    alignSelf: 'center',
+    marginTop: 8,
+    marginBottom: 2,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 6,
+  },
   editTopRow: { width: '100%', maxWidth: 1120, alignSelf: 'center', marginTop: 8, gap: 12, flexDirection: 'column' },
   editTopRowWide: { flexDirection: 'row', alignItems: 'flex-start' },
   binderFields: { gap: 10, flexGrow: 1, flexBasis: 300, minWidth: 240 },

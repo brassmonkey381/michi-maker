@@ -226,6 +226,23 @@ function SealedTile({
         ) : (
           <CardPlaceholder radius={Radius.panel} />
         )}
+        {/* The release ladder, ON THE PRODUCT. The set header above a group carries it too, but a
+            carousel scrolls the header out of view long before the products, so a box on its own
+            said nothing about how new it was. Same tags as the kit's sealed browser (which michi
+            deliberately does not mount, hence its own copy here). */}
+        {(() => {
+          const tag = releaseTag(product.releaseDate);
+          if (!tag) return null;
+          return (
+            <View
+              style={[styles.tagBadge, tag.kind === 'countdown' && styles.tagBadgeCountdown]}
+              pointerEvents="none">
+              <Text style={styles.tagBadgeText} numberOfLines={1}>
+                {tag.label}
+              </Text>
+            </View>
+          );
+        })()}
       </View>
       <Text style={styles.name} numberOfLines={2}>
         {product.name}
@@ -251,6 +268,19 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   image: { width: '100%', height: '100%' },
+  // Sits over the art, bottom-left, clear of the price line underneath.
+  tagBadge: {
+    position: 'absolute',
+    left: 4,
+    bottom: 4,
+    maxWidth: '92%',
+    borderRadius: Radius.control ?? 6,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    backgroundColor: Palette.accent,
+  },
+  tagBadgeCountdown: { backgroundColor: Palette.danger },
+  tagBadgeText: { fontSize: FontSize.tag, fontWeight: Weight.bold, color: Palette.accentText },
   name: {
     marginTop: Spacing.one,
     fontSize: FontSize.sm,

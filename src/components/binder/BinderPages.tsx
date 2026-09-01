@@ -11,7 +11,7 @@
  *                       `onReorderPages` enables drag-to-reorder in the filmstrip.
  */
 import { Image } from 'expo-image';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Animated, {
   runOnJS,
@@ -40,7 +40,7 @@ import { PEEK_MIN_WIDTH, SPREAD_GAP, bookLayout, pageHeightAt, spreadLayout } fr
 import { useCardLabelPrefs } from '@/hooks/use-card-label-prefs';
 import { useViewPrefs } from '@/hooks/use-view-prefs';
 import { CoverSurface } from '@/components/binder/BinderCover';
-import { binderColourway, binderModel, type CoverSurfaceId } from '@/data/binderModels';
+import { binderColourway, binderModel, coverAspect, type CoverSurfaceId } from '@/data/binderModels';
 import { cardThumbUrl } from '@/lib/catalogConfig';
 import type { DemoBinder, DemoPage, DemoSlot } from '@/data/binderTypes';
 import { allocateScanFaces } from '@/data/scanFaces';
@@ -247,6 +247,22 @@ export function BinderPages({
     forward: boolean;
   } | null>(null);
   const turnT = useSharedValue(0);
+
+  /**
+   * THE BOOK HAS TWO STATES THAT ARE NOT SPREADS: shut at the front and shut at the back.
+   *
+   * They live here rather than in the page index, because the index belongs to the caller and
+   * means "which page is active". A shut binder has no active page; it has a cover facing you. So
+   * paging past either end sets this instead, every real page keeps the number it always had, and
+   * a caller that knows nothing about covers is unaffected.
+   *
+   * Only a DRESSED binder can shut. An undressed one has no cover to show, so both ends behave
+   * exactly as they did before.
+   */
+  const [shut, setShut] = useState<null | 'front' | 'back'>(null);
+  /** The cover swinging open or closed. Separate from pageTurn: no page is changing. */
+  const [coverTurn, setCoverTurn] = useState<null | { end: 'front' | 'back'; closing: boolean }>(null);
+  const coverT = useSharedValue(0);
   /** The page the last turn was built for. State, not a ref: this is read DURING render. */
   const [turnedAt, setTurnedAt] = useState(idx);
 
@@ -260,6 +276,12 @@ export function BinderPages({
   if (turnedAt !== idx) {
     const from = turnedAt;
     setTurnedAt(idx);
+    // Choosing a page from the filmstrip while the binder is shut opens it at that page. No cover
+    // animation: the reader asked for a page, not for the cover.
+    if (shut) {
+      setShut(null);
+      setCoverTurn(null);
+    }
     // NO TURN WHEN THE PAGE IS ALREADY IN FRONT OF YOU. Tapping the facing half of an open spread
     // moves the active page but turns nothing over — both pages stay exactly where they are — so
     // animating a sheet there was pure invention. A spread is identified by its left-hand index.
@@ -311,6 +333,17 @@ export function BinderPages({
       if (done) runOnJS(setPageTurn)(null);
     });
   }, [pageTurn, turnT]);
+
+  // The cover's hinge. Same shape as the page's, and reset before the paint for the same reason:
+  // a value left at the end of its last arc would otherwise be drawn for one frame at the start of
+  // this one.
+  useLayoutEffect(() => {
+    if (!coverTurn) return;
+    coverT.value = 0;
+    coverT.value = withTiming(1, { duration: TURN_MS, easing: TURN_EASING }, (done) => {
+      if (done) runOnJS(setCoverTurn)(null);
+    });
+  }, [coverTurn, coverT]);
 
   /**
    * WARM THE PAGES A TURN WILL REVEAL, so their first mount paints instead of arriving.
@@ -398,6 +431,30 @@ export function BinderPages({
       />
     ) : null;
 
+  /**
+   * THE COVER STAGE: the binder shut, or a cover on its way to or from shut.
+   *
+   * Which face is where follows from how a real binder lies. Shut at the front, the front cover is
+   * on the RIGHT with the spine to its left, and opening swings it leftward off page one. Shut at
+   * the back, the back cover is on the LEFT, and opening swings it rightward off the last page.
+   *
+   * The sheet is the cover itself, so it carries the outside on one face and the inside on the
+   * other, which is the whole reason a cover has two sides worth decorating.
+   */
+  const coverEnd = coverTurn?.end ?? shut;
+  const coverStage = coverEnd
+    ? {
+        end: coverEnd,
+        // Under the sheet: the page it lifts off, or lands on. The other half is the table.
+        basePage: coverEnd === 'front' ? (binder.pages[0] ?? null) : (binder.pages[count - 1] ?? null),
+        // Front runs 0 to -180 (right to left); back runs the reverse. Opening at the front and
+        // closing at the back both travel leftward; the other two travel back.
+        forward: coverTurn ? (coverTurn.closing ? coverEnd === 'back' : coverEnd === 'front') : true,
+        outside: (coverEnd === 'front' ? 'front' : 'back') as CoverSurfaceId,
+        inside: (coverEnd === 'front' ? 'frontInside' : 'backInside') as CoverSurfaceId,
+      }
+    : null;
+
   const spreadLeftIdx = idx === 0 ? -1 : idx % 2 === 1 ? idx : idx - 1;
   const spreadRightIdx = idx === 0 ? 0 : spreadLeftIdx + 1 < count ? spreadLeftIdx + 1 : -1;
   const leftPage = spreadLeftIdx >= 0 ? binder.pages[spreadLeftIdx] : null;
@@ -417,6 +474,45 @@ export function BinderPages({
 
 
   /**
+   * EVERY WAY OF TURNING A PAGE GOES THROUGH HERE, so the two ends behave the same however you
+   * reached them: a swipe, the wheel, or anything added later.
+   *
+   * Past the last spread the binder shuts; past the first, the same in reverse. From shut, a move
+   * back the way you came opens it again, and a move further in the direction it is already shut
+   * does nothing, because there is nothing past a closed cover.
+   */
+  const canShut = doubleSided && Boolean(binder.cover) && count > 0;
+  const step = useCallback(
+    (dir: 1 | -1) => {
+      if (shut) {
+        // Opening: only the direction that leads back into the book.
+        if ((shut === 'front' && dir === 1) || (shut === 'back' && dir === -1)) {
+          setShut(null);
+          setCoverTurn({ end: shut, closing: false });
+        }
+        return;
+      }
+      const target = dir === 1 ? forward : backward;
+      if (target < 0) {
+        if (canShut) {
+          setShut('front');
+          setCoverTurn({ end: 'front', closing: true });
+        }
+        return;
+      }
+      if (target >= count) {
+        if (canShut) {
+          setShut('back');
+          setCoverTurn({ end: 'back', closing: true });
+        }
+        return;
+      }
+      onPageChange(target);
+    },
+    [shut, forward, backward, count, canShut, onPageChange],
+  );
+
+  /**
    * SWIPE TO TURN THE PAGE. Until now the only way to change page on a phone was the filmstrip —
    * a row of 58px thumbnails — because the wheel and the arrow keys are both web-only. A binder
    * you cannot turn by hand is the one interaction a binder app has to get right.
@@ -429,15 +525,11 @@ export function BinderPages({
     // Two directional flings raced, rather than one bidirectional fling: the fling event carries
     // no velocity, so the direction has to come from which gesture matched.
     const on = !editable && count > 1;
-    const to = (target: number) => {
-      'worklet';
-      if (target >= 0 && target < count) runOnJS(onPageChange)(target);
-    };
     return Gesture.Race(
-      Gesture.Fling().enabled(on).direction(Directions.LEFT).onEnd(() => to(forward)),
-      Gesture.Fling().enabled(on).direction(Directions.RIGHT).onEnd(() => to(backward)),
+      Gesture.Fling().enabled(on).direction(Directions.LEFT).onEnd(() => runOnJS(step)(1)),
+      Gesture.Fling().enabled(on).direction(Directions.RIGHT).onEnd(() => runOnJS(step)(-1)),
     );
-  }, [editable, count, forward, backward, onPageChange]);
+  }, [editable, count, step]);
 
   useEffect(() => {
     if (Platform.OS !== 'web' || count <= 1 || typeof window === 'undefined') return;
@@ -460,16 +552,20 @@ export function BinderPages({
       if (!overPage) return;
       const delta = Math.abs(e.deltaX) >= Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
       if (Math.abs(delta) < 2) return;
-      const next = delta > 0 ? forward : backward;
-      if (next < 0 || next >= count) return; // at an edge → let the editor scroll
+      const dir: 1 | -1 = delta > 0 ? 1 : -1;
+      // At an edge with nothing to shut into, the wheel falls through to normal editor scrolling
+      // exactly as it always did. With a cover there, it closes the binder instead.
+      const next = dir === 1 ? forward : backward;
+      const atEdge = next < 0 || next >= count;
+      if (atEdge && !(canShut || shut)) return;
       e.preventDefault();
       if (e.timeStamp - cooldown < 300) return; // one page per gesture, not per event
       cooldown = e.timeStamp;
-      onPageChange(next);
+      step(dir);
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [idx, count, doubleSided, onPageChange, forward, backward]);
+  }, [count, forward, backward, step, canShut, shut]);
 
   return (
     <>
@@ -565,6 +661,58 @@ export function BinderPages({
           <ThemedText type="small" themeColor="textSecondary">
             This binder doesn’t have any pages yet.
           </ThemedText>
+        ) : coverStage ? (
+          // SHUT, OR ON THE WAY. Two columns the size of the spread it came from, so the binder
+          // does not jump as it closes; the cover lands in one of them and the other is the table.
+          (() => {
+            const pageH = pageHeightAt(bookW, page.rows, page.cols, captionsOn);
+            const coverH = bookW / coverAspect(coverModel);
+            const boxH = Math.max(pageH, coverH);
+            const settled = !coverTurn;
+            const onRight = coverStage.end === 'front';
+            const baseGrid = coverStage.basePage
+              ? renderGrid({
+                  page: coverStage.basePage,
+                  width: bookW,
+                  role: 'partner',
+                  captionFields,
+                  ownedIds,
+                  scanUrlOf,
+                  decorative: true,
+                })
+              : null;
+            return (
+              <View style={[styles.spreadRow, { gap: bookGap }]}>
+                <View style={{ width: bookW, height: boxH }}>
+                  {/* Settled and shut at the back, the back cover lies here. Mid-turn, the left is
+                      the last page (at the back) or bare table (at the front). */}
+                  {settled
+                    ? onRight
+                      ? null
+                      : drawCover(coverStage.outside)
+                    : onRight
+                      ? null
+                      : baseGrid}
+                </View>
+                <View style={{ width: bookW, height: boxH }}>
+                  {settled ? (onRight ? drawCover(coverStage.outside) : null) : onRight ? baseGrid : null}
+                  {coverTurn ? (
+                    <TurnLeaf
+                      t={coverT}
+                      forward={coverStage.forward}
+                      width={bookW}
+                      hingeLeft={0}
+                      spine={bookGap}
+                      // The cover's two faces: outside where the world sees it, inside facing the
+                      // pages. Which one is "front" depends on which way the sheet is travelling.
+                      front={drawCover(onRight ? coverStage.outside : coverStage.inside)}
+                      back={drawCover(onRight ? coverStage.inside : coverStage.outside)}
+                    />
+                  ) : null}
+                </View>
+              </View>
+            );
+          })()
         ) : doubleSided ? (
           // The open book: left/right facing pages (the cover face sits alone on the right).
           // The non-active side is a full 'partner' surface; its label focuses it.
@@ -732,12 +880,18 @@ export function BinderPages({
             const gridRole = (r: string) => (r === 'current' ? 'current' : 'partner');
             // A copy is a page OR an inside cover, decided the same way the settled spread decides
             // it, so the overlay cannot disagree with what is underneath it.
-            const copy = (pg: DemoPage | null, role: string, side?: 'left' | 'right', i?: number) =>
-              pg
-                ? renderGrid({ page: pg, width: bookW, role: gridRole(role) as GridRole, captionFields, ownedIds, scanUrlOf, decorative: true })
-                : side !== undefined && i !== undefined
-                  ? drawCover(coverOf(i, side))
-                  : null;
+            const copy = (pg: DemoPage | null, role: string, side?: 'left' | 'right', i?: number) => {
+              if (pg)
+                return renderGrid({ page: pg, width: bookW, role: gridRole(role) as GridRole, captionFields, ownedIds, scanUrlOf, decorative: true });
+              const cover = side !== undefined && i !== undefined ? drawCover(coverOf(i, side)) : null;
+              if (cover) return cover;
+              // NO PAGE AND NO COVER, which is the blank half at either end of an undressed binder.
+              // It still has to be OPAQUE. The overlay's job is to hide the settled spread while a
+              // turn is in the air, and a hole in it let the arriving page show through from the
+              // first frame - the long-standing glitch when turning off page one, or onto a final
+              // spread with nothing facing it.
+              return <View style={[styles.endGap, { backgroundColor: theme.background }]} />;
+            };
             const boxH = (pg: DemoPage | null) =>
               pageHeightAt(bookW, (pg ?? page).rows, (pg ?? page).cols, captionsOn);
             return (
@@ -1003,6 +1157,9 @@ const styles = StyleSheet.create({
   // The turning layer must not clip its own entry animation, and must not change the layout it
   // wraps — it only carries the transition.
   turnLayer: { alignItems: 'center', alignSelf: 'stretch' },
+  // The blank facing half at either end of an undressed binder, filling its column so the
+  // overlay has no hole in it.
+  endGap: { flex: 1, alignSelf: 'stretch' },
   // KEPT, NOT SHOWN. Opacity rather than display:none or an unmount, because the entire point is
   // that these pages stay laid out and their images stay decoded; a hidden subtree that has to be
   // rebuilt when it is shown is the thing this replaced.

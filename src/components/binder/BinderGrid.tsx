@@ -20,6 +20,7 @@ import { resolveCardWith, resolveCatalogCardWith } from '@/data/cardResolver';
 import { CAPTION_FIELDS, formatCaption, hasTextCaption, type CaptionFieldKey } from '@/data/cardCaption';
 import { occupiedCells, type DemoCard, type DemoPage, type DemoSlot } from '@/data/binderTypes';
 import { useCatalog } from '@/hooks/use-catalog';
+import { useTheme } from '@/hooks/use-theme';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { usePriceSummaryWhen, type PriceSummary } from '@/lib/prices';
@@ -72,6 +73,28 @@ const CARD_FRAME_INSET = 3; // cardFrame: borderWidth 1 + padding 2
 const CHIP_INSET = 2;
 /** What a grid-space overlay must use to line up with anything drawn inside the frame. */
 const FRAMED_INSET = CARD_FRAME_INSET + CHIP_INSET;
+
+/** `#rrggbb` at an alpha. The theme ships opaque colours; a label over art needs to let it through. */
+function withAlpha(hex: string, alpha: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
+/**
+ * THE LABELS FOLLOW THE APPEARANCE. They were a fixed black scrim with white text, which is a
+ * decision made once for one theme: in a light appearance a black chip is the darkest thing on the
+ * page, and the labels stop belonging to the app around them.
+ *
+ * Derived from the live theme rather than the module-level Palette, because that one is resolved
+ * at import and never changes again — switching appearance would have left these behind. The chip
+ * is the theme's own background at 72%: opaque enough to carry text over any card art, sheer
+ * enough that the art still reads through it.
+ */
+function labelColors(theme: { text: string; background: string }) {
+  return { bg: withAlpha(theme.background, 0.72), text: theme.text };
+}
 
 function emphasisScale(cellW: number): number {
   if (!(cellW > 0)) return 1;
@@ -240,6 +263,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   // Captions, though, need real metadata (name/set/rarity/…), so turning them on forces the load.
   // Whether a caption STRIP is needed under each card. Not simply "any field is on": the finish is
   // drawn on the card itself, so turning only that on must not carve height out of every pocket.
+  const theme = useTheme();
   const captionOn = hasTextCaption(captionFields);
   // The catalog load is likewise only forced by fields that actually read card metadata.
   const finishOn = captionFields.includes('finish');
@@ -262,6 +286,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   const cellH = cellW * CARD_ASPECT;
   // How much the emphasised labels (price / owned / finish) grow at this pocket size.
   const chipScale = emphasisScale(cellW);
+  const label = labelColors(theme);
   // Vertical step includes the caption strip so every row reserves room for its labels. A card
   // box keeps the card's own height (cellH); spanning cards absorb the intermediate strips + gaps
   // so a 2×2 still reads as one rectangle, with its single caption below the whole thing.
@@ -439,6 +464,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               scanUri={slot.cardId ? scanUrlOf?.(slot) : undefined}
               captionFields={captionFields}
               instantImages={instantImages}
+              label={label}
               price={slot.cardId ? priceFor(priceSummary, slot.cardId, variantOf?.(slot)) : undefined}
             chipScale={chipScale}
             />
@@ -601,6 +627,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               scanUri={dragged.cardId ? scanUrlOf?.(dragged) : undefined}
               captionFields={captionFields}
               instantImages={instantImages}
+              label={label}
               price={dragged.cardId ? priceFor(priceSummary, dragged.cardId, variantOf?.(dragged)) : undefined}
             chipScale={chipScale}
             />
@@ -1092,7 +1119,10 @@ function SlotContent({
   price,
   chipScale = 1,
   instantImages = false,
+  label,
 }: {
+  /** Chip fill + text from the live appearance (see labelColors). */
+  label: { bg: string; text: string };
   /** Draw images with no fade-in (a decorative copy — see BinderGrid.instantImages). */
   instantImages?: boolean;
   slot: DemoSlot;
@@ -1197,6 +1227,7 @@ function SlotContent({
           price={price}
           small={small}
           scale={chipScale}
+          label={label}
         />
       </View>
     </View>
@@ -1223,6 +1254,7 @@ function CardLabels({
   price,
   small,
   scale = 1,
+  label,
 }: {
   card: CatalogCard | undefined;
   /** Drawn as the row's leading chip so it is not a second thing claiming the bottom-left. */
@@ -1232,6 +1264,8 @@ function CardLabels({
   small: boolean;
   /** Emphasis scale for the price chip (see emphasisScale). 1 at a reference-width pocket. */
   scale?: number;
+  /** Chip fill + text, derived from the live appearance (see labelColors). */
+  label: { bg: string; text: string };
 }) {
   // Nothing legible fits on a filmstrip or a discover tile, and a label nobody can read is just
   // dirt on the art.
@@ -1282,6 +1316,11 @@ function CardLabels({
     const i = stack.indexOf(row);
     return i <= 0 ? CHIP_INSET : CHIP_INSET + REF_ROW_H + AIR + (i - 1) * ROW_STEP;
   };
+  // The label stack's total height: each row plus the air between them. The price matches it.
+  const stackHeight = Math.max(
+    priceBox.height,
+    stack.length * REF_ROW_H + Math.max(0, stack.length - 1) * AIR,
+  );
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
@@ -1289,8 +1328,8 @@ function CardLabels({
         <View style={[styles.overlayRow, { bottom: bottomOf('artist') }]}>
           {/* On its own pill rather than bare text with a shadow: a scrim is the only thing that
               stays readable over art that might be white, black or gold. */}
-          <View style={[styles.onCardChip, styles.wordyChip]}>
-            <Text numberOfLines={1} style={styles.badgeText}>
+          <View style={[styles.onCardChip, styles.wordyChip, { backgroundColor: label.bg }]}>
+            <Text numberOfLines={1} style={[styles.badgeText, { color: label.text }]}>
               {artist}
             </Text>
           </View>
@@ -1301,8 +1340,8 @@ function CardLabels({
           or crowded the illustrator. A set is called Vivid Voltage, so it says Vivid Voltage. */}
       {setName ? (
         <View style={[styles.overlayRow, { bottom: bottomOf('set') }]}>
-          <View style={[styles.onCardChip, styles.wordyChip]}>
-            <Text numberOfLines={1} style={styles.badgeText}>
+          <View style={[styles.onCardChip, styles.wordyChip, { backgroundColor: label.bg }]}>
+            <Text numberOfLines={1} style={[styles.badgeText, { color: label.text }]}>
               {setName}
             </Text>
           </View>
@@ -1320,8 +1359,8 @@ function CardLabels({
             {/* kindLabel, not kind: `kind` is 'normal' on most cards, and a truthy value with no
                 label to show renders as an empty pill sitting on the art. */}
             {kindLabel(kind) && bottom.length > 0 ? (
-              <View style={styles.onCardChip}>
-                <Text numberOfLines={1} style={styles.badgeText}>
+              <View style={[styles.onCardChip, { backgroundColor: label.bg }]}>
+                <Text numberOfLines={1} style={[styles.badgeText, { color: label.text }]}>
                   {kindLabel(kind)}
                 </Text>
               </View>
@@ -1332,8 +1371,8 @@ function CardLabels({
             {bottom.map((b) => (
               <View
                 key={b.key}
-                style={[styles.onCardChip, b.key === 'number' && styles.numberChip]}>
-                <Text numberOfLines={1} style={styles.badgeText}>
+                style={[styles.onCardChip, b.key === 'number' && styles.numberChip, { backgroundColor: label.bg }]}>
+                <Text numberOfLines={1} style={[styles.badgeText, { color: label.text }]}>
                   {b.value}
                 </Text>
               </View>
@@ -1354,10 +1393,26 @@ function CardLabels({
           {corner.map((c) => (
             <View
               key={c.value}
-              style={[styles.onCardChip, { paddingHorizontal: priceBox.padH, paddingVertical: priceBox.padV }]}>
+              style={[
+                styles.onCardChip,
+                {
+                  paddingHorizontal: priceBox.padH,
+                  backgroundColor: label.bg,
+                  // AS TALL AS THE LABEL STACK OPPOSITE IT, so the two bottom corners share a
+                  // baseline AND a top edge instead of the price floating short of the rows beside
+                  // it. Height is set rather than padded to it: the number's own line box is
+                  // smaller, and centring it inside the measured height is what keeps the two
+                  // sides square whatever the pocket size or however many rows are switched on.
+                  height: stackHeight,
+                  justifyContent: 'center',
+                },
+              ]}>
               <Text
                 numberOfLines={1}
-                style={[styles.badgeText, { fontSize: priceBox.fontSize, lineHeight: priceBox.lineHeight }]}>
+                style={[
+                  styles.badgeText,
+                  { fontSize: priceBox.fontSize, lineHeight: priceBox.lineHeight, color: label.text },
+                ]}>
                 {c.value}
               </Text>
             </View>

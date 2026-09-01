@@ -40,7 +40,8 @@ interface PageStripProps {
 
 /** Horizontal filmstrip of page thumbnails: tap to jump, and (when editable) long-press-drag to reorder. */
 export function PageStrip({ pages, currentIndex, onSelect, onReorder, leading, trailing }: PageStripProps) {
-  if (pages.length <= 1) return null;
+  // One page is nothing to choose between, unless there are covers to choose as well.
+  if (pages.length <= 1 && !leading?.length && !trailing?.length) return null;
   return (
     <ScrollView
       horizontal

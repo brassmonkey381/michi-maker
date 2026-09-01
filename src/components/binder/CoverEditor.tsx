@@ -13,8 +13,13 @@
  * SELECT, THEN ACT, rather than handles on the corners. Handles are fiddly at a sticker's real
  * size, worse on a touch screen, and their hit areas fight the drag underneath them. Tapping
  * selects, dragging moves, and the toolbar has the four things anyone actually wants: bigger,
- * smaller, turn, remove. A drag repaints from local state and only writes on release, so moving
- * something is not a hundred saves.
+ * smaller, turn, remove.
+ *
+ * THE LAYER DOES NOT OWN THE DRAG. It reports where the finger is and the caller holds that as
+ * state, because the picture is drawn by the surface UNDER this layer: a drag kept in here moved
+ * only the invisible hit box while the artwork sat still until release. The caller hands the
+ * surface the in-flight position and hands this layer the committed one, so the maths never
+ * compounds on itself, and the write still happens once, on release.
  */
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -56,21 +61,31 @@ export function CoverStickerLayer({
   width,
   height,
   stickers,
+  drag,
   selected,
   onSelect,
+  onDrag,
   onMove,
 }: {
   width: number;
   height: number;
+  /** COMMITTED positions. The drag is measured from these. */
   stickers: CoverSticker[];
+  /** The sticker mid-drag and where it has got to, held by the caller. */
+  drag: { id: string; x: number; y: number } | null;
   selected: string | null;
   onSelect: (id: string | null) => void;
-  /** Called once, on release, with the sticker's new centre as fractions. */
+  /** Every move of the finger, as the sticker's would-be centre in fractions. */
+  onDrag: (id: string, x: number, y: number) => void;
+  /** Once, on release, with the sticker's new centre as fractions. */
   onMove: (id: string, x: number, y: number) => void;
 }) {
-  /** The sticker mid-drag and where it has got to, so a drag repaints without committing. */
-  const [drag, setDrag] = useState<{ id: string; x: number; y: number } | null>(null);
-  const clamp = (v: number) => Math.min(1, Math.max(0, v));
+  // Runs inside the gesture callbacks, which the worklets plugin lifts onto the UI thread on
+  // native; a plain closure there is a call across threads and throws on the first frame.
+  const clamp = (v: number) => {
+    'worklet';
+    return Math.min(1, Math.max(0, v));
+  };
 
   return (
     <>
@@ -85,11 +100,11 @@ export function CoverStickerLayer({
           .onUpdate((e) => {
             // Clamped to the cover: a sticker dragged off the edge is lost, and undoing that by
             // hand is worse than simply not letting it happen.
-            runOnJS(setDrag)({
-              id: sticker.id,
-              x: clamp(sticker.x + e.translationX / width),
-              y: clamp(sticker.y + e.translationY / height),
-            });
+            runOnJS(onDrag)(
+              sticker.id,
+              clamp(sticker.x + e.translationX / width),
+              clamp(sticker.y + e.translationY / height),
+            );
           })
           .onEnd((e) => {
             runOnJS(onMove)(
@@ -97,7 +112,6 @@ export function CoverStickerLayer({
               clamp(sticker.x + e.translationX / width),
               clamp(sticker.y + e.translationY / height),
             );
-            runOnJS(setDrag)(null);
           });
         const tap = Gesture.Tap().onEnd(() => runOnJS(onSelect)(sticker.id));
         return (
@@ -146,6 +160,14 @@ export function CoverTools({
   const patch = (id: string, change: Partial<CoverSticker>) =>
     write(stickers.map((s) => (s.id === id ? { ...s, ...change } : s)));
 
+  // A sticker already at the top or bottom of the stack stays put, and the store is not asked
+  // to save a cover that did not change.
+  const restack = (by: 1 | -1) => {
+    if (!chosen) return;
+    const next = shift(stickers, chosen.id, by);
+    if (next !== stickers) write(next);
+  };
+
   const addArt = (url: string) => {
     const sticker: CoverSticker = { id: uuidv4(), imageUrl: url, x: 0.5, y: 0.5, w: NEW_STICKER_W };
     write([...stickers, sticker]);
@@ -177,8 +199,8 @@ export function CoverTools({
             <Tool label="Turn right" onPress={() => patch(chosen.id, { rot: ((chosen.rot ?? 0) + 15) % 360 })} />
             <Tool label="Straighten" onPress={() => patch(chosen.id, { rot: 0 })} />
             {/* Layers form one picture, so the order they are stacked in is part of the picture. */}
-            <Tool label="Forward" onPress={() => write(shift(stickers, chosen.id, 1))} />
-            <Tool label="Back" onPress={() => write(shift(stickers, chosen.id, -1))} />
+            <Tool label="Forward" onPress={() => restack(1)} />
+            <Tool label="Back" onPress={() => restack(-1)} />
             <Tool
               label="Remove"
               tone="danger"

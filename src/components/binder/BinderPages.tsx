@@ -274,9 +274,22 @@ export function BinderPages({
    * clear it as any page change does.
    */
   const [coverFocus, setCoverFocus] = useState<CoverSurfaceId | null>(null);
-  const [focusPending, setFocusPending] = useState(false);
+  /**
+   * A cover asked for a page change and wants to be found on the other side of it: with this
+   * focus, and with the binder in this shut state. Any other page change clears both.
+   */
+  const [pending, setPending] = useState<{
+    focus: CoverSurfaceId;
+    shut: null | 'front' | 'back' | 'tail';
+  } | null>(null);
   /** The sticker selected on the focused surface, for the toolbar to act on. */
   const [coverSelected, setCoverSelected] = useState<string | null>(null);
+  /**
+   * A sticker mid-drag and where it has got to. Held here rather than in the layer, because the
+   * PICTURE is drawn by the surface underneath the layer, and a drag that only moved the hit box
+   * left the picture standing still until release.
+   */
+  const [coverDrag, setCoverDrag] = useState<{ id: string; x: number; y: number } | null>(null);
   // The one cover write path. Gated on editable so the public viewer, which mounts this same
   // component for anyone's binder, can never write.
   const store = useBinders();
@@ -301,20 +314,28 @@ export function BinderPages({
     setTurnedAt(idx);
     // Choosing a page from the filmstrip while the binder is shut opens it at that page. No cover
     // animation: the reader asked for a page, not for the cover.
-    if (shut) {
-      setShut(null);
+    if (pending) {
+      // A cover asked for this page: arrive with that cover in focus and the binder in the state
+      // it wanted, and with no page turn, since they asked for the cover and not the animation.
+      setShut(pending.shut);
       setCoverTurn(null);
+      setCoverFocus(pending.focus);
+      setPending(null);
+    } else {
+      if (shut) {
+        setShut(null);
+        setCoverTurn(null);
+      }
+      if (coverFocus) setCoverFocus(null);
     }
-    // Focusing an inside cover pages to its spread; that one page change keeps the focus.
-    if (focusPending) setFocusPending(false);
-    else if (coverFocus) setCoverFocus(null);
     setCoverSelected(null);
+    setCoverDrag(null);
     // NO TURN WHEN THE PAGE IS ALREADY IN FRONT OF YOU. Tapping the facing half of an open spread
     // moves the active page but turns nothing over — both pages stay exactly where they are — so
     // animating a sheet there was pure invention. A spread is identified by its left-hand index.
     const spreadOf = (i: number) => (i === 0 ? 0 : i % 2 === 1 ? i : i - 1);
     const sameSpread = doubleSided && spreadOf(from) === spreadOf(idx);
-    if (count > 1 && !turnReduced() && !sameSpread) {
+    if (count > 1 && !turnReduced() && !sameSpread && !pending) {
       const fromLeftIdx = from === 0 ? -1 : from % 2 === 1 ? from : from - 1;
       const fromRightIdx = from === 0 ? 0 : fromLeftIdx + 1 < count ? fromLeftIdx + 1 : -1;
       setPageTurn({
@@ -466,30 +487,39 @@ export function BinderPages({
     if (!id) return null;
     const stickers = binder.cover?.surfaces?.[id] ?? [];
     const editing = live && editable && focused === id;
+    // While a sticker is being dragged the SURFACE draws it where the finger is, and the layer
+    // keeps working from the committed position so the drag does not compound on itself.
+    const shown =
+      editing && coverDrag
+        ? stickers.map((st) => (st.id === coverDrag.id ? { ...st, x: coverDrag.x, y: coverDrag.y } : st))
+        : stickers;
     const surface = (
       <CoverSurface
         model={coverModel}
         colourwayId={coverColour.id}
         surface={id}
         width={bookW}
-        stickers={stickers}
+        stickers={shown}
         wheelTarget={live}>
         {editing && binder.cover ? (
           <CoverStickerLayer
             width={bookW}
             height={bookW / coverAspect(coverModel)}
             stickers={stickers}
+            drag={coverDrag}
             selected={coverSelected}
             onSelect={setCoverSelected}
-            onMove={(sid, x, y) =>
+            onDrag={(sid, x, y) => setCoverDrag({ id: sid, x, y })}
+            onMove={(sid, x, y) => {
+              setCoverDrag(null);
               writeCover(
                 withSurface(
                   binder.cover!,
                   id,
                   stickers.map((st) => (st.id === sid ? { ...st, x, y } : st)),
                 ),
-              )
-            }
+              );
+            }}
           />
         ) : null}
       </CoverSurface>
@@ -512,28 +542,41 @@ export function BinderPages({
    * odd page count the inside back has no spread of its own and gets the tail instead.
    */
   const lastSpreadLeft = count % 2 === 0 ? count - 1 : count - 2;
-  const focusCover = (id: CoverSurfaceId) => {
-    setCoverSelected(null);
-    setCoverTurn(null);
-    if (id === 'front' || id === 'back') {
-      setShut(id);
-      setCoverFocus(id);
-      return;
-    }
-    if (id === 'backInside' && count % 2 === 1) {
-      setShut('tail');
-      setCoverFocus(id);
+  /**
+   * A page chosen from the strip. When it is already the active page no page change fires, so
+   * nothing would take the binder out of a shut or cover-focused state; this does it by hand.
+   */
+  const selectPage = (i: number) => {
+    if (i !== idx) {
+      onPageChange(i);
       return;
     }
     setShut(null);
-    setCoverFocus(id);
-    const target = id === 'frontInside' ? 0 : Math.max(0, lastSpreadLeft);
-    if (target !== idx) {
-      setFocusPending(true);
-      onPageChange(target);
-    }
+    setCoverTurn(null);
+    setCoverFocus(null);
+    setCoverSelected(null);
+    setCoverDrag(null);
+    setPending(null);
   };
-
+  const focusCover = (id: CoverSurfaceId) => {
+    setCoverSelected(null);
+    setCoverTurn(null);
+    setCoverDrag(null);
+    // The outside covers are seen shut; the inside back of an odd count is seen on the tail.
+    const wantShut: null | 'front' | 'back' | 'tail' =
+      id === 'front' ? 'front' : id === 'back' ? 'back' : id === 'backInside' && count % 2 === 1 ? 'tail' : null;
+    // And every cover belongs to one end of the book, so the page index goes there too: opening
+    // a cover that was focused from the middle of the binder must land on the spread it is
+    // actually attached to, not on wherever the reader happened to be.
+    const target = id === 'front' || id === 'frontInside' ? 0 : Math.max(0, lastSpreadLeft);
+    if (target !== idx) {
+      setPending({ focus: id, shut: wantShut });
+      onPageChange(target);
+      return;
+    }
+    setShut(wantShut);
+    setCoverFocus(id);
+  };
   /**
    * THE COVER STAGE: the binder shut, or a cover on its way to or from shut.
    *
@@ -630,27 +673,44 @@ export function BinderPages({
   const canShut = doubleSided && Boolean(binder.cover) && count > 0;
   const step = useCallback(
     (dir: 1 | -1) => {
+      // Every change of shut drops an explicit focus. The surface in focus is then whichever one
+      // the binder is showing, which is the only one it makes sense to be decorating.
+      const changeShut = (next: null | 'front' | 'back' | 'tail') => {
+        setShut(next);
+        setCoverFocus(null);
+        setCoverSelected(null);
+        setCoverDrag(null);
+        setPending(null);
+      };
       if (shut === 'tail') {
         // Back into the book, or on to shut. Closing from the tail lands the cover on a blank.
-        if (dir === -1) setShut(null);
+        if (dir === -1) changeShut(null);
         else {
-          setShut('back');
+          changeShut('back');
           setCoverTurn({ end: 'back', closing: true });
         }
         return;
       }
-      if (shut) {
-        // Opening: only the direction that leads back into the book.
-        if ((shut === 'front' && dir === 1) || (shut === 'back' && dir === -1)) {
-          setShut(null);
-          setCoverTurn({ end: shut, closing: false });
+      if (shut === 'front') {
+        if (dir === 1) {
+          changeShut(null);
+          setCoverTurn({ end: 'front', closing: false });
+        }
+        return;
+      }
+      if (shut === 'back') {
+        if (dir === -1) {
+          // Symmetric with closing: an odd count closed from the tail, so it opens onto the tail,
+          // which is also what the sheet is drawn landing on.
+          changeShut(count % 2 === 1 ? 'tail' : null);
+          setCoverTurn({ end: 'back', closing: false });
         }
         return;
       }
       const target = dir === 1 ? forward : backward;
       if (target < 0) {
         if (canShut) {
-          setShut('front');
+          changeShut('front');
           setCoverTurn({ end: 'front', closing: true });
         }
         return;
@@ -659,9 +719,9 @@ export function BinderPages({
         if (canShut) {
           // An odd count turns its last sheet first, revealing the tail; an even one is already
           // looking at the inside back and shuts straight away.
-          if (count % 2 === 1) setShut('tail');
+          if (count % 2 === 1) changeShut('tail');
           else {
-            setShut('back');
+            changeShut('back');
             setCoverTurn({ end: 'back', closing: true });
           }
         }
@@ -671,7 +731,6 @@ export function BinderPages({
     },
     [shut, forward, backward, count, canShut, onPageChange],
   );
-
   /**
    * SWIPE TO TURN THE PAGE. Until now the only way to change page on a phone was the filmstrip —
    * a row of 58px thumbnails — because the wheel and the arrow keys are both web-only. A binder
@@ -684,15 +743,16 @@ export function BinderPages({
   const swipe = useMemo(() => {
     // Two directional flings raced, rather than one bidirectional fling: the fling event carries
     // no velocity, so the direction has to come from which gesture matched.
-    const on = !editable && count > 1;
+    // A single-page binder has nothing to swipe between, unless it has covers to shut into.
+    const on = !editable && (count > 1 || canShut);
     return Gesture.Race(
       Gesture.Fling().enabled(on).direction(Directions.LEFT).onEnd(() => runOnJS(step)(1)),
       Gesture.Fling().enabled(on).direction(Directions.RIGHT).onEnd(() => runOnJS(step)(-1)),
     );
-  }, [editable, count, step]);
+  }, [editable, count, canShut, step]);
 
   useEffect(() => {
-    if (Platform.OS !== 'web' || count <= 1 || typeof window === 'undefined') return;
+    if (Platform.OS !== 'web' || count === 0 || (count === 1 && !canShut) || typeof window === 'undefined') return;
     const el = pageWrapRef.current as unknown as HTMLElement | null;
     if (!el) return;
     let cooldown = -Infinity;
@@ -1190,7 +1250,7 @@ export function BinderPages({
       </GestureDetector>
 
       {/* Page filmstrip — tap a thumbnail to flip to it; long-press-drag reorders (edit only). */}
-      {count > 1 ? (
+      {count > 1 || coverStripExtras ? (
         <View
           onLayout={(e) => setStripHeight(e.nativeEvent.layout.height)}
           style={[
@@ -1204,7 +1264,7 @@ export function BinderPages({
           pages={binder.pages}
           // A shut binder, or one focused on a cover, has no page to highlight.
           currentIndex={shut || coverFocus ? -1 : idx}
-          onSelect={onPageChange}
+          onSelect={selectPage}
           onReorder={onReorderPages}
           {...coverStripExtras}
         />

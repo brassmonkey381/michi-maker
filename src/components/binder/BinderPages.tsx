@@ -12,7 +12,14 @@
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue, type SharedValue } from 'react-native-reanimated';
+import Animated, {
+  SlideInLeft,
+  SlideInRight,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  type SharedValue,
+} from 'react-native-reanimated';
 
 import { CaptionControls, CaptionFieldRow } from '@/components/binder/CaptionControls';
 import { Directions, Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -197,6 +204,14 @@ export function BinderPages({
   const spreadWidth = pageWidth;
   const peekWidth = layout.peekWidth;
   const showPeeks = layout.showPeeks;
+  // Which way the last turn went, so the entry animation carries a direction rather than being a
+  // generic dissolve. Tracked in state adjusted during render, not a ref: the entering animation
+  // is captured when the page remounts, which is this very render, so a value updated in an effect
+  // would arrive a frame too late and every turn would animate the same way.
+  const [turn, setTurn] = useState({ idx, forward: true });
+  if (turn.idx !== idx) setTurn({ idx, forward: idx > turn.idx });
+  const turnedForward = turn.idx === idx ? turn.forward : idx > turn.idx;
+
   const prevPage = idx > 0 ? binder.pages[idx - 1] : null;
   const nextPage = idx < count - 1 ? binder.pages[idx + 1] : null;
 
@@ -370,6 +385,17 @@ export function BinderPages({
           label work take six rounds of guessing. Costs nothing at runtime. */}
       <GestureDetector gesture={swipe}>
       <View ref={pageWrapRef} style={styles.pageWrap} testID="binder-page-wrap">
+      {/* THE PAGE TURNS. Changing page was a frame swap — the cards were simply different ones —
+          while the marketing binder on the landing page has always crossfaded at 650ms. The app
+          animating worse than its own advertisement is a strange thing to ship.
+          
+          Keyed on the page index so a change remounts and plays the entry, and directional so a
+          turn reads as going forward or back rather than as a generic dissolve. 200ms: long enough
+          to see the page move, short enough that flicking through twelve pages never feels held up. */}
+      <Animated.View
+        key={idx}
+        entering={(turnedForward ? SlideInRight : SlideInLeft).duration(200)}
+        style={styles.turnLayer}>
         {!page ? (
           <ThemedText type="small" themeColor="textSecondary">
             This binder doesn’t have any pages yet.
@@ -469,6 +495,7 @@ export function BinderPages({
             {renderGrid({ page, width: pageWidth, role: 'single', captionFields, ownedIds, scanUrlOf })}
           </View>
         )}
+      </Animated.View>
       </View>
       </GestureDetector>
 
@@ -614,6 +641,9 @@ const styles = StyleSheet.create({
   viewToggles: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   pageDetailsRead: { alignItems: 'center', marginTop: 8 },
   pageWrap: { alignItems: 'center', marginVertical: 18 },
+  // The turning layer must not clip its own entry animation, and must not change the layout it
+  // wraps — it only carries the transition.
+  turnLayer: { alignItems: 'center', alignSelf: 'stretch' },
   spreadRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center' },
   neighbor: { alignItems: 'center' },
   neighborLabel: { marginBottom: 6 },

@@ -7,6 +7,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
+  withSpring,
   withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
@@ -47,6 +48,11 @@ function priceFor(
   }
   return entry.cur;
 }
+
+/** Settling into a pocket: firm enough to feel placed, not springy enough to look like jelly. */
+const SETTLE = { damping: 26, stiffness: 260, mass: 0.9 } as const;
+/** Picking a card up: quicker than the settle, because a lift should feel immediate. */
+const LIFT = { damping: 18, stiffness: 340, mass: 0.7 } as const;
 
 const CARD_ASPECT = 88 / 63; // height / width of a standard card
 
@@ -237,8 +243,36 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
       ? page.slots.find((s) => s.id === selectedSlotId)
       : undefined;
 
+  // THE LIFT. The ghost used to mount already at scale 1.06 — a card that was simply, instantly,
+  // bigger. Grabbing a real card lifts it: it grows, tilts, and throws a longer shadow, and all
+  // three have to arrive together for it to read as picked up rather than swapped in. `lift` runs
+  // 0 → 1 on grab so scale and tilt share one spring.
+  const lift = useSharedValue(0);
+  useEffect(() => {
+    lift.value = withSpring(dragId ? 1 : 0, LIFT);
+  }, [dragId, lift]);
+  // The landing box follows the SNAPPED cell, not the finger: it should sit squarely in the pocket
+  // the card will occupy, which is the question the user is actually asking mid-drag.
+  const landingStyle = useAnimatedStyle(() => {
+    if (!dragged) return { opacity: 0 };
+    const stepX = cellW + gap;
+    const stepY = cellH + gap + captionH;
+    const col = Math.round((dragged.col * stepX + dragX.value) / stepX);
+    const row = Math.round((dragged.row * stepY + dragY.value) / stepY);
+    const inside = col >= 0 && row >= 0 && col + dragged.colSpan <= page.cols && row + dragged.rowSpan <= page.rows;
+    return {
+      opacity: inside ? 1 : 0,
+      transform: [{ translateX: col * stepX }, { translateY: row * stepY }],
+    };
+  });
+
   const ghostStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: dragX.value }, { translateY: dragY.value }, { scale: 1.06 }],
+    transform: [
+      { translateX: dragX.value },
+      { translateY: dragY.value },
+      { scale: 1 + 0.06 * lift.value },
+      { rotate: `${2.5 * lift.value}deg` },
+    ],
   }));
 
   const occupied = occupiedCells(page);
@@ -273,6 +307,25 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
             </View>
           );
         })}
+
+        {/* WHERE THIS CARD WILL LAND. Slices have had a drop-target highlight since they existed;
+            a dragged CARD had none, so the only way to learn where it would go was to let go and
+            find out. Tracks the snapped cell live, under the drag ghost. */}
+        {dragged ? (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.dropTarget,
+              landingStyle,
+              {
+                position: 'absolute',
+                width: dragged.colSpan * cellW + (dragged.colSpan - 1) * gap,
+                height: dragged.rowSpan * cellH + (dragged.rowSpan - 1) * (gap + captionH),
+                borderRadius: slotRadius,
+              },
+            ]}
+          />
+        ) : null}
 
         {/* Legal drop-target highlights while a tray slice is armed/dragged (above pockets). */}
         {dropTargets?.map((t) => (
@@ -745,16 +798,32 @@ function DraggableSlot({
     return Gesture.Exclusive(pan, tap);
   }, [slot, cellW, cellH, gap, captionH, dragX, dragY, onSetDragId, onTap, onDropSlot, onCrossDrop, onDragStart]);
 
+  // THE CARD SETTLES, it does not teleport. A move, a swap and a resize all used to be a frame
+  // swap: the card was in one pocket, then it was in another, with nothing in between. Springing
+  // the box to its new coordinates makes the one gesture this app exists for — putting a card into
+  // a sleeve — read as an object arriving somewhere rather than a value changing.
+  //
+  // Done here, on the destination, rather than in the drag: the gesture's own state machine is the
+  // riskiest code on this surface, and it does not need to know that the landing is animated.
+  const left = useSharedValue(boxStyle.left);
+  const top = useSharedValue(boxStyle.top);
+  useEffect(() => {
+    left.value = withSpring(boxStyle.left, SETTLE);
+    top.value = withSpring(boxStyle.top, SETTLE);
+  }, [boxStyle.left, boxStyle.top, left, top]);
+  const settleStyle = useAnimatedStyle(() => ({ left: left.value, top: top.value }));
+
   return (
     <GestureDetector gesture={gesture}>
-      <View
+      <Animated.View
         style={[
           boxStyle,
+          settleStyle,
           dimmed && styles.dimmed,
           selected && { ...styles.selected, borderRadius: slotRadius + 2 },
         ]}>
         {children}
-      </View>
+      </Animated.View>
     </GestureDetector>
   );
 }

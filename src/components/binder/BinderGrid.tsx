@@ -57,6 +57,21 @@ const EMPHASIS_MIN = 0.8;
 const EMPHASIS_MAX = 1.6;
 /** How much bigger than a reference label an emphasised one is, at the reference pocket width. */
 const EMPHASIS_FACTOR = 2;
+/** The price rides a quarter smaller than the other two: it is the longest string of the three. */
+const PRICE_FACTOR = EMPHASIS_FACTOR * 0.75;
+
+/**
+ * EVERY CORNER CHIP IS INSET THE SAME, so the four of them describe one rectangle.
+ *
+ * They did not, and it showed: the owned mark and the label rows are drawn INSIDE the card frame,
+ * which costs a 1px border and 2px of padding before their own 2px inset, while the finish chip is
+ * positioned in the grid's coordinates and was inset only its own 2px. Three pixels of difference,
+ * top-left against top-right, on the two chips a reader's eye pairs up.
+ */
+const CARD_FRAME_INSET = 3; // cardFrame: borderWidth 1 + padding 2
+const CHIP_INSET = 2;
+/** What a grid-space overlay must use to line up with anything drawn inside the frame. */
+const FRAMED_INSET = CARD_FRAME_INSET + CHIP_INSET;
 
 function emphasisScale(cellW: number): number {
   if (!(cellW > 0)) return 1;
@@ -64,9 +79,22 @@ function emphasisScale(cellW: number): number {
 }
 
 /** Font size + line box for an emphasised label at this pocket size. */
-function emphasisType(scale: number): { fontSize: number; lineHeight: number } {
-  const fontSize = Math.round(FontSize.micro * EMPHASIS_FACTOR * scale);
+function emphasisType(scale: number, factor: number = EMPHASIS_FACTOR): { fontSize: number; lineHeight: number } {
+  const fontSize = Math.round(FontSize.micro * factor * scale);
   return { fontSize, lineHeight: Math.round(fontSize * 1.22) };
+}
+
+/**
+ * The box an emphasised chip occupies. The owned mark takes its HEIGHT from here rather than
+ * carrying its own size, so the two chips at the top of a pocket are the same height as each other
+ * — they read as a pair, and a circle taller than the chip opposite it looks like a mistake.
+ */
+function chipBox(scale: number, factor: number = EMPHASIS_FACTOR) {
+  const type = emphasisType(scale, factor);
+  const padV = Math.round(1.5 * scale);
+  const padH = Math.round(4 * scale);
+  // +2 for the hairline border the finish chip carries on both edges.
+  return { ...type, padV, padH, height: type.lineHeight + padV * 2 + 2 };
 }
 
 function priceFor(
@@ -467,7 +495,16 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               <View
                 key={`pv-${slot.id}`}
                 pointerEvents="box-none"
-                style={[styles.variantRow, { left: b.left, top: b.top + 2, width: b.width - 2 }]}>
+                style={[
+                  styles.variantRow,
+                  // FRAMED_INSET, not 2: this strip is in grid coordinates, so it has to pay the
+                  // card frame's border and padding itself to line up with the owned mark opposite.
+                  {
+                    left: b.left + FRAMED_INSET,
+                    top: b.top + FRAMED_INSET,
+                    width: b.width - FRAMED_INSET * 2,
+                  },
+                ]}>
                 <Pressable
                   onPress={onVariantPress ? () => onVariantPress(slot) : undefined}
                   disabled={!onVariantPress}
@@ -482,8 +519,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
                     {
                       backgroundColor: chip.fill,
                       // Padding rides the same scale, or a big letter sits in a small pill.
-                      paddingHorizontal: Math.round(4 * chipScale),
-                      paddingVertical: Math.round(1.5 * chipScale),
+                      paddingHorizontal: chipBox(chipScale).padH,
+                      paddingVertical: chipBox(chipScale).padV,
                     },
                     // Hollow, so a prompt never passes for an answer at a glance.
                     asking && styles.variantChipAsking,
@@ -1219,19 +1256,20 @@ function CardLabels({
   const ROW_STEP = 15;
   const AIR = 2;
   const REF_ROW_H = 13;
+  const priceBox = chipBox(scale, PRICE_FACTOR);
   const stack: string[] = [];
-  if (bottom.length > 0 || corner.length > 0) stack.push('codes');
+  // The price is no longer on this row, so it no longer claims a place in the stack either.
+  if (bottom.length > 0) stack.push('codes');
   if (setName) stack.push('set');
   if (artist) stack.push('artist');
-  // THE BOTTOM ROW IS NOW TALLER THAN THE ONES ABOVE IT, because the price on it is emphasised.
-  // A uniform step measured for 9px text would let the set name sit on top of a big number, so
-  // the first gap is measured from the row that is actually there.
-  const priceType = emphasisType(scale);
-  const codesRowH = Math.max(REF_ROW_H, priceType.lineHeight + Math.round(1.5 * scale) * 2);
-  const firstRowH = stack[0] === 'codes' ? codesRowH : REF_ROW_H;
+  // THE PRICE NO LONGER LIVES ON THIS ROW, so the rows are a uniform step again. It used to share
+  // the codes row, which made that row as tall as the price and pushed the set and illustrator up
+  // the card — a bigger number quietly re-laid-out three labels that had nothing to do with it.
+  // It is now its own column in the corner (see below), and the reference rows stack as they did
+  // before any of this. Overlap between the two is accepted: the price wins the corner.
   const bottomOf = (row: string) => {
     const i = stack.indexOf(row);
-    return i <= 0 ? 2 : 2 + firstRowH + AIR + (i - 1) * ROW_STEP;
+    return i <= 0 ? CHIP_INSET : CHIP_INSET + REF_ROW_H + AIR + (i - 1) * ROW_STEP;
   };
 
   return (
@@ -1265,7 +1303,7 @@ function CardLabels({
           price right, laid out rather than absolutely placed, so flexbox keeps them apart instead
           of arithmetic hoping they will be. The kind badge joins the codes as a leading chip when
           the row is up, so it is not a third thing quietly occupying the same corner. */}
-      {bottom.length > 0 || corner.length > 0 ? (
+      {bottom.length > 0 ? (
         <View style={[styles.bottomRow, { bottom: bottomOf('codes') }]}>
           <View style={styles.bottomCodes}>
             {/* kindLabel, not kind: `kind` is 'normal' on most cards, and a truthy value with no
@@ -1293,23 +1331,22 @@ function CardLabels({
           {/* The price is FILLED, not tinted. It is the one label people are looking for, and at
               this size a coloured word on a dark pill is just a slightly different grey — the
               chip has to carry the colour for it to read as the thing worth finding. */}
+        </View>
+      ) : null}
+      {/* THE PRICE, IN ITS OWN COLUMN. Pinned to the bottom-right corner rather than sharing the
+          codes row, so its height is its own business and the reference labels stack at their
+          own size whatever the number says. Semi-transparent, like every other chip on the card:
+          filled accent hid whatever art was under it, and the price is worth reading, not worth
+          covering a card for. */}
+      {corner.length > 0 ? (
+        <View style={[styles.priceColumn, { bottom: CHIP_INSET, right: CHIP_INSET }]}>
           {corner.map((c) => (
             <View
               key={c.value}
-              style={[
-                styles.onCardChip,
-                c.tone === 'accent' && styles.onCardAccentChip,
-                // The price is the emphasised one; padding grows with the number so the pill does
-                // not strangle it.
-                { paddingHorizontal: Math.round(4 * scale), paddingVertical: Math.round(1.5 * scale) },
-              ]}>
+              style={[styles.onCardChip, { paddingHorizontal: priceBox.padH, paddingVertical: priceBox.padV }]}>
               <Text
                 numberOfLines={1}
-                style={[
-                  styles.badgeText,
-                  emphasisType(scale),
-                  c.tone === 'accent' && styles.onCardAccentText,
-                ]}>
+                style={[styles.badgeText, { fontSize: priceBox.fontSize, lineHeight: priceBox.lineHeight }]}>
                 {c.value}
               </Text>
             </View>
@@ -1324,16 +1361,13 @@ function CardLabels({
  *  browse grid's owned marker. Off unless `owned`; shrinks on small (neighbour) tiles. */
 function OwnedBadge({ owned, small, scale = 1 }: { owned: boolean; small: boolean; scale?: number }) {
   if (!owned) return null;
-  // Doubled and pocket-scaled, like the price and the finish chip: "I already have this" is one of
-  // the three things worth spotting without reading. Neighbour tiles keep the old small mark —
-  // they are a filmstrip, not something anyone reads.
-  const size = small ? 13 : Math.round(16 * EMPHASIS_FACTOR * scale);
-  const type = small
-    ? { fontSize: 8, lineHeight: 10 }
-    : (() => {
-        const f = Math.round(10 * EMPHASIS_FACTOR * scale);
-        return { fontSize: f, lineHeight: Math.round(f * 1.2) };
-      })();
+  // THE SAME HEIGHT AS THE FINISH CHIP OPPOSITE IT. Both sit at the top of the pocket and the eye
+  // pairs them, so the owned mark takes the finish chip's box rather than a size of its own — it
+  // was noticeably the taller of the two. Neighbour tiles keep the old small mark: a filmstrip is
+  // not something anyone reads.
+  const box = chipBox(scale);
+  const size = small ? 13 : box.height;
+  const type = small ? { fontSize: 8, lineHeight: 10 } : { fontSize: box.fontSize, lineHeight: box.lineHeight };
   return (
     <View
       pointerEvents="none"
@@ -1816,6 +1850,9 @@ const styles = StyleSheet.create({
   // clipped, and what clipped would be whichever end lost. The floor keeps the numerator legible,
   // so it shortens to "088/1…" rather than to an empty pill — the failure this row has had twice.
   numberChip: { flexShrink: 1, minWidth: 32 },
+  // The price's own column, pinned to the corner and free to be whatever height it needs. Above
+  // the label rows, because where the two meet the number is the one worth reading.
+  priceColumn: { position: 'absolute', alignItems: 'flex-end', maxWidth: '70%', zIndex: 5 },
 
   onCardChip: {
     paddingHorizontal: 3,

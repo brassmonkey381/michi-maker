@@ -87,6 +87,10 @@ interface CardPickerProps {
   /** One-shot "find similar to all" seed (binder multi-select → this picker). Applied on the
    *  card browser's mount; bypasses the broadcast command bus so it can't be intercepted. */
   initialSimilar?: string[];
+  /** Docked only: the column is tucked away to a rail, so the binder gets the width back. Owned by
+   *  BinderScreen because the page's layout budget has to change with it, not merely the picker. */
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
 }
 
 /**
@@ -97,6 +101,8 @@ interface CardPickerProps {
 export const CARD_PICKER_DOCK_MIN_WIDTH = 1100;
 /** Wide enough for the browse grid's 140px tiles three across, plus its chrome. */
 export const CARD_PICKER_DOCK_WIDTH = 460;
+/** Collapsed, the dock leaves behind a rail just wide enough to grab and pull back out. */
+export const CARD_PICKER_RAIL_WIDTH = 34;
 
 export function CardPicker({
   visible,
@@ -117,6 +123,8 @@ export function CardPicker({
   keepAdding,
   onToggleKeepAdding,
   initialSimilar,
+  collapsed = false,
+  onToggleCollapsed,
 }: CardPickerProps) {
   // Subscribe only while the sheet is open: the persistently-mounted picker must not
   // force the 9.87MB catalog fetch on binder-open. The background prefetch (BinderScreen)
@@ -300,6 +308,18 @@ export function CardPicker({
         <Pressable onPress={onDone} hitSlop={12}>
           <Text style={styles.close}>Done</Text>
         </Pressable>
+        {/* Collapse, borrowing the slice tray's idiom: one chevron, pointing the way the panel
+            travels. Docked only — a bottom sheet already collapses by being dismissed. */}
+        {docked && onToggleCollapsed ? (
+          <Pressable
+            onPress={onToggleCollapsed}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: true }}
+            accessibilityLabel="Collapse the card search">
+            <Text style={styles.chevron}>▸</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       {/* Content type — decide *what* goes in the pocket first. */}
@@ -392,6 +412,21 @@ export function CardPicker({
     // The Modal branch honours `visible` itself; a plain View has to be told. Rendering nothing —
     // rather than an empty column — is also what keeps the binder at full width when closed.
     if (!visible) return null;
+    if (collapsed) {
+      // The whole column, reduced to something to grab. It still holds its own width in the
+      // layout, so the binder grows into the space rather than sliding under a floating panel.
+      return (
+        <Pressable
+          style={styles.rail}
+          onPress={onToggleCollapsed}
+          testID="card-picker-rail"
+          accessibilityRole="button"
+          accessibilityState={{ expanded: false }}
+          accessibilityLabel="Expand the card search">
+          <Text style={styles.chevron}>◂</Text>
+        </Pressable>
+      );
+    }
     return (
       <View style={styles.dock} testID="card-picker-dock">
         {/* No grab handle and no scrim: this is a column of the page, not a sheet over it. Close
@@ -435,6 +470,21 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     zIndex: 70,
   },
+  /** Collapsed: a full-height strip on the same edge, wide enough to hit and nothing more. */
+  rail: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    width: CARD_PICKER_RAIL_WIDTH,
+    backgroundColor: Palette.surface,
+    borderLeftWidth: 1,
+    borderLeftColor: Palette.hairlineStrong,
+    alignItems: 'center',
+    paddingTop: 14,
+    zIndex: 70,
+  },
+  chevron: { fontSize: FontSize.md, color: Palette.muted },
   /** Even as a sheet it should not stretch to a 1920px monitor: a phone-shaped control the width
    *  of a desktop is nobody's idea of a good picker. */
   sheetCapped: { width: '100%', maxWidth: 720, alignSelf: 'center' },

@@ -20,6 +20,7 @@ import { BinderGrid, type BinderGridHandle } from '@/components/binder/BinderGri
 import {
   CARD_PICKER_DOCK_MIN_WIDTH,
   CARD_PICKER_DOCK_WIDTH,
+  CARD_PICKER_RAIL_WIDTH,
   CardPicker,
 } from '@/components/binder/CardPicker';
 import { BinderPages, type GridRole } from '@/components/binder/BinderPages';
@@ -211,6 +212,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // (tap a pocket once, then one tap per card) is the one you get without having to find a toggle.
   // Initialised, not synced: once you turn it off it stays off, resizing the window included.
   const [keepAdding, setKeepAdding] = useState(() => width >= CARD_PICKER_DOCK_MIN_WIDTH);
+  // The docked picker, tucked away to a rail. Lives here, not in CardPicker, because collapsing it
+  // has to hand the width back to the binder — the panel's own state cannot do that.
+  const [pickerCollapsed, setPickerCollapsed] = useState(false);
   // "Send page to…" — the destination picker, and whether it moves or copies.
   const [sendPageOpen, setSendPageOpen] = useState(false);
   const [sendAsMove, setSendAsMove] = useState(false);
@@ -353,7 +357,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // to make room — otherwise the column would sit on top of the very pockets it is filling. The
   // two constants are one decision, so they are imported rather than repeated.
   const pickerDocked = pickerCell != null && width >= CARD_PICKER_DOCK_MIN_WIDTH;
-  const available = width - 32 - (pickerDocked ? CARD_PICKER_DOCK_WIDTH : 0);
+  const available =
+    width - 32 - (pickerDocked ? (pickerCollapsed ? CARD_PICKER_RAIL_WIDTH : CARD_PICKER_DOCK_WIDTH) : 0);
   // prev/next are kept here for the cross-page drag hit-test (resolveSpreadHit below); the spread
   // layout that shows them lives in BinderPages.
   const prevPage = idx > 0 ? binder.pages[idx - 1] : null;
@@ -587,6 +592,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const closePicker = () => {
     setPickerCell(null);
     setSimilarSeed(null); // consume the one-shot seed so a later normal open doesn't re-run it
+    // Collapsed is a state of THIS session with the picker, not a preference. Leaving it set would
+    // mean the next pocket you tap opens nothing you can see — a rail on the far edge.
+    setPickerCollapsed(false);
   };
 
   // Tapping a filled pocket selects it (for the action bar + resize handle); tapping an empty
@@ -1448,7 +1456,15 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     <ThemedView style={styles.flex}>
       <SafeAreaView style={styles.flex} edges={['top']}>
           {/* Header */}
-          <View style={styles.header}>
+          {/* The picker is a full-height column on the right edge, so the header's own controls
+              have to step aside for it too — otherwise the panel clips Done and Share. */}
+          <View
+            style={[
+              styles.header,
+              pickerDocked && {
+                paddingRight: (pickerCollapsed ? CARD_PICKER_RAIL_WIDTH : CARD_PICKER_DOCK_WIDTH) + Spacing.three,
+              },
+            ]}>
             <Pressable onPress={onClose} hitSlop={10}>
               <Text style={[styles.headerAction, { color: theme.text }]}>Close</Text>
             </Pressable>
@@ -1500,7 +1516,16 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
             )}
           </View>
 
-          <ScrollView contentContainerStyle={styles.scroll}>
+          {/* Pad the page over by whatever the picker occupies, so the binder sits centred in the
+              space it actually has rather than centred in the window with a panel parked on top of
+              its right-hand third. The rail's 34px is padded too, for the same reason. */}
+          <ScrollView
+            contentContainerStyle={[
+              styles.scroll,
+              pickerDocked && {
+                paddingRight: pickerCollapsed ? CARD_PICKER_RAIL_WIDTH : CARD_PICKER_DOCK_WIDTH,
+              },
+            ]}>
             {/* Read-only because another tab of this browser owns editing — see EditLockBanner. */}
             <EditLockBanner />
             <SaveErrorBanner />
@@ -1748,6 +1773,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           keepAdding={keepAdding}
           onToggleKeepAdding={() => setKeepAdding((v) => !v)}
           initialSimilar={similarSeed ?? undefined}
+          collapsed={pickerCollapsed}
+          onToggleCollapsed={() => setPickerCollapsed((v) => !v)}
         />
 
         <AutoFillSheet

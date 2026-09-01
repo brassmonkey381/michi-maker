@@ -30,7 +30,7 @@
  * Honours prefers-reduced-motion (web): frames change with no animation at all. Purely
  * presentational — pointer events pass through to a parent Pressable.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import { runOnJS, useSharedValue, withTiming } from 'react-native-reanimated';
 
@@ -142,7 +142,12 @@ export function AutoFlipBinder({
 
   // Drive the hinge whenever a turn is mounted. `t` always runs 0 → 1; which way the leaf swings
   // is decided by the angle mapping below, so there is one animation for both directions.
-  useEffect(() => {
+  //
+  // BEFORE THE PAINT, not after. `t` is left at 1 by the turn that just finished, and a plain
+  // effect runs after the browser has painted, so the first frame of every turn was drawn at the
+  // END of the arc: the sheet already flipped over, showing the wrong face. A layout effect resets
+  // it in the same frame the leaf appears in. Same fix, same reason, as the viewer's own hinge.
+  useLayoutEffect(() => {
     if (!turn) return;
     const to = turn.to;
     t.value = 0;
@@ -156,48 +161,103 @@ export function AutoFlipBinder({
 
   if (frames.length === 0) return <View style={{ width }} />;
 
-  const current = frames[clampedIdx];
-  // The two frames a turn is between, in page order — the leaf is the sheet that separates them.
-  const earlier = turn ? frames[Math.min(turn.from, turn.to)] : null;
-  const later = turn ? frames[Math.max(turn.from, turn.to)] : null;
+  /**
+   * EVERY PAGE A TURN CAN NEED IS ALREADY BUILT, AND STAYS BUILT.
+   *
+   * Mounting the sheet when a turn began put fresh page grids, and so fresh image elements, into
+   * the exact frame the animation started in. That is the flash the app's own binder had, found by
+   * removing the overlay and finding it gone; this binder builds its sheet the same way and so
+   * flashed for the same reason.
+   *
+   * Everything is therefore addressed from the frame the reader is RESTING on, and while a turn is
+   * running, from the frame it STARTED on. Those are the same frame across the moment a turn
+   * begins, so no address changes, so nothing is rebuilt while anyone is watching. Both sheets are
+   * kept, forward and backward, because the walk reverses at each end and the leaf it turns back
+   * with has to be there already.
+   */
+  const rest = turn ? turn.from : clampedIdx;
+  const at = (i: number): Frame | null => (i >= 0 && i < frames.length ? frames[i] : null);
+  const restFrame = frames[rest];
+  const aheadFrame = at(rest + 1);
+  const behindFrame = at(rest - 1);
+  const fwd = Boolean(turn?.forward);
+  const bwd = Boolean(turn && !turn.forward);
+  // The stage's two halves, each with the page it rests on and the page a turn would swap in.
+  // The resting page stays IN FLOW so the box keeps its height while the alternate is shown.
+  const half = (settled: DemoPage | null, alternate: DemoPage | null, showAlternate: boolean) => (
+    <View style={{ width: pageWidth }}>
+      <View style={showAlternate ? styles.kept : undefined}>
+        {settled ? <BinderGrid page={settled} width={pageWidth} /> : null}
+      </View>
+      {alternate ? (
+        <View style={[StyleSheet.absoluteFill, showAlternate ? undefined : styles.kept]}>
+          <BinderGrid page={alternate} width={pageWidth} />
+        </View>
+      ) : null}
+    </View>
+  );
 
   return (
     <View style={{ width }}>
       <View>
         {spread ? (
+          // Turning forward reveals the NEXT frame's right page; turning back reveals the previous
+          // frame's left page. Both are kept, so neither arrives when the sheet lifts off it.
           <SpreadStage
             pageWidth={pageWidth}
-            // Settled: the spread as it is. Mid-turn: the old left page beside the NEW right page,
-            // which is exactly what the leaf is lifting off and landing over.
-            left={turn && earlier ? leftOf(earlier) : leftOf(current)}
-            right={turn && later ? rightOf(later) : rightOf(current)}
+            left={half(leftOf(restFrame), behindFrame ? leftOf(behindFrame) : null, bwd)}
+            right={half(rightOf(restFrame), aheadFrame ? rightOf(aheadFrame) : null, fwd)}
           />
         ) : (
-          // Settled: this page. Mid-turn: the destination, revealed as the outgoing page lifts.
-          <BinderGrid page={turn ? rightOf(frames[turn.to]) : rightOf(current)} width={pageWidth} />
+          half(
+            rightOf(restFrame),
+            turn ? rightOf(frames[turn.to]) : null,
+            Boolean(turn),
+          )
         )}
 
-        {turn && earlier && later ? (
-          spread ? (
-            <TurnLeaf
-              t={t}
-              forward={turn.forward}
-              width={pageWidth}
-              // The right page starts after the left page, a gap, the spine and another gap.
-              hingeLeft={pageWidth + Spacing.two + SPINE_W + Spacing.two}
-              // ...all of which the sheet crosses on its way to lying flat on the left page.
-              spine={SPINE_W + Spacing.two * 2}
-              front={<BinderGrid page={rightOf(earlier)} width={pageWidth} />}
-              back={leftOf(later) ? <BinderGrid page={leftOf(later) as DemoPage} width={pageWidth} /> : null}
-            />
-          ) : (
+        {spread ? (
+          <>
+            <View style={[StyleSheet.absoluteFill, fwd ? undefined : styles.kept]} pointerEvents="none">
+              <TurnLeaf
+                t={t}
+                forward
+                width={pageWidth}
+                // The right page starts after the left page, a gap, the spine and another gap.
+                hingeLeft={pageWidth + Spacing.two + SPINE_W + Spacing.two}
+                // ...all of which the sheet crosses on its way to lying flat on the left page.
+                spine={SPINE_W + Spacing.two * 2}
+                front={<BinderGrid page={rightOf(restFrame)} width={pageWidth} />}
+                back={
+                  aheadFrame && leftOf(aheadFrame) ? (
+                    <BinderGrid page={leftOf(aheadFrame) as DemoPage} width={pageWidth} />
+                  ) : null
+                }
+              />
+            </View>
+            <View style={[StyleSheet.absoluteFill, bwd ? undefined : styles.kept]} pointerEvents="none">
+              <TurnLeaf
+                t={t}
+                forward={false}
+                width={pageWidth}
+                hingeLeft={pageWidth + Spacing.two + SPINE_W + Spacing.two}
+                spine={SPINE_W + Spacing.two * 2}
+                front={
+                  behindFrame ? <BinderGrid page={rightOf(behindFrame)} width={pageWidth} /> : null
+                }
+                back={leftOf(restFrame) ? <BinderGrid page={leftOf(restFrame) as DemoPage} width={pageWidth} /> : null}
+              />
+            </View>
+          </>
+        ) : (
+          <View style={[StyleSheet.absoluteFill, turn ? undefined : styles.kept]} pointerEvents="none">
             <SingleTurnLeaf
               t={t}
               width={pageWidth}
-              page={<BinderGrid page={rightOf(frames[turn.from])} width={pageWidth} />}
+              page={<BinderGrid page={rightOf(restFrame)} width={pageWidth} />}
             />
-          )
-        ) : null}
+          </View>
+        )}
       </View>
 
       {frames.length > 1 ? (
@@ -213,34 +273,32 @@ export function AutoFlipBinder({
 
 /** The settled spread: a page, the rings, a page. Defines the stage height. */
 function SpreadStage({
-  pageWidth,
   left,
   right,
 }: {
   pageWidth: number;
-  left: DemoPage | null;
-  right: DemoPage;
+  /** Already-built halves: each keeps its resting page and the one a turn would swap in. */
+  left: ReactNode;
+  right: ReactNode;
 }) {
   return (
     <View style={styles.spreadRow} pointerEvents="none">
-      {left ? (
-        <BinderGrid page={left} width={pageWidth} />
-      ) : (
-        // Page 1 faces nothing, exactly as in a real binder.
-        <View style={{ width: pageWidth }} />
-      )}
+      {left}
       <View style={styles.spine}>
         {RINGS.map((r) => (
           <View key={r} style={styles.ring} />
         ))}
       </View>
-      <BinderGrid page={right} width={pageWidth} />
+      {right}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   spreadRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  // KEPT, NOT SHOWN. Opacity rather than an unmount, because the whole point is that these pages
+  // stay laid out and their images stay decoded until the turn that needs them.
+  kept: { opacity: 0 },
   spine: {
     width: SPINE_W,
     alignSelf: 'stretch',

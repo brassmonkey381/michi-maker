@@ -12,8 +12,6 @@
  */
 import { Image } from 'expo-image';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-// TEMPORARY diagnostics for the page-turn flash. See turnProbe.ts.
-import { PROBE, SLOW_FACTOR } from '@/lib/turnProbe';
 import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Animated, {
   runOnJS,
@@ -307,15 +305,9 @@ export function BinderPages({
   useLayoutEffect(() => {
     if (!pageTurn) return;
     turnT.value = 0;
-    turnT.value = withTiming(
-      1,
-      { duration: PROBE.slow ? TURN_MS * SLOW_FACTOR : TURN_MS, easing: TURN_EASING },
-      (done) => {
-        // 'hold' leaves the overlay up, frozen at the end of its arc, so the handover from the
-        // animation to the settled spread never happens.
-        if (done && !PROBE.hold) runOnJS(setPageTurn)(null);
-      },
-    );
+    turnT.value = withTiming(1, { duration: TURN_MS, easing: TURN_EASING }, (done) => {
+      if (done) runOnJS(setPageTurn)(null);
+    });
   }, [pageTurn, turnT]);
 
   /**
@@ -373,9 +365,6 @@ export function BinderPages({
     gap: bookGap,
     maxWidth,
   });
-  // 'freeze': the spread UNDER the animation keeps drawing the pages it had before the turn, so
-  // nothing beneath the overlay changes while the overlay is up.
-  const frozen = PROBE.freeze && pageTurn;
   const spreadLeftIdx = idx === 0 ? -1 : idx % 2 === 1 ? idx : idx - 1;
   const spreadRightIdx = idx === 0 ? 0 : spreadLeftIdx + 1 < count ? spreadLeftIdx + 1 : -1;
   const leftPage = spreadLeftIdx >= 0 ? binder.pages[spreadLeftIdx] : null;
@@ -561,7 +550,7 @@ export function BinderPages({
               flat>
               {leftPage
                 ? renderGrid({
-                    page: (frozen ? pageTurn.fromLeft : null) ?? leftPage,
+                    page: leftPage,
                     width: bookW,
                     role: spreadLeftIdx === idx ? 'current' : 'partner',
                     captionFields,
@@ -584,7 +573,7 @@ export function BinderPages({
               flat>
               {rightPage
                 ? renderGrid({
-                    page: (frozen ? pageTurn.fromRight : null) ?? rightPage,
+                    page: rightPage,
                     width: bookW,
                     role: spreadRightIdx === idx ? 'current' : 'partner',
                     captionFields,
@@ -683,7 +672,7 @@ export function BinderPages({
 
           In EDIT MODE it stays as it was, mounted per turn. The pre-built copies are inert but
           they are not free, and an editor re-renders on every drag frame. */}
-      {(pageTurn || !editable) && doubleSided && count > 1 && !PROBE.noOverlay
+      {(pageTurn || !editable) && doubleSided && count > 1
         ? (() => {
             // Addressed from the turn's ORIGIN while turning, from the settled spread while at
             // rest. Those are the same spread across the moment a turn begins, which is the whole
@@ -800,7 +789,7 @@ export function BinderPages({
         : null}
       {/* One page at a time: nothing beside it to sweep over, so the outgoing page lifts on the
           same hinge and the page underneath — already the new one — is revealed. */}
-      {pageTurn && !doubleSided && !showSpread && pageTurn.fromPage && !PROBE.noOverlay ? (
+      {pageTurn && !doubleSided && !showSpread && pageTurn.fromPage ? (
         <View pointerEvents="none" style={StyleSheet.absoluteFill}>
           {/* Centred the same way the page beneath is (turnLayer), or the lifting sheet starts from
               the left edge of the wrap rather than from the page. */}

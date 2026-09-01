@@ -1,6 +1,4 @@
 import { Image } from 'expo-image';
-// TEMPORARY diagnostics for the page-turn flash. See turnProbe.ts.
-import { PROBE, probeColour } from '@/lib/turnProbe';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type DimensionValue, type ViewProps } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -991,9 +989,6 @@ function ArtworkImage({
   const [box, setBox] = useState<{ w: number; h: number } | null>(null);
   const rot = transform?.rot ?? 0;
   const flipped = Boolean(transform && (rot !== 0 || transform.flipH || transform.flipV));
-  if (PROBE.noImages) {
-    return <View style={[styles.fill, { backgroundColor: probeColour(uri), borderRadius: radius }]} />;
-  }
   if (failed) {
     return (
       <View style={[styles.fill, styles.artworkPanel, styles.artworkFallback, { borderRadius: radius }]}>
@@ -1606,12 +1601,6 @@ function CardImage({
 
   if (stage === 'failed') {
     return <CardPlaceholder radius={radius} />;
-  }
-
-  // 'noimages': a flat colour where the card would be. No <Image> mounts, decodes, fades or loads,
-  // so anything still flashing is not the pictures.
-  if (PROBE.noImages) {
-    return <View style={[styles.fill, { backgroundColor: probeColour(id), borderRadius: radius }]} />;
   }
 
   // Empty URL = manifest not resolved yet. Skeleton while we're still polling; once the retry

@@ -15,6 +15,7 @@ import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from
 import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from 'react-native-reanimated';
 
 import { CaptionControls, CaptionFieldRow } from '@/components/binder/CaptionControls';
+import { LinearGradient } from 'expo-linear-gradient';
 import { PageStrip } from '@/components/binder/PageStrip';
 import { ThemedText } from '@/components/themed-text';
 
@@ -26,6 +27,7 @@ import type { DemoBinder, DemoPage, DemoSlot } from '@/data/binderTypes';
 import { allocateScanFaces } from '@/data/scanFaces';
 import { useOwnedCards } from '@/hooks/use-owned-cards';
 import { useScanImages } from '@/hooks/use-scan-images';
+import { useTheme } from '@/hooks/use-theme';
 
 /** Which slot a rendered grid occupies — lets the caller wire the right handlers/refs per grid.
  *  'partner' is the facing page of a double-sided spread: fully interactive in edit mode (the
@@ -34,6 +36,10 @@ export type GridRole = 'single' | 'prev' | 'current' | 'next' | 'partner';
 
 // Session-wide preference: real binders are double-sided, so remember the reader's choice
 // across binder opens (module state, like the browse state — deliberately not persisted).
+// RN's style types only admit 'absolute' | 'relative'; sticky is a web-only value that react-native-web
+// passes straight through to CSS. Declared once here so the cast has a name and a reason.
+const WEB_STICKY = { position: 'sticky', bottom: 0, zIndex: 5 };
+
 let doubleSidedPref = false;
 
 export interface BinderPagesProps {
@@ -44,9 +50,9 @@ export interface BinderPagesProps {
   /** Usable content width (viewport minus horizontal padding) — drives the spread breakpoint. */
   availableWidth: number;
   /**
-   * Vertical space the surrounding chrome takes, subtracted from the window before the page is
-   * fitted to height. A prop rather than a constant because the editor stacks far more above the
-   * art than the public viewer does; too large only makes the page smaller, never broken.
+   * Vertical space the CALLER stacks above this component — its own header, and in the editor the
+   * title fields and tools card. What this component itself adds (page details, the pills, the
+   * filmstrip) is measured, not guessed, so this covers only what it cannot see.
    */
   chromeAllowance?: number;
   /** A hard ceiling on page width, for surfaces that need one. Unset means fill the space. */
@@ -89,7 +95,7 @@ export function BinderPages({
   pageIndex,
   onPageChange,
   availableWidth,
-  chromeAllowance = 320,
+  chromeAllowance = 96,
   maxWidth,
   editable,
   viewerIsOwner = false,
@@ -152,8 +158,20 @@ export function BinderPages({
   // The height budget is what stops that becoming a different bug: a 3x3 at 900px wide is over
   // 1200px tall, so a width-only fit would push the bottom row under the fold on the very laptops
   // this is meant to help. The page is sized by whichever runs out first.
+  const theme = useTheme();
   const { height: windowHeight } = useWindowDimensions();
-  const heightBudget = Math.max(0, windowHeight - chromeAllowance);
+  // What the chrome inside this component actually costs, reported by onLayout below. Rounded and
+  // only accepted on a real change, so a sub-pixel wobble cannot start a measure/render loop: the
+  // page's own height never feeds back into these two, since both sit outside it.
+  const [chromeAbove, setChromeAboveRaw] = useState(0);
+  const [stripHeight, setStripHeightRaw] = useState(0);
+  const setChromeAbove = (h: number) =>
+    setChromeAboveRaw((cur) => (Math.abs(cur - h) > 2 ? Math.round(h) : cur));
+  const setStripHeight = (h: number) =>
+    setStripHeightRaw((cur) => (Math.abs(cur - h) > 2 ? Math.round(h) : cur));
+  // chromeAllowance covers what the CALLER stacks above this component (its header, and in the
+  // editor the title fields and tools card); the two measurements cover what this one adds.
+  const heightBudget = Math.max(0, windowHeight - chromeAllowance - chromeAbove - stripHeight);
   const captionsOn = hasTextCaption(captionFields);
   const spreadGap = SPREAD_GAP;
   // Peeks need room for a page AND two strips; below that the page goes it alone, as on a phone.
@@ -234,6 +252,12 @@ export function BinderPages({
 
   return (
     <>
+      {/* MEASURED, NOT GUESSED. The height budget was a 320px constant, which is wrong the moment
+          a description wraps to three lines or the card-label chips add a row — and being wrong
+          pushed the page filmstrip below the fold, so the only way to reach page navigation was to
+          scroll, over a surface where the wheel flips pages instead. These two onLayouts report
+          what the chrome actually costs. */}
+      <View onLayout={(e) => setChromeAbove(e.nativeEvent.layout.height)}>
       {/* Per-page title/description — caller override (edit inputs) or read-only. */}
       {pageHeader ??
         (page && (page.title || page.description) ? (
@@ -298,6 +322,8 @@ export function BinderPages({
           fields={labelFields}
           onToggleField={toggleLabelField}
         />
+      </View>
+
       </View>
 
       {/* The page — a prev · current · next spread on wide screens, else the single page. */}
@@ -408,12 +434,22 @@ export function BinderPages({
 
       {/* Page filmstrip — tap a thumbnail to flip to it; long-press-drag reorders (edit only). */}
       {count > 1 ? (
+        <View
+          onLayout={(e) => setStripHeight(e.nativeEvent.layout.height)}
+          style={[
+            styles.stripDock,
+            // Opaque, because the page now scrolls UNDER it: a transparent dock would let card art
+            // slide through the page numbers.
+            { backgroundColor: theme.background },
+            Platform.OS === 'web' ? (WEB_STICKY as object) : null,
+          ]}>
         <PageStrip
           pages={binder.pages}
           currentIndex={idx}
           onSelect={onPageChange}
           onReorder={onReorderPages}
         />
+        </View>
       ) : null}
     </>
   );
@@ -440,12 +476,25 @@ function PeekClip({
   role: 'prev' | 'current' | 'next';
   children: ReactNode;
 }) {
+  const theme = useTheme();
   if (!peeking) return <>{children}</>;
   // Show the edge that faces the current page: the previous page's right, the next page's left.
   const offset = role === 'prev' ? -(width - peekWidth) : 0;
+  // FADE INTO THE MAT at the outer edge. Cropping alone left three equally bright pages in a row
+  // with nothing saying which one you were reading; a peek has to look like it is receding, not
+  // like a page that happens to be cut off. The gradient runs toward the outside — the direction
+  // the page is disappearing — so the near edge stays crisp against the page you are on.
+  const fade: [string, string] = [`${theme.background}00`, theme.background];
   return (
     <View style={{ width: peekWidth, overflow: 'hidden' }}>
       <View style={{ width, marginLeft: offset }}>{children}</View>
+      <LinearGradient
+        pointerEvents="none"
+        colors={role === 'prev' ? fade : [fade[1], fade[0]]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={StyleSheet.absoluteFill}
+      />
     </View>
   );
 }
@@ -510,7 +559,7 @@ function SpreadColumn({
           </PeekClip>
         </Pressable>
       ) : (
-        <View style={styles.neighborGrid}>
+        <View style={role === 'current' ? styles.currentGrid : styles.neighborGrid}>
           <PeekClip peeking={peeking} peekWidth={peekWidth ?? width} width={width} role={role}>
             {children}
           </PeekClip>
@@ -528,7 +577,27 @@ const styles = StyleSheet.create({
   spreadRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center' },
   neighbor: { alignItems: 'center' },
   neighborLabel: { marginBottom: 6 },
-  neighborGrid: { opacity: 0.92 },
+  // The filmstrip is NAVIGATION, so it may never be the thing you have to scroll to reach. And
+  // scrolling to it is worse than it sounds here: the wheel over the binder flips pages instead of
+  // scrolling, so hunting for the strip flips you off the page you were on.
+  //
+  // It cannot simply be made to fit. A 3x3 page at 560px with card labels is 870px tall, and with
+  // the header, the pills and the strip itself that is 1101px — more than a 1080p window has, even
+  // with every removable thing above the art already gone. Shrinking the page to fit would cost
+  // the artwork, which is the one thing this whole exercise is protecting. So the strip docks to
+  // the bottom of the viewport and the page scrolls under it.
+  stripDock: { paddingTop: 4 },
+  // Neighbours recede. 0.92 was an 8% dim — indistinguishable from the page in focus, which is
+  // exactly the complaint: three equally bright pages with no way to tell which one you were on.
+  neighborGrid: { opacity: 0.55 },
+  // …and the page in focus sits above them, lifted off the mat rather than merely brighter.
+  currentGrid: {
+    shadowColor: '#000000',
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
   pageTitle: { textAlign: 'center' },
   pageDescription: { marginTop: 4, textAlign: 'center' },
 });

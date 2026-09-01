@@ -1477,6 +1477,10 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               pageIndex={idx}
               onPageChange={changePage}
               availableWidth={available}
+              // The header, plus the title fields and tools card that edit mode stacks above the
+              // art. Until those move beside the page (audit A3) they are simply a cost the page
+              // has to be told about, or it fits itself to a window taller than it really has.
+              chromeAllowance={editing ? 330 : 88}
               editable={editing}
               // Binders reachable here come from the signed-in user's own store (userBinders) or
               // are bundled examples, so the viewer is the owner. The public route decides for

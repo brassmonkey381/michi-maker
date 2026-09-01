@@ -8,6 +8,11 @@
 // actually scrolled, so this drives a trackpad-sized delta and a mouse-notch-sized delta at the
 // same point and checks they do visibly different amounts of work.
 //
+// MERGE WITHOUT A KEYBOARD. Selecting a second piece was spelled only as a held Ctrl or Shift, so
+// on a phone there was no way to select two — and Merge, the studio's core craft move, was
+// unreachable on the device most people photograph their cards with. A long press says the same
+// thing. The fold crease draws only for a legal sideways pair, so its appearance is the proof.
+//
 // GUIDES AT REST. The alignment guides are derived from the window, and the default framing is
 // centred — so a guide drawn purely on "is anything aligned?" lights up the moment art loads and
 // never goes out, which is furniture, not feedback. They are tied to the gesture instead, and this
@@ -184,6 +189,34 @@ const afterRest = await guides();
 console.log(`guides      : rest=${atRest} moving=${whileMoving} settled=${afterRest}`);
 if (atRest !== 0 || afterRest !== 0) { console.log('FAIL — guides linger when nothing is moving'); ok = false; }
 if (whileMoving === 0) { console.log('FAIL — no guide appeared while panning across the grid'); ok = false; }
+// MERGE ON TOUCH. Two pieces selected without a keyboard: tap one, hold the next. The fold
+// crease only draws for a legal sideways pair, so its appearance is the whole proof — a merge
+// that a finger alone could not previously set up.
+await p.getByText('Sliced', { exact: true }).first().click({ timeout: 8000 }).catch(() => {});
+await settle(1200);
+const cellW = canvasBox.w / 3;
+const cellH = canvasBox.h / 3;
+const at = (col, row) => ({
+  x: canvasBox.x + cellW * (col + 0.5),
+  y: canvasBox.y + cellH * (row + 0.5),
+});
+const a = at(0, 1);
+const bb = at(1, 1);
+await p.mouse.click(a.x, a.y);
+await settle(600);
+// A hold, not a click: press, wait past the long-press threshold, release without moving.
+await p.mouse.move(bb.x, bb.y);
+await p.mouse.down();
+await settle(700);
+await p.mouse.up();
+await settle(900);
+// The crease draws ONLY for a legal sideways pair, so it is the honest witness that two pieces
+// are selected — a Merge button alone can appear on a single selection.
+const creased = (await p.locator('[data-testid="slice-fold"]').count()) > 0;
+const mergeOffered = (await p.getByText('Merge', { exact: false }).count()) > 0;
+console.log(`touch merge : fold crease=${creased} mergeOffered=${mergeOffered}`);
+if (!creased) { console.log('FAIL — holding a second piece did not build a mergeable pair'); ok = false; }
+
 await p.screenshot({ path: `${OUT}-2-zoomed.png` });
 if (ok) console.log('PASS — zoom scales with the gesture: a nudge moves a little, a notch moves a lot');
 else process.exitCode = 1;

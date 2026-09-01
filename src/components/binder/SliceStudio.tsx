@@ -588,8 +588,15 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
     [natural],
   );
 
+  /**
+   * `additive` is the difference between "select this piece" and "select this piece TOO", and it
+   * used to be spelled only as a held Ctrl or Shift. A finger cannot hold Ctrl — so on a phone
+   * there was no way to select two pieces, and Merge, the studio's core craft move, was
+   * unreachable on the device most people photograph their cards with. A long press says the same
+   * thing a modifier does, in the idiom the platform already uses for extending a selection.
+   */
   const selectAt = useCallback(
-    (x: number, y: number) => {
+    (x: number, y: number, additive = false) => {
       if (!cellW) return;
       const c = clamp(Math.floor(x / (cellW + GAP)), 0, cols - 1);
       const r = clamp(Math.floor(y / (cellH + GAP)), 0, rows - 1);
@@ -597,7 +604,7 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
       if (!panel) return;
       setSelected((sel) => {
         const next = new Set(sel);
-        if (multiKeyHeld) {
+        if (additive || multiKeyHeld) {
           if (next.has(panel.id)) next.delete(panel.id);
           else next.add(panel.id);
         } else {
@@ -609,6 +616,7 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
     },
     [cellW, cellH, rows, cols, panels],
   );
+  const selectAlso = useCallback((x: number, y: number) => selectAt(x, y, true), [selectAt]);
 
   const merge = useCallback(() => {
     setPanels((ps) => {
@@ -860,6 +868,13 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
     const tap = Gesture.Tap().onEnd((e) => {
       runOnJS(selectAt)(e.x, e.y);
     });
+    // Held, not tapped: adds to the selection instead of replacing it. Ordered ahead of tap in the
+    // Exclusive below so a deliberate hold is never read as a plain tap that clears what you had.
+    const hold = Gesture.LongPress()
+      .minDuration(350)
+      .onStart((e) => {
+        runOnJS(selectAlso)(e.x, e.y);
+      });
     const pinch = Gesture.Pinch()
       // `scaleChange` is the per-frame ratio the handler already computes; deriving it here from
       // the cumulative `scale` would mean keeping running state inside a gesture built in render,
@@ -870,8 +885,8 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
       });
     // Simultaneous, not raced: two fingers on the glass are usually pinching AND sliding, and
     // making them pick one is what makes a canvas feel stiff.
-    return Gesture.Simultaneous(pinch, Gesture.Exclusive(pan, tap));
-  }, [panBy, selectAt, pinchTo]);
+    return Gesture.Simultaneous(pinch, Gesture.Exclusive(pan, hold, tap));
+  }, [panBy, selectAt, selectAlso, pinchTo]);
 
   /**
    * The alignment guides, read back off the window rather than remembered from the snap that
@@ -1133,7 +1148,8 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
           {/* Interaction hint — lives with the controls (left), not over the canvas. */}
           {hasImage ? (
             <Text style={styles.hint}>
-              Drag to pan · scroll or pinch to zoom · click a piece to select
+              Drag to pan · scroll or pinch to zoom · click a piece to select · hold (or ⌘/Ctrl-click)
+              to select more
               {snap ? ' · edges snap to the pockets' : ''}
             </Text>
           ) : null}
@@ -1221,6 +1237,7 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
                   {/* The fold crease — makes the "fold + slide into both pockets" move visible. */}
                   {foldHint ? (
                     <View
+                      testID="slice-fold"
                       pointerEvents="none"
                       style={[styles.foldLine, { left: foldHint.left - 1, top: foldHint.top, height: foldHint.height }]}
                     />

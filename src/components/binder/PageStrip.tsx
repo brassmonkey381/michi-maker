@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useMemo, type ReactNode } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 
@@ -9,6 +9,24 @@ import type { DemoPage } from '@/data/binderTypes';
 
 const ITEM_W = 66; // width of each page thumbnail (incl. its margin step)
 const THUMB_W = 58;
+/** The width a strip thumbnail is drawn at, for callers supplying their own (a cover). */
+export const STRIP_THUMB_W = THUMB_W;
+
+/**
+ * SOMETHING IN THE STRIP THAT IS NOT A PAGE: a binder cover. It has a label instead of a number,
+ * draws itself, and is never reordered, because the index space of this strip belongs to the
+ * pages and a cover has no index in it. Leading ones sit before page 1, trailing ones after the
+ * last page, and page N stays labelled N.
+ */
+export interface StripExtra {
+  key: string;
+  /** Short. 'FC', 'IFC': the strip has 58px to work with. */
+  label: string;
+  current: boolean;
+  onSelect: () => void;
+  /** Already drawn at STRIP_THUMB_W. */
+  thumb: ReactNode;
+}
 
 interface PageStripProps {
   pages: DemoPage[];
@@ -16,10 +34,12 @@ interface PageStripProps {
   onSelect: (index: number) => void;
   /** Omit to make the strip read-only (tap to jump only) — e.g. when inspecting a binder. */
   onReorder?: (from: number, to: number) => void;
+  leading?: StripExtra[];
+  trailing?: StripExtra[];
 }
 
 /** Horizontal filmstrip of page thumbnails: tap to jump, and (when editable) long-press-drag to reorder. */
-export function PageStrip({ pages, currentIndex, onSelect, onReorder }: PageStripProps) {
+export function PageStrip({ pages, currentIndex, onSelect, onReorder, leading, trailing }: PageStripProps) {
   if (pages.length <= 1) return null;
   return (
     <ScrollView
@@ -28,6 +48,9 @@ export function PageStrip({ pages, currentIndex, onSelect, onReorder }: PageStri
       // flexGrow centres the strip under the page when it's narrower than the screen, while a
       // long strip still scrolls normally from its left edge.
       contentContainerStyle={styles.row}>
+      {(leading ?? []).map((x) => (
+        <ExtraThumb key={x.key} extra={x} />
+      ))}
       {pages.map((page, index) => (
         <PageThumb
           key={page.id}
@@ -39,7 +62,22 @@ export function PageStrip({ pages, currentIndex, onSelect, onReorder }: PageStri
           onReorder={onReorder}
         />
       ))}
+      {(trailing ?? []).map((x) => (
+        <ExtraThumb key={x.key} extra={x} />
+      ))}
     </ScrollView>
+  );
+}
+
+/** A cover in the strip. Same footprint as a page thumb, so the drag pitch the pages use holds. */
+function ExtraThumb({ extra }: { extra: StripExtra }) {
+  return (
+    <Pressable onPress={extra.onSelect} style={styles.thumb} accessibilityLabel={extra.label}>
+      <View style={[styles.thumbInner, extra.current && styles.thumbCurrent]} pointerEvents="none">
+        {extra.thumb}
+      </View>
+      <Text style={[styles.num, extra.current && styles.numCurrent]}>{extra.label}</Text>
+    </Pressable>
   );
 }
 

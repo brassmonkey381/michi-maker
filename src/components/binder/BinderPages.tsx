@@ -31,7 +31,9 @@ import {
 } from '@/components/binder/pageTurn';
 import { Directions, Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
-import { PageStrip } from '@/components/binder/PageStrip';
+import { PageStrip, STRIP_THUMB_W, type StripExtra } from '@/components/binder/PageStrip';
+import { COVER_ABBR, CoverStickerLayer, CoverTools, withSurface } from '@/components/binder/CoverEditor';
+import { useBinders } from '@/store/binders';
 import { ThemedText } from '@/components/themed-text';
 
 import { pillChip } from '@/constants/ui';
@@ -42,7 +44,7 @@ import { useViewPrefs } from '@/hooks/use-view-prefs';
 import { CoverSurface } from '@/components/binder/BinderCover';
 import { binderColourway, binderModel, coverAspect, type CoverSurfaceId } from '@/data/binderModels';
 import { cardThumbUrl } from '@/lib/catalogConfig';
-import type { DemoBinder, DemoPage, DemoSlot } from '@/data/binderTypes';
+import type { BinderCover, DemoBinder, DemoPage, DemoSlot } from '@/data/binderTypes';
 import { allocateScanFaces } from '@/data/scanFaces';
 import { useOwnedCards } from '@/hooks/use-owned-cards';
 import { useScanImages } from '@/hooks/use-scan-images';
@@ -259,7 +261,28 @@ export function BinderPages({
    * Only a DRESSED binder can shut. An undressed one has no cover to show, so both ends behave
    * exactly as they did before.
    */
-  const [shut, setShut] = useState<null | 'front' | 'back'>(null);
+  //
+  // 'tail' is the spread AFTER the last page of a binder with an odd page count: the back of its
+  // final sheet (blank, since that page does not exist) facing the inside back cover. A binder with
+  // an even count reaches its inside back on an ordinary spread and never needs this.
+  const [shut, setShut] = useState<null | 'front' | 'back' | 'tail'>(null);
+
+  /**
+   * THE COVER SURFACE BEING DECORATED, in edit mode. Chosen from the filmstrip (FC, IFC, IBC, BC)
+   * or by tapping a cover on the spread. The inside covers live on a spread, so focusing one also
+   * pages there; `focusPending` carries the focus across that page change, which would otherwise
+   * clear it as any page change does.
+   */
+  const [coverFocus, setCoverFocus] = useState<CoverSurfaceId | null>(null);
+  const [focusPending, setFocusPending] = useState(false);
+  /** The sticker selected on the focused surface, for the toolbar to act on. */
+  const [coverSelected, setCoverSelected] = useState<string | null>(null);
+  // The one cover write path. Gated on editable so the public viewer, which mounts this same
+  // component for anyone's binder, can never write.
+  const store = useBinders();
+  const writeCover = (cover: BinderCover) => {
+    if (editable) store.updateBinder(binder.id, { cover });
+  };
   /** The cover swinging open or closed. Separate from pageTurn: no page is changing. */
   const [coverTurn, setCoverTurn] = useState<null | { end: 'front' | 'back'; closing: boolean }>(null);
   const coverT = useSharedValue(0);
@@ -282,6 +305,10 @@ export function BinderPages({
       setShut(null);
       setCoverTurn(null);
     }
+    // Focusing an inside cover pages to its spread; that one page change keeps the focus.
+    if (focusPending) setFocusPending(false);
+    else if (coverFocus) setCoverFocus(null);
+    setCoverSelected(null);
     // NO TURN WHEN THE PAGE IS ALREADY IN FRONT OF YOU. Tapping the facing half of an open spread
     // moves the active page but turns nothing over — both pages stay exactly where they are — so
     // animating a sheet there was pure invention. A spread is identified by its left-hand index.
@@ -419,17 +446,93 @@ export function BinderPages({
   };
   const coverModel = binderModel(binder.cover?.modelId);
   const coverColour = binderColourway(coverModel, binder.cover?.colourway);
-  /** One inside cover, drawn to the page's width so the two halves of the spread line up. */
-  const drawCover = (id: CoverSurfaceId | null) =>
-    id ? (
+  /**
+   * Which surface the toolbar and the sticker layer are for. An explicit focus wins; otherwise a
+   * shut binder is implicitly focused on the cover it is showing, so closing it in edit mode puts
+   * you straight onto that cover.
+   */
+  const focused: CoverSurfaceId | null =
+    coverFocus ?? (shut === 'front' ? 'front' : shut === 'back' ? 'back' : shut === 'tail' ? 'backInside' : null);
+
+  /**
+   * One cover surface, drawn to the page's width so the two halves of the spread line up.
+   *
+   * LIVE means this is the surface on the spread itself rather than a copy in the turn overlay:
+   * the wheel flips over it, a tap in edit mode focuses it, and when focused it carries the
+   * sticker layer. Overlay copies and sheet faces stay inert for the same reason renderGrid has
+   * `decorative`: a second live copy would steal the gesture.
+   */
+  const drawCover = (id: CoverSurfaceId | null, live = false) => {
+    if (!id) return null;
+    const stickers = binder.cover?.surfaces?.[id] ?? [];
+    const editing = live && editable && focused === id;
+    const surface = (
       <CoverSurface
         model={coverModel}
         colourwayId={coverColour.id}
         surface={id}
         width={bookW}
-        stickers={binder.cover?.surfaces?.[id]}
-      />
-    ) : null;
+        stickers={stickers}
+        wheelTarget={live}>
+        {editing && binder.cover ? (
+          <CoverStickerLayer
+            width={bookW}
+            height={bookW / coverAspect(coverModel)}
+            stickers={stickers}
+            selected={coverSelected}
+            onSelect={setCoverSelected}
+            onMove={(sid, x, y) =>
+              writeCover(
+                withSurface(
+                  binder.cover!,
+                  id,
+                  stickers.map((st) => (st.id === sid ? { ...st, x, y } : st)),
+                ),
+              )
+            }
+          />
+        ) : null}
+      </CoverSurface>
+    );
+    // In edit mode an unfocused cover is one tap from being the one you are decorating.
+    if (live && editable && !editing) {
+      return (
+        <Pressable onPress={() => focusCover(id)} accessibilityLabel={`Decorate ${COVER_ABBR[id]}`}>
+          {surface}
+        </Pressable>
+      );
+    }
+    return surface;
+  };
+
+  /**
+   * PUT A COVER IN FRONT OF THE READER. The outside covers are seen with the binder shut, so
+   * choosing one shuts it, without the animation: they asked for the cover, not for the turn. The
+   * inside covers live on a spread, so choosing one pages to that spread, and for a binder with an
+   * odd page count the inside back has no spread of its own and gets the tail instead.
+   */
+  const lastSpreadLeft = count % 2 === 0 ? count - 1 : count - 2;
+  const focusCover = (id: CoverSurfaceId) => {
+    setCoverSelected(null);
+    setCoverTurn(null);
+    if (id === 'front' || id === 'back') {
+      setShut(id);
+      setCoverFocus(id);
+      return;
+    }
+    if (id === 'backInside' && count % 2 === 1) {
+      setShut('tail');
+      setCoverFocus(id);
+      return;
+    }
+    setShut(null);
+    setCoverFocus(id);
+    const target = id === 'frontInside' ? 0 : Math.max(0, lastSpreadLeft);
+    if (target !== idx) {
+      setFocusPending(true);
+      onPageChange(target);
+    }
+  };
 
   /**
    * THE COVER STAGE: the binder shut, or a cover on its way to or from shut.
@@ -445,8 +548,15 @@ export function BinderPages({
   const coverStage = coverEnd
     ? {
         end: coverEnd,
-        // Under the sheet: the page it lifts off, or lands on. The other half is the table.
-        basePage: coverEnd === 'front' ? (binder.pages[0] ?? null) : (binder.pages[count - 1] ?? null),
+        // Under the sheet: the page it lifts off, or lands on. The other half is the table. At the
+        // back of an odd-count binder the sheet lands on the blank back of the final page, not on
+        // the page itself, which is what the tail spread shows.
+        basePage:
+          coverEnd === 'front'
+            ? (binder.pages[0] ?? null)
+            : count % 2 === 0
+              ? (binder.pages[count - 1] ?? null)
+              : null,
         // Front runs 0 to -180 (right to left); back runs the reverse. Opening at the front and
         // closing at the back both travel leftward; the other two travel back.
         forward: coverTurn ? (coverTurn.closing ? coverEnd === 'back' : coverEnd === 'front') : true,
@@ -457,6 +567,42 @@ export function BinderPages({
 
   const spreadLeftIdx = idx === 0 ? -1 : idx % 2 === 1 ? idx : idx - 1;
   const spreadRightIdx = idx === 0 ? 0 : spreadLeftIdx + 1 < count ? spreadLeftIdx + 1 : -1;
+
+  /**
+   * THE COVERS IN THE FILMSTRIP. Pages keep their numbers; a cover gets the abbreviation a printer
+   * would use. Only in the book view of a dressed binder, since that is the only view that draws
+   * them. Each thumb is the real renderer at 58px, so the strip shows what is actually on it.
+   */
+  const coverStripExtras: { leading?: StripExtra[]; trailing?: StripExtra[] } | undefined =
+    doubleSided && binder.cover
+      ? (() => {
+          const extra = (id: CoverSurfaceId, current: boolean): StripExtra => ({
+            key: `cover:${id}`,
+            label: COVER_ABBR[id],
+            current,
+            onSelect: () => focusCover(id),
+            thumb: (
+              <CoverSurface
+                model={coverModel}
+                colourwayId={coverColour.id}
+                surface={id}
+                width={STRIP_THUMB_W}
+                stickers={binder.cover?.surfaces?.[id]}
+              />
+            ),
+          });
+          return {
+            leading: [
+              extra('front', shut === 'front'),
+              extra('frontInside', !shut && focused === 'frontInside'),
+            ],
+            trailing: [
+              extra('backInside', shut === 'tail' || (!shut && focused === 'backInside')),
+              extra('back', shut === 'back'),
+            ],
+          };
+        })()
+      : undefined;
   const leftPage = spreadLeftIdx >= 0 ? binder.pages[spreadLeftIdx] : null;
   const rightPage = spreadRightIdx >= 0 ? binder.pages[spreadRightIdx] : null;
 
@@ -484,6 +630,15 @@ export function BinderPages({
   const canShut = doubleSided && Boolean(binder.cover) && count > 0;
   const step = useCallback(
     (dir: 1 | -1) => {
+      if (shut === 'tail') {
+        // Back into the book, or on to shut. Closing from the tail lands the cover on a blank.
+        if (dir === -1) setShut(null);
+        else {
+          setShut('back');
+          setCoverTurn({ end: 'back', closing: true });
+        }
+        return;
+      }
       if (shut) {
         // Opening: only the direction that leads back into the book.
         if ((shut === 'front' && dir === 1) || (shut === 'back' && dir === -1)) {
@@ -502,8 +657,13 @@ export function BinderPages({
       }
       if (target >= count) {
         if (canShut) {
-          setShut('back');
-          setCoverTurn({ end: 'back', closing: true });
+          // An odd count turns its last sheet first, revealing the tail; an even one is already
+          // looking at the inside back and shuts straight away.
+          if (count % 2 === 1) setShut('tail');
+          else {
+            setShut('back');
+            setCoverTurn({ end: 'back', closing: true });
+          }
         }
         return;
       }
@@ -557,7 +717,11 @@ export function BinderPages({
       // exactly as it always did. With a cover there, it closes the binder instead.
       const next = dir === 1 ? forward : backward;
       const atEdge = next < 0 || next >= count;
-      if (atEdge && !(canShut || shut)) return;
+      // Shut, the only wheel that means anything is the one that opens the binder; the other way
+      // is left for the page to scroll, rather than swallowed for nothing.
+      const acts =
+        shut === 'front' ? dir === 1 : shut === 'back' ? dir === -1 : shut === 'tail' ? true : !atEdge || canShut;
+      if (!acts) return;
       e.preventDefault();
       if (e.timeStamp - cooldown < 300) return; // one page per gesture, not per event
       cooldown = e.timeStamp;
@@ -641,6 +805,18 @@ export function BinderPages({
           fields={labelFields}
           onToggleField={toggleLabelField}
         />
+        {/* DECORATING, IN THE BINDER. The tools for whichever cover is in focus, next to the
+            page it belongs with rather than in a dialog. Inside the measured block, so the page
+            makes room for them instead of pushing the filmstrip down. */}
+        {editable && binder.cover && focused ? (
+          <CoverTools
+            cover={binder.cover}
+            surface={focused}
+            selected={coverSelected}
+            onSelect={setCoverSelected}
+            onChange={writeCover}
+          />
+        ) : null}
       </View>
 
       </View>
@@ -670,6 +846,8 @@ export function BinderPages({
             const boxH = Math.max(pageH, coverH);
             const settled = !coverTurn;
             const onRight = coverStage.end === 'front';
+            // The tail: nothing where the next page would be, and the inside back facing it.
+            const tail = coverStage.end === 'tail';
             const baseGrid = coverStage.basePage
               ? renderGrid({
                   page: coverStage.basePage,
@@ -687,15 +865,23 @@ export function BinderPages({
                   {/* Settled and shut at the back, the back cover lies here. Mid-turn, the left is
                       the last page (at the back) or bare table (at the front). */}
                   {settled
-                    ? onRight
+                    ? onRight || tail
                       ? null
-                      : drawCover(coverStage.outside)
+                      : drawCover(coverStage.outside, true)
                     : onRight
                       ? null
                       : baseGrid}
                 </View>
                 <View style={{ width: bookW, height: boxH }}>
-                  {settled ? (onRight ? drawCover(coverStage.outside) : null) : onRight ? baseGrid : null}
+                  {settled
+                    ? tail
+                      ? drawCover('backInside', true)
+                      : onRight
+                        ? drawCover(coverStage.outside, true)
+                        : null
+                    : onRight
+                      ? baseGrid
+                      : null}
                   {coverTurn ? (
                     <TurnLeaf
                       t={coverT}
@@ -740,7 +926,7 @@ export function BinderPages({
                     ownedIds,
                     scanUrlOf,
                   })
-                : drawCover(coverOf(spreadLeftIdx, 'left'))}
+                : drawCover(coverOf(spreadLeftIdx, 'left'), true)}
             </SpreadColumn>
             <SpreadColumn
               page={rightPage ?? (coverOf(spreadRightIdx, 'right') ? page : null)}
@@ -763,7 +949,7 @@ export function BinderPages({
                     ownedIds,
                     scanUrlOf,
                   })
-                : drawCover(coverOf(spreadRightIdx, 'right'))}
+                : drawCover(coverOf(spreadRightIdx, 'right'), true)}
             </SpreadColumn>
           </View>
         ) : showSpread ? (
@@ -1016,9 +1202,11 @@ export function BinderPages({
           ]}>
         <PageStrip
           pages={binder.pages}
-          currentIndex={idx}
+          // A shut binder, or one focused on a cover, has no page to highlight.
+          currentIndex={shut || coverFocus ? -1 : idx}
           onSelect={onPageChange}
           onReorder={onReorderPages}
+          {...coverStripExtras}
         />
         </View>
       ) : null}

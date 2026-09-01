@@ -1,19 +1,15 @@
 /**
- * THE COVER, IN ONE PLACE: which binder it is, and what is on it.
+ * WHICH BINDER IT IS. Just that.
  *
- * Two steps, and they are genuinely different jobs, so they are two views rather than one long
- * scroll. Choosing the binder happens once; decorating it happens over and over, so a binder that
- * already has a cover opens straight into the decorating and does not make you walk past the
- * catalogue every time.
- *
- * Offered from both the binder's own toolbar and its ⋯ menu on My binders, and it is the same
- * component either way rather than two modals that drift apart.
+ * Decorating used to live in here too, as a second tab, and it was the wrong room for it: a cover
+ * you decorate in a dialog is a copy of the cover, at a dialog's size, away from the pages it
+ * belongs with. Decorating now happens in the binder itself, in edit mode, on the real surfaces.
+ * This sheet is the catalogue and the one binder-wide switch, and it is reachable from the
+ * binder's toolbar and from its ⋯ menu on My binders alike.
  */
-import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 
 import { BinderCoverPicker } from '@/components/binder/BinderCoverPicker';
-import { CoverStudio } from '@/components/binder/CoverStudio';
 import { ThemedText } from '@/components/themed-text';
 import { Palette, Radius, Spacing } from '@/constants/theme';
 import type { BinderCover, DemoBinder } from '@/data/binderTypes';
@@ -27,31 +23,11 @@ export function BinderCoverSheet({
   onChange: (cover: BinderCover) => void;
   onClose: () => void;
 }) {
-  // An undressed binder has to choose one before there is anything to decorate.
-  const [view, setView] = useState<'decorate' | 'binder'>(binder.cover ? 'decorate' : 'binder');
   return (
     <Modal transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable onPress={(e) => e.stopPropagation()} style={styles.card}>
-          <View style={styles.head}>
-            <ThemedText type="subtitle">Binder cover</ThemedText>
-            <View style={styles.viewTabs}>
-              <Pressable
-                onPress={() => setView('decorate')}
-                style={[styles.viewTab, view === 'decorate' && styles.viewTabOn]}>
-                <ThemedText type="small" style={view === 'decorate' ? styles.viewTabOnText : undefined}>
-                  Decorate
-                </ThemedText>
-              </Pressable>
-              <Pressable
-                onPress={() => setView('binder')}
-                style={[styles.viewTab, view === 'binder' && styles.viewTabOn]}>
-                <ThemedText type="small" style={view === 'binder' ? styles.viewTabOnText : undefined}>
-                  Change binder
-                </ThemedText>
-              </Pressable>
-            </View>
-          </View>
+          <ThemedText type="subtitle">Binder cover</ThemedText>
           {binder.cover ? (
             <Pressable
               onPress={() =>
@@ -71,22 +47,11 @@ export function BinderCoverSheet({
               </ThemedText>
             </Pressable>
           ) : null}
-          {view === 'binder' ? (
-            <>
-              <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-                Which binder these pages live in.
-              </ThemedText>
-              <BinderCoverPicker
-                binder={binder}
-                onChange={(cover) => {
-                  onChange(cover);
-                  setView('decorate');
-                }}
-              />
-            </>
-          ) : (
-            <CoverStudio binder={binder} onChange={onChange} />
-          )}
+          <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
+            Which binder these pages live in. To put art on its covers, open the binder, switch to
+            Edit, and pick FC, IFC, IBC or BC in the filmstrip.
+          </ThemedText>
+          <BinderCoverPicker binder={binder} onChange={onChange} />
           <Pressable onPress={onClose} style={styles.done} hitSlop={6}>
             <ThemedText type="smallBold">Done</ThemedText>
           </Pressable>
@@ -112,17 +77,6 @@ const styles = StyleSheet.create({
     maxWidth: 720,
     width: '100%',
   },
-  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
-  viewTabs: { flexDirection: 'row', gap: 6 },
-  viewTab: {
-    borderWidth: 1,
-    borderColor: Palette.hairlineStrong,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  viewTabOn: { backgroundColor: Palette.accent, borderColor: Palette.accent },
-  viewTabOnText: { color: Palette.accentText },
   sub: { marginTop: -4 },
   showRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   check: {

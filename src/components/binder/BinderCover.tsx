@@ -19,7 +19,7 @@
  */
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, Text, View, type StyleProp, type ViewProps, type ViewStyle } from 'react-native';
 
 import {
   binderColourway,
@@ -119,6 +119,7 @@ export function CoverSurface({
   width,
   stickers,
   style,
+  wheelTarget,
   children,
 }: {
   model: BinderModel;
@@ -128,6 +129,13 @@ export function CoverSurface({
   width: number;
   stickers?: CoverSticker[];
   style?: StyleProp<ViewStyle>;
+  /**
+   * Mark this surface as a thing the page wheel flips over. The binder viewer only turns pages
+   * when the pointer is over a page rectangle (data-binder-page, see BinderPages' wheel handler),
+   * and a cover in the viewer is a page for that purpose. Opt-in, because the same surface is also
+   * drawn in pickers and thumbnails where a wheel means scrolling.
+   */
+  wheelTarget?: boolean;
   /** Editor chrome (selection handles, drop targets) drawn over the finished surface. */
   children?: React.ReactNode;
 }) {
@@ -144,7 +152,11 @@ export function CoverSurface({
   const lightSurface = inside ? true : Boolean(colour.light);
 
   return (
-    <View style={[{ width, height, borderRadius: radius, backgroundColor: base, overflow: 'hidden' }, styles.shell, style]}>
+    <View
+      style={[{ width, height, borderRadius: radius, backgroundColor: base, overflow: 'hidden' }, styles.shell, style]}
+      // react-native-web renders dataSet as data-* attributes; the same typed spread BinderGrid
+      // uses, because RN's ViewProps does not know about dataSet. No-op on native.
+      {...(wheelTarget ? ({ dataSet: { binderPage: '1' } } as unknown as ViewProps) : {})}>
       {/* A padded panel is lit from above and falls away at the foot. */}
       <LinearGradient
         pointerEvents="none"

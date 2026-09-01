@@ -254,6 +254,7 @@ export type Database = {
           col_span: number
           created_at: string
           from_collection: boolean | null
+          finish: string | null
           id: string
           image_crop: Json | null
           image_fit: string | null
@@ -276,6 +277,7 @@ export type Database = {
           col_span?: number
           created_at?: string
           from_collection?: boolean | null
+          finish?: string | null
           id?: string
           image_crop?: Json | null
           image_fit?: string | null
@@ -298,6 +300,7 @@ export type Database = {
           col_span?: number
           created_at?: string
           from_collection?: boolean | null
+          finish?: string | null
           id?: string
           image_crop?: Json | null
           image_fit?: string | null

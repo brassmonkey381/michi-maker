@@ -22,7 +22,7 @@ import { occupiedCells, type DemoCard, type DemoPage, type DemoSlot } from '@/da
 import { useCatalog } from '@/hooks/use-catalog';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 import type { Catalog, CatalogCard } from '@/lib/catalog';
-import { getPriceSummary, priceSnapshot, type PriceSummary } from '@/lib/prices';
+import { usePriceSummaryWhen, type PriceSummary } from '@/lib/prices';
 
 /**
  * What one pocket is worth. `cur` in the shared summary is the PRICIEST variant's market price, not
@@ -1424,26 +1424,6 @@ function CardImage({
       {!loaded ? <Skeleton radius={radius} /> : null}
     </View>
   );
-}
-
-/**
- * Latest price summary, loaded lazily and only while `enabled` (the Price caption is on). Seeds
- * from any already-loaded snapshot so re-mounts are instant, and updates once the fetch resolves
- * so captions fill in without a manual refresh. Never throws — pricing stays optional decoration.
- */
-function usePriceSummaryWhen(enabled: boolean): PriceSummary | null {
-  const [summary, setSummary] = useState<PriceSummary | null>(() => priceSnapshot());
-  useEffect(() => {
-    if (!enabled || summary) return;
-    let mounted = true;
-    getPriceSummary().then((s) => {
-      if (mounted) setSummary(s);
-    });
-    return () => {
-      mounted = false;
-    };
-  }, [enabled, summary]);
-  return summary;
 }
 
 /** A soft pulsing placeholder shown over a slot while its image loads. */

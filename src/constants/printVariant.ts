@@ -119,3 +119,43 @@ export function variantOptionsFor(
   if (current && !out.includes(current)) out.unshift(current);
   return out;
 }
+
+/**
+ * WHAT FINISH A POCKET SHOWS, in priority order:
+ *
+ *   1. What the pocket was explicitly told (slot.finish) — a deliberate answer always wins.
+ *   2. The owned copy it claims — a fact about a card someone physically has beats a guess.
+ *   3. The card's only published finish, when it has exactly one. Two thirds of the catalogue is
+ *      printed one way, so this fills most pockets correctly without anyone being asked.
+ *
+ * Otherwise nothing: a card that genuinely could be either is left unanswered rather than guessed
+ * at, because a wrong finish shown confidently is worse than no chip. That pocket is one tap from
+ * being right.
+ */
+export function effectiveFinish(
+  slotFinish: string | undefined,
+  ownedVariant: string | undefined,
+  priced: Record<string, number> | undefined,
+): string | undefined {
+  if (slotFinish) return slotFinish;
+  if (ownedVariant) return ownedVariant;
+  const names = Object.keys(priced ?? {});
+  return names.length === 1 ? names[0] : undefined;
+}
+
+/**
+ * The next finish in the cycle for a card, for tapping the chip. Ordered by the card's own
+ * published finishes (priciest first, as the picker lists them), wrapping at the end.
+ *
+ * Returns undefined when there is nothing to cycle through — one finish, or none published — so
+ * the caller can leave the chip inert rather than pretending a single-finish card has a choice.
+ */
+export function nextFinish(
+  current: string | undefined,
+  priced: Record<string, number> | undefined,
+): string | undefined {
+  const options = variantOptionsFor(priced, current ?? '');
+  if (options.length < 2) return undefined;
+  const at = current ? options.indexOf(current) : -1;
+  return options[(at + 1) % options.length];
+}

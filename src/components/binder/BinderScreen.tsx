@@ -43,7 +43,9 @@ import {
 } from '@/hooks/use-owned-copies';
 import { useAuth } from '@/store/auth';
 import { EntryChangedElsewhereError, invalidateOwnedEntries, setEntryVariant } from '@/data/collectionRepo';
-import { chipFor } from '@/constants/printVariant';
+import { useCardLabelPrefs } from '@/hooks/use-card-label-prefs';
+import { usePriceSummaryWhen } from '@/lib/prices';
+import { chipFor, effectiveFinish, nextFinish } from '@/constants/printVariant';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Fonts, Palette, Radius, Spacing, Weight, FontSize } from '@/constants/theme';
@@ -119,6 +121,14 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
    * Declared up here beside the hook that feeds it — everything past the not-found guard below is
    * after an early return, where a hook cannot go.
    */
+  // The finish chip needs to know what a card COULD have been printed as, which lives in the price
+  // summary's variant keys. Loaded on the same terms as the Price caption — only while the Finish
+  // label is actually switched on — because it is several megabytes and most sessions never need
+  // it. The label preference is per-account and shared, so reading it here costs nothing.
+  const labelPrefs = useCardLabelPrefs();
+  const finishOn = labelPrefs.on && labelPrefs.fields.includes('finish');
+  const priceSummary = usePriceSummaryWhen(finishOn);
+
   const entryById = useMemo(
     () => new Map((ownedCopies ?? []).map((c) => [c.entryId, c])),
     [ownedCopies],
@@ -666,8 +676,40 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
    * that joins to nothing here. A pocket whose copy sits in an archived collection also resolves
    * to nothing, and quietly showing no chip is the right answer in both cases.
    */
-  const variantOf = (slot: DemoSlot): string | undefined =>
-    slot.sourceEntryId ? entryById.get(slot.sourceEntryId)?.variant : undefined;
+  const variantOf = (slot: DemoSlot): string | undefined => {
+    if (!slot.cardId) return undefined;
+    const owned = slot.sourceEntryId ? entryById.get(slot.sourceEntryId)?.variant : undefined;
+    return effectiveFinish(slot.finish, owned, priceSummary?.[slot.cardId]?.variants);
+  };
+
+  /**
+   * Tapping the finish chip.
+   *
+   * TWO DIFFERENT ACTS WEAR THE SAME CHIP, and they are not equally consequential. On a pocket
+   * that claims an owned copy, the finish is a fact about a card someone physically has: it edits
+   * the collection, it reaches the phone, and it keeps its confirmation. On every other pocket it
+   * is a property of the pocket — cheap, private, instantly reversible — so it cycles on the tap
+   * with no ceremony, which is what makes marking up a page of reverse holos bearable.
+   */
+  const onFinishPress = (slot: DemoSlot) => {
+    if (!slot.cardId) return;
+    if (slot.sourceEntryId && entryById.get(slot.sourceEntryId)) {
+      openVariantPicker(slot);
+      return;
+    }
+    if (!store.canEdit) {
+      showToast('Editing is open in another tab, so changes are paused here');
+      return;
+    }
+    const priced = priceSummary?.[slot.cardId]?.variants;
+    const next = nextFinish(variantOf(slot), priced);
+    if (!next) {
+      // Said plainly rather than by doing nothing: a chip that ignores a tap reads as broken.
+      showToast(`${resolveCard(slot.cardId)?.name ?? 'This card'} was only printed one way`);
+      return;
+    }
+    store.setSlotFinish(binder.id, page.id, slot.id, next);
+  };
 
   const openVariantPicker = (slot: DemoSlot) => {
     if (!slot.sourceEntryId || !slot.cardId) return;
@@ -1177,7 +1219,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   }) => {
     if (!editing) {
       return (
-        <BinderGrid page={p} width={width} editable={false} captionFields={captionFields} ownedIds={ownedIds} scanUrlOf={scanUrlOf} variantOf={variantOf} onVariantPress={openVariantPicker} />
+        <BinderGrid page={p} width={width} editable={false} captionFields={captionFields} ownedIds={ownedIds} scanUrlOf={scanUrlOf} variantOf={variantOf} onVariantPress={onFinishPress} />
       );
     }
     if (role === 'prev' || role === 'next') {
@@ -1190,7 +1232,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           editable
           captionFields={captionFields}
           ownedIds={ownedIds} scanUrlOf={scanUrlOf}
-          variantOf={variantOf} onVariantPress={openVariantPicker}
+          variantOf={variantOf} onVariantPress={onFinishPress}
           // A tray slice reaches the neighbours too: show its legal pockets here, and let an
           // armed slice tap-place onto them (drags resolve via resolveSpreadHit regardless).
           dropTargets={role === 'prev' ? prevDropTargets : nextDropTargets}
@@ -1217,7 +1259,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           editable
           captionFields={captionFields}
           ownedIds={ownedIds} scanUrlOf={scanUrlOf}
-          variantOf={variantOf} onVariantPress={openVariantPicker}
+          variantOf={variantOf} onVariantPress={onFinishPress}
           // The facing page is a first-class drop surface for tray slices too.
           dropTargets={isPrev ? prevDropTargets : nextDropTargets}
           onCellPress={(row, col) => {
@@ -1248,7 +1290,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         editable
         captionFields={captionFields}
         ownedIds={ownedIds} scanUrlOf={scanUrlOf}
-        variantOf={variantOf} onVariantPress={openVariantPicker}
+        variantOf={variantOf} onVariantPress={onFinishPress}
         selectedSlotId={selectedSlotId}
         multiSelectedIds={multiIds}
         onCellPress={handleAddCell}

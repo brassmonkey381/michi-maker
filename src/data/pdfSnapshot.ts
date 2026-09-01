@@ -39,7 +39,18 @@ function stableStringify(value: unknown): string {
  * visibility): renaming a binder is not an edit of what prints.
  */
 export async function binderFingerprint(binder: DemoBinder): Promise<string> {
-  const payload = stableStringify({ layoutStyle: binder.layoutStyle, pages: binder.pages });
+  // `finish` is excluded for the same reason as the title: it changes how a pocket is DRAWN on
+  // screen — whether the card catches the light — never which artwork prints. Marking a card as
+  // reverse holo must not void a purchased PDF.
+  //
+  // Stripped rather than skipped by key order: stableStringify drops undefined keys, so every
+  // binder that predates this field hashes to exactly what it hashed to before, and no existing
+  // purchase is disturbed by the column arriving.
+  const printable = binder.pages.map((page) => ({
+    ...page,
+    slots: page.slots.map(({ finish: _finish, ...slot }) => slot),
+  }));
+  const payload = stableStringify({ layoutStyle: binder.layoutStyle, pages: printable });
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(payload));
   return Array.from(new Uint8Array(digest))
     .map((b) => b.toString(16).padStart(2, '0'))

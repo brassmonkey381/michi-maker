@@ -73,6 +73,7 @@ function slotRow(slot: DemoSlot, pageId: string): Tables['binder_slots']['Insert
     image_attribution: (slot.attribution ?? null) as Tables['binder_slots']['Insert']['image_attribution'],
     from_collection: slot.fromCollection ?? null,
     source_entry_id: slot.sourceEntryId ?? null,
+    finish: slot.finish ?? null,
   };
 }
 
@@ -94,6 +95,8 @@ interface SlotRowIn {
   image_attribution: DemoSlot['attribution'] | null;
   from_collection: boolean | null;
   source_entry_id?: string | null;
+  // Optional: rows written before 20260901120000 have no such key.
+  finish?: string | null;
 }
 
 interface PageRowIn {
@@ -139,6 +142,7 @@ function mapSlot(row: SlotRowIn): DemoSlot {
     attribution: row.image_attribution ?? undefined,
     fromCollection: row.from_collection ?? undefined,
     sourceEntryId: row.source_entry_id ?? undefined,
+    finish: row.finish ?? undefined,
   };
 }
 

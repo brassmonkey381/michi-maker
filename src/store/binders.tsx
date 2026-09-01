@@ -323,6 +323,8 @@ interface BinderStore {
     toCol: number,
   ) => void;
   removeSlot: (binderId: string, pageId: string, slotId: string) => void;
+  /** Set the print finish a pocket shows (pockets that claim an owned copy use setEntryVariant). */
+  setSlotFinish: (binderId: string, pageId: string, slotId: string, finish: string | undefined) => void;
   /** Remove every placed artwork slot whose content matches `signature` (slotSignature) across
    *  the user's binders. One undo entry; returns how many pockets were cleared. */
   removeArtworkBySignature: (signature: string) => number;
@@ -2018,6 +2020,41 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     [binders, commit, persist],
   );
 
+  /**
+   * Set the print finish a POCKET shows. Distinct from changing an owned copy's variant, which is
+   * a fact about a card someone physically has and goes through setEntryVariant with a
+   * confirmation: this is a property of the pocket, cheap and freely reversible, so it commits on
+   * a tap. A pocket that CLAIMS an owned copy takes that copy's variant instead and never reaches
+   * here — see BinderScreen.
+   */
+  const setSlotFinish = useCallback(
+    (binderId: string, pageId: string, slotId: string, finish: string | undefined) => {
+      const target = binders.find((binder) => binder.id === binderId);
+      const page = target?.pages.find((p) => p.id === pageId);
+      const slot = page?.slots.find((sl) => sl.id === slotId);
+      if (!slot) return;
+      commit((prev) =>
+        prev.map((binder) =>
+          binder.id === binderId
+            ? {
+                ...binder,
+                pages: binder.pages.map((p) =>
+                  p.id === pageId
+                    ? {
+                        ...p,
+                        slots: p.slots.map((sl) => (sl.id === slotId ? { ...sl, finish } : sl)),
+                      }
+                    : p,
+                ),
+              }
+            : binder,
+        ),
+      );
+      if (target && !target.isExample) persist(() => repo.upsertSlot(pageId, { ...slot, finish }));
+    },
+    [binders, commit, persist],
+  );
+
   const removeSlot = useCallback(
     (binderId: string, pageId: string, slotId: string) => {
       const target = binders.find((binder) => binder.id === binderId);
@@ -2113,6 +2150,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       swapSlots,
       moveSlotAcrossPages,
       removeSlot,
+      setSlotFinish,
       removeArtworkBySignature,
       refreshUserBinders,
       undo,
@@ -2161,6 +2199,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       swapSlots,
       moveSlotAcrossPages,
       removeSlot,
+      setSlotFinish,
       removeArtworkBySignature,
       refreshUserBinders,
       undo,

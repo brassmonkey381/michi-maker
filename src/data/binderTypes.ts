@@ -93,6 +93,19 @@ export interface DemoSlot {
    */
   sourceEntryId?: string;
   /**
+   * The print finish THIS POCKET shows — 'Normal', 'Holofoil', 'Reverse Holofoil', … A finish used
+   * to exist only on an owned copy, so the app could not tell whether a card was holo unless you
+   * happened to own it, which is most of a binder and exactly what a foil treatment needs to know.
+   *
+   * The POCKET's answer, not the card's: two pockets holding the same card_id may legitimately
+   * differ, which is the entire point of a reverse-holo page. When the pocket claims an owned copy
+   * that copy's variant wins, because that one is a fact about a card someone physically has.
+   *
+   * Free text, matching the column: the vocabulary is unenforced on purpose (see the migration),
+   * and constants/printVariant.ts renders an unrecognised string rather than failing on it.
+   */
+  finish?: string;
+  /**
    * True when this pocket was filled FROM the owner's card inventory ("My collection" /
    * fill-from-my-collection) — it consumes one owned copy in the (free/owned) accounting and
    * can be reclaimed. Absent/false ⇒ placed from general browsing (aspirational; doesn't

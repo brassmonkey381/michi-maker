@@ -16,6 +16,8 @@ import {
   productUrl,
   sealedLanguageOf,
   releaseTag,
+  RELEASE_TAG_FONT_SIZE,
+  RELEASE_TAG_LINE_HEIGHT,
   useSealed,
   useTaxonomy,
   type CardLanguage,
@@ -280,7 +282,14 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.accent,
   },
   tagBadgeCountdown: { backgroundColor: Palette.danger },
-  tagBadgeText: { fontSize: FontSize.tag, fontWeight: Weight.bold, color: Palette.accentText },
+  // One size for every release tag, kit-owned (RELEASE_TAG_FONT_SIZE), so this rail and the
+  // browse tiles cannot drift apart again.
+  tagBadgeText: {
+    fontSize: RELEASE_TAG_FONT_SIZE,
+    lineHeight: RELEASE_TAG_LINE_HEIGHT,
+    fontWeight: Weight.bold,
+    color: Palette.accentText,
+  },
   name: {
     marginTop: Spacing.one,
     fontSize: FontSize.sm,
@@ -298,7 +307,8 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.panelAlt,
   },
   headerKicker: {
-    fontSize: FontSize.tag,
+    fontSize: RELEASE_TAG_FONT_SIZE,
+    lineHeight: RELEASE_TAG_LINE_HEIGHT,
     fontWeight: Weight.bold,
     letterSpacing: 1,
     color: Palette.muted,

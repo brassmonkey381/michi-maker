@@ -248,13 +248,16 @@ export function BinderPages({
       fromPage: binder.pages[from] ?? null,
       forward,
     });
-    // The BOOK's leaf is direction-carrying: the same sheet swings 0 → -180 forward and -180 → 0
-    // back, so progress runs whichever way the reader is going. The single-page lift is not — it
-    // is always the outgoing page leaving — so it always runs forwards.
-    const from0 = doubleSided ? (forward ? 0 : 1) : 0;
-    const to1 = doubleSided ? (forward ? 1 : 0) : 1;
-    turnT.value = from0;
-    turnT.value = withTiming(to1, { duration: TURN_MS, easing: TURN_EASING }, (done) => {
+    // PROGRESS ALWAYS RUNS 0 → 1, both directions. The leaf already carries the direction: TurnLeaf
+    // maps progress onto 0° → -180° going forward and onto -180° → 0° going back (see angleAt), so
+    // the sheet knows which way to swing from the `forward` flag alone.
+    //
+    // Running progress backwards as WELL cancelled that out, and it is what made a backward turn
+    // wrong: the leaf began flat on the right already showing the page being navigated TO, swept
+    // away from the reader, and finished displaying the page just left before snapping. Two
+    // direction flips make a forward turn wearing the backward turn's faces.
+    turnT.value = 0;
+    turnT.value = withTiming(1, { duration: TURN_MS, easing: TURN_EASING }, (done) => {
       if (done) runOnJS(endTurn)();
     });
     // binder.pages is read for the OUTGOING spread only; it is not a trigger.

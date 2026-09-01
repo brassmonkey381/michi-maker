@@ -23,6 +23,7 @@ import {
   CARD_PICKER_RAIL_WIDTH,
   CardPicker,
 } from '@/components/binder/CardPicker';
+import { BinderCoverSheet } from '@/components/binder/BinderCoverSheet';
 import { BinderPages, type GridRole } from '@/components/binder/BinderPages';
 import { ColorField } from '@/components/binder/ColorField';
 import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
@@ -230,6 +231,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const [pickerCollapsed, setPickerCollapsed] = useState(false);
   // "Send page to…" — the destination picker, and whether it moves or copies.
   const [sendPageOpen, setSendPageOpen] = useState(false);
+  /** Choosing which real binder these pages sit in. */
+  const [coverOpen, setCoverOpen] = useState(false);
   const [sendAsMove, setSendAsMove] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(null);
   // The pocket whose PRINT FINISH is being changed. Holds the slot rather than an id because the
@@ -1396,6 +1399,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           }
         />
         <PillButton label="Duplicate page" onPress={handleDuplicatePage} />
+        {/* The binder as an object, rather than the page in front of you. */}
+        <PillButton label="Binder cover" onPress={() => setCoverOpen(true)} />
         {/* Send this page into ANOTHER of your binders (copy, or move it out of this one). */}
         {store.userBinders.some((b) => b.id !== binder.id) && (
           <PillButton label="Send page to…" onPress={() => setSendPageOpen(true)} />
@@ -1958,6 +1963,13 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           />
         )}
         <LikersSheet visible={likesOpen} binderId={binder.id} onClose={() => setLikesOpen(false)} />
+        {coverOpen ? (
+          <BinderCoverSheet
+            binder={binder}
+            onChange={(cover) => store.updateBinder(binder.id, { cover })}
+            onClose={() => setCoverOpen(false)}
+          />
+        ) : null}
       </ThemedView>
   );
 }

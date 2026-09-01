@@ -6,7 +6,13 @@
 // notch all moved ~12%, and a trackpad's two-finger scroll, which reports a few pixels per frame,
 // moved the same ~12% per frame and made the canvas lurch. Zoom now scales with how much you
 // actually scrolled, so this drives a trackpad-sized delta and a mouse-notch-sized delta at the
-// same point and checks they do visibly different amounts of work.
+// same point and checks they do visibly different amounts of work — then drives the SAME delta
+// three ways to check the modifiers: ⌘/Ctrl for the crawl you frame to the pixel with, Shift for
+// crossing a lot of zoom in one gesture.
+//
+// THE CUT PICKER FITS. All ten shapes in one wrapping row ran off the side of the panel and buried
+// the three people reach for, so the row is the common five plus "+ more". This checks the
+// collapsed count, that "+ more" is there, and that it actually reveals something.
 //
 // MERGE WITHOUT A KEYBOARD. Selecting a second piece was spelled only as a held Ctrl or Shift, so
 // on a phone there was no way to select two — and Merge, the studio's core craft move, was
@@ -142,15 +148,24 @@ const boxNow = () =>
 await p.getByText('Scale to fit', { exact: true }).first().click({ timeout: 8000 });
 await settle(1500);
 
-const wheel = (deltaY) =>
+const wheel = (deltaY, mods = {}) =>
   p.evaluate(
-    ({ x, y, dy }) => {
+    ({ x, y, dy, m }) => {
       const el = document.elementFromPoint(x, y);
       el?.dispatchEvent(
-        new WheelEvent('wheel', { deltaY: dy, deltaMode: 0, clientX: x, clientY: y, bubbles: true, cancelable: true }),
+        new WheelEvent('wheel', {
+          deltaY: dy,
+          deltaMode: 0,
+          clientX: x,
+          clientY: y,
+          bubbles: true,
+          cancelable: true,
+          ctrlKey: !!m.ctrl,
+          shiftKey: !!m.shift,
+        }),
       );
     },
-    { x: cx, y: cy, dy: deltaY },
+    { x: cx, y: cy, dy: deltaY, m: mods },
   );
 
 const start = await boxNow();
@@ -174,6 +189,68 @@ if (!(notch > nudge * 3)) {
   ok = false;
 }
 if (!hintUpdated) { console.log('FAIL — the hint does not mention pinch'); ok = false; }
+
+// FINE AND COARSE. The same scroll distance, three ways: the plain rate, the ⌘/Ctrl crawl for
+// lining an edge up to the pixel, and Shift for crossing a lot of zoom at once.
+const rateOf = async (mods) => {
+  const from = await boxNow();
+  await wheel(-40, mods);
+  await settle(600);
+  const to = await boxNow();
+  await wheel(40, mods); // put it back, so the three are measured from the same place
+  await settle(600);
+  return Math.round((to.w - from.w) * 10) / 10;
+};
+const plain = await rateOf({});
+const fine = await rateOf({ ctrl: true });
+const coarse = await rateOf({ shift: true });
+console.log(`rates       : plain=+${plain} fine=+${fine} coarse=+${coarse} (same 40px scroll)`);
+if (!(fine > 0 && fine < plain / 3)) {
+  console.log(`FAIL — ⌘/Ctrl is not a fine step (${fine} vs ${plain})`);
+  ok = false;
+}
+if (!(coarse > plain)) {
+  console.log(`FAIL — Shift is not a coarse step (${coarse} vs ${plain})`);
+  ok = false;
+}
+
+// The cut picker has to FIT. Ten chips in one row ran off the side of the panel.
+const shapeRow = await p.evaluate(() => {
+  const label = [...document.querySelectorAll('*')].find(
+    (el) => el.children.length === 0 && (el.textContent || '').trim() === 'Slice into',
+  );
+  if (!label) return null;
+  const group = label.parentElement;
+  const row = group ? group.children[1] : null;
+  if (!row) return null;
+  const r = row.getBoundingClientRect();
+  const chips = [...row.querySelectorAll('div')].filter((el) => el.children.length && (el.textContent || '').match(/^[0-9]×[0-9]$|more|less/));
+  return { right: Math.round(r.right), width: Math.round(r.width), panel: Math.round(document.documentElement.clientWidth) };
+});
+const moreBtn = await p.getByText('+ more', { exact: true }).count();
+const chipCount = await p.evaluate(() => {
+  const label = [...document.querySelectorAll('*')].find(
+    (el) => el.children.length === 0 && (el.textContent || '').trim() === 'Slice into',
+  );
+  const row = label && label.parentElement ? label.parentElement.children[1] : null;
+  if (!row) return -1;
+  return [...row.children].length;
+});
+console.log(`cut picker  : ${chipCount} chips, "+ more" present=${moreBtn > 0}, row width=${shapeRow ? shapeRow.width : '?'}`);
+if (chipCount !== 6) { console.log(`FAIL — collapsed picker should show 5 shapes + "more", got ${chipCount}`); ok = false; }
+if (moreBtn === 0) { console.log('FAIL — no "+ more" to reach the other shapes'); ok = false; }
+
+await p.getByText('+ more', { exact: true }).first().click({ timeout: 8000 });
+await settle(1200);
+const expandedCount = await p.evaluate(() => {
+  const label = [...document.querySelectorAll('*')].find(
+    (el) => el.children.length === 0 && (el.textContent || '').trim() === 'Slice into',
+  );
+  const row = label && label.parentElement ? label.parentElement.children[1] : null;
+  return row ? [...row.children].length : -1;
+});
+console.log(`expanded    : ${expandedCount} chips`);
+if (!(expandedCount > chipCount)) { console.log('FAIL — "+ more" revealed nothing'); ok = false; }
 
 // Guides: quiet at rest, present while the frame is moving.
 const guides = () => p.locator('[data-testid="slice-guide"]').count();
@@ -218,6 +295,9 @@ console.log(`touch merge : fold crease=${creased} mergeOffered=${mergeOffered}`)
 if (!creased) { console.log('FAIL — holding a second piece did not build a mergeable pair'); ok = false; }
 
 await p.screenshot({ path: `${OUT}-2-zoomed.png` });
-if (ok) console.log('PASS — zoom scales with the gesture: a nudge moves a little, a notch moves a lot');
+if (ok) {
+  console.log('PASS — zoom scales with the gesture and with its modifiers, the guides know when to');
+  console.log('       shut up, two pieces can be selected by finger, and the cut picker fits');
+}
 else process.exitCode = 1;
 await b.close();

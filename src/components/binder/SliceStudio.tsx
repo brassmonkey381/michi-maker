@@ -32,6 +32,7 @@ import { deriveAttribution, domainOf, type ArtAttribution } from '@/data/artwork
 import { uid, uuidv4, type ImageTransform } from '@/data/binderTypes';
 import type { SavedSlice } from '@/data/savedSlices';
 import { activeGuides, gridLines, snapAxis, zoomWindow } from '@/data/sliceSnap';
+import { hasMoreSliceShapes, shapeKey, shapeLabel, visibleSliceShapes } from '@/data/sliceShapes';
 import { TIER_LIMITS } from '@/data/tiers';
 import { useCatalog } from '@/hooks/use-catalog';
 import { cardThumbUrl } from '@/lib/catalogConfig';
@@ -40,32 +41,22 @@ const CARD_ASPECT = 88 / 63;
 const GAP = 6;
 
 /**
- * The cuts worth offering, smallest first. Not every rows×cols a binder page can be — that is a
- * 36-entry matrix nobody wants to read — but the shapes people actually build: one full-bleed
- * pocket, a two- or three-pocket panorama, a square block, and the standard page grids.
+ * HOW FAST THE WHEEL ZOOMS, per pixel of scroll, before modifiers.
  *
- * The page you came from is always in the list too, appended if it is not already here, so the
- * default is never an option you cannot get back to.
+ * Zoom is exponential in the scroll distance — doubling the scroll squares the factor — so this is
+ * a rate, not a step. At the normal rate a 120px mouse notch moves about 14%, which is roughly what
+ * a notch always did; the difference is that a 6px trackpad nudge now moves 0.7% instead of the
+ * same 14%.
  */
-const SLICE_SHAPES: { rows: number; cols: number }[] = [
-  { rows: 1, cols: 1 },
-  { rows: 1, cols: 2 },
-  { rows: 2, cols: 1 },
-  { rows: 1, cols: 3 },
-  { rows: 2, cols: 2 },
-  { rows: 2, cols: 3 },
-  { rows: 3, cols: 2 },
-  { rows: 3, cols: 3 },
-  { rows: 3, cols: 4 },
-  { rows: 4, cols: 4 },
-];
-const shapeKey = (rows: number, cols: number) => `${rows}x${cols}`;
-/** The presets plus the page's own shape, in order, with no duplicate. */
-export function sliceShapeOptions(pageRows: number, pageCols: number): { rows: number; cols: number }[] {
-  const out = [...SLICE_SHAPES];
-  if (!out.some((s) => s.rows === pageRows && s.cols === pageCols)) out.push({ rows: pageRows, cols: pageCols });
-  return out;
-}
+const ZOOM_RATE = 0.0011;
+/** Holding ⌘/Ctrl drops it to a crawl — the pass where you are lining an edge up to the pixel. */
+const ZOOM_RATE_FINE = ZOOM_RATE * 0.14;
+/** Shift goes the other way, for crossing a lot of zoom in one gesture. */
+const ZOOM_RATE_COARSE = ZOOM_RATE * 2.5;
+/** One tap of the + / − buttons. Small, because holding them repeats. */
+const BUTTON_ZOOM_STEP = 0.92;
+
+
 // Two-column workspace (controls left, canvas right) once there's room — keeps the tall page-shaped
 // canvas beside the toolbars instead of below them, so users don't scroll past the controls to
 // reach their art. Below the breakpoint the layout stacks (controls over canvas), as before.
@@ -299,6 +290,8 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
    */
   const [grid, setGrid] = useState({ rows: pageRows, cols: pageCols });
   const { rows, cols } = grid;
+  /** Whether the cut picker is showing everything or just the handful people reach for. */
+  const [moreShapes, setMoreShapes] = useState(false);
   const [imageUrl, setImageUrl] = useState(initUrl ?? '');
   const [urlInput, setUrlInput] = useState('');
   const [win, setWin] = useState<Win>({ x: 0, y: 0, w: 1, h: 1 });
@@ -942,8 +935,8 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
         setSelected(new Set());
         e.stopPropagation();
         e.preventDefault();
-      } else if (e.key === '+' || e.key === '=') zoomBy(0.85);
-      else if (e.key === '-' || e.key === '_') zoomBy(1 / 0.85);
+      } else if (e.key === '+' || e.key === '=') zoomBy(BUTTON_ZOOM_STEP);
+      else if (e.key === '-' || e.key === '_') zoomBy(1 / BUTTON_ZOOM_STEP);
     };
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', sync);
@@ -977,9 +970,16 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
       // is counting pixels, lines, or pages — reading deltaY without it makes Firefox lurch.
       const px =
         e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * node.clientHeight : e.deltaY;
+      // ⌘/Ctrl for fine, Shift for coarse. Fine is the one that matters: framing to the pixel was
+      // impossible when the smallest possible move was a whole notch.
+      //
+      // (A trackpad pinch arrives here as a ctrl-wheel, which the browser does to make pinch look
+      // like a zoom gesture. So a pinch on the pad gets the fine rate too — right for the same
+      // reason, since its deltas are small and continuous.)
+      const rate = e.ctrlKey || e.metaKey ? ZOOM_RATE_FINE : e.shiftKey ? ZOOM_RATE_COARSE : ZOOM_RATE;
       const r = node.getBoundingClientRect();
       zoomAt(
-        Math.exp(clamp(px, -240, 240) * 0.0011),
+        Math.exp(clamp(px, -240, 240) * rate),
         r.width ? (e.clientX - r.left) / r.width : 0.5,
         r.height ? (e.clientY - r.top) / r.height : 0.5,
       );
@@ -1251,14 +1251,23 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
               <View style={styles.shapeGroup}>
                 <Text style={styles.groupLabel}>Slice into</Text>
                 <View style={styles.shapeRow}>
-                  {sliceShapeOptions(pageRows, pageCols).map((sh) => (
+                  {visibleSliceShapes(grid, { rows: pageRows, cols: pageCols }, moreShapes).map((sh) => (
                     <Seg
-                      key={shapeKey(sh.rows, sh.cols)}
-                      label={`${sh.cols}×${sh.rows}`}
+                      key={shapeKey(sh)}
+                      label={shapeLabel(sh)}
                       active={sh.rows === rows && sh.cols === cols}
                       onPress={() => changeGrid(sh.rows, sh.cols)}
                     />
                   ))}
+                  {/* Ten shapes in one row ran off the side of the panel and buried the three
+                      people reach for. The rest are one tap away and stay open once opened. */}
+                  {hasMoreSliceShapes(grid, { rows: pageRows, cols: pageCols }) ? (
+                    <Seg
+                      label={moreShapes ? '− less' : '+ more'}
+                      active={false}
+                      onPress={() => setMoreShapes((v) => !v)}
+                    />
+                  ) : null}
                 </View>
               </View>
 
@@ -1275,8 +1284,10 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
               <View style={styles.divider} />
 
               <View style={styles.group}>
-                <IconBtn label="−" onPress={() => zoomBy(1 / 0.85)} disabled={fit === 'contain'} />
-                <IconBtn label="+" onPress={() => zoomBy(0.85)} disabled={fit === 'contain'} />
+                {/* Hold to keep going: one tap is a small step, so reaching a distant zoom by
+                    tapping would be tedious without it. */}
+                <IconBtn label="−" onPress={() => zoomBy(1 / BUTTON_ZOOM_STEP)} disabled={fit === 'contain'} repeat />
+                <IconBtn label="+" onPress={() => zoomBy(BUTTON_ZOOM_STEP)} disabled={fit === 'contain'} repeat />
                 <IconBtn label="⟲" onPress={() => rotate(-1)} disabled={!natural} />
                 <IconBtn label="⟳" onPress={() => rotate(1)} disabled={!natural} />
                 {rot !== 0 ? <Text style={styles.rotDeg}>{rot}°</Text> : null}
@@ -1314,8 +1325,8 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
           {/* Interaction hint — lives with the controls (left), not over the canvas. */}
           {hasImage ? (
             <Text style={styles.hint}>
-              Drag to pan · scroll or pinch to zoom · click a piece to select · hold (or ⌘/Ctrl-click)
-              to select more · ⌘/Ctrl-Z undoes
+              Drag to pan · scroll or pinch to zoom (⌘/Ctrl for fine, Shift for coarse) · click a
+              piece to select · hold (or ⌘/Ctrl-click) to select more · ⌘/Ctrl-Z undoes
               {snap ? ' · edges snap to the pockets' : ''}
             </Text>
           ) : null}
@@ -1604,15 +1615,40 @@ function IconBtn({
   onPress,
   disabled = false,
   active = false,
+  repeat = false,
 }: {
   label: string;
   onPress: () => void;
   disabled?: boolean;
   active?: boolean;
+  /** Keep firing while held — for the zoom steps, which are deliberately small. */
+  repeat?: boolean;
 }) {
+  const delay = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tick = useRef<ReturnType<typeof setInterval> | null>(null);
+  const stop = useCallback(() => {
+    if (delay.current) clearTimeout(delay.current);
+    if (tick.current) clearInterval(tick.current);
+    delay.current = null;
+    tick.current = null;
+  }, []);
+  // A press that ends off the button, or a component that unmounts mid-hold, must not leave a
+  // timer zooming an unmounted canvas.
+  useEffect(() => stop, [stop]);
+  const start = useCallback(() => {
+    if (!repeat) return;
+    stop();
+    // A pause first, so a normal tap is one step and not a burst.
+    delay.current = setTimeout(() => {
+      tick.current = setInterval(onPress, 55);
+    }, 280);
+  }, [repeat, onPress, stop]);
   return (
     <Pressable
       onPress={onPress}
+      onPressIn={start}
+      onPressOut={stop}
+      onHoverOut={stop}
       disabled={disabled}
       style={({ pressed }) => [
         styles.iconBtn,

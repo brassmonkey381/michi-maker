@@ -1,6 +1,5 @@
 import { Image } from 'expo-image';
-// TEMPORARY, while three ways of killing the page-turn mount flash are compared. See flashMode.ts.
-import { FLASH_MODE, isWarm, markWarm, SKELETON_DELAY_MS } from '@/lib/flashMode';
+import { SKELETON_DELAY_MS, SKELETON_DELAYED } from '@/lib/flashMode';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type DimensionValue, type ViewProps } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -1063,13 +1062,10 @@ function ArtworkImage({
           contentFit={contentFit}
           cachePolicy="memory-disk"
           recyclingKey={uri}
-          // Owner artwork carries no skeleton, so its version of the flash is this fade running on
-          // every copy a turn mounts. Each option silences it on its own terms; 'delay' has nothing
-          // to delay here, so it simply stops fading.
-          transition={
-            (FLASH_MODE === 'copies' && instant) || FLASH_MODE === 'delay' || isWarm(uri) ? 0 : 120
-          }
-          onLoad={() => markWarm(uri)}
+          // Owner artwork carries no skeleton, so the fade-in is all it has. A copy drawn for an
+          // animation skips it, exactly as the cards already did: this component simply never
+          // received the flag.
+          transition={instant ? 0 : 120}
           // Web: kill the browser's native image-drag ghost so a card can't be "dragged" outside
           // edit mode. Edit-mode reordering uses a gesture-handler pan, not native <img> drag, so
           // it's unaffected. No-op on native.
@@ -1555,9 +1551,9 @@ function CardImage({
   const [stage, setStage] = useState<'scan' | 'tier' | 'full' | 'failed'>(scanUri ? 'scan' : 'tier');
   const [loaded, setLoaded] = useState(false);
   const [attempts, setAttempts] = useState(0);
-  // 'delay' mode only: false until the grace period is up. Every other mode starts true, so the
-  // skeleton gate below reads the same in all of them.
-  const [waited, setWaited] = useState(FLASH_MODE !== 'delay');
+  // False until this load has run longer than a page turn, which is when it becomes worth
+  // admitting to. Starts true when the wait is switched off (?flash=off).
+  const [waited, setWaited] = useState(!SKELETON_DELAYED);
   const tier: 245 | 640 = small ? 245 : 640;
   // THE fix for blank slots on a cold refresh: cardThumbUrl reads the image manifest, which is
   // mutable MODULE state the React Compiler can't track. A plain `const uri = cardThumbUrl(...)`
@@ -1579,17 +1575,12 @@ function CardImage({
     [id, tier, stage, manifestReady, attempts, scanUri],
   );
 
-  // WHETHER THIS POCKET IS ALLOWED TO ANNOUNCE ITSELF, per the option under test.
-  //   copies  a decorative copy has nothing to announce: it is a duplicate of a pocket already on
-  //           screen, so it draws its picture or nothing at all.
-  //   cache   the bytes are known to be here, so there is nothing to wait for.
-  //   delay   everything is quiet until a load has taken long enough to be worth admitting to.
-  const silent =
-    FLASH_MODE === 'copies' ? Boolean(instant) : FLASH_MODE === 'cache' ? isWarm(uri) : false;
-  const quiet = silent || !waited;
+  // A pocket says nothing until its load has outlasted a page turn. A decorative copy says
+  // nothing at all: it is a duplicate of a pocket already on screen, so it has no news to give.
+  const quiet = Boolean(instant) || !waited;
 
   useEffect(() => {
-    if (FLASH_MODE !== 'delay') return;
+    if (!SKELETON_DELAYED) return;
     const t = setTimeout(() => setWaited(true), SKELETON_DELAY_MS);
     return () => clearTimeout(t);
   }, []);
@@ -1648,14 +1639,11 @@ function CardImage({
         // that are already on screen, and a 150ms fade on each one is exactly the "page visibly
         // refreshing" flash a turn was reported to have. The image is in the memory cache by then,
         // so there is nothing to cover — the transition was animating a swap that had happened.
-        transition={instant || silent ? 0 : 150}
+        transition={instant ? 0 : 150}
         // Web: disable native <img> dragging so cards can't be dragged outside edit mode (edit
         // mode moves them via a gesture pan, not native drag). No-op on native.
         draggable={false}
-        onLoad={() => {
-          setLoaded(true);
-          markWarm(uri);
-        }}
+        onLoad={() => setLoaded(true)}
         onError={() => setStage((s) => (s === 'scan' ? 'tier' : s === 'tier' ? 'full' : 'failed'))}
       />
       {!loaded && !quiet ? <Skeleton radius={radius} /> : null}

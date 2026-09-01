@@ -11,7 +11,7 @@
  *                       `onReorderPages` enables drag-to-reorder in the filmstrip.
  */
 import { Image } from 'expo-image';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Animated, {
   runOnJS,
@@ -22,7 +22,6 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { CaptionControls, CaptionFieldRow } from '@/components/binder/CaptionControls';
-import { markWarm } from '@/lib/flashMode';
 import {
   SingleTurnLeaf,
   TURN_EASING,
@@ -275,9 +274,30 @@ export function BinderPages({
     }
   }
 
-  // Run the hinge once a turn is mounted. Progress always 0 → 1; the leaf carries the direction,
-  // and it is reset here so a turn always begins at the start of its arc.
-  useEffect(() => {
+  /**
+   * RUN THE HINGE, BEFORE THE BROWSER PAINTS, WHICH IS THE WHOLE POINT.
+   *
+   * turnT is left wherever the last turn stopped, which for a turn that ran to the end is 1. This
+   * used to reset it in a plain useEffect, and a plain effect runs AFTER the paint. So the first
+   * painted frame of every turn was drawn at t=1: the leaf already flipped over onto the far page,
+   * showing the wrong face, with the base halves already swapped under it. One frame of the END of
+   * the animation, at the START of it, every single time.
+   *
+   * That is the flash. It was never the images, which is why silencing skeletons and fades did
+   * nothing for it, and it is why turning pages FASTER looked better: an interrupted turn catches
+   * turnT mid-arc and still being driven, so its stale frame is a few degrees out rather than a
+   * completed flip. It is also the "page rendered in its final spot before the turn finished" from
+   * earlier, the same single frame seen from the other side.
+   *
+   * useLayoutEffect runs synchronously after the commit and before the paint, so the reset lands in
+   * the same frame the overlay first appears in, and there is no longer a frame in which the end of
+   * the arc can be seen at the start of it.
+   *
+   * It is left stranded at 1 between turns, deliberately: nothing is bound to it while the leaf is
+   * unmounted, and an idle reset is both pointless and rejected by the compiler (a shared value
+   * written in an effect that does nothing else reads as modifying an immutable).
+   */
+  useLayoutEffect(() => {
     if (!pageTurn) return;
     turnT.value = 0;
     turnT.value = withTiming(1, { duration: TURN_MS, easing: TURN_EASING }, (done) => {
@@ -318,12 +338,7 @@ export function BinderPages({
       }
       // Best-effort by design: a warm cache is an optimisation, and a failure here must never
       // surface — the image mounts and loads normally, exactly as it did before.
-      if (urls.length)
-        Image.prefetch(urls, { cachePolicy: 'memory-disk' })
-          // Only once the bytes have actually landed: a URL on the warm list is one an image may
-          // draw with no skeleton at all, so a premature entry would trade a flash for a blank.
-          .then(() => urls.forEach(markWarm))
-          .catch(() => {});
+      if (urls.length) Image.prefetch(urls, { cachePolicy: 'memory-disk' }).catch(() => {});
     }, 250);
     return () => clearTimeout(t);
   }, [idx, binder.pages, pageTurn]);

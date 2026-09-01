@@ -38,6 +38,34 @@ import { cardThumbUrl } from '@/lib/catalogConfig';
 
 const CARD_ASPECT = 88 / 63;
 const GAP = 6;
+
+/**
+ * The cuts worth offering, smallest first. Not every rows×cols a binder page can be — that is a
+ * 36-entry matrix nobody wants to read — but the shapes people actually build: one full-bleed
+ * pocket, a two- or three-pocket panorama, a square block, and the standard page grids.
+ *
+ * The page you came from is always in the list too, appended if it is not already here, so the
+ * default is never an option you cannot get back to.
+ */
+const SLICE_SHAPES: { rows: number; cols: number }[] = [
+  { rows: 1, cols: 1 },
+  { rows: 1, cols: 2 },
+  { rows: 2, cols: 1 },
+  { rows: 1, cols: 3 },
+  { rows: 2, cols: 2 },
+  { rows: 2, cols: 3 },
+  { rows: 3, cols: 2 },
+  { rows: 3, cols: 3 },
+  { rows: 3, cols: 4 },
+  { rows: 4, cols: 4 },
+];
+const shapeKey = (rows: number, cols: number) => `${rows}x${cols}`;
+/** The presets plus the page's own shape, in order, with no duplicate. */
+export function sliceShapeOptions(pageRows: number, pageCols: number): { rows: number; cols: number }[] {
+  const out = [...SLICE_SHAPES];
+  if (!out.some((s) => s.rows === pageRows && s.cols === pageCols)) out.push({ rows: pageRows, cols: pageCols });
+  return out;
+}
 // Two-column workspace (controls left, canvas right) once there's room — keeps the tall page-shaped
 // canvas beside the toolbars instead of below them, so users don't scroll past the controls to
 // reach their art. Below the breakpoint the layout stacks (controls over canvas), as before.
@@ -47,6 +75,17 @@ const COL_GAP = 16;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 type Rot = ImageTransform['rot'];
+
+/** One undoable state of the framing session — everything a piece's final crop depends on. */
+interface StudioSnap {
+  grid: { rows: number; cols: number };
+  panels: Panel[];
+  win: Win;
+  rot: Rot;
+  flipH: boolean;
+  flipV: boolean;
+  fit: 'cover' | 'contain';
+}
 
 /** Rough illustration window of a standard (non-full-art) Pokémon card, as fractions of the full
  *  card image — the starting crop for "Just the art". Pan/zoom to fine-tune per card. */
@@ -235,8 +274,8 @@ export interface SliceStudioHandle {
 
 export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(function SliceStudio(
   {
-    rows,
-    cols,
+    rows: pageRows,
+    cols: pageCols,
     imageUrl: initUrl,
     onSaveSlices,
     onClose,
@@ -249,8 +288,17 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
 ) {
   const { width, height } = useWindowDimensions();
 
-  // The grid is fixed to the binder's page size (passed in); slicing across the page is the point,
-  // so the studio no longer re-chooses a grid.
+  /**
+   * HOW MANY PIECES TO CUT THE ART INTO.
+   *
+   * It starts as the binder page you came from, because slicing a picture across the page in front
+   * of you is the common case and should cost nothing. But it was FIXED to that, which quietly ruled
+   * out most of what people actually make: a two-pocket panorama, a four-up block in the corner of a
+   * bigger page, a single full-bleed pocket. The tray holds loose pieces and you drag them where you
+   * like, so the cut has never had to match the page — only the default did.
+   */
+  const [grid, setGrid] = useState({ rows: pageRows, cols: pageCols });
+  const { rows, cols } = grid;
   const [imageUrl, setImageUrl] = useState(initUrl ?? '');
   const [urlInput, setUrlInput] = useState('');
   const [win, setWin] = useState<Win>({ x: 0, y: 0, w: 1, h: 1 });
@@ -485,6 +533,61 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
   }, [fit, containWin, coverWin]);
 
   /**
+   * UNDO. Ctrl/Cmd-Z, the way every other tool that cuts things up works.
+   *
+   * The studio had none, and it is the one screen in the app where a single keystroke can destroy
+   * minutes of work: Merge folds two pieces into one, Delete throws pieces away, Reset drops the
+   * whole arrangement, and a stray drag re-frames art you had lined up by eye. The only recovery
+   * was to start the picture over.
+   *
+   * A snapshot is the whole framing session — the cut, the pieces, the window, the rotation and the
+   * flips — because those interact: undoing a merge without restoring the window it was merged
+   * under would put the pieces back showing different art.
+   *
+   * The framing gestures COALESCE. A pan is hundreds of state changes; one per frame would make
+   * undo mean "move one pixel back" and bury the merge you actually wanted to undo. So a run of
+   * panning or zooming records once, at the moment it begins, and the run's end is the same
+   * 900ms idle the guides already use.
+   */
+  const snapshot = useCallback(
+    (): StudioSnap => ({ grid, panels, win, rot, flipH, flipV, fit }),
+    [grid, panels, win, rot, flipH, flipV, fit],
+  );
+  const [past, setPast] = useState<StudioSnap[]>([]);
+  const [future, setFuture] = useState<StudioSnap[]>([]);
+  const remember = useCallback(() => {
+    // A cap, not a leak: thirty steps is far more than a framing session needs, and every entry
+    // holds a copy of the panel list.
+    setPast((p) => [...p, snapshot()].slice(-30));
+    setFuture([]);
+  }, [snapshot]);
+  const restore = useCallback((snap: StudioSnap) => {
+    // The re-frame effect fires on any fit/aspect change and would immediately overwrite the
+    // window we are restoring. This is the same escape hatch "Just the art" uses.
+    skipSnap.current = true;
+    setGrid(snap.grid);
+    setPanels(snap.panels);
+    setWin(snap.win);
+    setRot(snap.rot);
+    setFlipH(snap.flipH);
+    setFlipV(snap.flipV);
+    setFit(snap.fit);
+    setSelected(new Set());
+  }, []);
+  const undo = useCallback(() => {
+    if (!past.length) return;
+    setFuture((f) => [...f, snapshot()]);
+    setPast((p) => p.slice(0, -1));
+    restore(past[past.length - 1]);
+  }, [past, snapshot, restore]);
+  const redo = useCallback(() => {
+    if (!future.length) return;
+    setPast((p) => [...p, snapshot()]);
+    setFuture((f) => f.slice(0, -1));
+    restore(future[future.length - 1]);
+  }, [future, snapshot, restore]);
+
+  /**
    * SNAP TO THE PAGE'S OWN GRID.
    *
    * The alignment you nearly always want — art flush with a pocket edge, or its middle on the
@@ -506,7 +609,12 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
    * quiet at rest and the line arrives exactly when it means something: you moved, and it caught.
    */
   const [framing, setFraming] = useState(false);
-  const touchFrame = useCallback(() => setFraming(true), []);
+  // One undo entry per RUN of framing, not per frame: `framing` is already the "a gesture is in
+  // flight" flag, so its rising edge is exactly the moment worth recording.
+  const touchFrame = useCallback(() => {
+    if (!framing) remember();
+    setFraming(true);
+  }, [framing, remember]);
   // The timer re-arms off `win`, so every pan frame pushes the fade-out back without a ref the
   // gesture would have to reach through — one effect, cleaned up on each change and on unmount.
   useEffect(() => {
@@ -583,9 +691,10 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
   const rotate = useCallback(
     (dir: 1 | -1) => {
       if (!natural) return; // the width/height swap needs the natural size to render correctly
+      remember();
       setRot((r) => ((((r + dir * 90) % 360) + 360) % 360) as Rot);
     },
-    [natural],
+    [natural, remember],
   );
 
   /**
@@ -619,6 +728,7 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
   const selectAlso = useCallback((x: number, y: number) => selectAt(x, y, true), [selectAt]);
 
   const merge = useCallback(() => {
+    remember();
     setPanels((ps) => {
       const chosen = ps.filter((p) => selected.has(p.id));
       if (chosen.length < 2) return ps;
@@ -640,7 +750,7 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
       return [...others, { id: uid('panel'), r: minR, c: minC, rs: maxR - minR, cs: maxC - minC }];
     });
     setSelected(new Set());
-  }, [selected]);
+  }, [selected, remember]);
 
   // Would merging the current selection produce a physically insertable piece? Drives the
   // Merge button state + the hint line, mirroring the guard inside merge().
@@ -665,6 +775,7 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
   );
 
   const split = useCallback(() => {
+    remember();
     setPanels((ps) => {
       const out: Panel[] = [];
       for (const p of ps) {
@@ -679,26 +790,45 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
       return out;
     });
     setSelected(new Set());
-  }, [selected]);
+  }, [selected, remember]);
 
   // Drop the selected pieces entirely — not every cut is tray-worthy (sky corners, empty
   // margins), so "Save slices" only sends what's still on the canvas. Reset restores the grid.
   const removePanels = useCallback(() => {
+    remember();
     setPanels((ps) => ps.filter((p) => !selected.has(p.id)));
     setSelected(new Set());
-  }, [selected]);
+  }, [selected, remember]);
 
   const reset = useCallback(() => {
+    remember();
     setPanels(makeGrid(rows, cols));
     setSelected(new Set());
     setRot(0);
     setFlipH(false);
     setFlipV(false);
     setWin(fit === 'contain' ? containWin : coverWin);
-  }, [rows, cols, fit, containWin, coverWin]);
+  }, [rows, cols, fit, containWin, coverWin, remember]);
+
+  /**
+   * Change the cut. The panels are rebuilt from the new shape rather than mapped across it — a
+   * merged pair has no meaning in a grid that no longer has those two pockets — and the re-frame
+   * effect re-fits the window, because a different rows×cols is a different canvas aspect.
+   */
+  const changeGrid = useCallback(
+    (r: number, c: number) => {
+      if (r === rows && c === cols) return;
+      remember();
+      setGrid({ rows: r, cols: c });
+      setPanels(makeGrid(r, c));
+      setSelected(new Set());
+    },
+    [rows, cols, remember],
+  );
 
   // Quick-crop to a card's illustration: fill mode + the standard art window, then pan/zoom to taste.
   const justTheArt = useCallback(() => {
+    remember();
     if (fit !== 'cover') skipSnap.current = true; // the mode-change snap would clobber this frame
     setFit('cover');
     setSliced(true);
@@ -709,7 +839,7 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
     } else {
       setWin(ART_WINDOW);
     }
-  }, [fit, ratio]);
+  }, [fit, ratio, remember]);
 
   const loadUrl = useCallback(() => {
     const u = urlInput.trim();
@@ -787,6 +917,19 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
       const k = e.key.toLowerCase();
+      // Undo first, and before the single-letter shortcuts: Ctrl-Z must never be read as a bare
+      // "z", and the browser's own undo has nothing here worth doing.
+      if ((e.metaKey || e.ctrlKey) && k === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && k === 'y') {
+        e.preventDefault();
+        redo();
+        return;
+      }
       if (k === 'm') merge();
       else if (k === 'b') split();
       else if (k === 'r') rotate(1);
@@ -808,7 +951,7 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
       window.removeEventListener('keydown', down);
       window.removeEventListener('keyup', sync);
     };
-  }, [merge, split, rotate, zoomBy, removePanels]);
+  }, [merge, split, rotate, zoomBy, removePanels, undo, redo]);
 
   // When Escape just cleared a selection, the Modal's own Escape handling must not ALSO close
   // the studio (that would throw away the whole framing session). See the keydown handler.
@@ -1103,6 +1246,24 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
               quiet. Grouped, hairline-separated clusters replace the old five stacked toolbars. */}
           {hasImage ? (
             <View style={styles.controlBar}>
+              {/* WHAT TO CUT, before how to frame it. Wraps rather than scrolls: there are ten of
+                  these and a hidden one is a feature nobody finds. */}
+              <View style={styles.shapeGroup}>
+                <Text style={styles.groupLabel}>Slice into</Text>
+                <View style={styles.shapeRow}>
+                  {sliceShapeOptions(pageRows, pageCols).map((sh) => (
+                    <Seg
+                      key={shapeKey(sh.rows, sh.cols)}
+                      label={`${sh.cols}×${sh.rows}`}
+                      active={sh.rows === rows && sh.cols === cols}
+                      onPress={() => changeGrid(sh.rows, sh.cols)}
+                    />
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.divider} />
+
               <View style={styles.group}>
                 <View style={styles.segGroup}>
                   <Seg label="Scale to fit" active={fit === 'cover'} onPress={() => setFit('cover')} />
@@ -1141,6 +1302,11 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
 
               <View style={styles.grow} />
 
+              {/* Undo is a keystroke everywhere, but a keystroke is not a control: it is invisible
+                  to anyone who does not already expect it, and it does not exist at all on a
+                  phone. The buttons are the feature; Ctrl-Z is the shortcut. */}
+              <IconBtn label="↩" onPress={undo} disabled={past.length === 0} />
+              <IconBtn label="↪" onPress={redo} disabled={future.length === 0} />
               <Ghost label="Reset" onPress={reset} />
             </View>
           ) : null}
@@ -1149,7 +1315,7 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
           {hasImage ? (
             <Text style={styles.hint}>
               Drag to pan · scroll or pinch to zoom · click a piece to select · hold (or ⌘/Ctrl-click)
-              to select more
+              to select more · ⌘/Ctrl-Z undoes
               {snap ? ' · edges snap to the pockets' : ''}
             </Text>
           ) : null}
@@ -1646,6 +1812,16 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
   hint: { fontSize: FontSize.base, color: Palette.muted2, lineHeight: 17 },
+  /** The cut picker: a label above a wrapping row of shapes, so ten options stay readable. */
+  shapeGroup: { gap: 4 },
+  shapeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  groupLabel: {
+    fontSize: FontSize.sm,
+    fontWeight: Weight.semibold,
+    color: Palette.muted2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
 
   // Contextual selection / merge action bar
   selBar: {

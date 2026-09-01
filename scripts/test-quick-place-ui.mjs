@@ -215,6 +215,15 @@ await settle(1500);
 const closedAtEnd = !(await dockOpen());
 console.log(`last pocket : empty=${lastLeft} dockClosed=${closedAtEnd}`);
 
+// AND CTRL-Z TAKES IT BACK. The editor binds undo, but "it is bound" and "it works" are different
+// claims, and this run has just made two edits worth undoing. One press should free one pocket.
+await page.keyboard.press('Escape');
+await settle(800);
+const beforeUndo = await emptyCount();
+await page.keyboard.press('Control+z');
+const afterUndo = await emptySettled(beforeUndo + 1);
+console.log(`ctrl-z      : ${beforeUndo} empty -> ${afterUndo}`);
+
 // "Place in pocket" is the action sheet's own button text — its absence is the absence of the toll.
 const sheetShown = (await page.locator('text=Place in pocket').count()) > 0;
 const cards = runs + 1;
@@ -234,9 +243,13 @@ if (lastLeft !== 0 || !closedAtEnd) {
   console.log('FAIL — filling the last pocket did not end the run cleanly');
   ok = false;
 }
+if (afterUndo !== beforeUndo + 1) {
+  console.log(`FAIL — Ctrl-Z did not give a pocket back (${beforeUndo} -> ${afterUndo})`);
+  ok = false;
+}
 if (ok) {
   console.log(`PASS — ${cards} cards placed in ${taps} taps, no action sheet, the picker held the`);
-  console.log('       run open until the page was full and then closed itself');
+  console.log('       run open until the page was full and then closed itself, and Ctrl-Z undid a place');
 } else {
   process.exitCode = 1;
 }

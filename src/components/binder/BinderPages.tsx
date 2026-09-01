@@ -10,6 +10,7 @@
  *   - edit            → an editable <BinderGrid> wired for slot editing + cross-page drag, and
  *                       `onReorderPages` enables drag-to-reorder in the filmstrip.
  */
+import { Image } from 'expo-image';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Animated, {
@@ -35,8 +36,9 @@ import { ThemedText } from '@/components/themed-text';
 
 import { pillChip } from '@/constants/ui';
 import { hasTextCaption, type CaptionFieldKey } from '@/data/cardCaption';
-import { PEEK_MIN_WIDTH, SPREAD_GAP, bookLayout, spreadLayout } from '@/data/binderLayout';
+import { PEEK_MIN_WIDTH, SPREAD_GAP, bookLayout, pageHeightAt, spreadLayout } from '@/data/binderLayout';
 import { useCardLabelPrefs } from '@/hooks/use-card-label-prefs';
+import { cardThumbUrl } from '@/lib/catalogConfig';
 import type { DemoBinder, DemoPage, DemoSlot } from '@/data/binderTypes';
 import { allocateScanFaces } from '@/data/scanFaces';
 import { useOwnedCards } from '@/hooks/use-owned-cards';
@@ -281,6 +283,44 @@ export function BinderPages({
       if (done) runOnJS(setPageTurn)(null);
     });
   }, [pageTurn, turnT]);
+
+  /**
+   * WARM THE PAGES A TURN WILL REVEAL, so their first mount paints instead of arriving.
+   *
+   * A turn puts at most two genuinely new pages on screen: the BACK of the sheet being turned, and
+   * the page waiting UNDER it. Everything else in the animation is a copy of something already
+   * visible, whose bytes are in the memory cache and which now mounts without a fade. These two are
+   * the ones that can still flash, because their first mount is also their first decode — so they
+   * are fetched during the dwell BEFORE the reader turns, when there is nothing on screen competing
+   * for the decoder.
+   *
+   * A window either side, not just the next spread: readers go backwards too, and a page already in
+   * the cache costs nothing to ask for again. Deferred a beat so it never races the images of the
+   * page actually being looked at.
+   */
+  useEffect(() => {
+    if (pageTurn) return; // never during a turn: the visible page decodes first
+    const t = setTimeout(() => {
+      const seen = new Set<string>();
+      const urls: string[] = [];
+      for (let i = idx - 2; i <= idx + 3; i += 1) {
+        const p = binder.pages[i];
+        if (!p || i === idx) continue;
+        for (const slot of p.slots) {
+          // A pocket's picture is either a catalogue card or a piece of the owner's own art.
+          const url = slot.cardId ? cardThumbUrl(slot.cardId, 640) : slot.imageUrl;
+          if (url && !seen.has(url)) {
+            seen.add(url);
+            urls.push(url);
+          }
+        }
+      }
+      // Best-effort by design: a warm cache is an optimisation, and a failure here must never
+      // surface — the image mounts and loads normally, exactly as it did before.
+      if (urls.length) Image.prefetch(urls, { cachePolicy: 'memory-disk' }).catch(() => {});
+    }, 250);
+    return () => clearTimeout(t);
+  }, [idx, binder.pages, pageTurn]);
 
 
   const prevPage = idx > 0 ? binder.pages[idx - 1] : null;
@@ -621,9 +661,18 @@ export function BinderPages({
                       role={rightRole}
                       flat>
                       {/* The leaf hinges on THIS column's inner edge, so it needs no arithmetic
-                          about where the spine is — it is already there. */}
-                      <View>
-                        {baseRight
+                          about where the spine is — it is already there.
+
+                          AT MOST TWO NEW PAGES PER TURN. The page revealed under the sheet is
+                          already rendered by the settled spread directly beneath this overlay and
+                          in exactly this position, so drawing a second copy of it here mounted a
+                          page that was on screen already. Going FORWARD that copy is dropped and
+                          the box is sized by arithmetic instead (pageHeightAt — the same sum
+                          BinderGrid lays out), because the leaf is absolutely positioned and would
+                          otherwise have no height to fill. Going BACKWARD the right-hand page IS
+                          the stale one, so it genuinely has to be drawn. */}
+                      <View style={{ height: pageHeightAt(bookW, page.rows, page.cols, captionsOn) }}>
+                        {!pageTurn.forward && baseRight
                           ? renderGrid({ page: baseRight, width: bookW, role: gridRole(rightRole) as GridRole, captionFields, ownedIds, scanUrlOf, decorative: true })
                           : null}
                         <TurnLeaf

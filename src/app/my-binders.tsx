@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { sendBrowseCommand } from 'tcgscan-browse';
 
 import { BinderActionsMenu } from '@/components/binder/BinderActionsMenu';
+import { BinderCoverPicker } from '@/components/binder/BinderCoverPicker';
 import { BinderCarousel } from '@/components/binder/BinderCarousel';
 import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
 import { EditLockBanner } from '@/components/binder/EditLockBanner';
@@ -63,6 +64,7 @@ export default function MyBindersScreen() {
   const [renameText, setRenameText] = useState('');
   const [shareId, setShareId] = useState<string | null>(null);
   const [printId, setPrintId] = useState<string | null>(null);
+  const [coverId, setCoverId] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(null);
   const [toast, setToast] = useState<ToastSpec | null>(null);
   const toastId = useRef(0);
@@ -151,6 +153,7 @@ export default function MyBindersScreen() {
 
   const menuBinder = menuId ? store.userBinders.find((b) => b.id === menuId) : null;
   const shareBinder = shareId ? store.getBinder(shareId) : null;
+  const coverBinder = coverId ? store.getBinder(coverId) : null;
   const printBinder = printId ? store.getBinder(printId) : null;
 
   const startRename = () => {
@@ -191,6 +194,10 @@ export default function MyBindersScreen() {
   };
   const printFromMenu = () => {
     if (menuBinder) setPrintId(menuBinder.id);
+    setMenuId(null);
+  };
+  const coverFromMenu = () => {
+    if (menuBinder) setCoverId(menuBinder.id);
     setMenuId(null);
   };
   const deleteFromMenu = () => {
@@ -360,10 +367,30 @@ export default function MyBindersScreen() {
           onRename={startRename}
           onDuplicate={duplicateFromMenu}
           onShare={shareFromMenu}
+          onCover={menuBinder.isDemo ? undefined : coverFromMenu}
           onPrint={menuBinder.isDemo ? undefined : printFromMenu}
           onDelete={deleteFromMenu}
           onClose={() => setMenuId(null)}
         />
+      )}
+      {coverBinder && (
+        <Modal transparent animationType="fade" onRequestClose={() => setCoverId(null)}>
+          <Pressable style={coverStyles.backdrop} onPress={() => setCoverId(null)}>
+            <Pressable onPress={(e) => e.stopPropagation()} style={coverStyles.card}>
+              <ThemedText type="subtitle">Binder cover</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary" style={coverStyles.sub}>
+                Which binder these pages live in. The art on its covers comes next.
+              </ThemedText>
+              <BinderCoverPicker
+                binder={coverBinder}
+                onChange={(cover) => store.updateBinder(coverBinder.id, { cover })}
+              />
+              <Pressable onPress={() => setCoverId(null)} style={coverStyles.done} hitSlop={6}>
+                <ThemedText type="smallBold">Done</ThemedText>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        </Modal>
       )}
       {renameId && (
         <RenameDialog
@@ -451,6 +478,28 @@ function RenameDialog({
     </Modal>
   );
 }
+
+// The cover picker's own modal. Deliberately not a new sheet component: it is one screen with two
+// choices on it, and the surrounding chrome is four styles.
+const coverStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.three,
+  },
+  card: {
+    backgroundColor: Palette.surface,
+    borderRadius: Radius.sheet,
+    padding: Spacing.three,
+    gap: Spacing.two,
+    maxWidth: 720,
+    width: '100%',
+  },
+  sub: { marginTop: -4 },
+  done: { alignSelf: 'flex-end', paddingVertical: Spacing.one, paddingHorizontal: Spacing.two },
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1 },

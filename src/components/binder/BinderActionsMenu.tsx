@@ -16,6 +16,7 @@ export function BinderActionsMenu({
   onRename,
   onDuplicate,
   onShare,
+  onCover,
   onPrint,
   onDelete,
   onClose,
@@ -28,6 +29,8 @@ export function BinderActionsMenu({
   onRename: () => void;
   onDuplicate: () => void;
   onShare: () => void;
+  /** Choose which real binder these pages sit in. Omit to hide the row. */
+  onCover?: () => void;
   /** Open the "Print placeholders" PDF sheet. Omit to hide the row. */
   onPrint?: () => void;
   onDelete: () => void;
@@ -44,6 +47,7 @@ export function BinderActionsMenu({
             {!readOnly ? <Row label="Rename" onPress={onRename} /> : null}
             <Row label="Duplicate" onPress={onDuplicate} />
             {canShare && !readOnly ? <Row label="Share" onPress={onShare} /> : null}
+            {onCover && !readOnly ? <Row label="Binder cover" onPress={onCover} /> : null}
             {onPrint ? <Row label="Print fill sheets" tone="accent" onPress={onPrint} /> : null}
             <Row label="Delete" tone="danger" onPress={onDelete} />
             <Pressable onPress={onClose} style={styles.cancel} hitSlop={6}>

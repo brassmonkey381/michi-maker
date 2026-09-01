@@ -12,8 +12,8 @@
 
 import { demoteHouseAccounts } from '@/data/houseAccounts';
 import { requireSupabase } from '@/lib/supabase';
-import type { Database } from '@/types/database';
-import type { DemoBinder, DemoPage, DemoSlot, MichiLayoutStyle } from '@/data/binderTypes';
+import type { Database, Json } from '@/types/database';
+import type { BinderCover, DemoBinder, DemoPage, DemoSlot, MichiLayoutStyle } from '@/data/binderTypes';
 
 type Tables = Database['public']['Tables'];
 type BinderUpdate = Tables['binders']['Update'];
@@ -117,6 +117,7 @@ interface BinderRowIn {
   description: string | null;
   layout_style: MichiLayoutStyle;
   cover_card_id: string | null;
+  cover: BinderCover | null;
   is_public: boolean;
   is_demo: boolean | null;
   share_page_ids: string[] | null;
@@ -170,6 +171,9 @@ function mapBinder(row: BinderRowIn): DemoBinder {
     isExample: false,
     isDemo: row.is_demo ?? undefined,
     coverCardId: row.cover_card_id ?? undefined,
+    // A cover is only a cover if it names a model. Anything else in the column (an older shape, a
+    // hand-edited row) is treated as undressed rather than handed to the renderer half-built.
+    cover: row.cover && typeof row.cover === 'object' && row.cover.modelId ? row.cover : undefined,
     isPublic: row.is_public,
     sharePageIds: row.share_page_ids ?? undefined,
     shareKey: row.share_key ?? undefined,
@@ -331,6 +335,9 @@ export async function updateBinder(id: string, patch: Partial<DemoBinder>): Prom
   if (patch.description !== undefined) row.description = patch.description ?? null;
   if (patch.layoutStyle !== undefined) row.layout_style = patch.layoutStyle;
   if (patch.coverCardId !== undefined) row.cover_card_id = patch.coverCardId ?? null;
+  // The column is jsonb, so the generated type is Json; a BinderCover is a plain object of
+  // strings, numbers and arrays, which is exactly that, but structurally TS wants to be told.
+  if (patch.cover !== undefined) row.cover = (patch.cover ?? null) as unknown as Json;
   if (patch.isPublic !== undefined) row.is_public = patch.isPublic;
   if (patch.sharePageIds !== undefined)
     row.share_page_ids = patch.sharePageIds && patch.sharePageIds.length ? patch.sharePageIds : null;

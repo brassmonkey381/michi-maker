@@ -8,6 +8,7 @@
  */
 
 import type { ArtAttribution } from '@/data/artworkLibrary';
+import type { CoverSurfaceId } from '@/data/binderModels';
 import type { BinderSlotType, CardOrientation, MichiLayoutStyle } from '@/types/domain';
 
 export type { BinderSlotType, CardOrientation, MichiLayoutStyle };
@@ -114,6 +115,44 @@ export interface DemoSlot {
   fromCollection?: boolean;
 }
 
+/**
+ * ONE THING STUCK TO A COVER — a piece of art, a sticker, a card.
+ *
+ * Positioned freely rather than in a grid, because a cover is not a pocket page: you put a sticker
+ * where you want it, at the angle you want it. Everything is a FRACTION of the surface, so a cover
+ * survives being drawn at any size, on any screen, and in the share preview.
+ */
+export interface CoverSticker {
+  id: string;
+  /** Custom art, or a catalogue card by id. One or the other. */
+  imageUrl?: string;
+  cardId?: string;
+  /** Centre of the sticker, 0-1 across and down the surface. */
+  x: number;
+  y: number;
+  /** Width as a fraction of the surface. Height follows from the image's own aspect. */
+  w: number;
+  /** Clockwise degrees. Absent means square to the cover. */
+  rot?: number;
+  /** Provenance for custom art, exactly as a pocket carries it. */
+  attribution?: ArtAttribution;
+}
+
+/**
+ * WHICH BINDER THIS IS, AND WHAT HAS BEEN DONE TO IT.
+ *
+ * Absent on a binder nobody has dressed yet: pages in the abstract, drawn the way they always
+ * were. Present means the owner has chosen a real binder to keep them in.
+ */
+export interface BinderCover {
+  /** An id from BINDER_MODELS. An unknown one falls back rather than failing (binderModel()). */
+  modelId: string;
+  /** An id from that model's colourways. */
+  colourway: string;
+  /** Stickers per surface. A surface with nothing on it may be absent rather than empty. */
+  surfaces?: Partial<Record<CoverSurfaceId, CoverSticker[]>>;
+}
+
 export interface DemoPage {
   id: string;
   title?: string;
@@ -155,6 +194,11 @@ export interface DemoBinder {
   /** The author's display name, shown on Featured binders. One day this links to their profile. */
   authorName?: string;
   coverCardId?: string;
+  /**
+   * The real binder these pages live in: model, colourway, and whatever has been stuck to its four
+   * surfaces. Absent means undressed, which is every binder made before covers existed.
+   */
+  cover?: BinderCover;
   /** When true, anyone with the link can view this binder (see the `/binder/[id]` route). */
   isPublic?: boolean;
   /** Up to 2 page ids to feature in the shared-link OG preview. Absent/empty = auto (fullest pages).

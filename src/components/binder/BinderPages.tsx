@@ -10,18 +10,24 @@
  *   - edit            → an editable <BinderGrid> wired for slot editing + cross-page drag, and
  *                       `onReorderPages` enables drag-to-reorder in the filmstrip.
  */
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Animated, {
-  SlideInLeft,
-  SlideInRight,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
+  withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
 
 import { CaptionControls, CaptionFieldRow } from '@/components/binder/CaptionControls';
+import {
+  SingleTurnLeaf,
+  TURN_EASING,
+  TURN_MS,
+  TurnLeaf,
+  turnReduced,
+} from '@/components/binder/pageTurn';
 import { Directions, Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PageStrip } from '@/components/binder/PageStrip';
@@ -204,13 +210,56 @@ export function BinderPages({
   const spreadWidth = pageWidth;
   const peekWidth = layout.peekWidth;
   const showPeeks = layout.showPeeks;
-  // Which way the last turn went, so the entry animation carries a direction rather than being a
-  // generic dissolve. Tracked in state adjusted during render, not a ref: the entering animation
-  // is captured when the page remounts, which is this very render, so a value updated in an effect
-  // would arrive a frame too late and every turn would animate the same way.
-  const [turn, setTurn] = useState({ idx, forward: true });
-  if (turn.idx !== idx) setTurn({ idx, forward: idx > turn.idx });
-  const turnedForward = turn.idx === idx ? turn.forward : idx > turn.idx;
+
+  /**
+   * THE PAGE TURNS ON A HINGE, over the top of the settled spread.
+   *
+   * This used to slide the whole spread in from the side (SlideInRight/SlideInLeft), which read as
+   * lifting the binder away and sliding a different one back — the same complaint the landing
+   * binder had. The turn is drawn as an OVERLAY rather than by restructuring this render: the page
+   * beneath stays exactly the surface it already is, so drag targets, drop zones and the editor's
+   * hit-testing are untouched by an animation that is purely something to look at.
+   *
+   * `pageTurn` holds the pages the leaf is between. They are captured at the moment the index
+   * changes, because by the time the animation runs, `binder.pages[oldIdx]` is still correct but
+   * WHICH page was on screen is not recoverable from the new index alone.
+   */
+  const [pageTurn, setPageTurn] = useState<{
+    fromLeft: DemoPage | null;
+    fromRight: DemoPage | null;
+    fromPage: DemoPage | null;
+    forward: boolean;
+  } | null>(null);
+  const turnT = useSharedValue(0);
+  const lastIdxRef = useRef(idx);
+  const endTurn = useCallback(() => setPageTurn(null), []);
+
+  useEffect(() => {
+    const from = lastIdxRef.current;
+    lastIdxRef.current = idx;
+    if (from === idx || count <= 1 || turnReduced()) return;
+    const forward = idx > from;
+    // The spread the turn is leaving, resolved the same way the render resolves the current one.
+    const fromLeftIdx = from === 0 ? -1 : from % 2 === 1 ? from : from - 1;
+    const fromRightIdx = from === 0 ? 0 : fromLeftIdx + 1 < count ? fromLeftIdx + 1 : -1;
+    setPageTurn({
+      fromLeft: fromLeftIdx >= 0 ? binder.pages[fromLeftIdx] : null,
+      fromRight: fromRightIdx >= 0 ? binder.pages[fromRightIdx] : null,
+      fromPage: binder.pages[from] ?? null,
+      forward,
+    });
+    // The BOOK's leaf is direction-carrying: the same sheet swings 0 → -180 forward and -180 → 0
+    // back, so progress runs whichever way the reader is going. The single-page lift is not — it
+    // is always the outgoing page leaving — so it always runs forwards.
+    const from0 = doubleSided ? (forward ? 0 : 1) : 0;
+    const to1 = doubleSided ? (forward ? 1 : 0) : 1;
+    turnT.value = from0;
+    turnT.value = withTiming(to1, { duration: TURN_MS, easing: TURN_EASING }, (done) => {
+      if (done) runOnJS(endTurn)();
+    });
+    // binder.pages is read for the OUTGOING spread only; it is not a trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idx, count, doubleSided]);
 
   const prevPage = idx > 0 ? binder.pages[idx - 1] : null;
   const nextPage = idx < count - 1 ? binder.pages[idx + 1] : null;
@@ -385,17 +434,12 @@ export function BinderPages({
           label work take six rounds of guessing. Costs nothing at runtime. */}
       <GestureDetector gesture={swipe}>
       <View ref={pageWrapRef} style={styles.pageWrap} testID="binder-page-wrap">
-      {/* THE PAGE TURNS. Changing page was a frame swap — the cards were simply different ones —
-          while the marketing binder on the landing page has always crossfaded at 650ms. The app
-          animating worse than its own advertisement is a strange thing to ship.
-          
-          Keyed on the page index so a change remounts and plays the entry, and directional so a
-          turn reads as going forward or back rather than as a generic dissolve. 200ms: long enough
-          to see the page move, short enough that flicking through twelve pages never feels held up. */}
-      <Animated.View
-        key={idx}
-        entering={(turnedForward ? SlideInRight : SlideInLeft).duration(200)}
-        style={styles.turnLayer}>
+      {/* THE PAGE TURNS ON A HINGE. This used to slide the whole spread in from the side, which read
+          as lifting the binder away and sliding a different one back rather than as turning a page.
+          The settled spread below is now drawn plainly — no key, no remount, no entering animation,
+          so nothing about the editor's drag targets moves — and the turn plays as an overlay above
+          it (see the leaf after this block). */}
+      <Animated.View style={styles.turnLayer}>
         {!page ? (
           <ThemedText type="small" themeColor="textSecondary">
             This binder doesn’t have any pages yet.
@@ -496,6 +540,68 @@ export function BinderPages({
           </View>
         )}
       </Animated.View>
+
+      {/* THE LEAF. Purely something to look at: pointer-events off throughout, mounted only while a
+          turn is in the air, and it never touches the surface underneath.
+
+          The base the leaf plays over must be the OLD left page beside the NEW right page (going
+          forward), so the sheet reveals the new right page as it lifts and covers the old left page
+          as it lands. The render below already shows the NEW spread, so the overlay supplies only
+          the half that is stale: going forward that is the old LEFT page, going back it is the old
+          RIGHT page. Both ends of the arc then agree with the settled spread and the unmount is
+          invisible. */}
+      {pageTurn && doubleSided ? (
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <View style={[styles.spreadRow, { gap: bookGap }]}>
+            {pageTurn.forward ? (
+              <>
+                <View style={{ width: bookW }}>
+                  {pageTurn.fromLeft
+                    ? renderGrid({ page: pageTurn.fromLeft, width: bookW, role: 'partner', captionFields, ownedIds, scanUrlOf })
+                    : null}
+                </View>
+                <View style={{ width: bookW }} />
+              </>
+            ) : (
+              <>
+                <View style={{ width: bookW }} />
+                <View style={{ width: bookW }}>
+                  {pageTurn.fromRight
+                    ? renderGrid({ page: pageTurn.fromRight, width: bookW, role: 'partner', captionFields, ownedIds, scanUrlOf })
+                    : null}
+                </View>
+              </>
+            )}
+          </View>
+          {/* Front is the right page of the EARLIER spread, back the left page of the LATER one —
+              the two sides of one sheet. Going back, "earlier" is where we are heading. */}
+          <TurnLeaf
+            t={turnT}
+            forward={pageTurn.forward}
+            width={bookW}
+            hingeLeft={bookW + bookGap}
+            front={(() => {
+              const p = pageTurn.forward ? pageTurn.fromRight : rightPage;
+              return p ? renderGrid({ page: p, width: bookW, role: 'partner', captionFields, ownedIds, scanUrlOf }) : null;
+            })()}
+            back={(() => {
+              const p = pageTurn.forward ? leftPage : pageTurn.fromLeft;
+              return p ? renderGrid({ page: p, width: bookW, role: 'partner', captionFields, ownedIds, scanUrlOf }) : null;
+            })()}
+          />
+        </View>
+      ) : null}
+      {/* One page at a time: nothing beside it to sweep over, so the outgoing page lifts on the
+          same hinge and the page underneath — already the new one — is revealed. */}
+      {pageTurn && !doubleSided && !showSpread && pageTurn.fromPage ? (
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <SingleTurnLeaf
+            t={turnT}
+            width={pageWidth}
+            page={renderGrid({ page: pageTurn.fromPage, width: pageWidth, role: 'single', captionFields, ownedIds, scanUrlOf })}
+          />
+        </View>
+      ) : null}
       </View>
       </GestureDetector>
 

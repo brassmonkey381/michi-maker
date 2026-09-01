@@ -32,17 +32,10 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
-import Animated, {
-  Easing,
-  interpolate,
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-  type SharedValue,
-} from 'react-native-reanimated';
+import { runOnJS, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { BinderGrid } from '@/components/binder/BinderGrid';
+import { SingleTurnLeaf, TURN_EASING, TURN_MS, TurnLeaf } from '@/components/binder/pageTurn';
 import { Palette, Spacing } from '@/constants/theme';
 import type { DemoBinder, DemoPage } from '@/data/binderTypes';
 
@@ -57,15 +50,6 @@ function reducedMotion(): boolean {
 
 const RINGS = [0, 1, 2, 3];
 const SPINE_W = 22;
-/** How long one leaf takes. Long enough to read as paper, short enough not to hold the page. */
-const TURN_MS = 950;
-/**
- * Slow to start, quick through the middle, settling at the end — the shape of a page falling
- * rather than a value being animated. A symmetric ease reads mechanical at this duration.
- */
-const TURN_EASING = Easing.bezier(0.42, 0, 0.28, 1);
-/** How dark a face gets at its most turned-away. Subtle: this is paper, not a closing door. */
-const SHADE = 0.42;
 
 /** One frame: a single page, or a facing pair. */
 type Frame = DemoPage[];
@@ -195,15 +179,21 @@ export function AutoFlipBinder({
 
         {turn && earlier && later ? (
           spread ? (
-            <SpreadLeaf
+            <TurnLeaf
               t={t}
               forward={turn.forward}
-              pageWidth={pageWidth}
-              front={rightOf(earlier)}
-              back={leftOf(later)}
+              width={pageWidth}
+              // The right page starts after the left page, a gap, the spine and another gap.
+              hingeLeft={pageWidth + Spacing.two + SPINE_W + Spacing.two}
+              front={<BinderGrid page={rightOf(earlier)} width={pageWidth} />}
+              back={leftOf(later) ? <BinderGrid page={leftOf(later) as DemoPage} width={pageWidth} /> : null}
             />
           ) : (
-            <SingleLeaf t={t} pageWidth={pageWidth} page={rightOf(frames[turn.from])} />
+            <SingleTurnLeaf
+              t={t}
+              width={pageWidth}
+              page={<BinderGrid page={rightOf(frames[turn.from])} width={pageWidth} />}
+            />
           )
         ) : null}
       </View>
@@ -247,107 +237,6 @@ function SpreadStage({
   );
 }
 
-/**
- * The turning sheet: hinged at the rings, front and back are the two pages that share it.
- *
- * `backfaceVisibility: 'hidden'` on each face is what makes one sheet show two different pages:
- * the front disappears the instant the leaf passes edge-on, and the back — drawn pre-flipped so it
- * reads correctly once turned — takes over.
- */
-function SpreadLeaf({
-  t,
-  forward,
-  pageWidth,
-  front,
-  back,
-}: {
-  t: SharedValue<number>;
-  forward: boolean;
-  pageWidth: number;
-  front: DemoPage;
-  back: DemoPage | null;
-}) {
-  // The right page starts after the left page, a gap, the spine and another gap.
-  const hingeLeft = pageWidth + Spacing.two + SPINE_W + Spacing.two;
-
-  const leafStyle = useAnimatedStyle(() => {
-    const angle = forward ? interpolate(t.value, [0, 1], [0, -180]) : interpolate(t.value, [0, 1], [-180, 0]);
-    return {
-      transform: [
-        // Perspective FIRST, or the rotation is an orthographic squash with no depth to it.
-        { perspective: 1400 },
-        { rotateY: `${angle}deg` },
-      ],
-    };
-  });
-  // Both faces darken as they turn away from the reader and clear as they lie flat.
-  const frontShade = useAnimatedStyle(() => {
-    const angle = forward ? interpolate(t.value, [0, 1], [0, -180]) : interpolate(t.value, [0, 1], [-180, 0]);
-    return { opacity: interpolate(Math.abs(angle), [0, 90], [0, SHADE], 'clamp') };
-  });
-  const backShade = useAnimatedStyle(() => {
-    const angle = forward ? interpolate(t.value, [0, 1], [0, -180]) : interpolate(t.value, [0, 1], [-180, 0]);
-    return { opacity: interpolate(Math.abs(angle), [90, 180], [SHADE, 0], 'clamp') };
-  });
-
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={[
-        styles.leaf,
-        { left: hingeLeft, width: pageWidth, transformOrigin: 'left center' },
-        leafStyle,
-      ]}>
-      <View style={styles.face}>
-        <BinderGrid page={front} width={pageWidth} />
-        <Animated.View style={[StyleSheet.absoluteFill, styles.shade, frontShade]} pointerEvents="none" />
-      </View>
-      {back ? (
-        <View style={[StyleSheet.absoluteFill, styles.face, styles.backFace]}>
-          <BinderGrid page={back} width={pageWidth} />
-          <Animated.View style={[StyleSheet.absoluteFill, styles.shade, backShade]} pointerEvents="none" />
-        </View>
-      ) : null}
-    </Animated.View>
-  );
-}
-
-/**
- * The narrow-screen turn: the outgoing page lifts on the same hinge to 90°, foreshortening into
- * the rings while the next page is revealed under it. Deliberately a quarter turn, not a half:
- * with no facing page there is nothing to sweep over, so a full turn would swing outside the
- * component and across the copy beside it.
- */
-function SingleLeaf({
-  t,
-  pageWidth,
-  page,
-}: {
-  t: SharedValue<number>;
-  pageWidth: number;
-  page: DemoPage;
-}) {
-  const leafStyle = useAnimatedStyle(() => ({
-    transform: [{ perspective: 1200 }, { rotateY: `${interpolate(t.value, [0, 1], [0, -90])}deg` }],
-    // Fades out over the last sliver of the arc so the edge-on sheet does not pop.
-    opacity: interpolate(t.value, [0, 0.82, 1], [1, 1, 0]),
-  }));
-  const shadeStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(t.value, [0, 1], [0, SHADE], 'clamp'),
-  }));
-
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={[styles.leaf, { left: 0, width: pageWidth, transformOrigin: 'left center' }, leafStyle]}>
-      <View style={styles.face}>
-        <BinderGrid page={page} width={pageWidth} />
-        <Animated.View style={[StyleSheet.absoluteFill, styles.shade, shadeStyle]} pointerEvents="none" />
-      </View>
-    </Animated.View>
-  );
-}
-
 const styles = StyleSheet.create({
   spreadRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   spine: {
@@ -361,12 +250,6 @@ const styles = StyleSheet.create({
   // Stretched to the stage height but CENTRED like the static pages beside it (spreadRow centres
   // its children): without this the turning page rides at the top of the stage and jumps back
   // into line the moment it lands.
-  leaf: { position: 'absolute', top: 0, bottom: 0, justifyContent: 'center' },
-  // Each face hides its own back so the sheet shows one page at a time, the way paper does.
-  face: { backfaceVisibility: 'hidden' },
-  // Pre-flipped, so the page reads the right way round once the leaf has turned over.
-  backFace: { transform: [{ rotateY: '180deg' }] },
-  shade: { backgroundColor: '#000' },
   dots: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.one, marginTop: Spacing.three },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Palette.hairlineStrong },
   dotActive: { width: 16, backgroundColor: Palette.accent },

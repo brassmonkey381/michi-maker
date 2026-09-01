@@ -241,6 +241,9 @@ export function BinderPages({
     fromLeft: DemoPage | null;
     fromRight: DemoPage | null;
     fromPage: DemoPage | null;
+    /** The spread the turn STARTED on. The overlay is built around this, not around the arrival. */
+    fromLeftIdx: number;
+    fromRightIdx: number;
     forward: boolean;
   } | null>(null);
   const turnT = useSharedValue(0);
@@ -269,6 +272,8 @@ export function BinderPages({
         fromLeft: fromLeftIdx >= 0 ? binder.pages[fromLeftIdx] : null,
         fromRight: fromRightIdx >= 0 ? binder.pages[fromRightIdx] : null,
         fromPage: binder.pages[from] ?? null,
+        fromLeftIdx,
+        fromRightIdx,
         forward: idx > from,
       });
     } else {
@@ -650,30 +655,65 @@ export function BinderPages({
           the half that is stale: going forward that is the old LEFT page, going back it is the old
           RIGHT page. Both ends of the arc then agree with the settled spread and the unmount is
           invisible. */}
-      {pageTurn && doubleSided && !PROBE.noOverlay
+      {/* THE OVERLAY IS KEPT, NOT BUILT.
+
+          It used to be mounted at the moment a turn began, which meant three fresh page grids and
+          some fifty fresh images all arriving in the frame the animation started in. That is the
+          flash: not the skeletons over them, not the cache behind them, not the handover at the
+          end, but the plain fact of new image elements appearing in the frame you were asked to
+          watch. Two probes proved it between them — with the overlay gone the flash went, and with
+          the pictures replaced by flat colour it went too.
+
+          So it is mounted all the time now and simply kept invisible between turns, and its
+          content is addressed from the spread the reader is ON rather than the one they are
+          heading to. Every slot a turn needs is therefore already holding the right page before
+          the turn is asked for:
+
+            forward   the outgoing left page and the sheet's front are the spread you are looking
+                      at; the sheet's back is the page after it, which is what a forward turn
+                      reveals.
+            backward  the outgoing right page and the sheet's back are that same spread; the
+                      sheet's front is the page before it.
+
+          Once a turn is in flight the addresses come from ITS origin instead (fromLeftIdx), which
+          is the same spread the resting overlay was already showing, so not one grid is rebuilt as
+          the turn starts. The rebuild happens afterwards, when the overlay is invisible again and
+          nobody is watching. Both sheets are kept for the same reason: a reader who turns back has
+          to find that leaf already built.
+
+          In EDIT MODE it stays as it was, mounted per turn. The pre-built copies are inert but
+          they are not free, and an editor re-renders on every drag frame. */}
+      {(pageTurn || !editable) && doubleSided && count > 1 && !PROBE.noOverlay
         ? (() => {
-            // THE OVERLAY IS BUILT FROM THE SAME PIECES AS THE SPREAD BENEATH IT — the same
-            // SpreadColumns, the same labels, the same roles. Drawing bare grids instead was wrong
-            // in two ways at once: a column puts a "Page N" label ABOVE its grid, so the copies sat
-            // a label's height too high (the offset in the report), and it dims whichever side is
-            // not the active one, so an undimmed leaf landing on a dimmed page flashed at the end.
-            // Copying the structure means those can never drift again.
-            //
-            // It draws the WHOLE base spread rather than patching in the stale half, so during a
-            // turn the settled render is completely covered. Nothing underneath can show through
-            // out of alignment, which is what made this look worst in the editor, where the two
-            // modes render different grid chrome.
-            const baseLeft = pageTurn.forward ? pageTurn.fromLeft : leftPage;
-            const baseRight = pageTurn.forward ? rightPage : pageTurn.fromRight;
+            // Addressed from the turn's ORIGIN while turning, from the settled spread while at
+            // rest. Those are the same spread across the moment a turn begins, which is the whole
+            // trick: the slots do not change, so React has nothing to rebuild.
+            const warmLeftIdx = pageTurn ? pageTurn.fromLeftIdx : spreadLeftIdx;
+            const warmRightIdx = pageTurn ? pageTurn.fromRightIdx : spreadRightIdx;
+            const at = (i: number) => (i >= 0 && i < count ? (binder.pages[i] ?? null) : null);
+            const baseLeft = at(warmLeftIdx);
+            const baseRight = at(warmRightIdx);
+            // The two sheets. Forward hangs on the right page and turns to the page after it;
+            // backward hangs on the page before the left one and turns onto the left page.
+            const fwdFront = baseRight;
+            const fwdBack = warmRightIdx >= 0 ? at(warmRightIdx + 1) : null;
+            const bwdFront = warmLeftIdx > 0 ? at(warmLeftIdx - 1) : null;
+            const bwdBack = baseLeft;
+            const turningFwd = Boolean(pageTurn?.forward);
+            const turningBwd = Boolean(pageTurn && !pageTurn.forward);
+            // Mounted always in the viewer; only for the direction in play in the editor.
+            const keep = !editable;
             const leftRole = spreadLeftIdx === idx ? 'current' : 'prev';
             const rightRole = spreadRightIdx === idx ? 'current' : 'next';
             const gridRole = (r: string) => (r === 'current' ? 'current' : 'partner');
-            // Front is the right page of the EARLIER spread, back the left page of the LATER one —
-            // two sides of one sheet. Going back, "earlier" is where the reader is heading.
-            const front = pageTurn.forward ? pageTurn.fromRight : rightPage;
-            const back = pageTurn.forward ? leftPage : pageTurn.fromLeft;
+            const copy = (pg: DemoPage | null, role: string) =>
+              pg
+                ? renderGrid({ page: pg, width: bookW, role: gridRole(role) as GridRole, captionFields, ownedIds, scanUrlOf, decorative: true })
+                : null;
+            const boxH = (pg: DemoPage | null) =>
+              pageHeightAt(bookW, (pg ?? page).rows, (pg ?? page).cols, captionsOn);
             return (
-              <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+              <View pointerEvents="none" style={[StyleSheet.absoluteFill, !pageTurn && styles.kept]}>
                 <View style={styles.turnLayer}>
                   <View style={[styles.spreadRow, { gap: bookGap }]}>
                     <SpreadColumn
@@ -686,31 +726,24 @@ export function BinderPages({
                       columnIndex={0}
                       role={leftRole}
                       flat>
-                      {/* Only the STALE half is drawn, the same rule the right column follows.
-                          Going forward this is the outgoing left page, which the settled spread
-                          below has already replaced, so it has to be drawn here. Going BACKWARD it
-                          is the new left page, which that spread is already drawing in this exact
-                          position, and a second identical copy on top of it was a whole page
-                          mounted per turn for no pixels. The box is stated either way, because an
-                          empty column would collapse and take the row's centring with it. */}
-                      <View
-                        style={{
-                          width: bookW,
-                          height: pageHeightAt(
-                            bookW,
-                            (baseLeft ?? page).rows,
-                            (baseLeft ?? page).cols,
-                            captionsOn,
-                          ),
-                        }}>
-                        {pageTurn.forward && baseLeft
-                          ? renderGrid({ page: baseLeft, width: bookW, role: gridRole(leftRole) as GridRole, captionFields, ownedIds, scanUrlOf, decorative: true })
-                          : null}
+                      {/* The box is stated outright in both columns, because one holding nothing
+                          but absolutely positioned children measures zero wide, and a column is as
+                          wide as its widest child — which would collapse this half of the overlay
+                          to the width of its "Page N" label and take the row's centring with it. */}
+                      <View style={{ width: bookW, height: boxH(baseLeft) }}>
+                        {/* The outgoing left page, covered as a forward sheet lands on it. Going
+                            BACKWARD this position holds the page the settled spread underneath is
+                            already drawing, so the copy is kept but not shown. */}
+                        {keep || turningFwd ? (
+                          <View style={[StyleSheet.absoluteFill, !turningFwd && styles.kept]}>
+                            {copy(baseLeft, leftRole)}
+                          </View>
+                        ) : null}
                       </View>
                     </SpreadColumn>
                     <SpreadColumn
-                      // The column HOSTS the leaf, so it has to exist even on a spread whose right
-                      // half does not: a binder with an odd last page turned to it with no
+                      // The column HOSTS the sheets, so it has to exist even on a spread whose
+                      // right half does not: a binder with an odd last page turned to it with no
                       // animation at all, because a column with no page renders no children.
                       page={baseRight ?? page}
                       width={bookW}
@@ -719,49 +752,44 @@ export function BinderPages({
                       columnIndex={2}
                       role={rightRole}
                       flat>
-                      {/* The leaf hinges on THIS column's inner edge, so it needs no arithmetic
-                          about where the spine is — it is already there.
-
-                          AT MOST TWO NEW PAGES PER TURN. The page revealed under the sheet is
-                          already rendered by the settled spread directly beneath this overlay and
-                          in exactly this position, so drawing a second copy of it here mounted a
-                          page that was on screen already. Going FORWARD that copy is dropped and
-                          the box is sized by arithmetic instead (pageHeightAt — the same sum
-                          BinderGrid lays out), because the leaf is absolutely positioned and would
-                          otherwise have no height to fill. Going BACKWARD the right-hand page IS
-                          the stale one, so it genuinely has to be drawn. */}
-                      <View
-                        style={{
-                          // WIDTH IS NOT OPTIONAL HERE. The leaf inside is absolutely positioned,
-                          // so it adds nothing to this box's size, and a column is as wide as its
-                          // widest child — leaving the width to the content collapsed the right
-                          // half of the overlay to the width of its "Page N" label, and a centred
-                          // row then drew the whole turn off to one side of the spread beneath it.
-                          width: bookW,
-                          // Sized from whichever page the base spread has on the right, so the box
-                          // fits the grid it draws (going back) and the page it covers (going
-                          // forward) even where two pages disagree about their row count.
-                          height: pageHeightAt(
-                            bookW,
-                            (baseRight ?? page).rows,
-                            (baseRight ?? page).cols,
-                            captionsOn,
-                          ),
-                        }}>
-                        {!pageTurn.forward && baseRight
-                          ? renderGrid({ page: baseRight, width: bookW, role: gridRole(rightRole) as GridRole, captionFields, ownedIds, scanUrlOf, decorative: true })
-                          : null}
-                        <TurnLeaf
-                          t={turnT}
-                          forward={pageTurn.forward}
-                          width={bookW}
-                          hingeLeft={0}
-                          // The gap between the facing pages IS this book's spine, and the sheet
-                          // has to cross all of it to lie down on the other one.
-                          spine={bookGap}
-                          front={front ? renderGrid({ page: front, width: bookW, role: 'current', captionFields, ownedIds, scanUrlOf, decorative: true }) : null}
-                          back={back ? renderGrid({ page: back, width: bookW, role: 'current', captionFields, ownedIds, scanUrlOf, decorative: true }) : null}
-                        />
+                      <View style={{ width: bookW, height: boxH(baseRight) }}>
+                        {/* The outgoing right page, covered as a backward sheet lands on it. */}
+                        {keep || turningBwd ? (
+                          <View style={[StyleSheet.absoluteFill, !turningBwd && styles.kept]}>
+                            {copy(baseRight, rightRole)}
+                          </View>
+                        ) : null}
+                        {/* Each sheet fills the box rather than sitting in the flow of it: the leaf
+                            inside is absolutely positioned against its parent, so a wrapper of no
+                            height would leave it with none either. */}
+                        {keep || turningFwd ? (
+                          <View style={[StyleSheet.absoluteFill, !turningFwd && styles.kept]}>
+                            <TurnLeaf
+                              t={turnT}
+                              forward
+                              width={bookW}
+                              hingeLeft={0}
+                              // The gap between the facing pages IS this book's spine, and the
+                              // sheet has to cross all of it to lie down on the other one.
+                              spine={bookGap}
+                              front={copy(fwdFront, 'current')}
+                              back={copy(fwdBack, 'current')}
+                            />
+                          </View>
+                        ) : null}
+                        {keep || turningBwd ? (
+                          <View style={[StyleSheet.absoluteFill, !turningBwd && styles.kept]}>
+                            <TurnLeaf
+                              t={turnT}
+                              forward={false}
+                              width={bookW}
+                              hingeLeft={0}
+                              spine={bookGap}
+                              front={copy(bwdFront, 'current')}
+                              back={copy(bwdBack, 'current')}
+                            />
+                          </View>
+                        ) : null}
                       </View>
                     </SpreadColumn>
                   </View>
@@ -944,6 +972,10 @@ const styles = StyleSheet.create({
   // The turning layer must not clip its own entry animation, and must not change the layout it
   // wraps — it only carries the transition.
   turnLayer: { alignItems: 'center', alignSelf: 'stretch' },
+  // KEPT, NOT SHOWN. Opacity rather than display:none or an unmount, because the entire point is
+  // that these pages stay laid out and their images stay decoded; a hidden subtree that has to be
+  // rebuilt when it is shown is the thing this replaced.
+  kept: { opacity: 0 },
   spreadRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center' },
   neighbor: { alignItems: 'center' },
   neighborLabel: { marginBottom: 6 },

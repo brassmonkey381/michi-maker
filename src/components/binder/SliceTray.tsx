@@ -226,9 +226,13 @@ function SliceChip({
           </View>
         </View>
       </GestureDetector>
+      {/* TOP-LEFT, not top-right. This chip is dragged into a pocket, and a right-handed drag
+          starts at the right-hand side — so an 18px delete button lived exactly where the grab
+          does. Moved to the opposite corner and grown to 24px with slop, it stops being a thing
+          you hit on the way to doing something else. */}
       <Pressable
         onPress={() => onRemove(slice)}
-        hitSlop={6}
+        hitSlop={10}
         accessibilityLabel="Remove slice"
         style={styles.remove}>
         <Text style={styles.removeText}>×</Text>
@@ -327,10 +331,10 @@ const styles = StyleSheet.create({
   remove: {
     position: 'absolute',
     top: 0,
-    right: 0,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    left: 0,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: Palette.toast,
     alignItems: 'center',
     justifyContent: 'center',

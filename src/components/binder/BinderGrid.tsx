@@ -441,11 +441,29 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
         {/* Empty-cell tap targets (edit mode only; neighbours in the spread omit onCellPress). */}
         {editable && onCellPress &&
           emptyCells.map(({ row, col }) => (
+            // An empty pocket is the most-clicked thing on this screen and it answered nothing:
+            // no cursor, no hover, no press state. A dashed rectangle that does not react reads as
+            // a placeholder rather than a control, which is why the audit found people hunting for
+            // the "add" button that was already under their pointer.
             <Pressable
               key={`add-${row}-${col}`}
-              style={[box(row, col, 1, 1), styles.addCell, { borderRadius: slotRadius }]}
+              style={({ pressed, hovered }) => [
+                box(row, col, 1, 1),
+                styles.addCell,
+                { borderRadius: slotRadius },
+                hovered && styles.addCellHovered,
+                pressed && styles.addCellPressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={`Add a card to row ${row + 1}, column ${col + 1}`}
               onPress={() => onCellPress?.(row, col)}>
-              {!small && <Text style={styles.addPlus}>+</Text>}
+              {({ pressed, hovered }) => (
+                <>
+                  {!small && (
+                    <Text style={[styles.addPlus, (hovered || pressed) && styles.addPlusLit]}>+</Text>
+                  )}
+                </>
+              )}
             </Pressable>
           ))}
 
@@ -839,7 +857,13 @@ function ResizeOverlay({
         sizeStyle,
       ]}>
       <GestureDetector gesture={pan}>
-        <View style={styles.resizeHandle} />
+        {/* The visible knob is 22px, which is under every touch-target guideline there is and sits
+            in the corner where a thumb is least accurate. The TARGET is 44px of transparent View
+            around it — the knob stays the size it should look, and the thing you have to hit is
+            the size it should be. */}
+        <View style={styles.resizeHit}>
+          <View style={styles.resizeHandle} />
+        </View>
       </GestureDetector>
     </Animated.View>
   );
@@ -1682,11 +1706,18 @@ const styles = StyleSheet.create({
     borderColor: Palette.grayBorder50,
     alignItems: 'center',
     justifyContent: 'center',
+    // A pocket you can click should say so before you click it. Web-only value, ignored on native
+    // where there is no cursor to change.
+    cursor: 'pointer',
   },
+  /** Hover firms the dashes up; press fills them in. Both stop short of looking like a card. */
+  addCellHovered: { borderColor: Palette.grayBorder70, backgroundColor: Palette.panelAlt },
+  addCellPressed: { borderColor: BinderSurface.selection, backgroundColor: Palette.panel },
   addPlus: {
     fontSize: FontSize.title,
     color: Palette.grayBorder70,
   },
+  addPlusLit: { color: BinderSurface.selection },
   dropTarget: {
     borderWidth: 2,
     borderColor: Palette.accent,
@@ -1786,10 +1817,16 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: BinderSurface.selection,
   },
-  resizeHandle: {
+  resizeHit: {
     position: 'absolute',
-    right: -11,
-    bottom: -11,
+    right: -22,
+    bottom: -22,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resizeHandle: {
     width: 22,
     height: 22,
     borderRadius: 11,
@@ -1818,8 +1855,10 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   toolBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    // 5px of vertical padding on a 13px label is a 23px target. These sit in a row of six, so a
+    // miss is not a no-op — it is the neighbouring verb, and one of the six is Remove.
+    paddingHorizontal: 12,
+    paddingVertical: 9,
     borderRadius: Radius.pill,
   },
   toolBtnText: {

@@ -10,7 +10,7 @@
  *   - edit            → an editable <BinderGrid> wired for slot editing + cross-page drag, and
  *                       `onReorderPages` enables drag-to-reorder in the filmstrip.
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Animated, {
   runOnJS,
@@ -231,38 +231,43 @@ export function BinderPages({
     forward: boolean;
   } | null>(null);
   const turnT = useSharedValue(0);
-  const lastIdxRef = useRef(idx);
-  const endTurn = useCallback(() => setPageTurn(null), []);
+  /** The page the last turn was built for. State, not a ref: this is read DURING render. */
+  const [turnedAt, setTurnedAt] = useState(idx);
 
+  // MOUNTED IN THE SAME COMMIT AS THE PAGE CHANGE, not in an effect afterwards. An effect runs
+  // after the browser has painted, so for one frame the reader saw the destination spread bare —
+  // the "render flash on page turn start" in the report. Deriving it during render means the
+  // overlay is present in the very first commit that shows the new page, so there is no frame in
+  // which the new spread is visible uncovered. Same adjust-state-during-render pattern the page
+  // direction used before it, and state rather than a ref because the React Compiler (correctly)
+  // refuses a ref read at render time.
+  if (turnedAt !== idx) {
+    const from = turnedAt;
+    setTurnedAt(idx);
+    if (count > 1 && !turnReduced()) {
+      const fromLeftIdx = from === 0 ? -1 : from % 2 === 1 ? from : from - 1;
+      const fromRightIdx = from === 0 ? 0 : fromLeftIdx + 1 < count ? fromLeftIdx + 1 : -1;
+      setPageTurn({
+        fromLeft: fromLeftIdx >= 0 ? binder.pages[fromLeftIdx] : null,
+        fromRight: fromRightIdx >= 0 ? binder.pages[fromRightIdx] : null,
+        fromPage: binder.pages[from] ?? null,
+        forward: idx > from,
+      });
+    } else {
+      setPageTurn(null);
+    }
+  }
+
+  // Run the hinge once a turn is mounted. Progress always 0 → 1; the leaf carries the direction,
+  // and it is reset here so a turn always begins at the start of its arc.
   useEffect(() => {
-    const from = lastIdxRef.current;
-    lastIdxRef.current = idx;
-    if (from === idx || count <= 1 || turnReduced()) return;
-    const forward = idx > from;
-    // The spread the turn is leaving, resolved the same way the render resolves the current one.
-    const fromLeftIdx = from === 0 ? -1 : from % 2 === 1 ? from : from - 1;
-    const fromRightIdx = from === 0 ? 0 : fromLeftIdx + 1 < count ? fromLeftIdx + 1 : -1;
-    setPageTurn({
-      fromLeft: fromLeftIdx >= 0 ? binder.pages[fromLeftIdx] : null,
-      fromRight: fromRightIdx >= 0 ? binder.pages[fromRightIdx] : null,
-      fromPage: binder.pages[from] ?? null,
-      forward,
-    });
-    // PROGRESS ALWAYS RUNS 0 → 1, both directions. The leaf already carries the direction: TurnLeaf
-    // maps progress onto 0° → -180° going forward and onto -180° → 0° going back (see angleAt), so
-    // the sheet knows which way to swing from the `forward` flag alone.
-    //
-    // Running progress backwards as WELL cancelled that out, and it is what made a backward turn
-    // wrong: the leaf began flat on the right already showing the page being navigated TO, swept
-    // away from the reader, and finished displaying the page just left before snapping. Two
-    // direction flips make a forward turn wearing the backward turn's faces.
+    if (!pageTurn) return;
     turnT.value = 0;
     turnT.value = withTiming(1, { duration: TURN_MS, easing: TURN_EASING }, (done) => {
-      if (done) runOnJS(endTurn)();
+      if (done) runOnJS(setPageTurn)(null);
     });
-    // binder.pages is read for the OUTGOING spread only; it is not a trigger.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idx, count, doubleSided]);
+  }, [pageTurn, turnT]);
+
 
   const prevPage = idx > 0 ? binder.pages[idx - 1] : null;
   const nextPage = idx < count - 1 ? binder.pages[idx + 1] : null;
@@ -553,56 +558,87 @@ export function BinderPages({
           the half that is stale: going forward that is the old LEFT page, going back it is the old
           RIGHT page. Both ends of the arc then agree with the settled spread and the unmount is
           invisible. */}
-      {pageTurn && doubleSided ? (
-        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-          <View style={[styles.spreadRow, { gap: bookGap }]}>
-            {pageTurn.forward ? (
-              <>
-                <View style={{ width: bookW }}>
-                  {pageTurn.fromLeft
-                    ? renderGrid({ page: pageTurn.fromLeft, width: bookW, role: 'partner', captionFields, ownedIds, scanUrlOf })
-                    : null}
+      {pageTurn && doubleSided
+        ? (() => {
+            // THE OVERLAY IS BUILT FROM THE SAME PIECES AS THE SPREAD BENEATH IT — the same
+            // SpreadColumns, the same labels, the same roles. Drawing bare grids instead was wrong
+            // in two ways at once: a column puts a "Page N" label ABOVE its grid, so the copies sat
+            // a label's height too high (the offset in the report), and it dims whichever side is
+            // not the active one, so an undimmed leaf landing on a dimmed page flashed at the end.
+            // Copying the structure means those can never drift again.
+            //
+            // It draws the WHOLE base spread rather than patching in the stale half, so during a
+            // turn the settled render is completely covered. Nothing underneath can show through
+            // out of alignment, which is what made this look worst in the editor, where the two
+            // modes render different grid chrome.
+            const baseLeft = pageTurn.forward ? pageTurn.fromLeft : leftPage;
+            const baseRight = pageTurn.forward ? rightPage : pageTurn.fromRight;
+            const leftRole = spreadLeftIdx === idx ? 'current' : 'prev';
+            const rightRole = spreadRightIdx === idx ? 'current' : 'next';
+            const gridRole = (r: string) => (r === 'current' ? 'current' : 'partner');
+            // Front is the right page of the EARLIER spread, back the left page of the LATER one —
+            // two sides of one sheet. Going back, "earlier" is where the reader is heading.
+            const front = pageTurn.forward ? pageTurn.fromRight : rightPage;
+            const back = pageTurn.forward ? leftPage : pageTurn.fromLeft;
+            return (
+              <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+                <View style={styles.turnLayer}>
+                  <View style={[styles.spreadRow, { gap: bookGap }]}>
+                    <SpreadColumn
+                      page={baseLeft}
+                      width={bookW}
+                      label={leftPage ? `Page ${spreadLeftIdx + 1}` : ''}
+                      editable={editable}
+                      columnIndex={0}
+                      role={leftRole}>
+                      {baseLeft
+                        ? renderGrid({ page: baseLeft, width: bookW, role: gridRole(leftRole) as GridRole, captionFields, ownedIds, scanUrlOf })
+                        : null}
+                    </SpreadColumn>
+                    <SpreadColumn
+                      page={baseRight}
+                      width={bookW}
+                      label={rightPage ? `Page ${spreadRightIdx + 1}` : ''}
+                      editable={editable}
+                      columnIndex={2}
+                      role={rightRole}>
+                      {/* The leaf hinges on THIS column's inner edge, so it needs no arithmetic
+                          about where the spine is — it is already there. */}
+                      <View>
+                        {baseRight
+                          ? renderGrid({ page: baseRight, width: bookW, role: gridRole(rightRole) as GridRole, captionFields, ownedIds, scanUrlOf })
+                          : null}
+                        <TurnLeaf
+                          t={turnT}
+                          forward={pageTurn.forward}
+                          width={bookW}
+                          hingeLeft={0}
+                          front={front ? renderGrid({ page: front, width: bookW, role: 'current', captionFields, ownedIds, scanUrlOf }) : null}
+                          back={back ? renderGrid({ page: back, width: bookW, role: 'current', captionFields, ownedIds, scanUrlOf }) : null}
+                        />
+                      </View>
+                    </SpreadColumn>
+                  </View>
                 </View>
-                <View style={{ width: bookW }} />
-              </>
-            ) : (
-              <>
-                <View style={{ width: bookW }} />
-                <View style={{ width: bookW }}>
-                  {pageTurn.fromRight
-                    ? renderGrid({ page: pageTurn.fromRight, width: bookW, role: 'partner', captionFields, ownedIds, scanUrlOf })
-                    : null}
-                </View>
-              </>
-            )}
-          </View>
-          {/* Front is the right page of the EARLIER spread, back the left page of the LATER one —
-              the two sides of one sheet. Going back, "earlier" is where we are heading. */}
-          <TurnLeaf
-            t={turnT}
-            forward={pageTurn.forward}
-            width={bookW}
-            hingeLeft={bookW + bookGap}
-            front={(() => {
-              const p = pageTurn.forward ? pageTurn.fromRight : rightPage;
-              return p ? renderGrid({ page: p, width: bookW, role: 'partner', captionFields, ownedIds, scanUrlOf }) : null;
-            })()}
-            back={(() => {
-              const p = pageTurn.forward ? leftPage : pageTurn.fromLeft;
-              return p ? renderGrid({ page: p, width: bookW, role: 'partner', captionFields, ownedIds, scanUrlOf }) : null;
-            })()}
-          />
-        </View>
-      ) : null}
+              </View>
+            );
+          })()
+        : null}
       {/* One page at a time: nothing beside it to sweep over, so the outgoing page lifts on the
           same hinge and the page underneath — already the new one — is revealed. */}
       {pageTurn && !doubleSided && !showSpread && pageTurn.fromPage ? (
         <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-          <SingleTurnLeaf
-            t={turnT}
-            width={pageWidth}
-            page={renderGrid({ page: pageTurn.fromPage, width: pageWidth, role: 'single', captionFields, ownedIds, scanUrlOf })}
-          />
+          {/* Centred the same way the page beneath is (turnLayer), or the lifting sheet starts from
+              the left edge of the wrap rather than from the page. */}
+          <View style={styles.turnLayer}>
+            <View style={{ width: pageWidth }}>
+              <SingleTurnLeaf
+                t={turnT}
+                width={pageWidth}
+                page={renderGrid({ page: pageTurn.fromPage, width: pageWidth, role: 'single', captionFields, ownedIds, scanUrlOf })}
+              />
+            </View>
+          </View>
         </View>
       ) : null}
       </View>

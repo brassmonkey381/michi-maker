@@ -66,8 +66,17 @@ export const PEEK_MIN_WIDTH = 700;
 export const MIN_PAGE_WIDTH = 320;
 
 /**
- * What the page rendered at before any of this existed. The height fit is only ever allowed to
- * grow the page past this, never to shrink it below — so no window can come out worse than it was.
+ * What the page rendered at before any of this existed.
+ *
+ * It used to be a FLOOR: the height fit could grow a page past it but never shrink one below it, so
+ * no window came out worse than before. That was the right trade when the alternative was an
+ * unrequested shrink — and the wrong one once the rule became "a binder page is never something you
+ * scroll to see whole". A floor above the height budget is precisely an instruction to overflow.
+ *
+ * Kept as a published constant because it is still the size a page WANTS to be, and the editor
+ * reads it to decide when a window is too cramped to be worth docking a panel into. It is no longer
+ * consulted by the layout itself. `MIN_PAGE_WIDTH` is now the only floor, and it is an absolute
+ * one: below it a page is a postage stamp, and a stamp you can see beats a card you cannot.
  */
 export const LEGACY_MIN_WIDTH = 560;
 
@@ -138,11 +147,16 @@ export function spreadLayout({
     ? availableWidth - 2 * (PEEK_WIDTH + SPREAD_GAP)
     : availableWidth;
 
-  // The height fit may only ever GROW the page: a short window keeps what it renders today and
-  // scrolls, exactly as it already does, rather than being shrunk in the name of fitting.
+  // THE HEIGHT FIT DECIDES. A binder page is the one thing on this screen you must be able to see
+  // whole without scrolling — it is the object the product is about, and half of one tells you
+  // nothing about how the page reads. So when the window is short the page gets SMALLER; it does
+  // not keep its size and run off the bottom.
+  //
+  // This reverses the floor that used to sit here (see LEGACY_MIN_WIDTH). Both rules are defensible
+  // in isolation and they cannot both hold: a minimum width above the height budget is an
+  // instruction to overflow. Fitting wins, because scrolling to see a page costs you the page.
   const byHeight = availableHeight > 0 ? widthForHeight(availableHeight, rows, cols, captionsOn) : Infinity;
-  const target = Math.max(byHeight, LEGACY_MIN_WIDTH);
-  const fitted = Math.min(widthBudget, target, maxWidth ?? Infinity);
+  const fitted = Math.min(widthBudget, byHeight, maxWidth ?? Infinity);
   const pageWidth = Math.floor(Math.max(fitted, Math.min(MIN_PAGE_WIDTH, availableWidth)));
 
   const slack = availableWidth - pageWidth - 2 * SPREAD_GAP;
@@ -177,8 +191,97 @@ export function bookLayout({
   maxWidth?: number;
 }): number {
   const byWidth = (availableWidth - gap) / 2;
+  // Same reversal as the spread: an open book that does not fit the window is two half-pages.
   const byHeight = availableHeight > 0 ? widthForHeight(availableHeight, rows, cols, captionsOn) : Infinity;
-  const target = Math.max(byHeight, LEGACY_MIN_WIDTH);
-  const fitted = Math.min(byWidth, target, maxWidth ?? Infinity);
+  const fitted = Math.min(byWidth, byHeight, maxWidth ?? Infinity);
   return Math.floor(Math.max(fitted, Math.min(MIN_PAGE_WIDTH, byWidth)));
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* THE PANELS BESIDE THE PAGE                                                                    */
+/* ------------------------------------------------------------------------------------------- */
+
+/**
+ * Narrower than this a panel is a column of clipped card tiles, not a browser. Below it the panel
+ * stops docking and opens over the page instead — better to cover the binder honestly for a moment
+ * than to sit beside it uselessly.
+ */
+export const PANEL_MIN_WIDTH = 360;
+/**
+ * Wider than this a panel stops using the space and starts wasting it: the browse grid tops out at
+ * a sensible number of columns and the rest is margin. Surplus goes back to the page.
+ */
+export const PANEL_MAX_WIDTH = 720;
+/** The gutter between a panel and the page. */
+export const PANEL_GAP = 16;
+
+export type PanelFit = 'docked' | 'modal';
+
+export interface PanelLayout {
+  /** Rendered width of each docked panel; 0 when none are docked. */
+  panelWidth: number;
+  /** Per-panel outcome, in the order asked for. */
+  fits: PanelFit[];
+  /** What the page and its peeks get once the docked panels have taken their share. */
+  pageBudget: number;
+}
+
+/**
+ * How wide the side panels should be, and whether they dock at all.
+ *
+ * THE PAGE IS SIZED BY HEIGHT NOW, WHICH IS WHAT MAKES THIS POSSIBLE. A height-fitted 3x3 on a
+ * 1080p window is about 540px wide, so a 1920px desktop has well over a thousand pixels of empty
+ * space either side of it — and the panels used to be a fixed 460 regardless, leaving hundreds of
+ * pixels of nothing while the card grid scrolled in a column too narrow for it.
+ *
+ * So the split runs the other way round: the page takes what its HEIGHT entitles it to, and the
+ * panels divide what is actually left. No circular dependency, because the page's width no longer
+ * depends on how much width is available — only on how much height is.
+ *
+ * `pageNeed` is what the page and its peeks want. Panels never eat into it: a panel that cannot
+ * have PANEL_MIN_WIDTH of leftover does not shrink the page, it stops docking and becomes a modal.
+ * They degrade ONE AT A TIME — with room for one panel and not two, the first asked for keeps its
+ * dock rather than both falling back — because a usable panel beside the page beats symmetry.
+ */
+export function panelLayout({
+  availableWidth,
+  pageNeed,
+  panels,
+  minWidth = PANEL_MIN_WIDTH,
+  maxWidth = PANEL_MAX_WIDTH,
+  gap = PANEL_GAP,
+}: {
+  /** Everything the editor has to lay out in, panels and page together. */
+  availableWidth: number;
+  /** What the page and its peeks want, from the height fit. */
+  pageNeed: number;
+  /** How many panels are open. */
+  panels: number;
+  minWidth?: number;
+  maxWidth?: number;
+  gap?: number;
+}): PanelLayout {
+  if (panels <= 0) {
+    return { panelWidth: 0, fits: [], pageBudget: Math.max(0, availableWidth) };
+  }
+  // Try every panel, then one fewer, and so on. The first count that fits wins, so the answer is
+  // always the MOST panels that can be docked at a width worth docking them at.
+  for (let docked = panels; docked >= 1; docked -= 1) {
+    const leftover = availableWidth - pageNeed - gap * docked;
+    const each = Math.floor(leftover / docked);
+    if (each >= minWidth) {
+      const panelWidth = Math.min(each, maxWidth);
+      return {
+        panelWidth,
+        // Ordered: the panels that keep their dock are the ones asked for first.
+        fits: Array.from({ length: panels }, (_, i) => (i < docked ? 'docked' : 'modal')),
+        pageBudget: availableWidth - (panelWidth + gap) * docked,
+      };
+    }
+  }
+  return {
+    panelWidth: 0,
+    fits: Array.from({ length: panels }, () => 'modal'),
+    pageBudget: Math.max(0, availableWidth),
+  };
 }

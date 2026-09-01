@@ -205,7 +205,12 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const modifierHeld = useRef(false);
   const multiIdsRef = useRef(multiIds);
   // "Keep adding" fast-fill: after placing a card the picker stays open and jumps to the next pocket.
-  const [keepAdding, setKeepAdding] = useState(false);
+  // Default ON wherever the picker docks. It was off because the picker was a sheet OVER the binder,
+  // so leaving it up meant staring at a search panel and guessing which pocket you were filling.
+  // Docked, the binder is right there beside it and the next pocket lights up — so the fast path
+  // (tap a pocket once, then one tap per card) is the one you get without having to find a toggle.
+  // Initialised, not synced: once you turn it off it stays off, resizing the window included.
+  const [keepAdding, setKeepAdding] = useState(() => width >= CARD_PICKER_DOCK_MIN_WIDTH);
   // "Send page to…" — the destination picker, and whether it moves or copies.
   const [sendPageOpen, setSendPageOpen] = useState(false);
   const [sendAsMove, setSendAsMove] = useState(false);

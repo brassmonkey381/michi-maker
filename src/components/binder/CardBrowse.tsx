@@ -18,6 +18,7 @@ import {
   CatalogBrowser,
   sendBrowseCommand,
   type BrowseFeature,
+  type CardAction,
   type CardActionsFactory,
   type CardLanguage,
 } from 'tcgscan-browse';
@@ -50,6 +51,7 @@ export function CardBrowse({
   onPickCards,
   selectedCardId,
   cardActions,
+  quickAction,
   initialSimilar,
   languages,
   ownedIds,
@@ -65,6 +67,11 @@ export function CardBrowse({
   /** Per-card tap actions. When set, replaces the default "Place in pocket" sheet — home uses
    *  this to offer "Add to a binder…" instead of a functionless place. */
   cardActions?: CardActionsFactory;
+  /** A one-tap pill in each tile's top-right corner that fires WITHOUT opening the action sheet.
+   *  The picker uses it for quick-place: the sheet is a fine place to *learn* about a card, but
+   *  paying its open/read/dismiss toll on every card turns filling a nine-pocket page into
+   *  eighteen taps. Return undefined per card to omit the pill. */
+  quickAction?: (card: CatalogCard) => CardAction | undefined;
   /** One-shot "find similar to all" seed run on mount (binder multi-select). Passed straight to
    *  CatalogBrowser as an explicit prop so it survives the per-pocket remount and isn't stolen by
    *  another mounted browser via the command bus. */
@@ -108,6 +115,7 @@ export function CardBrowse({
         onPickVUnion={onPickVUnion}
         onPickCards={onPickCards}
         cardActions={cardActions}
+        quickAction={quickAction}
         initialSimilar={initialSimilar}
         languages={languages}
         ownedIds={ownedIds}

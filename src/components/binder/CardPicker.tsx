@@ -2,6 +2,8 @@ import { Image } from 'expo-image';
 import { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
+import type { CardAction } from 'tcgscan-browse';
+
 import { CardBrowse } from '@/components/binder/CardBrowse';
 import { SliceStudio, type SliceStudioHandle } from '@/components/binder/SliceStudio';
 import { ThemedText } from '@/components/themed-text';
@@ -253,6 +255,28 @@ export function CardPicker({
   const { width } = useWindowDimensions();
   const docked = width >= CARD_PICKER_DOCK_MIN_WIDTH;
 
+  /**
+   * ONE TAP TO PLACE.
+   *
+   * A tile tap opens the card's action sheet, which is the right home for "find similar",
+   * "view set" and "view illustrator" — and the wrong price for the common case. When you already
+   * know which card you want, placing cost two taps and a sheet that opened and closed again:
+   * eighteen taps and eighteen sheets to fill a nine-pocket page.
+   *
+   * The browse kit's inline quick-action pill fires WITHOUT opening the sheet, so placing is one
+   * tap and the sheet keeps everything it was actually good for. The pill runs the same
+   * `onPickCard` the sheet's button ran, so "Keep adding" and the jump to the next pocket behave
+   * identically — this changes the toll, not the outcome. Picker-only: the home browse has no
+   * pocket to place into, which is why the prop is opt-in rather than a default of the kit.
+   */
+  const quickPlace = (): CardAction => ({
+    key: 'quick-place',
+    // Occupied pockets say so: a one-tap replace should not look like a one-tap add. The sheet
+    // spells out whose card is being replaced; the pill has room for one glyph.
+    label: slot ? '⇄' : '＋',
+    onPress: (c) => onPickCard(c.id, c),
+  });
+
   const body = (
     <>
       <View style={styles.header}>
@@ -331,6 +355,7 @@ export function CardPicker({
           onPickCard={onPickCard}
           onPickVUnion={onPickVUnion}
           onPickCards={onPickCards}
+          quickAction={quickPlace}
           initialSimilar={initialSimilar}
           ownedIds={ownedIds}
         />

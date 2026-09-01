@@ -71,6 +71,22 @@ const CHIPS: Record<PrintVariant, PrintVariantChip> = {
   },
 };
 
+/**
+ * NOT A FINISH — an unanswered question. Shown on a card that could have been printed more than
+ * one way and has not been told which, which is about a third of the catalogue.
+ *
+ * It has to look like a prompt rather than a value: hollow instead of filled, so a page of real
+ * chips and a page of unanswered ones are never confused at a glance. Without it those pockets had
+ * no chip at all, which meant no tap target — the finish was unsettable on exactly the cards that
+ * needed setting.
+ */
+export const UNSET_CHIP: PrintVariantChip = {
+  letter: '?',
+  label: 'Finish not set — tap to choose',
+  fill: 'transparent',
+  text: '#FFFFFF',
+};
+
 /** The neutral treatment for a finish this build has never heard of. */
 const UNKNOWN: PrintVariantChip = { letter: '?', label: 'Unknown finish', fill: '#3F444E', text: '#FFFFFF' };
 
@@ -150,6 +166,14 @@ export function effectiveFinish(
  * Returns undefined when there is nothing to cycle through — one finish, or none published — so
  * the caller can leave the chip inert rather than pretending a single-finish card has a choice.
  */
+/**
+ * Could this card have been printed more than one way? Then an unanswered pocket deserves the `?`
+ * prompt; a card with one possible finish never asks, because there is nothing to ask.
+ */
+export function finishIsAskable(priced: Record<string, number> | undefined): boolean {
+  return Object.keys(priced ?? {}).length > 1;
+}
+
 export function nextFinish(
   current: string | undefined,
   priced: Record<string, number> | undefined,
@@ -158,4 +182,60 @@ export function nextFinish(
   if (options.length < 2) return undefined;
   const at = current ? options.indexOf(current) : -1;
   return options[(at + 1) % options.length];
+}
+
+/**
+ * Does this finish actually catch the light? Only foils get the glint — a Normal card that
+ * shimmered would be telling a lie about what is in the sleeve, and the whole reason the finish
+ * became settable per pocket was so this question has a real answer instead of a guess.
+ */
+export function isFoil(finish: string | undefined): boolean {
+  if (!finish) return false;
+  return /holo/i.test(finish);
+}
+
+/** Where the foil actually sits on a card. */
+export type GlintMask =
+  /** Nothing shimmers. */
+  | 'none'
+  /** Inside the illustration window only — the classic holo. */
+  | 'art'
+  /** Everywhere EXCEPT the illustration window — what makes a reverse holo a reverse holo. */
+  | 'frame'
+  /** The whole card, edge to edge — full arts, secrets, and anything else printed foil throughout. */
+  | 'full';
+
+/**
+ * Rarities printed foil ACROSS THE WHOLE CARD. Modern foiling long ago stopped being confined to
+ * the art window: a full art, an illustration rare or a secret shimmers edge to edge, borders
+ * included, and masking one to a rectangle in the middle would draw a hard-edged box across
+ * artwork that has none.
+ *
+ * Matched loosely on purpose. The vocabulary grows every set — this list already spans Radiant,
+ * Prism, ACE SPEC, Shiny and three flavours of Mega — and an unrecognised new rarity should land
+ * on the safe answer rather than on the conspicuous one.
+ */
+const WHOLE_CARD_RARITY =
+  /(ultra|secret|illustration|hyper|rainbow|double|radiant|prism|shiny|amazing|ace\s*spec|break|rare\s*ace|mega)/i;
+
+/**
+ * WHERE TO PUT THE SHIMMER, from the finish and the card's rarity.
+ *
+ * Getting this exactly right would mean knowing how every individual card was printed, which no
+ * field in the catalogue records. Rarity is the closest thing to that knowledge, and it is right
+ * far more often than not — so it decides, and where it cannot the answer falls to the whole card.
+ *
+ * That default is chosen for how it FAILS. A full art wrongly masked to its art window shows a
+ * bright rectangle with hard edges in the middle of a card that has no such boundary — obvious,
+ * and obviously a bug. A classic holo wrongly lit edge to edge is a slightly-too-generous shimmer
+ * that most people will never notice. When unsure, be wrong in the quiet direction.
+ *
+ * The one case that needs no guessing is the reverse holo: its foil is defined by being everywhere
+ * the art is not, whatever the card's rarity.
+ */
+export function glintMask(finish: string | undefined, rarity: string | undefined): GlintMask {
+  if (!isFoil(finish)) return 'none';
+  if (/reverse/i.test(finish ?? '')) return 'frame';
+  if (!rarity) return 'full';
+  return WHOLE_CARD_RARITY.test(rarity) ? 'full' : 'art';
 }

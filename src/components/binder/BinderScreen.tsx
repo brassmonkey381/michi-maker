@@ -45,7 +45,7 @@ import { useAuth } from '@/store/auth';
 import { EntryChangedElsewhereError, invalidateOwnedEntries, setEntryVariant } from '@/data/collectionRepo';
 import { useCardLabelPrefs } from '@/hooks/use-card-label-prefs';
 import { usePriceSummaryWhen } from '@/lib/prices';
-import { chipFor, effectiveFinish, nextFinish } from '@/constants/printVariant';
+import { chipFor, effectiveFinish, finishIsAskable, nextFinish } from '@/constants/printVariant';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Fonts, Palette, Radius, Spacing, Weight, FontSize } from '@/constants/theme';
@@ -691,6 +691,10 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
    * is a property of the pocket — cheap, private, instantly reversible — so it cycles on the tap
    * with no ceremony, which is what makes marking up a page of reverse holos bearable.
    */
+  /** A pocket whose card could be more than one finish, and has not been told which. */
+  const finishAskable = (slot: DemoSlot): boolean =>
+    !!slot.cardId && finishIsAskable(priceSummary?.[slot.cardId]?.variants);
+
   const onFinishPress = (slot: DemoSlot) => {
     if (!slot.cardId) return;
     if (slot.sourceEntryId && entryById.get(slot.sourceEntryId)) {
@@ -1219,7 +1223,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   }) => {
     if (!editing) {
       return (
-        <BinderGrid page={p} width={width} editable={false} captionFields={captionFields} ownedIds={ownedIds} scanUrlOf={scanUrlOf} variantOf={variantOf} onVariantPress={onFinishPress} />
+        <BinderGrid page={p} width={width} editable={false} captionFields={captionFields} ownedIds={ownedIds} scanUrlOf={scanUrlOf} variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable} />
       );
     }
     if (role === 'prev' || role === 'next') {
@@ -1232,7 +1236,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           editable
           captionFields={captionFields}
           ownedIds={ownedIds} scanUrlOf={scanUrlOf}
-          variantOf={variantOf} onVariantPress={onFinishPress}
+          variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable}
           // A tray slice reaches the neighbours too: show its legal pockets here, and let an
           // armed slice tap-place onto them (drags resolve via resolveSpreadHit regardless).
           dropTargets={role === 'prev' ? prevDropTargets : nextDropTargets}
@@ -1259,7 +1263,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           editable
           captionFields={captionFields}
           ownedIds={ownedIds} scanUrlOf={scanUrlOf}
-          variantOf={variantOf} onVariantPress={onFinishPress}
+          variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable}
           // The facing page is a first-class drop surface for tray slices too.
           dropTargets={isPrev ? prevDropTargets : nextDropTargets}
           onCellPress={(row, col) => {
@@ -1290,7 +1294,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         editable
         captionFields={captionFields}
         ownedIds={ownedIds} scanUrlOf={scanUrlOf}
-        variantOf={variantOf} onVariantPress={onFinishPress}
+        variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable}
         selectedSlotId={selectedSlotId}
         multiSelectedIds={multiIds}
         onCellPress={handleAddCell}

@@ -14,7 +14,8 @@ import Animated, {
 
 import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { BinderSurface, FontSize, Palette, Radii, Radius, Shadows, SlotBackingFallback, Weight } from '@/constants/theme';
-import { chipFor } from '@/constants/printVariant';
+import { UNSET_CHIP, chipFor, glintMask } from '@/constants/printVariant';
+import { FoilGlint } from '@/components/binder/FoilGlint';
 import { attributionLabel, deriveAttribution, type ArtAttribution } from '@/data/artworkLibrary';
 import { resolveCardWith, resolveCatalogCardWith } from '@/data/cardResolver';
 import { CAPTION_FIELDS, formatCaption, hasTextCaption, type CaptionFieldKey } from '@/data/cardCaption';
@@ -92,6 +93,12 @@ interface BinderGridProps {
   variantOf?: (slot: DemoSlot) => string | undefined;
   /** Tapping a print-finish chip. Without it the chip renders but is inert (read-only surfaces). */
   onVariantPress?: (slot: DemoSlot) => void;
+  /**
+   * Could this pocket's card have been printed more than one way? Such a pocket with no finish yet
+   * shows a hollow `?` — an unanswered question with somewhere to press. Only asked when the chip
+   * is interactive: a `?` nobody can answer is noise on a stranger's binder.
+   */
+  finishAskable?: (slot: DemoSlot) => boolean;
   /** Cross-page drag: report the drop point (the dragged card's centre) in THIS grid's
    *  inner-content coords. The editor maps it to window coords via the source grid's
    *  localToWindow and hit-tests every page in one frame. Replaces onDropSlot's local target. */
@@ -151,6 +158,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
     onPickCopySlot,
     variantOf,
     onVariantPress,
+    finishAskable,
     onCrossDrop,
     onDragStart,
     dropTargets,
@@ -362,6 +370,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               scanUri={slot.cardId ? scanUrlOf?.(slot) : undefined}
               captionFields={captionFields}
               price={slot.cardId ? priceFor(priceSummary, slot.cardId, variantOf?.(slot)) : undefined}
+              finish={variantOf?.(slot)}
+              editable={editable}
             />
           );
           if (!editable) {
@@ -410,8 +420,10 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
           page.slots.map((slot) => {
             if (!slot.cardId) return null;
             const variant = variantOf(slot);
-            if (!variant) return null;
-            const chip = chipFor(variant);
+            // An unanswered pocket still gets a target, but only where it can be answered.
+            const asking = !variant && !!onVariantPress && !!finishAskable?.(slot);
+            if (!variant && !asking) return null;
+            const chip = variant ? chipFor(variant) : UNSET_CHIP;
             const b = box(slot.row, slot.col, slot.rowSpan, slot.colSpan);
             return (
               // A right-ALIGNED strip rather than a left-positioned chip: the label is one to
@@ -431,7 +443,12 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
                   // pixels and this layer paints above them, so a symmetric slop would swallow taps
                   // meant for the neighbouring card.
                   hitSlop={{ top: 10, right: 10, bottom: 6, left: 6 }}
-                  style={[styles.variantChip, { backgroundColor: chip.fill }]}>
+                  style={[
+                    styles.variantChip,
+                    { backgroundColor: chip.fill },
+                    // Hollow, so a prompt never passes for an answer at a glance.
+                    asking && styles.variantChipAsking,
+                  ]}>
                   <Text style={[styles.variantChipText, { color: chip.text }]}>{chip.letter}</Text>
                 </Pressable>
               </View>
@@ -499,6 +516,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               scanUri={dragged.cardId ? scanUrlOf?.(dragged) : undefined}
               captionFields={captionFields}
               price={dragged.cardId ? priceFor(priceSummary, dragged.cardId, variantOf?.(dragged)) : undefined}
+              finish={variantOf?.(dragged)}
+              editable={editable}
             />
           </Animated.View>
         ) : null}
@@ -986,6 +1005,8 @@ function SlotContent({
   scanUri,
   captionFields = [],
   price,
+  finish,
+  editable = false,
 }: {
   slot: DemoSlot;
   radius: number;
@@ -995,6 +1016,10 @@ function SlotContent({
   captionFields?: CaptionFieldKey[];
   /** This pocket's value, already resolved to the owned copy's finish (see priceFor). */
   price?: number;
+  /** The finish this pocket shows, if known — decides whether and how the card catches light. */
+  finish?: string;
+  /** The glint is a view-mode pleasure; mid-edit it would compete with the drag it obscures. */
+  editable?: boolean;
   /** The viewer owns this card (own ≥ 1) — show the green ✓ corner badge. */
   owned?: boolean;
   /** This card's real scan (see BinderGridProps.scanUrlOf); card pockets only. */
@@ -1051,6 +1076,8 @@ function SlotContent({
   // The image comes from the id directly (no catalog needed). The catalog, when already loaded,
   // only enriches the size badge — so covers paint immediately even before it's available.
   const kind = resolveCardWith(catalog, id)?.kind;
+  // Where this card's foil sits, if any — from its finish and its rarity (see glintMask).
+  const glint = glintMask(finish, resolveCatalogCardWith(catalog, id)?.rarity);
   // Whether the on-card code row will be drawn, and so whether it — rather than the standalone
   // badge bottom-left — is the thing that shows JUMBO / V-UNION.
   const codeRowOn = captionFields.includes('set') || captionFields.includes('number');
@@ -1078,6 +1105,10 @@ function SlotContent({
           <View style={[styles.foilBar, styles.foilBarA]} />
           <View style={[styles.foilBar, styles.foilBarB]} />
         </View>
+        {/* And the foil catches the light where a foil actually is — inside the illustration
+            window on a holo, everywhere but it on a reverse holo. View mode only: while editing,
+            a highlight chasing the cursor competes with the drag it is trying to aim. */}
+        {glint !== 'none' && !small && !editable ? <FoilGlint radius={radius} mask={glint} /> : null}
         <KindBadge kind={kind} small={small} hidden={codeRowOn} />
         <OwnedBadge owned={owned} small={small} />
         <CardLabels
@@ -1664,6 +1695,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.30)',
     zIndex: 20,
+  },
+  variantChipAsking: {
+    borderStyle: 'dashed',
+    borderColor: 'rgba(255,255,255,0.75)',
+    backgroundColor: Palette.scrim45,
   },
   variantChipText: {
     fontSize: FontSize.micro,

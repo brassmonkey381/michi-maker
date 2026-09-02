@@ -38,7 +38,16 @@ const BINDER = mine[0].id;
 const priorCover = mine[0].cover ?? null;
 const REST = `https://${PROJECT}.supabase.co/rest/v1/binders?id=eq.${BINDER}`;
 const setCover = (cover) => fetch(REST, { method: 'PATCH', headers: AUTH, body: JSON.stringify({ cover }) });
-await setCover({ modelId: 'vaultx-exotec-zip-12-xl', colourway: 'signature-black' });
+// A card the fixture already shows, as the picture on the front cover.
+const slots = await (await fetch(`https://${PROJECT}.supabase.co/rest/v1/binder_slots?select=card_id,binder_pages!inner(binder_id)&binder_pages.binder_id=eq.${BINDER}&card_id=not.is.null&limit=1`, { headers: AUTH })).json().catch(() => []);
+const CARD = Array.isArray(slots) && slots[0]?.card_id ? slots[0].card_id : null;
+const PIC_ID = 'probe-pic';
+await setCover({
+  modelId: 'vaultx-exotec-zip-12-xl',
+  colourway: 'signature-black',
+  surfaces: CARD ? { front: [{ id: PIC_ID, kind: 'art', cardId: CARD, x: 0.35, y: 0.4, w: 0.3, h: 0.3 }] } : undefined,
+});
+console.log(`fixture        : cover dressed${CARD ? ' with one card picture' : ' (no card found; click-to-select step will be skipped)'}`);
 
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
 let ok = true;
@@ -92,6 +101,45 @@ try {
     await fc.click({ timeout: 8000 });
     await settle(3000);
   }
+  // 1b. CLICK THE PICTURE: selecting on the canvas is the same selection the tray shows.
+  if (CARD) {
+    const hit = p.locator(`[data-testid="cover-hit-${PIC_ID}"]`).first();
+    if (!(await hit.count())) fail('the pre-placed picture has no hit box on the canvas');
+    else {
+      const hb = await hit.boundingBox();
+      await p.mouse.click(hb.x + hb.width / 2, hb.y + hb.height / 2);
+      await settle(1500);
+      // A selected row carries the ▲ ▼ order buttons; an unselected one does not.
+      const rowSelected = String(/▲/.test(await p.locator(`[data-testid="cover-layer-${PIC_ID}"]`).first().innerText().catch(() => '')));
+      const props = (await p.locator('[data-testid="image-properties"]').count()) > 0;
+      const fitChips = (await p.locator('[data-testid="fit-fill"]').count()) + (await p.locator('[data-testid="fit-original"]').count());
+      const lock = (await p.locator('[data-testid="prop-lock-aspect"]').count()) > 0;
+      console.log(`click picture  : tray row selected=${rowSelected} imageProps=${props} fitChips=${fitChips} fixedScaleChip=${lock}`);
+      if (rowSelected !== 'true') fail('clicking the picture did not select its layer row');
+      if (!props) fail('image properties did not open for the clicked picture');
+      if (fitChips < 2) fail('the Stretch to fill / Original aspect chips are missing');
+      if (!lock) fail('the Fixed scale chip is missing');
+
+      // 1c. FREE CORNER: drag the SE handle straight down 40px → H grows, W does not.
+      const wBefore = await p.locator('[data-testid="prop-w"]').inputValue().catch(() => '?');
+      const hBefore = await p.locator('[data-testid="prop-h"]').inputValue().catch(() => '?');
+      const se = await p.locator('[data-testid="cover-handle-se"]').first().boundingBox();
+      if (se) {
+        await p.mouse.move(se.x + se.width / 2, se.y + se.height / 2);
+        await p.mouse.down();
+        for (let i = 1; i <= 5; i++) { await p.mouse.move(se.x + se.width / 2, se.y + se.height / 2 + i * 8, { steps: 2 }); await settle(40); }
+        await p.mouse.up();
+        await settle(1800);
+      }
+      const wAfter = await p.locator('[data-testid="prop-w"]').inputValue().catch(() => '?');
+      const hAfter = await p.locator('[data-testid="prop-h"]').inputValue().catch(() => '?');
+      console.log(`free corner    : W ${wBefore}% -> ${wAfter}%, H ${hBefore}% -> ${hAfter}%`);
+      if (hBefore === hAfter) fail('dragging the corner down did not change H');
+      if (wBefore !== wAfter) fail('dragging the corner straight down changed W — the corner is not free');
+      await p.locator('[data-testid="cover-canvas"]').first().click({ position: { x: 3, y: 3 } }).catch(() => {});
+      await settle(800);
+    }
+  }
   const dock = (await p.locator('[data-testid="artwork-dock"]').count()) > 0;
   const tray = (await p.locator('[data-testid="cover-layers"]').count()) > 0;
   const panel = (await p.locator('[data-testid="cover-panel"]').count()) > 0;
@@ -112,11 +160,11 @@ try {
     const trayText = await p.locator('[data-testid="cover-layers"]').innerText().catch(() => '');
     console.log(`after + Text   : layers=${layers} textProps=${textProps} hitBoxes=${hit} handles=${handles} rotateGrab=${rotate}`);
     console.log(`tray says      : ${trayText.replace(/\n/g, ' | ').slice(0, 120)}`);
-    if (layers < 1) fail('no layer row after adding text');
+    if (layers < (CARD ? 2 : 1)) fail('no layer row after adding text');
     if (!textProps) fail('text properties did not show for the new text');
     if (hit < 1) fail('no hit box on the canvas');
     if (!rotate || handles < 9) fail(`expected 8 resize handles + rotate, got ${handles}`);
-    if (!/1 \/ 12/.test(trayText)) fail(`tray count is not "1 / 12"`);
+    if (!new RegExp(`${CARD ? 2 : 1} \/ 12`).test(trayText)) fail(`tray count is not "${CARD ? 2 : 1} / 12"`);
 
     // 3. DRAG THE BODY 60px right on the canvas: the row's X changes, nothing crashes.
     const hb = await p.locator('[data-testid^="cover-hit-"]').first().boundingBox();

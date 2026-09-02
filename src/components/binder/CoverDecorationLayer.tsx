@@ -219,13 +219,16 @@ export function CoverDecorationLayer({
             runOnJS(onCommit)(d.id, boxToDecoration({ ...base, rot: base.rot + (e.rotation * 180) / Math.PI }, W, H));
           });
 
-        const tap = Gesture.Tap().onEnd(() => runOnJS(onSelect)(d.id));
-        // A RACE, not an Exclusive with the two-finger gestures first. Exclusive gives the earlier
-        // gestures priority, and with a single pointer a pinch or a rotation never fails fast — it
-        // just stays "possible" until release, and the pan behind it never activates. In a race
-        // the first to activate wins: one pointer moving is a pan, two pointers are a pinch or a
-        // twist, and a tap is only a tap once nothing else did.
-        const gesture = Gesture.Exclusive(Gesture.Race(pinch, twist, move), tap);
+        const tap = Gesture.Tap().onEnd((_e, success) => {
+          if (success) runOnJS(onSelect)(d.id);
+        });
+        // THE TAP WAITS FOR THE PAN ONLY. A click must select, and the pan fails fast on a click
+        // (no movement past its threshold). The two-finger gestures are SIMULTANEOUS with that pair
+        // rather than ahead of it: on the web a pinch or a rotation with one pointer does not fail
+        // until release, and anything queued behind them — the tap, and before that the pan —
+        // never got its turn. Two fingers can pinch and twist while the pan rides along, which is
+        // how it feels in Canva too.
+        const gesture = Gesture.Simultaneous(Gesture.Exclusive(move, tap), pinch, twist);
 
         return (
           <GestureDetector key={d.id} gesture={gesture}>

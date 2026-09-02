@@ -113,6 +113,19 @@ export interface DemoSlot {
    * touch the inventory).
    */
   fromCollection?: boolean;
+  /**
+   * WHY THIS ART IS IN THIS POCKET. Set when a panel came from a composition template: the job it
+   * was placed to do (see artTemplates.ArtRole) and the template that asked for it.
+   *
+   * A ROLE, NOT PROSE. A role renders as a label, sorts, and is derived from the panel's own
+   * geometry, so it cannot drift into describing a layout that is no longer there. Absent on art
+   * the user placed themselves, which needs no explanation from us.
+   *
+   * Persisted in `binder_slots.notes`, which the page-level description does NOT use (that is
+   * `binder_pages.notes`) — so this needs no migration. See binderRepo.
+   */
+  artRole?: string;
+  artTemplateId?: string;
 }
 
 /**
@@ -454,28 +467,6 @@ export function pagesForCards(cardIds: string[], entryIds?: (string | undefined)
   return pages;
 }
 
-/**
- * Fill every unoccupied cell of a grid with empty 'artwork' placeholder slots — the binder grid
- * paints these as a dashed "Your Art Here" invitation. Horizontally-adjacent empty pairs merge
- * into a 1×2 panel (so it reads as "mostly 1×2, some 1×1"). Empty (no imageUrl/cardId) so they
- * never trip the private-art gate or consume inventory. Used by the Build-a-binder wizard.
- */
-export function artGapSlots(rows: number, cols: number, occupied: Set<string>): DemoSlot[] {
-  const slots: DemoSlot[] = [];
-  for (let r = 0; r < rows; r += 1) {
-    let c = 0;
-    while (c < cols) {
-      if (occupied.has(`${r},${c}`)) {
-        c += 1;
-        continue;
-      }
-      const pair = c + 1 < cols && !occupied.has(`${r},${c + 1}`);
-      slots.push({ id: uuidv4(), row: r, col: c, rowSpan: 1, colSpan: pair ? 2 : 1, type: 'artwork' });
-      c += pair ? 2 : 1;
-    }
-  }
-  return slots;
-}
 
 /** Cells covered by a slot, as "row,col" keys (accounts for spans). */
 export function slotCells(slot: DemoSlot): string[] {

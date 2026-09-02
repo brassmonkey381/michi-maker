@@ -10,7 +10,8 @@
  * `fromCollection` provenance so the (free/owned) accounting and Reclaim see it.
  */
 import type { Catalog, CatalogCard } from '@/lib/catalog';
-import { artGapSlots, uuidv4, type DemoPage, type DemoSlot } from '@/data/binderTypes';
+import { uuidv4, type DemoPage, type DemoSlot } from '@/data/binderTypes';
+import { hasFreeColumn, pickTemplate, reservedCells, templateArtSlots } from '@/data/artTemplates';
 import { speciesOf } from '@/data/pageComposer';
 import { formatUsd, type PriceSummary } from '@/lib/prices';
 
@@ -325,15 +326,40 @@ const COL_MAJOR: [number, number][] = [
 ];
 
 /**
- * Turn chosen proposals into persistable pages. Cards keep their collection provenance and fill
- * the page in reading order (evolution pages read down the columns); EVERY remaining open pocket
- * becomes an empty 'artwork' slot the grid paints as "Your Art Here" (see artGapSlots) — so the
- * built binder is everywhere ready for the owner to drop in their own art.
+ * Turn chosen proposals into persistable pages — COMPOSITION FIRST, cards into what it leaves.
+ *
+ * This used to run the other way: place every card in reading order, then hand the leftover cells
+ * to `artGapSlots`, which dropped an artwork slot into each one. Art could therefore only ever be
+ * the shape of the hole the cards happened to leave, and nothing recorded why any of it was there.
+ * Now a template is chosen for the page's card count (see artTemplates), its panels are placed,
+ * and the cards read into the pockets that remain — so a page's art is there because a composition
+ * asked for it, and each panel carries the role that says what it is doing.
+ *
+ * The reading order still holds. Cards fill the free pockets in row-major order, or column-major
+ * on an evolution page so a family still reads Basic→final down its column; the template's panels
+ * are simply skipped on the way through.
+ *
+ * `pickTemplate` prefers the layout that spends the MOST pockets on art among those that still fit
+ * the cards, which is the point of the product rather than an extravagance. A page whose cards
+ * fill it completely gets no template and no art, which is correct: there is nothing to compose.
  */
 export function buildPages(chosen: WizardProposal[]): DemoPage[] {
-  return chosen.map((p) => {
-    const order = p.kind === 'evolution' ? COL_MAJOR : ROW_MAJOR;
-    const cardSlots: DemoSlot[] = p.cardIds.slice(0, PAGE_CELLS).map((cardId, i) => ({
+  return chosen.map((p, pageIndex) => {
+    const cardIds = p.cardIds.slice(0, PAGE_CELLS);
+    // Rotate on page index so a built binder does not reach for one layout every time.
+    //
+    // An evolution page reads a family DOWN a column, so it only accepts a composition that leaves
+    // a column whole. Without that, a three-stage line placed into a diagonal layout breaks out of
+    // its column at stage three and stops reading as a family at all.
+    const template = pickTemplate(PAGE_ROWS, PAGE_COLS, cardIds.length, {
+      rotate: pageIndex,
+      exclude: p.kind === 'evolution' ? (t) => !hasFreeColumn(t) : undefined,
+    });
+    const reserved = template ? reservedCells(template) : new Set<string>();
+    const order = (p.kind === 'evolution' ? COL_MAJOR : ROW_MAJOR).filter(
+      ([r, c]) => !reserved.has(`${r},${c}`),
+    );
+    const cardSlots: DemoSlot[] = cardIds.map((cardId, i) => ({
       id: uuidv4(),
       row: order[i][0],
       col: order[i][1],
@@ -343,8 +369,13 @@ export function buildPages(chosen: WizardProposal[]): DemoPage[] {
       cardId,
       fromCollection: true,
     }));
-    const occupied = new Set(cardSlots.map((s) => `${s.row},${s.col}`));
-    const artSlots = artGapSlots(PAGE_ROWS, PAGE_COLS, occupied);
-    return { id: uuidv4(), title: p.title, rows: PAGE_ROWS, cols: PAGE_COLS, slots: [...cardSlots, ...artSlots] };
+    const artSlots = template ? templateArtSlots(template, uuidv4) : [];
+    return {
+      id: uuidv4(),
+      title: p.title,
+      rows: PAGE_ROWS,
+      cols: PAGE_COLS,
+      slots: [...cardSlots, ...artSlots],
+    };
   });
 }

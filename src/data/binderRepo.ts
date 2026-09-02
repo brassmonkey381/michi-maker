@@ -66,6 +66,10 @@ function slotRow(slot: DemoSlot, pageId: string): Tables['binder_slots']['Insert
     card_id: slot.cardId ?? null,
     // No dedicated insert-colour column yet; stash it here (inserts aren't user-created yet).
     insert_image_url: slot.insertColor ?? null,
+    // Why a template put art here, as "<templateId>:<role>". binder_slots.notes has never been
+    // used for anything (the page description lives on binder_pages.notes), so this costs no
+    // migration. Null for art the user placed themselves.
+    notes: slot.artRole ? `${slot.artTemplateId ?? ''}:${slot.artRole}` : null,
     // Custom artwork (uploaded or pasted) + its slice crop + fit mode, so it survives reload.
     image_url: slot.imageUrl ?? null,
     image_crop: slot.imageCrop ?? null,
@@ -89,6 +93,7 @@ interface SlotRowIn {
   slot_type: string;
   card_id: string | null;
   insert_image_url: string | null;
+  notes?: string | null;
   image_url: string | null;
   image_crop: { x: number; y: number; w: number; h: number } | null;
   image_fit: string | null;
@@ -137,6 +142,10 @@ function mapSlot(row: SlotRowIn): DemoSlot {
     type: row.slot_type as DemoSlot['type'],
     cardId: row.card_id ?? undefined,
     insertColor: row.insert_image_url ?? undefined,
+    // "<templateId>:<role>" — see the write side. A row from before templates, or one whose art
+    // the user placed, has no notes and simply comes back without a reason attached.
+    artTemplateId: row.notes ? row.notes.slice(0, row.notes.indexOf(':')) || undefined : undefined,
+    artRole: row.notes ? row.notes.slice(row.notes.indexOf(':') + 1) || undefined : undefined,
     imageUrl: row.image_url ?? undefined,
     imageCrop: row.image_crop ?? undefined,
     imageFit: (row.image_fit as DemoSlot['imageFit']) ?? undefined,

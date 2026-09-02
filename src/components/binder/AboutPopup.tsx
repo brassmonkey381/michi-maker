@@ -17,7 +17,7 @@
  * easy to come back from, and this is the one dialog in the editor that is purely prose.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions, type ViewStyle } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -58,11 +58,43 @@ export function AboutHoverCard({
   bullets?: string[];
   /** The trap worth naming, set apart from the rest. */
   note?: string;
-  /** Where it sits relative to whatever revealed it. The caller owns the offset; this owns the look. */
+  /** Where it sits relative to whatever revealed it, in the DEFAULT direction: below and to the right. */
   style?: ViewStyle;
 }) {
+  /**
+   * OPENS TOWARD THE MIDDLE OF THE SCREEN. The caller places the card below and to the right of
+   * what revealed it, which is right for something in the top-left quadrant and wrong for the
+   * other three: a card opened from the bottom of the window went up off the top of it, and one
+   * opened near the right edge ran off the side. So the card measures where it first landed —
+   * that first layout is the anchor's own position — and flips: above the anchor when the anchor
+   * is in the lower half of the window, leftward when it is in the right half. Decided once per
+   * reveal, from that first measurement, so the flip cannot feed back into itself; invisible for
+   * the single frame before it is decided, so it never appears in the wrong place first.
+   */
+  const { width: winW, height: winH } = useWindowDimensions();
+  const [place, setPlace] = useState<{ above: boolean; toLeft: boolean } | null>(null);
+  const ref = useRef<View>(null);
+  const onLayout = () => {
+    if (place) return;
+    ref.current?.measureInWindow((x, y, w) => {
+      setPlace((cur) => cur ?? { above: y > winH / 2, toLeft: x + w / 2 > winW / 2 });
+    });
+  };
+  // A plain View carries the ref and the placement (ThemedView forwards no ref); the themed box
+  // inside carries the look.
   return (
-    <ThemedView type="backgroundElement" pointerEvents="none" style={[styles.hover, style]}>
+    <View
+      ref={ref}
+      onLayout={onLayout}
+      pointerEvents="none"
+      style={[
+        styles.hoverSlot,
+        style,
+        place?.above ? { top: undefined, bottom: '100%' } : null,
+        place?.toLeft ? { left: undefined, right: 0 } : null,
+        { opacity: place ? 1 : 0 },
+      ]}>
+    <ThemedView type="backgroundElement" pointerEvents="none" style={styles.hover}>
       <AboutBody kicker={kicker} text={text} />
       {bullets?.length ? (
         <View style={styles.bullets}>
@@ -76,6 +108,7 @@ export function AboutHoverCard({
       ) : null}
       {note ? <ThemedText style={styles.hoverNote}>Not: {note}</ThemedText> : null}
     </ThemedView>
+    </View>
   );
 }
 
@@ -178,19 +211,22 @@ const styles = StyleSheet.create({
   },
   // Narrower than the tap-opened card and lifted off the page: it is floating over the binder
   // rather than sitting in front of it, and nothing behind it has been dimmed to say so.
-  hover: {
+  // The slot the card floats in: where it is. The card itself: what it looks like.
+  hoverSlot: {
     position: 'absolute',
     width: 320,
     maxWidth: '100%',
+    // Above whatever follows it in the tree — a header's card would otherwise paint under the
+    // binder below it, which is exactly where it needs to be seen.
+    zIndex: 40,
+  },
+  hover: {
     borderRadius: Radius.panel,
     borderWidth: 1,
     borderColor: Palette.hairlineStrong,
     paddingHorizontal: Spacing.three,
     paddingTop: Spacing.two,
     paddingBottom: Spacing.three,
-    // Above whatever follows it in the tree — a header's card would otherwise paint under the
-    // binder below it, which is exactly where it needs to be seen.
-    zIndex: 40,
     ...Shadows.page,
   },
   closeBtn: { position: 'absolute', top: Spacing.three, right: Spacing.four, zIndex: 1 },

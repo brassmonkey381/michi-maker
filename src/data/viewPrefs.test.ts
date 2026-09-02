@@ -13,11 +13,10 @@ import assert from 'node:assert/strict';
 import { VIEW_PREF_DEFAULTS, normalizeViewPrefs } from './viewPrefs.ts';
 
 test('a well-formed bag comes through as itself', () => {
-  assert.deepEqual(normalizeViewPrefs({ owned: true, scans: false, doubleSided: true }), {
-    owned: true,
-    scans: false,
-    doubleSided: true,
-  });
+  assert.deepEqual(
+    normalizeViewPrefs({ owned: true, scans: false, doubleSided: true, navDock: 'left' }),
+    { owned: true, scans: false, doubleSided: true, navDock: 'left' },
+  );
 });
 
 test('nothing at all is absent, not empty — the next source gets its say', () => {
@@ -38,11 +37,13 @@ test('an array is not a preference bag', () => {
 });
 
 test('a partial bag keeps what it says and defaults the rest', () => {
-  // A release that adds a pill must not invalidate everyone's stored preference.
+  // A release that adds a pill must not invalidate everyone's stored preference — which is exactly
+  // what happened when navDock was added: every bag written before it is a partial bag now.
   assert.deepEqual(normalizeViewPrefs({ doubleSided: true }), {
     owned: false,
     scans: false,
     doubleSided: true,
+    navDock: 'bottom',
   });
 });
 
@@ -50,10 +51,18 @@ test('a truthy non-boolean does NOT switch a pill on', () => {
   // The one that matters: Owned and Scans expose what the viewer owns. "yes", 1 and {} are all
   // truthy, and none of them is a preference anyone expressed.
   assert.deepEqual(normalizeViewPrefs({ owned: 'yes', scans: 1, doubleSided: {} }), {
-    owned: false,
-    scans: false,
-    doubleSided: false,
+    ...VIEW_PREF_DEFAULTS,
   });
+});
+
+test('navDock is an enum, so anything but the two known values is not an answer', () => {
+  // A boolean guard would have let "right" or true through and put the rail somewhere that does
+  // not exist. Every unknown falls back rather than being trusted.
+  assert.equal(normalizeViewPrefs({ navDock: 'left' })?.navDock, 'left');
+  assert.equal(normalizeViewPrefs({ navDock: 'bottom' })?.navDock, 'bottom');
+  for (const bad of ['right', 'LEFT', true, 1, null, {}]) {
+    assert.equal(normalizeViewPrefs({ navDock: bad })?.navDock, 'bottom', `navDock: ${String(bad)}`);
+  }
 });
 
 test('a falsy non-boolean is equally not an answer', () => {
@@ -62,12 +71,18 @@ test('a falsy non-boolean is equally not an answer', () => {
 
 test('unknown keys are ignored rather than carried', () => {
   const out = normalizeViewPrefs({ owned: true, somethingElse: true });
-  assert.deepEqual(out, { owned: true, scans: false, doubleSided: false });
+  assert.deepEqual(out, { owned: true, scans: false, doubleSided: false, navDock: 'bottom' });
   assert.equal('somethingElse' in (out as object), false);
 });
 
-test('the defaults are all off', () => {
-  // Every one of these reveals something about the viewer's collection, so the answer before
-  // anybody has chosen is "show nothing extra".
-  assert.deepEqual(VIEW_PREF_DEFAULTS, { owned: false, scans: false, doubleSided: false });
+test('the defaults are all off, and the strip starts where it always was', () => {
+  // Every toggle here reveals something about the viewer's collection, so the answer before anybody
+  // has chosen is "show nothing extra" — and the strip defaults to the position it has always had,
+  // because a layout that moves on upgrade is a bug however good the new position is.
+  assert.deepEqual(VIEW_PREF_DEFAULTS, {
+    owned: false,
+    scans: false,
+    doubleSided: false,
+    navDock: 'bottom',
+  });
 });

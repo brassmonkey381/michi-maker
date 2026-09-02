@@ -68,6 +68,30 @@ const WEB_STICKY = { position: 'sticky', bottom: 0, zIndex: 5 };
  */
 const PAGE_BREATHING_ROOM = 10;
 
+/**
+ * The page-navigation rail, when it is docked to the left rather than along the bottom.
+ *
+ * It costs WIDTH instead of HEIGHT, and height is what the page is short of: the strip along the
+ * bottom takes about 115px of a budget that is only ~530px on a 900px window, while the same rail
+ * on the left costs nothing the page was using — a height-fitted page leaves hundreds of pixels
+ * spare either side.
+ */
+const NAV_RAIL_WIDTH = 78;
+
+/**
+ * The "Page 3 ›" label above each column, and the page wrap's own bottom margin.
+ *
+ * Neither is modelled by `pageHeightAt`, which describes the GRID — but both sit inside the space
+ * the page has to fit into, so a budget that ignores them hands the layout more room than exists.
+ * That was worth 26px of label and 18px of margin, and it is why the page overflowed by ~34px the
+ * moment the rail freed enough height for the difference to show.
+ *
+ * Measured from the styles rather than guessed: neighborLabel is a `small` line (about 20px) with
+ * marginBottom 6, and pageWrap carries marginVertical 18 whose lower half nothing else counts.
+ */
+const COLUMN_LABEL_H = 26;
+const PAGE_WRAP_BOTTOM_MARGIN = 18;
+
 export interface BinderPagesProps {
   binder: DemoBinder;
   /** Caller-owned current page (clamped here for display). */
@@ -239,10 +263,31 @@ export function BinderPages({
   // Rounded and only accepted on a real change, so a sub-pixel wobble cannot start a measure/render
   // loop — safe because neither number depends on the page's own height: one is the space above it
   // and the other the strip below it.
+  /**
+   * WHERE THE PAGE STRIP LIVES, and what it costs.
+   *
+   * Along the bottom it costs HEIGHT — about 115px of a budget that is only ~530px on a 900px
+   * window, i.e. a fifth of the page. As a left rail it costs WIDTH, which a height-fitted page has
+   * in abundance: on a 1920 desktop the page is around 500px wide and the rest is empty.
+   *
+   * `stripHeight` is forced to zero rather than trusted when the rail is on the left: the bottom
+   * dock is unmounted then, so its onLayout never fires again and the state would keep whatever it
+   * last measured — the page would pay for a strip that is not there.
+   */
+  const railLeft = view.navDock === 'left';
   const heightBudget = Math.max(
     0,
-    windowHeight - viewportTop - contentAbove - stripHeight - PAGE_BREATHING_ROOM,
+    windowHeight -
+      viewportTop -
+      contentAbove -
+      (railLeft ? 0 : stripHeight) -
+      COLUMN_LABEL_H -
+      PAGE_WRAP_BOTTOM_MARGIN -
+      PAGE_BREATHING_ROOM,
   );
+  // The rail is drawn inside this component, so the width it takes is invisible to the callers that
+  // compute availableWidth. It comes off here instead, before anything is laid out against it.
+  const pageAvailable = Math.max(0, availableWidth - (railLeft ? NAV_RAIL_WIDTH : 0));
   const captionsOn = hasTextCaption(captionFields);
   const spreadGap = SPREAD_GAP;
   // THE BOOK NEEDS A FLOOR OF ITS OWN. Halving the width is only a good trade while both halves
@@ -250,12 +295,14 @@ export function BinderPages({
   // thumbnails, not artwork. Nothing stopped that, because the book path had no width gate at all.
   // Below the threshold the pages are shown one at a time and the toggle is not offered, which is
   // the honest answer on a screen that cannot hold a spread.
-  const canDoubleSide = availableWidth >= PEEK_MIN_WIDTH;
+  const canDoubleSide = pageAvailable >= PEEK_MIN_WIDTH;
   const doubleSided = doubleSidedWanted && canDoubleSide;
   // Peeks need room for a page AND two strips; below that the page goes it alone, as on a phone.
-  const showSpread = !doubleSided && count > 1 && availableWidth >= PEEK_MIN_WIDTH;
+  // Judged on what the page actually gets. Reading the pre-rail width here would promise a spread
+  // the reduced budget cannot draw.
+  const showSpread = !doubleSided && count > 1 && pageAvailable >= PEEK_MIN_WIDTH;
   const layout = spreadLayout({
-    availableWidth,
+    availableWidth: pageAvailable,
     availableHeight: heightBudget,
     rows: page.rows,
     cols: page.cols,
@@ -507,7 +554,7 @@ export function BinderPages({
   // The book never had dimmed neighbours — both halves are live — so its only waste was the
   // ceiling, and fitting the height is the whole of its fix.
   const bookW = bookLayout({
-    availableWidth,
+    availableWidth: pageAvailable,
     availableHeight: heightBudget,
     rows: page.rows,
     cols: page.cols,
@@ -908,6 +955,20 @@ export function BinderPages({
               </Text>
             </Pressable>
           ) : null}
+          {/* WHERE THE PAGE STRIP SITS. Along the bottom it costs the page about 115px of height;
+              as a left rail it costs width, which a height-fitted page has to spare. Offered only
+              when there is a strip to move. */}
+          {count > 1 ? (
+            <Pressable
+              onPress={() => view.setPref('navDock', railLeft ? 'bottom' : 'left')}
+              accessibilityRole="button"
+              accessibilityLabel={railLeft ? 'Move page navigation to the bottom' : 'Move page navigation to the left'}
+              style={[pillChip.base, railLeft && pillChip.active]}>
+              <Text style={[pillChip.text, railLeft && pillChip.textActive]}>
+                {railLeft ? '⬒ Pages left' : '⬓ Pages below'}
+              </Text>
+            </Pressable>
+          ) : null}
           {ownedCards ? (
             <Pressable
               onPress={() => setShowOwned(!showOwned)}
@@ -964,14 +1025,36 @@ export function BinderPages({
       {/* testID rides through to data-testid on web. It exists so a screenshot harness can MEASURE
           the rendered page rather than infer it from arithmetic — the gap that made the on-card
           label work take six rounds of guessing. Costs nothing at runtime. */}
+      {/* THE PAGE, AND OPTIONALLY A RAIL BESIDE IT.
+
+          The wrapper is always a row, so there is one layout rather than two — with the rail on the
+          bottom it simply has a single child. The page-turn overlay is absolutely positioned INSIDE
+          pageWrap, so it stays inside pageWrap: the rail is its sibling and a turn never sweeps
+          across the navigation.
+
+          The content measurement moved up here with it. It is this wrapper's offset in the scroll
+          content that says how much sits above the page now, and measuring the inner view would
+          report 0 the moment a rail put it inside a row. */}
+      <View
+        style={[styles.pageRow, railLeft && styles.pageRowRailed]}
+        onLayout={(e) => setContentAbove(e.nativeEvent.layout.y)}>
+      {railLeft && (count > 1 || coverStripExtras) ? (
+        <View style={[styles.navRail, { backgroundColor: theme.background }]}>
+          <PageStrip
+            axis="vertical"
+            pages={binder.pages}
+            currentIndex={shut || coverFocus ? -1 : idx}
+            onSelect={selectPage}
+            onReorder={onReorderPages}
+            {...coverStripExtras}
+          />
+        </View>
+      ) : null}
       <GestureDetector gesture={swipe}>
       <View
         ref={pageWrapRef}
-        style={styles.pageWrap}
-        testID="binder-page-wrap"
-        // `y` here is the offset inside the scroll content — everything stacked above the page,
-        // this component's chrome and the caller's alike, in one measured number.
-        onLayout={(e) => setContentAbove(e.nativeEvent.layout.y)}>
+        style={[styles.pageWrap, railLeft && styles.pageWrapRailed]}
+        testID="binder-page-wrap">
       {/* THE PAGE TURNS ON A HINGE. This used to slide the whole spread in from the side, which read
           as lifting the binder away and sliding a different one back rather than as turning a page.
           The settled spread below is now drawn plainly — no key, no remount, no entering animation,
@@ -1375,9 +1458,12 @@ export function BinderPages({
       ) : null}
       </View>
       </GestureDetector>
+      </View>
 
       {/* Page filmstrip — tap a thumbnail to flip to it; long-press-drag reorders (edit only). */}
-      {count > 1 || coverStripExtras ? (
+      {/* The bottom dock. Rendered only when the rail is NOT on the left — the same strip lives in
+          one place or the other, never both. */}
+      {(count > 1 || coverStripExtras) && !railLeft ? (
         <View
           onLayout={(e) => setStripHeight(e.nativeEvent.layout.height)}
           style={[
@@ -1551,6 +1637,13 @@ const styles = StyleSheet.create({
   // with every removable thing above the art already gone. Shrinking the page to fit would cost
   // the artwork, which is the one thing this whole exercise is protecting. So the strip docks to
   // the bottom of the viewport and the page scrolls under it.
+  /** Always a row; with the rail on the bottom it has one child and behaves exactly as before. */
+  pageRow: { width: '100%' },
+  pageRowRailed: { flexDirection: 'row', alignItems: 'flex-start' },
+  /** The left rail. A fixed width, because the page's budget is computed from that same number. */
+  navRail: { width: NAV_RAIL_WIDTH, alignSelf: 'stretch', maxHeight: 620 },
+  /** In a row the page has to be told to take the rest; on its own it already does. */
+  pageWrapRailed: { flex: 1, minWidth: 0 },
   stripDock: { paddingTop: 4 },
   // Neighbours recede. 0.92 was an 8% dim — indistinguishable from the page in focus, which is
   // exactly the complaint: three equally bright pages with no way to tell which one you were on.

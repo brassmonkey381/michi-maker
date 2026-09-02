@@ -14,9 +14,19 @@ export interface ViewPrefs {
   scans: boolean;
   /** Pages paired like a physical binder: 1 alone, then 2·3, 4·5, … */
   doubleSided: boolean;
+  /**
+   * Where the page-navigation strip lives. Bottom is the default and the familiar one; left turns
+   * it into a rail, which costs width instead of height — and height is what the page is short of.
+   */
+  navDock: 'bottom' | 'left';
 }
 
-export const VIEW_PREF_DEFAULTS: ViewPrefs = { owned: false, scans: false, doubleSided: false };
+export const VIEW_PREF_DEFAULTS: ViewPrefs = {
+  owned: false,
+  scans: false,
+  doubleSided: false,
+  navDock: 'bottom',
+};
 
 /**
  * Anything stored can be stale or hostile — a hand-edited profile row, or a shape from a release
@@ -26,10 +36,19 @@ export const VIEW_PREF_DEFAULTS: ViewPrefs = { owned: false, scans: false, doubl
 export function normalizeViewPrefs(value: unknown): ViewPrefs | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const raw = value as Record<string, unknown>;
-  const pick = (k: keyof ViewPrefs) => (typeof raw[k] === 'boolean' ? (raw[k] as boolean) : VIEW_PREF_DEFAULTS[k]);
+  const flag = (k: 'owned' | 'scans' | 'doubleSided') =>
+    typeof raw[k] === 'boolean' ? (raw[k] as boolean) : VIEW_PREF_DEFAULTS[k];
   // A bag with none of our keys is not a preference we wrote; treat it as absent so the next
   // source in the precedence chain gets its say.
-  if (!('owned' in raw) && !('scans' in raw) && !('doubleSided' in raw)) return null;
-  return { owned: pick('owned'), scans: pick('scans'), doubleSided: pick('doubleSided') };
+  if (!('owned' in raw) && !('scans' in raw) && !('doubleSided' in raw) && !('navDock' in raw)) {
+    return null;
+  }
+  return {
+    owned: flag('owned'),
+    scans: flag('scans'),
+    doubleSided: flag('doubleSided'),
+    // An enum, not a boolean: anything that is not one of the two known values is not an answer.
+    navDock: raw.navDock === 'left' || raw.navDock === 'bottom' ? raw.navDock : VIEW_PREF_DEFAULTS.navDock,
+  };
 }
 

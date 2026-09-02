@@ -13,6 +13,23 @@ const THUMB_W = 58;
 export const STRIP_THUMB_W = THUMB_W;
 
 /**
+ * A VERTICAL THUMB'S BOX IS PINNED, and a horizontal one's is not.
+ *
+ * The drop calculation is `index + round(translation / step)`, so `step` has to be a constant — and
+ * along the horizontal axis it is, because every thumb is THUMB_W wide whatever shape its page is.
+ * Vertically there is no such constant: a thumbnail's HEIGHT comes from its page's own rows/cols
+ * through BinderGrid, so a binder mixing 3x3 and 1x2 pages has thumbs of different heights and no
+ * single correct pixels-per-index.
+ *
+ * So in a vertical rail the thumb sits in a fixed box. A 1x2 page's thumb floats in a taller box
+ * rather than the rail losing the ability to say where a drag will land.
+ */
+const THUMB_BOX_H = 92;
+const ITEM_H = THUMB_BOX_H + 8; // the box plus the row gap — the vertical pitch
+
+export type StripAxis = 'horizontal' | 'vertical';
+
+/**
  * SOMETHING IN THE STRIP THAT IS NOT A PAGE: a binder cover. It has a label instead of a number,
  * draws itself, and is never reordered, because the index space of this strip belongs to the
  * pages and a cover has no index in it. Leading ones sit before page 1, trailing ones after the
@@ -36,19 +53,31 @@ interface PageStripProps {
   onReorder?: (from: number, to: number) => void;
   leading?: StripExtra[];
   trailing?: StripExtra[];
+  /** Which way the strip runs. Vertical is the left rail; horizontal is the bottom dock. */
+  axis?: StripAxis;
 }
 
 /** Horizontal filmstrip of page thumbnails: tap to jump, and (when editable) long-press-drag to reorder. */
-export function PageStrip({ pages, currentIndex, onSelect, onReorder, leading, trailing }: PageStripProps) {
+export function PageStrip({
+  pages,
+  currentIndex,
+  onSelect,
+  onReorder,
+  leading,
+  trailing,
+  axis = 'horizontal',
+}: PageStripProps) {
   // One page is nothing to choose between, unless there are covers to choose as well.
   if (pages.length <= 1 && !leading?.length && !trailing?.length) return null;
+  const vertical = axis === 'vertical';
   return (
     <ScrollView
-      horizontal
+      horizontal={!vertical}
       showsHorizontalScrollIndicator={false}
+      showsVerticalScrollIndicator={false}
       // flexGrow centres the strip under the page when it's narrower than the screen, while a
       // long strip still scrolls normally from its left edge.
-      contentContainerStyle={styles.row}>
+      contentContainerStyle={vertical ? styles.column : styles.row}>
       {(leading ?? []).map((x) => (
         <ExtraThumb key={x.key} extra={x} />
       ))}
@@ -61,6 +90,7 @@ export function PageStrip({ pages, currentIndex, onSelect, onReorder, leading, t
           current={index === currentIndex}
           onSelect={onSelect}
           onReorder={onReorder}
+          vertical={vertical}
         />
       ))}
       {(trailing ?? []).map((x) => (
@@ -89,45 +119,55 @@ interface PageThumbProps {
   current: boolean;
   onSelect: (index: number) => void;
   onReorder?: (from: number, to: number) => void;
+  vertical?: boolean;
 }
 
-function PageThumb({ page, index, count, current, onSelect, onReorder }: PageThumbProps) {
-  const tx = useSharedValue(0);
+function PageThumb({ page, index, count, current, onSelect, onReorder, vertical = false }: PageThumbProps) {
+  // One offset, along whichever axis the strip runs. Two shared values would be two ways to be
+  // half-reset.
+  const drag = useSharedValue(0);
   const lifted = useSharedValue(0);
 
   const gesture = useMemo(() => {
     const tap = Gesture.Tap().onEnd(() => runOnJS(onSelect)(index));
     // Read-only strip (inspecting): tap-to-jump only, no drag-to-reorder.
     if (!onReorder) return tap;
+    const step = vertical ? ITEM_H : ITEM_W;
     const pan = Gesture.Pan()
-      // Long-press to lift, so horizontal scrolling of the strip still works normally.
+      // Long-press to lift, so ordinary scrolling of the strip still works. Load-bearing on both
+      // axes and more so vertically, where a drag would otherwise contend with the page's own
+      // scroller as well as with the rail's.
       .activateAfterLongPress(220)
       .onStart(() => {
         lifted.value = 1;
       })
       .onUpdate((e) => {
-        tx.value = e.translationX;
+        drag.value = vertical ? e.translationY : e.translationX;
       })
       .onEnd((e) => {
-        const target = Math.min(count - 1, Math.max(0, index + Math.round(e.translationX / ITEM_W)));
+        const moved = vertical ? e.translationY : e.translationX;
+        const target = Math.min(count - 1, Math.max(0, index + Math.round(moved / step)));
         if (target !== index) runOnJS(onReorder)(index, target);
       })
       .onFinalize(() => {
-        tx.value = 0;
+        drag.value = 0;
         lifted.value = 0;
       });
     return Gesture.Exclusive(pan, tap);
-  }, [index, count, onReorder, onSelect, tx, lifted]);
+  }, [index, count, onReorder, onSelect, drag, lifted, vertical]);
 
   const animStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: tx.value }, { scale: 1 + lifted.value * 0.08 }],
+    transform: [
+      vertical ? { translateY: drag.value } : { translateX: drag.value },
+      { scale: 1 + lifted.value * 0.08 },
+    ],
     zIndex: lifted.value > 0 ? 10 : 0,
     opacity: 1 - lifted.value * 0.06,
   }));
 
   return (
     <GestureDetector gesture={gesture}>
-      <Animated.View style={[styles.thumb, animStyle]}>
+      <Animated.View style={[styles.thumb, vertical && styles.thumbBoxed, animStyle]}>
         <View style={[styles.thumbInner, current && styles.thumbCurrent]} pointerEvents="none">
           <BinderGrid page={page} width={THUMB_W} />
         </View>
@@ -146,7 +186,18 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
   },
+  /** The same row, turned. flexGrow + centre keeps a short rail beside the middle of the page. */
+  column: {
+    gap: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    alignItems: 'center',
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
   thumb: { width: THUMB_W, alignItems: 'center' },
+  /** Vertical only: a fixed box, so the drop calculation has a constant pitch. See THUMB_BOX_H. */
+  thumbBoxed: { height: THUMB_BOX_H, justifyContent: 'center' },
   thumbInner: {
     borderRadius: 10,
     padding: 2,

@@ -50,7 +50,7 @@ function storageKey(userId: string | null): string {
 export type { ViewPrefs } from '@/data/viewPrefs';
 
 export interface ViewPrefsState extends ViewPrefs {
-  setPref: (key: keyof ViewPrefs, on: boolean) => void;
+  setPref: <K extends keyof ViewPrefs>(key: K, value: ViewPrefs[K]) => void;
 }
 
 export function useViewPrefs(): ViewPrefsState {
@@ -97,7 +97,12 @@ export function useViewPrefs(): ViewPrefsState {
         // union, and a typed interface is not assignable to it however JSON-shaped it is.
         const merged = {
           ...((profile?.preferences as object) ?? {}),
-          binderView: { owned: next.owned, scans: next.scans, doubleSided: next.doubleSided },
+          binderView: {
+            owned: next.owned,
+            scans: next.scans,
+            doubleSided: next.doubleSided,
+            navDock: next.navDock,
+          },
         };
         void supabase
           .from('profiles')
@@ -113,7 +118,7 @@ export function useViewPrefs(): ViewPrefsState {
   );
 
   const setPref = useCallback(
-    (key: keyof ViewPrefs, on: boolean) => {
+    <K extends keyof ViewPrefs>(key: K, on: ViewPrefs[K]) => {
       const next = { ...prefs, [key]: on };
       setEdited({ userId, prefs: next });
       persist(next);

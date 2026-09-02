@@ -48,7 +48,7 @@ import { PEEK_MIN_WIDTH, SPREAD_GAP, bookLayout, pageHeightAt, spreadLayout } fr
 import { useCardLabelPrefs } from '@/hooks/use-card-label-prefs';
 import { useViewPrefs, type ViewPrefsState } from '@/hooks/use-view-prefs';
 import { CoverSurface } from '@/components/binder/BinderCover';
-import { binderColourway, binderModel, type CoverSurfaceId } from '@/data/binderModels';
+import { COVER_SURFACE_LABELS, binderColourway, binderModel, type CoverSurfaceId } from '@/data/binderModels';
 import { cardThumbUrl } from '@/lib/catalogConfig';
 import type { BinderCover, CoverDecoration, DemoBinder, DemoPage, DemoSlot } from '@/data/binderTypes';
 import { allocateScanFaces } from '@/data/scanFaces';
@@ -114,6 +114,15 @@ const PAGE_WRAP_TOP_MARGIN = 8;
  * What a caller needs to draw the cover's tools somewhere of its own choosing: which surface, what
  * is selected on it, and the two writers. Handed over after commit, never during render.
  */
+/**
+ * WHAT THE BINDER IS SHOWING INSTEAD OF AN OPEN SPREAD. 'front' and 'back' are the binder shut;
+ * 'tail' is the back of the last sheet of an odd count, facing the inside back. The two inside
+ * covers are here for the SINGLE-PAGE view only: a book shows them as the empty half of the first
+ * or last spread, but a single page has no halves, so it shows an inside cover on its own, the
+ * way it shows a page on its own.
+ */
+type ShutState = null | 'front' | 'back' | 'tail' | 'frontInside' | 'backInside';
+
 export interface CoverToolsContext {
   surface: CoverSurfaceId;
   selected: string | null;
@@ -503,7 +512,7 @@ export function BinderPages({
   // 'tail' is the spread AFTER the last page of a binder with an odd page count: the back of its
   // final sheet (blank, since that page does not exist) facing the inside back cover. A binder with
   // an even count reaches its inside back on an ordinary spread and never needs this.
-  const [shut, setShut] = useState<null | 'front' | 'back' | 'tail'>(null);
+  const [shut, setShut] = useState<ShutState>(null);
 
   /**
    * THE COVER SURFACE BEING DECORATED, in edit mode. Chosen from the filmstrip (FC, IFC, IBC, BC)
@@ -518,7 +527,7 @@ export function BinderPages({
    */
   const [pending, setPending] = useState<{
     focus: CoverSurfaceId;
-    shut: null | 'front' | 'back' | 'tail';
+    shut: ShutState;
   } | null>(null);
   /** The sticker selected on the focused surface, for the toolbar to act on. */
   const [coverSelected, setCoverSelected] = useState<string | null>(null);
@@ -593,19 +602,21 @@ export function BinderPages({
     }
   }
 
-  // COVERS EXIST ONLY IN THE BOOK VIEW. Switching double-sided off, or a window narrowing below
-  // it, draws no cover anywhere, so nothing about covers may survive that: a focus on a surface
-  // that is not on screen would keep the toolbar writing to it, and a binder left shut with no
-  // way to open it (a single page loses its strip, wheel and swipe with the view) is stranded.
-  // Same adjust-during-render pattern as the page change above, so there is no frame in which the
-  // stale state is drawn.
-  if (!doubleSided && (shut || coverTurn || coverFocus || pending || coverSelected || coverDrag)) {
+  // THE TWO VIEWS SHOW COVERS DIFFERENTLY, and a switch between them must not strand anyone.
+  // The book has a tail (the back of the last sheet) and a hinge animation; the single page has
+  // neither, and instead can show an inside cover on its own. Crossing over translates the
+  // states one view lacks rather than wiping every cover state, which is what used to happen —
+  // and used to mean that turning double-sided off dropped whatever you were decorating. Same
+  // adjust-during-render pattern as the page change above.
+  if (!doubleSided && (shut === 'tail' || coverTurn)) {
+    if (shut === 'tail') setShut('backInside');
+    if (coverTurn) setCoverTurn(null);
+  }
+  if (doubleSided && (shut === 'frontInside' || shut === 'backInside')) {
+    // The book shows an inside cover as a half of a spread; a "shut onto it" state has no meaning
+    // there. Keep the focus, open the book: the page index is already at that end.
+    setCoverFocus(shut);
     setShut(null);
-    setCoverTurn(null);
-    setCoverFocus(null);
-    setPending(null);
-    setCoverSelected(null);
-    setCoverDrag(null);
   }
 
   /**
@@ -730,7 +741,12 @@ export function BinderPages({
    * you straight onto that cover.
    */
   const focused: CoverSurfaceId | null =
-    coverFocus ?? (shut === 'front' ? 'front' : shut === 'back' ? 'back' : shut === 'tail' ? 'backInside' : null);
+    coverFocus ??
+    (shut === 'front' || shut === 'back' || shut === 'frontInside' || shut === 'backInside'
+      ? shut
+      : shut === 'tail'
+        ? 'backInside'
+        : null);
 
 
   /**
@@ -743,6 +759,13 @@ export function BinderPages({
    */
   /** Every cover on the spread is drawn to the active page's box. See CoverSurface.height. */
   const coverBoxH = pageHeightAt(bookW, page.rows, page.cols, captionsOn);
+  /**
+   * THE SIZE A COVER IS DRAWN AT. In the book it is one half of the spread, so the two halves line
+   * up; in the single-page view it is the page's own width, so a cover stands where a page stands.
+   * Everything that draws or hit-tests a surface reads these two rather than bookW / coverBoxH.
+   */
+  const coverW = doubleSided ? bookW : pageWidth;
+  const coverH = doubleSided ? coverBoxH : pageHeightAt(pageWidth, page.rows, page.cols, captionsOn);
   const drawCover = (id: CoverSurfaceId | null, live = false) => {
     if (!id) return null;
     const stickers = binder.cover?.surfaces?.[id] ?? [];
@@ -758,8 +781,8 @@ export function BinderPages({
         model={coverModel}
         colourwayId={coverColour.id}
         surface={id}
-        width={bookW}
-        height={coverBoxH}
+        width={coverW}
+        height={coverH}
         stickers={shown}
         aspects={editing ? naturalAspects : undefined}
         onNaturalSize={editing ? onNaturalSize : undefined}
@@ -768,8 +791,8 @@ export function BinderPages({
         {editing ? <View ref={surfaceHostRef} pointerEvents="none" style={StyleSheet.absoluteFill} /> : null}
         {editing && binder.cover ? (
           <CoverDecorationLayer
-            width={bookW}
-            height={coverBoxH}
+            width={coverW}
+            height={coverH}
             items={stickers}
             drag={coverDrag}
             selected={coverSelected}
@@ -804,7 +827,7 @@ export function BinderPages({
             const py = ne.locationY ?? ne.offsetY;
             if (px == null || py == null) return;
             // Front-most first, so the top picture wins where two overlap.
-            const hit = [...stickers].reverse().find((d) => !d.hidden && boxContains(decorationBox(d, bookW, coverBoxH), px, py));
+            const hit = [...stickers].reverse().find((d) => !d.hidden && boxContains(decorationBox(d, coverW, coverH), px, py));
             if (hit) setCoverSelected(hit.id);
           }}
           accessibilityLabel={`Decorate ${COVER_ABBR[id]}`}>
@@ -842,13 +865,22 @@ export function BinderPages({
     setCoverSelected(null);
     setCoverTurn(null);
     setCoverDrag(null);
-    // The outside covers are seen shut; the inside back of an odd count is seen on the tail.
-    const wantShut: null | 'front' | 'back' | 'tail' =
-      id === 'front' ? 'front' : id === 'back' ? 'back' : id === 'backInside' && count % 2 === 1 ? 'tail' : null;
-    // And every cover belongs to one end of the book, so the page index goes there too: opening
-    // a cover that was focused from the middle of the binder must land on the spread it is
+    // In the book the outside covers are seen shut and the inside back of an odd count is seen
+    // on the tail; the inside covers are otherwise halves of a spread. The single-page view has
+    // no halves, so every surface is shown on its own, "shut" onto it.
+    const wantShut: ShutState = !doubleSided
+      ? id
+      : id === 'front'
+        ? 'front'
+        : id === 'back'
+          ? 'back'
+          : id === 'backInside' && count % 2 === 1
+            ? 'tail'
+            : null;
+    // And every cover belongs to one end of the binder, so the page index goes there too: opening
+    // a cover that was focused from the middle of the binder must land on the page it is
     // actually attached to, not on wherever the reader happened to be.
-    const target = id === 'front' || id === 'frontInside' ? 0 : Math.max(0, lastSpreadLeft);
+    const target = id === 'front' || id === 'frontInside' ? 0 : doubleSided ? Math.max(0, lastSpreadLeft) : Math.max(0, count - 1);
     if (target !== idx) {
       setPending({ focus: id, shut: wantShut });
       onPageChange(target);
@@ -891,7 +923,7 @@ export function BinderPages({
       host.measureInWindow((x, y, width, height) => resolve({ x, y, width, height }));
     });
   // The spread draws a cover to the page's box, so that is the aspect the panel's units use.
-  const surfaceAspectForTools = bookW / Math.max(1, pageHeightAt(bookW, page.rows, page.cols, captionsOn));
+  const surfaceAspectForTools = coverW / Math.max(1, coverH);
   useEffect(() => {
     if (!onCoverContext) return;
     onCoverContext(
@@ -931,11 +963,12 @@ export function BinderPages({
 
   /**
    * THE COVERS IN THE FILMSTRIP. Pages keep their numbers; a cover gets the abbreviation a printer
-   * would use. Only in the book view of a dressed binder, since that is the only view that draws
-   * them. Each thumb is the real renderer at 58px, so the strip shows what is actually on it.
+   * would use. In both views of a dressed binder: the book draws them as spread halves and shut
+   * ends, the single page draws each one on its own. Each thumb is the real renderer at 58px, so
+   * the strip shows what is actually on it.
    */
   const coverStripExtras: { leading?: StripExtra[]; trailing?: StripExtra[] } | undefined =
-    doubleSided && binder.cover
+    binder.cover
       ? (() => {
           const extra = (id: CoverSurfaceId, current: boolean): StripExtra => ({
             key: `cover:${id}`,
@@ -959,10 +992,10 @@ export function BinderPages({
           return {
             leading: [
               extra('front', shut === 'front'),
-              extra('frontInside', !shut && focused === 'frontInside'),
+              extra('frontInside', shut === 'frontInside' || (!shut && focused === 'frontInside')),
             ],
             trailing: [
-              extra('backInside', shut === 'tail' || (!shut && focused === 'backInside')),
+              extra('backInside', shut === 'tail' || shut === 'backInside' || (!shut && focused === 'backInside')),
               extra('back', shut === 'back'),
             ],
           };
@@ -997,13 +1030,18 @@ export function BinderPages({
     (dir: 1 | -1) => {
       // Every change of shut drops an explicit focus. The surface in focus is then whichever one
       // the binder is showing, which is the only one it makes sense to be decorating.
-      const changeShut = (next: null | 'front' | 'back' | 'tail') => {
+      const changeShut = (next: ShutState) => {
         setShut(next);
         setCoverFocus(null);
         setCoverSelected(null);
         setCoverDrag(null);
         setPending(null);
       };
+      if (!doubleSided && shut) {
+        // No hinge in the single-page view: a step off a cover simply opens the binder where it is.
+        changeShut(null);
+        return;
+      }
       if (shut === 'tail') {
         // Back into the book (the last sheet turns back), or on to shut (the cover lands on the
         // blank back of that sheet).
@@ -1056,7 +1094,7 @@ export function BinderPages({
       }
       onPageChange(target);
     },
-    [shut, forward, backward, count, canShut, onPageChange],
+    [shut, forward, backward, count, canShut, onPageChange, doubleSided],
   );
   /**
    * SWIPE TO TURN THE PAGE. Until now the only way to change page on a phone was the filmstrip —
@@ -1304,6 +1342,14 @@ export function BinderPages({
           <ThemedText type="small" themeColor="textSecondary">
             This binder doesn’t have any pages yet.
           </ThemedText>
+        ) : shut && !doubleSided ? (
+          // A COVER ON ITS OWN, in the single-page view: one column at the page's width, where the
+          // page would be, named like a page is. Any of the four surfaces.
+          <View style={[styles.spreadRow, { gap: bookGap }]}>
+            <CoverColumn width={coverW} height={coverH} label={COVER_SURFACE_LABELS[focused ?? 'front']}>
+              {drawCover(focused ?? 'front', true)}
+            </CoverColumn>
+          </View>
         ) : shut ? (
           // SHUT, OR THE TAIL. The settled picture of a binder past one of its ends, and the
           // DESTINATION of a cover turn from the first frame of that turn, exactly as a page

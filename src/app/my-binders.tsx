@@ -340,6 +340,29 @@ export default function MyBindersScreen() {
                     onOpen={openBinder}
                     accessory={(binder) => (
                       <View style={styles.tileActions}>
+                        {/* THE COVER, ON THE SHELF. It was reachable only from the ⋯ menu, which
+                            is where you go when you already know a thing exists — and a binder
+                            you have never dressed is exactly the case where you do not. The verb
+                            changes because the two are different jobs: picking a binder for the
+                            first time, and going back to one you chose.
+
+                            Hidden on demo binders, matching the ⋯ menu: they are read-only, so a
+                            model picked there would be a choice that cannot be saved. */}
+                        {binder.isDemo ? null : (
+                          <Pressable
+                            onPress={() => setCoverId(binder.id)}
+                            hitSlop={8}
+                            accessibilityLabel={
+                              binder.cover
+                                ? `Edit the cover on ${binder.title}`
+                                : `Add a cover to ${binder.title}`
+                            }
+                            style={({ pressed }) => [styles.coverBtn, pressed && styles.pressed]}>
+                            <Text style={styles.coverBtnText}>
+                              {binder.cover ? 'Edit Cover' : 'Add Cover'}
+                            </Text>
+                          </Pressable>
+                        )}
                         <Pressable
                           onPress={() => setPrintId(binder.id)}
                           hitSlop={8}
@@ -526,6 +549,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   printBtnText: { color: Palette.accentText, fontSize: FontSize.label, fontWeight: Weight.semibold },
+  // Panel-filled, not accent: Print is the tile's headline verb and two filled pills side by side
+  // would leave the row with no verb at all. Same height as Print so they sit on one baseline.
+  coverBtn: {
+    backgroundColor: Palette.panel,
+    borderRadius: Radius.pill,
+    paddingVertical: 5,
+    paddingHorizontal: Spacing.three,
+    minHeight: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coverBtnText: { color: Palette.ink2, fontSize: FontSize.label, fontWeight: Weight.semibold },
   menuBtn: {
     width: 30,
     height: 30,

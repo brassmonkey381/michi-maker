@@ -172,6 +172,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // The binder-details / page-tools disclosure. Closed on entry, and session-only on purpose: the
   // default that matters is what you see the moment you tap Edit, and that should be the binder.
   const [toolsOpen, setToolsOpen] = useState(false);
+  // The view chips (double-sided, labels, strip side, owned, scans) are rendered by BinderPages,
+  // but the gear that opens them belongs up in this screen's header, where it costs no page height.
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const editing = editingWanted && store.canEdit;
   const [pageIndex, setPageIndex] = useState(0);
   const [pickerCell, setPickerCell] = useState<{ row: number; col: number } | null>(null);
@@ -1617,6 +1620,25 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                     <Text style={styles.likeChipText}>{likeCount}</Text>
                   </Pressable>
                 ) : null}
+                {/* The view settings, in both modes. A gear, not a row. */}
+                <Pressable
+                  onPress={() => setSettingsOpen(true)}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel="View settings"
+                  testID="binder-settings-btn">
+                  <Text style={[styles.headerAction, { color: theme.text }]}>⚙</Text>
+                </Pressable>
+                {editing ? (
+                  <Pressable
+                    onPress={() => setToolsOpen(true)}
+                    hitSlop={10}
+                    accessibilityRole="button"
+                    accessibilityLabel="Binder details and tools"
+                    testID="binder-tools-btn">
+                    <Text style={[styles.headerAction, { color: theme.text }]}>Tools</Text>
+                  </Pressable>
+                ) : null}
                 {isSupabaseConfigured ? (
                   <Pressable onPress={() => setShareOpen(true)} hitSlop={10}>
                     <Text style={[styles.headerAction, { color: theme.text }]}>Share</Text>
@@ -1665,69 +1687,18 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
             {/* Read-only because another tab of this browser owns editing — see EditLockBanner. */}
             <EditLockBanner />
             <SaveErrorBanner />
-            {/* CANVAS FIRST. Edit mode used to open with a wall of forms: the title and description
-                fields beside the tools card, roughly 330px of chrome stacked ABOVE the art. On a
-                desktop that pushed the page's bottom row under the fold; on a phone, tapping Edit
-                showed no artwork at all — two blank bands and a grey panel, with the binder
-                somewhere below it.
+            {/* THE EDITOR'S ROW OF CHIPS IS GONE - all four of its buttons now live elsewhere.
 
-                Same controls, now behind a disclosure that starts closed. Editing a binder should
-                begin by showing you the binder. */}
-            {editing ? (
-              <View style={styles.editBar}>
-                {/* Select mode, and the actions it leads to. Only offered while editing, because
-                    there is nothing to bulk-act on otherwise. */}
-                <Pressable
-                  onPress={() => {
-                    setSelectMode((v) => {
-                      if (v) clearMulti();
-                      return !v;
-                    });
-                    setSelectedSlotId(null);
-                  }}
-                  accessibilityRole="switch"
-                  accessibilityState={{ checked: selectMode }}
-                  accessibilityLabel="Select several pockets"
-                  style={({ pressed }) => [pillChip.base, selectMode && pillChip.active, pressed && styles.pressed]}>
-                  <Text style={[pillChip.text, selectMode && pillChip.textActive]}>
-                    {selectMode ? `✓ Selecting${multiIds.size ? ` · ${multiIds.size}` : ''}` : '⊕ Select'}
-                  </Text>
-                </Pressable>
-                {selectMode && multiIds.size > 0 ? (
-                  <Pressable
-                    onPress={() => setMultiActionsOpen(true)}
-                    accessibilityRole="button"
-                    style={({ pressed }) => [pillChip.base, pillChip.active, pressed && styles.pressed]}>
-                    <Text style={[pillChip.text, pillChip.textActive]}>
-                      Actions · {multiIds.size}
-                    </Text>
-                  </Pressable>
-                ) : null}
-                {/* Opens the art panel on the left. It is a standing choice, not a per-pocket one,
-                    so it lives here rather than inside the picker. */}
-                <Pressable
-                  onPress={() => setArtworkOpen((v) => !v)}
-                  accessibilityRole="switch"
-                  accessibilityState={{ checked: artworkOpen }}
-                  accessibilityLabel="Show your cut artwork beside the binder"
-                  style={({ pressed }) => [pillChip.base, artworkOpen && pillChip.active, pressed && styles.pressed]}>
-                  <Text style={[pillChip.text, artworkOpen && pillChip.textActive]}>
-                    {artworkOpen ? '✓ Artwork' : '◧ Artwork'}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => setToolsOpen((v) => !v)}
-                  accessibilityRole="button"
-                  accessibilityLabel={
-                    toolsOpen ? 'Hide binder details and page tools' : 'Show binder details and page tools'
-                  }
-                  style={({ pressed }) => [pillChip.base, toolsOpen && pillChip.active, pressed && styles.pressed]}>
-                  <Text style={[pillChip.text, toolsOpen && pillChip.textActive]}>
-                    {toolsOpen ? '▾ Binder details & tools' : '▸ Binder details & tools'}
-                  </Text>
-                </Pressable>
-              </View>
-            ) : null}
+                Edit mode used to open with a wall of forms above the art; that became this one row
+                of chips, which was better but still a row. A row above the binder pushes the binder
+                DOWN, and the space above the page feeds the height budget, so every control parked
+                here costs page size in the mode where the page matters most.
+
+                Where they went: "Artwork" is redundant - that panel is a permanent rail on the left
+                now, so the rail IS the button. "Select" and its Actions moved into the details
+                dialog. "Binder details & tools" is a Tools button in the header above, which is
+                chrome this screen already draws. The header is also where the gear lives, holding
+                the view chips that used to sit on their own row inside BinderPages. */}
             {/* THE DETAILS PANEL IS A DIALOG NOW, not a row that opens here.
                 Anything that expands in the flow above the binder pushes the binder DOWN, and the
                 space above the page is measured and feeds the height budget — so opening this used
@@ -1780,6 +1751,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               // No page header in the flow at all: naming a page happens in the details dialog,
               // and the read-only title line BinderPages draws for itself is a fixed height.
               onEditPage={editing ? () => setToolsOpen(true) : undefined}
+              settingsOpen={settingsOpen}
+              onCloseSettings={() => setSettingsOpen(false)}
               renderGrid={renderGrid}
             />
 
@@ -1989,6 +1962,41 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                   </Pressable>
                 </View>
                 <ScrollView contentContainerStyle={styles.toolsScroll} keyboardShouldPersistTaps="handled">
+                  {/* Multi-select, which used to be a chip on the row above the binder. It belongs
+                      with the other things you do TO a binder rather than with the binder itself. */}
+                  <View style={styles.toolsRow}>
+                    <Pressable
+                      onPress={() => {
+                        setSelectMode((v) => {
+                          if (v) clearMulti();
+                          return !v;
+                        });
+                        setSelectedSlotId(null);
+                        setToolsOpen(false);
+                      }}
+                      accessibilityRole="switch"
+                      accessibilityState={{ checked: selectMode }}
+                      accessibilityLabel="Select several pockets"
+                      testID="binder-select-toggle"
+                      style={({ pressed }) => [pillChip.base, selectMode && pillChip.active, pressed && styles.pressed]}>
+                      <Text style={[pillChip.text, selectMode && pillChip.textActive]}>
+                        {selectMode
+                          ? `✓ Selecting${multiIds.size ? ` · ${multiIds.size}` : ''}`
+                          : '⊕ Select several pockets'}
+                      </Text>
+                    </Pressable>
+                    {selectMode && multiIds.size > 0 ? (
+                      <Pressable
+                        onPress={() => {
+                          setToolsOpen(false);
+                          setMultiActionsOpen(true);
+                        }}
+                        accessibilityRole="button"
+                        style={({ pressed }) => [pillChip.base, pillChip.active, pressed && styles.pressed]}>
+                        <Text style={[pillChip.text, pillChip.textActive]}>Actions · {multiIds.size}</Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
                   <View style={styles.binderFields}>
                     <LabeledInput
                       label="Binder title"
@@ -2288,20 +2296,6 @@ const styles = StyleSheet.create({
   description: { marginTop: 10, textAlign: 'center', maxWidth: 640, alignSelf: 'center' },
   // Detail fields share one centred column (matches the edit-tools card) so the editable
   // chrome reads as a single organised stack instead of page-wide boxes.
-  // The top editing row: title/description fields beside the page tools (side by side when there's
-  // room, stacked otherwise), leaving the bottom of the editor free for the slice tray.
-  // The one row edit mode always shows: a single disclosure of about 44px, in place of the ~330px
-  // of forms it used to open with.
-  // Three chips now, not one: a row that wraps rather than pushing itself off a narrow screen.
-  editBar: {
-    alignSelf: 'center',
-    marginTop: 8,
-    marginBottom: 2,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 6,
-  },
   toolsCard: {
     width: '100%',
     maxWidth: 760,
@@ -2319,6 +2313,7 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.two,
   },
   toolsScroll: { gap: Spacing.three, paddingBottom: Spacing.two },
+  toolsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   primaryText: { color: Palette.accent },
   editTopRow: { width: '100%', maxWidth: 1120, alignSelf: 'center', marginTop: 8, gap: 12, flexDirection: 'column' },
   editTopRowWide: { flexDirection: 'row', alignItems: 'flex-start' },

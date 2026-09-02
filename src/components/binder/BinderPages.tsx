@@ -192,6 +192,9 @@ export interface BinderPagesProps {
    * the name IS, rather than in a panel that used to open above the binder and push it down.
    */
   onEditPage?: () => void;
+  /** The view-settings dialog, opened by a gear the CALLER puts in chrome it already has. */
+  settingsOpen?: boolean;
+  onCloseSettings?: () => void;
   /** Shared "which spread column is mid-drag" value, so that column lifts above its neighbours
    *  (edit only). Omit on read-only surfaces. */
   dragCol?: SharedValue<number>;
@@ -212,6 +215,8 @@ export function BinderPages({
   onReorderPages,
   pageHeader,
   onEditPage,
+  settingsOpen = false,
+  onCloseSettings,
   dragCol,
 }: BinderPagesProps) {
   // Remembered per account (and per device for guests) rather than reset on every visit — see
@@ -323,6 +328,15 @@ export function BinderPages({
    * dock is unmounted then, so its onLayout never fires again and the state would keep whatever it
    * last measured — the page would pay for a strip that is not there.
    */
+  /**
+   * WHAT A COLUMN CALLS ITSELF. A page's own title if it has one, its number if it does not.
+   *
+   * The title used to have a row of its own above the binder, saying something this label was
+   * already half-saying two lines below it. Putting it here costs nothing — the label was always
+   * drawn — and puts a page's name on the page rather than on the chrome.
+   */
+  const columnLabel = (pg: DemoPage | null | undefined, fallback: string) =>
+    (pg?.title || '').trim() || fallback;
   const railLeft = view.navDock === 'left';
   const heightBudget = Math.max(
     0,
@@ -951,42 +965,29 @@ export function BinderPages({
           scroll, over a surface where the wheel flips pages instead. These two onLayouts report
           what the chrome actually costs. */}
       <View onLayout={(e) => setContentAbove(e.nativeEvent.layout.height)}>
-      {/* Per-page title/description — caller override (edit inputs) or read-only. */}
-      {/* THE TITLE LINE IS ALWAYS THERE, even when the page has no title — and covers get it too.
+      {/* VIEW SETTINGS LIVE BEHIND A GEAR, not on a row above the binder.
 
-          It used to render only for a page that had something to say, which made the chrome above
-          the binder a different height on different pages. Two consequences, one visible and one
-          not: flipping between a titled page and an untitled one moved the whole binder up and
-          down, and — because the space above the page is MEASURED and feeds the height budget — the
-          page was being re-sized on every such flip. Reserving the line costs one line and makes the
-          binder hold still.
+          Double-sided, Card labels, which labels, where the page strip sits, Owned and Scans
+          are settled preferences — chosen once, then you look at your binder. As a row they
+          cost the page a permanent line of height in BOTH modes to hold controls nobody
+          touches twice in a session. The caller puts the gear in chrome it already has (its
+          header), so these now cost the page nothing at all.
 
-          A caller-supplied header (the editor's editable fields) is left exactly as it was: it is
-          already always present, and it sizes itself. */}
-      {/* ONE LINE, ALWAYS, AND ALWAYS THE SAME HEIGHT — and it is the way in to naming the page.
-          The description is deliberately NOT rendered here any more: a page with two lines of prose
-          made the chrome taller than a page without, which moved the binder AND (because this space
-          is measured into the height budget) re-sized it. One line, truncated, opens the dialog. */}
-      {pageHeader ?? (
-        <Pressable
-          onPress={onEditPage}
-          disabled={!onEditPage}
-          accessibilityRole={onEditPage ? 'button' : undefined}
-          accessibilityLabel={onEditPage ? 'Edit this page\'s title and description' : undefined}
-          style={[styles.pageDetailsRead, styles.pageDetailsReserved]}>
-          <ThemedText
-            type="smallBold"
-            themeColor={page?.title ? undefined : 'textSecondary'}
-            numberOfLines={1}
-            style={styles.pageTitle}>
-            {page?.title || (onEditPage ? 'Name this page' : ' ')}
-          </ThemedText>
-        </Pressable>
-      )}
-
-      {/* View controls: double-sided (book spreads) + card labels. Page flipping is the
-          filmstrip / mouse wheel / neighbour taps / arrow keys — no ‹ m/n › readout. */}
-      <View style={styles.labelsRow}>
+          The page title went the same way, upward: it is the column label now (see the
+          `label` passed to SpreadColumn), which already said "Page 1" in the same place. One
+          line instead of two, and the name sits on the page it names. */}
+      {settingsOpen ? (
+        <Modal visible transparent animationType="fade" onRequestClose={onCloseSettings}>
+          <View style={sheet.dialogBackdrop}>
+            <Pressable style={StyleSheet.absoluteFill} onPress={onCloseSettings} />
+            <ThemedView type="backgroundElement" style={styles.settingsCard}>
+              <View style={styles.settingsHead}>
+                <ThemedText type="subtitle">View</ThemedText>
+                <Pressable onPress={onCloseSettings} hitSlop={10}>
+                  <Text style={styles.fieldsDone}>Done</Text>
+                </Pressable>
+              </View>
+              <View style={styles.settingsBody}>
         <View style={styles.viewToggles}>
           {toolPills}
           {canDoubleSide ? (
@@ -1084,6 +1085,11 @@ export function BinderPages({
             </View>
           </Modal>
         ) : null}
+              </View>
+            </ThemedView>
+          </View>
+        </Modal>
+      ) : null}
         {/* DECORATING, IN THE BINDER. The tools for whichever cover is in focus, next to the
             page it belongs with rather than in a dialog. Inside the measured block, so the page
             makes room for them instead of pushing the filmstrip down. */}
@@ -1098,7 +1104,6 @@ export function BinderPages({
         ) : null}
       </View>
 
-      </View>
 
       {/* The page — a prev · current · next spread on wide screens, else the single page. */}
       {/* testID rides through to data-testid on web. It exists so a screenshot harness can MEASURE
@@ -1175,7 +1180,7 @@ export function BinderPages({
               // nothing at all, so it is handed the active page purely as a presence check.
               page={leftPage ?? (coverOf(spreadLeftIdx, 'left') ? page : null)}
               width={bookW}
-              label={leftPage ? `Page ${spreadLeftIdx + 1}` : coverOf(spreadLeftIdx, 'left') ? 'Inside front' : ''}
+              label={leftPage ? columnLabel(leftPage, `Page ${spreadLeftIdx + 1}`) : coverOf(spreadLeftIdx, 'left') ? 'Inside front' : ''}
               onFocus={
                 leftPage && spreadLeftIdx !== idx ? () => onPageChange(spreadLeftIdx) : undefined
               }
@@ -1198,7 +1203,7 @@ export function BinderPages({
             <SpreadColumn
               page={rightPage ?? (coverOf(spreadRightIdx, 'right') ? page : null)}
               width={bookW}
-              label={rightPage ? `Page ${spreadRightIdx + 1}` : coverOf(spreadRightIdx, 'right') ? 'Inside back' : ''}
+              label={rightPage ? columnLabel(rightPage, `Page ${spreadRightIdx + 1}`) : coverOf(spreadRightIdx, 'right') ? 'Inside back' : ''}
               onFocus={
                 rightPage && spreadRightIdx !== idx ? () => onPageChange(spreadRightIdx) : undefined
               }
@@ -1224,7 +1229,7 @@ export function BinderPages({
             <SpreadColumn
               page={prevPage}
               width={spreadWidth}
-              label={prevPage ? `‹ Page ${idx}` : ''}
+              label={prevPage ? `‹ ${columnLabel(prevPage, `Page ${idx}`)}` : ''}
               onFocus={() => onPageChange(idx - 1)}
               editable={editable}
               dragCol={dragCol}
@@ -1238,7 +1243,8 @@ export function BinderPages({
             <SpreadColumn
               page={page}
               width={spreadWidth}
-              label={`Page ${idx + 1}`}
+              label={columnLabel(page, `Page ${idx + 1}`)}
+              onPressLabel={onEditPage}
               editable={editable}
               dragCol={dragCol}
               columnIndex={1}
@@ -1251,7 +1257,7 @@ export function BinderPages({
             <SpreadColumn
               page={nextPage}
               width={spreadWidth}
-              label={nextPage ? `Page ${idx + 2} ›` : ''}
+              label={nextPage ? `${columnLabel(nextPage, `Page ${idx + 2}`)} ›` : ''}
               onFocus={() => onPageChange(idx + 1)}
               editable={editable}
               dragCol={dragCol}
@@ -1618,6 +1624,7 @@ function SpreadColumn({
   width,
   label,
   onFocus,
+  onPressLabel,
   editable,
   dragCol,
   columnIndex,
@@ -1630,6 +1637,12 @@ function SpreadColumn({
   width: number;
   label: string;
   onFocus?: () => void;
+  /**
+   * What tapping the LABEL does, when that differs from tapping the page. The current column has
+   * nowhere to navigate to, so its label opens the page's own details instead — which is where the
+   * page title is set, so a page is renamed exactly where its name is shown.
+   */
+  onPressLabel?: () => void;
   editable: boolean;
   dragCol?: SharedValue<number>;
   columnIndex: number;
@@ -1663,8 +1676,13 @@ function SpreadColumn({
     <Animated.View
       style={[styles.neighbor, columnStyle]}
       testID={role === 'current' ? 'binder-page-current' : `binder-page-${role}`}>
-      {onFocus ? (
-        <Pressable onPress={onFocus} hitSlop={6} accessibilityLabel={label}>
+      {onPressLabel || onFocus ? (
+        <Pressable
+          onPress={onPressLabel ?? onFocus}
+          hitSlop={6}
+          testID={onPressLabel ? 'binder-page-title' : undefined}
+          accessibilityRole="button"
+          accessibilityLabel={onPressLabel ? `${label} — edit this page` : label}>
           {labelEl}
         </Pressable>
       ) : (
@@ -1712,6 +1730,18 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
   },
   fieldsHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 10 },
+  settingsCard: {
+    width: '100%',
+    maxWidth: 560,
+    maxHeight: '86%',
+    alignSelf: 'center',
+    borderRadius: Radius.panel,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 18,
+  },
+  settingsHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 12 },
+  settingsBody: { alignItems: 'center', gap: 10 },
   fieldsDone: { fontSize: FontSize.md, fontWeight: Weight.semibold, color: Palette.accent },
   // 8, not 18. That margin was free when the page was sized by width and simply overflowed; now
   // that the page is fitted to the height it has, every pixel of margin comes straight off the card

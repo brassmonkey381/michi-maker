@@ -209,6 +209,10 @@ function Viewer({
     };
   }, [binder.id]);
   const openAuthor = () => author && router.push(`/u/${profileHandle(author)}` as never);
+  // The view chips (double-sided, card labels, where the page strip sits) used to be a row above
+  // the pages here too. They are a dialog now, opened from the gear beside the like button, so a
+  // visitor's first sight of a shared binder is the binder.
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
     <ScrollView
@@ -244,6 +248,16 @@ function Viewer({
 
       <View style={styles.likeRow}>
         <LikeButton binderId={binder.id} onNeedsAccount={() => setNeedAccount(true)} />
+        <Pressable
+          onPress={() => setSettingsOpen(true)}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="View settings"
+          testID="binder-settings-btn">
+          <ThemedText type="small" themeColor="textSecondary" style={styles.gear}>
+            ⚙
+          </ThemedText>
+        </Pressable>
       </View>
       {needAccount ? (
         <ThemedText type="small" themeColor="textSecondary" style={styles.likeHint}>
@@ -254,6 +268,8 @@ function Viewer({
       {/* The same page-browsing surface the owner sees — read-only here. */}
       <BinderPages
         viewportTop={viewportTop}
+        settingsOpen={settingsOpen}
+        onCloseSettings={() => setSettingsOpen(false)}
         binder={binder}
         pageIndex={pageIndex}
         onPageChange={onPage}
@@ -314,7 +330,8 @@ const styles = StyleSheet.create({
   },
   title: { textAlign: 'center', fontFamily: Fonts?.brand, fontSize: FontSize.nav, lineHeight: 34 },
   description: { textAlign: 'center', marginTop: Spacing.two, maxWidth: 520 },
-  likeRow: { marginTop: Spacing.three, alignItems: 'center' },
+  gear: { fontSize: 18 },
+  likeRow: { marginTop: Spacing.three, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.three },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginBottom: Spacing.two },
   likeHint: { marginTop: Spacing.two, textAlign: 'center' },
   madeWith: { marginTop: Spacing.five },

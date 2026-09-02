@@ -1,0 +1,6521 @@
+[
+ {
+  "id": "showcase-3x4",
+  "title": "3x4 layout showcase",
+  "description": "Every art layout michi-maker composes onto a twelve-pocket page, one after another, over cards from ME: 30th Celebration, M6: Storm Emeralda and ME05: Pitch Black. Read it double-sided: the spreads only make sense with both pages open.",
+  "layoutStyle": "freeform",
+  "isExample": true,
+  "pages": [
+   {
+    "id": "showcase-3x4-p00",
+    "title": "3x4 layout showcase",
+    "description": "Forty pages of twelve pockets. Each page names the layout it uses and says what the art is doing there. Spreads are marked as spreads: those were chosen for two pages seen together and do not read as one composition on their own.",
+    "rows": 3,
+    "cols": 4,
+    "slots": []
+   },
+   {
+    "id": "showcase-3x4-p01",
+    "title": "Gutter Bridge (left)",
+    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. An open 12-pocket binder is close to a metre of card and reads as two separate walls of twelve.  Art here: Bridging band.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p01-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696830"
+     },
+     {
+      "id": "showcase-3x4-p01-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696676"
+     },
+     {
+      "id": "showcase-3x4-p01-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712934"
+     },
+     {
+      "id": "showcase-3x4-p01-s03",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712935"
+     },
+     {
+      "id": "showcase-3x4-p01-s04",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712936"
+     },
+     {
+      "id": "showcase-3x4-p01-s05",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712937"
+     },
+     {
+      "id": "showcase-3x4-p01-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712938"
+     },
+     {
+      "id": "showcase-3x4-p01-s07",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712939"
+     },
+     {
+      "id": "showcase-3x4-p01-s08",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712940"
+     },
+     {
+      "id": "showcase-3x4-p01-s09",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712941"
+     },
+     {
+      "id": "showcase-3x4-p01-s10",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x4-spread-gutter-bridge",
+      "artRole": "band"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p02",
+    "title": "Gutter Bridge (right)",
+    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. An open 12-pocket binder is close to a metre of card and reads as two separate walls of twelve.  Art here: Bridging band.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p02-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696680"
+     },
+     {
+      "id": "showcase-3x4-p02-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696681"
+     },
+     {
+      "id": "showcase-3x4-p02-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712942"
+     },
+     {
+      "id": "showcase-3x4-p02-s03",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712943"
+     },
+     {
+      "id": "showcase-3x4-p02-s04",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712944"
+     },
+     {
+      "id": "showcase-3x4-p02-s05",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712945"
+     },
+     {
+      "id": "showcase-3x4-p02-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712946"
+     },
+     {
+      "id": "showcase-3x4-p02-s07",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712947"
+     },
+     {
+      "id": "showcase-3x4-p02-s08",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712948"
+     },
+     {
+      "id": "showcase-3x4-p02-s09",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696682"
+     },
+     {
+      "id": "showcase-3x4-p02-s10",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x4-spread-gutter-bridge",
+      "artRole": "band"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p03",
+    "title": "Establishing Tier",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. A 4-wide page reads as three identical horizontal bands and nothing tells the eye where to start.  Art here: Title band.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p03-s00",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709157"
+     },
+     {
+      "id": "showcase-3x4-p03-s01",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709158"
+     },
+     {
+      "id": "showcase-3x4-p03-s02",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709159"
+     },
+     {
+      "id": "showcase-3x4-p03-s03",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709160"
+     },
+     {
+      "id": "showcase-3x4-p03-s04",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709161"
+     },
+     {
+      "id": "showcase-3x4-p03-s05",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709162"
+     },
+     {
+      "id": "showcase-3x4-p03-s06",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709163"
+     },
+     {
+      "id": "showcase-3x4-p03-s07",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709164"
+     },
+     {
+      "id": "showcase-3x4-p03-s08",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 4,
+      "type": "artwork",
+      "artTemplateId": "3x4-establishing-tier",
+      "artRole": "title"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p04",
+    "title": "Counterweight Corner",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. A left-to-right reader lands first in the upper left, so a hero card placed there loads that corner and leaves the bottom right feeling hollow.  Art here: Anchor block.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p04-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709165"
+     },
+     {
+      "id": "showcase-3x4-p04-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709166"
+     },
+     {
+      "id": "showcase-3x4-p04-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709167"
+     },
+     {
+      "id": "showcase-3x4-p04-s03",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709168"
+     },
+     {
+      "id": "showcase-3x4-p04-s04",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709169"
+     },
+     {
+      "id": "showcase-3x4-p04-s05",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709170"
+     },
+     {
+      "id": "showcase-3x4-p04-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709171"
+     },
+     {
+      "id": "showcase-3x4-p04-s07",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709172"
+     },
+     {
+      "id": "showcase-3x4-p04-s08",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 2,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x4-counterweight-corner",
+      "artRole": "anchor"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p05",
+    "title": "Centrefold (left)",
+    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The art is a true centrefold: it claims the two columns either side of the gutter, which is exactly the zone a ring binder curves away from, where cards are hardest to see and hardest to seat.  Art here: Edge rail.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p05-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704758"
+     },
+     {
+      "id": "showcase-3x4-p05-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704759"
+     },
+     {
+      "id": "showcase-3x4-p05-s02",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704760"
+     },
+     {
+      "id": "showcase-3x4-p05-s03",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704761"
+     },
+     {
+      "id": "showcase-3x4-p05-s04",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704762"
+     },
+     {
+      "id": "showcase-3x4-p05-s05",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704763"
+     },
+     {
+      "id": "showcase-3x4-p05-s06",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 3,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x4-spread-centrefold",
+      "artRole": "rail"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p06",
+    "title": "Centrefold (right)",
+    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The art is a true centrefold: it claims the two columns either side of the gutter, which is exactly the zone a ring binder curves away from, where cards are hardest to see and hardest to seat.  Art here: Edge rail.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p06-s00",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704764"
+     },
+     {
+      "id": "showcase-3x4-p06-s01",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704765"
+     },
+     {
+      "id": "showcase-3x4-p06-s02",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704766"
+     },
+     {
+      "id": "showcase-3x4-p06-s03",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704767"
+     },
+     {
+      "id": "showcase-3x4-p06-s04",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704768"
+     },
+     {
+      "id": "showcase-3x4-p06-s05",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704769"
+     },
+     {
+      "id": "showcase-3x4-p06-s06",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 3,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x4-spread-centrefold",
+      "artRole": "rail"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p07",
+    "title": "The Complete Run",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The art here is the absence of art, and that is a decision, not a default.  Art here: no art, on purpose.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p07-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712949"
+     },
+     {
+      "id": "showcase-3x4-p07-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712950"
+     },
+     {
+      "id": "showcase-3x4-p07-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712951"
+     },
+     {
+      "id": "showcase-3x4-p07-s03",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712952"
+     },
+     {
+      "id": "showcase-3x4-p07-s04",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696831"
+     },
+     {
+      "id": "showcase-3x4-p07-s05",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696678"
+     },
+     {
+      "id": "showcase-3x4-p07-s06",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696834"
+     },
+     {
+      "id": "showcase-3x4-p07-s07",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696677"
+     },
+     {
+      "id": "showcase-3x4-p07-s08",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714359"
+     },
+     {
+      "id": "showcase-3x4-p07-s09",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696679"
+     },
+     {
+      "id": "showcase-3x4-p07-s10",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696835"
+     },
+     {
+      "id": "showcase-3x4-p07-s11",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714356"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p08",
+    "title": "Reliquary Ring",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. A full perimeter turns the page into a MOUNT.  Art here: Footer caption band, Single accent, Title band.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p08-s00",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714357"
+     },
+     {
+      "id": "showcase-3x4-p08-s01",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696832"
+     },
+     {
+      "id": "showcase-3x4-p08-s02",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 4,
+      "type": "artwork",
+      "artTemplateId": "3x4-reliquary-ring",
+      "artRole": "title"
+     },
+     {
+      "id": "showcase-3x4-p08-s03",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x4-reliquary-ring",
+      "artRole": "accent"
+     },
+     {
+      "id": "showcase-3x4-p08-s04",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x4-reliquary-ring",
+      "artRole": "accent"
+     },
+     {
+      "id": "showcase-3x4-p08-s05",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 4,
+      "type": "artwork",
+      "artTemplateId": "3x4-reliquary-ring",
+      "artRole": "footer"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p09",
+    "title": "Splash and Grid (left)",
+    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Straight out of comics: a splash facing a grid.  Art here: Full-page plate.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p09-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 3,
+      "colSpan": 4,
+      "type": "artwork",
+      "artTemplateId": "3x4-spread-splash-and-grid",
+      "artRole": "plate"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p10",
+    "title": "Splash and Grid (right)",
+    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Straight out of comics: a splash facing a grid.  Art here: no art, on purpose.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p10-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709173"
+     },
+     {
+      "id": "showcase-3x4-p10-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709174"
+     },
+     {
+      "id": "showcase-3x4-p10-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709175"
+     },
+     {
+      "id": "showcase-3x4-p10-s03",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709176"
+     },
+     {
+      "id": "showcase-3x4-p10-s04",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709177"
+     },
+     {
+      "id": "showcase-3x4-p10-s05",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709178"
+     },
+     {
+      "id": "showcase-3x4-p10-s06",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709179"
+     },
+     {
+      "id": "showcase-3x4-p10-s07",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709286"
+     },
+     {
+      "id": "showcase-3x4-p10-s08",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709289"
+     },
+     {
+      "id": "showcase-3x4-p10-s09",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709180"
+     },
+     {
+      "id": "showcase-3x4-p10-s10",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709181"
+     },
+     {
+      "id": "showcase-3x4-p10-s11",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709182"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p11",
+    "title": "Nameplate and Placeholder",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. Two different small jobs, each with its own reason, and neither is decoration.  Art here: Bridging band, Single accent.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p11-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704770"
+     },
+     {
+      "id": "showcase-3x4-p11-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704771"
+     },
+     {
+      "id": "showcase-3x4-p11-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704772"
+     },
+     {
+      "id": "showcase-3x4-p11-s03",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704773"
+     },
+     {
+      "id": "showcase-3x4-p11-s04",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704774"
+     },
+     {
+      "id": "showcase-3x4-p11-s05",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704775"
+     },
+     {
+      "id": "showcase-3x4-p11-s06",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704776"
+     },
+     {
+      "id": "showcase-3x4-p11-s07",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704777"
+     },
+     {
+      "id": "showcase-3x4-p11-s08",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704778"
+     },
+     {
+      "id": "showcase-3x4-p11-s09",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x4-nameplate-and-placeholder",
+      "artRole": "band"
+     },
+     {
+      "id": "showcase-3x4-p11-s10",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x4-nameplate-and-placeholder",
+      "artRole": "accent"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p12",
+    "title": "Opposite Corners",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. Two wide art blocks in diagonally opposite corners set up a tension the eye has to resolve: it enters at the top-left block, is pulled across and down to the bottom-right block, and the eight cards between them become the PATH rather than the content.  Art here: Bridging band.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p12-s00",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704779"
+     },
+     {
+      "id": "showcase-3x4-p12-s01",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704780"
+     },
+     {
+      "id": "showcase-3x4-p12-s02",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704781"
+     },
+     {
+      "id": "showcase-3x4-p12-s03",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704782"
+     },
+     {
+      "id": "showcase-3x4-p12-s04",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704783"
+     },
+     {
+      "id": "showcase-3x4-p12-s05",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704784"
+     },
+     {
+      "id": "showcase-3x4-p12-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704785"
+     },
+     {
+      "id": "showcase-3x4-p12-s07",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704786"
+     },
+     {
+      "id": "showcase-3x4-p12-s08",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x4-opposite-corners",
+      "artRole": "band"
+     },
+     {
+      "id": "showcase-3x4-p12-s09",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x4-opposite-corners",
+      "artRole": "band"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p13",
+    "title": "The Full Two Dozen (left)",
+    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Deliberately no art, and that is the curatorial decision.  Art here: no art, on purpose.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p13-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696833"
+     },
+     {
+      "id": "showcase-3x4-p13-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696683"
+     },
+     {
+      "id": "showcase-3x4-p13-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696684"
+     },
+     {
+      "id": "showcase-3x4-p13-s03",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696685"
+     },
+     {
+      "id": "showcase-3x4-p13-s04",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714360"
+     },
+     {
+      "id": "showcase-3x4-p13-s05",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714358"
+     },
+     {
+      "id": "showcase-3x4-p13-s06",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696686"
+     },
+     {
+      "id": "showcase-3x4-p13-s07",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712953"
+     },
+     {
+      "id": "showcase-3x4-p13-s08",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712954"
+     },
+     {
+      "id": "showcase-3x4-p13-s09",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696687"
+     },
+     {
+      "id": "showcase-3x4-p13-s10",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696688"
+     },
+     {
+      "id": "showcase-3x4-p13-s11",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696830"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p14",
+    "title": "The Full Two Dozen (right)",
+    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Deliberately no art, and that is the curatorial decision.  Art here: no art, on purpose.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p14-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696676"
+     },
+     {
+      "id": "showcase-3x4-p14-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712934"
+     },
+     {
+      "id": "showcase-3x4-p14-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712935"
+     },
+     {
+      "id": "showcase-3x4-p14-s03",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712936"
+     },
+     {
+      "id": "showcase-3x4-p14-s04",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712937"
+     },
+     {
+      "id": "showcase-3x4-p14-s05",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712938"
+     },
+     {
+      "id": "showcase-3x4-p14-s06",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712939"
+     },
+     {
+      "id": "showcase-3x4-p14-s07",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712940"
+     },
+     {
+      "id": "showcase-3x4-p14-s08",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712941"
+     },
+     {
+      "id": "showcase-3x4-p14-s09",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696680"
+     },
+     {
+      "id": "showcase-3x4-p14-s10",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696681"
+     },
+     {
+      "id": "showcase-3x4-p14-s11",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712942"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p15",
+    "title": "Poster and Gallery",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The 4-column page is uncomfortably wide for one composition, so this splits it into two objects of unequal weight.  Art here: Edge rail.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p15-s00",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709183"
+     },
+     {
+      "id": "showcase-3x4-p15-s01",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709184"
+     },
+     {
+      "id": "showcase-3x4-p15-s02",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709185"
+     },
+     {
+      "id": "showcase-3x4-p15-s03",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709186"
+     },
+     {
+      "id": "showcase-3x4-p15-s04",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709187"
+     },
+     {
+      "id": "showcase-3x4-p15-s05",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709188"
+     },
+     {
+      "id": "showcase-3x4-p15-s06",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 3,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x4-poster-and-gallery",
+      "artRole": "rail"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p16",
+    "title": "Establishing Tier",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. A 4-wide page reads as three identical horizontal bands and nothing tells the eye where to start.  Art here: Title band.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p16-s00",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709288"
+     },
+     {
+      "id": "showcase-3x4-p16-s01",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709189"
+     },
+     {
+      "id": "showcase-3x4-p16-s02",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709190"
+     },
+     {
+      "id": "showcase-3x4-p16-s03",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709191"
+     },
+     {
+      "id": "showcase-3x4-p16-s04",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709192"
+     },
+     {
+      "id": "showcase-3x4-p16-s05",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709193"
+     },
+     {
+      "id": "showcase-3x4-p16-s06",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709194"
+     },
+     {
+      "id": "showcase-3x4-p16-s07",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709195"
+     },
+     {
+      "id": "showcase-3x4-p16-s08",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 4,
+      "type": "artwork",
+      "artTemplateId": "3x4-establishing-tier",
+      "artRole": "title"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p17",
+    "title": "Reliquary (left)",
+    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. A real border, art on all four sides of the right page, leaving an interior of two pockets.  Art here: no art, on purpose.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p17-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704787"
+     },
+     {
+      "id": "showcase-3x4-p17-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704788"
+     },
+     {
+      "id": "showcase-3x4-p17-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704789"
+     },
+     {
+      "id": "showcase-3x4-p17-s03",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704790"
+     },
+     {
+      "id": "showcase-3x4-p17-s04",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704791"
+     },
+     {
+      "id": "showcase-3x4-p17-s05",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704792"
+     },
+     {
+      "id": "showcase-3x4-p17-s06",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704793"
+     },
+     {
+      "id": "showcase-3x4-p17-s07",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704794"
+     },
+     {
+      "id": "showcase-3x4-p17-s08",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704795"
+     },
+     {
+      "id": "showcase-3x4-p17-s09",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704796"
+     },
+     {
+      "id": "showcase-3x4-p17-s10",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704797"
+     },
+     {
+      "id": "showcase-3x4-p17-s11",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704798"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p18",
+    "title": "Reliquary (right)",
+    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. A real border, art on all four sides of the right page, leaving an interior of two pockets.  Art here: Footer caption band, Single accent, Title band.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p18-s00",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704799"
+     },
+     {
+      "id": "showcase-3x4-p18-s01",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704800"
+     },
+     {
+      "id": "showcase-3x4-p18-s02",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 4,
+      "type": "artwork",
+      "artTemplateId": "3x4-spread-reliquary",
+      "artRole": "title"
+     },
+     {
+      "id": "showcase-3x4-p18-s03",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x4-spread-reliquary",
+      "artRole": "accent"
+     },
+     {
+      "id": "showcase-3x4-p18-s04",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x4-spread-reliquary",
+      "artRole": "accent"
+     },
+     {
+      "id": "showcase-3x4-p18-s05",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 4,
+      "type": "artwork",
+      "artTemplateId": "3x4-spread-reliquary",
+      "artRole": "footer"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p19",
+    "title": "Counterweight Corner",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. A left-to-right reader lands first in the upper left, so a hero card placed there loads that corner and leaves the bottom right feeling hollow.  Art here: Anchor block.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p19-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712943"
+     },
+     {
+      "id": "showcase-3x4-p19-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712944"
+     },
+     {
+      "id": "showcase-3x4-p19-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712945"
+     },
+     {
+      "id": "showcase-3x4-p19-s03",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712946"
+     },
+     {
+      "id": "showcase-3x4-p19-s04",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712947"
+     },
+     {
+      "id": "showcase-3x4-p19-s05",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712948"
+     },
+     {
+      "id": "showcase-3x4-p19-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696682"
+     },
+     {
+      "id": "showcase-3x4-p19-s07",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712949"
+     },
+     {
+      "id": "showcase-3x4-p19-s08",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 2,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x4-counterweight-corner",
+      "artRole": "anchor"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p20",
+    "title": "The Complete Run",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The art here is the absence of art, and that is a decision, not a default.  Art here: no art, on purpose.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p20-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712950"
+     },
+     {
+      "id": "showcase-3x4-p20-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712951"
+     },
+     {
+      "id": "showcase-3x4-p20-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712952"
+     },
+     {
+      "id": "showcase-3x4-p20-s03",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696831"
+     },
+     {
+      "id": "showcase-3x4-p20-s04",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696678"
+     },
+     {
+      "id": "showcase-3x4-p20-s05",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696834"
+     },
+     {
+      "id": "showcase-3x4-p20-s06",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696677"
+     },
+     {
+      "id": "showcase-3x4-p20-s07",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714359"
+     },
+     {
+      "id": "showcase-3x4-p20-s08",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696679"
+     },
+     {
+      "id": "showcase-3x4-p20-s09",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696835"
+     },
+     {
+      "id": "showcase-3x4-p20-s10",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714356"
+     },
+     {
+      "id": "showcase-3x4-p20-s11",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714357"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p21",
+    "title": "Titled Run (left)",
+    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Art used as typography rather than as picture.  Art here: Footer caption band, Title band.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p21-s00",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709196"
+     },
+     {
+      "id": "showcase-3x4-p21-s01",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709197"
+     },
+     {
+      "id": "showcase-3x4-p21-s02",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709198"
+     },
+     {
+      "id": "showcase-3x4-p21-s03",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709199"
+     },
+     {
+      "id": "showcase-3x4-p21-s04",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 4,
+      "type": "artwork",
+      "artTemplateId": "3x4-spread-titled-run",
+      "artRole": "title"
+     },
+     {
+      "id": "showcase-3x4-p21-s05",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 4,
+      "type": "artwork",
+      "artTemplateId": "3x4-spread-titled-run",
+      "artRole": "footer"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p22",
+    "title": "Titled Run (right)",
+    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Art used as typography rather than as picture.  Art here: no art, on purpose.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p22-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709200"
+     },
+     {
+      "id": "showcase-3x4-p22-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709201"
+     },
+     {
+      "id": "showcase-3x4-p22-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709202"
+     },
+     {
+      "id": "showcase-3x4-p22-s03",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709203"
+     },
+     {
+      "id": "showcase-3x4-p22-s04",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709204"
+     },
+     {
+      "id": "showcase-3x4-p22-s05",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709205"
+     },
+     {
+      "id": "showcase-3x4-p22-s06",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709206"
+     },
+     {
+      "id": "showcase-3x4-p22-s07",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709207"
+     },
+     {
+      "id": "showcase-3x4-p22-s08",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709208"
+     },
+     {
+      "id": "showcase-3x4-p22-s09",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709209"
+     },
+     {
+      "id": "showcase-3x4-p22-s10",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709210"
+     },
+     {
+      "id": "showcase-3x4-p22-s11",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709211"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p23",
+    "title": "Reliquary Ring",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. A full perimeter turns the page into a MOUNT.  Art here: Footer caption band, Single accent, Title band.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p23-s00",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704801"
+     },
+     {
+      "id": "showcase-3x4-p23-s01",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704802"
+     },
+     {
+      "id": "showcase-3x4-p23-s02",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 4,
+      "type": "artwork",
+      "artTemplateId": "3x4-reliquary-ring",
+      "artRole": "title"
+     },
+     {
+      "id": "showcase-3x4-p23-s03",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x4-reliquary-ring",
+      "artRole": "accent"
+     },
+     {
+      "id": "showcase-3x4-p23-s04",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x4-reliquary-ring",
+      "artRole": "accent"
+     },
+     {
+      "id": "showcase-3x4-p23-s05",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 4,
+      "type": "artwork",
+      "artTemplateId": "3x4-reliquary-ring",
+      "artRole": "footer"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p24",
+    "title": "Nameplate and Placeholder",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. Two different small jobs, each with its own reason, and neither is decoration.  Art here: Bridging band, Single accent.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p24-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704803"
+     },
+     {
+      "id": "showcase-3x4-p24-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704804"
+     },
+     {
+      "id": "showcase-3x4-p24-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704805"
+     },
+     {
+      "id": "showcase-3x4-p24-s03",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704806"
+     },
+     {
+      "id": "showcase-3x4-p24-s04",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704807"
+     },
+     {
+      "id": "showcase-3x4-p24-s05",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704808"
+     },
+     {
+      "id": "showcase-3x4-p24-s06",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704809"
+     },
+     {
+      "id": "showcase-3x4-p24-s07",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704810"
+     },
+     {
+      "id": "showcase-3x4-p24-s08",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704811"
+     },
+     {
+      "id": "showcase-3x4-p24-s09",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x4-nameplate-and-placeholder",
+      "artRole": "band"
+     },
+     {
+      "id": "showcase-3x4-p24-s10",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x4-nameplate-and-placeholder",
+      "artRole": "accent"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p25",
+    "title": "Opposite Corners (left)",
+    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The two 2x2 blocks sit in diagonally opposed corners of the whole spread, outer top left and inner bottom right, so their weight cancels and neither page tips.  Art here: Anchor block.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p25-s00",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696832"
+     },
+     {
+      "id": "showcase-3x4-p25-s01",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696833"
+     },
+     {
+      "id": "showcase-3x4-p25-s02",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696683"
+     },
+     {
+      "id": "showcase-3x4-p25-s03",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696684"
+     },
+     {
+      "id": "showcase-3x4-p25-s04",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696685"
+     },
+     {
+      "id": "showcase-3x4-p25-s05",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714360"
+     },
+     {
+      "id": "showcase-3x4-p25-s06",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714358"
+     },
+     {
+      "id": "showcase-3x4-p25-s07",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696686"
+     },
+     {
+      "id": "showcase-3x4-p25-s08",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 2,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x4-spread-opposite-corners",
+      "artRole": "anchor"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p26",
+    "title": "Opposite Corners (right)",
+    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The two 2x2 blocks sit in diagonally opposed corners of the whole spread, outer top left and inner bottom right, so their weight cancels and neither page tips.  Art here: Anchor block.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p26-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712953"
+     },
+     {
+      "id": "showcase-3x4-p26-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712954"
+     },
+     {
+      "id": "showcase-3x4-p26-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696687"
+     },
+     {
+      "id": "showcase-3x4-p26-s03",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696688"
+     },
+     {
+      "id": "showcase-3x4-p26-s04",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696830"
+     },
+     {
+      "id": "showcase-3x4-p26-s05",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696676"
+     },
+     {
+      "id": "showcase-3x4-p26-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712934"
+     },
+     {
+      "id": "showcase-3x4-p26-s07",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712935"
+     },
+     {
+      "id": "showcase-3x4-p26-s08",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 2,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x4-spread-opposite-corners",
+      "artRole": "anchor"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p27",
+    "title": "Opposite Corners",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. Two wide art blocks in diagonally opposite corners set up a tension the eye has to resolve: it enters at the top-left block, is pulled across and down to the bottom-right block, and the eight cards between them become the PATH rather than the content.  Art here: Bridging band.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p27-s00",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709212"
+     },
+     {
+      "id": "showcase-3x4-p27-s01",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709213"
+     },
+     {
+      "id": "showcase-3x4-p27-s02",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709214"
+     },
+     {
+      "id": "showcase-3x4-p27-s03",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709215"
+     },
+     {
+      "id": "showcase-3x4-p27-s04",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709216"
+     },
+     {
+      "id": "showcase-3x4-p27-s05",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709217"
+     },
+     {
+      "id": "showcase-3x4-p27-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709218"
+     },
+     {
+      "id": "showcase-3x4-p27-s07",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709219"
+     },
+     {
+      "id": "showcase-3x4-p27-s08",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x4-opposite-corners",
+      "artRole": "band"
+     },
+     {
+      "id": "showcase-3x4-p27-s09",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x4-opposite-corners",
+      "artRole": "band"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p28",
+    "title": "Poster and Gallery",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The 4-column page is uncomfortably wide for one composition, so this splits it into two objects of unequal weight.  Art here: Edge rail.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p28-s00",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709220"
+     },
+     {
+      "id": "showcase-3x4-p28-s01",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709221"
+     },
+     {
+      "id": "showcase-3x4-p28-s02",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709222"
+     },
+     {
+      "id": "showcase-3x4-p28-s03",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709223"
+     },
+     {
+      "id": "showcase-3x4-p28-s04",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709224"
+     },
+     {
+      "id": "showcase-3x4-p28-s05",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709329"
+     },
+     {
+      "id": "showcase-3x4-p28-s06",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 3,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x4-poster-and-gallery",
+      "artRole": "rail"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p29",
+    "title": "Twin Anchors (left)",
+    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Each page gets an L-shaped bracket of art, one wide cell above and one tall cell beside, and the pocket in the crook of that L is the hero.  Art here: Bridging band, Corner post.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p29-s00",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704812"
+     },
+     {
+      "id": "showcase-3x4-p29-s01",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704813"
+     },
+     {
+      "id": "showcase-3x4-p29-s02",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704814"
+     },
+     {
+      "id": "showcase-3x4-p29-s03",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704815"
+     },
+     {
+      "id": "showcase-3x4-p29-s04",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704816"
+     },
+     {
+      "id": "showcase-3x4-p29-s05",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704817"
+     },
+     {
+      "id": "showcase-3x4-p29-s06",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704818"
+     },
+     {
+      "id": "showcase-3x4-p29-s07",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704819"
+     },
+     {
+      "id": "showcase-3x4-p29-s08",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x4-spread-twin-anchors",
+      "artRole": "band"
+     },
+     {
+      "id": "showcase-3x4-p29-s09",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 2,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x4-spread-twin-anchors",
+      "artRole": "post"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p30",
+    "title": "Twin Anchors (right)",
+    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Each page gets an L-shaped bracket of art, one wide cell above and one tall cell beside, and the pocket in the crook of that L is the hero.  Art here: Bridging band, Corner post.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p30-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704820"
+     },
+     {
+      "id": "showcase-3x4-p30-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704821"
+     },
+     {
+      "id": "showcase-3x4-p30-s02",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704822"
+     },
+     {
+      "id": "showcase-3x4-p30-s03",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704823"
+     },
+     {
+      "id": "showcase-3x4-p30-s04",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704824"
+     },
+     {
+      "id": "showcase-3x4-p30-s05",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704825"
+     },
+     {
+      "id": "showcase-3x4-p30-s06",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704826"
+     },
+     {
+      "id": "showcase-3x4-p30-s07",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704827"
+     },
+     {
+      "id": "showcase-3x4-p30-s08",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x4-spread-twin-anchors",
+      "artRole": "band"
+     },
+     {
+      "id": "showcase-3x4-p30-s09",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 2,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x4-spread-twin-anchors",
+      "artRole": "post"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p31",
+    "title": "Establishing Tier",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. A 4-wide page reads as three identical horizontal bands and nothing tells the eye where to start.  Art here: Title band.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p31-s00",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712936"
+     },
+     {
+      "id": "showcase-3x4-p31-s01",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712937"
+     },
+     {
+      "id": "showcase-3x4-p31-s02",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712938"
+     },
+     {
+      "id": "showcase-3x4-p31-s03",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712939"
+     },
+     {
+      "id": "showcase-3x4-p31-s04",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712940"
+     },
+     {
+      "id": "showcase-3x4-p31-s05",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712941"
+     },
+     {
+      "id": "showcase-3x4-p31-s06",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696680"
+     },
+     {
+      "id": "showcase-3x4-p31-s07",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696681"
+     },
+     {
+      "id": "showcase-3x4-p31-s08",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 4,
+      "type": "artwork",
+      "artTemplateId": "3x4-establishing-tier",
+      "artRole": "title"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p32",
+    "title": "Counterweight Corner",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. A left-to-right reader lands first in the upper left, so a hero card placed there loads that corner and leaves the bottom right feeling hollow.  Art here: Anchor block.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p32-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712942"
+     },
+     {
+      "id": "showcase-3x4-p32-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712943"
+     },
+     {
+      "id": "showcase-3x4-p32-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712944"
+     },
+     {
+      "id": "showcase-3x4-p32-s03",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712945"
+     },
+     {
+      "id": "showcase-3x4-p32-s04",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712946"
+     },
+     {
+      "id": "showcase-3x4-p32-s05",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712947"
+     },
+     {
+      "id": "showcase-3x4-p32-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712948"
+     },
+     {
+      "id": "showcase-3x4-p32-s07",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696682"
+     },
+     {
+      "id": "showcase-3x4-p32-s08",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 2,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x4-counterweight-corner",
+      "artRole": "anchor"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p33",
+    "title": "Bookends (left)",
+    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The only art is a full-height column at each outer fore-edge, so the spread is walled at its two outer boundaries and left completely open through the middle.  Art here: Edge rail.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p33-s00",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709225"
+     },
+     {
+      "id": "showcase-3x4-p33-s01",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709226"
+     },
+     {
+      "id": "showcase-3x4-p33-s02",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709327"
+     },
+     {
+      "id": "showcase-3x4-p33-s03",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709227"
+     },
+     {
+      "id": "showcase-3x4-p33-s04",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709228"
+     },
+     {
+      "id": "showcase-3x4-p33-s05",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709328"
+     },
+     {
+      "id": "showcase-3x4-p33-s06",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709229"
+     },
+     {
+      "id": "showcase-3x4-p33-s07",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709230"
+     },
+     {
+      "id": "showcase-3x4-p33-s08",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709231"
+     },
+     {
+      "id": "showcase-3x4-p33-s09",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 3,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x4-spread-bookends",
+      "artRole": "rail"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p34",
+    "title": "Bookends (right)",
+    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The only art is a full-height column at each outer fore-edge, so the spread is walled at its two outer boundaries and left completely open through the middle.  Art here: Edge rail.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p34-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709232"
+     },
+     {
+      "id": "showcase-3x4-p34-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709233"
+     },
+     {
+      "id": "showcase-3x4-p34-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709234"
+     },
+     {
+      "id": "showcase-3x4-p34-s03",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709235"
+     },
+     {
+      "id": "showcase-3x4-p34-s04",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709236"
+     },
+     {
+      "id": "showcase-3x4-p34-s05",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709237"
+     },
+     {
+      "id": "showcase-3x4-p34-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709238"
+     },
+     {
+      "id": "showcase-3x4-p34-s07",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709239"
+     },
+     {
+      "id": "showcase-3x4-p34-s08",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709240"
+     },
+     {
+      "id": "showcase-3x4-p34-s09",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 3,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x4-spread-bookends",
+      "artRole": "rail"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p35",
+    "title": "The Complete Run",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The art here is the absence of art, and that is a decision, not a default.  Art here: no art, on purpose.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p35-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704828"
+     },
+     {
+      "id": "showcase-3x4-p35-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704829"
+     },
+     {
+      "id": "showcase-3x4-p35-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704830"
+     },
+     {
+      "id": "showcase-3x4-p35-s03",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704831"
+     },
+     {
+      "id": "showcase-3x4-p35-s04",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704832"
+     },
+     {
+      "id": "showcase-3x4-p35-s05",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704833"
+     },
+     {
+      "id": "showcase-3x4-p35-s06",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704834"
+     },
+     {
+      "id": "showcase-3x4-p35-s07",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704835"
+     },
+     {
+      "id": "showcase-3x4-p35-s08",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704836"
+     },
+     {
+      "id": "showcase-3x4-p35-s09",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704837"
+     },
+     {
+      "id": "showcase-3x4-p35-s10",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704838"
+     },
+     {
+      "id": "showcase-3x4-p35-s11",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704839"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p36",
+    "title": "Reliquary Ring",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. A full perimeter turns the page into a MOUNT.  Art here: Footer caption band, Single accent, Title band.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p36-s00",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704840"
+     },
+     {
+      "id": "showcase-3x4-p36-s01",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704841"
+     },
+     {
+      "id": "showcase-3x4-p36-s02",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 4,
+      "type": "artwork",
+      "artTemplateId": "3x4-reliquary-ring",
+      "artRole": "title"
+     },
+     {
+      "id": "showcase-3x4-p36-s03",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x4-reliquary-ring",
+      "artRole": "accent"
+     },
+     {
+      "id": "showcase-3x4-p36-s04",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x4-reliquary-ring",
+      "artRole": "accent"
+     },
+     {
+      "id": "showcase-3x4-p36-s05",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 4,
+      "type": "artwork",
+      "artTemplateId": "3x4-reliquary-ring",
+      "artRole": "footer"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p37",
+    "title": "Gutter Bridge (left)",
+    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. An open 12-pocket binder is close to a metre of card and reads as two separate walls of twelve.  Art here: Bridging band.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p37-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712949"
+     },
+     {
+      "id": "showcase-3x4-p37-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712950"
+     },
+     {
+      "id": "showcase-3x4-p37-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712951"
+     },
+     {
+      "id": "showcase-3x4-p37-s03",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712952"
+     },
+     {
+      "id": "showcase-3x4-p37-s04",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696831"
+     },
+     {
+      "id": "showcase-3x4-p37-s05",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696678"
+     },
+     {
+      "id": "showcase-3x4-p37-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696834"
+     },
+     {
+      "id": "showcase-3x4-p37-s07",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696677"
+     },
+     {
+      "id": "showcase-3x4-p37-s08",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714359"
+     },
+     {
+      "id": "showcase-3x4-p37-s09",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696679"
+     },
+     {
+      "id": "showcase-3x4-p37-s10",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x4-spread-gutter-bridge",
+      "artRole": "band"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p38",
+    "title": "Gutter Bridge (right)",
+    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. An open 12-pocket binder is close to a metre of card and reads as two separate walls of twelve.  Art here: Bridging band.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p38-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696835"
+     },
+     {
+      "id": "showcase-3x4-p38-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714356"
+     },
+     {
+      "id": "showcase-3x4-p38-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714357"
+     },
+     {
+      "id": "showcase-3x4-p38-s03",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696832"
+     },
+     {
+      "id": "showcase-3x4-p38-s04",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696833"
+     },
+     {
+      "id": "showcase-3x4-p38-s05",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696683"
+     },
+     {
+      "id": "showcase-3x4-p38-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696684"
+     },
+     {
+      "id": "showcase-3x4-p38-s07",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696685"
+     },
+     {
+      "id": "showcase-3x4-p38-s08",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714360"
+     },
+     {
+      "id": "showcase-3x4-p38-s09",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714358"
+     },
+     {
+      "id": "showcase-3x4-p38-s10",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x4-spread-gutter-bridge",
+      "artRole": "band"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x4-p39",
+    "title": "Nameplate and Placeholder",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. Two different small jobs, each with its own reason, and neither is decoration.  Art here: Bridging band, Single accent.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "showcase-3x4-p39-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709241"
+     },
+     {
+      "id": "showcase-3x4-p39-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709242"
+     },
+     {
+      "id": "showcase-3x4-p39-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709243"
+     },
+     {
+      "id": "showcase-3x4-p39-s03",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709244"
+     },
+     {
+      "id": "showcase-3x4-p39-s04",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709245"
+     },
+     {
+      "id": "showcase-3x4-p39-s05",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709246"
+     },
+     {
+      "id": "showcase-3x4-p39-s06",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709247"
+     },
+     {
+      "id": "showcase-3x4-p39-s07",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709248"
+     },
+     {
+      "id": "showcase-3x4-p39-s08",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709249"
+     },
+     {
+      "id": "showcase-3x4-p39-s09",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x4-nameplate-and-placeholder",
+      "artRole": "band"
+     },
+     {
+      "id": "showcase-3x4-p39-s10",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x4-nameplate-and-placeholder",
+      "artRole": "accent"
+     }
+    ]
+   }
+  ],
+  "cover": {
+   "modelId": "vaultx-exotec-zip-12-xl",
+   "colourway": "royal-blue",
+   "showCover": true,
+   "surfaces": {
+    "front": [
+     {
+      "id": "showcase-3x4-sticker-1",
+      "kind": "sticker",
+      "stickerId": "set:24722",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/set-art/set-art/sets/24722-logo.png",
+      "x": 0.16,
+      "y": 0.17,
+      "w": 0.6,
+      "rot": -6,
+      "lockAspect": true
+     },
+     {
+      "id": "showcase-3x4-sticker-2",
+      "kind": "sticker",
+      "stickerId": "set:24688",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/set-art/set-art/sets/24688-logo.png",
+      "x": 0.34,
+      "y": 0.56,
+      "w": 0.46,
+      "rot": 7,
+      "lockAspect": true
+     }
+    ]
+   }
+  }
+ },
+ {
+  "id": "showcase-3x3",
+  "title": "3x3 layout showcase",
+  "description": "Every art layout michi-maker composes onto a nine-pocket page, over cards from ME: 30th Celebration, M6: Storm Emeralda and ME05: Pitch Black. Read it double-sided: the spreads only make sense with both pages open.",
+  "layoutStyle": "freeform",
+  "isExample": true,
+  "pages": [
+   {
+    "id": "showcase-3x3-p00",
+    "title": "3x3 layout showcase",
+    "description": "Forty pages of nine pockets. Each page names the layout it uses and says what the art is doing there. Spreads are marked as spreads: those were chosen for two pages seen together and do not read as one composition on their own.",
+    "rows": 3,
+    "cols": 3,
+    "slots": []
+   },
+   {
+    "id": "showcase-3x3-p01",
+    "title": "The Complete Run (left)",
+    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The composition is the repetition. Eighteen identical frames in strict order make a wall whose entire meaning is completeness, and in that context an art slot does not read as art, it reads as a card you do not own.  Art here: no art, on purpose.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p01-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696830"
+     },
+     {
+      "id": "showcase-3x3-p01-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696676"
+     },
+     {
+      "id": "showcase-3x3-p01-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712934"
+     },
+     {
+      "id": "showcase-3x3-p01-s03",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712935"
+     },
+     {
+      "id": "showcase-3x3-p01-s04",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712936"
+     },
+     {
+      "id": "showcase-3x3-p01-s05",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712937"
+     },
+     {
+      "id": "showcase-3x3-p01-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712938"
+     },
+     {
+      "id": "showcase-3x3-p01-s07",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712939"
+     },
+     {
+      "id": "showcase-3x3-p01-s08",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712940"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p02",
+    "title": "The Complete Run (right)",
+    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The composition is the repetition. Eighteen identical frames in strict order make a wall whose entire meaning is completeness, and in that context an art slot does not read as art, it reads as a card you do not own.  Art here: no art, on purpose.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p02-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712941"
+     },
+     {
+      "id": "showcase-3x3-p02-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696680"
+     },
+     {
+      "id": "showcase-3x3-p02-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696681"
+     },
+     {
+      "id": "showcase-3x3-p02-s03",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712942"
+     },
+     {
+      "id": "showcase-3x3-p02-s04",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712943"
+     },
+     {
+      "id": "showcase-3x3-p02-s05",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712944"
+     },
+     {
+      "id": "showcase-3x3-p02-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712945"
+     },
+     {
+      "id": "showcase-3x3-p02-s07",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712946"
+     },
+     {
+      "id": "showcase-3x3-p02-s08",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712947"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p03",
+    "title": "Nine Beats",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The absence of art IS the decision here, and it is the reason.  Art here: no art, on purpose.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p03-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709157"
+     },
+     {
+      "id": "showcase-3x3-p03-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709158"
+     },
+     {
+      "id": "showcase-3x3-p03-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709159"
+     },
+     {
+      "id": "showcase-3x3-p03-s03",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709160"
+     },
+     {
+      "id": "showcase-3x3-p03-s04",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709161"
+     },
+     {
+      "id": "showcase-3x3-p03-s05",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709162"
+     },
+     {
+      "id": "showcase-3x3-p03-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709163"
+     },
+     {
+      "id": "showcase-3x3-p03-s07",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709164"
+     },
+     {
+      "id": "showcase-3x3-p03-s08",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709165"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p04",
+    "title": "Corner Post",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The single art slot is a post, and it has one job.  Art here: Corner post.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p04-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709166"
+     },
+     {
+      "id": "showcase-3x3-p04-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709167"
+     },
+     {
+      "id": "showcase-3x3-p04-s02",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709168"
+     },
+     {
+      "id": "showcase-3x3-p04-s03",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709169"
+     },
+     {
+      "id": "showcase-3x3-p04-s04",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709170"
+     },
+     {
+      "id": "showcase-3x3-p04-s05",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709171"
+     },
+     {
+      "id": "showcase-3x3-p04-s06",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709172"
+     },
+     {
+      "id": "showcase-3x3-p04-s07",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 2,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x3-corner-post",
+      "artRole": "post"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p05",
+    "title": "Splash and the Run It Opens (left)",
+    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. One dominant block, doing the job of a chapter opener rather than filling a gap.  Art here: Full-page plate.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p05-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 3,
+      "colSpan": 3,
+      "type": "artwork",
+      "artTemplateId": "3x3-spread-splash-and-the-run-it-opens",
+      "artRole": "plate"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p06",
+    "title": "Splash and the Run It Opens (right)",
+    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. One dominant block, doing the job of a chapter opener rather than filling a gap.  Art here: no art, on purpose.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p06-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704758"
+     },
+     {
+      "id": "showcase-3x3-p06-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704759"
+     },
+     {
+      "id": "showcase-3x3-p06-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704760"
+     },
+     {
+      "id": "showcase-3x3-p06-s03",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704761"
+     },
+     {
+      "id": "showcase-3x3-p06-s04",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704762"
+     },
+     {
+      "id": "showcase-3x3-p06-s05",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704763"
+     },
+     {
+      "id": "showcase-3x3-p06-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704764"
+     },
+     {
+      "id": "showcase-3x3-p06-s07",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704765"
+     },
+     {
+      "id": "showcase-3x3-p06-s08",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704766"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p07",
+    "title": "Wall Text",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The bar is a caption plate, not a filler. It carries the page\\'s title, the illustrator\\'s name, the set, the dates: wall text for the six cards above it.  Art here: Footer caption band.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p07-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712948"
+     },
+     {
+      "id": "showcase-3x3-p07-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696682"
+     },
+     {
+      "id": "showcase-3x3-p07-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712949"
+     },
+     {
+      "id": "showcase-3x3-p07-s03",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712950"
+     },
+     {
+      "id": "showcase-3x3-p07-s04",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712951"
+     },
+     {
+      "id": "showcase-3x3-p07-s05",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712952"
+     },
+     {
+      "id": "showcase-3x3-p07-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 3,
+      "type": "artwork",
+      "artTemplateId": "3x3-wall-text",
+      "artRole": "footer"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p08",
+    "title": "Cornerstone",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. One 2x2 block is the single dominant mass on the page, and it is sited low and to the right on purpose.  Art here: Anchor block.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p08-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696831"
+     },
+     {
+      "id": "showcase-3x3-p08-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696678"
+     },
+     {
+      "id": "showcase-3x3-p08-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696834"
+     },
+     {
+      "id": "showcase-3x3-p08-s03",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696677"
+     },
+     {
+      "id": "showcase-3x3-p08-s04",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714359"
+     },
+     {
+      "id": "showcase-3x3-p08-s05",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 2,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x3-cornerstone",
+      "artRole": "anchor"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p09",
+    "title": "Scene Across the Spine (left)",
+    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Two 2x2 blocks are butted against the gutter from both sides so a single landscape reads across the spine while no slot ever crosses it.  Art here: Anchor block.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p09-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709173"
+     },
+     {
+      "id": "showcase-3x3-p09-s01",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709174"
+     },
+     {
+      "id": "showcase-3x3-p09-s02",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709175"
+     },
+     {
+      "id": "showcase-3x3-p09-s03",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709176"
+     },
+     {
+      "id": "showcase-3x3-p09-s04",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709177"
+     },
+     {
+      "id": "showcase-3x3-p09-s05",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 2,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x3-spread-scene-across-the-spine",
+      "artRole": "anchor"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p10",
+    "title": "Scene Across the Spine (right)",
+    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Two 2x2 blocks are butted against the gutter from both sides so a single landscape reads across the spine while no slot ever crosses it.  Art here: Anchor block.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p10-s00",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709178"
+     },
+     {
+      "id": "showcase-3x3-p10-s01",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709179"
+     },
+     {
+      "id": "showcase-3x3-p10-s02",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709286"
+     },
+     {
+      "id": "showcase-3x3-p10-s03",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709289"
+     },
+     {
+      "id": "showcase-3x3-p10-s04",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709180"
+     },
+     {
+      "id": "showcase-3x3-p10-s05",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 2,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x3-spread-scene-across-the-spine",
+      "artRole": "anchor"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p11",
+    "title": "Diagonal Channel",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. Both panels are the same 1x2 size, placed diagonally opposite, so they balance by 180-degree rotation rather than by mirroring.  Art here: Bridging band.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p11-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704767"
+     },
+     {
+      "id": "showcase-3x3-p11-s01",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704768"
+     },
+     {
+      "id": "showcase-3x3-p11-s02",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704769"
+     },
+     {
+      "id": "showcase-3x3-p11-s03",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704770"
+     },
+     {
+      "id": "showcase-3x3-p11-s04",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704771"
+     },
+     {
+      "id": "showcase-3x3-p11-s05",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x3-diagonal-channel",
+      "artRole": "band"
+     },
+     {
+      "id": "showcase-3x3-p11-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x3-diagonal-channel",
+      "artRole": "band"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p12",
+    "title": "Triptych Rails",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The two rails convert a 3x3 page into a single vertical strip, and that conversion is their entire purpose.  Art here: Edge rail.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p12-s00",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704772"
+     },
+     {
+      "id": "showcase-3x3-p12-s01",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704773"
+     },
+     {
+      "id": "showcase-3x3-p12-s02",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704774"
+     },
+     {
+      "id": "showcase-3x3-p12-s03",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 3,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x3-triptych-rails",
+      "artRole": "rail"
+     },
+     {
+      "id": "showcase-3x3-p12-s04",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 3,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x3-triptych-rails",
+      "artRole": "rail"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p13",
+    "title": "Unequal Bookends (left)",
+    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The asymmetric one. Two vertical rails on the OUTER edges of the spread act as bookends holding a thirteen-card field, and they are deliberately unequal (three tall on the left, two tall and bottom-anchored on the right) so the pair reads as balance rather than as a static mirror.  Art here: Edge rail.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p13-s00",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696679"
+     },
+     {
+      "id": "showcase-3x3-p13-s01",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696835"
+     },
+     {
+      "id": "showcase-3x3-p13-s02",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714356"
+     },
+     {
+      "id": "showcase-3x3-p13-s03",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714357"
+     },
+     {
+      "id": "showcase-3x3-p13-s04",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696832"
+     },
+     {
+      "id": "showcase-3x3-p13-s05",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696833"
+     },
+     {
+      "id": "showcase-3x3-p13-s06",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 3,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x3-spread-unequal-bookends",
+      "artRole": "rail"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p14",
+    "title": "Unequal Bookends (right)",
+    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The asymmetric one. Two vertical rails on the OUTER edges of the spread act as bookends holding a thirteen-card field, and they are deliberately unequal (three tall on the left, two tall and bottom-anchored on the right) so the pair reads as balance rather than as a static mirror.  Art here: Corner post.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p14-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696683"
+     },
+     {
+      "id": "showcase-3x3-p14-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696684"
+     },
+     {
+      "id": "showcase-3x3-p14-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696685"
+     },
+     {
+      "id": "showcase-3x3-p14-s03",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714360"
+     },
+     {
+      "id": "showcase-3x3-p14-s04",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714358"
+     },
+     {
+      "id": "showcase-3x3-p14-s05",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696686"
+     },
+     {
+      "id": "showcase-3x3-p14-s06",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712953"
+     },
+     {
+      "id": "showcase-3x3-p14-s07",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 2,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x3-spread-unequal-bookends",
+      "artRole": "post"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p15",
+    "title": "Reliquary",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. All four slots are one object, a mount, and each part of the ring is doing framing work.  Art here: Footer caption band, Single accent, Title band.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p15-s00",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709181"
+     },
+     {
+      "id": "showcase-3x3-p15-s01",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 3,
+      "type": "artwork",
+      "artTemplateId": "3x3-reliquary",
+      "artRole": "title"
+     },
+     {
+      "id": "showcase-3x3-p15-s02",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x3-reliquary",
+      "artRole": "accent"
+     },
+     {
+      "id": "showcase-3x3-p15-s03",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x3-reliquary",
+      "artRole": "accent"
+     },
+     {
+      "id": "showcase-3x3-p15-s04",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 3,
+      "type": "artwork",
+      "artTemplateId": "3x3-reliquary",
+      "artRole": "footer"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p16",
+    "title": "Divider Plate",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. This is a page break, and it works precisely because it is the only page in the run with nothing to read.  Art here: Full-page plate.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p16-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 3,
+      "colSpan": 3,
+      "type": "artwork",
+      "artTemplateId": "3x3-divider-plate",
+      "artRole": "plate"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p17",
+    "title": "Banner and Footer (left)",
+    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Art as caption and label. The top strip on the left leaf carries the title, the bottom strip on the right leaf carries the caption, credit or set line, and together they sit at the spread\\'s entry point and its exit point, the top-left to bottom-right reading diagonal.  Art here: Title band.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p17-s00",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704775"
+     },
+     {
+      "id": "showcase-3x3-p17-s01",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704776"
+     },
+     {
+      "id": "showcase-3x3-p17-s02",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704777"
+     },
+     {
+      "id": "showcase-3x3-p17-s03",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704778"
+     },
+     {
+      "id": "showcase-3x3-p17-s04",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704779"
+     },
+     {
+      "id": "showcase-3x3-p17-s05",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704780"
+     },
+     {
+      "id": "showcase-3x3-p17-s06",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 3,
+      "type": "artwork",
+      "artTemplateId": "3x3-spread-banner-and-footer",
+      "artRole": "title"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p18",
+    "title": "Banner and Footer (right)",
+    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Art as caption and label. The top strip on the left leaf carries the title, the bottom strip on the right leaf carries the caption, credit or set line, and together they sit at the spread\\'s entry point and its exit point, the top-left to bottom-right reading diagonal.  Art here: Footer caption band.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p18-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704781"
+     },
+     {
+      "id": "showcase-3x3-p18-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704782"
+     },
+     {
+      "id": "showcase-3x3-p18-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704783"
+     },
+     {
+      "id": "showcase-3x3-p18-s03",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704784"
+     },
+     {
+      "id": "showcase-3x3-p18-s04",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704785"
+     },
+     {
+      "id": "showcase-3x3-p18-s05",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704786"
+     },
+     {
+      "id": "showcase-3x3-p18-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 3,
+      "type": "artwork",
+      "artTemplateId": "3x3-spread-banner-and-footer",
+      "artRole": "footer"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p19",
+    "title": "Nine Beats",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The absence of art IS the decision here, and it is the reason.  Art here: no art, on purpose.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p19-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712954"
+     },
+     {
+      "id": "showcase-3x3-p19-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696687"
+     },
+     {
+      "id": "showcase-3x3-p19-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696688"
+     },
+     {
+      "id": "showcase-3x3-p19-s03",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696830"
+     },
+     {
+      "id": "showcase-3x3-p19-s04",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696676"
+     },
+     {
+      "id": "showcase-3x3-p19-s05",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712934"
+     },
+     {
+      "id": "showcase-3x3-p19-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712935"
+     },
+     {
+      "id": "showcase-3x3-p19-s07",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712936"
+     },
+     {
+      "id": "showcase-3x3-p19-s08",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712937"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p20",
+    "title": "Corner Post",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The single art slot is a post, and it has one job.  Art here: Corner post.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p20-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712938"
+     },
+     {
+      "id": "showcase-3x3-p20-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712939"
+     },
+     {
+      "id": "showcase-3x3-p20-s02",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712940"
+     },
+     {
+      "id": "showcase-3x3-p20-s03",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712941"
+     },
+     {
+      "id": "showcase-3x3-p20-s04",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696680"
+     },
+     {
+      "id": "showcase-3x3-p20-s05",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696681"
+     },
+     {
+      "id": "showcase-3x3-p20-s06",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712942"
+     },
+     {
+      "id": "showcase-3x3-p20-s07",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 2,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x3-corner-post",
+      "artRole": "post"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p21",
+    "title": "The Reliquary (left)",
+    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Art as frame. Eight art cells form a complete ring around pocket 5 of the left leaf, so the hero card shares its page with nothing at all: it is matted, the way a single work is hung, and there is no second card anywhere on that leaf to argue with it.  Art here: Footer caption band, Single accent, Title band.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p21-s00",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709182"
+     },
+     {
+      "id": "showcase-3x3-p21-s01",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 3,
+      "type": "artwork",
+      "artTemplateId": "3x3-spread-the-reliquary",
+      "artRole": "title"
+     },
+     {
+      "id": "showcase-3x3-p21-s02",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x3-spread-the-reliquary",
+      "artRole": "accent"
+     },
+     {
+      "id": "showcase-3x3-p21-s03",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x3-spread-the-reliquary",
+      "artRole": "accent"
+     },
+     {
+      "id": "showcase-3x3-p21-s04",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 3,
+      "type": "artwork",
+      "artTemplateId": "3x3-spread-the-reliquary",
+      "artRole": "footer"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p22",
+    "title": "The Reliquary (right)",
+    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Art as frame. Eight art cells form a complete ring around pocket 5 of the left leaf, so the hero card shares its page with nothing at all: it is matted, the way a single work is hung, and there is no second card anywhere on that leaf to argue with it.  Art here: no art, on purpose.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p22-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709183"
+     },
+     {
+      "id": "showcase-3x3-p22-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709184"
+     },
+     {
+      "id": "showcase-3x3-p22-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709185"
+     },
+     {
+      "id": "showcase-3x3-p22-s03",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709186"
+     },
+     {
+      "id": "showcase-3x3-p22-s04",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709187"
+     },
+     {
+      "id": "showcase-3x3-p22-s05",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709188"
+     },
+     {
+      "id": "showcase-3x3-p22-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709288"
+     },
+     {
+      "id": "showcase-3x3-p22-s07",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709189"
+     },
+     {
+      "id": "showcase-3x3-p22-s08",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709190"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p23",
+    "title": "Wall Text",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The bar is a caption plate, not a filler. It carries the page\\'s title, the illustrator\\'s name, the set, the dates: wall text for the six cards above it.  Art here: Footer caption band.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p23-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704787"
+     },
+     {
+      "id": "showcase-3x3-p23-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704788"
+     },
+     {
+      "id": "showcase-3x3-p23-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704789"
+     },
+     {
+      "id": "showcase-3x3-p23-s03",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704790"
+     },
+     {
+      "id": "showcase-3x3-p23-s04",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704791"
+     },
+     {
+      "id": "showcase-3x3-p23-s05",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704792"
+     },
+     {
+      "id": "showcase-3x3-p23-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 3,
+      "type": "artwork",
+      "artTemplateId": "3x3-wall-text",
+      "artRole": "footer"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p24",
+    "title": "Cornerstone",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. One 2x2 block is the single dominant mass on the page, and it is sited low and to the right on purpose.  Art here: Anchor block.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p24-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704793"
+     },
+     {
+      "id": "showcase-3x3-p24-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704794"
+     },
+     {
+      "id": "showcase-3x3-p24-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704795"
+     },
+     {
+      "id": "showcase-3x3-p24-s03",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704796"
+     },
+     {
+      "id": "showcase-3x3-p24-s04",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704797"
+     },
+     {
+      "id": "showcase-3x3-p24-s05",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 2,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x3-cornerstone",
+      "artRole": "anchor"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p25",
+    "title": "The Reserved Pocket (left)",
+    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The single tile is a placeholder, not decoration, and that is its whole rationale.  Art here: no art, on purpose.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p25-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712943"
+     },
+     {
+      "id": "showcase-3x3-p25-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712944"
+     },
+     {
+      "id": "showcase-3x3-p25-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712945"
+     },
+     {
+      "id": "showcase-3x3-p25-s03",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712946"
+     },
+     {
+      "id": "showcase-3x3-p25-s04",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712947"
+     },
+     {
+      "id": "showcase-3x3-p25-s05",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712948"
+     },
+     {
+      "id": "showcase-3x3-p25-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696682"
+     },
+     {
+      "id": "showcase-3x3-p25-s07",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712949"
+     },
+     {
+      "id": "showcase-3x3-p25-s08",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712950"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p26",
+    "title": "The Reserved Pocket (right)",
+    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The single tile is a placeholder, not decoration, and that is its whole rationale.  Art here: Single accent.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p26-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712951"
+     },
+     {
+      "id": "showcase-3x3-p26-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712952"
+     },
+     {
+      "id": "showcase-3x3-p26-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696831"
+     },
+     {
+      "id": "showcase-3x3-p26-s03",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696678"
+     },
+     {
+      "id": "showcase-3x3-p26-s04",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696834"
+     },
+     {
+      "id": "showcase-3x3-p26-s05",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696677"
+     },
+     {
+      "id": "showcase-3x3-p26-s06",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714359"
+     },
+     {
+      "id": "showcase-3x3-p26-s07",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696679"
+     },
+     {
+      "id": "showcase-3x3-p26-s08",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x3-spread-the-reserved-pocket",
+      "artRole": "accent"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p27",
+    "title": "Diagonal Channel",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. Both panels are the same 1x2 size, placed diagonally opposite, so they balance by 180-degree rotation rather than by mirroring.  Art here: Bridging band.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p27-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709191"
+     },
+     {
+      "id": "showcase-3x3-p27-s01",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709192"
+     },
+     {
+      "id": "showcase-3x3-p27-s02",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709193"
+     },
+     {
+      "id": "showcase-3x3-p27-s03",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709194"
+     },
+     {
+      "id": "showcase-3x3-p27-s04",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709195"
+     },
+     {
+      "id": "showcase-3x3-p27-s05",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x3-diagonal-channel",
+      "artRole": "band"
+     },
+     {
+      "id": "showcase-3x3-p27-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x3-diagonal-channel",
+      "artRole": "band"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p28",
+    "title": "Triptych Rails",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The two rails convert a 3x3 page into a single vertical strip, and that conversion is their entire purpose.  Art here: Edge rail.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p28-s00",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709196"
+     },
+     {
+      "id": "showcase-3x3-p28-s01",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709197"
+     },
+     {
+      "id": "showcase-3x3-p28-s02",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709198"
+     },
+     {
+      "id": "showcase-3x3-p28-s03",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 3,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x3-triptych-rails",
+      "artRole": "rail"
+     },
+     {
+      "id": "showcase-3x3-p28-s04",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 3,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x3-triptych-rails",
+      "artRole": "rail"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p29",
+    "title": "Woven Bands (left)",
+    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The art-heavy one, and the art is the ground rather than the filler.  Art here: Bridging band.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p29-s00",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704798"
+     },
+     {
+      "id": "showcase-3x3-p29-s01",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704799"
+     },
+     {
+      "id": "showcase-3x3-p29-s02",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704800"
+     },
+     {
+      "id": "showcase-3x3-p29-s03",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x3-spread-woven-bands",
+      "artRole": "band"
+     },
+     {
+      "id": "showcase-3x3-p29-s04",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x3-spread-woven-bands",
+      "artRole": "band"
+     },
+     {
+      "id": "showcase-3x3-p29-s05",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x3-spread-woven-bands",
+      "artRole": "band"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p30",
+    "title": "Woven Bands (right)",
+    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The art-heavy one, and the art is the ground rather than the filler.  Art here: Bridging band.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p30-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704801"
+     },
+     {
+      "id": "showcase-3x3-p30-s01",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704802"
+     },
+     {
+      "id": "showcase-3x3-p30-s02",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704803"
+     },
+     {
+      "id": "showcase-3x3-p30-s03",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x3-spread-woven-bands",
+      "artRole": "band"
+     },
+     {
+      "id": "showcase-3x3-p30-s04",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x3-spread-woven-bands",
+      "artRole": "band"
+     },
+     {
+      "id": "showcase-3x3-p30-s05",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "artTemplateId": "3x3-spread-woven-bands",
+      "artRole": "band"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p31",
+    "title": "Reliquary",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. All four slots are one object, a mount, and each part of the ring is doing framing work.  Art here: Footer caption band, Single accent, Title band.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p31-s00",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696835"
+     },
+     {
+      "id": "showcase-3x3-p31-s01",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 3,
+      "type": "artwork",
+      "artTemplateId": "3x3-reliquary",
+      "artRole": "title"
+     },
+     {
+      "id": "showcase-3x3-p31-s02",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x3-reliquary",
+      "artRole": "accent"
+     },
+     {
+      "id": "showcase-3x3-p31-s03",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x3-reliquary",
+      "artRole": "accent"
+     },
+     {
+      "id": "showcase-3x3-p31-s04",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 3,
+      "type": "artwork",
+      "artTemplateId": "3x3-reliquary",
+      "artRole": "footer"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p32",
+    "title": "Divider Plate",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. This is a page break, and it works precisely because it is the only page in the run with nothing to read.  Art here: Full-page plate.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p32-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 3,
+      "colSpan": 3,
+      "type": "artwork",
+      "artTemplateId": "3x3-divider-plate",
+      "artRole": "plate"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p33",
+    "title": "The Complete Run (left)",
+    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The composition is the repetition. Eighteen identical frames in strict order make a wall whose entire meaning is completeness, and in that context an art slot does not read as art, it reads as a card you do not own.  Art here: no art, on purpose.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p33-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709199"
+     },
+     {
+      "id": "showcase-3x3-p33-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709200"
+     },
+     {
+      "id": "showcase-3x3-p33-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709201"
+     },
+     {
+      "id": "showcase-3x3-p33-s03",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709202"
+     },
+     {
+      "id": "showcase-3x3-p33-s04",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709203"
+     },
+     {
+      "id": "showcase-3x3-p33-s05",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709204"
+     },
+     {
+      "id": "showcase-3x3-p33-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709205"
+     },
+     {
+      "id": "showcase-3x3-p33-s07",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709206"
+     },
+     {
+      "id": "showcase-3x3-p33-s08",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709207"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p34",
+    "title": "The Complete Run (right)",
+    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The composition is the repetition. Eighteen identical frames in strict order make a wall whose entire meaning is completeness, and in that context an art slot does not read as art, it reads as a card you do not own.  Art here: no art, on purpose.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p34-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709208"
+     },
+     {
+      "id": "showcase-3x3-p34-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709209"
+     },
+     {
+      "id": "showcase-3x3-p34-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709210"
+     },
+     {
+      "id": "showcase-3x3-p34-s03",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709211"
+     },
+     {
+      "id": "showcase-3x3-p34-s04",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709212"
+     },
+     {
+      "id": "showcase-3x3-p34-s05",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709213"
+     },
+     {
+      "id": "showcase-3x3-p34-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709214"
+     },
+     {
+      "id": "showcase-3x3-p34-s07",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709215"
+     },
+     {
+      "id": "showcase-3x3-p34-s08",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709216"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p35",
+    "title": "Nine Beats",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The absence of art IS the decision here, and it is the reason.  Art here: no art, on purpose.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p35-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704804"
+     },
+     {
+      "id": "showcase-3x3-p35-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704805"
+     },
+     {
+      "id": "showcase-3x3-p35-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704806"
+     },
+     {
+      "id": "showcase-3x3-p35-s03",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704807"
+     },
+     {
+      "id": "showcase-3x3-p35-s04",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704808"
+     },
+     {
+      "id": "showcase-3x3-p35-s05",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704809"
+     },
+     {
+      "id": "showcase-3x3-p35-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704810"
+     },
+     {
+      "id": "showcase-3x3-p35-s07",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704811"
+     },
+     {
+      "id": "showcase-3x3-p35-s08",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704812"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p36",
+    "title": "Corner Post",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The single art slot is a post, and it has one job.  Art here: Corner post.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p36-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704813"
+     },
+     {
+      "id": "showcase-3x3-p36-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704814"
+     },
+     {
+      "id": "showcase-3x3-p36-s02",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704815"
+     },
+     {
+      "id": "showcase-3x3-p36-s03",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704816"
+     },
+     {
+      "id": "showcase-3x3-p36-s04",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704817"
+     },
+     {
+      "id": "showcase-3x3-p36-s05",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704818"
+     },
+     {
+      "id": "showcase-3x3-p36-s06",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "704819"
+     },
+     {
+      "id": "showcase-3x3-p36-s07",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 2,
+      "colSpan": 1,
+      "type": "artwork",
+      "artTemplateId": "3x3-corner-post",
+      "artRole": "post"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p37",
+    "title": "Splash and the Run It Opens (left)",
+    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. One dominant block, doing the job of a chapter opener rather than filling a gap.  Art here: Full-page plate.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p37-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 3,
+      "colSpan": 3,
+      "type": "artwork",
+      "artTemplateId": "3x3-spread-splash-and-the-run-it-opens",
+      "artRole": "plate"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p38",
+    "title": "Splash and the Run It Opens (right)",
+    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. One dominant block, doing the job of a chapter opener rather than filling a gap.  Art here: no art, on purpose.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p38-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714356"
+     },
+     {
+      "id": "showcase-3x3-p38-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714357"
+     },
+     {
+      "id": "showcase-3x3-p38-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696832"
+     },
+     {
+      "id": "showcase-3x3-p38-s03",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696833"
+     },
+     {
+      "id": "showcase-3x3-p38-s04",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696683"
+     },
+     {
+      "id": "showcase-3x3-p38-s05",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696684"
+     },
+     {
+      "id": "showcase-3x3-p38-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696685"
+     },
+     {
+      "id": "showcase-3x3-p38-s07",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714360"
+     },
+     {
+      "id": "showcase-3x3-p38-s08",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714358"
+     }
+    ]
+   },
+   {
+    "id": "showcase-3x3-p39",
+    "title": "Wall Text",
+    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The bar is a caption plate, not a filler. It carries the page\\'s title, the illustrator\\'s name, the set, the dates: wall text for the six cards above it.  Art here: Footer caption band.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "showcase-3x3-p39-s00",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709217"
+     },
+     {
+      "id": "showcase-3x3-p39-s01",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709218"
+     },
+     {
+      "id": "showcase-3x3-p39-s02",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709219"
+     },
+     {
+      "id": "showcase-3x3-p39-s03",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709220"
+     },
+     {
+      "id": "showcase-3x3-p39-s04",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709221"
+     },
+     {
+      "id": "showcase-3x3-p39-s05",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "709222"
+     },
+     {
+      "id": "showcase-3x3-p39-s06",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 3,
+      "type": "artwork",
+      "artTemplateId": "3x3-wall-text",
+      "artRole": "footer"
+     }
+    ]
+   }
+  ],
+  "cover": {
+   "modelId": "vaultx-exotec-zip-9-anniversary",
+   "colourway": "anniversary-white",
+   "showCover": true,
+   "surfaces": {
+    "front": [
+     {
+      "id": "showcase-3x3-sticker-1",
+      "kind": "sticker",
+      "stickerId": "set:24722",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/set-art/set-art/sets/24722-logo.png",
+      "x": 0.16,
+      "y": 0.17,
+      "w": 0.6,
+      "rot": -6,
+      "lockAspect": true
+     },
+     {
+      "id": "showcase-3x3-sticker-2",
+      "kind": "sticker",
+      "stickerId": "set:24688",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/set-art/set-art/sets/24688-logo.png",
+      "x": 0.34,
+      "y": 0.56,
+      "w": 0.46,
+      "rot": 7,
+      "lockAspect": true
+     }
+    ]
+   }
+  }
+ }
+]

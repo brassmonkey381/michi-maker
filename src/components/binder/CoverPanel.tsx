@@ -17,6 +17,8 @@
 import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { ArtUploadButton } from '@/components/binder/ArtUploadButton';
+import { CoverArtSection } from '@/components/binder/CoverArtSection';
+import { StickerLibrary } from '@/components/binder/StickerLibrary';
 import type { CoverToolsContext } from '@/components/binder/BinderPages';
 import { COVER_ABBR, withSurface } from '@/components/binder/CoverEditor';
 import { DecorationProperties } from '@/components/binder/DecorationProperties';
@@ -151,6 +153,15 @@ export function CoverPanel({
         <IconBtn label="↷" onPress={onRedo} disabled={!canRedo} accessibilityLabel="Redo" testID="cover-redo" />
       </View>
 
+      {/* WHERE PICTURES COME FROM. Below the properties when something is selected, above the
+          empty hint otherwise — the thing you are most likely to want next is nearest the top. */}
+      {!selected ? (
+        <>
+          <CoverArtSection onAdd={add} onToast={onToast} disabled={full} />
+          <StickerLibrary onPick={add} disabled={full} />
+        </>
+      ) : null}
+
       {/* PROPERTIES */}
       {selected ? (
         <DecorationProperties d={selected} items={items} onChange={write} onSelect={ctx.onSelect} surfaceAspect={surfaceAspect} />
@@ -159,6 +170,12 @@ export function CoverPanel({
           <Text style={styles.hint}>Select a layer to see its position, size, rotation and order.</Text>
         </View>
       )}
+      {selected ? (
+        <>
+          <CoverArtSection onAdd={add} onToast={onToast} disabled={full} />
+          <StickerLibrary onPick={add} disabled={full} />
+        </>
+      ) : null}
     </View>
   );
 }

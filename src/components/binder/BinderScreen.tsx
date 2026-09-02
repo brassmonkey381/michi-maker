@@ -27,6 +27,7 @@ import { AboutHoverCard, AboutPopup, useHoverReveal } from '@/components/binder/
 import { BinderPages, type CoverToolsContext, type GridRole } from '@/components/binder/BinderPages';
 import { CoverPanel } from '@/components/binder/CoverPanel';
 import { withSurface } from '@/components/binder/CoverEditor';
+import { MAX_DECORATIONS_PER_SURFACE, addDecoration, sliceToDecoration } from '@/data/coverDecorations';
 import { LayersTray } from '@/components/binder/LayersTray';
 import { ColorField } from '@/components/binder/ColorField';
 import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
@@ -642,10 +643,29 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const handleSliceDrop = (slice: SavedSlice, windowX: number, windowY: number) => {
     setDragSlice(null);
     const hit = resolveSpreadHit(windowX, windowY);
-    if (!hit) return;
-    const pgIndex = binder.pages.findIndex((p) => p.id === hit.pageId);
-    if (pgIndex < 0) return;
-    placeSliceOnPage(slice, binder.pages[pgIndex], pgIndex, hit.row, hit.col);
+    if (hit) {
+      const pgIndex = binder.pages.findIndex((p) => p.id === hit.pageId);
+      if (pgIndex < 0) return;
+      placeSliceOnPage(slice, binder.pages[pgIndex], pgIndex, hit.row, hit.col);
+      return;
+    }
+    // NOT A POCKET. If a cover surface is being decorated and the drop landed on it, the piece
+    // becomes a decoration where it was dropped — the same ghost, the same gesture, a different
+    // destination. Measured at drop time, because the surface's window rect moves with the scroll.
+    const ctx = coverCtx;
+    if (!ctx) return;
+    void ctx.measureSurface().then((r) => {
+      if (!r || windowX < r.x || windowY < r.y || windowX > r.x + r.width || windowY > r.y + r.height) return;
+      const items = ctx.cover.surfaces?.[ctx.surface] ?? [];
+      const d = { ...sliceToDecoration(slice), x: (windowX - r.x) / r.width, y: (windowY - r.y) / r.height };
+      const next = addDecoration(items, d);
+      if (next === items) {
+        showToast(`This surface already holds ${MAX_DECORATIONS_PER_SURFACE} — remove one first.`);
+        return;
+      }
+      ctx.onChange(withSurface(ctx.cover, ctx.surface, next));
+      ctx.onSelect(d.id);
+    });
   };
   // Removing a tray slice also clears its placed copies everywhere (same content signature).
   // If any exist, confirm first — this reaches into other binders, not just the open one.

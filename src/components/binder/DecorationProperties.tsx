@@ -12,6 +12,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { ImageProperties } from '@/components/binder/ImageProperties';
 import { IconBtn } from '@/components/binder/StudioControls';
 import { TextProperties } from '@/components/binder/TextProperties';
 import { ThemedText } from '@/components/themed-text';
@@ -180,6 +181,14 @@ export function DecorationProperties({
           </>
         ) : null}
       </View>
+
+      {image ? (
+        <ImageProperties
+          d={image}
+          surfaceAspect={surfaceAspect}
+          onReplace={(next) => commit(items.map((it) => (it.id === next.id ? next : it)))}
+        />
+      ) : null}
 
       {image ? (
         <View style={styles.section}>

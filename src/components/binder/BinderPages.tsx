@@ -87,10 +87,12 @@ const NAV_RAIL_WIDTH = 78;
  * moment the rail freed enough height for the difference to show.
  *
  * Measured from the styles rather than guessed: neighborLabel is a `small` line (about 20px) with
- * marginBottom 6, and pageWrap carries marginVertical 18 whose lower half nothing else counts.
+ * marginBottom 6, and pageWrap carries a vertical margin whose lower half nothing else counts.
+ * KEEP THIS IN STEP WITH styles.pageWrap — they are the same number said twice, and the layout
+ * silently over-reaches by the difference if they drift.
  */
 const COLUMN_LABEL_H = 26;
-const PAGE_WRAP_BOTTOM_MARGIN = 18;
+const PAGE_WRAP_BOTTOM_MARGIN = 8;
 
 export interface BinderPagesProps {
   binder: DemoBinder;
@@ -122,6 +124,15 @@ export interface BinderPagesProps {
    * squeeze the page, this becomes an oscillation and both need revisiting together.
    */
   onPageWidth?: (width: number) => void;
+  /**
+   * The caller's own chips, rendered in the SAME row as the view pills.
+   *
+   * The editor used to stack its chip row above this component's chip row: two lines of pills, one
+   * after the other, about 36px of the page's height budget spent on the gap between two things
+   * that are the same kind of thing. They wrap together now, so a wide window puts them on one line
+   * and a narrow one wraps them as one group rather than as two fixed rows.
+   */
+  toolPills?: ReactNode;
   /** A hard ceiling on page width, for surfaces that need one. Unset means fill the space. */
   maxWidth?: number;
   /** Edit vs inspect: read-only neighbours flip on tap; editable ones stay drag surfaces. */
@@ -173,6 +184,7 @@ export function BinderPages({
   availableWidth,
   viewportTop = 0,
   onPageWidth,
+  toolPills,
   maxWidth,
   editable,
   viewerIsOwner = false,
@@ -903,26 +915,37 @@ export function BinderPages({
           what the chrome actually costs. */}
       <View>
       {/* Per-page title/description — caller override (edit inputs) or read-only. */}
-      {pageHeader ??
-        (page && (page.title || page.description) ? (
-          <View style={styles.pageDetailsRead}>
-            {page.title ? (
-              <ThemedText type="smallBold" style={styles.pageTitle}>
-                {page.title}
-              </ThemedText>
-            ) : null}
-            {page.description ? (
-              <ThemedText type="small" themeColor="textSecondary" style={styles.pageDescription}>
-                {page.description}
-              </ThemedText>
-            ) : null}
-          </View>
-        ) : null)}
+      {/* THE TITLE LINE IS ALWAYS THERE, even when the page has no title — and covers get it too.
+
+          It used to render only for a page that had something to say, which made the chrome above
+          the binder a different height on different pages. Two consequences, one visible and one
+          not: flipping between a titled page and an untitled one moved the whole binder up and
+          down, and — because the space above the page is MEASURED and feeds the height budget — the
+          page was being re-sized on every such flip. Reserving the line costs one line and makes the
+          binder hold still.
+
+          A caller-supplied header (the editor's editable fields) is left exactly as it was: it is
+          already always present, and it sizes itself. */}
+      {pageHeader ?? (
+        <View style={[styles.pageDetailsRead, styles.pageDetailsReserved]}>
+          {page?.title ? (
+            <ThemedText type="smallBold" style={styles.pageTitle}>
+              {page.title}
+            </ThemedText>
+          ) : null}
+          {page?.description ? (
+            <ThemedText type="small" themeColor="textSecondary" style={styles.pageDescription}>
+              {page.description}
+            </ThemedText>
+          ) : null}
+        </View>
+      )}
 
       {/* View controls: double-sided (book spreads) + card labels. Page flipping is the
           filmstrip / mouse wheel / neighbour taps / arrow keys — no ‹ m/n › readout. */}
       <View style={styles.labelsRow}>
         <View style={styles.viewToggles}>
+          {toolPills}
           {canDoubleSide ? (
             <Pressable
               onPress={toggleDoubleSided}
@@ -1612,9 +1635,23 @@ function SpreadColumn({
 
 const styles = StyleSheet.create({
   labelsRow: { alignItems: 'center', marginTop: 10 },
-  viewToggles: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  // Wraps: it now carries the editor's chips as well as the view pills, and on a narrow window
+  // that is more than one line's worth. Wrapping as one group beats two rows that each half-fill.
+  viewToggles: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: 8 },
   pageDetailsRead: { alignItems: 'center', marginTop: 8 },
-  pageWrap: { alignItems: 'center', marginVertical: 18 },
+  /**
+   * The height of one `smallBold` line, held whether or not there is a title in it.
+   *
+   * A description makes the block taller, which is fine: a page carrying two lines of prose is a
+   * deliberate thing and the binder settling lower under it reads as the page having more to say.
+   * What this stops is the binder JUMPING between a bare page and a titled one, which is the common
+   * case and says nothing at all.
+   */
+  pageDetailsReserved: { minHeight: 20 },
+  // 8, not 18. That margin was free when the page was sized by width and simply overflowed; now
+  // that the page is fitted to the height it has, every pixel of margin comes straight off the card
+  // art. 36px of it was the difference between a 700px window fitting and not.
+  pageWrap: { alignItems: 'center', marginVertical: 8 },
   // The turning layer must not clip its own entry animation, and must not change the layout it
   // wraps — it only carries the transition.
   turnLayer: { alignItems: 'center', alignSelf: 'stretch' },

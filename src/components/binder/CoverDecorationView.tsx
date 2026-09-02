@@ -15,7 +15,7 @@
  * at small sizes would make the strip lie about what is on the cover.
  */
 import { Image } from 'expo-image';
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Fonts } from '@/constants/theme';
@@ -150,25 +150,74 @@ function shapeStyle(shape: NonNullable<CoverTextDecoration['bg']>['shape'], w: n
   }
 }
 
-/** The extra marks a shape carries, drawn over its fill and under the words. */
-function ShapeDetail({ shape, w, h, px }: { shape: NonNullable<CoverTextDecoration['bg']>['shape']; w: number; h: number; px: number }) {
+/** Where a postcard's stamp box sits: top-right, a fifth of the shorter side, a little taller than wide. */
+function postcardStamp(w: number, h: number) {
+  const size = Math.max(8, Math.min(w, h) * 0.22);
+  return { top: Math.max(3, h * 0.05), right: Math.max(3, w * 0.03), width: size, height: size * 1.15 };
+}
+
+/**
+ * The extra marks a shape carries, drawn over its fill and under the words.
+ *
+ * A NOTECARD'S RULING FOLLOWS THE TEXT: one line under each line of writing, at the writing's own
+ * pitch, wherever the block of text has ended up — so two lines of text sit on two rules and four
+ * on four, the way a card you have written on looks. That needs the text's measured box, which
+ * the text reports from its own layout; until it has, the card is unruled for a frame.
+ */
+function ShapeDetail({
+  shape,
+  w,
+  h,
+  px,
+  textBox,
+  lineHeight,
+}: {
+  shape: NonNullable<CoverTextDecoration['bg']>['shape'];
+  w: number;
+  h: number;
+  px: number;
+  textBox: { y: number; height: number } | null;
+  lineHeight: number;
+}) {
   if (shape === 'postit') {
     return <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, height: Math.max(3, h * 0.14), backgroundColor: 'rgba(0,0,0,0.07)' }} />;
   }
   if (shape === 'notecard') {
+    const lines = textBox && lineHeight > 0 ? Math.max(1, Math.round(textBox.height / lineHeight)) : 0;
+    // The red head rule a real index card has, kept above the first line of writing when there is
+    // room for it, and left off when the writing starts at the top.
+    const headY = textBox ? textBox.y - lineHeight * 0.45 : -1;
     return (
       <>
-        <NotecardRules h={h} px={px} />
-        <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: Math.max(6, px * 1.2), height: StyleSheet.hairlineWidth * 2, backgroundColor: 'rgba(200,60,60,0.55)' }} />
+        {headY > 2 ? (
+          <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: headY, height: StyleSheet.hairlineWidth * 2, backgroundColor: 'rgba(200,60,60,0.55)' }} />
+        ) : null}
+        {textBox
+          ? Array.from({ length: lines }, (_, i) => (
+              <View
+                key={i}
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  // The rule sits just under the line box's bottom, where the pen would rest.
+                  top: textBox.y + (i + 1) * lineHeight - Math.max(1, px * 0.08),
+                  height: StyleSheet.hairlineWidth * 2,
+                  backgroundColor: 'rgba(60,90,180,0.35)',
+                }}
+              />
+            ))
+          : null}
       </>
     );
   }
   if (shape === 'postcard') {
-    const stamp = Math.max(8, Math.min(w, h) * 0.22);
+    const stamp = postcardStamp(w, h);
     return (
       <>
         <View pointerEvents="none" style={{ position: 'absolute', left: w / 2, top: h * 0.12, bottom: h * 0.12, width: StyleSheet.hairlineWidth * 2, backgroundColor: 'rgba(0,0,0,0.22)' }} />
-        <View pointerEvents="none" style={{ position: 'absolute', right: Math.max(3, w * 0.03), top: Math.max(3, h * 0.05), width: stamp, height: stamp * 1.15, borderWidth: StyleSheet.hairlineWidth * 2, borderColor: 'rgba(0,0,0,0.3)', borderStyle: 'dashed' }} />
+        <View pointerEvents="none" style={{ position: 'absolute', right: stamp.right, top: stamp.top, width: stamp.width, height: stamp.height, borderWidth: StyleSheet.hairlineWidth * 2, borderColor: 'rgba(0,0,0,0.3)', borderStyle: 'dashed' }} />
       </>
     );
   }
@@ -188,6 +237,16 @@ function TextDecoration({ d, W, H }: { d: CoverTextDecoration; W: number; H: num
   const pad = (d.bg?.pad ?? 0.02) * W;
   const bg = d.bg && d.bg.shape !== 'none' ? d.bg : null;
   const lines = Math.max(1, d.text.split('\n').length);
+  const lineHeight = px * leading;
+  // Where the block of text landed, from its own layout — what a notecard's ruling follows.
+  const [textBox, setTextBox] = useState<{ y: number; height: number } | null>(null);
+  // A POSTCARD IS WRITTEN ON THE RIGHT, under the stamp, so the left half stays clear for a photo
+  // and the stamp box for a stamp — the reader's own, if they add one as a layer on top.
+  const postcard = bg?.shape === 'postcard';
+  const stamp = postcard ? postcardStamp(w, h) : null;
+  const textFrame = stamp
+    ? { position: 'absolute' as const, left: w / 2 + pad, right: pad, top: stamp.top + stamp.height + Math.max(2, px * 0.4), bottom: pad, justifyContent: 'flex-start' as const }
+    : null;
   return (
     <View
       pointerEvents="none"
@@ -208,7 +267,7 @@ function TextDecoration({ d, W, H }: { d: CoverTextDecoration; W: number; H: num
             { backgroundColor: withAlpha(bg.color, bg.opacity ?? 1) },
             shapeStyle(bg.shape, w, h),
           ]}>
-          <ShapeDetail shape={bg.shape} w={w} h={h} px={px} />
+          <ShapeDetail shape={bg.shape} w={w} h={h} px={px} textBox={textBox} lineHeight={lineHeight} />
         </View>
       ) : null}
       {px < TEXT_LEGIBLE_PX ? (
@@ -219,35 +278,30 @@ function TextDecoration({ d, W, H }: { d: CoverTextDecoration; W: number; H: num
           ))}
         </View>
       ) : (
-        <Text
-          allowFontScaling={false}
-          numberOfLines={Math.max(1, Math.floor(h / (px * leading)))}
-          style={{
-            paddingHorizontal: pad,
-            fontFamily: fontFamilyFor(d.font, Fonts as Record<string, string>),
-            fontSize: px,
-            lineHeight: px * leading,
-            fontWeight: d.weight === 'bold' ? '700' : '400',
-            fontStyle: d.italic ? 'italic' : 'normal',
-            textAlign: d.align ?? 'center',
-            color: d.color,
-          }}>
-          {d.text}
-        </Text>
+        <View style={textFrame ?? undefined} pointerEvents="none">
+          <Text
+            allowFontScaling={false}
+            numberOfLines={Math.max(1, Math.floor((textFrame ? h - textFrame.top - pad : h) / lineHeight))}
+            onLayout={(e) => {
+              const { y, height } = e.nativeEvent.layout;
+              // Offset into the decoration box when the text sits inside the postcard's frame.
+              const top = (textFrame ? textFrame.top : 0) + y;
+              setTextBox((cur) => (cur && Math.abs(cur.y - top) < 0.5 && Math.abs(cur.height - height) < 0.5 ? cur : { y: top, height }));
+            }}
+            style={{
+              paddingHorizontal: textFrame ? 0 : pad,
+              fontFamily: fontFamilyFor(d.font, Fonts as Record<string, string>),
+              fontSize: px,
+              lineHeight,
+              fontWeight: d.weight === 'bold' ? '700' : '400',
+              fontStyle: d.italic ? 'italic' : 'normal',
+              textAlign: d.align ?? (postcard ? 'left' : 'center'),
+              color: d.color,
+            }}>
+            {d.text}
+          </Text>
+        </View>
       )}
-    </View>
-  );
-}
-
-/** The faint ruling of an index card. */
-function NotecardRules({ h, px }: { h: number; px: number }) {
-  const gap = Math.max(6, px * 1.2);
-  const count = Math.max(0, Math.floor(h / gap) - 1);
-  return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      {Array.from({ length: count }, (_, i) => (
-        <View key={i} style={{ position: 'absolute', left: 0, right: 0, top: gap * (i + 1), height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(60,90,180,0.28)' }} />
-      ))}
     </View>
   );
 }

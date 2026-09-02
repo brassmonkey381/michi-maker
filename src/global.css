@@ -11,6 +11,19 @@
   font-display: swap;
 }
 
+/*
+ * The marker face for cover text — the "Sharpie" look, which is a trademark, so the UI says
+ * "Marker". Permanent Marker, Apache 2.0 (public/fonts/PermanentMarker-LICENSE.txt), one
+ * static weight. Web only on purpose: michi-maker does not ship natively, and this file is
+ * never bundled into any native build.
+ */
+@font-face {
+  font-family: 'Permanent Marker';
+  src: url('/fonts/permanent-marker-latin.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+
 :root {
   --font-brand: Fraunces, Georgia, 'Times New Roman', serif;
   --font-display:
@@ -20,6 +33,7 @@
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
   --font-rounded: 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif;
   --font-serif: Georgia, 'Times New Roman', serif;
+  --font-marker: 'Permanent Marker', 'Comic Sans MS', 'Segoe Print', cursive;
 }
 
 /*

@@ -30,6 +30,8 @@ export const Fonts = Platform.select({
     mono: 'ui-monospace',
     /** Brand display face — marquee headings only (wordmark, binder titles). Serif on native. */
     brand: 'ui-serif',
+    /** Cover text's marker face. Web-only; a native build gets the system's casual face. */
+    marker: 'Marker Felt',
   },
   default: {
     sans: 'normal',
@@ -37,6 +39,7 @@ export const Fonts = Platform.select({
     rounded: 'normal',
     mono: 'monospace',
     brand: 'serif',
+    marker: 'casual',
   },
   web: {
     sans: 'var(--font-display)',
@@ -45,6 +48,8 @@ export const Fonts = Platform.select({
     mono: 'var(--font-mono)',
     /** Fraunces (global.css), matching the landing page's headings. */
     brand: 'var(--font-brand)',
+    /** Permanent Marker (global.css). The "Sharpie" look, under a name that is not a trademark. */
+    marker: 'var(--font-marker)',
   },
 });
 

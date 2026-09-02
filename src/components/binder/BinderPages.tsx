@@ -32,7 +32,9 @@ import {
 import { Directions, Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PageStrip, STRIP_THUMB_W, type StripExtra } from '@/components/binder/PageStrip';
-import { COVER_ABBR, CoverStickerLayer, withSurface } from '@/components/binder/CoverEditor';
+import { CoverDecorationLayer, type LiveDrag } from '@/components/binder/CoverDecorationLayer';
+import { COVER_ABBR, withSurface } from '@/components/binder/CoverEditor';
+import { patchDecoration, removeDecoration } from '@/data/coverDecorations';
 import { useBinders } from '@/store/binders';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -511,7 +513,7 @@ export function BinderPages({
    * PICTURE is drawn by the surface underneath the layer, and a drag that only moved the hit box
    * left the picture standing still until release.
    */
-  const [coverDrag, setCoverDrag] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [coverDrag, setCoverDrag] = useState<LiveDrag | null>(null);
   // The one cover write path. Gated on editable so the public viewer, which mounts this same
   // component for anyone's binder, can never write.
   const store = useBinders();
@@ -735,7 +737,7 @@ export function BinderPages({
     // keeps working from the committed position so the drag does not compound on itself.
     const shown =
       editing && coverDrag
-        ? stickers.map((st) => (st.id === coverDrag.id ? { ...st, x: coverDrag.x, y: coverDrag.y } : st))
+        ? stickers.map((st) => (st.id === coverDrag.id ? ({ ...st, ...coverDrag.patch } as typeof st) : st))
         : stickers;
     const surface = (
       <CoverSurface
@@ -747,24 +749,26 @@ export function BinderPages({
         stickers={shown}
         wheelTarget={live}>
         {editing && binder.cover ? (
-          <CoverStickerLayer
+          <CoverDecorationLayer
             width={bookW}
             height={coverBoxH}
-            stickers={stickers}
+            items={stickers}
             drag={coverDrag}
             selected={coverSelected}
             onSelect={setCoverSelected}
-            onDrag={(sid, x, y) => setCoverDrag({ id: sid, x, y })}
-            onMove={(sid, x, y) => {
+            onDrag={setCoverDrag}
+            onCommit={(sid, patch) => {
               setCoverDrag(null);
-              writeCover(
-                withSurface(
-                  binder.cover!,
-                  id,
-                  stickers.map((st) => (st.id === sid ? { ...st, x, y } : st)),
-                ),
-              );
+              const next = patchDecoration(stickers, sid, patch);
+              if (next !== stickers) writeCover(withSurface(binder.cover!, id, next));
             }}
+            onRemove={(sid) => {
+              setCoverSelected(null);
+              const next = removeDecoration(stickers, sid);
+              if (next !== stickers) writeCover(withSurface(binder.cover!, id, next));
+            }}
+            snap={view.coverSnap}
+            grid={view.coverGrid}
           />
         ) : null}
       </CoverSurface>

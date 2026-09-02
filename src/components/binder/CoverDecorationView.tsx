@@ -5,9 +5,10 @@
  *
  * WHAT IT HONOURS, in transform order: perspective tilt (rotateX/rotateY) first, then the flat
  * rotation, then flips inside the clip; opacity; a mask as a clipped corner radius; `hidden` as
- * nothing at all. A LEGACY row (no h) is the old w×w square with the picture letterboxed inside
- * it, pixel for pixel, so nothing already saved moves; a row with h fills its box through the
- * same window arithmetic the studio uses, so crop and flips mean the same thing here as there.
+ * nothing at all. A row with no crop window is CONTAINED in its box — the old square, pixel for
+ * pixel, or whatever shape it has since been resized to — so an image is never stretched; a row
+ * with a crop fills its box through the studio's window arithmetic, so a crop means the same
+ * thing here as there.
  *
  * TEXT below four pixels — the 58px filmstrip — draws its background shape and one ink bar per
  * line instead of glyphs: never a smudge, always "there is text here". Gating text off entirely
@@ -58,7 +59,10 @@ function ImageDecoration({ d, W, H }: { d: CoverImageDecoration; W: number; H: n
   const box = decorationBox(d, W, H);
   const w = Math.max(8, box.w);
   const h = Math.max(8, box.h);
-  const legacy = d.h == null;
+  // FILL only when a crop window says which part of the picture the box holds. Otherwise the
+  // picture is CONTAINED in the box — whether the box is the old square or one someone has since
+  // resized — so an image is never stretched to a shape it was not cropped to.
+  const windowed = !!d.crop;
   const radius = maskRadius(d, w, h);
   return (
     <View
@@ -73,13 +77,13 @@ function ImageDecoration({ d, W, H }: { d: CoverImageDecoration; W: number; H: n
         transform: outerTransform(d),
         // Only clip when something needs clipping: a legacy square letterboxes inside its box and
         // must not be cut, and a plain box with no mask does not need the extra layer.
-        overflow: legacy && !radius ? 'visible' : 'hidden',
+        overflow: !windowed && !radius ? 'visible' : 'hidden',
         borderRadius: radius,
       }}>
-      {legacy ? (
+      {!windowed ? (
         <Image
           source={{ uri }}
-          style={StyleSheet.absoluteFill}
+          style={[StyleSheet.absoluteFill, { transform: [{ scaleX: d.flipH ? -1 : 1 }, { scaleY: d.flipV ? -1 : 1 }] }]}
           contentFit="contain"
           cachePolicy="memory-disk"
           recyclingKey={uri}

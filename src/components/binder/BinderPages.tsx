@@ -32,7 +32,7 @@ import {
 import { Directions, Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PageStrip, STRIP_THUMB_W, type StripExtra } from '@/components/binder/PageStrip';
-import { COVER_ABBR, CoverStickerLayer, CoverTools, withSurface } from '@/components/binder/CoverEditor';
+import { COVER_ABBR, CoverStickerLayer, withSurface } from '@/components/binder/CoverEditor';
 import { useBinders } from '@/store/binders';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -100,6 +100,23 @@ const NAV_RAIL_WIDTH = 78;
  */
 const COLUMN_LABEL_H = 26;
 const PAGE_WRAP_BOTTOM_MARGIN = 8;
+/**
+ * ...and the same margin above it. Both are real height and both were spent by the same style;
+ * only one of them was ever subtracted, so the fitted page was 8px too tall by construction.
+ */
+const PAGE_WRAP_TOP_MARGIN = 8;
+
+/**
+ * What a caller needs to draw the cover's tools somewhere of its own choosing: which surface, what
+ * is selected on it, and the two writers. Handed over after commit, never during render.
+ */
+export interface CoverToolsContext {
+  surface: CoverSurfaceId;
+  selected: string | null;
+  onSelect: (id: string | null) => void;
+  cover: BinderCover;
+  onChange: (cover: BinderCover) => void;
+}
 
 export interface BinderPagesProps {
   binder: DemoBinder;
@@ -193,6 +210,13 @@ export interface BinderPagesProps {
    * the other "how this binder shows itself" choices rather than in a page-by-page tools card.
    */
   settingsExtras?: ReactNode;
+  /**
+   * EVERYTHING NEEDED TO DRAW THE COVER'S TOOLS SOMEWHERE ELSE — or null when no cover surface is
+   * being decorated. Reported after each commit, never during render, because this component
+   * clears its own cover state mid-render to keep the page turn frame-accurate and a child may
+   * not update a parent while rendering.
+   */
+  onCoverContext?: (ctx: CoverToolsContext | null) => void;
   /** Shared "which spread column is mid-drag" value, so that column lifts above its neighbours
    *  (edit only). Omit on read-only surfaces. */
   dragCol?: SharedValue<number>;
@@ -216,6 +240,7 @@ export function BinderPages({
   settingsOpen = false,
   onCloseSettings,
   settingsExtras,
+  onCoverContext,
   dragCol,
 }: BinderPagesProps) {
   // Remembered per account (and per device for guests) rather than reset on every visit — see
@@ -345,6 +370,7 @@ export function BinderPages({
       (railLeft ? 0 : stripHeight) -
       COLUMN_LABEL_H -
       PAGE_WRAP_BOTTOM_MARGIN -
+      PAGE_WRAP_TOP_MARGIN -
       PAGE_BREATHING_ROOM,
   );
   // The rail is drawn inside this component, so the width it takes is invisible to the callers that
@@ -650,6 +676,31 @@ export function BinderPages({
    */
   const focused: CoverSurfaceId | null =
     coverFocus ?? (shut === 'front' ? 'front' : shut === 'back' ? 'back' : shut === 'tail' ? 'backInside' : null);
+
+  /**
+   * TELL THE CALLER WHICH COVER IS BEING DECORATED, so it can put the tools in its Artwork panel
+   * rather than under the binder — three lines of chrome that used to appear the moment any of the
+   * four surfaces was touched, and took that height off the pages.
+   *
+   * Deps are primitives only: the context object is rebuilt every render, so depending on it would
+   * publish forever.
+   */
+  const coverForTools = binder.cover;
+  useEffect(() => {
+    if (!onCoverContext) return;
+    onCoverContext(
+      editable && coverForTools && focused
+        ? {
+            surface: focused,
+            selected: coverSelected,
+            onSelect: setCoverSelected,
+            cover: coverForTools,
+            onChange: writeCover,
+          }
+        : null,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editable, coverForTools, focused, coverSelected, onCoverContext]);
 
   /**
    * One cover surface, drawn to the page's width so the two halves of the spread line up.
@@ -1090,18 +1141,13 @@ export function BinderPages({
           </View>
         </Modal>
       ) : null}
-        {/* DECORATING, IN THE BINDER. The tools for whichever cover is in focus, next to the
-            page it belongs with rather than in a dialog. Inside the measured block, so the page
-            makes room for them instead of pushing the filmstrip down. */}
-        {editable && binder.cover && focused ? (
-          <CoverTools
-            cover={binder.cover}
-            surface={focused}
-            selected={coverSelected}
-            onSelect={setCoverSelected}
-            onChange={writeCover}
-          />
-        ) : null}
+        {/* THE COVER'S TOOLS ARE NOT HERE ANY MORE.
+
+            They were a name, a hint and a row of nine buttons directly under the binder — three
+            lines, inside the measured block, so every one of the four surfaces cost the pages the
+            same chunk of height the moment you touched it. They are in the Artwork panel now,
+            which opens on its Cover tab when a surface is picked: the same tools, beside the
+            binder rather than under it, where they take nothing from the page. */}
       </View>
 
 

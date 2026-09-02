@@ -24,7 +24,8 @@ import {
   CardPicker,
 } from '@/components/binder/CardPicker';
 import { AboutPopup } from '@/components/binder/AboutPopup';
-import { BinderPages, type GridRole } from '@/components/binder/BinderPages';
+import { BinderPages, type CoverToolsContext, type GridRole } from '@/components/binder/BinderPages';
+import { CoverTools } from '@/components/binder/CoverEditor';
 import { ColorField } from '@/components/binder/ColorField';
 import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
 import { LikersSheet } from '@/components/binder/LikersSheet';
@@ -187,6 +188,14 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // The view chips (double-sided, labels, strip side, owned, scans) are rendered by BinderPages,
   // but the gear that opens them belongs up in this screen's header, where it costs no page height.
   const [settingsOpen, setSettingsOpen] = useState(false);
+  /**
+   * WHICH BINDER COVER IS BEING DECORATED — FC, IFC, IBC or BC — and which sticker on it.
+   *
+   * BinderPages used to own both and draw the cover's toolbar under the binder. Held here, the
+   * toolbar can go in the Artwork panel instead, which is where art work belongs and, unlike the
+   * space under the binder, costs the pages no height at all.
+   */
+  const [coverCtx, setCoverCtx] = useState<CoverToolsContext | null>(null);
   const editing = editingWanted && store.canEdit;
   const [pageIndex, setPageIndex] = useState(0);
   const [pickerCell, setPickerCell] = useState<{ row: number; col: number } | null>(null);
@@ -1752,6 +1761,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               space it actually has rather than centred in the window with a panel parked on top of
               its right-hand third. The rail's 34px is padded too, for the same reason. */}
           <ScrollView
+            // Named, because "does the binder need scrolling" is a question a test has to be able
+            // to ask about THIS scroller — the filmstrip and the two panels scroll on purpose.
+            testID="binder-scroll"
             // Its own position in the window: the header and any safe-area inset sit above it, and
             // this is the one term of the page's height budget that BinderPages cannot see.
             onLayout={(e) => setViewportTop(e.nativeEvent.layout.y)}
@@ -1836,35 +1848,20 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               settingsOpen={settingsOpen}
               onCloseSettings={() => setSettingsOpen(false)}
               settingsExtras={binderLookSettings}
+              onCoverContext={(ctx) => {
+                setCoverCtx(ctx);
+                // Picking a surface IS the request to decorate it, so the panel holding the
+                // cover's tools comes forward with it.
+                if (ctx) setArtworkOpen(true);
+              }}
               renderGrid={renderGrid}
             />
 
-            {editing && (
-              <>
-                {!binder.isExample && (
-                  <Pressable
-                    onPress={() =>
-                      setConfirm({
-                        title: 'Delete this binder?',
-                        message: 'This binder and all its pages will be permanently deleted.',
-                        confirmLabel: 'Delete binder',
-                        destructive: true,
-                        // A demo binder or an untouched fresh duplicate deletes without the gate;
-                        // a binder the user has worked on still requires typing its name.
-                        requireText:
-                          binder.isDemo || store.isPristineDuplicate(binder.id) ? undefined : binder.title,
-                        onConfirm: () => {
-                          store.deleteBinder(binder.id);
-                          onClose();
-                        },
-                      })
-                    }
-                    style={styles.deleteBinder}>
-                    <Text style={styles.deleteBinderText}>Delete binder</Text>
-                  </Pressable>
-                )}
-              </>
-            )}
+            {/* DELETING THE BINDER IS NOT AN EDITING TOOL. It sat at the foot of the editor,
+                below the pages, where the only reason to scroll past your own binder was to find
+                the one control that destroys it. /my-binders already offers it from each tile's
+                ⋯ menu, which is the right place: you delete a binder from the shelf, not from
+                inside the thing you are working on. */}
           </ScrollView>
 
           {/* THE BOTTOM SLICE TRAY IS GONE. It was a full-width bar pinned under the binder plus a
@@ -1946,6 +1943,17 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           visible={sidesShown}
           collapsed={!artWantsPanel}
           onToggleCollapsed={() => setArtworkOpen((v) => !v)}
+          coverTools={
+            editing && coverCtx ? (
+              <CoverTools
+                cover={coverCtx.cover}
+                surface={coverCtx.surface}
+                selected={coverCtx.selected}
+                onSelect={coverCtx.onSelect}
+                onChange={coverCtx.onChange}
+              />
+            ) : undefined
+          }
           docked={artworkDocked}
           width={artworkWidth}
           side="left"
@@ -2444,7 +2452,12 @@ const styles = StyleSheet.create({
   likeChipHeart: { color: Palette.accent, fontSize: FontSize.md, lineHeight: 18 },
   likeChipText: { color: Palette.ink2, fontSize: FontSize.control, fontWeight: Weight.semibold },
   titleText: { textAlign: 'center', fontFamily: Fonts?.brand, fontSize: FontSize.title, lineHeight: 28 },
-  scroll: { paddingHorizontal: 16, paddingBottom: 48 },
+  // NOTHING LIVES BELOW THE BINDER ANY MORE, so nothing is reserved below it. This was 48px of
+  // clearance for the slice tray, and then for the Delete binder button; both are gone, and 48px
+  // of padding under the last thing on the page is 48px the pages could have had — and, worse,
+  // 48px BinderPages could not see, so it sized the page to fit and the container overflowed
+  // anyway. The page's own breathing room is reserved inside the height budget where it belongs.
+  scroll: { paddingHorizontal: 16 },
   // Detail fields share one centred column (matches the edit-tools card) so the editable
   // chrome reads as a single organised stack instead of page-wide boxes.
   toolsCard: {
@@ -2539,16 +2552,6 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.7 },
   // A contained danger chip, centred and sized to its label — so the tap target is the button,
   // not the whole row width (an easy place to fat-finger a destructive action).
-  deleteBinder: {
-    marginTop: 20,
-    alignSelf: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: Radius.control,
-    backgroundColor: Palette.dangerBg,
-  },
-  deleteBinderText: { color: Palette.dangerAlt, fontSize: FontSize.control, fontWeight: Weight.semibold },
-  // Clearance so scrolled content isn't hidden behind the docked slice tray.
   // Floating drag preview that follows the finger while a slice is dragged from the tray.
   dragGhost: {
     position: 'absolute',

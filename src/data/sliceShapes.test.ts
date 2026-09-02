@@ -13,24 +13,39 @@ import {
   shapeLabel,
   visibleSliceShapes,
 } from './sliceShapes.ts';
+import { REAL_PAGE_SIZES } from './binderPhysics.ts';
 
-const key = (s: { rows: number; cols: number }) => `${s.cols}x${s.rows}`;
+// Rows first, the way shapeKey and shapeLabel and REAL_PAGE_SIZES all read it.
+const key = (s: { rows: number; cols: number }) => `${s.rows}x${s.cols}`;
 const keys = (list: { rows: number; cols: number }[]) => list.map(key);
 
 test('the short row is the common five, in the order they were asked for', () => {
   const page = { rows: 3, cols: 3 };
-  assert.deepEqual(keys(visibleSliceShapes(page, page, false)), ['3x3', '3x4', '1x2', '2x2', '1x1']);
+  assert.deepEqual(keys(visibleSliceShapes(page, page, false)), ['3x3', '3x4', '2x1', '2x2', '1x1']);
 });
 
-test('labels read columns × rows, the way a page size is spoken', () => {
-  assert.equal(shapeLabel({ rows: 4, cols: 3 }), '3×4');
-  assert.equal(shapeLabel({ rows: 2, cols: 1 }), '1×2');
+test('labels read rows × columns, the way a page size is spoken', () => {
+  // The one that mattered: "3×4" is a real 12-pocket page, three rows of four, in the studio and
+  // in the binder alike. It used to mean 3 wide and 4 tall here and nowhere else.
+  assert.equal(shapeLabel({ rows: 3, cols: 4 }), '3×4');
+  assert.equal(shapeLabel({ rows: 4, cols: 3 }), '4×3');
+  assert.equal(shapeLabel({ rows: 1, cols: 2 }), '1×2');
+});
+
+test('a slice shape named 3×4 is the shape of a page named 3×4', () => {
+  // The bug this pair of files existed to allow: cut a page into "3×4" pieces in the studio and
+  // they did not fit the "3×4" page they were cut for, because the two names disagreed.
+  const page = REAL_PAGE_SIZES.find((p) => p.label === '3×4');
+  assert.ok(page);
+  const shape = COMMON_SLICE_SHAPES.find((s) => shapeLabel(s) === '3×4');
+  assert.ok(shape, keys(COMMON_SLICE_SHAPES).join(','));
+  assert.deepEqual({ rows: shape.rows, cols: shape.cols }, { rows: page.rows, cols: page.cols });
 });
 
 test('the shape you are cutting into is always shown, common or not', () => {
   // Otherwise the row draws no active chip and reads as "nothing selected" while the canvas is
   // plainly cut into something.
-  const current = { rows: 3, cols: 2 }; // "2×3" — not one of the common five
+  const current = { rows: 3, cols: 2 }; // "3×2" — not one of the common five
   const shown = visibleSliceShapes(current, { rows: 3, cols: 3 }, false);
   assert.ok(shown.some((s) => s.rows === 3 && s.cols === 2), keys(shown).join(','));
 });

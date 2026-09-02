@@ -21,15 +21,17 @@ export interface SliceShape {
 }
 
 /**
- * The ones people reach for, in the order they were asked for: the standard page, the tall page,
- * a two-pocket vertical panorama, a square block, and a single full-bleed pocket.
+ * The ones people reach for: the standard page, the wide page, a two-pocket vertical panorama, a
+ * square block, and a single full-bleed pocket.
  *
- * Labelled COLUMNS×ROWS everywhere in the UI, the way page sizes are spoken — so `{rows: 4, cols: 3}`
- * reads "3×4".
+ * Labelled ROWS×COLUMNS, which is how REAL_PAGE_SIZES has always spoken — "3×4" is the real
+ * 12-pocket side-load page, three rows of four. It used to be labelled columns×rows here and only
+ * here, so the same four characters meant a 3-wide, 4-tall cut in the studio and a 4-wide, 3-tall
+ * page in the binder: pick "3×4" in both and the pieces did not fit the page they were cut for.
  */
 export const COMMON_SLICE_SHAPES: SliceShape[] = [
   { rows: 3, cols: 3 },
-  { rows: 4, cols: 3 },
+  { rows: 3, cols: 4 },
   { rows: 2, cols: 1 },
   { rows: 2, cols: 2 },
   { rows: 1, cols: 1 },
@@ -42,12 +44,12 @@ export const OTHER_SLICE_SHAPES: SliceShape[] = [
   { rows: 3, cols: 1 },
   { rows: 2, cols: 3 },
   { rows: 3, cols: 2 },
-  { rows: 3, cols: 4 },
+  { rows: 4, cols: 3 },
   { rows: 4, cols: 4 },
 ];
 
 export const shapeKey = (s: SliceShape) => `${s.rows}x${s.cols}`;
-export const shapeLabel = (s: SliceShape) => `${s.cols}×${s.rows}`;
+export const shapeLabel = (s: SliceShape) => `${s.rows}×${s.cols}`;
 const same = (a: SliceShape, b: SliceShape) => a.rows === b.rows && a.cols === b.cols;
 
 /**

@@ -13,7 +13,7 @@
  * back to, and `sendBrowseCommand` is a broadcast — so two browsers would silently corrupt each
  * other's query, sort and similarity state. One browser, one tray.
  */
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { SharedValue } from 'react-native-reanimated';
 
@@ -60,6 +60,15 @@ export interface ArtworkDockProps {
   /** Inserts live on this side too — see the tab note below. */
   onPickInsert?: (color: string, rowSpan: number, colSpan: number) => void;
   onClear?: () => void;
+  /**
+   * THE COVER'S OWN TOOLS, when a cover surface is the thing being decorated.
+   *
+   * They used to sit under the binder: a name, a hint and a row of nine buttons, three lines of
+   * chrome that pushed the pages down and were the last reason /binder ever scrolled. They belong
+   * here — decorating a cover is exactly the work this panel is for, and a panel is the one place
+   * in this layout that costs the pages nothing.
+   */
+  coverTools?: ReactNode;
   ghostOn: SharedValue<number>;
   ghostX: SharedValue<number>;
   ghostY: SharedValue<number>;
@@ -75,6 +84,7 @@ export function ArtworkDock({
   onClose,
   onPickInsert,
   onClear,
+  coverTools,
   ...panel
 }: ArtworkDockProps) {
   /**
@@ -82,8 +92,23 @@ export function ArtworkDock({
    * the card browser is not on. Splitting them across the two panels would have put one non-card
    * thing beside the cards and the other opposite it, for no reason a person could name.
    */
-  const [tab, setTab] = useState<'art' | 'insert'>('art');
-  const tabs = onPickInsert ? (['art', 'insert'] as const) : (['art'] as const);
+  const [tab, setTab] = useState<'art' | 'insert' | 'cover'>('art');
+  const tabs = (['art', ...(onPickInsert ? (['insert'] as const) : []), ...(coverTools ? (['cover'] as const) : [])] as const) as readonly ('art' | 'insert' | 'cover')[];
+  /**
+   * Touching a cover surface IS the request to decorate it, so the panel comes to the front on the
+   * cover tab by itself — and steps back to Artwork when the cover is let go, rather than leaving
+   * a tab selected that no longer has anything behind it.
+   *
+   * Adjusted during render against the previous value rather than in an effect: an effect would
+   * paint the old tab first and then correct it, which is a visible flicker on the one interaction
+   * this panel exists to serve.
+   */
+  const hasCover = coverTools != null;
+  const [sawCover, setSawCover] = useState(hasCover);
+  if (sawCover !== hasCover) {
+    setSawCover(hasCover);
+    setTab(hasCover ? 'cover' : 'art');
+  }
 
   if (!visible) return null;
 
@@ -122,7 +147,7 @@ export function ArtworkDock({
                   accessibilityState={{ selected: tab === t }}
                   style={[styles.tab, tab === t && styles.tabOn]}>
                   <Text style={[styles.tabText, tab === t && styles.tabTextOn]}>
-                    {t === 'art' ? 'Artwork' : 'Inserts'}
+                    {t === 'art' ? 'Artwork' : t === 'insert' ? 'Inserts' : 'Cover'}
                   </Text>
                 </Pressable>
               ))
@@ -132,7 +157,11 @@ export function ArtworkDock({
           <Text style={styles.close}>Done</Text>
         </Pressable>
       </View>
-      {tab === 'art' ? (
+      {tab === 'cover' && coverTools ? (
+        <ScrollView contentContainerStyle={styles.coverScroll} keyboardShouldPersistTaps="handled">
+          {coverTools}
+        </ScrollView>
+      ) : tab === 'art' ? (
         <ArtworkPanel {...panel} />
       ) : (
         <ScrollView contentContainerStyle={styles.insertScroll} showsVerticalScrollIndicator={false}>
@@ -235,6 +264,7 @@ const styles = StyleSheet.create({
   },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 6, gap: Spacing.two },
   tabs: { flexDirection: 'row', gap: 4 },
+  coverScroll: { paddingBottom: Spacing.three },
   tab: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: Radius.pill },
   tabOn: { backgroundColor: Palette.panel },
   tabText: { fontSize: FontSize.label, fontWeight: Weight.semibold, color: Palette.muted2 },

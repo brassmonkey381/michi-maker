@@ -444,12 +444,14 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const capGate = useCapGate(showLimitToast);
 
   // Hovering the binder title answers the same question the tap does, without taking the screen.
-  // Off while editing, where the title's job is to open the fields, and off when there is nothing
-  // to say — a card that opens empty is worse than one that never opens.
+  //
+  // IN BOTH MODES. Hover and click do not compete — the pointer asks what this binder is, the
+  // click opens the fields to change it — and an editor who has to leave edit mode to read the
+  // description they are editing is being asked to work around the app.
   //
   // Above the `if (!binder)` guard with the rest of the hooks, hence the optional chain: the hook
   // order has to hold on the render where the binder is missing too (see the note at the top).
-  const binderHover = useHoverReveal(!editing && !!binder?.description && !binderInfoOpen);
+  const binderHover = useHoverReveal(!!binder?.description && !binderInfoOpen);
 
   if (!binder) {
     return (

@@ -1641,8 +1641,15 @@ export function BinderPages({
               return table();
             };
             const blank = tailPage ? copy(tailPage, 'partner') : null;
+            // POINTER-TRANSPARENT, ALWAYS. These are throwaway copies of pages, drawn only so a
+            // turn has something to animate; the reader's pointer belongs to the real binder
+            // underneath. Kept ones are `opacity: 0` and were still HIT-TESTABLE, so in
+            // double-sided view mode an invisible full-page sheet sat over the binder and ate
+            // every hover the pockets should have seen.
             const slot = (on: boolean, node: ReactNode) => (
-              <View style={[StyleSheet.absoluteFill, !on && styles.kept]}>{node}</View>
+              <View pointerEvents="none" style={[StyleSheet.absoluteFill, !on && styles.kept]}>
+                {node}
+              </View>
             );
             return (
               <View
@@ -1951,13 +1958,14 @@ function SpreadColumn({
   const fallback = useSharedValue(-1);
   const col = dragCol ?? fallback;
   const columnStyle = useAnimatedStyle(() => ({ zIndex: col.value === columnIndex ? 30 : 1 }));
-  // Same deal as the binder's title: hovering a page's name shows what the page is, and only
-  // where tapping it would have. A neighbour's label navigates instead, so it stays silent —
-  // one rule, rather than a title that means two things depending on which one you are over.
+  // Same deal as the binder's title: hovering a page's name shows what the page is, in BOTH
+  // modes — the pointer asks, the click edits, and they do not compete. Only where tapping it
+  // would open the page's own details, though: a neighbour's label navigates instead, so it stays
+  // silent rather than meaning two things depending on which one you are over.
   //
   // Above the empty-column return below, with the other hooks, or the order changes the moment a
   // spread runs out of pages on one side.
-  const hover = useHoverReveal(!editable && !!onPressLabel && !!page?.description);
+  const hover = useHoverReveal(!!onPressLabel && !!page?.description);
   // A column with no page reserves only a peek's worth of space, not a whole page's. On page 1
   // the old layout left a full-page-wide empty band where the previous page would have been.
   if (!page) return <View style={{ width: peekWidth ?? width }} />;

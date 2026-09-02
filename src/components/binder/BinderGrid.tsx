@@ -19,7 +19,13 @@ import { attributionLabel, deriveAttribution, type ArtAttribution } from '@/data
 import { resolveCardWith, resolveCatalogCardWith } from '@/data/cardResolver';
 import { CAPTION_FIELDS, formatCaption, hasTextCaption, type CaptionFieldKey } from '@/data/cardCaption';
 import { occupiedCells, type DemoCard, type DemoPage, type DemoSlot } from '@/data/binderTypes';
-import { artSlotBrief } from '@/data/artTemplates';
+import {
+  ART_ROLE_GUIDE,
+  ART_ROLE_LABELS,
+  artSlotBrief,
+  type ArtRole,
+} from '@/data/artTemplates';
+import { AboutHoverCard } from '@/components/binder/AboutPopup';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useTheme } from '@/hooks/use-theme';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
@@ -349,6 +355,10 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   const dragX = useSharedValue(0);
   const dragY = useSharedValue(0);
   const [dragId, setDragId] = useState<string | null>(null);
+  // WHICH RESERVED PANEL THE POINTER IS OVER, held here rather than in the pocket, because a
+  // pocket clips its own contents and a card drawn inside one is sliced off at the pocket edge.
+  // Drawn below as a sibling of the cells, where nothing clips it.
+  const [hoverArt, setHoverArt] = useState<DemoSlot | null>(null);
   const dragged = dragId ? page.slots.find((s) => s.id === dragId) : undefined;
 
   // The slot currently showing a resize handle (edit mode, selected, and not being dragged).
@@ -484,6 +494,34 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
             </Pressable>
           ))}
 
+        {/* WHAT THIS PANEL IS FOR, on hover. Outside every pocket, so it is not clipped; keyed
+            off the panel's own role, which the template stored when it reserved the pocket.
+            pointerEvents none, so it can never intercept the click heading for the panel. */}
+        {hoverArt?.artRole && hoverArt.artRole in ART_ROLE_GUIDE && !small ? (
+          (() => {
+            const role = hoverArt.artRole as ArtRole;
+            const guide = ART_ROLE_GUIDE[role];
+            const b = box(hoverArt.row, hoverArt.col, hoverArt.rowSpan, hoverArt.colSpan);
+            return (
+              <AboutHoverCard
+                kicker={ART_ROLE_LABELS[role]}
+                text={guide.what}
+                bullets={guide.examples}
+                note={guide.avoid}
+                style={{
+                  // Under the panel normally; ABOVE it for a panel in the lower half, where a card
+                  // hung below would run off the bottom of the page and be read half-cut. Left
+                  // edge aligned to the panel, pulled back inside the page near the right margin.
+                  ...((b.top as number) + (b.height as number) > innerH * 0.55
+                    ? { bottom: innerH - (b.top as number) + 6 }
+                    : { top: (b.top as number) + (b.height as number) + 6 }),
+                  left: Math.max(0, Math.min((b.left as number), Math.max(0, innerW - 320))),
+                }}
+              />
+            );
+          })()
+        ) : null}
+
         {/* Placed slots. */}
         {page.slots.map((slot) => {
           // A filled pocket is a target too — "Replace" points a panel at one — so the active mark
@@ -497,6 +535,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
           const content = (
             <SlotContent
               pageTitle={page.title}
+              onArtHover={setHoverArt}
               slot={slot}
               radius={slotRadius}
               small={small}
@@ -661,6 +700,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
             ]}>
             <SlotContent
               pageTitle={page.title}
+              onArtHover={setHoverArt}
               slot={dragged}
               radius={slotRadius}
               small={small}
@@ -1159,15 +1199,22 @@ function ArtGapPlaceholder({
   small,
   role,
   pageTitle,
+  onHover,
 }: {
   radius: number;
   small: boolean;
   role?: string;
   pageTitle?: string;
+  /** Reported UP rather than drawn here: every pocket clips (styles.fill, styles.pocket), so a
+   *  card drawn inside one is cut off at its own edges. The grid draws it outside them. */
+  onHover?: (on: boolean) => void;
 }) {
   const brief = small ? artSlotBrief(undefined, role) : artSlotBrief(pageTitle, role);
   return (
-    <View style={[styles.fill, styles.artGap, { borderRadius: radius }]}>
+    <View
+      style={[styles.fill, styles.artGap, { borderRadius: radius }]}
+      onPointerEnter={onHover ? () => onHover(true) : undefined}
+      onPointerLeave={onHover ? () => onHover(false) : undefined}>
       <Text style={[styles.artGapText, small && styles.artGapTextSmall]} numberOfLines={3}>
         {brief}
       </Text>
@@ -1204,6 +1251,7 @@ function SlotContent({
   small,
   catalog,
   pageTitle,
+  onArtHover,
   owned = false,
   scanUri,
   captionFields = [],
@@ -1232,6 +1280,8 @@ function SlotContent({
   scanUri?: string;
   /** The page's own name, so a reserved art panel can say which page's brief it is holding. */
   pageTitle?: string;
+  /** Raised when the pointer enters or leaves a reserved art panel — see ArtGapPlaceholder. */
+  onArtHover?: (slot: DemoSlot | null) => void;
 }) {
   if (slot.type === 'insert') {
     // Tonal negative-space filler: solid colour with a soft top inner highlight
@@ -1273,7 +1323,13 @@ function SlotContent({
   // dashed placeholder inviting the owner to drop in their own art. No image, no card.
   if (slot.type === 'artwork' && !slot.cardId) {
     return (
-      <ArtGapPlaceholder radius={radius} small={small} role={slot.artRole} pageTitle={pageTitle} />
+      <ArtGapPlaceholder
+        radius={radius}
+        small={small}
+        role={slot.artRole}
+        pageTitle={pageTitle}
+        onHover={onArtHover ? (on) => onArtHover(on ? slot : null) : undefined}
+      />
     );
   }
 

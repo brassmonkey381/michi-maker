@@ -188,7 +188,8 @@ await p.screenshot({ path: `${OUT}-4-page.png` });
 await p.getByLabel('Close').last().click({ timeout: 8000 });
 await settle(700);
 await p.getByTestId('binder-title').hover({ timeout: 8000 });
-await settle(1200);
+// No settle worth the name: the reveal is instant, so this only covers the paint.
+await settle(150);
 check(await bodyHas(), 'hovering the binder title reveals the description');
 await p.screenshot({ path: `${OUT}-5-hover.png` });
 await p.mouse.move(20, 900);
@@ -200,14 +201,16 @@ await settle(1200);
 check(await pageBodyHas(), 'hovering a page title reveals the page description');
 await p.screenshot({ path: `${OUT}-6-hover-page.png` });
 
-// And not while editing, where the title's job is the fields.
+// AND WHILE EDITING TOO. Hover and click do not compete — the pointer asks what this binder is,
+// the click opens the fields to change it — and an editor who has to leave edit mode to read the
+// description they are editing is being asked to work around the app.
 await p.mouse.move(20, 900);
 await settle(500);
 await p.getByText(/^Edit$/).first().click({ timeout: 8000 });
 await settle(1800);
 await p.getByTestId('binder-title').hover({ timeout: 8000 });
-await settle(1200);
-check(!(await bodyHas()), 'no hover card while editing');
+await settle(200);
+check(await bodyHas(), 'the hover card works while editing too');
 
 await browser.close();
 await restore();

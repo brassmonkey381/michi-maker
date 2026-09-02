@@ -40,26 +40,46 @@ import { sheet } from '@/constants/ui';
 export function AboutHoverCard({
   kicker,
   text,
+  bullets,
+  note,
   style,
 }: {
   kicker: string;
   text: string;
-  /** Where it sits relative to the title. The caller owns the offset; this owns the look. */
+  /** Things you could actually do, listed under the sentence. */
+  bullets?: string[];
+  /** The trap worth naming, set apart from the rest. */
+  note?: string;
+  /** Where it sits relative to whatever revealed it. The caller owns the offset; this owns the look. */
   style?: ViewStyle;
 }) {
   return (
     <ThemedView type="backgroundElement" pointerEvents="none" style={[styles.hover, style]}>
       <AboutBody kicker={kicker} text={text} />
+      {bullets?.length ? (
+        <View style={styles.bullets}>
+          {bullets.map((b) => (
+            <View key={b} style={styles.bulletRow}>
+              <ThemedText style={styles.bulletDot}>&#183;</ThemedText>
+              <ThemedText style={styles.bulletText}>{b}</ThemedText>
+            </View>
+          ))}
+        </View>
+      ) : null}
+      {note ? <ThemedText style={styles.hoverNote}>Not: {note}</ThemedText> : null}
     </ThemedView>
   );
 }
 
 /**
- * A pointer passing OVER a title on its way somewhere else is not asking a question, so the card
- * waits before answering. It leaves the moment the pointer does: a tooltip that lingers is in the
- * way, and the delay that made it feel considered on the way in feels broken on the way out.
+ * INSTANT, BOTH WAYS. This is a desktop-first app and hover is a primary interaction here, not a
+ * garnish: a reveal that makes you hold still for a beat first reads as lag, and the beat is spent
+ * on every single look to save a few frames of paint on the ones you did not mean. It leaves the
+ * moment the pointer does, for the same reason — a tooltip that lingers is in the way.
+ *
+ * `delayMs` stays on the signature for a caller that genuinely wants a wait; nothing does today.
  */
-export function useHoverReveal(enabled: boolean, delayMs = 400) {
+export function useHoverReveal(enabled: boolean, delayMs = 0) {
   const [shown, setShown] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clear = useCallback(() => {
@@ -77,6 +97,11 @@ export function useHoverReveal(enabled: boolean, delayMs = 400) {
   const onHoverIn = useCallback(() => {
     if (!enabled) return;
     clear();
+    // No timer at all at zero: a setTimeout(0) still costs a task and paints a frame late.
+    if (delayMs <= 0) {
+      setShown(true);
+      return;
+    }
     timer.current = setTimeout(() => setShown(true), delayMs);
   }, [enabled, clear, delayMs]);
   const onHoverOut = useCallback(() => {
@@ -161,6 +186,16 @@ const styles = StyleSheet.create({
     ...Shadows.page,
   },
   closeBtn: { position: 'absolute', top: Spacing.three, right: Spacing.four, zIndex: 1 },
+  bullets: { marginTop: Spacing.two, gap: 3 },
+  bulletRow: { flexDirection: 'row', gap: 6 },
+  bulletDot: { fontSize: FontSize.label, lineHeight: 19, color: Palette.muted },
+  bulletText: { flex: 1, fontSize: FontSize.label, lineHeight: 19, color: Palette.ink2 },
+  hoverNote: {
+    marginTop: Spacing.two,
+    fontSize: FontSize.label,
+    lineHeight: 19,
+    color: Palette.muted,
+  },
   // Small and letter-spaced: it labels the text below rather than competing with it.
   kicker: {
     flexShrink: 1,

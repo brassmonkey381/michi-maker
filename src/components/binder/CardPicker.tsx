@@ -93,6 +93,8 @@ interface CardPickerProps {
   docked?: boolean;
   /** How wide that column should be. Elastic: it is whatever the page did not need. */
   dockWidth?: number;
+  /** What the collapsed rail says it is. A 34px bar with only a chevron is a mystery. */
+  collapsedLabel?: string;
   /** Live tray size + the account's artwork cap (Infinity = uncapped) — gates the studio's Save. */
   trayCount?: number;
   trayLimit?: number;
@@ -148,6 +150,7 @@ export function CardPicker({
   ghostY,
   docked: dockedProp,
   dockWidth,
+  collapsedLabel,
   onPickInsert,
   onClear,
   keepAdding,
@@ -465,8 +468,13 @@ export function CardPicker({
           testID="card-picker-rail"
           accessibilityRole="button"
           accessibilityState={{ expanded: false }}
-          accessibilityLabel="Expand the card search">
+          accessibilityLabel={`Expand ${collapsedLabel ?? 'the card search'}`}>
           <Text style={styles.chevron}>◂</Text>
+          {/* Named, because a 34px bar with a chevron on it is a mystery. One letter per line: the
+              rail is too narrow for a word laid flat and rotated text is worse to read than this. */}
+          {collapsedLabel ? (
+            <Text style={styles.railLabel}>{collapsedLabel.toUpperCase().split('').join('\n')}</Text>
+          ) : null}
         </Pressable>
       );
     }
@@ -532,6 +540,14 @@ const styles = StyleSheet.create({
     zIndex: 70,
   },
   chevron: { fontSize: FontSize.md, color: Palette.muted },
+  railLabel: {
+    marginTop: 10,
+    fontSize: FontSize.sm,
+    fontWeight: Weight.semibold,
+    color: Palette.muted2,
+    textAlign: 'center',
+    lineHeight: 13,
+  },
   /** Even as a sheet it should not stretch to a 1920px monitor: a phone-shaped control the width
    *  of a desktop is nobody's idea of a good picker. The Slice Studio is the exception — it is a
    *  workspace and takes every pixel it is given. */

@@ -41,6 +41,9 @@ const INSERT_COLOURS = [
 
 export interface ArtworkDockProps {
   visible: boolean;
+  /** Collapsed to a rail: always present, always in the same place, 34px wide. */
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
   /** False when the window cannot spare the width — the panel becomes a centred modal instead. */
   docked: boolean;
   /** Elastic: whatever the page did not need. */
@@ -64,6 +67,8 @@ export interface ArtworkDockProps {
 
 export function ArtworkDock({
   visible,
+  collapsed = false,
+  onToggleCollapsed,
   docked,
   width,
   side = 'left',
@@ -81,6 +86,28 @@ export function ArtworkDock({
   const tabs = onPickInsert ? (['art', 'insert'] as const) : (['art'] as const);
 
   if (!visible) return null;
+
+  // COLLAPSED: a rail on the same edge, holding the same width in the layout it always holds. The
+  // panel is never absent while editing — it is either open or it is this.
+  if (collapsed) {
+    return (
+      <Pressable
+        testID="artwork-rail"
+        onPress={onToggleCollapsed}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: false }}
+        accessibilityLabel="Expand your artwork and inserts"
+        style={[
+          styles.rail,
+          side === 'left'
+            ? { left: 0, borderRightWidth: 1, borderRightColor: Palette.hairlineStrong }
+            : { right: 0, borderLeftWidth: 1, borderLeftColor: Palette.hairlineStrong },
+        ]}>
+        <Text style={styles.chevron}>{side === 'left' ? '▸' : '◂'}</Text>
+        <Text style={styles.railLabel}>{'ART'.split('').join('\n')}</Text>
+      </Pressable>
+    );
+  }
 
   const body = (
     <>
@@ -186,6 +213,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingTop: Spacing.two,
     paddingBottom: Spacing.three,
+  },
+  rail: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 34,
+    backgroundColor: Palette.surface,
+    alignItems: 'center',
+    paddingTop: 14,
+    zIndex: 70,
+  },
+  chevron: { fontSize: FontSize.md, color: Palette.muted2 },
+  railLabel: {
+    marginTop: 10,
+    fontSize: FontSize.sm,
+    fontWeight: Weight.semibold,
+    color: Palette.muted2,
+    textAlign: 'center',
+    lineHeight: 13,
   },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 6, gap: Spacing.two },
   tabs: { flexDirection: 'row', gap: 4 },

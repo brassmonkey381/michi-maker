@@ -230,9 +230,6 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // (tap a pocket once, then one tap per card) is the one you get without having to find a toggle.
   // Initialised, not synced: once you turn it off it stays off, resizing the window included.
   const [keepAdding, setKeepAdding] = useState(() => width >= CARD_PICKER_DOCK_MIN_WIDTH);
-  // The docked picker, tucked away to a rail. Lives here, not in CardPicker, because collapsing it
-  // has to hand the width back to the binder — the panel's own state cannot do that.
-  const [pickerCollapsed, setPickerCollapsed] = useState(false);
   /**
    * THE ARTWORK PANEL, on the other side.
    *
@@ -246,6 +243,15 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
    * the ?browse= URL, and a colour search in one would land in both. One browser, one tray.
    */
   const [artworkOpen, setArtworkOpen] = useState(false);
+  /**
+   * BOTH SIDES ARE ALWAYS THERE WHILE EDITING — collapsed to a rail, or open.
+   *
+   * They used to appear and disappear: the cards panel only existed while a pocket was targeted,
+   * and the artwork panel only while its chip was on. That made the two most-used surfaces in the
+   * editor things you had to summon, and it made the layout jump as they came and went. A rail is
+   * 34px, always in the same place, and says what is behind it — the slice tray's old trick.
+   */
+  const [cardsCollapsed, setCardsCollapsed] = useState(true);
   // Where the scroller starts in the window: the only part of the page's height budget that lives
   // outside the scroller, so the only part BinderPages cannot measure for itself.
   // What the page settled on, reported up by BinderPages so the panel beside it can be sized from
@@ -401,8 +407,6 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
 
   const idx = Math.min(pageIndex, binder.pages.length - 1);
   const page = binder.pages[idx];
-  // Enough room to sit the title fields and page tools side by side (else they stack).
-  const wideEditor = width >= 900;
   // Usable content width — BinderPages owns the spread/single layout; it just needs the breakpoint.
   // The picker DOCKS beside the binder on a wide screen rather than covering it, so the page has
   // to make room — otherwise the column would sit on top of the very pockets it is filling. The
@@ -420,14 +424,26 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
    * collapses to a single page, and trading the spread for a wider panel is the wrong way round.
    */
   const pageNeed = Math.max(pageWidthUsed, binder.pages.length > 1 ? PEEK_MIN_WIDTH : 0);
-  const panelCount = (pickerCell != null ? 1 : 0) + (artworkOpen ? 1 : 0);
-  const panels = panelLayout({ availableWidth: width - 32, pageNeed, panels: panelCount });
+  // While editing there are always two sides. Each is EITHER a rail (a fixed 34px) or an open
+  // panel (elastic), so the rails come off the top of the budget and panelLayout divides what is
+  // left between however many are actually open.
+  const sidesShown = editing;
+  const cardsWantsPanel = sidesShown && !cardsCollapsed;
+  const artWantsPanel = sidesShown && artworkOpen;
+  const railCount = sidesShown ? (cardsWantsPanel ? 0 : 1) + (artWantsPanel ? 0 : 1) : 0;
+  const railCost = railCount * CARD_PICKER_RAIL_WIDTH;
+  const panelCount = (cardsWantsPanel ? 1 : 0) + (artWantsPanel ? 1 : 0);
+  const panels = panelLayout({
+    availableWidth: width - 32 - railCost,
+    pageNeed,
+    panels: panelCount,
+  });
   // Asked for in priority order, and panelLayout keeps the earlier ones docked when only some fit.
   // The picker goes first because it is the one you just asked for by tapping a pocket; the artwork
   // panel is a standing choice and survives a spell as a modal better.
   let fitIdx = 0;
-  const pickerFit = pickerCell != null ? panels.fits[fitIdx++] : 'modal';
-  const artworkFit = artworkOpen ? panels.fits[fitIdx++] : 'modal';
+  const pickerFit = cardsWantsPanel ? panels.fits[fitIdx++] : 'modal';
+  const artworkFit = artWantsPanel ? panels.fits[fitIdx++] : 'modal';
   /**
    * WHETHER IT DOCKS IS DECIDED HERE, not in the panel.
    *
@@ -436,10 +452,11 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
    * budget while the picker rendered as a full-screen sheet. There is one answer now, it comes from
    * the arithmetic that also decides the width, and the panel is told it.
    */
-  const pickerDocked = pickerCell != null && pickerFit === 'docked';
-  const artworkDocked = artworkOpen && artworkFit === 'docked';
-  const pickerWidth = pickerCollapsed ? CARD_PICKER_RAIL_WIDTH : panels.panelWidth;
-  const artworkWidth = panels.panelWidth;
+  const pickerDocked = sidesShown && (cardsWantsPanel ? pickerFit === 'docked' : true);
+  const artworkDocked = sidesShown && (artWantsPanel ? artworkFit === 'docked' : true);
+  // A side that is not open, or is open but too narrow to dock, still holds its rail.
+  const pickerWidth = cardsWantsPanel && pickerFit === 'docked' ? panels.panelWidth : CARD_PICKER_RAIL_WIDTH;
+  const artworkWidth = artWantsPanel && artworkFit === 'docked' ? panels.panelWidth : CARD_PICKER_RAIL_WIDTH;
   const available =
     width - 32 - (pickerDocked ? pickerWidth : 0) - (artworkDocked ? artworkWidth : 0);
   // prev/next are kept here for the cross-page drag hit-test (resolveSpreadHit below); the spread
@@ -681,9 +698,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const closePicker = () => {
     setPickerCell(null);
     setSimilarSeed(null); // consume the one-shot seed so a later normal open doesn't re-run it
-    // Collapsed is a state of THIS session with the picker, not a preference. Leaving it set would
-    // mean the next pocket you tap opens nothing you can see — a rail on the far edge.
-    setPickerCollapsed(false);
+    // "Done" on the cards panel folds it back to its rail rather than removing it. The panel is a
+    // permanent side of the editor now; closing it means putting it away, not making it vanish.
+    setCardsCollapsed(true);
   };
 
   // Tapping a filled pocket selects it (for the action bar + resize handle); tapping an empty
@@ -713,6 +730,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     setSelectedSlotId(null);
     clearMulti();
     setPickerCell({ row, col });
+    // The cards side comes forward for the pocket you just tapped — it is a rail the rest of the
+    // time, not absent, so this is an expand rather than an appearance.
+    setCardsCollapsed(false);
   };
 
   // Drag-to-resize commit: re-place the slot at its fixed top-left with the new footprint.
@@ -1867,7 +1887,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         {/* THE OTHER SIDE. Cards on the right, cut art on the left, both feeding the one pocket
             you have selected — which is why the active pocket had to become unmistakable. */}
         <ArtworkDock
-          visible={artworkOpen}
+          visible={sidesShown}
+          collapsed={!artWantsPanel}
+          onToggleCollapsed={() => setArtworkOpen((v) => !v)}
           docked={artworkDocked}
           width={artworkWidth}
           side="left"
@@ -1888,7 +1910,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         />
 
         <CardPicker
-          visible={pickerCell != null}
+          visible={sidesShown}
           page={page}
           cell={pickerCell}
           slot={slotAtCell}
@@ -1924,8 +1946,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           ghostOn={ghostOn}
           ghostX={ghostX}
           ghostY={ghostY}
-          collapsed={pickerCollapsed}
-          onToggleCollapsed={() => setPickerCollapsed((v) => !v)}
+          collapsed={!cardsWantsPanel}
+          onToggleCollapsed={() => setCardsCollapsed((v) => !v)}
+          collapsedLabel="Cards"
           docked={pickerDocked}
           dockWidth={pickerWidth}
         />

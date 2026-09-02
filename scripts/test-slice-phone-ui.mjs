@@ -22,7 +22,9 @@ import { chromium } from 'playwright-core';
 import { readFileSync } from 'node:fs';
 
 const OUT = process.argv[2] ?? 'slice-phone';
-const BASE = 'http://localhost:8081';
+// Overridable so a run can point at a second dev server — two agents sharing this repo
+// means port 8081 is not always ours, and not always alive.
+const BASE = process.env.MICHI_BASE ?? 'http://localhost:8081';
 const PROJECT = 'piikwvntldytjejxmcla';
 const SECRETS = 'C:/Users/Brian/source/repos/tcgscan/tcgscan.secrets';
 // Narrow enough to stack (TWO_COL_MIN is 800), and a real phone size rather than a contrived one.

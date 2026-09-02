@@ -184,6 +184,11 @@ function Viewer({
 }) {
   const [needAccount, setNeedAccount] = useState(false);
   const [reporting, setReporting] = useState(false);
+  // Where the scroller starts in the window — the one term of the page's height budget that lives
+  // outside it. Rounded and only accepted on a real change, so a sub-pixel wobble cannot loop.
+  const [viewportTop, setViewportTopRaw] = useState(0);
+  const setViewportTop = (y: number) =>
+    setViewportTopRaw((cur) => (Math.abs(cur - y) > 2 ? Math.round(y) : cur));
   const router = useRouter();
 
   // Who made this. A shared binder arrives with no owner attached — a DemoBinder carries pages,
@@ -206,7 +211,13 @@ function Viewer({
   const openAuthor = () => author && router.push(`/u/${profileHandle(author)}` as never);
 
   return (
-    <ScrollView contentContainerStyle={styles.scroll}>
+    <ScrollView
+      // The page's height budget needs to know where this scroller starts. It used to rely on
+      // BinderPages' default allowance of 96px, which was a guess about THIS screen made in another
+      // file — and this screen stacks a title, an author line, a description and a like row above
+      // the page, so the guess was never close.
+      onLayout={(e) => setViewportTop(e.nativeEvent.layout.y)}
+      contentContainerStyle={styles.scroll}>
       <ThemedText type="subtitle" style={styles.title}>
         {binder.title}
       </ThemedText>
@@ -242,6 +253,7 @@ function Viewer({
 
       {/* The same page-browsing surface the owner sees — read-only here. */}
       <BinderPages
+        viewportTop={viewportTop}
         binder={binder}
         pageIndex={pageIndex}
         onPageChange={onPage}

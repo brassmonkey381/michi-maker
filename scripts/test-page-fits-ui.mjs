@@ -22,7 +22,9 @@ import { chromium } from 'playwright-core';
 import { readFileSync } from 'node:fs';
 
 const OUT = process.argv[2] ?? 'page-fits';
-const BASE = 'http://localhost:8081';
+// Overridable so a run can point at a second dev server — two agents sharing this repo
+// means port 8081 is not always ours, and not always alive.
+const BASE = process.env.MICHI_BASE ?? 'http://localhost:8081';
 const PROJECT = 'piikwvntldytjejxmcla';
 const SECRETS = 'C:/Users/Brian/source/repos/tcgscan/tcgscan.secrets';
 
@@ -98,6 +100,20 @@ for (const height of HEIGHTS) {
   for (let i = 0; i < 30 && !(await p.locator('[data-testid="binder-page-current"]').count()); i++) await settle(1000);
   await settle(1500);
 
+  // EDIT MODE TOO — and especially. View mode was told the chrome was 88px; edit mode was told 130
+  // or 330, and edit mode is where the pills, the label chips and the tools row actually live. It
+  // is the mode that was worst served by a guess, and the mode people spend their time in.
+  for (let i = 0; i < 20 && (await p.getByText('Edit', { exact: false }).count()) === 0; i++) await settle(500);
+  let inEdit = false;
+  for (let a = 0; a < 3 && !inEdit; a++) {
+    try { await p.getByText('Edit', { exact: false }).first().click({ timeout: 8000 }); inEdit = true; }
+    catch { await settle(4000); }
+  }
+  await settle(2500);
+
+  // MEASURE BEFORE TOUCHING ANYTHING. Opening a panel means clicking a pocket, which scrolls the
+  // content to reach it — so the first version of this measured a scrolled page and reported a
+  // negative top. The fit question is about the page as it arrives.
   const view = await measure(p);
   if (!view) {
     console.log(`${height}px: FAIL — no page rendered`);
@@ -107,7 +123,7 @@ for (const height of HEIGHTS) {
   }
   const fits = view.bottom <= view.viewport && view.top >= 0 && view.scrollY === 0;
   console.log(
-    `${String(height).padStart(4)}px view : page ${view.w}px wide, y ${view.top}..${view.bottom} of ${view.viewport}` +
+    `${String(height).padStart(4)}px edit : page ${view.w}px wide, y ${view.top}..${view.bottom} of ${view.viewport}` +
       `${fits ? '' : `  <-- ${view.bottom - view.viewport}px past the fold`}`,
   );
   if (!fits) ok = false;
@@ -116,6 +132,25 @@ for (const height of HEIGHTS) {
     ok = false;
   }
   await p.screenshot({ path: `${OUT}-${height}.png` });
+
+  // ...and open a panel, so the run also reports how wide it comes out. A fixed 460 on a 1920
+  // desktop left hundreds of pixels of margin; the panel should now take what the page did not.
+  let panelW = null;
+  const plus = p.locator('[data-testid="binder-page-current"]').getByText('+', { exact: true }).first();
+  if ((await plus.count()) > 0) {
+    await plus.scrollIntoViewIfNeeded({ timeout: 6000 }).catch(() => {});
+    await plus.click({ timeout: 6000 }).catch(() => {});
+    for (let i = 0; i < 20 && !(await p.locator('[data-testid="card-picker-dock"]').count()); i++) await settle(800);
+    await settle(1200);
+    panelW = await p.evaluate(() => {
+      const el = document.querySelector('[data-testid="card-picker-dock"]');
+      return el ? Math.round(el.getBoundingClientRect().width) : null;
+    });
+    await p.keyboard.press('Escape').catch(() => {});
+    await settle(900);
+  }
+
+  if (panelW) console.log(`             panel ${panelW}px wide`);
   await ctx.close();
 }
 

@@ -18,7 +18,9 @@
 import { chromium } from 'playwright-core';
 
 const OUT = process.argv[2] ?? 'variant-chips';
-const BASE = 'http://localhost:8081';
+// Overridable so a run can point at a second dev server — two agents sharing this repo
+// means port 8081 is not always ours, and not always alive.
+const BASE = process.env.MICHI_BASE ?? 'http://localhost:8081';
 
 const browser = await chromium.launch({ channel: 'msedge', headless: !process.env.SIGNED_IN });
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });

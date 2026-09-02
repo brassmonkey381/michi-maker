@@ -89,6 +89,10 @@ interface CardPickerProps {
   ghostOn: SharedValue<number>;
   ghostX: SharedValue<number>;
   ghostY: SharedValue<number>;
+  /** Whether to render as a docked column — decided by the screen, which sizes the page. */
+  docked?: boolean;
+  /** How wide that column should be. Elastic: it is whatever the page did not need. */
+  dockWidth?: number;
   /** Live tray size + the account's artwork cap (Infinity = uncapped) — gates the studio's Save. */
   trayCount?: number;
   trayLimit?: number;
@@ -142,6 +146,8 @@ export function CardPicker({
   ghostOn,
   ghostX,
   ghostY,
+  docked: dockedProp,
+  dockWidth,
   onPickInsert,
   onClear,
   keepAdding,
@@ -284,11 +290,14 @@ export function CardPicker({
    * narrow screens, where covering the page is the only honest option.
    */
   const { width } = useWindowDimensions();
-  // Every tab docks now. The exception here used to be the Artwork tab, because it embedded the
-  // Slice Studio — a workspace that wants 800px before its two-column layout unstacks, and hung off
-  // the edge of a 460px column. That tab is the slice tray now, which is a column of chips and docks
-  // like anything else; the studio opens full-screen from a button on it.
-  const docked = width >= CARD_PICKER_DOCK_MIN_WIDTH;
+  // TOLD, not decided here. This used to be its own width breakpoint, which disagreed with the
+  // screen's: the screen shaved a panel's width off the page's budget while this rendered a
+  // full-screen sheet. The screen owns the arithmetic that sizes the page, so it owns this too.
+  //
+  // (Every tab docks now, which is the other half of that. The exception was the Artwork tab
+  // embedding the Slice Studio — a workspace that hung off the edge of a narrow column. That tab is
+  // the slice tray now, and a column of chips docks like anything else.)
+  const docked = dockedProp ?? width >= CARD_PICKER_DOCK_MIN_WIDTH;
 
   /**
    * ONE TAP TO PLACE.
@@ -452,7 +461,7 @@ export function CardPicker({
       );
     }
     return (
-      <View style={styles.dock} testID="card-picker-dock">
+      <View style={[styles.dock, dockWidth ? { width: dockWidth } : null]} testID="card-picker-dock">
         {/* No grab handle and no scrim: this is a column of the page, not a sheet over it. Close
             is explicit, because the binder staying live means a stray tap outside is far more
             likely to be someone aiming at a pocket than someone dismissing the picker. */}

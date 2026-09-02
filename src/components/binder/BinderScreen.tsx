@@ -19,7 +19,6 @@ import { ComposeAllSheet } from '@/components/binder/ComposeAllSheet';
 import { BinderGrid, type BinderGridHandle } from '@/components/binder/BinderGrid';
 import {
   CARD_PICKER_DOCK_MIN_WIDTH,
-  CARD_PICKER_DOCK_WIDTH,
   CARD_PICKER_RAIL_WIDTH,
   CardPicker,
 } from '@/components/binder/CardPicker';
@@ -67,6 +66,7 @@ import {
 import { fetchLikeCount } from '@/data/binderRepo';
 import { isPrivateArt } from '@/data/artAttributionCheck';
 import { artPieceAllowed, pageSide, REAL_PAGE_SIZES } from '@/data/binderPhysics';
+import { LEGACY_MIN_WIDTH, PEEK_MIN_WIDTH, panelLayout } from '@/data/binderLayout';
 import type { CaptionFieldKey } from '@/data/cardCaption';
 import type { ComposePlacement } from '@/data/pageComposer';
 import { isSupabaseConfigured } from '@/lib/env';
@@ -231,6 +231,17 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // The docked picker, tucked away to a rail. Lives here, not in CardPicker, because collapsing it
   // has to hand the width back to the binder — the panel's own state cannot do that.
   const [pickerCollapsed, setPickerCollapsed] = useState(false);
+  // Where the scroller starts in the window: the only part of the page's height budget that lives
+  // outside the scroller, so the only part BinderPages cannot measure for itself.
+  // What the page settled on, reported up by BinderPages so the panel beside it can be sized from
+  // the space the page did NOT take. Seeded at the page's preferred width so the very first frame
+  // is close rather than zero.
+  const [pageWidthUsed, setPageWidthUsedRaw] = useState(LEGACY_MIN_WIDTH);
+  const setPageWidthUsed = (w: number) =>
+    setPageWidthUsedRaw((cur: number) => (Math.abs(cur - w) > 2 ? Math.round(w) : cur));
+  const [viewportTop, setViewportTopRaw] = useState(0);
+  const setViewportTop = (y: number) =>
+    setViewportTopRaw((cur) => (Math.abs(cur - y) > 2 ? Math.round(y) : cur));
   // "Send page to…" — the destination picker, and whether it moves or copies.
   const [sendPageOpen, setSendPageOpen] = useState(false);
   /** Choosing which real binder these pages sit in. */
@@ -374,9 +385,35 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // The picker DOCKS beside the binder on a wide screen rather than covering it, so the page has
   // to make room — otherwise the column would sit on top of the very pockets it is filling. The
   // two constants are one decision, so they are imported rather than repeated.
-  const pickerDocked = pickerCell != null && width >= CARD_PICKER_DOCK_MIN_WIDTH;
-  const available =
-    width - 32 - (pickerDocked ? (pickerCollapsed ? CARD_PICKER_RAIL_WIDTH : CARD_PICKER_DOCK_WIDTH) : 0);
+  /**
+   * THE PANEL TAKES WHAT THE PAGE DOES NOT WANT.
+   *
+   * It used to be a fixed 460 whatever the window was — so a 1920 desktop, whose height-fitted page
+   * is about 510px wide, kept hundreds of pixels of empty margin either side while the card grid
+   * scrolled in a column too narrow for it.
+   *
+   * `pageNeed` is what the page area wants: the width the page actually settled on (reported up
+   * from BinderPages, and decided by HEIGHT, which is what keeps this from being circular), but
+   * never less than PEEK_MIN_WIDTH while there are neighbours to peek at — below that the spread
+   * collapses to a single page, and trading the spread for a wider panel is the wrong way round.
+   */
+  const pageNeed = Math.max(pageWidthUsed, binder.pages.length > 1 ? PEEK_MIN_WIDTH : 0);
+  const panels = panelLayout({
+    availableWidth: width - 32,
+    pageNeed,
+    panels: pickerCell != null ? 1 : 0,
+  });
+  /**
+   * WHETHER IT DOCKS IS DECIDED HERE, not in the panel.
+   *
+   * It used to be a width breakpoint on each side — the screen checked one thing and the picker
+   * checked another, and they disagreed on the Artwork tab: the screen shaved 460px off the page's
+   * budget while the picker rendered as a full-screen sheet. There is one answer now, it comes from
+   * the arithmetic that also decides the width, and the panel is told it.
+   */
+  const pickerDocked = pickerCell != null && panels.fits[0] === 'docked';
+  const pickerWidth = pickerCollapsed ? CARD_PICKER_RAIL_WIDTH : panels.panelWidth;
+  const available = width - 32 - (pickerDocked ? pickerWidth : 0);
   // prev/next are kept here for the cross-page drag hit-test (resolveSpreadHit below); the spread
   // layout that shows them lives in BinderPages.
   const prevPage = idx > 0 ? binder.pages[idx - 1] : null;
@@ -1507,7 +1544,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
             style={[
               styles.header,
               pickerDocked && {
-                paddingRight: (pickerCollapsed ? CARD_PICKER_RAIL_WIDTH : CARD_PICKER_DOCK_WIDTH) + Spacing.three,
+                paddingRight: pickerWidth + Spacing.three,
               },
             ]}>
             <Pressable onPress={onClose} hitSlop={10}>
@@ -1565,10 +1602,13 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               space it actually has rather than centred in the window with a panel parked on top of
               its right-hand third. The rail's 34px is padded too, for the same reason. */}
           <ScrollView
+            // Its own position in the window: the header and any safe-area inset sit above it, and
+            // this is the one term of the page's height budget that BinderPages cannot see.
+            onLayout={(e) => setViewportTop(e.nativeEvent.layout.y)}
             contentContainerStyle={[
               styles.scroll,
               pickerDocked && {
-                paddingRight: pickerCollapsed ? CARD_PICKER_RAIL_WIDTH : CARD_PICKER_DOCK_WIDTH,
+                paddingRight: pickerWidth,
               },
             ]}>
             {/* Read-only because another tab of this browser owns editing — see EditLockBanner. */}
@@ -1665,7 +1705,11 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               // has to be told about, or it fits itself to a window taller than it really has.
               // Edit mode costs a single disclosure row now, not a wall of forms — unless the
               // user opens it, in which case the page yields the space it asked for.
-              chromeAllowance={editing ? (toolsOpen ? 330 : 130) : 88}
+              // Measured, not guessed. This was `editing ? (toolsOpen ? 330 : 130) : 88` — an
+              // estimate of chrome the page component cannot see, wrong by about a hundred pixels,
+              // and silently wrong again every time anything was added to the editor's header.
+              viewportTop={viewportTop}
+              onPageWidth={setPageWidthUsed}
               editable={editing}
               // Binders reachable here come from the signed-in user's own store (userBinders) or
               // are bundled examples, so the viewer is the owner. The public route decides for
@@ -1860,6 +1904,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           ghostY={ghostY}
           collapsed={pickerCollapsed}
           onToggleCollapsed={() => setPickerCollapsed((v) => !v)}
+          docked={pickerDocked}
+          dockWidth={pickerWidth}
         />
 
         <AutoFillSheet

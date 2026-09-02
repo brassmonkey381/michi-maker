@@ -1969,13 +1969,13 @@ function SpreadColumn({
   const columnStyle = useAnimatedStyle(() => ({ zIndex: col.value === columnIndex ? 30 : 1 }));
   // Same deal as the binder's title: hovering a page's name shows what the page is, in BOTH
   // modes, at once, whether or not anything has been written — an empty note is an invitation,
-  // not a reason to stay silent. Only on the page you are ON, though: a neighbour's label
-  // navigates, so it stays quiet rather than meaning two things depending on which one you are
-  // over.
+  // not a reason to stay silent. Both halves of an open book hover, selected or not, the way the
+  // art placeholders on both halves do: a book is one open thing. In the single-page scroller only
+  // the page you are on hovers — its neighbours are peeks, and their labels navigate.
   //
   // Above the empty-column return below, with the other hooks, or the order changes the moment a
   // spread runs out of pages on one side.
-  const hover = useHoverReveal(role === 'current' && !!page);
+  const hover = useHoverReveal(!!page && (flat || role === 'current'));
   const hoverText = page?.description?.trim() || PAGE_DESCRIPTION_PLACEHOLDER;
   // A column with no page reserves only a peek's worth of space, not a whole page's. On page 1
   // the old layout left a full-page-wide empty band where the previous page would have been.
@@ -1990,15 +1990,15 @@ function SpreadColumn({
     <Animated.View
       style={[styles.neighbor, columnStyle]}
       testID={role === 'current' ? 'binder-page-current' : `binder-page-${role}`}>
-      {onPressLabel || onFocus || role === 'current' ? (
-        // The current page's label is hoverable even when tapping it does nothing (view mode),
-        // which is why it is a Pressable without an onPress rather than plain text.
+      {onPressLabel || onFocus || role === 'current' || flat ? (
+        // A hoverable label is a Pressable even when tapping it does nothing (view mode, the
+        // current page), which is why it can have no onPress rather than being plain text.
         <Pressable
           onPress={onPressLabel ?? onFocus}
           onHoverIn={hover.onHoverIn}
           onHoverOut={hover.onHoverOut}
           hitSlop={6}
-          testID={onPressLabel ? 'binder-page-title' : role === 'current' ? 'binder-page-title-view' : undefined}
+          testID={onPressLabel ? 'binder-page-title' : role === 'current' || flat ? 'binder-page-title-view' : undefined}
           accessibilityRole={onPressLabel || onFocus ? 'button' : 'text'}
           accessibilityLabel={
             onPressLabel ? (editable ? `${label} — edit this page` : `About ${label}`) : label

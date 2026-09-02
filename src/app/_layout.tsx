@@ -9,6 +9,7 @@ import { AvatarConsentPrompt } from '@/components/auth/AvatarConsentPrompt';
 import { UsernameGate } from '@/components/auth/UsernameGate';
 import { ProStatusBanner } from '@/components/monetization/ProStatusBanner';
 import { AppRail } from '@/components/nav/AppRail';
+import { CatalogWarm } from '@/components/CatalogWarm';
 import { AuthProvider } from '@/store/auth';
 import { BinderProvider } from '@/store/binders';
 
@@ -34,6 +35,9 @@ export default function TabLayout() {
             <AnimatedSplashOverlay />
             {/* Emits page.view on route changes. Renders nothing; always mounted. */}
             <RouteTracker />
+            {/* Starts the catalog warming on whatever page you landed on, so card labels and
+                everything else catalog-backed are ready before something asks. Renders nothing. */}
+            <CatalogWarm />
             {/* Site frame: the wide-web left rail beside the routed screen. On native (and on
                 narrow web / excluded routes) AppRail renders null and the row collapses. */}
             <View style={{ flex: 1, flexDirection: 'row' }}>

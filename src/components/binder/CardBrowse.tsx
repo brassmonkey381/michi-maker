@@ -55,6 +55,7 @@ export function CardBrowse({
   initialSimilar,
   languages,
   ownedIds,
+  onSimilarLocked,
 }: {
   /** Null while the catalog is still loading — CatalogBrowser then runs cold (server search). */
   catalog: Catalog | null;
@@ -82,6 +83,10 @@ export function CardBrowse({
   /** The user's owned-card ids (own ≥ 1) — lights up the collection overlays: tile checks, set
    *  completion %, and the Collection (have:) filter chip. Undefined for guests. */
   ownedIds?: ReadonlySet<string>;
+  /** What to do when a free/guest user asks for a similarity search. Given by the surfaces that
+   *  own a cap gate, so the refusal is the same dialog every other wall shows (named, once a day,
+   *  with the trial); without it the fallback is the plans page, which is honest but colder. */
+  onSimilarLocked?: () => void;
 }) {
   // App tokens → the kit's color contract, so the browser follows light/dark + variant
   // instead of falling back to the kit's built-in light look.
@@ -94,17 +99,25 @@ export function CardBrowse({
   // energy-type search instead (with an upsell to tri-color). The gate is host-side — the kit stays
   // tier-agnostic and just fires onColorSearch; we branch on the tier here. This single site covers
   // both kit entry points (the Tri-Color button + the Color facet chip) on every surface.
-  const { isPaid, hasAdvancedSearch } = useTier();
+  const { isPaid, hasAdvancedSearch, hasFindSimilar } = useTier();
   const [colorOpen, setColorOpen] = useState(false);
   const [energyOpen, setEnergyOpen] = useState(false);
   const router = useRouter();
   // "Advanced Search" (PRO/VIP) as the kit's feature locks. The kit enforces them — including
   // against typed `sort:value` / `>$100`, not just the chips — and calls back here for the upsell.
   // colorSearch is listed for completeness even though the swap below is what actually gates it.
-  const lockedFeatures = useMemo<BrowseFeature[] | undefined>(
-    () => (hasAdvancedSearch ? undefined : ['sortByValue', 'priceFilter', 'similarRefine', 'colorSearch']),
-    [hasAdvancedSearch],
-  );
+  //
+  // FIND SIMILAR is its own lock and its own tier (PRO, see TierLimits.findSimilar) — it happens
+  // to line up with Advanced Search today, but they are sold as different things and the kit
+  // stopped conflating them in 0.9.0. Locking it HERE is what covers both browser mounts: the
+  // /browse page and the binder card picker, which supplies no action factory of its own and
+  // would otherwise get the kit's ungated default sheet.
+  const lockedFeatures = useMemo<BrowseFeature[] | undefined>(() => {
+    const locked: BrowseFeature[] = [];
+    if (!hasFindSimilar) locked.push('findSimilar');
+    if (!hasAdvancedSearch) locked.push('sortByValue', 'priceFilter', 'similarRefine', 'colorSearch');
+    return locked.length ? locked : undefined;
+  }, [hasAdvancedSearch, hasFindSimilar]);
   return (
     <>
       <CatalogBrowser
@@ -125,6 +138,7 @@ export function CardBrowse({
         // the plans page — a live demo converts better than a price table.
         onLockedFeature={(f) => {
           if (f === 'colorSearch') setEnergyOpen(true);
+          else if (f === 'findSimilar' && onSimilarLocked) onSimilarLocked();
           else router.push('/plans' as Href);
         }}
         onColorSearch={() => (isPaid ? setColorOpen(true) : setEnergyOpen(true))}

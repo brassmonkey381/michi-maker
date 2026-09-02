@@ -24,7 +24,6 @@ import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
 import { similarityWall } from '@/data/similarityGate';
-import { hasFindSimilar } from '@/data/tiers';
 import { CopyPickerSheet } from '@/components/binder/CopyPickerSheet';
 import { catalogArtNote, type OwnedEntry } from '@/data/ownedCopies';
 import { useAvailableCopies, useCopyAssigner, useOwnedCopies } from '@/hooks/use-owned-copies';
@@ -96,20 +95,15 @@ export default function BrowseScreen() {
           ebaySearchLink(ebayCardQuery(c.name, c.setName, c.number), 'michi-browse'),
         ).catch(() => {}),
     };
-    // FIND SIMILAR IS PRO (see TierLimits.findSimilar), and the three similarity actions stay in
-    // the list at every tier: an action that silently disappears teaches nobody what a plan buys,
-    // where one that answers the tap names the wall and offers the way out. More/less-like-this
-    // only appear mid-session, which a free account can no longer start — they are wrapped anyway,
-    // because "unreachable" is a property of today's UI and not of this list.
-    const paywalled = (action?: CardAction): CardAction | undefined =>
-      !action || hasFindSimilar(store.tier)
-        ? action
-        : { ...action, onPress: () => capGate.hit(similarityWall(store.tier, 'browse')) };
+    // FIND SIMILAR IS PRO (see TierLimits.findSimilar), and the action stays in this list at
+    // every tier. The lock is the kit's (CardBrowse passes `findSimilar` in lockedFeatures), which
+    // is what makes the card picker obey it too — so there is nothing to wrap here: a locked tap
+    // comes back through onSimilarLocked below.
     return [
       add,
-      paywalled(builtins.moreLikeThis),
-      paywalled(builtins.lessLikeThis),
-      paywalled(builtins.findSimilar),
+      builtins.moreLikeThis,
+      builtins.lessLikeThis,
+      builtins.findSimilar,
       builtins.viewSet,
       builtins.viewIllustrator,
       viewOnTcgplayer,
@@ -265,6 +259,7 @@ export default function BrowseScreen() {
             <CardBrowse
               catalog={catalog}
               cardActions={cardActions}
+              onSimilarLocked={() => capGate.hit(similarityWall(store.tier, 'browse'))}
               onPickCards={(cardIds) => setAddCardIds(cardIds)}
               // No `languages` pin: the browser reads the SHARED preference itself, which is the
               // same value this page used to thread through. Pinning it would suppress the

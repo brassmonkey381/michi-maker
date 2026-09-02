@@ -16,6 +16,7 @@ import type { BillingInterval } from '@/data/printWindow';
 import {
   hasFullPrint as computeFullPrint,
   hasAdvancedSearch as computeAdvancedSearch,
+  hasFindSimilar as computeFindSimilar,
   hasTcgscanPro as computeTcgscanPro,
   michiIsPaid as computeMichiIsPaid,
   tcgscanIsPaid as computeTcgscanIsPaid,
@@ -56,6 +57,9 @@ export interface UseTier {
   hasFullPrint: boolean;
   /** "Advanced Search" (PRO/VIP): sort by value, price filters, tri-colour, refine by similarity. */
   hasAdvancedSearch: boolean;
+  /** The visual-similarity search (PRO/VIP): "≈ Find similar" and "find similar to all". Its own
+   *  flag rather than a corner of hasAdvancedSearch — they line up today but are sold apart. */
+  hasFindSimilar: boolean;
   /** A paid subscriber (PRO or VIP). */
   isPaid: boolean;
   /** CROSS-APP: holds ANY ACTIVE TCGScan tier (PRO or VIP) — unlocks scan-powered features.
@@ -189,6 +193,7 @@ export function useTier(): UseTier {
     limits: limitsForTier(tier),
     hasFullPrint: known ? state!.hasFullPrint : false,
     hasAdvancedSearch: computeAdvancedSearch(tier),
+    hasFindSimilar: computeFindSimilar(tier),
     isPaid: tier === 'pro' || tier === 'vip',
     hasTcgscanPro: known ? state!.hasTcgscanPro : false,
     tcgscanIsPaid: known ? state!.tcgscanIsPaid : false,

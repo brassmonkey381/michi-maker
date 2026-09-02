@@ -8,7 +8,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { resolveTier, isActive, TIER_LIMITS, type EntitlementRow } from './tiers.ts';
+import {
+  resolveTier,
+  isActive,
+  hasFindSimilar,
+  limitsForTier,
+  TIER_LIMITS,
+  type EntitlementRow,
+} from './tiers.ts';
 
 const NOW = Date.parse('2026-07-21T12:00:00Z');
 const inDays = (n: number) => new Date(NOW + n * 86_400_000).toISOString();
@@ -67,4 +74,39 @@ test('a VIP entitlement is what actually unlocks it', () => {
     TIER_LIMITS[tierOf([{ product: 'tier_vip', expires_at: '2026-01-01T00:00:00Z' }])].multiPageCompose,
     false,
   );
+});
+
+/**
+ * FIND SIMILAR moved behind PRO on 2026-09-01, having been free since it shipped. The column is
+ * pinned whole rather than just the two paid cells: the failure that matters is a tier quietly
+ * regaining it, and only free/guest can regress in that direction.
+ */
+test('find similar is PRO and above', () => {
+  assert.equal(hasFindSimilar('pro'), true);
+  assert.equal(hasFindSimilar('vip'), true);
+  for (const tier of ['guest', 'free'] as const) {
+    assert.equal(hasFindSimilar(tier), false, `${tier} must not have it`);
+  }
+});
+
+test('the trial is what buys it, and losing the trial takes it back', () => {
+  const NOW2 = Date.parse('2026-08-20T12:00:00Z');
+  const tierOf = (rows: EntitlementRow[]) => resolveTier({ isSignedIn: true, rows }, NOW2);
+  assert.equal(hasFindSimilar(tierOf([])), false);
+  assert.equal(hasFindSimilar(tierOf([{ product: 'tier_pro', expires_at: null }])), true);
+  assert.equal(
+    hasFindSimilar(tierOf([{ product: 'tier_pro', expires_at: '2026-01-01T00:00:00Z' }])),
+    false,
+  );
+});
+
+/**
+ * The LIMITS_ENFORCED dev switch relaxes numeric caps so a developer is not fighting a 3-binder
+ * limit all day. It must not hand out a paid capability: doing so would mean the one build where
+ * the gate is easiest to notice is the build that does not have it.
+ */
+test('the dev switch does not hand out the similarity search', () => {
+  for (const tier of ['guest', 'free'] as const) {
+    assert.equal(limitsForTier(tier).findSimilar, false, `${tier} via limitsForTier`);
+  }
 });

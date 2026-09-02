@@ -108,6 +108,9 @@ interface CardPickerProps {
   /** One-shot "find similar to all" seed (binder multi-select → this picker). Applied on the
    *  card browser's mount; bypasses the broadcast command bus so it can't be intercepted. */
   initialSimilar?: string[];
+  /** Passed to CardBrowse: what to do when a free/guest user asks for a similarity search.
+   *  The editor owns a cap gate, so the refusal here is the same dialog every other wall shows. */
+  onSimilarLocked?: () => void;
   /** Docked only: the column is tucked away to a rail, so the binder gets the width back. Owned by
    *  BinderScreen because the page's layout budget has to change with it, not merely the picker. */
   collapsed?: boolean;
@@ -156,6 +159,7 @@ export function CardPicker({
   keepAdding,
   onToggleKeepAdding,
   initialSimilar,
+  onSimilarLocked,
   collapsed = false,
   onToggleCollapsed,
 }: CardPickerProps) {
@@ -427,6 +431,7 @@ export function CardPicker({
           quickAction={quickPlace}
           initialSimilar={initialSimilar}
           ownedIds={ownedIds}
+          onSimilarLocked={onSimilarLocked}
         />
       ) : tab === 'artwork' ? (
         // THE TRAY, not the studio. This tab used to embed the whole Slice Studio, which put the

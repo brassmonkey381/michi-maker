@@ -19,6 +19,8 @@ import {
   binderLimitMessage,
   limitCta,
   pageLimitMessage,
+  similarityGateMessage,
+  similarityTrialMessage,
 } from './limitMessages.ts';
 
 const PAID: Tier[] = ['free', 'pro', 'vip'];
@@ -62,4 +64,29 @@ test('all three cap messages offer paid tiers an upgrade, not a sign-in', () => 
 test('free hits the documented 16-page cap', () => {
   assert.equal(TIER_LIMITS.free.pagesPerBinder, 16);
   assert.match(pageLimitMessage('free', TIER_LIMITS.free), /16-page limit/);
+});
+
+/**
+ * FIND SIMILAR breaks this module's usual guest rule, and the break has to be deliberate.
+ *
+ * Every other cap here can honestly tell a guest that signing in lifts it, because the free tier
+ * does. This one it does not: Find Similar is PRO, so a guest who signs in still cannot run it.
+ * The line therefore has to name PRO to a guest as well — the one place in this file where the
+ * guest branch is not "sign in and this goes away".
+ */
+test('the similarity gate tells a guest the truth, which is PRO', () => {
+  const guest = similarityGateMessage('guest');
+  assert.ok(guest.includes('PRO'), 'a guest must be told what actually opens it');
+  assert.ok(
+    !/Sign in \(free\) to (see|get|unlock)/i.test(guest),
+    'must not imply the free account opens it',
+  );
+});
+
+test('no similarity gate line quotes a number, because there is nothing to count', () => {
+  // A capability, not an allowance. "You have reached your 0" is the shape of the bug this
+  // catches: copy pasted from a cap message and left with a limit in it.
+  for (const line of [similarityGateMessage('guest'), similarityGateMessage('free'), similarityTrialMessage()]) {
+    assert.ok(!/\d/.test(line.replace('14 days', '')), `no counts, got: ${line}`);
+  }
 });

@@ -62,22 +62,31 @@ export function AboutHoverCard({
   style?: ViewStyle;
 }) {
   /**
-   * OPENS TOWARD THE MIDDLE OF THE SCREEN. The caller places the card below and to the right of
-   * what revealed it, which is right for something in the top-left quadrant and wrong for the
-   * other three: a card opened from the bottom of the window went up off the top of it, and one
-   * opened near the right edge ran off the side. So the card measures where it first landed —
-   * that first layout is the anchor's own position — and flips: above the anchor when the anchor
-   * is in the lower half of the window, leftward when it is in the right half. Decided once per
-   * reveal, from that first measurement, so the flip cannot feed back into itself; invisible for
-   * the single frame before it is decided, so it never appears in the wrong place first.
+   * STAYS ON THE SCREEN, WHEREVER IT WAS OPENED. The caller places the card where it makes sense
+   * for the thing that revealed it — below a title, above a panel in the lower half of the page —
+   * and the card then measures where that put it and SHIFTS just far enough to be wholly inside
+   * the window. A shift, not a re-anchoring: the earlier version flipped the card above its
+   * parent, and for a card whose parent is the whole page grid that meant above the grid, off
+   * the top of the screen. Covering some of what is underneath is fine; leaving the window is
+   * the thing that is not.
+   *
+   * Decided once per reveal from the first measurement, so the shift cannot feed back into
+   * itself, and applied as a transform, which changes nothing about layout.
    */
   const { width: winW, height: winH } = useWindowDimensions();
-  const [place, setPlace] = useState<{ above: boolean; toLeft: boolean } | null>(null);
+  const [shift, setShift] = useState<{ x: number; y: number } | null>(null);
   const ref = useRef<View>(null);
   const onLayout = () => {
-    if (place) return;
-    ref.current?.measureInWindow((x, y, w) => {
-      setPlace((cur) => cur ?? { above: y > winH / 2, toLeft: x + w / 2 > winW / 2 });
+    if (shift) return;
+    ref.current?.measureInWindow((x, y, w, h) => {
+      const margin = 8;
+      let dx = 0;
+      let dy = 0;
+      if (x + w > winW - margin) dx = winW - margin - (x + w);
+      if (x + dx < margin) dx = margin - x;
+      if (y + h > winH - margin) dy = winH - margin - (y + h);
+      if (y + dy < margin) dy = margin - y;
+      setShift((cur) => cur ?? { x: Math.round(dx), y: Math.round(dy) });
     });
   };
   // A plain View carries the ref and the placement (ThemedView forwards no ref); the themed box
@@ -90,9 +99,9 @@ export function AboutHoverCard({
       style={[
         styles.hoverSlot,
         style,
-        place?.above ? { top: undefined, bottom: '100%' } : null,
-        place?.toLeft ? { left: undefined, right: 0 } : null,
-        { opacity: place ? 1 : 0 },
+        // Shown at once; the shift, when there is one, lands a frame later. A card that waited to
+        // be sure would be a card that stayed invisible whenever measuring failed.
+        shift ? { transform: [{ translateX: shift.x }, { translateY: shift.y }] } : null,
       ]}>
     <ThemedView type="backgroundElement" pointerEvents="none" style={styles.hover}>
       <AboutBody kicker={kicker} text={text} />

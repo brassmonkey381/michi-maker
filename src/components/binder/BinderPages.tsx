@@ -1025,7 +1025,7 @@ export function BinderPages({
    * back the way you came opens it again, and a move further in the direction it is already shut
    * does nothing, because there is nothing past a closed cover.
    */
-  const canShut = doubleSided && Boolean(binder.cover) && count > 0;
+  const canShut = Boolean(binder.cover) && count > 0;
   const step = useCallback(
     (dir: 1 | -1) => {
       // Every change of shut drops an explicit focus. The surface in focus is then whichever one
@@ -1037,9 +1037,41 @@ export function BinderPages({
         setCoverDrag(null);
         setPending(null);
       };
-      if (!doubleSided && shut) {
-        // No hinge in the single-page view: a step off a cover simply opens the binder where it is.
-        changeShut(null);
+      if (!doubleSided && canShut) {
+        // THE SINGLE-PAGE VIEW WALKS THE COVERS LIKE PAGES: front, inside front, the pages, inside
+        // back, back — one step each, no hinge, and the same wheel and keys that turn a page.
+        if (shut === 'front') {
+          if (dir === 1) changeShut('frontInside');
+          return;
+        }
+        if (shut === 'frontInside') {
+          if (dir === 1) changeShut(null);
+          else changeShut('front');
+          return;
+        }
+        if (shut === 'backInside') {
+          if (dir === 1) changeShut('back');
+          else changeShut(null);
+          return;
+        }
+        if (shut === 'back') {
+          if (dir === -1) changeShut('backInside');
+          return;
+        }
+        if (shut) {
+          changeShut(null);
+          return;
+        }
+        const target = dir === 1 ? forward : backward;
+        if (target < 0) {
+          changeShut('frontInside');
+          return;
+        }
+        if (target >= count) {
+          changeShut('backInside');
+          return;
+        }
+        onPageChange(target);
         return;
       }
       if (shut === 'tail') {
@@ -1145,7 +1177,13 @@ export function BinderPages({
       // Shut, the only wheel that means anything is the one that opens the binder; the other way
       // is left for the page to scroll, rather than swallowed for nothing.
       const acts =
-        shut === 'front' ? dir === 1 : shut === 'back' ? dir === -1 : shut === 'tail' ? true : !atEdge || canShut;
+        shut === 'front'
+          ? dir === 1
+          : shut === 'back'
+            ? dir === -1
+            : shut === 'tail' || shut === 'frontInside' || shut === 'backInside'
+              ? true
+              : !atEdge || canShut;
       if (!acts) return;
       e.preventDefault();
       if (e.timeStamp - cooldown < 300) return; // one page per gesture, not per event

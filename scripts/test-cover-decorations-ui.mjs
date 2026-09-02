@@ -198,6 +198,25 @@ try {
     if (stickers === 0) console.log('note           : no logo tiles — the taxonomy may carry no coverUri values in this environment');
   }
 
+  // 4b. THE WHEEL WALKS THE COVERS in the single-page view: from the front cover, forward is the
+  //     inside front, then page 1; back again is the inside front, then the front cover.
+  if (!wantTwoUp) {
+    const wrap = await box('[data-testid="binder-page-wrap"]');
+    const labelNow = async () => (await p.locator('[data-testid="binder-page-wrap"]').innerText().catch(() => '')).split(String.fromCharCode(10))[0];
+    const seen = [];
+    if (wrap) {
+      await p.mouse.move(wrap.x + wrap.w / 2, wrap.y + wrap.h / 2);
+      for (const dy of [120, 120, -120, -120]) {
+        await p.mouse.wheel(0, dy);
+        await settle(700);
+        seen.push(await labelNow());
+      }
+    }
+    console.log(`wheel walk     : ${seen.join(' → ')}`);
+    const okWalk = seen[0] === 'Inside front' && !!seen[1] && seen[1] !== 'Inside front' && seen[1] !== 'Front cover' && seen[2] === 'Inside front' && seen[3] === 'Front cover';
+    if (!okWalk) fail('the wheel did not walk Front cover → Inside front → page → Inside front → Front cover');
+  }
+
   // 5. NOTHING ABOVE THE BINDER GREW. Picking the front cover SHUTS the binder, so the current
   //    page column is gone by design; the check is that the binder's top edge is where it was.
   const wrapAfter = await box('[data-testid="binder-page-wrap"]');

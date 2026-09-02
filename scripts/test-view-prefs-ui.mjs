@@ -101,6 +101,12 @@ const open = async () => {
   await p.goto(`${BASE}/binder/${BINDER}`, { waitUntil: 'domcontentloaded', timeout: 300000 });
   await p.waitForFunction(() => document.body.innerText.includes('Edit'), undefined, { timeout: 240000 });
   await settle(4000);
+  // The view pills live behind the gear now (they cost the page a permanent row otherwise), so
+  // every look at them starts by opening it. Reopened after each reload, since a modal is not
+  // state that survives one.
+  const gear = p.getByLabel('View settings').first();
+  for (let i = 0; i < 30 && (await gear.count()) === 0; i++) await settle(1000);
+  if ((await gear.count()) > 0) await gear.click({ timeout: 8000 });
   for (let i = 0; i < 30 && (await p.getByText(/Double-sided/).count()) === 0; i++) await settle(1000);
   await settle(1500);
 };

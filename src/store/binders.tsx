@@ -1377,9 +1377,48 @@ export function BinderProvider({ children }: { children: ReactNode }) {
           }
         }
       }
-      if (changes.length) {
+      // The covers, by the same rule: every decoration with a private image is pulled into the
+      // user's own bucket and stamped external, and the whole cover is written once at the end.
+      let coverNext = target.cover;
+      if (coverNext?.surfaces) {
+        const surfaces = { ...coverNext.surfaces };
+        let touched = false;
+        for (const key of Object.keys(surfaces) as (keyof typeof surfaces)[]) {
+          const list = surfaces[key];
+          if (!list) continue;
+          const nextList = [...list];
+          for (let i = 0; i < nextList.length; i += 1) {
+            const d = nextList[i];
+            if (d.kind === 'text' || !d.imageUrl || !isPrivateArt(d.attribution, d.imageUrl)) continue;
+            if (!/^https?:/i.test(d.imageUrl)) {
+              failed += 1;
+              continue;
+            }
+            try {
+              const hosted = await importRemoteArtToBucket(d.imageUrl);
+              nextList[i] = {
+                ...d,
+                imageUrl: hosted,
+                attribution: {
+                  ...(d.attribution ?? deriveAttribution(d.imageUrl)),
+                  origin: 'external',
+                  sourceUrl: d.attribution?.sourceUrl ?? d.imageUrl,
+                },
+              };
+              touched = true;
+            } catch {
+              failed += 1;
+            }
+          }
+          surfaces[key] = nextList;
+        }
+        if (touched) coverNext = { ...coverNext, surfaces };
+      }
+      const coverChanged = coverNext !== target.cover;
+      if (changes.length || coverChanged) {
         const apply = (b: DemoBinder): DemoBinder => ({
           ...b,
+          ...(coverChanged ? { cover: coverNext } : {}),
           pages: b.pages.map((p) => ({
             ...p,
             slots: p.slots.map((s) => changes.find((c) => c.slot.id === s.id)?.slot ?? s),
@@ -1387,7 +1426,20 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         });
         commit((prev) => prev.map((b) => (b.id === binderId ? apply(b) : b)));
         for (const c of changes) persist(() => repo.upsertSlot(c.pageId, c.slot));
-        return { fixed: changes.length, failed, binder: apply(target) };
+        if (coverChanged && coverNext) {
+          const cover = coverNext;
+          persist(() => repo.updateBinder(binderId, { cover }));
+        }
+        const coverFixed = coverChanged
+          ? Object.values(coverNext?.surfaces ?? {}).reduce(
+              (n, list) => n + (list ?? []).filter((d) => d.kind !== 'text' && d.attribution?.origin === 'external' && d.imageUrl && !isPrivateArt(d.attribution, d.imageUrl)).length,
+              0,
+            ) - Object.values(target.cover?.surfaces ?? {}).reduce(
+              (n, list) => n + (list ?? []).filter((d) => d.kind !== 'text' && d.attribution?.origin === 'external' && d.imageUrl && !isPrivateArt(d.attribution, d.imageUrl)).length,
+              0,
+            )
+          : 0;
+        return { fixed: changes.length + Math.max(0, coverFixed), failed, binder: apply(target) };
       }
       return { fixed: 0, failed, binder: target };
     },

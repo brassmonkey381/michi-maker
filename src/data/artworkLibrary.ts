@@ -66,9 +66,13 @@ export interface ArtAttribution {
    *    removed before the copy can go public. (A future "grant rights to my art" toggle from the
    *    original owner is what would lift this.) Card art / procedural inserts are never stamped
    *    'copied' — those stay shareable on copy.
+   *  - 'logo' — a set or series logo from the sticker library, served from the catalog's own
+   *    bucket. Public-eligible by the owner's decision (2026-09-02): the app already shows the
+   *    same logos publicly on Home and Browse, so a sticker of one is no different in kind.
+   *    Recorded so that posture can be re-tightened with one line and a jsonb query.
    * Absent ⇒ legacy/official content (card art, our own AI art) — not treated as private.
    */
-  origin?: 'external' | 'upload' | 'card' | 'copied';
+  origin?: 'external' | 'upload' | 'card' | 'copied' | 'logo';
 }
 
 const PLATFORM_NAMES: Record<string, string> = {

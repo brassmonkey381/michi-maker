@@ -125,6 +125,11 @@ export interface CoverToolsContext {
   onClearFocus: () => void;
   /** Surface width ÷ height as drawn on the spread, for the panel's Y and H units. */
   surfaceAspect: number;
+  /**
+   * Where the focused surface is ON THE WINDOW right now, or null before it has laid out. A drop
+   * from the tray lands at window coordinates; this is what turns them into a place on the cover.
+   */
+  measureSurface: () => Promise<{ x: number; y: number; width: number; height: number } | null>;
 }
 
 export interface BinderPagesProps {
@@ -748,6 +753,8 @@ export function BinderPages({
         height={coverBoxH}
         stickers={shown}
         wheelTarget={live}>
+        {/* The measuring host for drops: exactly the surface's box, drawn under the hit layer. */}
+        {editing ? <View ref={surfaceHostRef} pointerEvents="none" style={StyleSheet.absoluteFill} /> : null}
         {editing && binder.cover ? (
           <CoverDecorationLayer
             width={bookW}
@@ -836,6 +843,14 @@ export function BinderPages({
    * publish forever.
    */
   const coverForTools = binder.cover;
+  // The live surface's host, for measuring where it is on the window at drop time.
+  const surfaceHostRef = useRef<View>(null);
+  const measureSurface = () =>
+    new Promise<{ x: number; y: number; width: number; height: number } | null>((resolve) => {
+      const host = surfaceHostRef.current;
+      if (!host) return resolve(null);
+      host.measureInWindow((x, y, width, height) => resolve({ x, y, width, height }));
+    });
   // The spread draws a cover to the page's box, so that is the aspect the panel's units use.
   const surfaceAspectForTools = bookW / Math.max(1, pageHeightAt(bookW, page.rows, page.cols, captionsOn));
   useEffect(() => {
@@ -852,6 +867,7 @@ export function BinderPages({
             // selectPage on the current page is exactly "put the binder back the way a page reads".
             onClearFocus: () => selectPage(idx),
             surfaceAspect: surfaceAspectForTools,
+            measureSurface,
           }
         : null,
     );

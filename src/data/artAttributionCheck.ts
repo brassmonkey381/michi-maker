@@ -28,6 +28,7 @@
  * publicly), and procedural inserts.
  */
 import type { ArtAttribution } from '@/data/artworkLibrary';
+import type { CoverSurfaceId } from '@/data/binderModels';
 import type { DemoBinder, DemoSlot } from '@/data/binderTypes';
 
 /**
@@ -86,6 +87,8 @@ export function isPrivateArt(attribution?: ArtAttribution | null, imageUrl?: str
   if (isCardCatalogArt(imageUrl)) return false;
   if (attribution?.origin === 'card') return false;
   if (attribution?.origin === 'upload') return false;
+  // Set and series logos: public by the owner's decision — see ArtAttribution.origin.
+  if (attribution?.origin === 'logo') return false;
   // Imported and copied art (loosened 2026-08-26): public-eligible when WE host the bytes.
   // importArt re-uploads every pull into the user's own bucket, and copied slots point at the
   // source binder's bucket art, so both normally pass. A URL we cannot check, or one pointing
@@ -144,12 +147,15 @@ export function markCopiedArtBorrowed(binder: DemoBinder): DemoBinder {
 }
 
 export interface PrivateArtRef {
+  /** A pocket's slot id, or a cover decoration's id. */
   slotId: string;
-  /** 1-indexed for human display. */
+  /** 1-indexed for human display; 0 for a cover decoration. */
   page: number;
   row: number;
   col: number;
   imageUrl: string;
+  /** Set when the art is on a cover surface rather than in a pocket. */
+  surface?: CoverSurfaceId;
 }
 
 /**
@@ -172,5 +178,15 @@ export function privateArtInBinder(binder: DemoBinder): PrivateArtRef[] {
       });
     }
   });
+  // THE COVERS COUNT TOO. A hotlinked picture on the front cover is the most visible art in the
+  // binder, and until now the gate never looked at it. Text and card-id decorations have no URL
+  // to check; everything with an imageUrl goes through the same rule a pocket does.
+  for (const [surface, list] of Object.entries(binder.cover?.surfaces ?? {})) {
+    for (const d of list ?? []) {
+      if (d.kind === 'text' || !d.imageUrl) continue;
+      if (!isPrivateArt(d.attribution, d.imageUrl)) continue;
+      out.push({ slotId: d.id, page: 0, row: 0, col: 0, imageUrl: d.imageUrl, surface: surface as CoverSurfaceId });
+    }
+  }
   return out;
 }

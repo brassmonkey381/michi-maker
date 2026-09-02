@@ -108,3 +108,27 @@ test('isCardCatalogArt recognises catalog URLs and nothing else', () => {
   assert.equal(isCardCatalogArt(null), false);
   assert.equal(isCardCatalogArt(undefined), false);
 });
+
+test('a set or series logo is public-eligible, by the owner’s decision', () => {
+  assert.equal(isPrivateArt({ sourceName: 'Pokémon TCG', origin: 'logo' }, HOTLINK), false);
+});
+
+test('the gate sees the covers: a hotlinked cover picture is listed with its surface', () => {
+  const b: DemoBinder = {
+    ...binderWith([]),
+    cover: {
+      modelId: 'm',
+      colourway: 'c',
+      surfaces: {
+        front: [
+          { id: 'hot', kind: 'art', imageUrl: HOTLINK, x: 0.5, y: 0.5, w: 0.3 },
+          { id: 'ours', kind: 'art', imageUrl: OWN_BUCKET, x: 0.5, y: 0.5, w: 0.3, attribution: { sourceName: 'me', origin: 'upload' } },
+          { id: 'logo', kind: 'sticker', imageUrl: HOTLINK, x: 0.5, y: 0.5, w: 0.3, attribution: { sourceName: 'Pokémon TCG', origin: 'logo' } },
+          { id: 'words', kind: 'text', text: 'hi', font: 'sans', size: 0.06, color: '#000000', x: 0.5, y: 0.5, w: 0.3 },
+        ],
+      },
+    },
+  };
+  const refs = privateArtInBinder(b);
+  assert.deepEqual(refs.map((r) => [r.slotId, r.surface, r.page]), [['hot', 'front', 0]]);
+});

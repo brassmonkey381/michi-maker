@@ -21,6 +21,7 @@ import { ThemedText } from '@/components/themed-text';
 import { DialogCard } from '@/components/ui/DialogCard';
 import { Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { privateArtInBinder, type PrivateArtRef } from '@/data/artAttributionCheck';
+import { COVER_SURFACE_LABELS } from '@/data/binderModels';
 import { fetchShareKey } from '@/data/binderRepo';
 import type { DemoBinder } from '@/data/binderTypes';
 import { CONTEST } from '@/data/contest';
@@ -414,7 +415,7 @@ export function ShareSheet({
                 <ScrollView style={styles.gateList} contentContainerStyle={styles.gateListInner}>
                   {privateArt.map((u) => (
                     <ThemedText key={u.slotId} type="small" themeColor="textSecondary">
-                      • Page {u.page}, row {u.row} col {u.col}
+                      {u.surface ? `• Cover — ${COVER_SURFACE_LABELS[u.surface]}` : `• Page ${u.page}, row ${u.row} col ${u.col}`}
                     </ThemedText>
                   ))}
                 </ScrollView>

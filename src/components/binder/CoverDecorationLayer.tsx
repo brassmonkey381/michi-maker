@@ -219,7 +219,12 @@ export function CoverDecorationLayer({
           });
 
         const tap = Gesture.Tap().onEnd(() => runOnJS(onSelect)(d.id));
-        const gesture = Gesture.Exclusive(Gesture.Simultaneous(pinch, twist), move, tap);
+        // A RACE, not an Exclusive with the two-finger gestures first. Exclusive gives the earlier
+        // gestures priority, and with a single pointer a pinch or a rotation never fails fast — it
+        // just stays "possible" until release, and the pan behind it never activates. In a race
+        // the first to activate wins: one pointer moving is a pan, two pointers are a pinch or a
+        // twist, and a tap is only a tap once nothing else did.
+        const gesture = Gesture.Exclusive(Gesture.Race(pinch, twist, move), tap);
 
         return (
           <GestureDetector key={d.id} gesture={gesture}>

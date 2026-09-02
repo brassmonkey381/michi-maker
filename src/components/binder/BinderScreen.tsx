@@ -24,6 +24,7 @@ import {
   CardPicker,
 } from '@/components/binder/CardPicker';
 import { AboutHoverCard, AboutPopup, useHoverReveal } from '@/components/binder/AboutPopup';
+import { PageComposition } from '@/components/binder/PageComposition';
 import { BinderPages, type CoverToolsContext, type GridRole } from '@/components/binder/BinderPages';
 import { CoverPanel } from '@/components/binder/CoverPanel';
 import { withSurface } from '@/components/binder/CoverEditor';
@@ -2303,7 +2304,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                     <Text style={[styles.headerAction, styles.primaryText]}>Done</Text>
                   </Pressable>
                 </View>
-                <View style={styles.binderFields}>
+                {/* Scrolls: the composition notes below can run past a short phone. */}
+                <ScrollView contentContainerStyle={styles.binderFields} keyboardShouldPersistTaps="handled">
                   <LabeledInput
                     label="Page title"
                     value={page.title ?? ''}
@@ -2317,7 +2319,10 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                     placeholder="What's on this page?"
                     multiline
                   />
-                </View>
+                  {/* Why the page looks the way it does: what the open pockets mean, and what each
+                      reserved art panel is for. See PageComposition for why it lives here. */}
+                  <PageComposition page={page} />
+                </ScrollView>
               </ThemedView>
             </View>
           </Modal>

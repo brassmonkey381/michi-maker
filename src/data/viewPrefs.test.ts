@@ -101,6 +101,9 @@ test('the defaults are the binder as it is meant to read', () => {
     // Zero is "never dragged a dock edge", so the panels size themselves as they always have.
     cardsDockPct: 0,
     artDockPct: 0,
+    // Snap on, grid off: the image-editor default nearly everyone keeps.
+    coverSnap: true,
+    coverGrid: false,
   });
 });
 
@@ -182,4 +185,12 @@ test('a dragged dock survives the rollout, because the rollout names three setti
   // applyEpoch forces owned/doubleSided/navDock and spreads the rest. A width someone chose is not
   // one of the three, so an unstamped bag carrying one keeps it.
   assert.equal(normalizeViewPrefs({ cardsDockPct: 0.4, owned: false })?.cardsDockPct, 0.4);
+});
+
+test('the cover editor flags are booleans or the default, like every other flag', () => {
+  assert.equal(normalizeViewPrefs(stamped({ coverSnap: false }))?.coverSnap, false);
+  assert.equal(normalizeViewPrefs(stamped({ coverGrid: true }))?.coverGrid, true);
+  assert.equal(normalizeViewPrefs(stamped({ coverSnap: 'yes' }))?.coverSnap, true);
+  // A bag holding only an editor flag is still ours.
+  assert.equal(normalizeViewPrefs(stamped({ coverGrid: true }))?.owned, true);
 });

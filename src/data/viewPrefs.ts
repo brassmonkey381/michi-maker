@@ -35,6 +35,13 @@ export interface ViewPrefs {
    */
   cardsDockPct: number;
   artDockPct: number;
+  /**
+   * The cover editor's snapping and grid. Editor habits rather than "how the binder reads", but
+   * they belong with the other things a person sets once and expects to find set: snap on, grid
+   * off is the Photoshop default and the one nearly everyone keeps.
+   */
+  coverSnap: boolean;
+  coverGrid: boolean;
 }
 
 export const VIEW_PREF_DEFAULTS: ViewPrefs = {
@@ -44,6 +51,8 @@ export const VIEW_PREF_DEFAULTS: ViewPrefs = {
   navDock: 'left',
   cardsDockPct: 0,
   artDockPct: 0,
+  coverSnap: true,
+  coverGrid: false,
 };
 
 /**
@@ -66,7 +75,7 @@ function applyEpoch(prefs: ViewPrefs): ViewPrefs {
 export function normalizeViewPrefs(value: unknown): ViewPrefs | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const raw = value as Record<string, unknown>;
-  const flag = (k: 'owned' | 'scans' | 'doubleSided') =>
+  const flag = (k: 'owned' | 'scans' | 'doubleSided' | 'coverSnap' | 'coverGrid') =>
     typeof raw[k] === 'boolean' ? (raw[k] as boolean) : VIEW_PREF_DEFAULTS[k];
   // A bag with none of our keys is not a preference we wrote; treat it as absent so the next
   // source in the precedence chain gets its say.
@@ -76,7 +85,9 @@ export function normalizeViewPrefs(value: unknown): ViewPrefs | null {
     !('doubleSided' in raw) &&
     !('navDock' in raw) &&
     !('cardsDockPct' in raw) &&
-    !('artDockPct' in raw)
+    !('artDockPct' in raw) &&
+    !('coverSnap' in raw) &&
+    !('coverGrid' in raw)
   ) {
     return null;
   }
@@ -100,6 +111,8 @@ export function normalizeViewPrefs(value: unknown): ViewPrefs | null {
       raw.navDock === 'left' || raw.navDock === 'bottom' ? raw.navDock : VIEW_PREF_DEFAULTS.navDock,
     cardsDockPct: pct('cardsDockPct'),
     artDockPct: pct('artDockPct'),
+    coverSnap: flag('coverSnap'),
+    coverGrid: flag('coverGrid'),
   };
   // Written before the current rollout: force that rollout's settings on, keep the rest of what
   // they chose. Idempotent, so it re-applies harmlessly on every read until they next save.
@@ -121,6 +134,8 @@ export function storedViewPrefs(prefs: ViewPrefs): {
   navDock: 'bottom' | 'left';
   cardsDockPct: number;
   artDockPct: number;
+  coverSnap: boolean;
+  coverGrid: boolean;
   v: number;
 } {
   return stamp({
@@ -130,5 +145,7 @@ export function storedViewPrefs(prefs: ViewPrefs): {
     navDock: prefs.navDock,
     cardsDockPct: prefs.cardsDockPct,
     artDockPct: prefs.artDockPct,
+    coverSnap: prefs.coverSnap,
+    coverGrid: prefs.coverGrid,
   });
 }

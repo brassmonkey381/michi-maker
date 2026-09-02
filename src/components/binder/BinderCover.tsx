@@ -17,7 +17,6 @@
  * placed by fraction so a cover drawn 200px wide in a list and 900px wide in the editor is the
  * same cover. Rendering is shared; only the editor adds handles on top.
  */
-import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View, type StyleProp, type ViewProps, type ViewStyle } from 'react-native';
 
@@ -30,8 +29,8 @@ import {
   type CoverSurfaceId,
 } from '@/data/binderModels';
 import type { CoverSticker } from '@/data/binderTypes';
+import { CoverDecorationView } from '@/components/binder/CoverDecorationView';
 import { SEAM_INSET } from '@/data/coverGeometry';
-import { cardThumbUrl } from '@/lib/catalogConfig';
 
 /**
  * Fractions of the cover's width. A real binder's proportions do not change with its size. The
@@ -219,33 +218,13 @@ export function CoverSurface({
         </Text>
       ) : null}
 
-      {/* Everything the owner has put on this surface, in the order they put it there. */}
-      {(stickers ?? []).map((sticker) => {
-        // Hidden is drawn nowhere. Text is drawn by the decoration renderer once it exists; until
-        // then a text row is simply not an image, and this loop only knows images.
-        if (sticker.hidden || sticker.kind === 'text') return null;
-        const uri = sticker.cardId ? cardThumbUrl(sticker.cardId, 640) : sticker.imageUrl;
-        if (!uri) return null;
-        const w = Math.max(8, sticker.w * width);
-        return (
-          <Image
-            key={sticker.id}
-            source={{ uri }}
-            style={{
-              position: 'absolute',
-              left: sticker.x * width - w / 2,
-              top: sticker.y * height - w / 2,
-              width: w,
-              height: w,
-              transform: sticker.rot ? [{ rotate: `${sticker.rot}deg` }] : undefined,
-            }}
-            contentFit="contain"
-            cachePolicy="memory-disk"
-            recyclingKey={uri}
-            transition={0}
-          />
-        );
-      })}
+      {/* Everything the owner has put on this surface, in the order they put it there — bottom
+          first, so a later row draws over an earlier one. One renderer for every kind, and the
+          same one the filmstrip, the shelf thumb and the page-turn copies use, so a cover is the
+          same picture at every size. */}
+      {(stickers ?? []).map((d) => (
+        <CoverDecorationView key={d.id} d={d} W={width} H={height} />
+      ))}
 
       {model.closure === 'zip' && !inside ? (
         <Zip

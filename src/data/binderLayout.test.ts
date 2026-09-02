@@ -271,7 +271,7 @@ test('a panel never shrinks the page to fit itself', () => {
 });
 
 test('no panels open means the page has the whole width', () => {
-  assert.deepEqual(panels(1888, 560, 0), { panelWidth: 0, fits: [], pageBudget: 1888 });
+  assert.deepEqual(panels(1888, 560, 0), { panelWidth: 0, widths: [], fits: [], pageBudget: 1888 });
 });
 
 test('one panel takes all the usable slack, not half of it', () => {
@@ -285,4 +285,82 @@ test('every panel width is a whole number of pixels', () => {
     const { panelWidth } = panels(w, 561, 2);
     assert.equal(panelWidth, Math.floor(panelWidth));
   }
+});
+
+/* --- a dock someone dragged to a width they chose -------------------------------------------- */
+
+const dragged = (
+  availableWidth: number,
+  pageNeed: number,
+  desired: (number | undefined)[],
+  pageFloor = MIN_PAGE_WIDTH,
+) => panelLayout({ availableWidth, pageNeed, panels: desired.length, desired, pageFloor });
+
+test('a width you asked for is the width you get', () => {
+  // The point of the handle. 500 is between the 360 floor and the 720 ceiling, and there is room,
+  // so nothing negotiates it down.
+  const out = dragged(1888, 560, [500]);
+  assert.deepEqual(out.fits, ['docked']);
+  assert.equal(out.widths[0], 500);
+  // And the page gets everything the panel did not take.
+  assert.equal(out.pageBudget, 1888 - 500 - PANEL_GAP);
+});
+
+test('an asked-for width is clamped to the same bounds an automatic one obeys', () => {
+  assert.equal(dragged(1888, 560, [90]).widths[0], PANEL_MIN_WIDTH);
+  assert.equal(dragged(1888, 400, [4000]).widths[0], PANEL_MAX_WIDTH);
+});
+
+test('one dock dragged, one automatic: the automatic one takes what is left', () => {
+  const out = dragged(1888, 560, [600, undefined]);
+  assert.deepEqual(out.fits, ['docked', 'docked']);
+  assert.equal(out.widths[0], 600);
+  // The automatic panel still divides the surplus the PAGE does not want — its old rule exactly.
+  assert.equal(out.widths[1], Math.min(Math.floor(1888 - 560 - PANEL_GAP * 2 - 600), PANEL_MAX_WIDTH));
+});
+
+test('a dragged dock may not eat the page, and gives back only what it must', () => {
+  // 700 + 700 + gaps against a 1200px window: the two asked for 1400 and cannot have it. Both come
+  // down toward the floor, and the page keeps its own floor whatever they wanted.
+  const out = dragged(1200, 400, [700, 700], 320);
+  const used = out.widths.reduce((n, w) => n + w + PANEL_GAP, 0);
+  if (out.fits[0] === 'docked' && out.fits[1] === 'docked') {
+    assert.ok(1200 - used >= 320, `page left with ${1200 - used}`);
+    assert.ok(out.widths.every((w) => w >= PANEL_MIN_WIDTH), out.widths.join(','));
+  } else {
+    // Or one of them stops docking — the pre-existing rule, one at a time, first-asked keeps it.
+    assert.deepEqual(out.fits, ['docked', 'modal']);
+  }
+});
+
+test('a proportional give-back keeps the ratio you dragged', () => {
+  // 2:1 in, still roughly 2:1 out. A give-back that flattened both to the floor would silently
+  // discard the choice rather than honour as much of it as fits.
+  const out = dragged(1400, 400, [720, 420], 320);
+  if (out.fits[1] === 'docked') assert.ok(out.widths[0] > out.widths[1], out.widths.join(','));
+});
+
+test('a window too narrow for the choice honours as much of it as fits', () => {
+  // Asked for 600 in a 700px window with a 320px page floor. It does not get 600 and it does not
+  // give up: it gets the 364 that is left. panelLayout is pure — the caller stores the FRACTION,
+  // never this clamped pixel width, so widening the window brings the original choice back whole.
+  const out = dragged(700, 400, [600], 320);
+  assert.deepEqual(out.fits, ['docked']);
+  assert.equal(out.widths[0], 700 - 320 - PANEL_GAP);
+  assert.equal(out.pageBudget, 320);
+});
+
+test('...and stops docking only when even the floor will not fit', () => {
+  // 660 - 320 - 16 = 324, under the 360 below which a panel is a column of clipped tiles.
+  const out = dragged(660, 400, [600], 320);
+  assert.deepEqual(out.fits, ['modal']);
+  assert.equal(out.widths[0], 0);
+});
+
+test('asking for nothing is exactly what every panel did before there was a handle', () => {
+  const auto = panelLayout({ availableWidth: 1888, pageNeed: 560, panels: 2 });
+  const asNothing = dragged(1888, 560, [undefined, undefined]);
+  assert.deepEqual(asNothing.fits, auto.fits);
+  assert.deepEqual(asNothing.widths, [auto.panelWidth, auto.panelWidth]);
+  assert.equal(asNothing.pageBudget, auto.pageBudget);
 });

@@ -24,7 +24,7 @@ const stamped = (prefs: Record<string, unknown>) => ({ ...prefs, v: PREFS_EPOCH 
 test('a well-formed stamped bag comes through as itself', () => {
   assert.deepEqual(
     normalizeViewPrefs(stamped({ owned: true, scans: false, doubleSided: true, navDock: 'left' })),
-    { owned: true, scans: false, doubleSided: true, navDock: 'left' },
+    { ...VIEW_PREF_DEFAULTS, owned: true, scans: false, doubleSided: true, navDock: 'left' },
   );
 });
 
@@ -48,12 +48,7 @@ test('an array is not a preference bag', () => {
 test('a partial stamped bag keeps what it says and defaults the rest', () => {
   // A release that adds a pill must not invalidate everyone's stored preference — which is exactly
   // what happened when navDock was added: every bag written before it is a partial bag now.
-  assert.deepEqual(normalizeViewPrefs(stamped({ scans: true })), {
-    owned: true,
-    scans: true,
-    doubleSided: true,
-    navDock: 'left',
-  });
+  assert.deepEqual(normalizeViewPrefs(stamped({ scans: true })), { ...VIEW_PREF_DEFAULTS, scans: true });
 });
 
 test('a non-boolean is not an answer, however truthy', () => {
@@ -90,7 +85,7 @@ test('navDock is an enum, so anything but the two known values is not an answer'
 
 test('unknown keys are ignored rather than carried', () => {
   const out = normalizeViewPrefs(stamped({ owned: true, somethingElse: true }));
-  assert.deepEqual(out, { owned: true, scans: false, doubleSided: true, navDock: 'left' });
+  assert.deepEqual(out, { ...VIEW_PREF_DEFAULTS, owned: true });
   assert.equal('somethingElse' in (out as object), false);
 });
 
@@ -103,6 +98,9 @@ test('the defaults are the binder as it is meant to read', () => {
     scans: false,
     doubleSided: true,
     navDock: 'left',
+    // Zero is "never dragged a dock edge", so the panels size themselves as they always have.
+    cardsDockPct: 0,
+    artDockPct: 0,
   });
 });
 
@@ -111,7 +109,7 @@ test('an unstamped bag gets the rollout, whatever it used to say', () => {
   // them on. A default change alone would never have reached this bag.
   assert.deepEqual(
     normalizeViewPrefs({ owned: false, scans: false, doubleSided: false, navDock: 'bottom' }),
-    { owned: true, scans: false, doubleSided: true, navDock: 'left' },
+    { ...VIEW_PREF_DEFAULTS, owned: true, scans: false, doubleSided: true, navDock: 'left' },
   );
 });
 
@@ -126,15 +124,22 @@ test('a stamped bag is never overridden — off stays off', () => {
   // rollout is done with them, and a bag that says off has to keep saying off on every read.
   assert.deepEqual(
     normalizeViewPrefs(stamped({ owned: false, scans: false, doubleSided: false, navDock: 'bottom' })),
-    { owned: false, scans: false, doubleSided: false, navDock: 'bottom' },
+    { ...VIEW_PREF_DEFAULTS, owned: false, scans: false, doubleSided: false, navDock: 'bottom' },
   );
 });
 
 test('what we write back carries the stamp', () => {
   // Without this the rollout re-applies on the next read and the choice above never sticks.
-  const bag = storedViewPrefs({ owned: false, scans: false, doubleSided: false, navDock: 'bottom' });
+  const bag = storedViewPrefs({
+    ...VIEW_PREF_DEFAULTS,
+    owned: false,
+    scans: false,
+    doubleSided: false,
+    navDock: 'bottom',
+  });
   assert.equal(bag.v, PREFS_EPOCH);
   assert.deepEqual(normalizeViewPrefs(bag), {
+    ...VIEW_PREF_DEFAULTS,
     owned: false,
     scans: false,
     doubleSided: false,
@@ -152,4 +157,29 @@ test('a stale stamp is treated as unstamped', () => {
       `v: ${String(v)}`,
     );
   }
+});
+
+test('a dock fraction is a number in range, or it is not an answer', () => {
+  // The same rule `flag` applies to a truthy string: a value this code could not have written is
+  // not a preference, so the default stands. A stored NaN or a 3 would put a dock over the page.
+  assert.equal(normalizeViewPrefs(stamped({ cardsDockPct: 0.3 }))?.cardsDockPct, 0.3);
+  for (const bad of ['0.3', NaN, Infinity, -0.1, 1.5, true, null, {}]) {
+    assert.equal(
+      normalizeViewPrefs(stamped({ cardsDockPct: bad }))?.cardsDockPct,
+      0,
+      `cardsDockPct: ${String(bad)}`,
+    );
+  }
+});
+
+test('a bag holding only a dock fraction is still a preference we wrote', () => {
+  // Without the new keys in the absent-bag guard this reads as "not ours", returns null, and the
+  // device entry loses to the defaults — the precedence chain running backwards.
+  assert.equal(normalizeViewPrefs(stamped({ artDockPct: 0.25 }))?.artDockPct, 0.25);
+});
+
+test('a dragged dock survives the rollout, because the rollout names three settings', () => {
+  // applyEpoch forces owned/doubleSided/navDock and spreads the rest. A width someone chose is not
+  // one of the three, so an unstamped bag carrying one keeps it.
+  assert.equal(normalizeViewPrefs({ cardsDockPct: 0.4, owned: false })?.cardsDockPct, 0.4);
 });

@@ -214,12 +214,25 @@ export const PANEL_MIN_WIDTH = 360;
 export const PANEL_MAX_WIDTH = 720;
 /** The gutter between a panel and the page. */
 export const PANEL_GAP = 16;
+/**
+ * The most of the WINDOW one dock may claim by being dragged. Two docks at 0.45 leave a tenth of
+ * the window, which the page floor below then takes back — so this is the guard on the handle, and
+ * `pageFloor` is the guard on the page. A person dragging a panel over their own binder has almost
+ * certainly overshot; this is where the handle stops rather than where the page starts losing.
+ */
+export const DOCK_PCT_MAX = 0.45;
 
 export type PanelFit = 'docked' | 'modal';
 
 export interface PanelLayout {
-  /** Rendered width of each docked panel; 0 when none are docked. */
+  /**
+   * Rendered width of each AUTOMATIC panel; 0 when none are docked.
+   * @deprecated Only the automatically-sized share. Read `widths[i]` — once a panel can be dragged
+   * to its own width, "the width of a panel" is no longer one number.
+   */
   panelWidth: number;
+  /** Rendered width per panel, in the order asked for; 0 for one that went modal. */
+  widths: number[];
   /** Per-panel outcome, in the order asked for. */
   fits: PanelFit[];
   /** What the page and its peeks get once the docked panels have taken their share. */
@@ -247,6 +260,8 @@ export function panelLayout({
   availableWidth,
   pageNeed,
   panels,
+  desired,
+  pageFloor = MIN_PAGE_WIDTH,
   minWidth = PANEL_MIN_WIDTH,
   maxWidth = PANEL_MAX_WIDTH,
   gap = PANEL_GAP,
@@ -257,30 +272,76 @@ export function panelLayout({
   pageNeed: number;
   /** How many panels are open. */
   panels: number;
+  /**
+   * What each panel ASKED for in pixels, aligned with `fits` — a dock someone dragged to a width
+   * they chose. `undefined` in a slot means "size me", which is what every panel did before anyone
+   * could drag one, and is still the default.
+   */
+  desired?: readonly (number | undefined)[];
+  /**
+   * The width the page keeps no matter what a dragged panel wants. A CONSTANT, never the measured
+   * `pageNeed` — see the note in the body. */
+  pageFloor?: number;
   minWidth?: number;
   maxWidth?: number;
   gap?: number;
 }): PanelLayout {
   if (panels <= 0) {
-    return { panelWidth: 0, fits: [], pageBudget: Math.max(0, availableWidth) };
+    return { panelWidth: 0, widths: [], fits: [], pageBudget: Math.max(0, availableWidth) };
   }
+  /**
+   * THE FLOOR IS A CONSTANT, AND THAT IS THE LOAD-BEARING PART.
+   *
+   * Clamping a dragged width against `pageNeed` would let the panel squeeze the page, which shrinks
+   * the page's measured width, which shrinks `pageNeed`, which lets the panel grow again — the
+   * width/height oscillation this whole module is arranged to avoid. Measured against a constant,
+   * the edge simply stops.
+   */
+  const floor = Math.max(pageFloor, MIN_PAGE_WIDTH);
   // Try every panel, then one fewer, and so on. The first count that fits wins, so the answer is
   // always the MOST panels that can be docked at a width worth docking them at.
   for (let docked = panels; docked >= 1; docked -= 1) {
-    const leftover = availableWidth - pageNeed - gap * docked;
-    const each = Math.floor(leftover / docked);
-    if (each >= minWidth) {
-      const panelWidth = Math.min(each, maxWidth);
-      return {
-        panelWidth,
-        // Ordered: the panels that keep their dock are the ones asked for first.
-        fits: Array.from({ length: panels }, (_, i) => (i < docked ? 'docked' : 'modal')),
-        pageBudget: availableWidth - (panelWidth + gap) * docked,
-      };
+    // What each panel asks for. A dragged dock asks in pixels; an undragged one asks for nothing
+    // and divides the surplus, exactly as every panel always did.
+    const asks = Array.from({ length: docked }, (_, i) => {
+      const d = desired?.[i];
+      return typeof d === 'number' && Number.isFinite(d) && d > 0
+        ? Math.min(Math.max(Math.floor(d), minWidth), maxWidth)
+        : null;
+    });
+    const claimed = asks.reduce<number>((n, a) => n + (a ?? 0), 0);
+    const autoCount = asks.filter((a) => a === null).length;
+
+    // Unchanged rule for the automatic ones: they get what the PAGE does not want.
+    const each =
+      autoCount > 0 ? Math.floor((availableWidth - pageNeed - gap * docked - claimed) / autoCount) : 0;
+    if (autoCount > 0 && each < minWidth) continue;
+    const auto = Math.min(each, maxWidth);
+    let widths = asks.map((a) => a ?? auto);
+
+    // A DRAGGED PANEL MAY NOT EAT THE PAGE. Any overrun comes off the panels that ASKED — never off
+    // an automatic one, which is only taking surplus — proportionally, so a 2:1 choice stays 2:1.
+    const over = widths.reduce((n, w) => n + w, 0) + gap * docked + floor - availableWidth;
+    if (over > 0) {
+      const slack = widths.reduce((n, w, i) => n + (asks[i] !== null ? w - minWidth : 0), 0);
+      if (slack < over) continue; // not at this count; try one fewer
+      widths = widths.map((w, i) =>
+        asks[i] === null ? w : Math.max(minWidth, w - Math.ceil((over * (w - minWidth)) / slack)),
+      );
     }
+
+    const used = widths.reduce((n, w) => n + w + gap, 0);
+    return {
+      panelWidth: autoCount > 0 ? auto : Math.max(...widths),
+      widths: [...widths, ...Array.from({ length: panels - docked }, () => 0)],
+      // Ordered: the panels that keep their dock are the ones asked for first.
+      fits: Array.from({ length: panels }, (_, i) => (i < docked ? 'docked' : 'modal')),
+      pageBudget: availableWidth - used,
+    };
   }
   return {
     panelWidth: 0,
+    widths: Array.from({ length: panels }, () => 0),
     fits: Array.from({ length: panels }, () => 'modal'),
     pageBudget: Math.max(0, availableWidth),
   };

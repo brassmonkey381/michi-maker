@@ -74,7 +74,9 @@ export function PageStrip({
     <ScrollView
       horizontal={!vertical}
       showsHorizontalScrollIndicator={false}
-      showsVerticalScrollIndicator={false}
+      // Shown on the vertical rail only. It is now full height and really does overflow on a long
+      // binder, and the scrollbar is the only thing that says there are more pages below.
+      showsVerticalScrollIndicator={vertical}
       // flexGrow centres the strip under the page when it's narrower than the screen, while a
       // long strip still scrolls normally from its left edge.
       contentContainerStyle={vertical ? styles.column : styles.row}>
@@ -187,13 +189,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   /** The same row, turned. flexGrow + centre keeps a short rail beside the middle of the page. */
+  /**
+   * The same row, turned. ANCHORED TO THE TOP, not centred: a full-height rail genuinely overflows
+   * once a binder has seven or eight thumbnails, and centred overflow on the web is overflow you
+   * cannot scroll back to — FC and IFC would sit above the reachable area with no way to reach them.
+   */
   column: {
     gap: 8,
     paddingHorizontal: 6,
     paddingVertical: 2,
     alignItems: 'center',
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
   },
   thumb: { width: THUMB_W, alignItems: 'center' },
   /** Vertical only: a fixed box, so the drop calculation has a constant pitch. See THUMB_BOX_H. */

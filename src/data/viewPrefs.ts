@@ -7,6 +7,8 @@
  * in `src/hooks/use-view-prefs.ts`.
  */
 
+// The dock cap lives with the layout that enforces it, so there is one number rather than two.
+import { DOCK_PCT_MAX } from './binderLayout.ts';
 import { isCurrentEpoch, stamp } from './prefsEpoch.ts';
 
 export interface ViewPrefs {
@@ -21,6 +23,18 @@ export interface ViewPrefs {
    * of height, and height is what the page is short of. Bottom is the older, more familiar spot.
    */
   navDock: 'bottom' | 'left';
+  /**
+   * How much of the WINDOW each side dock takes, 0..1, when its edge has been dragged.
+   *
+   * A fraction and not pixels, because the choice travels to a monitor of a different size: "about
+   * a third" survives that trip and "620px" does not. Zero means NO CHOICE MADE — size me the way
+   * you always did — so nobody who has never touched a handle notices this exists.
+   *
+   * The layout clamps it and never writes the clamped value back: a window too narrow to honour
+   * the choice must not quietly erase it.
+   */
+  cardsDockPct: number;
+  artDockPct: number;
 }
 
 export const VIEW_PREF_DEFAULTS: ViewPrefs = {
@@ -28,6 +42,8 @@ export const VIEW_PREF_DEFAULTS: ViewPrefs = {
   scans: false,
   doubleSided: true,
   navDock: 'left',
+  cardsDockPct: 0,
+  artDockPct: 0,
 };
 
 /**
@@ -54,9 +70,27 @@ export function normalizeViewPrefs(value: unknown): ViewPrefs | null {
     typeof raw[k] === 'boolean' ? (raw[k] as boolean) : VIEW_PREF_DEFAULTS[k];
   // A bag with none of our keys is not a preference we wrote; treat it as absent so the next
   // source in the precedence chain gets its say.
-  if (!('owned' in raw) && !('scans' in raw) && !('doubleSided' in raw) && !('navDock' in raw)) {
+  if (
+    !('owned' in raw) &&
+    !('scans' in raw) &&
+    !('doubleSided' in raw) &&
+    !('navDock' in raw) &&
+    !('cardsDockPct' in raw) &&
+    !('artDockPct' in raw)
+  ) {
     return null;
   }
+  /**
+   * A number, and a number in range. A stored NaN, Infinity or 3 would put a dock over the page —
+   * and out-of-range is REJECTED rather than clamped, for the same reason `flag` rejects a truthy
+   * string: a value this code could not have written is not an answer, so the default stands.
+   */
+  const pct = (k: 'cardsDockPct' | 'artDockPct') => {
+    const v = raw[k];
+    return typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= DOCK_PCT_MAX
+      ? v
+      : VIEW_PREF_DEFAULTS[k];
+  };
   const prefs: ViewPrefs = {
     owned: flag('owned'),
     scans: flag('scans'),
@@ -64,6 +98,8 @@ export function normalizeViewPrefs(value: unknown): ViewPrefs | null {
     // An enum, not a boolean: anything that is not one of the two known values is not an answer.
     navDock:
       raw.navDock === 'left' || raw.navDock === 'bottom' ? raw.navDock : VIEW_PREF_DEFAULTS.navDock,
+    cardsDockPct: pct('cardsDockPct'),
+    artDockPct: pct('artDockPct'),
   };
   // Written before the current rollout: force that rollout's settings on, keep the rest of what
   // they chose. Idempotent, so it re-applies harmlessly on every read until they next save.
@@ -83,6 +119,8 @@ export function storedViewPrefs(prefs: ViewPrefs): {
   scans: boolean;
   doubleSided: boolean;
   navDock: 'bottom' | 'left';
+  cardsDockPct: number;
+  artDockPct: number;
   v: number;
 } {
   return stamp({
@@ -90,5 +128,7 @@ export function storedViewPrefs(prefs: ViewPrefs): {
     scans: prefs.scans,
     doubleSided: prefs.doubleSided,
     navDock: prefs.navDock,
+    cardsDockPct: prefs.cardsDockPct,
+    artDockPct: prefs.artDockPct,
   });
 }

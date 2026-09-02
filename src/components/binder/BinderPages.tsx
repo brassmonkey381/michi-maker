@@ -43,7 +43,7 @@ import { AboutHoverCard, useHoverReveal } from '@/components/binder/AboutPopup';
 import { hasTextCaption, type CaptionFieldKey } from '@/data/cardCaption';
 import { PEEK_MIN_WIDTH, SPREAD_GAP, bookLayout, pageHeightAt, spreadLayout } from '@/data/binderLayout';
 import { useCardLabelPrefs } from '@/hooks/use-card-label-prefs';
-import { useViewPrefs } from '@/hooks/use-view-prefs';
+import { useViewPrefs, type ViewPrefsState } from '@/hooks/use-view-prefs';
 import { CoverSurface } from '@/components/binder/BinderCover';
 import { binderColourway, binderModel, type CoverSurfaceId } from '@/data/binderModels';
 import { cardThumbUrl } from '@/lib/catalogConfig';
@@ -218,6 +218,17 @@ export interface BinderPagesProps {
    * not update a parent while rendering.
    */
   onCoverContext?: (ctx: CoverToolsContext | null) => void;
+  /**
+   * THE VIEW PREFERENCES, WHEN THE CALLER ALSO NEEDS THEM.
+   *
+   * `useViewPrefs` resolves edited-over-account-over-device per instance and `setPref` writes the
+   * WHOLE bag, so a second copy of the hook is not a second reader — it is a second writer with a
+   * stale idea of every field it is not touching. Toggle the nav dock here, drag a dock edge there,
+   * and the second write puts the rail back. One instance, passed down.
+   *
+   * Omit it and this component keeps its own, which is what the public viewer does.
+   */
+  view?: ViewPrefsState;
   /** Shared "which spread column is mid-drag" value, so that column lifts above its neighbours
    *  (edit only). Omit on read-only surfaces. */
   dragCol?: SharedValue<number>;
@@ -242,6 +253,7 @@ export function BinderPages({
   onCloseSettings,
   settingsExtras,
   onCoverContext,
+  view: viewProp,
   dragCol,
 }: BinderPagesProps) {
   // Remembered per account (and per device for guests) rather than reset on every visit — see
@@ -258,7 +270,9 @@ export function BinderPages({
   // empty inventory (the "Owned" pill then stays hidden). Off by default; the pill flips it.
   // HOW YOU LAST LOOKED AT THIS BINDER, remembered per account — Owned, Scans and Double-sided
   // were all session-only, and none of them is a per-visit decision. See use-view-prefs.ts.
-  const view = useViewPrefs();
+  // Called unconditionally so hook order never varies; the prop wins when the caller has its own.
+  const ownView = useViewPrefs();
+  const view = viewProp ?? ownView;
   const ownedCards = useOwnedCards();
   const showOwned = view.owned;
   const setShowOwned = (on: boolean) => view.setPref('owned', on);
@@ -373,6 +387,24 @@ export function BinderPages({
       PAGE_WRAP_BOTTOM_MARGIN -
       PAGE_WRAP_TOP_MARGIN -
       PAGE_BREATHING_ROOM,
+  );
+  /**
+   * THE RAIL IS SIZED BY THE WINDOW, NOT BY THE PAGE.
+   *
+   * It used to carry `maxHeight: 620` — the height a page happened to render at on a 900px window,
+   * pasted onto navigation chrome — so on a 1290px monitor the filmstrip stopped at y~660 while the
+   * binder ran to 850 and the window to 1290, sliced through a thumbnail. `alignSelf: 'stretch'`
+   * was no better: it sizes the rail to the ROW, and the row's height is the page beside it. Either
+   * way the rail was measuring the wrong thing.
+   *
+   * `heightBudget` is what the page GRID may occupy. The rail is a sibling of the whole page wrap,
+   * so it gets that budget back plus the three terms the grid had to surrender and the rail does
+   * not owe: the column label and the wrap's two margins. Clamped to the window because on the
+   * first frame `viewportTop` and `contentAbove` are both still 0.
+   */
+  const railHeight = Math.min(
+    windowHeight,
+    heightBudget + COLUMN_LABEL_H + PAGE_WRAP_TOP_MARGIN + PAGE_WRAP_BOTTOM_MARGIN,
   );
   // The rail is drawn inside this component, so the width it takes is invisible to the callers that
   // compute availableWidth. It comes off here instead, before anything is laid out against it.
@@ -1168,7 +1200,7 @@ export function BinderPages({
           report 0 the moment a rail put it inside a row. */}
       <View style={[styles.pageRow, railLeft && styles.pageRowRailed]}>
       {railLeft && (count > 1 || coverStripExtras) ? (
-        <View style={[styles.navRail, { backgroundColor: theme.background }]}>
+        <View style={[styles.navRail, { backgroundColor: theme.background, height: railHeight }]}>
           <PageStrip
             axis="vertical"
             pages={binder.pages}
@@ -1890,8 +1922,12 @@ const styles = StyleSheet.create({
   /** Always a row; with the rail on the bottom it has one child and behaves exactly as before. */
   pageRow: { width: '100%' },
   pageRowRailed: { flexDirection: 'row', alignItems: 'flex-start' },
-  /** The left rail. A fixed width, because the page's budget is computed from that same number. */
-  navRail: { width: NAV_RAIL_WIDTH, alignSelf: 'stretch', maxHeight: 620 },
+  /**
+   * The left rail. A fixed WIDTH, because the page's budget is computed from that same number; its
+   * HEIGHT arrives inline from `railHeight`, because it belongs to the viewport and not to the
+   * page. Neither a constant nor `alignSelf: 'stretch'` belongs in this style — see railHeight.
+   */
+  navRail: { width: NAV_RAIL_WIDTH },
   /** In a row the page has to be told to take the rest; on its own it already does. */
   pageWrapRailed: { flex: 1, minWidth: 0 },
   stripDock: { paddingTop: 4 },

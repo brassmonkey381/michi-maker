@@ -14,6 +14,9 @@
  * other's query, sort and similarity state. One browser, one tray.
  */
 import { useState, type ReactNode } from 'react';
+import Animated from 'react-native-reanimated';
+
+import { useDockResize } from '@/components/binder/DockResizeHandle';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { SharedValue } from 'react-native-reanimated';
 
@@ -60,6 +63,11 @@ export interface ArtworkDockProps {
   /** Inserts live on this side too — see the tab note below. */
   onPickInsert?: (color: string, rowSpan: number, colSpan: number) => void;
   onClear?: () => void;
+  /** Dragging the inner edge — see the same props on CardPicker. */
+  onResize?: (px: number) => void;
+  onResizeReset?: () => void;
+  resizeMin?: number;
+  resizeMax?: number;
   /**
    * THE COVER'S OWN TOOLS, when a cover surface is the thing being decorated.
    *
@@ -85,6 +93,10 @@ export function ArtworkDock({
   onPickInsert,
   onClear,
   coverTools,
+  onResize,
+  onResizeReset,
+  resizeMin = 0,
+  resizeMax = 0,
   ...panel
 }: ArtworkDockProps) {
   /**
@@ -93,6 +105,17 @@ export function ArtworkDock({
    * thing beside the cards and the other opposite it, for no reason a person could name.
    */
   const [tab, setTab] = useState<'art' | 'insert' | 'cover'>('art');
+  // The inner edge is whichever border faces the page, so it is the opposite of `side`. Declared
+  // with the other hooks, above every early return, so its order never varies.
+  const dockResize = useDockResize({
+    edge: side === 'left' ? 'right' : 'left',
+    width,
+    minWidth: resizeMin,
+    maxWidth: resizeMax,
+    enabled: !!onResize,
+    onCommit: onResize ?? (() => {}),
+    onReset: onResizeReset,
+  });
   const tabs = (['art', ...(onPickInsert ? (['insert'] as const) : []), ...(coverTools ? (['cover'] as const) : [])] as const) as readonly ('art' | 'insert' | 'cover')[];
   /**
    * Touching a cover surface IS the request to decorate it, so the panel comes to the front on the
@@ -191,18 +214,19 @@ export function ArtworkDock({
 
   if (docked) {
     return (
-      <View
+      <Animated.View
         testID="artwork-dock"
         style={[
           styles.dock,
-          { width },
+          dockResize.widthStyle,
           // The border goes on the side facing the page, whichever edge this is.
           side === 'left'
             ? { left: 0, borderRightWidth: 1, borderRightColor: Palette.hairlineStrong }
             : { right: 0, borderLeftWidth: 1, borderLeftColor: Palette.hairlineStrong },
         ]}>
+        {dockResize.handle}
         {body}
-      </View>
+      </Animated.View>
     );
   }
 

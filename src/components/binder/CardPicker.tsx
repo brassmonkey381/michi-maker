@@ -4,9 +4,10 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensio
 
 import type { CardAction } from 'tcgscan-browse';
 
-import type { SharedValue } from 'react-native-reanimated';
+import Animated, { type SharedValue } from 'react-native-reanimated';
 
 import { ArtworkPanel } from '@/components/binder/ArtworkPanel';
+import { useDockResize } from '@/components/binder/DockResizeHandle';
 import { CardBrowse } from '@/components/binder/CardBrowse';
 import { ThemedText } from '@/components/themed-text';
 import { THEME_FAMILIES, themeBackgroundDataUri } from '@/data/themeBackgrounds';
@@ -95,6 +96,16 @@ interface CardPickerProps {
   dockWidth?: number;
   /** What the collapsed rail says it is. A 34px bar with only a chevron is a mystery. */
   collapsedLabel?: string;
+  /**
+   * DRAGGING THE INNER EDGE. Omit `onResize` and the edge is not draggable at all, which is what
+   * every caller but the editor wants. `resizeMin`/`resizeMax` are computed by the caller from
+   * constants — never from the page's measured width, or the panel and the page would chase each
+   * other. `resizeOffset` is the live px delta the handle writes on the UI thread.
+   */
+  onResize?: (px: number) => void;
+  onResizeReset?: () => void;
+  resizeMin?: number;
+  resizeMax?: number;
   /** Live tray size + the account's artwork cap (Infinity = uncapped) — gates the studio's Save. */
   trayCount?: number;
   trayLimit?: number;
@@ -154,6 +165,10 @@ export function CardPicker({
   docked: dockedProp,
   dockWidth,
   collapsedLabel,
+  onResize,
+  onResizeReset,
+  resizeMin = 0,
+  resizeMax = 0,
   onPickInsert,
   onClear,
   keepAdding,
@@ -297,6 +312,17 @@ export function CardPicker({
    * narrow screens, where covering the page is the only honest option.
    */
   const { width } = useWindowDimensions();
+  // The draggable inner edge. Declared up here with the other hooks so its order never varies with
+  // the docked / collapsed / modal branches below.
+  const dockResize = useDockResize({
+    edge: 'left',
+    width: dockWidth ?? CARD_PICKER_DOCK_WIDTH,
+    minWidth: resizeMin,
+    maxWidth: resizeMax,
+    enabled: !!onResize && !!dockWidth,
+    onCommit: onResize ?? (() => {}),
+    onReset: onResizeReset,
+  });
   // TOLD, not decided here. This used to be its own width breakpoint, which disagreed with the
   // screen's: the screen shaved a panel's width off the page's budget while this rendered a
   // full-screen sheet. The screen owns the arithmetic that sizes the page, so it owns this too.
@@ -484,12 +510,15 @@ export function CardPicker({
       );
     }
     return (
-      <View style={[styles.dock, dockWidth ? { width: dockWidth } : null]} testID="card-picker-dock">
+      <Animated.View
+        style={[styles.dock, dockWidth ? dockResize.widthStyle : null]}
+        testID="card-picker-dock">
+        {dockResize.handle}
         {/* No grab handle and no scrim: this is a column of the page, not a sheet over it. Close
             is explicit, because the binder staying live means a stray tap outside is far more
             likely to be someone aiming at a pocket than someone dismissing the picker. */}
         {body}
-      </View>
+      </Animated.View>
     );
   }
 

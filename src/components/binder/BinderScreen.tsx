@@ -71,7 +71,16 @@ import { fetchLikeCount } from '@/data/binderRepo';
 import { isPrivateArt } from '@/data/artAttributionCheck';
 import { ArtworkDock } from '@/components/binder/ArtworkDock';
 import { artPieceAllowed, pageSide, REAL_PAGE_SIZES } from '@/data/binderPhysics';
-import { LEGACY_MIN_WIDTH, PEEK_MIN_WIDTH, panelLayout } from '@/data/binderLayout';
+import {
+  DOCK_PCT_MAX,
+  LEGACY_MIN_WIDTH,
+  MIN_PAGE_WIDTH,
+  PANEL_GAP,
+  PANEL_MAX_WIDTH,
+  PANEL_MIN_WIDTH,
+  PEEK_MIN_WIDTH,
+  panelLayout,
+} from '@/data/binderLayout';
 import type { CaptionFieldKey } from '@/data/cardCaption';
 import type { ComposePlacement } from '@/data/pageComposer';
 import { isSupabaseConfigured } from '@/lib/env';
@@ -84,6 +93,7 @@ import { SliceThumb } from '@/components/binder/SliceTray';
 import type { CatalogCard } from '@/lib/catalog';
 import { isBlankPage, useBinders } from '@/store/binders';
 import { useTheme } from '@/hooks/use-theme';
+import { useViewPrefs } from '@/hooks/use-view-prefs';
 
 // Real side-load page grids only — 4 rows × 3 columns doesn't exist physically (binderPhysics).
 const PAGE_SIZES = REAL_PAGE_SIZES;
@@ -146,6 +156,15 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   );
   const theme = useTheme();
   const { width } = useWindowDimensions();
+  /**
+   * ONE COPY OF THE VIEW PREFERENCES FOR THE WHOLE EDITOR, passed down to BinderPages.
+   *
+   * `setPref` writes the whole bag from the instance's own resolved values, so two instances are
+   * two writers, each stale about every field the other owns. This screen needs to write the dock
+   * fractions and BinderPages needs to write the pills; with two hooks, dragging a dock edge here
+   * would silently put the nav rail back wherever it was when this screen mounted.
+   */
+  const view = useViewPrefs();
   // Keep the saved-slice tray synced to the current (guest or signed-in) user while editing.
   useSavedSlicesSync();
   // Live tray size — the artUploads cap is a retention cap on slices KEPT in the account.
@@ -291,6 +310,15 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // height is what react-native-web reports reliably. See the contentAbove note in BinderPages: an
   // element's onLayout there is a ResizeObserver on the element itself, so measuring a POSITION
   // silently misses anything above it growing.
+  /**
+   * How wide the header's right-hand group is. Measured, because its contents change with mode —
+   * the page tools appear only while editing, the like chip only when there are likes. Rounded and
+   * only accepted on a real change, exactly like the two guards above: the title's own width is not
+   * an input to this, so nothing can loop, but a sub-pixel wobble would still re-render for free.
+   */
+  const [headerRightW, setHeaderRightWRaw] = useState(0);
+  const setHeaderRightW = (w: number) =>
+    setHeaderRightWRaw((cur: number) => (Math.abs(cur - w) > 2 ? Math.round(w) : cur));
   const [callerChrome, setCallerChromeRaw] = useState(0);
   const setCallerChrome = (h: number) =>
     setCallerChromeRaw((cur) => (Math.abs(cur - h) > 2 ? Math.round(h) : cur));
@@ -464,10 +492,26 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const railCount = sidesShown ? (cardsWantsPanel ? 0 : 1) + (artWantsPanel ? 0 : 1) : 0;
   const railCost = railCount * CARD_PICKER_RAIL_WIDTH;
   const panelCount = (cardsWantsPanel ? 1 : 0) + (artWantsPanel ? 1 : 0);
+  /**
+   * A DOCK CAN BE TOLD HOW WIDE TO BE. Zero means nobody has ever dragged this edge, which is every
+   * account until it happens, so the automatic split below is unchanged for them.
+   *
+   * The floor the panels are measured against is a CONSTANT, never `pageNeed`: `pageNeed` contains
+   * the page's own measured width, so clamping against it would let a dragged panel squeeze the
+   * page, which shrinks the measurement, which lets the panel grow again.
+   */
+  const pctPx = (pct: number) => (pct > 0 ? Math.round(pct * width) : undefined);
+  const pageFloor = binder.pages.length > 1 ? PEEK_MIN_WIDTH : MIN_PAGE_WIDTH;
   const panels = panelLayout({
     availableWidth: width - 32 - railCost,
     pageNeed,
     panels: panelCount,
+    // Same order the fits are read in below: the picker first, the artwork panel second.
+    desired: [
+      ...(cardsWantsPanel ? [pctPx(view.cardsDockPct)] : []),
+      ...(artWantsPanel ? [pctPx(view.artDockPct)] : []),
+    ],
+    pageFloor,
   });
   // Asked for in priority order, and panelLayout keeps the earlier ones docked when only some fit.
   // The picker goes first because it is the one you just asked for by tapping a pocket; the artwork
@@ -486,10 +530,38 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const pickerDocked = sidesShown && (cardsWantsPanel ? pickerFit === 'docked' : true);
   const artworkDocked = sidesShown && (artWantsPanel ? artworkFit === 'docked' : true);
   // A side that is not open, or is open but too narrow to dock, still holds its rail.
-  const pickerWidth = cardsWantsPanel && pickerFit === 'docked' ? panels.panelWidth : CARD_PICKER_RAIL_WIDTH;
-  const artworkWidth = artWantsPanel && artworkFit === 'docked' ? panels.panelWidth : CARD_PICKER_RAIL_WIDTH;
+  // Per side now, not one shared number: the two can be dragged to different widths.
+  let widthIdx = 0;
+  const pickerWidth =
+    cardsWantsPanel && pickerFit === 'docked' ? panels.widths[widthIdx++] : CARD_PICKER_RAIL_WIDTH;
+  const artworkWidth =
+    artWantsPanel && artworkFit === 'docked' ? panels.widths[widthIdx++] : CARD_PICKER_RAIL_WIDTH;
   const available =
     width - 32 - (pickerDocked ? pickerWidth : 0) - (artworkDocked ? artworkWidth : 0);
+  /**
+   * WHAT A DRAGGED EDGE IS ALLOWED TO REACH, and what it stores.
+   *
+   * Stored as a FRACTION of the window, because the choice travels to a different monitor: "about a
+   * third" survives that and "620px" does not. The stored value is never the clamped one — a window
+   * too narrow to honour a choice must not quietly erase it — so widening the window brings the
+   * original back whole.
+   *
+   * The live ceiling subtracts the page's floor and the other dock, so the edge under the finger
+   * physically cannot reach the binder even before the layout gets a say.
+   */
+  const dockCeiling = (otherWidth: number) =>
+    Math.max(
+      PANEL_MIN_WIDTH,
+      Math.min(
+        PANEL_MAX_WIDTH,
+        Math.round(DOCK_PCT_MAX * width),
+        width - 32 - railCost - pageFloor - PANEL_GAP - otherWidth,
+      ),
+    );
+  const commitDock = (key: 'cardsDockPct' | 'artDockPct') => (px: number) =>
+    view.setPref(key, Math.min(Math.max(px / width, PANEL_MIN_WIDTH / width), DOCK_PCT_MAX));
+  // Two taps hands the width back to the layout — 0 is already the "never dragged" sentinel.
+  const resetDock = (key: 'cardsDockPct' | 'artDockPct') => () => view.setPref(key, 0);
   // prev/next are kept here for the cross-page drag hit-test (resolveSpreadHit below); the spread
   // layout that shows them lives in BinderPages.
   const prevPage = idx > 0 ? binder.pages[idx - 1] : null;
@@ -760,6 +832,10 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     }
     setSelectedSlotId(null);
     clearMulti();
+    // The picker points at ONE pocket, so tap-to-select has to stand down with it. Left armed it
+    // is a mode whose selection the next pocket tap wipes, under a "Selecting" pill with no toggle
+    // beside it to turn off.
+    setSelectMode(false);
     setPickerCell({ row, col });
     // The cards side comes forward for the pocket you just tapped — it is a rail the rest of the
     // time, not absent, so this is an expand rather than an appearance.
@@ -1519,66 +1595,85 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
    * Each one keeps its old behaviour exactly; only the label became a glyph, and every button
    * carries its words in `accessibilityLabel` so the meaning is not lost with the text.
    */
+  /**
+   * THE EDITING TOOLS, AS ICONS, IN THE HEADER — but in three scopes, not one row.
+   *
+   * They arrived as six glyphs at a 2px gap with no separator, no container and no label, and the
+   * eye groups by adjacency: everything read as "things that act on this page". Two of them do not.
+   *
+   *   - Undo and redo swap a whole binder-list snapshot (see store/binders.tsx's history), so one
+   *     press can roll back an edit made on a different page. Session-wide, the widest scope here,
+   *     and it sat first in a run that read as "page".
+   *   - "+" appends a page at the END of the binder and does not navigate. On a twelve-page binder
+   *     it makes page thirteen and leaves you on page four.
+   *   - Duplicate, send and delete are the only true current-page operations.
+   *
+   * So: a hairline after history, then one bordered group whose first element is the page's own
+   * number. The container is the cheapest true statement of scope — no prose, no extra row — and
+   * on a two-page spread the badge is the only thing on screen that answers "which of these two
+   * would the ✕ delete".
+   */
   const editIcons = (
     <View style={styles.iconBar}>
       <IconBtn glyph="↶" label="Undo" onPress={store.undo} disabled={!store.canUndo} testID="tool-undo" />
       <IconBtn glyph="↷" label="Redo" onPress={store.redo} disabled={!store.canRedo} testID="tool-redo" />
-      <IconBtn
-        glyph="+"
-        label="Add a page"
-        testID="tool-add-page"
-        onPress={() =>
-          store.pageLimitReached(binder.id)
-            ? showLimitToast(pageLimitMessage(store.tier, store.limits))
-            : store.addPage(binder.id)
-        }
-      />
-      <IconBtn glyph="⧉" label="Duplicate this page" onPress={handleDuplicatePage} testID="tool-duplicate" />
-      {/* Send this page into ANOTHER of your binders (copy, or move it out of this one). */}
-      {store.userBinders.some((b) => b.id !== binder.id) ? (
+      <View style={styles.groupRule} />
+      <View style={styles.pageGroup}>
+        {/* Tapping it opens the page's details — the same dialog the title above the page opens —
+            so a page's name sits at the head of the page's own tools as well as over its art. */}
+        <Pressable
+          onPress={() => setPageInfoOpen(true)}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={`Page ${idx + 1} of ${binder.pages.length} — name and description`}
+          testID="tool-page-badge"
+          style={styles.pageBadge}>
+          <Text style={styles.pageBadgeText}>{`▤ ${idx + 1}/${binder.pages.length}`}</Text>
+        </Pressable>
         <IconBtn
-          glyph="➦"
-          label="Send this page to another binder"
-          onPress={() => setSendPageOpen(true)}
-          testID="tool-send-page"
-        />
-      ) : null}
-      {binder.pages.length > 1 ? (
-        <IconBtn
-          glyph="✕"
-          label="Delete this page"
-          tone="danger"
-          testID="tool-delete-page"
+          glyph="+"
+          // Named for what it does. "Add a page", beside three this-page tools, read as "insert one
+          // here" — which it has never done.
+          label="Add a page at the end"
+          testID="tool-add-page"
           onPress={() =>
-            setConfirm({
-              title: 'Delete this page?',
-              message: 'The page and everything on it will be removed.',
-              confirmLabel: 'Delete page',
-              destructive: true,
-              onConfirm: () => {
-                const result = store.removePage(binder.id, page.id);
-                changePage(0);
-                showToast(parityNote('Page deleted', result?.blanksInserted), true);
-              },
-            })
+            store.pageLimitReached(binder.id)
+              ? showLimitToast(pageLimitMessage(store.tier, store.limits))
+              : store.addPage(binder.id)
           }
         />
-      ) : null}
-      {/* Select mode changes what every tap on the binder does, so it toggles from here and then
-          says so in the pill beside it rather than hiding inside a dialog. */}
-      <IconBtn
-        glyph="⊕"
-        label="Select several pockets"
-        testID="binder-select-toggle"
-        active={selectMode}
-        onPress={() => {
-          setSelectMode((v) => {
-            if (v) clearMulti();
-            return !v;
-          });
-          setSelectedSlotId(null);
-        }}
-      />
+        <IconBtn glyph="⧉" label="Duplicate this page" onPress={handleDuplicatePage} testID="tool-duplicate" />
+        {/* Send this page into ANOTHER of your binders (copy, or move it out of this one). */}
+        {store.userBinders.some((b) => b.id !== binder.id) ? (
+          <IconBtn
+            glyph="➦"
+            label="Send this page to another binder"
+            onPress={() => setSendPageOpen(true)}
+            testID="tool-send-page"
+          />
+        ) : null}
+        {binder.pages.length > 1 ? (
+          <IconBtn
+            glyph="✕"
+            label="Delete this page"
+            tone="danger"
+            testID="tool-delete-page"
+            onPress={() =>
+              setConfirm({
+                title: 'Delete this page?',
+                message: 'The page and everything on it will be removed.',
+                confirmLabel: 'Delete page',
+                destructive: true,
+                onConfirm: () => {
+                  const result = store.removePage(binder.id, page.id);
+                  changePage(0);
+                  showToast(parityNote('Page deleted', result?.blanksInserted), true);
+                },
+              })
+            }
+          />
+        ) : null}
+      </View>
     </View>
   );
 
@@ -1656,18 +1751,27 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
     </View>
   ) : null;
 
+  /**
+   * ONE SOURCE OF TRUTH FOR THE HEADER'S CONTENT BOX. The header row and the floating title take
+   * the same insets, so the title's centre IS the centre of the space the pages get — which is the
+   * whole point of floating it.
+   */
+  const headerInset = {
+    paddingLeft: (artworkDocked ? artworkWidth : 0) + Spacing.three,
+    paddingRight: (pickerDocked ? pickerWidth : 0) + Spacing.three,
+  };
+  // How much the title may claim before it would sit under a side group. Symmetric by construction
+  // — any equal inset keeps the centre — so it is the WIDER side, doubled, that has to clear.
+  const headerContentW = width - headerInset.paddingLeft - headerInset.paddingRight;
+  const titleMaxW = Math.max(120, headerContentW - 2 * (headerRightW + Spacing.three));
+
   return (
     <ThemedView style={styles.flex}>
       <SafeAreaView style={styles.flex} edges={['top']}>
           {/* Header */}
           {/* The picker is a full-height column on the right edge, so the header's own controls
               have to step aside for it too — otherwise the panel clips Done and Share. */}
-          <View
-            style={[
-              styles.header,
-              pickerDocked && { paddingRight: pickerWidth + Spacing.three },
-              artworkDocked && { paddingLeft: artworkWidth + Spacing.three },
-            ]}>
+          <View style={[styles.header, headerInset]}>
             <Pressable onPress={onClose} hitSlop={10}>
               <Text style={[styles.headerAction, { color: theme.text }]}>Close</Text>
             </Pressable>
@@ -1680,14 +1784,14 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                 Dead while reading a binder that has no description, since the card would open
                 with nothing in it. Always live while editing, where writing the first one is the
                 whole point. */}
-            <View style={styles.titleCol}>
+            <View pointerEvents="box-none" style={[styles.titleFloat, headerInset]}>
               <Pressable
                 onPress={() => setBinderInfoOpen(true)}
                 onHoverIn={binderHover.onHoverIn}
                 onHoverOut={binderHover.onHoverOut}
                 disabled={!editing && !binder.description}
                 hitSlop={6}
-                style={styles.titlePress}
+                style={[styles.titlePress, { maxWidth: titleMaxW }]}
                 accessibilityRole="button"
                 testID="binder-title"
                 accessibilityLabel={
@@ -1706,7 +1810,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               ) : null}
             </View>
             {canEdit ? (
-              <View style={styles.headerRight}>
+              <View
+                style={styles.headerRight}
+                onLayout={(e) => setHeaderRightW(e.nativeEvent.layout.width)}>
                 {editing ? editIcons : null}
                 {isSupabaseConfigured && likeCount !== null ? (
                   <Pressable
@@ -1727,6 +1833,30 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                   testID="binder-settings-btn">
                   <Text style={[styles.headerAction, { color: theme.text }]}>⚙</Text>
                 </Pressable>
+                {/* SELECT SEVERAL POCKETS acts on a SELECTION, not on the page, so it belongs
+                    with the count it produces rather than inside the page group.
+
+                    Gone entirely while the picker is aimed at a pocket: the two modes are already
+                    mutually exclusive in code — handleAddCell clears the selection on the way in,
+                    and every further empty-pocket tap clears it again — so offering it beside an
+                    "Add to pocket" panel offers a mode the next tap destroys. That is exactly the
+                    state in the screenshot this came from. An empty page has nothing to select
+                    either, so it waits for the page to have something on it. */}
+                {editing && !pickerCell && page.slots.length > 0 ? (
+                  <IconBtn
+                    glyph="⊕"
+                    label="Select several pockets"
+                    testID="binder-select-toggle"
+                    active={selectMode}
+                    onPress={() => {
+                      setSelectMode((v) => {
+                        if (v) clearMulti();
+                        return !v;
+                      });
+                      setSelectedSlotId(null);
+                    }}
+                  />
+                ) : null}
                 {/* SELECT MODE HAS TO SAY IT IS ON somewhere you can see without opening a
                     dialog — it changes what every tap on the binder does. The header is chrome
                     this screen already draws, so saying it here costs the page no height, and it
@@ -1867,6 +1997,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               settingsOpen={settingsOpen}
               onCloseSettings={() => setSettingsOpen(false)}
               settingsExtras={binderLookSettings}
+              view={view}
               onCoverContext={(ctx) => {
                 setCoverCtx(ctx);
                 // Picking a surface IS the request to decorate it, so the panel holding the
@@ -1962,6 +2093,10 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           visible={sidesShown}
           collapsed={!artWantsPanel}
           onToggleCollapsed={() => setArtworkOpen((v) => !v)}
+          onResize={commitDock('artDockPct')}
+          onResizeReset={resetDock('artDockPct')}
+          resizeMin={PANEL_MIN_WIDTH}
+          resizeMax={dockCeiling(pickerDocked ? pickerWidth : 0)}
           coverTools={
             editing && coverCtx ? (
               <CoverTools
@@ -2033,6 +2168,10 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           collapsed={!cardsWantsPanel}
           onToggleCollapsed={() => setCardsCollapsed((v) => !v)}
           collapsedLabel="Cards"
+          onResize={commitDock('cardsDockPct')}
+          onResizeReset={resetDock('cardsDockPct')}
+          resizeMin={PANEL_MIN_WIDTH}
+          resizeMax={dockCeiling(artworkDocked ? artworkWidth : 0)}
           docked={pickerDocked}
           dockWidth={pickerWidth}
         />
@@ -2455,12 +2594,55 @@ const styles = StyleSheet.create({
   },
   // The title and the card it reveals share a column so the card centres under the title
   // (an absolute child with no left/right takes the parent's alignItems).
-  titleCol: { flex: 1, minWidth: 0, alignItems: 'center' },
-  titlePress: { alignSelf: 'stretch', minWidth: 0 },
+  /**
+   * THE TITLE IS CENTRED ON THE PAGES, NOT ON WHAT THE BUTTONS LEFT OVER.
+   *
+   * In the flow it was a flex:1 box between a ~45px "Close" and a ~450px stack of tools, so it was
+   * centred on the LEFTOVER span and its centre sat ~200px left of the binder it names. Out of the
+   * flow, taking the header's own left/right padding, it is centred on the header's content box —
+   * which is the pages' box grown by a symmetric 16px either side, so: the same centre.
+   *
+   * left/right: 0 is the header's PADDING box, since a parent's padding does not apply to an
+   * absolutely positioned child (in CSS or in Yoga). That is why this repeats `headerInset`.
+   */
+  titleFloat: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Self-sized, so only the words take the click and the buttons underneath stay reachable.
+  titlePress: { minWidth: 0 },
   // Clear of the header's bottom rule, so the card reads as floating over the binder rather than
   // as another band of chrome attached to the header.
-  titleHover: { top: 40 },
+  // Clear of the header's bottom rule. The float spans the header's full height, where the old
+  // in-flow column started below its 12px of vertical padding.
+  titleHover: { top: 52 },
   iconBar: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  /**
+   * A GROUP, NOT A ROW OF LOOSE GLYPHS. One hairlined container is what makes "these act on the
+   * page" legible with no copy and no extra row. The arithmetic that keeps the binder where it is:
+   * a 30px IconBtn plus two 1px borders is 32px, still under the ~33px Done pill that already sets
+   * this row's height — so the header does not grow and nothing below it moves.
+   */
+  pageGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 3,
+    borderWidth: 1,
+    borderColor: Palette.hairline,
+    borderRadius: Radius.control,
+    backgroundColor: Palette.surface,
+  },
+  // The seam between "the session's history" and "this page". 18px inside a 30px row reads as a
+  // divider; a full-height rule would read as a second border and fight the group's own.
+  groupRule: { width: 1, height: 18, marginHorizontal: 5, backgroundColor: Palette.hairline },
+  pageBadge: { height: 24, paddingHorizontal: 5, justifyContent: 'center' },
+  pageBadgeText: { fontSize: FontSize.sm, fontWeight: Weight.semibold, color: Palette.ink2 },
   iconBtn: {
     width: 30,
     height: 30,

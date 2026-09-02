@@ -78,3 +78,38 @@ test('empty in, empty out', () => {
   assert.equal(setDisplayName(''), '');
   assert.equal(setDisplayName(undefined), '');
 });
+
+test('a series abbreviation used as a set-name prefix is dropped', () => {
+  // "SM - Guardians Rising" sits beside a series chip already reading SM, so the prefix says the
+  // same thing twice — on a label with room for one line.
+  assert.equal(setDisplayName('SM - Guardians Rising'), 'Guardians Rising');
+  assert.equal(setDisplayName('SWSH - Vivid Voltage'), 'Vivid Voltage');
+  assert.equal(setDisplayName('SV - Paldea Evolved'), 'Paldea Evolved');
+});
+
+test('the dash may be any of the three, and the spacing anything', () => {
+  for (const raw of ['SM - Guardians Rising', 'SM- Guardians Rising', 'SM -Guardians Rising', 'SM–Guardians Rising', 'SM — Guardians Rising']) {
+    assert.equal(setDisplayName(raw), 'Guardians Rising', raw);
+  }
+});
+
+test('only a KNOWN series abbreviation is stripped', () => {
+  // The case this protects: a set whose real name has a dash in it. Nothing about the SHAPE of
+  // "Team Rocket - Returns" distinguishes it from "SM - Guardians Rising"; only the list does.
+  assert.equal(setDisplayName('Team - Returns'), 'Team - Returns');
+  assert.equal(setDisplayName('ZZ - Something'), 'ZZ - Something');
+});
+
+test('a dash inside the title survives once the prefix is gone', () => {
+  assert.equal(setDisplayName('SM - Burning Shadows - Special'), 'Burning Shadows - Special');
+});
+
+test('lower case still matches, because catalogues are not consistent', () => {
+  assert.equal(setDisplayName('sm - Guardians Rising'), 'Guardians Rising');
+});
+
+test('the colon form still wins, and still does not need the list', () => {
+  // A set CODE, not a series one: SWSH04 is not in SERIES_CODES and must still be stripped.
+  assert.equal(setDisplayName('SWSH04: Vivid Voltage'), 'Vivid Voltage');
+  assert.equal(setDisplayName('Shining Fates: Shiny Vault'), 'Shining Fates: Shiny Vault');
+});

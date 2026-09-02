@@ -33,6 +33,9 @@ const SERIES_CODES: Record<string, string> = {
   Other: 'OTHER',
 };
 
+/** Every published series abbreviation, for recognising one used as a set-name prefix. */
+const SERIES_ABBREVIATIONS = new Set(Object.values(SERIES_CODES));
+
 /**
  * Initials for a series nobody has written a short form for: the first letter of each real word,
  * skipping the ampersand. Capped at four so a long new name cannot blow the chip open.
@@ -74,6 +77,16 @@ export function seriesCode(name: string | undefined | null): string {
  */
 export function setDisplayName(name: string | undefined | null): string {
   const trimmed = (name ?? '').trim();
-  const match = /^[A-Za-z0-9]+:\s*(.+)$/.exec(trimmed);
-  return match ? match[1].trim() : trimmed;
+  // "SWSH04: Vivid Voltage" — a set CODE and a colon.
+  const coded = /^[A-Za-z0-9]+:\s*(.+)$/.exec(trimmed);
+  if (coded) return coded[1].trim();
+  // "SM - Guardians Rising" — a SERIES abbreviation and a dash. Beside a series chip already
+  // reading SM, the prefix says the same thing twice and costs a label that has room for one line.
+  //
+  // Only a KNOWN series abbreviation is stripped, never any short leading word. A set genuinely
+  // called "Team Rocket - Returns" must keep both halves, and the difference between the two cases
+  // is not something a shape can tell — only the list can.
+  const dashed = /^([A-Za-z]{1,6})\s*[-–—]\s*(.+)$/.exec(trimmed);
+  if (dashed && SERIES_ABBREVIATIONS.has(dashed[1].toUpperCase())) return dashed[2].trim();
+  return trimmed;
 }

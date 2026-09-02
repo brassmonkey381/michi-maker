@@ -25,7 +25,9 @@ import {
 } from '@/components/binder/CardPicker';
 import { AboutHoverCard, AboutPopup, useHoverReveal } from '@/components/binder/AboutPopup';
 import { BinderPages, type CoverToolsContext, type GridRole } from '@/components/binder/BinderPages';
-import { CoverTools } from '@/components/binder/CoverEditor';
+import { CoverPanel } from '@/components/binder/CoverPanel';
+import { withSurface } from '@/components/binder/CoverEditor';
+import { LayersTray } from '@/components/binder/LayersTray';
 import { ColorField } from '@/components/binder/ColorField';
 import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
 import { LikersSheet } from '@/components/binder/LikersSheet';
@@ -2099,19 +2101,38 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           resizeMax={dockCeiling(pickerDocked ? pickerWidth : 0)}
           coverTools={
             editing && coverCtx ? (
-              <CoverTools
-                cover={coverCtx.cover}
-                surface={coverCtx.surface}
+              <CoverPanel
+                ctx={coverCtx}
+                view={view}
+                canUndo={store.canUndo}
+                canRedo={store.canRedo}
+                onUndo={store.undo}
+                onRedo={store.redo}
+                onToast={(m) => showToast(m)}
+                surfaceAspect={coverCtx.surfaceAspect}
+              />
+            ) : undefined
+          }
+          // The layers tray rides under the dock's head on every tab while a surface is focused.
+          coverLayers={
+            editing && coverCtx ? (
+              <LayersTray
+                items={coverCtx.cover.surfaces?.[coverCtx.surface] ?? []}
                 selected={coverCtx.selected}
                 onSelect={coverCtx.onSelect}
-                onChange={coverCtx.onChange}
+                onChange={(next) => coverCtx.onChange(withSurface(coverCtx.cover, coverCtx.surface, next))}
               />
             ) : undefined
           }
           docked={artworkDocked}
           width={artworkWidth}
           side="left"
-          onClose={() => setArtworkOpen(false)}
+          // Done on the dock lets the cover go too: "a surface is focused" and "the dock is open on
+          // Cover" are meant to be the same fact.
+          onClose={() => {
+            setArtworkOpen(false);
+            coverCtx?.onClearFocus();
+          }}
           armedId={armedSlice?.id ?? null}
           onArm={setArmedSlice}
           onDragStart={handleSliceDragStart}
@@ -2382,6 +2403,19 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           />
         )}
         <LikersSheet visible={likesOpen} binderId={binder.id} onClose={() => setLikesOpen(false)} />
+        {/* THE LAYERS TRAY MUST BE ON SCREEN whenever a surface is being decorated. When the Art
+            dock is docked and open it lives under the dock's head; when the dock is a rail or has
+            fallen back to a modal, it floats over the binder instead. An overlay is free space —
+            nothing enters the flow above the pages. */}
+        {editing && coverCtx && !(artworkDocked && artWantsPanel) ? (
+          <LayersTray
+            floating
+            items={coverCtx.cover.surfaces?.[coverCtx.surface] ?? []}
+            selected={coverCtx.selected}
+            onSelect={coverCtx.onSelect}
+            onChange={(next) => coverCtx.onChange(withSurface(coverCtx.cover, coverCtx.surface, next))}
+          />
+        ) : null}
       </ThemedView>
   );
 }

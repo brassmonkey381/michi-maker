@@ -20,6 +20,7 @@ import {
   normalizeCover,
   patchDecoration,
   removeDecoration,
+  rowToIndex,
   sliceToDecoration,
 } from './coverDecorations.ts';
 import type { BinderCover, CoverDecoration, CoverImageDecoration } from './binderTypes.ts';
@@ -196,4 +197,12 @@ test('a fresh text box is valid by its own normaliser', () => {
   const out = normalizeCover(cover([defaultText()])).surfaces!.front!;
   assert.equal(out.length, 1);
   assert.equal(out[0].kind, 'text');
+});
+
+test('rowToIndex: the top row is the last array element', () => {
+  assert.equal(rowToIndex(4, 0), 3);
+  assert.equal(rowToIndex(4, 3), 0);
+  const items = ['a', 'b', 'c'].map((id) => legacy(id));
+  const rows = [...items].reverse();
+  assert.equal(items[rowToIndex(items.length, 0)].id, rows[0].id);
 });

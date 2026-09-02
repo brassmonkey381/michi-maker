@@ -222,6 +222,14 @@ export function moveDecoration(items: CoverDecoration[], id: string, toIndex: nu
   return next;
 }
 
+/**
+ * The layers tray lists FRONT-MOST FIRST (Photoshop order) while the array is bottom-first, so a
+ * tray row maps to an array index through this. Row 0 is the top of the stack.
+ */
+export function rowToIndex(length: number, row: number): number {
+  return length - 1 - row;
+}
+
 /** "Art 3" · "Sticker" · "Text · “the first four words”" — what the tray row says when unnamed. */
 export function defaultName(d: CoverDecoration, index: number): string {
   if (d.name) return d.name;

@@ -117,6 +117,12 @@ export interface CoverToolsContext {
   onSelect: (id: string | null) => void;
   cover: BinderCover;
   onChange: (cover: BinderCover) => void;
+  /** Move to another of the four surfaces — the panel's FC/IFC/IBC/BC chips. */
+  onFocusSurface: (surface: CoverSurfaceId) => void;
+  /** Let the cover go: back to the page, nothing focused, nothing selected. */
+  onClearFocus: () => void;
+  /** Surface width ÷ height as drawn on the spread, for the panel's Y and H units. */
+  surfaceAspect: number;
 }
 
 export interface BinderPagesProps {
@@ -710,30 +716,6 @@ export function BinderPages({
   const focused: CoverSurfaceId | null =
     coverFocus ?? (shut === 'front' ? 'front' : shut === 'back' ? 'back' : shut === 'tail' ? 'backInside' : null);
 
-  /**
-   * TELL THE CALLER WHICH COVER IS BEING DECORATED, so it can put the tools in its Artwork panel
-   * rather than under the binder — three lines of chrome that used to appear the moment any of the
-   * four surfaces was touched, and took that height off the pages.
-   *
-   * Deps are primitives only: the context object is rebuilt every render, so depending on it would
-   * publish forever.
-   */
-  const coverForTools = binder.cover;
-  useEffect(() => {
-    if (!onCoverContext) return;
-    onCoverContext(
-      editable && coverForTools && focused
-        ? {
-            surface: focused,
-            selected: coverSelected,
-            onSelect: setCoverSelected,
-            cover: coverForTools,
-            onChange: writeCover,
-          }
-        : null,
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editable, coverForTools, focused, coverSelected, onCoverContext]);
 
   /**
    * One cover surface, drawn to the page's width so the two halves of the spread line up.
@@ -840,6 +822,37 @@ export function BinderPages({
     setShut(wantShut);
     setCoverFocus(id);
   };
+
+  /**
+   * TELL THE CALLER WHICH COVER IS BEING DECORATED, so it can put the tools in its Artwork panel
+   * rather than under the binder — three lines of chrome that used to appear the moment any of the
+   * four surfaces was touched, and took that height off the pages.
+   *
+   * Deps are primitives only: the context object is rebuilt every render, so depending on it would
+   * publish forever.
+   */
+  const coverForTools = binder.cover;
+  // The spread draws a cover to the page's box, so that is the aspect the panel's units use.
+  const surfaceAspectForTools = bookW / Math.max(1, pageHeightAt(bookW, page.rows, page.cols, captionsOn));
+  useEffect(() => {
+    if (!onCoverContext) return;
+    onCoverContext(
+      editable && coverForTools && focused
+        ? {
+            surface: focused,
+            selected: coverSelected,
+            onSelect: setCoverSelected,
+            cover: coverForTools,
+            onChange: writeCover,
+            onFocusSurface: focusCover,
+            // selectPage on the current page is exactly "put the binder back the way a page reads".
+            onClearFocus: () => selectPage(idx),
+            surfaceAspect: surfaceAspectForTools,
+          }
+        : null,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editable, coverForTools, focused, coverSelected, onCoverContext, surfaceAspectForTools]);
   /**
    * THE BACK OF THE LAST SHEET. A binder with an odd page count has one more page than it has
    * been given: the reverse of its final sheet, which is a real pocket page with nothing in it. It

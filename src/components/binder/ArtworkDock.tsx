@@ -77,6 +77,11 @@ export interface ArtworkDockProps {
    * in this layout that costs the pages nothing.
    */
   coverTools?: ReactNode;
+  /**
+   * THE LAYERS TRAY, under the head on EVERY tab. Fetching a piece from Artwork must not lose
+   * sight of what is already on the cover, so the stack stays put while the tab changes.
+   */
+  coverLayers?: ReactNode;
   ghostOn: SharedValue<number>;
   ghostX: SharedValue<number>;
   ghostY: SharedValue<number>;
@@ -93,6 +98,7 @@ export function ArtworkDock({
   onPickInsert,
   onClear,
   coverTools,
+  coverLayers,
   onResize,
   onResizeReset,
   resizeMin = 0,
@@ -180,8 +186,9 @@ export function ArtworkDock({
           <Text style={styles.close}>Done</Text>
         </Pressable>
       </View>
+      {coverLayers ? <View style={styles.layersSlot}>{coverLayers}</View> : null}
       {tab === 'cover' && coverTools ? (
-        <ScrollView contentContainerStyle={styles.coverScroll} keyboardShouldPersistTaps="handled">
+        <ScrollView style={styles.coverBody} contentContainerStyle={styles.coverScroll} keyboardShouldPersistTaps="handled">
           {coverTools}
         </ScrollView>
       ) : tab === 'art' ? (
@@ -289,6 +296,8 @@ const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 6, gap: Spacing.two },
   tabs: { flexDirection: 'row', gap: 4 },
   coverScroll: { paddingBottom: Spacing.three },
+  coverBody: { flex: 1, minHeight: 0 },
+  layersSlot: { marginBottom: Spacing.two },
   tab: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: Radius.pill },
   tabOn: { backgroundColor: Palette.panel },
   tabText: { fontSize: FontSize.label, fontWeight: Weight.semibold, color: Palette.muted2 },

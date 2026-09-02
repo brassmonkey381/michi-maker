@@ -23,6 +23,7 @@ import {
   CARD_PICKER_RAIL_WIDTH,
   CardPicker,
 } from '@/components/binder/CardPicker';
+import { AboutPopup } from '@/components/binder/AboutPopup';
 import { BinderPages, type GridRole } from '@/components/binder/BinderPages';
 import { ColorField } from '@/components/binder/ColorField';
 import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
@@ -1655,17 +1656,22 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
             </Pressable>
             {/* TAP THE TITLE TO EDIT IT. The binder's name is already on screen, so a separate
                 "Binder title" field in a dialog was the same words twice. Tapping opens the
-                binder's details — its name and its description — which is also the only place the
-                description is reachable while editing. */}
+                binder's details while editing — its name and its description — and, while
+                reading, the description on its own. Both are keyed to MODE, not to permission: an
+                owner reading their own binder wants what a visitor wants.
+
+                Dead while reading a binder that has no description, since the card would open
+                with nothing in it. Always live while editing, where writing the first one is the
+                whole point. */}
             <Pressable
               onPress={() => setBinderInfoOpen(true)}
-              disabled={!canEdit && !binder.description}
+              disabled={!editing && !binder.description}
               hitSlop={6}
               style={styles.titlePress}
               accessibilityRole="button"
               testID="binder-title"
               accessibilityLabel={
-                canEdit ? 'Binder details \u2014 edit the title and description' : 'About this binder'
+                editing ? 'Binder details \u2014 edit the title and description' : 'About this binder'
               }>
               <ThemedText type="subtitle" numberOfLines={1} style={styles.titleText}>
                 {binder.title || (editing ? 'Untitled binder' : '')}
@@ -1775,12 +1781,12 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                 Anything that expands in the flow above the binder pushes the binder DOWN, and the
                 space above the page is measured and feeds the height budget — so opening this used
                 to move the pages and re-size them at the same time. A dialog changes neither.
-                See the ConfirmDialog-style overlay near the other sheets below. */}
-            {!editing && binder.description ? (
-              <ThemedText type="small" themeColor="textSecondary" style={styles.description}>
-                {binder.description}
-              </ThemedText>
-            ) : null}
+                See the ConfirmDialog-style overlay near the other sheets below.
+
+                The description does not print here either. It was a permanent line of centred grey
+                text answering a question most visits are not asking, paid for out of the height
+                the binder is short of. It lives behind the title now (AboutPopup), which is where
+                edit mode already kept it: one home for the words, in both modes. */}
             </View>
 
             {/* One shared page-browsing surface, arrows · prev·current·next spread · filmstrip ·
@@ -1822,7 +1828,11 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               }
               // No page header in the flow at all: naming a page happens in the details dialog,
               // and the read-only title line BinderPages draws for itself is a fixed height.
-              onEditPage={editing ? () => setPageInfoOpen(true) : undefined}
+              //
+              // Live in BOTH modes: editing, the title opens the page's fields; reading, it opens
+              // the page's description. Not offered when there is nothing to read, because a title
+              // that opens an empty card is worse than one that does not respond.
+              onEditPage={editing || page.description ? () => setPageInfoOpen(true) : undefined}
               settingsOpen={settingsOpen}
               onCloseSettings={() => setSettingsOpen(false)}
               settingsExtras={binderLookSettings}
@@ -2024,8 +2034,19 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         />
         ) : null}
 
-        {/* BINDER DETAILS — over the binder, never above it, and opened by tapping the title. */}
-        {binderInfoOpen ? (
+        {/* BINDER DETAILS — over the binder, never above it, and opened by tapping the title.
+
+            TWO DIALOGS, ONE TAP, chosen by MODE rather than by permission. Editing, the title is a
+            way into the binder's own fields. Reading, it is a way to the description and nothing
+            else: an owner looking at their binder is doing the same thing a visitor is, and a form
+            that appears because of who you are rather than what you are doing is a surprise. */}
+        {binderInfoOpen && !editing ? (
+          <AboutPopup
+            kicker={binder.title || 'This binder'}
+            text={binder.description || 'No description yet.'}
+            onClose={() => setBinderInfoOpen(false)}
+          />
+        ) : binderInfoOpen ? (
           <Modal visible transparent animationType="fade" onRequestClose={() => setBinderInfoOpen(false)}>
             <View style={sheet.dialogBackdrop}>
               <Pressable style={StyleSheet.absoluteFill} onPress={() => setBinderInfoOpen(false)} />
@@ -2036,34 +2057,35 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                     <Text style={[styles.headerAction, styles.primaryText]}>Done</Text>
                   </Pressable>
                 </View>
-                {canEdit ? (
-                  <View style={styles.binderFields}>
-                    <LabeledInput
-                      label="Binder title"
-                      value={binder.title}
-                      onChangeText={(title) => store.updateBinder(binder.id, { title })}
-                      placeholder="Binder title"
-                    />
-                    <LabeledInput
-                      label="Binder description"
-                      value={binder.description ?? ''}
-                      onChangeText={(description) => store.updateBinder(binder.id, { description })}
-                      placeholder="What is this binder about?"
-                      multiline
-                    />
-                  </View>
-                ) : (
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {binder.description || 'No description yet.'}
-                  </ThemedText>
-                )}
+                <View style={styles.binderFields}>
+                  <LabeledInput
+                    label="Binder title"
+                    value={binder.title}
+                    onChangeText={(title) => store.updateBinder(binder.id, { title })}
+                    placeholder="Binder title"
+                  />
+                  <LabeledInput
+                    label="Binder description"
+                    value={binder.description ?? ''}
+                    onChangeText={(description) => store.updateBinder(binder.id, { description })}
+                    placeholder="What is this binder about?"
+                    multiline
+                  />
+                </View>
               </ThemedView>
             </View>
           </Modal>
         ) : null}
 
-        {/* PAGE DETAILS — opened by tapping the page's own title above it. */}
-        {pageInfoOpen ? (
+        {/* PAGE DETAILS — opened by tapping the page's own title above it, and split by mode
+            exactly the way the binder's is. */}
+        {pageInfoOpen && !editing ? (
+          <AboutPopup
+            kicker={page.title || `Page ${idx + 1}`}
+            text={page.description || 'No description yet.'}
+            onClose={() => setPageInfoOpen(false)}
+          />
+        ) : pageInfoOpen ? (
           <Modal visible transparent animationType="fade" onRequestClose={() => setPageInfoOpen(false)}>
             <View style={sheet.dialogBackdrop}>
               <Pressable style={StyleSheet.absoluteFill} onPress={() => setPageInfoOpen(false)} />
@@ -2423,7 +2445,6 @@ const styles = StyleSheet.create({
   likeChipText: { color: Palette.ink2, fontSize: FontSize.control, fontWeight: Weight.semibold },
   titleText: { textAlign: 'center', fontFamily: Fonts?.brand, fontSize: FontSize.title, lineHeight: 28 },
   scroll: { paddingHorizontal: 16, paddingBottom: 48 },
-  description: { marginTop: 10, textAlign: 'center', maxWidth: 640, alignSelf: 'center' },
   // Detail fields share one centred column (matches the edit-tools card) so the editable
   // chrome reads as a single organised stack instead of page-wide boxes.
   toolsCard: {

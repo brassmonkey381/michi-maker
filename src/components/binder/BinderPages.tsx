@@ -1729,7 +1729,9 @@ function SpreadColumn({
           hitSlop={6}
           testID={onPressLabel ? 'binder-page-title' : undefined}
           accessibilityRole="button"
-          accessibilityLabel={onPressLabel ? `${label} — edit this page` : label}>
+          accessibilityLabel={
+            onPressLabel ? (editable ? `${label} — edit this page` : `About ${label}`) : label
+          }>
           {labelEl}
         </Pressable>
       ) : (

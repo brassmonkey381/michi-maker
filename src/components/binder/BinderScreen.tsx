@@ -2007,6 +2007,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           onClose={() => setAutoFillOpen(false)}
           onPlaced={handleAutoFillPlaced}
           onComposeAll={handleComposeAll}
+          onSimilarLocked={() => capGate.hit(similarityWall(store.tier, 'binder_editor'))}
         />
 
         {/* Mounted only while open, keyed by seed: each invocation gets fresh state, so the

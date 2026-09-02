@@ -47,6 +47,7 @@ export function AutoFillSheet({
   onClose,
   onPlaced,
   onComposeAll,
+  onSimilarLocked,
 }: {
   visible: boolean;
   seedCardId: string | null;
@@ -56,9 +57,13 @@ export function AutoFillSheet({
   onPlaced: (placements: ComposePlacement[], methodLabel: string) => void;
   /** VIP "Pages around this card": hand the seed up so the parent can open ComposeAllSheet. */
   onComposeAll?: (seed: CatalogCard, pool: ReadonlySet<string> | null) => void;
+  /** Raised when a free/guest user taps the locked "≈ More like this" method. The editor owns a
+   *  cap gate, so this is the same wall the browser and the card sheet show for Find similar —
+   *  the method IS that search, and being refused two different ways would read as two rules. */
+  onSimilarLocked?: () => void;
 }) {
   const { catalog, guestGated } = useCatalog(visible);
-  const { isPaid, limits } = useTier();
+  const { isPaid, hasFindSimilar, limits } = useTier();
   // VIP's upgraded composer (tiers.ts multiPageCompose). Free/PRO see the sell instead.
   const vipCompose = limits.multiPageCompose && !!onComposeAll;
   // EN/JP bound, shared with the browse surfaces (persisted, account-synced). Passed INTO the
@@ -247,11 +252,20 @@ export function AutoFillSheet({
                   </ThemedText>
                 ) : (
                   COMPOSE_METHODS.filter((m) => methods.includes(m.key)).map((m) => {
-                    const locked = !!m.paid && !isPaid;
+                    // Each paid method against ITS OWN capability, not a shared isPaid: they
+                    // line up today, and writing it this way is what stops a future split from
+                    // silently locking the wrong one.
+                    const locked =
+                      m.paid === 'similarity' ? !hasFindSimilar : m.paid === 'triColor' ? !isPaid : false;
+                    // And each to its own sell. Tri-colour gets a live demo, which converts better
+                    // than a price table; similarity gets the same wall it shows everywhere else,
+                    // so a user refused in the browser meets one rule here rather than a second.
+                    const refuse = () =>
+                      m.paid === 'similarity' && onSimilarLocked ? onSimilarLocked() : setUpsell(true);
                     return (
                       <Pressable
                         key={m.key}
-                        onPress={() => (locked ? setUpsell(true) : run(m.key))}
+                        onPress={() => (locked ? refuse() : run(m.key))}
                         disabled={busy !== null}
                         style={({ pressed }) => [
                           styles.method,

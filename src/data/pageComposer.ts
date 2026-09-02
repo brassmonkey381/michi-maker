@@ -5,7 +5,8 @@
  * for the page's EMPTY pockets (existing cards, the seed included, are never touched). The
  * seven documented michi methods (woahpoke.com/michi-method) all have a composer:
  *
- *  - moreLikeThis   → visually similar cards via the embedding RPC, framing the seed (Anchor)
+ *  - moreLikeThis   → visually similar cards via the embedding RPC, framing the seed (Anchor).
+ *                     PAID (PRO/VIP) since 2026-09-01, with the rest of the similarity family
  *  - samePokemon    → the seed's species across sets/art styles (Single Pokémon)
  *  - evolutionLine  → the seed's evolution family, reading Basic → final stage (Themed/Story)
  *  - sameArtist     → the seed illustrator's other work, spread across eras (Card Artist)
@@ -105,13 +106,25 @@ export const COMPOSE_METHODS: {
   key: ComposeMethod;
   label: string;
   description: string;
-  /** Requires a paid (PRO/VIP) subscription. Free users see the method locked with an upsell. */
-  paid?: boolean;
+  /**
+   * The paid capability this method needs, and WHICH sell answers a locked tap. Absent = free.
+   *
+   * One field rather than a boolean plus a sell key, because the two can never differ: a method
+   * locked by tri-colour must not open the similarity wall, and the pairing is the whole reason
+   * the tap is worth intercepting rather than just disabling.
+   *
+   * The gate itself lives in the UI (AutoFillSheet), not here — this module stays tier-agnostic.
+   */
+  paid?: 'triColor' | 'similarity';
 }[] = [
   {
     key: 'moreLikeThis',
     label: '≈ More like this',
     description: 'Frame this card with its most visually similar neighbours (anchor page).',
+    // The same embedding search as "≈ Find similar", which went PRO on 2026-09-01 (tiers.ts
+    // findSimilar). Leaving this one free would have been a door straight through that gate:
+    // the fill sheet would run the search a free user had just been refused in the browser.
+    paid: 'similarity',
   },
   {
     key: 'samePokemon',
@@ -147,7 +160,7 @@ export const COMPOSE_METHODS: {
     key: 'colorTheme',
     label: 'Color match · tri-color',
     description: 'Ranks every card by its actual palette (tri-color search) for a page that flows edge to edge.',
-    paid: true,
+    paid: 'triColor',
   },
   {
     key: 'fullPageSpread',
@@ -159,6 +172,9 @@ export const COMPOSE_METHODS: {
 /** Which methods make sense for this seed (e.g. no artist page when illustrator is unknown). */
 export function availableMethods(seed: CatalogCard, catalog: Catalog): ComposeMethod[] {
   const out: ComposeMethod[] = [];
+  // ≈ More like this (paid): the embedding RPC. Listed whenever the server is configured, exactly
+  // like the tri-colour method below — a locked method is SHOWN with its PRO pill rather than
+  // withheld, so the sheet says what a plan adds instead of quietly being shorter.
   if (similarAvailable()) out.push('moreLikeThis');
   const species = speciesOf(seed);
   if (species) out.push('samePokemon');

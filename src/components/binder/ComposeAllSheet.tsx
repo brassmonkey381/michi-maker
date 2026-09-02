@@ -133,6 +133,11 @@ export function ComposeAllSheet({
     };
     // Every setState below sits after an await, inside a callback — never in this effect's body,
     // which would cascade a render on open.
+    // EVERY method, the two paid ones included, and deliberately unguarded: this sheet is only
+    // reachable behind `vipCompose` (tiers.ts multiPageCompose), and a VIP holds both capabilities
+    // the paid methods need. If that entry condition is ever loosened, the locks the Fill sheet
+    // applies per method have to come with it — this loop would otherwise run a search a free
+    // user was just refused.
     Promise.all(
       availableMethods(seed, catalog).map(async (key) => {
         let placements: ComposePlacement[] = [];

@@ -158,6 +158,16 @@ interface BinderGridProps {
   multiSelectedIds?: ReadonlySet<string> | null;
   onSlotPress?: (slot: DemoSlot) => void;
   onCellPress?: (row: number, col: number) => void;
+  /**
+   * THE POCKET BEING FILLED RIGHT NOW.
+   *
+   * Selection already had a look (a 2px outline on a filled pocket), but the pocket a PANEL is
+   * pointed at had none — an empty target pocket was indistinguishable from the eight other empty
+   * pockets around it. That was survivable while the picker was a sheet you had just opened from
+   * the pocket itself. With a panel on each side, both feeding one pocket and both staying open
+   * across placements, "which one am I filling?" is a question the page has to answer at a glance.
+   */
+  activeCell?: { row: number; col: number } | null;
   /** Drag-and-drop: a slot was dropped with its top-left over (toRow, toCol). */
   onDropSlot?: (slotId: string, toRow: number, toCol: number) => void;
   /** Drag-to-resize: the selected slot's footprint changed to rowSpan×colSpan (top-left fixed). */
@@ -238,6 +248,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
     multiSelectedIds,
     onSlotPress,
     onCellPress,
+    activeCell,
     onDropSlot,
     onResizeSlot,
     onReplaceSlot,
@@ -447,12 +458,17 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
             // the "add" button that was already under their pointer.
             <Pressable
               key={`add-${row}-${col}`}
+              // Named, so "which pocket am I filling" is answerable by a test and not only by eye.
+              testID={
+                activeCell?.row === row && activeCell?.col === col ? 'binder-active-pocket' : undefined
+              }
               style={({ pressed, hovered }) => [
                 box(row, col, 1, 1),
                 styles.addCell,
                 { borderRadius: slotRadius },
                 hovered && styles.addCellHovered,
                 pressed && styles.addCellPressed,
+                activeCell?.row === row && activeCell?.col === col && styles.addCellActive,
               ]}
               accessibilityRole="button"
               accessibilityLabel={`Add a card to row ${row + 1}, column ${col + 1}`}
@@ -469,8 +485,13 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
 
         {/* Placed slots. */}
         {page.slots.map((slot) => {
+          // A filled pocket is a target too — "Replace" points a panel at one — so the active mark
+          // is not limited to empty cells. Either reason shows the same outline: what the page has
+          // to say is "this is the one", not why.
+          const isActive =
+            !!activeCell && activeCell.row === slot.row && activeCell.col === slot.col;
           const selected =
-            editable && (slot.id === selectedSlotId || !!multiSelectedIds?.has(slot.id));
+            editable && (isActive || slot.id === selectedSlotId || !!multiSelectedIds?.has(slot.id));
           const style = box(slot.row, slot.col, slot.rowSpan, slot.colSpan);
           const content = (
             <SlotContent
@@ -1725,6 +1746,17 @@ const styles = StyleSheet.create({
     // A pocket you can click should say so before you click it. Web-only value, ignored on native
     // where there is no cursor to change.
     cursor: 'pointer',
+  },
+  /**
+   * THE ONE BEING FILLED. Solid rather than dashed, in the selection colour, on a tinted ground —
+   * three changes at once on purpose: a dashed border going one shade darker is a hover state, and
+   * this has to read across the page from a panel on either side of it.
+   */
+  addCellActive: {
+    borderStyle: 'solid',
+    borderWidth: 2.5,
+    borderColor: BinderSurface.selection,
+    backgroundColor: Palette.panel,
   },
   /** Hover firms the dashes up; press fills them in. Both stop short of looking like a card. */
   addCellHovered: { borderColor: Palette.grayBorder70, backgroundColor: Palette.panelAlt },

@@ -65,6 +65,7 @@ import {
 } from '@/data/binderTypes';
 import { fetchLikeCount } from '@/data/binderRepo';
 import { isPrivateArt } from '@/data/artAttributionCheck';
+import { ArtworkDock } from '@/components/binder/ArtworkDock';
 import { artPieceAllowed, pageSide, REAL_PAGE_SIZES } from '@/data/binderPhysics';
 import { LEGACY_MIN_WIDTH, PEEK_MIN_WIDTH, panelLayout } from '@/data/binderLayout';
 import type { CaptionFieldKey } from '@/data/cardCaption';
@@ -231,6 +232,19 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // The docked picker, tucked away to a rail. Lives here, not in CardPicker, because collapsing it
   // has to hand the width back to the binder — the panel's own state cannot do that.
   const [pickerCollapsed, setPickerCollapsed] = useState(false);
+  /**
+   * THE ARTWORK PANEL, on the other side.
+   *
+   * Deliberately its own switch rather than another tab of the picker: the point of two panels is
+   * having the card browser and your cut art on screen AT ONCE, and a tab can only be one of them.
+   *
+   * It is the artwork side and not a second card browser for a reason that is not a preference.
+   * `browseState` in tcgscan-browse is a module-level singleton — every CatalogBrowser hydrates
+   * from it on mount and writes back on every change, and `sendBrowseCommand` is a broadcast — so
+   * two mounted browsers would inherit each other's position, clobber the same object, both write
+   * the ?browse= URL, and a colour search in one would land in both. One browser, one tray.
+   */
+  const [artworkOpen, setArtworkOpen] = useState(false);
   // Where the scroller starts in the window: the only part of the page's height budget that lives
   // outside the scroller, so the only part BinderPages cannot measure for itself.
   // What the page settled on, reported up by BinderPages so the panel beside it can be sized from
@@ -398,11 +412,14 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
    * collapses to a single page, and trading the spread for a wider panel is the wrong way round.
    */
   const pageNeed = Math.max(pageWidthUsed, binder.pages.length > 1 ? PEEK_MIN_WIDTH : 0);
-  const panels = panelLayout({
-    availableWidth: width - 32,
-    pageNeed,
-    panels: pickerCell != null ? 1 : 0,
-  });
+  const panelCount = (pickerCell != null ? 1 : 0) + (artworkOpen ? 1 : 0);
+  const panels = panelLayout({ availableWidth: width - 32, pageNeed, panels: panelCount });
+  // Asked for in priority order, and panelLayout keeps the earlier ones docked when only some fit.
+  // The picker goes first because it is the one you just asked for by tapping a pocket; the artwork
+  // panel is a standing choice and survives a spell as a modal better.
+  let fitIdx = 0;
+  const pickerFit = pickerCell != null ? panels.fits[fitIdx++] : 'modal';
+  const artworkFit = artworkOpen ? panels.fits[fitIdx++] : 'modal';
   /**
    * WHETHER IT DOCKS IS DECIDED HERE, not in the panel.
    *
@@ -411,9 +428,12 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
    * budget while the picker rendered as a full-screen sheet. There is one answer now, it comes from
    * the arithmetic that also decides the width, and the panel is told it.
    */
-  const pickerDocked = pickerCell != null && panels.fits[0] === 'docked';
+  const pickerDocked = pickerCell != null && pickerFit === 'docked';
+  const artworkDocked = artworkOpen && artworkFit === 'docked';
   const pickerWidth = pickerCollapsed ? CARD_PICKER_RAIL_WIDTH : panels.panelWidth;
-  const available = width - 32 - (pickerDocked ? pickerWidth : 0);
+  const artworkWidth = panels.panelWidth;
+  const available =
+    width - 32 - (pickerDocked ? pickerWidth : 0) - (artworkDocked ? artworkWidth : 0);
   // prev/next are kept here for the cross-page drag hit-test (resolveSpreadHit below); the spread
   // layout that shows them lives in BinderPages.
   const prevPage = idx > 0 ? binder.pages[idx - 1] : null;
@@ -1397,6 +1417,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         ownedIds={ownedIds} scanUrlOf={scanUrlOf}
         variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable}
         selectedSlotId={selectedSlotId}
+        // Which pocket the panels are pointed at. Only on the ACTIVE page: pickerCell is a cell
+        // reference, and the same row/col exists on every page.
+        activeCell={p.id === page.id ? pickerCell : null}
         multiSelectedIds={multiIds}
         onCellPress={handleAddCell}
         onSlotPress={handleSelectSlot}
@@ -1543,9 +1566,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           <View
             style={[
               styles.header,
-              pickerDocked && {
-                paddingRight: pickerWidth + Spacing.three,
-              },
+              pickerDocked && { paddingRight: pickerWidth + Spacing.three },
+              artworkDocked && { paddingLeft: artworkWidth + Spacing.three },
             ]}>
             <Pressable onPress={onClose} hitSlop={10}>
               <Text style={[styles.headerAction, { color: theme.text }]}>Close</Text>
@@ -1607,9 +1629,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
             onLayout={(e) => setViewportTop(e.nativeEvent.layout.y)}
             contentContainerStyle={[
               styles.scroll,
-              pickerDocked && {
-                paddingRight: pickerWidth,
-              },
+              pickerDocked && { paddingRight: pickerWidth },
+              artworkDocked && { paddingLeft: artworkWidth },
             ]}>
             {/* Read-only because another tab of this browser owns editing — see EditLockBanner. */}
             <EditLockBanner />
@@ -1652,6 +1673,18 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                     </Text>
                   </Pressable>
                 ) : null}
+                {/* Opens the art panel on the left. It is a standing choice, not a per-pocket one,
+                    so it lives here rather than inside the picker. */}
+                <Pressable
+                  onPress={() => setArtworkOpen((v) => !v)}
+                  accessibilityRole="switch"
+                  accessibilityState={{ checked: artworkOpen }}
+                  accessibilityLabel="Show your cut artwork beside the binder"
+                  style={({ pressed }) => [pillChip.base, artworkOpen && pillChip.active, pressed && styles.pressed]}>
+                  <Text style={[pillChip.text, artworkOpen && pillChip.textActive]}>
+                    {artworkOpen ? '✓ Artwork' : '◧ Artwork'}
+                  </Text>
+                </Pressable>
                 <Pressable
                   onPress={() => setToolsOpen((v) => !v)}
                   accessibilityRole="button"
@@ -1864,6 +1897,25 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
             }}
           />
         ) : null}
+
+        {/* THE OTHER SIDE. Cards on the right, cut art on the left, both feeding the one pocket
+            you have selected — which is why the active pocket had to become unmistakable. */}
+        <ArtworkDock
+          visible={artworkOpen}
+          docked={artworkDocked}
+          width={artworkWidth}
+          side="left"
+          onClose={() => setArtworkOpen(false)}
+          armedId={armedSlice?.id ?? null}
+          onArm={setArmedSlice}
+          onDragStart={handleSliceDragStart}
+          onDrop={handleSliceDrop}
+          onRemove={handleRemoveSlice}
+          onNewSlice={openStudioForPage}
+          ghostOn={ghostOn}
+          ghostX={ghostX}
+          ghostY={ghostY}
+        />
 
         <CardPicker
           visible={pickerCell != null}

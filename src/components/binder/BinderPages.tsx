@@ -898,7 +898,11 @@ export function BinderPages({
       ? (() => {
           const extra = (id: CoverSurfaceId, current: boolean): StripExtra => ({
             key: `cover:${id}`,
-            label: COVER_ABBR[id],
+            // How many layers the surface carries, so the strip says which covers are dressed.
+            label: (() => {
+              const n = (binder.cover?.surfaces?.[id] ?? []).filter((d) => !d.hidden).length;
+              return n ? `${COVER_ABBR[id]} · ${n}` : COVER_ABBR[id];
+            })(),
             current,
             onSelect: () => focusCover(id),
             thumb: (

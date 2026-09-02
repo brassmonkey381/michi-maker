@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingTop: Spacing.two,
     paddingBottom: Spacing.three,
-    // Above the page, below the drag ghost (50) and the resize overlay (40) — the same band the
+    // Above the page, below the drag ghost (100) and the floating layers tray (80) — the same band the
     // card picker's dock sits in, on the opposite edge.
     zIndex: 70,
   },

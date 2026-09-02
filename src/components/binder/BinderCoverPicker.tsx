@@ -53,6 +53,8 @@ export function BinderCoverPicker({
       modelId: next.id,
       colourway: keep && current ? current.colourway : next.defaultColourway,
       surfaces: current?.surfaces,
+      // Changing the binder must not silently switch "show this cover on the shelf" back off.
+      showCover: current?.showCover,
     });
   };
 
@@ -99,7 +101,7 @@ export function BinderCoverPicker({
                   {m.colourways.map((c) => (
                     <Pressable
                       key={c.id}
-                      onPress={() => onChange({ modelId: m.id, colourway: c.id, surfaces: current?.surfaces })}
+                      onPress={() => onChange({ modelId: m.id, colourway: c.id, surfaces: current?.surfaces, showCover: current?.showCover })}
                       accessibilityLabel={c.name}
                       style={[
                         styles.swatch,

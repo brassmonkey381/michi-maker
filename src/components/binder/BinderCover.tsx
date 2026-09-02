@@ -218,6 +218,9 @@ export function CoverSurface({
 
       {/* Everything the owner has put on this surface, in the order they put it there. */}
       {(stickers ?? []).map((sticker) => {
+        // Hidden is drawn nowhere. Text is drawn by the decoration renderer once it exists; until
+        // then a text row is simply not an image, and this loop only knows images.
+        if (sticker.hidden || sticker.kind === 'text') return null;
         const uri = sticker.cardId ? cardThumbUrl(sticker.cardId, 640) : sticker.imageUrl;
         if (!uri) return null;
         const w = Math.max(8, sticker.w * width);

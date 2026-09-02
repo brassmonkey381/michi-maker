@@ -158,7 +158,7 @@ export function CoverTools({
   const chosen = stickers.find((s) => s.id === selected) ?? null;
   const write = (next: CoverSticker[]) => onChange(withSurface(cover, surface, next));
   const patch = (id: string, change: Partial<CoverSticker>) =>
-    write(stickers.map((s) => (s.id === id ? { ...s, ...change } : s)));
+    write(stickers.map((s) => (s.id === id ? ({ ...s, ...change } as CoverSticker) : s)));
 
   // A sticker already at the top or bottom of the stack stays put, and the store is not asked
   // to save a cover that did not change.

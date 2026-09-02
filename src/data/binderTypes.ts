@@ -116,27 +116,112 @@ export interface DemoSlot {
 }
 
 /**
- * ONE THING STUCK TO A COVER — a piece of art, a sticker, a card.
+ * A DECORATION ON A COVER SURFACE — art, a sticker, or a line of text.
  *
- * Positioned freely rather than in a grid, because a cover is not a pocket page: you put a sticker
+ * Positioned freely rather than in a grid, because a cover is not a pocket page: you put a thing
  * where you want it, at the angle you want it. Everything is a FRACTION of the surface, so a cover
  * survives being drawn at any size, on any screen, and in the share preview.
+ *
+ * UNITS, in one place, because they are the whole contract:
+ *   x, y  — the CENTRE. x is a fraction of surface WIDTH, y of surface HEIGHT. Clamped 0..1.
+ *   w, h  — the box. BOTH are fractions of surface WIDTH — not of height — because a surface's
+ *           aspect is not one number: the spread draws it to the page's box while the filmstrip,
+ *           the shelf thumb and the picker draw it at the model's own aspect. In width units the
+ *           box keeps its SHAPE everywhere; only its y lands a few percent differently, the same
+ *           stretch the shell itself already absorbs.
+ *   h     — ABSENT on every row written before decorations existed. That means LEGACY: draw a
+ *           w×w square with the image letterboxed inside it, exactly as before, so nothing already
+ *           saved moves at upgrade. The editor writes h on the first transform, never on read.
+ *   rot   — clockwise degrees, normalised to [0, 360) on every write.
+ *   tiltX, tiltY — perspective tilt about the box's own axes, degrees, ±45. The one non-affine
+ *           look every target honours. Skew is deliberately NOT here: Android decomposes a
+ *           transform into translate / rotate / scale and drops skew on the floor, so a skewed
+ *           sticker would be flat on a phone and slanted on the web.
  */
-export interface CoverSticker {
+export type CoverDecorationKind = 'art' | 'sticker' | 'text';
+export type CoverMaskShape = 'rect' | 'rounded' | 'ellipse';
+export type CoverTextFont = 'sans' | 'serif' | 'rounded' | 'mono' | 'brand' | 'marker';
+export type CoverTextBgShape =
+  | 'none'
+  | 'rect'
+  | 'rounded'
+  | 'postit'
+  | 'notecard'
+  | 'postcard'
+  | 'circle'
+  | 'tag';
+
+interface CoverDecorationBase {
   id: string;
+  /** Absent on rows written before decorations existed, which were all art. */
+  kind?: CoverDecorationKind;
+  x: number;
+  y: number;
+  w: number;
+  h?: number;
+  rot?: number;
+  tiltX?: number;
+  tiltY?: number;
+  flipH?: boolean;
+  flipV?: boolean;
+  /** 0..1, absent ⇒ 1. */
+  opacity?: number;
+  /** Clip. `radius` is a fraction of the box's shorter side ('rounded' only). */
+  mask?: { shape: CoverMaskShape; radius?: number };
+  /**
+   * Photoshop semantics. Hidden is drawn NOWHERE — spread, strip, thumb, turn copies — but still
+   * stored, so it still counts toward the per-surface cap. Locked is selectable but not movable.
+   */
+  hidden?: boolean;
+  locked?: boolean;
+  /** The layer row's name. Absent ⇒ defaultName(). */
+  name?: string;
+}
+
+export interface CoverImageDecoration extends CoverDecorationBase {
+  kind?: 'art' | 'sticker';
   /** Custom art, or a catalogue card by id. One or the other. */
   imageUrl?: string;
   cardId?: string;
-  /** Centre of the sticker, 0-1 across and down the surface. */
-  x: number;
-  y: number;
-  /** Width as a fraction of the surface. Height follows from the image's own aspect. */
-  w: number;
-  /** Clockwise degrees. Absent means square to the cover. */
-  rot?: number;
-  /** Provenance for custom art, exactly as a pocket carries it. */
+  /** Natural width ÷ height of the source, captured by the editor the first time it loads. */
+  aspect?: number;
+  /**
+   * The window of the (flipped) source shown in the box, fractions 0..1 — the slice convention.
+   * Absent ⇒ the whole image. Only meaningful once `h` is present.
+   */
+  crop?: { x: number; y: number; w: number; h: number };
+  /** The sticker library key ('set:<id>' | 'series:<id>'), so a changed logo URL can be re-resolved. */
+  stickerId?: string;
+  /** Provenance, exactly as a pocket carries it. */
   attribution?: ArtAttribution;
 }
+
+export interface CoverTextDecoration extends CoverDecorationBase {
+  kind: 'text';
+  text: string;
+  font: CoverTextFont;
+  /** Font size as a FRACTION OF SURFACE WIDTH. px = size × width. */
+  size: number;
+  /** Regular or bold only: older Android distinguishes nothing finer. */
+  weight?: 'regular' | 'bold';
+  italic?: boolean;
+  align?: 'left' | 'center' | 'right';
+  /** Line height as a multiple of size. Absent ⇒ 1.2. */
+  leading?: number;
+  /** #rrggbb. The colour field is six-digit hex, no alpha. */
+  color: string;
+  /** Background. Translucency is `opacity`, never an alpha hex. `pad` is a fraction of surface width. */
+  bg?: { shape: CoverTextBgShape; color: string; opacity?: number; pad?: number };
+}
+
+export type CoverDecoration = CoverImageDecoration | CoverTextDecoration;
+
+/**
+ * @deprecated A sticker is one kind of decoration; a surface's list can now hold text too. Kept
+ * so existing imports compile, and aliased to the UNION so a list read off a surface is
+ * assignable — a renderer that only knows images narrows with `'imageUrl' in d`.
+ */
+export type CoverSticker = CoverDecoration;
 
 /**
  * WHICH BINDER THIS IS, AND WHAT HAS BEEN DONE TO IT.
@@ -149,8 +234,11 @@ export interface BinderCover {
   modelId: string;
   /** An id from that model's colourways. */
   colourway: string;
-  /** Stickers per surface. A surface with nothing on it may be absent rather than empty. */
-  surfaces?: Partial<Record<CoverSurfaceId, CoverSticker[]>>;
+  /**
+   * Decorations per surface, BOTTOM FIRST: array order is z-order and later draws on top. A
+   * surface with nothing on it may be absent rather than empty. At most MAX_DECORATIONS_PER_SURFACE.
+   */
+  surfaces?: Partial<Record<CoverSurfaceId, CoverDecoration[]>>;
   /**
    * Show the FRONT COVER as this binder's face wherever a binder is shown small: the shelf, a
    * profile, Discover. Off by default, because a binder people recognise by its first page should

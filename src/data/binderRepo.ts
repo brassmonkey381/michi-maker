@@ -14,6 +14,7 @@ import { demoteHouseAccounts } from '@/data/houseAccounts';
 import { requireSupabase } from '@/lib/supabase';
 import type { Database, Json } from '@/types/database';
 import type { BinderCover, DemoBinder, DemoPage, DemoSlot, MichiLayoutStyle } from '@/data/binderTypes';
+import { normalizeCover } from '@/data/coverDecorations';
 
 type Tables = Database['public']['Tables'];
 type BinderUpdate = Tables['binders']['Update'];
@@ -173,7 +174,12 @@ function mapBinder(row: BinderRowIn): DemoBinder {
     coverCardId: row.cover_card_id ?? undefined,
     // A cover is only a cover if it names a model. Anything else in the column (an older shape, a
     // hand-edited row) is treated as undressed rather than handed to the renderer half-built.
-    cover: row.cover && typeof row.cover === 'object' && row.cover.modelId ? row.cover : undefined,
+    // ...and once it does, its decorations are checked one by one (normalizeCover): a broken row
+    // is dropped rather than handed to the renderer, and a surface never carries more than the cap.
+    cover:
+      row.cover && typeof row.cover === 'object' && row.cover.modelId
+        ? normalizeCover(row.cover as BinderCover)
+        : undefined,
     isPublic: row.is_public,
     sharePageIds: row.share_page_ids ?? undefined,
     shareKey: row.share_key ?? undefined,

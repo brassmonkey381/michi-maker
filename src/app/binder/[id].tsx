@@ -9,13 +9,18 @@
  */
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BinderGrid } from '@/components/binder/BinderGrid';
 import { ProfileAvatarButton } from '@/components/people/ProfileAvatarButton';
 import { BinderScreen } from '@/components/binder/BinderScreen';
-import { AboutHoverCard, BINDER_DESCRIPTION_PLACEHOLDER, useHoverReveal } from '@/components/binder/AboutPopup';
+import {
+  AboutHoverCard,
+  AboutPopup,
+  BINDER_DESCRIPTION_PLACEHOLDER,
+  useHoverReveal,
+} from '@/components/binder/AboutPopup';
 import { BinderPages } from '@/components/binder/BinderPages';
 import { LikeButton } from '@/components/binder/LikeButton';
 import { ReportSheet } from '@/components/binder/ReportSheet';
@@ -214,28 +219,64 @@ function Viewer({
   // the pages here too. They are a dialog now, opened from the gear beside the like button, so a
   // visitor's first sight of a shared binder is the binder.
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const titleHover = useHoverReveal(true);
+  const [infoOpen, setInfoOpen] = useState(false);
+  // The title row and byline sit between the top of this screen and the binder, and BinderPages
+  // cannot see them: it measures only its own chrome. Measured here and added to viewportTop,
+  // or the page sizes itself as if the header were not there and runs off the bottom.
+  const [headH, setHeadH] = useState(0);
+  const titleHover = useHoverReveal(!infoOpen);
+  const about = binder.description?.trim() || BINDER_DESCRIPTION_PLACEHOLDER;
 
+  /**
+   * NO SCROLLER. Everything on this screen now has a fixed height except the binder, which sizes
+   * itself to what is left, so there is nothing to scroll to and scrolling to reach the page
+   * navigation was the bug. The page grows and shrinks with the window instead.
+   */
   return (
-    <ScrollView
-      // The page's height budget needs to know where this scroller starts. It used to rely on
-      // BinderPages' default allowance of 96px, which was a guess about THIS screen made in another
-      // file — and this screen stacks a title, an author line, a description and a like row above
-      // the page, so the guess was never close.
+    <View
+      // Where the binder's height budget starts. Measured rather than assumed: BinderPages used to
+      // fall back to a 96px allowance, which was a guess about THIS screen made in another file.
       onLayout={(e) => setViewportTop(e.nativeEvent.layout.y)}
-      contentContainerStyle={styles.scroll}>
-      {/* A visitor gets the same hover the owner does: the description at once, or the
-          placeholder — never a title that does nothing under the pointer. */}
-      <View style={styles.titleWrap}>
-        <Pressable onHoverIn={titleHover.onHoverIn} onHoverOut={titleHover.onHoverOut} accessibilityRole="text">
-          <ThemedText type="subtitle" style={styles.title}>
-            {binder.title}
-          </ThemedText>
-        </Pressable>
-        {titleHover.shown ? (
-          <AboutHoverCard kicker={binder.title || 'This binder'} text={binder.description?.trim() || BINDER_DESCRIPTION_PLACEHOLDER} style={styles.titleHover} />
-        ) : null}
-      </View>
+      style={styles.page}>
+      {/* ONE ROW: the binder's name, and the two things you can do to it. The like button and the
+          gear had a row of their own under the title, which cost the page a band of height to
+          hold two controls that fit in the space beside a centred heading. */}
+      <View style={styles.head} onLayout={(e) => setHeadH(e.nativeEvent.layout.height)}>
+        <View style={styles.titleWrap}>
+          <Pressable
+            onPress={() => setInfoOpen(true)}
+            onHoverIn={titleHover.onHoverIn}
+            onHoverOut={titleHover.onHoverOut}
+            accessibilityRole="button"
+            accessibilityLabel="About this binder"
+            testID="binder-title">
+            <ThemedText type="subtitle" style={styles.title}>
+              {binder.title}
+            </ThemedText>
+          </Pressable>
+          {titleHover.shown ? (
+            <AboutHoverCard
+              kicker={binder.title || 'This binder'}
+              text={about}
+              style={styles.titleHover}
+            />
+          ) : null}
+        </View>
+        {/* Beside the title rather than under it, and absolutely placed so a long title does not
+            shove them off the row or drag the heading off centre. */}
+        <View style={styles.headActions}>
+          <LikeButton binderId={binder.id} onNeedsAccount={() => setNeedAccount(true)} />
+          <Pressable
+            onPress={() => setSettingsOpen(true)}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="View settings"
+            testID="binder-settings-btn">
+            <ThemedText type="small" themeColor="textSecondary" style={styles.gear}>
+              ⚙
+            </ThemedText>
+          </Pressable>
+        </View>
       {author ? (
         <View style={styles.authorRow}>
           <ProfileAvatarButton
@@ -251,34 +292,24 @@ function Viewer({
           </Pressable>
         </View>
       ) : null}
-      {binder.description ? (
-        <ThemedText type="small" themeColor="textSecondary" style={styles.description}>
-          {binder.description}
-        </ThemedText>
-      ) : null}
-
-      <View style={styles.likeRow}>
-        <LikeButton binderId={binder.id} onNeedsAccount={() => setNeedAccount(true)} />
-        <Pressable
-          onPress={() => setSettingsOpen(true)}
-          hitSlop={10}
-          accessibilityRole="button"
-          accessibilityLabel="View settings"
-          testID="binder-settings-btn">
-          <ThemedText type="small" themeColor="textSecondary" style={styles.gear}>
-            ⚙
-          </ThemedText>
-        </Pressable>
       </View>
       {needAccount ? (
         <ThemedText type="small" themeColor="textSecondary" style={styles.likeHint}>
           Sign in with an account to like this binder.
         </ThemedText>
       ) : null}
+      {infoOpen ? (
+        <AboutPopup
+          kicker={binder.title || 'This binder'}
+          text={about}
+          onClose={() => setInfoOpen(false)}
+        />
+      ) : null}
 
       {/* The same page-browsing surface the owner sees — read-only here. */}
       <BinderPages
-        viewportTop={viewportTop}
+        viewportTop={viewportTop + headH}
+        viewportBottom={BANNER_H}
         settingsOpen={settingsOpen}
         onCloseSettings={() => setSettingsOpen(false)}
         binder={binder}
@@ -298,27 +329,39 @@ function Viewer({
         )}
       />
 
-      <Link href="/" asChild>
-        <Pressable style={styles.madeWith} hitSlop={8}>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.madeWithText}>
-            Made with michi-maker · build your own binder ›
+      {/* PINNED, AND THE BINDER KNOWS IT IS THERE. These two links sat at the end of the
+          document, which on a tall window put a field of empty page between the binder and the
+          only two things a visitor might click. As a banner they are always in reach, they cost
+          a fixed 34px, and BinderPages is told that height so the page never sizes itself
+          underneath them. */}
+      <View style={styles.banner}>
+        <Link href="/" asChild>
+          <Pressable hitSlop={6}>
+            <ThemedText type="small" themeColor="textSecondary" style={styles.bannerText}>
+              Made with michi-maker · build your own binder ›
+            </ThemedText>
+          </Pressable>
+        </Link>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.bannerDot}>
+          ·
+        </ThemedText>
+        {/* Takedown intake: any viewer can report this public binder (see docs/roadmap/ART-RIGHTS). */}
+        <Pressable onPress={() => setReporting(true)} hitSlop={6}>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.bannerReport}>
+            Report this binder
           </ThemedText>
         </Pressable>
-      </Link>
-
-      {/* Takedown intake: any viewer can report this public binder (see docs/roadmap/ART-RIGHTS). */}
-      <Pressable onPress={() => setReporting(true)} hitSlop={6} style={styles.reportLink}>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.reportText}>
-          Report this binder
-        </ThemedText>
-      </Pressable>
+      </View>
       {reporting ? (
         <ReportSheet target={{ binderId: binder.id }} onClose={() => setReporting(false)} />
       ) : null}
-    </ScrollView>
+    </View>
   );
 }
 
+
+/** The pinned footer's height, subtracted from the binder's budget so the two never overlap. */
+const BANNER_H = 34;
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -330,25 +373,47 @@ const styles = StyleSheet.create({
   missText: { textAlign: 'center' },
   cta: { marginTop: Spacing.three, paddingVertical: Spacing.two, paddingHorizontal: Spacing.four, borderRadius: 999, backgroundColor: Palette.accent },
   ctaText: { color: Palette.accentText },
-  scroll: {
-    padding: Spacing.four,
-    paddingBottom: Spacing.six,
+  page: {
+    flex: 1,
+    paddingTop: Spacing.four,
+    paddingHorizontal: Spacing.four,
     width: '100%',
-    // Wide shell so desktop viewers get the prev·current·next spread; prose below caps itself.
+    // Wide shell so desktop viewers get the prev·current·next spread.
     maxWidth: MaxContentWidthWide,
     alignSelf: 'center',
     alignItems: 'center',
   },
+  head: { width: '100%', alignItems: 'center', justifyContent: 'center' },
+  headActions: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+  },
   title: { textAlign: 'center', fontFamily: Fonts?.brand, fontSize: FontSize.nav, lineHeight: 34 },
-  description: { textAlign: 'center', marginTop: Spacing.two, maxWidth: 520 },
   gear: { fontSize: 18 },
+  // Above the binder in paint order, so the hover card is not covered by the page below it.
   titleWrap: { alignSelf: 'center', zIndex: 20 },
   titleHover: { top: 36 },
-  likeRow: { marginTop: Spacing.three, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.three },
-  authorRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginBottom: Spacing.two },
+  authorRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginTop: Spacing.one, marginBottom: Spacing.two },
   likeHint: { marginTop: Spacing.two, textAlign: 'center' },
-  madeWith: { marginTop: Spacing.five },
-  madeWithText: { textAlign: 'center' },
-  reportLink: { marginTop: Spacing.three },
-  reportText: { textAlign: 'center', fontSize: FontSize.sm, textDecorationLine: 'underline' },
+  banner: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: BANNER_H,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    borderTopWidth: 1,
+    borderTopColor: Palette.hairline,
+    backgroundColor: Palette.surface,
+  },
+  bannerText: { fontSize: FontSize.sm },
+  bannerDot: { fontSize: FontSize.sm },
+  bannerReport: { fontSize: FontSize.sm, textDecorationLine: 'underline' },
 });

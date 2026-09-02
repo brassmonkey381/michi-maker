@@ -170,6 +170,13 @@ export interface BinderPagesProps {
    */
   viewportTop?: number;
   /**
+   * Height reserved BELOW the binder, for chrome the caller pins to the bottom of the window.
+   * Symmetric with `viewportTop` and needed for the same reason: the budget is measured from the
+   * window, so anything floating over the bottom of it is invisible to this component and the
+   * page would size itself straight underneath.
+   */
+  viewportBottom?: number;
+  /**
    * The width the page settled on, reported back so the caller can size whatever it puts BESIDE
    * the page from what the page actually took rather than from a constant.
    *
@@ -271,6 +278,7 @@ export function BinderPages({
   onPageChange,
   availableWidth,
   viewportTop = 0,
+  viewportBottom = 0,
   onPageWidth,
   toolPills,
   maxWidth,
@@ -412,6 +420,7 @@ export function BinderPages({
     0,
     windowHeight -
       viewportTop -
+      viewportBottom -
       contentAbove -
       (railLeft ? 0 : stripHeight) -
       COLUMN_LABEL_H -

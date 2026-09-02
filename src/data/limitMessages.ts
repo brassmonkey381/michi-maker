@@ -77,3 +77,24 @@ export function pageTrialMessage(limits: TierLimits): string {
 export function artTrialMessage(limits: TierLimits): string {
   return `You’re keeping ${limits.artUploads} artworks, all this plan allows. PRO keeps ${TIER_LIMITS.pro.artUploads}. Try it free for 14 days.`;
 }
+
+/**
+ * FIND SIMILAR is a capability, not a count, so the sentence has no number in it and cannot say
+ * "you have reached". It says what the feature does instead: someone who has just tapped it may
+ * never have seen a result from it, and "Find similar is a PRO feature" alone tells them nothing
+ * about what they are being sold.
+ *
+ * Guests get the sign-in line every other gate gives them, even though a free account does NOT
+ * open this one. Pitching a plan to somebody who has not made an account yet is selling the second
+ * step before the first, so the wording promises only what signing in actually does and leaves the
+ * plan to the screen they reach next.
+ */
+export function similarityGateMessage(tier: Tier): string {
+  return tier === 'guest'
+    ? 'Find similar matches a card against the whole catalogue. Sign in (free) to see what your account can do.'
+    : 'Find similar matches a card against the whole catalogue by its artwork. It is part of PRO.';
+}
+
+export function similarityTrialMessage(): string {
+  return 'Find similar matches a card against the whole catalogue by its artwork. PRO includes it. Try it free for 14 days.';
+}

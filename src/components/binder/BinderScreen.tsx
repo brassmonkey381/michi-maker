@@ -37,6 +37,8 @@ import { SaveErrorBanner } from '@/components/binder/SaveErrorBanner';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
+import { similarityWall } from '@/data/similarityGate';
+import { hasFindSimilar } from '@/data/tiers';
 import { CopyPickerSheet } from '@/components/binder/CopyPickerSheet';
 import { VariantPickerSheet } from '@/components/binder/VariantPickerSheet';
 import { catalogArtNote, type OwnedEntry } from '@/data/ownedCopies';
@@ -1150,6 +1152,13 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const findSimilarToAll = () => {
     const cardIds = selectedCardIds();
     if (cardIds.length === 0) return;
+    // PRO and above (see TierLimits.findSimilar). The action stays on the multi-select bar at
+    // every tier and answers the tap here, rather than opening the picker and refusing inside it.
+    if (!hasFindSimilar(store.tier)) {
+      setMultiActionsOpen(false);
+      capGate.hit(similarityWall(store.tier, 'binder_editor'));
+      return;
+    }
     const chosen0 = page.slots.find((s) => multiIds.has(s.id));
     // Hand the seed to the picker as an explicit prop, then open it: the picker's CatalogBrowser
     // runs the multi-similar search on mount. A fresh array each call re-triggers it (kit
@@ -1494,8 +1503,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
    */
   const editIcons = (
     <View style={styles.iconBar}>
-      <IconBtn glyph="\u21b6" label="Undo" onPress={store.undo} disabled={!store.canUndo} testID="tool-undo" />
-      <IconBtn glyph="\u21b7" label="Redo" onPress={store.redo} disabled={!store.canRedo} testID="tool-redo" />
+      <IconBtn glyph="↶" label="Undo" onPress={store.undo} disabled={!store.canUndo} testID="tool-undo" />
+      <IconBtn glyph="↷" label="Redo" onPress={store.redo} disabled={!store.canRedo} testID="tool-redo" />
       <IconBtn
         glyph="+"
         label="Add a page"
@@ -1506,11 +1515,11 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
             : store.addPage(binder.id)
         }
       />
-      <IconBtn glyph="\u29c9" label="Duplicate this page" onPress={handleDuplicatePage} testID="tool-duplicate" />
+      <IconBtn glyph="⧉" label="Duplicate this page" onPress={handleDuplicatePage} testID="tool-duplicate" />
       {/* Send this page into ANOTHER of your binders (copy, or move it out of this one). */}
       {store.userBinders.some((b) => b.id !== binder.id) ? (
         <IconBtn
-          glyph="\u27a6"
+          glyph="➦"
           label="Send this page to another binder"
           onPress={() => setSendPageOpen(true)}
           testID="tool-send-page"
@@ -1518,7 +1527,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
       ) : null}
       {binder.pages.length > 1 ? (
         <IconBtn
-          glyph="\u2715"
+          glyph="✕"
           label="Delete this page"
           tone="danger"
           testID="tool-delete-page"
@@ -1540,7 +1549,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
       {/* Select mode changes what every tap on the binder does, so it toggles from here and then
           says so in the pill beside it rather than hiding inside a dialog. */}
       <IconBtn
-        glyph="\u2295"
+        glyph="⊕"
         label="Select several pockets"
         testID="binder-select-toggle"
         active={selectMode}
@@ -1569,7 +1578,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
           Page size
         </ThemedText>
-        {/* Segmented control \u2014 same voice as the studio's fit/view toggles. */}
+        {/* Segmented control — same voice as the studio's fit/view toggles. */}
         <View style={styles.segGroup}>
           {PAGE_SIZES.map((size) => {
             const active = page.rows === size.rows && page.cols === size.cols;
@@ -2021,7 +2030,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               <ThemedView type="backgroundElement" style={styles.toolsCard}>
                 <View style={styles.toolsHead}>
                   <ThemedText type="subtitle">Binder details</ThemedText>
-                  <Pressable onPress={() => setBinderInfoOpen(false)} hitSlop={10}>
+                  <Pressable onPress={() => setBinderInfoOpen(false)} hitSlop={10} testID="binder-info-done">
                     <Text style={[styles.headerAction, styles.primaryText]}>Done</Text>
                   </Pressable>
                 </View>
@@ -2059,7 +2068,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               <ThemedView type="backgroundElement" style={styles.toolsCard}>
                 <View style={styles.toolsHead}>
                   <ThemedText type="subtitle">Page {idx + 1}</ThemedText>
-                  <Pressable onPress={() => setPageInfoOpen(false)} hitSlop={10}>
+                  <Pressable onPress={() => setPageInfoOpen(false)} hitSlop={10} testID="page-info-done">
                     <Text style={[styles.headerAction, styles.primaryText]}>Done</Text>
                   </Pressable>
                 </View>

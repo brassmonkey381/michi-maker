@@ -1194,6 +1194,9 @@ export function BinderPages({
               onFocus={
                 leftPage && spreadLeftIdx !== idx ? () => onPageChange(spreadLeftIdx) : undefined
               }
+              // The half you are ON has nowhere to navigate to, so its title edits the page
+              // instead — the same deal the single-page column gets.
+              onPressLabel={leftPage && spreadLeftIdx === idx ? onEditPage : undefined}
               editable={editable}
               dragCol={dragCol}
               columnIndex={0}
@@ -1217,6 +1220,7 @@ export function BinderPages({
               onFocus={
                 rightPage && spreadRightIdx !== idx ? () => onPageChange(spreadRightIdx) : undefined
               }
+              onPressLabel={rightPage && spreadRightIdx === idx ? onEditPage : undefined}
               editable={editable}
               dragCol={dragCol}
               columnIndex={2}

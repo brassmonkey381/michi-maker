@@ -24,6 +24,8 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { pagesForCards } from '@/data/binderTypes';
+import { similarityWall } from '@/data/similarityGate';
+import { hasFindSimilar } from '@/data/tiers';
 import { CONTEST, contestPhase } from '@/data/contest';
 import { binderLimitMessage, binderTrialMessage, limitCta, pageLimitMessage, pageTrialMessage } from '@/data/limitMessages';
 import { fetchAvatarsByUsername } from '@/data/profileRepo';
@@ -91,7 +93,14 @@ export default function HomeScreen() {
   // NOTE: only these michi-side search INITIATORS are captured. Free-typed queries the user runs
   // inside CatalogBrowser (in the external tcgscan-browse package) are NOT captured yet — that
   // needs a package-level onEvent callback (a later task). No PII: no query text here, only kind.
+  // Find similar is PRO (see TierLimits.findSimilar). Gated HERE rather than by withholding the
+  // action, so the tap is answered where it was made instead of navigating to /browse to be
+  // refused on arrival.
   const driveSimilar = (cardId: string) => {
+    if (!hasFindSimilar(store.tier)) {
+      capGate.hit(similarityWall(store.tier, 'home'));
+      return;
+    }
     track('card.search', { kind: 'similar' });
     sendBrowseCommand({ type: 'similar', cardId });
     openBrowse();

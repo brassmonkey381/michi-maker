@@ -28,6 +28,8 @@ import { ShareSheet } from '@/components/binder/ShareSheet';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
+import { similarityWall } from '@/data/similarityGate';
+import { hasFindSimilar } from '@/data/tiers';
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { MyCollection } from '@/components/MyCollection';
 import { HomeSection } from '@/components/HomeSection';
@@ -96,6 +98,12 @@ export default function MyBindersScreen() {
   // package-level onEvent callback (a later task). No PII: just the kind and a count, no ids/text.
   const driveSimilarIds = (cardIds: string[]) => {
     if (cardIds.length === 0) return;
+    // PRO and above (see TierLimits.findSimilar). Answered here rather than after the jump to
+    // /browse, so the refusal lands on the screen where the tap happened.
+    if (!hasFindSimilar(store.tier)) {
+      capGate.hit(similarityWall(store.tier, 'my_binders'));
+      return;
+    }
     track('card.search', { kind: 'similar', count: cardIds.length });
     if (cardIds.length === 1) sendBrowseCommand({ type: 'similar', cardId: cardIds[0] });
     else sendBrowseCommand({ type: 'similarMany', cardIds });

@@ -23,6 +23,8 @@ import { CardBrowse } from '@/components/binder/CardBrowse';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
+import { similarityWall } from '@/data/similarityGate';
+import { hasFindSimilar } from '@/data/tiers';
 import { CopyPickerSheet } from '@/components/binder/CopyPickerSheet';
 import { catalogArtNote, type OwnedEntry } from '@/data/ownedCopies';
 import { useAvailableCopies, useCopyAssigner, useOwnedCopies } from '@/hooks/use-owned-copies';
@@ -94,11 +96,20 @@ export default function BrowseScreen() {
           ebaySearchLink(ebayCardQuery(c.name, c.setName, c.number), 'michi-browse'),
         ).catch(() => {}),
     };
+    // FIND SIMILAR IS PRO (see TierLimits.findSimilar), and the three similarity actions stay in
+    // the list at every tier: an action that silently disappears teaches nobody what a plan buys,
+    // where one that answers the tap names the wall and offers the way out. More/less-like-this
+    // only appear mid-session, which a free account can no longer start — they are wrapped anyway,
+    // because "unreachable" is a property of today's UI and not of this list.
+    const paywalled = (action?: CardAction): CardAction | undefined =>
+      !action || hasFindSimilar(store.tier)
+        ? action
+        : { ...action, onPress: () => capGate.hit(similarityWall(store.tier, 'browse')) };
     return [
       add,
-      builtins.moreLikeThis,
-      builtins.lessLikeThis,
-      builtins.findSimilar,
+      paywalled(builtins.moreLikeThis),
+      paywalled(builtins.lessLikeThis),
+      paywalled(builtins.findSimilar),
       builtins.viewSet,
       builtins.viewIllustrator,
       viewOnTcgplayer,

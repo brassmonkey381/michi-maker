@@ -99,11 +99,32 @@ export interface TierLimits {
    * plans page can advertise a single row instead of four:
    *   · sort by value, and price filters (>$100 / <$500 / value>N)
    *   · tri-colour search (the 3-stop weighted palette; free/guest get the energy-colour picker)
-   *   · refine by similarity ("more/less like this"; the one-shot Find Similar stays free)
+   *   · refine by similarity ("more/less like this") — the whole similarity family is PRO now,
+   *     one-shot Find Similar included; see `findSimilar` below
    * Boolean, so like `fullPrint` it is NOT mirrored in the `tier_caps` table (that guard covers
    * numeric caps only — see scripts/check-tier-caps.mjs).
    */
   advancedSearch: boolean;
+  /**
+   * FIND SIMILAR — the visual-similarity search: "≈ Find similar" on a card, "Find similar to all"
+   * over a selection, and the more/less-like-this refinement of an ongoing similarity session.
+   *
+   * PRO and above (owner call 2026-09-01). It was free, and it is the most expensive thing a tap
+   * can ask for here: every search is an embedding lookup against the whole catalogue on the
+   * tcgscan-data server, and it is also the feature that most directly builds a binder for you.
+   *
+   * The gate is on RUNNING one, not on seeing the button. The action stays where it was and
+   * answers the tap with the wall and the way out, because an action that silently vanishes at
+   * free teaches nothing about what a plan buys.
+   *
+   * NOT in scope: the colour sheet's "similar by colour" (its own free/PRO split, see
+   * advancedSearch) and the composer's `moreLikeThis` page method (composer methods are included
+   * at every signed-in tier — see multiPageCompose).
+   *
+   * Boolean, so like `fullPrint` and `advancedSearch` it is NOT mirrored in the `tier_caps` table
+   * (that guard covers numeric caps only — see scripts/check-tier-caps.mjs).
+   */
+  findSimilar: boolean;
   /**
    * "Pages around this card" (VIP) — the composer runs EVERY method a seed supports at once,
    * previews each as a finished page, and appends the ones you keep as new pages.
@@ -145,6 +166,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     artUploads: 10,
     fullPrint: false,
     advancedSearch: false,
+    findSimilar: false,
     multiPageCompose: false,
     includedPrintsPerMonth: 0,
   },
@@ -156,6 +178,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     artUploads: 100,
     fullPrint: false,
     advancedSearch: false,
+    findSimilar: false,
     multiPageCompose: false,
     includedPrintsPerMonth: 0,
   },
@@ -167,6 +190,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     artUploads: 1000,
     fullPrint: true,
     advancedSearch: true,
+    findSimilar: true,
     multiPageCompose: false,
     includedPrintsPerMonth: 1,
   },
@@ -179,6 +203,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     artUploads: Infinity,
     fullPrint: true,
     advancedSearch: true,
+    findSimilar: true,
     multiPageCompose: true,
     includedPrintsPerMonth: 3,
   },
@@ -206,6 +231,7 @@ const UNLIMITED: TierLimits = {
   artUploads: Infinity,
   fullPrint: false, // print eligibility is decided by tier/entitlement, not by this switch
   advancedSearch: false, // likewise: a paid capability, not a cap the dev switch should hand out
+  findSimilar: false, // likewise — PRO's similarity search, not something LIMITS_ENFORCED=0 grants
   multiPageCompose: false, // likewise — VIP's upgraded composer, not something LIMITS_ENFORCED=0 grants
   includedPrintsPerMonth: Infinity,
 };
@@ -323,6 +349,16 @@ export function hasFullPrint(tier: Tier): boolean {
  */
 export function hasAdvancedSearch(tier: Tier): boolean {
   return TIER_LIMITS[tier].advancedSearch;
+}
+
+/**
+ * Does this tier get the visual-similarity search? (PRO and above — see TierLimits.findSimilar.)
+ *
+ * Reads the tier directly rather than `limitsForTier`, exactly like `hasFullPrint`: this is a paid
+ * capability, so the LIMITS_ENFORCED dev switch must not hand it out (or take it away).
+ */
+export function hasFindSimilar(tier: Tier): boolean {
+  return TIER_LIMITS[tier].findSimilar;
 }
 
 /** The active limits for a tier — permissive (all unlimited) while LIMITS_ENFORCED is off. */

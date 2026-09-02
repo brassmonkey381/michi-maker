@@ -87,17 +87,6 @@ export interface BinderPagesProps {
    * from outside, and it is a measurement rather than the estimate it replaced.
    */
   viewportTop?: number;
-  /**
-   * The width the page settled on, reported back so the caller can size whatever it puts BESIDE
-   * the page from what the page actually took rather than from a constant.
-   *
-   * This looks like a cycle — panel width feeds availableWidth feeds page width feeds panel width —
-   * and it is not one, for a specific reason: the page is sized by HEIGHT. Its width does not
-   * respond to how much width is available, so the edge back never closes. That invariant is
-   * `panelLayout`'s "a panel never shrinks the page to fit itself"; if a change ever lets a panel
-   * squeeze the page, this becomes an oscillation and both need revisiting together.
-   */
-  onPageWidth?: (width: number) => void;
   /** A hard ceiling on page width, for surfaces that need one. Unset means fill the space. */
   maxWidth?: number;
   /** Edit vs inspect: read-only neighbours flip on tap; editable ones stay drag surfaces. */
@@ -148,7 +137,6 @@ export function BinderPages({
   onPageChange,
   availableWidth,
   viewportTop = 0,
-  onPageWidth,
   maxWidth,
   editable,
   viewerIsOwner = false,
@@ -262,12 +250,6 @@ export function BinderPages({
   });
   const pageWidth = layout.pageWidth;
   const spreadWidth = pageWidth;
-  // What the page settled on, told to whoever is putting panels beside it. In an effect rather than
-  // during render because it is a message to another component's state; see onPageWidth for why
-  // this does not close a loop.
-  useEffect(() => {
-    onPageWidth?.(pageWidth);
-  }, [pageWidth, onPageWidth]);
   const peekWidth = layout.peekWidth;
   const showPeeks = layout.showPeeks;
 
@@ -956,103 +938,83 @@ export function BinderPages({
           <ThemedText type="small" themeColor="textSecondary">
             This binder doesn’t have any pages yet.
           </ThemedText>
-        ) : doubleSided ? (
-          // THE OPEN BOOK, AND THE SHUT ONE, THROUGH THE SAME TWO COLUMNS.
-          //
-          // Shut and the tail used to be a separate branch: no labels, boxes of a different height,
-          // an entirely different subtree. So the moment a cover turn began, the settled render
-          // swapped subtrees under the overlay, and the label row and the layout jumped where the
-          // overlay does not reach. A page turn never leaves this subtree, which is why it did
-          // not. Now neither does a cover turn: the columns stay, and only what each one holds
-          // changes, so a cover turn is the same kind of change as a page turn.
+        ) : shut ? (
+          // SHUT, OR THE TAIL. The settled picture of a binder past one of its ends, and the
+          // DESTINATION of a cover turn from the first frame of that turn, exactly as a page
+          // change is: the overlay carries the stale half and the sheet, and this is what the
+          // sheet lands on, already painted. Two page-sized columns, so the binder does not jump.
           (() => {
-            const leftCover = coverOf(spreadLeftIdx, 'left');
-            const rightCover = coverOf(spreadRightIdx, 'right');
             const blank = tailPage
               ? renderGrid({ page: tailPage, width: bookW, role: 'partner', captionFields, ownedIds, scanUrlOf, decorative: true })
               : null;
-            const leftGrid = leftPage
-              ? renderGrid({
-                  page: leftPage,
-                  width: bookW,
-                  role: spreadLeftIdx === idx ? 'current' : 'partner',
-                  captionFields,
-                  ownedIds,
-                  scanUrlOf,
-                })
-              : null;
-            const rightGrid = rightPage
-              ? renderGrid({
-                  page: rightPage,
-                  width: bookW,
-                  role: spreadRightIdx === idx ? 'current' : 'partner',
-                  captionFields,
-                  ownedIds,
-                  scanUrlOf,
-                })
-              : null;
-            // What each column holds, and what it is called. Shut at the front the cover lies on
-            // the right and the left is table; shut at the back the reverse; the tail is the blank
-            // back of the last sheet facing the inside back.
-            const leftNode =
-              shut === 'front' ? null
-              : shut === 'back' ? drawCover('back', true)
-              : shut === 'tail' ? blank
-              : (leftGrid ?? drawCover(leftCover, true));
-            const rightNode =
-              shut === 'front' ? drawCover('front', true)
-              : shut === 'back' ? null
-              : shut === 'tail' ? drawCover('backInside', true)
-              : (rightGrid ?? drawCover(rightCover, true));
-            const leftLabel =
-              shut === 'front' ? ''
-              : shut === 'back' ? 'Back cover'
-              : shut === 'tail' ? `Page ${count + 1}`
-              : leftPage ? `Page ${spreadLeftIdx + 1}`
-              : leftCover ? 'Inside front'
-              : '';
-            const rightLabel =
-              shut === 'front' ? 'Front cover'
-              : shut === 'back' ? ''
-              : shut === 'tail' ? 'Inside back'
-              : rightPage ? `Page ${spreadRightIdx + 1}`
-              : rightCover ? 'Inside back'
-              : '';
             return (
               <View style={[styles.spreadRow, { gap: bookGap }]}>
-                <SpreadColumn
-                  // Always present, so the column and its label row exist whatever the half holds;
-                  // a column with no page renders a bare box, which is a different subtree.
-                  page={page}
-                  width={bookW}
-                  label={leftLabel}
-                  onFocus={
-                    !shut && leftPage && spreadLeftIdx !== idx ? () => onPageChange(spreadLeftIdx) : undefined
-                  }
-                  editable={editable}
-                  dragCol={dragCol}
-                  columnIndex={0}
-                  role={spreadLeftIdx === idx ? 'current' : 'prev'}
-                  flat>
-                  {leftNode}
-                </SpreadColumn>
-                <SpreadColumn
-                  page={page}
-                  width={bookW}
-                  label={rightLabel}
-                  onFocus={
-                    !shut && rightPage && spreadRightIdx !== idx ? () => onPageChange(spreadRightIdx) : undefined
-                  }
-                  editable={editable}
-                  dragCol={dragCol}
-                  columnIndex={2}
-                  role={spreadRightIdx === idx ? 'current' : 'next'}
-                  flat>
-                  {rightNode}
-                </SpreadColumn>
+                <View style={{ width: bookW, height: coverBoxH }}>
+                  {shut === 'back' ? drawCover('back', true) : shut === 'tail' ? blank : null}
+                </View>
+                <View style={{ width: bookW, height: coverBoxH }}>
+                  {shut === 'front'
+                    ? drawCover('front', true)
+                    : shut === 'tail'
+                      ? drawCover('backInside', true)
+                      : null}
+                </View>
               </View>
             );
           })()
+        ) : doubleSided ? (
+          // The open book: left/right facing pages (the cover face sits alone on the right).
+          // The non-active side is a full 'partner' surface; its label focuses it.
+          <View style={[styles.spreadRow, { gap: bookGap }]}>
+            <SpreadColumn
+              // The column has to exist for an inside cover too, and a column with no page renders
+              // nothing at all, so it is handed the active page purely as a presence check.
+              page={leftPage ?? (coverOf(spreadLeftIdx, 'left') ? page : null)}
+              width={bookW}
+              label={leftPage ? `Page ${spreadLeftIdx + 1}` : coverOf(spreadLeftIdx, 'left') ? 'Inside front' : ''}
+              onFocus={
+                leftPage && spreadLeftIdx !== idx ? () => onPageChange(spreadLeftIdx) : undefined
+              }
+              editable={editable}
+              dragCol={dragCol}
+              columnIndex={0}
+              role={spreadLeftIdx === idx ? 'current' : 'prev'}
+              flat>
+              {leftPage
+                ? renderGrid({
+                    page: leftPage,
+                    width: bookW,
+                    role: spreadLeftIdx === idx ? 'current' : 'partner',
+                    captionFields,
+                    ownedIds,
+                    scanUrlOf,
+                  })
+                : drawCover(coverOf(spreadLeftIdx, 'left'), true)}
+            </SpreadColumn>
+            <SpreadColumn
+              page={rightPage ?? (coverOf(spreadRightIdx, 'right') ? page : null)}
+              width={bookW}
+              label={rightPage ? `Page ${spreadRightIdx + 1}` : coverOf(spreadRightIdx, 'right') ? 'Inside back' : ''}
+              onFocus={
+                rightPage && spreadRightIdx !== idx ? () => onPageChange(spreadRightIdx) : undefined
+              }
+              editable={editable}
+              dragCol={dragCol}
+              columnIndex={2}
+              role={spreadRightIdx === idx ? 'current' : 'next'}
+              flat>
+              {rightPage
+                ? renderGrid({
+                    page: rightPage,
+                    width: bookW,
+                    role: spreadRightIdx === idx ? 'current' : 'partner',
+                    captionFields,
+                    ownedIds,
+                    scanUrlOf,
+                  })
+                : drawCover(coverOf(spreadRightIdx, 'right'), true)}
+            </SpreadColumn>
+          </View>
         ) : showSpread ? (
           <View style={[styles.spreadRow, { gap: spreadGap }]}>
             <SpreadColumn

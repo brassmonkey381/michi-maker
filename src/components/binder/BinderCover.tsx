@@ -117,6 +117,7 @@ export function CoverSurface({
   colourwayId,
   surface,
   width,
+  height: heightProp,
   stickers,
   style,
   wheelTarget,
@@ -125,8 +126,15 @@ export function CoverSurface({
   model: BinderModel;
   colourwayId: string;
   surface: CoverSurfaceId;
-  /** Width in px. Height follows from the model's proportions. */
+  /** Width in px. Height follows from the model's proportions unless given. */
   width: number;
+  /**
+   * Draw to this height instead of the model's own. A cover on the spread is drawn to the PAGE's
+   * box, so that the sheet it turns as, the box it lands in, and the copy the overlay keeps of it
+   * are all one size and nothing is a few pixels off at the moment of landing. The stretch is a
+   * few percent of a textured panel, and invisible; the misalignment was not.
+   */
+  height?: number;
   stickers?: CoverSticker[];
   style?: StyleProp<ViewStyle>;
   /**
@@ -140,7 +148,7 @@ export function CoverSurface({
   children?: React.ReactNode;
 }) {
   const colour = binderColourway(model, colourwayId);
-  const height = width / coverAspect(model);
+  const height = heightProp ?? width / coverAspect(model);
   const inside = surfaceIsInside(surface);
   const side = surfaceSide(surface);
   // The spine is the binding edge; the zip runs down the other one.

@@ -42,7 +42,7 @@ import { PEEK_MIN_WIDTH, SPREAD_GAP, bookLayout, pageHeightAt, spreadLayout } fr
 import { useCardLabelPrefs } from '@/hooks/use-card-label-prefs';
 import { useViewPrefs } from '@/hooks/use-view-prefs';
 import { CoverSurface } from '@/components/binder/BinderCover';
-import { binderColourway, binderModel, coverAspect, type CoverSurfaceId } from '@/data/binderModels';
+import { binderColourway, binderModel, type CoverSurfaceId } from '@/data/binderModels';
 import { cardThumbUrl } from '@/lib/catalogConfig';
 import type { BinderCover, DemoBinder, DemoPage, DemoSlot } from '@/data/binderTypes';
 import { allocateScanFaces } from '@/data/scanFaces';
@@ -61,6 +61,13 @@ export type GridRole = 'single' | 'prev' | 'current' | 'next' | 'partner';
 // passes straight through to CSS. Declared once here so the cast has a name and a reason.
 const WEB_STICKY = { position: 'sticky', bottom: 0, zIndex: 5 };
 
+/**
+ * A few pixels between the bottom of the page and the strip beneath it. Small on purpose: this is
+ * the one term in the height budget that is a taste call rather than a measurement, and every pixel
+ * spent here comes straight off the card art.
+ */
+const PAGE_BREATHING_ROOM = 10;
+
 export interface BinderPagesProps {
   binder: DemoBinder;
   /** Caller-owned current page (clamped here for display). */
@@ -73,7 +80,13 @@ export interface BinderPagesProps {
    * title fields and tools card. What this component itself adds (page details, the pills, the
    * filmstrip) is measured, not guessed, so this covers only what it cannot see.
    */
-  chromeAllowance?: number;
+  /**
+   * Where the scroll viewport starts in the window — measured by the caller, because only the
+   * caller knows what it puts outside its own scroller (its header, a safe-area inset). Everything
+   * INSIDE the scroller is measured here instead, so this is the only number that has to arrive
+   * from outside, and it is a measurement rather than the estimate it replaced.
+   */
+  viewportTop?: number;
   /** A hard ceiling on page width, for surfaces that need one. Unset means fill the space. */
   maxWidth?: number;
   /** Edit vs inspect: read-only neighbours flip on tap; editable ones stay drag surfaces. */
@@ -123,7 +136,7 @@ export function BinderPages({
   pageIndex,
   onPageChange,
   availableWidth,
-  chromeAllowance = 96,
+  viewportTop = 0,
   maxWidth,
   editable,
   viewerIsOwner = false,
@@ -189,18 +202,32 @@ export function BinderPages({
   // this is meant to help. The page is sized by whichever runs out first.
   const theme = useTheme();
   const { height: windowHeight } = useWindowDimensions();
-  // What the chrome inside this component actually costs, reported by onLayout below. Rounded and
-  // only accepted on a real change, so a sub-pixel wobble cannot start a measure/render loop: the
-  // page's own height never feeds back into these two, since both sit outside it.
-  const [chromeAbove, setChromeAboveRaw] = useState(0);
+  // WHAT SITS ABOVE THE PAGE, MEASURED — not guessed, and not measured in two halves.
+  //
+  // This used to be `chromeAllowance` (a literal the caller passed: 88 in view mode, 130 or 330 in
+  // the editor) plus `chromeAbove` (the height of this component's own chrome). The literal was
+  // wrong by about a hundred pixels — the page actually starts around y=184 in view mode — and it
+  // was wrong in a way nothing could report, because it was a caller's estimate of things this
+  // component cannot see. Add a pill to the editor's header and the page silently mis-sizes.
+  //
+  // `contentAbove` is the page area's own offset inside the scroll content, so it covers this
+  // component's chrome AND everything the caller stacks above it, in one number that cannot drift
+  // from the truth. Deliberately the offset within the CONTENT rather than the window: a
+  // window-space measurement changes as you scroll, and a budget that changes as you scroll is a
+  // feedback loop.
+  const [contentAbove, setContentAboveRaw] = useState(0);
   const [stripHeight, setStripHeightRaw] = useState(0);
-  const setChromeAbove = (h: number) =>
-    setChromeAboveRaw((cur) => (Math.abs(cur - h) > 2 ? Math.round(h) : cur));
+  const setContentAbove = (y: number) =>
+    setContentAboveRaw((cur) => (Math.abs(cur - y) > 2 ? Math.round(y) : cur));
   const setStripHeight = (h: number) =>
     setStripHeightRaw((cur) => (Math.abs(cur - h) > 2 ? Math.round(h) : cur));
-  // chromeAllowance covers what the CALLER stacks above this component (its header, and in the
-  // editor the title fields and tools card); the two measurements cover what this one adds.
-  const heightBudget = Math.max(0, windowHeight - chromeAllowance - chromeAbove - stripHeight);
+  // Rounded and only accepted on a real change, so a sub-pixel wobble cannot start a measure/render
+  // loop — safe because neither number depends on the page's own height: one is the space above it
+  // and the other the strip below it.
+  const heightBudget = Math.max(
+    0,
+    windowHeight - viewportTop - contentAbove - stripHeight - PAGE_BREATHING_ROOM,
+  );
   const captionsOn = hasTextCaption(captionFields);
   const spreadGap = SPREAD_GAP;
   // THE BOOK NEEDS A FLOOR OF ITS OWN. Halving the width is only a good trade while both halves
@@ -502,6 +529,8 @@ export function BinderPages({
    * sticker layer. Overlay copies and sheet faces stay inert for the same reason renderGrid has
    * `decorative`: a second live copy would steal the gesture.
    */
+  /** Every cover on the spread is drawn to the active page's box. See CoverSurface.height. */
+  const coverBoxH = pageHeightAt(bookW, page.rows, page.cols, captionsOn);
   const drawCover = (id: CoverSurfaceId | null, live = false) => {
     if (!id) return null;
     const stickers = binder.cover?.surfaces?.[id] ?? [];
@@ -518,12 +547,13 @@ export function BinderPages({
         colourwayId={coverColour.id}
         surface={id}
         width={bookW}
+        height={coverBoxH}
         stickers={shown}
         wheelTarget={live}>
         {editing && binder.cover ? (
           <CoverStickerLayer
             width={bookW}
-            height={bookW / coverAspect(coverModel)}
+            height={coverBoxH}
             stickers={stickers}
             drag={coverDrag}
             selected={coverSelected}
@@ -597,16 +627,6 @@ export function BinderPages({
     setCoverFocus(id);
   };
   /**
-   * THE COVER STAGE: the binder shut, or a cover on its way to or from shut.
-   *
-   * Which face is where follows from how a real binder lies. Shut at the front, the front cover is
-   * on the RIGHT with the spine to its left, and opening swings it leftward off page one. Shut at
-   * the back, the back cover is on the LEFT, and opening swings it rightward off the last page.
-   *
-   * The sheet is the cover itself, so it carries the outside on one face and the inside on the
-   * other, which is the whole reason a cover has two sides worth decorating.
-   */
-  /**
    * THE BACK OF THE LAST SHEET. A binder with an odd page count has one more page than it has
    * been given: the reverse of its final sheet, which is a real pocket page with nothing in it. It
    * is what faces the inside back cover, and what the back cover closes onto. Drawn, not stored:
@@ -617,27 +637,6 @@ export function BinderPages({
     count % 2 === 1 && lastPage
       ? { id: 'tail:back-of-last-sheet', rows: lastPage.rows, cols: lastPage.cols, slots: [] }
       : null;
-
-  const coverEnd = coverTurn?.end ?? shut;
-  const coverStage = coverEnd
-    ? {
-        end: coverEnd,
-        // Under the sheet: the page it lifts off, or lands on. The other half is the table. At the
-        // back of an odd-count binder that is the blank back of the final sheet, a page in its
-        // own right, which is also what the tail spread shows facing the inside back.
-        basePage:
-          coverEnd === 'front'
-            ? (binder.pages[0] ?? null)
-            : count % 2 === 0
-              ? (binder.pages[count - 1] ?? null)
-              : tailPage,
-        // Front runs 0 to -180 (right to left); back runs the reverse. Opening at the front and
-        // closing at the back both travel leftward; the other two travel back.
-        // Everything that closes travels leftward except the front cover, which lies on the right
-        // and closes rightward; opening is each one's reverse.
-        forward: coverTurn ? (coverTurn.closing ? coverEnd !== 'front' : coverEnd === 'front') : true,
-      }
-    : null;
 
   const spreadLeftIdx = idx === 0 ? -1 : idx % 2 === 1 ? idx : idx - 1;
   const spreadRightIdx = idx === 0 ? 0 : spreadLeftIdx + 1 < count ? spreadLeftIdx + 1 : -1;
@@ -834,7 +833,7 @@ export function BinderPages({
           pushed the page filmstrip below the fold, so the only way to reach page navigation was to
           scroll, over a surface where the wheel flips pages instead. These two onLayouts report
           what the chrome actually costs. */}
-      <View onLayout={(e) => setChromeAbove(e.nativeEvent.layout.height)}>
+      <View>
       {/* Per-page title/description — caller override (edit inputs) or read-only. */}
       {pageHeader ??
         (page && (page.title || page.description) ? (
@@ -922,7 +921,13 @@ export function BinderPages({
           the rendered page rather than infer it from arithmetic — the gap that made the on-card
           label work take six rounds of guessing. Costs nothing at runtime. */}
       <GestureDetector gesture={swipe}>
-      <View ref={pageWrapRef} style={styles.pageWrap} testID="binder-page-wrap">
+      <View
+        ref={pageWrapRef}
+        style={styles.pageWrap}
+        testID="binder-page-wrap"
+        // `y` here is the offset inside the scroll content — everything stacked above the page,
+        // this component's chrome and the caller's alike, in one measured number.
+        onLayout={(e) => setContentAbove(e.nativeEvent.layout.y)}>
       {/* THE PAGE TURNS ON A HINGE. This used to slide the whole spread in from the side, which read
           as lifting the binder away and sliding a different one back rather than as turning a page.
           The settled spread below is now drawn plainly — no key, no remount, no entering animation,
@@ -933,58 +938,26 @@ export function BinderPages({
           <ThemedText type="small" themeColor="textSecondary">
             This binder doesn’t have any pages yet.
           </ThemedText>
-        ) : coverStage ? (
-          // SHUT, ON THE WAY, OR THE TAIL. Two columns the size of the spread they came from, so
-          // the binder does not jump. Each end says what lies in each column and what the sheet
-          // carries on its two faces; the leaf itself is the same hinge for all of them.
+        ) : shut ? (
+          // SHUT, OR THE TAIL. The settled picture of a binder past one of its ends, and the
+          // DESTINATION of a cover turn from the first frame of that turn, exactly as a page
+          // change is: the overlay carries the stale half and the sheet, and this is what the
+          // sheet lands on, already painted. Two page-sized columns, so the binder does not jump.
           (() => {
-            const pageH = pageHeightAt(bookW, page.rows, page.cols, captionsOn);
-            const coverH = bookW / coverAspect(coverModel);
-            const boxH = Math.max(pageH, coverH);
-            const settled = !coverTurn;
-            const grid = (pg: DemoPage | null) =>
-              pg
-                ? renderGrid({ page: pg, width: bookW, role: 'partner', captionFields, ownedIds, scanUrlOf, decorative: true })
-                : null;
-            let left: ReactNode = null;
-            let right: ReactNode = null;
-            let front: ReactNode = null;
-            let back: ReactNode = null;
-            if (coverStage.end === 'front') {
-              // Shut: the cover lies on the right. Turning: page one under it, table on the left.
-              right = settled ? drawCover('front', true) : grid(coverStage.basePage);
-              front = drawCover('front');
-              back = drawCover('frontInside');
-            } else if (coverStage.end === 'back') {
-              // Shut: the cover lies on the left. Turning: whatever it lands on lies under it.
-              left = settled ? drawCover('back', true) : grid(coverStage.basePage);
-              front = drawCover('backInside');
-              back = drawCover('back');
-            } else {
-              // The tail. Settled: the blank back of the last sheet facing the inside back. Turning:
-              // the last sheet IS the leaf, its page on the front and its blank on the back, over
-              // the page it lands on and the inside back it reveals.
-              left = settled ? grid(tailPage) : grid(binder.pages[count - 2] ?? null);
-              right = drawCover('backInside', true);
-              front = grid(lastPage ?? null);
-              back = grid(tailPage);
-            }
+            const blank = tailPage
+              ? renderGrid({ page: tailPage, width: bookW, role: 'partner', captionFields, ownedIds, scanUrlOf, decorative: true })
+              : null;
             return (
               <View style={[styles.spreadRow, { gap: bookGap }]}>
-                <View style={{ width: bookW, height: boxH }}>{left}</View>
-                <View style={{ width: bookW, height: boxH }}>
-                  {right}
-                  {coverTurn ? (
-                    <TurnLeaf
-                      t={coverT}
-                      forward={coverStage.forward}
-                      width={bookW}
-                      hingeLeft={0}
-                      spine={bookGap}
-                      front={front}
-                      back={back}
-                    />
-                  ) : null}
+                <View style={{ width: bookW, height: coverBoxH }}>
+                  {shut === 'back' ? drawCover('back', true) : shut === 'tail' ? blank : null}
+                </View>
+                <View style={{ width: bookW, height: coverBoxH }}>
+                  {shut === 'front'
+                    ? drawCover('front', true)
+                    : shut === 'tail'
+                      ? drawCover('backInside', true)
+                      : null}
                 </View>
               </View>
             );
@@ -1131,7 +1104,7 @@ export function BinderPages({
 
           In EDIT MODE it stays as it was, mounted per turn. The pre-built copies are inert but
           they are not free, and an editor re-renders on every drag frame. */}
-      {(pageTurn || !editable) && doubleSided && count > 1
+      {(pageTurn || coverTurn || !editable) && doubleSided && (count > 1 || canShut)
         ? (() => {
             // Addressed from the turn's ORIGIN while turning, from the settled spread while at
             // rest. Those are the same spread across the moment a turn begins, which is the whole
@@ -1141,7 +1114,7 @@ export function BinderPages({
             const at = (i: number) => (i >= 0 && i < count ? (binder.pages[i] ?? null) : null);
             const baseLeft = at(warmLeftIdx);
             const baseRight = at(warmRightIdx);
-            // The two sheets. Forward hangs on the right page and turns to the page after it;
+            // The two page sheets. Forward hangs on the right page and turns to the page after it;
             // backward hangs on the page before the left one and turns onto the left page.
             const fwdFront = baseRight;
             const fwdBack = warmRightIdx >= 0 ? at(warmRightIdx + 1) : null;
@@ -1149,29 +1122,67 @@ export function BinderPages({
             const bwdBack = baseLeft;
             const turningFwd = Boolean(pageTurn?.forward);
             const turningBwd = Boolean(pageTurn && !pageTurn.forward);
+            // THE COVER SHEETS. Same rules as the page sheets: kept in the viewer, addressed from
+            // where the binder is at rest, shown only for the turn in play. A cover turn never
+            // changes the page index, so "at rest" and "the origin" are always the same spread.
+            const ctEnd = coverTurn?.end ?? null;
+            const closing = Boolean(coverTurn?.closing);
+            const frontOpening = ctEnd === 'front' && !closing;
+            const frontClosing = ctEnd === 'front' && closing;
+            const backOpening = ctEnd === 'back' && !closing;
+            const backClosing = ctEnd === 'back' && closing;
+            const tailIn = ctEnd === 'tail' && closing;
+            const tailOut = ctEnd === 'tail' && !closing;
+            const odd = count % 2 === 1;
+            const atFirst = spreadLeftIdx === -1;
+            const atLast = spreadLeftIdx === Math.max(-1, lastSpreadLeft);
+            const dressed = Boolean(binder.cover);
             // Mounted always in the viewer; only for the direction in play in the editor.
             const keep = !editable;
+            const keepFront = dressed && atFirst && (keep || frontOpening || frontClosing);
+            const keepBack = dressed && atLast && (keep || backOpening || backClosing);
+            const keepTail = dressed && atLast && odd && (keep || tailIn || tailOut);
+            // WHICH STALE HALF EACH TURN NEEDS DRAWN OVER THE DESTINATION UNTIL THE SHEET LANDS.
+            //   left copy   a forward page turn; the back cover closing onto the last page; the
+            //               last sheet turning over onto the page before it.
+            //   left blank  the back cover closing onto the blank back of the last sheet.
+            //   left table  the front cover opening: the inside front underneath must stay hidden
+            //               until the sheet lands on it, and what was there before was table.
+            //   right copy  a backward page turn; the front cover closing onto page one.
+            //   right IBC   the last sheet turning back: the inside back stays until covered.
+            //   right table the back cover opening: the inside back underneath stays hidden.
+            const showLeftCopy = turningFwd || (backClosing && !odd) || tailIn;
+            const showLeftBlank = backClosing && odd;
+            const showLeftTable = frontOpening;
+            const showRightCopy = turningBwd || frontClosing;
+            const showRightIbc = tailOut;
+            const showRightTable = backOpening;
             const leftRole = spreadLeftIdx === idx ? 'current' : 'prev';
             const rightRole = spreadRightIdx === idx ? 'current' : 'next';
             const gridRole = (r: string) => (r === 'current' ? 'current' : 'partner');
+            const table = () => <View style={[styles.endGap, { backgroundColor: theme.background }]} />;
             // A copy is a page OR an inside cover, decided the same way the settled spread decides
             // it, so the overlay cannot disagree with what is underneath it.
             const copy = (pg: DemoPage | null, role: string, side?: 'left' | 'right', i?: number) => {
               if (pg)
                 return renderGrid({ page: pg, width: bookW, role: gridRole(role) as GridRole, captionFields, ownedIds, scanUrlOf, decorative: true });
-              const cover = side !== undefined && i !== undefined ? drawCover(coverOf(i, side)) : null;
-              if (cover) return cover;
+              const c = side !== undefined && i !== undefined ? drawCover(coverOf(i, side)) : null;
+              if (c) return c;
               // NO PAGE AND NO COVER, which is the blank half at either end of an undressed binder.
               // It still has to be OPAQUE. The overlay's job is to hide the settled spread while a
               // turn is in the air, and a hole in it let the arriving page show through from the
               // first frame - the long-standing glitch when turning off page one, or onto a final
               // spread with nothing facing it.
-              return <View style={[styles.endGap, { backgroundColor: theme.background }]} />;
+              return table();
             };
-            const boxH = (pg: DemoPage | null) =>
-              pageHeightAt(bookW, (pg ?? page).rows, (pg ?? page).cols, captionsOn);
+            const blank = tailPage ? copy(tailPage, 'partner') : null;
+            const slot = (on: boolean, node: ReactNode) => (
+              <View style={[StyleSheet.absoluteFill, !on && styles.kept]}>{node}</View>
+            );
             return (
-              <View pointerEvents="none" style={[StyleSheet.absoluteFill, !pageTurn && styles.kept]}>
+              <View
+                pointerEvents="none"
+                style={[StyleSheet.absoluteFill, !pageTurn && !coverTurn && styles.kept]}>
                 <View style={styles.turnLayer}>
                   <View style={[styles.spreadRow, { gap: bookGap }]}>
                     <SpreadColumn
@@ -1188,15 +1199,10 @@ export function BinderPages({
                           but absolutely positioned children measures zero wide, and a column is as
                           wide as its widest child — which would collapse this half of the overlay
                           to the width of its "Page N" label and take the row's centring with it. */}
-                      <View style={{ width: bookW, height: boxH(baseLeft) }}>
-                        {/* The outgoing left page, covered as a forward sheet lands on it. Going
-                            BACKWARD this position holds the page the settled spread underneath is
-                            already drawing, so the copy is kept but not shown. */}
-                        {keep || turningFwd ? (
-                          <View style={[StyleSheet.absoluteFill, !turningFwd && styles.kept]}>
-                            {copy(baseLeft, leftRole, 'left', warmLeftIdx)}
-                          </View>
-                        ) : null}
+                      <View style={{ width: bookW, height: coverBoxH }}>
+                        {keep || showLeftCopy ? slot(showLeftCopy, copy(baseLeft, leftRole, 'left', warmLeftIdx)) : null}
+                        {keepTail || showLeftBlank ? slot(showLeftBlank, blank) : null}
+                        {showLeftTable ? slot(true, table()) : null}
                       </View>
                     </SpreadColumn>
                     <SpreadColumn
@@ -1210,47 +1216,94 @@ export function BinderPages({
                       columnIndex={2}
                       role={rightRole}
                       flat>
-                      <View style={{ width: bookW, height: boxH(baseRight) }}>
-                        {/* The outgoing right page, covered as a backward sheet lands on it. */}
-                        {keep || turningBwd ? (
-                          <View style={[StyleSheet.absoluteFill, !turningBwd && styles.kept]}>
-                            {copy(baseRight, rightRole, 'right', warmRightIdx)}
-                          </View>
-                        ) : null}
+                      <View style={{ width: bookW, height: coverBoxH }}>
+                        {keep || showRightCopy ? slot(showRightCopy, copy(baseRight, rightRole, 'right', warmRightIdx)) : null}
+                        {keepTail || showRightIbc ? slot(showRightIbc, drawCover('backInside')) : null}
+                        {showRightTable ? slot(true, table()) : null}
                         {/* Each sheet fills the box rather than sitting in the flow of it: the leaf
                             inside is absolutely positioned against its parent, so a wrapper of no
                             height would leave it with none either. */}
-                        {keep || turningFwd ? (
-                          <View style={[StyleSheet.absoluteFill, !turningFwd && styles.kept]}>
-                            <TurnLeaf
-                              t={turnT}
-                              forward
-                              width={bookW}
-                              hingeLeft={0}
-                              // The gap between the facing pages IS this book's spine, and the
-                              // sheet has to cross all of it to lie down on the other one.
-                              spine={bookGap}
-                              // The sheet's own two faces. Its back at the very front of the book
-                              // is the inside front cover, which is what a forward turn off the
-                              // cover spread lands on.
-                              front={copy(fwdFront, 'current', 'right', warmRightIdx)}
-                              back={copy(fwdBack, 'current', 'left', warmRightIdx >= 0 ? warmRightIdx + 1 : -1)}
-                            />
-                          </View>
-                        ) : null}
-                        {keep || turningBwd ? (
-                          <View style={[StyleSheet.absoluteFill, !turningBwd && styles.kept]}>
-                            <TurnLeaf
-                              t={turnT}
-                              forward={false}
-                              width={bookW}
-                              hingeLeft={0}
-                              spine={bookGap}
-                              front={copy(bwdFront, 'current', 'right', warmLeftIdx > 0 ? warmLeftIdx - 1 : -1)}
-                              back={copy(bwdBack, 'current', 'left', warmLeftIdx)}
-                            />
-                          </View>
-                        ) : null}
+                        {keep || turningFwd
+                          ? slot(
+                              turningFwd,
+                              <TurnLeaf
+                                t={turnT}
+                                forward
+                                width={bookW}
+                                hingeLeft={0}
+                                // The gap between the facing pages IS this book's spine, and the
+                                // sheet has to cross all of it to lie down on the other one.
+                                spine={bookGap}
+                                // The sheet's own two faces. Its back at the very front of the book
+                                // is the inside front cover, which is what a forward turn off the
+                                // cover spread lands on.
+                                front={copy(fwdFront, 'current', 'right', warmRightIdx)}
+                                back={copy(fwdBack, 'current', 'left', warmRightIdx >= 0 ? warmRightIdx + 1 : -1)}
+                              />,
+                            )
+                          : null}
+                        {keep || turningBwd
+                          ? slot(
+                              turningBwd,
+                              <TurnLeaf
+                                t={turnT}
+                                forward={false}
+                                width={bookW}
+                                hingeLeft={0}
+                                spine={bookGap}
+                                front={copy(bwdFront, 'current', 'right', warmLeftIdx > 0 ? warmLeftIdx - 1 : -1)}
+                                back={copy(bwdBack, 'current', 'left', warmLeftIdx)}
+                              />,
+                            )
+                          : null}
+                        {/* The front cover: outside on its front, inside front on its back. It lies
+                            on the right when shut, so opening travels leftward. */}
+                        {keepFront
+                          ? slot(
+                              frontOpening || frontClosing,
+                              <TurnLeaf
+                                t={coverT}
+                                forward={frontOpening}
+                                width={bookW}
+                                hingeLeft={0}
+                                spine={bookGap}
+                                front={drawCover('front')}
+                                back={drawCover('frontInside')}
+                              />,
+                            )
+                          : null}
+                        {/* The back cover: inside back on its front, outside on its back. It lies
+                            on the left when shut, so closing travels leftward. */}
+                        {keepBack
+                          ? slot(
+                              backOpening || backClosing,
+                              <TurnLeaf
+                                t={coverT}
+                                forward={backClosing}
+                                width={bookW}
+                                hingeLeft={0}
+                                spine={bookGap}
+                                front={drawCover('backInside')}
+                                back={drawCover('back')}
+                              />,
+                            )
+                          : null}
+                        {/* The last sheet of an odd count: its page on the front, its blank back
+                            on the back. Turning it over reveals the inside back. */}
+                        {keepTail
+                          ? slot(
+                              tailIn || tailOut,
+                              <TurnLeaf
+                                t={coverT}
+                                forward={tailIn}
+                                width={bookW}
+                                hingeLeft={0}
+                                spine={bookGap}
+                                front={copy(lastPage ?? null, 'current')}
+                                back={blank}
+                              />,
+                            )
+                          : null}
                       </View>
                     </SpreadColumn>
                   </View>

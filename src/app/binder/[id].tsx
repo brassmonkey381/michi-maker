@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BinderGrid } from '@/components/binder/BinderGrid';
 import { ProfileAvatarButton } from '@/components/people/ProfileAvatarButton';
 import { BinderScreen } from '@/components/binder/BinderScreen';
+import { AboutHoverCard, BINDER_DESCRIPTION_PLACEHOLDER, useHoverReveal } from '@/components/binder/AboutPopup';
 import { BinderPages } from '@/components/binder/BinderPages';
 import { LikeButton } from '@/components/binder/LikeButton';
 import { ReportSheet } from '@/components/binder/ReportSheet';
@@ -213,6 +214,7 @@ function Viewer({
   // the pages here too. They are a dialog now, opened from the gear beside the like button, so a
   // visitor's first sight of a shared binder is the binder.
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const titleHover = useHoverReveal(true);
 
   return (
     <ScrollView
@@ -222,9 +224,18 @@ function Viewer({
       // the page, so the guess was never close.
       onLayout={(e) => setViewportTop(e.nativeEvent.layout.y)}
       contentContainerStyle={styles.scroll}>
-      <ThemedText type="subtitle" style={styles.title}>
-        {binder.title}
-      </ThemedText>
+      {/* A visitor gets the same hover the owner does: the description at once, or the
+          placeholder — never a title that does nothing under the pointer. */}
+      <View style={styles.titleWrap}>
+        <Pressable onHoverIn={titleHover.onHoverIn} onHoverOut={titleHover.onHoverOut} accessibilityRole="text">
+          <ThemedText type="subtitle" style={styles.title}>
+            {binder.title}
+          </ThemedText>
+        </Pressable>
+        {titleHover.shown ? (
+          <AboutHoverCard kicker={binder.title || 'This binder'} text={binder.description?.trim() || BINDER_DESCRIPTION_PLACEHOLDER} style={styles.titleHover} />
+        ) : null}
+      </View>
       {author ? (
         <View style={styles.authorRow}>
           <ProfileAvatarButton
@@ -331,6 +342,8 @@ const styles = StyleSheet.create({
   title: { textAlign: 'center', fontFamily: Fonts?.brand, fontSize: FontSize.nav, lineHeight: 34 },
   description: { textAlign: 'center', marginTop: Spacing.two, maxWidth: 520 },
   gear: { fontSize: 18 },
+  titleWrap: { alignSelf: 'center', zIndex: 20 },
+  titleHover: { top: 36 },
   likeRow: { marginTop: Spacing.three, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.three },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginBottom: Spacing.two },
   likeHint: { marginTop: Spacing.two, textAlign: 'center' },

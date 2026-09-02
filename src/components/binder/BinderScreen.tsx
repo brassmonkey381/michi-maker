@@ -23,7 +23,7 @@ import {
   CARD_PICKER_RAIL_WIDTH,
   CardPicker,
 } from '@/components/binder/CardPicker';
-import { AboutHoverCard, AboutPopup, useHoverReveal } from '@/components/binder/AboutPopup';
+import { AboutHoverCard, AboutPopup, BINDER_DESCRIPTION_PLACEHOLDER, PAGE_DESCRIPTION_PLACEHOLDER, useHoverReveal } from '@/components/binder/AboutPopup';
 import { PageComposition } from '@/components/binder/PageComposition';
 import { BinderPages, type CoverToolsContext, type GridRole } from '@/components/binder/BinderPages';
 import { CoverPanel } from '@/components/binder/CoverPanel';
@@ -451,7 +451,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   //
   // Above the `if (!binder)` guard with the rest of the hooks, hence the optional chain: the hook
   // order has to hold on the render where the binder is missing too (see the note at the top).
-  const binderHover = useHoverReveal(!!binder?.description && !binderInfoOpen);
+  // Hover shows the description at once, and a placeholder when there is none — never a dead
+  // title. The dialog being open is the one time the card would only get in the way.
+  const binderHover = useHoverReveal(!binderInfoOpen);
 
   if (!binder) {
     return (
@@ -1806,15 +1808,13 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                 reading, the description on its own. Both are keyed to MODE, not to permission: an
                 owner reading their own binder wants what a visitor wants.
 
-                Dead while reading a binder that has no description, since the card would open
-                with nothing in it. Always live while editing, where writing the first one is the
-                whole point. */}
+                Live in both modes, described or not: a blank description opens onto the
+                placeholder, which says where to write one. */}
             <View pointerEvents="box-none" style={[styles.titleFloat, headerInset]}>
               <Pressable
                 onPress={() => setBinderInfoOpen(true)}
                 onHoverIn={binderHover.onHoverIn}
                 onHoverOut={binderHover.onHoverOut}
-                disabled={!editing && !binder.description}
                 hitSlop={6}
                 style={[styles.titlePress, { maxWidth: titleMaxW }]}
                 accessibilityRole="button"
@@ -1829,7 +1829,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               {binderHover.shown ? (
                 <AboutHoverCard
                   kicker={binder.title || 'This binder'}
-                  text={binder.description ?? ''}
+                  text={binder.description?.trim() || BINDER_DESCRIPTION_PLACEHOLDER}
                   style={styles.titleHover}
                 />
               ) : null}
@@ -2253,7 +2253,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         {binderInfoOpen && !editing ? (
           <AboutPopup
             kicker={binder.title || 'This binder'}
-            text={binder.description || 'No description yet.'}
+            text={binder.description?.trim() || BINDER_DESCRIPTION_PLACEHOLDER}
             onClose={() => setBinderInfoOpen(false)}
           />
         ) : binderInfoOpen ? (
@@ -2292,7 +2292,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         {pageInfoOpen && !editing ? (
           <AboutPopup
             kicker={page.title || `Page ${idx + 1}`}
-            text={page.description || 'No description yet.'}
+            text={page.description?.trim() || PAGE_DESCRIPTION_PLACEHOLDER}
             onClose={() => setPageInfoOpen(false)}
           />
         ) : pageInfoOpen ? (

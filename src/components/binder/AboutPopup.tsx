@@ -37,6 +37,14 @@ import { sheet } from '@/constants/ui';
  * Web only in practice: `onHoverIn` never fires on a touch device, which is correct rather than a
  * gap — there is no hover to have, and the tap already opens the full card.
  */
+/**
+ * WHAT THE CARD SAYS WHEN NOTHING HAS BEEN WRITTEN. A hover that opened onto an empty card would
+ * read as broken; a hover that says "nothing here yet" reads as an invitation. Shared, so the
+ * binder's title and a page's title make the same offer in the same words.
+ */
+export const BINDER_DESCRIPTION_PLACEHOLDER = 'No description yet. In edit mode, tap the title to write one.';
+export const PAGE_DESCRIPTION_PLACEHOLDER = 'Nothing written about this page yet. In edit mode, tap its title to add a note.';
+
 export function AboutHoverCard({
   kicker,
   text,

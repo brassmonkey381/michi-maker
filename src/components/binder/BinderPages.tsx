@@ -42,7 +42,7 @@ import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radius, Weight } from '@/constants/theme';
 
 import { pillChip, sheet } from '@/constants/ui';
-import { AboutHoverCard, useHoverReveal } from '@/components/binder/AboutPopup';
+import { AboutHoverCard, PAGE_DESCRIPTION_PLACEHOLDER, useHoverReveal } from '@/components/binder/AboutPopup';
 import { hasTextCaption, type CaptionFieldKey } from '@/data/cardCaption';
 import { PEEK_MIN_WIDTH, SPREAD_GAP, bookLayout, pageHeightAt, spreadLayout } from '@/data/binderLayout';
 import { useCardLabelPrefs } from '@/hooks/use-card-label-prefs';
@@ -1959,13 +1959,15 @@ function SpreadColumn({
   const col = dragCol ?? fallback;
   const columnStyle = useAnimatedStyle(() => ({ zIndex: col.value === columnIndex ? 30 : 1 }));
   // Same deal as the binder's title: hovering a page's name shows what the page is, in BOTH
-  // modes — the pointer asks, the click edits, and they do not compete. Only where tapping it
-  // would open the page's own details, though: a neighbour's label navigates instead, so it stays
-  // silent rather than meaning two things depending on which one you are over.
+  // modes, at once, whether or not anything has been written — an empty note is an invitation,
+  // not a reason to stay silent. Only on the page you are ON, though: a neighbour's label
+  // navigates, so it stays quiet rather than meaning two things depending on which one you are
+  // over.
   //
   // Above the empty-column return below, with the other hooks, or the order changes the moment a
   // spread runs out of pages on one side.
-  const hover = useHoverReveal(!!onPressLabel && !!page?.description);
+  const hover = useHoverReveal(role === 'current' && !!page);
+  const hoverText = page?.description?.trim() || PAGE_DESCRIPTION_PLACEHOLDER;
   // A column with no page reserves only a peek's worth of space, not a whole page's. On page 1
   // the old layout left a full-page-wide empty band where the previous page would have been.
   if (!page) return <View style={{ width: peekWidth ?? width }} />;
@@ -1979,14 +1981,16 @@ function SpreadColumn({
     <Animated.View
       style={[styles.neighbor, columnStyle]}
       testID={role === 'current' ? 'binder-page-current' : `binder-page-${role}`}>
-      {onPressLabel || onFocus ? (
+      {onPressLabel || onFocus || role === 'current' ? (
+        // The current page's label is hoverable even when tapping it does nothing (view mode),
+        // which is why it is a Pressable without an onPress rather than plain text.
         <Pressable
           onPress={onPressLabel ?? onFocus}
           onHoverIn={hover.onHoverIn}
           onHoverOut={hover.onHoverOut}
           hitSlop={6}
-          testID={onPressLabel ? 'binder-page-title' : undefined}
-          accessibilityRole="button"
+          testID={onPressLabel ? 'binder-page-title' : role === 'current' ? 'binder-page-title-view' : undefined}
+          accessibilityRole={onPressLabel || onFocus ? 'button' : 'text'}
           accessibilityLabel={
             onPressLabel ? (editable ? `${label} — edit this page` : `About ${label}`) : label
           }>
@@ -2011,9 +2015,7 @@ function SpreadColumn({
       )}
       {/* LAST, so it paints over the page it overlaps. Its z-index does the same job, but only
           against siblings, and tree order is the half that does not depend on the page's own. */}
-      {hover.shown ? (
-        <AboutHoverCard kicker={label} text={page.description ?? ''} style={styles.labelHover} />
-      ) : null}
+      {hover.shown ? <AboutHoverCard kicker={label} text={hoverText} style={styles.labelHover} /> : null}
     </Animated.View>
   );
 }

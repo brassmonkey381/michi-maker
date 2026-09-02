@@ -129,25 +129,38 @@ function ImageDecoration({
  *   postcard  a wide border, a divider down the middle and a stamp box top-right.
  *   tag       a hole with a ring, and a clipped corner on the left.
  */
-function shapeStyle(shape: NonNullable<CoverTextDecoration['bg']>['shape'], w: number, h: number) {
-  switch (shape) {
-    case 'rect':
-      return { borderRadius: 0, borderWidth: 1, borderColor: 'rgba(0,0,0,0.45)' };
-    case 'rounded':
-      return { borderRadius: Math.min(w, h) * 0.18 };
-    case 'circle':
-      return { borderRadius: Math.max(w, h) };
-    case 'postit':
-      return { borderRadius: 0, shadowColor: '#000', shadowOpacity: 0.22, shadowRadius: 4, shadowOffset: { width: 1, height: 3 }, elevation: 3 };
-    case 'notecard':
-      return { borderRadius: 2, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(0,0,0,0.22)' };
-    case 'postcard':
-      return { borderRadius: 2, borderWidth: Math.max(1, w * 0.012), borderColor: 'rgba(0,0,0,0.28)' };
-    case 'tag':
-      return { borderRadius: Math.min(w, h) * 0.12, borderTopLeftRadius: Math.min(w, h) * 0.45, borderBottomLeftRadius: Math.min(w, h) * 0.45 };
-    default:
-      return { borderRadius: 0 };
-  }
+function shapeStyle(bg: NonNullable<CoverTextDecoration['bg']>, w: number, h: number) {
+  // The surface's own body: a plain Normal has nothing at all — that is what "unstyled" means.
+  const surface = (() => {
+    switch (bg.shape) {
+      case 'postit':
+        return { shadowColor: '#000', shadowOpacity: 0.22, shadowRadius: 4, shadowOffset: { width: 1, height: 3 }, elevation: 3 };
+      case 'notecard':
+        return { borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(0,0,0,0.22)' };
+      case 'postcard':
+        return { borderWidth: Math.max(1, w * 0.012), borderColor: 'rgba(0,0,0,0.28)' };
+      default:
+        return {};
+    }
+  })();
+  // The corners: the edge dial when it is set, else the surface's own habit (a tag's clipped end).
+  const edge = (() => {
+    switch (bg.edge) {
+      case 'rounded':
+        return { borderRadius: Math.min(w, h) * 0.18 };
+      case 'circle':
+        return { borderRadius: Math.max(w, h) };
+      case 'square':
+        return { borderRadius: 0 };
+      default:
+        return bg.shape === 'tag'
+          ? { borderRadius: Math.min(w, h) * 0.12, borderTopLeftRadius: Math.min(w, h) * 0.45, borderBottomLeftRadius: Math.min(w, h) * 0.45 }
+          : bg.shape === 'notecard' || bg.shape === 'postcard'
+            ? { borderRadius: 2 }
+            : { borderRadius: 0 };
+    }
+  })();
+  return { ...surface, ...edge };
 }
 
 /** Where a postcard's stamp box sits: top-right, a fifth of the shorter side, a little taller than wide. */
@@ -265,7 +278,7 @@ function TextDecoration({ d, W, H }: { d: CoverTextDecoration; W: number; H: num
           style={[
             StyleSheet.absoluteFill,
             { backgroundColor: withAlpha(bg.color, bg.opacity ?? 1) },
-            shapeStyle(bg.shape, w, h),
+            shapeStyle(bg, w, h),
           ]}>
           <ShapeDetail shape={bg.shape} w={w} h={h} px={px} textBox={textBox} lineHeight={lineHeight} />
         </View>

@@ -15,6 +15,7 @@ import {
   type BinderCover,
   type CoverDecoration,
   type CoverImageDecoration,
+  type CoverTextBgEdge,
   type CoverTextBgShape,
   type CoverTextDecoration,
   type ImageTransform,
@@ -51,7 +52,14 @@ export function normalizeAngle(deg: number): number {
 }
 
 const FONTS = new Set(['sans', 'serif', 'rounded', 'mono', 'brand', 'marker']);
-const BG_SHAPES = new Set(['none', 'rect', 'rounded', 'postit', 'notecard', 'postcard', 'circle', 'tag']);
+const BG_SHAPES = new Set(['none', 'normal', 'postit', 'notecard', 'postcard', 'tag']);
+const BG_EDGES = new Set(['square', 'rounded', 'circle']);
+/** The one-list names a background used to have, as a surface plus an edge. */
+const LEGACY_BG: Record<string, { shape: string; edge: string }> = {
+  rect: { shape: 'normal', edge: 'square' },
+  rounded: { shape: 'normal', edge: 'rounded' },
+  circle: { shape: 'normal', edge: 'circle' },
+};
 const MASKS = new Set(['rect', 'rounded', 'ellipse']);
 
 /**
@@ -98,10 +106,16 @@ function normalizeOne(raw: unknown): CoverDecoration | null {
     if (typeof r.text !== 'string') return null;
     if (typeof r.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(r.color)) return null;
     const bgRaw = r.bg as Record<string, unknown> | undefined;
+    // A row saved before the split names its background by the old one-list name; it reads as a
+    // Normal surface with that edge, so it draws exactly as it did.
+    const legacy = bgRaw && typeof bgRaw === 'object' ? LEGACY_BG[String(bgRaw.shape)] : undefined;
+    const shapeRaw = legacy ? legacy.shape : bgRaw ? String(bgRaw.shape) : 'none';
+    const edgeRaw = legacy ? legacy.edge : bgRaw ? bgRaw.edge : undefined;
     const bg =
-      bgRaw && typeof bgRaw === 'object' && BG_SHAPES.has(String(bgRaw.shape)) && bgRaw.shape !== 'none'
+      bgRaw && typeof bgRaw === 'object' && BG_SHAPES.has(shapeRaw) && shapeRaw !== 'none'
         ? {
-            shape: bgRaw.shape as Exclude<CoverTextBgShape, 'none'>,
+            shape: shapeRaw as Exclude<CoverTextBgShape, 'none'>,
+            ...(BG_EDGES.has(String(edgeRaw)) ? { edge: edgeRaw as CoverTextBgEdge } : {}),
             color: typeof bgRaw.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(bgRaw.color) ? bgRaw.color : '#fff3a8',
             ...(finite(bgRaw.opacity) && bgRaw.opacity < 1 ? { opacity: clamp01(bgRaw.opacity) } : {}),
             ...(finite(bgRaw.pad) ? { pad: Math.max(0, Math.min(0.2, bgRaw.pad)) } : {}),

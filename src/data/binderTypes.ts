@@ -155,15 +155,15 @@ export interface DemoSlot {
 export type CoverDecorationKind = 'art' | 'sticker' | 'text';
 export type CoverMaskShape = 'rect' | 'rounded' | 'ellipse';
 export type CoverTextFont = 'sans' | 'serif' | 'rounded' | 'mono' | 'brand' | 'marker';
-export type CoverTextBgShape =
-  | 'none'
-  | 'rect'
-  | 'rounded'
-  | 'postit'
-  | 'notecard'
-  | 'postcard'
-  | 'circle'
-  | 'tag';
+/**
+ * WHAT A TEXT BOX SITS ON, and WHAT ITS CORNERS DO — two dials, not one. The surface says what the
+ * thing is (a plain fill, a post-it, an index card, a postcard, a tag); the edge says how its
+ * corners are cut. They used to be one list where "Rounded" and "Post-it" were siblings, which
+ * meant you could not have a rounded post-it. Rows saved as 'rect' / 'rounded' / 'circle' are
+ * read as a Normal surface with that edge (see normalizeCover).
+ */
+export type CoverTextBgShape = 'none' | 'normal' | 'postit' | 'notecard' | 'postcard' | 'tag';
+export type CoverTextBgEdge = 'square' | 'rounded' | 'circle';
 
 interface CoverDecorationBase {
   id: string;
@@ -234,8 +234,11 @@ export interface CoverTextDecoration extends CoverDecorationBase {
   leading?: number;
   /** #rrggbb. The colour field is six-digit hex, no alpha. */
   color: string;
-  /** Background. Translucency is `opacity`, never an alpha hex. `pad` is a fraction of surface width. */
-  bg?: { shape: CoverTextBgShape; color: string; opacity?: number; pad?: number };
+  /**
+   * Background. Translucency is `opacity`, never an alpha hex. `pad` is a fraction of surface
+   * width. `edge` absent means the surface's own corners (a post-it is square, a tag is clipped).
+   */
+  bg?: { shape: CoverTextBgShape; edge?: CoverTextBgEdge; color: string; opacity?: number; pad?: number };
 }
 
 export type CoverDecoration = CoverImageDecoration | CoverTextDecoration;

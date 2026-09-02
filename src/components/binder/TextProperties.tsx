@@ -16,19 +16,22 @@ import { NumField } from '@/components/binder/DecorationProperties';
 import { Seg, segGroupStyle } from '@/components/binder/StudioControls';
 import { FontSize, Fonts, Palette, Radius, Weight } from '@/constants/theme';
 import { flatChip } from '@/constants/ui';
-import type { CoverTextBgShape, CoverTextDecoration } from '@/data/binderTypes';
+import type { CoverTextBgEdge, CoverTextBgShape, CoverTextDecoration } from '@/data/binderTypes';
 import { TEXT_SIZE_PRESETS } from '@/data/coverDecorations';
 import { DECORATION_FONTS, fontFamilyFor } from '@/data/decorationFonts';
 
 const BG_SHAPES: { id: CoverTextBgShape; label: string }[] = [
   { id: 'none', label: 'None' },
-  { id: 'rect', label: 'Box' },
-  { id: 'rounded', label: 'Rounded' },
+  { id: 'normal', label: 'Normal' },
   { id: 'postit', label: 'Post-it' },
   { id: 'notecard', label: 'Notecard' },
   { id: 'postcard', label: 'Postcard' },
-  { id: 'circle', label: 'Circle' },
   { id: 'tag', label: 'Tag' },
+];
+const BG_EDGES: { id: CoverTextBgEdge; label: string }[] = [
+  { id: 'square', label: 'Square' },
+  { id: 'rounded', label: 'Rounded' },
+  { id: 'circle', label: 'Circle' },
 ];
 
 /** The colour a background starts as, per shape — a post-it is yellow before anyone says so. */
@@ -37,9 +40,7 @@ const BG_DEFAULT_COLOUR: Partial<Record<CoverTextBgShape, string>> = {
   notecard: '#fffdf4',
   postcard: '#f7f1e3',
   tag: '#f4e2c4',
-  rect: '#ffffff',
-  rounded: '#ffffff',
-  circle: '#ffffff',
+  normal: '#ffffff',
 };
 
 export function TextProperties({
@@ -154,7 +155,7 @@ export function TextProperties({
                   bg:
                     s.id === 'none'
                       ? undefined
-                      : { shape: s.id, color: d.bg?.color ?? BG_DEFAULT_COLOUR[s.id] ?? '#ffffff', opacity: d.bg?.opacity, pad: d.bg?.pad },
+                      : { shape: s.id, edge: d.bg?.edge, color: d.bg?.color ?? BG_DEFAULT_COLOUR[s.id] ?? '#ffffff', opacity: d.bg?.opacity, pad: d.bg?.pad },
                 })
               }
               accessibilityRole="button"
@@ -166,6 +167,28 @@ export function TextProperties({
           );
         })}
       </View>
+      {bg ? (
+        <>
+          <Text style={styles.label}>Edges</Text>
+          <View style={styles.chipRow}>
+            {BG_EDGES.map((e) => {
+              // No edge set means the surface's own corners; "Square" is what Normal shows as.
+              const on = (bg.edge ?? (bg.shape === 'normal' ? 'square' : null)) === e.id;
+              return (
+                <Pressable
+                  key={e.id}
+                  onPress={() => onPatch({ bg: { ...bg, edge: e.id } })}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  testID={`text-edge-${e.id}`}
+                  style={[flatChip.base, on && flatChip.active]}>
+                  <Text style={[flatChip.text, on && flatChip.textActive]}>{e.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </>
+      ) : null}
       {bg ? (
         <View style={styles.row}>
           <View style={styles.col}>

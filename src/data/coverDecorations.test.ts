@@ -206,3 +206,19 @@ test('rowToIndex: the top row is the last array element', () => {
   const rows = [...items].reverse();
   assert.equal(items[rowToIndex(items.length, 0)].id, rows[0].id);
 });
+
+test('a background saved by its old one-list name reads as a Normal surface with that edge', () => {
+  const t = (shape: string) => ({ id: 't', kind: 'text', text: 'x', font: 'sans', size: 0.05, color: '#000000', x: 0.5, y: 0.5, w: 0.3, bg: { shape, color: '#ffffff' } });
+  const read = (shape: string) => {
+    const d = normalizeCover(cover([t(shape)])).surfaces!.front![0];
+    return d.kind === 'text' ? d.bg : undefined;
+  };
+  assert.deepEqual(read('rect'), { shape: 'normal', edge: 'square', color: '#ffffff' });
+  assert.deepEqual(read('rounded'), { shape: 'normal', edge: 'rounded', color: '#ffffff' });
+  assert.deepEqual(read('circle'), { shape: 'normal', edge: 'circle', color: '#ffffff' });
+  // A surface that never was an edge keeps its own corners: no edge written.
+  assert.deepEqual(read('postit'), { shape: 'postit', color: '#ffffff' });
+  // An edge on a surface is kept as an edge.
+  const d = normalizeCover(cover([{ ...t('postit'), bg: { shape: 'postit', edge: 'rounded', color: '#ffffff' } }])).surfaces!.front![0];
+  assert.deepEqual(d.kind === 'text' ? d.bg : null, { shape: 'postit', edge: 'rounded', color: '#ffffff' });
+});

@@ -16,6 +16,7 @@ import {
   productUrl,
   sealedLanguageOf,
   releaseTag,
+  todayISO,
   RELEASE_TAG_FONT_SIZE,
   RELEASE_TAG_LINE_HEIGHT,
   useSealed,
@@ -41,12 +42,17 @@ const PER_SET = 10;
 const FALLBACK_SETS = 6;
 const IMG_H = 132;
 
-const todayIso = () => new Date().toISOString().slice(0, 10);
+/**
+ * LOCAL calendar date, the same todayISO the release ladder defaults to. toISOString gives the UTC
+ * day, which is already tomorrow for a viewer west of UTC in the evening, so this rail's window
+ * split by one day and its countdown badge by one day against every other surface.
+ */
+const todayIso = () => todayISO();
 /** Cutoff date `MONTHS_BACK` months ago (setMonth handles year rollover) — same as the feed. */
 const recentCutoff = () => {
   const d = new Date();
   d.setMonth(d.getMonth() - MONTHS_BACK);
-  return d.toISOString().slice(0, 10);
+  return todayISO(d);
 };
 
 interface SetGroup {

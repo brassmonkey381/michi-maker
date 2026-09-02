@@ -2,14 +2,14 @@
  {
   "id": "showcase-3x4",
   "title": "3x4 layout showcase",
-  "description": "Every art layout michi-maker composes onto a twelve-pocket page, one after another, over cards from ME: 30th Celebration, M6: Storm Emeralda and ME05: Pitch Black. Read it double-sided: the spreads only make sense with both pages open.",
+  "description": "Every art layout for a twelve-pocket page, over cards from ME: 30th Celebration, M6: Storm Emeralda and ME05: Pitch Black. Read it double-sided.",
   "layoutStyle": "freeform",
   "isExample": true,
   "pages": [
    {
     "id": "showcase-3x4-p00",
     "title": "3x4 layout showcase",
-    "description": "Forty pages of twelve pockets. Each page names the layout it uses and says what the art is doing there. Spreads are marked as spreads: those were chosen for two pages seen together and do not read as one composition on their own.",
+    "description": "Forty pages. Each names its layout and what the art is doing. Read double-sided: spreads need both pages open.",
     "rows": 3,
     "cols": 4,
     "slots": []
@@ -17,7 +17,7 @@
    {
     "id": "showcase-3x4-p01",
     "title": "Gutter Bridge (left)",
-    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. An open 12-pocket binder is close to a metre of card and reads as two separate walls of twelve.  Art here: Bridging band.",
+    "description": "Open spread, left page. Needs both pages open to read as one. Art: bridging band.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -126,7 +126,7 @@
    {
     "id": "showcase-3x4-p02",
     "title": "Gutter Bridge (right)",
-    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. An open 12-pocket binder is close to a metre of card and reads as two separate walls of twelve.  Art here: Bridging band.",
+    "description": "Open spread, right page. Needs both pages open to read as one. Art: bridging band.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -235,7 +235,7 @@
    {
     "id": "showcase-3x4-p03",
     "title": "Establishing Tier",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. A 4-wide page reads as three identical horizontal bands and nothing tells the eye where to start.  Art here: Title band.",
+    "description": "Single page, stands on its own. Art: title band.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -326,7 +326,7 @@
    {
     "id": "showcase-3x4-p04",
     "title": "Counterweight Corner",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. A left-to-right reader lands first in the upper left, so a hero card placed there loads that corner and leaves the bottom right feeling hollow.  Art here: Anchor block.",
+    "description": "Single page, stands on its own. Art: anchor block.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -417,7 +417,7 @@
    {
     "id": "showcase-3x4-p05",
     "title": "Centrefold (left)",
-    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The art is a true centrefold: it claims the two columns either side of the gutter, which is exactly the zone a ring binder curves away from, where cards are hardest to see and hardest to seat.  Art here: Edge rail.",
+    "description": "Open spread, left page. Needs both pages open to read as one. Art: edge rail.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -490,7 +490,7 @@
    {
     "id": "showcase-3x4-p06",
     "title": "Centrefold (right)",
-    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The art is a true centrefold: it claims the two columns either side of the gutter, which is exactly the zone a ring binder curves away from, where cards are hardest to see and hardest to seat.  Art here: Edge rail.",
+    "description": "Open spread, right page. Needs both pages open to read as one. Art: edge rail.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -563,7 +563,7 @@
    {
     "id": "showcase-3x4-p07",
     "title": "The Complete Run",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The art here is the absence of art, and that is a decision, not a default.  Art here: no art, on purpose.",
+    "description": "Single page, stands on its own. Art: none, on purpose.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -680,7 +680,7 @@
    {
     "id": "showcase-3x4-p08",
     "title": "Reliquary Ring",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. A full perimeter turns the page into a MOUNT.  Art here: Footer caption band, Single accent, Title band.",
+    "description": "Single page, stands on its own. Art: footer caption band, single accent, title band.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -747,7 +747,7 @@
    {
     "id": "showcase-3x4-p09",
     "title": "Splash and Grid (left)",
-    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Straight out of comics: a splash facing a grid.  Art here: Full-page plate.",
+    "description": "Open spread, left page. Needs both pages open to read as one. Art: full-page plate.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -766,7 +766,7 @@
    {
     "id": "showcase-3x4-p10",
     "title": "Splash and Grid (right)",
-    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Straight out of comics: a splash facing a grid.  Art here: no art, on purpose.",
+    "description": "Open spread, right page. Needs both pages open to read as one. Art: none, on purpose.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -883,7 +883,7 @@
    {
     "id": "showcase-3x4-p11",
     "title": "Nameplate and Placeholder",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. Two different small jobs, each with its own reason, and neither is decoration.  Art here: Bridging band, Single accent.",
+    "description": "Single page, stands on its own. Art: bridging band, single accent.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -993,7 +993,7 @@
    {
     "id": "showcase-3x4-p12",
     "title": "Opposite Corners",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. Two wide art blocks in diagonally opposite corners set up a tension the eye has to resolve: it enters at the top-left block, is pulled across and down to the bottom-right block, and the eight cards between them become the PATH rather than the content.  Art here: Bridging band.",
+    "description": "Single page, stands on its own. Art: bridging band.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -1094,7 +1094,7 @@
    {
     "id": "showcase-3x4-p13",
     "title": "The Full Two Dozen (left)",
-    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Deliberately no art, and that is the curatorial decision.  Art here: no art, on purpose.",
+    "description": "Open spread, left page. Needs both pages open to read as one. Art: none, on purpose.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -1211,7 +1211,7 @@
    {
     "id": "showcase-3x4-p14",
     "title": "The Full Two Dozen (right)",
-    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Deliberately no art, and that is the curatorial decision.  Art here: no art, on purpose.",
+    "description": "Open spread, right page. Needs both pages open to read as one. Art: none, on purpose.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -1328,7 +1328,7 @@
    {
     "id": "showcase-3x4-p15",
     "title": "Poster and Gallery",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The 4-column page is uncomfortably wide for one composition, so this splits it into two objects of unequal weight.  Art here: Edge rail.",
+    "description": "Single page, stands on its own. Art: edge rail.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -1401,7 +1401,7 @@
    {
     "id": "showcase-3x4-p16",
     "title": "Establishing Tier",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. A 4-wide page reads as three identical horizontal bands and nothing tells the eye where to start.  Art here: Title band.",
+    "description": "Single page, stands on its own. Art: title band.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -1492,7 +1492,7 @@
    {
     "id": "showcase-3x4-p17",
     "title": "Reliquary (left)",
-    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. A real border, art on all four sides of the right page, leaving an interior of two pockets.  Art here: no art, on purpose.",
+    "description": "Open spread, left page. Needs both pages open to read as one. Art: none, on purpose.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -1609,7 +1609,7 @@
    {
     "id": "showcase-3x4-p18",
     "title": "Reliquary (right)",
-    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. A real border, art on all four sides of the right page, leaving an interior of two pockets.  Art here: Footer caption band, Single accent, Title band.",
+    "description": "Open spread, right page. Needs both pages open to read as one. Art: footer caption band, single accent, title band.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -1676,7 +1676,7 @@
    {
     "id": "showcase-3x4-p19",
     "title": "Counterweight Corner",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. A left-to-right reader lands first in the upper left, so a hero card placed there loads that corner and leaves the bottom right feeling hollow.  Art here: Anchor block.",
+    "description": "Single page, stands on its own. Art: anchor block.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -1767,7 +1767,7 @@
    {
     "id": "showcase-3x4-p20",
     "title": "The Complete Run",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The art here is the absence of art, and that is a decision, not a default.  Art here: no art, on purpose.",
+    "description": "Single page, stands on its own. Art: none, on purpose.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -1884,7 +1884,7 @@
    {
     "id": "showcase-3x4-p21",
     "title": "Titled Run (left)",
-    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Art used as typography rather than as picture.  Art here: Footer caption band, Title band.",
+    "description": "Open spread, left page. Needs both pages open to read as one. Art: footer caption band, title band.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -1949,7 +1949,7 @@
    {
     "id": "showcase-3x4-p22",
     "title": "Titled Run (right)",
-    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Art used as typography rather than as picture.  Art here: no art, on purpose.",
+    "description": "Open spread, right page. Needs both pages open to read as one. Art: none, on purpose.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -2066,7 +2066,7 @@
    {
     "id": "showcase-3x4-p23",
     "title": "Reliquary Ring",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. A full perimeter turns the page into a MOUNT.  Art here: Footer caption band, Single accent, Title band.",
+    "description": "Single page, stands on its own. Art: footer caption band, single accent, title band.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -2133,7 +2133,7 @@
    {
     "id": "showcase-3x4-p24",
     "title": "Nameplate and Placeholder",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. Two different small jobs, each with its own reason, and neither is decoration.  Art here: Bridging band, Single accent.",
+    "description": "Single page, stands on its own. Art: bridging band, single accent.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -2243,7 +2243,7 @@
    {
     "id": "showcase-3x4-p25",
     "title": "Opposite Corners (left)",
-    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The two 2x2 blocks sit in diagonally opposed corners of the whole spread, outer top left and inner bottom right, so their weight cancels and neither page tips.  Art here: Anchor block.",
+    "description": "Open spread, left page. Needs both pages open to read as one. Art: anchor block.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -2334,7 +2334,7 @@
    {
     "id": "showcase-3x4-p26",
     "title": "Opposite Corners (right)",
-    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The two 2x2 blocks sit in diagonally opposed corners of the whole spread, outer top left and inner bottom right, so their weight cancels and neither page tips.  Art here: Anchor block.",
+    "description": "Open spread, right page. Needs both pages open to read as one. Art: anchor block.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -2425,7 +2425,7 @@
    {
     "id": "showcase-3x4-p27",
     "title": "Opposite Corners",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. Two wide art blocks in diagonally opposite corners set up a tension the eye has to resolve: it enters at the top-left block, is pulled across and down to the bottom-right block, and the eight cards between them become the PATH rather than the content.  Art here: Bridging band.",
+    "description": "Single page, stands on its own. Art: bridging band.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -2526,7 +2526,7 @@
    {
     "id": "showcase-3x4-p28",
     "title": "Poster and Gallery",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The 4-column page is uncomfortably wide for one composition, so this splits it into two objects of unequal weight.  Art here: Edge rail.",
+    "description": "Single page, stands on its own. Art: edge rail.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -2599,7 +2599,7 @@
    {
     "id": "showcase-3x4-p29",
     "title": "Twin Anchors (left)",
-    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Each page gets an L-shaped bracket of art, one wide cell above and one tall cell beside, and the pocket in the crook of that L is the hero.  Art here: Bridging band, Corner post.",
+    "description": "Open spread, left page. Needs both pages open to read as one. Art: bridging band, corner post.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -2700,7 +2700,7 @@
    {
     "id": "showcase-3x4-p30",
     "title": "Twin Anchors (right)",
-    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Each page gets an L-shaped bracket of art, one wide cell above and one tall cell beside, and the pocket in the crook of that L is the hero.  Art here: Bridging band, Corner post.",
+    "description": "Open spread, right page. Needs both pages open to read as one. Art: bridging band, corner post.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -2801,7 +2801,7 @@
    {
     "id": "showcase-3x4-p31",
     "title": "Establishing Tier",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. A 4-wide page reads as three identical horizontal bands and nothing tells the eye where to start.  Art here: Title band.",
+    "description": "Single page, stands on its own. Art: title band.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -2892,7 +2892,7 @@
    {
     "id": "showcase-3x4-p32",
     "title": "Counterweight Corner",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. A left-to-right reader lands first in the upper left, so a hero card placed there loads that corner and leaves the bottom right feeling hollow.  Art here: Anchor block.",
+    "description": "Single page, stands on its own. Art: anchor block.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -2983,7 +2983,7 @@
    {
     "id": "showcase-3x4-p33",
     "title": "Bookends (left)",
-    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The only art is a full-height column at each outer fore-edge, so the spread is walled at its two outer boundaries and left completely open through the middle.  Art here: Edge rail.",
+    "description": "Open spread, left page. Needs both pages open to read as one. Art: edge rail.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -3083,7 +3083,7 @@
    {
     "id": "showcase-3x4-p34",
     "title": "Bookends (right)",
-    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The only art is a full-height column at each outer fore-edge, so the spread is walled at its two outer boundaries and left completely open through the middle.  Art here: Edge rail.",
+    "description": "Open spread, right page. Needs both pages open to read as one. Art: edge rail.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -3183,7 +3183,7 @@
    {
     "id": "showcase-3x4-p35",
     "title": "The Complete Run",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The art here is the absence of art, and that is a decision, not a default.  Art here: no art, on purpose.",
+    "description": "Single page, stands on its own. Art: none, on purpose.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -3300,7 +3300,7 @@
    {
     "id": "showcase-3x4-p36",
     "title": "Reliquary Ring",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. A full perimeter turns the page into a MOUNT.  Art here: Footer caption band, Single accent, Title band.",
+    "description": "Single page, stands on its own. Art: footer caption band, single accent, title band.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -3367,7 +3367,7 @@
    {
     "id": "showcase-3x4-p37",
     "title": "Gutter Bridge (left)",
-    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. An open 12-pocket binder is close to a metre of card and reads as two separate walls of twelve.  Art here: Bridging band.",
+    "description": "Open spread, left page. Needs both pages open to read as one. Art: bridging band.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -3476,7 +3476,7 @@
    {
     "id": "showcase-3x4-p38",
     "title": "Gutter Bridge (right)",
-    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. An open 12-pocket binder is close to a metre of card and reads as two separate walls of twelve.  Art here: Bridging band.",
+    "description": "Open spread, right page. Needs both pages open to read as one. Art: bridging band.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -3585,7 +3585,7 @@
    {
     "id": "showcase-3x4-p39",
     "title": "Nameplate and Placeholder",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. Two different small jobs, each with its own reason, and neither is decoration.  Art here: Bridging band, Single accent.",
+    "description": "Single page, stands on its own. Art: bridging band, single accent.",
     "rows": 3,
     "cols": 4,
     "slots": [
@@ -3728,14 +3728,14 @@
  {
   "id": "showcase-3x3",
   "title": "3x3 layout showcase",
-  "description": "Every art layout michi-maker composes onto a nine-pocket page, over cards from ME: 30th Celebration, M6: Storm Emeralda and ME05: Pitch Black. Read it double-sided: the spreads only make sense with both pages open.",
+  "description": "Every art layout for a nine-pocket page, over cards from ME: 30th Celebration, M6: Storm Emeralda and ME05: Pitch Black. Read it double-sided.",
   "layoutStyle": "freeform",
   "isExample": true,
   "pages": [
    {
     "id": "showcase-3x3-p00",
     "title": "3x3 layout showcase",
-    "description": "Forty pages of nine pockets. Each page names the layout it uses and says what the art is doing there. Spreads are marked as spreads: those were chosen for two pages seen together and do not read as one composition on their own.",
+    "description": "Forty pages. Each names its layout and what the art is doing. Read double-sided: spreads need both pages open.",
     "rows": 3,
     "cols": 3,
     "slots": []
@@ -3743,7 +3743,7 @@
    {
     "id": "showcase-3x3-p01",
     "title": "The Complete Run (left)",
-    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The composition is the repetition. Eighteen identical frames in strict order make a wall whose entire meaning is completeness, and in that context an art slot does not read as art, it reads as a card you do not own.  Art here: no art, on purpose.",
+    "description": "Open spread, left page. Needs both pages open to read as one. Art: none, on purpose.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -3833,7 +3833,7 @@
    {
     "id": "showcase-3x3-p02",
     "title": "The Complete Run (right)",
-    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The composition is the repetition. Eighteen identical frames in strict order make a wall whose entire meaning is completeness, and in that context an art slot does not read as art, it reads as a card you do not own.  Art here: no art, on purpose.",
+    "description": "Open spread, right page. Needs both pages open to read as one. Art: none, on purpose.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -3923,7 +3923,7 @@
    {
     "id": "showcase-3x3-p03",
     "title": "Nine Beats",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The absence of art IS the decision here, and it is the reason.  Art here: no art, on purpose.",
+    "description": "Single page, stands on its own. Art: none, on purpose.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -4013,7 +4013,7 @@
    {
     "id": "showcase-3x3-p04",
     "title": "Corner Post",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The single art slot is a post, and it has one job.  Art here: Corner post.",
+    "description": "Single page, stands on its own. Art: corner post.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -4095,7 +4095,7 @@
    {
     "id": "showcase-3x3-p05",
     "title": "Splash and the Run It Opens (left)",
-    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. One dominant block, doing the job of a chapter opener rather than filling a gap.  Art here: Full-page plate.",
+    "description": "Open spread, left page. Needs both pages open to read as one. Art: full-page plate.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -4114,7 +4114,7 @@
    {
     "id": "showcase-3x3-p06",
     "title": "Splash and the Run It Opens (right)",
-    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. One dominant block, doing the job of a chapter opener rather than filling a gap.  Art here: no art, on purpose.",
+    "description": "Open spread, right page. Needs both pages open to read as one. Art: none, on purpose.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -4204,7 +4204,7 @@
    {
     "id": "showcase-3x3-p07",
     "title": "Wall Text",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The bar is a caption plate, not a filler. It carries the page\\'s title, the illustrator\\'s name, the set, the dates: wall text for the six cards above it.  Art here: Footer caption band.",
+    "description": "Single page, stands on its own. Art: footer caption band.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -4277,7 +4277,7 @@
    {
     "id": "showcase-3x3-p08",
     "title": "Cornerstone",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. One 2x2 block is the single dominant mass on the page, and it is sited low and to the right on purpose.  Art here: Anchor block.",
+    "description": "Single page, stands on its own. Art: anchor block.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -4341,7 +4341,7 @@
    {
     "id": "showcase-3x3-p09",
     "title": "Scene Across the Spine (left)",
-    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Two 2x2 blocks are butted against the gutter from both sides so a single landscape reads across the spine while no slot ever crosses it.  Art here: Anchor block.",
+    "description": "Open spread, left page. Needs both pages open to read as one. Art: anchor block.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -4405,7 +4405,7 @@
    {
     "id": "showcase-3x3-p10",
     "title": "Scene Across the Spine (right)",
-    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Two 2x2 blocks are butted against the gutter from both sides so a single landscape reads across the spine while no slot ever crosses it.  Art here: Anchor block.",
+    "description": "Open spread, right page. Needs both pages open to read as one. Art: anchor block.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -4469,7 +4469,7 @@
    {
     "id": "showcase-3x3-p11",
     "title": "Diagonal Channel",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. Both panels are the same 1x2 size, placed diagonally opposite, so they balance by 180-degree rotation rather than by mirroring.  Art here: Bridging band.",
+    "description": "Single page, stands on its own. Art: bridging band.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -4543,7 +4543,7 @@
    {
     "id": "showcase-3x3-p12",
     "title": "Triptych Rails",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The two rails convert a 3x3 page into a single vertical strip, and that conversion is their entire purpose.  Art here: Edge rail.",
+    "description": "Single page, stands on its own. Art: edge rail.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -4599,7 +4599,7 @@
    {
     "id": "showcase-3x3-p13",
     "title": "Unequal Bookends (left)",
-    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The asymmetric one. Two vertical rails on the OUTER edges of the spread act as bookends holding a thirteen-card field, and they are deliberately unequal (three tall on the left, two tall and bottom-anchored on the right) so the pair reads as balance rather than as a static mirror.  Art here: Edge rail.",
+    "description": "Open spread, left page. Needs both pages open to read as one. Art: edge rail.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -4672,7 +4672,7 @@
    {
     "id": "showcase-3x3-p14",
     "title": "Unequal Bookends (right)",
-    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The asymmetric one. Two vertical rails on the OUTER edges of the spread act as bookends holding a thirteen-card field, and they are deliberately unequal (three tall on the left, two tall and bottom-anchored on the right) so the pair reads as balance rather than as a static mirror.  Art here: Corner post.",
+    "description": "Open spread, right page. Needs both pages open to read as one. Art: corner post.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -4754,7 +4754,7 @@
    {
     "id": "showcase-3x3-p15",
     "title": "Reliquary",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. All four slots are one object, a mount, and each part of the ring is doing framing work.  Art here: Footer caption band, Single accent, Title band.",
+    "description": "Single page, stands on its own. Art: footer caption band, single accent, title band.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -4812,7 +4812,7 @@
    {
     "id": "showcase-3x3-p16",
     "title": "Divider Plate",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. This is a page break, and it works precisely because it is the only page in the run with nothing to read.  Art here: Full-page plate.",
+    "description": "Single page, stands on its own. Art: full-page plate.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -4831,7 +4831,7 @@
    {
     "id": "showcase-3x3-p17",
     "title": "Banner and Footer (left)",
-    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Art as caption and label. The top strip on the left leaf carries the title, the bottom strip on the right leaf carries the caption, credit or set line, and together they sit at the spread\\'s entry point and its exit point, the top-left to bottom-right reading diagonal.  Art here: Title band.",
+    "description": "Open spread, left page. Needs both pages open to read as one. Art: title band.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -4904,7 +4904,7 @@
    {
     "id": "showcase-3x3-p18",
     "title": "Banner and Footer (right)",
-    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Art as caption and label. The top strip on the left leaf carries the title, the bottom strip on the right leaf carries the caption, credit or set line, and together they sit at the spread\\'s entry point and its exit point, the top-left to bottom-right reading diagonal.  Art here: Footer caption band.",
+    "description": "Open spread, right page. Needs both pages open to read as one. Art: footer caption band.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -4977,7 +4977,7 @@
    {
     "id": "showcase-3x3-p19",
     "title": "Nine Beats",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The absence of art IS the decision here, and it is the reason.  Art here: no art, on purpose.",
+    "description": "Single page, stands on its own. Art: none, on purpose.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -5067,7 +5067,7 @@
    {
     "id": "showcase-3x3-p20",
     "title": "Corner Post",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The single art slot is a post, and it has one job.  Art here: Corner post.",
+    "description": "Single page, stands on its own. Art: corner post.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -5149,7 +5149,7 @@
    {
     "id": "showcase-3x3-p21",
     "title": "The Reliquary (left)",
-    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Art as frame. Eight art cells form a complete ring around pocket 5 of the left leaf, so the hero card shares its page with nothing at all: it is matted, the way a single work is hung, and there is no second card anywhere on that leaf to argue with it.  Art here: Footer caption band, Single accent, Title band.",
+    "description": "Open spread, left page. Needs both pages open to read as one. Art: footer caption band, single accent, title band.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -5207,7 +5207,7 @@
    {
     "id": "showcase-3x3-p22",
     "title": "The Reliquary (right)",
-    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. Art as frame. Eight art cells form a complete ring around pocket 5 of the left leaf, so the hero card shares its page with nothing at all: it is matted, the way a single work is hung, and there is no second card anywhere on that leaf to argue with it.  Art here: no art, on purpose.",
+    "description": "Open spread, right page. Needs both pages open to read as one. Art: none, on purpose.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -5297,7 +5297,7 @@
    {
     "id": "showcase-3x3-p23",
     "title": "Wall Text",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The bar is a caption plate, not a filler. It carries the page\\'s title, the illustrator\\'s name, the set, the dates: wall text for the six cards above it.  Art here: Footer caption band.",
+    "description": "Single page, stands on its own. Art: footer caption band.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -5370,7 +5370,7 @@
    {
     "id": "showcase-3x3-p24",
     "title": "Cornerstone",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. One 2x2 block is the single dominant mass on the page, and it is sited low and to the right on purpose.  Art here: Anchor block.",
+    "description": "Single page, stands on its own. Art: anchor block.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -5434,7 +5434,7 @@
    {
     "id": "showcase-3x3-p25",
     "title": "The Reserved Pocket (left)",
-    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The single tile is a placeholder, not decoration, and that is its whole rationale.  Art here: no art, on purpose.",
+    "description": "Open spread, left page. Needs both pages open to read as one. Art: none, on purpose.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -5524,7 +5524,7 @@
    {
     "id": "showcase-3x3-p26",
     "title": "The Reserved Pocket (right)",
-    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The single tile is a placeholder, not decoration, and that is its whole rationale.  Art here: Single accent.",
+    "description": "Open spread, right page. Needs both pages open to read as one. Art: single accent.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -5615,7 +5615,7 @@
    {
     "id": "showcase-3x3-p27",
     "title": "Diagonal Channel",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. Both panels are the same 1x2 size, placed diagonally opposite, so they balance by 180-degree rotation rather than by mirroring.  Art here: Bridging band.",
+    "description": "Single page, stands on its own. Art: bridging band.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -5689,7 +5689,7 @@
    {
     "id": "showcase-3x3-p28",
     "title": "Triptych Rails",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The two rails convert a 3x3 page into a single vertical strip, and that conversion is their entire purpose.  Art here: Edge rail.",
+    "description": "Single page, stands on its own. Art: edge rail.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -5745,7 +5745,7 @@
    {
     "id": "showcase-3x3-p29",
     "title": "Woven Bands (left)",
-    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The art-heavy one, and the art is the ground rather than the filler.  Art here: Bridging band.",
+    "description": "Open spread, left page. Needs both pages open to read as one. Art: bridging band.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -5811,7 +5811,7 @@
    {
     "id": "showcase-3x3-p30",
     "title": "Woven Bands (right)",
-    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The art-heavy one, and the art is the ground rather than the filler.  Art here: Bridging band.",
+    "description": "Open spread, right page. Needs both pages open to read as one. Art: bridging band.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -5877,7 +5877,7 @@
    {
     "id": "showcase-3x3-p31",
     "title": "Reliquary",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. All four slots are one object, a mount, and each part of the ring is doing framing work.  Art here: Footer caption band, Single accent, Title band.",
+    "description": "Single page, stands on its own. Art: footer caption band, single accent, title band.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -5935,7 +5935,7 @@
    {
     "id": "showcase-3x3-p32",
     "title": "Divider Plate",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. This is a page break, and it works precisely because it is the only page in the run with nothing to read.  Art here: Full-page plate.",
+    "description": "Single page, stands on its own. Art: full-page plate.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -5954,7 +5954,7 @@
    {
     "id": "showcase-3x3-p33",
     "title": "The Complete Run (left)",
-    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The composition is the repetition. Eighteen identical frames in strict order make a wall whose entire meaning is completeness, and in that context an art slot does not read as art, it reads as a card you do not own.  Art here: no art, on purpose.",
+    "description": "Open spread, left page. Needs both pages open to read as one. Art: none, on purpose.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -6044,7 +6044,7 @@
    {
     "id": "showcase-3x3-p34",
     "title": "The Complete Run (right)",
-    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. The composition is the repetition. Eighteen identical frames in strict order make a wall whose entire meaning is completeness, and in that context an art slot does not read as art, it reads as a card you do not own.  Art here: no art, on purpose.",
+    "description": "Open spread, right page. Needs both pages open to read as one. Art: none, on purpose.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -6134,7 +6134,7 @@
    {
     "id": "showcase-3x3-p35",
     "title": "Nine Beats",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The absence of art IS the decision here, and it is the reason.  Art here: no art, on purpose.",
+    "description": "Single page, stands on its own. Art: none, on purpose.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -6224,7 +6224,7 @@
    {
     "id": "showcase-3x3-p36",
     "title": "Corner Post",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The single art slot is a post, and it has one job.  Art here: Corner post.",
+    "description": "Single page, stands on its own. Art: corner post.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -6306,7 +6306,7 @@
    {
     "id": "showcase-3x3-p37",
     "title": "Splash and the Run It Opens (left)",
-    "description": "OPEN SPREAD, left-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. One dominant block, doing the job of a chapter opener rather than filling a gap.  Art here: Full-page plate.",
+    "description": "Open spread, left page. Needs both pages open to read as one. Art: full-page plate.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -6325,7 +6325,7 @@
    {
     "id": "showcase-3x3-p38",
     "title": "Splash and the Run It Opens (right)",
-    "description": "OPEN SPREAD, right-hand page. This layout was chosen for two pages seen together: it only reads as one composition with its facing page beside it, across the rings. One dominant block, doing the job of a chapter opener rather than filling a gap.  Art here: no art, on purpose.",
+    "description": "Open spread, right page. Needs both pages open to read as one. Art: none, on purpose.",
     "rows": 3,
     "cols": 3,
     "slots": [
@@ -6415,7 +6415,7 @@
    {
     "id": "showcase-3x3-p39",
     "title": "Wall Text",
-    "description": "SINGLE PAGE. This layout is composed to stand on its own, whichever page faces it. The bar is a caption plate, not a filler. It carries the page\\'s title, the illustrator\\'s name, the set, the dates: wall text for the six cards above it.  Art here: Footer caption band.",
+    "description": "Single page, stands on its own. Art: footer caption band.",
     "rows": 3,
     "cols": 3,
     "slots": [

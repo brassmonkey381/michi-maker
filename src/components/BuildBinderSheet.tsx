@@ -222,8 +222,8 @@ export function BuildBinderSheet({
                   Theme pages found in your unplaced cards, evolution lines, single species,
                   artists, colours and more. Untick any you don’t want. Each page is composed
                   around its cards, with room set aside for your own art, and Reclaim can take any
-                  card back out. Where a theme runs out of cards the pockets stay open — tap one
-                  later to browse, or use Fill to finish the page.
+                  card back out. Where a theme runs out of cards, pockets stay open: tap one to
+                  browse, or use Fill.
                 </ThemedText>
 
                 {/* THE PAGE, chosen before the pages are read — a 12-pocket binder should be

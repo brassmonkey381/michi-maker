@@ -60,10 +60,8 @@ export function PageComposition({ page }: { page: DemoPage }) {
             {open === 1 ? '1 pocket is still open' : `${open} pockets are still open`}
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary" style={styles.body}>
-            This page took every card in your collection that suited its theme, and then ran out.
-            The gaps are not a mistake and nothing is missing from the binder — there was simply
-            nothing left that belonged here. Tap a pocket to browse for a card, or use Fill to
-            build the rest of the page around what is already on it.
+            Nothing left in your collection suited this page, so these stayed open. Tap one to
+            browse, or use Fill.
           </ThemedText>
         </View>
       ) : null}

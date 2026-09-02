@@ -81,14 +81,20 @@ try {
   for (let i = 0; i < 25 && !(await p.locator('[data-testid="tool-undo"]').count()); i++) await settle(800);
   await settle(2000);
 
-  // Double-sided on, so the cover chips exist in the strip.
+  // The view under test: the book (default) or, with MICHI_SINGLE=1, the single-page view — the
+  // cover chips exist in both now, and every step below holds in both.
+  const wantTwoUp = !process.env.MICHI_SINGLE;
   await p.locator('[data-testid="binder-settings-btn"]').first().click({ timeout: 8000 });
   await settle(1200);
   const two = p.getByText(/Double-sided$/).first();
-  if ((await two.count()) && !(await two.innerText()).startsWith('✓')) {
-    await two.click({ timeout: 8000 });
-    await settle(1500);
+  if (await two.count()) {
+    const isOn = (await two.innerText()).startsWith('✓');
+    if (isOn !== wantTwoUp) {
+      await two.click({ timeout: 8000 });
+      await settle(1500);
+    }
   }
+  console.log(`view           : ${wantTwoUp ? 'book (double-sided)' : 'single page'}`);
   // Close the settings dialog by its backdrop: "the first Done on the page" is not always its Done.
   await p.mouse.click(8, 8);
   await settle(2000);

@@ -172,7 +172,7 @@ export function CardPicker({
   // Themed-background picker shows one swatch per energy family; this cycles the palette (base +
   // variants) across every swatch at once.
   const [themePaletteIdx, setThemePaletteIdx] = useState(0);
-  const [tab, setTab] = useState<PickerTab>('cards');
+  const [tabState, setTab] = useState<PickerTab>('cards');
   // On the Artwork (Slice Studio) tab, "Done" commits any unsaved framing to the tray before
   // closing (the studio saves only genuinely-unsaved work); on other tabs it's a plain close.
   // Done just closes now. It used to commit the embedded Slice Studio's unsaved framing first;
@@ -298,6 +298,8 @@ export function CardPicker({
   // embedding the Slice Studio — a workspace that hung off the edge of a narrow column. That tab is
   // the slice tray now, and a column of chips docks like anything else.)
   const docked = dockedProp ?? width >= CARD_PICKER_DOCK_MIN_WIDTH;
+  // Docked, this side IS cards — whatever tab a previous narrow session left selected.
+  const tab = docked ? 'cards' : tabState;
 
   /**
    * ONE TAP TO PLACE.
@@ -358,9 +360,17 @@ export function CardPicker({
         ) : null}
       </View>
 
-      {/* Content type — decide *what* goes in the pocket first. */}
-      <View style={styles.segmentRow}>
-        {TABS.map((t) => {
+      {/* Content type — decide *what* goes in the pocket first.
+
+          DOCKED, THIS PANEL IS CARDS ONLY. Artwork and inserts live in the panel on the other side,
+          so offering them here too would be two doors to one room — and, for the card browser
+          specifically, two doors that cannot both be open: `browseState` in tcgscan-browse is a
+          module singleton, so a second mounted browser corrupts the first one's query and sort.
+          Keeping the browser to one side is what makes that impossible rather than merely unlikely.
+
+          The tab bar stays for the narrow sheet, which has no second side to put anything on. */}
+      <View style={[styles.segmentRow, docked && styles.segmentRowHidden]}>
+        {(docked ? TABS.filter((t) => t.id === 'cards') : TABS).map((t) => {
           const active = tab === t.id;
           return (
             <Pressable
@@ -526,6 +536,8 @@ const styles = StyleSheet.create({
    *  of a desktop is nobody's idea of a good picker. The Slice Studio is the exception — it is a
    *  workspace and takes every pixel it is given. */
   sheetCapped: { width: '100%', maxWidth: 720, alignSelf: 'center' },
+  /** One tab is not a choice: docked, the row is a label nobody needs, so it takes no height. */
+  segmentRowHidden: { display: 'none' },
   // A definite height (not just maxHeight) so the browse FlatList gets a bounded viewport. Overrides
   // the shared bottomSheet's 85% maxHeight to give the Slice Studio canvas more vertical room.
   sheetTall: { height: '94%', maxHeight: '94%' },

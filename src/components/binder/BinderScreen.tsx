@@ -76,7 +76,7 @@ import { resolveCard } from '@/data/cardResolver';
 import { addSavedSlices, removeSavedSlice, sliceSignature, slotSignature, useSavedSlices, useSavedSlicesSync, type SavedSlice } from '@/data/savedSlices';
 import { artLimitMessage, artTrialMessage, binderLimitMessage, binderTrialMessage, limitCta, pageLimitMessage, pageTrialMessage } from '@/data/limitMessages';
 
-import { SliceTray, SliceThumb } from '@/components/binder/SliceTray';
+import { SliceThumb } from '@/components/binder/SliceTray';
 import type { CatalogCard } from '@/lib/catalog';
 import { isBlankPage, useBinders } from '@/store/binders';
 import { useTheme } from '@/hooks/use-theme';
@@ -1814,22 +1814,13 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                 )}
               </>
             )}
-            {editing ? <View style={styles.traySpacer} /> : null}
           </ScrollView>
 
-          {editing ? (
-            <SliceTray
-              armedId={armedSlice?.id ?? null}
-              onArm={setArmedSlice}
-              onDragStart={handleSliceDragStart}
-              onDrop={handleSliceDrop}
-              onRemove={handleRemoveSlice}
-              onNew={openStudioForPage}
-              ghostOn={ghostOn}
-              ghostX={ghostX}
-              ghostY={ghostY}
-            />
-          ) : null}
+          {/* THE BOTTOM SLICE TRAY IS GONE. It was a full-width bar pinned under the binder plus a
+              150px spacer to stop the page sliding beneath it — 150px of a height budget the page
+              never got back, spent on a surface the Artwork panel now does better: taller, beside
+              the binder rather than under it, and browsable instead of a single scrolling line.
+              Same chips, same drag, same store; the ghost below still belongs to both. */}
           {dragSlice ? (
             <Animated.View pointerEvents="none" style={[styles.dragGhost, ghostStyle]}>
               <SliceThumb slice={dragSlice} style={StyleSheet.absoluteFill} />
@@ -1912,6 +1903,10 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           onDrop={handleSliceDrop}
           onRemove={handleRemoveSlice}
           onNewSlice={openStudioForPage}
+          // Inserts moved to this side with the artwork: both are "not a card", and the card
+          // browser has to stay alone on its own side anyway.
+          onPickInsert={handlePickInsert}
+          onClear={handleClear}
           ghostOn={ghostOn}
           ghostX={ghostX}
           ghostY={ghostY}
@@ -2354,7 +2349,6 @@ const styles = StyleSheet.create({
   },
   deleteBinderText: { color: Palette.dangerAlt, fontSize: FontSize.control, fontWeight: Weight.semibold },
   // Clearance so scrolled content isn't hidden behind the docked slice tray.
-  traySpacer: { height: 150 },
   // Floating drag preview that follows the finger while a slice is dragged from the tray.
   dragGhost: {
     position: 'absolute',

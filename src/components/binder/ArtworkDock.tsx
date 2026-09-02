@@ -13,7 +13,8 @@
  * back to, and `sendBrowseCommand` is a broadcast — so two browsers would silently corrupt each
  * other's query, sort and similarity state. One browser, one tray.
  */
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { SharedValue } from 'react-native-reanimated';
 
 import { ArtworkPanel } from '@/components/binder/ArtworkPanel';
@@ -21,6 +22,22 @@ import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { sheet } from '@/constants/ui';
 import type { SavedSlice } from '@/data/savedSlices';
+
+/** The tonal inserts, the same set the picker's Insert tab offered. */
+const INSERT_COLOURS = [
+  '#1F2937',
+  '#374151',
+  '#6B7280',
+  '#9CA3AF',
+  '#E5E7EB',
+  '#FEF3C7',
+  '#FDE68A',
+  '#FCA5A5',
+  '#BFDBFE',
+  '#A7F3D0',
+  '#DDD6FE',
+  '#F5D0FE',
+];
 
 export interface ArtworkDockProps {
   visible: boolean;
@@ -37,6 +54,9 @@ export interface ArtworkDockProps {
   onDrop: (slice: SavedSlice, windowX: number, windowY: number) => void;
   onRemove: (slice: SavedSlice) => void;
   onNewSlice: () => void;
+  /** Inserts live on this side too — see the tab note below. */
+  onPickInsert?: (color: string, rowSpan: number, colSpan: number) => void;
+  onClear?: () => void;
   ghostOn: SharedValue<number>;
   ghostX: SharedValue<number>;
   ghostY: SharedValue<number>;
@@ -48,18 +68,68 @@ export function ArtworkDock({
   width,
   side = 'left',
   onClose,
+  onPickInsert,
+  onClear,
   ...panel
 }: ArtworkDockProps) {
+  /**
+   * ART AND INSERTS, because both are "something that is not a card" and both belong on the side
+   * the card browser is not on. Splitting them across the two panels would have put one non-card
+   * thing beside the cards and the other opposite it, for no reason a person could name.
+   */
+  const [tab, setTab] = useState<'art' | 'insert'>('art');
+  const tabs = onPickInsert ? (['art', 'insert'] as const) : (['art'] as const);
+
   if (!visible) return null;
 
   const body = (
     <>
       <View style={styles.head}>
+        <View style={styles.tabs}>
+          {tabs.length > 1
+            ? tabs.map((t) => (
+                <Pressable
+                  key={t}
+                  onPress={() => setTab(t)}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: tab === t }}
+                  style={[styles.tab, tab === t && styles.tabOn]}>
+                  <Text style={[styles.tabText, tab === t && styles.tabTextOn]}>
+                    {t === 'art' ? 'Artwork' : 'Inserts'}
+                  </Text>
+                </Pressable>
+              ))
+            : null}
+        </View>
         <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button">
           <Text style={styles.close}>Done</Text>
         </Pressable>
       </View>
-      <ArtworkPanel {...panel} />
+      {tab === 'art' ? (
+        <ArtworkPanel {...panel} />
+      ) : (
+        <ScrollView contentContainerStyle={styles.insertScroll} showsVerticalScrollIndicator={false}>
+          <Text style={styles.insertHint}>
+            A plain colour behind a pocket — a divider, a spacer, or a rest between runs of cards.
+          </Text>
+          <View style={styles.swatches}>
+            {INSERT_COLOURS.map((c) => (
+              <Pressable
+                key={c}
+                onPress={() => onPickInsert?.(c, 1, 1)}
+                accessibilityRole="button"
+                accessibilityLabel={`Insert ${c}`}
+                style={[styles.swatch, { backgroundColor: c }]}
+              />
+            ))}
+          </View>
+          {onClear ? (
+            <Pressable onPress={onClear} style={styles.clearBtn} accessibilityRole="button">
+              <Text style={styles.clearText}>Leave the pocket empty</Text>
+            </Pressable>
+          ) : null}
+        </ScrollView>
+      )}
     </>
   );
 
@@ -117,6 +187,17 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.two,
     paddingBottom: Spacing.three,
   },
-  head: { flexDirection: 'row', justifyContent: 'flex-end', paddingBottom: 2 },
+  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 6, gap: Spacing.two },
+  tabs: { flexDirection: 'row', gap: 4 },
+  tab: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: Radius.pill },
+  tabOn: { backgroundColor: Palette.panel },
+  tabText: { fontSize: FontSize.label, fontWeight: Weight.semibold, color: Palette.muted2 },
+  tabTextOn: { color: Palette.ink2 },
+  insertScroll: { gap: Spacing.three, paddingBottom: Spacing.four },
+  insertHint: { fontSize: FontSize.sm, color: Palette.muted2, lineHeight: 16 },
+  swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  swatch: { width: 56, height: 78, borderRadius: Radius.thumb, borderWidth: 1, borderColor: Palette.hairline },
+  clearBtn: { paddingVertical: 8, alignSelf: 'flex-start' },
+  clearText: { fontSize: FontSize.label, fontWeight: Weight.semibold, color: Palette.muted2 },
   close: { fontSize: FontSize.label, fontWeight: Weight.semibold, color: Palette.accent },
 });

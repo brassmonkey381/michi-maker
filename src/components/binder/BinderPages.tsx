@@ -286,6 +286,19 @@ export function BinderPages({
    * dock is unmounted then, so its onLayout never fires again and the state would keep whatever it
    * last measured — the page would pay for a strip that is not there.
    */
+  /**
+   * Does ANY page in this binder have something to say above it?
+   *
+   * The line is reserved for the whole binder or for none of it. Reserving it always cost every
+   * binder ~28px of page height to hold space for a caption most of them never use; reserving it
+   * per page put the jump back, because the point is that page 3 and page 4 agree. Asking the
+   * binder rather than the page is the version that is free when it is not needed and correct when
+   * it is.
+   */
+  const anyTitled = useMemo(
+    () => binder.pages.some((pg) => Boolean(pg.title) || Boolean(pg.description)),
+    [binder.pages],
+  );
   const railLeft = view.navDock === 'left';
   const heightBudget = Math.max(
     0,
@@ -926,8 +939,8 @@ export function BinderPages({
 
           A caller-supplied header (the editor's editable fields) is left exactly as it was: it is
           already always present, and it sizes itself. */}
-      {pageHeader ?? (
-        <View style={[styles.pageDetailsRead, styles.pageDetailsReserved]}>
+      {pageHeader ?? (anyTitled || page?.title || page?.description) ? (
+        <View style={[styles.pageDetailsRead, anyTitled && styles.pageDetailsReserved]}>
           {page?.title ? (
             <ThemedText type="smallBold" style={styles.pageTitle}>
               {page.title}
@@ -939,7 +952,7 @@ export function BinderPages({
             </ThemedText>
           ) : null}
         </View>
-      )}
+      ) : null}
 
       {/* View controls: double-sided (book spreads) + card labels. Page flipping is the
           filmstrip / mouse wheel / neighbour taps / arrow keys — no ‹ m/n › readout. */}

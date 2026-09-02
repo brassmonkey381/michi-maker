@@ -12,7 +12,15 @@
  */
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import {
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import Animated, {
   runOnJS,
   useAnimatedStyle,
@@ -35,8 +43,10 @@ import { PageStrip, STRIP_THUMB_W, type StripExtra } from '@/components/binder/P
 import { COVER_ABBR, CoverStickerLayer, CoverTools, withSurface } from '@/components/binder/CoverEditor';
 import { useBinders } from '@/store/binders';
 import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
+import { FontSize, Palette, Radius, Weight } from '@/constants/theme';
 
-import { pillChip } from '@/constants/ui';
+import { pillChip, sheet } from '@/constants/ui';
 import { hasTextCaption, type CaptionFieldKey } from '@/data/cardCaption';
 import { PEEK_MIN_WIDTH, SPREAD_GAP, bookLayout, pageHeightAt, spreadLayout } from '@/data/binderLayout';
 import { useCardLabelPrefs } from '@/hooks/use-card-label-prefs';
@@ -62,11 +72,16 @@ export type GridRole = 'single' | 'prev' | 'current' | 'next' | 'partner';
 const WEB_STICKY = { position: 'sticky', bottom: 0, zIndex: 5 };
 
 /**
- * A few pixels between the bottom of the page and the strip beneath it. Small on purpose: this is
- * the one term in the height budget that is a taste call rather than a measurement, and every pixel
- * spent here comes straight off the card art.
+ * A few pixels between the bottom of the page and the strip beneath it.
+ *
+ * 18, not 10, and the difference is tolerance rather than taste. The page strip is sticky AND
+ * OPAQUE, so it does not merely sit below the page — it covers whatever reaches it. At 10 the page
+ * cleared it by exactly 1px at both of the heights where the page was above its floor, which is not
+ * clearance, it is a coincidence: one taller strip or one rounding change and a full-size page
+ * starts hiding behind it while a bounds-only fit check still reports green. That is the failure
+ * this number now buys distance from.
  */
-const PAGE_BREATHING_ROOM = 10;
+const PAGE_BREATHING_ROOM = 18;
 
 /**
  * The page-navigation rail, when it is docked to the left rather than along the bottom.
@@ -172,6 +187,11 @@ export interface BinderPagesProps {
   /** Optional override for the per-page title/description area (edit passes text inputs here);
    *  omit to show the page's title/description read-only. */
   pageHeader?: ReactNode;
+  /**
+   * Tapping the page's title line opens the editor's details dialog. A page's name is edited where
+   * the name IS, rather than in a panel that used to open above the binder and push it down.
+   */
+  onEditPage?: () => void;
   /** Shared "which spread column is mid-drag" value, so that column lifts above its neighbours
    *  (edit only). Omit on read-only surfaces. */
   dragCol?: SharedValue<number>;
@@ -191,6 +211,7 @@ export function BinderPages({
   renderGrid,
   onReorderPages,
   pageHeader,
+  onEditPage,
   dragCol,
 }: BinderPagesProps) {
   // Remembered per account (and per device for guests) rather than reset on every visit — see
@@ -266,6 +287,22 @@ export function BinderPages({
   // Whether the "which fields" chips are showing. Closed by default: it is a setup control, and
   // every line above the page is height the page does not get.
   const [fieldsOpen, setFieldsOpen] = useState(false);
+  /**
+   * MEASURED AS A HEIGHT, NOT A POSITION — and that distinction is the whole bug it fixes.
+   *
+   * This was the page area's `y` inside the scroll content, which is the more complete number: it
+   * covers this component's chrome AND everything the caller stacks above it, in one reading. It is
+   * also a number react-native-web will not reliably tell you about. `onLayout` there is backed by
+   * a ResizeObserver on the element itself, so it fires when the element's SIZE changes and NOT
+   * when something above it grows and pushes it down. The first reading was therefore taken before
+   * the chrome had settled and then never corrected: the page was drawn ~11px too tall on arrival,
+   * and the first thing that forced a re-layout — any panel toggle — snapped it to the right size
+   * as a visible jump the user could not explain.
+   *
+   * Heights do fire. So the space above the page is now the sum of two heights, each measured on
+   * the element that owns it: this component's chrome block, and (via `viewportTop`) everything the
+   * caller puts above it.
+   */
   const [contentAbove, setContentAboveRaw] = useState(0);
   const [stripHeight, setStripHeightRaw] = useState(0);
   const setContentAbove = (y: number) =>
@@ -286,19 +323,6 @@ export function BinderPages({
    * dock is unmounted then, so its onLayout never fires again and the state would keep whatever it
    * last measured — the page would pay for a strip that is not there.
    */
-  /**
-   * Does ANY page in this binder have something to say above it?
-   *
-   * The line is reserved for the whole binder or for none of it. Reserving it always cost every
-   * binder ~28px of page height to hold space for a caption most of them never use; reserving it
-   * per page put the jump back, because the point is that page 3 and page 4 agree. Asking the
-   * binder rather than the page is the version that is free when it is not needed and correct when
-   * it is.
-   */
-  const anyTitled = useMemo(
-    () => binder.pages.some((pg) => Boolean(pg.title) || Boolean(pg.description)),
-    [binder.pages],
-  );
   const railLeft = view.navDock === 'left';
   const heightBudget = Math.max(
     0,
@@ -926,7 +950,7 @@ export function BinderPages({
           pushed the page filmstrip below the fold, so the only way to reach page navigation was to
           scroll, over a surface where the wheel flips pages instead. These two onLayouts report
           what the chrome actually costs. */}
-      <View>
+      <View onLayout={(e) => setContentAbove(e.nativeEvent.layout.height)}>
       {/* Per-page title/description — caller override (edit inputs) or read-only. */}
       {/* THE TITLE LINE IS ALWAYS THERE, even when the page has no title — and covers get it too.
 
@@ -939,20 +963,26 @@ export function BinderPages({
 
           A caller-supplied header (the editor's editable fields) is left exactly as it was: it is
           already always present, and it sizes itself. */}
-      {pageHeader ?? (anyTitled || page?.title || page?.description) ? (
-        <View style={[styles.pageDetailsRead, anyTitled && styles.pageDetailsReserved]}>
-          {page?.title ? (
-            <ThemedText type="smallBold" style={styles.pageTitle}>
-              {page.title}
-            </ThemedText>
-          ) : null}
-          {page?.description ? (
-            <ThemedText type="small" themeColor="textSecondary" style={styles.pageDescription}>
-              {page.description}
-            </ThemedText>
-          ) : null}
-        </View>
-      ) : null}
+      {/* ONE LINE, ALWAYS, AND ALWAYS THE SAME HEIGHT — and it is the way in to naming the page.
+          The description is deliberately NOT rendered here any more: a page with two lines of prose
+          made the chrome taller than a page without, which moved the binder AND (because this space
+          is measured into the height budget) re-sized it. One line, truncated, opens the dialog. */}
+      {pageHeader ?? (
+        <Pressable
+          onPress={onEditPage}
+          disabled={!onEditPage}
+          accessibilityRole={onEditPage ? 'button' : undefined}
+          accessibilityLabel={onEditPage ? 'Edit this page\'s title and description' : undefined}
+          style={[styles.pageDetailsRead, styles.pageDetailsReserved]}>
+          <ThemedText
+            type="smallBold"
+            themeColor={page?.title ? undefined : 'textSecondary'}
+            numberOfLines={1}
+            style={styles.pageTitle}>
+            {page?.title || (onEditPage ? 'Name this page' : ' ')}
+          </ThemedText>
+        </Pressable>
+      )}
 
       {/* View controls: double-sided (book spreads) + card labels. Page flipping is the
           filmstrip / mouse wheel / neighbour taps / arrow keys — no ‹ m/n › readout. */}
@@ -1036,11 +1066,24 @@ export function BinderPages({
             It gets its own line rather than going inline for the reason it always did: inline it
             widened the Card labels pill and shoved Double-sided, Owned and Scans sideways every
             time labels were switched on. */}
-        <CaptionFieldRow
-          enabled={labelsOn && fieldsOpen}
-          fields={labelFields}
-          onToggleField={toggleLabelField}
-        />
+        {/* IN A DIALOG, not a row that opens here. Opening it used to add a line above the binder,
+            which moved the pages down and shrank them; a dialog costs the layout nothing. */}
+        {fieldsOpen ? (
+          <Modal visible transparent animationType="fade" onRequestClose={() => setFieldsOpen(false)}>
+            <View style={sheet.dialogBackdrop}>
+              <Pressable style={StyleSheet.absoluteFill} onPress={() => setFieldsOpen(false)} />
+              <ThemedView type="backgroundElement" style={styles.fieldsCard}>
+                <View style={styles.fieldsHead}>
+                  <ThemedText type="subtitle">Which labels</ThemedText>
+                  <Pressable onPress={() => setFieldsOpen(false)} hitSlop={10}>
+                    <Text style={styles.fieldsDone}>Done</Text>
+                  </Pressable>
+                </View>
+                <CaptionFieldRow enabled={labelsOn} fields={labelFields} onToggleField={toggleLabelField} />
+              </ThemedView>
+            </View>
+          </Modal>
+        ) : null}
         {/* DECORATING, IN THE BINDER. The tools for whichever cover is in focus, next to the
             page it belongs with rather than in a dialog. Inside the measured block, so the page
             makes room for them instead of pushing the filmstrip down. */}
@@ -1071,9 +1114,7 @@ export function BinderPages({
           The content measurement moved up here with it. It is this wrapper's offset in the scroll
           content that says how much sits above the page now, and measuring the inner view would
           report 0 the moment a rail put it inside a row. */}
-      <View
-        style={[styles.pageRow, railLeft && styles.pageRowRailed]}
-        onLayout={(e) => setContentAbove(e.nativeEvent.layout.y)}>
+      <View style={[styles.pageRow, railLeft && styles.pageRowRailed]}>
       {railLeft && (count > 1 || coverStripExtras) ? (
         <View style={[styles.navRail, { backgroundColor: theme.background }]}>
           <PageStrip
@@ -1660,7 +1701,18 @@ const styles = StyleSheet.create({
    * What this stops is the binder JUMPING between a bare page and a titled one, which is the common
    * case and says nothing at all.
    */
-  pageDetailsReserved: { minHeight: 20 },
+  pageDetailsReserved: { minHeight: 20, justifyContent: 'center' },
+  fieldsCard: {
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
+    borderRadius: Radius.panel,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 18,
+  },
+  fieldsHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 10 },
+  fieldsDone: { fontSize: FontSize.md, fontWeight: Weight.semibold, color: Palette.accent },
   // 8, not 18. That margin was free when the page was sized by width and simply overflowed; now
   // that the page is fitted to the height it has, every pixel of margin comes straight off the card
   // art. 36px of it was the difference between a 700px window fitting and not.

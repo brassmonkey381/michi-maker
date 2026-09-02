@@ -78,6 +78,15 @@ const measure = (page) =>
       w: Math.round(r.width),
       viewport: window.innerHeight,
       scrollY: Math.round(window.scrollY || document.documentElement.scrollTop || 0),
+      // IS IT ACTUALLY VISIBLE, not merely in bounds. The page strip is sticky and opaque, so it
+      // COVERS the bottom of the page rather than sitting under it — this check reported green at
+      // 800px while 52px of the page was hidden behind it. Asking what is actually on top at the
+      // page's own lower edge is the question a reader would ask.
+      covered: (() => {
+        const probeY = Math.min(r.bottom - 4, window.innerHeight - 2);
+        const at = document.elementFromPoint(Math.round(r.left + r.width / 2), Math.round(probeY));
+        return !(at === el || el.contains(at));
+      })(),
     };
   });
 
@@ -123,10 +132,10 @@ for (const height of HEIGHTS) {
     await ctx.close();
     continue;
   }
-  const fits = view.bottom <= view.viewport && view.top >= 0 && view.scrollY === 0;
+  const fits = view.bottom <= view.viewport && view.top >= 0 && view.scrollY === 0 && !view.covered;
   console.log(
     `${String(height).padStart(4)}px edit : page ${view.w}px wide, y ${view.top}..${view.bottom} of ${view.viewport}` +
-      `${fits ? '' : `  <-- ${view.bottom - view.viewport}px past the fold`}`,
+      `${fits ? '' : view.covered ? '  <-- its lower edge is COVERED by the page strip' : `  <-- ${view.bottom - view.viewport}px past the fold`}`,
   );
   // A page AT the floor that still overflows is the documented limit, not a regression: shrinking
   // further would trade a page you cannot see the bottom of for a page you cannot read at all, and

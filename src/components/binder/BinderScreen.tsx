@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Modal,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
@@ -31,7 +32,7 @@ import { RightsPrompt } from '@/components/binder/RightsPrompt';
 import { ShareSheet } from '@/components/binder/ShareSheet';
 import { SliceStudio, type SliceStudioHandle } from '@/components/binder/SliceStudio';
 import { SlotMultiActions } from '@/components/binder/SlotMultiActions';
-import { pillChip } from '@/constants/ui';
+import { pillChip, sheet } from '@/constants/ui';
 import { EditLockBanner } from '@/components/binder/EditLockBanner';
 import { SaveErrorBanner } from '@/components/binder/SaveErrorBanner';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
@@ -256,6 +257,13 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const [viewportTop, setViewportTopRaw] = useState(0);
   const setViewportTop = (y: number) =>
     setViewportTopRaw((cur) => (Math.abs(cur - y) > 2 ? Math.round(y) : cur));
+  // What this screen stacks above the pages, INSIDE the scroller — measured as a height, because a
+  // height is what react-native-web reports reliably. See the contentAbove note in BinderPages: an
+  // element's onLayout there is a ResizeObserver on the element itself, so measuring a POSITION
+  // silently misses anything above it growing.
+  const [callerChrome, setCallerChromeRaw] = useState(0);
+  const setCallerChrome = (h: number) =>
+    setCallerChromeRaw((cur) => (Math.abs(cur - h) > 2 ? Math.round(h) : cur));
   // "Send page to…" — the destination picker, and whether it moves or copies.
   const [sendPageOpen, setSendPageOpen] = useState(false);
   /** Choosing which real binder these pages sit in. */
@@ -1632,6 +1640,8 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               pickerDocked && { paddingRight: pickerWidth },
               artworkDocked && { paddingLeft: artworkWidth },
             ]}>
+            {/* Everything this screen stacks above the pages, measured as one height. */}
+            <View onLayout={(e) => setCallerChrome(e.nativeEvent.layout.height)}>
             {/* Read-only because another tab of this browser owns editing — see EditLockBanner. */}
             <EditLockBanner />
             <SaveErrorBanner />
@@ -1698,31 +1708,17 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                 </Pressable>
               </View>
             ) : null}
-            {editing && toolsOpen ? (
-              <View style={[styles.editTopRow, wideEditor && styles.editTopRowWide]}>
-                <View style={styles.binderFields}>
-                  <LabeledInput
-                    label="Binder title"
-                    value={binder.title}
-                    onChangeText={(title) => store.updateBinder(binder.id, { title })}
-                    placeholder="Binder title"
-                  />
-                  <LabeledInput
-                    label="Binder description"
-                    value={binder.description ?? ''}
-                    onChangeText={(description) => store.updateBinder(binder.id, { description })}
-                    placeholder="What is this binder about?"
-                    multiline
-                  />
-                </View>
-                <View style={styles.editToolsCol}>{editToolsCard}</View>
-              </View>
-            ) : null}
+            {/* THE DETAILS PANEL IS A DIALOG NOW, not a row that opens here.
+                Anything that expands in the flow above the binder pushes the binder DOWN, and the
+                space above the page is measured and feeds the height budget — so opening this used
+                to move the pages and re-size them at the same time. A dialog changes neither.
+                See the ConfirmDialog-style overlay near the other sheets below. */}
             {!editing && binder.description ? (
               <ThemedText type="small" themeColor="textSecondary" style={styles.description}>
                 {binder.description}
               </ThemedText>
             ) : null}
+            </View>
 
             {/* One shared page-browsing surface, arrows · prev·current·next spread · filmstrip ·
                 Card labels, identical to the public viewer. Only what each grid *does* differs by
@@ -1741,7 +1737,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               // Measured, not guessed. This was `editing ? (toolsOpen ? 330 : 130) : 88` — an
               // estimate of chrome the page component cannot see, wrong by about a hundred pixels,
               // and silently wrong again every time anything was added to the editor's header.
-              viewportTop={viewportTop}
+              viewportTop={viewportTop + callerChrome}
               onPageWidth={setPageWidthUsed}
               editable={editing}
               // Binders reachable here come from the signed-in user's own store (userBinders) or
@@ -1761,30 +1757,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                     }
                   : undefined
               }
-              pageHeader={
-                // Behind the same disclosure as the binder's own fields. Naming a page is a thing
-                // you do occasionally; looking at the page is the thing you came for, and two
-                // more text inputs above the art cost another ~280px of it.
-                editing && toolsOpen ? (
-                  <View style={styles.pageDetails}>
-                    <LabeledInput
-                      label={`Page ${idx + 1} title`}
-                      value={page.title ?? ''}
-                      onChangeText={(title) => store.updatePage(binder.id, page.id, { title })}
-                      placeholder="Untitled page"
-                      style={styles.pageTitleField}
-                    />
-                    <LabeledInput
-                      label={`Page ${idx + 1} description`}
-                      value={page.description ?? ''}
-                      onChangeText={(description) => store.updatePage(binder.id, page.id, { description })}
-                      placeholder="What's on this page?"
-                      multiline
-                      style={styles.pageDescField}
-                    />
-                  </View>
-                ) : undefined
-              }
+              // No page header in the flow at all: naming a page happens in the details dialog,
+              // and the read-only title line BinderPages draws for itself is a fixed height.
+              onEditPage={editing ? () => setToolsOpen(true) : undefined}
               renderGrid={renderGrid}
             />
 
@@ -1976,6 +1951,54 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           onClose={() => setComposeAll(null)}
           onKeep={handleKeepComposed}
         />
+        ) : null}
+
+        {/* BINDER DETAILS & PAGE TOOLS — over the binder, never above it. */}
+        {toolsOpen ? (
+          <Modal visible transparent animationType="fade" onRequestClose={() => setToolsOpen(false)}>
+            <View style={sheet.dialogBackdrop}>
+              <Pressable style={StyleSheet.absoluteFill} onPress={() => setToolsOpen(false)} />
+              <ThemedView type="backgroundElement" style={styles.toolsCard}>
+                <View style={styles.toolsHead}>
+                  <ThemedText type="subtitle">Binder details &amp; tools</ThemedText>
+                  <Pressable onPress={() => setToolsOpen(false)} hitSlop={10}>
+                    <Text style={[styles.headerAction, styles.primaryText]}>Done</Text>
+                  </Pressable>
+                </View>
+                <ScrollView contentContainerStyle={styles.toolsScroll} keyboardShouldPersistTaps="handled">
+                  <View style={styles.binderFields}>
+                    <LabeledInput
+                      label="Binder title"
+                      value={binder.title}
+                      onChangeText={(title) => store.updateBinder(binder.id, { title })}
+                      placeholder="Binder title"
+                    />
+                    <LabeledInput
+                      label="Binder description"
+                      value={binder.description ?? ''}
+                      onChangeText={(description) => store.updateBinder(binder.id, { description })}
+                      placeholder="What is this binder about?"
+                      multiline
+                    />
+                    <LabeledInput
+                      label={`Page ${idx + 1} title`}
+                      value={page.title ?? ''}
+                      onChangeText={(title) => store.updatePage(binder.id, page.id, { title })}
+                      placeholder="Untitled page"
+                    />
+                    <LabeledInput
+                      label={`Page ${idx + 1} description`}
+                      value={page.description ?? ''}
+                      onChangeText={(description) => store.updatePage(binder.id, page.id, { description })}
+                      placeholder="What's on this page?"
+                      multiline
+                    />
+                  </View>
+                  {editToolsCard}
+                </ScrollView>
+              </ThemedView>
+            </View>
+          </Modal>
         ) : null}
 
         {studio && (
@@ -2256,6 +2279,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
   },
+  toolsCard: {
+    width: '100%',
+    maxWidth: 760,
+    maxHeight: '88%',
+    alignSelf: 'center',
+    borderRadius: Radius.panel,
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.three,
+    paddingBottom: Spacing.four,
+  },
+  toolsHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: Spacing.two,
+  },
+  toolsScroll: { gap: Spacing.three, paddingBottom: Spacing.two },
+  primaryText: { color: Palette.accent },
   editTopRow: { width: '100%', maxWidth: 1120, alignSelf: 'center', marginTop: 8, gap: 12, flexDirection: 'column' },
   editTopRowWide: { flexDirection: 'row', alignItems: 'flex-start' },
   binderFields: { gap: 10, flexGrow: 1, flexBasis: 300, minWidth: 240 },

@@ -30,10 +30,13 @@ import {
   type CoverSurfaceId,
 } from '@/data/binderModels';
 import type { CoverSticker } from '@/data/binderTypes';
+import { SEAM_INSET } from '@/data/coverGeometry';
 import { cardThumbUrl } from '@/lib/catalogConfig';
 
-/** Fractions of the cover's width. A real binder's proportions do not change with its size. */
-const SEAM_INSET = 0.045;
+/**
+ * Fractions of the cover's width. A real binder's proportions do not change with its size. The
+ * seam (SEAM_INSET) lives in the geometry module now, because a decoration snaps to it.
+ */
 const ZIP_WIDTH = 0.032;
 const SPINE_MIN = 10;
 /** Below this the weave is noise rather than texture, so it is left off entirely. */

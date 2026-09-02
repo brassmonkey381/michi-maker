@@ -13,6 +13,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { IconBtn } from '@/components/binder/StudioControls';
+import { TextProperties } from '@/components/binder/TextProperties';
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Weight } from '@/constants/theme';
 import { flatChip } from '@/constants/ui';
@@ -146,6 +147,9 @@ export function DecorationProperties({
         <ThemedText type="smallBold">{d.kind === 'text' ? 'Text' : d.kind === 'sticker' ? 'Sticker' : 'Art'}</ThemedText>
         {locked ? <Text style={styles.lockedNote}>Locked — unlock to move or resize</Text> : null}
       </View>
+
+      {/* Text first: what it says and how it is set, above the box everything shares. */}
+      {d.kind === 'text' ? <TextProperties d={d} onPatch={(change) => patch(change as Partial<CoverDecoration>)} /> : null}
 
       {/* Position and size, as percentages of the surface's width — one unit for all four, which
           is the only way "make it as wide as that one" is a number you can read off. */}

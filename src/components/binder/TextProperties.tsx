@@ -42,7 +42,16 @@ const BG_DEFAULT_COLOUR: Partial<Record<CoverTextBgShape, string>> = {
   circle: '#ffffff',
 };
 
-export function TextProperties({ d, onPatch }: { d: CoverTextDecoration; onPatch: (change: Partial<CoverTextDecoration>) => void }) {
+export function TextProperties({
+  d,
+  onPatch,
+  onLivePatch,
+}: {
+  d: CoverTextDecoration;
+  onPatch: (change: Partial<CoverTextDecoration>) => void;
+  /** Every tick of a colour drag: repaints the cover through the live proxy, writes nothing. */
+  onLivePatch: (change: Partial<CoverTextDecoration>) => void;
+}) {
   const [draft, setDraft] = useState(d.text);
   const [seen, setSeen] = useState(d.text);
   // An outside change to the text (undo) replaces the draft; typing wins otherwise.
@@ -128,7 +137,7 @@ export function TextProperties({ d, onPatch }: { d: CoverTextDecoration; onPatch
       <View style={styles.row}>
         <View style={styles.col}>
           <Text style={styles.label}>Ink</Text>
-          <ColorField key={`ink-${d.id}`} value={d.color} onChange={(color) => onPatch({ color })} />
+          <ColorField key={`ink-${d.id}`} value={d.color} onLive={(color) => onLivePatch({ color })} onChange={(color) => onPatch({ color })} />
         </View>
         <NumField label="Line height" value={Math.round((d.leading ?? 1.2) * 100)} onCommit={(v) => onPatch({ leading: v / 100 })} step={5} min={80} max={200} unit="%" />
       </View>
@@ -161,7 +170,7 @@ export function TextProperties({ d, onPatch }: { d: CoverTextDecoration; onPatch
         <View style={styles.row}>
           <View style={styles.col}>
             <Text style={styles.label}>Background colour</Text>
-            <ColorField key={`bg-${d.id}`} value={bg.color} onChange={(color) => onPatch({ bg: { ...bg, color } })} />
+            <ColorField key={`bg-${d.id}`} value={bg.color} onLive={(color) => onLivePatch({ bg: { ...bg, color } })} onChange={(color) => onPatch({ bg: { ...bg, color } })} />
           </View>
           <NumField label="Opacity" value={Math.round((bg.opacity ?? 1) * 100)} onCommit={(v) => onPatch({ bg: { ...bg, opacity: v >= 100 ? undefined : v / 100 } })} step={5} min={0} max={100} unit="%" />
           <NumField label="Padding" value={Math.round((bg.pad ?? 0.02) * 1000) / 10} onCommit={(v) => onPatch({ bg: { ...bg, pad: v / 100 } })} step={0.5} min={0} max={20} unit="%" decimals={1} />

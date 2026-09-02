@@ -164,7 +164,15 @@ export function CoverPanel({
 
       {/* PROPERTIES */}
       {selected ? (
-        <DecorationProperties d={selected} items={items} onChange={write} onSelect={ctx.onSelect} surfaceAspect={surfaceAspect} />
+        <DecorationProperties
+          d={selected}
+          items={items}
+          onChange={write}
+          onSelect={ctx.onSelect}
+          onLivePatch={ctx.onLivePatch}
+          surfaceAspect={surfaceAspect}
+          naturalAspect={ctx.naturalAspects[selected.id]}
+        />
       ) : (
         <View style={styles.emptyProps}>
           <Text style={styles.hint}>Select a layer to see its position, size, rotation and order.</Text>

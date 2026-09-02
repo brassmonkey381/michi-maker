@@ -17,7 +17,17 @@ const DEFAULT = Palette.white;
 const toHex6 = (value?: string) =>
   value && /^#[0-9a-fA-F]{6}$/.test(value) ? value.toLowerCase() : DEFAULT;
 
-export function ColorField({ value, onChange }: { value?: string; onChange: (hex: string) => void }) {
+export function ColorField({
+  value,
+  onChange,
+  onLive,
+}: {
+  value?: string;
+  /** Debounced: the value once the pointer has paused. Callers treat this as the commit. */
+  onChange: (hex: string) => void;
+  /** Every tick of the picker, undebounced, for a preview that does not write anything. */
+  onLive?: (hex: string) => void;
+}) {
   const [val, setVal] = useState(() => toHex6(value));
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -29,6 +39,7 @@ export function ColorField({ value, onChange }: { value?: string; onChange: (hex
   const handle = (next: string) => {
     setVal(next);
     if (timer.current) clearTimeout(timer.current);
+    onLive?.(next);
     timer.current = setTimeout(() => onChange(next), 200);
   };
 

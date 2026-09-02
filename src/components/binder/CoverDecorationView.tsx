@@ -3,12 +3,12 @@
  * the page-turn overlay, because the surface it sits on is drawn by one component and this is
  * what that component calls per row.
  *
- * WHAT IT HONOURS, in transform order: perspective tilt (rotateX/rotateY) first, then the flat
- * rotation, then flips inside the clip; opacity; a mask as a clipped corner radius; `hidden` as
- * nothing at all. A row with no crop window is CONTAINED in its box — the old square, pixel for
- * pixel, or whatever shape it has since been resized to — so an image is never stretched; a row
- * with a crop fills its box through the studio's window arithmetic, so a crop means the same
- * thing here as there.
+ * WHAT IT HONOURS: the rotation, then flips inside the clip; opacity; a mask as a clipped corner
+ * radius; `hidden` as nothing at all. A picture is CONTAINED in its box unless its fit says 'fill'
+ * — the old square pixel for pixel, or whatever shape the box has since been resized to, with the
+ * shown window (whole image, or the crop) letterboxed inside it. Letterboxing a crop needs the
+ * source's natural aspect: stored on the row once known, and until then reported upward from the
+ * image's own load so the editor can show the right thing before anything is written.
  *
  * TEXT below four pixels — the 58px filmstrip — draws its background shape and one ink bar per
  * line instead of glyphs: never a smudge, always "there is text here". Gating text off entirely
@@ -25,25 +25,15 @@ import { TEXT_DEFAULT_LEADING, TEXT_LEGIBLE_PX, fontFamilyFor } from '@/data/dec
 import { windowedImageStyle } from '@/data/imageWindow';
 import { cardThumbUrl } from '@/lib/catalogConfig';
 
-/** Depth of the perspective camera, in px. Deep enough that a 45° tilt reads as a tilt, not a fold. */
-const PERSPECTIVE = 800;
-
 function withAlpha(hex: string, alpha: number): string {
   const h = hex.replace('#', '');
   const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16);
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 }
 
-/** The outer transform every kind shares. Perspective first, or the tilt is applied flat. */
+/** The outer transform every kind shares: just the rotation. */
 function outerTransform(d: CoverDecoration) {
-  const t: ({ perspective: number } | { rotateX: string } | { rotateY: string } | { rotate: string })[] = [];
-  if (d.tiltX || d.tiltY) {
-    t.push({ perspective: PERSPECTIVE });
-    if (d.tiltX) t.push({ rotateX: `${d.tiltX}deg` });
-    if (d.tiltY) t.push({ rotateY: `${d.tiltY}deg` });
-  }
-  if (d.rot) t.push({ rotate: `${d.rot}deg` });
-  return t.length ? t : undefined;
+  return d.rot ? [{ rotate: `${d.rot}deg` }] : undefined;
 }
 
 /** A mask as a corner radius on a clipping box. 'ellipse' over-asks and the platform caps it at half the shorter side. */
@@ -53,17 +43,39 @@ function maskRadius(d: CoverDecoration, w: number, h: number): number {
   return (d.mask.radius ?? 0.12) * Math.min(w, h);
 }
 
-function ImageDecoration({ d, W, H }: { d: CoverImageDecoration; W: number; H: number }) {
+function ImageDecoration({
+  d,
+  W,
+  H,
+  naturalAspect,
+  onNaturalSize,
+}: {
+  d: CoverImageDecoration;
+  W: number;
+  H: number;
+  naturalAspect?: number;
+  onNaturalSize?: (id: string, w: number, h: number) => void;
+}) {
   const uri = d.cardId ? cardThumbUrl(d.cardId, 640) : d.imageUrl;
   if (!uri) return null;
   const box = decorationBox(d, W, H);
   const w = Math.max(8, box.w);
   const h = Math.max(8, box.h);
-  // FILL only when a crop window says which part of the picture the box holds. Otherwise the
-  // picture is CONTAINED in the box — whether the box is the old square or one someone has since
-  // resized — so an image is never stretched to a shape it was not cropped to.
-  const windowed = !!d.crop;
   const radius = maskRadius(d, w, h);
+  const fill = d.fit === 'fill';
+  const crop = d.crop;
+  const aspect = d.aspect ?? naturalAspect;
+  // The inner box the SHOWN window occupies: the whole box when filling, else the largest box of
+  // the window's own shape that fits inside — which needs the aspect. Without it, a cropped
+  // picture cannot be letterboxed honestly, so it is contained whole instead (never stretched).
+  let inner = { left: 0, top: 0, width: w, height: h };
+  const windowed = !!crop && (fill || !!aspect);
+  if (windowed && !fill && aspect) {
+    const shown = (aspect * (crop!.w || 1)) / (crop!.h || 1);
+    const iw = Math.min(w, h * shown);
+    const ih = iw / shown;
+    inner = { left: (w - iw) / 2, top: (h - ih) / 2, width: iw, height: ih };
+  }
   return (
     <View
       pointerEvents="none"
@@ -84,45 +96,87 @@ function ImageDecoration({ d, W, H }: { d: CoverImageDecoration; W: number; H: n
         <Image
           source={{ uri }}
           style={[StyleSheet.absoluteFill, { transform: [{ scaleX: d.flipH ? -1 : 1 }, { scaleY: d.flipV ? -1 : 1 }] }]}
-          contentFit="contain"
+          contentFit={fill ? 'fill' : 'contain'}
           cachePolicy="memory-disk"
           recyclingKey={uri}
           transition={0}
+          onLoad={onNaturalSize && !d.aspect ? (e) => onNaturalSize(d.id, e.source.width, e.source.height) : undefined}
         />
       ) : (
-        <Image
-          source={{ uri }}
-          // The quarter turns were folded into `rot` when the row was made; only the flips remain.
-          style={windowedImageStyle(w, h, d.crop, { rot: 0, flipH: d.flipH, flipV: d.flipV })}
-          contentFit="fill"
-          cachePolicy="memory-disk"
-          recyclingKey={uri}
-          transition={0}
-        />
+        <View style={{ position: 'absolute', ...inner, overflow: 'hidden' }}>
+          <Image
+            source={{ uri }}
+            // The quarter turns were folded into `rot` when the row was made; only the flips remain.
+            style={windowedImageStyle(inner.width, inner.height, crop, { rot: 0, flipH: d.flipH, flipV: d.flipV })}
+            contentFit="fill"
+            cachePolicy="memory-disk"
+            recyclingKey={uri}
+            transition={0}
+            onLoad={onNaturalSize && !d.aspect ? (e) => onNaturalSize(d.id, e.source.width, e.source.height) : undefined}
+          />
+        </View>
       )}
     </View>
   );
 }
 
-/** What each background shape looks like, given the box. All plain Views: no SVG dependency. */
+/**
+ * What each background shape looks like, given the box. All plain Views, no SVG dependency — and
+ * each one carries the detail that makes it read as the object rather than as a tinted rectangle:
+ *   box       sharp corners and a thin dark rule, a label.
+ *   post-it   square, a slightly deeper band along the top where the glue is, a soft lift.
+ *   notecard  faint blue ruling with a red rule at the top, a stiff square-cornered card.
+ *   postcard  a wide border, a divider down the middle and a stamp box top-right.
+ *   tag       a hole with a ring, and a clipped corner on the left.
+ */
 function shapeStyle(shape: NonNullable<CoverTextDecoration['bg']>['shape'], w: number, h: number) {
   switch (shape) {
+    case 'rect':
+      return { borderRadius: 0, borderWidth: 1, borderColor: 'rgba(0,0,0,0.45)' };
     case 'rounded':
       return { borderRadius: Math.min(w, h) * 0.18 };
     case 'circle':
       return { borderRadius: Math.max(w, h) };
     case 'postit':
-      // Square-cornered, with the faint lift a stuck note has.
-      return { borderRadius: 1, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 3, shadowOffset: { width: 1, height: 2 }, elevation: 2 };
+      return { borderRadius: 0, shadowColor: '#000', shadowOpacity: 0.22, shadowRadius: 4, shadowOffset: { width: 1, height: 3 }, elevation: 3 };
     case 'notecard':
-      return { borderRadius: 3, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(0,0,0,0.18)' };
+      return { borderRadius: 2, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(0,0,0,0.22)' };
     case 'postcard':
-      return { borderRadius: 2, borderWidth: 1, borderColor: 'rgba(0,0,0,0.25)' };
+      return { borderRadius: 2, borderWidth: Math.max(1, w * 0.012), borderColor: 'rgba(0,0,0,0.28)' };
     case 'tag':
-      return { borderRadius: Math.min(w, h) * 0.12 };
+      return { borderRadius: Math.min(w, h) * 0.12, borderTopLeftRadius: Math.min(w, h) * 0.45, borderBottomLeftRadius: Math.min(w, h) * 0.45 };
     default:
       return { borderRadius: 0 };
   }
+}
+
+/** The extra marks a shape carries, drawn over its fill and under the words. */
+function ShapeDetail({ shape, w, h, px }: { shape: NonNullable<CoverTextDecoration['bg']>['shape']; w: number; h: number; px: number }) {
+  if (shape === 'postit') {
+    return <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, height: Math.max(3, h * 0.14), backgroundColor: 'rgba(0,0,0,0.07)' }} />;
+  }
+  if (shape === 'notecard') {
+    return (
+      <>
+        <NotecardRules h={h} px={px} />
+        <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: Math.max(6, px * 1.2), height: StyleSheet.hairlineWidth * 2, backgroundColor: 'rgba(200,60,60,0.55)' }} />
+      </>
+    );
+  }
+  if (shape === 'postcard') {
+    const stamp = Math.max(8, Math.min(w, h) * 0.22);
+    return (
+      <>
+        <View pointerEvents="none" style={{ position: 'absolute', left: w / 2, top: h * 0.12, bottom: h * 0.12, width: StyleSheet.hairlineWidth * 2, backgroundColor: 'rgba(0,0,0,0.22)' }} />
+        <View pointerEvents="none" style={{ position: 'absolute', right: Math.max(3, w * 0.03), top: Math.max(3, h * 0.05), width: stamp, height: stamp * 1.15, borderWidth: StyleSheet.hairlineWidth * 2, borderColor: 'rgba(0,0,0,0.3)', borderStyle: 'dashed' }} />
+      </>
+    );
+  }
+  if (shape === 'tag') {
+    const hole = Math.max(4, Math.min(w, h) * 0.14);
+    return <View pointerEvents="none" style={{ position: 'absolute', left: Math.max(3, Math.min(w, h) * 0.18), top: h / 2 - hole / 2, width: hole, height: hole, borderRadius: hole, backgroundColor: 'rgba(255,255,255,0.92)', borderWidth: StyleSheet.hairlineWidth * 2, borderColor: 'rgba(0,0,0,0.35)' }} />;
+  }
+  return null;
 }
 
 function TextDecoration({ d, W, H }: { d: CoverTextDecoration; W: number; H: number }) {
@@ -154,8 +208,7 @@ function TextDecoration({ d, W, H }: { d: CoverTextDecoration; W: number; H: num
             { backgroundColor: withAlpha(bg.color, bg.opacity ?? 1) },
             shapeStyle(bg.shape, w, h),
           ]}>
-          {bg.shape === 'notecard' ? <NotecardRules h={h} px={px} /> : null}
-          {bg.shape === 'tag' ? <View style={[styles.tagHole, { left: Math.max(3, w * 0.05), width: Math.max(4, w * 0.06), height: Math.max(4, w * 0.06), borderRadius: w }]} /> : null}
+          <ShapeDetail shape={bg.shape} w={w} h={h} px={px} />
         </View>
       ) : null}
       {px < TEXT_LEGIBLE_PX ? (
@@ -203,17 +256,19 @@ export const CoverDecorationView = memo(function CoverDecorationView({
   d,
   W,
   H,
+  naturalAspect,
+  onNaturalSize,
 }: {
   d: CoverDecoration;
   /** The surface's width and height in px. */
   W: number;
   H: number;
+  /** The source's width ÷ height when the editor has seen it load and the row does not store it yet. */
+  naturalAspect?: number;
+  /** Reported once per image load, so the editor can letterbox a crop before the aspect is stored. */
+  onNaturalSize?: (id: string, w: number, h: number) => void;
 }) {
   if (d.hidden) return null;
   if (d.kind === 'text') return <TextDecoration d={d} W={W} H={H} />;
-  return <ImageDecoration d={d} W={W} H={H} />;
-});
-
-const styles = StyleSheet.create({
-  tagHole: { position: 'absolute', top: '50%', marginTop: -3, backgroundColor: 'rgba(255,255,255,0.9)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(0,0,0,0.3)' },
+  return <ImageDecoration d={d} W={W} H={H} naturalAspect={naturalAspect} onNaturalSize={onNaturalSize} />;
 });

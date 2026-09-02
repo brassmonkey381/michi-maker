@@ -37,8 +37,6 @@ export const NEW_STICKER_W = 0.28;
  */
 export const MIN_W = 0.03;
 export const MAX_W = 1.6;
-/** Perspective tilt stops here: past 45° a face reads as an edge. */
-export const MAX_TILT = 45;
 
 export const TEXT_SIZE_PRESETS = { S: 0.035, M: 0.06, L: 0.09, XL: 0.13 } as const;
 
@@ -77,8 +75,7 @@ function normalizeOne(raw: unknown): CoverDecoration | null {
     w: Math.min(MAX_W, Math.max(MIN_W, r.w)),
     ...(finite(r.h) ? { h: Math.min(MAX_W, Math.max(MIN_W, r.h)) } : {}),
     ...(finite(r.rot) && r.rot !== 0 ? { rot: normalizeAngle(r.rot) } : {}),
-    ...(finite(r.tiltX) && r.tiltX !== 0 ? { tiltX: Math.max(-MAX_TILT, Math.min(MAX_TILT, r.tiltX)) } : {}),
-    ...(finite(r.tiltY) && r.tiltY !== 0 ? { tiltY: Math.max(-MAX_TILT, Math.min(MAX_TILT, r.tiltY)) } : {}),
+    ...(r.lockAspect === true ? { lockAspect: true } : {}),
     ...(r.flipH === true ? { flipH: true } : {}),
     ...(r.flipV === true ? { flipV: true } : {}),
     ...(finite(r.opacity) && r.opacity < 1 ? { opacity: clamp01(r.opacity) } : {}),
@@ -140,6 +137,7 @@ function normalizeOne(raw: unknown): CoverDecoration | null {
     ...(crop && typeof crop === 'object' && finite(crop.x) && finite(crop.y) && finite(crop.w) && finite(crop.h) && crop.w > 0 && crop.h > 0
       ? { crop: { x: clamp01(crop.x), y: clamp01(crop.y), w: clamp01(crop.w), h: clamp01(crop.h) } }
       : {}),
+    ...(r.fit === 'fill' ? { fit: 'fill' as const } : {}),
     ...(typeof r.stickerId === 'string' && r.stickerId ? { stickerId: r.stickerId } : {}),
     ...(r.attribution && typeof r.attribution === 'object' ? { attribution: r.attribution as ArtAttribution } : {}),
   };

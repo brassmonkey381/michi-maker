@@ -22,13 +22,19 @@ export function ImageProperties({
   d,
   onReplace,
   surfaceAspect,
+  naturalAspect,
 }: {
   d: CoverImageDecoration;
   /** The whole row, replaced — a crop touches x, y, w, h and crop at once. */
   onReplace: (next: CoverImageDecoration) => void;
   surfaceAspect: number;
+  /** Width ÷ height of the source as the renderer saw it load; the stored aspect wins if present. */
+  naturalAspect?: number;
 }) {
   const crop = d.crop ?? { x: 0, y: 0, w: 1, h: 1 };
+  const aspect = d.aspect ?? naturalAspect;
+  // Width ÷ height of what is SHOWN: the natural aspect narrowed by the crop window.
+  const shownAspect = aspect ? (aspect * crop.w) / crop.h : undefined;
   const cropped = d.crop && (crop.x > 0 || crop.y > 0 || crop.w < 1 || crop.h < 1);
   // Trim one side by a percentage of the CURRENT box.
   const trim = (side: 'l' | 't' | 'r' | 'b', pct: number) => {
@@ -39,8 +45,14 @@ export function ImageProperties({
     if (side === 't') local.t = f;
     if (side === 'r') local.r = 1 - f;
     if (side === 'b') local.b = 1 - f;
-    // A crop needs a real height to work from; a legacy square gets one here.
-    onReplace(applyCrop({ ...d, h: d.h ?? d.w }, local, surfaceAspect));
+    // A crop needs a real height to work from; a legacy square gets one here. The natural aspect
+    // is written alongside, once known, so every other context can letterbox the window correctly.
+    onReplace(applyCrop({ ...d, h: d.h ?? d.w, ...(aspect && !d.aspect ? { aspect } : {}) }, local, surfaceAspect));
+  };
+  /** The box takes the shown picture's own shape at its current width: nothing letterboxed, nothing stretched. */
+  const originalAspect = () => {
+    if (!shownAspect) return;
+    onReplace({ ...d, h: d.w / shownAspect, ...(aspect && !d.aspect ? { aspect } : {}), fit: undefined });
   };
   const priv = !!d.imageUrl && isPrivateArt(d.attribution, d.imageUrl);
   const originLabel =
@@ -87,6 +99,20 @@ export function ImageProperties({
         </View>
       ) : null}
 
+      <Text style={styles.label}>Fit</Text>
+      <Text style={styles.hint}>A box that is not the picture’s shape either letterboxes it or stretches it.</Text>
+      <View style={styles.row}>
+        <Pressable onPress={() => onReplace({ ...d, fit: undefined })} accessibilityRole="button" accessibilityState={{ selected: d.fit !== 'fill' }} style={[flatChip.base, d.fit !== 'fill' && flatChip.active]} testID="fit-contain">
+          <Text style={[flatChip.text, d.fit !== 'fill' && flatChip.textActive]}>Keep shape</Text>
+        </Pressable>
+        <Pressable onPress={() => onReplace({ ...d, fit: 'fill' })} accessibilityRole="button" accessibilityState={{ selected: d.fit === 'fill' }} style={[flatChip.base, d.fit === 'fill' && flatChip.active]} testID="fit-fill">
+          <Text style={[flatChip.text, d.fit === 'fill' && flatChip.textActive]}>Stretch to fill</Text>
+        </Pressable>
+        <Pressable onPress={originalAspect} disabled={!shownAspect} accessibilityRole="button" style={[flatChip.base, !shownAspect && styles.dim]} testID="fit-original">
+          <Text style={flatChip.text}>Original aspect</Text>
+        </Pressable>
+      </View>
+
       <Text style={styles.label}>Source</Text>
       <View style={styles.row}>
         <View style={[styles.badge, priv && styles.badgePrivate]}>
@@ -124,4 +150,5 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: FontSize.sm, fontWeight: Weight.semibold, color: Palette.ink2, letterSpacing: 0.3 },
   badgeTextPrivate: { color: Palette.dangerAlt },
   credit: { fontSize: FontSize.sm, color: Palette.ink2, flexShrink: 1 },
+  dim: { opacity: 0.4 },
 });

@@ -137,6 +137,17 @@ export function resizeBox(
   return { cx: b.cx + shift.x, cy: b.cy + shift.y, w, h, rot: b.rot };
 }
 
+/**
+ * Is a surface-frame point inside the box? The point is taken into the box's own frame (rotated by
+ * -rot about the centre) and compared to the half-extents — so a tap on a turned picture lands on
+ * the picture, not on its bounding rectangle's empty corners.
+ */
+export function boxContains(b: Box, x: number, y: number): boolean {
+  'worklet';
+  const local = rotatePoint(x - b.cx, y - b.cy, -b.rot);
+  return Math.abs(local.x) <= b.w / 2 && Math.abs(local.y) <= b.h / 2;
+}
+
 /** 15° steps by default, with a 3° pull — no angle snap existed before; translation-only. */
 export function snapAngle(deg: number, step: number = 15, tol: number = 3): number {
   'worklet';

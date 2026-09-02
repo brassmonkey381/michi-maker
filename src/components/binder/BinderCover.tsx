@@ -121,6 +121,8 @@ export function CoverSurface({
   width,
   height: heightProp,
   stickers,
+  aspects,
+  onNaturalSize,
   style,
   wheelTarget,
   children,
@@ -138,6 +140,9 @@ export function CoverSurface({
    */
   height?: number;
   stickers?: CoverSticker[];
+  /** Natural aspects the editor has learned for rows that do not store one yet, by id. */
+  aspects?: Record<string, number>;
+  onNaturalSize?: (id: string, w: number, h: number) => void;
   style?: StyleProp<ViewStyle>;
   /**
    * Mark this surface as a thing the page wheel flips over. The binder viewer only turns pages
@@ -223,7 +228,7 @@ export function CoverSurface({
           same one the filmstrip, the shelf thumb and the page-turn copies use, so a cover is the
           same picture at every size. */}
       {(stickers ?? []).map((d) => (
-        <CoverDecorationView key={d.id} d={d} W={width} H={height} />
+        <CoverDecorationView key={d.id} d={d} W={width} H={height} naturalAspect={aspects?.[d.id]} onNaturalSize={onNaturalSize} />
       ))}
 
       {model.closure === 'zip' && !inside ? (

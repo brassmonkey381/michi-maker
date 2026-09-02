@@ -146,10 +146,11 @@ export interface DemoSlot {
  *           w×w square with the image letterboxed inside it, exactly as before, so nothing already
  *           saved moves at upgrade. The editor writes h on the first transform, never on read.
  *   rot   — clockwise degrees, normalised to [0, 360) on every write.
- *   tiltX, tiltY — perspective tilt about the box's own axes, degrees, ±45. The one non-affine
- *           look every target honours. Skew is deliberately NOT here: Android decomposes a
- *           transform into translate / rotate / scale and drops skew on the floor, so a skewed
- *           sticker would be flat on a phone and slanted on the web.
+ *
+ * No skew and no perspective, on purpose: Android decomposes a transform into translate / rotate /
+ * scale and drops the rest, so either would be flat on a phone and slanted on the web. The box is
+ * free to be any shape instead — a corner drag scales width and height independently unless the
+ * aspect is locked.
  */
 export type CoverDecorationKind = 'art' | 'sticker' | 'text';
 export type CoverMaskShape = 'rect' | 'rounded' | 'ellipse';
@@ -173,8 +174,12 @@ interface CoverDecorationBase {
   w: number;
   h?: number;
   rot?: number;
-  tiltX?: number;
-  tiltY?: number;
+  /**
+   * "Fixed scale": a corner drag moves width and height by the same factor. Off, a corner drag is
+   * free — pull down for taller, pull right for wider — which is the everyday case. Shift on the
+   * keyboard flips whichever is set for the duration of the drag.
+   */
+  lockAspect?: boolean;
   flipH?: boolean;
   flipV?: boolean;
   /** 0..1, absent ⇒ 1. */
@@ -203,6 +208,12 @@ export interface CoverImageDecoration extends CoverDecorationBase {
    * Absent ⇒ the whole image. Only meaningful once `h` is present.
    */
   crop?: { x: number; y: number; w: number; h: number };
+  /**
+   * How the picture meets a box that is not its shape. 'contain' (the default, and the only
+   * behaviour that never stretches) letterboxes the shown window inside the box; 'fill' stretches
+   * it to the box's edges. Set explicitly by "Stretch to fill" and never by a crop.
+   */
+  fit?: 'contain' | 'fill';
   /** The sticker library key ('set:<id>' | 'series:<id>'), so a changed logo URL can be re-resolved. */
   stickerId?: string;
   /** Provenance, exactly as a pocket carries it. */

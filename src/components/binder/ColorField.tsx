@@ -14,7 +14,16 @@ import { useTheme } from '@/hooks/use-theme';
 
 const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
-export function ColorField({ value, onChange }: { value?: string; onChange: (hex: string) => void }) {
+export function ColorField({
+  value,
+  onChange,
+  onLive,
+}: {
+  value?: string;
+  onChange: (hex: string) => void;
+  /** A typed field has no drag to preview, so this mirrors onChange; the prop exists for parity. */
+  onLive?: (hex: string) => void;
+}) {
   const theme = useTheme();
   const [text, setText] = useState(value ?? '');
 
@@ -22,7 +31,10 @@ export function ColorField({ value, onChange }: { value?: string; onChange: (hex
     let next = raw.trim();
     if (next && !next.startsWith('#')) next = `#${next}`;
     setText(next);
-    if (HEX_RE.test(next)) onChange(next);
+    if (HEX_RE.test(next)) {
+      onLive?.(next);
+      onChange(next);
+    }
   };
 
   const preview = HEX_RE.test(text.trim()) ? text.trim() : (value ?? 'transparent');

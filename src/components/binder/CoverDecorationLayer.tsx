@@ -7,8 +7,9 @@
  * layer had, so the surface can draw the live state while the layer keeps measuring from the
  * committed one and a drag never compounds on itself.
  *
- * What a selected, unlocked decoration gets: eight resize handles that keep aspect from the
- * corners (Alt scales about the centre), a rotate grab above the top edge that turns with the
+ * What a selected, unlocked decoration gets: eight resize handles — a corner drag is FREE, pull
+ * down for taller and right for wider, unless the decoration's aspect is locked; Shift flips that
+ * for one drag, Alt scales about the centre — a rotate grab above the top edge that turns with the
  * box (Shift locks to 15°), pinch-to-scale and two-finger rotate on the body, snapping to the
  * surface's edges, seam, centre lines, the grid when it is on, and every other layer's edges and
  * centre — with the guide drawn while it bites. Arrow keys nudge by 1% (Shift: 5%), Delete
@@ -261,7 +262,7 @@ export function CoverDecorationLayer({
               const pan = Gesture.Pan()
                 .onUpdate((e) => {
                   let next = resizeBox(base, h, e.translationX, e.translationY, {
-                    keepAspect: isCorner ? !mods.shift : false,
+                    keepAspect: isCorner ? !!d.lockAspect !== mods.shift : false,
                     fromCentre: mods.alt,
                     minPx: MIN_W * W,
                   });
@@ -280,7 +281,7 @@ export function CoverDecorationLayer({
                 })
                 .onEnd((e) => {
                   const next = resizeBox(base, h, e.translationX, e.translationY, {
-                    keepAspect: isCorner ? !mods.shift : false,
+                    keepAspect: isCorner ? !!d.lockAspect !== mods.shift : false,
                     fromCentre: mods.alt,
                     minPx: MIN_W * W,
                   });

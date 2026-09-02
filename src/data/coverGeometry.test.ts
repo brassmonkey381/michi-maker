@@ -10,6 +10,7 @@ import {
   ROTATE_HANDLE_OFFSET,
   SEAM_INSET,
   applyCrop,
+  boxContains,
   boxToDecoration,
   cursorFor,
   decorationBox,
@@ -174,4 +175,15 @@ test('cursorFor turns with the box', () => {
   assert.equal(cursorFor('n', 90), 'ew-resize');
   assert.equal(cursorFor('ne', 0), 'nesw-resize');
   assert.equal(cursorFor('ne', 90), 'nwse-resize');
+});
+
+test('boxContains is rotation-aware: the bounding rectangle’s empty corner is outside', () => {
+  const flat = box();
+  assert.equal(boxContains(flat, 200, 150), true);
+  assert.equal(boxContains(flat, 249, 179), true);
+  assert.equal(boxContains(flat, 251, 150), false);
+  // A 100×60 box turned 90° is 60 wide and 100 tall on screen: (245, 150) is outside it now.
+  const turned = box({ rot: 90 });
+  assert.equal(boxContains(turned, 245, 150), false);
+  assert.equal(boxContains(turned, 200, 195), true);
 });

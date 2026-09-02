@@ -35,6 +35,7 @@ import { PageStrip, STRIP_THUMB_W, type StripExtra } from '@/components/binder/P
 import { CoverDecorationLayer, type LiveDrag } from '@/components/binder/CoverDecorationLayer';
 import { COVER_ABBR, withSurface } from '@/components/binder/CoverEditor';
 import { patchDecoration, removeDecoration } from '@/data/coverDecorations';
+import { boxContains, decorationBox } from '@/data/coverGeometry';
 import { useBinders } from '@/store/binders';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -49,7 +50,7 @@ import { useViewPrefs, type ViewPrefsState } from '@/hooks/use-view-prefs';
 import { CoverSurface } from '@/components/binder/BinderCover';
 import { binderColourway, binderModel, type CoverSurfaceId } from '@/data/binderModels';
 import { cardThumbUrl } from '@/lib/catalogConfig';
-import type { BinderCover, DemoBinder, DemoPage, DemoSlot } from '@/data/binderTypes';
+import type { BinderCover, CoverDecoration, DemoBinder, DemoPage, DemoSlot } from '@/data/binderTypes';
 import { allocateScanFaces } from '@/data/scanFaces';
 import { useOwnedCards } from '@/hooks/use-owned-cards';
 import { useScanImages } from '@/hooks/use-scan-images';
@@ -130,6 +131,14 @@ export interface CoverToolsContext {
    * from the tray lands at window coordinates; this is what turns them into a place on the cover.
    */
   measureSurface: () => Promise<{ x: number; y: number; width: number; height: number } | null>;
+  /** Natural width ÷ height per decoration id, learned from image loads, for rows that do not store one. */
+  naturalAspects: Record<string, number>;
+  /**
+   * A preview that writes nothing: the same live proxy a drag uses, so a colour picker mid-drag
+   * repaints the cover without a store write per tick. Null clears it; the commit follows through
+   * onChange as usual.
+   */
+  onLivePatch: (id: string, patch: Partial<CoverDecoration> | null) => void;
 }
 
 export interface BinderPagesProps {
@@ -752,6 +761,8 @@ export function BinderPages({
         width={bookW}
         height={coverBoxH}
         stickers={shown}
+        aspects={editing ? naturalAspects : undefined}
+        onNaturalSize={editing ? onNaturalSize : undefined}
         wheelTarget={live}>
         {/* The measuring host for drops: exactly the surface's box, drawn under the hit layer. */}
         {editing ? <View ref={surfaceHostRef} pointerEvents="none" style={StyleSheet.absoluteFill} /> : null}
@@ -780,10 +791,23 @@ export function BinderPages({
         ) : null}
       </CoverSurface>
     );
-    // In edit mode an unfocused cover is one tap from being the one you are decorating.
+    // In edit mode an unfocused cover is one tap from being the one you are decorating — and if
+    // the tap landed ON a picture, that picture is selected in the same tap, so the layers tray and
+    // the properties open on the thing you pointed at rather than on nothing.
     if (live && editable && !editing) {
       return (
-        <Pressable onPress={() => focusCover(id)} accessibilityLabel={`Decorate ${COVER_ABBR[id]}`}>
+        <Pressable
+          onPress={(e) => {
+            focusCover(id);
+            const ne = e.nativeEvent as { locationX?: number; locationY?: number; offsetX?: number; offsetY?: number };
+            const px = ne.locationX ?? ne.offsetX;
+            const py = ne.locationY ?? ne.offsetY;
+            if (px == null || py == null) return;
+            // Front-most first, so the top picture wins where two overlap.
+            const hit = [...stickers].reverse().find((d) => !d.hidden && boxContains(decorationBox(d, bookW, coverBoxH), px, py));
+            if (hit) setCoverSelected(hit.id);
+          }}
+          accessibilityLabel={`Decorate ${COVER_ABBR[id]}`}>
           {surface}
         </Pressable>
       );
@@ -843,6 +867,21 @@ export function BinderPages({
    * publish forever.
    */
   const coverForTools = binder.cover;
+  /**
+   * NATURAL SIZES, learned rather than stored: the renderer reports each image's size as it
+   * loads, and a crop letterboxes against it. Written to the row only when the row is next
+   * changed by hand (a crop, "original aspect"), never on load — a load is not an edit.
+   */
+  const [naturalAspects, setNaturalAspects] = useState<Record<string, number>>({});
+  const onNaturalSize = useCallback((id: string, w: number, h: number) => {
+    if (!(w > 0) || !(h > 0)) return;
+    setNaturalAspects((cur) => (cur[id] ? cur : { ...cur, [id]: w / h }));
+  }, []);
+  const onLivePatch = useCallback(
+    (id: string, patch: Partial<CoverDecoration> | null) =>
+      setCoverDrag(patch ? { id, patch, guideX: null, guideY: null } : null),
+    [],
+  );
   // The live surface's host, for measuring where it is on the window at drop time.
   const surfaceHostRef = useRef<View>(null);
   const measureSurface = () =>
@@ -868,11 +907,13 @@ export function BinderPages({
             onClearFocus: () => selectPage(idx),
             surfaceAspect: surfaceAspectForTools,
             measureSurface,
+            naturalAspects,
+            onLivePatch,
           }
         : null,
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editable, coverForTools, focused, coverSelected, onCoverContext, surfaceAspectForTools]);
+  }, [editable, coverForTools, focused, coverSelected, onCoverContext, surfaceAspectForTools, naturalAspects, onLivePatch]);
   /**
    * THE BACK OF THE LAST SHEET. A binder with an odd page count has one more page than it has
    * been given: the reverse of its final sheet, which is a real pocket page with nothing in it. It

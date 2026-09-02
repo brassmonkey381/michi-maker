@@ -20,7 +20,6 @@ import { FontSize, Palette, Radius, Weight } from '@/constants/theme';
 import { flatChip } from '@/constants/ui';
 import type { CoverDecoration, CoverImageDecoration, CoverMaskShape } from '@/data/binderTypes';
 import {
-  MAX_TILT,
   MAX_W,
   MIN_W,
   duplicateDecoration,
@@ -122,14 +121,20 @@ export function DecorationProperties({
   items,
   onChange,
   onSelect,
+  onLivePatch,
   surfaceAspect,
+  naturalAspect,
 }: {
   d: CoverDecoration;
   items: CoverDecoration[];
   onChange: (next: CoverDecoration[]) => void;
   onSelect: (id: string | null) => void;
+  /** A preview that writes nothing — for a colour picker mid-drag. Null clears it. */
+  onLivePatch: (id: string, patch: Partial<CoverDecoration> | null) => void;
   /** Surface width ÷ height, so Y and H can be shown in the same percent-of-width unit as X and W. */
   surfaceAspect: number;
+  /** The image's natural width ÷ height, if the renderer has seen it load. */
+  naturalAspect?: number;
 }) {
   const commit = (next: CoverDecoration[]) => {
     if (next !== items) onChange(next);
@@ -150,7 +155,16 @@ export function DecorationProperties({
       </View>
 
       {/* Text first: what it says and how it is set, above the box everything shares. */}
-      {d.kind === 'text' ? <TextProperties d={d} onPatch={(change) => patch(change as Partial<CoverDecoration>)} /> : null}
+      {d.kind === 'text' ? (
+        <TextProperties
+          d={d}
+          onPatch={(change) => {
+            onLivePatch(d.id, null);
+            patch(change as Partial<CoverDecoration>);
+          }}
+          onLivePatch={(change) => onLivePatch(d.id, change as Partial<CoverDecoration>)}
+        />
+      ) : null}
 
       {/* Position and size, as percentages of the surface's width — one unit for all four, which
           is the only way "make it as wide as that one" is a number you can read off. */}
@@ -166,14 +180,10 @@ export function DecorationProperties({
         <NumField label="Opacity" value={Math.round((d.opacity ?? 1) * 100)} onCommit={(v) => patch({ opacity: v >= 100 ? undefined : v / 100 })} step={5} min={0} max={100} unit="%" />
       </View>
 
-      {/* Perspective tilt — the one non-affine look every platform draws the same way. */}
-      <View style={styles.grid}>
-        <NumField label="Tilt ↕" value={d.tiltX ?? 0} onCommit={(v) => !locked && patch({ tiltX: v === 0 ? undefined : v })} step={1} min={-MAX_TILT} max={MAX_TILT} unit="°" />
-        <NumField label="Tilt ↔" value={d.tiltY ?? 0} onCommit={(v) => !locked && patch({ tiltY: v === 0 ? undefined : v })} step={1} min={-MAX_TILT} max={MAX_TILT} unit="°" />
-      </View>
-
       <View style={styles.chipRow}>
-        <Chip label="Straighten" onPress={() => !locked && patch({ rot: undefined, tiltX: undefined, tiltY: undefined })} />
+        <Chip label="Straighten" onPress={() => !locked && patch({ rot: undefined })} />
+        {/* "Fixed scale": a corner drag moves width and height together. Off, a corner is free. */}
+        <Chip label={d.lockAspect ? '✓ Fixed scale' : 'Fixed scale'} on={!!d.lockAspect} onPress={() => patch({ lockAspect: !d.lockAspect || undefined })} testID="prop-lock-aspect" />
         {isImage ? (
           <>
             <Chip label="Flip ↔" on={!!d.flipH} onPress={() => !locked && patch({ flipH: !d.flipH || undefined })} />
@@ -186,6 +196,7 @@ export function DecorationProperties({
         <ImageProperties
           d={image}
           surfaceAspect={surfaceAspect}
+          naturalAspect={naturalAspect}
           onReplace={(next) => commit(items.map((it) => (it.id === next.id ? next : it)))}
         />
       ) : null}

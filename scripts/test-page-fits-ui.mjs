@@ -29,7 +29,9 @@ const PROJECT = 'piikwvntldytjejxmcla';
 const SECRETS = 'C:/Users/Brian/source/repos/tcgscan/tcgscan.secrets';
 
 // Real windows, short to tall. 700 is the laptop height the old floor was defended for.
-const HEIGHTS = [700, 800, 900, 1080];
+// Overridable: iterating on the chrome means re-measuring, and four cold page loads per attempt
+// is minutes. One height is enough to see whether a change moved the number at all.
+const HEIGHTS = (process.env.MICHI_HEIGHTS ?? '700,800,900,1080').split(',').map(Number);
 const WIDTH = 1600;
 
 const raw = readFileSync(SECRETS, 'utf8');

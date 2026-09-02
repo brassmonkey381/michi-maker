@@ -227,6 +227,9 @@ export function BinderPages({
   // from the truth. Deliberately the offset within the CONTENT rather than the window: a
   // window-space measurement changes as you scroll, and a budget that changes as you scroll is a
   // feedback loop.
+  // Whether the "which fields" chips are showing. Closed by default: it is a setup control, and
+  // every line above the page is height the page does not get.
+  const [fieldsOpen, setFieldsOpen] = useState(false);
   const [contentAbove, setContentAboveRaw] = useState(0);
   const [stripHeight, setStripHeightRaw] = useState(0);
   const setContentAbove = (y: number) =>
@@ -890,6 +893,21 @@ export function BinderPages({
           />
           {/* Owned overlay, only offered when the viewer has an inventory (own cards). A green ✓
               corner badge lights up on card slots they own. */}
+          {/* IN THE PILL ROW, not on a line of its own. The first attempt at this put the
+              disclosure on its own line, which removed a 36px row of chips and added a 36px chip:
+              the page's height budget did not move by a single pixel, and only measuring it said
+              so. A control that costs a line to save a line saves nothing. */}
+          {labelsOn ? (
+            <Pressable
+              onPress={() => setFieldsOpen((v) => !v)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: fieldsOpen }}
+              style={[pillChip.base, fieldsOpen && pillChip.active]}>
+              <Text style={[pillChip.text, fieldsOpen && pillChip.textActive]}>
+                {fieldsOpen ? '▾ Which' : '▸ Which'}
+              </Text>
+            </Pressable>
+          ) : null}
           {ownedCards ? (
             <Pressable
               onPress={() => setShowOwned(!showOwned)}
@@ -911,10 +929,18 @@ export function BinderPages({
             </Pressable>
           ) : null}
         </View>
-        {/* The field chips get their own line. Inline they widened the Card labels pill and pushed
-            Double-sided, Owned and Scans sideways every time labels were switched on. */}
+        {/* WHICH fields, folded away until you are choosing them.
+            
+            This is nine chips on their own line, and it was on screen the whole time labels were —
+            about 36px of the page's height budget spent on a control you touch when you set your
+            labels up and then never again. On a 900px window the page only gets ~530px to begin
+            with, so a permanent configuration row is one of the more expensive things on screen.
+            
+            It gets its own line rather than going inline for the reason it always did: inline it
+            widened the Card labels pill and shoved Double-sided, Owned and Scans sideways every
+            time labels were switched on. */}
         <CaptionFieldRow
-          enabled={labelsOn}
+          enabled={labelsOn && fieldsOpen}
           fields={labelFields}
           onToggleField={toggleLabelField}
         />

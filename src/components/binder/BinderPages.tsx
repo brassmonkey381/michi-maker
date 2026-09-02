@@ -39,6 +39,7 @@ import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radius, Weight } from '@/constants/theme';
 
 import { pillChip, sheet } from '@/constants/ui';
+import { AboutHoverCard, useHoverReveal } from '@/components/binder/AboutPopup';
 import { hasTextCaption, type CaptionFieldKey } from '@/data/cardCaption';
 import { PEEK_MIN_WIDTH, SPREAD_GAP, bookLayout, pageHeightAt, spreadLayout } from '@/data/binderLayout';
 import { useCardLabelPrefs } from '@/hooks/use-card-label-prefs';
@@ -1756,6 +1757,13 @@ function SpreadColumn({
   const fallback = useSharedValue(-1);
   const col = dragCol ?? fallback;
   const columnStyle = useAnimatedStyle(() => ({ zIndex: col.value === columnIndex ? 30 : 1 }));
+  // Same deal as the binder's title: hovering a page's name shows what the page is, and only
+  // where tapping it would have. A neighbour's label navigates instead, so it stays silent —
+  // one rule, rather than a title that means two things depending on which one you are over.
+  //
+  // Above the empty-column return below, with the other hooks, or the order changes the moment a
+  // spread runs out of pages on one side.
+  const hover = useHoverReveal(!editable && !!onPressLabel && !!page?.description);
   // A column with no page reserves only a peek's worth of space, not a whole page's. On page 1
   // the old layout left a full-page-wide empty band where the previous page would have been.
   if (!page) return <View style={{ width: peekWidth ?? width }} />;
@@ -1772,6 +1780,8 @@ function SpreadColumn({
       {onPressLabel || onFocus ? (
         <Pressable
           onPress={onPressLabel ?? onFocus}
+          onHoverIn={hover.onHoverIn}
+          onHoverOut={hover.onHoverOut}
           hitSlop={6}
           testID={onPressLabel ? 'binder-page-title' : undefined}
           accessibilityRole="button"
@@ -1783,6 +1793,7 @@ function SpreadColumn({
       ) : (
         labelEl
       )}
+
       {onFocus && !editable ? (
         <Pressable style={flat ? undefined : styles.neighborGrid} onPress={onFocus} accessibilityLabel={label}>
           <PeekClip peeking={peeking} peekWidth={peekWidth ?? width} width={width} role={role}>
@@ -1796,6 +1807,11 @@ function SpreadColumn({
           </PeekClip>
         </View>
       )}
+      {/* LAST, so it paints over the page it overlaps. Its z-index does the same job, but only
+          against siblings, and tree order is the half that does not depend on the page's own. */}
+      {hover.shown ? (
+        <AboutHoverCard kicker={label} text={page.description ?? ''} style={styles.labelHover} />
+      ) : null}
     </Animated.View>
   );
 }
@@ -1859,6 +1875,9 @@ const styles = StyleSheet.create({
   // without the text — the turn overlay's copies, the blank half of a shut binder — depends on it,
   // and so does the rule that the binder never changes height as you turn through it.
   neighborLabel: { marginBottom: 6, height: 20 },
+  // Under the label, overlapping the top of the page it describes — which is the page you are
+  // looking at, so the card lands on the thing it is talking about.
+  labelHover: { top: 30 },
   // The filmstrip is NAVIGATION, so it may never be the thing you have to scroll to reach. And
   // scrolling to it is worse than it sounds here: the wheel over the binder flips pages instead of
   // scrolling, so hunting for the strip flips you off the page you were on.

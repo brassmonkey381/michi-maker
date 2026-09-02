@@ -4,9 +4,10 @@
 // every visit to answer a question most visits are not asking. It lives behind the title now, and
 // the page's does too — the same tap that edits both while editing.
 //
-// So this checks the three things that could each be true on their own and still add up to the
-// wrong feature: the text is NOT on the page while reading, tapping the title DOES bring it up,
-// and tapping the title while EDITING brings up the fields instead of the card.
+// So this checks the things that could each be true on their own and still add up to the wrong
+// feature: the text is NOT on the page while reading, tapping a title DOES bring it up, tapping
+// while EDITING brings up the fields instead, and hovering shows the same words and then stops
+// showing them — a tooltip that will not leave is worse than one that never arrives.
 //
 // SELF-CLEANING: the binder's description is written for the run and put back exactly as found.
 // Credentials come from tcgscan.secrets and are never printed.
@@ -181,6 +182,32 @@ check(
   'the reading card is not the page form (no "Page description" field)',
 );
 await p.screenshot({ path: `${OUT}-4-page.png` });
+
+// 5. HOVER, which is the same answer without the commitment. It has to appear on its own after a
+// beat, and — the half that is easy to get wrong — go away again when the pointer leaves.
+await p.getByLabel('Close').last().click({ timeout: 8000 });
+await settle(700);
+await p.getByTestId('binder-title').hover({ timeout: 8000 });
+await settle(1200);
+check(await bodyHas(), 'hovering the binder title reveals the description');
+await p.screenshot({ path: `${OUT}-5-hover.png` });
+await p.mouse.move(20, 900);
+await settle(700);
+check(!(await bodyHas()), 'it leaves when the pointer does');
+
+await p.getByTestId('binder-page-title').first().hover({ timeout: 8000 });
+await settle(1200);
+check(await pageBodyHas(), 'hovering a page title reveals the page description');
+await p.screenshot({ path: `${OUT}-6-hover-page.png` });
+
+// And not while editing, where the title's job is the fields.
+await p.mouse.move(20, 900);
+await settle(500);
+await p.getByText(/^Edit$/).first().click({ timeout: 8000 });
+await settle(1800);
+await p.getByTestId('binder-title').hover({ timeout: 8000 });
+await settle(1200);
+check(!(await bodyHas()), 'no hover card while editing');
 
 await browser.close();
 await restore();

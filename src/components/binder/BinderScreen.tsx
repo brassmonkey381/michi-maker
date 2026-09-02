@@ -23,7 +23,7 @@ import {
   CARD_PICKER_RAIL_WIDTH,
   CardPicker,
 } from '@/components/binder/CardPicker';
-import { AboutPopup } from '@/components/binder/AboutPopup';
+import { AboutHoverCard, AboutPopup, useHoverReveal } from '@/components/binder/AboutPopup';
 import { BinderPages, type CoverToolsContext, type GridRole } from '@/components/binder/BinderPages';
 import { CoverTools } from '@/components/binder/CoverEditor';
 import { ColorField } from '@/components/binder/ColorField';
@@ -410,6 +410,14 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   };
   // One wall, one report: a dialog on its first hit today, the toast after that.
   const capGate = useCapGate(showLimitToast);
+
+  // Hovering the binder title answers the same question the tap does, without taking the screen.
+  // Off while editing, where the title's job is to open the fields, and off when there is nothing
+  // to say — a card that opens empty is worse than one that never opens.
+  //
+  // Above the `if (!binder)` guard with the rest of the hooks, hence the optional chain: the hook
+  // order has to hold on the render where the binder is missing too (see the note at the top).
+  const binderHover = useHoverReveal(!editing && !!binder?.description && !binderInfoOpen);
 
   if (!binder) {
     return (
@@ -1672,20 +1680,31 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                 Dead while reading a binder that has no description, since the card would open
                 with nothing in it. Always live while editing, where writing the first one is the
                 whole point. */}
-            <Pressable
-              onPress={() => setBinderInfoOpen(true)}
-              disabled={!editing && !binder.description}
-              hitSlop={6}
-              style={styles.titlePress}
-              accessibilityRole="button"
-              testID="binder-title"
-              accessibilityLabel={
-                editing ? 'Binder details \u2014 edit the title and description' : 'About this binder'
-              }>
-              <ThemedText type="subtitle" numberOfLines={1} style={styles.titleText}>
-                {binder.title || (editing ? 'Untitled binder' : '')}
-              </ThemedText>
-            </Pressable>
+            <View style={styles.titleCol}>
+              <Pressable
+                onPress={() => setBinderInfoOpen(true)}
+                onHoverIn={binderHover.onHoverIn}
+                onHoverOut={binderHover.onHoverOut}
+                disabled={!editing && !binder.description}
+                hitSlop={6}
+                style={styles.titlePress}
+                accessibilityRole="button"
+                testID="binder-title"
+                accessibilityLabel={
+                  editing ? 'Binder details \u2014 edit the title and description' : 'About this binder'
+                }>
+                <ThemedText type="subtitle" numberOfLines={1} style={styles.titleText}>
+                  {binder.title || (editing ? 'Untitled binder' : '')}
+                </ThemedText>
+              </Pressable>
+              {binderHover.shown ? (
+                <AboutHoverCard
+                  kicker={binder.title || 'This binder'}
+                  text={binder.description ?? ''}
+                  style={styles.titleHover}
+                />
+              ) : null}
+            </View>
             {canEdit ? (
               <View style={styles.headerRight}>
                 {editing ? editIcons : null}
@@ -2416,6 +2435,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 12,
+    // The header is EARLIER in the tree than the binder, so anything of its own that hangs below
+    // it — today the title's hover card — paints under the page without this. Raising the header
+    // rather than the card is what actually works: a z-index only sorts against siblings, and the
+    // card's sibling is the rest of the header, not the page it needs to sit over.
+    zIndex: 30,
     borderBottomWidth: 1,
     borderBottomColor: Palette.hairline,
   },
@@ -2429,7 +2453,13 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'flex-end',
   },
-  titlePress: { flex: 1, minWidth: 0 },
+  // The title and the card it reveals share a column so the card centres under the title
+  // (an absolute child with no left/right takes the parent's alignItems).
+  titleCol: { flex: 1, minWidth: 0, alignItems: 'center' },
+  titlePress: { alignSelf: 'stretch', minWidth: 0 },
+  // Clear of the header's bottom rule, so the card reads as floating over the binder rather than
+  // as another band of chrome attached to the header.
+  titleHover: { top: 40 },
   iconBar: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   iconBtn: {
     width: 30,

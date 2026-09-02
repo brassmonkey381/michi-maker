@@ -31,7 +31,9 @@ import { uploadArtImage } from '@/lib/uploadArt';
 import { deriveAttribution, domainOf, type ArtAttribution } from '@/data/artworkLibrary';
 import { uid, uuidv4, type ImageTransform } from '@/data/binderTypes';
 import type { SavedSlice } from '@/data/savedSlices';
-import { activeGuides, gridLines, snapAnchor, snapAxis, zoomWindow } from '@/data/sliceSnap';
+import { activeGuides, gridLines, snapAnchor, snapAxis, zoomWindow, type Win } from '@/data/sliceSnap';
+import { windowedImageStyle } from '@/data/imageWindow';
+import { IconBtn, Seg } from '@/components/binder/StudioControls';
 import { hasMoreSliceShapes, shapeKey, shapeLabel, visibleSliceShapes } from '@/data/sliceShapes';
 import { TIER_LIMITS } from '@/data/tiers';
 import { useCatalog } from '@/hooks/use-catalog';
@@ -135,12 +137,6 @@ interface Panel {
   rs: number;
   cs: number;
 }
-interface Win {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
 
 const GUIDE: { keys: string; action: string }[] = [
   { keys: 'Drag canvas', action: 'Pan / reframe the image' },
@@ -207,27 +203,9 @@ function SourceImage({
   fallbackFit: 'cover' | 'contain';
   onError: () => void;
 }) {
-  const cw = Math.max(0.02, crop.w);
-  const ch = Math.max(0.02, crop.h);
-  const W = boxW / cw;
-  const H = boxH / ch;
-  const left = -(crop.x / cw) * boxW;
-  const top = -(crop.y / ch) * boxH;
-  // A quarter turn swaps the element's width/height; lay it out pre-rotation and let the
-  // centre-anchored rotate land it exactly on the intended (left, top, W, H) box.
-  const quarter = rot === 90 || rot === 270;
-  const style = {
-    position: 'absolute' as const,
-    width: quarter ? H : W,
-    height: quarter ? W : H,
-    left: quarter ? left + (W - H) / 2 : left,
-    top: quarter ? top + (H - W) / 2 : top,
-    transform: [
-      { rotate: `${rot}deg` },
-      { scaleX: flipH ? -1 : 1 },
-      { scaleY: flipV ? -1 : 1 },
-    ],
-  };
+  // The window arithmetic lives in imageWindow.ts now — the cover's decoration renderer shows the
+  // same picture through the same window, and two copies of this had already drifted once.
+  const style = windowedImageStyle(boxW, boxH, crop, { rot, flipH, flipV });
   return (
     <Image
       source={{ uri }}
@@ -1665,71 +1643,6 @@ function Btn({
   );
 }
 
-/** One cell of a segmented control (Grid presets, Fit, Whole/Sliced). */
-function Seg({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} style={[styles.seg, active && styles.segActive]}>
-      <Text style={[styles.segText, active && styles.segTextActive]}>{label}</Text>
-    </Pressable>
-  );
-}
-
-/** A compact framing control — zoom / rotate / flip / "Just the art". */
-function IconBtn({
-  label,
-  onPress,
-  disabled = false,
-  active = false,
-  repeat = false,
-  testID,
-}: {
-  label: string;
-  onPress: () => void;
-  disabled?: boolean;
-  active?: boolean;
-  /** Keep firing while held — for the zoom steps, which are deliberately small. */
-  repeat?: boolean;
-  /** For the screenshot harnesses: a glyph is not a stable thing to look for. */
-  testID?: string;
-}) {
-  const delay = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const tick = useRef<ReturnType<typeof setInterval> | null>(null);
-  const stop = useCallback(() => {
-    if (delay.current) clearTimeout(delay.current);
-    if (tick.current) clearInterval(tick.current);
-    delay.current = null;
-    tick.current = null;
-  }, []);
-  // A press that ends off the button, or a component that unmounts mid-hold, must not leave a
-  // timer zooming an unmounted canvas.
-  useEffect(() => stop, [stop]);
-  const start = useCallback(() => {
-    if (!repeat) return;
-    stop();
-    // A pause first, so a normal tap is one step and not a burst.
-    delay.current = setTimeout(() => {
-      tick.current = setInterval(onPress, 55);
-    }, 280);
-  }, [repeat, onPress, stop]);
-  return (
-    <Pressable
-      testID={testID}
-      onPress={onPress}
-      onPressIn={start}
-      onPressOut={stop}
-      onHoverOut={stop}
-      disabled={disabled}
-      style={({ pressed }) => [
-        styles.iconBtn,
-        active && styles.iconBtnActive,
-        pressed && styles.pressed,
-        disabled && styles.disabled,
-      ]}>
-      <Text style={[styles.iconBtnText, active && styles.iconBtnTextActive]}>{label}</Text>
-    </Pressable>
-  );
-}
-
 /** A quiet text-only action (Reset / Save / Clear). */
 function Ghost({ label, onPress }: { label: string; onPress: () => void }) {
   return (
@@ -1848,31 +1761,7 @@ const styles = StyleSheet.create({
 
   // Segmented control
   segGroup: { flexDirection: 'row', alignItems: 'center', backgroundColor: Palette.panel, borderRadius: Radius.pill, padding: 2 },
-  seg: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: Radius.pill },
-  segActive: {
-    backgroundColor: Palette.surface,
-    shadowColor: '#000000',
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
-  },
-  segText: { fontSize: FontSize.label, color: Palette.muted, fontWeight: Weight.medium },
-  segTextActive: { color: Palette.ink, fontWeight: Weight.semibold },
 
-  // Compact icon control (zoom / rotate / flip / "Just the art")
-  iconBtn: {
-    minWidth: 34,
-    height: 34,
-    paddingHorizontal: 10,
-    borderRadius: Radius.control,
-    backgroundColor: Palette.panel,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconBtnActive: { backgroundColor: Palette.accent },
-  iconBtnText: { fontSize: FontSize.control, fontWeight: Weight.semibold, color: Palette.ink2 },
-  iconBtnTextActive: { color: Palette.accentText },
   rotDeg: { fontSize: FontSize.sm, color: Palette.muted, marginHorizontal: 2 },
 
   // Quiet text actions

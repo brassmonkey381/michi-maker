@@ -147,7 +147,7 @@ test('applyCrop narrows the window, shrinks the box, and keeps the pixels where 
   const out = applyCrop(d, { l: 0.25, t: 0.25, r: 0.75, b: 0.75 }, 4 / 3);
   assert.deepEqual(out.crop, { x: 0.25, y: 0.25, w: 0.5, h: 0.5 });
   near(out.w, 0.2);
-  near(out.h, 0.1);
+  near(out.h!, 0.1);
   // The kept rectangle was centred, so the centre does not move.
   near(out.x, 0.5);
   near(out.y, 0.5);
@@ -155,6 +155,7 @@ test('applyCrop narrows the window, shrinks the box, and keeps the pixels where 
   const again = applyCrop(out, { l: 0, t: 0, r: 0.5, b: 1 }, 4 / 3);
   assert.deepEqual(again.crop, { x: 0.25, y: 0.25, w: 0.25, h: 0.5 });
   near(again.w, 0.1);
+  near(again.h!, 0.1);
 });
 
 test('applyCrop of an off-centre rectangle moves the centre, with y scaled by the surface aspect', () => {

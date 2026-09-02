@@ -34,9 +34,30 @@ export interface FreeCard {
   qty: number;
 }
 
-const PAGE_ROWS = 3;
-const PAGE_COLS = 3;
-const PAGE_CELLS = PAGE_ROWS * PAGE_COLS;
+/**
+ * The page the wizard is building onto. Nine pockets was hardcoded when a 3×3 was the only shape
+ * michi could draw; the editor has offered 3×4 for a while and the Vault X 12-pocket XL ships with
+ * that geometry, so a build into a 12-pocket binder was laying out for the wrong page.
+ *
+ * It changes more than the grid. A cluster's ceiling is one page of cards, so a 3×4 page gathers
+ * twelve-card themes where a 3×3 gathers nine, and the bulk sweep chunks by the same number. The
+ * MIN_SIZE floors deliberately do NOT scale: they say how many cards make a theme read as a theme,
+ * which is a judgement about the cards and not about the page they land on.
+ */
+export interface PageShape {
+  rows: number;
+  cols: number;
+}
+
+/** The shapes the wizard can build onto — those with a template catalogue behind them. */
+export const WIZARD_SHAPES: { label: string; shape: PageShape }[] = [
+  { label: '3×3 · 9 pockets', shape: { rows: 3, cols: 3 } },
+  { label: '3×4 · 12 pockets', shape: { rows: 3, cols: 4 } },
+];
+
+export const DEFAULT_SHAPE: PageShape = { rows: 3, cols: 3 };
+
+const cellsOf = (shape: PageShape) => shape.rows * shape.cols;
 /** Minimum cluster size per kind — below this a "page" reads as an accident, not a theme. */
 const MIN_SIZE: Record<WizardProposal['kind'], number> = {
   chase: 3,
@@ -107,7 +128,9 @@ export function proposePages(
   catalog: Catalog,
   prices?: PriceSummary | null,
   evolutionLines?: ReadonlyMap<string, string[]>,
+  shape: PageShape = DEFAULT_SHAPE,
 ): { proposals: WizardProposal[]; bulk: WizardProposal[] } {
+  const PAGE_CELLS = cellsOf(shape);
   // Free copies per card id (≥1). Curated pages consume one; the bulk sweep takes the remainder.
   const qtyOf = new Map<string, number>();
   for (const f of freeCards) qtyOf.set(f.id, Math.max(1, Math.floor(f.qty)));
@@ -316,14 +339,20 @@ export function capProposals(chosen: WizardProposal[], max = WIZARD_MAX_PAGES): 
     .map((x) => x.p);
 }
 
-// Reading orders for a 3×3 page. Row-major for most pages; column-major for evolution pages so
-// the stages read top→bottom down each column.
-const ROW_MAJOR: [number, number][] = [
-  [0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2],
-];
-const COL_MAJOR: [number, number][] = [
-  [0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1], [0, 2], [1, 2], [2, 2],
-];
+/**
+ * The order cards fill a page. Row-major for most pages; column-major for evolution pages so a
+ * family reads Basic→final top to bottom down its column. Generated from the shape rather than
+ * written out, so a 3×4 page reads correctly without a second hand-typed table to keep in step.
+ */
+function readingOrder(shape: PageShape, colMajor: boolean): [number, number][] {
+  const out: [number, number][] = [];
+  if (colMajor) {
+    for (let c = 0; c < shape.cols; c += 1) for (let r = 0; r < shape.rows; r += 1) out.push([r, c]);
+  } else {
+    for (let r = 0; r < shape.rows; r += 1) for (let c = 0; c < shape.cols; c += 1) out.push([r, c]);
+  }
+  return out;
+}
 
 /**
  * Turn chosen proposals into persistable pages — COMPOSITION FIRST, cards into what it leaves.
@@ -343,20 +372,20 @@ const COL_MAJOR: [number, number][] = [
  * the cards, which is the point of the product rather than an extravagance. A page whose cards
  * fill it completely gets no template and no art, which is correct: there is nothing to compose.
  */
-export function buildPages(chosen: WizardProposal[]): DemoPage[] {
+export function buildPages(chosen: WizardProposal[], shape: PageShape = DEFAULT_SHAPE): DemoPage[] {
   return chosen.map((p, pageIndex) => {
-    const cardIds = p.cardIds.slice(0, PAGE_CELLS);
+    const cardIds = p.cardIds.slice(0, cellsOf(shape));
     // Rotate on page index so a built binder does not reach for one layout every time.
     //
     // An evolution page reads a family DOWN a column, so it only accepts a composition that leaves
     // a column whole. Without that, a three-stage line placed into a diagonal layout breaks out of
     // its column at stage three and stops reading as a family at all.
-    const template = pickTemplate(PAGE_ROWS, PAGE_COLS, cardIds.length, {
+    const template = pickTemplate(shape.rows, shape.cols, cardIds.length, {
       rotate: pageIndex,
       exclude: p.kind === 'evolution' ? (t) => !hasFreeColumn(t) : undefined,
     });
     const reserved = template ? reservedCells(template) : new Set<string>();
-    const order = (p.kind === 'evolution' ? COL_MAJOR : ROW_MAJOR).filter(
+    const order = readingOrder(shape, p.kind === 'evolution').filter(
       ([r, c]) => !reserved.has(`${r},${c}`),
     );
     const cardSlots: DemoSlot[] = cardIds.map((cardId, i) => ({
@@ -373,8 +402,8 @@ export function buildPages(chosen: WizardProposal[]): DemoPage[] {
     return {
       id: uuidv4(),
       title: p.title,
-      rows: PAGE_ROWS,
-      cols: PAGE_COLS,
+      rows: shape.rows,
+      cols: shape.cols,
       slots: [...cardSlots, ...artSlots],
     };
   });

@@ -20,11 +20,14 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
 import {
+  DEFAULT_SHAPE,
+  WIZARD_SHAPES,
   buildPages,
   capProposals,
   proposePages,
   wizardMaxPages,
   type FreeCard,
+  type PageShape,
   type WizardProposal,
 } from '@/data/binderWizard';
 import { binderLimitMessage, binderTrialMessage } from '@/data/limitMessages';
@@ -86,9 +89,16 @@ export function BuildBinderSheet({
     };
   }, [visible, freeIdsKey]);
 
+  // The page the binder is being built for. It changes the plan, not just the drawing: a cluster
+  // fills one page, so a 3×4 gathers twelve-card themes where a 3×3 gathers nine.
+  const [shape, setShape] = useState<PageShape>(DEFAULT_SHAPE);
+
   const rawPlan = useMemo(
-    () => (visible && catalog ? proposePages(freeCards, catalog, priceSummary, evoLines) : null),
-    [visible, catalog, priceSummary, freeCards, evoLines],
+    () =>
+      visible && catalog
+        ? proposePages(freeCards, catalog, priceSummary, evoLines, shape)
+        : null,
+    [visible, catalog, priceSummary, freeCards, evoLines, shape],
   );
   // Hold the "Reading your collection…" state for a deliberate minimum so the build
   // animation is actually seen — the plan itself computes near-instantly on a warm catalog.
@@ -169,7 +179,7 @@ export function BuildBinderSheet({
     if (chosen.length === 0) return;
     const binder = store.createBinder({
       title: asDemo ? 'Example binder' : 'From my collection',
-      pages: buildPages(chosen),
+      pages: buildPages(chosen, shape),
       isDemo: asDemo || undefined,
     });
     // The store refuses past the binder cap — leave the sheet open on the perk note below.
@@ -214,6 +224,36 @@ export function BuildBinderSheet({
                   around its cards, with room set aside for your own art, and Reclaim can take any
                   card back out.
                 </ThemedText>
+
+                {/* THE PAGE, chosen before the pages are read — a 12-pocket binder should be
+                    planned for twelve, not laid out for nine and left short. Above the list
+                    because changing it re-plans everything below. */}
+                <View style={styles.shapeRow}>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Page
+                  </ThemedText>
+                  {WIZARD_SHAPES.map((opt) => {
+                    const on = opt.shape.rows === shape.rows && opt.shape.cols === shape.cols;
+                    return (
+                      <Pressable
+                        key={opt.label}
+                        onPress={() => setShape(opt.shape)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: on }}
+                        style={({ pressed }) => [
+                          styles.shapeChip,
+                          on && styles.shapeChipOn,
+                          pressed && styles.shapePressed,
+                        ]}>
+                        <ThemedText
+                          type="small"
+                          style={[styles.shapeChipText, on && styles.shapeChipTextOn]}>
+                          {opt.label}
+                        </ThemedText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
 
                 {trimmed > 0 ? (
                   <ThemedText type="small" themeColor="textSecondary" style={styles.trimNote}>
@@ -313,6 +353,24 @@ export function BuildBinderSheet({
 }
 
 const styles = StyleSheet.create({
+  shapeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+    marginBottom: Spacing.three,
+  },
+  shapeChip: {
+    paddingVertical: 5,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
+  },
+  shapeChipOn: { backgroundColor: Palette.accent, borderColor: Palette.accent },
+  shapeChipText: { color: Palette.ink2, fontWeight: Weight.semibold },
+  shapeChipTextOn: { color: Palette.accentText },
+  shapePressed: { opacity: 0.7 },
   backdrop: {
     flex: 1,
     backgroundColor: Palette.scrim45,

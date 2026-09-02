@@ -19,6 +19,7 @@ import { attributionLabel, deriveAttribution, type ArtAttribution } from '@/data
 import { resolveCardWith, resolveCatalogCardWith } from '@/data/cardResolver';
 import { CAPTION_FIELDS, formatCaption, hasTextCaption, type CaptionFieldKey } from '@/data/cardCaption';
 import { occupiedCells, type DemoCard, type DemoPage, type DemoSlot } from '@/data/binderTypes';
+import { artSlotBrief } from '@/data/artTemplates';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useTheme } from '@/hooks/use-theme';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
@@ -495,6 +496,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
           const style = box(slot.row, slot.col, slot.rowSpan, slot.colSpan);
           const content = (
             <SlotContent
+              pageTitle={page.title}
               slot={slot}
               radius={slotRadius}
               small={small}
@@ -658,6 +660,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               ghostStyle,
             ]}>
             <SlotContent
+              pageTitle={page.title}
               slot={dragged}
               radius={slotRadius}
               small={small}
@@ -1138,15 +1141,35 @@ function ArtworkImage({
 }
 
 /**
- * A reserved art gap left by the Build-a-binder wizard — a dashed "Your Art Here" placeholder.
- * Tapping it in the editor (or dragging a slice from the tray onto it) fills it with the owner's
- * own art. Purely empty (no image / card), so it never trips the private-art gate.
+ * A reserved art panel — a pocket a composition set aside (see artTemplates), waiting for the
+ * owner's own art. Tapping it in the editor, or dragging a slice from the tray onto it, fills it.
+ * Purely empty (no image / card), so it never trips the private-art gate.
+ *
+ * IT SAYS WHAT IT IS FOR. "Your Art Here" asks the owner to invent the picture and the brief at
+ * once; a panel that says "Chase Board · Footer caption band" has already answered the second
+ * half. The page supplies the theme, the slot's own role supplies the job. A hand-placed panel
+ * has no role and falls back to the plain invitation, which is right — nobody needs telling what
+ * they just put there.
+ *
+ * At a small pocket the role alone is shown: the theme is legible on the page itself, and two
+ * lines of five-point text is not a label, it is a smudge.
  */
-function ArtGapPlaceholder({ radius, small }: { radius: number; small: boolean }) {
+function ArtGapPlaceholder({
+  radius,
+  small,
+  role,
+  pageTitle,
+}: {
+  radius: number;
+  small: boolean;
+  role?: string;
+  pageTitle?: string;
+}) {
+  const brief = small ? artSlotBrief(undefined, role) : artSlotBrief(pageTitle, role);
   return (
     <View style={[styles.fill, styles.artGap, { borderRadius: radius }]}>
-      <Text style={[styles.artGapText, small && styles.artGapTextSmall]} numberOfLines={2}>
-        Your Art Here
+      <Text style={[styles.artGapText, small && styles.artGapTextSmall]} numberOfLines={3}>
+        {brief}
       </Text>
     </View>
   );
@@ -1180,6 +1203,7 @@ function SlotContent({
   radius,
   small,
   catalog,
+  pageTitle,
   owned = false,
   scanUri,
   captionFields = [],
@@ -1206,6 +1230,8 @@ function SlotContent({
   owned?: boolean;
   /** This card's real scan (see BinderGridProps.scanUrlOf); card pockets only. */
   scanUri?: string;
+  /** The page's own name, so a reserved art panel can say which page's brief it is holding. */
+  pageTitle?: string;
 }) {
   if (slot.type === 'insert') {
     // Tonal negative-space filler: solid colour with a soft top inner highlight
@@ -1246,7 +1272,9 @@ function SlotContent({
   // An empty artwork slot is a RESERVED ART GAP (the Build-a-binder wizard leaves these): a
   // dashed placeholder inviting the owner to drop in their own art. No image, no card.
   if (slot.type === 'artwork' && !slot.cardId) {
-    return <ArtGapPlaceholder radius={radius} small={small} />;
+    return (
+      <ArtGapPlaceholder radius={radius} small={small} role={slot.artRole} pageTitle={pageTitle} />
+    );
   }
 
   const id = slot.cardId;

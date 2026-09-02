@@ -56,13 +56,116 @@ export type ArtRole =
 export const ART_ROLE_LABELS: Record<ArtRole, string> = {
   plate: 'Full-page plate',
   title: 'Title band',
-  footer: 'Footer band',
+  footer: 'Footer caption band',
   rail: 'Edge rail',
   anchor: 'Anchor block',
   post: 'Corner post',
   band: 'Bridging band',
   accent: 'Single accent',
 };
+
+/**
+ * WHAT ACTUALLY GOES IN THE PANEL.
+ *
+ * A reserved pocket that only says "Your Art Here" asks the owner to invent both the picture and
+ * the brief. The role already knows the brief — a footer band and an anchor block want completely
+ * different things — so it should say so, with examples concrete enough to act on.
+ *
+ * NOT PRICES, anywhere. A printed insert is fixed the moment it goes in the sleeve and prices move
+ * daily, so a page that prints a number is wrong by the weekend. Value belongs to the card labels,
+ * which read live under every pocket (see cardCaption, the `price` field) and cost no art at all.
+ */
+export interface ArtRoleGuide {
+  /** What this panel is, in the fewest words that are still true. */
+  what: string;
+  /** Things you could actually put there. Written as instructions, not adjectives. */
+  examples: string[];
+  /** A trap specific to this role. Omitted where there isn't one worth the words. */
+  avoid?: string;
+}
+
+export const ART_ROLE_GUIDE: Record<ArtRole, ArtRoleGuide> = {
+  plate: {
+    what: 'The whole page as one picture, with no cards on it at all.',
+    examples: [
+      'A chapter break between two runs — the set logo on a flat colour, so the next page starts clean',
+      "The set's key art at full bleed, as the title page for the pages that follow",
+      'A scene with nothing in it but weather: rain, dusk, snow, to change the pace of the binder',
+    ],
+    avoid: 'Anything with small detail. This is read at arm’s length while flipping past.',
+  },
+  title: {
+    what: 'A band across the top that names the page.',
+    examples: [
+      'The theme, in your own lettering: "Ocean", "First Pulls", "Kanto Starters"',
+      'The set logo beside its release year',
+      "The illustrator's name, for a page of one artist's work",
+    ],
+    avoid: 'A sentence. A title band holds two or three words at binder-flipping size.',
+  },
+  footer: {
+    what: 'A band along the bottom — the credits line for the cards above it.',
+    examples: [
+      'The illustrators of the cards on this page, listed left to right',
+      'Set symbol and release date, so the page dates itself',
+      'One line of why these cards are together: "traded for these at Worlds, 2024"',
+    ],
+    avoid:
+      'Prices. The insert is printed once and the number is wrong within the week — switch on the price card label instead, which reads live under every pocket.',
+  },
+  rail: {
+    what: 'A tall column down one edge, framing the cards beside it.',
+    examples: [
+      'The series wordmark set vertically, like a book spine',
+      'A full-height character render, standing beside its own cards',
+      'A colour block pulled from the cards it frames, so the page reads as one object',
+    ],
+    avoid: 'A picture with a horizon. Anything wider than it is tall fights the shape of the panel.',
+  },
+  anchor: {
+    what: 'The biggest block on the page: what your eye lands on first.',
+    examples: [
+      "The page's Pokémon drawn large, with its cards arranged around it",
+      'The place the cards come from — the route, the city, the sea they were drawn in',
+      "The chase card's own artwork enlarged, so the small copy in its pocket reads as the real thing",
+    ],
+  },
+  post: {
+    what: 'An upright panel at a page edge, standing where the eye would otherwise run off.',
+    examples: [
+      'A tall crop of the page subject, turning the eye back into the grid',
+      'A numbered tab for this section of the binder',
+      'A single colour post, tying the page to the one facing it',
+    ],
+  },
+  band: {
+    what: 'A horizontal run bridging two groups of cards.',
+    examples: [
+      'A horizon that continues behind the cards on either side',
+      'A caption naming just the run beneath it, not the whole page',
+      'A path or arrow that leads from one group of cards to the next',
+    ],
+  },
+  accent: {
+    what: 'One pocket, held back on purpose.',
+    examples: [
+      'A set symbol or type icon as a single tile',
+      'A sticker, seal or stamp — the small thing that makes the page yours',
+      'Nothing at all: the pocket kept open for the card you have not found yet',
+    ],
+    avoid: 'Detail. At one pocket it reads as a texture, not a picture.',
+  },
+};
+
+/**
+ * The line a reserved pocket shows: the page it is on, and the job it is doing there. "Chase
+ * Board · Footer caption band" tells the owner both halves of what to make.
+ */
+export function artSlotBrief(pageTitle: string | undefined, role: string | undefined): string {
+  const label = role && role in ART_ROLE_LABELS ? ART_ROLE_LABELS[role as ArtRole] : '';
+  if (pageTitle && label) return `${pageTitle} · ${label}`;
+  return label || pageTitle || 'Your art here';
+}
 
 export interface ArtPanel {
   row: number;

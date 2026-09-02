@@ -12,15 +12,7 @@
  */
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import {
-  Modal,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Animated, {
   runOnJS,
   useAnimatedStyle,
@@ -195,6 +187,12 @@ export interface BinderPagesProps {
   /** The view-settings dialog, opened by a gear the CALLER puts in chrome it already has. */
   settingsOpen?: boolean;
   onCloseSettings?: () => void;
+  /**
+   * More settings, supplied by the caller, shown under the view chips in the same dialog. The
+   * editor puts the binder-wide look here — page size and background — because they belong with
+   * the other "how this binder shows itself" choices rather than in a page-by-page tools card.
+   */
+  settingsExtras?: ReactNode;
   /** Shared "which spread column is mid-drag" value, so that column lifts above its neighbours
    *  (edit only). Omit on read-only surfaces. */
   dragCol?: SharedValue<number>;
@@ -217,6 +215,7 @@ export function BinderPages({
   onEditPage,
   settingsOpen = false,
   onCloseSettings,
+  settingsExtras,
   dragCol,
 }: BinderPagesProps) {
   // Remembered per account (and per device for guests) rather than reset on every visit — see
@@ -987,7 +986,7 @@ export function BinderPages({
                   <Text style={styles.fieldsDone}>Done</Text>
                 </Pressable>
               </View>
-              <View style={styles.settingsBody}>
+              <ScrollView contentContainerStyle={styles.settingsBody} keyboardShouldPersistTaps="handled">
         <View style={styles.viewToggles}>
           {toolPills}
           {canDoubleSide ? (
@@ -1085,7 +1084,8 @@ export function BinderPages({
             </View>
           </Modal>
         ) : null}
-              </View>
+                {settingsExtras}
+              </ScrollView>
             </ThemedView>
           </View>
         </Modal>
@@ -1158,16 +1158,26 @@ export function BinderPages({
               : null;
             return (
               <View style={[styles.spreadRow, { gap: bookGap }]}>
-                <View style={{ width: bookW, height: coverBoxH }}>
+                {/* THE OUTSIDE COVERS ARE NAMED TOO, and named in the same place a page is.
+
+                    Every open spread draws a label above each column, so a shut binder that drew
+                    none was a line shorter than the binder either side of it — the covers sat
+                    higher than the pages and the whole book bobbed as you turned onto them. They
+                    also deserve the name on its own merits: "Front cover" is what you are looking
+                    at, and until now nothing said so. */}
+                <CoverColumn width={bookW} height={coverBoxH} label={shut === 'back' ? 'Back cover' : ''}>
                   {shut === 'back' ? drawCover('back', true) : shut === 'tail' ? blank : null}
-                </View>
-                <View style={{ width: bookW, height: coverBoxH }}>
+                </CoverColumn>
+                <CoverColumn
+                  width={bookW}
+                  height={coverBoxH}
+                  label={shut === 'front' ? 'Front cover' : shut === 'tail' ? 'Inside back' : ''}>
                   {shut === 'front'
                     ? drawCover('front', true)
                     : shut === 'tail'
                       ? drawCover('backInside', true)
                       : null}
-                </View>
+                </CoverColumn>
               </View>
             );
           })()
@@ -1400,7 +1410,13 @@ export function BinderPages({
                       // the left-hand box: same reason the right column is.
                       page={baseLeft ?? page}
                       width={bookW}
-                      label={leftPage ? `Page ${spreadLeftIdx + 1}` : ''}
+                      // NO WORDS ON THE COPIES. This overlay sits ON TOP of the settled spread,
+                      // which is already showing each page's title, so a label here painted a
+                      // second one over the first — the "Page 1 / Page 2" ghosting seen mid-turn.
+                      // Empty, not absent: the line still holds its 20px so the copy lands exactly
+                      // where the real page is.
+                      label=""
+
                       editable={editable}
                       columnIndex={0}
                       role={leftRole}
@@ -1421,7 +1437,8 @@ export function BinderPages({
                       // animation at all, because a column with no page renders no children.
                       page={baseRight ?? page}
                       width={bookW}
-                      label={rightPage ? `Page ${spreadRightIdx + 1}` : ''}
+                      label=""
+
                       editable={editable}
                       columnIndex={2}
                       role={rightRole}
@@ -1615,6 +1632,32 @@ function PeekClip({
 }
 
 /**
+ * A cover, in a column shaped exactly like a page's. The label is always rendered — with an empty
+ * string for the half that holds nothing — because it is what keeps a shut binder the same height
+ * as an open one, and a binder that changes height as it closes reads as jumping.
+ */
+function CoverColumn({
+  width,
+  height,
+  label,
+  children,
+}: {
+  width: number;
+  height: number;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <View style={styles.neighbor}>
+      <ThemedText type="small" themeColor="textSecondary" style={styles.neighborLabel} numberOfLines={1}>
+        {label}
+      </ThemedText>
+      <View style={{ width, height }}>{children}</View>
+    </View>
+  );
+}
+
+/**
  * One column of the spread: a page label above a grid. The current column is static; a neighbour
  * flips to its page — via its label always, and (read-only only) by tapping the whole page. When
  * editable the grid stays a bare drag surface. `dragCol` lifts the mid-drag column above the rest.
@@ -1741,7 +1784,7 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
   },
   settingsHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 12 },
-  settingsBody: { alignItems: 'center', gap: 10 },
+  settingsBody: { alignItems: 'center', gap: 10, paddingBottom: 4 },
   fieldsDone: { fontSize: FontSize.md, fontWeight: Weight.semibold, color: Palette.accent },
   // 8, not 18. That margin was free when the page was sized by width and simply overflowed; now
   // that the page is fitted to the height it has, every pixel of margin comes straight off the card
@@ -1759,7 +1802,11 @@ const styles = StyleSheet.create({
   kept: { opacity: 0 },
   spreadRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center' },
   neighbor: { alignItems: 'center' },
-  neighborLabel: { marginBottom: 6 },
+  // ONE LINE, ALWAYS, WORDS OR NOT. `type="small"` is lineHeight 20, and stating it as a height
+  // means an empty label occupies exactly what a full one does. Every place that needs the space
+  // without the text — the turn overlay's copies, the blank half of a shut binder — depends on it,
+  // and so does the rule that the binder never changes height as you turn through it.
+  neighborLabel: { marginBottom: 6, height: 20 },
   // The filmstrip is NAVIGATION, so it may never be the thing you have to scroll to reach. And
   // scrolling to it is worse than it sounds here: the wheel over the binder flips pages instead of
   // scrolling, so hunting for the strip flips you off the page you were on.

@@ -93,15 +93,18 @@ if ((await plus.count()) === 0) await fail('no empty pocket to open the picker f
 await plus.scrollIntoViewIfNeeded({ timeout: 8000 });
 await plus.click({ timeout: 8000 });
 for (let i = 0; i < 25 && !(await p.locator('[data-testid="card-picker-dock"]').count()); i++) await settle(1000);
+// The artwork side is its own dock on the left now, not a tab inside the card picker.
+
 await settle(1500);
-await p.getByText('Artwork', { exact: true }).first().click({ timeout: 8000 });
+// The artwork panel opens from its rail on the left, which is always there while editing.
+await p.locator('[data-testid="artwork-rail"]').first().click({ timeout: 8000 });
 await settle(2500);
 await p.screenshot({ path: `${OUT}-1-artwork.png` });
 
 let ok = true;
 
 // 1. IT DOCKS. This is the exception that goes away: the tab used to force a full-width sheet.
-const docked = (await p.locator('[data-testid="card-picker-dock"]').count()) > 0;
+const docked = (await p.locator('[data-testid="artwork-dock"]').count()) > 0;
 const pageVisible = await p.evaluate(() => {
   const el = document.querySelector('[data-testid="binder-page-current"]');
   if (!el) return false;
@@ -121,9 +124,8 @@ if (!looksLikeTray) { console.log('FAIL — the Artwork tab does not read as a t
 if (looksLikeStudio) { console.log('FAIL — the studio is still embedded in the tab'); ok = false; }
 
 // 3. THE STUDIO IS STILL REACHABLE, as a button on the tray.
-// Scoped to the dock: the bottom slice tray has a button of almost the same name, and it sits
-// BEHIND the docked panel — an unscoped match resolves to the covered one and never clicks.
-const newBtn = p.locator('[data-testid="card-picker-dock"]').getByText(/Slice new art/).first();
+// Scoped to the artwork dock, which is where the tray and its studio button live.
+const newBtn = p.locator('[data-testid="artwork-dock"]').getByText(/Slice new art/).first();
 if ((await newBtn.count()) === 0) {
   console.log('FAIL — no way to open the Slice Studio from the Artwork tab');
   ok = false;

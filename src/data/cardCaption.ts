@@ -204,8 +204,21 @@ export function pickerFields(): typeof CAPTION_FIELDS {
   return [...CAPTION_FIELDS].sort((a, b) => rank(a.key) - rank(b.key));
 }
 
-/** Fields shown by default the first time captions are switched on. */
-export const DEFAULT_CAPTION_FIELDS: CaptionFieldKey[] = ['set', 'number', 'rarityCode', 'finish'];
+/**
+ * Fields shown by default, and the set the 2026-09-01 rollout forces on (see `prefsEpoch`).
+ *
+ * These five are what someone holding the card can see for themselves: which set it is from, its
+ * number in that set, who drew it, how it is printed, and what it is worth. Rarity code came out —
+ * it is a two-letter code for a thing the finish chip and the art already say, and it was spending
+ * a slot in the bottom row on it.
+ */
+export const DEFAULT_CAPTION_FIELDS: CaptionFieldKey[] = [
+  'set',
+  'artist',
+  'number',
+  'price',
+  'finish',
+];
 
 /**
  * Build a card's caption: the enabled fields, in `CAPTION_FIELDS` order, dropping any that are

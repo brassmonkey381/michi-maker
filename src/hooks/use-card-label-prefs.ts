@@ -24,6 +24,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { CAPTION_FIELDS, DEFAULT_CAPTION_FIELDS, type CaptionFieldKey } from '@/data/cardCaption';
+import { isCurrentEpoch, stamp } from '@/data/prefsEpoch';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/store/auth';
 
@@ -34,7 +35,20 @@ export interface CardLabelPrefs {
   fields: CaptionFieldKey[];
 }
 
-const DEFAULTS: CardLabelPrefs = { on: false, fields: DEFAULT_CAPTION_FIELDS };
+const DEFAULTS: CardLabelPrefs = { on: true, fields: DEFAULT_CAPTION_FIELDS };
+
+/**
+ * The 2026-09-01 rollout, applied to a bag stored before it (see `prefsEpoch`): labels on, and the
+ * five fields in `DEFAULT_CAPTION_FIELDS`.
+ *
+ * The FIELDS are replaced rather than merged, which is the one place this rollout overwrites an
+ * answer someone gave. Merging would leave everybody who ever switched labels on carrying the old
+ * default's rarity code forever, since that is what they were handed and never chose. One set of
+ * five, the same for everyone today, and anybody who wants a sixth back is one chip away.
+ */
+function applyEpoch(): CardLabelPrefs {
+  return { on: true, fields: [...DEFAULT_CAPTION_FIELDS] };
+}
 
 /** Guests share one bucket; accounts get their own. */
 function storageKey(userId: string | null): string {
@@ -52,7 +66,9 @@ function normalize(value: unknown): CardLabelPrefs | null {
   if (typeof raw.on !== 'boolean' || !Array.isArray(raw.fields)) return null;
   const known = new Set(CAPTION_FIELDS.map((f) => f.key as string));
   const fields = raw.fields.filter((f): f is CaptionFieldKey => typeof f === 'string' && known.has(f));
-  return { on: raw.on, fields };
+  // Written before the current rollout: hand back that rollout's answer instead. Pure and
+  // idempotent, so it re-applies on every read until this person saves a choice of their own.
+  return isCurrentEpoch(raw) ? { on: raw.on, fields } : applyEpoch();
 }
 
 export interface CardLabelPrefsState extends CardLabelPrefs {
@@ -108,7 +124,10 @@ export function useCardLabelPrefs(): CardLabelPrefsState {
 
   const persist = useCallback(
     (next: CardLabelPrefs) => {
-      AsyncStorage.setItem(storageKey(userId), JSON.stringify(next)).catch(() => {});
+      // Stamped with the current prefs epoch, so the rollout above stops applying to this person
+      // the moment they say otherwise (see `prefsEpoch`).
+      const bag = stamp({ on: next.on, fields: [...next.fields] });
+      AsyncStorage.setItem(storageKey(userId), JSON.stringify(bag)).catch(() => {});
       // Real accounts only: an anonymous session's profile is thrown away with the session, so
       // writing to it spends a round trip on something nobody will ever read back.
       if (supabase && user && !user.is_anonymous) {
@@ -117,7 +136,7 @@ export function useCardLabelPrefs(): CardLabelPrefsState {
         // be. This is a widening, not a cast away from anything real.
         const merged = {
           ...((profile?.preferences as object) ?? {}),
-          cardLabels: { on: next.on, fields: [...next.fields] },
+          cardLabels: bag,
         };
         void supabase
           .from('profiles')

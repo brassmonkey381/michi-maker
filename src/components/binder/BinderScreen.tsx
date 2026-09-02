@@ -23,7 +23,6 @@ import {
   CARD_PICKER_RAIL_WIDTH,
   CardPicker,
 } from '@/components/binder/CardPicker';
-import { BinderCoverSheet } from '@/components/binder/BinderCoverSheet';
 import { BinderPages, type GridRole } from '@/components/binder/BinderPages';
 import { ColorField } from '@/components/binder/ColorField';
 import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
@@ -171,7 +170,17 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   const [editingWanted, setEditingWanted] = useState(false);
   // The binder-details / page-tools disclosure. Closed on entry, and session-only on purpose: the
   // default that matters is what you see the moment you tap Edit, and that should be the binder.
-  const [toolsOpen, setToolsOpen] = useState(false);
+  /**
+   * THE DETAILS DIALOG SPLIT INTO THE TWO THINGS IT EDITED, each opened by tapping what it names.
+   *
+   * One modal used to hold the binder's title and description, the page's title and description,
+   * and a card of tools — reached from a chip on a row above the binder. Now the header title
+   * opens the binder's own details, the page's title (which is the column label) opens the page's,
+   * and the tools are icons in the header. Nothing to hunt for: you tap the words you want to
+   * change.
+   */
+  const [binderInfoOpen, setBinderInfoOpen] = useState(false);
+  const [pageInfoOpen, setPageInfoOpen] = useState(false);
   // The view chips (double-sided, labels, strip side, owned, scans) are rendered by BinderPages,
   // but the gear that opens them belongs up in this screen's header, where it costs no page height.
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -276,7 +285,6 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // "Send page to…" — the destination picker, and whether it moves or copies.
   const [sendPageOpen, setSendPageOpen] = useState(false);
   /** Choosing which real binder these pages sit in. */
-  const [coverOpen, setCoverOpen] = useState(false);
   const [sendAsMove, setSendAsMove] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(null);
   // The pocket whose PRINT FINISH is being changed. Holds the slot rather than an id because the
@@ -1474,81 +1482,94 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
 
   // Page-level editing tools, sat beside the title/description fields at the top so the bottom of
   // the editor is free for the slice tray.
-  const editToolsCard = (
-    <ThemedView type="backgroundElement" style={styles.editPanel}>
-      <ThemedText type="smallBold" themeColor="textSecondary" style={styles.editPanelTitle}>
-        Editing tools
-      </ThemedText>
-
-      <View style={styles.btnRow}>
-        <PillButton label="↶ Undo" onPress={store.undo} disabled={!store.canUndo} />
-        <PillButton label="↷ Redo" onPress={store.redo} disabled={!store.canRedo} />
-        <PillButton
-          label="+ Page"
+  /**
+   * THE EDITING TOOLS, AS ICONS, IN THE HEADER.
+   *
+   * They used to be a card of labelled pills inside the details dialog: two clicks and a scroll to
+   * reach Undo. As symbols they fit in chrome this screen already draws, which is the only place a
+   * control is free — anything in the flow above the binder pushes the binder down and shrinks it.
+   *
+   * Each one keeps its old behaviour exactly; only the label became a glyph, and every button
+   * carries its words in `accessibilityLabel` so the meaning is not lost with the text.
+   */
+  const editIcons = (
+    <View style={styles.iconBar}>
+      <IconBtn glyph="\u21b6" label="Undo" onPress={store.undo} disabled={!store.canUndo} testID="tool-undo" />
+      <IconBtn glyph="\u21b7" label="Redo" onPress={store.redo} disabled={!store.canRedo} testID="tool-redo" />
+      <IconBtn
+        glyph="+"
+        label="Add a page"
+        testID="tool-add-page"
+        onPress={() =>
+          store.pageLimitReached(binder.id)
+            ? showLimitToast(pageLimitMessage(store.tier, store.limits))
+            : store.addPage(binder.id)
+        }
+      />
+      <IconBtn glyph="\u29c9" label="Duplicate this page" onPress={handleDuplicatePage} testID="tool-duplicate" />
+      {/* Send this page into ANOTHER of your binders (copy, or move it out of this one). */}
+      {store.userBinders.some((b) => b.id !== binder.id) ? (
+        <IconBtn
+          glyph="\u27a6"
+          label="Send this page to another binder"
+          onPress={() => setSendPageOpen(true)}
+          testID="tool-send-page"
+        />
+      ) : null}
+      {binder.pages.length > 1 ? (
+        <IconBtn
+          glyph="\u2715"
+          label="Delete this page"
+          tone="danger"
+          testID="tool-delete-page"
           onPress={() =>
-            store.pageLimitReached(binder.id)
-              ? showLimitToast(pageLimitMessage(store.tier, store.limits))
-              : store.addPage(binder.id)
+            setConfirm({
+              title: 'Delete this page?',
+              message: 'The page and everything on it will be removed.',
+              confirmLabel: 'Delete page',
+              destructive: true,
+              onConfirm: () => {
+                const result = store.removePage(binder.id, page.id);
+                changePage(0);
+                showToast(parityNote('Page deleted', result?.blanksInserted), true);
+              },
+            })
           }
         />
-        <PillButton label="Duplicate page" onPress={handleDuplicatePage} />
-        {/* The binder as an object, rather than the page in front of you. */}
-        <PillButton label="Binder cover" onPress={() => setCoverOpen(true)} />
-        {/* Send this page into ANOTHER of your binders (copy, or move it out of this one). */}
-        {store.userBinders.some((b) => b.id !== binder.id) && (
-          <PillButton label="Send page to…" onPress={() => setSendPageOpen(true)} />
-        )}
-        {binder.pages.length > 1 && (
-          <PillButton
-            label="Delete page"
-            tone="danger"
-            onPress={() =>
-              setConfirm({
-                title: 'Delete this page?',
-                message: 'The page and everything on it will be removed.',
-                confirmLabel: 'Delete page',
-                destructive: true,
-                onConfirm: () => {
-                  const result = store.removePage(binder.id, page.id);
-                  changePage(0);
-                  showToast(parityNote('Page deleted', result?.blanksInserted), true);
-                },
-              })
-            }
-          />
-        )}
-        {binder.pages.some(isBlankPage) && (
-          <PillButton
-            label="Compact blanks"
-            onPress={() => {
-              const result = store.compactBlankPages(binder.id);
-              if (!result) return;
-              if (result.removed === 0) {
-                showToast(
-                  result.kept > 0
-                    ? 'Every blank page here keeps folded art on its pocket pairs.'
-                    : 'No blank pages to remove.',
-                );
-                return;
-              }
-              showToast(
-                `Removed ${result.removed} blank page${result.removed === 1 ? '' : 's'}${
-                  result.kept > 0
-                    ? `. ${result.kept === 1 ? 'One stays' : `${result.kept} stay`} to keep folded art aligned.`
-                    : ''
-                }`,
-                true,
-              );
-            }}
-          />
-        )}
-      </View>
+      ) : null}
+      {/* Select mode changes what every tap on the binder does, so it toggles from here and then
+          says so in the pill beside it rather than hiding inside a dialog. */}
+      <IconBtn
+        glyph="\u2295"
+        label="Select several pockets"
+        testID="binder-select-toggle"
+        active={selectMode}
+        onPress={() => {
+          setSelectMode((v) => {
+            if (v) clearMulti();
+            return !v;
+          });
+          setSelectedSlotId(null);
+        }}
+      />
+    </View>
+  );
 
+  /**
+   * HOW THE WHOLE BINDER LOOKS — shown under the view chips, behind the gear.
+   *
+   * Page size was already binder-wide; background now is too. A binder is one object, and letting
+   * each page carry its own colour let one drift into a patchwork nobody chose — invisible until
+   * you flipped onto the odd page out. Both live with the other "how this binder shows itself"
+   * choices instead of in a per-page tools card.
+   */
+  const binderLookSettings = editing ? (
+    <View style={styles.lookBox}>
       <View style={styles.inlineRow}>
         <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
           Page size
         </ThemedText>
-        {/* Segmented control — same voice as the studio's fit/view toggles. */}
+        {/* Segmented control \u2014 same voice as the studio's fit/view toggles. */}
         <View style={styles.segGroup}>
           {PAGE_SIZES.map((size) => {
             const active = page.rows === size.rows && page.cols === size.cols;
@@ -1556,8 +1577,6 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               <Pressable
                 key={size.label}
                 onPress={() => {
-                  // One pocket layout per binder (real pages don't mix) — the chip re-sizes EVERY
-                  // page, refusing when content would fall outside.
                   const res = store.setBinderPageSize(binder.id, size.rows, size.cols);
                   if (!res.ok && res.reason) showToast(res.reason);
                   else if (res.ok && binder.pages.length > 1)
@@ -1569,24 +1588,46 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
             );
           })}
         </View>
-        <ThemedText
-          type="small"
-          themeColor="textSecondary"
-          style={[styles.inlineLabel, styles.inlineLabelGap]}>
+      </View>
+      <View style={styles.inlineRow}>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
           Background
         </ThemedText>
         <View style={styles.colorFieldBox}>
           <ColorField
-            key={page.id}
+            key={binder.id}
             value={page.backgroundColor}
-            onChange={(backgroundColor) => store.updatePage(binder.id, page.id, { backgroundColor })}
+            onChange={(backgroundColor) => store.setBinderBackground(binder.id, backgroundColor)}
           />
         </View>
       </View>
-      {/* Per-page visibility now lives only in the Share modal ("Pages shown publicly"), so the
-          edit surface stays about layout, not sharing. */}
-    </ThemedView>
-  );
+      {binder.pages.some(isBlankPage) ? (
+        <PillButton
+          label="Compact blanks"
+          onPress={() => {
+            const result = store.compactBlankPages(binder.id);
+            if (!result) return;
+            if (result.removed === 0) {
+              showToast(
+                result.kept > 0
+                  ? 'Every blank page here keeps folded art on its pocket pairs.'
+                  : 'No blank pages to remove.',
+              );
+              return;
+            }
+            showToast(
+              `Removed ${result.removed} blank page${result.removed === 1 ? '' : 's'}${
+                result.kept > 0
+                  ? `. ${result.kept === 1 ? 'One stays' : `${result.kept} stay`} to keep folded art aligned.`
+                  : ''
+              }`,
+              true,
+            );
+          }}
+        />
+      ) : null}
+    </View>
+  ) : null;
 
   return (
     <ThemedView style={styles.flex}>
@@ -1603,13 +1644,27 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
             <Pressable onPress={onClose} hitSlop={10}>
               <Text style={[styles.headerAction, { color: theme.text }]}>Close</Text>
             </Pressable>
-            {/* The title is edited in the detail fields below (same width as the description);
-                the header always shows it read-only, updating live as you type. */}
-            <ThemedText type="subtitle" numberOfLines={1} style={styles.titleText}>
-              {binder.title || (editing ? 'Untitled binder' : '')}
-            </ThemedText>
+            {/* TAP THE TITLE TO EDIT IT. The binder's name is already on screen, so a separate
+                "Binder title" field in a dialog was the same words twice. Tapping opens the
+                binder's details — its name and its description — which is also the only place the
+                description is reachable while editing. */}
+            <Pressable
+              onPress={() => setBinderInfoOpen(true)}
+              disabled={!canEdit && !binder.description}
+              hitSlop={6}
+              style={styles.titlePress}
+              accessibilityRole="button"
+              testID="binder-title"
+              accessibilityLabel={
+                canEdit ? 'Binder details \u2014 edit the title and description' : 'About this binder'
+              }>
+              <ThemedText type="subtitle" numberOfLines={1} style={styles.titleText}>
+                {binder.title || (editing ? 'Untitled binder' : '')}
+              </ThemedText>
+            </Pressable>
             {canEdit ? (
               <View style={styles.headerRight}>
+                {editing ? editIcons : null}
                 {isSupabaseConfigured && likeCount !== null ? (
                   <Pressable
                     onPress={() => setLikesOpen(true)}
@@ -1629,14 +1684,22 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                   testID="binder-settings-btn">
                   <Text style={[styles.headerAction, { color: theme.text }]}>⚙</Text>
                 </Pressable>
-                {editing ? (
+                {/* SELECT MODE HAS TO SAY IT IS ON somewhere you can see without opening a
+                    dialog — it changes what every tap on the binder does. The header is chrome
+                    this screen already draws, so saying it here costs the page no height, and it
+                    doubles as the one-tap route to the actions the selection leads to. */}
+                {editing && selectMode ? (
                   <Pressable
-                    onPress={() => setToolsOpen(true)}
+                    onPress={() => setMultiActionsOpen(true)}
                     hitSlop={10}
                     accessibilityRole="button"
-                    accessibilityLabel="Binder details and tools"
-                    testID="binder-tools-btn">
-                    <Text style={[styles.headerAction, { color: theme.text }]}>Tools</Text>
+                    accessibilityLabel={`Actions for ${multiIds.size} selected pockets`}
+                    testID="binder-actions-btn">
+                    <View style={[pillChip.base, pillChip.active]}>
+                      <Text style={[pillChip.text, pillChip.textActive]}>
+                        ✓ Selecting · {multiIds.size}
+                      </Text>
+                    </View>
                   </Pressable>
                 ) : null}
                 {isSupabaseConfigured ? (
@@ -1750,9 +1813,10 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               }
               // No page header in the flow at all: naming a page happens in the details dialog,
               // and the read-only title line BinderPages draws for itself is a fixed height.
-              onEditPage={editing ? () => setToolsOpen(true) : undefined}
+              onEditPage={editing ? () => setPageInfoOpen(true) : undefined}
               settingsOpen={settingsOpen}
               onCloseSettings={() => setSettingsOpen(false)}
+              settingsExtras={binderLookSettings}
               renderGrid={renderGrid}
             />
 
@@ -1949,54 +2013,19 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         />
         ) : null}
 
-        {/* BINDER DETAILS & PAGE TOOLS — over the binder, never above it. */}
-        {toolsOpen ? (
-          <Modal visible transparent animationType="fade" onRequestClose={() => setToolsOpen(false)}>
+        {/* BINDER DETAILS — over the binder, never above it, and opened by tapping the title. */}
+        {binderInfoOpen ? (
+          <Modal visible transparent animationType="fade" onRequestClose={() => setBinderInfoOpen(false)}>
             <View style={sheet.dialogBackdrop}>
-              <Pressable style={StyleSheet.absoluteFill} onPress={() => setToolsOpen(false)} />
+              <Pressable style={StyleSheet.absoluteFill} onPress={() => setBinderInfoOpen(false)} />
               <ThemedView type="backgroundElement" style={styles.toolsCard}>
                 <View style={styles.toolsHead}>
-                  <ThemedText type="subtitle">Binder details &amp; tools</ThemedText>
-                  <Pressable onPress={() => setToolsOpen(false)} hitSlop={10}>
+                  <ThemedText type="subtitle">Binder details</ThemedText>
+                  <Pressable onPress={() => setBinderInfoOpen(false)} hitSlop={10}>
                     <Text style={[styles.headerAction, styles.primaryText]}>Done</Text>
                   </Pressable>
                 </View>
-                <ScrollView contentContainerStyle={styles.toolsScroll} keyboardShouldPersistTaps="handled">
-                  {/* Multi-select, which used to be a chip on the row above the binder. It belongs
-                      with the other things you do TO a binder rather than with the binder itself. */}
-                  <View style={styles.toolsRow}>
-                    <Pressable
-                      onPress={() => {
-                        setSelectMode((v) => {
-                          if (v) clearMulti();
-                          return !v;
-                        });
-                        setSelectedSlotId(null);
-                        setToolsOpen(false);
-                      }}
-                      accessibilityRole="switch"
-                      accessibilityState={{ checked: selectMode }}
-                      accessibilityLabel="Select several pockets"
-                      testID="binder-select-toggle"
-                      style={({ pressed }) => [pillChip.base, selectMode && pillChip.active, pressed && styles.pressed]}>
-                      <Text style={[pillChip.text, selectMode && pillChip.textActive]}>
-                        {selectMode
-                          ? `✓ Selecting${multiIds.size ? ` · ${multiIds.size}` : ''}`
-                          : '⊕ Select several pockets'}
-                      </Text>
-                    </Pressable>
-                    {selectMode && multiIds.size > 0 ? (
-                      <Pressable
-                        onPress={() => {
-                          setToolsOpen(false);
-                          setMultiActionsOpen(true);
-                        }}
-                        accessibilityRole="button"
-                        style={({ pressed }) => [pillChip.base, pillChip.active, pressed && styles.pressed]}>
-                        <Text style={[pillChip.text, pillChip.textActive]}>Actions · {multiIds.size}</Text>
-                      </Pressable>
-                    ) : null}
-                  </View>
+                {canEdit ? (
                   <View style={styles.binderFields}>
                     <LabeledInput
                       label="Binder title"
@@ -2011,22 +2040,44 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                       placeholder="What is this binder about?"
                       multiline
                     />
-                    <LabeledInput
-                      label={`Page ${idx + 1} title`}
-                      value={page.title ?? ''}
-                      onChangeText={(title) => store.updatePage(binder.id, page.id, { title })}
-                      placeholder="Untitled page"
-                    />
-                    <LabeledInput
-                      label={`Page ${idx + 1} description`}
-                      value={page.description ?? ''}
-                      onChangeText={(description) => store.updatePage(binder.id, page.id, { description })}
-                      placeholder="What's on this page?"
-                      multiline
-                    />
                   </View>
-                  {editToolsCard}
-                </ScrollView>
+                ) : (
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {binder.description || 'No description yet.'}
+                  </ThemedText>
+                )}
+              </ThemedView>
+            </View>
+          </Modal>
+        ) : null}
+
+        {/* PAGE DETAILS — opened by tapping the page's own title above it. */}
+        {pageInfoOpen ? (
+          <Modal visible transparent animationType="fade" onRequestClose={() => setPageInfoOpen(false)}>
+            <View style={sheet.dialogBackdrop}>
+              <Pressable style={StyleSheet.absoluteFill} onPress={() => setPageInfoOpen(false)} />
+              <ThemedView type="backgroundElement" style={styles.toolsCard}>
+                <View style={styles.toolsHead}>
+                  <ThemedText type="subtitle">Page {idx + 1}</ThemedText>
+                  <Pressable onPress={() => setPageInfoOpen(false)} hitSlop={10}>
+                    <Text style={[styles.headerAction, styles.primaryText]}>Done</Text>
+                  </Pressable>
+                </View>
+                <View style={styles.binderFields}>
+                  <LabeledInput
+                    label="Page title"
+                    value={page.title ?? ''}
+                    onChangeText={(title) => store.updatePage(binder.id, page.id, { title })}
+                    placeholder="Untitled page"
+                  />
+                  <LabeledInput
+                    label="Page description"
+                    value={page.description ?? ''}
+                    onChangeText={(description) => store.updatePage(binder.id, page.id, { description })}
+                    placeholder="What's on this page?"
+                    multiline
+                  />
+                </View>
               </ThemedView>
             </View>
           </Modal>
@@ -2132,13 +2183,6 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
           />
         )}
         <LikersSheet visible={likesOpen} binderId={binder.id} onClose={() => setLikesOpen(false)} />
-        {coverOpen ? (
-          <BinderCoverSheet
-            binder={binder}
-            onChange={(cover) => store.updateBinder(binder.id, { cover })}
-            onClose={() => setCoverOpen(false)}
-          />
-        ) : null}
       </ThemedView>
   );
 }
@@ -2242,6 +2286,58 @@ function LabeledInput({
   );
 }
 
+/**
+ * A tool as a symbol. Thirty pixels square, so a row of them fits in a header beside the title —
+ * which is the whole point: a labelled pill row cannot live there, and anywhere else it would sit
+ * above the binder and take height from the pages. The words survive in `label`, which is both the
+ * accessible name and the hover title, so nothing is lost by dropping them from the face.
+ */
+function IconBtn({
+  glyph,
+  label,
+  onPress,
+  disabled = false,
+  active = false,
+  tone = 'default',
+  testID,
+}: {
+  glyph: string;
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  active?: boolean;
+  tone?: 'default' | 'danger';
+  testID?: string;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      hitSlop={6}
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityState={{ disabled, selected: active }}
+      accessibilityLabel={label}
+      // Web only, and harmless elsewhere: the same words as a native tooltip.
+      {...({ title: label } as object)}
+      style={({ pressed }) => [
+        styles.iconBtn,
+        active && styles.iconBtnActive,
+        pressed && !disabled && styles.pressed,
+      ]}>
+      <Text
+        style={[
+          styles.iconGlyph,
+          tone === 'danger' && styles.iconGlyphDanger,
+          active && styles.iconGlyphActive,
+          disabled && styles.iconGlyphOff,
+        ]}>
+        {glyph}
+      </Text>
+    </Pressable>
+  );
+}
+
 function PillButton({
   label,
   onPress,
@@ -2283,7 +2379,30 @@ const styles = StyleSheet.create({
     borderBottomColor: Palette.hairline,
   },
   headerAction: { fontSize: FontSize.md, fontWeight: Weight.semibold },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    // Narrow windows wrap the header rather than pushing Done off the edge. It grows the header,
+    // not the space above the page, on exactly the screens that have no width to spare.
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+  },
+  titlePress: { flex: 1, minWidth: 0 },
+  iconBar: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  iconBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: Radius.control,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconBtnActive: { backgroundColor: Palette.accent },
+  iconGlyph: { fontSize: FontSize.md, color: Palette.ink, lineHeight: 20 },
+  iconGlyphActive: { color: Palette.accentText },
+  iconGlyphDanger: { color: Palette.dangerAlt },
+  iconGlyphOff: { opacity: 0.3 },
+  lookBox: { alignSelf: 'stretch', gap: 10, paddingTop: 4 },
   headerPrimary: { color: Palette.accent },
   // The Edit/Done mode toggle — filled pill, same voice as the studio's "Save slices".
   modeBtn: { paddingVertical: 8, paddingHorizontal: 18, borderRadius: Radius.pill, backgroundColor: Palette.accent },
@@ -2291,7 +2410,7 @@ const styles = StyleSheet.create({
   likeChip: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   likeChipHeart: { color: Palette.accent, fontSize: FontSize.md, lineHeight: 18 },
   likeChipText: { color: Palette.ink2, fontSize: FontSize.control, fontWeight: Weight.semibold },
-  titleText: { flex: 1, textAlign: 'center', fontFamily: Fonts?.brand, fontSize: FontSize.title, lineHeight: 28 },
+  titleText: { textAlign: 'center', fontFamily: Fonts?.brand, fontSize: FontSize.title, lineHeight: 28 },
   scroll: { paddingHorizontal: 16, paddingBottom: 48 },
   description: { marginTop: 10, textAlign: 'center', maxWidth: 640, alignSelf: 'center' },
   // Detail fields share one centred column (matches the edit-tools card) so the editable
@@ -2312,8 +2431,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingBottom: Spacing.two,
   },
-  toolsScroll: { gap: Spacing.three, paddingBottom: Spacing.two },
-  toolsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   primaryText: { color: Palette.accent },
   editTopRow: { width: '100%', maxWidth: 1120, alignSelf: 'center', marginTop: 8, gap: 12, flexDirection: 'column' },
   editTopRowWide: { flexDirection: 'row', alignItems: 'flex-start' },
@@ -2345,13 +2462,6 @@ const styles = StyleSheet.create({
     fontSize: FontSize.control,
   },
   fieldInputMulti: { minHeight: 36, textAlignVertical: 'top' },
-  editPanel: {
-    width: '100%',
-    borderRadius: Radius.panel,
-    padding: 14,
-    gap: 10,
-  },
-  editPanelTitle: { textTransform: 'uppercase', letterSpacing: 0.5 },
   // "Send page to…" copy/move switch, shown above the destination list.
   sendModeRow: {
     flexDirection: 'row',
@@ -2372,7 +2482,6 @@ const styles = StyleSheet.create({
   sendModeBoxOn: { backgroundColor: Palette.accent, borderColor: Palette.accent },
   sendModeTick: { color: Palette.accentText, fontSize: 12, fontWeight: Weight.bold, lineHeight: 14 },
   sendModeText: { flex: 1, lineHeight: 18 },
-  btnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   inlineRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   // Segmented control (matches the studio's fit/view toggles).
   segGroup: { flexDirection: 'row', alignItems: 'center', backgroundColor: Palette.panel, borderRadius: Radius.pill, padding: 2 },

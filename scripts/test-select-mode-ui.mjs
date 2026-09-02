@@ -96,21 +96,27 @@ const cards = await p.evaluate((sel) => {
 }, CURRENT);
 if (cards.length < 2) await fail('need two filled pockets on the current page');
 
-const chip = () => p.getByText(/^(⊕ Select|✓ Selecting)/).first();
-if ((await chip().count()) === 0) await fail('no Select toggle in the edit tools row');
-console.log('toggle      :', (await chip().innerText()).trim());
+// Select is an icon in the header now — not a chip on a row above the binder, and not two clicks
+// down inside a dialog. It is a symbol, so read its accessible name rather than its face.
+const chip = () => p.locator('[data-testid="binder-select-toggle"]').first();
+if ((await chip().count()) === 0) await fail('no Select control in the header');
+console.log('toggle      :', await chip().getAttribute('aria-label'));
 
+// Turning it on leaves the binder in front of you. The pill beside the icon then carries the
+// count, which is the only place the selection is visible while you work.
 await chip().click({ timeout: 8000 });
-await settle(800);
-console.log('turned on   :', (await chip().innerText()).trim());
+await settle(1200);
+const headerChip = () => p.locator('[data-testid="binder-actions-btn"]').first();
+if ((await headerChip().count()) === 0) await fail('select mode is on but the header does not say so');
+console.log('turned on   :', (await headerChip().innerText()).trim());
 
 // Two plain taps. No modifier — that is the entire point.
 for (const c of cards) {
   await p.mouse.click(c.x, c.y);
   await settle(700);
 }
-const label = (await chip().innerText()).trim();
-const actions = p.getByText(/^Actions · \d+$/).first();
+const label = (await headerChip().innerText()).trim();
+const actions = headerChip();
 const actionsText = (await actions.count()) ? (await actions.innerText()).trim() : null;
 console.log('after 2 taps:', label, '|', actionsText);
 await p.screenshot({ path: `${OUT}-1-selected.png` });
@@ -124,7 +130,7 @@ if (!/·\s*2$/.test(label)) {
   console.log(`FAIL — two taps did not build a selection of two ("${label}")`);
   ok = false;
 }
-if (actionsText !== 'Actions · 2') {
+if (!/·\s*2$/.test(actionsText ?? '')) {
   console.log(`FAIL — no Actions control for the selection (got ${actionsText})`);
   ok = false;
 }

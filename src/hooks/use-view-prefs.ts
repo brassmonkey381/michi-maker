@@ -38,7 +38,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { VIEW_PREF_DEFAULTS, normalizeViewPrefs, type ViewPrefs } from '@/data/viewPrefs';
+import {
+  VIEW_PREF_DEFAULTS,
+  normalizeViewPrefs,
+  storedViewPrefs,
+  type ViewPrefs,
+} from '@/data/viewPrefs';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/store/auth';
 
@@ -89,7 +94,9 @@ export function useViewPrefs(): ViewPrefsState {
 
   const persist = useCallback(
     (next: ViewPrefs) => {
-      AsyncStorage.setItem(storageKey(userId), JSON.stringify(next)).catch(() => {});
+      AsyncStorage.setItem(storageKey(userId), JSON.stringify(storedViewPrefs(next))).catch(
+        () => {},
+      );
       // Real accounts only: an anonymous session's profile is thrown away with the session, so
       // writing to it spends a round trip on something nobody will ever read back.
       if (supabase && user && !user.is_anonymous) {
@@ -97,12 +104,9 @@ export function useViewPrefs(): ViewPrefsState {
         // union, and a typed interface is not assignable to it however JSON-shaped it is.
         const merged = {
           ...((profile?.preferences as object) ?? {}),
-          binderView: {
-            owned: next.owned,
-            scans: next.scans,
-            doubleSided: next.doubleSided,
-            navDock: next.navDock,
-          },
+          // Stamped with the current prefs epoch, so a rollout that forces a setting on stops
+          // applying to this account the moment its owner says otherwise (see `prefsEpoch`).
+          binderView: storedViewPrefs(next),
         };
         void supabase
           .from('profiles')

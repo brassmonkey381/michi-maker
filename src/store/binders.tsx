@@ -196,6 +196,8 @@ interface BinderStore {
   updatePage: (binderId: string, pageId: string, patch: Partial<DemoPage>) => void;
   /** Uniform pocket layout for the whole binder; refuses when content would fall outside. */
   setBinderPageSize: (binderId: string, rows: number, cols: number) => { ok: boolean; reason?: string };
+  /** One background colour for the whole binder — see setBinderBackground. */
+  setBinderBackground: (binderId: string, backgroundColor?: string) => void;
   /** Delete a page; the remainder is re-spaced with blanks so later folded art keeps its side. */
   removePage: (binderId: string, pageId: string) => { blanksInserted: number } | null;
   /** Copy (or move) a page into another binder. See the implementation for the refusal reasons. */
@@ -1118,6 +1120,29 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         for (const p of target.pages) persist(() => repo.updatePage(p.id, { rows, cols }));
       }
       return { ok: true };
+    },
+    [binders, commit, persist],
+  );
+
+  /**
+   * ONE BACKGROUND PER BINDER, for the same reason there is one page size: a real binder is one
+   * object. Per-page colours let a binder drift into a patchwork nobody chose, and the colour
+   * control sat in a per-page dialog where that drift was invisible until you flipped.
+   */
+  const setBinderBackground = useCallback(
+    (binderId: string, backgroundColor?: string) => {
+      const target = binders.find((binder) => binder.id === binderId);
+      if (!target) return;
+      commit((prev) =>
+        prev.map((binder) =>
+          binder.id === binderId
+            ? { ...binder, pages: binder.pages.map((page) => ({ ...page, backgroundColor })) }
+            : binder,
+        ),
+      );
+      if (!target.isExample) {
+        for (const p of target.pages) persist(() => repo.updatePage(p.id, { backgroundColor }));
+      }
     },
     [binders, commit, persist],
   );
@@ -2133,6 +2158,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       duplicatePage,
       updatePage,
       setBinderPageSize,
+      setBinderBackground,
       removePage,
       sendPageToBinder,
       reorderPages,
@@ -2182,6 +2208,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       duplicatePage,
       updatePage,
       setBinderPageSize,
+      setBinderBackground,
       removePage,
       sendPageToBinder,
       reorderPages,

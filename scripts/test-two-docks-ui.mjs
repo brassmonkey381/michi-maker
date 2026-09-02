@@ -98,8 +98,9 @@ const box = (sel) =>
 let ok = true;
 
 // LEFT: the artwork panel.
-const artToggle = p.getByText(/^(◧ Artwork|✓ Artwork)$/).first();
-if ((await artToggle.count()) === 0) await fail('no control to open the artwork panel');
+// The artwork side is always mounted while editing: a rail when closed, a panel when open.
+const artToggle = p.locator('[data-testid="artwork-rail"]').first();
+if ((await artToggle.count()) === 0) await fail('no artwork rail beside the binder');
 await artToggle.click({ timeout: 8000 });
 for (let i = 0; i < 20 && !(await p.locator('[data-testid="artwork-dock"]').count()); i++) await settle(800);
 await settle(1200);

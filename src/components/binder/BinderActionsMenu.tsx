@@ -47,7 +47,9 @@ export function BinderActionsMenu({
             {!readOnly ? <Row label="Rename" onPress={onRename} /> : null}
             <Row label="Duplicate" onPress={onDuplicate} />
             {canShare && !readOnly ? <Row label="Share" onPress={onShare} /> : null}
-            {onCover && !readOnly ? <Row label="Binder cover" onPress={onCover} /> : null}
+            {/* The editor no longer carries a "Binder cover" button of its own, so this is the
+                way in — highlighted, because it is now the only one. */}
+            {onCover && !readOnly ? <Row label="Binder cover" tone="primary" onPress={onCover} /> : null}
             {onPrint ? <Row label="Print fill sheets" tone="accent" onPress={onPrint} /> : null}
             <Row label="Delete" tone="danger" onPress={onDelete} />
             <Pressable onPress={onClose} style={styles.cancel} hitSlop={6}>
@@ -60,16 +62,30 @@ export function BinderActionsMenu({
   );
 }
 
-function Row({ label, onPress, tone = 'default' }: { label: string; onPress: () => void; tone?: 'default' | 'danger' | 'accent' }) {
+function Row({
+  label,
+  onPress,
+  tone = 'default',
+}: {
+  label: string;
+  onPress: () => void;
+  tone?: 'default' | 'danger' | 'accent' | 'primary';
+}) {
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.row, tone === 'accent' && styles.rowAccent, pressed && styles.rowPressed]}>
+      style={({ pressed }) => [
+        styles.row,
+        tone === 'accent' && styles.rowAccent,
+        tone === 'primary' && styles.rowPrimary,
+        pressed && styles.rowPressed,
+      ]}>
       <Text
         style={[
           styles.rowText,
           tone === 'danger' && styles.rowTextDanger,
           tone === 'accent' && styles.rowTextAccent,
+          tone === 'primary' && styles.rowTextPrimary,
         ]}>
         {label}
       </Text>
@@ -92,9 +108,12 @@ const styles = StyleSheet.create({
   rowPressed: { backgroundColor: Palette.panel },
   // The print action is the tile's headline verb — accent-filled like the home Print button.
   rowAccent: { backgroundColor: Palette.accent, alignItems: 'center' },
+  // Tinted rather than filled: it should read as the important row without shouting over Print.
+  rowPrimary: { backgroundColor: Palette.accent, alignItems: 'center' },
   rowText: { fontSize: FontSize.control, fontWeight: Weight.semibold, color: Palette.ink },
   rowTextDanger: { color: Palette.dangerAlt },
   rowTextAccent: { color: Palette.accentText },
+  rowTextPrimary: { color: Palette.accentText },
   cancel: { marginTop: Spacing.two, paddingVertical: Spacing.three, alignItems: 'center' },
   cancelText: { fontSize: FontSize.control, fontWeight: Weight.semibold, color: Palette.muted },
 });

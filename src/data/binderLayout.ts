@@ -114,6 +114,16 @@ export interface SpreadLayout {
   peekWidth: number;
   /** Whether peeks should be drawn at all. */
   showPeeks: boolean;
+  /**
+   * The width the page WANTS: what the height budget affords it, before any clamp to the width
+   * actually on offer. Independent of `availableWidth` by construction.
+   *
+   * This is the number to hand to anything that sizes itself beside the page. `pageWidth` is
+   * `min(preferredWidth, whatIsLeft)`, so once the page is width-constrained it moves with the
+   * space beside it — and a panel sized from THAT feeds its own input. That is a closed loop and
+   * it oscillates: panel grows, page shrinks, page reports less need, panel grows again.
+   */
+  preferredWidth: number;
 }
 
 /**
@@ -158,13 +168,18 @@ export function spreadLayout({
   const byHeight = availableHeight > 0 ? widthForHeight(availableHeight, rows, cols, captionsOn) : Infinity;
   const fitted = Math.min(widthBudget, byHeight, maxWidth ?? Infinity);
   const pageWidth = Math.floor(Math.max(fitted, Math.min(MIN_PAGE_WIDTH, availableWidth)));
+  // What it would have taken with all the width in the world. Reported so a neighbouring panel can
+  // size itself against the page's NEED rather than against what the page was squeezed down to.
+  const preferredWidth = Math.floor(
+    Math.max(Math.min(byHeight, maxWidth ?? Infinity), MIN_PAGE_WIDTH),
+  );
 
   const slack = availableWidth - pageWidth - 2 * SPREAD_GAP;
   const peekWidth = showPeeks
     ? Math.floor(Math.min(Math.max(PEEK_WIDTH, slack / 2), pageWidth * PEEK_MAX_RATIO))
     : 0;
 
-  return { pageWidth, peekWidth, showPeeks };
+  return { pageWidth, peekWidth, showPeeks, preferredWidth };
 }
 
 /**

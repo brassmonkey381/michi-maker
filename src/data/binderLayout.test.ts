@@ -364,3 +364,106 @@ test('asking for nothing is exactly what every panel did before there was a hand
   assert.deepEqual(asNothing.widths, [auto.panelWidth, auto.panelWidth]);
   assert.equal(asNothing.pageBudget, auto.pageBudget);
 });
+
+/**
+ * THE OSCILLATION GUARD.
+ *
+ * The editor sizes its docked panels from the width the page reports, and the page is handed
+ * whatever the panels leave. That is a closed loop unless the reported number is independent of
+ * the space on offer. It used to be `pageWidth`, which is `min(byHeight, whatIsLeft)` — fine while
+ * the height budget binds, and a feedback loop the moment it does not: with both docks open the
+ * page went width-constrained, reported a smaller need, the panels took the difference, and the
+ * layout pumped up and down forever.
+ *
+ * So: the reported width must not move when only `availableWidth` moves.
+ */
+test('the width the page REPORTS does not move with the width on offer', () => {
+  const at = (availableWidth: number) =>
+    spreadLayout({
+      availableWidth,
+      availableHeight: 700,
+      rows: 3,
+      cols: 3,
+      captionsOn: false,
+      hasNeighbours: true,
+    });
+  // Roomy, snug, and squeezed by two open docks.
+  const wide = at(1400);
+  const mid = at(700);
+  const tight = at(420);
+  assert.equal(mid.preferredWidth, wide.preferredWidth, 'need moved when the space did');
+  assert.equal(tight.preferredWidth, wide.preferredWidth, 'need moved when the space did');
+  // And the settled width DOES respond, which is the whole point of having two numbers.
+  assert.ok(tight.pageWidth < wide.pageWidth, 'the page should shrink into a tight space');
+});
+
+test('the reported width still tracks the height budget, which is what it is for', () => {
+  const at = (availableHeight: number) =>
+    spreadLayout({
+      availableWidth: 1400,
+      availableHeight,
+      rows: 3,
+      cols: 3,
+      captionsOn: false,
+      hasNeighbours: true,
+    });
+  assert.ok(at(900).preferredWidth > at(500).preferredWidth, 'a taller window earns a wider page');
+});
+
+test('a page squeezed to nothing still reports a need panelLayout can hold a floor against', () => {
+  // Zero space left: the settled width collapses, and the NEED must not, or a panel would read
+  // "the page wants nothing" and take the lot.
+  const squeezed = spreadLayout({
+    availableWidth: 0,
+    availableHeight: 700,
+    rows: 3,
+    cols: 3,
+    captionsOn: false,
+    hasNeighbours: true,
+  });
+  assert.ok(squeezed.preferredWidth > 0);
+});
+
+/**
+ * THE WHOLE LOOP, RUN.
+ *
+ * The two functions above are wired to each other in the editor: the page reports a width, the
+ * panels are laid out against it, and what the panels leave becomes the page's available width.
+ * Testing them apart cannot catch a feedback loop, because neither one is wrong on its own.
+ *
+ * So this iterates the real cycle and asserts it reaches a fixed point. Before `preferredWidth`
+ * this did not converge with both docks open: the page reported the width it had been squeezed to,
+ * the panels grew into the difference, and the pair pumped up and down forever.
+ */
+test('page and panels reach a fixed point with both docks open', () => {
+  const WINDOW = 1400;
+  const HEIGHT = 700;
+  const step = (need: number) => {
+    const panels = panelLayout({
+      availableWidth: WINDOW - 32,
+      pageNeed: need,
+      panels: 2,
+      pageFloor: PEEK_MIN_WIDTH,
+    });
+    const available = WINDOW - 32 - panels.widths.reduce((a, b) => a + b, 0);
+    const layout = spreadLayout({
+      availableWidth: available,
+      availableHeight: HEIGHT,
+      rows: 3,
+      cols: 3,
+      captionsOn: false,
+      hasNeighbours: true,
+    });
+    // What the editor feeds back round: see BinderPages' onPageWidth.
+    return layout.preferredWidth;
+  };
+
+  const seen: number[] = [];
+  let need = 560; // the seed the editor starts from
+  for (let i = 0; i < 12; i += 1) {
+    need = step(need);
+    seen.push(need);
+  }
+  // Converged, and on the FIRST step: the reported width does not depend on the panels at all.
+  assert.equal(new Set(seen).size, 1, `never settled, cycled through ${[...new Set(seen)].join(', ')}`);
+});

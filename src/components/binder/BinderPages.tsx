@@ -180,11 +180,16 @@ export interface BinderPagesProps {
    * The width the page settled on, reported back so the caller can size whatever it puts BESIDE
    * the page from what the page actually took rather than from a constant.
    *
-   * This looks like a cycle — panel width feeds availableWidth feeds page width feeds panel width —
-   * and it is not one, for a specific reason: the page is sized by HEIGHT. Its width does not
-   * respond to how much width is available, so the edge back never closes. That invariant is
-   * `panelLayout`'s "a panel never shrinks the page to fit itself"; if a change ever lets a panel
-   * squeeze the page, this becomes an oscillation and both need revisiting together.
+   * WHAT IS REPORTED IS THE WIDTH THE PAGE WANTS, not the width it got. That distinction is the
+   * whole reason this is not a cycle, and it used to be left to an invariant that does not hold:
+   * "the page is sized by HEIGHT, so its width does not respond to available width". True only
+   * while the height budget is the binding constraint. Open both docks and the page becomes
+   * WIDTH-constrained — `pageWidth` is `min(byHeight, whatIsLeft)` — so it starts moving with the
+   * space beside it, the edge closes, and the layout oscillates: the panel takes a little, the page
+   * reports needing a little less, the panel takes a little more.
+   *
+   * `preferredWidth` is computed from the height budget alone, so it cannot move with the panels.
+   * The loop is broken by construction rather than by a rule someone has to keep remembering.
    */
   onPageWidth?: (width: number) => void;
   /**
@@ -473,12 +478,12 @@ export function BinderPages({
   });
   const pageWidth = layout.pageWidth;
   const spreadWidth = pageWidth;
-  // What the page settled on, told to whoever is putting panels beside it. In an effect rather than
-  // during render because it is a message to another component's state; see onPageWidth for why
-  // this does not close a loop.
+  // What the page NEEDS, told to whoever is putting panels beside it — not what it settled on.
+  // In an effect rather than during render because it is a message to another component's state;
+  // see onPageWidth for why the difference between the two is what stops this closing a loop.
   useEffect(() => {
-    onPageWidth?.(pageWidth);
-  }, [pageWidth, onPageWidth]);
+    onPageWidth?.(layout.preferredWidth);
+  }, [layout.preferredWidth, onPageWidth]);
   const peekWidth = layout.peekWidth;
   const showPeeks = layout.showPeeks;
 

@@ -383,7 +383,19 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     alignItems: 'center',
   },
-  head: { width: '100%', alignItems: 'center', justifyContent: 'center' },
+  head: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    // ABOVE THE BINDER, and it has to be set HERE rather than on the card.
+    //
+    // Every react-native-web View is `position: relative; z-index: 0`, which creates a stacking
+    // context. So the hover card's own z-index is sealed inside this header, and the header then
+    // competes with the binder below it at z-index 0 — where the binder wins simply by coming
+    // later in the tree. The card was painted over from the middle down, which is what "the title
+    // hover goes behind the pages" was.
+    zIndex: 30,
+  },
   headActions: {
     position: 'absolute',
     right: 0,

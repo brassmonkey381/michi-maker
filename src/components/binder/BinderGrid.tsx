@@ -381,8 +381,11 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   // pocket clips its own contents and a card drawn inside one is sliced off at the pocket edge.
   // Drawn below as a sibling of the cells, where nothing clips it.
   const [hoverArt, setHoverArt] = useState<DemoSlot | null>(null);
-  // Closed while a page turns, like every other hover card (see hoverGate).
+  // CLOSED by a page turn, not hidden: the hover is forgotten, so the card does not come back
+  // when the turn lands under a pointer that never moved — it takes a fresh hover-in, like every
+  // other hover card (see hoverGate). Reset during render, React's own answer for derived state.
   const hoverSuspended = useHoverSuspended();
+  if (hoverSuspended && hoverArt) setHoverArt(null);
   const dragged = dragId ? page.slots.find((s) => s.id === dragId) : undefined;
 
   // The slot currently showing a resize handle (edit mode, selected, and not being dragged).
@@ -522,7 +525,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
         {/* WHAT THIS PANEL IS FOR, on hover. Outside every pocket, so it is not clipped; keyed
             off the panel's own role, which the template stored when it reserved the pocket.
             pointerEvents none, so it can never intercept the click heading for the panel. */}
-        {hoverArt?.artRole && hoverArt.artRole in ART_ROLE_GUIDE && !small && !hoverSuspended ? (
+        {hoverArt?.artRole && hoverArt.artRole in ART_ROLE_GUIDE && !small ? (
           (() => {
             const role = hoverArt.artRole as ArtRole;
             const guide = ART_ROLE_GUIDE[role];

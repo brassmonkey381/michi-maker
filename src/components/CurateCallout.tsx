@@ -154,9 +154,9 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.panel,
     gap: 3,
   },
-  beforeHead: { fontFamily: Fonts.mono, fontSize: 10, color: Palette.ink3, marginBottom: 2 },
+  beforeHead: { fontFamily: Fonts.mono, fontSize: 10, color: Palette.ink2, marginBottom: 2 },
   beforeRow: { fontFamily: Fonts.mono, fontSize: 11, color: Palette.ink2 },
-  beforeSet: { color: Palette.ink3 },
-  arrow: { fontSize: 22, color: Palette.ink3 },
+  beforeSet: { color: Palette.ink2 },
+  arrow: { fontSize: 22, color: Palette.ink2 },
   after: { borderRadius: Radii.pageSmall, ...Shadows.page },
 });

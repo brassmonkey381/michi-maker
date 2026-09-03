@@ -6,6 +6,7 @@ import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ExternalLink } from '@/components/external-link';
+import { GuideFigure } from '@/components/learn/GuideFigure';
 import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
 import { Fonts, FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
@@ -59,6 +60,13 @@ export default function GuideScreen() {
         )
       ) : null}
 
+      {/* The real screen, moving, before a single step is read. */}
+      {guide.hero ? (
+        <View style={styles.hero}>
+          <GuideFigure figure={guide.hero} />
+        </View>
+      ) : null}
+
       <View style={styles.steps}>
         {guide.steps.map((s, i) => (
           <View key={s.title} style={styles.step}>
@@ -72,6 +80,11 @@ export default function GuideScreen() {
               <ThemedText type="small" themeColor="textSecondary" style={styles.stepText}>
                 {s.body}
               </ThemedText>
+              {s.figure ? (
+                <View style={styles.figure}>
+                  <GuideFigure figure={s.figure} />
+                </View>
+              ) : null}
             </View>
           </View>
         ))}
@@ -111,7 +124,9 @@ export default function GuideScreen() {
 const styles = StyleSheet.create({
   h1: { fontFamily: Fonts?.brand, marginBottom: Spacing.two },
   lede: { lineHeight: 22, marginBottom: Spacing.four },
-  steps: { gap: Spacing.four },
+  hero: { marginBottom: Spacing.five },
+  figure: { marginTop: Spacing.two },
+  steps: { gap: Spacing.five },
   step: { flexDirection: 'row', gap: Spacing.three },
   stepNum: {
     width: 26,

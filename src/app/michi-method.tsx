@@ -10,17 +10,12 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CurateCallout } from '@/components/CurateCallout';
+import { LayoutDiagram } from '@/components/learn/Diagrams';
+import { GuideMedia } from '@/components/learn/GuideMedia';
 import { ExternalLink } from '@/components/external-link';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import {
-  FontSize,
-  MaxContentWidth,
-  Palette,
-  Radius,
-  Spacing,
-  Weight,
-} from '@/constants/theme';
+import { FontSize, MaxContentWidth, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { AUTO_FILL_SHOWCASE, AUTO_FILL_SHOWCASE_ART, WOAHPOKE_GUIDE } from '@/data/guides';
 import { MICHI_LAYOUT_STYLES } from '@/types/domain';
 
@@ -52,15 +47,29 @@ export default function MichiMethodScreen() {
             </Pressable>
           </View>
 
-          {/* Hero */}
-          <ThemedText type="subtitle" style={styles.h1}>
+          {/* Hero: the pages first, the name second. */}
+          <ThemedText type="smallBold" style={styles.kicker}>
+            A WAY OF SEEING A BINDER PAGE
+          </ThemedText>
+          <ThemedText type="title" style={styles.h1}>
             The Michi Method
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
-            A way of building a binder page as a <ThemedText type="smallBold">canvas</ThemedText> rather
-            than a storage grid: cards, printed art, deliberate negative space, and single images sliced
-            across several pockets, arranged into pages that look intentional.
+            A binder page as a <ThemedText type="smallBold">canvas</ThemedText> rather than a storage
+            grid: cards, printed art, deliberate negative space, and one image sliced across several
+            pockets, arranged into pages that look intentional.
           </ThemedText>
+          <View style={styles.galleryRow}>
+            <View style={styles.galleryItem}>
+              <GuideMedia src="/welcome_v2-assets/gallery-1.jpg" alt="A finished michi page" />
+            </View>
+            <View style={styles.galleryItem}>
+              <GuideMedia src="/welcome_v2-assets/gallery-2.jpg" alt="A finished michi page" />
+            </View>
+            <View style={styles.galleryItem}>
+              <GuideMedia src="/welcome_v2-assets/gallery-3.jpg" alt="A finished michi page" />
+            </View>
+          </View>
 
           {/* Credit — the heart of this page */}
           <ThemedView type="backgroundElement" style={styles.creditCard}>
@@ -86,17 +95,33 @@ export default function MichiMethodScreen() {
           <ThemedText type="smallBold" style={styles.sectionTitle}>
             The core page layouts
           </ThemedText>
-          <View style={styles.layoutList}>
+          {/* Each layout drawn, not described: eight small pages instead of eight sentences. */}
+          <View style={styles.layoutGrid}>
             {MICHI_LAYOUT_STYLES.map((style) => (
-              <View key={style.value} style={styles.layoutRow}>
-                <ThemedText type="smallBold" style={styles.layoutLabel}>
-                  {style.label}
-                </ThemedText>
-                <ThemedText type="small" themeColor="textSecondary" style={styles.layoutDesc}>
-                  {style.description}
-                </ThemedText>
-              </View>
+              <ThemedView key={style.value} type="backgroundElement" style={styles.layoutCard}>
+                <LayoutDiagram style={style.value} width={132} />
+                <View style={styles.layoutText}>
+                  <ThemedText type="smallBold" style={styles.layoutLabel}>
+                    {style.label}
+                  </ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.layoutDesc}>
+                    {style.description}
+                  </ThemedText>
+                </View>
+              </ThemedView>
             ))}
+          </View>
+
+          {/* The method in motion: one card in, the page grown around it. */}
+          <ThemedText type="smallBold" style={styles.sectionTitle}>
+            See it happen
+          </ThemedText>
+          <View style={styles.clip}>
+            <GuideMedia
+              src="/welcome_v2-assets/demo-composer.mp4"
+              poster="/welcome_v2-assets/desktop-composer.jpg"
+              alt="A page being composed in michi-maker"
+            />
           </View>
 
           {/* Our own how-to, featured above the reading list: it is the one that shows the
@@ -210,8 +235,21 @@ const styles = StyleSheet.create({
   featureLede: { lineHeight: 20 },
   featureLink: { fontSize: FontSize.label },
   sectionTitle: { fontSize: FontSize.md, marginBottom: Spacing.three },
-  layoutList: { gap: Spacing.three, marginBottom: Spacing.five },
-  layoutRow: { gap: Spacing.half },
+  kicker: { fontSize: FontSize.label, letterSpacing: 0.8, color: Palette.accent, marginBottom: Spacing.one },
+  galleryRow: { flexDirection: 'row', gap: Spacing.two, marginBottom: Spacing.five },
+  galleryItem: { flex: 1, minWidth: 0 },
+  layoutGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three, marginBottom: Spacing.five },
+  layoutCard: {
+    width: 150,
+    flexGrow: 1,
+    maxWidth: 220,
+    padding: Spacing.three,
+    borderRadius: Radius.panel,
+    gap: Spacing.two,
+    alignItems: 'center',
+  },
+  layoutText: { alignSelf: 'stretch', gap: 2 },
+  clip: { marginBottom: Spacing.five },
   layoutLabel: { fontSize: FontSize.control },
   layoutDesc: { lineHeight: 20 },
   linkList: { gap: Spacing.three, marginBottom: Spacing.five },

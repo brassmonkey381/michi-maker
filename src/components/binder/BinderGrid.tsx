@@ -148,10 +148,30 @@ const LIFT = { damping: 18, stiffness: 340, mass: 0.7 } as const;
 
 const CARD_ASPECT = 88 / 63; // height / width of a standard card
 
+/**
+ * THE HEIGHT A PAGE DRAWS AT, for a width and a shape, with no captions — the same arithmetic the
+ * grid does below, so a tile can reserve a box before the grid renders. A shelf of binders is
+ * shown at ONE box regardless of shape (see BinderThumb): a 3×4 page is a 3×3 page with a column
+ * more, not a smaller binder, and the box it is given is the 3×3 one.
+ */
+export function pageBoxHeight(width: number, rows: number, cols: number): number {
+  const small = width < 220;
+  const pad = small ? 6 : 12;
+  const gap = small ? 3 : 6;
+  const cellW = (width - pad * 2 - gap * (cols - 1)) / cols;
+  return pad * 2 + cellW * CARD_ASPECT * rows + gap * (rows - 1);
+}
+
 interface BinderGridProps {
   page: DemoPage;
   /** Outer page width in px (padding is added internally). */
   width: number;
+  /**
+   * Draw the page at least this tall, with the pockets centred in it. How a shape whose pockets
+   * do not fill the shelf's box (a 3×4) still occupies the whole box: the same page, wider
+   * margins above and below its pockets, rather than a shorter page beside taller ones.
+   */
+  minHeight?: number;
   editable?: boolean;
   /** Metadata fields to show as a caption under each card. Empty/undefined ⇒ no captions. */
   captionFields?: CaptionFieldKey[];
@@ -248,6 +268,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   {
     page,
     width,
+    minHeight,
     editable = false,
     captionFields = [],
     instantImages = false,
@@ -417,6 +438,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
       style={[
         styles.page,
         { width, padding: pad, borderRadius: radius, backgroundColor: page.backgroundColor ?? BinderSurface.mat },
+        minHeight != null && { minHeight, justifyContent: 'center' },
       ]}>
       <View style={{ width: innerW, height: innerH }}>
         {/* Pocket recesses for every cell — visible, deliberate negative space. */}

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { CoverSurface } from '@/components/binder/BinderCover';
-import { BinderGrid } from '@/components/binder/BinderGrid';
+import { BinderGrid, pageBoxHeight } from '@/components/binder/BinderGrid';
 import { ThemedText } from '@/components/themed-text';
 import { Radii, Radius, Shadows } from '@/constants/theme';
 import { binderModel } from '@/data/binderModels';
@@ -19,6 +19,12 @@ interface BinderThumbProps {
 
 export function BinderThumb({ binder, width, onPress, accessory }: BinderThumbProps) {
   const firstPage = binder.pages[0];
+  // ONE BOX FOR EVERY SHAPE. The shelf shows a 2×2 and a 4×4 at the 3×3's size, and a 3×4 has to
+  // get the same treatment: drawn to its own aspect it came out shorter than the 3×3 beside it
+  // and read as the smaller binder, which is the opposite of the truth. Page and cover alike are
+  // given the 3×3 box for this width; the page centres its pockets in it, the cover stretches to
+  // it exactly as it does on the spread.
+  const boxH = pageBoxHeight(width, 3, 3);
   // THE FACE THIS BINDER SHOWS. Its front cover if the owner asked for that, else its first page,
   // which is what every binder showed before covers existed.
   const cover = binder.cover?.showCover ? binder.cover : null;
@@ -45,16 +51,17 @@ export function BinderThumb({ binder, width, onPress, accessory }: BinderThumbPr
           colourwayId={cover.colourway}
           surface="front"
           width={width}
+          height={boxH}
           stickers={cover.surfaces?.front}
         />
       ) : firstPage ? (
         // The soft page shadow makes the binder page read as a physical object on the shelf —
         // shared by every carousel (home, Featured, examples, profiles) for one consistent look.
         <View style={styles.pageShadow}>
-          <BinderGrid page={firstPage} width={width} />
+          <BinderGrid page={firstPage} width={width} minHeight={boxH} />
         </View>
       ) : (
-        <View style={[styles.placeholder, { width, height: width * 1.2 }]} />
+        <View style={[styles.placeholder, { width, height: boxH }]} />
       )}
     </Pressable>
   );

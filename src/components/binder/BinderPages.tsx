@@ -1993,7 +1993,12 @@ function SpreadColumn({
   );
   return (
     <Animated.View
-      style={[styles.neighbor, columnStyle]}
+      // WHILE ITS CARD IS UP, THIS COLUMN IS ON TOP. The card is absolutely positioned inside the
+      // column and is wider than one, so on an open book the LEFT page's card reached under the
+      // right page — a later sibling at the same z-index, which therefore painted over it. The
+      // left title looked like it had no description at all. Last in the array so it beats the
+      // animated z-index rather than racing it.
+      style={[styles.neighbor, columnStyle, hover.shown && styles.columnHovering]}
       testID={role === 'current' ? 'binder-page-current' : `binder-page-${role}`}>
       {onPressLabel || onFocus || role === 'current' || flat ? (
         // A hoverable label is a Pressable even when tapping it does nothing (view mode, the
@@ -2096,6 +2101,8 @@ const styles = StyleSheet.create({
   // Under the label, overlapping the top of the page it describes — which is the page you are
   // looking at, so the card lands on the thing it is talking about.
   labelHover: { top: 30 },
+  /** Above the facing page while this column's hover card is open. See the note at the column. */
+  columnHovering: { zIndex: 40 },
   // The filmstrip is NAVIGATION, so it may never be the thing you have to scroll to reach. And
   // scrolling to it is worse than it sounds here: the wheel over the binder flips pages instead of
   // scrolling, so hunting for the strip flips you off the page you were on.

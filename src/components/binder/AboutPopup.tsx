@@ -224,7 +224,14 @@ const styles = StyleSheet.create({
   hoverSlot: {
     position: 'absolute',
     width: 320,
-    maxWidth: '100%',
+    // NO PERCENTAGE MAX-WIDTH HERE. A percentage resolves against the CONTAINING BLOCK, and this
+    // card's is whatever it was anchored to — usually a title, which shrink-wraps its own text. So
+    // `maxWidth: '100%'` squeezed the card down to the width of the words that opened it: a binder
+    // called "Anime" produced a card about sixty pixels wide, one letter per line. It read as a
+    // rendering fault rather than as a description, on every title with a short name.
+    //
+    // Nothing is needed in its place. The card is absolutely positioned, so it cannot push the
+    // layout around, and the shift above already keeps it inside the window.
     // Above whatever follows it in the tree — a header's card would otherwise paint under the
     // binder below it, which is exactly where it needs to be seen.
     zIndex: 40,

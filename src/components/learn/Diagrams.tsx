@@ -164,8 +164,8 @@ export function FoldDiagram() {
 
 // ---------------------------------------------------------------------------------------------
 /**
- * THE EDITOR, AS A MAP. The header with its icon row, the cards dock on the left, the page in
- * the middle, the art dock on the right with its slice tray — and one thing ringed: whatever the
+ * THE EDITOR, AS A MAP. The header with its icon row, the Artwork dock on the left with its slice
+ * tray, the page in the middle, the cards dock on the right — and one thing ringed: whatever the
  * step is about. Drawn, not captured, so it is always the current layout.
  */
 export function EditorMapDiagram({ highlight }: { highlight: 'pocket' | 'slice-new' | 'art-tab' | 'tray' | 'print' }) {
@@ -191,10 +191,15 @@ export function EditorMapDiagram({ highlight }: { highlight: 'pocket' | 'slice-n
       </View>
       <View style={styles.editorBody}>
         <View style={styles.dock}>
-          <Text style={styles.dockTitle}>Cards</Text>
-          {[INK.sea, INK.gold, INK.leaf, INK.rose].map((f, i) => (
-            <View key={i} style={[styles.dockCard, { backgroundColor: f }]} />
-          ))}
+          <View style={styles.dockTabs}>
+            <Text style={[styles.dockTab, styles.dockTabOn, H('art-tab')]}>Artwork</Text>
+            <Text style={styles.dockTab}>Stickers</Text>
+          </View>
+          <View style={[styles.slicePiece, { backgroundColor: INK.art }]} />
+          <View style={[styles.slicePiece, { backgroundColor: INK.violet, width: 54 }, H('tray')]} />
+          <View style={[styles.sliceNew, H('slice-new')]}>
+            <Text style={styles.sliceNewText}>+ Slice new art</Text>
+          </View>
         </View>
         <View style={styles.editorPage}>
           <PocketGrid
@@ -205,15 +210,10 @@ export function EditorMapDiagram({ highlight }: { highlight: 'pocket' | 'slice-n
           />
         </View>
         <View style={styles.dock}>
-          <View style={styles.dockTabs}>
-            <Text style={[styles.dockTab, styles.dockTabOn, H('art-tab')]}>Artwork</Text>
-            <Text style={styles.dockTab}>Stickers</Text>
-          </View>
-          <View style={[styles.slicePiece, { backgroundColor: INK.art }]} />
-          <View style={[styles.slicePiece, { backgroundColor: INK.violet, width: 54 }, H('tray')]} />
-          <View style={[styles.sliceNew, H('slice-new')]}>
-            <Text style={styles.sliceNewText}>+ Slice new art</Text>
-          </View>
+          <Text style={styles.dockTitle}>Cards</Text>
+          {[INK.sea, INK.gold, INK.leaf, INK.rose].map((f, i) => (
+            <View key={i} style={[styles.dockCard, { backgroundColor: f }]} />
+          ))}
         </View>
       </View>
     </View>
@@ -264,31 +264,35 @@ export function PaperDiagram() {
 }
 
 /**
- * A printed 3×3: every placeholder carries its address, and two sideways art pieces sit in it as
- * folded pairs, each one piece with the fold marked.
+ * THE PRINTED SHEET, as one 3×3 page comes off the printer: placeholders carrying their address,
+ * and two sideways art pieces, each one printed piece that folds into two pockets. The art is
+ * bare — the address is printed on the placeholders, never on the picture.
  */
-export function CutDiagram() {
+function printedSheet(swapIn?: { index: number; fill: string }): Cell[] {
   const ph = (label: string): Cell => ({ label, dashed: true, fill: PAPER });
   const cells: Cell[] = [
     ph('p3 · r1 c1'),
-    { fill: INK.art, span: [1, 2], label: 'art · p3 r1 c2–3', fold: true, dashed: true },
+    { fill: INK.art, span: [1, 2], fold: true },
     null,
     ph('p3 · r2 c1'),
     ph('p3 · r2 c2'),
     ph('p3 · r2 c3'),
-    { fill: INK.violet, span: [1, 2], label: 'art · p3 r3 c1–2', fold: true, dashed: true },
+    { fill: INK.violet, span: [1, 2], fold: true },
     null,
     ph('p3 · r3 c3'),
   ];
+  if (swapIn) cells[swapIn.index] = { fill: swapIn.fill, ring: true };
+  return cells;
+}
+
+/** Cut along the dashed lines; each placeholder says where it goes. */
+export function CutDiagram() {
   return (
     <View style={styles.row}>
-      <PocketGrid rows={3} cols={3} width={210} cells={cells} />
+      <PocketGrid rows={3} cols={3} width={210} cells={printedSheet()} />
       <View style={styles.legend}>
         <ThemedText type="small" themeColor="textSecondary">
           - - - cut line
-        </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          — — fold: one printed piece, two pockets
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
           p · r · c: page, row, column
@@ -298,13 +302,13 @@ export function CutDiagram() {
   );
 }
 
-/** A placeholder gives way to the card it was holding the place for. */
+/** The same sheet, and the first card arriving: the placeholder at p3 · r1 c1 gives way to it. */
 export function SwapDiagram() {
   return (
     <View style={styles.row}>
-      <PocketGrid rows={3} cols={3} width={126} cells={[{ fill: INK.sea }, { fill: INK.gold }, { fill: INK.leaf }, { fill: INK.rose }, { label: 'p3 · r2 c2', dashed: true, fill: PAPER, ring: true }, { fill: INK.ember }, { fill: INK.violet }, { fill: INK.slate }, { fill: INK.night }]} />
+      <PocketGrid rows={3} cols={3} width={180} cells={printedSheet()} />
       <Text style={styles.arrow}>→</Text>
-      <PocketGrid rows={3} cols={3} width={126} cells={[{ fill: INK.sea }, { fill: INK.gold }, { fill: INK.leaf }, { fill: INK.rose }, { fill: INK.hero, ring: true }, { fill: INK.ember }, { fill: INK.violet }, { fill: INK.slate }, { fill: INK.night }]} />
+      <PocketGrid rows={3} cols={3} width={180} cells={printedSheet({ index: 0, fill: INK.hero })} />
     </View>
   );
 }

@@ -11,7 +11,7 @@ import { GuideHook } from '@/components/learn/GuideFigure';
 import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Fonts, FontSize, Palette, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Fonts, FontSize, Radius, Shadows, Spacing } from '@/constants/theme';
 import { GUIDE_LIST } from '@/data/guides';
 
 export default function LearnHubScreen() {

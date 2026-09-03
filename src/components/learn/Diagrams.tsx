@@ -1,12 +1,10 @@
 /**
  * PICTURES FOR THE THINGS WORDS DO BADLY.
  *
- * Every guide used to be a column of paragraphs: "open the studio, load a picture, frame it, fold
- * a pair, save slices". These are the same steps drawn — a page with the pocket you tap ringed, a
- * picture cut into nine, a card with its true size marked — built from plain views so they render
- * anywhere, take no assets, and follow the theme. Each one is a small scene, not a screenshot: it
- * shows the idea, and the demo clip beside it shows the real screen.
- *
+ * The guides' drawn scenes: a picture cut into nine, a folded pair, a card at its true size, the
+ * editor with the button you press ringed, a search box taken apart. Plain views, no assets, so
+ * they render anywhere and never go stale the way a screen recording does. Each is a scene, not a
+ * screenshot: it shows the idea and where to press, at the size of a paragraph.
  */
 import { Image } from 'expo-image';
 import type { ReactNode } from 'react';
@@ -20,6 +18,7 @@ import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 // without being any card. Fixed colours on purpose — a page is a page in either theme.
 const MAT = '#EDE6D6';
 const POCKET = '#DDD4C0';
+const PAPER = '#FBFAF6';
 const INK = {
   hero: '#C8541E',
   ember: '#E08A3C',
@@ -32,17 +31,20 @@ const INK = {
   night: '#3E4A5A',
   art: '#B9A2D8',
 };
+const CHROME = '#2B2A27';
+const CHROME_TEXT = '#D8D2C4';
 const RING = Palette.accent;
 
 // ---------------------------------------------------------------------------------------------
 /** A pocket's look in a scene. */
 export type Cell =
-  | { fill?: string; label?: string; ring?: boolean; dashed?: boolean; span?: [number, number] }
+  | { fill?: string; label?: string; ring?: boolean; dashed?: boolean; span?: [number, number]; fold?: boolean }
   | null;
 
 /**
  * A page drawn small: `rows`×`cols` pockets on a mat, each optionally coloured, ringed (the one
- * you tap), dashed (a cut line) or labelled. `cells` is row-major; missing entries are empty.
+ * you tap), dashed (a cut line), folded (a sideways pair with its fold marked) or labelled.
+ * `cells` is row-major; missing entries are empty.
  */
 export function PocketGrid({
   rows,
@@ -97,98 +99,11 @@ export function PocketGrid({
               cell?.dashed ? styles.dashed : null,
             ]}>
             {cell?.label ? <Text style={styles.cellLabel}>{cell.label}</Text> : null}
+            {cell?.fold ? <View style={styles.fold} /> : null}
           </View>
         );
       })}
       {children}
-    </View>
-  );
-}
-
-const fillAll = (n: number, fill: string): Cell[] => Array.from({ length: n }, () => ({ fill }));
-
-// ---------------------------------------------------------------------------------------------
-/** The four real page sizes, side by side, so "3×4 is a 3×3 with one more column" is visible. */
-export function ShapesDiagram() {
-  const shapes: [number, number][] = [
-    [2, 2],
-    [3, 3],
-    [3, 4],
-    [4, 4],
-  ];
-  return (
-    <View style={styles.row}>
-      {shapes.map(([r, c]) => (
-        <View key={`${r}x${c}`} style={styles.labelled}>
-          <PocketGrid rows={r} cols={c} width={c === 4 ? 104 : 84} cells={fillAll(r * c, POCKET)} />
-          <ThemedText type="small" themeColor="textSecondary">
-            {r}×{c}
-          </ThemedText>
-        </View>
-      ))}
-    </View>
-  );
-}
-
-/** Tap a pocket: the ringed one is the one you press; the picker fills it. */
-export function FillPocketDiagram() {
-  const cells: Cell[] = [
-    { fill: INK.leaf },
-    { fill: INK.sea },
-    { fill: INK.ember },
-    { fill: INK.gold },
-    { ring: true, label: 'tap' },
-    null,
-    null,
-    null,
-    null,
-  ];
-  return (
-    <View style={styles.row}>
-      <PocketGrid rows={3} cols={3} cells={cells} />
-      <Text style={styles.arrow}>→</Text>
-      <PocketGrid
-        rows={3}
-        cols={3}
-        cells={[{ fill: INK.leaf }, { fill: INK.sea }, { fill: INK.ember }, { fill: INK.gold }, { fill: INK.hero, ring: true }, null, null, null, null]}
-      />
-    </View>
-  );
-}
-
-/** Drag a card to another pocket, or across the gutter to the facing page. */
-export function ArrangeDiagram() {
-  return (
-    <View style={styles.row}>
-      <PocketGrid rows={3} cols={3} cells={[{ fill: INK.sea }, { fill: INK.hero, ring: true }, { fill: INK.gold }, null, null, null, null, null, null]} />
-      <Text style={styles.arrow}>⇢</Text>
-      <PocketGrid rows={3} cols={3} cells={[{ fill: INK.sea }, null, { fill: INK.gold }, null, { fill: INK.hero, ring: true }, null, null, null, null]} />
-    </View>
-  );
-}
-
-/** Page 1 alone, then 2 and 3 facing: a binder is read in spreads. */
-export function SpreadDiagram() {
-  return (
-    <View style={styles.row}>
-      <View style={styles.labelled}>
-        <View style={styles.spread}>
-          <View style={[styles.blankHalf, { width: 84 }]} />
-          <PocketGrid rows={3} cols={3} width={84} cells={fillAll(9, INK.slate)} />
-        </View>
-        <ThemedText type="small" themeColor="textSecondary">
-          page 1
-        </ThemedText>
-      </View>
-      <View style={styles.labelled}>
-        <View style={styles.spread}>
-          <PocketGrid rows={3} cols={3} width={84} cells={fillAll(9, INK.sea)} />
-          <PocketGrid rows={3} cols={3} width={84} cells={fillAll(9, INK.sea)} />
-        </View>
-        <ThemedText type="small" themeColor="textSecondary">
-          pages 2 · 3
-        </ThemedText>
-      </View>
     </View>
   );
 }
@@ -234,9 +149,7 @@ export function SliceDiagram({ src, rows = 3, cols = 3, width = 180 }: { src: st
 export function FoldDiagram() {
   return (
     <View style={styles.row}>
-      <PocketGrid rows={3} cols={3} cells={[null, null, null, { fill: INK.art, span: [1, 2], label: 'one piece' }, null, null, null, null, null]}>
-        <View style={styles.foldLine} />
-      </PocketGrid>
+      <PocketGrid rows={3} cols={3} cells={[null, null, null, { fill: INK.art, span: [1, 2], label: 'one piece', fold: true }, null, null, null, null, null]} />
       <View style={styles.legend}>
         <ThemedText type="small" themeColor="textSecondary">
           — — fold
@@ -244,6 +157,64 @@ export function FoldDiagram() {
         <ThemedText type="small" themeColor="textSecondary">
           sideways pairs only, never up and down
         </ThemedText>
+      </View>
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
+/**
+ * THE EDITOR, AS A MAP. The header with its icon row, the cards dock on the left, the page in
+ * the middle, the art dock on the right with its slice tray — and one thing ringed: whatever the
+ * step is about. Drawn, not captured, so it is always the current layout.
+ */
+export function EditorMapDiagram({ highlight }: { highlight: 'pocket' | 'slice-new' | 'art-tab' | 'tray' | 'print' }) {
+  const H = (k: typeof highlight) => (highlight === k ? styles.ringStrong : null);
+  return (
+    <View style={styles.editor}>
+      <View style={styles.editorHeader}>
+        <Text style={styles.chromeText}>Close</Text>
+        <Text style={[styles.chromeText, styles.chromeTitle]}>My binder</Text>
+        <View style={styles.chromeIcons}>
+          {['↶', '↷', '+', '⧉', '⚙'].map((g) => (
+            <Text key={g} style={styles.chromeIcon}>
+              {g}
+            </Text>
+          ))}
+          <View style={[styles.chromePill, H('print')]}>
+            <Text style={styles.chromePillText}>Print</Text>
+          </View>
+          <View style={[styles.chromePill, styles.chromePillAccent]}>
+            <Text style={styles.chromePillTextAccent}>Done</Text>
+          </View>
+        </View>
+      </View>
+      <View style={styles.editorBody}>
+        <View style={styles.dock}>
+          <Text style={styles.dockTitle}>Cards</Text>
+          {[INK.sea, INK.gold, INK.leaf, INK.rose].map((f, i) => (
+            <View key={i} style={[styles.dockCard, { backgroundColor: f }]} />
+          ))}
+        </View>
+        <View style={styles.editorPage}>
+          <PocketGrid
+            rows={3}
+            cols={3}
+            width={126}
+            cells={[{ fill: INK.sea }, { fill: INK.gold }, null, null, { ring: highlight === 'pocket', label: highlight === 'pocket' ? 'tap' : undefined }, { fill: INK.leaf }, { fill: INK.rose }, null, null]}
+          />
+        </View>
+        <View style={styles.dock}>
+          <View style={styles.dockTabs}>
+            <Text style={[styles.dockTab, styles.dockTabOn, H('art-tab')]}>Artwork</Text>
+            <Text style={styles.dockTab}>Stickers</Text>
+          </View>
+          <View style={[styles.slicePiece, { backgroundColor: INK.art }]} />
+          <View style={[styles.slicePiece, { backgroundColor: INK.violet, width: 54 }, H('tray')]} />
+          <View style={[styles.sliceNew, H('slice-new')]}>
+            <Text style={styles.sliceNewText}>+ Slice new art</Text>
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -277,7 +248,7 @@ export function PaperDiagram() {
   return (
     <View style={styles.row}>
       <View style={styles.paperCard}>
-        <View style={[styles.paperSwatch, { backgroundColor: '#FBFAF6' }]} />
+        <View style={[styles.paperSwatch, { backgroundColor: PAPER }]} />
         <Text style={styles.paperTitle}>Placeholders</Text>
         <Text style={styles.paperSub}>plain copy paper</Text>
         <Text style={styles.paperSub}>swapped out as cards arrive</Text>
@@ -292,10 +263,50 @@ export function PaperDiagram() {
   );
 }
 
-/** Each printed piece carries its address: page, row, column. */
+/**
+ * A printed 3×3: every placeholder carries its address, and two sideways art pieces sit in it as
+ * folded pairs, each one piece with the fold marked.
+ */
 export function CutDiagram() {
-  const cells: Cell[] = ['p3 · r1 c1', 'p3 · r1 c2', 'p3 · r1 c3', 'p3 · r2 c1', 'p3 · r2 c2', 'p3 · r2 c3'].map((label) => ({ label, dashed: true, fill: '#FBFAF6' }));
-  return <PocketGrid rows={2} cols={3} width={210} cells={cells} />;
+  const ph = (label: string): Cell => ({ label, dashed: true, fill: PAPER });
+  const cells: Cell[] = [
+    ph('p3 · r1 c1'),
+    { fill: INK.art, span: [1, 2], label: 'art · p3 r1 c2–3', fold: true, dashed: true },
+    null,
+    ph('p3 · r2 c1'),
+    ph('p3 · r2 c2'),
+    ph('p3 · r2 c3'),
+    { fill: INK.violet, span: [1, 2], label: 'art · p3 r3 c1–2', fold: true, dashed: true },
+    null,
+    ph('p3 · r3 c3'),
+  ];
+  return (
+    <View style={styles.row}>
+      <PocketGrid rows={3} cols={3} width={210} cells={cells} />
+      <View style={styles.legend}>
+        <ThemedText type="small" themeColor="textSecondary">
+          - - - cut line
+        </ThemedText>
+        <ThemedText type="small" themeColor="textSecondary">
+          — — fold: one printed piece, two pockets
+        </ThemedText>
+        <ThemedText type="small" themeColor="textSecondary">
+          p · r · c: page, row, column
+        </ThemedText>
+      </View>
+    </View>
+  );
+}
+
+/** A placeholder gives way to the card it was holding the place for. */
+export function SwapDiagram() {
+  return (
+    <View style={styles.row}>
+      <PocketGrid rows={3} cols={3} width={126} cells={[{ fill: INK.sea }, { fill: INK.gold }, { fill: INK.leaf }, { fill: INK.rose }, { label: 'p3 · r2 c2', dashed: true, fill: PAPER, ring: true }, { fill: INK.ember }, { fill: INK.violet }, { fill: INK.slate }, { fill: INK.night }]} />
+      <Text style={styles.arrow}>→</Text>
+      <PocketGrid rows={3} cols={3} width={126} cells={[{ fill: INK.sea }, { fill: INK.gold }, { fill: INK.leaf }, { fill: INK.rose }, { fill: INK.hero, ring: true }, { fill: INK.ember }, { fill: INK.violet }, { fill: INK.slate }, { fill: INK.night }]} />
+    </View>
+  );
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -323,22 +334,93 @@ export function OneOfEachDiagram() {
   return <PocketGrid rows={3} cols={3} cells={cells} />;
 }
 
-/** Rows of a list become a page. */
-export function CsvToBinderDiagram() {
+// ---------------------------------------------------------------------------------------------
+/** A search box, taken apart: each kind of term in its own colour, with what it does. */
+export function QueryAnatomyDiagram() {
+  const parts: { text: string; kind: 'word' | 'field' | 'cmp' | 'sort'; note: string }[] = [
+    { text: 'arita', kind: 'word', note: 'a word: must match somewhere' },
+    { text: 'type:fire', kind: 'field', note: 'a field, aimed with a colon' },
+    { text: 'hp>=120', kind: 'cmp', note: 'a comparison' },
+    { text: 'sort:value', kind: 'sort', note: 'a sort' },
+  ];
   return (
-    <View style={styles.row}>
-      <View style={styles.csv}>
-        {['Umbreon ex', 'Sylveon ex', 'Leafeon ex', 'Espeon ex', 'Glaceon ex', '…'].map((n) => (
-          <Text key={n} style={styles.csvRow}>
-            {n}
+    <View style={styles.legend}>
+      <View style={styles.searchBox}>
+        <Text style={styles.searchGlyph}>⌕</Text>
+        {parts.map((p) => (
+          <Text key={p.text} style={[styles.term, termStyle[p.kind]]}>
+            {p.text}
           </Text>
         ))}
       </View>
-      <Text style={styles.arrow}>→</Text>
-      <PocketGrid rows={3} cols={3} cells={[INK.night, INK.rose, INK.leaf, INK.violet, INK.sea, INK.ember, INK.gold, INK.slate, INK.hero].map((fill) => ({ fill }))} />
+      {parts.map((p) => (
+        <View key={p.text} style={styles.keyRow}>
+          <View style={[styles.keySwatch, termStyle[p.kind]]} />
+          <ThemedText type="small" themeColor="textSecondary">
+            {p.note}
+          </ThemedText>
+        </View>
+      ))}
     </View>
   );
 }
+
+/** Field, operator, value: the shapes a targeted term can take. */
+export function OperatorsDiagram() {
+  const rows: [string, string][] = [
+    ['set:base', 'exactly this set'],
+    ['rarity:"holo rare"', 'quotes keep the words together'],
+    ['>$100', 'worth more than'],
+    ['date>2022', 'printed after'],
+    ['sort:newest', 'newest first · add :asc to flip'],
+  ];
+  return (
+    <View style={styles.table}>
+      {rows.map(([q, note]) => (
+        <View key={q} style={styles.tableRow}>
+          <Text style={styles.code}>{q}</Text>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.tableNote}>
+            {note}
+          </ThemedText>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** have:no with a set is a want-list: the cards you are missing, and only those. */
+export function WantListDiagram() {
+  const owned = [true, false, true, true, false, false, true, false, true];
+  return (
+    <View style={styles.row}>
+      <View style={styles.labelled}>
+        <PocketGrid rows={3} cols={3} width={120} cells={owned.map((o) => ({ fill: o ? INK.leaf : POCKET, label: o ? '✓' : undefined }))} />
+        <ThemedText type="small" themeColor="textSecondary">
+          a set, as you own it
+        </ThemedText>
+      </View>
+      <View style={styles.legend}>
+        <View style={styles.searchBox}>
+          <Text style={styles.searchGlyph}>⌕</Text>
+          <Text style={[styles.term, termStyle.field]}>{'set:"evolving skies"'}</Text>
+          <Text style={[styles.term, termStyle.cmp]}>have:no</Text>
+        </View>
+        <Text style={styles.arrow}>↓</Text>
+        <PocketGrid rows={1} cols={4} width={150} cells={[{ fill: INK.rose }, { fill: INK.ember }, { fill: INK.violet }, { fill: INK.slate }]} />
+        <ThemedText type="small" themeColor="textSecondary">
+          the four you are missing
+        </ThemedText>
+      </View>
+    </View>
+  );
+}
+
+const termStyle = StyleSheet.create({
+  word: { backgroundColor: '#DCE9F7', color: '#1E4E7A' },
+  field: { backgroundColor: '#E3F0DC', color: '#2F5D26' },
+  cmp: { backgroundColor: '#FBE6D2', color: '#8A4713' },
+  sort: { backgroundColor: '#EBE2F5', color: '#4E2F7A' },
+});
 
 // ---------------------------------------------------------------------------------------------
 const styles = StyleSheet.create({
@@ -348,18 +430,17 @@ const styles = StyleSheet.create({
   pocket: { backgroundColor: POCKET, borderRadius: 3, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   window: { backgroundColor: '#000' },
   ring: { borderWidth: 2.5, borderColor: RING },
+  ringStrong: { borderWidth: 2, borderColor: RING },
   dashed: { borderWidth: 1, borderStyle: 'dashed', borderColor: '#9A8E78' },
+  fold: { position: 'absolute', top: 4, bottom: 4, left: '50%', width: 0, borderLeftWidth: 1.5, borderStyle: 'dashed', borderColor: '#3E3A33' },
   cellLabel: { fontSize: 9, fontWeight: Weight.semibold, color: '#3E3A33', textAlign: 'center', paddingHorizontal: 2 },
   arrow: { fontSize: 22, color: Palette.ink2 },
-  spread: { flexDirection: 'row', gap: 3 },
-  blankHalf: { backgroundColor: 'transparent', borderRadius: 8, borderWidth: 1, borderStyle: 'dashed', borderColor: Palette.hairlineStrong },
   whole: { borderRadius: 6, overflow: 'hidden' },
-  foldLine: { position: 'absolute', left: 8 + 42 + 2, top: 8 + 60 + 4 - 2, width: 0, height: 60, borderLeftWidth: 1.5, borderStyle: 'dashed', borderColor: '#3E3A33' },
-  legend: { gap: 6, maxWidth: 200 },
+  legend: { gap: 6, maxWidth: 260 },
   dim: { alignItems: 'center', gap: 4 },
   dimTop: { alignItems: 'center' },
   dimRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  card: { width: 63, height: 88, borderRadius: 4, backgroundColor: '#FBFAF6', borderWidth: 1, borderColor: '#B8AE9A' },
+  card: { width: 63, height: 88, borderRadius: 4, backgroundColor: PAPER, borderWidth: 1, borderColor: '#B8AE9A' },
   dimText: { fontSize: FontSize.label, color: Palette.ink2 },
   dimSide: { width: 70 },
   pillGood: { fontSize: FontSize.label, color: '#2F7A3E', fontWeight: Weight.semibold },
@@ -368,6 +449,36 @@ const styles = StyleSheet.create({
   paperSwatch: { height: 44, borderRadius: 6, marginBottom: 6, borderWidth: 1, borderColor: '#D5CDBD' },
   paperTitle: { fontSize: FontSize.control, fontWeight: Weight.semibold, color: '#3E3A33' },
   paperSub: { fontSize: FontSize.label, color: '#6B6459' },
-  csv: { width: 130, padding: Spacing.three, borderRadius: Radius.control, backgroundColor: Palette.panel, gap: 3 },
-  csvRow: { fontSize: 11, color: Palette.ink2 },
+  // The editor map.
+  editor: { width: '100%', maxWidth: 420, borderRadius: 10, overflow: 'hidden', backgroundColor: '#F4F0E6', borderWidth: 1, borderColor: '#D5CDBD' },
+  editorHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: CHROME },
+  chromeText: { color: CHROME_TEXT, fontSize: 10 },
+  chromeTitle: { flex: 1, textAlign: 'center', fontWeight: Weight.semibold },
+  chromeIcons: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  chromeIcon: { color: CHROME_TEXT, fontSize: 10 },
+  chromePill: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, backgroundColor: '#4A4741' },
+  chromePillAccent: { backgroundColor: Palette.accent },
+  chromePillText: { color: CHROME_TEXT, fontSize: 9 },
+  chromePillTextAccent: { color: Palette.accentText, fontSize: 9, fontWeight: Weight.semibold },
+  editorBody: { flexDirection: 'row', alignItems: 'stretch', gap: 8, padding: 8 },
+  dock: { width: 78, padding: 6, gap: 5, borderRadius: 8, backgroundColor: '#E6E0D2' },
+  dockTitle: { fontSize: 9, fontWeight: Weight.semibold, color: '#3E3A33' },
+  dockCard: { height: 22, borderRadius: 3 },
+  dockTabs: { flexDirection: 'row', gap: 3, marginBottom: 2 },
+  dockTab: { fontSize: 8, color: '#6B6459', paddingHorizontal: 4, paddingVertical: 2, borderRadius: 6 },
+  dockTabOn: { backgroundColor: '#D5CDBD', color: '#3E3A33', fontWeight: Weight.semibold },
+  slicePiece: { height: 18, borderRadius: 3 },
+  sliceNew: { marginTop: 'auto', paddingVertical: 4, borderRadius: 6, backgroundColor: CHROME, alignItems: 'center' },
+  sliceNewText: { color: CHROME_TEXT, fontSize: 8, fontWeight: Weight.semibold },
+  editorPage: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  // Search scenes.
+  searchBox: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 5, padding: 8, borderRadius: Radius.control, backgroundColor: PAPER, borderWidth: 1, borderColor: '#D5CDBD' },
+  searchGlyph: { color: '#6B6459', fontSize: 14 },
+  term: { fontFamily: 'ui-monospace, monospace', fontSize: 12, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5, overflow: 'hidden' },
+  keyRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  keySwatch: { width: 12, height: 12, borderRadius: 3 },
+  table: { gap: 4, maxWidth: 420 },
+  tableRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
+  code: { fontFamily: 'ui-monospace, monospace', fontSize: 12, color: '#3E3A33', backgroundColor: MAT, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5, minWidth: 150 },
+  tableNote: { flex: 1, minWidth: 140 },
 });

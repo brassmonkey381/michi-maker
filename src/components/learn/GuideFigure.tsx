@@ -3,18 +3,18 @@ import type { ReactNode } from 'react';
 import { useWindowDimensions } from 'react-native';
 
 import {
-  ArrangeDiagram,
-  CsvToBinderDiagram,
   CutDiagram,
-  FillPocketDiagram,
+  EditorMapDiagram,
   FoldDiagram,
   OneOfEachDiagram,
+  OperatorsDiagram,
   PaperDiagram,
+  QueryAnatomyDiagram,
   SeedDiagram,
-  ShapesDiagram,
   SliceDiagram,
-  SpreadDiagram,
+  SwapDiagram,
   TrueSizeDiagram,
+  WantListDiagram,
 } from '@/components/learn/Diagrams';
 import { GuideMedia } from '@/components/learn/GuideMedia';
 import { EeveeReplay } from '@/components/michi/EeveeReplay';
@@ -24,18 +24,22 @@ import type { DiagramName, GuideFigure as GuideFigureData } from '@/data/guides'
 const SLICE_ART = 'https://michi-maker.com/auto-fill-art/610758.webp';
 
 const DIAGRAMS: Record<DiagramName, () => ReactNode> = {
-  shapes: () => <ShapesDiagram />,
-  'fill-pocket': () => <FillPocketDiagram />,
-  arrange: () => <ArrangeDiagram />,
-  spread: () => <SpreadDiagram />,
+  'editor-pocket': () => <EditorMapDiagram highlight="pocket" />,
+  'editor-slice-new': () => <EditorMapDiagram highlight="slice-new" />,
+  'editor-art-tab': () => <EditorMapDiagram highlight="art-tab" />,
+  'editor-tray': () => <EditorMapDiagram highlight="tray" />,
+  'editor-print': () => <EditorMapDiagram highlight="print" />,
   slice: () => <SliceDiagram src={SLICE_ART} />,
   fold: () => <FoldDiagram />,
   'true-size': () => <TrueSizeDiagram />,
   paper: () => <PaperDiagram />,
   cut: () => <CutDiagram />,
+  swap: () => <SwapDiagram />,
   seed: () => <SeedDiagram />,
   'one-of-each': () => <OneOfEachDiagram />,
-  'csv-to-binder': () => <CsvToBinderDiagram />,
+  'query-anatomy': () => <QueryAnatomyDiagram />,
+  operators: () => <OperatorsDiagram />,
+  'want-list': () => <WantListDiagram />,
 };
 
 export function GuideFigure({ figure }: { figure: GuideFigureData }) {

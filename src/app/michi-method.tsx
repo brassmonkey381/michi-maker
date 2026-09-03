@@ -10,8 +10,8 @@ import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 're
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CurateCallout } from '@/components/CurateCallout';
-import { GalleryNote, LayoutGallery, StyleGallery, replayPage } from '@/components/michi/MethodShowcase';
-import { PageReplay } from '@/components/michi/PageReplay';
+import { EeveeReplay } from '@/components/michi/EeveeReplay';
+import { StyleGallery } from '@/components/michi/MethodShowcase';
 import { ExternalLink } from '@/components/external-link';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -27,8 +27,7 @@ export default function MichiMethodScreen() {
   const router = useRouter();
   const goBack = () => (router.canGoBack() ? router.back() : router.push('/'));
   const { width: winW } = useWindowDimensions();
-  const replay = replayPage();
-  const replayW = Math.min(360, winW - 48);
+  const replayW = Math.min(340, winW - 48);
 
   return (
     <ThemedView style={styles.container}>
@@ -61,13 +60,11 @@ export default function MichiMethodScreen() {
             grid: cards, printed art, deliberate negative space, and one image sliced across several
             pockets, arranged into pages that look intentional.
           </ThemedText>
-          {/* The method in one loop, before any of it is explained: a real page building itself
-              around its seed card. */}
-          {replay ? (
-            <View style={styles.replay}>
-              <PageReplay page={replay} width={replayW} caption="Lurantis, from ME: Pitch Black Chase — one anchor, eight chosen to sit with it." />
-            </View>
-          ) : null}
+          {/* The method in one loop, before any of it is explained: one Eevee in the middle, and
+              each fill method laying its eight cards around it. */}
+          <View style={styles.replay}>
+            <EeveeReplay width={replayW} />
+          </View>
 
           {/* Credit — the heart of this page */}
           <ThemedView type="backgroundElement" style={styles.creditCard}>
@@ -101,20 +98,6 @@ export default function MichiMethodScreen() {
           </ThemedText>
           <StyleGallery />
 
-          {/* The named layouts: the forty-page showcase binder, by name and by what its art does. */}
-          <ThemedText type="smallBold" style={[styles.sectionTitle, styles.sectionGap]}>
-            The layouts, by name
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.sectionLede}>
-            The grammar under the styles: where the art goes and what the cards do around it.
-            Singles stand alone; open spreads need both pages to read as one. From the 3×3 layout
-            showcase binder — there is a 3×4 edition too.
-          </ThemedText>
-          <LayoutGallery />
-          <GalleryNote>
-            Art in these layouts means printed pieces — bands, rails, posts and plates cut from one
-            picture in the Slice Studio — sitting in pockets exactly like cards do.
-          </GalleryNote>
           <View style={styles.sectionGap} />
 
           {/* Our own how-to, featured above the reading list: it is the one that shows the

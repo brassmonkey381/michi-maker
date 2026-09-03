@@ -44,7 +44,7 @@ export const PERCENT_OFF = 20;
 export const BUNDLE_PERCENT_OFF = 60;
 
 /** When the promotion stops, ISO 8601. MUST equal the Stripe coupon's redeem_by. */
-export const ENDS_AT = '2026-08-31T23:59:59Z';
+export const ENDS_AT = '2026-11-01T23:59:59Z';
 
 /** Marketing line for the banner. Kept here so the copy can't disagree with the number. */
 export const PROMO_LABEL = `Limited time · ${PERCENT_OFF}% off every plan`;

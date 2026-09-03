@@ -7,8 +7,6 @@
  * anywhere, take no assets, and follow the theme. Each one is a small scene, not a screenshot: it
  * shows the idea, and the demo clip beside it shows the real screen.
  *
- * `LayoutDiagram` is the same idea for The michi method: each of Michi's page styles as a colour
- * study on a 3×3, so the list of layouts reads as eight pages rather than eight sentences.
  */
 import { Image } from 'expo-image';
 import type { ReactNode } from 'react';
@@ -16,7 +14,6 @@ import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
-import type { MichiLayoutStyle } from '@/types/domain';
 
 // ---------------------------------------------------------------------------------------------
 // The palette of the scenes: a mat, pockets, and a handful of card "inks" that read as card art
@@ -342,46 +339,6 @@ export function CsvToBinderDiagram() {
     </View>
   );
 }
-
-// ---------------------------------------------------------------------------------------------
-/** Michi's page styles, each as a colour study on a 3×3. */
-export function LayoutDiagram({ style, width = 120 }: { style: MichiLayoutStyle; width?: number }) {
-  const cells = LAYOUT_CELLS[style] ?? [];
-  return <PocketGrid rows={3} cols={3} width={width} cells={cells} />;
-}
-
-const LAYOUT_CELLS: Record<MichiLayoutStyle, Cell[]> = {
-  anchor: [
-    { fill: INK.ember },
-    { fill: INK.gold },
-    { fill: INK.ember },
-    { fill: INK.gold },
-    { fill: INK.hero, ring: true },
-    { fill: INK.gold },
-    { fill: INK.ember },
-    { fill: INK.gold },
-    { fill: INK.ember },
-  ],
-  single_pokemon: ['#F2C14E', '#E9B23A', '#F5CF6B', '#D9A02E', '#F0BE45', '#E5AD30', '#F7D67A', '#DFA838', '#EEBB4A'].map((fill) => ({ fill })),
-  themed_story: ['#8A7A6A', '#9B7A5A', '#B07A48', '#C4813A', '#D08A2E', '#DC9A2A', '#E6AD2E', '#EFC13A', '#F6D44A'].map((fill) => ({ fill })),
-  artist: [INK.sea, INK.rose, INK.leaf, INK.violet, { fill: INK.gold, label: '✎' }, INK.ember, INK.slate, INK.hero, INK.night].map((c) => (typeof c === 'string' ? { fill: c } : c)),
-  trainer: [
-    { fill: INK.sea },
-    { fill: INK.night, ring: true, span: [2, 1] },
-    { fill: INK.sea },
-    { fill: INK.leaf },
-    { fill: INK.leaf },
-    { fill: INK.gold },
-    { fill: INK.sea },
-    { fill: INK.gold },
-  ],
-  full_page_spread: [{ fill: INK.art, span: [3, 3], label: 'art' }, null, null, null, null, null, null, null, null],
-  color_theme: ['#5B8DD6', '#4C7FC7', '#6C9BE0', '#3F70B8', '#7FA8E6', '#5586CE', '#4A7BC2', '#6E9DDD', '#4575BD'].map((fill) => ({ fill })),
-  freeform: [{ fill: INK.hero }, null, { fill: INK.art, span: [2, 1] }, { fill: INK.leaf }, { fill: INK.gold }, null, { fill: INK.sea }, null],
-};
-
-// Freeform above: the [2,1] span at index 2 covers index 5, so only eight entries are listed and
-// the ninth pocket is simply empty. `full_page_spread` covers everything with one piece.
 
 // ---------------------------------------------------------------------------------------------
 const styles = StyleSheet.create({

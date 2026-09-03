@@ -6,18 +6,17 @@
  */
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CurateCallout } from '@/components/CurateCallout';
-import { LayoutDiagram } from '@/components/learn/Diagrams';
-import { GuideMedia } from '@/components/learn/GuideMedia';
+import { GalleryNote, LayoutGallery, StyleGallery, replayPage } from '@/components/michi/MethodShowcase';
+import { PageReplay } from '@/components/michi/PageReplay';
 import { ExternalLink } from '@/components/external-link';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, MaxContentWidth, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { AUTO_FILL_SHOWCASE, AUTO_FILL_SHOWCASE_ART, WOAHPOKE_GUIDE } from '@/data/guides';
-import { MICHI_LAYOUT_STYLES } from '@/types/domain';
 
 // The collector credited with creating and popularising the method, and the community
 // guides worth sending people to.
@@ -27,6 +26,9 @@ const ARTOFPKM = 'https://www.artofpkm.com/pokemon';
 export default function MichiMethodScreen() {
   const router = useRouter();
   const goBack = () => (router.canGoBack() ? router.back() : router.push('/'));
+  const { width: winW } = useWindowDimensions();
+  const replay = replayPage();
+  const replayW = Math.min(360, winW - 48);
 
   return (
     <ThemedView style={styles.container}>
@@ -59,17 +61,13 @@ export default function MichiMethodScreen() {
             grid: cards, printed art, deliberate negative space, and one image sliced across several
             pockets, arranged into pages that look intentional.
           </ThemedText>
-          <View style={styles.galleryRow}>
-            <View style={styles.galleryItem}>
-              <GuideMedia src="/welcome_v2-assets/gallery-1.jpg" alt="A finished michi page" />
+          {/* The method in one loop, before any of it is explained: a real page building itself
+              around its seed card. */}
+          {replay ? (
+            <View style={styles.replay}>
+              <PageReplay page={replay} width={replayW} caption="Lurantis, from ME: Pitch Black Chase — one anchor, eight chosen to sit with it." />
             </View>
-            <View style={styles.galleryItem}>
-              <GuideMedia src="/welcome_v2-assets/gallery-2.jpg" alt="A finished michi page" />
-            </View>
-            <View style={styles.galleryItem}>
-              <GuideMedia src="/welcome_v2-assets/gallery-3.jpg" alt="A finished michi page" />
-            </View>
-          </View>
+          ) : null}
 
           {/* Credit — the heart of this page */}
           <ThemedView type="backgroundElement" style={styles.creditCard}>
@@ -95,34 +93,29 @@ export default function MichiMethodScreen() {
           <ThemedText type="smallBold" style={styles.sectionTitle}>
             The core page layouts
           </ThemedText>
-          {/* Each layout drawn, not described: eight small pages instead of eight sentences. */}
-          <View style={styles.layoutGrid}>
-            {MICHI_LAYOUT_STYLES.map((style) => (
-              <ThemedView key={style.value} type="backgroundElement" style={styles.layoutCard}>
-                <LayoutDiagram style={style.value} width={132} />
-                <View style={styles.layoutText}>
-                  <ThemedText type="smallBold" style={styles.layoutLabel}>
-                    {style.label}
-                  </ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary" style={styles.layoutDesc}>
-                    {style.description}
-                  </ThemedText>
-                </View>
-              </ThemedView>
-            ))}
-          </View>
-
-          {/* The method in motion: one card in, the page grown around it. */}
-          <ThemedText type="smallBold" style={styles.sectionTitle}>
-            See it happen
+          {/* Each style as a real page from the app's own binders, with real cards. Tap one to
+              open the binder it lives in. */}
+          <ThemedText type="small" themeColor="textSecondary" style={styles.sectionLede}>
+            Eight ways a page can be about something. Each one below is a real page from one of our
+            binders; tap it to turn the pages around it.
           </ThemedText>
-          <View style={styles.clip}>
-            <GuideMedia
-              src="/welcome_v2-assets/demo-composer.mp4"
-              poster="/welcome_v2-assets/desktop-composer.jpg"
-              alt="A page being composed in michi-maker"
-            />
-          </View>
+          <StyleGallery />
+
+          {/* The named layouts: the forty-page showcase binder, by name and by what its art does. */}
+          <ThemedText type="smallBold" style={[styles.sectionTitle, styles.sectionGap]}>
+            The layouts, by name
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.sectionLede}>
+            The grammar under the styles: where the art goes and what the cards do around it.
+            Singles stand alone; open spreads need both pages to read as one. From the 3×3 layout
+            showcase binder — there is a 3×4 edition too.
+          </ThemedText>
+          <LayoutGallery />
+          <GalleryNote>
+            Art in these layouts means printed pieces — bands, rails, posts and plates cut from one
+            picture in the Slice Studio — sitting in pockets exactly like cards do.
+          </GalleryNote>
+          <View style={styles.sectionGap} />
 
           {/* Our own how-to, featured above the reading list: it is the one that shows the
               method being built rather than described. */}
@@ -236,20 +229,9 @@ const styles = StyleSheet.create({
   featureLink: { fontSize: FontSize.label },
   sectionTitle: { fontSize: FontSize.md, marginBottom: Spacing.three },
   kicker: { fontSize: FontSize.label, letterSpacing: 0.8, color: Palette.accent, marginBottom: Spacing.one },
-  galleryRow: { flexDirection: 'row', gap: Spacing.two, marginBottom: Spacing.five },
-  galleryItem: { flex: 1, minWidth: 0 },
-  layoutGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three, marginBottom: Spacing.five },
-  layoutCard: {
-    width: 150,
-    flexGrow: 1,
-    maxWidth: 220,
-    padding: Spacing.three,
-    borderRadius: Radius.panel,
-    gap: Spacing.two,
-    alignItems: 'center',
-  },
-  layoutText: { alignSelf: 'stretch', gap: 2 },
-  clip: { marginBottom: Spacing.five },
+  replay: { alignItems: 'center', marginBottom: Spacing.five },
+  sectionLede: { lineHeight: 20, marginBottom: Spacing.three, marginTop: -Spacing.one },
+  sectionGap: { marginTop: Spacing.five },
   layoutLabel: { fontSize: FontSize.control },
   layoutDesc: { lineHeight: 20 },
   linkList: { gap: Spacing.three, marginBottom: Spacing.five },

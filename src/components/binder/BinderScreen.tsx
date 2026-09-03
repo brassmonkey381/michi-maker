@@ -39,6 +39,8 @@ import { ShareSheet } from '@/components/binder/ShareSheet';
 import { SliceStudio, type SliceStudioHandle } from '@/components/binder/SliceStudio';
 import { SlotMultiActions } from '@/components/binder/SlotMultiActions';
 import { pillChip, sheet } from '@/constants/ui';
+import { ContestLockBanner } from '@/components/contest/ContestLockBanner';
+import { fetchLockState, type Finalist } from '@/data/contestRepo';
 import { EditLockBanner } from '@/components/binder/EditLockBanner';
 import { SaveErrorBanner } from '@/components/binder/SaveErrorBanner';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
@@ -209,6 +211,27 @@ export function BinderScreen({
   // pockets stay draggable on a page whose saves are being refused. Derived rather than reset
   // in an effect, so getting the lease back also reopens the workbench where it was left.
   const [editingWanted, setEditingWanted] = useState(initialEditing);
+  /**
+   * CONTEST LOCK. At most sixty binders in the world are ever a locked finalist, so this is one
+   * cheap read on mount rather than anything threaded through the store.
+   *
+   * It gates `editing` below rather than only `canEdit`, because the read is asynchronous: a
+   * binder opened straight into the workbench (initialEditing) would otherwise be editable for
+   * the length of one round trip, and every change made in that window is refused by the trigger
+   * with a raw policy error. Better to close the workbench the moment we learn.
+   */
+  const [contestLock, setContestLock] = useState<Finalist | null>(null);
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let stale = false;
+    fetchLockState(binderId)
+      .then((f) => !stale && setContestLock(f))
+      .catch(() => {});
+    return () => {
+      stale = true;
+    };
+  }, [binderId]);
+  const contestLocked = !!contestLock?.locked;
   // The binder-details / page-tools disclosure. Closed on entry, and session-only on purpose: the
   // default that matters is what you see the moment you tap Edit, and that should be the binder.
   /**
@@ -233,7 +256,7 @@ export function BinderScreen({
    * space under the binder, costs the pages no height at all.
    */
   const [coverCtx, setCoverCtx] = useState<CoverToolsContext | null>(null);
-  const editing = editingWanted && store.canEdit;
+  const editing = editingWanted && store.canEdit && !contestLocked;
   const [pageIndex, setPageIndex] = useState(0);
   const [pickerCell, setPickerCell] = useState<{ row: number; col: number } | null>(null);
   // A placement waiting on "which copy?" - held whole, because the answer arrives from a sheet
@@ -749,7 +772,7 @@ export function BinderScreen({
   // store.canEdit joins them for a different reason: another tab of this browser holds the
   // editing lease, so nothing saved here would stick. Offering an Edit button that quietly
   // discards the work would be worse than not offering one.
-  const canEdit = !binder.isExample && !binder.isDemo && store.canEdit;
+  const canEdit = !binder.isExample && !binder.isDemo && store.canEdit && !contestLocked;
 
 
   const handleDuplicate = () => {
@@ -1997,6 +2020,9 @@ export function BinderScreen({
             <View onLayout={(e) => setCallerChrome(e.nativeEvent.layout.height)}>
             {/* Read-only because another tab of this browser owns editing — see EditLockBanner. */}
             <EditLockBanner />
+            {/* Read-only because the contest froze it. A different lock, so a different banner:
+                one of these you can take back with a click, the other you cannot. */}
+            <ContestLockBanner finalist={contestLock} />
             <SaveErrorBanner />
             {/* THE EDITOR'S ROW OF CHIPS IS GONE - all four of its buttons now live elsewhere.
 

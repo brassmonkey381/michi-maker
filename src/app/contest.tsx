@@ -80,22 +80,57 @@ export default function ContestScreen() {
           <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
             {CONTEST.subhead}
           </ThemedText>
+          {/* TWO CHIPS IN THE FINAL, not one. "Voting ends the 17th" on its own would read as the
+              same continuous vote people have been casting since August, which is the one thing
+              stage 2 is not. */}
           <View style={styles.datesRow}>
             <Text style={styles.dateChip}>
               {phase === 'upcoming'
                 ? `Entries open ${fmtDate(CONTEST.opensAt)}`
                 : phase === 'open'
-                  ? `Open now! Voting ends ${fmtDate(CONTEST.endsAt)}`
-                  : `Ended ${fmtDate(CONTEST.endsAt)}`}
+                  ? `Round 1 open! Entries and voting close ${fmtDate(CONTEST.finalsOpenAt)}`
+                  : phase === 'finals'
+                    ? `The Final: voting ends ${fmtDate(CONTEST.endsAt)}`
+                    : `Ended ${fmtDate(CONTEST.endsAt)}`}
             </Text>
+            {phase === 'finals' ? (
+              <Text style={styles.dateChipQuiet}>
+                Top {CONTEST.finalistsPerCategory} per category · every score back to zero
+              </Text>
+            ) : null}
+          </View>
+
+          {/* HOW IT WORKS, on the page rather than only in the rules. Two rounds is not what a
+              binder contest is normally understood to be, so it is said plainly before the prize
+              table someone came here to read. */}
+          <View style={styles.section}>
+            <ThemedText type="subtitle" style={styles.h2}>
+              How it works
+            </ThemedText>
+            {[
+              `Round 1 · ${fmtDate(CONTEST.opensAt)} to ${fmtDate(CONTEST.finalsOpenAt)}. Enter a public binder in one category. Every like it collects is a vote.`,
+              `The Final · ${fmtDate(CONTEST.finalsOpenAt)} to ${fmtDate(CONTEST.endsAt)}. The top ${CONTEST.finalistsPerCategory} of each category go through. Their pages are locked exactly as they qualified, every score goes back to zero, and one week of fresh voting decides the winners.`,
+              'A round-1 lead is a ticket to the final, not a head start in it. Nothing you earned is deleted: your binder keeps its likes, and the final is a separate vote.',
+            ].map((r, i) => (
+              <View key={i} style={styles.ruleRow}>
+                <Text style={styles.ruleBullet}>•</Text>
+                <ThemedText type="small" themeColor="textSecondary" style={styles.ruleText}>
+                  {r}
+                </ThemedText>
+              </View>
+            ))}
           </View>
 
           {phase !== 'ended' ? (
             <View style={styles.ctaRow}>
+              {/* "Enter a binder" is a round-1 action. In the final it would send someone to a
+                  screen that refuses them, so it becomes the way to go and watch instead. */}
               <Pressable
-                onPress={() => router.push('/my-binders' as Href)}
+                onPress={() => router.push(phase === 'finals' ? ('/discover' as Href) : ('/my-binders' as Href))}
                 style={({ pressed }) => [styles.cta, pressed && styles.dim]}>
-                <Text style={styles.ctaText}>Enter a binder ›</Text>
+                <Text style={styles.ctaText}>
+                  {phase === 'finals' ? 'Vote in the final ›' : 'Enter a binder ›'}
+                </Text>
               </Pressable>
               <Pressable
                 onPress={() => router.push('/discover' as Href)}
@@ -185,10 +220,13 @@ export default function ContestScreen() {
             </ThemedText>
             {[
               'No purchase necessary to enter or win.',
-              `Entries open ${fmtDate(CONTEST.opensAt)} and close ${fmtDate(CONTEST.endsAt)}. Winners are determined by vote counts at the close time.`,
-              'Enter by marking a public binder with exactly one category. The category choice is final. You may withdraw an entry until the close time (re-entering resets your entry time). One category per binder; you may enter multiple binders.',
+              `The contest runs in two rounds. Round 1 opens ${fmtDate(CONTEST.opensAt)} and closes ${fmtDate(CONTEST.finalsOpenAt)}. The Final runs ${fmtDate(CONTEST.finalsOpenAt)} to ${fmtDate(CONTEST.endsAt)}, and winners are determined by the Final's vote counts at its close time.`,
+              `At the close of round 1 the top ${CONTEST.finalistsPerCategory} entries in each category by vote count become that category's finalists. Round-1 votes decide who qualifies and nothing else: every finalist starts the Final on zero.`,
+              'A finalist binder is locked when the Final opens. Its pages, layout, title, description and cover cannot be changed while it is locked, so everyone is voting on the binder that qualified. Your other binders are unaffected, and you can still delete a locked binder entirely if you want it off the site.',
+              'Enter by marking a public binder with exactly one category. The category choice is final. You may withdraw an entry until round 1 closes (re-entering resets your entry time). One category per binder; you may enter multiple binders.',
               `Entries may show at most ${CONTEST.pageCap} public pages. Binders of any size can enter by hiding pages down to ${CONTEST.pageCap} public ones, and only the first ${CONTEST.pageCap} public pages of an entry are shown in contest views.`,
-              'Winners are determined purely by most votes (binder likes) in the entered category. Vote-count ties display in shuffled order but final ties are broken by earliest entry time.',
+              'Round 1 is voted with binder likes. The Final is a separate vote, one per account per finalist, and it does not change any binder\u2019s like count. You cannot vote for your own binder in either round.',
+              'Winners are determined purely by most votes in the Final. Vote-count ties are broken by round-1 finishing position, and then by earliest entry time.',
               'We reserve the right to disqualify entries that violate the Terms of Service or DMCA (use art you have the rights to, and credit your sources), and entries with fraudulent votes (bots, scripts, or multiple accounts).',
               'Prizes are michi-maker subscription grants applied to the winning account; they have no cash value and are not transferable.',
               'Entering requires a free michi-maker account and a public profile. Void where prohibited.',
@@ -222,7 +260,8 @@ const styles = StyleSheet.create({
   h1: { marginBottom: Spacing.two },
   headline: { fontWeight: Weight.bold, marginBottom: Spacing.one, lineHeight: 20 },
   sub: { lineHeight: 20, marginBottom: Spacing.three },
-  datesRow: { flexDirection: 'row', marginBottom: Spacing.three },
+  datesRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.two, marginBottom: Spacing.three },
+  dateChipQuiet: { fontSize: FontSize.sm, color: Palette.ink2, alignSelf: 'center' },
   dateChip: {
     fontSize: FontSize.sm,
     fontWeight: Weight.bold,

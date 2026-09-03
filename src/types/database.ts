@@ -428,6 +428,82 @@ export type Database = {
           },
         ]
       }
+      contest_finalists: {
+        Row: {
+          binder_id: string
+          category: string
+          contest: string
+          created_at: string
+          locked: boolean
+          owner_id: string
+          seed: number
+          stage1_votes: number
+          votes_close_at: string
+          votes_open_at: string
+        }
+        Insert: {
+          binder_id: string
+          category: string
+          contest?: string
+          created_at?: string
+          locked?: boolean
+          owner_id: string
+          seed: number
+          stage1_votes?: number
+          votes_close_at: string
+          votes_open_at: string
+        }
+        Update: {
+          binder_id?: string
+          category?: string
+          contest?: string
+          created_at?: string
+          locked?: boolean
+          owner_id?: string
+          seed?: number
+          stage1_votes?: number
+          votes_close_at?: string
+          votes_open_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contest_finalists_binder_id_fkey"
+            columns: ["binder_id"]
+            isOneToOne: false
+            referencedRelation: "binders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contest_finals_votes: {
+        Row: {
+          binder_id: string
+          contest: string
+          created_at: string
+          voter_id: string
+        }
+        Insert: {
+          binder_id: string
+          contest?: string
+          created_at?: string
+          voter_id?: string
+        }
+        Update: {
+          binder_id?: string
+          contest?: string
+          created_at?: string
+          voter_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contest_finals_votes_binder_id_fkey"
+            columns: ["binder_id"]
+            isOneToOne: false
+            referencedRelation: "binders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contest_winners: {
         Row: {
           binder_id: string
@@ -990,6 +1066,16 @@ export type Database = {
       }
       is_admin: { Args: Record<string, never>; Returns: boolean }
       binder_like_count: { Args: { p_binder_id: string }; Returns: number }
+      contest_finals_leaderboard: {
+        Args: { p_contest?: string; p_category?: string | null; p_limit?: number }
+        Returns: {
+          author_name: string
+          binder_id: string
+          category: string
+          seed: number
+          vote_count: number
+        }[]
+      }
       contest_leaderboard: {
         Args: { p_contest?: string; p_category?: string | null; p_limit?: number }
         Returns: {

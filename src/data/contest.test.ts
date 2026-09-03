@@ -8,7 +8,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { CATEGORIES, CONTEST, contestPhase, categoryLabel } from './contest.ts';
+import {
+  CATEGORIES,
+  CONTEST,
+  contestPhase,
+  categoryLabel,
+  entriesOpen,
+  finalsVotingOpen,
+} from './contest.ts';
 
 test('exactly one LIFETIME prize exists, and it is Best Aesthetic 1st', () => {
   const lifetime = CATEGORIES.flatMap((c) =>
@@ -54,14 +61,49 @@ test('Community’s Choice is gone (it double-paid the Aesthetic winner)', () =>
 
 test('contest window is coherent and the phase gate tracks it', () => {
   const opens = Date.parse(CONTEST.opensAt);
+  const finals = Date.parse(CONTEST.finalsOpenAt);
   const ends = Date.parse(CONTEST.endsAt);
-  assert.ok(Number.isFinite(opens) && Number.isFinite(ends), 'dates must parse');
-  assert.ok(ends > opens, 'contest must end after it opens');
+  assert.ok(
+    Number.isFinite(opens) && Number.isFinite(finals) && Number.isFinite(ends),
+    'dates must parse',
+  );
+  assert.ok(finals > opens, 'stage 1 must run before the final');
+  assert.ok(ends > finals, 'the final must end after it opens');
 
   assert.equal(contestPhase(opens - 1), 'upcoming');
   assert.equal(contestPhase(opens + 1), 'open');
-  assert.equal(contestPhase((opens + ends) / 2), 'open');
+  assert.equal(contestPhase((opens + finals) / 2), 'open');
+  // The boundary belongs to the final: at finalsOpenAt stage 1 is over, which is what "entries
+  // close on the 10th" has to mean if the snapshot taken that instant is to be the whole field.
+  assert.equal(contestPhase(finals), 'finals');
+  assert.equal(contestPhase((finals + ends) / 2), 'finals');
   assert.equal(contestPhase(ends + 1), 'ended');
+});
+
+test('entries are a stage-1 act; stage-2 voting is a stage-2 one', () => {
+  assert.equal(entriesOpen('open'), true);
+  for (const phase of ['upcoming', 'finals', 'ended'] as const) {
+    assert.equal(entriesOpen(phase), false, `entries must be closed in ${phase}`);
+  }
+  assert.equal(finalsVotingOpen('finals'), true);
+  for (const phase of ['upcoming', 'open', 'ended'] as const) {
+    assert.equal(finalsVotingOpen(phase), false, `finals voting must be closed in ${phase}`);
+  }
+});
+
+test('the final carries a whole number of binders per category', () => {
+  assert.ok(
+    Number.isInteger(CONTEST.finalistsPerCategory) && CONTEST.finalistsPerCategory > 0,
+    'finalistsPerCategory must be a positive integer',
+  );
+  // Every category pays exactly this many places, so a final shorter than the prize table would
+  // leave prizes with nobody to win them.
+  for (const c of CATEGORIES) {
+    assert.ok(
+      c.prizes.length <= CONTEST.finalistsPerCategory,
+      `${c.slug} pays more places than the final has finalists`,
+    );
+  }
 });
 
 test('page cap is a positive integer (the public-page submission cap)', () => {

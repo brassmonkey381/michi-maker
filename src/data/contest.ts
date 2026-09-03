@@ -23,11 +23,19 @@ export interface CategorySpec {
 export const CONTEST = {
   id: 'first-annual-2026',
   name: 'First Annual Michi Binder Contest',
-  // ⚠️ PLACEHOLDER DATES — set the real window before announcing. Everything derives from
-  // these two instants (UTC): entries + category changes lock at endsAt, and winners are
-  // computed from the vote counts at endsAt.
+  // THREE INSTANTS (UTC), and every surface derives from them.
+  //
+  //   opensAt ──── stage 1, the open field ────> finalsOpenAt ──── stage 2, the final ────> endsAt
+  //
+  // Stage 1 is voted with ordinary binder likes and any public binder can enter. At finalsOpenAt
+  // entries close, the top `finalistsPerCategory` of each category are frozen into
+  // contest_finalists, locked against edits, and voted again FROM ZERO for a week — a separate
+  // ballot (contest_finals_votes), so stage 1's likes are never rewritten to stage the rematch.
   opensAt: '2026-08-01T00:00:00Z',
-  endsAt: '2026-09-30T23:59:59Z',
+  finalsOpenAt: '2026-10-10T00:00:00Z',
+  endsAt: '2026-10-17T23:59:59Z',
+  /** How many of each category carry into the stage-2 final. */
+  finalistsPerCategory: 10,
   /** Submission cap on PUBLIC pages — any size binder can enter with ≤N pages public; only the
    *  first N public pages show in contest views. */
   pageCap: 16,
@@ -35,11 +43,30 @@ export const CONTEST = {
   subhead: '60 winners across 6 categories. Winners are decided purely by community votes.',
 } as const;
 
+export type ContestPhase = 'upcoming' | 'open' | 'finals' | 'ended';
+
 /** Where the contest is in its lifecycle right now. */
-export function contestPhase(nowMs = Date.now()): 'upcoming' | 'open' | 'ended' {
+export function contestPhase(nowMs = Date.now()): ContestPhase {
   if (nowMs < Date.parse(CONTEST.opensAt)) return 'upcoming';
   if (nowMs > Date.parse(CONTEST.endsAt)) return 'ended';
+  if (nowMs >= Date.parse(CONTEST.finalsOpenAt)) return 'finals';
   return 'open';
+}
+
+/**
+ * Can a binder still be entered (or withdrawn, or have its category changed)?
+ *
+ * Stage 1 only. The finalists are picked from the field as it stands at finalsOpenAt, so an entry
+ * arriving during the final has nothing to qualify for, and a withdrawal would leave a frozen
+ * finalist row on the board with no entry behind it.
+ */
+export function entriesOpen(phase: ContestPhase = contestPhase()): boolean {
+  return phase === 'open';
+}
+
+/** Is stage-2 voting running right now? The server re-checks this against its own clock. */
+export function finalsVotingOpen(phase: ContestPhase = contestPhase()): boolean {
+  return phase === 'finals';
 }
 
 const STANDARD_PRIZES: PrizeRow[] = [

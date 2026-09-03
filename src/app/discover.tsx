@@ -20,7 +20,7 @@
  * quick-nav.
  */
 import { useRouter, type Href } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -35,13 +35,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BinderThumb } from '@/components/binder/BinderThumb';
 import { CurateCallout } from '@/components/CurateCallout';
+import { PagedCarousel } from '@/components/PagedCarousel';
 import { ProfileAvatarButton, TILE_AVATAR } from '@/components/people/ProfileAvatarButton';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { CATEGORIES, CONTEST, contestPhase, type ContestCategory } from '@/data/contest';
+import { FinalsVoteButton } from '@/components/contest/FinalsVoteButton';
 import {
   fetchContestEntryFeed,
   fetchContestLeaderboard,
+  fetchFinalsLeaderboard,
+  fetchMyFinalsVotes,
   type FeedEntry,
 } from '@/data/contestRepo';
 import {
@@ -62,10 +66,45 @@ import {
 import type { DemoBinder } from '@/data/binderTypes';
 import { fetchAvatarsByUsername } from '@/data/profileRepo';
 import { isSupabaseConfigured } from '@/lib/env';
+import { useAuth } from '@/store/auth';
 import { useImageManifest } from '@/lib/catalogConfig';
 
 const GRID_GAP = Spacing.four;
 const MIN_TILE = 220;
+
+/**
+ * THE THREE SHELVES ARE CAROUSELS, ONE SCREENFUL PER SLOT.
+ *
+ * Contest entries, Public binders and From michi-maker each rendered every row they had, one under
+ * the next. Three open-ended grids on one page means the third heading starts below however many
+ * binders the first two happened to return — the house shelf was a scroll away on a good week —
+ * and a reader looking for the sections has to scroll past the contents to find them.
+ *
+ * Ten tiles a slot (5 × 2) is a shelf you can take in at a glance, and every heading stays within
+ * a screen of the last. 5 rather than the 6 the grid fits at 1440 because a wider tile reads its
+ * cover better, and the arithmetic is the same one the grid already does: the column count only
+ * falls below 5 when the tiles would go under MIN_TILE.
+ */
+const SHELF_COLS = 5;
+const SHELF_ROWS = 2;
+
+/**
+ * Slice `items` into carousel pages of `perPage`, each a wrapped grid of `tile(item)`.
+ *
+ * The tile callback returns a keyed element (the caller knows the id); the page `View` is keyed by
+ * its start index, which is stable for a given list and ordering.
+ */
+function shelfPages<T>(items: T[], perPage: number, tile: (item: T) => ReactNode): ReactNode[] {
+  const pages: ReactNode[] = [];
+  for (let i = 0; i < items.length; i += perPage) {
+    pages.push(
+      <View key={i} style={[styles.grid, styles.shelfPage, { gap: GRID_GAP }]}>
+        {items.slice(i, i + perPage).map(tile)}
+      </View>,
+    );
+  }
+  return pages;
+}
 
 /** Category slug to label, so a feed tile can say which category it was entered in. */
 const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
@@ -100,7 +139,16 @@ export default function DiscoverScreen() {
 
   // Contest leaderboards — a selected category chip swaps the grid to that category's
   // vote-ranked entries. Typing a search clears the selection.
-  const contestOn = contestPhase() === 'open' && isSupabaseConfigured;
+  // Voting needs a real account, and nobody votes for their own binder — the server refuses both,
+  // and the pill says so up front by being disabled rather than by failing on the tap.
+  const { isSignedIn, profile } = useAuth();
+  const myUsername = profile?.username?.toLowerCase();
+
+  // The strip runs through BOTH rounds; what it lists changes. In the Final the boards are the
+  // frozen finalists ranked by stage-2 votes, not the open field ranked by likes.
+  const phase = contestPhase();
+  const isFinals = phase === 'finals';
+  const contestOn = (phase === 'open' || isFinals) && isSupabaseConfigured;
   const [contestCat, setContestCat] = useState<ContestCategory | null>(null);
   const [board, setBoard] = useState<DemoBinder[] | null>(null);
   const boardReq = useRef(0);
@@ -109,14 +157,61 @@ export default function DiscoverScreen() {
   useEffect(() => {
     if (!contestCat) return;
     const id = ++boardReq.current;
-    fetchContestLeaderboard(contestCat)
+    (isFinals ? fetchFinalsLeaderboard(contestCat) : fetchContestLeaderboard(contestCat))
       .then((rows) => {
         if (id === boardReq.current) setBoard(rows);
       })
       .catch(() => {
         if (id === boardReq.current) setBoard([]);
       });
-  }, [contestCat]);
+  }, [contestCat, isFinals]);
+
+  // WHICH FINALISTS THIS ACCOUNT HAS VOTED FOR. Held here rather than per tile so a binder that
+  // appears on both the category board and the all-categories shelf agrees with itself, and so a
+  // vote cast on one updates the other without a refetch.
+  const [myVotes, setMyVotes] = useState<Set<string>>(new Set());
+  const [voteError, setVoteError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isFinals || !isSupabaseConfigured) return;
+    let alive = true;
+    fetchMyFinalsVotes()
+      .then((v) => alive && setMyVotes(v))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [isFinals]);
+
+  // Optimistic vote toggle: the set and the displayed count move together, and FinalsVoteButton
+  // calls this a second time with the old value if the server refuses.
+  const [voteDelta, setVoteDelta] = useState<Map<string, number>>(new Map());
+  const onVoteChange = (binderId: string, voted: boolean) => {
+    setVoteError(null);
+    setMyVotes((prev) => {
+      const next = new Set(prev);
+      if (voted) next.add(binderId);
+      else next.delete(binderId);
+      return next;
+    });
+    setVoteDelta((prev) => {
+      const next = new Map(prev);
+      next.set(binderId, (next.get(binderId) ?? 0) + (voted ? 1 : -1));
+      return next;
+    });
+  };
+  const voteCount = (b: DemoBinder) => Math.max(0, (b.likeCount ?? 0) + (voteDelta.get(b.id) ?? 0));
+
+  /** The vote pill for a finalist tile, or the plain heart count outside the Final. */
+  const finalsAccessory = (b: DemoBinder) => (
+    <FinalsVoteButton
+      binderId={b.id}
+      voted={myVotes.has(b.id)}
+      votes={voteCount(b)}
+      disabled={!isSignedIn || (!!myUsername && b.authorName?.toLowerCase() === myUsername)}
+      onChange={onVoteChange}
+      onError={setVoteError}
+    />
+  );
 
   // The two default sections, shown when nobody has typed a query or picked a category.
   //
@@ -134,13 +229,19 @@ export default function DiscoverScreen() {
   useEffect(() => {
     if (!contestOn) return;
     let alive = true;
-    fetchContestEntryFeed()
-      .then((rows) => alive && setFeed(rows))
-      .catch(() => alive && setFeed([]));
+    // In the Final the shelf is the finalists themselves, every category together, ranked by
+    // stage-2 votes. The entry feed it replaces was ordered by ENTRY TIME, which stops meaning
+    // anything the moment the field is frozen.
+    const load = isFinals
+      ? fetchFinalsLeaderboard(null).then((binders) =>
+          binders.map((b) => ({ binder: b, category: 'aesthetic' as ContestCategory, enteredAt: '' })),
+        )
+      : fetchContestEntryFeed();
+    load.then((rows) => alive && setFeed(rows)).catch(() => alive && setFeed([]));
     return () => {
       alive = false;
     };
-  }, [contestOn]);
+  }, [contestOn, isFinals]);
 
   // Re-fetches when the sort flips. The contest id is passed so entries are left out of this
   // section: they are already the feed above, and showing them twice makes the page look shorter
@@ -220,9 +321,16 @@ export default function DiscoverScreen() {
   }, [query]);
 
   // Responsive grid: cap the content column, then fit as many ≥MIN_TILE tiles as the width allows.
+  // Search results and a contest leaderboard stay plain grids — they are answers to a question the
+  // reader asked, so they run as long as they need to.
   const contentW = Math.min(width, MaxContentWidthWide) - Spacing.four * 2;
   const cols = Math.max(2, Math.floor((contentW + GRID_GAP) / (MIN_TILE + GRID_GAP)));
   const tileW = Math.max(120, Math.floor((contentW - GRID_GAP * (cols - 1)) / cols));
+  // The shelves cap at SHELF_COLS and take the width that frees as extra tile, so a slot is always
+  // a whole number of columns wide and a page never half-shows an eleventh binder.
+  const shelfCols = Math.min(SHELF_COLS, cols);
+  const shelfTileW = Math.max(120, Math.floor((contentW - GRID_GAP * (shelfCols - 1)) / shelfCols));
+  const perShelf = shelfCols * SHELF_ROWS;
 
   const q = query.trim();
 
@@ -241,7 +349,7 @@ export default function DiscoverScreen() {
           ) : null}
 
           <ThemedText type="title" style={styles.h1}>
-            Discover binders
+            Discover Binders
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
             Search everyone’s public binders by title, description, or creator.
@@ -259,8 +367,15 @@ export default function DiscoverScreen() {
                 </Pressable>
               </View>
               <ThemedText type="small" themeColor="textSecondary" style={styles.contestSub}>
-                {CONTEST.headline} Tap a category to see its entries, ranked by votes.
+                {isFinals
+                  ? `The Final: the top ${CONTEST.finalistsPerCategory} of each category, locked as they qualified and back to zero votes. Tap a category to see its finalists.`
+                  : `${CONTEST.headline} Tap a category to see its entries, ranked by votes.`}
               </ThemedText>
+              {voteError ? (
+                <ThemedText type="small" style={styles.voteError}>
+                  {voteError}
+                </ThemedText>
+              ) : null}
               <View style={styles.contestChips}>
                 {CATEGORIES.map((c) => {
                   const active = contestCat === c.slug;
@@ -321,9 +436,13 @@ export default function DiscoverScreen() {
                     width={tileW}
                     onPress={() => openBinder(b.id)}
                     accessory={
-                      <ThemedText type="small" themeColor="textSecondary">
-                        ♥ {b.likeCount ?? 0}
-                      </ThemedText>
+                      isFinals ? (
+                        finalsAccessory(b)
+                      ) : (
+                        <ThemedText type="small" themeColor="textSecondary">
+                          ♥ {b.likeCount ?? 0}
+                        </ThemedText>
+                      )
                     }
                   />
                 ))}
@@ -359,27 +478,35 @@ export default function DiscoverScreen() {
                       type="smallBold"
                       themeColor="textSecondary"
                       style={styles.sectionLabel}>
-                      Contest entries
+                      {isFinals ? 'The Final' : 'Contest entries'}
                     </ThemedText>
                     <ThemedText type="small" themeColor="textSecondary">
-                      {feed.length} entered
+                      {isFinals ? `${feed.length} finalists` : `${feed.length} entered`}
                     </ThemedText>
                   </View>
-                  <View style={[styles.grid, { gap: GRID_GAP }]}>
-                    {feed.map((e) => (
+                  <PagedCarousel
+                    width={contentW}
+                    prevLabel="Previous entries"
+                    nextLabel="More entries"
+                    pages={shelfPages(feed, perShelf, (e) => (
                       <BinderThumb
                         key={e.binder.id}
                         binder={e.binder}
-                        width={tileW}
+                        width={shelfTileW}
                         onPress={() => openBinder(e.binder.id)}
                         accessory={
-                          <ThemedText type="small" themeColor="textSecondary">
-                            {CATEGORY_LABEL[e.category] ?? e.category} · ♥ {e.binder.likeCount ?? 0}
-                          </ThemedText>
+                          isFinals ? (
+                            finalsAccessory(e.binder)
+                          ) : (
+                            <ThemedText type="small" themeColor="textSecondary">
+                              {CATEGORY_LABEL[e.category] ?? e.category} · ♥{' '}
+                              {e.binder.likeCount ?? 0}
+                            </ThemedText>
+                          )
                         }
                       />
                     ))}
-                  </View>
+                  />
                 </View>
               ) : null}
 
@@ -426,12 +553,15 @@ export default function DiscoverScreen() {
                     No public binders to show yet.
                   </ThemedText>
                 ) : (
-                  <View style={[styles.grid, { gap: GRID_GAP }]}>
-                    {others.map((b) => (
+                  <PagedCarousel
+                    width={contentW}
+                    prevLabel="Previous binders"
+                    nextLabel="More binders"
+                    pages={shelfPages(others, perShelf, (b) => (
                       <BinderThumb
                         key={b.id}
                         binder={b}
-                        width={tileW}
+                        width={shelfTileW}
                         onPress={() => openBinder(b.id)}
                         accessory={
                           b.authorName ? (
@@ -445,7 +575,7 @@ export default function DiscoverScreen() {
                         }
                       />
                     ))}
-                  </View>
+                  />
                 )}
               </View>
 
@@ -464,23 +594,26 @@ export default function DiscoverScreen() {
                       type="smallBold"
                       themeColor="textSecondary"
                       style={styles.sectionLabel}>
-                      From michi-maker
+                      From Michi-Maker
                     </ThemedText>
                   </View>
                   <ThemedText type="small" themeColor="textSecondary" style={styles.sectionNote}>
                     Reference binders from the house account: plain card layouts to copy and build
                     on, rather than finished pieces.
                   </ThemedText>
-                  <View style={[styles.grid, { gap: GRID_GAP }]}>
-                    {house.map((b) => (
+                  <PagedCarousel
+                    width={contentW}
+                    prevLabel="Previous reference binders"
+                    nextLabel="More reference binders"
+                    pages={shelfPages(house, perShelf, (b) => (
                       <BinderThumb
                         key={b.id}
                         binder={b}
-                        width={tileW}
+                        width={shelfTileW}
                         onPress={() => openBinder(b.id)}
                       />
                     ))}
-                  </View>
+                  />
                 </View>
               ) : null}
             </>
@@ -515,6 +648,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.four,
     maxWidth: 520,
   },
+  voteError: { color: Palette.dangerAlt, marginTop: Spacing.one },
   sectionLabel: { textTransform: 'uppercase', letterSpacing: 0.5, fontSize: FontSize.sm },
   section: { marginBottom: Spacing.five },
   sectionHead: {
@@ -539,6 +673,9 @@ const styles = StyleSheet.create({
   sortChipText: { fontSize: 12 },
   sortChipTextActive: { color: Palette.accentText },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
+  // A carousel page is exactly as tall as its rows: `alignContent` stops a short last page (one
+  // row, or a partial one) from spreading its tiles down the height the tallest page set.
+  shelfPage: { alignContent: 'flex-start' },
   center: { paddingVertical: Spacing.six, alignItems: 'center' },
   note: { paddingVertical: Spacing.three },
   contestBox: {

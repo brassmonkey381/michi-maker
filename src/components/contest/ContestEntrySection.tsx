@@ -111,6 +111,15 @@ export function ContestEntrySection({
         <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
           Entries open soon. {CONTEST.headline}
         </ThemedText>
+      ) : phase === 'finals' ? (
+        // THE FINAL IS NOT AN ENTRY SURFACE. Round 1 is over, so there is nothing to enter, switch
+        // or withdraw: the field was frozen at the cutoff. Showing the controls greyed would
+        // suggest they come back; a sentence saying what is happening instead does not.
+        <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
+          {entry
+            ? `Round 1 is over. If this binder made the top ${CONTEST.finalistsPerCategory} of its category it is in the Final, locked as it qualified, and voting runs to the close.`
+            : 'Round 1 is over and the Final is running. Entries reopen with the next contest.'}
+        </ThemedText>
       ) : overCap && !entry ? (
         <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
           Contest entries can show at most {CONTEST.pageCap} public pages; this binder has{' '}

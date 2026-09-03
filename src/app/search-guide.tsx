@@ -26,6 +26,28 @@ import { Fonts, FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight 
  * recipe above them works against the whole catalog and returns something for everyone.
  */
 const RECIPES: { title: string; query: string; blurb: string }[] = [
+  // The crowd-pleasers first: what people actually come to look at. Each works against the whole
+  // catalog, so a first visit gets something gorgeous before it learns a single field.
+  {
+    title: 'Illustration Rares',
+    query: 'rarity:illustration sort:date',
+    blurb: 'Every Illustration Rare and Special Illustration Rare, newest first. rarity: matches part of the name, so one word catches both.',
+  },
+  {
+    title: 'Special Illustration Rares, priciest first',
+    query: 'rarity:"special illustration" sort:value',
+    blurb: 'The chase art, ranked by value. Quote it so the two words stay together.',
+  },
+  {
+    title: 'Full arts',
+    query: '"full art" sort:value',
+    blurb: 'A quoted phrase with no field matches anywhere, and full-art printings carry it in their name. Add a set: to focus on one.',
+  },
+  {
+    title: 'New and upcoming',
+    query: 'sort:date',
+    blurb: 'The whole catalog, newest release first — sets that have not shipped yet sit at the top. Stack rarity:illustration on it for the new art only.',
+  },
   {
     title: 'Finish a set',
     query: 'set:"evolving skies" have:no',

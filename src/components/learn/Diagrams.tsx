@@ -238,8 +238,18 @@ export function EditorMapDiagram({ highlight }: { highlight: 'pocket' | 'slice-n
             <Text style={[styles.dockTab, styles.dockTabOn, H('art-tab')]}>Artwork</Text>
             <Text style={styles.dockTab}>Stickers</Text>
           </View>
-          <View style={[styles.slicePiece, { backgroundColor: INK.art }]} />
-          <View style={[styles.slicePiece, { backgroundColor: INK.violet, width: 54 }, H('tray')]} />
+          {/* The tray: single pieces, and one merged 1×2 that reads as two pockets wide. */}
+          <View style={styles.dockRow}>
+            <View style={[styles.dockPiece, { backgroundColor: INK.art }]} />
+            <View style={[styles.dockPiece, { backgroundColor: INK.rose }]} />
+            <View style={[styles.dockPiece, { backgroundColor: INK.sea }]} />
+          </View>
+          <View style={styles.dockRow}>
+            <View style={[styles.dockPiece, styles.dockPieceWide, { backgroundColor: INK.violet }, H('tray')]}>
+              <View style={styles.dockFold} />
+            </View>
+            <View style={[styles.dockPiece, { backgroundColor: INK.gold }]} />
+          </View>
           <View style={[styles.sliceNew, H('slice-new')]}>
             <Text style={styles.sliceNewText}>+ Slice new art</Text>
           </View>
@@ -249,13 +259,25 @@ export function EditorMapDiagram({ highlight }: { highlight: 'pocket' | 'slice-n
             rows={3}
             cols={3}
             width={126}
-            cells={[{ fill: INK.sea }, { fill: INK.gold }, null, null, { ring: highlight === 'pocket', label: highlight === 'pocket' ? 'tap' : undefined }, { fill: INK.leaf }, { fill: INK.rose }, null, null]}
+            cells={
+              highlight === 'tray'
+                ? // The merged piece from the tray, slid into a sideways pair on the page.
+                  [{ fill: INK.sea }, { fill: INK.gold }, null, { fill: INK.violet, span: [1, 2], fold: true, ring: true }, null, { fill: INK.leaf }, { fill: INK.rose }, null, null]
+                : [{ fill: INK.sea }, { fill: INK.gold }, null, null, { ring: highlight === 'pocket', label: highlight === 'pocket' ? 'tap' : undefined }, { fill: INK.leaf }, { fill: INK.rose }, null, null]
+            }
           />
         </View>
         <View style={styles.dock}>
           <Text style={styles.dockTitle}>Cards</Text>
-          {[INK.sea, INK.gold, INK.leaf, INK.rose].map((f, i) => (
-            <View key={i} style={[styles.dockCard, { backgroundColor: f }]} />
+          {[
+            [INK.sea, INK.gold, INK.leaf],
+            [INK.rose, INK.ember, INK.night],
+          ].map((row, i) => (
+            <View key={i} style={styles.dockRow}>
+              {row.map((f, j) => (
+                <View key={j} style={[styles.dockPiece, { backgroundColor: f }]} />
+              ))}
+            </View>
           ))}
         </View>
       </View>
@@ -491,11 +513,13 @@ const styles = StyleSheet.create({
   editorBody: { flexDirection: 'row', alignItems: 'stretch', gap: 8, padding: 8 },
   dock: { width: 78, padding: 6, gap: 5, borderRadius: 8, backgroundColor: '#E6E0D2' },
   dockTitle: { fontSize: 9, fontWeight: Weight.semibold, color: '#3E3A33' },
-  dockCard: { height: 22, borderRadius: 3 },
+  dockRow: { flexDirection: 'row', gap: 3 },
+  dockPiece: { width: 19, height: 26, borderRadius: 2, overflow: 'hidden' },
+  dockPieceWide: { width: 41, justifyContent: 'center' },
+  dockFold: { position: 'absolute', top: 2, bottom: 2, left: '50%', width: 0, borderLeftWidth: 1, borderStyle: 'dashed', borderColor: '#3E3A33' },
   dockTabs: { flexDirection: 'row', gap: 3, marginBottom: 2 },
   dockTab: { fontSize: 8, color: '#6B6459', paddingHorizontal: 4, paddingVertical: 2, borderRadius: 6 },
   dockTabOn: { backgroundColor: '#D5CDBD', color: '#3E3A33', fontWeight: Weight.semibold },
-  slicePiece: { height: 18, borderRadius: 3 },
   sliceNew: { marginTop: 'auto', paddingVertical: 4, borderRadius: 6, backgroundColor: CHROME, alignItems: 'center' },
   sliceNewText: { color: CHROME_TEXT, fontSize: 8, fontWeight: Weight.semibold },
   editorPage: { flex: 1, alignItems: 'center', justifyContent: 'center' },

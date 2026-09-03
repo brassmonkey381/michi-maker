@@ -99,7 +99,7 @@ export function CardBrowse({
   // energy-type search instead (with an upsell to tri-color). The gate is host-side — the kit stays
   // tier-agnostic and just fires onColorSearch; we branch on the tier here. This single site covers
   // both kit entry points (the Tri-Color button + the Color facet chip) on every surface.
-  const { isPaid, hasAdvancedSearch, hasFindSimilar } = useTier();
+  const { isPaid, hasAdvancedSearch, hasFindSimilar, loading: tierUnknown } = useTier();
   const [colorOpen, setColorOpen] = useState(false);
   const [energyOpen, setEnergyOpen] = useState(false);
   const router = useRouter();
@@ -112,12 +112,23 @@ export function CardBrowse({
   // stopped conflating them in 0.9.0. Locking it HERE is what covers both browser mounts: the
   // /browse page and the binder card picker, which supplies no action factory of its own and
   // would otherwise get the kit's ungated default sheet.
+  //
+  // NOTHING IS LOCKED WHILE THE TIER IS UNKNOWN. `useTier` answers 'guest' until the entitlement
+  // read lands, and locking on that answer denies a paying subscriber their own feature on the
+  // evidence of a query that has not come back yet. It bites HERE and almost nowhere else,
+  // because the kit runs a handed-in `initialSimilar` search the moment this mounts — no human
+  // delay to hide behind. A VIP opening Find similar from the binder with the cards dock closed
+  // mounted this component and the search in the same frame and hit the PRO wall.
+  //
+  // Waiting costs a locked user nothing: the locks arrive a moment later, and the caps that
+  // actually protect revenue are enforced server-side regardless of what this array says.
   const lockedFeatures = useMemo<BrowseFeature[] | undefined>(() => {
+    if (tierUnknown) return undefined;
     const locked: BrowseFeature[] = [];
     if (!hasFindSimilar) locked.push('findSimilar');
     if (!hasAdvancedSearch) locked.push('sortByValue', 'priceFilter', 'similarRefine', 'colorSearch');
     return locked.length ? locked : undefined;
-  }, [hasAdvancedSearch, hasFindSimilar]);
+  }, [hasAdvancedSearch, hasFindSimilar, tierUnknown]);
   return (
     <>
       <CatalogBrowser

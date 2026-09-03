@@ -44,13 +44,25 @@ const SAMPLE_ROWS = EXAMPLE_COLLECTION_CSV.split('\n')
     return { name, set: set?.replace(/^SV: |^SV\d+: |^ME\d*: /, '') ?? '' };
   });
 
-export function CurateCallout({ surface, compact = false }: { surface: string; compact?: boolean }) {
+export function CurateCallout({
+  surface,
+  compact = false,
+  onNavigate,
+}: {
+  surface: string;
+  compact?: boolean;
+  /** Runs just before leaving for My binders — the landing page uses it to mark itself seen. */
+  onNavigate?: () => void;
+}) {
   const router = useRouter();
   const store = useBinders();
   // The "after": the first page of the first example binder, drawn small. Real pockets, real
   // cards — a picture of the outcome beats a sentence about it.
   const afterPage = store.exampleBinders.find((b) => b.pages[0]?.slots?.some((s) => s.cardId))?.pages[0] ?? store.exampleBinders[0]?.pages[0];
-  const go = (mode: 'example' | 'import') => router.push(curateHref(mode, surface));
+  const go = (mode: CurateMode) => {
+    onNavigate?.();
+    router.push(curateHref(mode, surface));
+  };
 
   return (
     <ThemedView type="backgroundElement" style={[styles.card, compact && styles.cardCompact]}>

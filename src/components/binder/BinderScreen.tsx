@@ -34,6 +34,7 @@ import { ColorField } from '@/components/binder/ColorField';
 import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
 import { LikersSheet } from '@/components/binder/LikersSheet';
 import { RightsPrompt } from '@/components/binder/RightsPrompt';
+import { PrintPlaceholdersSheet } from '@/components/binder/PrintPlaceholdersSheet';
 import { ShareSheet } from '@/components/binder/ShareSheet';
 import { SliceStudio, type SliceStudioHandle } from '@/components/binder/SliceStudio';
 import { SlotMultiActions } from '@/components/binder/SlotMultiActions';
@@ -344,6 +345,12 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // Bulk multi-select "Add to another binder…" — the card ids awaiting a target binder.
   const [addElsewhereIds, setAddElsewhereIds] = useState<string[] | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  // PRINT, FROM THE BINDER ITSELF. Fill sheets were reachable only from the shelf on My binders,
+  // so the page most people spend their time on — and every public binder a visitor opens —
+  // never said the thing on screen could be printed at true size. Two people had ever tried
+  // the free example. The sheet gates the paid path by entitlement as it always has; a visitor
+  // gets the free sample and the pitch.
+  const [printOpen, setPrintOpen] = useState(false);
   const [toast, setToast] = useState<ToastSpec | null>(null);
   // Likes this binder has received (owner view). Fetched on open; tapping opens the likers list.
   const [likeCount, setLikeCount] = useState<number | null>(null);
@@ -1900,6 +1907,9 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                     </View>
                   </Pressable>
                 ) : null}
+                <Pressable onPress={() => setPrintOpen(true)} hitSlop={10} accessibilityLabel="Print fill sheets">
+                  <Text style={[styles.headerAction, { color: theme.text }]}>Print</Text>
+                </Pressable>
                 {isSupabaseConfigured ? (
                   <Pressable onPress={() => setShareOpen(true)} hitSlop={10}>
                     <Text style={[styles.headerAction, { color: theme.text }]}>Share</Text>
@@ -1923,11 +1933,16 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
               // A locked reference (the print sampler): view only — no edit, no Duplicate.
               <Text style={[styles.headerAction, { color: theme.textSecondary }]}>View only</Text>
             ) : (
-              <Pressable onPress={handleDuplicate} hitSlop={10}>
-                <View style={styles.modeBtn}>
-                  <Text style={styles.modeBtnText}>Duplicate</Text>
-                </View>
-              </Pressable>
+              <View style={styles.headerRight}>
+                <Pressable onPress={() => setPrintOpen(true)} hitSlop={10} accessibilityLabel="Print fill sheets">
+                  <Text style={[styles.headerAction, { color: theme.text }]}>Print</Text>
+                </Pressable>
+                <Pressable onPress={handleDuplicate} hitSlop={10}>
+                  <View style={styles.modeBtn}>
+                    <Text style={styles.modeBtnText}>Duplicate</Text>
+                  </View>
+                </Pressable>
+              </View>
             )}
           </View>
 
@@ -2395,6 +2410,13 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
         {/* The account-level attestation, offered on an editable binder when due (first binder,
             then at most every 7 days until accepted). Decides everything internally. */}
         {canEdit ? <RightsPrompt binder={binder} surface="binder" /> : null}
+        {printOpen ? (
+          <PrintPlaceholdersSheet
+            binder={binder}
+            onClose={() => setPrintOpen(false)}
+            onDone={(sheets) => showToast(`Placeholder PDF downloaded (${sheets + 1} pages)`)}
+          />
+        ) : null}
         <ShareSheet
           visible={shareOpen}
           binder={binder}

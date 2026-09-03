@@ -10,6 +10,7 @@ import Animated, {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AnimatedLogoMark } from '@/components/brand/AnimatedLogoMark';
+import { CurateCallout } from '@/components/CurateCallout';
 import { AutoFlipBinder } from '@/components/landing/AutoFlipBinder';
 import { HoverLift } from '@/components/landing/HoverLift';
 import { Reveal } from '@/components/landing/Reveal';
@@ -320,6 +321,11 @@ export default function WelcomeScreen() {
                 Also in the box: double-sided book view, card labels, jumbo &amp; V-UNION
                 support, dark mode.
               </ThemedText>
+              {/* The tool most people never find on their own, shown doing its job. Leaving from
+                  here counts as entering the app, the same as the buttons above. */}
+              <Reveal style={styles.curate}>
+                <CurateCallout surface="welcome" onNavigate={markLandingSeen} />
+              </Reveal>
             </View>
 
             {/* ── Print band — the page's one dark moment ─────────────── */}
@@ -547,6 +553,7 @@ const styles = StyleSheet.create({
   },
   sectionSub: { marginTop: Spacing.two, maxWidth: MaxContentWidth, lineHeight: 21 },
   alsoLine: { marginTop: Spacing.three, lineHeight: 21 },
+  curate: { marginTop: Spacing.five },
 
   printBand: {
     marginTop: Spacing.six,

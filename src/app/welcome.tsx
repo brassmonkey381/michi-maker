@@ -15,6 +15,7 @@ import { AutoFlipBinder } from '@/components/landing/AutoFlipBinder';
 import { HoverLift } from '@/components/landing/HoverLift';
 import { Reveal } from '@/components/landing/Reveal';
 import { AFFILIATE_DISCLOSURE, FooterLinks } from '@/components/layout/SiteFooter';
+import { Wordmark } from '@/components/brand/Wordmark';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import {
@@ -241,7 +242,7 @@ export default function WelcomeScreen() {
                   Binder pages worth staring at.
                 </ThemedText>
                 <ThemedText themeColor="textSecondary" style={styles.heroSub}>
-                  michi-maker is a studio for curated Pokémon card binders. Compose anchor
+                  <Wordmark /> is a studio for curated Pokémon card binders. Compose anchor
                   pages, rarity ladders, color spreads and artist galleries, then print
                   true-size fill sheets and build the real thing.
                 </ThemedText>
@@ -426,7 +427,7 @@ export default function WelcomeScreen() {
             <View style={styles.footer}>
               <FooterLinks />
               <ThemedText type="small" themeColor="textSecondary" style={styles.footerText}>
-                michi-maker, made with a love for the craft.
+                <Wordmark />, made with a love for the craft.
               </ThemedText>
               <ThemedText type="small" themeColor="textSecondary" style={styles.footerText}>
                 Card images belong to their respective owners. michi-maker is a fan-made tool

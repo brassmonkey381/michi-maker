@@ -25,6 +25,7 @@ import { Image } from 'expo-image';
 
 import { BinderCarousel } from '@/components/binder/BinderCarousel';
 import { ReportSheet } from '@/components/binder/ReportSheet';
+import { Wordmark } from '@/components/brand/Wordmark';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
@@ -104,7 +105,7 @@ export default function ProfileRoute() {
           <Link href="/" asChild>
             <Pressable hitSlop={8}>
               <ThemedText type="link" themeColor="textSecondary">
-                ‹ michi-maker
+                ‹ <Wordmark />
               </ThemedText>
             </Pressable>
           </Link>

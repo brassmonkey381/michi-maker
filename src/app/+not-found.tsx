@@ -8,6 +8,7 @@ import { useRouter, type Href } from 'expo-router';
 import { Pressable, StyleSheet } from 'react-native';
 
 import { PageShell } from '@/components/layout/PageShell';
+import { Wordmark } from '@/components/brand/Wordmark';
 import { ThemedText } from '@/components/themed-text';
 import { Fonts, FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 
@@ -24,7 +25,9 @@ export default function NotFound() {
       <Pressable
         onPress={() => router.replace('/' as Href)}
         style={({ pressed }) => [styles.cta, pressed && styles.pressed]}>
-        <ThemedText style={styles.ctaText}>Go to michi-maker home</ThemedText>
+        <ThemedText style={styles.ctaText}>
+          Go to <Wordmark /> home
+        </ThemedText>
       </Pressable>
     </PageShell>
   );

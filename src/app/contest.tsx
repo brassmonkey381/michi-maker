@@ -110,7 +110,7 @@ export default function ContestScreen() {
             {[
               `Round 1 · ${fmtDate(CONTEST.opensAt)} to ${fmtDate(CONTEST.finalsOpenAt)}. Enter a public binder in one category. Every like it collects is a vote.`,
               `The Final · ${fmtDate(CONTEST.finalsOpenAt)} to ${fmtDate(CONTEST.endsAt)}. The top ${CONTEST.finalistsPerCategory} of each category go through. Their pages are locked exactly as they qualified, every score goes back to zero, and one week of fresh voting decides the winners.`,
-              'A round-1 lead is a ticket to the final, not a head start in it. Nothing you earned is deleted: your binder keeps its likes, and the final is a separate vote.',
+              'All finalists will receive a prize for qualifying.',
             ].map((r, i) => (
               <View key={i} style={styles.ruleRow}>
                 <Text style={styles.ruleBullet}>•</Text>

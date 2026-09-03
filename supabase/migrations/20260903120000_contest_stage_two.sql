@@ -141,6 +141,10 @@ grant select, insert, delete on public.contest_finals_votes to authenticated;
 -- on binders/binder_pages/binder_slots already requires ownership.
 -- ---------------------------------------------------------------------------
 
+-- ONE RECORD PER OPERATION. OLD is unassigned on INSERT and NEW is unassigned on DELETE, and
+-- touching the unassigned one raises before any of this logic runs — so the record is chosen once,
+-- up front, and nothing below reads `new` or `old` directly. Getting this wrong refused every
+-- insert and delete on every binder in the database (fixed in 20260903180000).
 create or replace function public.contest_lock_guard()
 returns trigger
 language plpgsql
@@ -149,22 +153,32 @@ set search_path = ''
 as $$
 declare
   v_binder uuid;
+  v_row    record;
 begin
+  -- ONE choice of record, made once. Every path below reads v_row and returns it, so the
+  -- unassigned record is never touched at all.
+  if tg_op = 'DELETE' then
+    v_row := old;
+  else
+    v_row := new;
+  end if;
+
+  -- The service role passes straight through: the snapshot script, prize fulfilment and any manual
+  -- repair have to be able to touch a locked binder, and they are us.
   if (select auth.uid()) is null then
-    return coalesce(new, old);
+    return v_row;
   end if;
 
   v_binder := case tg_table_name
-    when 'binders' then coalesce(new.id, old.id)
-    when 'binder_pages' then coalesce(new.binder_id, old.binder_id)
+    when 'binders' then v_row.id
+    when 'binder_pages' then v_row.binder_id
     when 'binder_slots' then (
-      select pg.binder_id from public.binder_pages pg
-      where pg.id = coalesce(new.page_id, old.page_id)
+      select pg.binder_id from public.binder_pages pg where pg.id = v_row.page_id
     )
   end;
 
   if v_binder is null then
-    return coalesce(new, old);
+    return v_row;
   end if;
 
   if exists (
@@ -175,7 +189,7 @@ begin
       using errcode = '42501';
   end if;
 
-  return coalesce(new, old);
+  return v_row;
 end;
 $$;
 

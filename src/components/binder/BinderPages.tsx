@@ -1452,6 +1452,7 @@ export function BinderPages({
               // The half you are ON has nowhere to navigate to, so its title edits the page
               // instead — the same deal the single-page column gets.
               onPressLabel={leftPage && spreadLeftIdx === idx ? onEditPage : undefined}
+              coverFace={!leftPage}
               editable={editable}
               dragCol={dragCol}
               columnIndex={0}
@@ -1476,6 +1477,7 @@ export function BinderPages({
                 rightPage && spreadRightIdx !== idx ? () => onPageChange(spreadRightIdx) : undefined
               }
               onPressLabel={rightPage && spreadRightIdx === idx ? onEditPage : undefined}
+              coverFace={!rightPage}
               editable={editable}
               dragCol={dragCol}
               columnIndex={2}
@@ -1939,6 +1941,7 @@ function SpreadColumn({
   columnIndex,
   role,
   peekWidth,
+  coverFace = false,
   flat = false,
   children,
 }: {
@@ -1959,6 +1962,8 @@ function SpreadColumn({
   role: 'prev' | 'current' | 'next';
   /** When set, show only this many pixels of the page: a peek at its inner edge. */
   peekWidth?: number;
+  /** This column holds an inside cover, not a page: its label names the cover and hovers nothing. */
+  coverFace?: boolean;
   /**
    * BOTH HALVES OF AN OPEN BOOK ARE LIVE. The prev/current/next scroller dims its neighbours to
    * say which page you are reading, but a double-sided spread is one open binder: dimming half of
@@ -1979,7 +1984,9 @@ function SpreadColumn({
   //
   // Above the empty-column return below, with the other hooks, or the order changes the moment a
   // spread runs out of pages on one side.
-  const hover = useHoverReveal(!!page && (flat || role === 'current'));
+  // A cover face borrows the active page purely as a presence check (see the caller), so it must
+  // not hover that page's description under a cover's name.
+  const hover = useHoverReveal(!!page && !coverFace && (flat || role === 'current'));
   const hovering = hover.shown;
   // ONE WRITER FOR THE Z-INDEX. While its card is up this column sits above the facing page (the
   // card is wider than a column, and on an open book the LEFT page's reached under the right one,
@@ -2015,6 +2022,14 @@ function SpreadColumn({
         // A hoverable label is a Pressable even when tapping it does nothing (view mode, the
         // current page), which is why it can have no onPress rather than being plain text.
         <Pressable
+          // ONE ELEMENT FOR ONE JOB. The role below decides the DOM element on web — a `button`
+          // when the label does something, a `div` when it only names a cover face — and
+          // react-native-web binds its hover listeners to that node ONCE. When the column that held
+          // "Inside front" became page 2 (turn the first spread of any binder with a cover), React
+          // swapped the div for a button and the listeners stayed on the dead div: the title
+          // showed the hand cursor and hovered nothing, for the rest of the visit. Keying by the
+          // element kind remounts the pressable instead, so the new node gets its own listeners.
+          key={onPressLabel || onFocus ? 'button' : 'text'}
           onPress={onPressLabel ?? onFocus}
           onHoverIn={hover.onHoverIn}
           onHoverOut={hover.onHoverOut}

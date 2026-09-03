@@ -16,6 +16,7 @@
  * columns and want the width; a paragraph does not — past about 70 characters a line stops being
  * easy to come back from, and this is the one dialog in the editor that is purely prose.
  */
+import { useHoverSuspended } from '@/components/binder/hoverGate';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions, type ViewStyle } from 'react-native';
 
@@ -129,7 +130,11 @@ export function AboutHoverCard({
  *
  * `delayMs` stays on the signature for a caller that genuinely wants a wait; nothing does today.
  */
-export function useHoverReveal(enabled: boolean, delayMs = 0) {
+export function useHoverReveal(wanted: boolean, delayMs = 0) {
+  // A page turn suspends every hover at once (see hoverGate): treated exactly like the caller
+  // asking for no card, so an open one closes on the next render and none opens until it lands.
+  const suspended = useHoverSuspended();
+  const enabled = wanted && !suspended;
   const [shown, setShown] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clear = useCallback(() => {

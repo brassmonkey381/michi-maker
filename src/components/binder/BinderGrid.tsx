@@ -1,3 +1,4 @@
+import { useHoverSuspended } from '@/components/binder/hoverGate';
 import { Image } from 'expo-image';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type DimensionValue, type ViewProps } from 'react-native';
@@ -380,6 +381,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   // pocket clips its own contents and a card drawn inside one is sliced off at the pocket edge.
   // Drawn below as a sibling of the cells, where nothing clips it.
   const [hoverArt, setHoverArt] = useState<DemoSlot | null>(null);
+  // Closed while a page turns, like every other hover card (see hoverGate).
+  const hoverSuspended = useHoverSuspended();
   const dragged = dragId ? page.slots.find((s) => s.id === dragId) : undefined;
 
   // The slot currently showing a resize handle (edit mode, selected, and not being dragged).
@@ -519,7 +522,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
         {/* WHAT THIS PANEL IS FOR, on hover. Outside every pocket, so it is not clipped; keyed
             off the panel's own role, which the template stored when it reserved the pocket.
             pointerEvents none, so it can never intercept the click heading for the panel. */}
-        {hoverArt?.artRole && hoverArt.artRole in ART_ROLE_GUIDE && !small ? (
+        {hoverArt?.artRole && hoverArt.artRole in ART_ROLE_GUIDE && !small && !hoverSuspended ? (
           (() => {
             const role = hoverArt.artRole as ArtRole;
             const guide = ART_ROLE_GUIDE[role];

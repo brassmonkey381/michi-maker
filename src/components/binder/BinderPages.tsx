@@ -42,6 +42,7 @@ import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radius, Weight } from '@/constants/theme';
 
 import { pillChip, sheet } from '@/constants/ui';
+import { setHoverSuspended } from '@/components/binder/hoverGate';
 import { AboutHoverCard, PAGE_DESCRIPTION_PLACEHOLDER, useHoverReveal } from '@/components/binder/AboutPopup';
 import { hasTextCaption, type CaptionFieldKey } from '@/data/cardCaption';
 import { PEEK_MIN_WIDTH, SPREAD_GAP, bookLayout, pageHeightAt, spreadLayout } from '@/data/binderLayout';
@@ -562,6 +563,12 @@ export function BinderPages({
   // back. It rides the cover hinge because the tail is not a page index, so the index-driven page
   // turn can never fire for it.
   const [coverTurn, setCoverTurn] = useState<null | { end: 'front' | 'back' | 'tail'; closing: boolean }>(null);
+  // NO HOVER CARDS WHILE A TURN IS IN FLIGHT. Every hover in the app reads this switch (see
+  // hoverGate): open cards close the moment a turn starts and nothing reopens until it lands.
+  useEffect(() => {
+    setHoverSuspended(!!pageTurn || !!coverTurn);
+    return () => setHoverSuspended(false);
+  }, [pageTurn, coverTurn]);
   const coverT = useSharedValue(0);
   /** The page the last turn was built for. State, not a ref: this is read DURING render. */
   const [turnedAt, setTurnedAt] = useState(idx);

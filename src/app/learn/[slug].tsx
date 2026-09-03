@@ -39,7 +39,7 @@ export default function GuideScreen() {
         {guide.title}
       </ThemedText>
       <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
-        {guide.lede} About {guide.minutes} minutes.
+        {guide.lede}
       </ThemedText>
 
       {guide.ctaHref ? (

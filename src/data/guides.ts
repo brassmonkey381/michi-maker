@@ -57,8 +57,6 @@ export interface Guide {
   lede: string;
   /** The hook on the hub card: what the guide is about, drawn small. */
   hook: GuideHook;
-  /** Rough read-and-follow time, shown as a chip on the hub. */
-  minutes: number;
   /** The guide's opening picture. */
   hero?: GuideFigure;
   /** A closing picture, after the steps and before the tip: the whole thing in motion. */
@@ -88,7 +86,6 @@ export const GUIDE_LIST: Guide[] = [
     title: 'Build a page around one card',
     lede: 'Seed one pocket and let michi-maker finish the page around it.',
     hook: { kind: 'art', src: ART(610758) },
-    minutes: 3,
     ctaLabel: 'See all eight methods as finished pages',
     ctaHref: AUTO_FILL_SHOWCASE,
     ctaExternal: true,
@@ -117,7 +114,6 @@ export const GUIDE_LIST: Guide[] = [
     title: 'Cut any art into pockets',
     lede: 'One picture becomes pocket-sized pieces you arrange like cards.',
     hook: { kind: 'slice', src: ART(201981) },
-    minutes: 5,
     hero: diagram('editor-slice-new'),
     steps: [
       {
@@ -153,7 +149,6 @@ export const GUIDE_LIST: Guide[] = [
     title: 'Print your binder at true size',
     lede: 'Cut-ready sheets, real card size, so the binder fills in as the cards arrive.',
     hook: { kind: 'sheet' },
-    minutes: 5,
     steps: [
       {
         title: 'Open the print sheet',
@@ -189,7 +184,6 @@ export const GUIDE_LIST: Guide[] = [
     title: 'Power-search your cards',
     lede: 'Words, fields, comparisons and sorts, stacked until it is exactly what you want.',
     hook: { kind: 'query' },
-    minutes: 3,
     hero: diagram('query-anatomy'),
     ctaLabel: 'Open the interactive cheatsheet',
     ctaHref: '/search-guide',

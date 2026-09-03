@@ -38,11 +38,6 @@ export default function LearnHubScreen() {
                 <ThemedText type="smallBold" style={styles.cardTitle}>
                   {g.title}
                 </ThemedText>
-                <View style={styles.chip}>
-                  <ThemedText type="small" themeColor="textSecondary" style={styles.chipText}>
-                    {g.minutes} min
-                  </ThemedText>
-                </View>
               </View>
               <ThemedText type="small" themeColor="textSecondary" style={styles.cardLede}>
                 {g.lede}
@@ -98,13 +93,6 @@ const styles = StyleSheet.create({
   cardBody: { flex: 1, minWidth: 0, gap: Spacing.two },
   cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
   cardTitle: { fontSize: FontSize.md, flexShrink: 1 },
-  chip: {
-    paddingVertical: 2,
-    paddingHorizontal: Spacing.two,
-    borderRadius: Radius.pill,
-    backgroundColor: Palette.panel,
-  },
-  chipText: { fontSize: FontSize.xs },
   cardLede: { lineHeight: 20 },
   cardLink: { fontSize: FontSize.label, marginTop: Spacing.one },
 });

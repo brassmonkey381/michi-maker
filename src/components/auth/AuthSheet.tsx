@@ -1,10 +1,10 @@
 /**
  * The auth modal: sign in, create an account, or upgrade a guest — and, once signed in, a
  * small profile view. Renders every method the app offers (email + password, a 6-digit email
- * code, and Google / Apple) and adapts its copy to the current state:
+ * code, and Google) and adapts its copy to the current state:
  *
  *  - signed in            → profile card (edit display name, sign out)
- *  - anonymous guest      → "save your binders" upgrade (email+password or link Google/Apple,
+ *  - anonymous guest      → "save your binders" upgrade (email+password or link Google,
  *                           both keep the guest's binders by preserving the user id)
  *  - signed out / fresh   → full sign-in / create-account with all methods
  *
@@ -320,7 +320,6 @@ function AuthForm({ onClose, isGuest }: { onClose: () => void; isGuest: boolean 
       </View>
 
       <OAuthButton label="Continue with Google" onPress={() => oauth('google')} disabled={busy} />
-      <OAuthButton label="Continue with Apple" onPress={() => oauth('apple')} disabled={busy} />
 
       {/* When there's no session at all (signed out), let the user keep building without an
           account. Guests are already in a session, so they don't need this. */}

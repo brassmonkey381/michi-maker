@@ -1,7 +1,7 @@
 /**
  * Username gate. A real (non-guest) account MUST have a permanent @username. Any signed-in account
  * that doesn't yet have one gets this blocking, non-dismissible prompt before it can use the app —
- * so a username is required at sign-up across every method (password, email code, Google/Apple).
+ * so a username is required at sign-up across every method (password, email code, Google).
  * Usernames are immutable once set (enforced in the DB), so this is shown exactly once per account.
  * Guests and signed-out users never see it. No-op in local mode.
  */

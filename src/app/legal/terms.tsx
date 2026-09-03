@@ -34,7 +34,7 @@ const SECTIONS: Section[] = [
   {
     heading: '3. Accounts',
     paragraphs: [
-      'You can use michi-maker as a guest: a private anonymous account is created for you so your binders save immediately. You can later upgrade a guest session to a full account with an email address or a Google or Apple sign-in, keeping everything you made.',
+      'You can use michi-maker as a guest: a private anonymous account is created for you so your binders save immediately. You can later upgrade a guest session to a full account with an email address or a Google sign-in, keeping everything you made.',
       'Usernames are permanent once claimed. You are responsible for activity on your account and for keeping your sign-in method secure.',
     ],
   },

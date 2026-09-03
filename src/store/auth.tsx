@@ -2,10 +2,10 @@
  * Auth store.
  *
  * Owns the Supabase session lifecycle for the whole app and exposes every sign-in method
- * the UI offers: email + password, a 6-digit email code (passwordless OTP), and Google /
- * Apple OAuth. It also supports a **guest** flow — the app signs in anonymously on first
+ * the UI offers: email + password, a 6-digit email code (passwordless OTP), and Google
+ * OAuth. It also supports a **guest** flow — the app signs in anonymously on first
  * launch so binders save immediately, and the guest can later *upgrade* to a real account
- * (email/password or a linked Google/Apple identity) **keeping the same user id**, so all
+ * (email/password or a linked Google identity) **keeping the same user id**, so all
  * their binders carry over untouched.
  *
  * `src/data/binderRepo.ts` is the only other module that talks to Supabase; it relies on the
@@ -44,7 +44,8 @@ if (typeof window !== 'undefined') {
   WebBrowser.maybeCompleteAuthSession();
 }
 
-export type OAuthProvider = 'google' | 'apple';
+/** Google only. Sign in with Apple is not offered: it is not configured on the backend. */
+export type OAuthProvider = 'google';
 
 /** Result of an auth action. `error` is a human-readable message, or null on success. */
 export interface AuthResult {
@@ -88,7 +89,7 @@ interface AuthStore {
   signInWithOAuth: (provider: OAuthProvider) => Promise<AuthResult>;
   /** Upgrade the current guest to a permanent email/password account (keeps binders). */
   linkEmailPassword: (email: string, password: string, username?: string) => Promise<AuthResult>;
-  /** Upgrade the current guest by linking a Google/Apple identity (keeps binders). */
+  /** Upgrade the current guest by linking a Google identity (keeps binders). */
   linkOAuth: (provider: OAuthProvider) => Promise<AuthResult>;
   /** Start (or restart) an anonymous guest session on demand — used after an explicit sign-out. */
   continueAsGuest: () => Promise<AuthResult>;
@@ -312,7 +313,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return error ? { error: msg(error) } : OK;
   }, []);
 
-  // --- OAuth (Google / Apple) ----------------------------------------------
+  // --- OAuth (Google) ----------------------------------------------------
 
   const runOAuth = useCallback(
     async (provider: OAuthProvider, link: boolean): Promise<AuthResult> => {

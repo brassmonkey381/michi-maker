@@ -216,16 +216,29 @@ export const COMPARISON: CompareRow[] = [
     vip: { text: 'Unlimited', strong: true },
   },
   {
-    // Still the "included at every tier" promise (owner decision 2026-07-16), but narrowed to
-    // what is ACTUALLY free now that Advanced Search exists: matching itself and the composer
-    // methods are included; the paid refinements are the row below. The old wording said
-    // "Similarity matching + composer methods: Included" while tri-colour was already PRO in
-    // code, which over-promised.
-    capability: 'Similarity matching + composer methods',
+    // TWO ROWS, NOT ONE. These shipped as a single "included at every tier" promise (owner
+    // decision 2026-07-16) reading "Similarity matching + composer methods: Included", and it
+    // over-promised twice over: tri-colour was already PRO in code, and find similar itself went
+    // PRO on 2026-09-01 (tiers.ts findSimilar), taking the "≈ More like this" fill method with
+    // it. Neither half is all-or-nothing at free any more, so each states its own split rather
+    // than one cell averaging them into a word that is wrong for both.
+    capability: 'Similarity matching',
+    mark: '∆',
+    // Not 'No': the colour sheet's match-by-energy-type is similarity and it stays free, so a
+    // flat no would under-promise as badly as 'Included' over-promised.
+    free: { text: 'Partial', sub: 'colour match only' },
+    pro: { text: '✓', strong: true },
+    vip: { text: '✓', strong: true },
+  },
+  {
+    // Seven of the nine methods in pageComposer.ts are free; the two that are not are exactly
+    // the two capabilities sold above (similarity → '≈ More like this', tri-colour → 'Color
+    // match'). Keep the sub in step with `paid:` there if a method changes sides.
+    capability: 'Composer methods',
     highlight: true,
-    free: { text: 'Included', strong: true, sub: 'find similar, single-colour match' },
-    pro: { text: 'Included', strong: true, sub: 'upgraded binder composers coming soon' },
-    vip: { text: 'Included', strong: true, sub: 'upgraded binder composers coming soon' },
+    free: { text: 'Partial', sub: 'all but ≈ more like this and tri-colour' },
+    pro: { text: '✓', strong: true, sub: 'every method' },
+    vip: { text: '✓', strong: true, sub: 'every method, all at once' },
   },
   {
     capability: 'Advanced Search',
@@ -268,10 +281,11 @@ export const COMPARISON: CompareRow[] = [
     },
   },
   {
-    capability: 'Sharing',
-    free: { text: 'Share and like' },
-    pro: { text: 'Share and like' },
-    vip: { text: 'Share and like', sub: 'featured eligibility boost†' },
+    // The capability names itself, so the three cells only have to answer yes.
+    capability: 'Share and like',
+    free: { text: '✓' },
+    pro: { text: '✓' },
+    vip: { text: '✓', sub: 'featured eligibility boost†' },
   },
 ];
 
@@ -302,12 +316,20 @@ export const FOOTNOTES: { mark: string; text: string; link?: { label: string; ur
     link: { label: 'Meet TCGScan →', url: TCGSCAN_URL },
   },
   {
+    mark: '∆',
+    text:
+      'Find similar is the visual-similarity search: pick a card and get the ones that look like ' +
+      'it, across the whole catalog, one card or a whole selection at a time. It also powers the ' +
+      '"≈ More like this" composer method. Included with PRO and VIP. Free and guest keep ' +
+      'matching by colour: the energy-type colour sheet, and the colour searches in the browser.',
+  },
+  {
     mark: '¶',
     text:
       'Advanced Search is the paid half of the card browser: sort the catalog by value, filter by ' +
       'price, search by a three-colour palette with weights, and refine results by similarity ' +
       '(more like this, less like this). Free and guest keep the full search grammar, every other ' +
-      'sort, all filters, find-similar, and single-colour search.',
+      'sort, all filters, and single-colour search.',
   },
   {
     mark: '§',

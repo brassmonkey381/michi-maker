@@ -241,14 +241,12 @@ export function EditorMapDiagram({ highlight }: { highlight: 'pocket' | 'slice-n
           {/* The tray: single pieces, and one merged 1×2 that reads as two pockets wide. */}
           <View style={styles.dockRow}>
             <View style={[styles.dockPiece, { backgroundColor: INK.art }]} />
-            <View style={[styles.dockPiece, { backgroundColor: INK.rose }]} />
-            <View style={[styles.dockPiece, { backgroundColor: INK.sea }]} />
+            <View style={[styles.dockPiece, { backgroundColor: INK.violet }]} />
+            <View style={[styles.dockPiece, { backgroundColor: '#A98BCB' }]} />
           </View>
           <View style={styles.dockRow}>
-            <View style={[styles.dockPiece, styles.dockPieceWide, { backgroundColor: INK.violet }, H('tray')]}>
-              <View style={styles.dockFold} />
-            </View>
-            <View style={[styles.dockPiece, { backgroundColor: INK.gold }]} />
+            <View style={[styles.dockPiece, styles.dockPieceWide, { backgroundColor: INK.violet }, H('tray')]} />
+            <View style={[styles.dockPiece, { backgroundColor: INK.art }]} />
           </View>
           <View style={[styles.sliceNew, H('slice-new')]}>
             <Text style={styles.sliceNewText}>+ Slice new art</Text>
@@ -262,7 +260,7 @@ export function EditorMapDiagram({ highlight }: { highlight: 'pocket' | 'slice-n
             cells={
               highlight === 'tray'
                 ? // The merged piece from the tray, slid into a sideways pair on the page.
-                  [{ fill: INK.sea }, { fill: INK.gold }, null, { fill: INK.violet, span: [1, 2], fold: true, ring: true }, null, { fill: INK.leaf }, { fill: INK.rose }, null, null]
+                  [{ fill: INK.sea }, { fill: INK.gold }, null, { fill: INK.violet, span: [1, 2], ring: true }, null, { fill: INK.leaf }, { fill: INK.rose }, null, null]
                 : [{ fill: INK.sea }, { fill: INK.gold }, null, null, { ring: highlight === 'pocket', label: highlight === 'pocket' ? 'tap' : undefined }, { fill: INK.leaf }, { fill: INK.rose }, null, null]
             }
           />
@@ -319,7 +317,7 @@ export function PaperDiagram() {
         <Text style={styles.paperSub}>swapped out as cards arrive</Text>
       </View>
       <View style={styles.paperCard}>
-        <View style={[styles.paperSwatch, { backgroundColor: '#E9E4DA', borderWidth: 2, borderColor: '#D5CDBD' }]} />
+        <View style={[styles.paperSwatch, { backgroundColor: INK.art, borderWidth: 2, borderColor: '#A98BCB' }]} />
         <Text style={styles.paperTitle}>Art</Text>
         <Text style={styles.paperSub}>matte cardstock · 250–300 gsm</Text>
         <Text style={styles.paperSub}>stays in the binder for good</Text>
@@ -516,7 +514,6 @@ const styles = StyleSheet.create({
   dockRow: { flexDirection: 'row', gap: 3 },
   dockPiece: { width: 19, height: 26, borderRadius: 2, overflow: 'hidden' },
   dockPieceWide: { width: 41, justifyContent: 'center' },
-  dockFold: { position: 'absolute', top: 2, bottom: 2, left: '50%', width: 0, borderLeftWidth: 1, borderStyle: 'dashed', borderColor: '#3E3A33' },
   dockTabs: { flexDirection: 'row', gap: 3, marginBottom: 2 },
   dockTab: { fontSize: 8, color: '#6B6459', paddingHorizontal: 4, paddingVertical: 2, borderRadius: 6 },
   dockTabOn: { backgroundColor: '#D5CDBD', color: '#3E3A33', fontWeight: Weight.semibold },

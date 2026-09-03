@@ -22,8 +22,10 @@ export function BinderThumb({ binder, width, onPress, accessory }: BinderThumbPr
   // ONE BOX FOR EVERY SHAPE. The shelf shows a 2×2 and a 4×4 at the 3×3's size, and a 3×4 has to
   // get the same treatment: drawn to its own aspect it came out shorter than the 3×3 beside it
   // and read as the smaller binder, which is the opposite of the truth. Page and cover alike are
-  // given the 3×3 box for this width; the page centres its pockets in it, the cover stretches to
-  // it exactly as it does on the spread.
+  // given the 3×3 box for this width and keep their own proportions inside it, centred: the page
+  // gains margin above and below its pockets, the cover gains shelf above and below itself.
+  // Nothing is stretched — a card face or a cover's art a third taller would be worse than the
+  // mismatch this fixes.
   const boxH = pageBoxHeight(width, 3, 3);
   // THE FACE THIS BINDER SHOWS. Its front cover if the owner asked for that, else its first page,
   // which is what every binder showed before covers existed.
@@ -46,14 +48,15 @@ export function BinderThumb({ binder, width, onPress, accessory }: BinderThumbPr
       {cover ? (
         // A cover brings its own shadow and its own proportions, so it is not wrapped in the page
         // shadow: a binder is a different object from a page and should not be pretending to be one.
-        <CoverSurface
-          model={binderModel(cover.modelId)}
-          colourwayId={cover.colourway}
-          surface="front"
-          width={width}
-          height={boxH}
-          stickers={cover.surfaces?.front}
-        />
+        <View style={[styles.box, { height: boxH }]}>
+          <CoverSurface
+            model={binderModel(cover.modelId)}
+            colourwayId={cover.colourway}
+            surface="front"
+            width={width}
+            stickers={cover.surfaces?.front}
+          />
+        </View>
       ) : firstPage ? (
         // The soft page shadow makes the binder page read as a physical object on the shelf —
         // shared by every carousel (home, Featured, examples, profiles) for one consistent look.
@@ -72,6 +75,8 @@ const styles = StyleSheet.create({
     opacity: 0.75,
   },
   pageShadow: { borderRadius: Radii.page, ...Shadows.page },
+  /** The shelf's box: a cover shorter than it sits in the middle. */
+  box: { justifyContent: 'center' },
   placeholder: {
     borderRadius: Radius.lg,
     backgroundColor: 'rgba(128,128,128,0.12)',

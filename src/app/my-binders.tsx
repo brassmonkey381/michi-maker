@@ -12,7 +12,7 @@
  * sending the command lands it the moment that page's browser subscribes.
  */
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { sendBrowseCommand } from 'tcgscan-browse';
@@ -60,7 +60,16 @@ export default function MyBindersScreen() {
   const openBinder = (id: string) => router.push(`/binder/${id}`);
   // `/my-binders?curate=example|import&from=<surface>`: a CurateCallout elsewhere sent them here
   // to import, and the sheet should already be open when the page lands.
-  const { curate, from } = useLocalSearchParams<{ curate?: string; from?: string }>();
+  const { curate, from, open } = useLocalSearchParams<{ curate?: string; from?: string; open?: string }>();
+  // `/my-binders?open=slice` (the slice guide's button): straight into a binder of theirs, editing,
+  // with the Slice Studio open. The newest binder they have, or a fresh one if the shelf is empty.
+  const openedStudio = useRef(false);
+  useEffect(() => {
+    if (open !== 'slice' || openedStudio.current || store.loading) return;
+    openedStudio.current = true;
+    const target = store.userBinders[0] ?? store.createBinder({ title: 'New binder' });
+    if (target) router.replace(`/binder/${target.id}?slice=1` as Href);
+  }, [open, store, router]);
 
   const [binderQuery, setBinderQuery] = useState('');
   // Per-binder ⋯ management (rename / duplicate / share / delete) without opening the editor.

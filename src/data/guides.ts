@@ -114,6 +114,8 @@ export const GUIDE_LIST: Guide[] = [
     title: 'Cut any art into pockets',
     lede: 'One picture becomes pocket-sized pieces you arrange like cards.',
     hook: { kind: 'slice', src: ART(201981) },
+    ctaLabel: 'Open the Slice Studio in a binder',
+    ctaHref: '/my-binders?open=slice',
     hero: diagram('editor-slice-new'),
     steps: [
       {

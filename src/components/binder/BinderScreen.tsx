@@ -132,9 +132,20 @@ interface BinderScreenProps {
   onOpenBinder?: (id: string) => void;
   /** Open with the print sheet already up (`/binder/<id>?print=1`, from the print guide). */
   initialPrintOpen?: boolean;
+  /** Arrive in edit mode (`?edit=1`). */
+  initialEditing?: boolean;
+  /** Arrive with the Slice Studio open on the current page (`?slice=1`, from the slice guide). */
+  initialStudioOpen?: boolean;
 }
 
-export function BinderScreen({ binderId, onClose, onOpenBinder, initialPrintOpen = false }: BinderScreenProps) {
+export function BinderScreen({
+  binderId,
+  onClose,
+  onOpenBinder,
+  initialPrintOpen = false,
+  initialEditing = false,
+  initialStudioOpen = false,
+}: BinderScreenProps) {
   const store = useBinders();
   // Which of the user's physical cards each placement claims (see use-owned-copies): every
   // add path resolves it the same way, so what a pocket costs no longer depends on the screen
@@ -197,7 +208,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder, initialPrintOpen
   // store.canEdit), and losing it has to close the workbench on the very same render, or the
   // pockets stay draggable on a page whose saves are being refused. Derived rather than reset
   // in an effect, so getting the lease back also reopens the workbench where it was left.
-  const [editingWanted, setEditingWanted] = useState(false);
+  const [editingWanted, setEditingWanted] = useState(initialEditing);
   // The binder-details / page-tools disclosure. Closed on entry, and session-only on purpose: the
   // default that matters is what you see the moment you tap Edit, and that should be the binder.
   /**
@@ -422,6 +433,17 @@ export function BinderScreen({ binderId, onClose, onOpenBinder, initialPrintOpen
   }, [editing]);
 
   const binder = store.getBinder(binderId);
+  // ARRIVING WITH THE STUDIO OPEN (the slice guide's button). Once, after the binder and its
+  // page exist and editing is on; deferred a tick so it is an event, not a render-time write.
+  // Above the early return below, with the other hooks.
+  const studioArrived = useRef(false);
+  useEffect(() => {
+    const p = binder?.pages[Math.min(pageIndex, (binder?.pages.length ?? 1) - 1)];
+    if (!initialStudioOpen || studioArrived.current || !editing || !p) return;
+    studioArrived.current = true;
+    const t = setTimeout(() => setStudio({ rows: p.rows, cols: p.cols, row: 0, col: 0, imageUrl: undefined }), 0);
+    return () => clearTimeout(t);
+  }, [initialStudioOpen, editing, binder, pageIndex]);
 
   // Load the like count for the owner's own (non-example) binder. Keyed on id + example-ness
   // (both stable across edits) so ordinary editing doesn't refetch it.

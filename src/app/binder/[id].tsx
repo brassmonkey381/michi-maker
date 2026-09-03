@@ -36,7 +36,7 @@ import { isSupabaseConfigured } from '@/lib/env';
 import { useBinders } from '@/store/binders';
 
 export default function BinderRoute() {
-  const { id, print } = useLocalSearchParams<{ id: string; print?: string }>();
+  const { id, print, edit, slice } = useLocalSearchParams<{ id: string; print?: string; edit?: string; slice?: string }>();
   const router = useRouter();
   const store = useBinders();
   const goHome = () => (router.canGoBack() ? router.back() : router.replace('/'));
@@ -48,6 +48,8 @@ export default function BinderRoute() {
       <BinderScreen
         binderId={local.id}
         initialPrintOpen={print === '1'}
+        initialEditing={edit === '1' || slice === '1'}
+        initialStudioOpen={slice === '1'}
         onClose={goHome}
         onOpenBinder={(bid) => router.replace(`/binder/${bid}`)}
       />

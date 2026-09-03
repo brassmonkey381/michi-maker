@@ -13,7 +13,9 @@ import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-n
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { QUERY_MANUAL, sendBrowseCommand } from 'tcgscan-browse';
 
+import { HoverLift } from '@/components/landing/HoverLift';
 import { ThemedText } from '@/components/themed-text';
+import { Nudge } from '@/components/ui/Nudge';
 import { ThemedView } from '@/components/themed-view';
 import { Fonts, FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 
@@ -142,11 +144,16 @@ export default function SearchGuideScreen() {
                   <ThemedText type="small" themeColor="textSecondary" style={styles.recipeBlurb}>
                     {noDash(r.blurb)}
                   </ThemedText>
-                  <Pressable
-                    onPress={() => tryIt(r.query)}
-                    style={({ pressed }) => [styles.tryBtn, pressed && styles.pressed]}>
-                    <Text style={styles.tryBtnText}>Try it →</Text>
-                  </Pressable>
+                  <Nudge style={styles.tryWrap}>
+                    <HoverLift>
+                      <Pressable
+                        onPress={() => tryIt(r.query)}
+                        accessibilityRole="button"
+                        style={({ pressed }) => [styles.tryBtn, pressed && styles.pressed]}>
+                        <Text style={styles.tryBtnText}>Try it →</Text>
+                      </Pressable>
+                    </HoverLift>
+                  </Nudge>
                 </View>
               ))}
             </View>
@@ -249,6 +256,7 @@ const styles = StyleSheet.create({
   code: { fontFamily: mono, fontSize: FontSize.body, color: Palette.accentText, fontWeight: Weight.semibold },
   recipeBlurb: { lineHeight: 18 },
   // Try it: primary blue fill, white text (matching the query chips).
+  tryWrap: { alignSelf: 'flex-start' },
   tryBtn: {
     alignSelf: 'flex-start',
     marginTop: Spacing.one,

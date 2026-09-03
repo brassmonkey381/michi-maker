@@ -126,6 +126,12 @@ export interface DemoSlot {
    */
   artRole?: string;
   artTemplateId?: string;
+  /**
+   * A binder_slots.notes value that is NOT a template role — carried through verbatim so a save
+   * of this pocket writes it back unchanged rather than parsing it as one. Nothing in the app
+   * writes such a note today; this is what keeps that true of the app rather than of the data.
+   */
+  legacyNote?: string;
 }
 
 /**

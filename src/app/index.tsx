@@ -209,6 +209,18 @@ export default function HomeScreen() {
               michi-maker
             </ThemedText>
             <View style={styles.headerActions}>
+              <Pressable
+                onPress={() => router.push('/michi-method')}
+                hitSlop={8}
+                style={({ pressed }) => [styles.headerLink, pressed && styles.pressed]}>
+                <ThemedText style={styles.headerLinkText}>Michi Method</ThemedText>
+              </Pressable>
+              <Pressable
+                onPress={() => router.push('/search-guide' as Href)}
+                hitSlop={8}
+                style={({ pressed }) => [styles.headerLink, pressed && styles.pressed]}>
+                <ThemedText style={styles.headerLinkText}>Search guide</ThemedText>
+              </Pressable>
               <PeopleButton />
               <SettingsButton />
               <AccountButton />
@@ -235,24 +247,6 @@ export default function HomeScreen() {
               </Pressable>
             </View>
           ) : null}
-
-          <Pressable
-            onPress={() => router.push('/michi-method')}
-            hitSlop={6}
-            style={({ pressed }) => [styles.methodLink, pressed && styles.pressed]}>
-            <ThemedText type="small" themeColor="textSecondary">
-              New here? What’s the Michi Method?
-            </ThemedText>
-          </Pressable>
-
-          <Pressable
-            onPress={() => router.push('/search-guide' as Href)}
-            hitSlop={6}
-            style={({ pressed }) => [styles.methodLink, pressed && styles.pressed]}>
-            <ThemedText type="small" themeColor="textSecondary">
-              Search all cards with the quickstart cheatsheet ↗
-            </ThemedText>
-          </Pressable>
 
           {/* Contest promo — runs until the contest ends. */}
           {contestPhase() !== 'ended' ? (
@@ -344,7 +338,9 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   h1: { fontFamily: Fonts?.brand, fontSize: FontSize.display, lineHeight: 40 },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  headerActions: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.two },
+  headerLink: { padding: Spacing.one },
+  headerLinkText: { fontSize: FontSize.control, fontWeight: Weight.semibold, lineHeight: 28 },
   quickNav: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, marginBottom: Spacing.three },
   quickChip: {
     backgroundColor: Palette.panel,
@@ -353,7 +349,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
   },
   quickChipText: { color: Palette.ink2, fontSize: FontSize.label, fontWeight: Weight.semibold },
-  methodLink: { alignSelf: 'flex-start', marginTop: -Spacing.two, marginBottom: Spacing.three },
   pressed: { opacity: 0.7 },
   contestPromo: {
     borderWidth: 1,

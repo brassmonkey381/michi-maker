@@ -1160,6 +1160,17 @@ export function BinderScreen({
   const replaceSelected = () => {
     if (!selectedSlot) return;
     setPickerCell({ row: selectedSlot.row, col: selectedSlot.col });
+    // BRING FORWARD THE SIDE THAT ANSWERS THE TAP. Replace aimed the picker at the pocket and left
+    // both docks exactly as they were, so pressed against a collapsed rail — which is their
+    // resting state — it looked like nothing happened at all. Tapping an EMPTY pocket has always
+    // expanded the cards side (handleAddCell); replacing a full one is the same request.
+    //
+    // Which side depends on what is in the pocket, matching the tab CardPicker already defaults to
+    // for this slot: art is replaced from the Artwork panel (the Slice Studio), a card or a colour
+    // insert from the cards panel. Opening both would answer the question with two panels and take
+    // the width from the page instead.
+    if (selectedSlot.type === 'artwork') setArtworkOpen(true);
+    else setCardsCollapsed(false);
   };
 
   const duplicateSelected = () => {

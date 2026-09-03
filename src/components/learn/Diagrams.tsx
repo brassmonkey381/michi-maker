@@ -357,28 +357,9 @@ export function SwapDiagram() {
 }
 
 // ---------------------------------------------------------------------------------------------
-/** One seed card, and the page that grows around it. */
+/** One seed card: the pocket the page is about. */
 export function SeedDiagram() {
-  return (
-    <View style={styles.row}>
-      <PocketGrid rows={3} cols={3} cells={[null, null, null, null, { fill: INK.hero, ring: true, label: 'seed' }, null, null, null, null]} />
-      <Text style={styles.arrow}>✨</Text>
-      <PocketGrid
-        rows={3}
-        cols={3}
-        cells={[{ fill: INK.ember }, { fill: INK.gold }, { fill: INK.ember }, { fill: INK.rose }, { fill: INK.hero, ring: true }, { fill: INK.rose }, { fill: INK.ember }, { fill: INK.gold }, { fill: INK.ember }]}
-      />
-    </View>
-  );
-}
-
-/** Eight evolutions, eight pockets: one of each, never eight of one. */
-export function OneOfEachDiagram() {
-  const eevee = [INK.slate, INK.sea, INK.ember, INK.gold, INK.violet, INK.night, INK.leaf, INK.rose];
-  const cells: Cell[] = eevee.slice(0, 4).map((fill) => ({ fill }));
-  cells.push({ fill: '#B98B5B', ring: true });
-  cells.push(...eevee.slice(4).map((fill) => ({ fill })));
-  return <PocketGrid rows={3} cols={3} cells={cells} />;
+  return <PocketGrid rows={3} cols={3} cells={[null, null, null, null, { fill: INK.hero, ring: true, label: 'seed' }, null, null, null, null]} />;
 }
 
 // ---------------------------------------------------------------------------------------------

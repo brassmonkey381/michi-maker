@@ -34,7 +34,6 @@ export type DiagramName =
   | 'cut'
   | 'swap'
   | 'seed'
-  | 'one-of-each'
   | 'query-anatomy'
   | 'operators'
   | 'want-list';
@@ -104,14 +103,11 @@ export const GUIDE_LIST: Guide[] = [
         body: 'Same Pokémon, Evolution line, Same artist, Friends and partners, More like this; or Colour by type, Colour match, Full-page spread.',
       },
       {
-        title: 'One of each, not eight of one',
-        body: 'Eevee has eight evolutions and a 3×3 has eight free pockets, so the family page is all eight.',
-        figure: diagram('one-of-each'),
+        title: 'Commit it, then keep it or take it back',
+        body: 'A fill only writes into empty pockets, so nothing you placed moves. It is one step, so one Undo reverses the whole fill and you can try another method.',
       },
-      { title: 'From my collection', body: 'Turn it on and every method draws only from cards you own.' },
-      { title: 'Keep it or take it back', body: 'A fill only writes into empty pockets, and one Undo reverses the whole fill.' },
     ],
-    tip: 'VIP adds Pages around this card: every method at once, and you keep the ones you like.',
+    tip: 'Turn on From my collection and every method draws only from cards you own. VIP adds Pages around this card: every method at once, and you keep the ones you like.',
     relatedSlugs: ['slice-studio', 'print-binder'],
   },
   {

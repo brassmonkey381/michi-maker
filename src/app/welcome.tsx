@@ -221,7 +221,9 @@ export default function WelcomeScreen() {
             <View style={[styles.nav, wide && styles.navWide]}>
               <View style={styles.brandRow}>
                 <AnimatedLogoMark size={wide ? 126 : 44} />
-                <ThemedText style={[styles.wordmark, wide && styles.wordmarkBig]}>Michi-Maker</ThemedText>
+                <ThemedText style={[styles.wordmark, wide && styles.wordmarkBig]}>
+                  <Wordmark />
+                </ThemedText>
               </View>
               <Pressable
                 onPress={enterApp}

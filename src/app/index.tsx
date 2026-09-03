@@ -21,6 +21,7 @@ import { ProTrialPrompt } from '@/components/monetization/ProTrialPrompt';
 import { PeopleButton } from '@/components/people/PeopleButton';
 import { ProfileAvatarButton, TILE_AVATAR } from '@/components/people/ProfileAvatarButton';
 import { SettingsButton } from '@/components/settings/SettingsSheet';
+import { Wordmark } from '@/components/brand/Wordmark';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
@@ -206,7 +207,7 @@ export default function HomeScreen() {
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.headerRow}>
             <ThemedText type="title" style={styles.h1}>
-              michi-maker
+              <Wordmark />
             </ThemedText>
             <View style={styles.headerActions}>
               <Pressable

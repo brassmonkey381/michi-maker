@@ -11,6 +11,7 @@ import { usePathname, useRouter, type Href } from 'expo-router';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { LogoMark } from '@/components/brand/LogoMark';
+import { Wordmark } from '@/components/brand/Wordmark';
 import { ThemedText } from '@/components/themed-text';
 import { Breakpoints, Fonts, FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { useAuth } from '@/store/auth';
@@ -51,7 +52,9 @@ export function AppRail() {
         accessibilityLabel="michi-maker home"
         style={({ pressed }) => [styles.wordmarkRow, pressed && styles.pressed]}>
         <LogoMark size={22} />
-        <ThemedText style={styles.wordmark}>michi-maker</ThemedText>
+        <ThemedText style={styles.wordmark}>
+          <Wordmark />
+        </ThemedText>
       </Pressable>
 
       <RailGroup label="Explore" items={EXPLORE} pathname={pathname} onNavigate={router.push} />

@@ -879,6 +879,20 @@ export function BinderScreen({
     setPageIndex(Math.max(0, Math.min(i, binder.pages.length - 1)));
   };
 
+  /**
+   * Aim the picker at a pocket AND bring the cards side forward.
+   *
+   * THE TWO HALVES BELONG TOGETHER. `setPickerCell` only says which pocket the picker is for; the
+   * cards side spends most of its life collapsed to a 34px rail, so aiming it without this reads
+   * as the button doing nothing at all. Every path that aims the picker goes through here, because
+   * the ones that did it by hand kept forgetting the second line — Replace, "Find similar to all"
+   * and a tap on the facing page each shipped without it.
+   */
+  const openPickerAt = (cell: { row: number; col: number }) => {
+    setPickerCell(cell);
+    setCardsCollapsed(false);
+  };
+
   const closePicker = () => {
     setPickerCell(null);
     setSimilarSeed(null); // consume the one-shot seed so a later normal open doesn't re-run it
@@ -917,10 +931,9 @@ export function BinderScreen({
     // is a mode whose selection the next pocket tap wipes, under a "Selecting" pill with no toggle
     // beside it to turn off.
     setSelectMode(false);
-    setPickerCell({ row, col });
     // The cards side comes forward for the pocket you just tapped — it is a rail the rest of the
     // time, not absent, so this is an expand rather than an appearance.
-    setCardsCollapsed(false);
+    openPickerAt({ row, col });
   };
 
   // Drag-to-resize commit: re-place the slot at its fixed top-left with the new footprint.
@@ -1159,18 +1172,16 @@ export function BinderScreen({
 
   const replaceSelected = () => {
     if (!selectedSlot) return;
-    setPickerCell({ row: selectedSlot.row, col: selectedSlot.col });
-    // BRING FORWARD THE SIDE THAT ANSWERS THE TAP. Replace aimed the picker at the pocket and left
-    // both docks exactly as they were, so pressed against a collapsed rail — which is their
-    // resting state — it looked like nothing happened at all. Tapping an EMPTY pocket has always
-    // expanded the cards side (handleAddCell); replacing a full one is the same request.
-    //
-    // Which side depends on what is in the pocket, matching the tab CardPicker already defaults to
-    // for this slot: art is replaced from the Artwork panel (the Slice Studio), a card or a colour
-    // insert from the cards panel. Opening both would answer the question with two panels and take
-    // the width from the page instead.
-    if (selectedSlot.type === 'artwork') setArtworkOpen(true);
-    else setCardsCollapsed(false);
+    // BRING FORWARD THE SIDE THAT ANSWERS THE TAP, which depends on what is in the pocket and
+    // matches the tab CardPicker already defaults to for this slot: art is replaced from the
+    // Artwork panel (the Slice Studio), a card or a colour insert from the cards panel. Opening
+    // both would answer one tap with two panels and take the width from the page.
+    if (selectedSlot.type === 'artwork') {
+      setPickerCell({ row: selectedSlot.row, col: selectedSlot.col });
+      setArtworkOpen(true);
+    } else {
+      openPickerAt({ row: selectedSlot.row, col: selectedSlot.col });
+    }
   };
 
   const duplicateSelected = () => {
@@ -1354,7 +1365,10 @@ export function BinderScreen({
     setMultiActionsOpen(false);
     clearMulti();
     setSelectedSlotId(null);
-    if (cell) setPickerCell(cell);
+    // The results land in the picker's browser, so the picker has to be open to run the search at
+    // all. Collapsed, the search never started: the action looked inert, and the PRO wall it
+    // raises only appeared later, when opening the dock finally mounted the browser.
+    if (cell) openPickerAt(cell);
   };
 
   const handlePickVUnion = (pieces: readonly string[]) => {
@@ -1628,7 +1642,7 @@ export function BinderScreen({
               return;
             }
             changePage(pIdx);
-            setPickerCell({ row, col });
+            openPickerAt({ row, col });
           }}
           onSlotPress={(slot) => {
             changePage(pIdx);

@@ -1,13 +1,14 @@
 /**
- * EEVEE, SIX WAYS. The same seed card in the middle of a 3×3, and each fill method laying its
+ * EEVEE, SEVEN WAYS. The same seed card in the middle of a 3×3, and each fill method laying its
  * eight cards around it, clockwise from the top-left, one dissolving in after another. The
  * finished page holds for two seconds; then the next method sweeps round, each old card
  * dissolving out one step ahead of the new card dissolving in.
  *
  * The cards are the ones the hosted walkthrough (public/auto-fill-methods.html) shows for each
  * method, served from public/auto-fill-art, so the loop is that page in motion rather than a
- * recording of it. Six of the eight methods place cards; the two colour-sheet methods fill the
- * pockets with printed art instead, and are named at the end of the loop rather than faked.
+ * recording of it. Seven of the eight methods place cards; Full-page spread fills the pockets
+ * with a printed colour sheet instead, and is left out rather than faked. (In that page each
+ * grid sits ABOVE its heading — the cards belong to the heading that follows them.)
  */
 import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
@@ -22,12 +23,13 @@ const ART = (id: number) => `/auto-fill-art/${id}.webp`;
 
 /** Row-major, nine per method, the seed in the middle — exactly as the walkthrough lays them. */
 const METHODS: { name: string; pitch: string; cards: number[] }[] = [
-  { name: 'Same Pokémon', pitch: 'One species, every era.', cards: [45123, 85316, 86678, 106982, SEED, 85745, 106981, 90137, 89729] },
-  { name: 'Evolution line', pitch: 'Families that grow the way this one does.', cards: [542809, 686342, 542888, 550097, SEED, 567278, 642469, 642470, 642269] },
-  { name: 'Same artist', pitch: 'One illustrator’s hand across the page.', cards: [42402, 45122, 85534, 89385, SEED, 86859, 88795, 88072, 89386] },
-  { name: 'Friends & partners', pitch: 'Who it canonically stands beside.', cards: [201981, 478093, 623591, 264218, SEED, 201355, 171013, 201342, 146731] },
-  { name: 'More like this', pitch: 'The cards that look closest to it.', cards: [42371, 154997, 83871, 83485, SEED, 46482, 83690, 83517, 83923] },
-  { name: 'Color by type', pitch: 'Its energy type, gathered.', cards: [154998, 83509, 90337, 90085, SEED, 86083, 90643, 497692, 89576] },
+  { name: 'Same Pokémon', pitch: 'One species, every era.', cards: [45154, 86850, 183907, 477251, SEED, 610430, 183560, 232611, 270724] },
+  { name: 'Evolution line', pitch: 'The whole family, one of each.', cards: [45123, 85316, 86678, 106982, SEED, 85745, 106981, 90137, 89729] },
+  { name: 'Same artist', pitch: 'One illustrator’s hand across the page.', cards: [542809, 686342, 542888, 550097, SEED, 567278, 642469, 642470, 642269] },
+  { name: 'Friends & partners', pitch: 'Who it canonically stands beside.', cards: [42402, 45122, 85534, 89385, SEED, 86859, 88795, 88072, 89386] },
+  { name: 'More like this', pitch: 'The cards that look closest to it.', cards: [201981, 478093, 623591, 264218, SEED, 201355, 171013, 201342, 146731] },
+  { name: 'Color by type', pitch: 'Its energy type, gathered.', cards: [42371, 154997, 83871, 83485, SEED, 46482, 83690, 83517, 83923] },
+  { name: 'Color match', pitch: 'Every card ranked by its palette, nearest first.', cards: [154998, 83509, 90337, 90085, SEED, 86083, 90643, 497692, 89576] },
 ];
 
 /** Clockwise from the top-left, skipping the centre. */

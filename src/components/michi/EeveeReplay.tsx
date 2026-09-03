@@ -1,7 +1,8 @@
 /**
- * EEVEE, EIGHT WAYS. The same seed card in the middle of a 3×3, and each fill method laying its
+ * EEVEE, SIX WAYS. The same seed card in the middle of a 3×3, and each fill method laying its
  * eight cards around it, clockwise from the top-left, one dissolving in after another. The
- * finished page holds for two seconds, the eight dissolve away, and the next method begins.
+ * finished page holds for two seconds; then the next method sweeps round, each old card
+ * dissolving out one step ahead of the new card dissolving in.
  *
  * The cards are the ones the hosted walkthrough (public/auto-fill-methods.html) shows for each
  * method, served from public/auto-fill-art, so the loop is that page in motion rather than a
@@ -35,28 +36,34 @@ const CLOCKWISE = [0, 1, 2, 5, 8, 7, 6, 3];
 const STEP_MS = 340;
 const FADE_MS = 420;
 const HOLD_MS = 2000;
-const GAP_MS = 600;
 
 export function EeveeReplay({ width }: { width: number }) {
+  // ONE CLOCKWISE SWEEP DOES BOTH JOBS. Between methods the sweep runs round the eight outer
+  // pockets once: at each step the OLD card at that position dissolves out, and the NEW card
+  // dissolves in one position behind it. So the page is never cleared — the next page overwrites
+  // this one a pocket at a time, removal leading insertion by one step.
+  //
+  // `step` counts the sweep: 0 is the finished page at rest; steps 1…9 are the transition (nine,
+  // because insertion trails removal by one). `method` is the INCOMING method from step 1, which
+  // is also when its name appears, so the title leads the cards rather than trailing them.
   const [method, setMethod] = useState(0);
-  // How many of the eight are on the page. 0 is the seed alone; 8 is the finished page.
-  const [placed, setPlaced] = useState(0);
+  const [step, setStep] = useState(0);
   useEffect(() => {
     const t = setTimeout(
       () => {
-        if (placed < 8) setPlaced(placed + 1);
-        else {
-          // Clear the eight; the next method starts after their dissolve has run.
-          setPlaced(0);
+        if (step === 0) {
           setMethod((m) => (m + 1) % METHODS.length);
-        }
+          setStep(1);
+        } else if (step < 9) setStep(step + 1);
+        else setStep(0);
       },
-      placed === 0 ? GAP_MS : placed < 8 ? STEP_MS : HOLD_MS,
+      step === 0 ? HOLD_MS : STEP_MS,
     );
     return () => clearTimeout(t);
-  }, [placed, method]);
+  }, [step]);
 
   const m = METHODS[method];
+  const prev = METHODS[(method + METHODS.length - 1) % METHODS.length];
   const pad = 10;
   const gap = 6;
   const cw = (width - pad * 2 - gap * 2) / 3;
@@ -71,15 +78,25 @@ export function EeveeReplay({ width }: { width: number }) {
           const c = i % 3;
           const box = { position: 'absolute' as const, left: pad + c * (cw + gap), top: pad + r * (ch + gap), width: cw, height: ch };
           const isSeed = i === 4;
-          const on = isSeed || rank(i) < placed;
+          // At rest (step 0) every pocket holds the current method's card. Mid-sweep, a pocket
+          // whose rank is behind the sweep holds the new card, the pocket the sweep is on is
+          // empty, and pockets ahead of it still hold the previous method's card.
+          const p = rank(i);
+          const showNew = isSeed || step === 0 || p < step - 1;
+          const showOld = !isSeed && step > 0 && p >= step;
           return (
-            <View key={`${method}-${i}`} style={[styles.pocket, box]}>
-              {on ? (
+            <View key={i} style={[styles.pocket, box]}>
+              {showNew ? (
                 <Animated.View
+                  key={`new-${method}`}
                   entering={isSeed ? undefined : FadeIn.duration(FADE_MS)}
-                  exiting={isSeed ? undefined : FadeOut.duration(FADE_MS)}
                   style={StyleSheet.absoluteFill}>
                   <Image source={{ uri: ART(id) }} style={styles.card} contentFit="cover" transition={0} />
+                </Animated.View>
+              ) : null}
+              {showOld ? (
+                <Animated.View key={`old-${method}`} exiting={FadeOut.duration(FADE_MS)} style={StyleSheet.absoluteFill}>
+                  <Image source={{ uri: ART(prev.cards[i]) }} style={styles.card} contentFit="cover" transition={0} />
                 </Animated.View>
               ) : null}
               {isSeed ? <Text style={styles.tag}>your card</Text> : null}

@@ -1,0 +1,18 @@
+#!/bin/sh
+# EVERY COMMIT ON MAIN GOES TO DEVELOPMENT, at once, no questions asked.
+#
+# development is the branch behind preview.michi-maker.com; it is where work is looked at, and a
+# commit is by definition work that is ready to be looked at. This replaced a Claude Code Stop
+# hook that pushed only when the whole tree was clean, which meant that with two sessions in one
+# checkout a finished commit could sit unpushed for hours because the other session had a file
+# open. Production is untouched: michi-maker.com moves only through scripts/promote-to-production.ps1.
+#
+# Wired with:  git config core.hooksPath .githooks
+branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+[ "$branch" = "main" ] || exit 0
+if git push --quiet origin HEAD:development 2>/dev/null; then
+  echo "post-commit: pushed $(git rev-parse --short HEAD) to development"
+else
+  echo "post-commit: push to development FAILED (origin/development moved? run: git fetch && git push origin main:development)" >&2
+fi
+exit 0

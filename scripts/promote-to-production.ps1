@@ -7,10 +7,10 @@
 #   -Redeploy   deploy even when origin/main is already at this commit
 #               (for an env-var or Vercel-side change with no new code).
 #
-# The counterpart to scripts/auto-push-development.ps1: that one keeps
-# development (preview.michi-maker.com) level with local main after every piece
-# of work; this one is the deliberate step that puts the same commits in front
-# of real users. Nothing here is automatic, and nothing here is silent.
+# The counterpart to .githooks/post-commit: that one pushes every commit on
+# main to development (preview.michi-maker.com) the moment it is made; this one
+# is the deliberate step that puts the same commits in front of real users.
+# Nothing here is automatic, and nothing here is silent.
 
 param([switch]$Redeploy)
 

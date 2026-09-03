@@ -61,6 +61,8 @@ export interface Guide {
   minutes: number;
   /** The guide's opening picture. */
   hero?: GuideFigure;
+  /** A closing picture, after the steps and before the tip: the whole thing in motion. */
+  closing?: GuideFigure;
   steps: GuideStep[];
   /** Optional closing pointer. */
   tip?: string;
@@ -90,7 +92,7 @@ export const GUIDE_LIST: Guide[] = [
     ctaLabel: 'See all eight methods as finished pages',
     ctaHref: AUTO_FILL_SHOWCASE,
     ctaExternal: true,
-    hero: { kind: 'replay' },
+    closing: { kind: 'replay' },
     steps: [
       {
         title: 'Place the seed',

@@ -90,6 +90,13 @@ export default function GuideScreen() {
         ))}
       </View>
 
+      {/* The whole thing in motion, once the steps have named its parts. */}
+      {guide.closing ? (
+        <View style={styles.closing}>
+          <GuideFigure figure={guide.closing} />
+        </View>
+      ) : null}
+
       {guide.tip ? (
         <View style={styles.tipCard}>
           <ThemedText type="smallBold" style={styles.tipKicker}>
@@ -125,6 +132,7 @@ const styles = StyleSheet.create({
   h1: { fontFamily: Fonts?.brand, marginBottom: Spacing.two },
   lede: { lineHeight: 22, marginBottom: Spacing.four },
   hero: { marginBottom: Spacing.five },
+  closing: { marginTop: Spacing.five, alignItems: 'center' },
   figure: { marginTop: Spacing.two },
   steps: { gap: Spacing.five },
   step: { flexDirection: 'row', gap: Spacing.three },

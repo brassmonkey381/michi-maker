@@ -6,6 +6,7 @@ import { BinderGrid } from '@/components/binder/BinderGrid';
 import { ThemedText } from '@/components/themed-text';
 import { Radii, Radius, Shadows } from '@/constants/theme';
 import { binderModel } from '@/data/binderModels';
+import { binderMetaLine } from '@/data/binderShape';
 import type { DemoBinder } from '@/data/binderTypes';
 
 interface BinderThumbProps {
@@ -18,7 +19,6 @@ interface BinderThumbProps {
 
 export function BinderThumb({ binder, width, onPress, accessory }: BinderThumbProps) {
   const firstPage = binder.pages[0];
-  const pageCount = binder.pages.length;
   // THE FACE THIS BINDER SHOWS. Its front cover if the owner asked for that, else its first page,
   // which is what every binder showed before covers existed.
   const cover = binder.cover?.showCover ? binder.cover : null;
@@ -32,7 +32,7 @@ export function BinderThumb({ binder, width, onPress, accessory }: BinderThumbPr
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
             {binder.authorName ? `by ${binder.authorName} · ` : ''}
-            {pageCount} {pageCount === 1 ? 'page' : 'pages'}
+            {binderMetaLine(binder.pages)}
           </ThemedText>
         </View>
         {accessory}

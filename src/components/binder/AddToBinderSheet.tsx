@@ -10,6 +10,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { sheet } from '@/constants/ui';
+import { binderMetaLine } from '@/data/binderShape';
 import type { DemoBinder } from '@/data/binderTypes';
 
 export function AddToBinderSheet({
@@ -63,7 +64,7 @@ export function AddToBinderSheet({
                   {binder.title}
                 </ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  {binder.pages.length} {binder.pages.length === 1 ? 'page' : 'pages'}
+                  {binderMetaLine(binder.pages)}
                 </ThemedText>
               </Pressable>
             ))}

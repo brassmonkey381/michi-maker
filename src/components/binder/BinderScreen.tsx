@@ -130,9 +130,11 @@ interface BinderScreenProps {
   binderId: string;
   onClose: () => void;
   onOpenBinder?: (id: string) => void;
+  /** Open with the print sheet already up (`/binder/<id>?print=1`, from the print guide). */
+  initialPrintOpen?: boolean;
 }
 
-export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenProps) {
+export function BinderScreen({ binderId, onClose, onOpenBinder, initialPrintOpen = false }: BinderScreenProps) {
   const store = useBinders();
   // Which of the user's physical cards each placement claims (see use-owned-copies): every
   // add path resolves it the same way, so what a pocket costs no longer depends on the screen
@@ -350,7 +352,7 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
   // never said the thing on screen could be printed at true size. Two people had ever tried
   // the free example. The sheet gates the paid path by entitlement as it always has; a visitor
   // gets the free sample and the pitch.
-  const [printOpen, setPrintOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(initialPrintOpen);
   const [toast, setToast] = useState<ToastSpec | null>(null);
   // Likes this binder has received (owner view). Fetched on open; tapping opens the likers list.
   const [likeCount, setLikeCount] = useState<number | null>(null);
@@ -1930,8 +1932,16 @@ export function BinderScreen({ binderId, onClose, onOpenBinder }: BinderScreenPr
                 </Pressable>
               </View>
             ) : binder.locked ? (
-              // A locked reference (the print sampler): view only — no edit, no Duplicate.
-              <Text style={[styles.headerAction, { color: theme.textSecondary }]}>View only</Text>
+              // A locked reference (the print sampler): view only — no edit, no Duplicate. Print
+              // is the whole point of it, though: the sheet's free example is this binder.
+              <View style={styles.headerRight}>
+                <Pressable onPress={() => setPrintOpen(true)} hitSlop={10} accessibilityLabel="Print fill sheets">
+                  <View style={styles.modeBtn}>
+                    <Text style={styles.modeBtnText}>Print</Text>
+                  </View>
+                </Pressable>
+                <Text style={[styles.headerAction, { color: theme.textSecondary }]}>View only</Text>
+              </View>
             ) : (
               <View style={styles.headerRight}>
                 <Pressable onPress={() => setPrintOpen(true)} hitSlop={10} accessibilityLabel="Print fill sheets">

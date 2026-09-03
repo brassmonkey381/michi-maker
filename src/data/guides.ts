@@ -149,6 +149,8 @@ export const GUIDE_LIST: Guide[] = [
     title: 'Print your binder at true size',
     lede: 'Cut-ready sheets, real card size, so the binder fills in as the cards arrive.',
     hook: { kind: 'sheet' },
+    ctaLabel: 'Try the print demo',
+    ctaHref: '/binder/example-fill-sheet?print=1',
     steps: [
       {
         title: 'Open the print sheet',

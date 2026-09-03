@@ -141,10 +141,19 @@ grant select, insert, delete on public.contest_finals_votes to authenticated;
 -- on binders/binder_pages/binder_slots already requires ownership.
 -- ---------------------------------------------------------------------------
 
--- ONE RECORD PER OPERATION. OLD is unassigned on INSERT and NEW is unassigned on DELETE, and
--- touching the unassigned one raises before any of this logic runs — so the record is chosen once,
--- up front, and nothing below reads `new` or `old` directly. Getting this wrong refused every
--- insert and delete on every binder in the database (fixed in 20260903180000).
+-- TWO RULES, BOTH LEARNED THE HARD WAY (see 20260903180000 and 20260903190000, each of which
+-- repaired a version of this function that refused every write in the database):
+--
+--   1. OLD is unassigned on INSERT and NEW on DELETE. Pick ONE record up front; never write an
+--      expression like `coalesce(new.x, old.x)`, which evaluates both.
+--   2. One function serves three tables with three different row types, so a SQL expression
+--      naming a column only one of them has is resolved against ALL of them. No CASE over
+--      `v_row.id` / `v_row.binder_id` / `v_row.page_id`: the row goes to jsonb and the keys are
+--      looked up by name.
+--
+-- Both bugs shared a shape: an expression that has to be valid in branches it will not take. And
+-- both got past a probe that ran as the service role, which the guard lets through on its second
+-- line. Any test of this function must run as role `authenticated`.
 create or replace function public.contest_lock_guard()
 returns trigger
 language plpgsql
@@ -152,30 +161,42 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_binder uuid;
   v_row    record;
+  v_json   jsonb;
+  v_binder uuid;
 begin
-  -- ONE choice of record, made once. Every path below reads v_row and returns it, so the
-  -- unassigned record is never touched at all.
+  -- One choice of record, made once: OLD is unassigned on INSERT, NEW on DELETE.
   if tg_op = 'DELETE' then
     v_row := old;
   else
     v_row := new;
   end if;
 
-  -- The service role passes straight through: the snapshot script, prize fulfilment and any manual
-  -- repair have to be able to touch a locked binder, and they are us.
+  -- The service role passes straight through: the snapshot script, prize fulfilment and manual
+  -- repair all have to be able to touch a locked binder, and they are us.
   if (select auth.uid()) is null then
     return v_row;
   end if;
 
-  v_binder := case tg_table_name
-    when 'binders' then v_row.id
-    when 'binder_pages' then v_row.binder_id
-    when 'binder_slots' then (
-      select pg.binder_id from public.binder_pages pg where pg.id = v_row.page_id
-    )
-  end;
+  -- THE FAST PATH, and the one that runs on essentially every write this app makes. Outside a
+  -- contest final nothing is locked, and this is a single probe of the partial index
+  -- contest_finalists_binder_idx before any per-row work happens at all.
+  if not exists (select 1 from public.contest_finalists where locked) then
+    return v_row;
+  end if;
+
+  -- No record field references: the row goes to jsonb and the keys are looked up by name, so a
+  -- column that exists on one of the three tables and not the others cannot break the others.
+  v_json := to_jsonb(v_row);
+  if tg_table_name = 'binders' then
+    v_binder := (v_json ->> 'id')::uuid;
+  elsif tg_table_name = 'binder_pages' then
+    v_binder := (v_json ->> 'binder_id')::uuid;
+  elsif tg_table_name = 'binder_slots' then
+    select pg.binder_id into v_binder
+    from public.binder_pages pg
+    where pg.id = (v_json ->> 'page_id')::uuid;
+  end if;
 
   if v_binder is null then
     return v_row;

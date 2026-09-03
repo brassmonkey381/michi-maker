@@ -1,17 +1,24 @@
 /**
- * REPAIR: contest_lock_guard refused every insert and delete on every binder.
+ * REPAIR the contest edit lock, and PROVE IT THE WAY THE APP MEETS IT.
  *
- * Replaces the guard function with the corrected body (20260903180000). `create or replace` means
- * the three triggers pick it up by name — no DDL on them, and no window where the lock is absent.
+ * The guard has now been wrong twice, and both times for the same underlying reason: a SQL
+ * expression that has to be valid in branches it will not take. First `coalesce(new.x, old.x)`
+ * (the unassigned record), then a CASE over three tables' columns (`record "v_row" has no field
+ * "page_id"`). 20260903190000 removes the class of failure by going through jsonb instead of
+ * record fields, and short-circuits before any of it whenever nothing is locked.
  *
- * Then PROVES it on a probe binder it deletes afterwards, because the failure this repairs is
- * precisely the kind that a successful-looking DDL does not catch: the function replaced fine last
- * time too. Insert a page, insert a slot, delete the slot, delete the page, delete the binder —
- * the four operations that were raising, in the order a real edit performs them.
+ * WHY THE SECOND BUG SHIPPED. The previous version of this script probed as the service role, and
+ * the guard's second line lets the service role straight through. It exercised the early return
+ * and proved nothing at all about the code below it. So the probe here runs as role
+ * `authenticated`, with a real uid in request.jwt.claims, which is the only way any of the guard's
+ * body is reachable — and it checks BOTH states that matter:
  *
- * The probe runs as the service role, which the guard lets through by design, so it exercises the
- * record handling (the thing that was broken) rather than the lock decision. The lock itself is
- * checked separately: with a finalist row present, a guarded path must still refuse.
+ *   · nothing locked  → every write the app makes must SUCCEED (this is what was broken)
+ *   · binder locked   → the same writes must be REFUSED with 42501 (this is the feature)
+ *
+ * Everything runs inside a DO block ending in RAISE EXCEPTION, so the transaction rolls back and
+ * the report arrives as the error message. No cleanup step, because there is nothing to clean up —
+ * which matters here, since a locked binder deliberately refuses the deletes a cleanup would use.
  *
  * Run through apply-contest-lock-fix.ps1 (which loads SUPABASE_ACCESS_TOKEN).
  */
@@ -26,7 +33,7 @@ const MIGRATION = join(
   '..',
   'supabase',
   'migrations',
-  '20260903180000_contest_lock_guard_fix.sql',
+  '20260903190000_contest_lock_guard_fix2.sql',
 );
 
 const token = process.env.SUPABASE_ACCESS_TOKEN;
@@ -42,107 +49,143 @@ async function sql(query) {
     body: JSON.stringify({ query }),
   });
   const text = await res.text();
-  if (!res.ok) throw new Error(`${res.status} ${text.slice(0, 400)}`);
-  return text ? JSON.parse(text) : [];
+  if (!res.ok) return { error: text };
+  return { rows: text ? JSON.parse(text) : [] };
 }
-
-let probe = null;
-let failure = null;
 
 try {
-  console.log('Step 1: does the guard exist on this database?');
-  const [{ present }] = await sql(`
-    select count(*)::int as present
-    from pg_proc where proname = 'contest_lock_guard';
-  `);
+  const [{ present }] = (
+    await sql(`select count(*)::int as present from pg_proc where proname = 'contest_lock_guard';`)
+  ).rows;
   if (present === 0) {
-    console.log('   The guard is not installed here, so it is not what is failing.');
-    console.log('   Nothing to repair. If saves are failing, the cause is something else.');
+    console.log('The guard is not installed on this database, so it is not what is failing.');
     process.exit(0);
   }
-  console.log('   present.');
 
-  console.log('Step 2: replacing it with the corrected body...');
-  await sql(readFileSync(MIGRATION, 'utf8'));
+  console.log('Step 1: replacing the guard...');
+  const applied = await sql(readFileSync(MIGRATION, 'utf8'));
+  if (applied.error) throw new Error(`could not replace the function: ${applied.error.slice(0, 300)}`);
   console.log('   ok');
 
-  console.log('Step 3: proving inserts and deletes work again, on a probe binder...');
-  const owner = (
-    await sql(`select id from auth.users order by created_at limit 1;`)
-  )[0]?.id;
-  if (!owner) throw new Error('no user to own the probe binder');
+  console.log('Step 2: probing as a real signed-in user (everything rolls back)...');
+  const probe = await sql(`
+    do $$
+    declare
+      v_orig   text := session_user;
+      v_uid    uuid;
+      v_binder uuid;
+      v_page   uuid;
+      v_page2  uuid;
+      v_slot   uuid;
+      v_out    text := '';
+    begin
+      -- Pick a real account BEFORE dropping to its role: auth.users is unreadable afterwards.
+      select b.owner_id into v_uid
+      from public.binders b group by b.owner_id order by count(*) desc limit 1;
+      if v_uid is null then select id into v_uid from auth.users order by created_at limit 1; end if;
+      if v_uid is null then raise exception 'no account on this database to probe with'; end if;
 
-  probe = (
-    await sql(`
-      insert into public.binders (owner_id, title, is_public)
-      values ('${owner}', 'contest lock probe (delete me)', false)
-      returning id;
-    `)
-  )[0].id;
+      perform set_config('role', 'authenticated', true);
+      perform set_config('request.jwt.claims',
+        json_build_object('sub', v_uid, 'role', 'authenticated')::text, true);
 
-  const page = (
-    await sql(`
+      -- ── NOTHING LOCKED: every one of these must work ────────────────────────────────────
+      insert into public.binders (owner_id, title) values (v_uid, 'lock fix probe')
+        returning id into v_binder;
+      v_out := v_out || E'\\n  [open] INSERT binders      : ok';
+
       insert into public.binder_pages (binder_id, position, rows, cols)
-      values ('${probe}', 0, 3, 3)
-      returning id;
-    `)
-  )[0].id;
-  console.log('   insert on binder_pages: ok');
+        values (v_binder, 0, 3, 3) returning id into v_page;
+      v_out := v_out || E'\\n  [open] INSERT binder_pages : ok';
 
-  const slot = (
-    await sql(`
       insert into public.binder_slots (page_id, row_index, col_index)
-      values ('${page}', 0, 0)
-      returning id;
-    `)
-  )[0].id;
-  console.log('   insert on binder_slots: ok');
+        values (v_page, 0, 0) returning id into v_slot;
+      v_out := v_out || E'\\n  [open] INSERT binder_slots : ok';
 
-  await sql(`update public.binder_slots set row_index = 1 where id = '${slot}';`);
-  console.log('   update on binder_slots: ok');
+      update public.binder_pages set title = 'probe' where id = v_page;
+      v_out := v_out || E'\\n  [open] UPDATE binder_pages : ok';
 
-  await sql(`delete from public.binder_slots where id = '${slot}';`);
-  console.log('   delete on binder_slots: ok');
+      update public.binders set title = 'probe renamed' where id = v_binder;
+      v_out := v_out || E'\\n  [open] UPDATE binders      : ok';
 
-  await sql(`delete from public.binder_pages where id = '${page}';`);
-  console.log('   delete on binder_pages: ok');
+      delete from public.binder_slots where id = v_slot;
+      v_out := v_out || E'\\n  [open] DELETE binder_slots : ok';
 
-  console.log('Step 4: the lock still refuses a locked finalist...');
-  // Freeze the probe, then try the same guarded path as a non-service caller would hit. The guard
-  // lets the service role through, so this asserts the LOOKUP still finds the row rather than
-  // asserting the refusal — the refusal is policy, and policy is not what broke.
-  await sql(`
-    insert into public.contest_finalists
-      (contest, category, binder_id, owner_id, seed, stage1_votes, votes_open_at, votes_close_at)
-    values ('probe-contest', 'aesthetic', '${probe}', '${owner}', 1, 0, now(), now() + interval '1 day');
+      delete from public.binder_pages where id = v_page;
+      v_out := v_out || E'\\n  [open] DELETE binder_pages : ok';
+
+      -- A page to try the locked writes against.
+      insert into public.binder_pages (binder_id, position, rows, cols)
+        values (v_binder, 0, 3, 3) returning id into v_page2;
+
+      -- ── LOCKED: the same writes must be refused ─────────────────────────────────────────
+      -- contest_finalists has no client write policy, so the row goes in as the original role.
+      perform set_config('role', v_orig, true);
+      insert into public.contest_finalists
+        (contest, category, binder_id, owner_id, seed, stage1_votes, votes_open_at, votes_close_at)
+      values ('probe-contest', 'aesthetic', v_binder, v_uid, 1, 0, now(), now() + interval '1 day');
+      perform set_config('role', 'authenticated', true);
+
+      begin
+        insert into public.binder_slots (page_id, row_index, col_index) values (v_page2, 1, 1);
+        v_out := v_out || E'\\n  [lock] INSERT binder_slots : NOT REFUSED  <-- the lock does nothing';
+      exception
+        when sqlstate '42501' then
+          v_out := v_out || E'\\n  [lock] INSERT binder_slots : refused, correct';
+        when others then
+          v_out := v_out || E'\\n  [lock] INSERT binder_slots : WRONG ERROR ' || sqlstate || ' ' || sqlerrm;
+      end;
+
+      begin
+        delete from public.binder_pages where id = v_page2;
+        v_out := v_out || E'\\n  [lock] DELETE binder_pages : NOT REFUSED  <-- the lock does nothing';
+      exception
+        when sqlstate '42501' then
+          v_out := v_out || E'\\n  [lock] DELETE binder_pages : refused, correct';
+        when others then
+          v_out := v_out || E'\\n  [lock] DELETE binder_pages : WRONG ERROR ' || sqlstate || ' ' || sqlerrm;
+      end;
+
+      begin
+        update public.binders set title = 'nope' where id = v_binder;
+        v_out := v_out || E'\\n  [lock] UPDATE binders      : NOT REFUSED  <-- the lock does nothing';
+      exception
+        when sqlstate '42501' then
+          v_out := v_out || E'\\n  [lock] UPDATE binders      : refused, correct';
+        when others then
+          v_out := v_out || E'\\n  [lock] UPDATE binders      : WRONG ERROR ' || sqlstate || ' ' || sqlerrm;
+      end;
+
+      perform set_config('role', v_orig, true);
+      raise exception '%', v_out;
+    end $$;
   `);
-  const [{ locked }] = await sql(`
-    select count(*)::int as locked from public.contest_finalists
-    where binder_id = '${probe}' and locked;
-  `);
-  if (locked !== 1) throw new Error('the finalist row did not land; the lookup cannot be trusted');
-  console.log('   a frozen row is visible to the guard: ok');
-} catch (e) {
-  failure = e instanceof Error ? e.message : String(e);
-} finally {
-  if (probe) {
-    try {
-      // Cascades take the pages, slots and the finalist row with it.
-      await sql(`delete from public.contest_finalists where binder_id = '${probe}';`);
-      await sql(`delete from public.binders where id = '${probe}';`);
-      console.log('   probe binder removed.');
-    } catch (e) {
-      console.log(`   WARNING: could not remove the probe binder ${probe}: ${e.message}`);
-      console.log('   Delete it by hand; it is private and titled "contest lock probe (delete me)".');
-    }
-  }
-}
 
-if (failure) {
+  const raw = probe.error ?? JSON.stringify(probe.rows);
+  const report = raw.replace(/\\n/g, '\n').replace(/\\"/g, '"');
+  const lines = report
+    .split('\n')
+    .filter((l) => l.includes('[open]') || l.includes('[lock]'))
+    .map((l) => l.replace(/^.*?(\[(?:open|lock)\])/, '  $1'));
+
   console.log('');
-  console.log(`FAILED: ${failure}`);
+  for (const l of lines) console.log(l);
+
+  const openOk = lines.filter((l) => l.includes('[open]') && l.trim().endsWith(': ok')).length;
+  const lockOk = lines.filter((l) => l.includes('[lock]') && l.includes('refused, correct')).length;
+  const bad = lines.filter((l) => l.includes('NOT REFUSED') || l.includes('WRONG ERROR'));
+
+  console.log('');
+  if (openOk < 7 || lockOk < 3 || bad.length > 0) {
+    console.log(`FAILED: ${openOk}/7 open writes succeeded, ${lockOk}/3 locked writes refused.`);
+    if (lines.length === 0) console.log(report.slice(0, 1500));
+    process.exit(1);
+  }
+  console.log(`All ${openOk} ordinary writes succeed and all ${lockOk} locked writes are refused.`);
+  console.log('');
+  console.log('DONE. Reload the app; binder creates, edits, duplicates and deletes work.');
+} catch (e) {
+  console.log('');
+  console.log(`FAILED: ${e instanceof Error ? e.message : String(e)}`);
   process.exit(1);
 }
-
-console.log('');
-console.log('DONE. Binder edits, duplicates and deletes work again.');

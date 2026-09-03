@@ -1971,7 +1971,6 @@ function SpreadColumn({
 }) {
   const fallback = useSharedValue(-1);
   const col = dragCol ?? fallback;
-  const columnStyle = useAnimatedStyle(() => ({ zIndex: col.value === columnIndex ? 30 : 1 }));
   // Same deal as the binder's title: hovering a page's name shows what the page is, in BOTH
   // modes, at once, whether or not anything has been written — an empty note is an invitation,
   // not a reason to stay silent. Both halves of an open book hover, selected or not, the way the
@@ -1981,6 +1980,18 @@ function SpreadColumn({
   // Above the empty-column return below, with the other hooks, or the order changes the moment a
   // spread runs out of pages on one side.
   const hover = useHoverReveal(!!page && (flat || role === 'current'));
+  const hovering = hover.shown;
+  // ONE WRITER FOR THE Z-INDEX. While its card is up this column sits above the facing page (the
+  // card is wider than a column, and on an open book the LEFT page's reached under the right one,
+  // a later sibling that painted over it). That used to be a separate static style listed after
+  // this one — and on web that is not enough: the first time a reorder drag moves `col`,
+  // reanimated writes the z-index INLINE on the DOM node, and an inline value beats a class no
+  // matter how the array was ordered. From then on the left card was invisible again. Folding the
+  // hover into the worklet means whichever path last set the z-index, it set the right one.
+  const columnStyle = useAnimatedStyle(
+    () => ({ zIndex: col.value === columnIndex ? 30 : hovering ? 40 : 1 }),
+    [hovering, columnIndex],
+  );
   const hoverText = page?.description?.trim() || PAGE_DESCRIPTION_PLACEHOLDER;
   // A column with no page reserves only a peek's worth of space, not a whole page's. On page 1
   // the old layout left a full-page-wide empty band where the previous page would have been.
@@ -1998,7 +2009,7 @@ function SpreadColumn({
       // right page — a later sibling at the same z-index, which therefore painted over it. The
       // left title looked like it had no description at all. Last in the array so it beats the
       // animated z-index rather than racing it.
-      style={[styles.neighbor, columnStyle, hover.shown && styles.columnHovering]}
+      style={[styles.neighbor, columnStyle]}
       testID={role === 'current' ? 'binder-page-current' : `binder-page-${role}`}>
       {onPressLabel || onFocus || role === 'current' || flat ? (
         // A hoverable label is a Pressable even when tapping it does nothing (view mode, the
@@ -2007,7 +2018,13 @@ function SpreadColumn({
           onPress={onPressLabel ?? onFocus}
           onHoverIn={hover.onHoverIn}
           onHoverOut={hover.onHoverOut}
-          hitSlop={6}
+          // THE ROW, NOT THE WORDS. react-native-web ignores `hitSlop`, so without this the
+          // target was the glyph box of the title alone — a short name was a sliver a few dozen
+          // pixels wide in the middle of a page-wide row, and hovering the row beside the words
+          // did nothing. Stretching the pressable across the column makes the whole label line
+          // answer; the text stays centred inside it. It is a sibling above the page, so it
+          // overlaps nothing: the page's own pressable begins where this row's margin ends.
+          style={styles.labelPress}
           testID={onPressLabel ? 'binder-page-title' : role === 'current' || flat ? 'binder-page-title-view' : undefined}
           accessibilityRole={onPressLabel || onFocus ? 'button' : 'text'}
           accessibilityLabel={
@@ -2098,11 +2115,11 @@ const styles = StyleSheet.create({
   // without the text — the turn overlay's copies, the blank half of a shut binder — depends on it,
   // and so does the rule that the binder never changes height as you turn through it.
   neighborLabel: { marginBottom: 6, height: 20 },
+  /** The page title's hover/press target: the full width of its column, text centred. */
+  labelPress: { alignSelf: 'stretch', alignItems: 'center' },
   // Under the label, overlapping the top of the page it describes — which is the page you are
   // looking at, so the card lands on the thing it is talking about.
   labelHover: { top: 30 },
-  /** Above the facing page while this column's hover card is open. See the note at the column. */
-  columnHovering: { zIndex: 40 },
   // The filmstrip is NAVIGATION, so it may never be the thing you have to scroll to reach. And
   // scrolling to it is worse than it sounds here: the wheel over the binder flips pages instead of
   // scrolling, so hunting for the strip flips you off the page you were on.

@@ -34,6 +34,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BinderThumb } from '@/components/binder/BinderThumb';
+import { CurateCallout } from '@/components/CurateCallout';
 import { ProfileAvatarButton, TILE_AVATAR } from '@/components/people/ProfileAvatarButton';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -446,6 +447,12 @@ export default function DiscoverScreen() {
                     ))}
                   </View>
                 )}
+              </View>
+
+              {/* The curator, between the shelves: the people browsing finished binders are the
+                  ones who have not heard that theirs can be built from what they own. */}
+              <View style={styles.section}>
+                <CurateCallout surface="discover" />
               </View>
 
               {/* 3. The house account's reference binders, last. Hidden entirely when it has

@@ -13,7 +13,7 @@
  * without the big catalog. The header shows count + total value once the price summary resolves.
  */
 import { Image } from 'expo-image';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Modal,
   NativeScrollEvent,
@@ -32,6 +32,8 @@ import type { FreeCard } from '@/data/binderWizard';
 import { ConfirmDialog } from '@/components/binder/ConfirmDialog';
 import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { HomeSection } from '@/components/HomeSection';
+import { AuthSheet } from '@/components/auth/AuthSheet';
+import { CURATE_IMPORT, CURATE_TITLE, CURATE_TRY, type CurateMode } from '@/components/CurateCallout';
 import { ImportCsvSheet } from '@/components/ImportCsvSheet';
 import { TcgscanLink } from '@/components/monetization/BundleOffer';
 import { ThemedText } from '@/components/themed-text';
@@ -154,8 +156,23 @@ export function MyCollection({
   onOpenBinder,
   onFindSimilar,
   onViewSet,
+  shelf = null,
+  autoCurate = null,
+  autoCurateFrom,
 }: {
   onToast?: ToastReport;
+  /**
+   * THE BINDER SHELF, handed in so this component can decide where it goes. Someone with no
+   * collection yet finds the on-ramp ABOVE their binders — it is the thing to do next, not a
+   * footnote under the shelf — and once cards exist the collection strip drops back below.
+   * Owning the order here keeps one MyCollection instance alive across the switch, so the
+   * example flow's guidance survives the moment its cards arrive.
+   */
+  shelf?: ReactNode;
+  /** Open the import sheet on arrival (`/my-binders?curate=example|import`, from a CurateCallout). */
+  autoCurate?: CurateMode | null;
+  /** The surface that sent them, for the `demo.csv_import` event. */
+  autoCurateFrom?: string;
   /**
    * Report a plan limit. Raised to the screen's useCapGate rather than shown here, so a cap met in
    * the collection gets the same pacing, the same dialog and the same `cap.gate_shown` as every
@@ -193,10 +210,22 @@ export function MyCollection({
     };
   }, [userId]);
 
-  if (!cards) return null;
+  if (!cards) return shelf;
   if (cards.length === 0)
-    return <EmptyCollection onToast={onToast} onStartExample={() => setExampleFlow(true)} />;
+    return (
+      <>
+        <EmptyCollection
+          onToast={onToast}
+          onStartExample={() => setExampleFlow(true)}
+          autoCurate={autoCurate}
+          autoCurateFrom={autoCurateFrom}
+        />
+        {shelf}
+      </>
+    );
   return (
+    <>
+    {shelf}
     <CollectionStrip
       cards={cards}
       onToast={onToast}
@@ -207,6 +236,7 @@ export function MyCollection({
       exampleFlow={exampleFlow}
       onExampleDone={() => setExampleFlow(false)}
     />
+    </>
   );
 }
 
@@ -220,18 +250,34 @@ export function MyCollection({
 function EmptyCollection({
   onToast,
   onStartExample,
+  autoCurate = null,
+  autoCurateFrom,
 }: {
   onToast?: ToastReport;
   onStartExample?: () => void;
+  autoCurate?: CurateMode | null;
+  autoCurateFrom?: string;
 }) {
-  const { isSignedIn } = useAuth();
-  const [importOpen, setImportOpen] = useState(false);
-  const [seedExample, setSeedExample] = useState(false);
-  if (!isSignedIn) return null;
+  const { isSignedIn, isGuest } = useAuth();
+  // Arriving from a CurateCallout with `?curate=` opens the right sheet at once — initial state,
+  // not an effect, so there is no frame of the closed page first.
+  const arrived = !!autoCurate && isSignedIn;
+  const [importOpen, setImportOpen] = useState(arrived);
+  const [seedExample, setSeedExample] = useState(autoCurate === 'example');
+  const [authOpen, setAuthOpen] = useState(false);
+  const surface = autoCurateFrom ?? 'collection';
+  useEffect(() => {
+    if (!arrived || autoCurate !== 'example') return;
+    // The funnel signal, at the one place the example is actually loaded, tagged with the page
+    // that sent them here.
+    track('demo.csv_import', { surface });
+    onStartExample?.();
+    // Once, on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  if (!isSignedIn && !isGuest) return null;
   const openExample = () => {
-    // Emit the demo funnel signal at the unambiguous trigger point (the "Try it out!" example),
-    // rather than trying to tell demo from real inside the shared import sheet.
-    track('demo.csv_import', { surface: 'collection' });
+    track('demo.csv_import', { surface });
     setSeedExample(true);
     onStartExample?.();
     setImportOpen(true);
@@ -240,20 +286,40 @@ function EmptyCollection({
     setSeedExample(false);
     setImportOpen(true);
   };
+  if (isGuest) {
+    // A guest can be shown the offer but not take it up: a collection belongs to an account.
+    return (
+      <HomeSection title={CURATE_TITLE}>
+        <View style={styles.emptyRow}>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.emptyRowText}>
+            Import the cards you own and michi-maker curates a binder from them. Sign in first so
+            your collection has somewhere to live.
+          </ThemedText>
+          <Pressable
+            onPress={() => setAuthOpen(true)}
+            style={({ pressed }) => [styles.buildChip, pressed && styles.pressed]}>
+            <Text style={styles.buildChipText}>Sign in to import</Text>
+          </Pressable>
+        </View>
+        <AuthSheet visible={authOpen} onClose={() => setAuthOpen(false)} />
+      </HomeSection>
+    );
+  }
   return (
-    <HomeSection title="My collection">
+    <HomeSection title={CURATE_TITLE}>
       <View style={styles.emptyRow}>
         <ThemedText type="small" themeColor="textSecondary" style={styles.emptyRowText}>
-          New here? Load an example collection to see how it works, or scan cards with{' '}
-          <TcgscanLink /> and import your own CSV.
+          Import the cards you own and michi-maker curates a binder from them. New here? Load the
+          example collection to see it work, or scan cards with <TcgscanLink /> and import your
+          own CSV.
         </ThemedText>
         <Pressable
           onPress={openExample}
           style={({ pressed }) => [styles.buildChip, pressed && styles.pressed]}>
-          <Text style={styles.buildChipText}>Try it out</Text>
+          <Text style={styles.buildChipText}>{CURATE_TRY}</Text>
         </Pressable>
         <Pressable onPress={openImport} style={({ pressed }) => [pillChip.base, pressed && styles.pressed]}>
-          <Text style={pillChip.text}>Import CSV</Text>
+          <Text style={pillChip.text}>{CURATE_IMPORT}</Text>
         </Pressable>
       </View>
       <ImportCsvSheet

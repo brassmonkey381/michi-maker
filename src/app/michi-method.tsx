@@ -9,6 +9,7 @@ import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { CurateCallout } from '@/components/CurateCallout';
 import { ExternalLink } from '@/components/external-link';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -126,6 +127,12 @@ export default function MichiMethodScreen() {
             </Pressable>
           </ExternalLink>
 
+          {/* The method, applied to a collection: every layout above is one the curator builds
+              from the cards a reader already owns. */}
+          <View style={styles.calloutWrap}>
+            <CurateCallout surface="michi-method" />
+          </View>
+
           {/* Learn more */}
           <ThemedText type="smallBold" style={styles.sectionTitle}>
             Learn more
@@ -158,6 +165,7 @@ export default function MichiMethodScreen() {
 }
 
 const styles = StyleSheet.create({
+  calloutWrap: { marginTop: 24 },
   container: { flex: 1 },
   flex: { flex: 1 },
   scroll: {

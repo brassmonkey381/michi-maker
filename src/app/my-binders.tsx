@@ -11,7 +11,7 @@
  * command bus (sendBrowseCommand holds one pending command), so navigating to /browse and
  * sending the command lands it the moment that page's browser subscribes.
  */
-import { useRouter, type Href } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -58,6 +58,9 @@ export default function MyBindersScreen() {
   // Where the rail isn't present (native, or narrow web) the page carries its own way back Home.
   const railHidden = Platform.OS !== 'web' || width < Breakpoints.rail;
   const openBinder = (id: string) => router.push(`/binder/${id}`);
+  // `/my-binders?curate=example|import&from=<surface>`: a CurateCallout elsewhere sent them here
+  // to import, and the sheet should already be open when the page lands.
+  const { curate, from } = useLocalSearchParams<{ curate?: string; from?: string }>();
 
   const [binderQuery, setBinderQuery] = useState('');
   // Per-binder ⋯ management (rename / duplicate / share / delete) without opening the editor.
@@ -256,6 +259,10 @@ export default function MyBindersScreen() {
             </View>
           ) : null}
 
+          {/* My collection — the tcgscan-fed inventory — and the binder shelf, whose order it
+              decides: the import on-ramp sits above the shelf until there are cards. */}
+          <MyCollection
+            shelf={
           <HomeSection
             title="My binders"
             collapsible={false}
@@ -378,9 +385,9 @@ export default function MyBindersScreen() {
               </>
             )}
           </HomeSection>
-
-          {/* My collection — the tcgscan-fed inventory; appears with the first scan/import. */}
-          <MyCollection
+            }
+            autoCurate={curate === 'example' || curate === 'import' ? curate : null}
+            autoCurateFrom={typeof from === 'string' ? from : undefined}
             onToast={showToast}
             onCapHit={capGate.hit}
             onOpenBinder={openBinder}

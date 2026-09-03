@@ -5,6 +5,7 @@
 import { useRouter, type Href } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { CurateCallout } from '@/components/CurateCallout';
 import { ExternalLink } from '@/components/external-link';
 import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
@@ -69,11 +70,15 @@ export default function LearnHubScreen() {
           );
         })}
       </View>
+      <View style={styles.callout}>
+        <CurateCallout surface="learn" />
+      </View>
     </PageShell>
   );
 }
 
 const styles = StyleSheet.create({
+  callout: { marginTop: 28 },
   h1: { fontFamily: Fonts?.brand, marginBottom: Spacing.two },
   lede: { lineHeight: 22, marginBottom: Spacing.four },
   list: { gap: Spacing.three },

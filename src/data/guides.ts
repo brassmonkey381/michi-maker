@@ -61,6 +61,34 @@ export interface Guide {
 
 export const GUIDE_LIST: Guide[] = [
   {
+    slug: 'curate-from-collection',
+    title: 'From a CSV to a finished binder',
+    lede: 'Import the cards you own and let michi-maker curate a binder from them, in about three minutes.',
+    minutes: 3,
+    ctaLabel: 'Try it with the example collection',
+    ctaHref: '/my-binders?curate=example&from=learn-guide',
+    steps: [
+      {
+        title: 'Get your collection as a CSV',
+        body: 'Scan your cards with tcgscan and export the collection, or export from TCGplayer. Any CSV with a card name, set and number works; quantities are optional. No collection handy? The example collection is about 200 recent cards and is safe to delete afterwards.',
+      },
+      {
+        title: 'Import it',
+        body: 'On My binders, press Import my CSV under Curate from my collection and paste or drop the file in. Cards are matched to the catalog as they land, and anything unmatched is listed so you can fix it or skip it.',
+      },
+      {
+        title: 'Press Build binder',
+        body: 'The curator reads what you own and proposes pages: evolution lines, species pages, colour runs, artist galleries, rarity ladders. Each proposal is a finished page, drawn from your cards only. It takes a few seconds.',
+      },
+      {
+        title: 'Keep the pages you like',
+        body: 'Open the binder it made. Every page is editable like any other: reorder, swap a card, cut art into the empty pockets, or delete a page that does not earn its place. Rebuild any time as your collection grows.',
+      },
+    ],
+    tip: 'A page built from your own cards is the fastest way to see what the michi method does — the layouts are the same ones described in The michi method, applied to what is already in your box.',
+    relatedSlugs: ['first-binder', 'slice-studio'],
+  },
+  {
     slug: 'first-binder',
     title: 'Build your first binder',
     lede: 'From an empty shelf to a page worth staring at, in about ten minutes.',

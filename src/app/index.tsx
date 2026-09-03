@@ -8,6 +8,7 @@ import { AccountButton } from '@/components/auth/AccountButton';
 import { GuestBanner } from '@/components/auth/GuestBanner';
 import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
 import { BinderCarousel } from '@/components/binder/BinderCarousel';
+import { CurateCallout } from '@/components/CurateCallout';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
@@ -284,6 +285,11 @@ export default function HomeScreen() {
             </HomeSection>
           ) : null}
 
+          {/* The curator, right under the featured shelf: what those binders were built with. */}
+          <View style={styles.curate}>
+            <CurateCallout surface="home" />
+          </View>
+
           {/* Catalog-free sealed carousel: renders for everyone (guests included). */}
           <HomeSealed languages={HOME_LANGUAGES} />
 
@@ -319,6 +325,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  curate: { marginTop: 8, marginBottom: 20 },
   container: { flex: 1 },
   flex: { flex: 1 },
   scroll: {

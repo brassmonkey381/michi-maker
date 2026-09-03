@@ -114,7 +114,7 @@ export default function SearchGuideScreen() {
           <View style={styles.shell}>
             <View style={styles.headerRow}>
               <ThemedText type="title" style={styles.h1}>
-                Search cheatsheet
+                Search Cheatsheet
               </ThemedText>
               <Pressable onPress={() => router.push('/browse')} hitSlop={8}>
                 <ThemedText type="smallBold" themeColor="textSecondary">

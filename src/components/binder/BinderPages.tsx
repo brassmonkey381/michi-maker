@@ -1239,73 +1239,103 @@ export function BinderPages({
                 </Pressable>
               </View>
               <ScrollView contentContainerStyle={styles.settingsBody} keyboardShouldPersistTaps="handled">
-        <View style={styles.viewToggles}>
-          {toolPills}
-          {canDoubleSide ? (
-            <Pressable
-              onPress={toggleDoubleSided}
-              style={[pillChip.base, doubleSided && pillChip.active]}>
-              <Text style={[pillChip.text, doubleSided && pillChip.textActive]}>
-                {doubleSided ? '✓ Double-sided' : 'Double-sided'}
-              </Text>
-            </Pressable>
-          ) : null}
-          <CaptionControls
-            enabled={labelsOn}
-            onToggle={() => setLabelsOn(!labelsOn)}
-            fields={labelFields}
-            onToggleField={toggleLabelField}
-          />
-          {/* Owned overlay, only offered when the viewer has an inventory (own cards). A green ✓
-              corner badge lights up on card slots they own. */}
-          {/* IN THE PILL ROW, not on a line of its own. The first attempt at this put the
-              disclosure on its own line, which removed a 36px row of chips and added a 36px chip:
-              the page's height budget did not move by a single pixel, and only measuring it said
-              so. A control that costs a line to save a line saves nothing. */}
-          {labelsOn ? (
-            <Pressable
-              onPress={() => setFieldsOpen((v) => !v)}
-              accessibilityRole="button"
-              accessibilityState={{ expanded: fieldsOpen }}
-              style={[pillChip.base, fieldsOpen && pillChip.active]}>
-              <Text style={[pillChip.text, fieldsOpen && pillChip.textActive]}>
-                {fieldsOpen ? '▾ Which' : '▸ Which'}
-              </Text>
-            </Pressable>
-          ) : null}
+        {/* NAMED ROWS, NOT ONE WRAPPED HEAP.
+
+            Every control here was a pill in a single centred wrap, so the sheet's shape was
+            whatever the pills happened to add up to: "Owned" sat alone on a second line under a
+            gap, and a control appearing (Which, when labels went on) re-centred the row above it.
+            Worse, nothing said which pill governed which — "Which" is unreadable two pills away
+            from the toggle it belongs to.
+
+            A label column fixes both. Each row names its group and holds its own controls, so the
+            groups line up down a common left edge, a control that appears or disappears moves only
+            its own row, and "Which labels" sits beside "Card labels" where it plainly belongs. */}
+        <View style={styles.settingsGroups}>
+          {toolPills ? <View style={styles.settingsRowControls}>{toolPills}</View> : null}
+
           {/* WHERE THE PAGE STRIP SITS. Along the bottom it costs the page about 115px of height;
-              as a left rail it costs width, which a height-fitted page has to spare. Offered only
-              when there is a strip to move. */}
-          {count > 1 ? (
-            <Pressable
-              onPress={() => view.setPref('navDock', railLeft ? 'bottom' : 'left')}
-              accessibilityRole="button"
-              accessibilityLabel={railLeft ? 'Move page navigation to the bottom' : 'Move page navigation to the left'}
-              style={[pillChip.base, railLeft && pillChip.active]}>
-              <Text style={[pillChip.text, railLeft && pillChip.textActive]}>
-                {railLeft ? '⬒ Pages left' : '⬓ Pages below'}
-              </Text>
-            </Pressable>
+              as a left rail it costs width, which a height-fitted page has to spare. Both controls
+              here shape the spread itself, so they share a row. */}
+          {canDoubleSide || count > 1 ? (
+            <View style={styles.settingsRow}>
+              <ThemedText type="smallBold" themeColor="textSecondary" style={styles.settingsRowLabel}>
+                Layout
+              </ThemedText>
+              <View style={styles.settingsRowControls}>
+                {canDoubleSide ? (
+                  <Pressable
+                    onPress={toggleDoubleSided}
+                    style={[pillChip.base, doubleSided && pillChip.active]}>
+                    <Text style={[pillChip.text, doubleSided && pillChip.textActive]}>
+                      {doubleSided ? '✓ Double-sided' : 'Double-sided'}
+                    </Text>
+                  </Pressable>
+                ) : null}
+                {count > 1 ? (
+                  <Pressable
+                    onPress={() => view.setPref('navDock', railLeft ? 'bottom' : 'left')}
+                    accessibilityRole="button"
+                    accessibilityLabel={railLeft ? 'Move page navigation to the bottom' : 'Move page navigation to the left'}
+                    style={[pillChip.base, railLeft && pillChip.active]}>
+                    <Text style={[pillChip.text, railLeft && pillChip.textActive]}>
+                      {railLeft ? '⬒ Pages left' : '⬓ Pages below'}
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            </View>
           ) : null}
-          {ownedCards ? (
-            <Pressable
-              onPress={() => setShowOwned(!showOwned)}
-              style={[pillChip.base, showOwned && pillChip.active]}>
-              <Text style={[pillChip.text, showOwned && pillChip.textActive]}>
-                {showOwned ? '✓ Owned' : 'Owned'}
-              </Text>
-            </Pressable>
-          ) : null}
-          {/* Real scans: pockets show the owner's own photos (cards they scanned into their
-              collection). Only offered when they have any. */}
-          {scanImages ? (
-            <Pressable
-              onPress={() => setShowScans(!showScans)}
-              style={[pillChip.base, showScans && pillChip.active]}>
-              <Text style={[pillChip.text, showScans && pillChip.textActive]}>
-                {showScans ? '✓ Scans' : 'Scans'}
-              </Text>
-            </Pressable>
+
+          <View style={styles.settingsRow}>
+            <ThemedText type="smallBold" themeColor="textSecondary" style={styles.settingsRowLabel}>
+              Labels
+            </ThemedText>
+            <View style={styles.settingsRowControls}>
+              <CaptionControls enabled={labelsOn} onToggle={() => setLabelsOn(!labelsOn)} />
+              {/* DIMMED, NOT REMOVED. Withheld until labels were on, this button's arrival pushed
+                  its neighbours along the moment you flipped an unrelated toggle. Held in place
+                  and greyed, the row keeps its shape and the button still says what turning
+                  labels on will get you. */}
+              <Pressable
+                onPress={() => setFieldsOpen(true)}
+                disabled={!labelsOn}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !labelsOn }}
+                style={[pillChip.base, !labelsOn && styles.settingsControlOff]}>
+                <Text style={pillChip.text}>Which labels…</Text>
+              </Pressable>
+            </View>
+          </View>
+
+          {/* Owned: a green ✓ corner badge on the card slots the viewer owns — offered only when
+              they have an inventory. Scans: pockets show the owner's own photos of the cards they
+              scanned into their collection, likewise only when they have any. */}
+          {ownedCards || scanImages ? (
+            <View style={styles.settingsRow}>
+              <ThemedText type="smallBold" themeColor="textSecondary" style={styles.settingsRowLabel}>
+                Overlays
+              </ThemedText>
+              <View style={styles.settingsRowControls}>
+                {ownedCards ? (
+                  <Pressable
+                    onPress={() => setShowOwned(!showOwned)}
+                    style={[pillChip.base, showOwned && pillChip.active]}>
+                    <Text style={[pillChip.text, showOwned && pillChip.textActive]}>
+                      {showOwned ? '✓ Owned' : 'Owned'}
+                    </Text>
+                  </Pressable>
+                ) : null}
+                {scanImages ? (
+                  <Pressable
+                    onPress={() => setShowScans(!showScans)}
+                    style={[pillChip.base, showScans && pillChip.active]}>
+                    <Text style={[pillChip.text, showScans && pillChip.textActive]}>
+                      {showScans ? '✓ Scans' : 'Scans'}
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            </View>
           ) : null}
         </View>
         {/* WHICH fields, folded away until you are choosing them.
@@ -2075,7 +2105,23 @@ const styles = StyleSheet.create({
   labelsRow: { alignItems: 'center', marginTop: 10 },
   // Wraps: it now carries the editor's chips as well as the view pills, and on a narrow window
   // that is more than one line's worth. Wrapping as one group beats two rows that each half-fill.
-  viewToggles: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: 8 },
+  settingsGroups: { alignSelf: 'stretch', gap: 2 },
+  // A hairline per row rather than a border on the group: the rule then sits between rows and
+  // never under the last one, whichever rows this binder actually offers.
+  settingsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingVertical: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Palette.hairline,
+  },
+  // A fixed column, so every group's controls start at the same x no matter how long its name is.
+  // `lineHeight` matches the pills' 28px box, which is what puts the label on the same baseline as
+  // the first chip beside it rather than a few pixels high.
+  settingsRowLabel: { width: 76, lineHeight: 28 },
+  settingsRowControls: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  settingsControlOff: { opacity: 0.4 },
   pageDetailsRead: { alignItems: 'center', marginTop: 8 },
   /**
    * The height of one `smallBold` line, held whether or not there is a title in it.
@@ -2107,7 +2153,7 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
   },
   settingsHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 12 },
-  settingsBody: { alignItems: 'center', gap: 10, paddingBottom: 4 },
+  settingsBody: { alignItems: 'stretch', gap: 10, paddingBottom: 4 },
   fieldsDone: { fontSize: FontSize.md, fontWeight: Weight.semibold, color: Palette.accent },
   // 8, not 18. That margin was free when the page was sized by width and simply overflowed; now
   // that the page is fitted to the height it has, every pixel of margin comes straight off the card

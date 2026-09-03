@@ -22,13 +22,13 @@ type RailItem = { label: string; href: Href; match: (path: string) => boolean };
 // My Binders sits directly above My Purchases.
 const EXPLORE: RailItem[] = [
   { label: 'Home', href: '/', match: (p) => p === '/' },
-  { label: 'Discover binders', href: '/discover' as Href, match: (p) => p.startsWith('/discover') },
+  { label: 'Discover Binders', href: '/discover' as Href, match: (p) => p.startsWith('/discover') },
   { label: 'Contest 🏆', href: '/contest' as Href, match: (p) => p.startsWith('/contest') },
-  { label: 'Browse cards', href: '/browse' as Href, match: (p) => p.startsWith('/browse') },
+  { label: 'Browse Cards', href: '/browse' as Href, match: (p) => p.startsWith('/browse') },
   { label: 'Plans', href: '/plans' as Href, match: (p) => p.startsWith('/plans') || p.startsWith('/subscriptions') || p.startsWith('/pricing') },
-  { label: 'How-to', href: '/learn' as Href, match: (p) => p.startsWith('/learn') },
+  { label: 'How-To', href: '/learn' as Href, match: (p) => p.startsWith('/learn') },
   { label: 'The Michi Method', href: '/michi-method', match: (p) => p.startsWith('/michi-method') },
-  { label: 'What’s new', href: '/whats-new' as Href, match: (p) => p.startsWith('/whats-new') },
+  { label: 'What’s New', href: '/whats-new' as Href, match: (p) => p.startsWith('/whats-new') },
 ];
 const YOU: RailItem[] = [
   { label: 'My Binders', href: '/my-binders' as Href, match: (p) => p.startsWith('/my-binders') },
@@ -49,7 +49,7 @@ export function AppRail() {
     <View style={styles.rail}>
       <Pressable
         onPress={() => router.push('/')}
-        accessibilityLabel="michi-maker home"
+        accessibilityLabel="Michi-Maker home"
         style={({ pressed }) => [styles.wordmarkRow, pressed && styles.pressed]}>
         <LogoMark size={22} />
         <ThemedText style={styles.wordmark}>

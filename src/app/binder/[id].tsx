@@ -125,7 +125,7 @@ function PublicViewer({ id }: { id?: string }) {
   // Nice browser-tab title on web.
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      document.title = state.status === 'ok' ? `${state.binder.title} · michi-maker` : 'michi-maker';
+      document.title = state.status === 'ok' ? `${state.binder.title} · Michi-Maker` : 'Michi-Maker';
     }
   }, [state]);
 
@@ -135,7 +135,7 @@ function PublicViewer({ id }: { id?: string }) {
         <View style={styles.topbar}>
           <Link href="/" asChild>
             <Pressable hitSlop={8}>
-              <ThemedText type="link" themeColor="textSecondary">‹ michi-maker</ThemedText>
+              <ThemedText type="link" themeColor="textSecondary">‹ Michi-Maker</ThemedText>
             </Pressable>
           </Link>
         </View>

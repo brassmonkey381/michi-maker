@@ -40,7 +40,7 @@ export default function MichiMethodScreen() {
             </Pressable>
             <Pressable onPress={() => router.push('/')} hitSlop={10}>
               <ThemedText type="smallBold" themeColor="textSecondary">
-                michi-maker
+                Michi-Maker
               </ThemedText>
             </Pressable>
           </View>

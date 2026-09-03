@@ -220,7 +220,7 @@ export default function HomeScreen() {
                 onPress={() => router.push('/search-guide' as Href)}
                 hitSlop={8}
                 style={({ pressed }) => [styles.headerLink, pressed && styles.pressed]}>
-                <ThemedText style={styles.headerLinkText}>Search guide</ThemedText>
+                <ThemedText style={styles.headerLinkText}>Search Guide</ThemedText>
               </Pressable>
               <PeopleButton />
               <SettingsButton />
@@ -234,17 +234,17 @@ export default function HomeScreen() {
               <Pressable
                 onPress={() => router.push('/my-binders' as Href)}
                 style={({ pressed }) => [styles.quickChip, pressed && styles.pressed]}>
-                <Text style={styles.quickChipText}>My binders ›</Text>
+                <Text style={styles.quickChipText}>My Binders ›</Text>
               </Pressable>
               <Pressable
                 onPress={() => router.push('/discover' as Href)}
                 style={({ pressed }) => [styles.quickChip, pressed && styles.pressed]}>
-                <Text style={styles.quickChipText}>Discover binders ›</Text>
+                <Text style={styles.quickChipText}>Discover Binders ›</Text>
               </Pressable>
               <Pressable
                 onPress={openBrowse}
                 style={({ pressed }) => [styles.quickChip, pressed && styles.pressed]}>
-                <Text style={styles.quickChipText}>Browse all cards ›</Text>
+                <Text style={styles.quickChipText}>Browse All Cards ›</Text>
               </Pressable>
             </View>
           ) : null}
@@ -262,7 +262,7 @@ export default function HomeScreen() {
           <GuestBanner />
 
           {store.featuredBinders.length > 0 ? (
-            <HomeSection title="Featured binders">
+            <HomeSection title="Featured Binders">
               <BinderCarousel
                 binders={store.featuredBinders}
                 onOpen={openBinder}
@@ -297,7 +297,7 @@ export default function HomeScreen() {
             onAddToBinder={setAddCardId}
           />
 
-          <HomeSection title="Example binders">
+          <HomeSection title="Example Binders">
             <BinderCarousel binders={store.exampleBinders} onOpen={openBinder} />
           </HomeSection>
         </ScrollView>

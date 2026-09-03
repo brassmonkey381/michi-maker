@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ebayCardQuery, ebaySearchLink } from '@/lib/ebay';
 
 import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
+import { CheatsheetButton } from '@/components/CheatsheetButton';
 import { SimilarityModelPicker } from '@/components/SimilarityModelPicker';
 import { CardBrowse } from '@/components/binder/CardBrowse';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
@@ -226,14 +227,10 @@ export default function BrowseScreen() {
         <View style={styles.shell}>
           <View style={styles.headerRow}>
             <ThemedText type="title" style={styles.h1}>
-              Browse all cards
+              Browse All Cards
             </ThemedText>
             <View style={styles.headerRight}>
-              <Pressable onPress={() => router.push('/search-guide' as Href)} hitSlop={8}>
-                <ThemedText type="smallBold" themeColor="textSecondary">
-                  Cheatsheet ↗
-                </ThemedText>
-              </Pressable>
+              <CheatsheetButton onPress={() => router.push('/search-guide' as Href)} />
               {/* The EN/JP toggle used to sit here. It now lives INSIDE the browser (kit
                   `showLanguageToggle`, on by default) so every entry point that opens a browser —
                   this page, the binder card picker, Slice Studio — has the same control in the
@@ -250,8 +247,15 @@ export default function BrowseScreen() {
 
           {/* Admin-only, and renders nothing for everyone else. Above the browser rather than
               inside it: the kit owns the result list, and the control has to sit where it is
-              visible BEFORE a find-similar action rather than appearing with the results. */}
-          <SimilarityModelPicker />
+              visible BEFORE a find-similar action rather than appearing with the results.
+
+              NO VERSION CAPTION HERE. "Similarity model 3.0.0 · updated 22 Aug 2026" was printed
+              for every visitor, in the gap between the page title and the browser, where it read
+              as a build stamp on the catalog rather than a note about one feature. The line still
+              runs where it answers a live question — inside the fill sheet, next to the button
+              that uses the model (AutoFillSheet) — and for an admin the picker chips below still
+              name the selected candidate. */}
+          <SimilarityModelPicker showVersion={false} />
 
           {/* The browser owns the remaining height; its inner FlatList scrolls (no page ScrollView
               around it, so the list gets a bounded viewport). */}

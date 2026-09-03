@@ -1,62 +1,55 @@
 /**
- * The "Card labels" control for a binder view: a master on/off toggle (with an inline "?" that
- * opens the tabbed {@link LabelsHelp} explainer) and — when on — a wrapped row of field chips
- * (Series, Set, Name, Artist, …). Presentational: the enabled state and the selected fields live
- * in the parent screen so it can feed them to `BinderGrid`. Shared by the owner viewer
- * (`BinderScreen`) and the public viewer (`/binder/[id]`).
+ * The "Card labels" control for a binder view: a master on/off toggle, the "?" that opens the
+ * tabbed {@link LabelsHelp} explainer, and — separately — the wrapped row of field chips (Series,
+ * Set, Name, Artist, …). Presentational: the enabled state and the selected fields live in the
+ * parent screen so it can feed them to `BinderGrid`. Shared by the owner viewer (`BinderScreen`)
+ * and the public viewer (`/binder/[id]`).
  *
- * TWO COMPONENTS, DELIBERATELY. The toggle sits in a horizontal row beside Double-sided, Owned and
- * Scans; the field chips and the help panel are far wider than that pill. When they were children
- * of the toggle, switching labels on widened it and shoved its neighbours sideways — the row
- * visibly rearranged itself as a side effect of an unrelated toggle. Keeping the wide parts in a
- * separate component lets the parent put them on their own line, where growing costs nobody
- * anything.
+ * TWO COMPONENTS, DELIBERATELY. The toggle sits in a settings row beside its "Which labels" button;
+ * the field chips are far wider than that pill. When they were children of the toggle, switching
+ * labels on widened it and shoved its neighbours sideways — the row visibly rearranged itself as a
+ * side effect of an unrelated toggle.
+ *
+ * THE HELP IS A DIALOG, not a panel below the pill. Opened inline it inserted a 460px-wide block
+ * into a centred wrap layout, so every pill in the View sheet jumped to a new position and the
+ * sheet grew a scrollbar — a lot of movement to answer "what do these fields mean?". Over the top
+ * it costs the layout underneath nothing, and closing it puts you back exactly where you were.
  */
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { LabelsHelp } from '@/components/binder/LabelsHelp';
 import { FontSize, Palette, Spacing, Weight } from '@/constants/theme';
-import { pillChip } from '@/constants/ui';
+import { pillChip, sheet } from '@/constants/ui';
 import { pickerFields, type CaptionFieldKey } from '@/data/cardCaption';
 import { useCatalog } from '@/hooks/use-catalog';
 
-export function CaptionControls({
-  enabled,
-  onToggle,
-  fields,
-  onToggleField,
-}: {
-  enabled: boolean;
-  onToggle: () => void;
-  fields: CaptionFieldKey[];
-  onToggleField: (key: CaptionFieldKey) => void;
-}) {
+export function CaptionControls({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
   const [helpOpen, setHelpOpen] = useState(false);
 
   return (
     <>
-      <View style={styles.topRow}>
-        <Pressable onPress={onToggle} style={[pillChip.base, enabled && pillChip.active]}>
-          <Text style={[pillChip.text, enabled && pillChip.textActive]}>
-            {enabled ? '✓ Card labels' : 'Card labels'}
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={() => setHelpOpen((v) => !v)}
-          hitSlop={6}
-          accessibilityLabel="Card labels help"
-          style={[styles.helpBtn, helpOpen && styles.helpBtnOn]}>
-          <Text style={[styles.helpBtnText, helpOpen && styles.helpBtnTextOn]}>?</Text>
-        </Pressable>
-      </View>
-      {/* The help panel is as wide as the page; it belongs on its own line for the same reason the
-          field chips do. Rendered here rather than by the parent because its open state is local. */}
+      <Pressable onPress={onToggle} style={[pillChip.base, enabled && pillChip.active]}>
+        <Text style={[pillChip.text, enabled && pillChip.textActive]}>
+          {enabled ? '✓ Card labels' : 'Card labels'}
+        </Text>
+      </Pressable>
+      <Pressable
+        onPress={() => setHelpOpen(true)}
+        hitSlop={6}
+        accessibilityRole="button"
+        accessibilityLabel="What card labels show"
+        style={[styles.helpBtn, helpOpen && styles.helpBtnOn]}>
+        <Text style={[styles.helpBtnText, helpOpen && styles.helpBtnTextOn]}>?</Text>
+      </Pressable>
       {helpOpen ? (
-        <View style={styles.helpLine}>
-          <LabelsHelp onClose={() => setHelpOpen(false)} />
-        </View>
+        <Modal visible transparent animationType="fade" onRequestClose={() => setHelpOpen(false)}>
+          <View style={sheet.dialogBackdrop}>
+            <Pressable style={StyleSheet.absoluteFill} onPress={() => setHelpOpen(false)} />
+            <LabelsHelp onClose={() => setHelpOpen(false)} />
+          </View>
+        </Modal>
       ) : null}
     </>
   );
@@ -100,8 +93,6 @@ export function CaptionFieldRow({
 }
 
 const styles = StyleSheet.create({
-  helpLine: { alignItems: 'center', marginTop: Spacing.two },
-  topRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   fieldRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',

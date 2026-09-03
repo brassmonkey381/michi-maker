@@ -26,9 +26,9 @@ export const TAGLINE = 'michi-maker, made with a love for the craft.';
 const LINKS: { label: string; href: Href }[] = [
   { label: 'Plans', href: '/plans' as Href },
   { label: 'My Purchases', href: '/purchases' as Href },
-  { label: 'How-to', href: '/learn' as Href },
+  { label: 'How-To', href: '/learn' as Href },
   { label: 'The Michi Method', href: '/michi-method' },
-  { label: 'What’s new', href: '/whats-new' as Href },
+  { label: 'What’s New', href: '/whats-new' as Href },
   { label: 'Terms', href: '/legal/terms' },
   { label: 'Privacy', href: '/legal/privacy' },
   { label: 'Copyright', href: '/legal/dmca' as Href },

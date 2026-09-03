@@ -91,7 +91,7 @@ export default function WhatsNewScreen() {
       title="What’s new in michi-maker and TCGScan"
       description="New features, improvements and fixes in michi-maker and TCGScan, grouped by release date.">
       <ThemedText type="subtitle" style={styles.h1}>
-        What’s new
+        What’s New
       </ThemedText>
       <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
         Newest first. Both products share an account and a card catalogue, so plenty of this lands

@@ -41,7 +41,7 @@ export function PageShell({
     <ThemedView style={styles.flex}>
       {Platform.OS === 'web' && title ? (
         <Head>
-          <title>{`${title} · michi-maker`}</title>
+          <title>{`${title} · Michi-Maker`}</title>
           {description ? <meta name="description" content={description} /> : null}
         </Head>
       ) : null}
@@ -57,7 +57,7 @@ export function PageShell({
             </Pressable>
             <Pressable onPress={() => router.push('/')} hitSlop={10}>
               <ThemedText type="smallBold" themeColor="textSecondary">
-                michi-maker
+                Michi-Maker
               </ThemedText>
             </Pressable>
           </View>

@@ -18,10 +18,10 @@ export default function LearnHubScreen() {
   const router = useRouter();
   return (
     <PageShell
-      title="How-to guides"
+      title="How-To Guides"
       description="Short guides to building, slicing, and printing michi binders.">
       <ThemedText type="subtitle" style={styles.h1}>
-        How-to guides
+        How-To Guides
       </ThemedText>
       <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
         Short, practical walkthroughs of the craft: building a binder, cutting art into pockets,

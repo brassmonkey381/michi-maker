@@ -273,7 +273,7 @@ export default function MyBindersScreen() {
           <MyCollection
             shelf={
           <HomeSection
-            title="My binders"
+            title="My Binders"
             collapsible={false}
             action={
               <Pressable

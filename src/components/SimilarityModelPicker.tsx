@@ -4,7 +4,8 @@
  * TWO AUDIENCES. Everyone sees the VERSION of the model that is answering — similarity results
  * change when the model changes, on a cadence nothing in the app version tracks, and "find similar
  * started returning different cards" previously had no answer anyone could check. Only admins see
- * the PICKER.
+ * the PICKER. A surface that has no room for the caption passes `showVersion={false}` and keeps
+ * the picker; with the caption off, a non-admin renders nothing at all.
  *
  * WHY THIS IS GATED AND NOT A SETTING. Candidate models are unproven. Two of them return
  * materially different neighbours on ordinary cards (measured against capG-e15: 2 of 5 shared
@@ -44,7 +45,19 @@ import {
  *  `null`, not a row in the candidate table. */
 const LIVE = { id: null as string | null, label: 'Live' };
 
-export function SimilarityModelPicker({ compact = false }: { compact?: boolean }) {
+export function SimilarityModelPicker({
+  compact = false,
+  showVersion = true,
+}: {
+  compact?: boolean;
+  /**
+   * Print the "Similarity model X · updated D" caption. Off on /browse (owner call 2026-09-03):
+   * a page-wide banner for one feature's model version read as a status line about the whole
+   * catalog. On where the model is about to be USED — the fill sheet — which is the moment the
+   * question "why did these results change?" actually gets asked.
+   */
+  showVersion?: boolean;
+}) {
   const { profile } = useAuth();
   const isAdmin = !!profile?.is_admin;
   const [models, setModels] = useState<SimilarityModelInfo[]>([]);
@@ -83,7 +96,7 @@ export function SimilarityModelPicker({ compact = false }: { compact?: boolean }
     ? `${active} · experimental`
     : live?.publicVersion ?? live?.modelVersion ?? null;
   const updated = active ? null : formatPublished(live?.publishedAt ?? null);
-  const versionLine = version ? (
+  const versionLine = version && showVersion ? (
     <Text style={styles.caption}>
       Similarity model {version}
       {updated ? ` · updated ${updated}` : ''}

@@ -5,18 +5,17 @@
  * api/og-michi.js). Reachable from the home header and from a shared link.
  */
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { useRouter, type Href } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CurateCallout } from '@/components/CurateCallout';
-import { EeveeReplay } from '@/components/michi/EeveeReplay';
 import { StyleGallery } from '@/components/michi/MethodShowcase';
 import { ExternalLink } from '@/components/external-link';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, MaxContentWidth, Palette, Radius, Spacing, Weight } from '@/constants/theme';
-import { AUTO_FILL_SHOWCASE, AUTO_FILL_SHOWCASE_ART, WOAHPOKE_GUIDE } from '@/data/guides';
+import { AUTO_FILL_SHOWCASE_ART, WOAHPOKE_GUIDE } from '@/data/guides';
 
 // The collector credited with creating and popularising the method, and the community
 // guides worth sending people to.
@@ -26,8 +25,6 @@ const ARTOFPKM = 'https://www.artofpkm.com/pokemon';
 export default function MichiMethodScreen() {
   const router = useRouter();
   const goBack = () => (router.canGoBack() ? router.back() : router.push('/'));
-  const { width: winW } = useWindowDimensions();
-  const replayW = Math.min(340, winW - 48);
 
   return (
     <ThemedView style={styles.container}>
@@ -60,11 +57,6 @@ export default function MichiMethodScreen() {
             grid: cards, printed art, deliberate negative space, and one image sliced across several
             pockets, arranged into pages that look intentional.
           </ThemedText>
-          {/* The method in one loop, before any of it is explained: one Eevee in the middle, and
-              each fill method laying its eight cards around it. */}
-          <View style={styles.replay}>
-            <EeveeReplay width={replayW} />
-          </View>
 
           {/* Credit — the heart of this page */}
           <ThemedView type="backgroundElement" style={styles.creditCard}>
@@ -102,8 +94,7 @@ export default function MichiMethodScreen() {
 
           {/* Our own how-to, featured above the reading list: it is the one that shows the
               method being built rather than described. */}
-          <ExternalLink href={AUTO_FILL_SHOWCASE} asChild>
-            <Pressable style={({ pressed }) => [pressed && styles.pressed]}>
+          <Pressable onPress={() => router.push('/learn/auto-page-fill' as Href)} style={({ pressed }) => [pressed && styles.pressed]}>
               <ThemedView type="backgroundElement" style={styles.featureCard}>
                 <Image
                   source={{ uri: AUTO_FILL_SHOWCASE_ART }}
@@ -121,12 +112,11 @@ export default function MichiMethodScreen() {
                     walkthrough of all eight fill methods, each shown as the page it produced.
                   </ThemedText>
                   <ThemedText type="linkPrimary" style={styles.featureLink}>
-                    Read the walkthrough →
+                    Watch the methods fill a page →
                   </ThemedText>
                 </View>
               </ThemedView>
             </Pressable>
-          </ExternalLink>
 
           {/* The method, applied to a collection: every layout above is one the curator builds
               from the cards a reader already owns. */}
@@ -212,7 +202,6 @@ const styles = StyleSheet.create({
   featureLink: { fontSize: FontSize.label },
   sectionTitle: { fontSize: FontSize.md, marginBottom: Spacing.three },
   kicker: { fontSize: FontSize.label, letterSpacing: 0.8, color: Palette.accent, marginBottom: Spacing.one },
-  replay: { alignItems: 'center', marginBottom: Spacing.five },
   sectionLede: { lineHeight: 20, marginBottom: Spacing.three, marginTop: -Spacing.one },
   sectionGap: { marginTop: Spacing.five },
   layoutLabel: { fontSize: FontSize.control },

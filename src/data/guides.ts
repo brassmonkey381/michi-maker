@@ -42,7 +42,9 @@ export type DiagramName =
 
 export type GuideFigure =
   | { kind: 'media'; src: string; poster?: string; alt: string }
-  | { kind: 'diagram'; name: DiagramName };
+  | { kind: 'diagram'; name: DiagramName }
+  /** The Eevee loop: seven fill methods laying their cards around one seed (EeveeReplay). */
+  | { kind: 'replay' };
 
 export interface GuideStep {
   title: string;
@@ -241,13 +243,12 @@ export const GUIDE_LIST: Guide[] = [
     title: 'Build a page around one card',
     lede: 'Seed one pocket and let michi-maker finish the page around it.',
     minutes: 3,
-    // The hosted article shows all eight methods as the pages they produced, which is the whole
-    // point of the subject, so the hub card goes there rather than to the steps below.
-    externalHref: AUTO_FILL_SHOWCASE,
+    // The hosted article still shows all eight methods as finished pages; the in-app guide now
+    // opens on the same Eevee with the methods playing out live, so the hub lands here.
     ctaLabel: 'See all eight methods as finished pages',
     ctaHref: AUTO_FILL_SHOWCASE,
     ctaExternal: true,
-    hero: { kind: 'media', src: AUTO_FILL_SHOWCASE_ART, alt: 'Eevee, the card the walkthrough builds its pages around' },
+    hero: { kind: 'replay' },
     steps: [
       {
         title: 'Place the seed',

@@ -1,5 +1,6 @@
 /** One figure from a guide's data: a demo clip or still, or a drawn scene by name. */
 import type { ReactNode } from 'react';
+import { useWindowDimensions } from 'react-native';
 
 import {
   ArrangeDiagram,
@@ -16,6 +17,7 @@ import {
   TrueSizeDiagram,
 } from '@/components/learn/Diagrams';
 import { GuideMedia } from '@/components/learn/GuideMedia';
+import { EeveeReplay } from '@/components/michi/EeveeReplay';
 import type { DiagramName, GuideFigure as GuideFigureData } from '@/data/guides';
 
 // A card illustration the site already hosts, for the slicing scene.
@@ -37,6 +39,8 @@ const DIAGRAMS: Record<DiagramName, () => ReactNode> = {
 };
 
 export function GuideFigure({ figure }: { figure: GuideFigureData }) {
+  const { width } = useWindowDimensions();
   if (figure.kind === 'media') return <GuideMedia src={figure.src} poster={figure.poster} alt={figure.alt} />;
+  if (figure.kind === 'replay') return <EeveeReplay width={Math.min(340, width - 48)} />;
   return <>{DIAGRAMS[figure.name]()}</>;
 }

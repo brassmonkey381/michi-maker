@@ -14,8 +14,11 @@ export const AUTO_FILL_SHOWCASE = 'https://michi-maker.com/auto-fill-methods';
 /** The card that walkthrough builds its pages around (its art, for the feature card). */
 export const AUTO_FILL_SHOWCASE_ART = 'https://michi-maker.com/auto-fill-art/610758.webp';
 
-/** Card art the site hosts, used as each guide's hook on the hub. */
+/** Card art the site hosts. */
 const ART = (id: number) => `https://michi-maker.com/auto-fill-art/${id}.webp`;
+
+/** The hub card's hook: the guide's own subject at the size of a card (see GuideHook). */
+export type GuideHook = { kind: 'art'; src: string } | { kind: 'slice'; src: string } | { kind: 'sheet' } | { kind: 'query' };
 
 /** A drawn scene from src/components/learn/Diagrams.tsx. */
 export type DiagramName =
@@ -53,8 +56,8 @@ export interface Guide {
   slug: string;
   title: string;
   lede: string;
-  /** The hook on the hub card: a piece of card art, the way the feature cards do it. */
-  art: string;
+  /** The hook on the hub card: what the guide is about, drawn small. */
+  hook: GuideHook;
   /** Rough read-and-follow time, shown as a chip on the hub. */
   minutes: number;
   /** The guide's opening picture. */
@@ -83,7 +86,7 @@ export const GUIDE_LIST: Guide[] = [
     slug: 'auto-page-fill',
     title: 'Build a page around one card',
     lede: 'Seed one pocket and let michi-maker finish the page around it.',
-    art: ART(610758),
+    hook: { kind: 'art', src: ART(610758) },
     minutes: 3,
     ctaLabel: 'See all eight methods as finished pages',
     ctaHref: AUTO_FILL_SHOWCASE,
@@ -115,13 +118,13 @@ export const GUIDE_LIST: Guide[] = [
     slug: 'slice-studio',
     title: 'Cut any art into pockets',
     lede: 'One picture becomes pocket-sized pieces you arrange like cards.',
-    art: ART(201981),
+    hook: { kind: 'slice', src: ART(201981) },
     minutes: 5,
     hero: diagram('editor-slice-new'),
     steps: [
       {
         title: 'Open the studio',
-        body: 'In the Artwork dock on the right, press Slice new art. Or tap any pocket and choose Artwork.',
+        body: 'In the Artwork dock on the left, press Slice new art. Or tap any pocket and choose Artwork.',
         figure: diagram('editor-pocket'),
       },
       {
@@ -151,7 +154,7 @@ export const GUIDE_LIST: Guide[] = [
     slug: 'print-binder',
     title: 'Print your binder at true size',
     lede: 'Cut-ready sheets, real card size, so the binder fills in as the cards arrive.',
-    art: ART(264218),
+    hook: { kind: 'sheet' },
     minutes: 5,
     steps: [
       {
@@ -187,7 +190,7 @@ export const GUIDE_LIST: Guide[] = [
     slug: 'search-your-cards',
     title: 'Power-search your cards',
     lede: 'Words, fields, comparisons and sorts, stacked until it is exactly what you want.',
-    art: ART(42402),
+    hook: { kind: 'query' },
     minutes: 3,
     hero: diagram('query-anatomy'),
     ctaLabel: 'Open the interactive cheatsheet',

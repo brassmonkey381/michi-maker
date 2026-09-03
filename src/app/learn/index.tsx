@@ -2,12 +2,12 @@
  * `/learn` — the how-to hub. One card per guide from src/data/guides.ts; adding a guide there
  * adds it here automatically.
  */
-import { Image } from 'expo-image';
 import { useRouter, type Href } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { CurateCallout } from '@/components/CurateCallout';
 import { ExternalLink } from '@/components/external-link';
+import { GuideHook } from '@/components/learn/GuideFigure';
 import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -32,7 +32,7 @@ export default function LearnHubScreen() {
         {GUIDE_LIST.map((g) => {
           const card = (
             <ThemedView type="backgroundElement" style={styles.card}>
-              <Image source={{ uri: g.art }} style={styles.cardArt} contentFit="cover" transition={150} accessibilityLabel="" />
+              <GuideHook hook={g.hook} />
               <View style={styles.cardBody}>
               <View style={styles.cardHead}>
                 <ThemedText type="smallBold" style={styles.cardTitle}>
@@ -95,7 +95,6 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
     ...Shadows.page,
   },
-  cardArt: { width: 72, height: 100, borderRadius: Radius.sm },
   cardBody: { flex: 1, minWidth: 0, gap: Spacing.two },
   cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
   cardTitle: { fontSize: FontSize.md, flexShrink: 1 },

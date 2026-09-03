@@ -109,7 +109,35 @@ export function PocketGrid({
 }
 
 // ---------------------------------------------------------------------------------------------
-/** One picture, cut into pockets: each pocket shows its window of the same image. */
+/** A picture cut into pockets: each pocket shows its own window of the same image. */
+export function CutPicture({ src, rows = 3, cols = 3, width = 180, gap = 5, pad = 8 }: { src: string; rows?: number; cols?: number; width?: number; gap?: number; pad?: number }) {
+  const cw = (width - pad * 2 - gap * (cols - 1)) / cols;
+  const ch = cw * (88 / 63);
+  const imgW = cw * cols + gap * (cols - 1);
+  const imgH = ch * rows + gap * (rows - 1);
+  return (
+    <View style={[styles.mat, { width, height: imgH + pad * 2, padding: pad }]}>
+      {Array.from({ length: rows * cols }).map((_, i) => {
+        const r = Math.floor(i / cols);
+        const c = i % cols;
+        return (
+          <View
+            key={i}
+            style={[styles.pocket, styles.window, { position: 'absolute', left: pad + c * (cw + gap), top: pad + r * (ch + gap), width: cw, height: ch }]}>
+            <Image
+              source={{ uri: src }}
+              contentFit="cover"
+              style={{ position: 'absolute', width: imgW, height: imgH, left: -c * (cw + gap), top: -r * (ch + gap) }}
+              accessibilityLabel=""
+            />
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+/** One picture, then the same picture cut into pockets. */
 export function SliceDiagram({ src, rows = 3, cols = 3, width = 180 }: { src: string; rows?: number; cols?: number; width?: number }) {
   const pad = 8;
   const gap = 5;
@@ -123,27 +151,42 @@ export function SliceDiagram({ src, rows = 3, cols = 3, width = 180 }: { src: st
         <Image source={{ uri: src }} style={StyleSheet.absoluteFill} contentFit="cover" accessibilityLabel="one picture" />
       </View>
       <Text style={styles.arrow}>→</Text>
-      <View style={[styles.mat, { width, height: imgH + pad * 2, padding: pad }]}>
-        {Array.from({ length: rows * cols }).map((_, i) => {
-          const r = Math.floor(i / cols);
-          const c = i % cols;
-          return (
-            <View
-              key={i}
-              style={[styles.pocket, styles.window, { position: 'absolute', left: pad + c * (cw + gap), top: pad + r * (ch + gap), width: cw, height: ch }]}>
-              <Image
-                source={{ uri: src }}
-                contentFit="cover"
-                style={{ position: 'absolute', width: imgW, height: imgH, left: -c * (cw + gap), top: -r * (ch + gap) }}
-                accessibilityLabel=""
-              />
-            </View>
-          );
-        })}
-      </View>
+      <CutPicture src={src} rows={rows} cols={cols} width={width} />
     </View>
   );
 }
+
+// ---------------------------------------------------------------------------------------------
+// HOOKS FOR THE HUB: each guide's subject at the size of a card, so the list of guides reads as
+// four pictures of four different things rather than four cards that happen to be nearby.
+
+/** A picture cut into six pockets, card-sized. */
+export function SliceHook({ src }: { src: string }) {
+  return <CutPicture src={src} rows={3} cols={2} width={HOOK_W} gap={3} pad={5} />;
+}
+
+/** A printed sheet, card-sized: placeholders with their cut lines, one folded art piece. */
+export function SheetHook() {
+  const ph: Cell = { dashed: true, fill: PAPER };
+  return <PocketGrid rows={3} cols={2} width={HOOK_W} cells={[ph, ph, { fill: INK.art, span: [1, 2], fold: true }, null, ph, ph]} />;
+}
+
+/** A search box with a query in it, card-sized. */
+export function QueryHook() {
+  return (
+    <View style={[styles.hookBox, { width: HOOK_W }]}>
+      <View style={styles.hookSearch}>
+        <Text style={styles.searchGlyph}>⌕</Text>
+      </View>
+      <Text style={[styles.hookTerm, termStyle.word]}>arita</Text>
+      <Text style={[styles.hookTerm, termStyle.field]}>type:fire</Text>
+      <Text style={[styles.hookTerm, termStyle.cmp]}>{'hp>=120'}</Text>
+      <Text style={[styles.hookTerm, termStyle.sort]}>sort:value</Text>
+    </View>
+  );
+}
+
+const HOOK_W = 72;
 
 /** Two sideways pockets that open on the same inside edge take one folded piece. */
 export function FoldDiagram() {
@@ -485,4 +528,8 @@ const styles = StyleSheet.create({
   tableRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   code: { fontFamily: 'ui-monospace, monospace', fontSize: 12, color: '#3E3A33', backgroundColor: MAT, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5, minWidth: 150 },
   tableNote: { flex: 1, minWidth: 140 },
+  // Hub hooks.
+  hookBox: { height: 100, borderRadius: 6, backgroundColor: PAPER, borderWidth: 1, borderColor: '#D5CDBD', padding: 5, gap: 4, overflow: 'hidden' },
+  hookSearch: { height: 14, borderRadius: 4, backgroundColor: MAT, justifyContent: 'center', paddingHorizontal: 3, marginBottom: 1 },
+  hookTerm: { fontFamily: 'ui-monospace, monospace', fontSize: 9, paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4, overflow: 'hidden', alignSelf: 'flex-start' },
 });

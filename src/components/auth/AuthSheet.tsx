@@ -133,20 +133,20 @@ function AuthForm({ onClose, isGuest }: { onClose: () => void; isGuest: boolean 
     setInfo(null);
     try {
       if (isGuest) {
-        const r = await auth.linkEmailPassword(email, password);
+        const r = await auth.linkEmailPassword(email, password, uname);
         if (r.error) {
           setError(r.error);
           return;
         }
       } else {
-        const r = await auth.signUpWithPassword(email, password);
+        const r = await auth.signUpWithPassword(email, password, uname);
         if (r.error) {
           setError(r.error);
           return;
         }
         if (r.needsEmailConfirmation) {
-          setInfo(`Check ${email.trim()} to confirm your account. You’ll set @${uname} right after.`);
-          return; // no session yet; the gate claims the username once they confirm + sign in
+          setInfo(`Check ${email.trim()} to confirm your account — @${uname} is set up the moment you do.`);
+          return; // no session yet; the gate claims the name from the account's metadata on first load
         }
       }
       // A session exists now → claim the username, then close (gate re-prompts if it was taken).

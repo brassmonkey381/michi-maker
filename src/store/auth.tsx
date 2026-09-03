@@ -76,13 +76,18 @@ interface AuthStore {
   /** True when anonymous sign-in is unavailable (toggle off) and no one is signed in. */
   anonymousUnavailable: boolean;
 
-  signUpWithPassword: (email: string, password: string) => Promise<AuthResult>;
+  /**
+   * `username` rides along in the account's metadata (`requested_username`): with email
+   * confirmation on there is no session to claim it with until the link is clicked, and this is
+   * what lets the gate claim it silently afterwards instead of asking a second time.
+   */
+  signUpWithPassword: (email: string, password: string, username?: string) => Promise<AuthResult>;
   signInWithPassword: (email: string, password: string) => Promise<AuthResult>;
   sendEmailCode: (email: string) => Promise<AuthResult>;
   verifyEmailCode: (email: string, token: string) => Promise<AuthResult>;
   signInWithOAuth: (provider: OAuthProvider) => Promise<AuthResult>;
   /** Upgrade the current guest to a permanent email/password account (keeps binders). */
-  linkEmailPassword: (email: string, password: string) => Promise<AuthResult>;
+  linkEmailPassword: (email: string, password: string, username?: string) => Promise<AuthResult>;
   /** Upgrade the current guest by linking a Google/Apple identity (keeps binders). */
   linkOAuth: (provider: OAuthProvider) => Promise<AuthResult>;
   /** Start (or restart) an anonymous guest session on demand — used after an explicit sign-out. */
@@ -253,13 +258,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // --- email / password -----------------------------------------------------
 
   const signUpWithPassword = useCallback(
-    async (email: string, password: string): Promise<AuthResult> => {
+    async (email: string, password: string, username?: string): Promise<AuthResult> => {
       if (!supabase) return NOT_CONFIGURED;
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
           emailRedirectTo: authRedirectUrl(),
+          // The name they chose, kept with the account across the confirmation gap. The gate
+          // claims it on the first signed-in load; only if that fails does anyone type it twice.
+          ...(username ? { data: { requested_username: username } } : {}),
         },
       });
       if (error) return { error: msg(error) };
@@ -350,12 +358,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // --- guest → account upgrade (email/password) ----------------------------
 
   const linkEmailPassword = useCallback(
-    async (email: string, password: string): Promise<AuthResult> => {
+    async (email: string, password: string, username?: string): Promise<AuthResult> => {
       if (!supabase) return NOT_CONFIGURED;
       // updateUser on an anonymous user attaches the email/password to the SAME uid, so the
       // guest's binders are preserved. The email must be confirmed before it's usable.
       const { data, error } = await supabase.auth.updateUser(
-        { email: email.trim(), password },
+        { email: email.trim(), password, ...(username ? { data: { requested_username: username } } : {}) },
         { emailRedirectTo: authRedirectUrl() },
       );
       if (error) return { error: msg(error) };

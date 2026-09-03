@@ -5,7 +5,7 @@
  * Usernames are immutable once set (enforced in the DB), so this is shown exactly once per account.
  * Guests and signed-out users never see it. No-op in local mode.
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -18,14 +18,35 @@ import { useAuth } from '@/store/auth';
 const RULE = /^[a-z0-9_]{3,20}$/;
 
 export function UsernameGate() {
-  const { isSignedIn, profile, claimUsername } = useAuth();
+  const { isSignedIn, profile, user, claimUsername } = useAuth();
   const theme = useTheme();
-  const [value, setValue] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
   // Only a real account that has no username yet. (profile null while it loads → don't flash.)
   const needsUsername = isSupabaseConfigured && isSignedIn && !!profile && !profile.username;
+  /**
+   * THE NAME THEY ALREADY CHOSE. Sign-up asked for it; with email confirmation on there was no
+   * session to claim it with, so it rode along in the account's metadata. Claim it here, once,
+   * before showing anything — the sign-up form is the ground truth, and this gate is the fallback
+   * for the cases that genuinely have no name yet (OAuth, a taken name) rather than a second ask.
+   */
+  const requested = (user?.user_metadata as { requested_username?: unknown } | undefined)?.requested_username;
+  const requestedName =
+    typeof requested === 'string' && RULE.test(requested.trim().toLowerCase()) ? requested.trim().toLowerCase() : null;
+  const [value, setValue] = useState(requestedName ?? '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [autoState, setAutoState] = useState<'idle' | 'claiming' | 'failed'>(requestedName ? 'claiming' : 'idle');
+  const tried = useRef(false);
+  useEffect(() => {
+    if (!needsUsername || !requestedName || tried.current) return;
+    tried.current = true;
+    void claimUsername(requestedName).then((r) => {
+      // Success unmounts the gate through the profile; failure hands the name to the field and asks.
+      if (r.error) {
+        setAutoState('failed');
+        setError(r.error);
+      }
+    });
+  }, [needsUsername, requestedName, claimUsername]);
   if (!needsUsername) return null;
 
   const normalized = value.trim().toLowerCase();
@@ -46,13 +67,12 @@ export function UsernameGate() {
       <View style={styles.backdrop}>
         <View style={styles.cardWrap}>
           <ThemedView type="backgroundElement" style={styles.card}>
-            <ThemedText type="subtitle" style={styles.title}>
-              Pick your username
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-              This is your permanent @handle: how other collectors find you. It can’t be changed
-              later, so choose carefully.
-            </ThemedText>
+            <ThemedText type="subtitle" style={styles.title}>{autoState === 'claiming' ? `Setting up @${requestedName}…` : autoState === 'failed' ? 'That username needs a change' : 'Pick your username'}</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>{autoState === 'claiming'
+                ? 'One moment — this is the name you chose when you signed up.'
+                : autoState === 'failed'
+                  ? 'The name you chose at sign-up could not be set. Pick another; it is your permanent @handle.'
+                  : 'This is your permanent @handle: how other collectors find you. It can’t be changed later, so choose carefully.'}</ThemedText>
 
             <View style={[styles.inputRow, { borderColor: theme.backgroundSelected }]}>
               <ThemedText type="smallBold" themeColor="textSecondary" style={styles.at}>

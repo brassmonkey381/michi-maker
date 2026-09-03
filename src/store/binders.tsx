@@ -11,8 +11,9 @@
  * actions onto persistence and nothing else needs to know where binders live.
  *
  * Edits flow through `commit()`, which records an undo/redo history of in-memory snapshots
- * (cheap — the mutators already build new immutable arrays). Undo/redo restore state locally;
- * re-syncing an undo to Supabase is a future follow-up (today CLOUD edits persist forward only).
+ * (cheap — the mutators already build new immutable arrays). Undo/redo restore the snapshot AND
+ * re-sync it: `syncChanged` diffs the two states and persists the difference, so an undone edit is
+ * undone on the server too (this was once forward-only; it is not any more).
  */
 
 import {

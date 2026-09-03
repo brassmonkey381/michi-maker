@@ -1204,6 +1204,19 @@ export function BinderScreen({
     showToast('Duplicated');
   };
 
+  /**
+   * What Delete clears, which is whatever is actually selected.
+   *
+   * It was wired straight to removeSelected, which acts on the SINGLE selected pocket — and
+   * `handleSelectSlot` sets that to null the moment a multi-selection starts. So selecting five
+   * pockets and pressing Delete did nothing at all: the key had no idea the other selection
+   * existed, while the actions sheet beside it did.
+   */
+  const deleteSelection = () => {
+    if (multiIds.size > 0) removeMany();
+    else removeSelected();
+  };
+
   const removeSelected = () => {
     if (!selectedSlot) return;
     store.removeSlot(binder.id, page.id, selectedSlot.id);
@@ -2459,10 +2472,11 @@ export function BinderScreen({
 
         {/* Web keyboard shortcuts (edit mode; disabled while a sheet is open). */}
         <EditorKeyboardShortcuts
-          enabled={editing && !pickerCell && !studio && !confirm}
+          undoable={editing && !studio && !confirm}
+          pocketKeys={!pickerCell}
           onUndo={store.undo}
           onRedo={store.redo}
-          onDelete={removeSelected}
+          onDelete={deleteSelection}
           onPrevPage={() => changePage(idx - 1)}
           onNextPage={() => changePage(idx + 1)}
         />
@@ -2553,19 +2567,33 @@ export function BinderScreen({
 }
 
 /**
- * Installs web keyboard shortcuts for the editor while `enabled`: ⌘/Ctrl+Z undo, ⇧⌘Z / Ctrl+Y
- * redo, Delete/Backspace to clear the selected pocket, ←/→ to change pages. No-op on native and
- * while typing in a field. A component (not an inline effect) so its hook order stays stable.
+ * Installs web keyboard shortcuts for the editor: ⌘/Ctrl+Z undo, ⇧⌘Z / Ctrl+Y redo,
+ * Delete/Backspace to clear the selection, ←/→ to change pages. No-op on native and while typing
+ * in a field. A component (not an inline effect) so its hook order stays stable.
+ *
+ * TWO GATES, NOT ONE. Undo used to be switched off whenever the picker was aimed at a pocket,
+ * which is the state you are in right after clicking an empty pocket and — with keep-adding on —
+ * after every single card you place. Undo was unavailable at exactly the moment you reach for it.
+ * It is safe there: this handler already ignores keys typed into the picker's search field, so
+ * `undoable` only asks that the editor is the thing on screen.
+ *
+ * `pocketKeys` stays narrow. Delete and the page arrows act on the page BEHIND an open picker, so
+ * they keep waiting for it to close: a Delete meant for a search box that clears a pocket instead
+ * is the kind of help nobody asked for.
  */
 function EditorKeyboardShortcuts({
-  enabled,
+  undoable,
+  pocketKeys,
   onUndo,
   onRedo,
   onDelete,
   onPrevPage,
   onNextPage,
 }: {
-  enabled: boolean;
+  /** The editor is up: undo/redo apply. */
+  undoable: boolean;
+  /** Nothing is layered over the page, so keys that act ON the page apply too. */
+  pocketKeys: boolean;
   onUndo: () => void;
   onRedo: () => void;
   onDelete: () => void;
@@ -2573,7 +2601,7 @@ function EditorKeyboardShortcuts({
   onNextPage: () => void;
 }) {
   useEffect(() => {
-    if (Platform.OS !== 'web' || !enabled || typeof window === 'undefined') return;
+    if (Platform.OS !== 'web' || !undoable || typeof window === 'undefined') return;
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName;
@@ -2587,7 +2615,12 @@ function EditorKeyboardShortcuts({
       } else if (meta && key === 'y') {
         e.preventDefault();
         onRedo();
+      } else if (!pocketKeys) {
+        // Everything below acts on the page itself, which something is currently sitting over.
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        // Backspace is browser Back on a page with nothing focused, which would leave the editor
+        // entirely on a keystroke meant to clear one pocket.
+        e.preventDefault();
         onDelete();
       } else if (e.key === 'ArrowLeft') {
         onPrevPage();
@@ -2597,7 +2630,7 @@ function EditorKeyboardShortcuts({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [enabled, onUndo, onRedo, onDelete, onPrevPage, onNextPage]);
+  }, [undoable, pocketKeys, onUndo, onRedo, onDelete, onPrevPage, onNextPage]);
   return null;
 }
 

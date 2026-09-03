@@ -120,12 +120,19 @@ export function CoverDecorationLayer({
         onSelect(null);
         return;
       }
+      // LOCKED IS CHECKED BEFORE DELETE, not after. "A locked decoration selects and nothing else"
+      // is this file's contract (see the header), and it held for dragging, resizing and nudging —
+      // but Delete returned above the guard, so the one irreversible action was the one thing a
+      // lock did not stop. Escape stays above it: letting go of a locked layer is not a change.
+      //
+      // The tray's ✕ still removes a locked layer, deliberately: it sits beside the padlock that
+      // would unlock it, so it reads as a decision rather than a slip of the keyboard.
+      if (d.locked) return;
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
         onRemove(d.id);
         return;
       }
-      if (d.locked) return;
       const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
       const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
       if (!dx && !dy) return;

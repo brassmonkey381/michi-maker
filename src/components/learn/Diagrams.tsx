@@ -168,7 +168,7 @@ export function SliceHook({ src }: { src: string }) {
 /** A printed sheet, card-sized: placeholders with their cut lines, one folded art piece. */
 export function SheetHook() {
   const ph: Cell = { dashed: true, fill: PAPER };
-  return <PocketGrid rows={3} cols={2} width={HOOK_W} cells={[ph, ph, { fill: INK.art, span: [1, 2], fold: true }, null, ph, ph]} />;
+  return <PocketGrid rows={3} cols={2} width={HOOK_W} cells={[ph, ph, { fill: INK.art, span: [1, 2] }, null, ph, ph]} />;
 }
 
 /** A search box with a query in it, card-sized. */
@@ -330,19 +330,19 @@ export function PaperDiagram() {
 
 /**
  * THE PRINTED SHEET, as one 3×3 page comes off the printer: placeholders carrying their address,
- * and two sideways art pieces, each one printed piece that folds into two pockets. The art is
- * bare — the address is printed on the placeholders, never on the picture.
+ * and two sideways art pieces, each one printed piece for two pockets. The art is bare — no
+ * address, no lines; those are printed on the placeholders, never on the picture.
  */
 function printedSheet(swapIn?: { index: number; fill: string }): Cell[] {
   const ph = (label: string): Cell => ({ label, dashed: true, fill: PAPER });
   const cells: Cell[] = [
     ph('p3 · r1 c1'),
-    { fill: INK.art, span: [1, 2], fold: true },
+    { fill: INK.art, span: [1, 2] },
     null,
     ph('p3 · r2 c1'),
     ph('p3 · r2 c2'),
     ph('p3 · r2 c3'),
-    { fill: INK.violet, span: [1, 2], fold: true },
+    { fill: INK.violet, span: [1, 2] },
     null,
     ph('p3 · r3 c3'),
   ];

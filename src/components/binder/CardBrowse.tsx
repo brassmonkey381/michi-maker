@@ -153,7 +153,10 @@ export function CardBrowse({
         onLockedFeature={(f) => {
           if (f === 'colorSearch') setEnergyOpen(true);
           else if (f === 'findSimilar' && onSimilarLocked) onSimilarLocked();
-          else if (f === 'themeSearch' && onThemeLocked) onThemeLocked();
+          // A locked theme never navigates by itself: the surfaces that can, toast; the kit's own
+          // notice under the search box is tappable and leads to plans. Being sent to the plans
+          // page for opening a picker with an old query still in the box was the alternative.
+          else if (f === 'themeSearch') onThemeLocked?.();
           else router.push('/plans' as Href);
         }}
         // The Theme Search button: the forest demonstration, for everyone, ungated (see themeDemo).

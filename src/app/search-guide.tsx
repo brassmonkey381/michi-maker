@@ -11,9 +11,9 @@
 import { useRouter } from 'expo-router';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { QUERY_MANUAL, parseQuery, searchCards, sendBrowseCommand } from 'tcgscan-browse';
+import { QUERY_MANUAL, sendBrowseCommand } from 'tcgscan-browse';
 
-import { track } from '@/lib/analytics';
+import { FREE_THEME_QUERY, runThemeDemo } from '@/data/themeDemo';
 
 import { HoverLift } from '@/components/landing/HoverLift';
 import { ThemedText } from '@/components/themed-text';
@@ -29,9 +29,6 @@ import { Fonts, FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight 
  * the page and gets an empty grid learns that search is broken, not that it is powerful. Every
  * recipe above them works against the whole catalog and returns something for everyone.
  */
-/** The one theme query given away. Forest is among the three largest captioned scenes (2026-09-03). */
-const FREE_THEME_QUERY = 'theme:forest';
-
 const RECIPES: { title: string; query: string; blurb: string; pro?: boolean; taste?: boolean }[] = [
   // The crowd-pleasers first: what people actually come to look at. Each works against the whole
   // catalog, so a first visit gets something gorgeous before it learns a single field.
@@ -117,24 +114,10 @@ const INFO_ROWS: [code: string, desc: string][] = QUERY_MANUAL.flatMap((s) =>
 
 export default function SearchGuideScreen() {
   const router = useRouter();
-  // THE TASTE, without touching the lock: run the forest query against the server here (the same
-  // cold search the browser uses for guests), and send the browser the finished id list as a
-  // showCards command. The browser never runs a theme: query for this account, so its lock on
-  // theme search — and the plans page behind it — applies to every other theme unchanged.
-  const tryFreeTheme = async () => {
-    track('demo.theme_search', { surface: 'cheatsheet' });
-    const page = await searchCards(parseQuery(FREE_THEME_QUERY), { limit: 200 });
-    if (page.cards.length === 0) {
-      // Server search unavailable: fall through to the ordinary (gated) path rather than a blank.
-      sendBrowseCommand({ type: 'search', query: FREE_THEME_QUERY });
-    } else {
-      sendBrowseCommand({ type: 'showCards', ids: page.cards.map((c) => c.id), label: 'Forest scenes · theme:forest' });
-    }
-    router.push('/browse');
-  };
   const tryIt = (query: string) => {
     if (query === FREE_THEME_QUERY) {
-      void tryFreeTheme();
+      // The demonstration, shared with the browser's Theme Search button (see themeDemo).
+      void runThemeDemo('cheatsheet').then(() => router.push('/browse'));
       return;
     }
     sendBrowseCommand({ type: 'search', query });

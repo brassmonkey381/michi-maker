@@ -17,6 +17,7 @@ import { Platform } from 'react-native';
 import { CatalogBrowser, sendBrowseCommand, type BrowseFeature, type CardAction, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
 
 import { ColorSearchSheet } from '@/components/ColorSearchSheet';
+import { runThemeDemo } from '@/data/themeDemo';
 import { EnergyColorSheet } from '@/components/EnergyColorSheet';
 import { hasThemeSearch as tierHasThemeSearch } from '@/data/tiers';
 import { useTier } from '@/hooks/use-tier';
@@ -50,6 +51,7 @@ export function CardBrowse({
   languages,
   ownedIds,
   onSimilarLocked,
+  onThemeLocked,
 }: {
   /** Null while the catalog is still loading — CatalogBrowser then runs cold (server search). */
   catalog: Catalog | null;
@@ -81,6 +83,8 @@ export function CardBrowse({
    *  own a cap gate, so the refusal is the same dialog every other wall shows (named, once a day,
    *  with the trial); without it the fallback is the plans page, which is honest but colder. */
   onSimilarLocked?: () => void;
+  /** A free or guest account typed a theme: / art: query the lock stripped. Show the offer. */
+  onThemeLocked?: () => void;
 }) {
   // App tokens → the kit's color contract, so the browser follows light/dark + variant
   // instead of falling back to the kit's built-in light look.
@@ -149,8 +153,11 @@ export function CardBrowse({
         onLockedFeature={(f) => {
           if (f === 'colorSearch') setEnergyOpen(true);
           else if (f === 'findSimilar' && onSimilarLocked) onSimilarLocked();
+          else if (f === 'themeSearch' && onThemeLocked) onThemeLocked();
           else router.push('/plans' as Href);
         }}
+        // The Theme Search button: the forest demonstration, for everyone, ungated (see themeDemo).
+        onThemeSearch={() => void runThemeDemo('browser')}
         onColorSearch={() => (isPaid ? setColorOpen(true) : setEnergyOpen(true))}
         footer={null}
         cardTileWidth={CARD_BROWSE_TILE_WIDTH}

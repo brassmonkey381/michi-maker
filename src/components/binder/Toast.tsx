@@ -22,6 +22,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 
 import { AuthSheet } from '@/components/auth/AuthSheet';
+import { TopLayer } from '@/components/binder/TopLayer';
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import type { LimitCta } from '@/data/limitMessages';
@@ -71,82 +72,91 @@ export function Toast({ spec, onDismiss }: { spec: ToastSpec | null; onDismiss: 
 
   return (
     <>
+      {/* ON A LAYER ABOVE EVERY MODAL. A cap message explains why the thing you just tried did
+          not happen, so it must not be the thing that gets covered — and it was: the multi-select
+          sheet, the confirm dialog and the docked picker are all modals, which react-native-web
+          portals out of the app entirely, over anything still inside it (see TopLayer). The
+          AuthSheet below stays put; it is a modal itself and belongs on the app's own layer. */}
       {spec && tone === 'limit' ? (
-        <View pointerEvents="box-none" style={styles.wrap}>
-          <View style={styles.card}>
-            {/* The dismiss sits OUTSIDE the flow rather than beside the message: in a row it
-                stole width from one side only, so a centred message was centred against the
-                text's box and visibly off-centre in the card. */}
-            <Pressable
-              onPress={onDismiss}
-              hitSlop={10}
-              accessibilityLabel="Dismiss"
-              style={styles.close}>
-              <ThemedText type="small" style={styles.closeGlyph}>
-                ✕
-              </ThemedText>
-            </Pressable>
-            <ThemedText type="default" style={styles.cardMessage} numberOfLines={3}>
-              {spec.message}
-            </ThemedText>
-            {spec.cta ? (
+        <TopLayer>
+          <View pointerEvents="box-none" style={styles.wrap}>
+            <View style={styles.card}>
+              {/* The dismiss sits OUTSIDE the flow rather than beside the message: in a row it
+                  stole width from one side only, so a centred message was centred against the
+                  text's box and visibly off-centre in the card. */}
               <Pressable
-                onPress={() => runCta(spec.cta!)}
-                style={({ pressed }) => [styles.ctaBtn, pressed && styles.dim]}>
-                <ThemedText type="smallBold" style={styles.ctaText}>
-                  {spec.cta.label}
+                onPress={onDismiss}
+                hitSlop={10}
+                accessibilityLabel="Dismiss"
+                style={styles.close}>
+                <ThemedText type="small" style={styles.closeGlyph}>
+                  ✕
                 </ThemedText>
               </Pressable>
-            ) : null}
+              <ThemedText type="default" style={styles.cardMessage} numberOfLines={3}>
+                {spec.message}
+              </ThemedText>
+              {spec.cta ? (
+                <Pressable
+                  onPress={() => runCta(spec.cta!)}
+                  style={({ pressed }) => [styles.ctaBtn, pressed && styles.dim]}>
+                  <ThemedText type="smallBold" style={styles.ctaText}>
+                    {spec.cta.label}
+                  </ThemedText>
+                </Pressable>
+              ) : null}
+            </View>
           </View>
-        </View>
+        </TopLayer>
       ) : null}
 
       {spec && tone !== 'limit' ? (
-        <View pointerEvents="box-none" style={styles.wrap}>
-          <View style={styles.toast}>
-            {/* Three lines, not two: the catalogue-art notes ride the END of already-long
-                messages (binder titles are uncapped), and a two-line clamp ate exactly the new
-                information on narrow screens. */}
-            <ThemedText type="small" style={styles.message} numberOfLines={3}>
-              {/* Split around the linked word so the rest of the sentence stays plain text — one
-                  Text, so it wraps as a sentence rather than as three boxes in a row. */}
-              {(() => {
-                const link = spec.link;
-                const at = link ? spec.message.indexOf(link.text) : -1;
-                if (!link || at < 0) return spec.message;
-                return (
-                  <>
-                    {spec.message.slice(0, at)}
-                    <ThemedText
-                      type="smallBold"
-                      style={styles.link}
-                      accessibilityRole="link"
-                      onPress={() => {
-                        link.onPress();
-                        onDismiss();
-                      }}>
-                      {link.text}
-                    </ThemedText>
-                    {spec.message.slice(at + link.text.length)}
-                  </>
-                );
-              })()}
-            </ThemedText>
-            {spec.actionLabel && spec.onAction ? (
-              <Pressable
-                onPress={() => {
-                  spec.onAction?.();
-                  onDismiss();
-                }}
-                hitSlop={8}>
-                <ThemedText type="smallBold" style={styles.action}>
-                  {spec.actionLabel}
-                </ThemedText>
-              </Pressable>
-            ) : null}
+        <TopLayer>
+          <View pointerEvents="box-none" style={styles.wrap}>
+            <View style={styles.toast}>
+              {/* Three lines, not two: the catalogue-art notes ride the END of already-long
+                  messages (binder titles are uncapped), and a two-line clamp ate exactly the new
+                  information on narrow screens. */}
+              <ThemedText type="small" style={styles.message} numberOfLines={3}>
+                {/* Split around the linked word so the rest of the sentence stays plain text — one
+                    Text, so it wraps as a sentence rather than as three boxes in a row. */}
+                {(() => {
+                  const link = spec.link;
+                  const at = link ? spec.message.indexOf(link.text) : -1;
+                  if (!link || at < 0) return spec.message;
+                  return (
+                    <>
+                      {spec.message.slice(0, at)}
+                      <ThemedText
+                        type="smallBold"
+                        style={styles.link}
+                        accessibilityRole="link"
+                        onPress={() => {
+                          link.onPress();
+                          onDismiss();
+                        }}>
+                        {link.text}
+                      </ThemedText>
+                      {spec.message.slice(at + link.text.length)}
+                    </>
+                  );
+                })()}
+              </ThemedText>
+              {spec.actionLabel && spec.onAction ? (
+                <Pressable
+                  onPress={() => {
+                    spec.onAction?.();
+                    onDismiss();
+                  }}
+                  hitSlop={8}>
+                  <ThemedText type="smallBold" style={styles.action}>
+                    {spec.actionLabel}
+                  </ThemedText>
+                </Pressable>
+              ) : null}
+            </View>
           </View>
-        </View>
+        </TopLayer>
       ) : null}
 
       {/* Mounted only while open: the toast that launched it is already gone by then, and an

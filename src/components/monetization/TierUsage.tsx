@@ -357,8 +357,14 @@ export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }
             </ThemedText>
           ) : null}
 
+          {/* SAID PER TIER, because it stopped being true for everyone. This line read "your
+              plan includes similarity matching and every composer method" on the free plan too,
+              which since 2026-09-01 promises a free account two things it does not have: Find
+              similar, and the "≈ More like this" fill it powers. */}
           <ThemedText type="small" themeColor="textSecondary" style={styles.included}>
-            Your plan includes similarity matching and every composer method
+            {tier === 'pro' || tier === 'vip'
+              ? 'Your plan includes Find similar and every composer method'
+              : 'Your plan includes the full card catalog and the core composer methods'}
             {caps.includedPrintsPerMonth > 0 && Number.isFinite(caps.includedPrintsPerMonth)
               ? `, plus ${caps.includedPrintsPerMonth} full-binder print${caps.includedPrintsPerMonth === 1 ? '' : 's'} a month`
               : ''}

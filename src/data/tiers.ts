@@ -126,6 +126,24 @@ export interface TierLimits {
    */
   findSimilar: boolean;
   /**
+   * ARTWORK THEME SEARCH (PRO and above) — the `theme:` field (aliases `art:`, `scene:`), which
+   * searches what a vision model saw in the card ARTWORK rather than anything printed on it:
+   * `theme:underwater`, `theme:sunset`, `theme:crowd`.
+   *
+   * Sold apart from `advancedSearch` because it is a different promise. That one is power tools
+   * over data the browser already shows you; this is data that did not exist until the pipeline
+   * generated it, and for a binder-building app it is the search that finds a THEME for a page —
+   * which is the thing this product is for.
+   *
+   * Coverage is the Illustration Rares (728 printings today), the cards whose art IS the card.
+   * VIP matches PRO for now; a better-model recaption is what would eventually split them, and
+   * two flags before there are two qualities to sell would just be a lie on the plans page.
+   *
+   * Boolean, so like `fullPrint` and `advancedSearch` it is NOT mirrored in the `tier_caps` table
+   * (that guard covers numeric caps only — see scripts/check-tier-caps.mjs).
+   */
+  themeSearch: boolean;
+  /**
    * "Pages around this card" (VIP) — the composer runs EVERY method a seed supports at once,
    * previews each as a finished page, and appends the ones you keep as new pages.
    *
@@ -167,6 +185,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     fullPrint: false,
     advancedSearch: false,
     findSimilar: false,
+    themeSearch: false,
     multiPageCompose: false,
     includedPrintsPerMonth: 0,
   },
@@ -179,6 +198,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     fullPrint: false,
     advancedSearch: false,
     findSimilar: false,
+    themeSearch: false,
     multiPageCompose: false,
     includedPrintsPerMonth: 0,
   },
@@ -191,6 +211,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     fullPrint: true,
     advancedSearch: true,
     findSimilar: true,
+    themeSearch: true,
     multiPageCompose: false,
     includedPrintsPerMonth: 1,
   },
@@ -204,6 +225,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     fullPrint: true,
     advancedSearch: true,
     findSimilar: true,
+    themeSearch: true,
     multiPageCompose: true,
     includedPrintsPerMonth: 3,
   },
@@ -232,6 +254,7 @@ const UNLIMITED: TierLimits = {
   fullPrint: false, // print eligibility is decided by tier/entitlement, not by this switch
   advancedSearch: false, // likewise: a paid capability, not a cap the dev switch should hand out
   findSimilar: false, // likewise — PRO's similarity search, not something LIMITS_ENFORCED=0 grants
+  themeSearch: false, // likewise — PRO's artwork search, not something LIMITS_ENFORCED=0 grants
   multiPageCompose: false, // likewise — VIP's upgraded composer, not something LIMITS_ENFORCED=0 grants
   includedPrintsPerMonth: Infinity,
 };
@@ -359,6 +382,16 @@ export function hasAdvancedSearch(tier: Tier): boolean {
  */
 export function hasFindSimilar(tier: Tier): boolean {
   return TIER_LIMITS[tier].findSimilar;
+}
+
+/**
+ * Does this tier get artwork theme search? (PRO and above — see TierLimits.themeSearch.)
+ *
+ * Reads TIER_LIMITS directly rather than limitsForTier: a paid capability is not something the
+ * LIMITS_ENFORCED dev switch should hand out, same as advancedSearch and findSimilar.
+ */
+export function hasThemeSearch(tier: Tier): boolean {
+  return TIER_LIMITS[tier].themeSearch;
 }
 
 /** The active limits for a tier — permissive (all unlimited) while LIMITS_ENFORCED is off. */

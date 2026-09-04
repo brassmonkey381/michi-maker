@@ -19,7 +19,7 @@ import { useTier } from '@/hooks/use-tier';
 const FEATURES: Record<'pro' | 'vip', string[]> = {
   pro: [
     '12 binders, 40 pages each',
-    'Full card catalog, similarity matching and every composer method',
+    'Full card catalog, Find similar, and every composer method',
     '1,000 Slice Studio artworks kept',
     'Fill-sheet PDFs with 1 included print a month, 12 a year on yearly billing',
     'Move up to VIP any time, prorated',
@@ -27,7 +27,7 @@ const FEATURES: Record<'pro' | 'vip', string[]> = {
   vip: [
     'Unlimited binders and pages',
     'Unlimited Slice Studio artworks',
-    'Similarity matching and every composer method',
+    'Find similar and every composer method',
     'Fill-sheet PDFs with 3 included prints a month, 36 a year on yearly billing',
     'First in line for print extras, plus a featured eligibility boost',
   ],

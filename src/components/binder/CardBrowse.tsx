@@ -19,6 +19,7 @@ import { CatalogBrowser, sendBrowseCommand, type BrowseFeature, type CardAction,
 import { ColorSearchSheet } from '@/components/ColorSearchSheet';
 import { FREE_THEME_SAMPLE, releaseFreeThemeSample, useFreeThemeSample } from '@/data/themeSample';
 import { EnergyColorSheet } from '@/components/EnergyColorSheet';
+import { hasThemeSearch as tierHasThemeSearch } from '@/data/tiers';
 import { useTier } from '@/hooks/use-tier';
 import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { useBrowseTheme } from '@/lib/browseTheme';
@@ -93,9 +94,11 @@ export function CardBrowse({
   // energy-type search instead (with an upsell to tri-color). The gate is host-side — the kit stays
   // tier-agnostic and just fires onColorSearch; we branch on the tier here. This single site covers
   // both kit entry points (the Tri-Color button + the Color facet chip) on every surface.
-  const { isPaid, hasAdvancedSearch, hasFindSimilar, loading: tierUnknown } = useTier();
-  // Theme search is PRO and above: a paid tier, the same line the other paid features draw.
-  const hasThemeSearch = isPaid;
+  const { tier, isPaid, hasAdvancedSearch, hasFindSimilar, loading: tierUnknown } = useTier();
+  // Straight from tiers.ts rather than adding another boolean to useTier: this needs nothing from
+  // the hook beyond the tier it already returns, and the two beside it are only there because
+  // they predate that.
+  const hasThemeSearch = tierHasThemeSearch(tier);
   const [colorOpen, setColorOpen] = useState(false);
   const [energyOpen, setEnergyOpen] = useState(false);
   const router = useRouter();

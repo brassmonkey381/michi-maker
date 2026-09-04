@@ -1,7 +1,9 @@
 import { useHoverSuspended } from '@/components/binder/hoverGate';
 import { Image } from 'expo-image';
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, type DimensionValue, type ViewProps } from 'react-native';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
+import { useRouter } from 'expo-router';
+import { Linking, Pressable, StyleSheet, Text, View, type DimensionValue, type StyleProp, type ViewProps, type ViewStyle } from 'react-native';
+import { productUrl, sendBrowseCommand } from 'tcgscan-browse';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -19,6 +21,7 @@ import { UNSET_CHIP, chipFor } from '@/constants/printVariant';
 import { attributionLabel, deriveAttribution, type ArtAttribution } from '@/data/artworkLibrary';
 import { resolveCardWith, resolveCatalogCardWith } from '@/data/cardResolver';
 import { CAPTION_FIELDS, formatCaption, hasTextCaption, type CaptionFieldKey } from '@/data/cardCaption';
+import { labelIsProductLink, labelQuery, type LinkableCard } from '@/data/labelLinks';
 import { occupiedCells, type DemoCard, type DemoPage, type DemoSlot } from '@/data/binderTypes';
 import {
   ART_ROLE_GUIDE,
@@ -306,6 +309,25 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   const theme = useTheme();
   const captionOn = hasTextCaption(captionFields);
   // The catalog load is likewise only forced by fields that actually read card metadata.
+  // LABELS ARE LINKS WHEN YOU ARE READING. The price opens the card's TCGplayer page (through
+  // the affiliate deep link); every other label runs the browse search that filters to it — this
+  // artist, this set, this series, this rarity. Never while editing: a label that took the tap
+  // would make the card under it immovable. See labelLinks.ts for the queries.
+  const router = useRouter();
+  const openLabel = useCallback(
+    (key: CaptionFieldKey, card: LinkableCard) => {
+      if (labelIsProductLink(key)) {
+        void Linking.openURL(productUrl(card.id)).catch(() => {});
+        return;
+      }
+      const query = labelQuery(key, card);
+      if (!query) return;
+      sendBrowseCommand({ type: 'search', query });
+      router.push('/browse');
+    },
+    [router],
+  );
+  const onLabel: LabelPress | undefined = editable ? undefined : openLabel;
   const finishOn = captionFields.includes('finish');
   const { catalog } = useCatalog(captionOn);
   // The price caption reads from a separate per-card summary (~2.7MB) — load it only when the
@@ -575,6 +597,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               label={label}
               price={slot.cardId ? priceFor(priceSummary, slot.cardId, variantOf?.(slot)) : undefined}
             chipScale={chipScale}
+            onLabel={onLabel}
             />
           );
           if (!editable) {
@@ -692,6 +715,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
                 width={b.width}
                 height={captionH}
                 small={small}
+                onLabel={onLabel}
               />
             );
           })}
@@ -994,7 +1018,7 @@ interface DraggableSlotProps {
   onDropSlot?: (slotId: string, toRow: number, toCol: number) => void;
   onCrossDrop?: (slotId: string, absoluteX: number, absoluteY: number) => void;
   onDragStart?: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 function DraggableSlot({
@@ -1287,9 +1311,12 @@ function SlotContent({
   chipScale = 1,
   instantImages = false,
   label,
+  onLabel,
 }: {
   /** Chip fill + text from the live appearance (see labelColors). */
   label: { bg: string; text: string };
+  /** When set, the on-card labels are links (see the grid's openLabel). */
+  onLabel?: LabelPress;
   /** Draw images with no fade-in (a decorative copy — see BinderGrid.instantImages). */
   instantImages?: boolean;
   slot: DemoSlot;
@@ -1408,11 +1435,15 @@ function SlotContent({
           small={small}
           scale={chipScale}
           label={label}
+          onLabel={onLabel}
         />
       </View>
     </View>
   );
 }
+
+/** A tapped label: which field, on which card. */
+type LabelPress = (key: CaptionFieldKey, card: LinkableCard) => void;
 
 /**
  * THE LABELS DRAWN ON THE CARD ITSELF — the printing's codes along the bottom edge, the artist on
@@ -1427,6 +1458,35 @@ function SlotContent({
  * any colour at all — a fill chosen to look good over a white Pikachu is unreadable over a black
  * Umbreon. The scrim is the only treatment that holds over all of them.
  */
+/**
+ * A chip, or the same chip as a link: the pressable wraps it so nothing about the layout changes
+ * between reading and editing — only whether a tap does something.
+ */
+function LabelChip({
+  onLabel,
+  card,
+  field,
+  style,
+  children,
+}: {
+  onLabel?: LabelPress;
+  card: LinkableCard;
+  field: CaptionFieldKey;
+  style: StyleProp<ViewStyle>;
+  children: ReactNode;
+}) {
+  if (!onLabel) return <View style={style}>{children}</View>;
+  return (
+    <Pressable
+      onPress={() => onLabel(field, card)}
+      accessibilityRole="link"
+      hitSlop={4}
+      style={({ pressed }) => [style, pressed && styles.chipPressed]}>
+      {children}
+    </Pressable>
+  );
+}
+
 function CardLabels({
   card,
   kind,
@@ -1435,7 +1495,9 @@ function CardLabels({
   small,
   scale = 1,
   label,
+  onLabel,
 }: {
+  onLabel?: LabelPress;
   card: CatalogCard | undefined;
   /** Drawn as the row's leading chip so it is not a second thing claiming the bottom-left. */
   kind?: DemoCard['kind'];
@@ -1503,28 +1565,28 @@ function CardLabels({
   );
 
   return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+    <View pointerEvents={onLabel ? 'box-none' : 'none'} style={StyleSheet.absoluteFill}>
       {artist ? (
-        <View style={[styles.overlayRow, { bottom: bottomOf('artist') }]}>
+        <View pointerEvents="box-none" style={[styles.overlayRow, { bottom: bottomOf('artist') }]}>
           {/* On its own pill rather than bare text with a shadow: a scrim is the only thing that
               stays readable over art that might be white, black or gold. */}
-          <View style={[styles.onCardChip, styles.wordyChip, { backgroundColor: label.bg }]}>
+          <LabelChip onLabel={onLabel} card={card} field="artist" style={[styles.onCardChip, styles.wordyChip, { backgroundColor: label.bg }]}>
             <Text numberOfLines={1} style={[styles.badgeText, { color: label.text }]}>
               {artist}
             </Text>
-          </View>
+          </LabelChip>
         </View>
       ) : null}
       {/* THE SET GETS A WHOLE LINE. Its name is the only label with no bound on its length, and
           every attempt to squeeze it in beside something else either clipped it to an empty pill
           or crowded the illustrator. A set is called Vivid Voltage, so it says Vivid Voltage. */}
       {setName ? (
-        <View style={[styles.overlayRow, { bottom: bottomOf('set') }]}>
-          <View style={[styles.onCardChip, styles.wordyChip, { backgroundColor: label.bg }]}>
+        <View pointerEvents="box-none" style={[styles.overlayRow, { bottom: bottomOf('set') }]}>
+          <LabelChip onLabel={onLabel} card={card} field="set" style={[styles.onCardChip, styles.wordyChip, { backgroundColor: label.bg }]}>
             <Text numberOfLines={1} style={[styles.badgeText, { color: label.text }]}>
               {setName}
             </Text>
-          </View>
+          </LabelChip>
         </View>
       ) : null}
       {/* ONE ROW, TWO ENDS. Centring the codes and pinning the price to the corner put both on the
@@ -1534,8 +1596,8 @@ function CardLabels({
           of arithmetic hoping they will be. The kind badge joins the codes as a leading chip when
           the row is up, so it is not a third thing quietly occupying the same corner. */}
       {bottom.length > 0 ? (
-        <View style={[styles.bottomRow, { bottom: bottomOf('codes') }]}>
-          <View style={styles.bottomCodes}>
+        <View pointerEvents="box-none" style={[styles.bottomRow, { bottom: bottomOf('codes') }]}>
+          <View pointerEvents="box-none" style={styles.bottomCodes}>
             {/* kindLabel, not kind: `kind` is 'normal' on most cards, and a truthy value with no
                 label to show renders as an empty pill sitting on the art. */}
             {kindLabel(kind) && bottom.length > 0 ? (
@@ -1549,13 +1611,16 @@ function CardLabels({
                 three-digit number — so nothing here needs to shrink. The one label whose length
                 nobody controls moved up to the artist's row, which has the width for it. */}
             {bottom.map((b) => (
-              <View
+              <LabelChip
                 key={b.key}
+                onLabel={onLabel}
+                card={card}
+                field={b.key}
                 style={[styles.onCardChip, b.key === 'number' && styles.numberChip, { backgroundColor: label.bg }]}>
                 <Text numberOfLines={1} style={[styles.badgeText, { color: label.text }]}>
                   {b.value}
                 </Text>
-              </View>
+              </LabelChip>
             ))}
           </View>
           {/* The price is FILLED, not tinted. It is the one label people are looking for, and at
@@ -1569,10 +1634,13 @@ function CardLabels({
           filled accent hid whatever art was under it, and the price is worth reading, not worth
           covering a card for. */}
       {corner.length > 0 ? (
-        <View style={[styles.priceColumn, { bottom: CHIP_INSET, right: CHIP_INSET }]}>
+        <View pointerEvents="box-none" style={[styles.priceColumn, { bottom: CHIP_INSET, right: CHIP_INSET }]}>
           {corner.map((c) => (
-            <View
+            <LabelChip
               key={c.value}
+              onLabel={onLabel}
+              card={card}
+              field="price"
               style={[
                 styles.onCardChip,
                 {
@@ -1595,7 +1663,7 @@ function CardLabels({
                 ]}>
                 {c.value}
               </Text>
-            </View>
+            </LabelChip>
           ))}
         </View>
       ) : null}
@@ -1639,6 +1707,7 @@ function SlotCaption({
   width,
   height,
   small,
+  onLabel,
 }: {
   cardId: string;
   catalog: Catalog | null;
@@ -1649,15 +1718,32 @@ function SlotCaption({
   width: number;
   height: number;
   small: boolean;
+  onLabel?: LabelPress;
 }) {
   const card = resolveCatalogCardWith(catalog, cardId);
   const text = card ? formatCaption(card, fields, { price }) : '';
-  if (!text) return null;
+  if (!text || !card) return null;
+  // Reading: each fact in the strip is its own link, joined the way formatCaption joins them.
+  const on = new Set(fields);
+  const parts = onLabel
+    ? CAPTION_FIELDS.filter((f) => !f.chipOnly && on.has(f.key))
+        .map((f) => ({ key: f.key, value: f.get(card, { price }).trim() }))
+        .filter((x) => x.value.length > 0)
+    : null;
   return (
-    <View pointerEvents="none" style={[styles.caption, { left, top, width, height }]}>
+    <View pointerEvents={onLabel ? 'box-none' : 'none'} style={[styles.caption, { left, top, width, height }]}>
       <View style={styles.captionPill}>
         <Text numberOfLines={2} style={[styles.captionText, small && styles.captionTextSmall]}>
-          {text}
+          {parts
+            ? parts.map((x, i) => (
+                <Text key={x.key}>
+                  {i > 0 ? ' * ' : ''}
+                  <Text onPress={() => onLabel?.(x.key, card)} accessibilityRole="link" style={styles.captionLink}>
+                    {x.value}
+                  </Text>
+                </Text>
+              ))
+            : text}
         </Text>
       </View>
     </View>
@@ -2039,6 +2125,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: Palette.skeletonFill,
   },
+  chipPressed: { opacity: 0.6 },
+  captionLink: { textDecorationLine: 'underline' },
   caption: {
     position: 'absolute',
     alignItems: 'center',

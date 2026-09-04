@@ -210,6 +210,12 @@ export const COMPARISON: CompareRow[] = [
     vip: { text: 'Unlimited', strong: true },
   },
   {
+    capability: 'Binder covers',
+    free: { text: 'No' },
+    pro: { text: '✓', strong: true, sub: 'dress it, decorate all four surfaces' },
+    vip: { text: '✓', strong: true, sub: 'dress it, decorate all four surfaces' },
+  },
+  {
     capability: 'Cards you can showcase',
     free: { text: 'Over 750!' },
     pro: { text: 'Over 7,500!', strong: true },

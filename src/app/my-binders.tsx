@@ -29,7 +29,7 @@ import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
 import { similarityWall } from '@/data/similarityGate';
-import { hasFindSimilar } from '@/data/tiers';
+import { hasBinderCovers, hasFindSimilar } from '@/data/tiers';
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { MyCollection } from '@/components/MyCollection';
 import { HomeSection } from '@/components/HomeSection';
@@ -217,8 +217,10 @@ export default function MyBindersScreen() {
     setMenuId(null);
   };
   const coverFromMenu = () => {
-    if (menuBinder) setCoverId(menuBinder.id);
     setMenuId(null);
+    if (!menuBinder) return;
+    if (hasBinderCovers(store.tier)) setCoverId(menuBinder.id);
+    else showLimitToast('Binder covers are a PRO feature: dress the binder and decorate all four cover surfaces.');
   };
   const deleteFromMenu = () => {
     if (!menuBinder) return;
@@ -366,7 +368,11 @@ export default function MyBindersScreen() {
                             model picked there would be a choice that cannot be saved. */}
                         {binder.isDemo ? null : (
                           <Pressable
-                            onPress={() => setCoverId(binder.id)}
+                            onPress={() =>
+                              hasBinderCovers(store.tier)
+                                ? setCoverId(binder.id)
+                                : showLimitToast('Binder covers are a PRO feature: dress the binder and decorate all four cover surfaces.')
+                            }
                             hitSlop={8}
                             accessibilityLabel={
                               binder.cover
@@ -568,7 +574,7 @@ const styles = StyleSheet.create({
   // Panel-filled, not accent: Print is the tile's headline verb and two filled pills side by side
   // would leave the row with no verb at all. Same height as Print so they sit on one baseline.
   coverBtn: {
-    backgroundColor: Palette.panel,
+    backgroundColor: Palette.accent,
     borderRadius: Radius.pill,
     paddingVertical: 5,
     paddingHorizontal: Spacing.three,
@@ -576,7 +582,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  coverBtnText: { color: Palette.ink2, fontSize: FontSize.label, fontWeight: Weight.semibold },
+  coverBtnText: { color: Palette.accentText, fontSize: FontSize.label, fontWeight: Weight.semibold },
   menuBtn: {
     width: 30,
     height: 30,

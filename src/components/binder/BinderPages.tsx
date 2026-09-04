@@ -246,6 +246,9 @@ export interface BinderPagesProps {
    * the name IS, rather than in a panel that used to open above the binder and push it down.
    */
   onEditPage?: () => void;
+  /** Covers are a PRO feature: when locked, focusing a cover surface to edit it asks instead. */
+  coversLocked?: boolean;
+  onCoversLocked?: () => void;
   /** The view-settings dialog, opened by a gear the CALLER puts in chrome it already has. */
   settingsOpen?: boolean;
   onCloseSettings?: () => void;
@@ -294,6 +297,8 @@ export function BinderPages({
   onReorderPages,
   pageHeader,
   onEditPage,
+  coversLocked = false,
+  onCoversLocked,
   settingsOpen = false,
   onCloseSettings,
   settingsExtras,
@@ -883,6 +888,12 @@ export function BinderPages({
     setPending(null);
   };
   const focusCover = (id: CoverSurfaceId) => {
+    // Looking at a cover is for everyone; editing one is PRO. In edit mode the tap that would
+    // open the cover for decorating puts the offer up instead.
+    if (editable && coversLocked) {
+      onCoversLocked?.();
+      return;
+    }
     setCoverSelected(null);
     setCoverTurn(null);
     setCoverDrag(null);

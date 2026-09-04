@@ -120,7 +120,8 @@ export const CHANGELOG: ChangelogEntry[] = [
           + 'front, inside front, inside back and back. Text in a handful of fonts including a '
           + 'marker, on a post-it, notecard or postcard; stickers from the set and series logos; '
           + 'art from your tray or a link, cropped and rotated in place, up to twelve pieces a '
-          + 'surface with a Layers tray while you edit.',
+          + 'surface with a Layers tray while you edit. PRO and VIP; covers already on a binder '
+          + 'stay visible to everyone.',
       },
       {
         products: ['michi'],

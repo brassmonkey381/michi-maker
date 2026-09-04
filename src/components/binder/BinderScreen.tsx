@@ -47,7 +47,7 @@ import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
 import { similarityWall } from '@/data/similarityGate';
-import { hasFindSimilar } from '@/data/tiers';
+import { hasBinderCovers, hasFindSimilar } from '@/data/tiers';
 import { CopyPickerSheet } from '@/components/binder/CopyPickerSheet';
 import { VariantPickerSheet } from '@/components/binder/VariantPickerSheet';
 import { catalogArtNote, type OwnedEntry } from '@/data/ownedCopies';
@@ -2094,6 +2094,8 @@ export function BinderScreen({
               binder={binder}
               pageIndex={idx}
               onPageChange={changePage}
+              coversLocked={!hasBinderCovers(store.tier)}
+              onCoversLocked={() => showLimitToast('Binder covers are a PRO feature: dress the binder and decorate all four cover surfaces.')}
               availableWidth={available}
               // The header, plus the title fields and tools card that edit mode stacks above the
               // art. Until those move beside the page (audit A3) they are simply a cost the page

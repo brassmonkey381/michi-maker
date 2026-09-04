@@ -56,6 +56,8 @@ function ImageDecoration({
   naturalAspect?: number;
   onNaturalSize?: (id: string, w: number, h: number) => void;
 }) {
+  // Above the early return below, with the other hooks.
+  const [measured, setMeasured] = useState<number | undefined>(undefined);
   const uri = d.cardId ? cardThumbUrl(d.cardId, 640) : d.imageUrl;
   if (!uri) return null;
   const box = decorationBox(d, W, H);
@@ -68,7 +70,6 @@ function ImageDecoration({
   // table; else measured HERE from the image itself. The last was missing, and it is the one
   // the viewer needs: only the editor passes `naturalAspect`, so a sliced picture whose row
   // carries no aspect was cropped while editing and drawn whole the moment editing ended.
-  const [measured, setMeasured] = useState<number | undefined>(undefined);
   const aspect = d.aspect ?? naturalAspect ?? measured;
   const learn = (w: number, h: number) => {
     if (w > 0 && h > 0) setMeasured(w / h);

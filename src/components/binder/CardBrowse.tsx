@@ -11,13 +11,12 @@
  * element — it remounts this wrapper and the browser inside it.
  */
 import { useRouter, type Href } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 
-import { CatalogBrowser, sendBrowseCommand, type BrowseFeature, type CardAction, type CardActionsFactory, type CardLanguage, subscribeBrowseCommand } from 'tcgscan-browse';
+import { CatalogBrowser, sendBrowseCommand, type BrowseFeature, type CardAction, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
 
 import { ColorSearchSheet } from '@/components/ColorSearchSheet';
-import { FREE_THEME_SAMPLE, releaseFreeThemeSample, useFreeThemeSample } from '@/data/themeSample';
 import { EnergyColorSheet } from '@/components/EnergyColorSheet';
 import { hasThemeSearch as tierHasThemeSearch } from '@/data/tiers';
 import { useTier } from '@/hooks/use-tier';
@@ -121,27 +120,14 @@ export function CardBrowse({
   //
   // Waiting costs a locked user nothing: the locks arrive a moment later, and the caps that
   // actually protect revenue are enforced server-side regardless of what this array says.
-  const themeTaste = useFreeThemeSample();
-  useEffect(() => {
-    // The taste is one recipe's worth: any other command to the browser, or the browser going
-    // away, releases it — and the plan wall is back for the next theme: query.
-    const off = subscribeBrowseCommand((cmd) => {
-      if (!(cmd.type === 'search' && cmd.query === FREE_THEME_SAMPLE)) releaseFreeThemeSample();
-    });
-    return () => {
-      off();
-      releaseFreeThemeSample();
-    };
-  }, []);
   const lockedFeatures = useMemo<BrowseFeature[] | undefined>(() => {
     if (tierUnknown) return undefined;
     const locked: BrowseFeature[] = [];
     if (!hasFindSimilar) locked.push('findSimilar');
     if (!hasAdvancedSearch) locked.push('sortByValue', 'priceFilter', 'similarRefine', 'colorSearch');
-    // The cheatsheet's one free theme recipe: while its taste is armed, theme search is open.
-    if (!hasThemeSearch && !themeTaste) locked.push('themeSearch');
+    if (!hasThemeSearch) locked.push('themeSearch');
     return locked.length ? locked : undefined;
-  }, [hasAdvancedSearch, hasFindSimilar, hasThemeSearch, tierUnknown, themeTaste]);
+  }, [hasAdvancedSearch, hasFindSimilar, hasThemeSearch, tierUnknown]);
   return (
     <>
       <CatalogBrowser

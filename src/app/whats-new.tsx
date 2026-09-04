@@ -81,18 +81,22 @@ const AREA_COLOR: Record<ChangeArea, string> = {
 export default function WhatsNewScreen() {
   const [products, setProducts] = useState<ChangelogProduct[]>(CHANGELOG_PRODUCTS.map((p) => p.id));
   const [kinds, setKinds] = useState<ChangeKind[]>(CHANGE_KINDS.map((k) => k.id));
+  const AREA_IDS = Object.keys(CHANGE_AREAS) as ChangeArea[];
+  const [areas, setAreas] = useState<ChangeArea[]>(AREA_IDS);
 
   const toggleProduct = (id: ChangelogProduct) =>
     setProducts((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   const toggleKind = (id: ChangeKind) =>
     setKinds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const toggleArea = (id: ChangeArea) =>
+    setAreas((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   // Filter the ITEMS, then drop any release left with nothing: a day where only the other product
   // shipped, or only fixes, should not leave an empty card behind.
   const entries = CHANGELOG.map((entry) => ({
     ...entry,
     items: entry.items
-      .filter((item) => item.products.some((p) => products.includes(p)) && kinds.includes(item.kind))
+      .filter((item) => item.products.some((p) => products.includes(p)) && kinds.includes(item.kind) && areas.includes(item.area))
       // The ones worth stopping for come first; the rest keep the order they were written in,
       // which is roughly the order they matter in.
       .sort((a, b) => Number(Boolean(b.big)) - Number(Boolean(a.big))),
@@ -155,6 +159,32 @@ export default function WhatsNewScreen() {
                 />
                 <ThemedText style={[styles.kindFilterText, { color: on ? color : Palette.muted }]}>
                   {kind.label}
+                </ThemedText>
+              </Pressable>
+            );
+          })}
+        </View>
+        {/* The areas, in their own colours: the same chips the items wear, so a reader who has
+            learnt that violet means binders can switch everything else off with one tap each. */}
+        <View style={styles.filterRow}>
+          {AREA_IDS.map((id) => {
+            const on = areas.includes(id);
+            const color = AREA_COLOR[id];
+            return (
+              <Pressable
+                key={id}
+                onPress={() => toggleArea(id)}
+                accessibilityRole="switch"
+                accessibilityState={{ checked: on }}
+                accessibilityLabel={`Show ${CHANGE_AREAS[id]}`}
+                style={({ pressed }) => [
+                  styles.kindFilter,
+                  { borderColor: on ? color : Palette.hairlineStrong },
+                  on && { backgroundColor: tint(color, 0.14) },
+                  pressed && styles.pressed,
+                ]}>
+                <ThemedText style={[styles.kindFilterText, { color: on ? color : Palette.muted }]}>
+                  {CHANGE_AREAS[id]}
                 </ThemedText>
               </Pressable>
             );

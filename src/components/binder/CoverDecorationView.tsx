@@ -64,7 +64,16 @@ function ImageDecoration({
   const radius = maskRadius(d, w, h);
   const fill = d.fit === 'fill';
   const crop = d.crop;
-  const aspect = d.aspect ?? naturalAspect;
+  // THE ASPECT, FROM WHEREVER IT CAN BE HAD. Stored on the row; else the editor's measured
+  // table; else measured HERE from the image itself. The last was missing, and it is the one
+  // the viewer needs: only the editor passes `naturalAspect`, so a sliced picture whose row
+  // carries no aspect was cropped while editing and drawn whole the moment editing ended.
+  const [measured, setMeasured] = useState<number | undefined>(undefined);
+  const aspect = d.aspect ?? naturalAspect ?? measured;
+  const learn = (w: number, h: number) => {
+    if (w > 0 && h > 0) setMeasured(w / h);
+    onNaturalSize?.(d.id, w, h);
+  };
   // The inner box the SHOWN window occupies: the whole box when filling, else the largest box of
   // the window's own shape that fits inside — which needs the aspect. Without it, a cropped
   // picture cannot be letterboxed honestly, so it is contained whole instead (never stretched).
@@ -100,7 +109,7 @@ function ImageDecoration({
           cachePolicy="memory-disk"
           recyclingKey={uri}
           transition={0}
-          onLoad={onNaturalSize && !d.aspect ? (e) => onNaturalSize(d.id, e.source.width, e.source.height) : undefined}
+          onLoad={!d.aspect ? (e) => learn(e.source.width, e.source.height) : undefined}
         />
       ) : (
         <View style={{ position: 'absolute', ...inner, overflow: 'hidden' }}>
@@ -112,7 +121,7 @@ function ImageDecoration({
             cachePolicy="memory-disk"
             recyclingKey={uri}
             transition={0}
-            onLoad={onNaturalSize && !d.aspect ? (e) => onNaturalSize(d.id, e.source.width, e.source.height) : undefined}
+            onLoad={!d.aspect ? (e) => learn(e.source.width, e.source.height) : undefined}
           />
         </View>
       )}

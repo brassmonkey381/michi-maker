@@ -186,7 +186,7 @@ export const YEARLY_PRINT_VALUE = {
  * A row reading "Full catalog · Full catalog · Full catalog" costs a reader a row of attention to
  * learn nothing; it was in the table to reassure, not to differentiate, and it reassures just as
  * well as one line underneath. Only ever move a row here when all THREE cells are identical —
- * a differing `sub` (Sharing's VIP featured boost, the composer rows) is real information and
+ * a differing `sub` (the composer rows) is real information and
  * belongs in the grid.
  */
 export const INCLUDED_EVERYWHERE = [
@@ -237,7 +237,7 @@ export const COMPARISON: CompareRow[] = [
     capability: 'Composer methods',
     mark: '(2)',
     highlight: true,
-    free: { text: '7 of 9', sub: 'all but More like this and Color match' },
+    free: { text: '7 of 9', sub: 'all but "More Like This" and "Tri-Color Match"' },
     pro: { text: 'All 9', strong: true },
     vip: { text: 'All 9, at once', strong: true, sub: 'Pages around this card' },
   },
@@ -245,8 +245,8 @@ export const COMPARISON: CompareRow[] = [
     capability: 'Advanced Search',
     mark: '(3)',
     free: { text: 'Basic', sub: 'grammar, filters, one colour' },
-    pro: { text: '✓', strong: true, sub: 'value sort, price, Tri-Color, similarity, theme' },
-    vip: { text: '✓', strong: true, sub: 'value sort, price, Tri-Color, similarity, theme' },
+    pro: { text: '✓', strong: true, sub: 'value sort, price, Tri-Color, similarity' },
+    vip: { text: 'PRO + Theme Search', strong: true },
   },
   {
     capability: 'Slice Studio artworks in your account',
@@ -286,7 +286,7 @@ export const COMPARISON: CompareRow[] = [
     capability: 'Share and like',
     free: { text: '✓' },
     pro: { text: '✓' },
-    vip: { text: '✓', sub: 'featured boost (6)' },
+    vip: { text: '✓' },
   },
 ];
 
@@ -321,9 +321,11 @@ export const FOOTNOTES: { mark: string; text: string; link?: { label: string; ur
   {
     mark: '(3)',
     text:
-      'Advanced Search, PRO and VIP: sort by value, price filters (>$100), Tri-Color Search, ' +
-      'refine results by similarity, and artwork theme search (theme:, art:, scene:). Free and ' +
-      'guest keep the full grammar, every filter chip, favourites, and single-colour search.',
+      'Advanced Search, PRO and VIP: sort by value, price filters (>$100), Tri-Color Search and ' +
+      'refine results by similarity. Theme Search is VIP: theme:, art: and scene: search what the ' +
+      'picture shows (theme:underwater), from captions written about every Illustration Rare. ' +
+      'Free and guest keep the full grammar, every filter chip, favourites, single-colour search, ' +
+      'and the Forest scenes demonstration of Theme Search.',
   },
   {
     mark: '(4)',
@@ -337,10 +339,6 @@ export const FOOTNOTES: { mark: string; text: string; link?: { label: string; ur
       `a print on PRO and ${YEARLY_PRINT_VALUE.vip.each} on VIP, against ${ONE_TIME_PDF.price} for a ` +
       'one-off binder PDF; monthly plans get theirs a month at a time. Upgrades are prorated, prints ' +
       'included.',
-  },
-  {
-    mark: '(6)',
-    text: 'Public VIP binders get priority when we pick binders to feature on the home page and in community showcases.',
   },
 ];
 

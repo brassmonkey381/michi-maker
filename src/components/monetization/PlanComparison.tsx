@@ -4,7 +4,7 @@
  * raised + accent-outlined ("Most popular", yearly price leading), VIP the accent-TINTED hero
  * column ("Best value") — soft selection tint with the standard dark ink ramp, NOT a saturated
  * fill with white text (owner call: dark-on-light like every other surface) — accent-tinted
- * highlight rows for the included-at-every-tier items, and numbered (1)…(6) footnotes below.
+ * highlight rows for the included-at-every-tier items, and numbered (1)…(5) footnotes below.
  *
  * Wide content: the table keeps a real minimum width and scrolls horizontally inside its own
  * ScrollView on narrow screens — columns never crush into unreadable slivers.

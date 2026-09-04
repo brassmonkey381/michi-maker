@@ -2,7 +2,7 @@
  * THE THEME SEARCH DEMONSTRATION, the same from every door: the cheatsheet's "Forest scenes"
  * recipe and the browser's Theme Search button both run this.
  *
- * It does not unlock anything. theme: is PRO; this runs ONE query — theme:forest — against the
+ * It does not unlock anything. theme: is VIP; this runs ONE query — theme:forest — against the
  * server search here (the cold search every guest already gets) and hands the browser the
  * finished id list as a showCards command. The browser's own lock on theme: is untouched, so
  * every other theme a free account types is stripped exactly as before. Forest because it is one

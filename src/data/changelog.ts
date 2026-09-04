@@ -131,7 +131,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         body:
           'A Theme Search button now sits beside Tri-Color Search, and theme:, art: and scene: work '
           + 'in the search box: theme:underwater finds cards drawn beneath the surface. Theme search '
-          + 'is PRO and above; the button runs a free Forest scenes demonstration for everyone, and '
+          + 'is VIP; the button runs a free Forest scenes demonstration for everyone, and '
           + 'the search cheatsheet has it as a recipe.',
       },
       {

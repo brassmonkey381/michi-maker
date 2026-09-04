@@ -52,7 +52,7 @@ const RECIPES: { title: string; query: string; blurb: string; pro?: boolean; tas
     query: 'sort:date',
     blurb: 'The whole catalog, newest release first — sets that have not shipped yet sit at the top. Stack rarity:illustration on it for the new art only.',
   },
-  // THEME SEARCH is PRO. This one recipe is given away — and only this one: Try it fetches the
+  // THEME SEARCH is VIP. This one recipe is given away — and only this one: Try it fetches the
   // forest results itself and hands the browser the finished list, so the browser's own lock on
   // theme: stays exactly as it is for every other theme a free account types.
   {
@@ -158,7 +158,7 @@ export default function SearchGuideScreen() {
                     </ThemedText>
                     {r.pro ? (
                       <Text style={[styles.proBadge, r.taste && styles.proBadgeTaste]}>
-                        {r.taste ? 'PRO · free to try here' : 'PRO and up'}
+                        {r.taste ? 'VIP · free to try here' : 'VIP'}
                       </Text>
                     ) : null}
                   </View>

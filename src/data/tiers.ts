@@ -126,7 +126,7 @@ export interface TierLimits {
    */
   findSimilar: boolean;
   /**
-   * ARTWORK THEME SEARCH (PRO and above) — the `theme:` field (aliases `art:`, `scene:`), which
+   * ARTWORK THEME SEARCH (VIP) — the `theme:` field (aliases `art:`, `scene:`), which
    * searches what a vision model saw in the card ARTWORK rather than anything printed on it:
    * `theme:underwater`, `theme:sunset`, `theme:crowd`.
    *
@@ -136,8 +136,9 @@ export interface TierLimits {
    * which is the thing this product is for.
    *
    * Coverage is the Illustration Rares (728 printings today), the cards whose art IS the card.
-   * VIP matches PRO for now; a better-model recaption is what would eventually split them, and
-   * two flags before there are two qualities to sell would just be a lie on the plans page.
+   * VIP ONLY (owner decision 2026-09-04): the plans table sells it as the thing VIP adds on top
+   * of PRO's Advanced Search, and a free taste (theme:forest) runs from the browser and the
+   * cheatsheet for everyone.
    *
    * Boolean, so like `fullPrint` and `advancedSearch` it is NOT mirrored in the `tier_caps` table
    * (that guard covers numeric caps only — see scripts/check-tier-caps.mjs).
@@ -211,7 +212,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     fullPrint: true,
     advancedSearch: true,
     findSimilar: true,
-    themeSearch: true,
+    themeSearch: false,
     multiPageCompose: false,
     includedPrintsPerMonth: 1,
   },
@@ -254,7 +255,7 @@ const UNLIMITED: TierLimits = {
   fullPrint: false, // print eligibility is decided by tier/entitlement, not by this switch
   advancedSearch: false, // likewise: a paid capability, not a cap the dev switch should hand out
   findSimilar: false, // likewise — PRO's similarity search, not something LIMITS_ENFORCED=0 grants
-  themeSearch: false, // likewise — PRO's artwork search, not something LIMITS_ENFORCED=0 grants
+  themeSearch: false, // likewise — VIP's artwork search, not something LIMITS_ENFORCED=0 grants
   multiPageCompose: false, // likewise — VIP's upgraded composer, not something LIMITS_ENFORCED=0 grants
   includedPrintsPerMonth: Infinity,
 };

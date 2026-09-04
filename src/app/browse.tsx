@@ -266,7 +266,7 @@ export default function BrowseScreen() {
               onSimilarLocked={() => capGate.hit(similarityWall(store.tier, 'browse'))}
               onThemeLocked={() =>
                 showLimitToast(
-                  'Artwork theme search (theme:, art:, scene:) is PRO and above. Forest scenes is free to try: press Theme Search.',
+                  'Artwork theme search (theme:, art:, scene:) is a VIP feature. Forest scenes is free to try: press Theme Search.',
                 )
               }
               onPickCards={(cardIds) => setAddCardIds(cardIds)}

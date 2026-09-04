@@ -9,6 +9,7 @@ import { GuestBanner } from '@/components/auth/GuestBanner';
 import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
 import { BinderCarousel } from '@/components/binder/BinderCarousel';
 import { CurateCallout } from '@/components/CurateCallout';
+import { TcgscanPairing } from '@/components/TcgscanPairing';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
@@ -283,6 +284,10 @@ export default function HomeScreen() {
           {/* The curator, right under the featured shelf: what those binders were built with. */}
           <View style={styles.curate}>
             <CurateCallout surface="home" />
+          </View>
+          {/* The other half of the loop: where the collection the curator builds from comes from. */}
+          <View style={styles.curate}>
+            <TcgscanPairing surface="home" />
           </View>
 
           {/* Catalog-free sealed carousel: renders for everyone (guests included). */}

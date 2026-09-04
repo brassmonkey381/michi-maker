@@ -30,7 +30,7 @@ import { useTier } from '@/hooks/use-tier';
 
 export { TCGSCAN_URL };
 
-function openTcgscan() {
+export function openTcgscan() {
   void Linking.openURL(TCGSCAN_URL).catch(() => {});
 }
 

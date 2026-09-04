@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AnimatedLogoMark } from '@/components/brand/AnimatedLogoMark';
 import { CurateCallout } from '@/components/CurateCallout';
+import { TcgscanPairing } from '@/components/TcgscanPairing';
 import { AutoFlipBinder } from '@/components/landing/AutoFlipBinder';
 import { HoverLift } from '@/components/landing/HoverLift';
 import { Reveal } from '@/components/landing/Reveal';
@@ -328,6 +329,9 @@ export default function WelcomeScreen() {
                   here counts as entering the app, the same as the buttons above. */}
               <Reveal style={styles.curate}>
                 <CurateCallout surface="welcome" onNavigate={markLandingSeen} />
+              </Reveal>
+              <Reveal style={styles.curate}>
+                <TcgscanPairing surface="welcome" />
               </Reveal>
             </View>
 

@@ -11,12 +11,14 @@ import { usePathname, useRouter, type Href } from 'expo-router';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { LogoMark } from '@/components/brand/LogoMark';
+import { openTcgscan } from '@/components/monetization/BundleOffer';
+import { TCGSCAN_URL } from '@/data/subscriptions';
 import { Wordmark } from '@/components/brand/Wordmark';
 import { ThemedText } from '@/components/themed-text';
 import { Breakpoints, Fonts, FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { useAuth } from '@/store/auth';
 
-type RailItem = { label: string; href: Href; match: (path: string) => boolean };
+type RailItem = { label: string; href: Href; match: (path: string) => boolean; external?: boolean };
 
 // Two groups: "Explore" (discovery + info) and "You" (the account's own stuff). Within You,
 // My Binders sits directly above My Purchases.
@@ -29,6 +31,8 @@ const EXPLORE: RailItem[] = [
   { label: 'How-To', href: '/learn' as Href, match: (p) => p.startsWith('/learn') },
   { label: 'The Michi Method', href: '/michi-method', match: (p) => p.startsWith('/michi-method') },
   { label: 'What’s New', href: '/whats-new' as Href, match: (p) => p.startsWith('/whats-new') },
+  // The sister app, in the rail where every page can see it. External: it leaves for tcgscan.ai.
+  { label: 'TCGScan ↗', href: TCGSCAN_URL as Href, match: () => false, external: true },
 ];
 const YOU: RailItem[] = [
   { label: 'My Binders', href: '/my-binders' as Href, match: (p) => p.startsWith('/my-binders') },
@@ -110,7 +114,7 @@ function RailGroup({
           return (
             <Pressable
               key={item.label}
-              onPress={() => onNavigate(item.href)}
+              onPress={() => (item.external ? openTcgscan() : onNavigate(item.href))}
               accessibilityRole="link"
               accessibilityState={{ selected: active }}
               style={({ pressed }) => [styles.item, active && styles.itemActive, pressed && styles.pressed]}>

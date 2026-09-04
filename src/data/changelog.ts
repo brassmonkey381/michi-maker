@@ -106,6 +106,145 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-09-04',
+    title: 'Dressed covers, theme search, and guides with pictures',
+    items: [
+      {
+        products: ['michi'],
+        head: 'Dress the covers',
+        kind: 'new',
+        area: 'binders',
+        big: true,
+        body:
+          'A binder with a cover now takes text, stickers and art on all four cover surfaces: '
+          + 'front, inside front, inside back and back. Text in a handful of fonts including a '
+          + 'marker, on a post-it, notecard or postcard; stickers from the set and series logos; '
+          + 'art from your tray or a link, cropped and rotated in place, up to twelve pieces a '
+          + 'surface with a Layers tray while you edit.',
+      },
+      {
+        products: ['michi'],
+        head: 'Search the artwork by theme',
+        kind: 'new',
+        area: 'browse',
+        big: true,
+        body:
+          'A Theme Search button now sits beside Tri-Color Search, and theme:, art: and scene: work '
+          + 'in the search box: theme:underwater finds cards drawn beneath the surface. Theme search '
+          + 'is PRO and above; the button runs a free Forest scenes demonstration for everyone, and '
+          + 'the search cheatsheet has it as a recipe.',
+      },
+      {
+        products: ['michi'],
+        head: 'Curate from my collection, wherever you are',
+        kind: 'new',
+        area: 'collection',
+        big: true,
+        body:
+          'Home, Discover, The michi method, Learn and Welcome all offer the curator: import the '
+          + 'cards you own and get a binder built from them. Both buttons land on My binders with '
+          + 'the right sheet already open, and a three-minute guide walks the whole path.',
+      },
+      {
+        products: ['michi'],
+        head: 'Guides show before they tell',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'Every how-to on Learn opens on a picture of its subject and gives each step a drawn scene: '
+          + 'the editor with the button you press ringed, a picture cut into pockets, a card at its true '
+          + 'printed size. The fill guide ends on Eevee being filled seven ways, and the print and slice '
+          + 'guides each have a button that opens the real thing.',
+      },
+      {
+        products: ['michi'],
+        head: 'The michi method, on real pages',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'Each of the eight page styles is now shown as an actual page from one of our binders, with '
+          + 'real cards, and tapping one opens the binder it lives in.',
+      },
+      {
+        products: ['michi'],
+        head: 'Print from the binder itself',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'Print now sits in the binder header next to Share for owners, and next to Duplicate for '
+          + 'visitors. The print sampler binder has it too.',
+      },
+      {
+        products: ['michi'],
+        head: 'The cheatsheet opens on the good stuff',
+        kind: 'better',
+        area: 'browse',
+        body:
+          'New recipes up top: Illustration Rares newest first, Special Illustration Rares by value, '
+          + 'full arts, and new and upcoming sets. Every Try it button now reads as a button.',
+      },
+      {
+        products: ['michi'],
+        head: 'Binder tiles say their shape',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'Every binder tile reads like "3×4 · 12 pages", and a 3×4 binder takes the same box on '
+          + 'the shelf as a 3×3 instead of coming out smaller.',
+      },
+      {
+        products: ['michi'],
+        head: 'Titles and art explain themselves on hover',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'Hovering a binder title, a page title on either half of an open book, or an art placeholder '
+          + 'shows its description at once, with a placeholder when nothing is written yet. The cards '
+          + 'stay on screen, and a page turn closes them.',
+      },
+      {
+        products: ['michi'],
+        head: 'The contest runs in two rounds',
+        kind: 'better',
+        area: 'sharing',
+        body: 'The binder contest now has a qualifying round and a final, and the final starts from zero.',
+      },
+      {
+        products: ['michi'],
+        head: 'The 20% sale is back until November 1st',
+        kind: 'better',
+        area: 'account',
+        body: 'The launch discount on PRO and VIP runs again through November 1st.',
+      },
+      {
+        products: ['michi'],
+        head: 'Your sign-up username is the one you get',
+        kind: 'fix',
+        area: 'account',
+        body:
+          'The username you choose when you sign up is set the moment you confirm your email, instead '
+          + 'of being asked for a second time on first login. Sign-in offers email and Google; the '
+          + 'Apple option was never wired up and is gone.',
+      },
+      {
+        products: ['michi'],
+        head: 'An undo cannot touch pages it did not change',
+        kind: 'fix',
+        area: 'binders',
+        body:
+          'Undo and redo now write back only the pages they changed. A stale copy of a binder in one '
+          + 'tab could previously overwrite a page edited elsewhere.',
+      },
+      {
+        products: ['michi'],
+        head: 'The left page title hovers after the first turn',
+        kind: 'fix',
+        area: 'binders',
+        body: 'On a binder with a cover, the left page title stopped responding to hover once you turned past the first spread.',
+      },
+    ],
+  },
+  {
     date: '2026-09-01',
     title: 'The binder feels like a binder',
     items: [

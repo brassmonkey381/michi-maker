@@ -7,8 +7,8 @@
  *     "refactored the provenance gate". If a change has no visible effect, it does not belong.
  *   - Honest about scope: if existing data is untouched, say so; if a feature needs a plan or an
  *     account, say so.
- *   - One entry per shipped batch, dated by the day it reached michi-maker.com. Append at the
- *     TOP; the page renders this array in order.
+ *   - One entry per batch, dated by the day its last change was COMMITTED to the branch, not
+ *     the day it was pushed or promoted. Append at the TOP; the page renders this array in order.
  *   - EVERY ITEM SAYS WHICH PRODUCTS IT LANDED IN. The page is the changelog for michi-maker
  *     AND for TCGScan, and a reader who only uses one of them filters the other out. Plenty of
  *     what ships is genuinely both, because the two share a browse kit and a card catalogue;
@@ -97,7 +97,7 @@ export interface ChangelogItem {
 }
 
 export interface ChangelogEntry {
-  /** ISO date (the day it went live). */
+  /** ISO date: the day the batch's last change was committed. */
   date: string;
   /** Short name for the batch. */
   title: string;
@@ -106,7 +106,7 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    date: '2026-09-04',
+    date: '2026-09-03',
     title: 'Dressed covers, theme search, and guides with pictures',
     items: [
       {

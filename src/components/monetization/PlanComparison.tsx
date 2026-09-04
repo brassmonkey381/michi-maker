@@ -4,7 +4,7 @@
  * raised + accent-outlined ("Most popular", yearly price leading), VIP the accent-TINTED hero
  * column ("Best value") — soft selection tint with the standard dark ink ramp, NOT a saturated
  * fill with white text (owner call: dark-on-light like every other surface) — accent-tinted
- * highlight rows for the included-at-every-tier items, and numbered (1)…(8) footnotes below.
+ * highlight rows for the included-at-every-tier items, and numbered (1)…(6) footnotes below.
  *
  * Wide content: the table keeps a real minimum width and scrolls horizontally inside its own
  * ScrollView on narrow screens — columns never crush into unreadable slivers.
@@ -109,6 +109,11 @@ export function PlanComparison() {
   const monthlyPercentOff = bundleEligible ? BUNDLE_PERCENT_OFF : PERCENT_OFF;
   // Footnotes start folded; see the block that renders them.
   const [notesOpen, setNotesOpen] = useState(false);
+  // THE TABLE IS AS WIDE AS ITS BLOCK, never wider. Inside a horizontal ScrollView a child is
+  // sized to its content, and a cell's content is the longest unbroken line its text could be,
+  // so every sub-line of detail widened the table past the page and the VIP column fell off the
+  // right edge. Measured width in, wrapping follows; the 720 floor is where panning takes over.
+  const [blockW, setBlockW] = useState(0);
   // The note under the pressed CTA: the coming-soon line while checkout is closed, a sign-in
   // nudge for guests, or a checkout error. Never a silent no-op.
   const [note, setNote] = useState<{ tier: string; text: string; error?: boolean } | null>(null);
@@ -339,7 +344,7 @@ export function PlanComparison() {
     // Everything in the block shares ONE width. The footnotes used to sit in the full shell
     // (1440 on this page) capped at 720 and left-aligned, while the table centred itself at
     // 1040 — so the fine print visibly failed to line up with the table above it.
-    <View style={styles.block}>
+    <View style={styles.block} onLayout={(e) => setBlockW(e.nativeEvent.layout.width)}>
       {/* The indicator is hidden, not the scrolling: RN Web renders a horizontal ScrollView with
           a permanent scrollbar TRACK even when nothing overflows, which is the useless bar this
           table used to show at every width. Panning still works on genuinely narrow screens,
@@ -348,7 +353,7 @@ export function PlanComparison() {
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scroll}>
-        <View style={styles.table}>
+        <View style={[styles.table, blockW > 0 && { width: Math.max(720, blockW) }]}>
           {/* ── header row ─────────────────────────────── */}
           <View style={styles.row}>
             <View style={[styles.cell, styles.labelCell, styles.headLabel]} />

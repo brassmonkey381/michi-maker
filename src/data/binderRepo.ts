@@ -554,6 +554,42 @@ export async function replaceBinder(binder: DemoBinder): Promise<void> {
 }
 
 /**
+ * WRITE PART OF A BINDER: its row if `meta`, and exactly the pages named — upserted in place with
+ * their slots, then only THOSE pages' slots pruned. For an undo or redo that left the page list
+ * alone (see diffSnapshots), so nothing outside what changed is ever touched: an untouched page
+ * cannot be overwritten from a stale copy, which is what the whole-binder write allowed.
+ *
+ * Positions are written as they stand; the caller guarantees the page list (ids and order) is
+ * unchanged, so no position can collide and nothing needs parking.
+ */
+export async function replaceBinderPages(binder: DemoBinder, pageIds: string[], meta: boolean): Promise<void> {
+  const supabase = requireSupabase();
+  if (meta) {
+    const { error } = await supabase.from('binders').upsert(binderRow(binder), { onConflict: 'id' });
+    if (error) throw new Error(`replace binder: ${error.message}`);
+  }
+  const wanted = new Set(pageIds);
+  const pages = binder.pages.map((page, index) => ({ page, index })).filter(({ page }) => wanted.has(page.id));
+  if (pages.length === 0) return;
+  const { error: pErr } = await supabase
+    .from('binder_pages')
+    .upsert(pages.map(({ page, index }) => pageRow(page, binder.id, index)), { onConflict: 'id' });
+  if (pErr) throw new Error(`replace pages (upsert): ${pErr.message}`);
+  const slots = pages.flatMap(({ page }) => page.slots.map((slot) => slotRow(slot, page.id)));
+  if (slots.length > 0) {
+    const { error: sErr } = await supabase.from('binder_slots').upsert(slots, { onConflict: 'id' });
+    if (sErr) throw new Error(`replace slots: ${sErr.message}`);
+  }
+  // Prune only within the pages written, and only after their new state is in the table.
+  for (const { page } of pages) {
+    const ids = page.slots.map((slot) => slot.id);
+    const query = supabase.from('binder_slots').delete().eq('page_id', page.id);
+    const { error } = ids.length > 0 ? await query.not('id', 'in', `(${ids.join(',')})`) : await query;
+    if (error) throw new Error(`replace slots (prune): ${error.message}`);
+  }
+}
+
+/**
  * Persist a page reordering by writing the new `position` of each page. Done in two phases —
  * park every page at a distinct negative position, then set the final 0..n-1 — so the
  * `unique(binder_id, position)` constraint is never violated mid-update. `orderedPageIds` is the

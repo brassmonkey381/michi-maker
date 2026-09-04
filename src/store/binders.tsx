@@ -33,6 +33,7 @@ import type { ComposePlacement } from '@/data/pageComposer';
 import * as repo from '@/data/binderRepo';
 import { slotSignature } from '@/data/savedSlices';
 import { legalizeArtPanels, pageSide, requiredPageSide } from '@/data/binderPhysics';
+import { diffSnapshots } from '@/data/binderSync';
 import { EXAMPLE_FILL_SHEET_BINDER } from '@/data/exampleFillSheetBinder';
 import {
   binderSignature,
@@ -600,17 +601,20 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   const syncChanged = useCallback(
     (from: DemoBinder[], to: DemoBinder[]) => {
       if (!CLOUD) return;
-      const fromById = new Map(from.map((b) => [b.id, b]));
-      const toIds = new Set(to.map((b) => b.id));
-      const changed = to.filter((b) => !b.isExample && fromById.get(b.id) !== b); // new or content-changed
-      const removed = from.filter((b) => !b.isExample && !toIds.has(b.id)); // gone after the undo/redo
-      if (changed.length === 0 && removed.length === 0) return;
+      // ONLY WHAT CHANGED. This used to rewrite every binder whose object differed, IN FULL —
+      // which is how a page nobody had touched was overwritten from a stale copy (2026-08-31,
+      // "Pikachu and Friends", page 3). diffSnapshots is page-grained: a binder whose page list
+      // is unchanged gets its row written only if the row differs, and only the pages whose
+      // content differs; a binder whose page list changed is the one case written whole.
+      const { full, scoped, removed } = diffSnapshots(from, to);
+      if (full.length === 0 && scoped.length === 0 && removed.length === 0) return;
       // ONE ordered op, not one persist() per binder: an undo of a page MOVE touches two binders,
       // and independent fire-and-forget writes could land one side only — reviving in the DB the
       // both-binders-claim-one-card state the move itself was fixed to avoid. Serial keeps a
       // partial failure contiguous (everything before the failed write landed, nothing after).
       persist(async () => {
-        for (const b of changed) await repo.replaceBinder(b);
+        for (const b of full) await repo.replaceBinder(b);
+        for (const w of scoped) await repo.replaceBinderPages(w.binder, w.pageIds, w.meta);
         for (const b of removed) await repo.deleteBinder(b.id);
       });
     },

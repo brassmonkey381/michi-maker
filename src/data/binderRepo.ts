@@ -13,7 +13,7 @@
 import { demoteHouseAccounts } from '@/data/houseAccounts';
 import { requireSupabase } from '@/lib/supabase';
 import type { Database, Json } from '@/types/database';
-import type { BinderCover, DemoBinder, DemoPage, DemoSlot, MichiLayoutStyle } from '@/data/binderTypes';
+import type { BinderCover, BinderTrack, DemoBinder, DemoPage, DemoSlot, MichiLayoutStyle } from '@/data/binderTypes';
 import { normalizeCover } from '@/data/coverDecorations';
 
 type Tables = Database['public']['Tables'];
@@ -33,6 +33,9 @@ function binderRow(binder: DemoBinder): Tables['binders']['Insert'] {
     is_public: binder.isPublic ?? false,
     is_demo: binder.isDemo ?? false,
   };
+  // Like share_page_ids: only on the payload when set, so a save never names the column on a
+  // database the tracks migration has not reached yet.
+  if (binder.track) row.track = binder.track as unknown as Json;
   // Only send share_page_ids when actually set. Keeping it OFF the insert payload by default means
   // binder creation never references the column, so it can't break before the share_page_ids
   // migration is applied (new binders + clones have no selection anyway).
@@ -51,6 +54,7 @@ function pageRow(page: DemoPage, binderId: string, position: number): Tables['bi
     cols: page.cols,
     background_color: page.backgroundColor ?? null,
     is_public: page.isPublic ?? true,
+    ...(page.track ? { track: page.track as unknown as Json } : {}),
   };
 }
 
@@ -115,6 +119,7 @@ interface PageRowIn {
   background_color: string | null;
   is_public: boolean;
   position: number;
+  track?: BinderTrack | null;
   binder_slots: SlotRowIn[] | null;
 }
 
@@ -125,6 +130,7 @@ interface BinderRowIn {
   layout_style: MichiLayoutStyle;
   cover_card_id: string | null;
   cover: BinderCover | null;
+  track?: BinderTrack | null;
   is_public: boolean;
   is_demo: boolean | null;
   share_page_ids: string[] | null;
@@ -164,6 +170,12 @@ function mapSlot(row: SlotRowIn): DemoSlot {
   };
 }
 
+/** A track is only a track with a URL and a name; anything else in the column is treated as silent. */
+function trackOf(raw: BinderTrack | null | undefined): BinderTrack | undefined {
+  if (!raw || typeof raw !== 'object' || typeof raw.url !== 'string' || !raw.url) return undefined;
+  return { url: raw.url, name: typeof raw.name === 'string' ? raw.name : 'Soundtrack', bytes: raw.bytes, attestedAt: raw.attestedAt };
+}
+
 function mapPage(row: PageRowIn): DemoPage {
   const slots = (row.binder_slots ?? []).filter((s) => s.slot_type !== 'empty').map(mapSlot);
   return {
@@ -174,6 +186,7 @@ function mapPage(row: PageRowIn): DemoPage {
     cols: row.cols,
     backgroundColor: row.background_color ?? undefined,
     isPublic: row.is_public,
+    track: trackOf(row.track),
     slots,
   };
 }
@@ -196,6 +209,7 @@ function mapBinder(row: BinderRowIn): DemoBinder {
       row.cover && typeof row.cover === 'object' && row.cover.modelId
         ? normalizeCover(row.cover as BinderCover)
         : undefined,
+    track: trackOf(row.track),
     isPublic: row.is_public,
     sharePageIds: row.share_page_ids ?? undefined,
     shareKey: row.share_key ?? undefined,
@@ -360,6 +374,7 @@ export async function updateBinder(id: string, patch: Partial<DemoBinder>): Prom
   // The column is jsonb, so the generated type is Json; a BinderCover is a plain object of
   // strings, numbers and arrays, which is exactly that, but structurally TS wants to be told.
   if (patch.cover !== undefined) row.cover = (patch.cover ?? null) as unknown as Json;
+  if (patch.track !== undefined) row.track = (patch.track ?? null) as unknown as Json;
   if (patch.isPublic !== undefined) row.is_public = patch.isPublic;
   if (patch.sharePageIds !== undefined)
     row.share_page_ids = patch.sharePageIds && patch.sharePageIds.length ? patch.sharePageIds : null;
@@ -408,6 +423,7 @@ export async function updatePage(id: string, patch: Partial<DemoPage>): Promise<
   if (patch.cols !== undefined) row.cols = patch.cols;
   if (patch.backgroundColor !== undefined) row.background_color = patch.backgroundColor ?? null;
   if (patch.isPublic !== undefined) row.is_public = patch.isPublic;
+  if (patch.track !== undefined) row.track = (patch.track ?? null) as unknown as Json;
   if (Object.keys(row).length === 0) return;
   const { error } = await supabase.from('binder_pages').update(row).eq('id', id);
   if (error) throw new Error(`update page: ${error.message}`);

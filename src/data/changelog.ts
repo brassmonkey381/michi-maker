@@ -125,6 +125,16 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         products: ['michi'],
+        head: 'A soundtrack for your binder',
+        kind: 'new',
+        area: 'binders',
+        body:
+          'VIP binders can carry a track of your own, and a page can carry its own. It plays when the '
+          + 'binder opens and crossfades on a page turn, with a small player in the header and a mute '
+          + 'that is remembered. You attest to the rights when you upload.',
+      },
+      {
+        products: ['michi'],
         head: 'Search the artwork by theme',
         kind: 'new',
         area: 'browse',

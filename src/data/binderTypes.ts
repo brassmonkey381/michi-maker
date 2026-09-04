@@ -283,6 +283,8 @@ export interface BinderCover {
 export interface DemoPage {
   id: string;
   title?: string;
+  /** This page's own track: takes over while the page is open, hands back to the binder's after. */
+  track?: BinderTrack;
   /** Free-text page description (persisted to binder_pages.notes). */
   description?: string;
   rows: number;
@@ -294,6 +296,18 @@ export interface DemoPage {
    */
   isPublic?: boolean;
   slots: DemoSlot[];
+}
+
+/**
+ * ONE UPLOADED TRACK. `url` is in the binder-audio bucket (owner folder), `name` is what the
+ * player shows, `attestedAt` is when the owner ticked that they hold the rights to play it in
+ * public — the same promise the art attestation makes, kept with the thing it is about.
+ */
+export interface BinderTrack {
+  url: string;
+  name: string;
+  bytes?: number;
+  attestedAt?: string;
 }
 
 export interface DemoBinder {
@@ -326,6 +340,8 @@ export interface DemoBinder {
    * surfaces. Absent means undressed, which is every binder made before covers existed.
    */
   cover?: BinderCover;
+  /** The binder's soundtrack (VIP): plays from the first open or turn. Absent = silent. */
+  track?: BinderTrack;
   /** When true, anyone with the link can view this binder (see the `/binder/[id]` route). */
   isPublic?: boolean;
   /** Up to 2 page ids to feature in the shared-link OG preview. Absent/empty = auto (fullest pages).

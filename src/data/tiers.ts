@@ -150,6 +150,8 @@ export interface TierLimits {
    * stays visible to everyone — the tier gates putting one on and editing it, never seeing it.
    */
   binderCovers: boolean;
+  /** BINDER SOUNDTRACKS (VIP): an uploaded track on a binder or a page, played on open and turn. */
+  binderTracks: boolean;
   /**
    * "Pages around this card" (VIP) — the composer runs EVERY method a seed supports at once,
    * previews each as a finished page, and appends the ones you keep as new pages.
@@ -194,6 +196,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     findSimilar: false,
     themeSearch: false,
     binderCovers: false,
+    binderTracks: false,
     multiPageCompose: false,
     includedPrintsPerMonth: 0,
   },
@@ -208,6 +211,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     findSimilar: false,
     themeSearch: false,
     binderCovers: false,
+    binderTracks: false,
     multiPageCompose: false,
     includedPrintsPerMonth: 0,
   },
@@ -222,6 +226,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     findSimilar: true,
     themeSearch: false,
     binderCovers: true,
+    binderTracks: false,
     multiPageCompose: false,
     includedPrintsPerMonth: 1,
   },
@@ -237,6 +242,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     findSimilar: true,
     themeSearch: true,
     binderCovers: true,
+    binderTracks: true,
     multiPageCompose: true,
     includedPrintsPerMonth: 3,
   },
@@ -267,6 +273,7 @@ const UNLIMITED: TierLimits = {
   findSimilar: false, // likewise — PRO's similarity search, not something LIMITS_ENFORCED=0 grants
   themeSearch: false, // likewise — VIP's artwork search, not something LIMITS_ENFORCED=0 grants
   binderCovers: false, // likewise — PRO's covers, not something LIMITS_ENFORCED=0 grants
+  binderTracks: false, // likewise — VIP's soundtracks
   multiPageCompose: false, // likewise — VIP's upgraded composer, not something LIMITS_ENFORCED=0 grants
   includedPrintsPerMonth: Infinity,
 };
@@ -409,6 +416,11 @@ export function hasThemeSearch(tier: Tier): boolean {
 /** Can this tier put a cover on a binder and decorate it? (PRO and VIP — see TierLimits.binderCovers.) */
 export function hasBinderCovers(tier: Tier): boolean {
   return TIER_LIMITS[tier].binderCovers;
+}
+
+/** Can this tier put a soundtrack on a binder or a page? (VIP — see TierLimits.binderTracks.) */
+export function hasBinderTracks(tier: Tier): boolean {
+  return TIER_LIMITS[tier].binderTracks;
 }
 
 /** The active limits for a tier — permissive (all unlimited) while LIMITS_ENFORCED is off. */

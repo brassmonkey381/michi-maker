@@ -176,6 +176,7 @@ export type Database = {
           id: string
           is_public: boolean
           notes: string | null
+          track: Json | null
           position: number
           rows: number
           title: string | null
@@ -189,6 +190,7 @@ export type Database = {
           id?: string
           is_public?: boolean
           notes?: string | null
+          track?: Json | null
           position?: number
           rows?: number
           title?: string | null
@@ -202,6 +204,7 @@ export type Database = {
           id?: string
           is_public?: boolean
           notes?: string | null
+          track?: Json | null
           position?: number
           rows?: number
           title?: string | null
@@ -545,6 +548,7 @@ export type Database = {
       binders: {
         Row: {
           cover: Json | null
+          track: Json | null
           cover_card_id: string | null
           created_at: string
           description: string | null
@@ -561,6 +565,7 @@ export type Database = {
         }
         Insert: {
           cover?: Json | null
+          track?: Json | null
           cover_card_id?: string | null
           created_at?: string
           description?: string | null
@@ -577,6 +582,7 @@ export type Database = {
         }
         Update: {
           cover?: Json | null
+          track?: Json | null
           cover_card_id?: string | null
           created_at?: string
           description?: string | null

@@ -47,7 +47,10 @@ import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
 import { similarityWall } from '@/data/similarityGate';
-import { hasBinderCovers, hasFindSimilar } from '@/data/tiers';
+import { hasBinderCovers, hasBinderTracks, hasFindSimilar } from '@/data/tiers';
+import { SoundtrackField } from '@/components/binder/SoundtrackField';
+import { TrackPill } from '@/components/binder/TrackPill';
+import { setTrack, stopPlayer } from '@/lib/binderAudio';
 import { CopyPickerSheet } from '@/components/binder/CopyPickerSheet';
 import { VariantPickerSheet } from '@/components/binder/VariantPickerSheet';
 import { catalogArtNote, type OwnedEntry } from '@/data/ownedCopies';
@@ -456,6 +459,19 @@ export function BinderScreen({
   }, [editing]);
 
   const binder = store.getBinder(binderId);
+  // THE SOUNDTRACK FOLLOWS THE PAGE. The page's own track while it is open, else the binder's,
+  // else silence; the player crossfades between them on a turn and stops when the binder closes.
+  // Above the early return below, with the other hooks; the page is read from the index because
+  // `page` itself is derived after that return.
+  const trackNow = (() => {
+    const pages = binder?.pages ?? [];
+    const pg = pages[Math.min(pageIndex, Math.max(0, pages.length - 1))];
+    return pg?.track ?? binder?.track;
+  })();
+  useEffect(() => {
+    setTrack(trackNow?.url ?? null, trackNow?.name ?? '');
+  }, [trackNow?.url, trackNow?.name]);
+  useEffect(() => () => stopPlayer(), []);
   // ARRIVING WITH THE STUDIO OPEN (the slice guide's button). Once, after the binder and its
   // page exist and editing is on; deferred a tick so it is an event, not a render-time write.
   // Above the early return below, with the other hooks.
@@ -494,6 +510,9 @@ export function BinderScreen({
     toastId.current += 1;
     setToast({ id: toastId.current, message, tone: 'limit', cta: limitCta(store.tier) });
   };
+  const tracksLocked = !hasBinderTracks(store.tier);
+  const onTracksLocked = () =>
+    showLimitToast('Binder soundtracks are a VIP feature: your own track on a binder or a page, played on open and on every turn.');
   // One wall, one report: a dialog on its first hit today, the toast after that.
   const capGate = useCapGate(showLimitToast);
 
@@ -1992,6 +2011,7 @@ export function BinderScreen({
                     </View>
                   </Pressable>
                 ) : null}
+                <TrackPill />
                 <Pressable onPress={() => setPrintOpen(true)} hitSlop={10} accessibilityLabel="Print fill sheets">
                   <Text style={[styles.headerAction, { color: theme.text }]}>Print</Text>
                 </Pressable>
@@ -2027,6 +2047,7 @@ export function BinderScreen({
               </View>
             ) : (
               <View style={styles.headerRight}>
+                <TrackPill />
                 <Pressable onPress={() => setPrintOpen(true)} hitSlop={10} accessibilityLabel="Print fill sheets">
                   <Text style={[styles.headerAction, { color: theme.text }]}>Print</Text>
                 </Pressable>
@@ -2395,6 +2416,13 @@ export function BinderScreen({
                     placeholder="What is this binder about?"
                     multiline
                   />
+                  <SoundtrackField
+                    label="Soundtrack"
+                    track={binder.track}
+                    onChange={(track) => store.updateBinder(binder.id, { track: track ?? undefined })}
+                    locked={tracksLocked}
+                    onLocked={onTracksLocked}
+                  />
                 </View>
               </ThemedView>
             </View>
@@ -2434,6 +2462,13 @@ export function BinderScreen({
                     onChangeText={(description) => store.updatePage(binder.id, page.id, { description })}
                     placeholder="What's on this page?"
                     multiline
+                  />
+                  <SoundtrackField
+                    label="This page's track"
+                    track={page.track}
+                    onChange={(track) => store.updatePage(binder.id, page.id, { track: track ?? undefined })}
+                    locked={tracksLocked}
+                    onLocked={onTracksLocked}
                   />
                   {/* Why the page looks the way it does: what the open pockets mean, and what each
                       reserved art panel is for. See PageComposition for why it lives here. */}

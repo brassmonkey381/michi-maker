@@ -216,6 +216,12 @@ export const COMPARISON: CompareRow[] = [
     vip: { text: '✓', strong: true, sub: 'dress it, decorate all four surfaces' },
   },
   {
+    capability: 'Binder soundtrack',
+    free: { text: 'No' },
+    pro: { text: 'No' },
+    vip: { text: '✓', strong: true, sub: 'your own track, per binder or per page, plays on open and turn' },
+  },
+  {
     capability: 'Cards you can showcase',
     free: { text: 'Over 750!' },
     pro: { text: 'Over 7,500!', strong: true },

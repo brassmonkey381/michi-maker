@@ -29,6 +29,7 @@ import {
   CHANGELOG_PRODUCTS,
   type ChangeKind,
   type ChangelogProduct,
+  type ChangeArea,
 } from '@/data/changelog';
 
 /** "August 26, 2026", stable across locales enough for a changelog heading. */
@@ -60,6 +61,21 @@ const KIND_COLOR: Record<ChangeKind, string> = {
   new: Palette.success,
   better: Palette.accent,
   fix: Palette.warning,
+};
+
+/**
+ * One colour per AREA as well, so a reader scanning for "did binders change" can find the
+ * violet tags without reading a word. Fixed hues, tinted for the pill's ground the same way the
+ * kind tags are, so each reads on both schemes.
+ */
+const AREA_COLOR: Record<ChangeArea, string> = {
+  binders: '#7C5CBF',
+  browse: '#1F7A8C',
+  scanning: '#B5561E',
+  collection: '#2E7D4F',
+  sharing: '#C2185B',
+  account: '#5B6B76',
+  cards: '#A8780A',
 };
 
 export default function WhatsNewScreen() {
@@ -174,8 +190,8 @@ export default function WhatsNewScreen() {
                           {kindLabel(item.kind).toUpperCase()}
                         </ThemedText>
                       </View>
-                      <View style={styles.areaTag}>
-                        <ThemedText style={styles.areaTagText}>{CHANGE_AREAS[item.area]}</ThemedText>
+                      <View style={[styles.areaTag, { backgroundColor: tint(AREA_COLOR[item.area], 0.14) }]}>
+                        <ThemedText style={[styles.areaTagText, { color: AREA_COLOR[item.area] }]}>{CHANGE_AREAS[item.area]}</ThemedText>
                       </View>
                       {/* Which products this one is. Shown even when only one filter is on, so an
                           item copied out of here, or landed on from a link, still says. */}
@@ -244,16 +260,15 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   tags: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 1 },
-  kindTag: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: Radius.tag },
-  kindTagText: { fontSize: FontSize.tag, fontWeight: Weight.bold, letterSpacing: 0.4 },
+  kindTag: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.tag },
+  kindTagText: { fontSize: FontSize.label, fontWeight: Weight.bold, letterSpacing: 0.5 },
   areaTag: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
     borderRadius: Radius.tag,
-    backgroundColor: Palette.panel,
   },
-  areaTagText: { fontSize: FontSize.tag, color: Palette.ink2, fontWeight: Weight.semibold },
-  productText: { fontSize: FontSize.tag, color: Palette.muted2 },
+  areaTagText: { fontSize: FontSize.label, fontWeight: Weight.semibold },
+  productText: { fontSize: FontSize.label, color: Palette.muted2 },
   itemHead: { lineHeight: 20 },
   bigHead: { fontSize: FontSize.control, lineHeight: 22 },
   itemBody: { lineHeight: 20 },

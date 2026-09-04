@@ -13,6 +13,9 @@ import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-n
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { QUERY_MANUAL, sendBrowseCommand } from 'tcgscan-browse';
 
+import { FREE_THEME_SAMPLE, armFreeThemeSample } from '@/data/themeSample';
+import { track } from '@/lib/analytics';
+
 import { HoverLift } from '@/components/landing/HoverLift';
 import { ThemedText } from '@/components/themed-text';
 import { Nudge } from '@/components/ui/Nudge';
@@ -27,7 +30,7 @@ import { Fonts, FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight 
  * the page and gets an empty grid learns that search is broken, not that it is powerful. Every
  * recipe above them works against the whole catalog and returns something for everyone.
  */
-const RECIPES: { title: string; query: string; blurb: string }[] = [
+const RECIPES: { title: string; query: string; blurb: string; pro?: boolean; taste?: boolean }[] = [
   // The crowd-pleasers first: what people actually come to look at. Each works against the whole
   // catalog, so a first visit gets something gorgeous before it learns a single field.
   {
@@ -49,6 +52,21 @@ const RECIPES: { title: string; query: string; blurb: string }[] = [
     title: 'New and upcoming',
     query: 'sort:date',
     blurb: 'The whole catalog, newest release first — sets that have not shipped yet sit at the top. Stack rarity:illustration on it for the new art only.',
+  },
+  // THEME SEARCH is PRO. The first of these two is given away: Try it runs it ungated, so a free
+  // account sees what a scene search does before deciding whether to pay for the rest of them.
+  {
+    title: 'Forest scenes',
+    query: FREE_THEME_SAMPLE,
+    blurb: 'theme: searches what the ARTWORK shows, from captions written about the picture — here, every card drawn among trees. This one is on us: press Try it and watch it run.',
+    pro: true,
+    taste: true,
+  },
+  {
+    title: 'Underwater, priciest first',
+    query: 'theme:underwater sort:value',
+    blurb: 'Cards drawn beneath the surface, ranked by value. art: and scene: are aliases for theme:; stack a type: or set: to narrow the scene.',
+    pro: true,
   },
   {
     title: 'Finish a set',
@@ -103,6 +121,11 @@ const INFO_ROWS: [code: string, desc: string][] = QUERY_MANUAL.flatMap((s) =>
 export default function SearchGuideScreen() {
   const router = useRouter();
   const tryIt = (query: string) => {
+    // The one ungated theme recipe: arm the taste before the browser gets the query.
+    if (query === FREE_THEME_SAMPLE) {
+      armFreeThemeSample();
+      track('demo.theme_search', { surface: 'cheatsheet' });
+    }
     sendBrowseCommand({ type: 'search', query });
     router.push('/browse');
   };
@@ -135,9 +158,16 @@ export default function SearchGuideScreen() {
             <View style={styles.recipeGrid}>
               {RECIPES.map((r) => (
                 <View key={r.query} style={styles.recipeCard}>
-                  <ThemedText type="smallBold" style={styles.recipeTitle}>
-                    {r.title}
-                  </ThemedText>
+                  <View style={styles.recipeHead}>
+                    <ThemedText type="smallBold" style={styles.recipeTitle}>
+                      {r.title}
+                    </ThemedText>
+                    {r.pro ? (
+                      <Text style={[styles.proBadge, r.taste && styles.proBadgeTaste]}>
+                        {r.taste ? 'PRO · free to try here' : 'PRO and up'}
+                      </Text>
+                    ) : null}
+                  </View>
                   <View style={styles.codeRow}>
                     <Text style={styles.code}>{r.query}</Text>
                   </View>
@@ -251,6 +281,18 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.panel,
   },
   recipeTitle: { fontSize: FontSize.md },
+  recipeHead: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.two },
+  proBadge: {
+    fontSize: FontSize.label,
+    fontWeight: Weight.semibold,
+    color: Palette.accent,
+    borderWidth: 1,
+    borderColor: Palette.accent,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  proBadgeTaste: { color: Palette.accentText, backgroundColor: Palette.accent },
   // Query chips: primary blue fill, white text.
   codeRow: { alignSelf: 'flex-start', borderRadius: Radius.control, backgroundColor: Palette.accent, paddingHorizontal: 10, paddingVertical: 6 },
   code: { fontFamily: mono, fontSize: FontSize.body, color: Palette.accentText, fontWeight: Weight.semibold },

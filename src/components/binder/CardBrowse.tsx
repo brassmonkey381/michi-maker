@@ -11,20 +11,15 @@
  * element — it remounts this wrapper and the browser inside it.
  */
 import { useRouter, type Href } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 
-import {
-  CatalogBrowser,
-  sendBrowseCommand,
-  type BrowseFeature,
-  type CardAction,
-  type CardActionsFactory,
-  type CardLanguage,
-} from 'tcgscan-browse';
+import { CatalogBrowser, sendBrowseCommand, type BrowseFeature, type CardAction, type CardActionsFactory, type CardLanguage, subscribeBrowseCommand } from 'tcgscan-browse';
 
 import { ColorSearchSheet } from '@/components/ColorSearchSheet';
+import { FREE_THEME_SAMPLE, releaseFreeThemeSample, useFreeThemeSample } from '@/data/themeSample';
 import { EnergyColorSheet } from '@/components/EnergyColorSheet';
+import { hasThemeSearch as tierHasThemeSearch } from '@/data/tiers';
 import { useTier } from '@/hooks/use-tier';
 import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { useBrowseTheme } from '@/lib/browseTheme';
@@ -99,7 +94,11 @@ export function CardBrowse({
   // energy-type search instead (with an upsell to tri-color). The gate is host-side — the kit stays
   // tier-agnostic and just fires onColorSearch; we branch on the tier here. This single site covers
   // both kit entry points (the Tri-Color button + the Color facet chip) on every surface.
-  const { isPaid, hasAdvancedSearch, hasFindSimilar, loading: tierUnknown } = useTier();
+  const { tier, isPaid, hasAdvancedSearch, hasFindSimilar, loading: tierUnknown } = useTier();
+  // Straight from tiers.ts rather than adding another boolean to useTier: this needs nothing from
+  // the hook beyond the tier it already returns, and the two beside it are only there because
+  // they predate that.
+  const hasThemeSearch = tierHasThemeSearch(tier);
   const [colorOpen, setColorOpen] = useState(false);
   const [energyOpen, setEnergyOpen] = useState(false);
   const router = useRouter();
@@ -122,13 +121,27 @@ export function CardBrowse({
   //
   // Waiting costs a locked user nothing: the locks arrive a moment later, and the caps that
   // actually protect revenue are enforced server-side regardless of what this array says.
+  const themeTaste = useFreeThemeSample();
+  useEffect(() => {
+    // The taste is one recipe's worth: any other command to the browser, or the browser going
+    // away, releases it — and the plan wall is back for the next theme: query.
+    const off = subscribeBrowseCommand((cmd) => {
+      if (!(cmd.type === 'search' && cmd.query === FREE_THEME_SAMPLE)) releaseFreeThemeSample();
+    });
+    return () => {
+      off();
+      releaseFreeThemeSample();
+    };
+  }, []);
   const lockedFeatures = useMemo<BrowseFeature[] | undefined>(() => {
     if (tierUnknown) return undefined;
     const locked: BrowseFeature[] = [];
     if (!hasFindSimilar) locked.push('findSimilar');
     if (!hasAdvancedSearch) locked.push('sortByValue', 'priceFilter', 'similarRefine', 'colorSearch');
+    // The cheatsheet's one free theme recipe: while its taste is armed, theme search is open.
+    if (!hasThemeSearch && !themeTaste) locked.push('themeSearch');
     return locked.length ? locked : undefined;
-  }, [hasAdvancedSearch, hasFindSimilar, tierUnknown]);
+  }, [hasAdvancedSearch, hasFindSimilar, hasThemeSearch, tierUnknown, themeTaste]);
   return (
     <>
       <CatalogBrowser

@@ -223,29 +223,30 @@ export const COMPARISON: CompareRow[] = [
     // it. Neither half is all-or-nothing at free any more, so each states its own split rather
     // than one cell averaging them into a word that is wrong for both.
     capability: 'Similarity matching',
-    mark: '∆',
+    mark: '(4)',
     // Not 'No': the colour sheet's match-by-energy-type is similarity and it stays free, so a
     // flat no would under-promise as badly as 'Included' over-promised.
-    free: { text: 'Partial', sub: 'colour match only' },
-    pro: { text: '✓', strong: true },
-    vip: { text: '✓', strong: true },
+    free: { text: 'Partial', sub: 'match by energy colour only' },
+    pro: { text: '✓', strong: true, sub: 'Find similar, one card or a whole selection' },
+    vip: { text: '✓', strong: true, sub: 'Find similar, one card or a whole selection' },
   },
   {
     // Seven of the nine methods in pageComposer.ts are free; the two that are not are exactly
     // the two capabilities sold above (similarity → '≈ More like this', tri-colour → 'Color
     // match'). Keep the sub in step with `paid:` there if a method changes sides.
     capability: 'Composer methods',
+    mark: '(8)',
     highlight: true,
-    free: { text: 'Partial', sub: 'all but ≈ more like this and tri-colour' },
-    pro: { text: '✓', strong: true, sub: 'every method' },
-    vip: { text: '✓', strong: true, sub: 'every method, all at once' },
+    free: { text: '7 of 9', sub: 'Same Pokémon, Evolution line, Friends & partners, Trainer page, Same artist, Color by type, Full-page spread' },
+    pro: { text: 'All 9', strong: true, sub: 'adds More like this and Color match (tri-color)' },
+    vip: { text: 'All 9, at once', strong: true, sub: 'Pages around this card: every method in one pass, keep the pages you like' },
   },
   {
     capability: 'Advanced Search',
-    mark: '¶',
-    free: { text: 'No' },
-    pro: { text: '✓', strong: true },
-    vip: { text: '✓', strong: true },
+    mark: '(5)',
+    free: { text: 'Basic', sub: 'full search grammar, every filter, single-colour search' },
+    pro: { text: '✓', strong: true, sub: 'sort by value, price filters, Tri-Color Search, refine by similarity, artwork theme search' },
+    vip: { text: '✓', strong: true, sub: 'same as PRO' },
   },
   {
     capability: 'Slice Studio artworks in your account',
@@ -255,7 +256,7 @@ export const COMPARISON: CompareRow[] = [
   },
   {
     capability: 'Build from cards you really own',
-    mark: '‡',
+    mark: '(3)',
     highlight: true,
     free: { text: '✓' },
     pro: { text: '✓', sub: 'bundle discounts on TCGScan memberships' },
@@ -263,10 +264,10 @@ export const COMPARISON: CompareRow[] = [
   },
   {
     capability: 'Print-ready fill sheets',
-    mark: '§',
+    mark: '(6)',
     free: { text: 'Example-sheet preview' },
     // One plain sentence plus a saving stamp. Everything else — the yearly pool, the per-print
-    // maths, prorated upgrades — lives in the § and ‖ footnotes rather than crowding the cell.
+    // maths, prorated upgrades — lives in footnotes (6) and (7) rather than crowding the cell.
     pro: {
       text: 'Full binders',
       strong: true,
@@ -285,11 +286,11 @@ export const COMPARISON: CompareRow[] = [
     capability: 'Share and like',
     free: { text: '✓' },
     pro: { text: '✓' },
-    vip: { text: '✓', sub: 'featured eligibility boost†' },
+    vip: { text: '✓', sub: 'featured eligibility boost (2)' },
   },
 ];
 
-// Declared above FOOTNOTES because the § footnote quotes its price — a `const` referenced
+// Declared above FOOTNOTES because footnote (6) quotes its price — a `const` referenced
 // before its declaration would throw at module load, not just read oddly.
 export const ONE_TIME_PDF = {
   name: 'Full-binder fill-sheet PDF',
@@ -303,20 +304,20 @@ export const ONE_TIME_PDF = {
 
 export const FOOTNOTES: { mark: string; text: string; link?: { label: string; url: string } }[] = [
   {
-    mark: '*',
+    mark: '(1)',
     text: 'New print features first as they ship, like new sheet formats and print-on-demand, plus member pricing on print-on-demand orders.',
   },
   {
-    mark: '†',
+    mark: '(2)',
     text: 'Public VIP binders get priority consideration when we pick binders to feature on the home page and in community showcases.',
   },
   {
-    mark: '‡',
+    mark: '(3)',
     text: 'Included at every tier. Scan and track the cards you own with our partner app TCGScan and your collection syncs straight into michi-maker. PRO and VIP get bundle discounts on TCGScan memberships.',
     link: { label: 'Meet TCGScan →', url: TCGSCAN_URL },
   },
   {
-    mark: '∆',
+    mark: '(4)',
     text:
       'Find similar is the visual-similarity search: pick a card and get the ones that look like ' +
       'it, across the whole catalog, one card or a whole selection at a time. It also powers the ' +
@@ -324,15 +325,17 @@ export const FOOTNOTES: { mark: string; text: string; link?: { label: string; ur
       'matching by colour: the energy-type colour sheet, and the colour searches in the browser.',
   },
   {
-    mark: '¶',
+    mark: '(5)',
     text:
-      'Advanced Search is the paid half of the card browser: sort the catalog by value, filter by ' +
-      'price, search by a three-colour palette with weights, and refine results by similarity ' +
-      '(more like this, less like this). Free and guest keep the full search grammar, every other ' +
-      'sort, all filters, and single-colour search.',
+      'Advanced Search is the paid half of the card browser, PRO and VIP alike: sort by value ' +
+      '(sort:value), price filters (>$100, <$50), Tri-Color Search (a three-colour palette with ' +
+      'weights), refine results by similarity (more like this, less like this), and artwork theme ' +
+      'search (theme:, art:, scene:, which search what the picture shows). Free and guest keep the ' +
+      'full search grammar (words, fields, comparisons, every other sort), every filter chip, ' +
+      'favourites, and single-colour search.',
   },
   {
-    mark: '§',
+    mark: '(6)',
     text:
       'Yearly plans can use the whole year of prints whenever you want: take your first one, then ' +
       `release the rest in a tap. That works out to about ${YEARLY_PRINT_VALUE.pro.each} a print ` +
@@ -341,11 +344,20 @@ export const FOOTNOTES: { mark: string; text: string; link?: { label: string; ur
       'prints a month at a time.',
   },
   {
-    mark: '‖',
+    mark: '(7)',
     text:
       'Moving up is prorated: you pay the difference for the time left in your year, and your ' +
       'prints carry over the same way. Upgrading to VIP eight months into a PRO year gives you 20 ' +
       'prints for that year, not a fresh 36.',
+  },
+  {
+    mark: '(8)',
+    text:
+      'The composer fills a page around one seed card. Free and guest get seven methods: Same ' +
+      'Pokémon, Evolution line, Friends & partners, Trainer page, Same artist, Color by type and ' +
+      'Full-page spread. PRO adds the two that lean on paid search: More like this (visual ' +
+      'similarity) and Color match (tri-color). VIP runs every method at once with Pages around ' +
+      'this card, shows each finished page, and adds the ones you keep to the binder.',
   },
 ];
 

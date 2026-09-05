@@ -67,7 +67,7 @@ const PHONE_PAD = 5;
  *  far the front sheet overlaps the one behind it. */
 const PRINTER_W = 136;
 const PRINTER_H = 84;
-/** How far the rear tray rises above the body, and how far the output shelf sticks out. */
+/** How far the rear tray rises above the body, and how far the sheets extend past it. */
 const TRAY_RISE = 40;
 const SHELF_OUT = 48;
 const SLOT_TUCK = SHELF_OUT + 18;
@@ -247,8 +247,6 @@ function ShareArt({ w, page, facing }: { w: number; page: DemoPage; facing: Demo
           <View style={styles.frontSlot} />
           <View style={styles.printerFoot} />
         </View>
-        {/* The output shelf the sheets slide out onto. */}
-        <View style={styles.outShelf} />
       </View>
       <View style={styles.sheets}>
         <View style={[styles.paper, styles.sheetBack]}>
@@ -468,18 +466,6 @@ const styles = StyleSheet.create({
   // The front paper slot, a lighter band across the base.
   frontSlot: { position: 'absolute', left: 60, right: 14, top: 48, height: 6, borderRadius: 3, backgroundColor: Palette.muted },
   printerFoot: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 8, backgroundColor: Palette.chromeDeep },
-  // The output shelf, extending from the base to the right under the sheets.
-  outShelf: {
-    position: 'absolute',
-    left: PRINTER_W - 10,
-    bottom: 4,
-    width: SHELF_OUT + 10,
-    height: 8,
-    borderTopRightRadius: 4,
-    borderBottomRightRadius: 4,
-    backgroundColor: Palette.ink4,
-    zIndex: -1,
-  },
   sheets: { flexDirection: 'row', alignItems: 'flex-end', marginLeft: -SLOT_TUCK, zIndex: 1 },
   paper: {
     padding: SHEET_PAD,

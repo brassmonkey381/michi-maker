@@ -71,7 +71,7 @@ export function TcgscanPairing({ surface, compact = false }: { surface: string; 
           <Text style={styles.primaryText}>Get TCGScan</Text>
         </Pressable>
         <ThemedText type="small" themeColor="textSecondary">
-          Free to start. PRO and VIP members get a bundle discount.
+          Free Forever. Unlimited on device scanning.
         </ThemedText>
       </View>
     </ThemedView>

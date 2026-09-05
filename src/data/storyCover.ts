@@ -9,8 +9,9 @@
  *   INSIDE FRONT (IFC) a notecard listing the themes in order — the table of contents — and a
  *                      strip of small pictures, one per theme, captioned; a post-it with the build.
  *   INSIDE BACK (IBC)  "By the numbers" on a notecard (pages, spreads, cards, art panels, which
- *                      printings, where the cards came from), one sentence on how it was made, and a
- *                      post-it crediting the photographers and the card owners.
+ *                      printings, where the cards came from) and a post-it crediting the photographers
+ *                      and the card owners. Nothing about HOW the binder was made: the tagging behind it
+ *                      is the owner's secret sauce, left for a VIP to discover.
  *   BACK (BC)          a wide band of art, the hero cards fanned like a hand, and the wordmark line.
  *
  * Everything is in the cover model's own units (`CoverDecoration`): x/y are the centre as fractions
@@ -260,7 +261,7 @@ export function planStoryCover(input: StoryCoverInput): StoryCoverPlan {
   // ── INSIDE BACK: the numbers, the tags, the credits.
   const backInside: CoverDecoration[] = [];
   {
-    const printings = input.rarity === 'illustration' ? 'Illustration rares & full arts' : 'Any tagged printing';
+    const printings = input.rarity === 'illustration' ? 'Illustration rares & full arts' : 'Every printing';
     const from = input.source === 'collection' ? 'my collection' : 'the whole catalog';
     const numbers = [
       'By the numbers',
@@ -272,24 +273,6 @@ export function planStoryCover(input: StoryCoverInput): StoryCoverPlan {
     ].join('\n');
     const num = textDecoration(mkId, { text: numbers, font: 'mono', size: 0.036, w: 0.62, bg: 'notecard', leading: 1.35, rot: -1.5, name: 'By the numbers' }, 0.36, 0.06, aspect);
     backInside.push(num.d);
-    // One sentence on how it was made — not the tag list, which reads as machinery on a cover.
-    const how = textDecoration(
-      mkId,
-      {
-        text: 'How it was made\nEvery spread was chosen from the pictures on the cards themselves: what they show, where they are set and how they feel.',
-        font: 'sans',
-        size: 0.036,
-        w: 0.86,
-        bg: 'tag',
-        leading: 1.3,
-        rot: 1,
-        name: 'How it was made',
-      },
-      0.5,
-      0.06 + num.h + 0.06,
-      aspect,
-    );
-    backInside.push(how.d);
     const credits = textDecoration(mkId, { text: 'Pictures by Pexels and Pixabay photographers, credited on each panel. Card art belongs to its owners.', font: 'marker', size: 0.034, w: 0.56, bg: 'postit', rot: 3, leading: 1.25, name: 'Credits' }, 0.66, Hu - 0.3, aspect);
     backInside.push(credits.d);
   }

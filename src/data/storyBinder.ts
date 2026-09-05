@@ -51,7 +51,7 @@ export interface StoryPlanOptions {
   cards: StoryCard[];
   template: StoryTemplate;
   shape: PageShape;
-  /** Restrict to these card ids (the owner's collection). Null/undefined = everything tagged. */
+  /** Restrict to these card ids (the owner's collection). Null/undefined = every eligible card. */
   pool?: ReadonlySet<string> | null;
   /** 'illustration': only the picture rarities (Illustration Rare, Special Illustration Rare, Ultra
    *  Rare, full arts). 'all': any tagged card, with the picture rarities still scored higher. */
@@ -375,7 +375,9 @@ export function planStoryBinder(opts: StoryPlanOptions): StoryPlan {
   const topTags = [...tagCounts.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t);
   return {
     title: template.title,
-    description: `A story binder: ${template.title.toLowerCase()} — ${themeList}. Each spread is one theme, drawn from the illustration tags on the cards.`,
+    // Says what the binder IS, never how it was made: the tagging behind it is the owner's secret
+    // sauce, and a VIP is meant to discover it, not read about it on a description.
+    description: `A story in ${template.spreads.length} spreads: ${themeList}.`,
     pages,
     artJobs,
     spreads,

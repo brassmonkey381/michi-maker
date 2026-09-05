@@ -202,8 +202,8 @@ export function StoryBinderSheet({
               </Pressable>
             </View>
             <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-              A whole binder that tells a story: a cover, then one two-page spread per theme, drawn from the
-              illustration tags on the cards. Every art panel is dressed automatically from Pexels and Pixabay.
+              A whole binder that tells a story: a cover, then one two-page spread per theme. Every art panel
+              is dressed automatically from Pexels and Pixabay.
             </ThemedText>
 
             {!ready ? (
@@ -272,7 +272,7 @@ export function StoryBinderSheet({
                     Illustration rares and full arts
                   </Chip>
                   <Chip on={rarity === 'all'} onPress={() => setRarity('all')} disabled={building}>
-                    Any tagged card
+                    Every printing
                   </Chip>
                 </View>
 

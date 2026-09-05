@@ -4,7 +4,7 @@ A story binder is a whole binder built around a sequence of themes — Seasons, 
 Habitats, Moods, Weather — one two-page spread per theme, with a cover page, every spread laid out
 on its own and every reserved art panel dressed automatically from Pexels and Pixabay.
 
-**Status: VIP-only experiment, deliberately unadvertised.** The owner wants to play with it before
+**Status: VIP-only experiment, deliberately unadvertised.** Nothing user-facing may mention the tagging (themes, moods, styles on every card): that is the secret sauce, and a VIP is meant to discover it. Descriptions say what a binder IS, not how it was made. No em-dashes in user-facing copy. The owner wants to play with it before
 deciding how it is sold. Nothing on Home, Plans, Learn or the footer mentions it. The only entry
 point is a small "Story binder" button beside "+ New" on My binders, shown when
 `limits.multiPageCompose` is true (the VIP flag "pages around this card" uses). Do not add it to
@@ -94,7 +94,7 @@ sunrise yellow (light shell, dark ink).
 |---|---|
 | Front | Title in the display face, the story blurb in italic serif, a hero picture, a tag "Created by @user · date" |
 | Inside front | A notecard table of contents (numbered themes), a post-it with the build date and counts, one square picture per theme with a caption (captions drop when a picture and a caption per theme would pass the 12-layer cap) |
-| Inside back | "By the numbers" on a notecard (pages, spreads, cards, art panels, printings, source), one sentence on how it was made on a label, a credits post-it |
+| Inside back | "By the numbers" on a notecard (pages, spreads, cards, art panels, printings, source), a credits post-it. Nothing about how it was made |
 | Back | A wide band of art, the hero cards fanned (up to three `cardId` stickers), the wordmark line |
 
 Cover pictures are fetched like the panels' and share the binder's used-image set, so no picture on

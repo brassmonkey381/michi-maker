@@ -65,9 +65,12 @@ const PHONE_W = 84;
 const PHONE_PAD = 5;
 /** Share or Print: the printer's footprint, how far a sheet is tucked into its side slot, and how
  *  far the front sheet overlaps the one behind it. */
-const PRINTER_W = 128;
-const PRINTER_H = 92;
-const SLOT_TUCK = 26;
+const PRINTER_W = 136;
+const PRINTER_H = 84;
+/** How far the rear tray rises above the body, and how far the output shelf sticks out. */
+const TRAY_RISE = 40;
+const SHELF_OUT = 48;
+const SLOT_TUCK = SHELF_OUT + 18;
 const SHEET_FAN = 26;
 const SHEET_PAD = 6;
 
@@ -223,22 +226,29 @@ function ComposeArt({ w, page, facing }: { w: number; page: DemoPage; facing: De
 function ShareArt({ w, page, facing }: { w: number; page: DemoPage; facing: DemoPage }) {
   const two = w >= NARROW;
   // Two sheets fanned, overlapping each other by SHEET_FAN and tucked SLOT_TUCK into the printer.
-  const avail = w - PRINTER_W + SLOT_TUCK;
+  const avail = w - (PRINTER_W + SHELF_OUT) + SLOT_TUCK;
   const outer = two ? Math.floor((avail + SHEET_FAN) / 2) : avail;
   const byHeight = Math.floor(((ART_H - 22) * page.cols * 63) / (page.rows * 88));
   const pageW = Math.max(60, Math.min(120, outer - SHEET_PAD * 2 - 2, byHeight));
   return (
     <View style={[styles.shareArt, { width: w }]}>
       <View style={styles.printerWrap}>
+        {/* Rear paper tray with a sheet standing in it, behind the body. */}
+        <View style={styles.feedTray} />
         <View style={styles.feedSheet} />
         <View style={styles.printerBody}>
-          <View style={styles.printerLid} />
-          <View style={styles.printerPanel}>
-            <View style={styles.printerButton} />
-            <View style={styles.printerDash} />
+          <View style={styles.printerLid}>
+            <View style={styles.lidSeam} />
           </View>
-          <View style={styles.sideSlot} />
+          <View style={styles.printerPanel}>
+            <View style={styles.printerScreen} />
+            <View style={styles.printerButton} />
+          </View>
+          <View style={styles.frontSlot} />
+          <View style={styles.printerFoot} />
         </View>
+        {/* The output shelf the sheets slide out onto. */}
+        <View style={styles.outShelf} />
       </View>
       <View style={styles.sheets}>
         <View style={[styles.paper, styles.sheetBack]}>
@@ -407,43 +417,69 @@ const styles = StyleSheet.create({
   panelCount: { fontSize: FontSize.xs, color: Palette.ink2 },
   // Share or Print: the printer at the left, drawn over the sheets so they emerge from its side.
   shareArt: { flexDirection: 'row', alignItems: 'flex-end' },
-  printerWrap: { zIndex: 2, paddingTop: 30 },
-  // The sheet waiting in the feed, standing up behind the body.
+  printerWrap: { zIndex: 2, paddingTop: TRAY_RISE, width: PRINTER_W + SHELF_OUT },
+  // The rear tray: a slab rising behind the lid, the sheet waiting in it.
+  feedTray: {
+    position: 'absolute',
+    top: 6,
+    left: 22,
+    width: PRINTER_W - 44,
+    height: TRAY_RISE + 20,
+    borderTopLeftRadius: 6,
+    borderTopRightRadius: 6,
+    backgroundColor: Palette.muted2,
+  },
   feedSheet: {
     position: 'absolute',
     top: 0,
     left: 34,
-    width: 60,
-    height: 48,
-    borderRadius: 2,
+    width: PRINTER_W - 68,
+    height: TRAY_RISE + 10,
+    borderTopLeftRadius: 2,
+    borderTopRightRadius: 2,
     backgroundColor: Palette.white,
     borderWidth: 1,
-    borderColor: Palette.hairline,
+    borderColor: Palette.hairlineStrong,
   },
+  // The body: a light lid over a dark base, the classic inkjet silhouette.
   printerBody: {
     width: PRINTER_W,
     height: PRINTER_H,
-    borderRadius: 12,
+    borderRadius: 14,
     backgroundColor: Palette.ink3,
+    overflow: 'hidden',
     ...Shadows.page,
   },
-  // The lid: a darker slab across the top, the feed opening behind it.
-  // (Body mid-grey, lid near-black: two tones so it reads as a machine, not a block.)
   printerLid: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: 22,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-    backgroundColor: Palette.chromeDeep,
+    height: 34,
+    backgroundColor: Palette.muted3,
+    borderBottomWidth: 2,
+    borderBottomColor: Palette.ink3,
   },
-  printerPanel: { position: 'absolute', top: 34, left: 14, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  // The scanner lid's seam, a thin highlight near the top.
+  lidSeam: { position: 'absolute', top: 8, left: 12, right: 12, height: 2, borderRadius: 1, backgroundColor: Palette.muted4 },
+  printerPanel: { position: 'absolute', top: 44, left: 14, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  printerScreen: { width: 30, height: 14, borderRadius: 3, backgroundColor: Palette.chromeDeep, borderWidth: 1, borderColor: Palette.muted },
   printerButton: { width: 10, height: 10, borderRadius: 5, backgroundColor: Palette.accent },
-  printerDash: { width: 26, height: 4, borderRadius: 2, backgroundColor: Palette.muted4 },
-  // The output slot on the right side, where the sheets come out.
-  sideSlot: { position: 'absolute', right: 0, top: 34, bottom: 10, width: 5, borderRadius: 2, backgroundColor: Palette.muted4 },
+  // The front paper slot, a lighter band across the base.
+  frontSlot: { position: 'absolute', left: 60, right: 14, top: 48, height: 6, borderRadius: 3, backgroundColor: Palette.muted },
+  printerFoot: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 8, backgroundColor: Palette.chromeDeep },
+  // The output shelf, extending from the base to the right under the sheets.
+  outShelf: {
+    position: 'absolute',
+    left: PRINTER_W - 10,
+    bottom: 4,
+    width: SHELF_OUT + 10,
+    height: 8,
+    borderTopRightRadius: 4,
+    borderBottomRightRadius: 4,
+    backgroundColor: Palette.ink4,
+    zIndex: -1,
+  },
   sheets: { flexDirection: 'row', alignItems: 'flex-end', marginLeft: -SLOT_TUCK, zIndex: 1 },
   paper: {
     padding: SHEET_PAD,
@@ -453,7 +489,7 @@ const styles = StyleSheet.create({
     borderColor: Palette.hairline,
     ...Shadows.page,
   },
-  sheetBack: { marginBottom: 14 },
+  sheetBack: { marginBottom: 12 },
   // The front sheet has landed on the one behind it, a little askew.
   sheetFront: { marginLeft: -SHEET_FAN, marginBottom: 2, transform: [{ rotate: '-3deg' }] },
   chip: {

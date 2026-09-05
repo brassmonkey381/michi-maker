@@ -19,7 +19,7 @@
  * marketing surface mentions it. The entry point is one small button on My binders that only a
  * VIP sees.
  */
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -58,6 +58,15 @@ export function StoryBinderSheet({
   onCap: () => void;
 }) {
   const store = useBinders();
+  // THE STORE, LIVE. `build` runs for a minute after the tap that started it, and the `store` it
+  // closed over is the render's snapshot: its `placeArtPanels` looks the binder up in a `binders`
+  // array that does not yet contain the one `createBinder` just added, and returns without a word.
+  // Every panel stayed a reserved gap on the first real build for exactly this reason. Read the
+  // latest store through a ref at the moment each panel is placed.
+  const storeRef = useRef(store);
+  useEffect(() => {
+    storeRef.current = store;
+  }, [store]);
   const { catalog, loading, guestGated } = useCatalog(visible);
   const owned = useOwnedCards();
 
@@ -112,12 +121,13 @@ export function StoryBinderSheet({
       const art = page ? await fetchStockArtForPanel(job.queries, job.rowSpan, job.colSpan, job.kind, usedHits) : null;
       if (cancelled.current) break;
       if (art && page) {
-        store.placeArtPanels(binder.id, page.id, job.row, job.col, [
+        storeRef.current.placeArtPanels(binder.id, page.id, job.row, job.col, [
           { r: 0, c: 0, rs: job.rowSpan, cs: job.colSpan, imageUrl: art.imageUrl, crop: art.crop, attribution: art.attribution },
         ]);
         placed += 1;
       } else {
         failed += 1;
+        console.warn('[story] no art for panel', job.label, job.queries);
       }
     }
     if (cancelled.current) return;

@@ -129,9 +129,11 @@ export async function fetchStockArtForPanel(
     let result: StockSearchResult;
     try {
       result = await searchStockArt(q, { orientation, kind, per: 20 });
-    } catch {
+    } catch (e) {
+      console.warn('[story] stock search failed', q, e instanceof Error ? e.message : e);
       continue;
     }
+    if (result.hits.length === 0) console.warn('[story] no hits', q, result.providers);
     const tried = new Set(used);
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const hit = pickStockHit(result.hits, aspect, tried);
@@ -141,8 +143,9 @@ export async function fetchStockArtForPanel(
         const imageUrl = await importRemoteArtToBucket(hit.url);
         used.add(`${hit.provider}:${hit.id}`);
         return { hit, imageUrl, crop: coverCrop(hit.width, hit.height, aspect), attribution: stockAttribution(hit) };
-      } catch {
+      } catch (e) {
         // The download failed (CORS and proxy both refused, or a dead link): try the next hit.
+        console.warn('[story] re-host failed', hit.provider, hit.url, e instanceof Error ? e.message : e);
       }
     }
   }

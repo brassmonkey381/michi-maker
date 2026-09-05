@@ -37,7 +37,9 @@ that produced those numbers was a scratch script over `cards_en?select=…&scene
 | `src/lib/stockArt.ts` | Client: search via the edge function, pick a hit for a panel, re-host, credit |
 | `supabase/functions/stock-art/index.ts` | Pexels + Pixabay search; keys `PEXELS_API_KEY`, `PIXABAY_API_KEY` |
 | `supabase/functions/art-proxy/index.ts` | Allowlist gained `pixabay.com` / `cdn.pixabay.com` (`*.pixabay.com`) |
-| `src/components/StoryBinderSheet.tsx` | The VIP sheet: template, shape, source, printings, art on/off; build + progress |
+| `src/data/storyCover.ts` | The pure cover planner: four surfaces of text, stickers and art placeholders |
+| `src/data/storyCover.test.ts` | Cover layout within the layer cap; fill/drop placeholders; survives `normalizeCover` |
+| `src/components/StoryBinderSheet.tsx` | The VIP sheet: template, shape, source, printings, art on/off, cover on/off; build + progress |
 | `src/app/my-binders.tsx` | The entry button and the sheet mount, both behind `multiPageCompose` |
 
 ## How a binder is planned
@@ -79,6 +81,27 @@ credit is stamped `{ artist: photographer, sourceName: 'Pexels' | 'Pixabay', sou
 
 Closing the sheet mid-build stops further fetches; placed panels stay and the rest remain reserved
 gaps for Slice Studio.
+
+## The cover (2026-09-05)
+
+With "Dress the cover too" on (PRO/VIP `binderCovers`), `src/data/storyCover.ts` lays out the
+four surfaces from the finished plan and the sheet writes it once with `updateBinder(id, { cover })`
+(`createBinder` does not persist a cover). Colourway per story on the default Exo-Tec model:
+Seasons forest green, Day to night royal blue, Habitats ocean blue, Moods fire red, Weather
+sunrise yellow (light shell, dark ink).
+
+| Surface | What goes on it |
+|---|---|
+| Front | Title in the display face, the story blurb in italic serif, a hero picture, a tag "Created by @user · date" |
+| Inside front | A notecard table of contents (numbered themes), a post-it with the build date and counts, one square picture per theme with a caption (captions drop when a picture and a caption per theme would pass the 12-layer cap) |
+| Inside back | "By the numbers" on a notecard (pages, spreads, cards, art panels, printings, source), the tags that shaped the binder on a label, a credits post-it |
+| Back | A wide band of art, the hero cards fanned (up to three `cardId` stickers), the wordmark line |
+
+Cover pictures are fetched like the panels' and share the binder's used-image set, so no picture on
+the cover repeats one on a page. Placeholders are image decorations whose id is the job id;
+`applyCoverArt` fills one, `dropCoverArt` removes one (with its caption), and anything left empty
+is dropped before the write. Positions are computed in width units and converted with the model's
+`coverAspect`, so the layout follows the model's proportions.
 
 ## Provider terms, in one place
 

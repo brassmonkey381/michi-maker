@@ -116,14 +116,18 @@ export interface PlacedStockArt {
  * to three hits (a hit can fail to download). `used` is updated with the hit taken so the same
  * picture does not appear twice in a binder. Null when nothing could be found or fetched.
  */
-export async function fetchStockArtForPanel(
+export function fetchStockArtForPanel(
   queries: string[],
   rowSpan: number,
   colSpan: number,
   kind: StockKind,
   used: Set<string>,
 ): Promise<PlacedStockArt | null> {
-  const aspect = panelAspect(rowSpan, colSpan);
+  return fetchStockArtForAspect(queries, panelAspect(rowSpan, colSpan), kind, used);
+}
+
+/** The same, for any box: cover decorations give their aspect directly. */
+export async function fetchStockArtForAspect(queries: string[], aspect: number, kind: StockKind, used: Set<string>): Promise<PlacedStockArt | null> {
   const orientation = orientationFor(aspect);
   for (const q of queries) {
     let result: StockSearchResult;

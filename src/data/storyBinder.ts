@@ -94,6 +94,10 @@ export interface StoryPlan {
   spreads: SpreadPlan[];
   /** Cards placed anywhere in the binder (cover included). */
   cardIds: string[];
+  /** The one hero card per theme that opens the binder on page 0, in theme order. */
+  heroCardIds: string[];
+  /** The `want` tags that placed the most cards, across every spread, strongest first. */
+  topTags: string[];
 }
 
 // ─── Scoring ─────────────────────────────────────────────────────────────────────────────────────
@@ -309,6 +313,7 @@ export function planStoryBinder(opts: StoryPlanOptions): StoryPlan {
   const pages: DemoPage[] = [];
   const artJobs: ArtJob[] = [];
   const spreads: SpreadPlan[] = [];
+  const allPlaced: ThemeScore[] = [];
 
   // Rank every theme up front: the cover borrows each theme's best card before the spreads pick.
   const ranked = template.spreads.map((theme) => themeCandidates(opts.cards, theme, { pool: opts.pool, rarity: opts.rarity }));
@@ -342,6 +347,7 @@ export function planStoryBinder(opts: StoryPlanOptions): StoryPlan {
     const pockets = t ? t.cardPockets : shape.rows * shape.cols * 2;
     const chosen = pickDiverse(list, pockets, used);
     for (const c of chosen) used.add(c.card.id);
+    allPlaced.push(...chosen);
 
     const leftReserved = t ? reservedCells(t, 'left') : new Set<string>();
     const rightReserved = t ? reservedCells(t, 'right') : new Set<string>();
@@ -365,6 +371,9 @@ export function planStoryBinder(opts: StoryPlanOptions): StoryPlan {
   });
 
   const themeList = template.spreads.map((t) => t.title.toLowerCase()).join(', ');
+  const tagCounts = new Map<string, number>();
+  for (const s of allPlaced) for (const h of s.hits) tagCounts.set(h, (tagCounts.get(h) ?? 0) + 1);
+  const topTags = [...tagCounts.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t);
   return {
     title: template.title,
     description: `A story binder: ${template.title.toLowerCase()} — ${themeList}. Each spread is one theme, drawn from the illustration tags on the cards.`,
@@ -372,6 +381,8 @@ export function planStoryBinder(opts: StoryPlanOptions): StoryPlan {
     artJobs,
     spreads,
     cardIds: [...used],
+    heroCardIds: heroes.map((h) => h.card.id),
+    topTags,
   };
 }
 

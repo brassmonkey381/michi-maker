@@ -28,11 +28,14 @@ import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/t
 import { uuidv4 } from '@/data/binderTypes';
 import { WIZARD_SHAPES } from '@/data/binderWizard';
 import { planStoryBinder, themeCandidates, type PageShape, type RarityMode, type StoryCard, type StoryPlan } from '@/data/storyBinder';
+import { applyCoverArt, dropCoverArt, planStoryCover } from '@/data/storyCover';
 import { STORY_TEMPLATES, type StoryTemplate } from '@/data/storyThemes';
+import { hasBinderCovers } from '@/data/tiers';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useOwnedCards } from '@/hooks/use-owned-cards';
 import { track } from '@/lib/analytics';
-import { fetchStockArtForPanel } from '@/lib/stockArt';
+import { fetchStockArtForAspect, fetchStockArtForPanel } from '@/lib/stockArt';
+import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
 
 type Source = 'catalog' | 'collection';
@@ -69,12 +72,15 @@ export function StoryBinderSheet({
   }, [store]);
   const { catalog, loading, guestGated } = useCatalog(visible);
   const owned = useOwnedCards();
+  const { profile } = useAuth();
+  const coversAllowed = hasBinderCovers(store.tier);
 
   const [templateId, setTemplateId] = useState<string>(STORY_TEMPLATES[0].id);
   const [shape, setShape] = useState<PageShape>(WIZARD_SHAPES[WIZARD_SHAPES.length - 1].shape);
   const [source, setSource] = useState<Source>('catalog');
   const [rarity, setRarity] = useState<RarityMode>('illustration');
   const [withArt, setWithArt] = useState(true);
+  const [withCover, setWithCover] = useState(true);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const cancelled = useRef(false);
@@ -131,6 +137,36 @@ export function StoryBinderSheet({
       }
     }
     if (cancelled.current) return;
+
+    // ── The cover: a preview of the story on the four surfaces, its pictures fetched like the
+    // panels' (and never one already used on a page). Written whole, once, at the end.
+    if (withCover && coversAllowed) {
+      const author = profile?.username ? `@${profile.username}` : profile?.display_name ?? '';
+      const coverPlan = planStoryCover({ template, plan, author, date: new Date(), rarity, source, artPlaced: placed, mkId: uuidv4 });
+      let cover = coverPlan.cover;
+      const coverJobs = withArt ? coverPlan.artJobs : [];
+      for (const [i, job] of coverJobs.entries()) {
+        if (cancelled.current) break;
+        setProgress({ done: jobs.length + i, total: jobs.length + coverJobs.length, label: job.label, failed });
+        const art = await fetchStockArtForAspect(job.queries, job.aspect, job.kind, usedHits);
+        if (cancelled.current) break;
+        if (art) {
+          cover = applyCoverArt(cover, job.id, { imageUrl: art.imageUrl, crop: art.crop, attribution: art.attribution, aspect: art.hit.width / art.hit.height });
+          placed += 1;
+        } else {
+          cover = dropCoverArt(cover, job.id);
+          failed += 1;
+          console.warn('[story] no art for cover', job.label, job.queries);
+        }
+      }
+      if (cancelled.current) return;
+      // Anything still empty (art turned off, or a job skipped) must not reach the database.
+      for (const id of coverPlan.artJobs.map((j) => j.id)) {
+        if (!coverJobs.some((j) => j.id === id)) cover = dropCoverArt(cover, id);
+      }
+      storeRef.current.updateBinder(binder.id, { cover });
+    }
+
     setProgress(null);
     onBuilt(binder.id, plan.pages.length, placed, failed);
     onClose();
@@ -249,6 +285,24 @@ export function StoryBinderSheet({
                     Leave the panels for me
                   </Chip>
                 </View>
+
+                {coversAllowed ? (
+                  <>
+                    <Label>Binder cover</Label>
+                    <View style={styles.chips}>
+                      <Chip on={withCover} onPress={() => setWithCover(true)} disabled={building}>
+                        Dress the cover too
+                      </Chip>
+                      <Chip on={!withCover} onPress={() => setWithCover(false)} disabled={building}>
+                        No cover
+                      </Chip>
+                    </View>
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.blurb}>
+                      Title, blurb and a picture on the front; the contents and a picture per theme inside the front;
+                      the numbers, the tags and credits inside the back; the hero cards fanned on the back.
+                    </ThemedText>
+                  </>
+                ) : null}
               </ScrollView>
             )}
 
@@ -277,7 +331,9 @@ export function StoryBinderSheet({
                 disabled={!ready}
                 accessibilityRole="button"
                 style={({ pressed }) => [styles.primary, !ready && styles.primaryOff, pressed && styles.pressed]}>
-                <Text style={styles.primaryText}>Build {template.title.toLowerCase()} · {1 + template.spreads.length * 2} pages</Text>
+                <Text style={styles.primaryText}>
+                  Build {template.title.toLowerCase()} · {1 + template.spreads.length * 2} pages{withCover && coversAllowed ? ' + cover' : ''}
+                </Text>
               </Pressable>
             )}
           </ThemedView>

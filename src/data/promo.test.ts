@@ -46,6 +46,11 @@ test('exact halves round away from zero, as Stripe does', () => {
 test('the promotion is time-boxed', () => {
   const ends = Date.parse(ENDS_AT);
   assert.ok(Number.isFinite(ends), 'ENDS_AT must be a parseable ISO date');
+  // Pinned to the live coupon OFF20_2026, whose redeem_by is Dec 31 2026, and to tcgscan-app's
+  // ENDS_AT (commit c4468a8). A coupon's redeem_by cannot be edited, so extending the sale means a
+  // NEW coupon (apply-promo-coupon.ps1) AND changing this date in both apps — this test fails
+  // until the date is changed on purpose.
+  assert.equal(ENDS_AT, '2026-12-31T23:59:59Z', 'ENDS_AT must match coupon OFF20_2026 and tcgscan-app');
   assert.equal(promoActive(ends - 1000), true);
   assert.equal(promoActive(ends), false, 'the end instant is over, not still running');
   assert.equal(promoActive(ends + 1000), false);

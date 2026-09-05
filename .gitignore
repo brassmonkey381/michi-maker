@@ -64,3 +64,6 @@ tcgscan.secrets
 
 # Marketing capture working dir: big video intermediates, re-creatable from state/cap-welcome-hero.mjs
 state/out/
+
+# Instagram exports (scripts/export-instagram.mjs): generated media, never committed.
+state/instagram/

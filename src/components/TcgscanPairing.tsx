@@ -19,7 +19,13 @@ import { track } from '@/lib/analytics';
 
 const STEPS: { glyph: string; head: string; body: string }[] = [
   { glyph: '📷', head: 'Scan', body: 'Point TCGScan at a card, a page, a whole binder. It reads them into your collection.' },
-  { glyph: '📖', head: 'Compose', body: 'Your collection syncs here. The curator builds pages from the cards you actually own.' },
+  {
+    glyph: '📖',
+    head: 'Compose',
+    body:
+      'Your collection syncs here. Binder pages keep their structure and layout. Fill and curate ' +
+      'binder pages using cards you actually own.',
+  },
   { glyph: '🖨️', head: 'Fill', body: 'Print the fill sheets at true size, and swap the placeholders as the cards come in.' },
 ];
 

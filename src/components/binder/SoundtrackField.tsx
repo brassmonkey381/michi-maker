@@ -25,7 +25,8 @@ export function SoundtrackField({
   onLocked,
 }: {
   label: string;
-  track: BinderTrack | undefined;
+  /** null = explicitly cleared, undefined = never set. The field treats both as "no track". */
+  track: BinderTrack | null | undefined;
   onChange: (track: BinderTrack | null) => void;
   /** Not on VIP: the row shows, the tap explains. */
   locked: boolean;

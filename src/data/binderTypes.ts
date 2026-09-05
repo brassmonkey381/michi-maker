@@ -283,8 +283,15 @@ export interface BinderCover {
 export interface DemoPage {
   id: string;
   title?: string;
-  /** This page's own track: takes over while the page is open, hands back to the binder's after. */
-  track?: BinderTrack;
+  /**
+   * This page's own track: takes over while the page is open, hands back to the binder's after.
+   *
+   * `null` means CLEARED and is different from absent. The repo writes the column only for a patch
+   * whose `track` is not `undefined`, so a removal that arrives as `undefined` is read as "leave
+   * this column alone" and is silently dropped - which is exactly how Remove used to look like it
+   * worked and then come back on the next load.
+   */
+  track?: BinderTrack | null;
   /** Free-text page description (persisted to binder_pages.notes). */
   description?: string;
   rows: number;
@@ -340,8 +347,9 @@ export interface DemoBinder {
    * surfaces. Absent means undressed, which is every binder made before covers existed.
    */
   cover?: BinderCover;
-  /** The binder's soundtrack (VIP): plays from the first open or turn. Absent = silent. */
-  track?: BinderTrack;
+  /** The binder's soundtrack (VIP): plays from the first open or turn. Absent = silent, and
+   *  `null` = explicitly cleared, which is the value a removal must carry (see DemoPage.track). */
+  track?: BinderTrack | null;
   /** When true, anyone with the link can view this binder (see the `/binder/[id]` route). */
   isPublic?: boolean;
   /** Up to 2 page ids to feature in the shared-link OG preview. Absent/empty = auto (fullest pages).

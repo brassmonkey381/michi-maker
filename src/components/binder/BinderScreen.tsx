@@ -2419,7 +2419,10 @@ export function BinderScreen({
                   <SoundtrackField
                     label="Soundtrack"
                     track={binder.track}
-                    onChange={(track) => store.updateBinder(binder.id, { track: track ?? undefined })}
+                    // `track` straight through: Remove hands over null, and null is what the
+                    // repo needs to write the column. `?? undefined` turned a removal into an
+                    // absent field, which the patch guard reads as "do not touch this column".
+                    onChange={(track) => store.updateBinder(binder.id, { track })}
                     locked={tracksLocked}
                     onLocked={onTracksLocked}
                   />
@@ -2466,7 +2469,7 @@ export function BinderScreen({
                   <SoundtrackField
                     label="This page's track"
                     track={page.track}
-                    onChange={(track) => store.updatePage(binder.id, page.id, { track: track ?? undefined })}
+                    onChange={(track) => store.updatePage(binder.id, page.id, { track })}
                     locked={tracksLocked}
                     onLocked={onTracksLocked}
                   />

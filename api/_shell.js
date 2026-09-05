@@ -100,9 +100,17 @@ function compose(shell, { head, body }) {
  * Quiet, readable styling for the pre-mount body: a centred column in the app's cream, so the
  * instant before the app paints is not a wall of unstyled text — and a page that never gets
  * JavaScript still looks made on purpose.
+ *
+ * HELD BACK A THIRD OF A SECOND. The body is painted the moment the HTML arrives and React
+ * replaces it when the bundle lands, and on a normal connection that gap read as a flash of a
+ * different site. The animation keeps it at zero opacity for 350ms, then fades it in: a fast load
+ * mounts the app before it is ever seen; a slow one, or a browser without JavaScript, gets the page
+ * a beat later. It is an opacity delay, not display:none — the content is visible at rest, which is
+ * what keeps it ordinary indexable text rather than hidden text a search engine discounts.
  */
 const seoBodyStyle = `<style>
-#seo{max-width:760px;margin:0 auto;padding:32px 24px 64px;font:16px/1.5 "Segoe UI",system-ui,-apple-system,sans-serif;color:#2B2A27;background:#FBF8F1;overflow:auto;height:100%;box-sizing:border-box;width:100%}
+#seo{max-width:760px;margin:0 auto;padding:32px 24px 64px;font:16px/1.5 "Segoe UI",system-ui,-apple-system,sans-serif;color:#2B2A27;background:#FBF8F1;overflow:auto;height:100%;box-sizing:border-box;width:100%;animation:seo-in .25s ease-out .35s both}
+@keyframes seo-in{from{opacity:0}to{opacity:1}}
 #seo h1{font-size:30px;line-height:1.2;margin:8px 0 12px}#seo h2{font-size:20px;margin:28px 0 8px}
 #seo p{margin:0 0 12px}#seo ul,#seo ol{margin:0 0 12px 22px;padding:0}#seo li{margin:2px 0}
 #seo a{color:#7A3FF2}#seo .k{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#6B6459;font-weight:600}

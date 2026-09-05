@@ -26,7 +26,9 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
 import { sheet } from '@/constants/ui';
+import { StockArtSearch } from '@/components/binder/StockArtSearch';
 import { importRemoteArtToBucket } from '@/lib/importArt';
+import { stockAttribution, type StockHit } from '@/lib/stockArt';
 import { uploadArtImage } from '@/lib/uploadArt';
 import { deriveAttribution, domainOf, type ArtAttribution } from '@/data/artworkLibrary';
 import { uid, uuidv4, type ImageTransform } from '@/data/binderTypes';
@@ -320,6 +322,10 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
   // the user brings — never a hotlink). Shows a spinner; errors surface an "Upload instead" note.
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  // The Pexels / Pixabay search, folded away until asked for; the picked picture takes the same
+  // re-host path as a pasted URL, credited to its photographer.
+  const [stockOpen, setStockOpen] = useState(false);
+  const [stockBusy, setStockBusy] = useState<string | null>(null);
   const loadImage = useCallback((url: string, seed?: ArtAttribution) => {
     setImageUrl(url);
     setFailed(false);
@@ -1061,7 +1067,8 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
     return { left: minC * (cellW + GAP) + cellW + GAP / 2, top: minR * (cellH + GAP), height: cellH };
   }, [mergeLegal, panels, selected, cellW, cellH]);
 
-  const hasImage = Boolean(imageUrl);
+  const hasImage = Boolean(imageUrl);
+
   // Open on a wide screen (it costs nothing there) and whenever there is no art yet (it is the only
   // way in). Folded only in the case where it is pure obstruction: a phone, mid-framing.
   const showSource = twoCol || !hasImage || sourceOpen;
@@ -1191,6 +1198,7 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
           {/* Source — one calm row. Everything here is about GETTING an image in. */}
           <View style={styles.sourceBar}>
             <Btn label="Card art" onPress={() => setCardPickOpen(true)} kind="primary" />
+            <Btn label={stockOpen ? 'Hide photo search' : 'Search photos'} onPress={() => setStockOpen((v) => !v)} />
             <Btn label="Art sources ↗" onPress={() => setSourcesOpen(true)} />
             <ArtUploadButton
               onUploaded={(url) => loadImage(url, { sourceName: 'your upload', origin: 'upload' })}
@@ -1209,6 +1217,27 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
               <Btn label="Load" onPress={loadUrl} />
             </View>
           </View>
+
+          {stockOpen ? (
+            <View style={styles.stockWrap}>
+              <StockArtSearch
+                onPick={(hit: StockHit) => {
+                  if (stockBusy) return;
+                  setStockBusy(`${hit.provider}:${hit.id}`);
+                  setImportError(null);
+                  importRemoteArtToBucket(hit.url)
+                    .then((hosted) => {
+                      loadImage(hosted, stockAttribution(hit));
+                      setStockOpen(false);
+                    })
+                    .catch(() => setImportError('That picture would not download. Try another one.'))
+                    .finally(() => setStockBusy(null));
+                }}
+                busyId={stockBusy}
+                testID="studio-stock"
+              />
+            </View>
+          ) : null}
 
           {/* Attribution hint — remind the user to credit the source; art is hosted, never hotlinked. */}
           <Text style={styles.attribHint}>
@@ -1653,6 +1682,7 @@ function Ghost({ label, onPress }: { label: string; onPress: () => void }) {
 }
 
 const styles = StyleSheet.create({
+  stockWrap: { marginTop: 8 },
   flex: { flex: 1, backgroundColor: Palette.surface },
   header: {
     flexDirection: 'row',

@@ -125,6 +125,15 @@ secrets set. Both keep `verify_jwt` on (a plain `functions deploy` does). The ow
 one-shot script this session wrote to the scratchpad; it loads the keys from a file, never echoes
 them, and deploys both functions.
 
+## The photo search in the Art dock (2026-09-05)
+
+`src/components/binder/StockArtSearch.tsx` puts the same Pexels/Pixabay search in front of the
+user: under "From a photo search" in the cover Art tab (`CoverArtSection.tsx`) and behind a
+"Search photos" button in the Slice Studio source bar (`SliceStudio.tsx`). Browsing shows provider
+thumbnails with the maker's name; only the picked picture is re-hosted (`importRemoteArtToBucket`)
+and it is credited with `stockAttribution`. An Illustrations mode asks Pixabay for drawn work. Not
+tier-gated beyond needing a session (the edge function requires a JWT).
+
 ## Ideas not built yet
 
 - Custom stories: pick and order any of the 24 themes yourself.

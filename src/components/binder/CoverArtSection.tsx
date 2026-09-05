@@ -2,6 +2,9 @@
  * COVER ART — the two ways a picture reaches a cover that are not the upload button: a link, and
  * a piece already cut in the studio and sitting in the tray.
  *
+ * A PHOTO SEARCH (Pexels, Pixabay) works like a link the user did not have to find: the picked
+ * picture is pulled into the bucket and credited to its photographer (stockAttribution).
+ *
  * A LINK is pulled into the user's own bucket before it is placed (importRemoteArtToBucket), so
  * the cover never hotlinks; the provenance is derived from the URL and stamped 'external', which
  * is exactly what the studio does with the same input. The credit is recorded either way; the
@@ -24,7 +27,9 @@ import { uuidv4 } from '@/data/binderTypes';
 import { NEW_DECORATION_W, sliceToDecoration } from '@/data/coverDecorations';
 import { windowedImageStyle } from '@/data/imageWindow';
 import { useSavedSlices } from '@/data/savedSlices';
+import { StockArtSearch } from '@/components/binder/StockArtSearch';
 import { importRemoteArtToBucket } from '@/lib/importArt';
+import { stockAttribution, type StockHit } from '@/lib/stockArt';
 
 export function CoverArtSection({
   onAdd,
@@ -38,7 +43,34 @@ export function CoverArtSection({
 }) {
   const [url, setUrl] = useState('');
   const [busy, setBusy] = useState(false);
+  const [stockBusy, setStockBusy] = useState<string | null>(null);
   const slices = useSavedSlices();
+
+  const pickStock = async (hit: StockHit) => {
+    if (stockBusy) return;
+    setStockBusy(`${hit.provider}:${hit.id}`);
+    try {
+      const hosted = await importRemoteArtToBucket(hit.url);
+      // Sized to the picture's own proportions so it lands undistorted; w and h are both fractions
+      // of the surface width in the cover model.
+      const ratio = hit.width && hit.height ? hit.height / hit.width : 1;
+      onAdd({
+        id: uuidv4(),
+        kind: 'art',
+        imageUrl: hosted,
+        x: 0.5,
+        y: 0.5,
+        w: NEW_DECORATION_W,
+        h: NEW_DECORATION_W * ratio,
+        aspect: ratio ? 1 / ratio : undefined,
+        attribution: stockAttribution(hit),
+      });
+    } catch {
+      onToast('That picture would not download. Try another one.');
+    } finally {
+      setStockBusy(null);
+    }
+  };
 
   const importLink = async () => {
     const u = url.trim();
@@ -93,6 +125,9 @@ export function CoverArtSection({
           {busy ? <ActivityIndicator size="small" color={Palette.accentText} /> : <Text style={[flatChip.text, styles.goText]}>Add</Text>}
         </Pressable>
       </View>
+
+      <Text style={styles.label}>From a photo search</Text>
+      <StockArtSearch onPick={(h) => void pickStock(h)} disabled={disabled} busyId={stockBusy} testID="cover-stock" />
 
       <Text style={styles.label}>From your tray</Text>
       {slices.length === 0 ? (

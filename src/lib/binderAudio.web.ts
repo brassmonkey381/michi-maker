@@ -17,11 +17,19 @@ import type { PlayerState } from './binderAudio';
 
 const FADE_MS = 900;
 const MUTE_KEY = 'michi.soundtrack.muted';
+const VOLUME_KEY = 'michi.soundtrack.volume';
 
 type Listener = (s: PlayerState) => void;
 const listeners = new Set<Listener>();
 
-let state: PlayerState = { url: null, name: '', playing: false, muted: readMuted(), blocked: false };
+let state: PlayerState = {
+  url: null,
+  name: '',
+  playing: false,
+  muted: readMuted(),
+  blocked: false,
+  volume: readVolume(),
+};
 let current: HTMLAudioElement | null = null;
 let fading: HTMLAudioElement | null = null;
 let armed = false;
@@ -32,6 +40,25 @@ function readMuted(): boolean {
   } catch {
     return false;
   }
+}
+/**
+ * VOLUME AND MUTE ARE SEPARATE, and both are remembered. Mute is the quick on/off people already
+ * had; volume is where they left the dial. Folding them into one number would mean unmuting had to
+ * invent a level, and the level someone chose is the only right answer to that.
+ */
+function readVolume(): number {
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(VOLUME_KEY) : null;
+    const v = raw === null ? 1 : Number(raw);
+    return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 1;
+  } catch {
+    return 1;
+  }
+}
+function writeVolume(v: number) {
+  try {
+    localStorage.setItem(VOLUME_KEY, String(v));
+  } catch {}
 }
 function writeMuted(on: boolean) {
   try {
@@ -48,7 +75,7 @@ function makeAudio(url: string): HTMLAudioElement {
   const a = new Audio(url);
   a.loop = true;
   a.preload = 'auto';
-  a.volume = state.muted ? 0 : 1;
+  a.volume = state.muted ? 0 : state.volume;
   return a;
 }
 
@@ -119,7 +146,7 @@ export function setTrack(url: string | null, name = ''): void {
   emit({ url, name, playing: false, blocked: false });
   if (state.muted) return;
   void attemptPlay(next).then(() => {
-    if (current === next && state.playing) ramp(next, 1);
+    if (current === next && state.playing) ramp(next, state.volume);
   });
 }
 
@@ -131,7 +158,7 @@ export function togglePlay(): void {
     return;
   }
   if (state.muted) setMuted(false);
-  current.volume = 1;
+  current.volume = state.volume;
   void attemptPlay(current);
 }
 
@@ -144,9 +171,27 @@ export function setMuted(muted: boolean): void {
     current.pause();
     emit({ playing: false });
   } else {
-    current.volume = 1;
+    current.volume = state.volume;
     void attemptPlay(current);
   }
+}
+
+/**
+ * Set the level, 0..1. Applied to whatever is playing at once - no ramp, because this IS the user's
+ * hand on the dial and smoothing it would feel like lag.
+ *
+ * Dragging up from silence also unmutes: reaching for the volume is a request for sound, and
+ * leaving it muted would make the slider look broken at exactly the moment it was used.
+ */
+export function setVolume(volume: number): void {
+  const v = Math.min(1, Math.max(0, Number.isFinite(volume) ? volume : 1));
+  writeVolume(v);
+  const unmute = v > 0 && state.muted;
+  if (unmute) writeMuted(false);
+  emit({ volume: v, ...(unmute ? { muted: false } : {}) });
+  if (!current) return;
+  current.volume = state.muted ? 0 : v;
+  if (unmute) void attemptPlay(current);
 }
 
 export function stopPlayer(): void {

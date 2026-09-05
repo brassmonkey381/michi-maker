@@ -11,13 +11,16 @@ export interface PlayerState {
   muted: boolean;
   /** True when a play was attempted and refused (no user gesture yet): the pill says "tap to play". */
   blocked: boolean;
+  /** Playback volume, 0..1. Independent of `muted`, which is a remembered on/off on top of it. */
+  volume: number;
 }
 
-const SILENT: PlayerState = { url: null, name: '', playing: false, muted: false, blocked: false };
+const SILENT: PlayerState = { url: null, name: '', playing: false, muted: false, blocked: false, volume: 1 };
 
 export function setTrack(_url: string | null, _name = ''): void {}
 export function togglePlay(): void {}
 export function setMuted(_muted: boolean): void {}
+export function setVolume(_volume: number): void {}
 export function stopPlayer(): void {}
 export function subscribePlayer(_listener: (s: PlayerState) => void): () => void {
   return () => {};

@@ -14,7 +14,7 @@
  * would, so only a public binder exports. Runs against production by default so no dev server is
  * needed. One headless browser, closed when done.
  *
- *   node scripts/export-instagram.mjs --binder <id> [--pages 6] [--out <dir>] [--video] [--base https://michi-maker.com]
+ *   node scripts/export-instagram.mjs --binder <id> [--pages 6] [--out <dir>] [--video] [--seconds 13] [--base https://michi-maker.com]
  *
  * The Reel comes out as WebM (what the browser records). Instagram wants MP4: if ffmpeg is on
  * PATH the script converts; if not it says how to install it and leaves the WebM.
@@ -39,6 +39,10 @@ const BASE = args.base ?? 'https://michi-maker.com';
 const PAGES = Math.min(10, Math.max(1, Number(args.pages ?? 6)));
 const OUT = args.out ?? join(process.cwd(), 'state', 'instagram', BINDER.slice(0, 8));
 const VIDEO = args.video === 'true';
+/** How long the Reel should run from first page to last, whatever the page count. */
+const REEL_SECONDS = Number(args.seconds ?? 13);
+/** The app's page-turn animation (src/components/binder/pageTurn.tsx TURN_MS). Keep in step. */
+const TURN_MS = 620;
 mkdirSync(OUT, { recursive: true });
 
 const W = 1080;
@@ -71,19 +75,21 @@ try {
    * there is no such thumbnail (past the last page). The rail's thumbs are gesture-handler taps,
    * so this is a real mouse click at the thumb's centre, not a synthetic DOM event.
    */
-  const goTo = async (n, pg = p) => {
+  const goTo = async (n, pg = p, settle = 1900) => {
     const thumb = pg.locator(`[data-testid="binder-strip-page-${n}"]`).first();
     if (!(await thumb.count())) return false;
     await thumb.scrollIntoViewIfNeeded().catch(() => {});
     const box = await thumb.boundingBox();
     if (!box) return false;
     await pg.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-    await pg.waitForTimeout(1900); // the turn animation, then the page settles
+    await pg.waitForTimeout(settle); // the turn animation, then the page settles
     return true;
   };
 
   console.log(`Step 2/3: up to ${PAGES} page still(s)`);
+  let pagesFound = 0;
   for (let i = 0; i < PAGES; i++) {
+    pagesFound = i + 1;
     const grid = p.locator('[data-testid="binder-page-current"] [data-binder-page]').first();
     if (!(await grid.count())) {
       console.log('  no page grid found; stopping');
@@ -152,25 +158,52 @@ try {
     });
     const vp = await vctx.newPage();
     await vp.goto(`${BASE}/binder/${BINDER}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    const t0 = Date.now(); // the recording began with the context
     await vp.waitForSelector('[data-testid="binder-page-current"]', { timeout: 120000 });
-    await vp.waitForTimeout(3000);
+    await vp.waitForTimeout(2500);
     await vp.mouse.click(800, 40); // a gesture on the top bar, so a soundtrack may start
-    await vp.waitForTimeout(1500);
-    for (let i = 2; i <= PAGES; i++) {
-      if (!(await goTo(i, vp))) break;
-      await vp.waitForTimeout(600); // a beat on each page before the next turn
+
+    // WARM EVERY PAGE FIRST. A page turned to for the first time fetches its card images, and the
+    // pockets paint white for the instant before they arrive: the flash seen mid-reel. Visiting each
+    // page once, off the clock, fills the cache; the timed pass then turns onto pages that are
+    // already drawn. This footage is trimmed away below (or by hand in the editor).
+    const n = Math.max(1, pagesFound);
+    for (let i = 2; i <= n; i++) if (!(await goTo(i, vp, 900))) break;
+    await goTo(1, vp, 1200);
+
+    // PACE TO THE TARGET. Whatever the page count, the reel runs REEL_SECONDS from first page to
+    // last: a hold on page one, then every turn takes an equal share of what remains, the app's
+    // own turn animation included, then a hold on the last page. Two pages dwell long; ten flick.
+    const introMs = 1800;
+    const outroMs = 1500;
+    const turns = n - 1;
+    const perTurn = turns ? (REEL_SECONDS * 1000 - introMs - outroMs) / turns : 0;
+    const dwell = Math.max(250, Math.round(perTurn - TURN_MS));
+    console.log(`  ${n} page(s), ${turns} turn(s): ${(perTurn / 1000).toFixed(2)}s per turn, ${dwell}ms on each page`);
+    const tStart = Date.now();
+    await vp.waitForTimeout(introMs);
+    for (let i = 2; i <= n; i++) {
+      if (!(await goTo(i, vp, TURN_MS + dwell))) break;
     }
-    await vp.waitForTimeout(1500);
+    await vp.waitForTimeout(outroMs);
+    const tEnd = Date.now();
+
     const video = vp.video();
     await vctx.close();
     const webm = await video.path();
     const target = join(OUT, 'reel.webm');
     if (existsSync(target)) renameSync(target, join(OUT, `reel-old-${Date.now()}.webm`));
     renameSync(webm, target);
-    console.log(`  ${target}`);
-    const ff = spawnSync('ffmpeg', ['-y', '-i', target, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', join(OUT, 'reel.mp4')], { stdio: 'ignore' });
-    if (ff.status === 0) console.log(`  ${join(OUT, 'reel.mp4')}  (Instagram-ready)`);
-    else console.log('  ffmpeg not found: Instagram needs MP4. Install once with  winget install Gyan.FFmpeg  and re-run, or convert reel.webm yourself.');
+    const trimFrom = ((tStart - t0) / 1000).toFixed(2);
+    const length = ((tEnd - tStart) / 1000).toFixed(1);
+    console.log(`  ${target}  (full recording; the reel is the last ${length}s, from ${trimFrom}s)`);
+    const ff = spawnSync(
+      'ffmpeg',
+      ['-y', '-ss', trimFrom, '-i', target, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', join(OUT, 'reel.mp4')],
+      { stdio: 'ignore' },
+    );
+    if (ff.status === 0) console.log(`  ${join(OUT, 'reel.mp4')}  (${length}s, trimmed, Instagram-ready)`);
+    else console.log(`  ffmpeg not found: Instagram needs MP4 and the load/warm-up needs cutting. Install once with  winget install Gyan.FFmpeg  and re-run, or trim reel.webm from ${trimFrom}s in the editor.`);
   } else {
     console.log('Step 3/3: skipped (pass --video for the Reel)');
   }

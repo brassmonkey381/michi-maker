@@ -169,7 +169,10 @@ function PageThumb({ page, index, count, current, onSelect, onReorder, vertical 
 
   return (
     <GestureDetector gesture={gesture}>
-      <Animated.View style={[styles.thumb, vertical && styles.thumbBoxed, animStyle]}>
+      {/* testID becomes data-testid on web: scripts/export-instagram.mjs turns pages by clicking these. */}
+      <Animated.View
+        testID={`binder-strip-page-${index + 1}`}
+        style={[styles.thumb, vertical && styles.thumbBoxed, animStyle]}>
         <View style={[styles.thumbInner, current && styles.thumbCurrent]} pointerEvents="none">
           <BinderGrid page={page} width={THUMB_W} />
         </View>

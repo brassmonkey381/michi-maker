@@ -2,9 +2,13 @@
  * EXPORT A PUBLIC BINDER FOR INSTAGRAM.
  *
  * Stills: one 1080×1350 JPEG per page (Instagram's portrait post, the crop that gets the most
- * screen in the feed), the page centred on a mat with the binder title and michi-maker.com in
- * the corner. Up to ten, because a carousel holds ten. Reel: a 1080×1920 recording of the binder
- * turning through those pages, ready to trim in the Instagram editor.
+ * screen in the feed), the page centred on a mat with the binder title and the handle in the
+ * corner. Up to ten, because a carousel holds ten. Reel: a desktop-shaped (1600×900) recording of
+ * the binder turning through those pages, ready to trim in the Instagram editor.
+ *
+ * PAGES TURN BY CLICKING THE RAIL. The public viewer has no keyboard shortcuts (those live in the
+ * owner's editor), so the script clicks each page's thumbnail in the rail, exactly as a visitor
+ * does, and waits for the turn to land. It stops when there is no such thumbnail.
  *
  * Nothing is signed in and nothing is written: it opens the public binder page the way a visitor
  * would, so only a public binder exports. Runs against production by default so no dev server is
@@ -60,11 +64,25 @@ try {
   await comp.setViewportSize({ width: W, height: H });
   await comp.setContent(`<canvas id="c" width="${W}" height="${H}"></canvas>`);
 
-  const pageTitleOf = async () =>
-    (await p.locator('[data-testid="binder-page-current"] [data-testid^="binder-page-title"]').first().innerText().catch(() => '')).trim();
+  const pageTitleOf = async (pg = p) =>
+    (await pg.locator('[data-testid="binder-page-current"] [data-testid^="binder-page-title"]').first().innerText().catch(() => '')).trim();
+  /**
+   * Go to page `n` (1-based) by clicking its thumbnail in the rail, as a visitor does. False when
+   * there is no such thumbnail (past the last page). The rail's thumbs are gesture-handler taps,
+   * so this is a real mouse click at the thumb's centre, not a synthetic DOM event.
+   */
+  const goTo = async (n, pg = p) => {
+    const thumb = pg.locator(`[data-testid="binder-strip-page-${n}"]`).first();
+    if (!(await thumb.count())) return false;
+    await thumb.scrollIntoViewIfNeeded().catch(() => {});
+    const box = await thumb.boundingBox();
+    if (!box) return false;
+    await pg.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    await pg.waitForTimeout(1900); // the turn animation, then the page settles
+    return true;
+  };
 
-  console.log(`Step 2/3: ${PAGES} page still(s)`);
-  let lastTitle = null;
+  console.log(`Step 2/3: up to ${PAGES} page still(s)`);
   for (let i = 0; i < PAGES; i++) {
     const grid = p.locator('[data-testid="binder-page-current"] [data-binder-page]').first();
     if (!(await grid.count())) {
@@ -117,32 +135,30 @@ try {
     const { writeFileSync } = await import('node:fs');
     writeFileSync(file, Buffer.from(jpeg.split(',')[1], 'base64'));
     console.log(`  ${file}  (${pageTitle || 'untitled'})`);
-    // Turn the page; stop when the title stops changing (the end of the binder).
-    await p.keyboard.press('ArrowRight');
-    await p.waitForTimeout(1800);
-    const now = await pageTitleOf();
-    if (now === pageTitle && lastTitle === pageTitle) break;
-    lastTitle = pageTitle;
+    if (i + 1 < PAGES && !(await goTo(i + 2))) {
+      console.log('  last page reached');
+      break;
+    }
   }
   await ctx.close();
 
   // ---- the reel
   if (VIDEO) {
-    console.log('Step 3/3: recording the page turns (1080×1920)');
+    console.log('Step 3/3: recording the page turns (1600×900)');
     const vctx = await browser.newContext({
-      viewport: { width: 1080, height: 1920 },
+      viewport: { width: 1600, height: 900 },
       deviceScaleFactor: 1,
-      recordVideo: { dir: OUT, size: { width: 1080, height: 1920 } },
+      recordVideo: { dir: OUT, size: { width: 1600, height: 900 } },
     });
     const vp = await vctx.newPage();
     await vp.goto(`${BASE}/binder/${BINDER}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
     await vp.waitForSelector('[data-testid="binder-page-current"]', { timeout: 120000 });
     await vp.waitForTimeout(3000);
-    await vp.mouse.click(540, 900); // a gesture, so a soundtrack may start
-    await vp.waitForTimeout(1200);
-    for (let i = 0; i < PAGES; i++) {
-      await vp.keyboard.press('ArrowRight');
-      await vp.waitForTimeout(2200);
+    await vp.mouse.click(800, 40); // a gesture on the top bar, so a soundtrack may start
+    await vp.waitForTimeout(1500);
+    for (let i = 2; i <= PAGES; i++) {
+      if (!(await goTo(i, vp))) break;
+      await vp.waitForTimeout(600); // a beat on each page before the next turn
     }
     await vp.waitForTimeout(1500);
     const video = vp.video();

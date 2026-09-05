@@ -8,28 +8,120 @@
  * One block, the same on every surface it appears on (Home, Welcome, My binders), with the loop
  * drawn as three steps and one button. The button goes through openTcgscan, which mints the SSO
  * handoff so a signed-in member lands on tcgscan.ai already signed in.
+ *
+ * THE THREE STEPS ARE DRAWN WITH THE APP'S OWN PAGES, NOT EMOJI. A camera, a book and a printer
+ * glyph read as machine-made, and visitors hold that against a site. Each step now shows a real
+ * example page rendered by the same BinderGrid that draws every binder here: one card on a phone
+ * screen for Scan, the finished page for Compose, and the same page half-emptied on a sheet of
+ * paper for Fill — the pockets still to be swapped as the cards arrive.
  */
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { BinderGrid } from '@/components/binder/BinderGrid';
 import { openTcgscan } from '@/components/monetization/BundleOffer';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { FontSize, Palette, Radius, Shadows, Spacing, Weight } from '@/constants/theme';
+import { FontSize, Palette, Radii, Radius, Shadows, Spacing, Weight } from '@/constants/theme';
+import type { DemoPage } from '@/data/binderTypes';
 import { track } from '@/lib/analytics';
+import { useBinders } from '@/store/binders';
 
-const STEPS: { glyph: string; head: string; body: string }[] = [
-  { glyph: '📷', head: 'Scan', body: 'Point TCGScan at a card, a page, a whole binder. It reads them into your collection.' },
+type StepKind = 'scan' | 'compose' | 'fill';
+
+const STEPS: { kind: StepKind; head: string; body: string }[] = [
+  { kind: 'scan', head: 'Scan', body: 'Point TCGScan at a card, a page, a whole binder. It reads them into your collection.' },
   {
-    glyph: '📖',
+    kind: 'compose',
     head: 'Compose',
     body:
       'Your collection syncs here. Binder pages keep their structure and layout. Fill and curate ' +
       'binder pages using cards you actually own.',
   },
-  { glyph: '🖨️', head: 'Fill', body: 'Print the fill sheets at true size, and swap the placeholders as the cards come in.' },
+  { kind: 'fill', head: 'Fill', body: 'Print the fill sheets at true size, and swap the placeholders as the cards come in.' },
 ];
 
+/** Every illustration sits in a box this tall (a 3×3 page at PAGE_W is ~190px), so the three headings line up beneath them. */
+const ART_H = 204;
+/** The finished page (Compose) and the half-filled sheet (Fill) draw the page at this width. */
+const PAGE_W = 132;
+/** The phone (Scan): bezel outer size, and the one-card page drawn on its screen. */
+const PHONE_W = 74;
+const PHONE_H = 150;
+const PHONE_PAD = 5;
+
+/**
+ * The example page each illustration is built from: the first example binder page that has a
+ * card in it (the same page the curate callout shows as its "after").
+ */
+function useExamplePage(): DemoPage | undefined {
+  const store = useBinders();
+  return (
+    store.exampleBinders.find((b) => b.pages[0]?.slots?.some((s) => s.cardId))?.pages[0] ?? store.exampleBinders[0]?.pages[0]
+  );
+}
+
+/**
+ * One card, as the phone sees it: the page's first card pocket alone on a 1×1 page. Drawn inside
+ * a dark bezel with the four corner brackets of a scanner's reticle over it.
+ */
+function ScanArt({ page }: { page: DemoPage }) {
+  const one = useMemo<DemoPage | null>(() => {
+    const slot = page.slots.find((s) => s.type === 'card' && s.cardId);
+    if (!slot) return null;
+    return { id: `${page.id}-scan`, rows: 1, cols: 1, slots: [{ ...slot, row: 0, col: 0, rowSpan: 1, colSpan: 1 }] };
+  }, [page]);
+  return (
+    <View style={styles.phone}>
+      <View style={styles.screen}>
+        {one ? <BinderGrid page={one} width={PHONE_W - PHONE_PAD * 2} instantImages /> : null}
+        <View pointerEvents="none" style={styles.reticle}>
+          <View style={[styles.corner, styles.cornerTL]} />
+          <View style={[styles.corner, styles.cornerTR]} />
+          <View style={[styles.corner, styles.cornerBL]} />
+          <View style={[styles.corner, styles.cornerBR]} />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/** The finished page, exactly as the binder draws it. */
+function ComposeArt({ page }: { page: DemoPage }) {
+  return (
+    <View style={styles.pageShadow}>
+      <BinderGrid page={page} width={PAGE_W} instantImages />
+    </View>
+  );
+}
+
+/**
+ * The fill sheet: the same page with every other pocket still empty, on a sheet of paper. The
+ * empties are the placeholders the step talks about — what you swap out as the real cards arrive.
+ */
+function FillArt({ page }: { page: DemoPage }) {
+  const half = useMemo<DemoPage>(
+    () => ({ ...page, id: `${page.id}-fill`, backgroundColor: undefined, slots: page.slots.filter((_, i) => i % 2 === 0) }),
+    [page],
+  );
+  return (
+    <View style={styles.paper}>
+      <BinderGrid page={half} width={PAGE_W - 12} instantImages />
+    </View>
+  );
+}
+
+function StepArt({ kind, page }: { kind: StepKind; page: DemoPage | undefined }) {
+  if (!page) return <View style={styles.art} />;
+  return (
+    <View style={styles.art} pointerEvents="none">
+      {kind === 'scan' ? <ScanArt page={page} /> : kind === 'compose' ? <ComposeArt page={page} /> : <FillArt page={page} />}
+    </View>
+  );
+}
+
 export function TcgscanPairing({ surface, compact = false }: { surface: string; compact?: boolean }) {
+  const page = useExamplePage();
   const go = () => {
     track('tcgscan.pairing_click', { surface });
     openTcgscan();
@@ -55,7 +147,7 @@ export function TcgscanPairing({ surface, compact = false }: { surface: string; 
         <View style={styles.steps}>
           {STEPS.map((s, i) => (
             <View key={s.head} style={styles.step}>
-              <Text style={styles.glyph}>{s.glyph}</Text>
+              <StepArt kind={s.kind} page={page} />
               <ThemedText type="smallBold">
                 {i + 1}. {s.head}
               </ThemedText>
@@ -78,6 +170,9 @@ export function TcgscanPairing({ surface, compact = false }: { surface: string; 
   );
 }
 
+const CORNER = 14;
+const CORNER_STROKE = 2;
+
 const styles = StyleSheet.create({
   card: {
     padding: Spacing.four,
@@ -96,7 +191,42 @@ const styles = StyleSheet.create({
   lede: { maxWidth: 620 },
   steps: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three, marginTop: Spacing.two },
   step: { flex: 1, minWidth: 180, gap: 2 },
-  glyph: { fontSize: 20 },
+  // The illustration box: a fixed height so the three headings sit on one line, content at the
+  // bottom-left so a shorter drawing (the phone) hangs from the same baseline as the pages.
+  art: { height: ART_H, justifyContent: 'flex-end', alignItems: 'flex-start', marginBottom: Spacing.two },
+  pageShadow: { borderRadius: Radii.pageSmall, ...Shadows.page },
+  // Scan: a dark phone bezel around a screen, the card centred on it, a reticle over the card.
+  phone: {
+    width: PHONE_W,
+    height: PHONE_H,
+    padding: PHONE_PAD,
+    borderRadius: 12,
+    backgroundColor: Palette.chromeDeep,
+    ...Shadows.page,
+  },
+  screen: {
+    flex: 1,
+    borderRadius: 8,
+    backgroundColor: Palette.panelAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  reticle: { position: 'absolute', top: 10, right: 6, bottom: 10, left: 6 },
+  corner: { position: 'absolute', width: CORNER, height: CORNER, borderColor: Palette.accent },
+  cornerTL: { top: 0, left: 0, borderTopWidth: CORNER_STROKE, borderLeftWidth: CORNER_STROKE, borderTopLeftRadius: 4 },
+  cornerTR: { top: 0, right: 0, borderTopWidth: CORNER_STROKE, borderRightWidth: CORNER_STROKE, borderTopRightRadius: 4 },
+  cornerBL: { bottom: 0, left: 0, borderBottomWidth: CORNER_STROKE, borderLeftWidth: CORNER_STROKE, borderBottomLeftRadius: 4 },
+  cornerBR: { bottom: 0, right: 0, borderBottomWidth: CORNER_STROKE, borderRightWidth: CORNER_STROKE, borderBottomRightRadius: 4 },
+  // Fill: a sheet of paper, the page printed on it with a margin all round.
+  paper: {
+    padding: 6,
+    backgroundColor: Palette.white,
+    borderRadius: 3,
+    borderWidth: 1,
+    borderColor: Palette.hairline,
+    ...Shadows.page,
+  },
   stepBody: { lineHeight: 18 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.three, marginTop: Spacing.two },
   primary: { backgroundColor: Palette.accent, borderRadius: Radius.pill, paddingHorizontal: Spacing.four, paddingVertical: 8 },

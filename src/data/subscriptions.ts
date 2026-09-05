@@ -210,24 +210,6 @@ export const COMPARISON: CompareRow[] = [
     vip: { text: 'Unlimited', strong: true },
   },
   {
-    capability: 'Binder covers',
-    free: { text: 'No' },
-    pro: { text: '✓', strong: true, sub: 'dress it, decorate all four surfaces' },
-    vip: { text: '✓', strong: true, sub: 'dress it, decorate all four surfaces' },
-  },
-  {
-    capability: 'Binder soundtrack',
-    free: { text: 'No' },
-    pro: { text: 'No' },
-    vip: { text: '✓', strong: true, sub: 'your own track, per binder or per page, plays on open and turn' },
-  },
-  {
-    capability: 'Cards you can showcase',
-    free: { text: 'Over 750!' },
-    pro: { text: 'Over 7,500!', strong: true },
-    vip: { text: 'Unlimited', strong: true },
-  },
-  {
     // TWO ROWS, NOT ONE. These shipped as a single "included at every tier" promise (owner
     // decision 2026-07-16) reading "Similarity matching + composer methods: Included", and it
     // over-promised twice over: tri-colour was already PRO in code, and find similar itself went
@@ -259,6 +241,18 @@ export const COMPARISON: CompareRow[] = [
     free: { text: 'Basic', sub: 'grammar, filters, one colour' },
     pro: { text: '✓', strong: true, sub: 'value sort, price, Tri-Color, similarity' },
     vip: { text: 'PRO + Theme Search', strong: true },
+  },
+  {
+    capability: 'Binder covers',
+    free: { text: 'No' },
+    pro: { text: '✓', strong: true, sub: 'dress it, decorate all four surfaces' },
+    vip: { text: '✓', strong: true, sub: 'dress it, decorate all four surfaces' },
+  },
+  {
+    capability: 'Binder soundtrack',
+    free: { text: 'No' },
+    pro: { text: 'No' },
+    vip: { text: '✓', strong: true, sub: 'your own track, per binder or per page, plays on open and turn' },
   },
   {
     capability: 'Slice Studio artworks in your account',
@@ -302,8 +296,6 @@ export const COMPARISON: CompareRow[] = [
   },
 ];
 
-// Declared above FOOTNOTES because footnote (5) quotes its price — a `const` referenced
-// before its declaration would throw at module load, not just read oddly.
 export const ONE_TIME_PDF = {
   name: 'Full-binder fill-sheet PDF',
   price: '$3.99',
@@ -347,10 +339,10 @@ export const FOOTNOTES: { mark: string; text: string; link?: { label: string; ur
   {
     mark: '(5)',
     text:
-      `Yearly plans can release the whole year of prints at once, about ${YEARLY_PRINT_VALUE.pro.each} ` +
-      `a print on PRO and ${YEARLY_PRINT_VALUE.vip.each} on VIP, against ${ONE_TIME_PDF.price} for a ` +
-      'one-off binder PDF; monthly plans get theirs a month at a time. Upgrades are prorated, prints ' +
-      'included.',
+      // No per-print dollar figures here (owner decision 2026-09-04): a plan bought with the 20% or
+      // the 60% bundle coupon costs far less, so any number quoted would overstate the price.
+      'Yearly plans can release the whole year of prints at once; monthly plans get theirs a ' +
+      'month at a time. Upgrades are prorated, prints included.',
   },
 ];
 

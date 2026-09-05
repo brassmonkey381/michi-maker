@@ -13,7 +13,8 @@
  * `demo.csv_import` per attempt, tagged with the surface that sent it.
  */
 import { useRouter, type Href } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 
 import { BinderGrid } from '@/components/binder/BinderGrid';
 import { ThemedText } from '@/components/themed-text';
@@ -56,6 +57,16 @@ export function CurateCallout({
 }) {
   const router = useRouter();
   const store = useBinders();
+  // THE STRIP FITS THE CARD, WHATEVER THE CARD FITS. The CSV slip, the arrow and the page add up
+  // to ~380px, and the card is a row that wraps: below ~620px the strip drops under the text and
+  // takes a row of its own, but on a phone that row is narrower than the strip, so the page ran
+  // off the right edge of the card (mobile Safari showed it clipped). Measure the card's inner
+  // width and shrink both halves in step until the whole strip fits; at desktop widths this is 1.
+  const [inner, setInner] = useState(0);
+  const onLayout = (e: LayoutChangeEvent) => setInner(Math.max(0, e.nativeEvent.layout.width - 2 * (compact ? Spacing.three : Spacing.four) - 2));
+  const fit = inner ? Math.min(1, inner / STRIP_W) : 1;
+  const beforeW = Math.round(BEFORE_W * fit);
+  const afterW = Math.round(AFTER_W * fit);
   // The "after": the first page of the first example binder, drawn small. Real pockets, real
   // cards — a picture of the outcome beats a sentence about it.
   const afterPage = store.exampleBinders.find((b) => b.pages[0]?.slots?.some((s) => s.cardId))?.pages[0] ?? store.exampleBinders[0]?.pages[0];
@@ -65,8 +76,8 @@ export function CurateCallout({
   };
 
   return (
-    <ThemedView type="backgroundElement" style={[styles.card, compact && styles.cardCompact]}>
-      <View style={styles.body}>
+    <ThemedView type="backgroundElement" style={[styles.card, compact && styles.cardCompact]} onLayout={onLayout}>
+      <View style={[styles.body, inner > 0 && inner < BODY_MIN_W && { minWidth: inner }]}>
         <ThemedText type="smallBold" style={styles.kicker}>
           {CURATE_TITLE}
         </ThemedText>
@@ -95,7 +106,7 @@ export function CurateCallout({
 
       {!compact ? (
         <View style={styles.strip} pointerEvents="none">
-          <View style={styles.before}>
+          <View style={[styles.before, { width: beforeW }]}>
             <Text style={styles.beforeHead}>collection.csv</Text>
             {SAMPLE_ROWS.map((r) => (
               <Text key={r.name} numberOfLines={1} style={styles.beforeRow}>
@@ -108,7 +119,7 @@ export function CurateCallout({
           <Text style={styles.arrow}>→</Text>
           {afterPage ? (
             <View style={styles.after}>
-              <BinderGrid page={afterPage} width={AFTER_W} />
+              <BinderGrid page={afterPage} width={afterW} />
             </View>
           ) : null}
         </View>
@@ -118,6 +129,11 @@ export function CurateCallout({
 }
 
 const AFTER_W = 150;
+const BEFORE_W = 160;
+const ARROW_W = 22;
+/** The strip at full size: slip, gap, arrow, gap, page. */
+const STRIP_W = BEFORE_W + Spacing.three + ARROW_W + Spacing.three + AFTER_W;
+const BODY_MIN_W = 240;
 
 const styles = StyleSheet.create({
   card: {
@@ -132,7 +148,7 @@ const styles = StyleSheet.create({
     ...Shadows.page,
   },
   cardCompact: { padding: Spacing.three },
-  body: { flex: 1, minWidth: 240, gap: 6 },
+  body: { flex: 1, minWidth: BODY_MIN_W, gap: 6 },
   kicker: { color: Palette.accent, textTransform: 'uppercase', letterSpacing: 0.6, fontSize: FontSize.label },
   title: { marginTop: 2 },
   lede: { maxWidth: 520 },
@@ -146,9 +162,8 @@ const styles = StyleSheet.create({
   primaryText: { color: Palette.accentText, fontSize: FontSize.body, fontWeight: Weight.semibold },
   pressed: { opacity: 0.75 },
   // The transformation: a slip of CSV, an arrow, the page it became.
-  strip: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  strip: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, maxWidth: '100%' },
   before: {
-    width: 160,
     padding: Spacing.three,
     borderRadius: Radius.control,
     backgroundColor: Palette.panel,
@@ -157,6 +172,6 @@ const styles = StyleSheet.create({
   beforeHead: { fontFamily: Fonts.mono, fontSize: 10, color: Palette.ink2, marginBottom: 2 },
   beforeRow: { fontFamily: Fonts.mono, fontSize: 11, color: Palette.ink2 },
   beforeSet: { color: Palette.ink2 },
-  arrow: { fontSize: 22, color: Palette.ink2 },
+  arrow: { fontSize: 22, width: ARROW_W, textAlign: 'center', color: Palette.ink2 },
   after: { borderRadius: Radii.pageSmall, ...Shadows.page },
 });

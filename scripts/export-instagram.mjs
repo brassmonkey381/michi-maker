@@ -106,7 +106,7 @@ try {
         g.fillText(pageTitle ? `${title} · ${pageTitle}` : title, pad, H - pad + 8);
         g.font = '500 24px "Segoe UI", system-ui, sans-serif';
         g.fillStyle = '#6B6459';
-        const mark = 'michi-maker.com';
+        const mark = 'michi-maker.com · @michimakerofficial';
         const mw = g.measureText(mark).width;
         g.fillText(mark, W - pad - mw, H - pad + 8);
         return c.toDataURL('image/jpeg', 0.92);

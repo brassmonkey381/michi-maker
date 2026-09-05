@@ -18,6 +18,36 @@ const DESCRIPTION =
   'Compose curated Pokémon card binder pages and print true-size fill sheets to build the real thing.';
 const ORIGIN = 'https://michi-maker.com';
 
+/**
+ * The brand as one entity for search: the site, its logo, and the profiles that belong to it.
+ * `sameAs` is how Google ties michimakerofficial on Instagram and YouTube to this domain (the
+ * same link Search Console's "platform accounts" makes from the other side), which is what a
+ * brand needs before its posts and a knowledge panel show up for a search of its name.
+ */
+const SOCIAL = ['https://www.instagram.com/michimakerofficial/', 'https://www.youtube.com/@michimakerofficial'];
+const ORG_LD = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      '@id': `${ORIGIN}/#org`,
+      name: 'Michi-Maker',
+      alternateName: 'michi-maker',
+      url: `${ORIGIN}/`,
+      logo: `${ORIGIN}/og.png`,
+      sameAs: SOCIAL,
+    },
+    {
+      '@type': 'WebSite',
+      '@id': `${ORIGIN}/#site`,
+      name: 'Michi-Maker',
+      url: `${ORIGIN}/`,
+      description: DESCRIPTION,
+      publisher: { '@id': `${ORIGIN}/#org` },
+    },
+  ],
+};
+
 const META = `
     <meta name="description" content="${DESCRIPTION}" />
     <meta property="og:type" content="website" />
@@ -31,7 +61,8 @@ const META = `
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${TITLE}" />
     <meta name="twitter:description" content="${DESCRIPTION}" />
-    <meta name="twitter:image" content="${ORIGIN}/og.png" />`;
+    <meta name="twitter:image" content="${ORIGIN}/og.png" />
+    <script type="application/ld+json">${JSON.stringify(ORG_LD).replace(/</g, '\u003c')}</script>`;
 
 let html = fs.readFileSync(shell, 'utf8');
 if (html.includes('property="og:title"')) {

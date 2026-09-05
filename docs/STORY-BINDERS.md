@@ -62,7 +62,7 @@ that produced those numbers was a scratch script over `cards_en?select=…&scene
    per species (`speciesKey`) and two per illustrator per spread.
 5. **Seating (`seatingOrder`)** orders each leaf's free pockets by distance to the reserved art
    cells, so the strongest cards sit against the art; cards alternate leaves in score order so
-   both pages carry equal weight. Page descriptions record the theme blurb and the top tags used.
+   both pages carry equal weight. Page descriptions are the theme's one sentence, never the tags (owner decision 2026-09-05); `plan.topTags` keeps them for tuning.
 6. **Art jobs**: every reserved panel becomes a job carrying the theme's searches and art kind.
    Nothing is capped — a six-theme template makes 13 pages and 15 jobs.
 
@@ -94,7 +94,7 @@ sunrise yellow (light shell, dark ink).
 |---|---|
 | Front | Title in the display face, the story blurb in italic serif, a hero picture, a tag "Created by @user · date" |
 | Inside front | A notecard table of contents (numbered themes), a post-it with the build date and counts, one square picture per theme with a caption (captions drop when a picture and a caption per theme would pass the 12-layer cap) |
-| Inside back | "By the numbers" on a notecard (pages, spreads, cards, art panels, printings, source), the tags that shaped the binder on a label, a credits post-it |
+| Inside back | "By the numbers" on a notecard (pages, spreads, cards, art panels, printings, source), one sentence on how it was made on a label, a credits post-it |
 | Back | A wide band of art, the hero cards fanned (up to three `cardId` stickers), the wordmark line |
 
 Cover pictures are fetched like the panels' and share the binder's used-image set, so no picture on

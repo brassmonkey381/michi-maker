@@ -141,7 +141,8 @@ test('planStoryBinder: a cover plus one two-page spread per theme, art jobs for 
   }
   assert.equal(plan.pages[0].title, 'Seasons');
   assert.equal(plan.pages[1].title, 'Spring');
-  assert.match(plan.pages[1].description ?? '', /Tags: scene:flowers/);
+  assert.equal(plan.pages[1].description, 'Flowers, meadows and gardens; the cheerful, tender pictures.');
+  assert.doesNotMatch(plan.pages[1].description ?? '', /scene:|mood:|Tags:/, 'no tag machinery in a caption');
 });
 
 test('planStoryBinder: a thin theme still builds, with fewer cards and no crash', () => {

@@ -266,14 +266,13 @@ function cardSlot(mkId: () => string, r: number, c: number, cardId: string, from
   return { id: mkId(), row: r, col: c, rowSpan: 1, colSpan: 1, type: 'card', cardId, ...(fromCollection ? { fromCollection: true } : {}) };
 }
 
-function describe(theme: StoryTheme, placed: ThemeScore[]): string {
-  const counts = new Map<string, number>();
-  for (const p of placed) for (const h of p.hits) counts.set(h, (counts.get(h) ?? 0) + 1);
-  const top = [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 4)
-    .map(([t]) => t);
-  return top.length ? `${theme.blurb}\nTags: ${top.join(', ')}` : theme.blurb;
+/**
+ * The page description: the theme's one sentence. Not the tags — a reader of the binder should see
+ * a caption, not the machinery ("scene:snow, mood:cold") that chose the cards. The tags that
+ * placed the most cards are still reported on the plan (`topTags`) for anyone tuning the themes.
+ */
+function describe(theme: StoryTheme): string {
+  return theme.blurb;
 }
 
 // ─── Layout choice ───────────────────────────────────────────────────────────────────────────────
@@ -363,7 +362,7 @@ export function planStoryBinder(opts: StoryPlanOptions): StoryPlan {
       else if (right.length < rightSeats.length) right.push(c);
       else if (left.length < leftSeats.length) left.push(c);
     }
-    const description = describe(theme, chosen);
+    const description = describe(theme);
     const leftIndex = pages.length;
     pages.push(leafPage(mkId, shape, t, 'left', left, theme.title, description, fromCollection, leftIndex, artJobs, { queries: theme.art, kind: theme.artKind ?? 'any', label: theme.title }, leftSeats));
     pages.push(leafPage(mkId, shape, t, 'right', right, theme.title, description, fromCollection, leftIndex + 1, artJobs, { queries: theme.art, kind: theme.artKind ?? 'any', label: theme.title }, rightSeats));

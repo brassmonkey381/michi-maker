@@ -12,9 +12,10 @@
  * THE THREE STEPS ARE DRAWN WITH THE APP'S OWN PAGES, NOT EMOJI. A camera, a book and a printer
  * glyph read as machine-made, and visitors hold that against a site. Each step now shows a real
  * example page rendered by the same BinderGrid that draws every binder here: one card on a phone
- * screen for Scan, the finished page for Compose, and for Share or Print a printer putting out the
- * fill sheet (the same page, half its pockets still empty) beside the liked heart from the binder's
- * own like button.
+ * screen for Scan, the finished page for Compose, and for Share or Print a printer putting out
+ * that same page as a fill sheet, beside the liked heart from the binder's own like button. The
+ * page is the example page's cards with a 1×2 artwork panel down the middle column, so the two
+ * drawings are recognisably the one sheet, and it shows an art piece the way real michi pages do.
  */
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -25,6 +26,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Shadows, Spacing, Weight } from '@/constants/theme';
 import type { DemoPage } from '@/data/binderTypes';
+import { pokemonArt } from '@/data/content/_helpers';
 import { track } from '@/lib/analytics';
 import { useBinders } from '@/store/binders';
 
@@ -48,11 +50,11 @@ const STEPS: { kind: StepKind; head: string; body: string }[] = [
   },
 ];
 
-/** Every illustration sits in a box this tall (a 3×3 page at PAGE_W is ~190px), so the three headings line up beneath them. */
-const ART_H = 204;
 /** The finished page (Compose) draws at this width; the printed sheet (Share or Print) is narrower. */
-const PAGE_W = 132;
-const SHEET_PAGE_W = 96;
+const PAGE_W = 118;
+/** Every illustration sits in a box just tall enough for the Compose page, so the headings line up. */
+const ART_H = 172;
+const SHEET_PAGE_W = 84;
 const SHEET_PAD = 6;
 /** The printer: a body the sheet rises out of, overlapping it so the paper reads as still emerging. */
 const PRINTER_W = 156;
@@ -60,18 +62,51 @@ const PRINTER_H = 54;
 const PRINTER_OVERLAP = 30;
 /** The phone (Scan): bezel outer size, and the one-card page drawn on its screen. */
 const PHONE_W = 74;
-const PHONE_H = 150;
+const PHONE_H = 140;
 const PHONE_PAD = 5;
 
+/** The official Umbreon artwork: the example page is the Eeveelutions, so the art matches its cards. */
+const ART_DEX = 197;
+
 /**
- * The example page each illustration is built from: the first example binder page that has a
- * card in it (the same page the curate callout shows as its "after").
+ * The page every illustration is built from: the first example binder page that has a card in it
+ * (the same page the curate callout shows as its "after"), with the middle column's lower two
+ * pockets replaced by one 1×2 artwork panel. Built once; Compose and Share or Print draw the
+ * identical page.
  */
 function useExamplePage(): DemoPage | undefined {
   const store = useBinders();
-  return (
-    store.exampleBinders.find((b) => b.pages[0]?.slots?.some((s) => s.cardId))?.pages[0] ?? store.exampleBinders[0]?.pages[0]
-  );
+  const base =
+    store.exampleBinders.find((b) => b.pages[0]?.slots?.some((s) => s.cardId))?.pages[0] ?? store.exampleBinders[0]?.pages[0];
+  return useMemo<DemoPage | undefined>(() => {
+    if (!base) return undefined;
+    if (base.cols < 3 || base.rows < 3) return base;
+    const midCol = Math.floor(base.cols / 2);
+    const artRow = base.rows - 2;
+    const keep = base.slots.filter(
+      (sl) => sl.rowSpan === 1 && sl.colSpan === 1 && !(sl.col === midCol && (sl.row === artRow || sl.row === artRow + 1)),
+    );
+    return {
+      ...base,
+      id: `${base.id}-steps`,
+      slots: [
+        ...keep,
+        {
+          id: `${base.id}-steps-art`,
+          row: artRow,
+          col: midCol,
+          rowSpan: 2,
+          colSpan: 1,
+          type: 'artwork',
+          imageUrl: pokemonArt(ART_DEX),
+          // Fill the tall panel: the render is square, so take its middle band and let cover crop
+          // the rest, rather than a small picture floating in a column of backing.
+          imageFit: 'cover',
+          imageCrop: { x: 0.28, y: 0, w: 0.44, h: 1 },
+        },
+      ],
+    };
+  }, [base]);
 }
 
 /**
@@ -109,20 +144,15 @@ function ComposeArt({ page }: { page: DemoPage }) {
 }
 
 /**
- * Share or Print: a printer with the fill sheet coming out of it — the Compose page with every
- * other pocket still empty, the placeholders you swap out as the real cards arrive — and, beside
- * it, the binder's like button in its liked state (the filled heart and a count), the same pill
- * LikeButton draws on a public binder.
+ * Share or Print: a printer with the fill sheet coming out of it — the very page Compose shows,
+ * printed — and, beside it, the binder's like button in its liked state (the filled heart and a
+ * count), the same pill LikeButton draws on a public binder.
  */
 function ShareArt({ page }: { page: DemoPage }) {
-  const half = useMemo<DemoPage>(
-    () => ({ ...page, id: `${page.id}-fill`, backgroundColor: undefined, slots: page.slots.filter((_, i) => i % 2 === 0) }),
-    [page],
-  );
   return (
     <View style={styles.shareArt}>
       <View style={styles.paper}>
-        <BinderGrid page={half} width={SHEET_PAGE_W} instantImages />
+        <BinderGrid page={page} width={SHEET_PAGE_W} instantImages />
       </View>
       <View style={styles.printer}>
         <View style={styles.printerSlot} />
@@ -218,7 +248,7 @@ const styles = StyleSheet.create({
   step: { flex: 1, minWidth: 180, gap: 2 },
   // The illustration box: a fixed height so the three headings sit on one line, content at the
   // bottom-left so a shorter drawing (the phone) hangs from the same baseline as the pages.
-  art: { height: ART_H, justifyContent: 'flex-end', alignItems: 'flex-start', marginBottom: Spacing.two },
+  art: { height: ART_H, justifyContent: 'flex-end', alignItems: 'flex-start', marginBottom: 6 },
   pageShadow: { borderRadius: Radii.pageSmall, ...Shadows.page },
   // Scan: a dark phone bezel around a screen, the card centred on it, a reticle over the card.
   phone: {

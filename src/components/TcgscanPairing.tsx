@@ -17,8 +17,8 @@
  *   Scan          — a phone with one card under the scan reticle, and beside it the collection
  *                   the scans landed in (the page's cards as a small grid, every one marked owned).
  *   Compose       — the finished page as a two-page spread, the example binder's first two pages.
- *   Share or Print — a printer the width of the column putting out that page as a fill sheet, the
- *                   public link chip, and the liked heart from the binder's own like button.
+ *   Share or Print — a printer with both pages of that spread coming out of its side as fill
+ *                   sheets, and the liked heart from the binder's own like button.
  * The page itself is the example page's cards with a two-pocket-wide artwork panel across the
  * middle row (the full-bleed illustration of the card it displaces), the way real michi pages
  * carry an art piece.
@@ -30,7 +30,7 @@ import { BinderGrid } from '@/components/binder/BinderGrid';
 import { openTcgscan } from '@/components/monetization/BundleOffer';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { FontSize, Fonts, Palette, Radii, Radius, Shadows, Spacing, Weight } from '@/constants/theme';
+import { FontSize, Palette, Radii, Radius, Shadows, Spacing, Weight } from '@/constants/theme';
 import type { DemoPage, DemoSlot } from '@/data/binderTypes';
 import { track } from '@/lib/analytics';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
@@ -51,8 +51,8 @@ const STEPS: { kind: StepKind; head: string; body: string }[] = [
     kind: 'share',
     head: 'Share or Print',
     body:
-      'Publish the binder at your @username and collect likes, or print the fill sheets at true ' +
-      'size and swap the placeholders as the cards come in.',
+      'Publish your binder at @username and share with the community, or print the fill sheets ' +
+      'at true size and swap the placeholders as the cards come in.',
   },
 ];
 
@@ -63,9 +63,12 @@ const NARROW = 250;
 /** The phone (Scan): bezel outer size and inner padding. */
 const PHONE_W = 84;
 const PHONE_PAD = 5;
-/** Share or Print: the printer body, and how far the sheet is drawn behind its top edge. */
-const PRINTER_H = 56;
-const PRINTER_OVERLAP = 26;
+/** Share or Print: the printer's footprint, how far a sheet is tucked into its side slot, and how
+ *  far the front sheet overlaps the one behind it. */
+const PRINTER_W = 128;
+const PRINTER_H = 92;
+const SLOT_TUCK = 26;
+const SHEET_FAN = 26;
 const SHEET_PAD = 6;
 
 /** The width of a View, measured once laid out (0 until then). */
@@ -196,7 +199,7 @@ function ComposeArt({ w, page, facing }: { w: number; page: DemoPage; facing: De
   const two = w >= NARROW;
   const pageW = Math.min(byHeight, two ? Math.floor((w - gap) / 2) : w);
   return (
-    <View style={[styles.row, { width: w, gap }]}>
+    <View style={[styles.row, { gap }]}>
       <View style={styles.pageShadow}>
         <BinderGrid page={page} width={pageW} instantImages />
       </View>
@@ -210,28 +213,43 @@ function ComposeArt({ w, page, facing }: { w: number; page: DemoPage; facing: De
 }
 
 /**
- * Share or Print: a printer the width of the column with the fill sheet coming out of it — the
- * very page Compose shows, printed — the public link chip on its left shoulder and, on its right,
- * the binder's like button in its liked state (the filled heart and a count), the pill
- * LikeButton draws on a public binder.
+ * Share or Print: a printer with both pages of the Compose spread coming out of its side, one
+ * behind the other, and the binder's like button in its liked state (the filled heart and a
+ * count), the pill LikeButton draws on a public binder. The printer is drawn as one: a body with
+ * a paper-feed sheet standing up behind it, a control panel with a lit button, and an output slot
+ * on the side the sheets emerge from; the sheets pass behind the body so they read as still
+ * coming out.
  */
-function ShareArt({ w, page }: { w: number; page: DemoPage }) {
-  const sheetPageW = Math.min(120, Math.floor(w * 0.36));
-  const printerW = w;
-  const wide = w >= NARROW;
+function ShareArt({ w, page, facing }: { w: number; page: DemoPage; facing: DemoPage }) {
+  const two = w >= NARROW;
+  // Two sheets fanned, overlapping each other by SHEET_FAN and tucked SLOT_TUCK into the printer.
+  const avail = w - PRINTER_W + SLOT_TUCK;
+  const outer = two ? Math.floor((avail + SHEET_FAN) / 2) : avail;
+  const byHeight = Math.floor(((ART_H - 22) * page.cols * 63) / (page.rows * 88));
+  const pageW = Math.max(60, Math.min(120, outer - SHEET_PAD * 2 - 2, byHeight));
   return (
     <View style={[styles.shareArt, { width: w }]}>
-      <View style={[styles.paper, { marginLeft: Math.round((printerW - sheetPageW - SHEET_PAD * 2 - 2) / 2) }]}>
-        <BinderGrid page={page} width={sheetPageW} instantImages />
-      </View>
-      <View style={[styles.printer, { width: printerW }]}>
-        <View style={styles.printerSlot} />
-      </View>
-      {wide ? (
-        <View style={[styles.chip, styles.linkChip]}>
-          <Text style={styles.linkText}>michi-maker.com/u/you</Text>
+      <View style={styles.printerWrap}>
+        <View style={styles.feedSheet} />
+        <View style={styles.printerBody}>
+          <View style={styles.printerLid} />
+          <View style={styles.printerPanel}>
+            <View style={styles.printerButton} />
+            <View style={styles.printerDash} />
+          </View>
+          <View style={styles.sideSlot} />
         </View>
-      ) : null}
+      </View>
+      <View style={styles.sheets}>
+        <View style={[styles.paper, styles.sheetBack]}>
+          <BinderGrid page={page} width={pageW} instantImages />
+        </View>
+        {two ? (
+          <View style={[styles.paper, styles.sheetFront]}>
+            <BinderGrid page={facing} width={pageW} instantImages />
+          </View>
+        ) : null}
+      </View>
       <View style={[styles.chip, styles.likePill]}>
         <Text style={styles.likeHeart}>♥</Text>
         <Text style={styles.likeCount}>12</Text>
@@ -251,7 +269,7 @@ function Step({ kind, head, body, index, pages }: { kind: StepKind; head: string
           ) : kind === 'compose' ? (
             <ComposeArt w={w} page={pages.page} facing={pages.facing} />
           ) : (
-            <ShareArt w={w} page={pages.page} />
+            <ShareArt w={w} page={pages.page} facing={pages.facing} />
           )
         ) : null}
       </View>
@@ -346,9 +364,10 @@ const styles = StyleSheet.create({
   lede: { maxWidth: 620 },
   steps: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three, marginTop: Spacing.two },
   step: { flex: 1, minWidth: 220, gap: 2 },
-  // The illustration box: a fixed height so the three headings sit on one line, the drawing
-  // hanging from its bottom edge.
-  art: { height: ART_H, justifyContent: 'flex-end', alignItems: 'flex-start', marginBottom: 6 },
+  // The illustration box: the column's full width and a fixed height, so the three drawings are
+  // the same size and the headings sit on one line. Scan and Share or Print compose to the width;
+  // Compose (two pages, capped by height) is centred in it.
+  art: { height: ART_H, alignSelf: 'stretch', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 6 },
   row: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.three },
   pageShadow: { borderRadius: Radii.pageSmall, ...Shadows.page },
   // Scan: a dark phone bezel around a screen, the card centred on it, a reticle over the card.
@@ -386,10 +405,46 @@ const styles = StyleSheet.create({
   panelHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: 2 },
   panelTitle: { fontSize: FontSize.sm, fontWeight: Weight.semibold, color: Palette.ink },
   panelCount: { fontSize: FontSize.xs, color: Palette.ink2 },
-  // Share or Print: the sheet rises out of the printer (the printer is drawn over its lower edge);
-  // the link chip and the liked pill sit on the printer's front face, either side.
-
-  shareArt: { alignItems: 'flex-start' },
+  // Share or Print: the printer at the left, drawn over the sheets so they emerge from its side.
+  shareArt: { flexDirection: 'row', alignItems: 'flex-end' },
+  printerWrap: { zIndex: 2, paddingTop: 30 },
+  // The sheet waiting in the feed, standing up behind the body.
+  feedSheet: {
+    position: 'absolute',
+    top: 0,
+    left: 34,
+    width: 60,
+    height: 48,
+    borderRadius: 2,
+    backgroundColor: Palette.white,
+    borderWidth: 1,
+    borderColor: Palette.hairline,
+  },
+  printerBody: {
+    width: PRINTER_W,
+    height: PRINTER_H,
+    borderRadius: 12,
+    backgroundColor: Palette.ink3,
+    ...Shadows.page,
+  },
+  // The lid: a darker slab across the top, the feed opening behind it.
+  // (Body mid-grey, lid near-black: two tones so it reads as a machine, not a block.)
+  printerLid: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 22,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    backgroundColor: Palette.chromeDeep,
+  },
+  printerPanel: { position: 'absolute', top: 34, left: 14, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  printerButton: { width: 10, height: 10, borderRadius: 5, backgroundColor: Palette.accent },
+  printerDash: { width: 26, height: 4, borderRadius: 2, backgroundColor: Palette.muted4 },
+  // The output slot on the right side, where the sheets come out.
+  sideSlot: { position: 'absolute', right: 0, top: 34, bottom: 10, width: 5, borderRadius: 2, backgroundColor: Palette.muted4 },
+  sheets: { flexDirection: 'row', alignItems: 'flex-end', marginLeft: -SLOT_TUCK, zIndex: 1 },
   paper: {
     padding: SHEET_PAD,
     backgroundColor: Palette.white,
@@ -398,17 +453,12 @@ const styles = StyleSheet.create({
     borderColor: Palette.hairline,
     ...Shadows.page,
   },
-  printer: {
-    height: PRINTER_H,
-    marginTop: -PRINTER_OVERLAP,
-    borderRadius: 10,
-    backgroundColor: Palette.chromeDeep,
-    ...Shadows.page,
-  },
-  printerSlot: { position: 'absolute', top: 8, left: 14, right: 14, height: 4, borderRadius: 2, backgroundColor: Palette.muted },
+  sheetBack: { marginBottom: 14 },
+  // The front sheet has landed on the one behind it, a little askew.
+  sheetFront: { marginLeft: -SHEET_FAN, marginBottom: 2, transform: [{ rotate: '-3deg' }] },
   chip: {
     position: 'absolute',
-    bottom: 9,
+    top: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
@@ -419,10 +469,8 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.white,
     ...Shadows.page,
   },
-  linkChip: { left: 10, borderColor: Palette.hairlineStrong },
-  linkText: { fontFamily: Fonts.mono, fontSize: FontSize.xs, lineHeight: 20, color: Palette.ink2 },
   // The like button, liked: LikeButton.tsx's pill with the accent border, filled heart and count.
-  likePill: { right: 10, borderColor: Palette.accent },
+  likePill: { right: 0, zIndex: 3, borderColor: Palette.accent },
   likeHeart: { fontSize: FontSize.md, lineHeight: 20, color: Palette.accent },
   likeCount: { fontSize: FontSize.label, lineHeight: 20, fontWeight: Weight.bold, color: Palette.accent },
   stepBody: { lineHeight: 18 },

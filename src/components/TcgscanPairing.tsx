@@ -12,8 +12,9 @@
  * THE THREE STEPS ARE DRAWN WITH THE APP'S OWN PAGES, NOT EMOJI. A camera, a book and a printer
  * glyph read as machine-made, and visitors hold that against a site. Each step now shows a real
  * example page rendered by the same BinderGrid that draws every binder here: one card on a phone
- * screen for Scan, the finished page for Compose, and the same page half-emptied on a sheet of
- * paper for Fill — the pockets still to be swapped as the cards arrive.
+ * screen for Scan, the finished page for Compose, and for Share or Print a printer putting out the
+ * fill sheet (the same page, half its pockets still empty) beside the liked heart from the binder's
+ * own like button.
  */
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -27,7 +28,7 @@ import type { DemoPage } from '@/data/binderTypes';
 import { track } from '@/lib/analytics';
 import { useBinders } from '@/store/binders';
 
-type StepKind = 'scan' | 'compose' | 'fill';
+type StepKind = 'scan' | 'compose' | 'share';
 
 const STEPS: { kind: StepKind; head: string; body: string }[] = [
   { kind: 'scan', head: 'Scan', body: 'Point TCGScan at a card, a page, a whole binder. It reads them into your collection.' },
@@ -38,13 +39,25 @@ const STEPS: { kind: StepKind; head: string; body: string }[] = [
       'Your collection syncs here. Binder pages keep their structure and layout. Fill and curate ' +
       'binder pages using cards you actually own.',
   },
-  { kind: 'fill', head: 'Fill', body: 'Print the fill sheets at true size, and swap the placeholders as the cards come in.' },
+  {
+    kind: 'share',
+    head: 'Share or Print',
+    body:
+      'Publish the binder at your @username and collect likes, or print the fill sheets at true ' +
+      'size and swap the placeholders as the cards come in.',
+  },
 ];
 
 /** Every illustration sits in a box this tall (a 3×3 page at PAGE_W is ~190px), so the three headings line up beneath them. */
 const ART_H = 204;
-/** The finished page (Compose) and the half-filled sheet (Fill) draw the page at this width. */
+/** The finished page (Compose) draws at this width; the printed sheet (Share or Print) is narrower. */
 const PAGE_W = 132;
+const SHEET_PAGE_W = 96;
+const SHEET_PAD = 6;
+/** The printer: a body the sheet rises out of, overlapping it so the paper reads as still emerging. */
+const PRINTER_W = 156;
+const PRINTER_H = 54;
+const PRINTER_OVERLAP = 30;
 /** The phone (Scan): bezel outer size, and the one-card page drawn on its screen. */
 const PHONE_W = 74;
 const PHONE_H = 150;
@@ -96,17 +109,29 @@ function ComposeArt({ page }: { page: DemoPage }) {
 }
 
 /**
- * The fill sheet: the same page with every other pocket still empty, on a sheet of paper. The
- * empties are the placeholders the step talks about — what you swap out as the real cards arrive.
+ * Share or Print: a printer with the fill sheet coming out of it — the Compose page with every
+ * other pocket still empty, the placeholders you swap out as the real cards arrive — and, beside
+ * it, the binder's like button in its liked state (the filled heart and a count), the same pill
+ * LikeButton draws on a public binder.
  */
-function FillArt({ page }: { page: DemoPage }) {
+function ShareArt({ page }: { page: DemoPage }) {
   const half = useMemo<DemoPage>(
     () => ({ ...page, id: `${page.id}-fill`, backgroundColor: undefined, slots: page.slots.filter((_, i) => i % 2 === 0) }),
     [page],
   );
   return (
-    <View style={styles.paper}>
-      <BinderGrid page={half} width={PAGE_W - 12} instantImages />
+    <View style={styles.shareArt}>
+      <View style={styles.paper}>
+        <BinderGrid page={half} width={SHEET_PAGE_W} instantImages />
+      </View>
+      <View style={styles.printer}>
+        <View style={styles.printerSlot} />
+        <View style={styles.printerLight} />
+      </View>
+      <View style={styles.likePill}>
+        <Text style={styles.likeHeart}>♥</Text>
+        <Text style={styles.likeCount}>12</Text>
+      </View>
     </View>
   );
 }
@@ -115,7 +140,7 @@ function StepArt({ kind, page }: { kind: StepKind; page: DemoPage | undefined })
   if (!page) return <View style={styles.art} />;
   return (
     <View style={styles.art} pointerEvents="none">
-      {kind === 'scan' ? <ScanArt page={page} /> : kind === 'compose' ? <ComposeArt page={page} /> : <FillArt page={page} />}
+      {kind === 'scan' ? <ScanArt page={page} /> : kind === 'compose' ? <ComposeArt page={page} /> : <ShareArt page={page} />}
     </View>
   );
 }
@@ -218,15 +243,54 @@ const styles = StyleSheet.create({
   cornerTR: { top: 0, right: 0, borderTopWidth: CORNER_STROKE, borderRightWidth: CORNER_STROKE, borderTopRightRadius: 4 },
   cornerBL: { bottom: 0, left: 0, borderBottomWidth: CORNER_STROKE, borderLeftWidth: CORNER_STROKE, borderBottomLeftRadius: 4 },
   cornerBR: { bottom: 0, right: 0, borderBottomWidth: CORNER_STROKE, borderRightWidth: CORNER_STROKE, borderBottomRightRadius: 4 },
-  // Fill: a sheet of paper, the page printed on it with a margin all round.
+  // Share or Print: the sheet rises out of the printer (the printer is drawn over its lower edge),
+  // the liked pill floats at the printer's right shoulder.
+  shareArt: { width: PRINTER_W + 44, alignItems: 'flex-start' },
   paper: {
-    padding: 6,
+    marginLeft: (PRINTER_W - SHEET_PAGE_W - SHEET_PAD * 2 - 2) / 2,
+    padding: SHEET_PAD,
     backgroundColor: Palette.white,
     borderRadius: 3,
     borderWidth: 1,
     borderColor: Palette.hairline,
     ...Shadows.page,
   },
+  printer: {
+    width: PRINTER_W,
+    height: PRINTER_H,
+    marginTop: -PRINTER_OVERLAP,
+    borderRadius: 10,
+    backgroundColor: Palette.chromeDeep,
+    ...Shadows.page,
+  },
+  printerSlot: {
+    position: 'absolute',
+    top: 8,
+    left: 14,
+    right: 14,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Palette.muted,
+  },
+  printerLight: { position: 'absolute', right: 14, bottom: 12, width: 8, height: 8, borderRadius: 4, backgroundColor: Palette.accent },
+  // The like button, liked: LikeButton.tsx's pill with the accent border, filled heart and count.
+  likePill: {
+    position: 'absolute',
+    right: 0,
+    bottom: PRINTER_H - 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Palette.accent,
+    backgroundColor: Palette.white,
+    ...Shadows.page,
+  },
+  likeHeart: { fontSize: FontSize.md, lineHeight: 20, color: Palette.accent },
+  likeCount: { fontSize: FontSize.label, lineHeight: 20, fontWeight: Weight.bold, color: Palette.accent },
   stepBody: { lineHeight: 18 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.three, marginTop: Spacing.two },
   primary: { backgroundColor: Palette.accent, borderRadius: Radius.pill, paddingHorizontal: Spacing.four, paddingVertical: 8 },

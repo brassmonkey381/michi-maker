@@ -22,12 +22,14 @@ import {
   useHoverReveal,
 } from '@/components/binder/AboutPopup';
 import { BinderPages } from '@/components/binder/BinderPages';
+import { TrackPill } from '@/components/binder/TrackPill';
 import { LikeButton } from '@/components/binder/LikeButton';
 import { ReportSheet } from '@/components/binder/ReportSheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Fonts, FontSize, MaxContentWidthWide, Palette, Spacing } from '@/constants/theme';
 import { fetchBinder } from '@/data/binderRepo';
+import { setTrack, stopPlayer } from '@/lib/binderAudio';
 import type { DemoBinder } from '@/data/binderTypes';
 import { fetchBinderOwner, profileHandle, type PublicProfile } from '@/data/profileRepo';
 import { CONTEST } from '@/data/contest';
@@ -122,6 +124,32 @@ function PublicViewer({ id }: { id?: string }) {
   }, [id]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  /**
+   * THE SOUNDTRACK PLAYS FOR VISITORS TOO, which is the entire point of putting one on a binder.
+   *
+   * It did not. `BinderScreen` — the OWNER's view — was the only place that ever called setTrack or
+   * rendered the player, so a VIP could hear their own binder and nobody they shared it with could.
+   * The track was fetched (fetchBinder selects it) and then ignored, which is the quietest possible
+   * way for a paid feature to be missing: no error, no empty state, just silence on someone else's
+   * machine that the owner has no way to notice.
+   *
+   * Same rule as the editor: the page's own track while it is open, else the binder's, else
+   * silence. Autoplay is the browser's call — where it refuses, the pill reads "tap to play" rather
+   * than pretending, and a muted visitor stays muted across binders (the preference is remembered).
+   */
+  const binderNow = state.status === 'ok' ? state.binder : undefined;
+  const trackNow = (() => {
+    const pages = binderNow?.pages ?? [];
+    const pg = pages[Math.min(pageIndex, Math.max(0, pages.length - 1))];
+    return pg?.track ?? binderNow?.track;
+  })();
+  useEffect(() => {
+    setTrack(trackNow?.url ?? null, trackNow?.name ?? '');
+  }, [trackNow?.url, trackNow?.name]);
+  // Leaving the page stops the audio: a shared link that keeps playing after you navigate away is
+  // the behaviour people close tabs over.
+  useEffect(() => () => stopPlayer(), []);
+
   // Nice browser-tab title on web.
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
@@ -138,6 +166,9 @@ function PublicViewer({ id }: { id?: string }) {
               <ThemedText type="link" themeColor="textSecondary">‹ Michi-Maker</ThemedText>
             </Pressable>
           </Link>
+          {/* Renders nothing unless this binder has a track, so the bar is unchanged for the
+              binders that do not. */}
+          <TrackPill />
         </View>
 
         {state.status === 'loading' ? (
@@ -369,7 +400,15 @@ const BANNER_H = 34;
 const styles = StyleSheet.create({
   container: { flex: 1 },
   flex: { flex: 1 },
-  topbar: { paddingHorizontal: Spacing.four, paddingVertical: Spacing.three },
+  // A row now: the way back on the left, the player on the right when there is one.
+  topbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.three,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.three,
+  },
   capNote: { textAlign: 'center', paddingBottom: Spacing.one },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.four, gap: Spacing.two },
   missTitle: { fontSize: FontSize.title, lineHeight: 30, textAlign: 'center' },

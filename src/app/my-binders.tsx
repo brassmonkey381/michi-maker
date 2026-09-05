@@ -32,6 +32,7 @@ import { similarityWall } from '@/data/similarityGate';
 import { hasBinderCovers, hasFindSimilar } from '@/data/tiers';
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { MyCollection } from '@/components/MyCollection';
+import { StoryBinderSheet } from '@/components/StoryBinderSheet';
 import { TcgscanPairing } from '@/components/TcgscanPairing';
 import { HomeSection } from '@/components/HomeSection';
 import { CapGateOffer } from '@/components/monetization/CapGateOffer';
@@ -83,6 +84,10 @@ export default function MyBindersScreen() {
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(null);
   const [toast, setToast] = useState<ToastSpec | null>(null);
   const toastId = useRef(0);
+  // Story binder (early access): VIP only, no marketing anywhere — the button below is the only
+  // way in, and only a VIP sees it. Gate = multiPageCompose, the same flag as "pages around this card".
+  const [storyOpen, setStoryOpen] = useState(false);
+  const canStory = store.limits.multiPageCompose;
 
   const showToast = (message: string, link?: { text: string; binderId: string }) => {
     toastId.current += 1;
@@ -279,11 +284,21 @@ export default function MyBindersScreen() {
             title="My Binders"
             collapsible={false}
             action={
-              <Pressable
-                onPress={handleNew}
-                style={({ pressed }) => [styles.newBtn, pressed && styles.pressed]}>
-                <Text style={styles.newBtnText}>+ New</Text>
-              </Pressable>
+              <View style={styles.actionRow}>
+                {canStory ? (
+                  <Pressable
+                    onPress={() => setStoryOpen(true)}
+                    accessibilityRole="button"
+                    style={({ pressed }) => [styles.storyBtn, pressed && styles.pressed]}>
+                    <Text style={styles.storyBtnText}>Story binder</Text>
+                  </Pressable>
+                ) : null}
+                <Pressable
+                  onPress={handleNew}
+                  style={({ pressed }) => [styles.newBtn, pressed && styles.pressed]}>
+                  <Text style={styles.newBtnText}>+ New</Text>
+                </Pressable>
+              </View>
             }>
             {store.userBinders.length === 0 ? (
               <ThemedView type="backgroundElement" style={styles.empty}>
@@ -466,6 +481,20 @@ export default function MyBindersScreen() {
       ) : null}
       <ConfirmDialog spec={confirm} onClose={() => setConfirm(null)} />
       <Toast spec={toast} onDismiss={() => setToast(null)} />
+      {canStory ? (
+        <StoryBinderSheet
+          visible={storyOpen}
+          onClose={() => setStoryOpen(false)}
+          onCap={() => showLimitToast(binderLimitMessage(store.tier, store.limits))}
+          onBuilt={(binderId, pageCount, artPlaced, artFailed) => {
+            showToast(
+              `Built ${pageCount} pages${artPlaced ? `, ${artPlaced} art panels` : ''}${artFailed ? `, ${artFailed} panels left empty` : ''}.`,
+              { text: 'Open it', binderId },
+            );
+            openBinder(binderId);
+          }}
+        />
+      ) : null}
       <CapGateDialog wall={capGate.wall} onDismiss={capGate.dismissWall} onResolve={capGate.resolveWall} />
     </ThemedView>
   );
@@ -543,6 +572,15 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
   },
   newBtnText: { color: Palette.accentText, fontWeight: Weight.bold, fontSize: FontSize.control },
+  actionRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  storyBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Palette.accent,
+  },
+  storyBtnText: { color: Palette.accent, fontWeight: Weight.semibold, fontSize: FontSize.label },
   pressed: { opacity: 0.7 },
   empty: { padding: Spacing.four, borderRadius: Radius.lg, maxWidth: MaxContentWidth },
   emptyText: { lineHeight: 20 },

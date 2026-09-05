@@ -22,9 +22,11 @@ const ALLOWED_HOSTS = new Set([
   'upload.wikimedia.org',
   'www.pokemoncenter.com',
   'images.pexels.com',
+  'pixabay.com',
+  'cdn.pixabay.com',
   'i.pinimg.com',
 ]);
-const ALLOWED_SUFFIXES = ['.wixmp.com', '.wikimedia.org'];
+const ALLOWED_SUFFIXES = ['.wixmp.com', '.wikimedia.org', '.pixabay.com'];
 
 const MAX_BYTES = 25 * 1024 * 1024;
 

@@ -1,0 +1,158 @@
+{
+  "generatedOn": "2026-09-05",
+  "guidesPublished": "2026-08-12",
+  "guides": [
+    {
+      "slug": "auto-page-fill",
+      "title": "How to fill a Pokémon binder page around one card",
+      "lede": "Seed one pocket and let michi-maker finish the page around it.",
+      "tip": "Turn on From my collection and every method draws only from cards you own. VIP adds Pages around this card: every method at once, and you keep the ones you like.",
+      "steps": [
+        {
+          "title": "Place the seed",
+          "body": "Fill one pocket with the card the page is about. The middle of a 3×3 reads best."
+        },
+        {
+          "title": "Open Fill page",
+          "body": "Tap the card, then ✨ Fill page. You only see the methods that suit this card."
+        },
+        {
+          "title": "Pick the idea",
+          "body": "Same Pokémon, Evolution line, Same artist, Friends and partners, More like this; or Colour by type, Colour match, Full-page spread."
+        },
+        {
+          "title": "Commit it, then keep it or take it back",
+          "body": "A fill only writes into empty pockets, so nothing you placed moves. It is one step, so one Undo reverses the whole fill and you can try another method."
+        }
+      ]
+    },
+    {
+      "slug": "slice-studio",
+      "title": "How to cut artwork into binder pockets (Slice Studio)",
+      "lede": "One picture becomes pocket-sized pieces you arrange like cards.",
+      "tip": "Slices follow print physics: single pockets or folded sideways pairs, never vertical spans.",
+      "steps": [
+        {
+          "title": "Open the studio",
+          "body": "In the Artwork dock on the left, press Slice new art. Or tap any pocket and choose Artwork."
+        },
+        {
+          "title": "Bring in a picture",
+          "body": "Card art from the catalog, an upload, a pasted URL, or an image dragged in from another tab."
+        },
+        {
+          "title": "Frame it",
+          "body": "Drag to pan, scroll to zoom, rotate a quarter turn, or press Just the art. The original is only windowed, never changed."
+        },
+        {
+          "title": "Fold a pair if you like",
+          "body": "Two sideways pockets that open on the same inside edge can take one folded piece."
+        },
+        {
+          "title": "Save slices",
+          "body": "Every piece lands in the tray of the Artwork dock. Drag one onto any pocket where it fits; it stays in the tray for the next page too."
+        }
+      ]
+    },
+    {
+      "slug": "print-binder",
+      "title": "How to print a Pokémon binder fill sheet at true card size",
+      "lede": "Cut-ready sheets, real card size, so the binder fills in as the cards arrive.",
+      "tip": "Full-binder PDF export is a paid unlock; the free preview prints a premade example sheet.",
+      "steps": [
+        {
+          "title": "Open the print sheet",
+          "body": "Press Print in the binder’s header, or on its tile on My binders. Every page is laid out as fill sheets."
+        },
+        {
+          "title": "Print at 100 percent",
+          "body": "Actual size, never Fit to page, borderless off. Measure one placeholder: 2.5 by 3.5 inches exactly."
+        },
+        {
+          "title": "Two files, two papers",
+          "body": "Placeholders are temporary, so plain paper. Art stays for good, so matte cardstock: it sits flat and does not fight a glossy sleeve."
+        },
+        {
+          "title": "Cut and slide",
+          "body": "Cut along the dashed outlines. Each piece carries its page, row and column; a folded art pair is one piece for two pockets."
+        },
+        {
+          "title": "Swap as cards arrive",
+          "body": "A placeholder tells you exactly which pocket the real card goes in. The composition never moves."
+        }
+      ]
+    },
+    {
+      "slug": "search-your-cards",
+      "title": "How to search Pokémon cards by set, artist, price and more",
+      "lede": "Words, fields, comparisons and sorts, stacked until it is exactly what you want.",
+      "tip": "The cheatsheet puts a Try it button on every example.",
+      "steps": [
+        {
+          "title": "Just type words",
+          "body": "charizard, or arita fire. Every word must match somewhere, so more words narrow it."
+        },
+        {
+          "title": "Aim at a field, compare, sort",
+          "body": "A colon aims a word at one field. Operators compare numbers and dates. sort: orders the result."
+        },
+        {
+          "title": "Filter by your collection",
+          "body": "have:yes is what you own; have:no with a set is a want-list."
+        },
+        {
+          "title": "Stack and refine",
+          "body": "Everything combines. Start broad, keep adding until it is exactly the pile you meant."
+        }
+      ]
+    }
+  ],
+  "michiFaq": [
+    {
+      "q": "What is a michi binder?",
+      "a": "A michi binder is a Pokémon card binder where every page is composed as one picture instead of sorted by set or number: cards, printed artwork, deliberate empty pockets and images sliced across several pockets, arranged so the page looks intentional. The name comes from the collector Michi (@peeplop), who popularised the style."
+    },
+    {
+      "q": "What is the michi method?",
+      "a": "The michi method is the set of page ideas behind those binders: an anchor page built around one card, a single-Pokémon page, an evolution line, a colour-matched spread, an artist gallery, and a full-page artwork cut into pocket-sized pieces. Michi-Maker builds each of these from one seed card with its Fill page tool."
+    },
+    {
+      "q": "How do I make a michi binder?",
+      "a": "Pick a page shape (3×3 is the classic, 3×4 for larger binders), place one card you love, and build the rest of the page around it: the same Pokémon, its evolution line, its artist, or cards that share its colours. Print the page at true card size as a fill sheet, slide the paper pieces into the pockets, and swap in the real cards as they arrive."
+    },
+    {
+      "q": "Is Michi-Maker free?",
+      "a": "Yes. Building and sharing binders, the auto-fill methods, and the print preview are free. Paid PRO and VIP plans add full-binder PDF export, binder covers, advanced and artwork-theme search, and more."
+    },
+    {
+      "q": "What size are the printed pieces?",
+      "a": "Exactly card size: 2.5 by 3.5 inches (63 by 88 mm), printed at 100 percent with no scaling, so each piece fits a standard sleeve or pocket and marks the spot the real card will take."
+    }
+  ],
+  "michiLayouts": [
+    {
+      "name": "Anchor page",
+      "body": "One card the page is about, everything else chosen to frame it."
+    },
+    {
+      "name": "Single Pokémon",
+      "body": "Every card of one Pokémon: its art across years and artists."
+    },
+    {
+      "name": "Evolution line",
+      "body": "A family read in order, baby to final stage, sometimes with the trainer who owns them."
+    },
+    {
+      "name": "Colour spread",
+      "body": "Cards picked for a shared palette so the whole page reads as one hue."
+    },
+    {
+      "name": "Artist gallery",
+      "body": "One illustrator, the page as their exhibition."
+    },
+    {
+      "name": "Sliced artwork",
+      "body": "A single picture cut into pocket-sized pieces that reassemble across the page."
+    }
+  ]
+}

@@ -92,3 +92,36 @@ core layouts, and links out to the community guides. Crawlers get its preview fr
 - **Branded static image for `/michi-method`.** Add `public/og/michi-method.png`
   (1200×630 — remember the image itself isn't supersampled) and set it as the `image` in
   `api/og-michi.js`.
+
+## Search engines: the shell with the page's own head (2026-09-04)
+
+The og-* functions above are for link unfurls and only crawler user-agents reach them. Search is
+handled differently, and for **everyone**, so there is no user-agent branching to be called
+cloaking:
+
+- **`api/page-binder.js`** (`/binder/:id`), **`api/page-static.js`** (`/michi-method`, `/learn`,
+  `/learn/:slug`) serve the deployed SPA shell (`dist/index.html`, bundled with `includeFiles`)
+  with the home page's head tags stripped and the route's own put in: title, description,
+  canonical, Open Graph, and JSON-LD (`CollectionPage`+`ItemList` for a binder, `FAQPage` for
+  the explainer, `HowTo` per guide). The body of `#root` carries a plain-HTML version of the
+  page (h1, description, per-page card lists linking to `/browse?q=`) that React replaces on
+  mount, so a crawler without JavaScript still reads a finished page. Edge-cached (5 min binder,
+  1 h static). A private/unknown binder gets the plain shell plus `noindex`.
+- **`api/_shell.js`** loads that shell once per instance; if the bundled file is missing it
+  fetches the deployment's own `/`, and failing that the functions emit a standalone document,
+  so a binder link is never a 500.
+- **`api/_seo.json`** is generated from `src/data/guides.ts` by `scripts/build-seo-data.mjs`
+  (in `buildCommand`, and committed); `src/data/seoData.test.ts` fails when they drift.
+- **`api/sitemap.js`** (`/sitemap.xml`) lists the static pages, every public binder with its
+  `updated_at`, and every public profile. `public/robots.txt` points at it. Submit the sitemap
+  once in Google Search Console.
+- Footer links (`SiteFooter`) are real anchors with descriptive text, since anchor text is how
+  engines label the target page.
+
+Verify after a deploy:
+
+```bash
+curl -s https://michi-maker.com/binder/<id> | grep -o '<title>[^<]*'
+curl -s https://michi-maker.com/learn/print-binder | grep -c 'application/ld+json'
+curl -s https://michi-maker.com/sitemap.xml | grep -c '<loc>'
+```

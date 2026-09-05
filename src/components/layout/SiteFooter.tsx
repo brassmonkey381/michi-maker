@@ -3,9 +3,9 @@
  * plus the fan-tool disclaimer lines. `FooterLinks` is exported separately so the landing page
  * can adopt just the links inside its own footer without restructuring.
  */
-import { useRouter, type Href } from 'expo-router';
+import { Link, type Href } from 'expo-router';
 import { Fragment } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Spacing } from '@/constants/theme';
@@ -23,11 +23,19 @@ export const AFFILIATE_DISCLOSURE =
 
 export const TAGLINE = 'michi-maker, made with a love for the craft.';
 
+/**
+ * ANCHOR TEXT IS A RANKING SIGNAL. Search engines read the words of a link as a description of the
+ * page it points to, so "How-To" tells them nothing and "Pokémon binder how-to guides" tells them
+ * what /learn is about. These are real <a href> elements (Link, not Pressable + router.push) so a
+ * crawler can follow them at all; the labels say what the page is, in the words people search.
+ */
 const LINKS: { label: string; href: Href }[] = [
-  { label: 'Plans', href: '/plans' as Href },
+  { label: 'Pokémon binder layouts: the michi method', href: '/michi-method' },
+  { label: 'Pokémon binder how-to guides', href: '/learn' as Href },
+  { label: 'Print a binder fill sheet at true size', href: '/learn/print-binder' as Href },
+  { label: 'Browse Pokémon cards', href: '/browse' as Href },
+  { label: 'Plans & pricing', href: '/plans' as Href },
   { label: 'My Purchases', href: '/purchases' as Href },
-  { label: 'How-To', href: '/learn' as Href },
-  { label: 'The Michi Method', href: '/michi-method' },
   { label: 'What’s New', href: '/whats-new' as Href },
   { label: 'Terms', href: '/legal/terms' },
   { label: 'Privacy', href: '/legal/privacy' },
@@ -36,7 +44,6 @@ const LINKS: { label: string; href: Href }[] = [
 
 /** A wrap row of quiet page links, middot-separated. */
 export function FooterLinks() {
-  const router = useRouter();
   return (
     <View style={styles.links}>
       {LINKS.map((l, i) => (
@@ -46,14 +53,11 @@ export function FooterLinks() {
               ·
             </ThemedText>
           ) : null}
-          <Pressable
-            onPress={() => router.push(l.href)}
-            hitSlop={6}
-            style={({ pressed }) => pressed && styles.pressed}>
+          <Link href={l.href} style={styles.anchor}>
             <ThemedText type="small" themeColor="textSecondary" style={styles.link}>
               {l.label}
             </ThemedText>
-          </Pressable>
+          </Link>
         </Fragment>
       ))}
     </View>
@@ -91,6 +95,6 @@ const styles = StyleSheet.create({
   links: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.two },
   dot: { fontSize: FontSize.sm },
   link: { fontSize: FontSize.sm },
+  anchor: { textDecorationLine: 'none' },
   line: { fontSize: FontSize.sm, lineHeight: 18 },
-  pressed: { opacity: 0.7 },
 });

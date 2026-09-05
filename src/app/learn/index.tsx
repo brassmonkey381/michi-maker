@@ -18,10 +18,10 @@ export default function LearnHubScreen() {
   const router = useRouter();
   return (
     <PageShell
-      title="How-To Guides"
-      description="Short guides to building, slicing, and printing michi binders.">
+      title="Pokémon binder how-to guides"
+      description="Short illustrated guides to building a Pokémon binder the michi way: fill a page around one card, cut art into pockets, print at true card size, and search your cards.">
       <ThemedText type="subtitle" style={styles.h1}>
-        How-To Guides
+        Pokémon binder how-to guides
       </ThemedText>
       <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
         Short, practical walkthroughs of the craft: building a binder, cutting art into pockets,

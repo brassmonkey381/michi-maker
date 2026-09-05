@@ -6,7 +6,8 @@
  */
 import { Image } from 'expo-image';
 import { useRouter, type Href } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import Head from 'expo-router/head';
+import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CurateCallout } from '@/components/CurateCallout';
@@ -28,6 +29,15 @@ export default function MichiMethodScreen() {
 
   return (
     <ThemedView style={styles.container}>
+      {Platform.OS === 'web' ? (
+        <Head>
+          <title>What is a michi binder? The michi method explained · Michi-Maker</title>
+          <meta
+            name="description"
+            content="A michi binder treats every Pokémon binder page as a canvas: anchor pages, single-Pokémon spreads, colour themes, and art sliced across pockets. The method, its creator, and how to build one for free."
+          />
+        </Head>
+      ) : null}
       <SafeAreaView style={styles.flex} edges={['top']}>
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.headerRow}>

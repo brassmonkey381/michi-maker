@@ -1,0 +1,10 @@
+# michi-maker.com
+User-agent: *
+Allow: /
+# Per-account app surfaces, not pages: nothing to index behind them.
+Disallow: /my-binders
+Disallow: /purchases
+Disallow: /account
+Disallow: /api/
+
+Sitemap: https://michi-maker.com/sitemap.xml

@@ -67,3 +67,4 @@ state/out/
 
 # Instagram exports (scripts/export-instagram.mjs): generated media, never committed.
 state/instagram/
+state/seo-shots/

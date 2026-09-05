@@ -1,5 +1,5 @@
 {
-  "buildCommand": "EXPO_PUBLIC_CHECKOUT_OPEN=1 EXPO_PUBLIC_LIMITS_ENFORCED=1 expo export -p web && node scripts/inject-meta.mjs",
+  "buildCommand": "EXPO_PUBLIC_CHECKOUT_OPEN=1 EXPO_PUBLIC_LIMITS_ENFORCED=1 expo export -p web && node scripts/inject-meta.mjs && node scripts/build-seo-data.mjs",
   "outputDirectory": "dist",
   "devCommand": "expo",
   "cleanUrls": true,
@@ -10,6 +10,17 @@
     },
     "api/og-warm.js": {
       "maxDuration": 60
+    },
+    "api/page-binder.js": {
+      "maxDuration": 15,
+      "includeFiles": "dist/index.html"
+    },
+    "api/page-static.js": {
+      "maxDuration": 15,
+      "includeFiles": "dist/index.html"
+    },
+    "api/sitemap.js": {
+      "maxDuration": 30
     }
   },
   "redirects": [
@@ -75,6 +86,26 @@
         }
       ],
       "destination": "/api/og-michi"
+    },
+    {
+      "source": "/binder/:id",
+      "destination": "/api/page-binder?id=:id"
+    },
+    {
+      "source": "/michi-method",
+      "destination": "/api/page-static?route=michi-method"
+    },
+    {
+      "source": "/learn",
+      "destination": "/api/page-static?route=learn"
+    },
+    {
+      "source": "/learn/:slug",
+      "destination": "/api/page-static?route=learn&slug=:slug"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/sitemap"
     },
     {
       "source": "/welcome_v2",

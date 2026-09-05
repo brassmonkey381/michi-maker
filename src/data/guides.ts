@@ -83,7 +83,7 @@ const diagram = (name: DiagramName): GuideFigure => ({ kind: 'diagram', name });
 export const GUIDE_LIST: Guide[] = [
   {
     slug: 'auto-page-fill',
-    title: 'Build a page around one card',
+    title: 'How to fill a Pokémon binder page around one card',
     lede: 'Seed one pocket and let michi-maker finish the page around it.',
     hook: { kind: 'art', src: ART(610758) },
     ctaLabel: 'See all eight methods as finished pages',
@@ -111,7 +111,7 @@ export const GUIDE_LIST: Guide[] = [
   },
   {
     slug: 'slice-studio',
-    title: 'Cut any art into pockets',
+    title: 'How to cut artwork into binder pockets (Slice Studio)',
     lede: 'One picture becomes pocket-sized pieces you arrange like cards.',
     hook: { kind: 'slice', src: ART(201981) },
     ctaLabel: 'Open the Slice Studio in a binder',
@@ -148,7 +148,7 @@ export const GUIDE_LIST: Guide[] = [
   },
   {
     slug: 'print-binder',
-    title: 'Print your binder at true size',
+    title: 'How to print a Pokémon binder fill sheet at true card size',
     lede: 'Cut-ready sheets, real card size, so the binder fills in as the cards arrive.',
     hook: { kind: 'sheet' },
     ctaLabel: 'Try the print demo',
@@ -185,7 +185,7 @@ export const GUIDE_LIST: Guide[] = [
   },
   {
     slug: 'search-your-cards',
-    title: 'Power-search your cards',
+    title: 'How to search Pokémon cards by set, artist, price and more',
     lede: 'Words, fields, comparisons and sorts, stacked until it is exactly what you want.',
     hook: { kind: 'query' },
     hero: diagram('query-anatomy'),

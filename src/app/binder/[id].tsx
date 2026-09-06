@@ -169,7 +169,7 @@ function PublicViewer({ id }: { id?: string }) {
       <SafeAreaView style={styles.flex} edges={['top']}>
         {/* The way back has its own row only while there is no title row to share. Once the
             binder is up, it sits on the title row (Viewer), which gives the pages that row back. */}
-        {state.status !== 'ok' || !wideHead ? (
+        {state.status !== 'ok' ? (
           <View style={styles.topbar}>
             <Link href="/" asChild>
               <Pressable hitSlop={8}>
@@ -292,17 +292,17 @@ function Viewer({
             of their own above the title, and the two rows together pushed the pages down by a
             band nothing was using. Placed absolutely on the left, mirroring the actions on the
             right, so the title stays centred and the row costs the page nothing extra. */}
-        {wideHead ? (
-          <View style={styles.headLeading}>
-            <Link href="/" asChild>
-              <Pressable hitSlop={8}>
-                <ThemedText type="link" themeColor="textSecondary">‹ Michi-Maker</ThemedText>
-              </Pressable>
-            </Link>
-            {/* Renders nothing unless this binder has a track. */}
-            <TrackPill />
-          </View>
-        ) : null}
+        {/* On a phone the same link sits at the left of the BYLINE row instead, which is short
+            and centred, so it costs no row of its own there either and never touches the title. */}
+        <View style={wideHead ? styles.headLeading : styles.headLeadingNarrow}>
+          <Link href="/" asChild>
+            <Pressable hitSlop={8}>
+              <ThemedText type="link" themeColor="textSecondary">‹ Michi-Maker</ThemedText>
+            </Pressable>
+          </Link>
+          {/* Renders nothing unless this binder has a track. */}
+          <TrackPill />
+        </View>
         <View style={[styles.titleWrap, !wideHead && styles.titleWrapNarrow]}>
           <Pressable
             onPress={() => setInfoOpen(true)}
@@ -484,6 +484,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
+  },
+  // The byline row is the head's last row; 28 is the avatar's height, so the link centres on it.
+  headLeadingNarrow: {
+    position: 'absolute',
+    left: 0,
+    bottom: Spacing.two,
+    height: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
   },
   title: { textAlign: 'center', fontFamily: Fonts?.brand, fontSize: FontSize.nav, lineHeight: 34 },
   gear: { fontSize: 18 },

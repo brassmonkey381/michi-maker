@@ -66,6 +66,14 @@ export const PEEK_MIN_WIDTH = 700;
 export const MIN_PAGE_WIDTH = 320;
 
 /**
+ * The floor on a PHONE WITH THE FILMSTRIP BELOW THE PAGE. There the strip and the footer take the
+ * bottom of a short window, and a 3x3 held at 320px runs under both: the strip covered its last
+ * row and the footer fell off the fold. A 3x3 at this width still shows every card whole (about
+ * 75px each), which is the point of the height fit; at 320 it showed two rows and a cut-off third.
+ */
+export const PHONE_DOCK_MIN_WIDTH = 250;
+
+/**
  * What the page rendered at before any of this existed.
  *
  * It used to be a FLOOR: the height fit could grow a page past it but never shrink one below it, so
@@ -140,6 +148,7 @@ export function spreadLayout({
   captionsOn,
   hasNeighbours,
   maxWidth,
+  minWidth,
 }: {
   availableWidth: number;
   availableHeight: number;
@@ -149,7 +158,10 @@ export function spreadLayout({
   hasNeighbours: boolean;
   /** A ceiling the caller wants respected regardless (the print/share surfaces set one). */
   maxWidth?: number;
+  /** A floor below MIN_PAGE_WIDTH for surfaces where a whole small page beats a cut-off one. */
+  minWidth?: number;
 }): SpreadLayout {
+  const floor = minWidth ?? MIN_PAGE_WIDTH;
   const showPeeks = hasNeighbours && availableWidth >= PEEK_MIN_WIDTH;
   // The page is served FIRST, against the smallest peeks that still work; only what it cannot use
   // is offered back to them. Sizing the peeks first would be the old mistake in a new costume.
@@ -167,11 +179,11 @@ export function spreadLayout({
   // instruction to overflow. Fitting wins, because scrolling to see a page costs you the page.
   const byHeight = availableHeight > 0 ? widthForHeight(availableHeight, rows, cols, captionsOn) : Infinity;
   const fitted = Math.min(widthBudget, byHeight, maxWidth ?? Infinity);
-  const pageWidth = Math.floor(Math.max(fitted, Math.min(MIN_PAGE_WIDTH, availableWidth)));
+  const pageWidth = Math.floor(Math.max(fitted, Math.min(floor, availableWidth)));
   // What it would have taken with all the width in the world. Reported so a neighbouring panel can
   // size itself against the page's NEED rather than against what the page was squeezed down to.
   const preferredWidth = Math.floor(
-    Math.max(Math.min(byHeight, maxWidth ?? Infinity), MIN_PAGE_WIDTH),
+    Math.max(Math.min(byHeight, maxWidth ?? Infinity), floor),
   );
 
   const slack = availableWidth - pageWidth - 2 * SPREAD_GAP;
@@ -196,6 +208,7 @@ export function bookLayout({
   captionsOn,
   gap,
   maxWidth,
+  minWidth,
 }: {
   availableWidth: number;
   availableHeight: number;
@@ -204,12 +217,15 @@ export function bookLayout({
   captionsOn: boolean;
   gap: number;
   maxWidth?: number;
+  /** See spreadLayout. */
+  minWidth?: number;
 }): number {
+  const floor = minWidth ?? MIN_PAGE_WIDTH;
   const byWidth = (availableWidth - gap) / 2;
   // Same reversal as the spread: an open book that does not fit the window is two half-pages.
   const byHeight = availableHeight > 0 ? widthForHeight(availableHeight, rows, cols, captionsOn) : Infinity;
   const fitted = Math.min(byWidth, byHeight, maxWidth ?? Infinity);
-  return Math.floor(Math.max(fitted, Math.min(MIN_PAGE_WIDTH, byWidth)));
+  return Math.floor(Math.max(fitted, Math.min(floor, byWidth)));
 }
 
 /* ------------------------------------------------------------------------------------------- */

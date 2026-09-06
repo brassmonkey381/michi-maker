@@ -45,7 +45,7 @@ import { pillChip, sheet } from '@/constants/ui';
 import { setHoverSuspended } from '@/components/binder/hoverGate';
 import { AboutHoverCard, PAGE_DESCRIPTION_PLACEHOLDER, useHoverReveal } from '@/components/binder/AboutPopup';
 import { hasTextCaption, type CaptionFieldKey } from '@/data/cardCaption';
-import { PEEK_MIN_WIDTH, SPREAD_GAP, bookLayout, pageHeightAt, spreadLayout } from '@/data/binderLayout';
+import { PEEK_MIN_WIDTH, PHONE_DOCK_MIN_WIDTH, SPREAD_GAP, bookLayout, pageHeightAt, spreadLayout } from '@/data/binderLayout';
 import { useCardLabelPrefs } from '@/hooks/use-card-label-prefs';
 import { useViewPrefs, type ViewPrefsState } from '@/hooks/use-view-prefs';
 import { CoverSurface } from '@/components/binder/BinderCover';
@@ -473,6 +473,9 @@ export function BinderPages({
   // Judged on what the page actually gets. Reading the pre-rail width here would promise a spread
   // the reduced budget cannot draw.
   const showSpread = !doubleSided && count > 1 && pageAvailable >= PEEK_MIN_WIDTH;
+  // A phone with the strip below the page: let the height fit go under the usual floor rather
+  // than run the page under the strip and the footer (see PHONE_DOCK_MIN_WIDTH).
+  const pageFloor = !railLeft && pageAvailable < PEEK_MIN_WIDTH ? PHONE_DOCK_MIN_WIDTH : undefined;
   const layout = spreadLayout({
     availableWidth: pageAvailable,
     availableHeight: heightBudget,
@@ -481,6 +484,7 @@ export function BinderPages({
     captionsOn,
     hasNeighbours: showSpread,
     maxWidth,
+    minWidth: pageFloor,
   });
   const pageWidth = layout.pageWidth;
   const spreadWidth = pageWidth;
@@ -741,6 +745,7 @@ export function BinderPages({
     captionsOn,
     gap: bookGap,
     maxWidth,
+    minWidth: pageFloor,
   });
   /**
    * A HALF OF THE SPREAD IS NOT ALWAYS A PAGE.

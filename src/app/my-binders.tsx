@@ -37,11 +37,12 @@ import { HomeSection } from '@/components/HomeSection';
 import { CapGateOffer } from '@/components/monetization/CapGateOffer';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, Breakpoints, FontSize, MaxContentWidth, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { BottomTabInset, Breakpoints, FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { ProTrialPrompt } from '@/components/monetization/ProTrialPrompt';
 import { RightsPrompt } from '@/components/binder/RightsPrompt';
 import { pillChip } from '@/constants/ui';
-import { fillerName, sortByRecentEdit } from '@/data/binderTypes';
+import { BinderGrid } from '@/components/binder/BinderGrid';
+import { fillerName, sortByRecentEdit, type DemoPage } from '@/data/binderTypes';
 import { binderLimitMessage, binderTrialMessage, limitCta } from '@/data/limitMessages';
 import { track } from '@/lib/analytics';
 import { isSupabaseConfigured } from '@/lib/env';
@@ -301,11 +302,30 @@ export default function MyBindersScreen() {
               </View>
             }>
             {store.userBinders.length === 0 ? (
+              // THE EMPTY SHELF IS A CARD LIKE ITS NEIGHBOURS: full width, a picture of an empty
+              // page on the left, and the two things to do about it as buttons. It was a narrow
+              // grey line of instructions between two illustrated cards, and read as a gap.
               <ThemedView type="backgroundElement" style={styles.empty}>
-                <ThemedText type="small" themeColor="textSecondary" style={styles.emptyText}>
-                  No binders yet. Tap “+ New” to start one, or open an example on the Home page and
-                  tap Duplicate to make it yours.
-                </ThemedText>
+                <View style={styles.emptyPage} pointerEvents="none">
+                  <BinderGrid page={EMPTY_PAGE} width={EMPTY_PAGE_W} />
+                </View>
+                <View style={styles.emptyBody}>
+                  <ThemedText type="subtitle" style={styles.emptyTitle}>
+                    No binders yet.
+                  </ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.emptyText}>
+                    Start one from a blank page, or open an example and duplicate it to make it
+                    yours. A collection you import above can build one for you.
+                  </ThemedText>
+                  <View style={styles.emptyActions}>
+                    <Pressable onPress={handleNew} accessibilityRole="button" style={({ pressed }) => [styles.newBtn, pressed && styles.pressed]}>
+                      <Text style={styles.newBtnText}>+ New binder</Text>
+                    </Pressable>
+                    <Pressable onPress={() => router.push('/')} accessibilityRole="link" style={({ pressed }) => [styles.storyBtn, pressed && styles.pressed]}>
+                      <Text style={styles.storyBtnText}>See the examples</Text>
+                    </Pressable>
+                  </View>
+                </View>
               </ThemedView>
             ) : (
               <>
@@ -550,6 +570,10 @@ function RenameDialog({
   );
 }
 
+/** The picture in the empty shelf: a 3x3 page with nothing in it yet. */
+const EMPTY_PAGE: DemoPage = { id: 'empty-shelf', rows: 3, cols: 3, slots: [] };
+const EMPTY_PAGE_W = 132;
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
   flex: { flex: 1 },
@@ -578,8 +602,19 @@ const styles = StyleSheet.create({
   },
   storyBtnText: { color: Palette.accent, fontWeight: Weight.semibold, fontSize: FontSize.label },
   pressed: { opacity: 0.7 },
-  empty: { padding: Spacing.four, borderRadius: Radius.lg, maxWidth: MaxContentWidth },
-  emptyText: { lineHeight: 20 },
+  empty: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: Spacing.four,
+    padding: Spacing.four,
+    borderRadius: Radius.lg,
+  },
+  emptyPage: { width: EMPTY_PAGE_W },
+  emptyBody: { flex: 1, minWidth: 240, gap: Spacing.two },
+  emptyTitle: { marginBottom: 0 },
+  emptyText: { lineHeight: 20, maxWidth: 520 },
+  emptyActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.two, marginTop: Spacing.one },
   binderSearch: {
     borderWidth: 1,
     borderColor: Palette.hairlineStrong,

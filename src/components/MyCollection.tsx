@@ -1915,7 +1915,7 @@ const styles = StyleSheet.create({
   emptyNote: { paddingVertical: Spacing.two },
   emptyRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.three },
   curateCard: { marginTop: Spacing.two, marginBottom: Spacing.four },
-  pairing: { marginTop: Spacing.five },
+  pairing: { marginTop: 0 },
   emptyRowText: { flexShrink: 1, minWidth: 220 },
   guideBanner: {
     flexDirection: 'row',

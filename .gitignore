@@ -68,3 +68,6 @@ state/out/
 # Instagram exports (scripts/export-instagram.mjs): generated media, never committed.
 state/instagram/
 state/seo-shots/
+
+# Community seeding kit (house persona accounts + their shared password): never committed.
+state/personas/

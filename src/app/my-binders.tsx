@@ -42,7 +42,7 @@ import { BottomTabInset, Breakpoints, FontSize, MaxContentWidth, MaxContentWidth
 import { ProTrialPrompt } from '@/components/monetization/ProTrialPrompt';
 import { RightsPrompt } from '@/components/binder/RightsPrompt';
 import { pillChip } from '@/constants/ui';
-import { fillerName } from '@/data/binderTypes';
+import { fillerName, sortByRecentEdit } from '@/data/binderTypes';
 import { binderLimitMessage, binderTrialMessage, limitCta } from '@/data/limitMessages';
 import { track } from '@/lib/analytics';
 import { isSupabaseConfigured } from '@/lib/env';
@@ -171,7 +171,8 @@ export default function MyBindersScreen() {
   const privateCount = store.userBinders.length - publicCount;
   const showVisibilityFilter = store.userBinders.length >= 2;
   const q = binderQuery.trim().toLowerCase();
-  const visibleBinders = store.userBinders.filter((b) => {
+  // Most recently edited first: the binder someone is working on is the one they came back for.
+  const visibleBinders = sortByRecentEdit(store.userBinders).filter((b) => {
     if (showVisibilityFilter && visibility === 'public' && !b.isPublic) return false;
     if (showVisibilityFilter && visibility === 'private' && b.isPublic) return false;
     return !showBinderSearch || !q || b.title.toLowerCase().includes(q);

@@ -108,10 +108,12 @@ interface SlotRowIn {
   source_entry_id?: string | null;
   // Optional: rows written before 20260901120000 have no such key.
   finish?: string | null;
+  updated_at?: string;
 }
 
 interface PageRowIn {
   id: string;
+  updated_at?: string;
   title: string | null;
   notes: string | null;
   rows: number;
@@ -136,7 +138,20 @@ interface BinderRowIn {
   share_page_ids: string[] | null;
   share_key: string | null;
   made_public_at: string | null;
+  updated_at?: string;
   binder_pages: PageRowIn[] | null;
+}
+
+/** The newest updated_at across a binder, its pages and its pockets (ISO strings compare as text). */
+function lastEditedAt(row: BinderRowIn): string | undefined {
+  let latest = row.updated_at;
+  for (const page of row.binder_pages ?? []) {
+    if (page.updated_at && (!latest || page.updated_at > latest)) latest = page.updated_at;
+    for (const slot of page.binder_slots ?? []) {
+      if (slot.updated_at && (!latest || slot.updated_at > latest)) latest = slot.updated_at;
+    }
+  }
+  return latest;
 }
 
 function mapSlot(row: SlotRowIn): DemoSlot {
@@ -214,6 +229,7 @@ function mapBinder(row: BinderRowIn): DemoBinder {
     sharePageIds: row.share_page_ids ?? undefined,
     shareKey: row.share_key ?? undefined,
     madePublicAt: row.made_public_at ?? undefined,
+    updatedAt: lastEditedAt(row),
     pages,
   };
 }

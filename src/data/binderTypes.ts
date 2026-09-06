@@ -365,6 +365,13 @@ export interface DemoBinder {
    * "New" badge; absent on a local/example binder and on one that has never been shared.
    */
   madePublicAt?: string;
+  /**
+   * When this binder was last touched: the newest updated_at across the binder row, its pages and
+   * its pockets (a pocket edit does not bump the binder row). Set on load and stamped locally by
+   * the store on every edit, so shelves sorted by it stay in order between reloads. Absent on an
+   * example binder.
+   */
+  updatedAt?: string;
   /** Total likes this binder has received. Populated for Featured + when viewing a public binder. */
   likeCount?: number;
   /** Whether the current signed-in viewer has liked this binder. */
@@ -664,4 +671,17 @@ export function remintBinderIds(binder: DemoBinder): DemoBinder {
     // Empty stays absent: [] and undefined both mean "auto (fullest pages)".
     sharePageIds: sharePageIds?.length ? sharePageIds : undefined,
   };
+}
+
+/**
+ * A shelf in the order people expect: the binder touched most recently first. Undated binders
+ * (examples, or rows older than the column) keep their incoming order at the end.
+ */
+export function sortByRecentEdit<T extends { updatedAt?: string }>(binders: readonly T[]): T[] {
+  return [...binders].sort((a, b) => {
+    if (!a.updatedAt && !b.updatedAt) return 0;
+    if (!a.updatedAt) return 1;
+    if (!b.updatedAt) return -1;
+    return b.updatedAt.localeCompare(a.updatedAt);
+  });
 }

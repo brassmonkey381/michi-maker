@@ -484,8 +484,13 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     // that can promise it — a per-surface check would only cover the surfaces someone remembered.
     if (!canEditRef.current) return;
     setHistory((h) => {
-      const next = updater(h.present);
-      if (next === h.present) return h; // no-op updates don't pollute history
+      const changed = updater(h.present);
+      if (changed === h.present) return h; // no-op updates don't pollute history
+      // Stamp every binder the update touched, so a shelf sorted by last edit moves it to the top
+      // now rather than after the next reload (the server keeps its own updated_at in step).
+      const before = new Map(h.present.map((b) => [b.id, b]));
+      const now = new Date().toISOString();
+      const next = changed.map((b) => (before.get(b.id) === b || b.isExample ? b : { ...b, updatedAt: now }));
       return {
         past: [...h.past, h.present].slice(-HISTORY_LIMIT),
         present: next,

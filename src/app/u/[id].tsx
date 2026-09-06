@@ -30,7 +30,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { fetchPublicBinders } from '@/data/binderRepo';
-import type { DemoBinder } from '@/data/binderTypes';
+import { sortByRecentEdit, type DemoBinder } from '@/data/binderTypes';
 import { fetchProfile, type PublicProfile } from '@/data/profileRepo';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useAuth } from '@/store/auth';
@@ -72,7 +72,8 @@ export default function ProfileRoute() {
         }
         // RLS only returns a private profile to its owner, so reaching here with isPublic false
         // IS the owner's own view; no second check needed.
-        const binders = await fetchPublicBinders(profile.id);
+        // Most recently edited first, same as the owner's own shelf.
+        const binders = sortByRecentEdit(await fetchPublicBinders(profile.id));
         if (active) setState({ status: 'ok', profile, binders });
       } catch {
         if (active) setState({ status: 'missing' });

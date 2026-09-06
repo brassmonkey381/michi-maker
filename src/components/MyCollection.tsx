@@ -211,8 +211,11 @@ export function MyCollection({
     };
   }, [userId]);
 
-  if (!cards) return shelf;
-  if (cards.length === 0)
+  // Still loading a member's cards: just the shelf, so nothing flashes in and out.
+  if (!cards && userId) return shelf;
+  // A visitor with no account has no collection either, and gets the same on-ramp a member with
+  // an empty one does (the card asks them to sign in). Before this they saw only the shelf.
+  if (!cards || cards.length === 0)
     return (
       <>
         <EmptyCollection
@@ -281,7 +284,6 @@ function EmptyCollection({
     // Once, on arrival.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  if (!isSignedIn && !isGuest) return null;
   const openExample = () => {
     track('demo.csv_import', { surface });
     setSeedExample(true);
@@ -292,9 +294,9 @@ function EmptyCollection({
     setSeedExample(false);
     setImportOpen(true);
   };
-  if (isGuest) {
-    // A guest can be shown the offer but not take it up: a collection belongs to an account.
-    // The same before-and-after card a member sees; either button asks them to sign in first.
+  if (isGuest || !isSignedIn) {
+    // A guest, or a visitor with no session at all, can be shown the offer but not take it up: a
+    // collection belongs to an account. Either button on the card asks them to sign in first.
     return (
       <View style={styles.curateCard}>
         <CurateCallout surface={surface} onPick={() => setAuthOpen(true)} />

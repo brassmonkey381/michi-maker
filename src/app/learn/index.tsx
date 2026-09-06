@@ -11,13 +11,14 @@ import { GuideHook } from '@/components/learn/GuideFigure';
 import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Fonts, FontSize, Radius, Shadows, Spacing } from '@/constants/theme';
+import { Fonts, FontSize, Radius, Shadows, Spacing, MaxContentWidthDoc } from '@/constants/theme';
 import { GUIDE_LIST } from '@/data/guides';
 
 export default function LearnHubScreen() {
   const router = useRouter();
   return (
     <PageShell
+      maxWidth={MaxContentWidthDoc}
       title="Pokémon binder how-to guides"
       description="Short illustrated guides to building a Pokémon binder the michi way: fill a page around one card, cut art into pockets, print at true card size, and search your cards.">
       <ThemedText type="subtitle" style={styles.h1}>

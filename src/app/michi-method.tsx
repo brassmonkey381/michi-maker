@@ -15,7 +15,7 @@ import { StyleGallery } from '@/components/michi/MethodShowcase';
 import { ExternalLink } from '@/components/external-link';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { FontSize, MaxContentWidth, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { FontSize, MaxContentWidthDoc, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { AUTO_FILL_SHOWCASE_ART, WOAHPOKE_GUIDE } from '@/data/guides';
 
 // The collector credited with creating and popularising the method, and the community
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
     paddingBottom: Spacing.six,
     width: '100%',
-    maxWidth: MaxContentWidth,
+    maxWidth: MaxContentWidthDoc,
     alignSelf: 'center',
   },
   headerRow: {

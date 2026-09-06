@@ -9,7 +9,7 @@ import { ExternalLink } from '@/components/external-link';
 import { GuideFigure } from '@/components/learn/GuideFigure';
 import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
-import { Fonts, FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { Fonts, FontSize, Palette, Radius, Spacing, Weight, MaxContentWidthDoc } from '@/constants/theme';
 import { GUIDES } from '@/data/guides';
 
 export default function GuideScreen() {
@@ -34,7 +34,7 @@ export default function GuideScreen() {
   }
 
   return (
-    <PageShell title={guide.title} description={guide.lede}>
+    <PageShell title={guide.title} description={guide.lede} maxWidth={MaxContentWidthDoc}>
       <ThemedText type="subtitle" style={styles.h1}>
         {guide.title}
       </ThemedText>

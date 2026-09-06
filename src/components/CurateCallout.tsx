@@ -49,11 +49,14 @@ export function CurateCallout({
   surface,
   compact = false,
   onNavigate,
+  onPick,
 }: {
   surface: string;
   compact?: boolean;
   /** Runs just before leaving for My binders — the landing page uses it to mark itself seen. */
   onNavigate?: () => void;
+  /** On My binders itself there is nowhere to go: the parent opens the import sheet directly. */
+  onPick?: (mode: CurateMode) => void;
 }) {
   const router = useRouter();
   const store = useBinders();
@@ -71,6 +74,10 @@ export function CurateCallout({
   // cards — a picture of the outcome beats a sentence about it.
   const afterPage = store.exampleBinders.find((b) => b.pages[0]?.slots?.some((s) => s.cardId))?.pages[0] ?? store.exampleBinders[0]?.pages[0];
   const go = (mode: CurateMode) => {
+    if (onPick) {
+      onPick(mode);
+      return;
+    }
     onNavigate?.();
     router.push(curateHref(mode, surface));
   };

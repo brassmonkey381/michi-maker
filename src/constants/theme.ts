@@ -72,6 +72,10 @@ export const Breakpoints = { rail: 900, hero: 1180 } as const;
 /** Readable column for prose and forms (descriptions, empty states, auth). Text wider than
  *  this gets hard to read, so it stays capped even inside a wide shell. */
 export const MaxContentWidth = 800;
+/** Shell width for DOCUMENT routes (Learn, the Michi Method, What's new, the contest): prose
+ *  with figures, cards and lists beside it. 800 read undersized on a desktop next to the wide
+ *  surfaces; this is the width they share, and their paragraphs still stay readable in it. */
+export const MaxContentWidthDoc = 960;
 /** Shell width for VISUAL surfaces (home sections, binder viewer, profiles). This is a
  *  gallery app — grids/carousels/spreads use the extra room to show more art; prose inside
  *  a wide shell should still cap itself at MaxContentWidth. */

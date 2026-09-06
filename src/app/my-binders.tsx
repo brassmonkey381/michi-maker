@@ -33,7 +33,6 @@ import { hasBinderCovers, hasFindSimilar } from '@/data/tiers';
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { MyCollection } from '@/components/MyCollection';
 import { StoryBinderSheet } from '@/components/StoryBinderSheet';
-import { TcgscanPairing } from '@/components/TcgscanPairing';
 import { HomeSection } from '@/components/HomeSection';
 import { CapGateOffer } from '@/components/monetization/CapGateOffer';
 import { ThemedText } from '@/components/themed-text';
@@ -426,9 +425,6 @@ export default function MyBindersScreen() {
             onFindSimilar={driveSimilarIds}
             onViewSet={driveViewSet}
           />
-          <View style={styles.pairing}>
-            <TcgscanPairing surface="my-binders" compact />
-          </View>
         </ScrollView>
       </SafeAreaView>
 
@@ -555,7 +551,6 @@ function RenameDialog({
 }
 
 const styles = StyleSheet.create({
-  pairing: { marginTop: 20 },
   container: { flex: 1 },
   flex: { flex: 1 },
   scroll: {

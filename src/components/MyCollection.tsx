@@ -33,7 +33,8 @@ import { ConfirmDialog } from '@/components/binder/ConfirmDialog';
 import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { HomeSection } from '@/components/HomeSection';
 import { AuthSheet } from '@/components/auth/AuthSheet';
-import { CURATE_IMPORT, CURATE_TITLE, CURATE_TRY, type CurateMode } from '@/components/CurateCallout';
+import { CURATE_TITLE, CurateCallout, type CurateMode } from '@/components/CurateCallout';
+import { TcgscanPairing } from '@/components/TcgscanPairing';
 import { ImportCsvSheet } from '@/components/ImportCsvSheet';
 import { TcgscanLink } from '@/components/monetization/BundleOffer';
 import { ThemedText } from '@/components/themed-text';
@@ -221,6 +222,11 @@ export function MyCollection({
           autoCurateFrom={autoCurateFrom}
         />
         {shelf}
+        {/* No collection yet: the whole pairing story, pictures and all, so the on-ramp and
+            where the cards come from sit on one page. With cards it is the one-line version. */}
+        <View style={styles.pairing}>
+          <TcgscanPairing surface="my-binders" />
+        </View>
       </>
     );
   return (
@@ -306,22 +312,10 @@ function EmptyCollection({
     );
   }
   return (
-    <HomeSection title={CURATE_TITLE}>
-      <View style={styles.emptyRow}>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.emptyRowText}>
-          Import the cards you own and michi-maker curates a binder from them. New here? Load the
-          example collection to see it work, or scan cards with <TcgscanLink /> and import your
-          own CSV.
-        </ThemedText>
-        <Pressable
-          onPress={openExample}
-          style={({ pressed }) => [styles.buildChip, pressed && styles.pressed]}>
-          <Text style={styles.buildChipText}>{CURATE_TRY}</Text>
-        </Pressable>
-        <Pressable onPress={openImport} style={({ pressed }) => [pillChip.base, pressed && styles.pressed]}>
-          <Text style={pillChip.text}>{CURATE_IMPORT}</Text>
-        </Pressable>
-      </View>
+    <View style={styles.curateCard}>
+      {/* The same before-and-after card Learn shows, with its buttons wired to the sheet below
+          rather than to a navigation: this IS the page they would have been sent to. */}
+      <CurateCallout surface={surface} onPick={(mode) => (mode === 'example' ? openExample() : openImport())} />
       <ImportCsvSheet
         visible={importOpen}
         onClose={() => setImportOpen(false)}
@@ -337,7 +331,7 @@ function EmptyCollection({
           onToast?.(`Imported ${copies} cop${copies === 1 ? 'y' : 'ies'} into “${name}”`)
         }
       />
-    </HomeSection>
+    </View>
   );
 }
 
@@ -1927,6 +1921,8 @@ const styles = StyleSheet.create({
   },
   emptyNote: { paddingVertical: Spacing.two },
   emptyRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.three },
+  curateCard: { marginTop: Spacing.two, marginBottom: Spacing.four },
+  pairing: { marginTop: Spacing.five },
   emptyRowText: { flexShrink: 1, minWidth: 220 },
   guideBanner: {
     flexDirection: 'row',

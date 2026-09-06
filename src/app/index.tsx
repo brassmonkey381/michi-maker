@@ -8,7 +8,6 @@ import { AccountButton } from '@/components/auth/AccountButton';
 import { GuestBanner } from '@/components/auth/GuestBanner';
 import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
 import { BinderCarousel } from '@/components/binder/BinderCarousel';
-import { CurateCallout } from '@/components/CurateCallout';
 import { TcgscanPairing } from '@/components/TcgscanPairing';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { CapGateDialog } from '@/components/monetization/CapGateDialog';
@@ -281,11 +280,8 @@ export default function HomeScreen() {
             </HomeSection>
           ) : null}
 
-          {/* The curator, right under the featured shelf: what those binders were built with. */}
-          <View style={styles.curate}>
-            <CurateCallout surface="home" />
-          </View>
-          {/* The other half of the loop: where the collection the curator builds from comes from. */}
+          {/* Where a collection comes from. The curator card that sat above this moved to My
+              binders (2026-09-06), where it greets an account with no collection yet. */}
           <View style={styles.curate}>
             <TcgscanPairing surface="home" />
           </View>

@@ -20,7 +20,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { FontSize, Palette, Radius, Spacing, Weight, MaxContentWidthDoc } from '@/constants/theme';
 import { pillChip } from '@/constants/ui';
 import {
   CHANGE_AREAS,
@@ -108,6 +108,7 @@ export default function WhatsNewScreen() {
 
   return (
     <PageShell
+      maxWidth={MaxContentWidthDoc}
       title="What’s new in michi-maker and TCGScan"
       description="New features, improvements and fixes in michi-maker and TCGScan, grouped by release date.">
       <ThemedText type="subtitle" style={styles.h1}>

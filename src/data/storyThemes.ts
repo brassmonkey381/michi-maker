@@ -309,6 +309,240 @@ const SKY: StoryTheme = {
   artKind: 'any',
 };
 
+// ─── Niche themes (2026-09-06): objects, actions and drawing styles, not weather or mood ─────────
+// Blurbs say what the page IS. Nothing here names the tagging.
+
+const SNACK_TIME: StoryTheme = {
+  id: 'snack-time',
+  title: 'Snack time',
+  blurb: "Berries, bottles, baskets and a few very good meals.",
+  want: ["object:food", "action:eating", "object:cup", "object:bottle", "object:berries", "object:apples", "action:cooking", "action:drinking", "object:frying pan"],
+  bonus: ["scene:kitchen", "object:basket", "mood:cheerful", "mood:cozy", "action:sitting"],
+  avoid: ["action:fighting", "mood:menacing"],
+  art: ["picnic table food overhead", "bakery counter pastries", "fruit bowl still life window light"],
+  artKind: 'any',
+};
+
+const BOOKISH: StoryTheme = {
+  id: 'bookish',
+  title: 'Bookish',
+  blurb: "Reading nooks, lamplight and a library or two.",
+  want: ["object:book", "scene:library", "action:reading", "object:lantern"],
+  bonus: ["scene:bedroom", "flag:indoor", "mood:quiet", "mood:calm", "action:sitting", "object:cushions"],
+  avoid: ["action:fighting", "scene:storm"],
+  art: ["old library bookshelves warm light", "reading nook armchair lamp", "stack of old books close up"],
+  artKind: 'any',
+};
+
+const HIDE_AND_SEEK: StoryTheme = {
+  id: 'hide-and-seek',
+  title: 'Hide and seek',
+  blurb: "Peeking from crates, baskets and burrows: the ones you almost missed.",
+  want: ["action:hiding", "action:peeking", "action:burrowing", "object:crate", "object:barrel"],
+  bonus: ["object:basket", "mood:mischievous", "mood:playful", "action:watching", "object:bucket"],
+  avoid: ["action:fighting", "mood:grand"],
+  art: ["stacked wooden crates warehouse", "wicker baskets market stall", "tall grass meadow close up"],
+  artKind: 'any',
+};
+
+const ON_THE_MOVE: StoryTheme = {
+  id: 'on-the-move',
+  title: 'On the move',
+  blurb: "Running, climbing, riding: nobody on these pages is standing still.",
+  want: ["action:running", "action:climbing", "action:jumping", "action:riding", "action:chasing", "object:bicycle", "object:car", "scene:road"],
+  bonus: ["object:backpack", "mood:energetic", "mood:busy", "flag:outdoor", "action:walking"],
+  avoid: ["action:sleeping", "action:resting", "action:sitting"],
+  art: ["winding road aerial view", "hiking trail mountain path", "bicycle on country road"],
+  artKind: 'any',
+};
+
+const TREASURE: StoryTheme = {
+  id: 'treasure',
+  title: 'Treasure',
+  blurb: "Gems, coins and glowing things found underground.",
+  want: ["object:gems", "object:crystals", "object:coin", "object:orbs", "scene:cave", "flag:underground"],
+  bonus: ["action:glowing", "scene:underground", "mood:mysterious", "object:rocks", "action:digging"],
+  avoid: ["mood:sunny", "scene:beach"],
+  art: ["crystal cave glowing", "gemstones macro close up", "gold coins treasure chest"],
+  artKind: 'any',
+};
+
+const NAP_TIME: StoryTheme = {
+  id: 'nap-time',
+  title: 'Nap time',
+  blurb: "Asleep, half asleep, or about to be.",
+  want: ["action:sleeping", "action:yawning", "mood:sleepy", "action:resting"],
+  bonus: ["object:cushions", "scene:bedroom", "mood:cozy", "mood:quiet", "flag:night", "flag:indoor"],
+  avoid: ["action:fighting", "action:running", "mood:chaotic"],
+  art: ["soft blanket bed morning light", "hammock lazy afternoon", "cat sleeping in sun window"],
+  artKind: 'any',
+};
+
+const CROWD: StoryTheme = {
+  id: 'crowd',
+  title: 'Crowd scenes',
+  blurb: "Festivals, markets and stadiums: everyone showed up.",
+  want: ["flag:crowd", "scene:festival", "scene:stadium", "scene:arena", "scene:market", "action:celebrating", "action:cheering"],
+  bonus: ["flag:multiples", "mood:busy", "mood:cheerful", "object:bunting", "object:balloons", "scene:town"],
+  avoid: ["mood:quiet", "action:sleeping"],
+  art: ["festival lanterns crowd night", "street market bustle", "stadium crowd lights"],
+  artKind: 'any',
+};
+
+const TOGETHER: StoryTheme = {
+  id: 'together',
+  title: 'Together',
+  blurb: "Pairs and small groups, doing things side by side.",
+  want: ["flag:multiples", "action:hugging", "action:dancing", "action:playing", "action:feeding"],
+  bonus: ["mood:cheerful", "mood:tender", "mood:playful", "action:smiling", "action:laughing"],
+  avoid: ["action:fighting", "mood:menacing", "flag:no-pokemon"],
+  art: ["friends silhouettes sunset", "two chairs on a porch", "group hiking trail"],
+  artKind: 'any',
+};
+
+const POSTER_ART: StoryTheme = {
+  id: 'poster-art',
+  title: 'Poster style',
+  blurb: "Flat colour, bold shapes and hard edges, like a printed poster.",
+  want: ["style:graphic poster", "style:flat", "style:no outlines", "style:high contrast", "style:thick lines"],
+  bonus: ["style:cel shaded", "mood:bold", "mood:energetic"],
+  avoid: ["style:realistic", "style:soft focus", "style:sketchy"],
+  art: ["geometric poster illustration", "bold flat shapes design", "minimal vector landscape illustration"],
+  artKind: 'illustration',
+};
+
+const STORYBOOK: StoryTheme = {
+  id: 'storybook',
+  title: 'Storybook',
+  blurb: "Soft, painted pages that look lifted from a picture book.",
+  want: ["style:storybook", "style:painterly", "style:soft focus"],
+  bonus: ["mood:tender", "mood:calm", "mood:dreamy", "style:sketchy"],
+  avoid: ["style:high contrast", "style:graphic poster", "mood:chaotic"],
+  art: ["watercolor storybook illustration forest", "children's book illustration cottage", "gouache painting meadow illustration"],
+  artKind: 'illustration',
+};
+
+const INK_AND_MANGA: StoryTheme = {
+  id: 'ink-and-manga',
+  title: 'Ink and manga',
+  blurb: "Thin lines, screentone and the comic page look.",
+  want: ["style:manga", "style:thin lines", "style:line art", "style:sketchy"],
+  bonus: ["style:high contrast", "style:retro", "mood:tense", "mood:dramatic"],
+  avoid: ["style:painterly", "style:soft focus", "style:realistic"],
+  art: ["ink line drawing city street", "manga panel screentone", "pen sketch illustration"],
+  artKind: 'illustration',
+};
+
+const RETRO: StoryTheme = {
+  id: 'retro',
+  title: 'Retro',
+  blurb: "Cel shading, saturated colour and a little nineties in the lines.",
+  want: ["style:retro", "style:cel shaded"],
+  bonus: ["style:thick lines", "style:high contrast", "mood:cheerful", "mood:bold"],
+  avoid: ["style:realistic", "style:soft focus"],
+  art: ["retro synthwave illustration", "vintage cartoon background illustration", "pixel art landscape"],
+  artKind: 'illustration',
+};
+
+const PSYCHEDELIC: StoryTheme = {
+  id: 'psychedelic',
+  title: 'Psychedelic',
+  blurb: "Colour that does not sit still.",
+  want: ["style:psychedelic"],
+  bonus: ["mood:dreamy", "action:floating", "action:drifting", "mood:chaotic", "style:no outlines"],
+  avoid: ["style:realistic", "mood:quiet"],
+  art: ["psychedelic swirl pattern illustration", "tie dye color abstract", "liquid marble colors abstract"],
+  artKind: 'illustration',
+};
+
+const SIGNS_AND_SHOPS: StoryTheme = {
+  id: 'signs-and-shops',
+  title: 'Signs and shops',
+  blurb: "Storefronts, counters, signboards and the odd mailbox.",
+  want: ["object:sign", "scene:shop", "object:counter", "object:mailbox", "action:serving"],
+  bonus: ["scene:market", "scene:town", "scene:city", "object:lights", "mood:busy", "flag:indoor"],
+  avoid: ["scene:forest", "scene:underwater"],
+  art: ["small storefront awning street", "neon shop signs night street", "corner shop window display"],
+  artKind: 'any',
+};
+
+const LANTERN_LIGHT: StoryTheme = {
+  id: 'lantern-light',
+  title: 'Lantern light',
+  blurb: "Small lights in the dark: lanterns, embers, a glow from somewhere.",
+  want: ["object:lantern", "object:lights", "action:glowing", "scene:campfire"],
+  bonus: ["flag:night", "object:stars", "mood:warm", "mood:calm", "mood:mysterious"],
+  avoid: ["mood:sunny", "flag:day"],
+  art: ["paper lanterns night festival", "campfire embers dark", "string lights bokeh evening"],
+  artKind: 'any',
+};
+
+const PERCHED: StoryTheme = {
+  id: 'perched',
+  title: 'Perched',
+  blurb: "Up on a branch, a fence, a wire: looking down at everything.",
+  want: ["action:perching", "action:hanging", "object:nest", "action:nesting", "object:fence"],
+  bonus: ["scene:trees", "object:trees", "action:watching", "action:climbing", "flag:outdoor"],
+  avoid: ["scene:underwater", "flag:indoor"],
+  art: ["bird on wire silhouette sky", "tree branch close up bokeh", "wooden fence field morning"],
+  artKind: 'any',
+};
+
+const SPLASH: StoryTheme = {
+  id: 'splash',
+  title: 'Making a splash',
+  blurb: "Rivers, lakes and the moment the water goes everywhere.",
+  want: ["action:splashing", "action:surfing", "object:surfboard", "action:swimming", "scene:river", "scene:lake"],
+  bonus: ["scene:ocean", "scene:beach", "mood:playful", "mood:energetic", "object:boat"],
+  avoid: ["scene:desert", "scene:lava", "flag:indoor"],
+  art: ["water splash macro", "river rapids rocks", "lake surface ripples morning"],
+  artKind: 'any',
+};
+
+const HANDS_FULL: StoryTheme = {
+  id: 'hands-full',
+  title: 'Hands full',
+  blurb: "Carrying, holding, hauling: everyone has something to bring.",
+  want: ["action:carrying", "action:holding", "object:basket", "object:backpack", "object:bucket", "action:foraging"],
+  bonus: ["object:crate", "object:apples", "object:berries", "mood:busy", "mood:cheerful"],
+  avoid: ["action:sleeping", "action:fighting"],
+  art: ["farmers market baskets produce", "moving boxes hallway", "hands holding harvest apples"],
+  artKind: 'any',
+};
+
+const RUINS: StoryTheme = {
+  id: 'ruins',
+  title: 'Ruins and temples',
+  blurb: "Old stone, older stories.",
+  want: ["scene:ruins", "scene:temple"],
+  bonus: ["object:rocks", "scene:rocks", "mood:solemn", "mood:mysterious", "mood:eerie", "scene:jungle", "scene:cave"],
+  avoid: ["scene:city", "flag:indoor"],
+  art: ["ancient ruins overgrown jungle", "stone temple steps mist", "crumbling stone archway"],
+  artKind: 'any',
+};
+
+const CITY_LIGHTS: StoryTheme = {
+  id: 'city-lights',
+  title: 'City lights',
+  blurb: "Streets, rooftops and the neon after dark.",
+  want: ["scene:city", "scene:road", "object:car", "object:lights", "object:screen"],
+  bonus: ["flag:night", "scene:shop", "mood:busy", "mood:moody", "object:sign"],
+  avoid: ["scene:forest", "scene:meadow", "scene:underwater"],
+  art: ["city street night rain neon", "rooftop skyline dusk", "crosswalk long exposure lights"],
+  artKind: 'any',
+};
+
+const OPEN_COUNTRY: StoryTheme = {
+  id: 'open-country',
+  title: 'Open country',
+  blurb: "Fields, meadows and a lot of sky.",
+  want: ["scene:field", "scene:meadow", "scene:grass", "object:grass"],
+  bonus: ["scene:sky", "flag:outdoor", "flag:day", "mood:calm", "action:running", "action:standing"],
+  avoid: ["flag:indoor", "scene:city", "scene:underwater"],
+  art: ["wide open field big sky", "rolling hills meadow summer", "wheat field wind"],
+  artKind: 'any',
+};
+
 // ─── Templates ───────────────────────────────────────────────────────────────────────────────────
 
 export const STORY_TEMPLATES: StoryTemplate[] = [
@@ -348,6 +582,35 @@ export const STORY_TEMPLATES: StoryTemplate[] = [
     coverArt: ['weather sky collage clouds sun rain', 'dramatic weather sky', 'four weather sky'],
     spreads: [SUNNY, RAIN, SNOW, SKY],
   },
+  {
+    id: 'little-things',
+    title: 'Little things',
+    blurb: 'Snacks, books, treasure and small lights.',
+    coverArt: ['flat lay small objects wooden table', 'cozy desk lamp books cup'],
+    spreads: [SNACK_TIME, BOOKISH, TREASURE, LANTERN_LIGHT],
+  },
+  {
+    id: 'small-adventures',
+    title: 'Small adventures',
+    blurb: 'Hiding, hauling, climbing, splashing, and the nap after.',
+    coverArt: ['backpack on trail overlook', 'kids running field summer'],
+    spreads: [HIDE_AND_SEEK, ON_THE_MOVE, HANDS_FULL, SPLASH, NAP_TIME],
+  },
+  {
+    id: 'drawn',
+    title: 'Drawn',
+    blurb: 'Four ways to put ink on a card: poster, storybook, manga, psychedelic.',
+    coverArt: ['art supplies flat lay illustration', 'paint palette brushes illustration'],
+    coverArtKind: 'illustration',
+    spreads: [POSTER_ART, STORYBOOK, INK_AND_MANGA, PSYCHEDELIC],
+  },
+  {
+    id: 'places',
+    title: 'Places',
+    blurb: 'Shops, ruins, city streets and one big crowd.',
+    coverArt: ['old town street map illustration', 'travel postcards collage'],
+    spreads: [SIGNS_AND_SHOPS, RUINS, CITY_LIGHTS, CROWD],
+  },
 ];
 
 /** Every theme by id, for custom orderings and for the sheet's theme picker. */
@@ -357,6 +620,9 @@ export const STORY_THEMES: StoryTheme[] = [
   FOREST, WATER, MOUNTAIN, TOWN, INDOORS, HEAT,
   COZY, PLAYFUL, EERIE, GRAND, DREAMY, CHAOS,
   SUNNY, RAIN, SNOW, SKY,
+  SNACK_TIME, BOOKISH, HIDE_AND_SEEK, ON_THE_MOVE, TREASURE, NAP_TIME, CROWD, TOGETHER,
+  POSTER_ART, STORYBOOK, INK_AND_MANGA, RETRO, PSYCHEDELIC,
+  SIGNS_AND_SHOPS, LANTERN_LIGHT, PERCHED, SPLASH, HANDS_FULL, RUINS, CITY_LIGHTS, OPEN_COUNTRY,
 ];
 
 export function storyTheme(id: string): StoryTheme | undefined {

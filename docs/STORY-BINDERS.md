@@ -31,7 +31,7 @@ that produced those numbers was a scratch script over `cards_en?select=…&scene
 
 | File | Role |
 |---|---|
-| `src/data/storyThemes.ts` | The 24 themes (tags wanted, bonus, avoided; stock-art searches) and the 5 templates |
+| `src/data/storyThemes.ts` | The 45 themes (tags wanted, bonus, avoided; stock-art searches) and the 9 templates. The 21 added 2026-09-06 lean on objects, actions and drawing styles (snack time, bookish, hide and seek, treasure, crowd scenes, poster style, storybook, ink and manga, retro, city lights, ...) rather than weather and mood |
 | `src/data/storyBinder.ts` | The pure planner: scoring, diversity, layout choice, seating, art jobs |
 | `src/data/storyBinder.test.ts` | `node --test` coverage of the planner |
 | `src/lib/stockArt.ts` | Client: search via the edge function, pick a hit for a panel, re-host, credit |

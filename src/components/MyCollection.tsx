@@ -33,7 +33,7 @@ import { ConfirmDialog } from '@/components/binder/ConfirmDialog';
 import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { HomeSection } from '@/components/HomeSection';
 import { AuthSheet } from '@/components/auth/AuthSheet';
-import { CURATE_TITLE, CurateCallout, type CurateMode } from '@/components/CurateCallout';
+import { CurateCallout, type CurateMode } from '@/components/CurateCallout';
 import { TcgscanPairing } from '@/components/TcgscanPairing';
 import { ImportCsvSheet } from '@/components/ImportCsvSheet';
 import { TcgscanLink } from '@/components/monetization/BundleOffer';
@@ -294,21 +294,12 @@ function EmptyCollection({
   };
   if (isGuest) {
     // A guest can be shown the offer but not take it up: a collection belongs to an account.
+    // The same before-and-after card a member sees; either button asks them to sign in first.
     return (
-      <HomeSection title={CURATE_TITLE}>
-        <View style={styles.emptyRow}>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.emptyRowText}>
-            Import the cards you own and michi-maker curates a binder from them. Sign in first so
-            your collection has somewhere to live.
-          </ThemedText>
-          <Pressable
-            onPress={() => setAuthOpen(true)}
-            style={({ pressed }) => [styles.buildChip, pressed && styles.pressed]}>
-            <Text style={styles.buildChipText}>Sign in to import</Text>
-          </Pressable>
-        </View>
+      <View style={styles.curateCard}>
+        <CurateCallout surface={surface} onPick={() => setAuthOpen(true)} />
         <AuthSheet visible={authOpen} onClose={() => setAuthOpen(false)} />
-      </HomeSection>
+      </View>
     );
   }
   return (

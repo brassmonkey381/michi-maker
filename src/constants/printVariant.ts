@@ -141,12 +141,15 @@ export function variantOptionsFor(
  *
  *   1. What the pocket was explicitly told (slot.finish) — a deliberate answer always wins.
  *   2. The owned copy it claims — a fact about a card someone physically has beats a guess.
- *   3. The card's only published finish, when it has exactly one. Two thirds of the catalogue is
- *      printed one way, so this fills most pockets correctly without anyone being asked.
+ *   3. The card's priciest published finish. Two thirds of the catalogue is printed one way, so
+ *      that is simply its finish; on the rest it is the top of the ladder (Holofoil over Reverse
+ *      Holofoil over Normal, and the same within the 1st Edition / Unlimited families), which is
+ *      what `variantOptionsFor` lists first. Owner decision 2026-09-06: most collectors do not
+ *      care about the finish, and the hollow "?" this used to show read as homework. A pocket
+ *      that has it wrong is still one tap from right, and the guess is never written anywhere:
+ *      it is display only, so the phone's merge never sees an invented finish.
  *
- * Otherwise nothing: a card that genuinely could be either is left unanswered rather than guessed
- * at, because a wrong finish shown confidently is worse than no chip. That pocket is one tap from
- * being right.
+ * Nothing only when the card has no published finishes at all.
  */
 export function effectiveFinish(
   slotFinish: string | undefined,
@@ -155,8 +158,7 @@ export function effectiveFinish(
 ): string | undefined {
   if (slotFinish) return slotFinish;
   if (ownedVariant) return ownedVariant;
-  const names = Object.keys(priced ?? {});
-  return names.length === 1 ? names[0] : undefined;
+  return variantOptionsFor(priced, '')[0];
 }
 
 /**
@@ -167,8 +169,9 @@ export function effectiveFinish(
  * the caller can leave the chip inert rather than pretending a single-finish card has a choice.
  */
 /**
- * Could this card have been printed more than one way? Then an unanswered pocket deserves the `?`
- * prompt; a card with one possible finish never asks, because there is nothing to ask.
+ * Could this card have been printed more than one way? Since 2026-09-06 `effectiveFinish` answers
+ * such a card itself (priciest finish), so the `?` prompt this gates only appears when the price
+ * data is missing entirely; kept so the tap target survives that case.
  */
 export function finishIsAskable(priced: Record<string, number> | undefined): boolean {
   return Object.keys(priced ?? {}).length > 1;

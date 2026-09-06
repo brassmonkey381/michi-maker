@@ -102,9 +102,13 @@ test('a single-finish card answers itself', () => {
   assert.equal(effectiveFinish(undefined, undefined, { Holofoil: 9 }), 'Holofoil');
 });
 
-test('an ambiguous card is left unanswered rather than guessed', () => {
-  // A wrong finish shown confidently is worse than no chip; that pocket is one tap from right.
-  assert.equal(effectiveFinish(undefined, undefined, { Normal: 1, 'Reverse Holofoil': 4 }), undefined);
+test('an ambiguous card shows its priciest finish, and only a priceless one stays blank', () => {
+  // Owner decision 2026-09-06: default to the top of the finish ladder instead of asking. The
+  // pocket is one tap from right, and the guess is display only, never stored.
+  assert.equal(effectiveFinish(undefined, undefined, { Normal: 1, 'Reverse Holofoil': 4 }), 'Reverse Holofoil');
+  assert.equal(effectiveFinish(undefined, undefined, { Normal: 1, 'Reverse Holofoil': 4, Holofoil: 9 }), 'Holofoil');
+  assert.equal(effectiveFinish(undefined, undefined, { '1st Edition': 2, '1st Edition Holofoil': 30 }), '1st Edition Holofoil');
+  assert.equal(effectiveFinish(undefined, undefined, {}), undefined);
   assert.equal(effectiveFinish(undefined, undefined, undefined), undefined);
 });
 

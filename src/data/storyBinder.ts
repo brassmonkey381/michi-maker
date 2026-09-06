@@ -27,6 +27,7 @@
  */
 import { ART_SLACK, ART_TEMPLATES, artCells, pickTemplate, reservedCells, templateArtSlots, type ArtRole, type ArtTemplate } from './artTemplates.ts';
 import type { DemoPage, DemoSlot } from './binderTypes.ts';
+import { seededRandom, type SeededRandom } from './seededRandom.ts';
 import type { ArtKind, StoryTemplate, StoryTheme } from './storyThemes.ts';
 
 /** The slice of a catalog card the planner reads. Structural, so tests need no real CatalogCard. */
@@ -58,6 +59,13 @@ export interface StoryPlanOptions {
   rarity?: RarityMode;
   /** Id factory, injected so tests run without the uuid dependency. */
   mkId?: () => string;
+  /**
+   * VARIETY, REPRODUCIBLY. With a seed the cover page's layout, each spread's layout and which
+   * leaf takes the strongest card are drawn from a seeded random source, so two binders from the
+   * same template do not share a rhythm, while the same seed always rebuilds the same binder.
+   * Without one the plan is the fixed rotation it always was.
+   */
+  seed?: string | number;
 }
 
 /** One reserved artwork panel and how to fill it. */
@@ -283,7 +291,7 @@ function describe(theme: StoryTheme): string {
  * previous spread's layout. `pickTemplate` alone cycles a shortlist of two or three; a six-theme
  * story deserves more variety than that, and a run of two identical spreads reads as a mistake.
  */
-export function spreadTemplate(shape: PageShape, available: number, index: number, previousId: string | null): ArtTemplate | null {
+export function spreadTemplate(shape: PageShape, available: number, index: number, previousId: string | null, rng?: SeededRandom | null): ArtTemplate | null {
   const fits = ART_TEMPLATES.filter(
     (t) => t.rows === shape.rows && t.cols === shape.cols && t.spread && t.cardPockets <= Math.max(available, 1) + ART_SLACK * 2,
   ).sort((a, b) => artCells(b) - artCells(a) || a.id.localeCompare(b.id));
@@ -294,6 +302,11 @@ export function spreadTemplate(shape: PageShape, available: number, index: numbe
   // The richer half: anything within ART_SLACK * 3 pockets of the richest, at least three choices.
   let short = poolT.filter((t) => artCells(t) >= richest - ART_SLACK * 3);
   if (short.length < 3) short = poolT.slice(0, 3);
+  if (rng) {
+    // Any of the richer half except the one just used: a shuffle rather than a march.
+    const fresh = short.filter((t) => t.id !== previousId);
+    return rng.pick(fresh.length ? fresh : short) ?? short[0];
+  }
   const rotated = short[index % short.length];
   if (rotated.id !== previousId || short.length === 1) return rotated;
   return short[(index + 1) % short.length];
@@ -307,6 +320,7 @@ const defaultId = () => `story-${Date.now().toString(36)}-${(seq += 1)}`;
 export function planStoryBinder(opts: StoryPlanOptions): StoryPlan {
   const mkId = opts.mkId ?? defaultId;
   const { template, shape } = opts;
+  const rng = opts.seed === undefined ? null : seededRandom(`plan:${opts.seed}`);
   const fromCollection = !!opts.pool;
   const used = new Set<string>();
   const pages: DemoPage[] = [];
@@ -326,7 +340,7 @@ export function planStoryBinder(opts: StoryPlanOptions): StoryPlan {
       used.add(pick.card.id);
     }
   }
-  const coverTemplate = pickTemplate(shape.rows, shape.cols, heroes.length, { spread: false, rotate: 0 });
+  const coverTemplate = pickTemplate(shape.rows, shape.cols, heroes.length, { spread: false, rotate: rng ? rng.int(64) : 0 });
   pages.push(
     leafPage(mkId, shape, coverTemplate, undefined, heroes, template.title, template.blurb, fromCollection, pages.length, artJobs, {
       queries: template.coverArt,
@@ -341,7 +355,7 @@ export function planStoryBinder(opts: StoryPlanOptions): StoryPlan {
     const list = ranked[i];
     const available = list.filter((s) => !used.has(s.card.id)).length;
     // An art-led layout that seats the cards we have, different from the spread before it.
-    const t = spreadTemplate(shape, available, i, previousId);
+    const t = spreadTemplate(shape, available, i, previousId, rng);
     previousId = t?.id ?? null;
     const pockets = t ? t.cardPockets : shape.rows * shape.cols * 2;
     const chosen = pickDiverse(list, pockets, used);
@@ -355,9 +369,10 @@ export function planStoryBinder(opts: StoryPlanOptions): StoryPlan {
     const left: ThemeScore[] = [];
     const right: ThemeScore[] = [];
     // Alternate leaves in score order so both pages carry equal weight; overflow to whichever
-    // leaf still has room.
+    // leaf still has room. Seeded, the strongest card opens on either leaf.
+    const firstLeft = rng ? rng.chance() : true;
     for (const [k, c] of chosen.entries()) {
-      const preferLeft = k % 2 === 0;
+      const preferLeft = (k % 2 === 0) === firstLeft;
       if (preferLeft && left.length < leftSeats.length) left.push(c);
       else if (right.length < rightSeats.length) right.push(c);
       else if (left.length < leftSeats.length) left.push(c);

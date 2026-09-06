@@ -28,6 +28,7 @@
  */
 import { BINDER_MODELS, DEFAULT_BINDER_MODEL_ID, binderColourway, binderModel, coverAspect, type CoverSurfaceId } from './binderModels.ts';
 import type { BinderCover, CoverDecoration, CoverImageDecoration, CoverTextDecoration } from './binderTypes.ts';
+import { seededRandom } from './seededRandom.ts';
 import type { StoryPlan, RarityMode } from './storyBinder.ts';
 import type { ArtKind, StoryTemplate } from './storyThemes.ts';
 
@@ -56,6 +57,14 @@ export interface StoryCoverInput {
   /** Override the model/colourway; default picks a colourway that suits the story. */
   modelId?: string;
   colourway?: string;
+  /**
+   * VARIETY, REPRODUCIBLY. With a seed each surface takes one of a few arrangements (where the
+   * title sits against the picture, which side the contents card leans to, whether the back
+   * band runs top or bottom, how the hero cards fan), the stickers pick up a little tilt, and the
+   * colourway is drawn from the model's range. Same seed, same cover. Without one: the fixed
+   * layout, and the story's own colourway.
+   */
+  seed?: string | number;
 }
 
 export interface StoryCoverPlan {
@@ -198,7 +207,12 @@ export function formatCoverDate(d: Date): string {
 export function planStoryCover(input: StoryCoverInput): StoryCoverPlan {
   const { template, plan, mkId } = input;
   const model = binderModel(input.modelId ?? DEFAULT_BINDER_MODEL_ID);
-  const colourway = binderColourway(model, input.colourway ?? STORY_COLOURWAYS[template.id] ?? model.colourways[0]?.id);
+  const rng = input.seed === undefined ? null : seededRandom(`cover:${input.seed}`);
+  // Variant pickers: without a seed every choice is 0, which is the layout this always drew.
+  const choose = (n: number) => (rng ? rng.int(n) : 0);
+  const tilt = (deg: number, base = 0) => base + (rng ? rng.range(-deg, deg) : 0);
+  const seededColourway = rng ? rng.pick(model.colourways)?.id : undefined;
+  const colourway = binderColourway(model, input.colourway ?? seededColourway ?? STORY_COLOURWAYS[template.id] ?? model.colourways[0]?.id);
   const aspect = coverAspect(model); // width / height
   const Hu = 1 / aspect; // the surface height in width units
   const ink = colourway.light ? INK : INK_ON_DARK;
@@ -212,34 +226,65 @@ export function planStoryCover(input: StoryCoverInput): StoryCoverPlan {
   const front: CoverDecoration[] = [];
   {
     const heroId = mkId();
-    // Art first (bottom of the stack); the title sits above the picture, not on it.
-    const heroW = 0.86;
-    const heroH = Math.min(0.62, Hu - 0.56);
-    jobs.push({ id: heroId, surface: 'front', queries: template.coverArt, kind: template.coverArtKind ?? 'any', aspect: heroW / heroH, label: `${template.title} · front cover` });
-    front.push(artPlaceholder(heroId, 0.5, 0.36, heroW, heroH, aspect, 'Cover picture'));
-    const title = textDecoration(mkId, { text: template.title, font: 'brand', size: 0.13, w: 0.9, color: ink, align: 'center', leading: 1.05, name: 'Title' }, 0.5, 0.07, aspect);
-    front.push(title.d);
-    const sub = textDecoration(mkId, { text: template.blurb, font: 'serif', size: 0.038, w: 0.84, color: ink, italic: true, align: 'center', leading: 1.25, name: 'Subtitle' }, 0.5, 0.07 + title.h + 0.005, aspect);
-    front.push(sub.d);
-    const by = textDecoration(mkId, { text: byline, font: 'marker', size: 0.036, w: 0.7, bg: 'tag', rot: -2, align: 'center', name: 'Created by' }, 0.5, Hu - 0.12, aspect);
-    front.push(by.d);
+    const titleSize = rng ? rng.range(0.115, 0.14) : 0.13;
+    const v = choose(3);
+    if (v === 0) {
+      // Title over the picture, byline tag at the foot: the original arrangement.
+      const heroW = 0.86;
+      const heroH = Math.min(0.62, Hu - 0.56);
+      jobs.push({ id: heroId, surface: 'front', queries: template.coverArt, kind: template.coverArtKind ?? 'any', aspect: heroW / heroH, label: `${template.title} · front cover` });
+      front.push(artPlaceholder(heroId, 0.5, 0.36, heroW, heroH, aspect, 'Cover picture'));
+      const title = textDecoration(mkId, { text: template.title, font: 'brand', size: titleSize, w: 0.9, color: ink, align: 'center', leading: 1.05, name: 'Title' }, 0.5, 0.07, aspect);
+      front.push(title.d);
+      const sub = textDecoration(mkId, { text: template.blurb, font: 'serif', size: 0.038, w: 0.84, color: ink, italic: true, align: 'center', leading: 1.25, name: 'Subtitle' }, 0.5, 0.07 + title.h + 0.005, aspect);
+      front.push(sub.d);
+      const by = textDecoration(mkId, { text: byline, font: 'marker', size: 0.036, w: 0.7, bg: 'tag', rot: tilt(3, -2), align: 'center', name: 'Created by' }, 0.5, Hu - 0.12, aspect);
+      front.push(by.d);
+    } else if (v === 1) {
+      // The picture first, tall, then the title under it: a poster.
+      const heroW = 0.9;
+      const heroH = Math.min(0.72, Hu - 0.5);
+      jobs.push({ id: heroId, surface: 'front', queries: template.coverArt, kind: template.coverArtKind ?? 'any', aspect: heroW / heroH, label: `${template.title} · front cover` });
+      front.push(artPlaceholder(heroId, 0.5, 0.05, heroW, heroH, aspect, 'Cover picture'));
+      const title = textDecoration(mkId, { text: template.title, font: 'brand', size: titleSize, w: 0.9, color: ink, align: 'center', leading: 1.05, name: 'Title' }, 0.5, 0.05 + heroH + 0.03, aspect);
+      front.push(title.d);
+      const sub = textDecoration(mkId, { text: template.blurb, font: 'serif', size: 0.036, w: 0.84, color: ink, italic: true, align: 'center', leading: 1.25, name: 'Subtitle' }, 0.5, 0.05 + heroH + 0.03 + title.h, aspect);
+      front.push(sub.d);
+      const by = textDecoration(mkId, { text: byline, font: 'marker', size: 0.032, w: 0.58, bg: 'tag', rot: tilt(4, 3), align: 'center', name: 'Created by' }, 0.68, 0.05 + heroH - 0.02, aspect);
+      front.push(by.d);
+    } else {
+      // A band of picture across the top, the title set left underneath, the tag up in the corner.
+      const heroW = 0.9;
+      const heroH = Math.min(0.46, Hu - 0.62);
+      jobs.push({ id: heroId, surface: 'front', queries: template.coverArt, kind: template.coverArtKind ?? 'any', aspect: heroW / heroH, label: `${template.title} · front cover` });
+      front.push(artPlaceholder(heroId, 0.5, 0.05, heroW, heroH, aspect, 'Cover picture'));
+      const title = textDecoration(mkId, { text: template.title, font: 'brand', size: titleSize, w: 0.9, color: ink, align: 'left', leading: 1.05, name: 'Title' }, 0.5, 0.05 + heroH + 0.06, aspect);
+      front.push(title.d);
+      const sub = textDecoration(mkId, { text: template.blurb, font: 'serif', size: 0.038, w: 0.84, color: ink, italic: true, align: 'left', leading: 1.25, name: 'Subtitle' }, 0.47, 0.05 + heroH + 0.06 + title.h + 0.01, aspect);
+      front.push(sub.d);
+      const by = textDecoration(mkId, { text: byline, font: 'marker', size: 0.034, w: 0.62, bg: 'tag', rot: tilt(4, -4), align: 'center', name: 'Created by' }, 0.5, Hu - 0.12, aspect);
+      front.push(by.d);
+    }
   }
 
   // ── INSIDE FRONT: the table of contents, a picture per theme, a post-it.
   const frontInside: CoverDecoration[] = [];
   {
     const toc = `Inside\n${themes.map((t, i) => `${i + 1}. ${t.title}`).join('\n')}`;
-    const card = textDecoration(mkId, { text: toc, font: 'marker', size: themes.length > 4 ? 0.04 : 0.046, w: 0.56, bg: 'notecard', leading: 1.3, rot: 1.5, name: 'Contents' }, 0.33, 0.06, aspect);
+    // The contents card leans left or right, with the post-it on the other side.
+    const cardLeft = choose(2) === 0;
+    const card = textDecoration(mkId, { text: toc, font: 'marker', size: themes.length > 4 ? 0.04 : 0.046, w: 0.56, bg: 'notecard', leading: 1.3, rot: tilt(2, cardLeft ? 1.5 : -1.5), name: 'Contents' }, cardLeft ? 0.33 : 0.67, 0.06, aspect);
     frontInside.push(card.d);
     // The post-it beside the contents card.
-    const built = textDecoration(mkId, { text: `Built ${formatCoverDate(input.date)}\n${cardCount} cards on ${plan.pages.length} pages`, font: 'marker', size: 0.036, w: 0.34, bg: 'postit', rot: -5, leading: 1.25, name: 'Build note' }, 0.79, 0.1, aspect);
+    const built = textDecoration(mkId, { text: `Built ${formatCoverDate(input.date)}\n${cardCount} cards on ${plan.pages.length} pages`, font: 'marker', size: 0.036, w: 0.34, bg: 'postit', rot: tilt(3, cardLeft ? -5 : 4), leading: 1.25, name: 'Build note' }, cardLeft ? 0.79 : 0.21, 0.1, aspect);
     frontInside.push(built.d);
-    // A strip of theme pictures, three across, captioned — captions only while the surface's
-    // twelve-layer cap allows a picture AND a caption per theme (two layers are already spent).
+    // A strip of theme pictures, captioned — captions only while the surface's twelve-layer cap
+    // allows a picture AND a caption per theme (two layers are already spent). Three across, or two
+    // larger ones across when the story is short enough for that to fit.
     const captions = 2 + themes.length * 2 <= MAX_LAYERS;
-    const perRow = 3;
+    const perRow = themes.length <= 4 && choose(2) === 1 ? 2 : 3;
     // Smaller pictures when there are two rows of them, so both rows fit above the bottom edge.
-    const thumbW = themes.length > perRow ? 0.22 : 0.26;
+    const thumbW = perRow === 2 ? 0.34 : themes.length > perRow ? 0.22 : 0.26;
     const gapX = (1 - perRow * thumbW) / (perRow + 1);
     const rowGap = captions ? 0.075 : 0.03;
     let u = 0.06 + card.h + 0.05;
@@ -271,9 +316,10 @@ export function planStoryCover(input: StoryCoverInput): StoryCoverPlan {
       printings,
       `Cards from ${from}`,
     ].join('\n');
-    const num = textDecoration(mkId, { text: numbers, font: 'mono', size: 0.036, w: 0.62, bg: 'notecard', leading: 1.35, rot: -1.5, name: 'By the numbers' }, 0.36, 0.06, aspect);
+    const numLeft = choose(2) === 0;
+    const num = textDecoration(mkId, { text: numbers, font: 'mono', size: 0.036, w: 0.62, bg: 'notecard', leading: 1.35, rot: tilt(2, numLeft ? -1.5 : 2), name: 'By the numbers' }, numLeft ? 0.36 : 0.64, 0.06, aspect);
     backInside.push(num.d);
-    const credits = textDecoration(mkId, { text: 'Pictures by Pexels and Pixabay photographers, credited on each panel. Card art belongs to its owners.', font: 'marker', size: 0.034, w: 0.56, bg: 'postit', rot: 3, leading: 1.25, name: 'Credits' }, 0.66, Hu - 0.3, aspect);
+    const credits = textDecoration(mkId, { text: 'Pictures by Pexels and Pixabay photographers, credited on each panel. Card art belongs to its owners.', font: 'marker', size: 0.034, w: 0.56, bg: 'postit', rot: tilt(3, numLeft ? 3 : -3), leading: 1.25, name: 'Credits' }, numLeft ? 0.66 : 0.34, Hu - 0.3, aspect);
     backInside.push(credits.d);
   }
 
@@ -281,19 +327,38 @@ export function planStoryCover(input: StoryCoverInput): StoryCoverPlan {
   const back: CoverDecoration[] = [];
   {
     const bandId = mkId();
-    const bandW = 0.9;
-    const bandH = 0.34;
-    jobs.push({ id: bandId, surface: 'back', queries: template.coverArt, kind: template.coverArtKind ?? 'any', aspect: bandW / bandH, label: `${template.title} · back cover` });
-    back.push(artPlaceholder(bandId, 0.5, 0.06, bandW, bandH, aspect, 'Back band'));
-    const heroes = plan.heroCardIds.slice(0, 3);
-    const cardW = 0.3;
-    const fanU = 0.06 + bandH + 0.1;
-    heroes.forEach((cardId, i) => {
-      const n = heroes.length;
-      const x = 0.5 + (i - (n - 1) / 2) * 0.22;
-      const rot = (i - (n - 1) / 2) * 8;
-      back.push(cardSticker(mkId, cardId, x, fanU + Math.abs(i - (n - 1) / 2) * 0.03, cardW, aspect, rot, `Hero card ${i + 1}`));
-    });
+    const v = choose(3);
+    if (v < 2) {
+      // A band of picture, top or bottom, with the hero cards fanned on the other half.
+      const bandW = 0.9;
+      const bandH = 0.34;
+      const bandTop = v === 0;
+      const bandU = bandTop ? 0.06 : Hu - 0.16 - bandH;
+      jobs.push({ id: bandId, surface: 'back', queries: template.coverArt, kind: template.coverArtKind ?? 'any', aspect: bandW / bandH, label: `${template.title} · back cover` });
+      back.push(artPlaceholder(bandId, 0.5, bandU, bandW, bandH, aspect, 'Back band'));
+      const heroes = plan.heroCardIds.slice(0, 3);
+      const cardW = 0.3;
+      const fanU = bandTop ? 0.06 + bandH + 0.1 : 0.08;
+      heroes.forEach((cardId, i) => {
+        const n = heroes.length;
+        const x = 0.5 + (i - (n - 1) / 2) * 0.22;
+        const rot = tilt(3, (i - (n - 1) / 2) * 8);
+        back.push(cardSticker(mkId, cardId, x, fanU + Math.abs(i - (n - 1) / 2) * 0.03, cardW, aspect, rot, `Hero card ${i + 1}`));
+      });
+    } else {
+      // A tall picture down one side, two hero cards stacked beside it.
+      const panelW = 0.44;
+      const panelH = Math.min(0.9, Hu - 0.28);
+      const panelLeft = choose(2) === 0;
+      jobs.push({ id: bandId, surface: 'back', queries: template.coverArt, kind: template.coverArtKind ?? 'any', aspect: panelW / panelH, label: `${template.title} · back cover` });
+      back.push(artPlaceholder(bandId, panelLeft ? 0.27 : 0.73, 0.06, panelW, panelH, aspect, 'Back panel'));
+      const heroes = plan.heroCardIds.slice(0, 2);
+      const cardW = 0.3;
+      const x = panelLeft ? 0.74 : 0.26;
+      heroes.forEach((cardId, i) => {
+        back.push(cardSticker(mkId, cardId, x + (i % 2 ? 0.02 : -0.02), 0.1 + i * (cardW / CARD_ASPECT + 0.06), cardW, aspect, tilt(4, i % 2 ? 5 : -4), `Hero card ${i + 1}`));
+      });
+    }
     const foot = textDecoration(mkId, { text: 'Made with michi-maker · michi-maker.com', font: 'sans', size: 0.03, w: 0.8, color: ink, align: 'center', leading: 1.1, name: 'Wordmark' }, 0.5, Hu - 0.08, aspect);
     back.push(foot.d);
   }

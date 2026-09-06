@@ -103,6 +103,17 @@ the cover repeats one on a page. Placeholders are image decorations whose id is 
 is dropped before the write. Positions are computed in width units and converted with the model's
 `coverAspect`, so the layout follows the model's proportions.
 
+## Variety: the seed (2026-09-06)
+
+Both planners take an optional `seed` (`src/data/seededRandom.ts`, mulberry32). With one, the
+cover page's layout, each spread's layout (any of the richer half except the previous spread's),
+which leaf opens with the strongest card, the front cover's arrangement (title over the picture,
+poster, or band with a left-set title), the inside covers' lean, the back cover's band position or
+side panel, the sticker tilts and the colourway are all drawn from it. The same seed rebuilds the
+same binder; a different seed gives a different one. Without a seed every choice is the fixed
+rotation and layout the planners always produced, which is what the tests pin. The sheet mints a
+uuid per build; the persona kit seeds from `username:title` (stable) or `--reseed`.
+
 ## Provider terms, in one place
 
 - **Pixabay**: hotlinking its CDN is not allowed; we never do (re-host). Attribution is not

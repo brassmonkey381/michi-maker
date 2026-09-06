@@ -102,8 +102,12 @@ export function StoryBinderSheet({
     setError(null);
     cancelled.current = false;
     let plan: StoryPlan;
+    let seed = '';
     try {
-      plan = planStoryBinder({ cards, template, shape, pool, rarity, mkId: uuidv4 });
+      // One seed for the plan and its cover, minted per build: every story binder gets its own
+      // page rhythm and cover arrangement, and nothing about it depends on the clock or the user.
+      seed = uuidv4();
+      plan = planStoryBinder({ cards, template, shape, pool, rarity, mkId: uuidv4, seed });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not plan this story.');
       return;
@@ -142,7 +146,7 @@ export function StoryBinderSheet({
     // panels' (and never one already used on a page). Written whole, once, at the end.
     if (withCover && coversAllowed) {
       const author = profile?.username ? `@${profile.username}` : profile?.display_name ?? '';
-      const coverPlan = planStoryCover({ template, plan, author, date: new Date(), rarity, source, artPlaced: placed, mkId: uuidv4 });
+      const coverPlan = planStoryCover({ template, plan, author, date: new Date(), rarity, source, artPlaced: placed, mkId: uuidv4, seed });
       let cover = coverPlan.cover;
       const coverJobs = withArt ? coverPlan.artJobs : [];
       for (const [i, job] of coverJobs.entries()) {

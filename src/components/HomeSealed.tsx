@@ -38,6 +38,12 @@ import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
  *  PER_SET products by value. */
 const MONTHS_BACK = 12;
 const PER_SET = 10;
+/** On a phone the carousel showed every one of those ten per set, two at a time: dozens of pages
+ *  to page through. One per set there, the priciest, is the part anyone pages for... */
+const PER_SET_NARROW = 1;
+/** ...and only the newest few sets, so the row is a handful of pages rather than thirty. */
+const MAX_SETS_NARROW = 8;
+const NARROW_W = 600;
 /** Only bounds the stale-data fallback (when nothing falls in the window). */
 const FALLBACK_SETS = 6;
 const IMG_H = 132;
@@ -68,6 +74,8 @@ function buildGroups(
   sealed: SealedCatalog,
   priceOf: (id: string) => number,
   langSet: Set<CardLanguage> | null,
+  perSet: number = PER_SET,
+  maxSets: number = Infinity,
 ): SetGroup[] {
   const bySet = new Map<string, SealedProduct[]>();
   for (const p of sealed.products) {
@@ -86,7 +94,7 @@ function buildGroups(
     if (!date) continue; // no release date → can't place on the recency timeline
     const products = [...prods]
       .sort((a, b) => priceOf(b.id) - priceOf(a.id) || a.name.localeCompare(b.name))
-      .slice(0, PER_SET);
+      .slice(0, perSet);
     all.push({ set, date, products });
   }
   all.sort((a, b) => b.date.localeCompare(a.date)); // upcoming + newest sets first
@@ -95,7 +103,7 @@ function buildGroups(
   const recent = all.filter((g) => g.date >= cutoff);
   // Show every set in the recent/upcoming window (matching the Recent & Upcoming feed). If
   // stale data leaves nothing recent, fall back to the newest few sets so it never vanishes.
-  return recent.length > 0 ? recent : all.slice(0, FALLBACK_SETS);
+  return (recent.length > 0 ? recent : all.slice(0, FALLBACK_SETS)).slice(0, maxSets);
 }
 
 type Item =
@@ -116,16 +124,20 @@ export function HomeSealed({ languages }: { languages?: CardLanguage[] }) {
     [langKey],
   );
 
+  // Measured once the row has a width; until then assume wide, which is the fuller list.
+  const narrow = width > 0 && width < NARROW_W;
+  const perSet = narrow ? PER_SET_NARROW : PER_SET;
+  const maxSets = narrow ? MAX_SETS_NARROW : Infinity;
   const items = useMemo<Item[]>(() => {
     if (!sealed) return [];
     const today = todayIso();
-    return buildGroups(sealed, priceOf, langSet).flatMap((g): Item[] => [
+    return buildGroups(sealed, priceOf, langSet, perSet, maxSets).flatMap((g): Item[] => [
       { type: 'header', key: `h-${g.set.id}`, set: g.set, date: g.date, upcoming: g.date > today },
       ...g.products.map(
         (p): Item => ({ type: 'product', key: p.id, product: p, value: priceOf(p.id) }),
       ),
     ]);
-  }, [sealed, priceOf, langSet]);
+  }, [sealed, priceOf, langSet, perSet, maxSets]);
 
   if (!sealed || items.length === 0) return null; // no gap until the (small) sealed catalog lands
 

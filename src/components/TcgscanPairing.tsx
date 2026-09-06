@@ -303,7 +303,7 @@ export function TcgscanPairing({ surface, compact = false }: { surface: string; 
   const actions = (
     <View style={styles.actions}>
       <Pressable onPress={go} accessibilityRole="link" style={({ pressed }) => [styles.primary, pressed && styles.pressed]}>
-        <Text style={styles.primaryText}>Get TCGScan</Text>
+        <Text style={styles.primaryText}>Start Scanning</Text>
       </Pressable>
       <ThemedText type="small" themeColor="textSecondary" style={styles.actionsNote}>
         Free Forever. Unlimited on device scanning.

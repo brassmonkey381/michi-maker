@@ -84,7 +84,11 @@ function PublicViewer({ id }: { id?: string }) {
   // wider than the shell, and BinderPages sizes the wide-screen spread from this number. On a
   // desktop this now crosses the ≥900 spread breakpoint, so shared binders get the full
   // prev · current · next spread instead of a single page.
-  const availableWidth = Math.min(width, MaxContentWidthWide) - Spacing.four * 2;
+  // THE WHOLE WINDOW, not the 1440px shell. A two-page 3x4 book wants about 1330px at a height a
+  // 3x3 fits comfortably, so on a large monitor the cap bit long before the height budget did and
+  // the wider shape came out SMALLER than the narrower one. The header keeps the shell width so
+  // its controls stay near the title; only the binder row spreads out.
+  const availableWidth = width - Spacing.four * 2;
   const [state, setState] = useState<State>({ status: 'loading' });
   const [pageIndex, setPageIndex] = useState(0);
 
@@ -420,13 +424,13 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.four,
     paddingHorizontal: Spacing.four,
     width: '100%',
-    // Wide shell so desktop viewers get the prev·current·next spread.
-    maxWidth: MaxContentWidthWide,
     alignSelf: 'center',
     alignItems: 'center',
   },
   head: {
     width: '100%',
+    // The header keeps the wide shell; the binder row below it takes the whole window.
+    maxWidth: MaxContentWidthWide,
     alignItems: 'center',
     justifyContent: 'center',
     // ABOVE THE BINDER, and it has to be set HERE rather than on the card.

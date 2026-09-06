@@ -161,27 +161,31 @@ export function SliceDiagram({ src, rows = 3, cols = 3, width = 180 }: { src: st
 // four pictures of four different things rather than four cards that happen to be nearby.
 
 /** A picture cut into six pockets, card-sized. */
-export function SliceHook({ src }: { src: string }) {
-  return <CutPicture src={src} rows={3} cols={2} width={HOOK_W} gap={3} pad={5} />;
+export function SliceHook({ src, width = HOOK_W }: { src: string; width?: number }) {
+  const k = width / HOOK_W;
+  return <CutPicture src={src} rows={3} cols={2} width={width} gap={Math.round(3 * k)} pad={Math.round(5 * k)} />;
 }
 
 /** A printed sheet, card-sized: placeholders with their cut lines, one folded art piece. */
-export function SheetHook() {
+export function SheetHook({ width = HOOK_W }: { width?: number }) {
   const ph: Cell = { dashed: true, fill: PAPER };
-  return <PocketGrid rows={3} cols={2} width={HOOK_W} cells={[ph, ph, { fill: INK.art, span: [1, 2] }, null, ph, ph]} />;
+  return <PocketGrid rows={3} cols={2} width={width} cells={[ph, ph, { fill: INK.art, span: [1, 2] }, null, ph, ph]} />;
 }
 
 /** A search box with a query in it, card-sized. */
-export function QueryHook() {
+export function QueryHook({ width = HOOK_W }: { width?: number }) {
+  // Everything scales with the box, so a bigger hook is the same picture, not a sparser one.
+  const k = width / HOOK_W;
+  const term = { fontSize: Math.round(9 * k), paddingHorizontal: Math.round(4 * k), paddingVertical: Math.round(1 * k), borderRadius: Math.round(4 * k) };
   return (
-    <View style={[styles.hookBox, { width: HOOK_W }]}>
-      <View style={styles.hookSearch}>
-        <Text style={styles.searchGlyph}>⌕</Text>
+    <View style={[styles.hookBox, { width, height: Math.round(100 * k), padding: Math.round(5 * k), gap: Math.round(4 * k) }]}>
+      <View style={[styles.hookSearch, { height: Math.round(14 * k), paddingHorizontal: Math.round(3 * k) }]}>
+        <Text style={[styles.searchGlyph, { fontSize: Math.round(14 * k) }]}>⌕</Text>
       </View>
-      <Text style={[styles.hookTerm, termStyle.word]}>arita</Text>
-      <Text style={[styles.hookTerm, termStyle.field]}>type:fire</Text>
-      <Text style={[styles.hookTerm, termStyle.cmp]}>{'hp>=120'}</Text>
-      <Text style={[styles.hookTerm, termStyle.sort]}>sort:value</Text>
+      <Text style={[styles.hookTerm, term, termStyle.word]}>arita</Text>
+      <Text style={[styles.hookTerm, term, termStyle.field]}>type:fire</Text>
+      <Text style={[styles.hookTerm, term, termStyle.cmp]}>{'hp>=120'}</Text>
+      <Text style={[styles.hookTerm, term, termStyle.sort]}>sort:value</Text>
     </View>
   );
 }

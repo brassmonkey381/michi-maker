@@ -11,7 +11,7 @@ import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { BinderGrid } from '@/components/binder/BinderGrid';
 import { ThemedText } from '@/components/themed-text';
-import { Radii, Shadows, Spacing } from '@/constants/theme';
+import { MaxContentWidthDoc, Radii, Shadows, Spacing } from '@/constants/theme';
 import type { DemoBinder, DemoPage } from '@/data/binderTypes';
 import { SAMPLE_BINDERS } from '@/data/sampleData';
 import { MICHI_LAYOUT_STYLES, type MichiLayoutStyle } from '@/types/domain';
@@ -36,7 +36,9 @@ const pageByTitle = (binder: DemoBinder | undefined, title: string): DemoPage | 
 /** How wide one page tile can be: two up on a phone, three or four on a desktop. */
 function useTileWidth(perRowMax: number, min = 150) {
   const { width } = useWindowDimensions();
-  const inner = Math.min(width, 960) - 32;
+  // The document shell (MaxContentWidthDoc) minus ITS padding. This assumed 16px a side while the
+  // page pads 24, so four tiles came out 16px too wide for the row and wrapped to three.
+  const inner = Math.min(width, MaxContentWidthDoc) - Spacing.four * 2;
   const gap = Spacing.three;
   const per = Math.max(1, Math.min(perRowMax, Math.floor((inner + gap) / (min + gap))));
   return Math.floor((inner - gap * (per - 1)) / per);

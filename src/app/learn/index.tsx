@@ -3,7 +3,7 @@
  * adds it here automatically.
  */
 import { useRouter, type Href } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { CurateCallout } from '@/components/CurateCallout';
 import { ExternalLink } from '@/components/external-link';
@@ -16,6 +16,12 @@ import { GUIDE_LIST } from '@/data/guides';
 
 export default function LearnHubScreen() {
   const router = useRouter();
+  // TWO ACROSS ON A DESKTOP. One card per row at the document width left the right two thirds of
+  // every card empty beside a 72px picture. Paired, each card is about 450px with a card-sized
+  // hook at 120px, so the pictures carry their share of the row; a narrow window stacks them.
+  const { width } = useWindowDimensions();
+  const twoUp = width >= 760;
+  const hookW = twoUp ? 120 : 84;
   return (
     <PageShell
       maxWidth={MaxContentWidthDoc}
@@ -29,11 +35,11 @@ export default function LearnHubScreen() {
         and getting it onto paper at true size.
       </ThemedText>
 
-      <View style={styles.list}>
+      <View style={[styles.list, twoUp && styles.listTwoUp]}>
         {GUIDE_LIST.map((g) => {
           const card = (
             <ThemedView type="backgroundElement" style={styles.card}>
-              <GuideHook hook={g.hook} />
+              <GuideHook hook={g.hook} width={hookW} />
               <View style={styles.cardBody}>
               <View style={styles.cardHead}>
                 <ThemedText type="smallBold" style={styles.cardTitle}>
@@ -55,7 +61,7 @@ export default function LearnHubScreen() {
             <ExternalLink key={g.slug} href={g.externalHref as Href & string} asChild>
               <Pressable
                 accessibilityRole="link"
-                style={({ pressed }) => [pressed && styles.pressed]}>
+                style={({ pressed }) => [twoUp && styles.half, pressed && styles.pressed]}>
                 {card}
               </Pressable>
             </ExternalLink>
@@ -64,7 +70,7 @@ export default function LearnHubScreen() {
               key={g.slug}
               onPress={() => router.push(`/learn/${g.slug}` as Href)}
               accessibilityRole="link"
-              style={({ pressed }) => [pressed && styles.pressed]}>
+              style={({ pressed }) => [twoUp && styles.half, pressed && styles.pressed]}>
               {card}
             </Pressable>
           );
@@ -82,11 +88,16 @@ const styles = StyleSheet.create({
   h1: { fontFamily: Fonts?.brand, marginBottom: Spacing.two },
   lede: { lineHeight: 22, marginBottom: Spacing.four },
   list: { gap: Spacing.three },
+  listTwoUp: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'stretch' },
+  // Two per row with one gap between: each takes half of what is left. Percentages would ignore
+  // the gap and wrap to one per row.
+  half: { width: '48.5%', flexGrow: 1 },
   pressed: { opacity: 0.8 },
   card: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.three,
+    gap: Spacing.four,
     borderRadius: Radius.lg,
     padding: Spacing.four,
     ...Shadows.page,

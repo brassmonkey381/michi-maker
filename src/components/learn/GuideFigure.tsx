@@ -52,14 +52,15 @@ export function GuideFigure({ figure }: { figure: GuideFigureData }) {
   return <>{DIAGRAMS[figure.name]()}</>;
 }
 
-/** The hub card's picture: the guide's subject, card-sized. */
-export function GuideHook({ hook }: { hook: GuideHookData }) {
-  if (hook.kind === 'art') return <Image source={{ uri: hook.src }} style={hookStyles.art} contentFit="cover" transition={150} accessibilityLabel="" />;
-  if (hook.kind === 'slice') return <SliceHook src={hook.src} />;
-  if (hook.kind === 'sheet') return <SheetHook />;
-  return <QueryHook />;
+/** The hub card's picture: the guide's subject, card-shaped, at any width (72 is card-sized). */
+export function GuideHook({ hook, width = 72 }: { hook: GuideHookData; width?: number }) {
+  if (hook.kind === 'art')
+    return <Image source={{ uri: hook.src }} style={[hookStyles.art, { width, height: Math.round((width * 100) / 72) }]} contentFit="cover" transition={150} accessibilityLabel="" />;
+  if (hook.kind === 'slice') return <SliceHook src={hook.src} width={width} />;
+  if (hook.kind === 'sheet') return <SheetHook width={width} />;
+  return <QueryHook width={width} />;
 }
 
 const hookStyles = StyleSheet.create({
-  art: { width: 72, height: 100, borderRadius: Radius.sm },
+  art: { borderRadius: Radius.sm },
 });

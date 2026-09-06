@@ -491,6 +491,81 @@ export async function upsertSlot(pageId: string, slot: DemoSlot): Promise<void> 
   }
 }
 
+/**
+ * A cell far outside any page, used to park a pocket for the length of one swap. row_index has a
+ * `>= 0` check, so the parking space is a huge row rather than a negative one; no page is a
+ * million rows tall, so nothing real can be sitting there.
+ */
+const PARK_ROW = 1_000_000;
+
+/** One UPDATE that must land on exactly one row: RLS turns a miss into a silent zero-row PATCH. */
+async function moveOne(id: string, to: { page_id?: string; row_index: number; col_index: number }, what: string): Promise<void> {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase.from('binder_slots').update(to).eq('id', id).select('id');
+  if (error) throw new Error(`${what}: ${error.message}`);
+  if (!data || data.length === 0) throw new Error(`${what}: pocket ${id.slice(0, 8)} is not on the server`);
+}
+
+/**
+ * SWAP TWO POCKETS' CELLS, on one page or across two, as a sequence of UPDATEs that never has two
+ * rows on one cell. `a` and `b` carry the cells they END in; `fromA` / `fromB` are the pages they
+ * start on. Nothing is deleted, so a failure part way is a failed save, not a lost pocket.
+ *
+ * WHY NOT ONE UPSERT. unique(page_id, row_index, col_index) is checked row by row, so a batch
+ * that writes A into B's cell fails before B has moved. Migration 20260906120000 makes that check
+ * wait for commit, which fixes the batch writers (undo, redo); this path is correct either way,
+ * and it writes two cells instead of a whole binder.
+ */
+export async function swapSlotCells(
+  fromA: string,
+  a: DemoSlot,
+  fromB: string,
+  b: DemoSlot,
+  toA: string = fromB,
+  toB: string = fromA,
+): Promise<void> {
+  const supabase = requireSupabase();
+  // The cell A started in is the cell B ends in, and vice versa; the callers' moved copies say so.
+  const startA = { row_index: b.row, col_index: b.col };
+  const startB = { row_index: a.row, col_index: a.col };
+
+  // A stale row already parked in this space (a crash mid-swap) is garbage; clear it first.
+  await supabase.from('binder_slots').delete().eq('page_id', fromA).eq('row_index', PARK_ROW).eq('col_index', a.col);
+  await moveOne(a.id, { row_index: PARK_ROW, col_index: a.col }, 'swap (park)');
+  try {
+    await moveOne(b.id, { page_id: toB, ...startA }, 'swap (second pocket)');
+  } catch (e) {
+    await moveOne(a.id, startA, 'swap (unpark)').catch(() => undefined);
+    throw e;
+  }
+  try {
+    await moveOne(a.id, { page_id: toA, row_index: a.row, col_index: a.col }, 'swap (first pocket)');
+  } catch (e) {
+    // Put B back where it was, then A: the reverse of how they moved, so no step collides.
+    await moveOne(b.id, { page_id: fromB, ...startB }, 'swap (undo second)').catch(() => undefined);
+    await moveOne(a.id, { page_id: fromA, ...startA }, 'swap (unpark)').catch(() => undefined);
+    throw e;
+  }
+}
+
+/**
+ * MOVE ONE POCKET to a free cell, possibly on another page. Clears a stale row at the destination
+ * first (the same self-heal upsertSlot does), then one UPDATE; nothing else in the binder is
+ * touched, which is what makes a cross-page drag cheap and safe.
+ */
+export async function moveSlotToCell(slot: DemoSlot, toPageId: string, row: number, col: number): Promise<void> {
+  const supabase = requireSupabase();
+  const { error } = await supabase
+    .from('binder_slots')
+    .delete()
+    .eq('page_id', toPageId)
+    .eq('row_index', row)
+    .eq('col_index', col)
+    .neq('id', slot.id);
+  if (error) throw new Error(`move (clear cell): ${error.message}`);
+  await moveOne(slot.id, { page_id: toPageId, row_index: row, col_index: col }, 'move pocket');
+}
+
 export async function deleteSlot(id: string): Promise<void> {
   const supabase = requireSupabase();
   const { error } = await supabase.from('binder_slots').delete().eq('id', id);

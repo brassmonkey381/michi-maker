@@ -2043,10 +2043,9 @@ export function BinderProvider({ children }: { children: ReactNode }) {
             : binder,
         ),
       );
-      if (!target.isExample) {
-        persist(() => repo.upsertSlot(pageId, movedA));
-        persist(() => repo.upsertSlot(pageId, movedB));
-      }
+      // ONE write, in order. Two concurrent upserts raced each other for the same two cells: each
+      // cleared "whatever else sits here" and could delete the pocket the other was placing.
+      if (!target.isExample) persist(() => repo.swapSlotCells(pageId, movedA, pageId, movedB));
     },
     [binders, commit, persist],
   );
@@ -2054,7 +2053,9 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   /**
    * Move a slot from one page to another (drag across the edit spread). If the destination cell
    * holds a same-footprint occupant, the two swap pages; if it's free, the slot moves; otherwise
-   * it's a no-op (the drag springs back). Both pages change, so it persists via replaceBinder.
+   * it's a no-op (the drag springs back). Persists as the two-cell write it is (swapSlotCells /
+   * moveSlotToCell): the whole-binder rewrite this used to send was refused by the one-pocket-
+   * per-cell rule half way through every swap, which is what kept raising the save banner.
    */
   const moveSlotAcrossPages = useCallback(
     (
@@ -2079,6 +2080,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
 
       let fromSlots: DemoSlot[];
       let toSlots: DemoSlot[];
+      let save: () => Promise<void>;
       if (
         occupant &&
         occupant.row === row &&
@@ -2091,18 +2093,20 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         const movedOccupant = { ...occupant, row: slot.row, col: slot.col };
         fromSlots = fromPage.slots.map((s) => (s.id === slot.id ? movedOccupant : s));
         toSlots = toPage.slots.map((s) => (s.id === occupant.id ? movedSlot : s));
+        save = () => repo.swapSlotCells(fromPageId, movedSlot, toPageId, movedOccupant);
       } else {
         // Move into a free footprint on the destination page.
         if (!canPlaceSlot(toPage, { row, col, rowSpan: slot.rowSpan, colSpan: slot.colSpan })) return;
         fromSlots = fromPage.slots.filter((s) => s.id !== slot.id);
         toSlots = [...toPage.slots, { ...slot, row, col }];
+        save = () => repo.moveSlotToCell(slot, toPageId, row, col);
       }
 
       const pages = target.pages.map((p) =>
         p.id === fromPageId ? { ...p, slots: fromSlots } : p.id === toPageId ? { ...p, slots: toSlots } : p,
       );
       commit((prev) => prev.map((b) => (b.id === binderId ? { ...b, pages } : b)));
-      if (!target.isExample) persist(() => repo.replaceBinder({ ...target, pages }));
+      if (!target.isExample) persist(save);
     },
     [binders, commit, persist],
   );

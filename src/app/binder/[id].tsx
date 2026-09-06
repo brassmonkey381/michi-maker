@@ -89,6 +89,9 @@ function PublicViewer({ id }: { id?: string }) {
   // the wider shape came out SMALLER than the narrower one. The header keeps the shell width so
   // its controls stay near the title; only the binder row spreads out.
   const availableWidth = width - Spacing.four * 2;
+  // Wide enough for the way back to share the title row with the like button and the gear. On a
+  // phone the three would crowd a wrapped title, so the back link keeps its own row there.
+  const wideHead = width >= WIDE_HEAD_MIN;
   const [state, setState] = useState<State>({ status: 'loading' });
   const [pageIndex, setPageIndex] = useState(0);
 
@@ -164,16 +167,17 @@ function PublicViewer({ id }: { id?: string }) {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.flex} edges={['top']}>
-        <View style={styles.topbar}>
-          <Link href="/" asChild>
-            <Pressable hitSlop={8}>
-              <ThemedText type="link" themeColor="textSecondary">‹ Michi-Maker</ThemedText>
-            </Pressable>
-          </Link>
-          {/* Renders nothing unless this binder has a track, so the bar is unchanged for the
-              binders that do not. */}
-          <TrackPill />
-        </View>
+        {/* The way back has its own row only while there is no title row to share. Once the
+            binder is up, it sits on the title row (Viewer), which gives the pages that row back. */}
+        {state.status !== 'ok' || !wideHead ? (
+          <View style={styles.topbar}>
+            <Link href="/" asChild>
+              <Pressable hitSlop={8}>
+                <ThemedText type="link" themeColor="textSecondary">‹ Michi-Maker</ThemedText>
+              </Pressable>
+            </Link>
+          </View>
+        ) : null}
 
         {state.status === 'loading' ? (
           <View style={styles.center}>
@@ -207,6 +211,7 @@ function PublicViewer({ id }: { id?: string }) {
               pageIndex={Math.min(pageIndex, state.binder.pages.length - 1)}
               onPage={setPageIndex}
               availableWidth={availableWidth}
+              wideHead={wideHead}
             />
           </>
         )}
@@ -220,11 +225,14 @@ function Viewer({
   pageIndex,
   onPage,
   availableWidth,
+  wideHead,
 }: {
   binder: DemoBinder;
   pageIndex: number;
   onPage: (i: number) => void;
   availableWidth: number;
+  /** The back link shares the title row (wide windows) rather than sitting above it. */
+  wideHead: boolean;
 }) {
   const [needAccount, setNeedAccount] = useState(false);
   const [reporting, setReporting] = useState(false);
@@ -280,7 +288,22 @@ function Viewer({
           gear had a row of their own under the title, which cost the page a band of height to
           hold two controls that fit in the space beside a centred heading. */}
       <View style={styles.head} onLayout={(e) => setHeadH(e.nativeEvent.layout.height)}>
-        <View style={styles.titleWrap}>
+        {/* ONE ROW FOR EVERYTHING ABOVE THE BINDER. The way back and the track player had a row
+            of their own above the title, and the two rows together pushed the pages down by a
+            band nothing was using. Placed absolutely on the left, mirroring the actions on the
+            right, so the title stays centred and the row costs the page nothing extra. */}
+        {wideHead ? (
+          <View style={styles.headLeading}>
+            <Link href="/" asChild>
+              <Pressable hitSlop={8}>
+                <ThemedText type="link" themeColor="textSecondary">‹ Michi-Maker</ThemedText>
+              </Pressable>
+            </Link>
+            {/* Renders nothing unless this binder has a track. */}
+            <TrackPill />
+          </View>
+        ) : null}
+        <View style={[styles.titleWrap, !wideHead && styles.titleWrapNarrow]}>
           <Pressable
             onPress={() => setInfoOpen(true)}
             onHoverIn={titleHover.onHoverIn}
@@ -400,6 +423,8 @@ function Viewer({
 
 /** The pinned footer's height, subtracted from the binder's budget so the two never overlap. */
 const BANNER_H = 34;
+/** From this window width the back link shares the title row; below it, it keeps its own. */
+const WIDE_HEAD_MIN = 700;
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -421,7 +446,8 @@ const styles = StyleSheet.create({
   ctaText: { color: Palette.accentText },
   page: {
     flex: 1,
-    paddingTop: Spacing.four,
+    // Tight on top: the row above is gone, and the title row is now the first thing on screen.
+    paddingTop: Spacing.two,
     paddingHorizontal: Spacing.four,
     width: '100%',
     alignSelf: 'center',
@@ -450,10 +476,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.three,
   },
+  headLeading: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    height: 34,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+  },
   title: { textAlign: 'center', fontFamily: Fonts?.brand, fontSize: FontSize.nav, lineHeight: 34 },
   gear: { fontSize: 18 },
   // Above the binder in paint order, so the hover card is not covered by the page below it.
-  titleWrap: { alignSelf: 'center', zIndex: 20 },
+  titleWrap: { alignSelf: 'center', zIndex: 20, maxWidth: '70%' },
+  // On a phone the like button and the gear take a good third of the row: wrap the title inside
+  // what is left rather than run it under them.
+  titleWrapNarrow: { maxWidth: '56%' },
   titleHover: { top: 36 },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginTop: Spacing.one, marginBottom: Spacing.two },
   likeHint: { marginTop: Spacing.two, textAlign: 'center' },

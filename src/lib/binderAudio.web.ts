@@ -33,6 +33,9 @@ let state: PlayerState = {
 let current: HTMLAudioElement | null = null;
 let fading: HTMLAudioElement | null = null;
 let armed = false;
+/** When the armed gesture last started playback: a click on the play button IS that gesture. */
+let gestureStartedAt = 0;
+const GESTURE_TOGGLE_GRACE_MS = 800;
 
 function readMuted(): boolean {
   try {
@@ -99,7 +102,10 @@ function armForGesture() {
     armed = false;
     document.removeEventListener('pointerdown', go, true);
     document.removeEventListener('keydown', go, true);
-    if (current && !state.muted) void attemptPlay(current);
+    if (current && !state.muted) {
+      gestureStartedAt = Date.now();
+      void attemptPlay(current);
+    }
   };
   document.addEventListener('pointerdown', go, true);
   document.addEventListener('keydown', go, true);
@@ -109,6 +115,12 @@ async function attemptPlay(el: HTMLAudioElement) {
   try {
     await el.play();
     emit({ playing: true, blocked: false });
+    // AUDIBLE, WHOEVER STARTED IT. A fresh element sits at volume 0 for its fade-in, and the fade
+    // used to belong to setTrack alone: when the first attempt was refused and the ARMED GESTURE
+    // started the track instead, nothing ever raised the volume, so the pill said playing over
+    // silence and it took a pause and a second play to hear anything. Now the successful play is
+    // what brings the level up, on every path.
+    if (el === current && !state.muted && el.volume < state.volume) ramp(el, state.volume);
   } catch {
     // Refused: no gesture yet. Arm for the first one and say so.
     emit({ playing: false, blocked: true });
@@ -145,13 +157,15 @@ export function setTrack(url: string | null, name = ''): void {
   current = next;
   emit({ url, name, playing: false, blocked: false });
   if (state.muted) return;
-  void attemptPlay(next).then(() => {
-    if (current === next && state.playing) ramp(next, state.volume);
-  });
+  void attemptPlay(next);
 }
 
 export function togglePlay(): void {
   if (!current) return;
+  // The first click on the play button is also the document's first gesture, which the armed
+  // listener has already turned into a play (pointerdown runs before click). Treating that click
+  // as a pause too made the button appear to need two presses. Within the grace it is one press.
+  if (Date.now() - gestureStartedAt < GESTURE_TOGGLE_GRACE_MS) return;
   if (state.playing) {
     current.pause();
     emit({ playing: false });

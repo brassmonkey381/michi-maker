@@ -22,7 +22,7 @@ import { DialogCard } from '@/components/ui/DialogCard';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import type { DemoBinder } from '@/data/binderTypes';
 import { fetchUserCards } from '@/data/collectionRepo';
-import { EXAMPLE_FILL_SHEET_BINDER } from '@/data/exampleFillSheetBinder';
+import { EXAMPLE_FILL_SHEET_BINDER, EXAMPLE_FILL_SHEET_OWNED } from '@/data/exampleFillSheetBinder';
 import { createWebArtLoader } from '@/data/fillSheetArt';
 import { startCheckout } from '@/data/checkout';
 import { buildFillSheetPdfs, collectFillTiles, type FillSheetPdf } from '@/data/placeholderPdf';
@@ -402,8 +402,11 @@ export function PrintPlaceholdersSheet({
     let live = true;
     (async () => {
       try {
+        // The example carries its own "owned" set so the colour option is demonstrated even for a
+        // visitor with no collection; the toggle above still governs it.
         const files = await buildFillSheetPdfs(EXAMPLE_FILL_SHEET_BINDER, catalog, {
           loadImage: createWebArtLoader(),
+          ownedIds: colorOwned ? EXAMPLE_FILL_SHEET_OWNED : undefined,
         });
         await saveFillSheetFiles(files, 'michi example');
       } catch (e) {
@@ -416,7 +419,7 @@ export function PrintPlaceholdersSheet({
     return () => {
       live = false;
     };
-  }, [exBusy, catalog]);
+  }, [exBusy, catalog, colorOwned]);
 
   // PRO-trial offer attribution for this surface. The offer (TrialCta) only renders for eligible
   // users; mark when it was actually shown, and when a start was initiated, so dismissing the sheet
@@ -811,7 +814,7 @@ export function PrintPlaceholdersSheet({
                   </View>
                 ) : null}
 
-                {/* Example PDFs, the curated 6-page sampler (placeholders + art), so both output
+                {/* Example PDFs, the owner's first binder (placeholders + art), so both output
                     files download. Always available (never hidden behind the catalog load): the
                     button shows a spinner until the catalog is ready, then generates. Non-payers
                     see the format before buying; payers test printer scale without spending a credit. */}
@@ -830,7 +833,7 @@ export function PrintPlaceholdersSheet({
                   </Pressable>
                 )}
 
-                {/* View the same sampler as a binder (read-only reference, can't be edited or
+                {/* View the same binder (read-only reference, can't be edited or
                     copied), so you can see how the pages map to the printed files. */}
                 <ThemedText
                   type="linkPrimary"

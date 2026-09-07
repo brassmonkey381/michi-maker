@@ -32,11 +32,11 @@ function artBinder(singles: number, folds: number): DemoBinder {
   return { id: 'b', title: 'Packing', layoutStyle: 'freeform', isExample: false, pages };
 }
 
-test('art singles pack nine to a sheet and folds four to a landscape sheet', () => {
+test('every fold takes a row with a single beside it; the rest of the singles fill rows of three', () => {
   const { counts } = collectFillTiles(artBinder(20, 5), cards);
   assert.equal(counts.art, 25);
-  // ceil(20 / 9) + ceil(5 / 4)
-  assert.equal(counts.artSheets, 3 + 2);
+  // 5 fold rows (each with one single) + ceil(15 / 3) singles rows = 10 rows, 3 to a sheet
+  assert.equal(counts.artSheets, 4);
   // The spaced layout this replaced: ceil(20 / 6) + ceil(5 / 2)
   assert.equal(counts.artSheetsSpaced, 4 + 3);
   assert.equal(counts.placeholderSheets, 0);
@@ -54,8 +54,14 @@ test('a binder with no art reports no cardstock and no saving', () => {
   assert.equal(counts.placeholderSheets, 1);
 });
 
-test('exactly nine singles and four folds is two sheets, one of each kind', () => {
+test('nine singles and four folds is two sheets: four fold rows and two singles rows', () => {
   const { counts } = collectFillTiles(artBinder(9, 4), cards);
   assert.equal(counts.artSheets, 2);
   assert.equal(counts.artSheetsSpaced, 2 + 2);
+});
+
+test('folds alone pack three to a sheet, one per row', () => {
+  const { counts } = collectFillTiles(artBinder(0, 7), cards);
+  assert.equal(counts.artSheets, 3);
+  assert.equal(counts.artSheetsSpaced, 4);
 });

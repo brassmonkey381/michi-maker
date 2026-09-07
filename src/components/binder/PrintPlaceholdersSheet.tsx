@@ -507,8 +507,8 @@ export function PrintPlaceholdersSheet({
                   </ThemedText>
                 ) : null}
                 {counts && counts.art > 0 && counts.artSheetsSpaced > counts.artSheets ? (
-                  // The print space optimizer: art shares cut lines and folds go four to a landscape
-                  // sheet, so the cardstock bill is smaller than it was. Priced at a plain estimate.
+                  // The print space optimizer: art shares cut lines and folds share the sheets with
+                  // the singles, so the cardstock bill is smaller than it was. Priced at a plain estimate.
                   <ThemedText type="small" themeColor="textSecondary" style={styles.optimizer}>
                     <ThemedText type="smallBold">Print space optimizer:</ThemedText>{' '}
                     {counts.artSheets} sheet{counts.artSheets === 1 ? '' : 's'} of cardstock instead of {counts.artSheetsSpaced}, about{' '}

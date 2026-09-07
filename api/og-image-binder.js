@@ -12,7 +12,7 @@
  * ESM-only — is pulled in with a dynamic import inside the handler.
  *
  * Design notes:
- *  - The only text is the footer: the fan disclaimer and the michi-maker.com brand stamp, both
+ *  - The only text is the brand stamp (mark + michi-maker.com); no disclaimer since r12, both
  *    in @vercel/og's bundled font. The title and description ride in the meta tags instead.
  *  - CARD ART: the hosted buckets key images by content hash, so a URL is NOT
  *    constructible from a card id — it comes from the lite `images.json` manifest
@@ -52,7 +52,9 @@ const SITE = process.env.EXPO_PUBLIC_APP_URL || 'https://michi-maker.com';
 // above it buy nothing anyone can see. All pixel sizes below are multiplied by S, scaling the
 // layout uniformly (fractional S is fine — Satori accepts sub-pixel styles).
 const S = 2.4;
-const W = Math.round(1200 * S); // 2880 — ImageResponse needs integer dimensions
+// The spread canvas is 1.7:1 since r12 (was 1.91:1): the pages' height binds, so the extra width
+// was empty cream either side. Keep in step with OG_SPREAD in api/_lib.js.
+const W = Math.round(1070 * S); // 2568 — ImageResponse needs integer dimensions
 const H = Math.round(630 * S); // 1512
 
 // A SINGLE page is a different shape of problem. A 3×3 page is about 0.75:1, so scaled to the full
@@ -415,18 +417,13 @@ function spine(height) {
   );
 }
 
-// Shared previews travel far beyond the app (Discord, X, Reddit) where our fan disclaimer isn't
-// visible — so it rides along the bottom of the image itself. @vercel/og renders text with its
-// bundled Geist font, no font fetch needed.
-const DISCLAIMER =
-  'Fan-made tool. Not affiliated with, endorsed by, or sponsored by Nintendo, Creatures, or The Pokémon Company. Card images belong to their respective owners.';
-
 // Brand colours as the shipped og.png draws them (scripts/brand-assets.mjs) rather than as the
 // app's `Palette.accent` (#2F6FED) — this image belongs to the same family of cream share cards.
 const BRAND_ACCENT = '#3B82F6';
 const BRAND_POCKET = '#cfc7b7'; // a shade darker than og.png's mark, which is drawn far larger
-const MARK = 30 * S; // the mark's edge
-const BRAND_W = 190 * S; // reserved on BOTH sides of the footer, so the disclaimer stays centred
+const MARK = 26 * S; // the mark's edge
+/** The brand strip under a spread: the lockup, centred, and nothing else. */
+const BRAND_STRIP = 40 * S;
 
 /**
  * The michi-maker mark: a 3×3 pocket grid with one piece of art spanning two pockets — the
@@ -474,26 +471,21 @@ function logoMark(size, pocket) {
 
 /** Mark + wordmark, so the image still says where it came from once it's out of the app. */
 const brand = () =>
-  h('div', { style: { display: 'flex', alignItems: 'center', width: BRAND_W } }, [
+  h('div', { style: { display: 'flex', alignItems: 'center' } }, [
     logoMark(MARK),
     h(
       'div',
       {
-        style: { display: 'flex', marginLeft: 11 * S, fontSize: 17 * S, color: 'rgba(70,58,42,0.80)' },
+        style: { display: 'flex', marginLeft: 10 * S, fontSize: 16 * S, color: 'rgba(70,58,42,0.80)' },
       },
       'michi-maker.com',
     ),
   ]);
 
 /**
- * Content over a footer of [brand | disclaimer | spacer]. The empty spacer is load-bearing: it
- * matches the brand's width so the disclaimer stays centred on the FRAME, not on the space left
- * over beside the logo.
- *
- * The footer is the only thing between the mat and the bottom edge and the mat's height is a
- * fixed constant, so the disclaimer dropped from 16 to 14 to pay for the width the brand takes.
- * At 16 it would have wrapped to a third line in the narrower column and pushed the mat off the
- * frame; at 14 it holds two lines with headroom to spare.
+ * Content over a brand strip: the lockup centred at the foot of the frame and nothing beside it.
+ * The disclaimer that used to share the strip (r6 to r11) is gone at the owner's request, and the
+ * height it took went to the pages.
  */
 const frame = (inner) =>
   h(
@@ -519,29 +511,11 @@ const frame = (inner) =>
           style: {
             display: 'flex',
             alignItems: 'center',
-            paddingLeft: 40 * S,
-            paddingRight: 40 * S,
-            paddingBottom: 12 * S,
+            justifyContent: 'center',
+            height: BRAND_STRIP,
           },
         },
-        [
-          brand(),
-          h(
-            'div',
-            {
-              style: {
-                display: 'flex',
-                flex: 1,
-                textAlign: 'center',
-                fontSize: 14 * S,
-                lineHeight: 1.3,
-                color: 'rgba(70,58,42,0.62)',
-              },
-            },
-            DISCLAIMER,
-          ),
-          h('div', { style: { display: 'flex', width: BRAND_W } }),
-        ],
+        brand(),
       ),
     ],
   );
@@ -626,16 +600,8 @@ function backdropSource(page, manifest, art) {
   return null;
 }
 
-const SINGLE_LEGAL_SIZE = 12 * S;
-// Held to a measure so the disclaimer breaks into two even, centred lines — wide enough to avoid a
-// stubby third line, narrow enough that centred text still reads as a caption rather than a
-// sentence stretched wall to wall. At this size the text runs ~15px per character, so ~80
-// characters per line need ~1200px; 0.74 of the canvas leaves slack for the word breaks.
-const SINGLE_MEASURE = Math.round(SINGLE_W * 0.74);
-const SINGLE_LEGAL_LINES = 2;
-// Derived, not guessed: `singleFrame` sizes the band above the page from what is left after this,
-// so a wrong line count here moves the brand lockup off centre.
-const SINGLE_LEGAL_BAND = Math.round(SINGLE_LEGAL_LINES * SINGLE_LEGAL_SIZE * 1.38 + 22 * S);
+/** What the page keeps clear of the bottom edge now that no text sits there (r12). */
+const SINGLE_BOTTOM_MARGIN = Math.round(24 * S);
 
 /**
  * The single-page frame's chrome, settled 2026-08-27 after rendering five variants through this
@@ -748,17 +714,14 @@ function singleFrame(page, manifest, art, backdrop, chrome) {
   // the fallback needs no measurement.
   const flat = { ink: 'rgb(38,30,20)', pocket: BRAND_POCKET, halo: null };
   const topInk = backdrop ? chromeInk(backdrop.top, groundScrim) : flat;
-  const botInk = backdrop ? chromeInk(backdrop.bottom, groundScrim) : flat;
   const cols = page.cols || 3;
   const rows = page.rows || 3;
 
   // ── vertical geometry, derived rather than clamped ──────────────────────────────────────
   //
-  // Everything below hangs off ONE fixed point: the disclaimer's top edge, which sits at
-  // SINGLE_H - SINGLE_LEGAL_BAND no matter what the band does (the band's padding pushes its own
-  // top up, never the text down). From there:
+  // Everything below hangs off ONE fixed point: the page's bottom edge, SINGLE_BOTTOM_MARGIN above
+  // the frame's foot (the disclaimer that used to sit there is gone since r12). From there:
   //
-  //   page bottom = text top - FOOTER_CLEARANCE      (so the gap is exactly FOOTER_CLEARANCE)
   //   band top    = page bottom - FOOTER_OVERHANG    (so the page laps over it by that much)
   //   top band    = page bottom - matH               (whatever is left above the page)
   //
@@ -769,17 +732,17 @@ function singleFrame(page, manifest, art, backdrop, chrome) {
   // clearance, so adding more clearance did nothing, which is exactly how it presented. Sizing the
   // card grid to the room that actually exists means the floor can never bind and the three lines
   // above hold for every page shape.
-  const FOOTER_CLEARANCE = 30 * S;
   const FOOTER_OVERHANG = 26 * S;
-  const MIN_TOP_BAND = 70 * S;
-  const TEXT_TOP = SINGLE_H - SINGLE_LEGAL_BAND;
-  const pageBottom = TEXT_TOP - FOOTER_CLEARANCE;
+  const MIN_TOP_BAND = 66 * S;
+  const pageBottom = SINGLE_H - SINGLE_BOTTOM_MARGIN;
   // The mat's own padding and hairline, both sides of each, are not available to the cards.
   const matChrome = 36 * S + 2 * MAT_EDGE;
-  const { cw, ch } = cardSize(cols, rows, 540 * S, pageBottom - MIN_TOP_BAND - matChrome);
+  // Width: the canvas less the mat chrome and a modest margin, so a wide page (3x4) can use it;
+  // height: everything under the lockup's band. Whichever binds decides the card size.
+  const { cw, ch } = cardSize(cols, rows, SINGLE_W - matChrome - 60 * S, pageBottom - MIN_TOP_BAND - matChrome);
   const matH = rows * ch + (rows - 1) * GAP + matChrome;
   const topBand = pageBottom - matH;
-  const bandBottomH = SINGLE_LEGAL_BAND + FOOTER_CLEARANCE + FOOTER_OVERHANG;
+  const bandBottomH = SINGLE_BOTTOM_MARGIN + FOOTER_OVERHANG;
   const layers = [];
   if (backdrop) {
     layers.push(
@@ -879,38 +842,9 @@ function singleFrame(page, manifest, art, backdrop, chrome) {
           { style: { display: 'flex', flex: 1, alignItems: 'flex-start', justifyContent: 'center' } },
           mat(pageGrid(page, cw, ch, manifest, art), -1.5, true),
         ),
-        h(
-          'div',
-          {
-            style: {
-              display: 'flex',
-              justifyContent: 'center',
-              paddingBottom: 22 * S,
-              // Matches the bottom band's height above; the band is painted beneath, so this only
-              // reserves the room the page laps into.
-              ...(bands ? { paddingTop: FOOTER_CLEARANCE + FOOTER_OVERHANG } : {}),
-              // Fixed, so the footer row cannot take height from the middle row and shift the page
-              // off the geometry above. Without this the row grows with its padding and the mat
-              // lands somewhere the three lines of arithmetic never predicted.
-              height: bands ? bandBottomH : SINGLE_LEGAL_BAND,
-            },
-          },
-          h(
-            'div',
-            {
-              style: {
-                display: 'flex',
-                width: SINGLE_MEASURE,
-                textAlign: 'center',
-                fontSize: SINGLE_LEGAL_SIZE,
-                lineHeight: 1.38,
-                color: botInk.ink,
-                ...(botInk.halo ? { textShadow: botInk.halo } : {}),
-              },
-            },
-            DISCLAIMER,
-          ),
-        ),
+        // The foot of the frame: nothing sits here any more, but the row keeps its height so the
+        // page's bottom edge lands where the geometry above says it does.
+        h('div', { style: { display: 'flex', height: bands ? bandBottomH : SINGLE_BOTTOM_MARGIN } }),
       ],
     ),
   );
@@ -934,7 +868,10 @@ function compose(pages, manifest, art) {
     // Open spread: shared card size so both pages align; sized to a half-frame box.
     const cols = Math.max(pages[0].cols || 3, pages[1].cols || 3);
     const rows = Math.max(pages[0].rows || 3, pages[1].rows || 3);
-    const { cw, ch } = cardSize(cols, rows, 470 * S, 520 * S);
+    // Height: the frame less the brand strip, the mat's padding and a small margin above and
+    // below. Width: half the canvas less the spine and the mat's padding. Whichever binds wins,
+    // so a 3x3 spread is as tall as the frame allows and a 3x4 spread as wide.
+    const { cw, ch } = cardSize(cols, rows, (W - 36 * S - 60 * S) / 2, H - BRAND_STRIP - 36 * S - 20 * S - (rows - 1) * GAP);
     const spineH = rows * ch + (rows - 1) * GAP;
     return frame(
       mat(
@@ -948,7 +885,7 @@ function compose(pages, manifest, art) {
     );
   }
   const page = pages[0];
-  const { cw, ch } = cardSize(page.cols || 3, page.rows || 3, 760 * S, 540 * S);
+  const { cw, ch } = cardSize(page.cols || 3, page.rows || 3, 760 * S, H - BRAND_STRIP - 36 * S - 20 * S - ((page.rows || 3) - 1) * GAP);
   return frame(mat(pageGrid(page, cw, ch, manifest, art), -1.5));
 }
 

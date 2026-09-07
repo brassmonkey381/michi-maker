@@ -74,15 +74,20 @@ function cardImage(cardId) {
  *   r11 single-page chrome: a coin flip per render between the blurred collage and cream bands,
  *       ink measured against the backdrop so it reads on any art, a hairline round the page, and
  *       a picker that prefers two pages over one
+ *   r12 no disclaimer text; the pages take the height it held; the spread canvas cropped to
+ *       2568×1512 (1.7:1) so the sides stop reading as empty; a centred brand lockup below
  */
-const OG_IMAGE_REV = 11;
+const OG_IMAGE_REV = 12;
 
 /**
  * The two canvases the renderer knows how to draw. A SPREAD needs the width for two facing pages;
  * a single page is about 0.75:1 and left roughly two thirds of the wide frame empty, so it gets a
  * canvas cut to its own shape. See the header of api/og-image-binder.js.
  */
-const OG_SPREAD = { w: 2880, h: 1512 };
+// 1.7:1 rather than the 1.91:1 of old: a spread's height binds, so the extra width was cream on
+// both sides. Discord, Slack, iMessage and Facebook show the whole image at this shape; X crops to
+// 2:1 and loses a sliver top and bottom, which the vertical margins absorb.
+const OG_SPREAD = { w: 2568, h: 1512 };
 const OG_SINGLE = { w: 1800, h: 1512 };
 
 /**

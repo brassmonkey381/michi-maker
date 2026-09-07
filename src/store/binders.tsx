@@ -1559,6 +1559,18 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       let cursor = contiguous
         ? Math.min(Math.max(opts?.startPageIndex ?? 0, 0), Math.max(pages.length - 1, 0))
         : -1;
+      // AT THE BACK, otherwise. Cards added from anywhere but the page in front of the user go to
+      // the END of the binder: onto the trailing empty page if there is one (a run of empty pages
+      // at the back counts from its first), else onto a page appended for them. They used to fill
+      // the first free pocket anywhere in the binder, which sprinkled a batch into the gaps of
+      // pages the owner had composed on purpose (owner rule 2026-09-06). A page holding only art
+      // is not empty: those pockets were left open for a reason.
+      let back = -1;
+      if (!contiguous) {
+        let i = pages.length;
+        while (i > 0 && pages[i - 1].slots.length === 0) i -= 1;
+        back = i < pages.length ? i : -1;
+      }
       // New pages inherit the binder's pocket layout. The old code hardcoded 3×3, which is wrong
       // for a 4×4 binder (real binders run ONE layout throughout — see addPage).
       const proto = pages[contiguous ? cursor : pages.length - 1];
@@ -1584,26 +1596,20 @@ export function BinderProvider({ children }: { children: ReactNode }) {
           }
           pageIndex = cursor;
         } else {
-          for (let i = 0; i < pages.length; i += 1) {
-            const spot = firstFreePlacement(pages[i], 1, 1);
-            if (spot) {
-              pageIndex = i;
-              cell = spot;
-              break;
-            }
-          }
-          if (pageIndex < 0 || !cell) {
-            // Every page is full → append a fresh page and start at its top-left, unless the
-            // binder is already at the tier's page cap: then this card stays out, and so does
-            // every one after it.
+          if (back >= 0) cell = firstFreePlacement(pages[back], 1, 1);
+          if (!cell) {
+            // The back page is full (or there is none) → append a fresh page and start at its
+            // top-left, unless the binder is already at the tier's page cap: then this card stays
+            // out, and so does every one after it.
             if (pages.length >= maxPages) {
               unplaced += 1;
               continue;
             }
             pages.push(emptyPage(protoRows, protoCols, `Page ${pages.length + 1}`));
-            pageIndex = pages.length - 1;
+            back = pages.length - 1;
             cell = { row: 0, col: 0 };
           }
+          pageIndex = back;
         }
         // WHICH physical card, when the caller resolved one (useCopyAssigner). A pocket holding
         // a copy is owned by definition, so the stamp implies fromCollection rather than needing

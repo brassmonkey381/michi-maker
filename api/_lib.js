@@ -75,7 +75,8 @@ function cardImage(cardId) {
  *       ink measured against the backdrop so it reads on any art, a hairline round the page, and
  *       a picker that prefers two pages over one
  *   r12 no disclaimer text; the pages take the height it held; the spread canvas cropped to
- *       2568×1512 (1.7:1) so the sides stop reading as empty; a centred brand lockup below
+ *       2568×1512 (1.7:1) so the sides stop reading as empty; a centred brand lockup below; the
+ *       spread sits on the same blurred collage as the single page
  */
 const OG_IMAGE_REV = 12;
 

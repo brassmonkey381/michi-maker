@@ -470,13 +470,19 @@ function logoMark(size, pocket) {
 }
 
 /** Mark + wordmark, so the image still says where it came from once it's out of the app. */
-const brand = () =>
+const brand = (ink) =>
   h('div', { style: { display: 'flex', alignItems: 'center' } }, [
-    logoMark(MARK),
+    logoMark(MARK, ink ? ink.pocket : undefined),
     h(
       'div',
       {
-        style: { display: 'flex', marginLeft: 10 * S, fontSize: 16 * S, color: 'rgba(70,58,42,0.80)' },
+        style: {
+          display: 'flex',
+          marginLeft: 10 * S,
+          fontSize: 16 * S,
+          color: ink ? ink.ink : 'rgba(70,58,42,0.80)',
+          ...(ink && ink.halo ? { textShadow: ink.halo } : {}),
+        },
       },
       'michi-maker.com',
     ),
@@ -487,38 +493,82 @@ const brand = () =>
  * The disclaimer that used to share the strip (r6 to r11) is gone at the owner's request, and the
  * height it took went to the pages.
  */
-const frame = (inner) =>
-  h(
+const frame = (inner, backdrop) => {
+  // The same blurred collage the single page sits on (r12, owner's ask): the cream either side
+  // of a height-bound spread reads as the binder's own colours instead of empty margin. The
+  // stamp's ink is measured against what is behind it, as on the single page.
+  const ink = backdrop ? chromeInk(backdrop.bottom, SCRIM) : null;
+  const layers = [];
+  if (backdrop) {
+    layers.push(
+      h('img', {
+        src: backdrop.uri,
+        width: W,
+        height: H,
+        style: { position: 'absolute', left: 0, top: 0, objectFit: 'cover' },
+      }),
+      h('div', {
+        style: {
+          display: 'flex',
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          width: W,
+          height: H,
+          backgroundColor: `rgba(250,246,239,${SCRIM})`,
+        },
+      }),
+    );
+  }
+  layers.push(
+    h(
+      'div',
+      {
+        style: {
+          display: 'flex',
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          width: W,
+          height: H,
+          flexDirection: 'column',
+        },
+      },
+      [
+        h(
+          'div',
+          { style: { display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center' } },
+          inner,
+        ),
+        h(
+          'div',
+          {
+            style: {
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: BRAND_STRIP,
+            },
+          },
+          brand(ink),
+        ),
+      ],
+    ),
+  );
+  return h(
     'div',
     {
       style: {
         width: W,
         height: H,
         display: 'flex',
-        flexDirection: 'column',
+        position: 'relative',
         background: 'linear-gradient(135deg, #FAF6EF 0%, #EFE7D9 100%)',
       },
     },
-    [
-      h(
-        'div',
-        { style: { display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center' } },
-        inner,
-      ),
-      h(
-        'div',
-        {
-          style: {
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: BRAND_STRIP,
-          },
-        },
-        brand(),
-      ),
-    ],
+    layers,
   );
+};
 
 /**
  * The page's cream card. `edge` draws a hairline around it, which the banded single-page frame
@@ -556,14 +606,16 @@ const mat = (children, tilt, edge) =>
  * Returns null on any failure — a missing backdrop just means the plain cream frame, never a
  * failed render.
  */
-async function blurBackdrop(src) {
+async function blurBackdrop(src, shape = { w: 560, h: 470 }) {
   if (!src) return null;
   try {
     const bytes = src.startsWith('data:')
       ? Buffer.from(src.slice(src.indexOf(',') + 1), 'base64')
       : Buffer.from(await (await fetch(src)).arrayBuffer());
+    // `shape` matches the canvas the blur will cover (single 1800x1512 by default; the spread
+    // passes its own), so the strips sampled below map to the same fraction of that canvas.
     const out = await sharp(bytes)
-      .resize(560, 470, { fit: 'cover' })
+      .resize(shape.w, shape.h, { fit: 'cover' })
       .blur(22)
       .modulate({ brightness: 1.06, saturation: 1.15 })
       .jpeg({ quality: 62 })
@@ -573,14 +625,15 @@ async function blurBackdrop(src) {
     // (560/470 vs 1800/1512) and it is drawn objectFit:cover, so a strip here maps to the same
     // fraction of the canvas. Approximate by design: the blur has no detail for a finer sample to
     // find, and chromeInk only needs the ground it is judging against.
+    const stripH = Math.round(shape.h * 0.21);
     const strip = async (top, height) => {
-      const st = await sharp(out).extract({ left: 0, top, width: 560, height }).stats();
+      const st = await sharp(out).extract({ left: 0, top, width: shape.w, height }).stats();
       return st.channels.slice(0, 3).map((c) => c.mean);
     };
     return {
       uri: `data:image/jpeg;base64,${out.toString('base64')}`,
-      top: await strip(0, 100),
-      bottom: await strip(370, 100),
+      top: await strip(0, stripH),
+      bottom: await strip(shape.h - stripH, stripH),
     };
   } catch {
     return null;
@@ -863,7 +916,7 @@ function singleFrame(page, manifest, art, backdrop, chrome) {
   );
 }
 
-function compose(pages, manifest, art) {
+function compose(pages, manifest, art, backdrop) {
   if (pages.length >= 2) {
     // Open spread: shared card size so both pages align; sized to a half-frame box.
     const cols = Math.max(pages[0].cols || 3, pages[1].cols || 3);
@@ -881,12 +934,14 @@ function compose(pages, manifest, art) {
           pageGrid(pages[1], cw, ch, manifest, art),
         ],
         -1,
+        Boolean(backdrop),
       ),
+      backdrop,
     );
   }
   const page = pages[0];
   const { cw, ch } = cardSize(page.cols || 3, page.rows || 3, 760 * S, H - BRAND_STRIP - 36 * S - 20 * S - ((page.rows || 3) - 1) * GAP);
-  return frame(mat(pageGrid(page, cw, ch, manifest, art), -1.5));
+  return frame(mat(pageGrid(page, cw, ch, manifest, art), -1.5, Boolean(backdrop)), backdrop);
 }
 
 /**
@@ -907,7 +962,17 @@ async function render(pages, manifest, art, single, chrome) {
         await blurBackdrop(backdropSource(pages[0], manifest, art)),
         chrome || flipChrome(),
       )
-    : compose(pages, manifest, art);
+    : compose(
+        pages,
+        manifest,
+        art,
+        // The spread's blur, at the spread's own aspect. Whichever page has art supplies it.
+        await blurBackdrop(
+          backdropSource(pages[0], manifest, art) ||
+            (pages[1] ? backdropSource(pages[1], manifest, art) : null),
+          { w: 800, h: Math.round((800 * H) / W) },
+        ),
+      );
   const png = Buffer.from(
     await new ImageResponse(node, {
       width: single ? SINGLE_W : W,

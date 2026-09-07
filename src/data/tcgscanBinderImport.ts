@@ -181,7 +181,15 @@ export function rebuildTcgscanBinder(binder: TcgscanBinder, maxPages: number): R
   // The display order the storage migration defines: page, then pocket, then the camera moment,
   // then the id. Sorting by it here is what makes "first claim wins" mean the same thing as what
   // tcgscan itself shows, rather than whatever order PostgREST happened to return.
-  const sorted = [...binder.entries].sort(
+  // ZERO-BASED PAGES ARE A KNOWN DIALECT. The contract is 1-based (page 1 is the first leaf), and
+  // the phone app writes it that way, but tcgscan's web still-photo flow filed its first photo as
+  // page 0 and its second as page 1 (seen 2026-09-06: a 2x2 binder, two photos, page_count 2).
+  // Read literally, page 0 is "loose in the binder", so the first photo's cards vanished and the
+  // second photo's landed a page early. Page 0 cannot occur under the contract, so its presence
+  // is an unambiguous signal that this binder counts from 0, and every page shifts up by one.
+  const zeroBased = binder.entries.some((e) => e.page === 0);
+  const entries = zeroBased ? binder.entries.map((e) => (e.page == null ? e : { ...e, page: e.page + 1 })) : binder.entries;
+  const sorted = [...entries].sort(
     (a, b) =>
       (a.page ?? 0) - (b.page ?? 0) ||
       (a.pos ?? 0) - (b.pos ?? 0) ||

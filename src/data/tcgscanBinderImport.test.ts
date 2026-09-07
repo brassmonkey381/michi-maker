@@ -462,3 +462,30 @@ test('slot and page ids are unique, so nothing overwrites anything on save', () 
   const ids = [...r.pages.map((p) => p.id), ...r.pages.flatMap((p) => p.slots.map((s) => s.id))];
   assert.equal(new Set(ids).size, ids.length);
 });
+
+test('a binder filed with zero-based pages (the web still-photo dialect) shifts up by one', () => {
+  // Two photos of a 2x2 binder: the web flow filed them as page 0 and page 1, page_count 2.
+  const entry = (page: number, pos: number, cardId: string): TcgscanPocket => ({
+    cardId, page, pos, rows: 2, cols: 2, scannedAt: `2026-09-06T04:0${page + 2}:00Z`, entryId: `e-${page}-${pos}`,
+  });
+  const binder: TcgscanBinder = {
+    id: 'u', collectionId: 'c', name: 'Binder 1', rows: 2, cols: 2, pageCount: 2,
+    entries: [entry(0, 0, 'a'), entry(0, 1, 'b'), entry(0, 2, 'c'), entry(0, 3, 'd'), entry(1, 0, 'e'), entry(1, 1, 'f'), entry(1, 2, 'g'), entry(1, 3, 'h')],
+  };
+  const r = rebuildTcgscanBinder(binder, 50);
+  assert.equal(r.pages.length, 2);
+  assert.equal(r.placed, 8);
+  assert.equal(r.loose, 0);
+  assert.equal(r.collided, 0);
+  assert.deepEqual(r.pages[0].slots.map((s) => s.cardId), ['a', 'b', 'c', 'd']);
+  assert.deepEqual(r.pages[1].slots.map((s) => s.cardId), ['e', 'f', 'g', 'h']);
+});
+
+test('a 1-based binder is not shifted', () => {
+  const entry = (page: number, pos: number, cardId: string): TcgscanPocket => ({ cardId, page, pos, rows: 2, cols: 2, scannedAt: null, entryId: `e-${page}-${pos}` });
+  const binder: TcgscanBinder = { id: 'u', collectionId: 'c', name: 'B', rows: 2, cols: 2, pageCount: 2, entries: [entry(1, 0, 'a'), entry(2, 0, 'b')] };
+  const r = rebuildTcgscanBinder(binder, 50);
+  assert.equal(r.pages.length, 2);
+  assert.deepEqual(r.pages[0].slots.map((s) => s.cardId), ['a']);
+  assert.deepEqual(r.pages[1].slots.map((s) => s.cardId), ['b']);
+});

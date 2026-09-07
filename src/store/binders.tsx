@@ -246,9 +246,10 @@ interface BinderStore {
    *
    *  `startPageIndex` switches to CONTIGUOUS placement, which is what the editor wants: fill the
    *  page the user is looking at, then insert fresh pages immediately AFTER it and keep going.
-   *  Without it, placement scans from page 1 for any gap and appends overflow at the very end,
-   *  which scatters one batch across a binder the user has already arranged. `blanksInserted` is
-   *  the parity spacers that insertion forced (see withParitySpacers), for the caller's toast. */
+   *  Without it, cards go to the BACK: onto the trailing empty page if there is one, else onto a
+   *  page appended for them, overflowing onto further new pages; nothing the user already
+   *  arranged is touched. `blanksInserted` is the parity spacers that contiguous insertion
+   *  forced (see withParitySpacers), for the caller's toast. */
   addCardsToBinder: (
     binderId: string,
     cardIds: string[],

@@ -58,14 +58,18 @@ const fileStem = (title: string) => title.replace(/[^\w\- ]+/g, '').trim() || 'b
 
 /**
  * Deliver the generated fill-sheet files. Placeholders and art print as SEPARATE PDFs (plain paper
- * vs matte cardstock), so a binder with art yields two. A single file downloads directly; multiple
- * files go out as ONE ZIP rather than two programmatic downloads — the old staggered approach was
- * unreliable (Chrome prompts for the second download, Safari silently drops it), so a user could get
- * the placeholders and never the art. `suffix` marks archived versions.
+ * vs matte cardstock), and the instructions are a third PDF so the print files carry sheets only
+ * and go to a printer or a print service untouched. A single file downloads directly; multiple
+ * files go out as ONE ZIP rather than several programmatic downloads — the old staggered approach
+ * was unreliable (Chrome prompts for the second download, Safari silently drops it), so a user
+ * could get the placeholders and never the art. `suffix` marks archived versions.
  */
 async function saveFillSheetFiles(files: FillSheetPdf[], stem: string, suffix = '') {
-  const nameFor = (f: FillSheetPdf) =>
-    `${stem} - ${f.section === 'art' ? 'Art (matte cardstock)' : 'Placeholders (plain paper)'}${suffix}.pdf`;
+  const label = (f: FillSheetPdf) =>
+    f.section === 'art' ? 'Art (matte cardstock)'
+      : f.section === 'placeholders' ? 'Placeholders (plain paper)'
+        : 'Read me first (instructions)';
+  const nameFor = (f: FillSheetPdf) => `${stem} - ${label(f)}${suffix}.pdf`;
   if (files.length === 1) {
     saveBytes(files[0].bytes, nameFor(files[0]));
     return;
@@ -227,8 +231,8 @@ export function PrintPlaceholdersSheet({
     setBusy(true);
     setError(null);
     try {
-      // Two files: a plain-paper placeholders PDF and a matte-cardstock art PDF (either omitted
-      // if the binder has none of that kind). Web: plain blob downloads, staggered.
+      // A plain-paper placeholders PDF and a matte-cardstock art PDF (either omitted if the binder
+      // has none of that kind), plus the instructions as their own PDF, last in the list.
       const files = await buildFillSheetPdfs(binder, catalog, {
         ownedIds: effectiveOwned,
         // Art pixels: direct CORS fetch → art-proxy edge fn fallback → webp/canvas convert.
@@ -265,8 +269,9 @@ export function PrintPlaceholdersSheet({
       await saveFillSheetFiles(files, fileStem(binder.title));
       // Confirmed spends (credit OR purchase) archive this version so it re-downloads free
       // forever — the version list below is the "print a previous version" surface. The snapshot
-      // regenerates from stored content on re-download, so archiving the first file's bytes is a
-      // best-effort fallback; `sheets` stays the TOTAL across both files.
+      // regenerates from stored content on re-download, so archiving the first file's bytes (a
+      // PRINT file: the instructions come last) is a best-effort fallback; `sheets` stays the
+      // TOTAL across the print files.
       if (opts.credit || opts.spend) {
         const v = await spendPurchase(binder, files[0].bytes, sheets).catch(() => null);
         setPStatus((prev) => ({

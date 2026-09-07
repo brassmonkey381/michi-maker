@@ -22,8 +22,11 @@
  * column grid with the fold strip (0.125") between its first two columns so every vertical
  * cut line still runs straight through singles rows and fold rows alike. Art carries no ink and
  * stops a hair short of every cut line (ART_INSET), so a cut that wanders lands on white, not
- * on the neighbor. Pieces are labelled in the side margins (rotated, beside their row). Margin rulers
- * (cumulative inches at every cut) and a cover with instructions + a 1-inch calibration
+ * on the neighbor. Pieces are labelled in the side margins (rotated, beside their row, bold black
+ * so a home printer cannot soften them); a fold piece has no fold mark on the sheet, only its
+ * label and the instructions. Margin rulers
+ * (cumulative inches at every cut) on the placeholder sheets, and a separate INSTRUCTIONS file
+ * (one page per print file, with a 1-inch calibration
  * square — home printers love "fit to page", which would shrink the pieces.
  *
  * PRINT SPACE OPTIMIZER (2026-09-06): art used to print spaced, six singles and two folds to a
@@ -602,22 +605,28 @@ interface EmbeddedArt {
   height: number;
 }
 
-/** One generated fill-sheet file. Placeholders and art print as SEPARATE PDFs so each can go
- *  on its own paper stock (plain paper for placeholders, matte cardstock for art). */
+/**
+ * One generated fill-sheet file. Placeholders and art print as SEPARATE PDFs so each can go on
+ * its own paper stock (plain paper for placeholders, matte cardstock for art), and the
+ * INSTRUCTIONS are a third file: the print files hold nothing but sheets, so they go to a printer
+ * or a print service as they are, with no page to exclude first.
+ */
 export interface FillSheetPdf {
-  section: 'placeholders' | 'art';
+  section: 'placeholders' | 'art' | 'instructions';
   bytes: Uint8Array;
-  /** Sheets in this file, excluding its cover. */
+  /** Print sheets in this file (0 for the instructions). */
   sheets: number;
-  /** Printable pieces in this file (placeholders + inserts, or art pieces). */
+  /** Printable pieces in this file (placeholders + inserts, or art pieces; 0 for the instructions). */
   pieces: number;
 }
 
 /**
- * Build the fill-sheet PDFs for a binder: up to TWO files — a PLACEHOLDERS file (plain paper:
- * card placeholders + inserts) and an ART file (matte cardstock: the binder's art pieces). A
- * section with no pieces is omitted, so a card-only binder yields one file and an art-only
- * binder the other. Each file carries its own cover (instructions + calibration square).
+ * Build the fill-sheet PDFs for a binder: up to THREE files — a PLACEHOLDERS file (plain paper:
+ * card placeholders + inserts), an ART file (matte cardstock: the binder's art pieces), and the
+ * INSTRUCTIONS (one page per print file: which paper, how to print true to size, the 1-inch
+ * calibration square). A section with no pieces is omitted, so a card-only binder yields the
+ * placeholders and the instructions. The print files come FIRST in the returned list, the
+ * instructions last: the first entry is what the purchase archive keeps as its fallback bytes.
  * `loadImage` fetches art pixels (see fillSheetArt's web loader); art whose image can't be
  * loaded prints a labeled fallback tile instead of aborting the export.
  */
@@ -631,18 +640,44 @@ export async function buildFillSheetPdfs(
   const plain = tiles.filter((t) => t.kind !== 'art');
   const art = tiles.filter((t) => t.kind === 'art');
   const out: FillSheetPdf[] = [];
+  const sections: ('placeholders' | 'art')[] = [];
   if (plain.length > 0) {
     const { bytes, sheets } = await buildSectionDoc('placeholders', title, tiles, counts);
     out.push({ section: 'placeholders', bytes, sheets, pieces: plain.length });
+    sections.push('placeholders');
   }
   if (art.length > 0) {
     const { bytes, sheets } = await buildSectionDoc('art', title, tiles, counts, opts?.loadImage);
     out.push({ section: 'art', bytes, sheets, pieces: art.length });
+    sections.push('art');
+  }
+  if (sections.length > 0) {
+    out.push({ section: 'instructions', bytes: await buildInstructionsDoc(title, counts, sections), sheets: 0, pieces: 0 });
   }
   return out;
 }
 
-/** Build one section's PDF (cover + its sheets). Only the art section fetches/embeds images. */
+/**
+ * The instructions file: one page per print file, in the order the print files come. It used to
+ * be page 1 of each print file, which meant excluding it by hand at every print dialog and every
+ * print-service upload, or paying for a sheet of cardstock with instructions on it.
+ */
+async function buildInstructionsDoc(
+  title: string,
+  counts: FillCounts,
+  sections: ('placeholders' | 'art')[],
+): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const regular = await doc.embedFont(StandardFonts.Helvetica);
+  doc.setTitle(`${title} - print instructions`);
+  for (const section of sections) {
+    drawCover(doc.addPage([SHEET_W, SHEET_H]), section, title, counts, bold, regular);
+  }
+  return doc.save();
+}
+
+/** Build one section's PDF: its sheets and nothing else. Only the art section fetches/embeds images. */
 async function buildSectionDoc(
   section: 'placeholders' | 'art',
   title: string,
@@ -673,8 +708,6 @@ async function buildSectionDoc(
     );
   }
 
-  drawCover(doc.addPage([SHEET_W, SHEET_H]), section, title, counts, bold, regular);
-
   const { placed, sheetCount } = packSection(tiles, section);
   const L = makeLayout(false);
   for (let s = 0; s < sheetCount; s += 1) {
@@ -698,13 +731,13 @@ async function buildSectionDoc(
         // Art markings NEVER touch the artwork: the label sits in the sheet margin beside the
         // piece's row, and the cut lines are drawn once per sheet below, shared between neighbors.
         const label = `P${tile.page} · R${tile.row}C${tile.col}${tile.w === 2 ? ' · fold' : ''}`;
-        drawSideMarginTag(page, label, x, y, col, gridLeft(mixed), regular);
+        drawSideMarginTag(page, label, x, y, col, gridLeft(mixed), bold);
         edges.push({ x, y, w: pieceW, h: CARD_H });
-        if (tile.w === 2) drawFoldLine(page, x + CARD_W + POCKET_GAP / 2, y);
       }
     }
+    // Dashed cut lines only. A fold piece carries no fold mark on the sheet: the instructions say
+    // to fold it down the middle of the strip between its halves, and its label says "fold".
     drawCutGrid(page, edges);
-    if (mixed) drawCentered(page, 'fold on the dotted line · each half slides into its own pocket', SHEET_H - 10, regular, 7, MUTED);
     if (section === 'placeholders') drawMarginRulers(page, regular, false, L);
     const hosts = [...new Set(
       batch.map((p) => p.tile).filter((t): t is ArtTile => t.kind === 'art').map((t) => artHost(t.group.imageUrl)),
@@ -769,16 +802,6 @@ function drawCutGrid(page: PDFPage, pieces: { x: number; y: number; w: number; h
 }
 
 /**
- * A fold piece's fold line: dotted (so it never reads as a cut), down the fold strip, which is
- * the webbing hidden between the two pockets once the halves are in the binder, and a few points
- * beyond the piece at each end. Beyond the piece it crosses only the strip's footprint on the
- * neighboring row (a waste sliver on a singles row, another fold's strip on a fold row), never art.
- */
-function drawFoldLine(page: PDFPage, x: number, y: number) {
-  page.drawLine({ start: { x, y: y - 6 }, end: { x, y: y + CARD_H + 6 }, thickness: 0.6, color: GUIDE, dashArray: [1, 2] });
-}
-
-/**
  * Cumulative-inch labels in the margins at every cut line — a printed ruler doubling as a
  * second scale check beyond the cover's calibration square. With the edge-to-edge layout the
  * cut lines ARE the piece edges: 0 / 2.5 / 5 / 7.5" across, card-height pitch down (fold
@@ -809,18 +832,23 @@ function drawMarginRulers(page: PDFPage, regular: PDFFont, fold: boolean, L: She
  * piece's edge. The first column's label (a single, or a fold) sits nearest the grid in the left
  * margin, the second column's just outside it, the third's in the right margin: read them left
  * to right the way the pieces sit. The art itself stays clean and the pieces share their cut lines.
+ *
+ * Bold Helvetica in solid black at 8 pt. The label is the one thing on a cardstock sheet a person
+ * has to READ, and it lives in the margin where a home inkjet feathers most; a heavy sans in full
+ * black survives that where the earlier 5.5 pt light gray went soft.
  */
-function drawSideMarginTag(page: PDFPage, text: string, x: number, y: number, col: number, leftEdge: number, regular: PDFFont) {
-  const size = 5.5;
+function drawSideMarginTag(page: PDFPage, text: string, x: number, y: number, col: number, leftEdge: number, bold: PDFFont) {
+  const size = 8;
+  const gap = 3;
   const label = `${col + 1}. ${text}`;
   if (col < 2) {
     // Left margin: rotated 90° the baseline runs upward and the glyphs extend LEFT of x, so the
-    // first column's label sits 4 pt outside the grid edge and the second's one line further out.
-    page.drawText(label, { x: leftEdge - 4 - col * (size + 3), y: y + 4, size, font: regular, color: MUTED, rotate: degrees(90) });
+    // first column's label sits 3 pt outside the grid edge and the second's one line further out.
+    page.drawText(label, { x: leftEdge - gap - col * (size + gap), y: y + 4, size, font: bold, color: INK, rotate: degrees(90) });
     return;
   }
   // Right margin: baseline runs upward just outside the grid's right edge.
-  page.drawText(label, { x: x + CARD_W + 4 + size, y: y + 4, size, font: regular, color: MUTED, rotate: degrees(90) });
+  page.drawText(label, { x: x + CARD_W + gap + size, y: y + 4, size, font: bold, color: INK, rotate: degrees(90) });
 }
 
 /** Assembly tag on art/insert pieces. CUT MARGINS: printed BELOW the piece in the gap — the
@@ -995,8 +1023,9 @@ function drawTransformed(
   page.pushOperators(popGraphicsState());
 }
 
-/** Cover sheet: what this file is, which paper it wants, how to print it true-to-size, and the
- *  1-inch calibration square. One cover per file (placeholders → plain paper; art → cardstock). */
+/** One page of the instructions file: what the matching print file is, which paper it wants, how
+ *  to print it true to size, and the 1-inch calibration square (placeholders → plain paper; art →
+ *  cardstock). Printed from the instructions file, never from a print file. */
 function drawCover(
   page: PDFPage,
   section: 'placeholders' | 'art',
@@ -1010,6 +1039,17 @@ function drawCover(
   drawCentered(page, isArt ? 'Art fill sheets' : 'Placeholder fill sheets', y, bold, 26);
   y -= 26;
   drawCentered(page, binderTitle, y, regular, 14, MUTED);
+  y -= 16;
+  drawCentered(
+    page,
+    isArt
+      ? 'Instructions for the file "Art (matte cardstock)". That file is sheets only, send it to the printer as it is.'
+      : 'Instructions for the file "Placeholders (plain paper)". That file is sheets only, send it to the printer as it is.',
+    y,
+    regular,
+    9,
+    MUTED,
+  );
   y -= 20;
 
   const sectionSheets = isArt ? counts.artSheets : counts.placeholderSheets;
@@ -1080,7 +1120,7 @@ function drawCover(
         'Print at 100% scale (“Actual size”), NOT “Fit to page”. Matte-coated cardstock holds the ink and slides into a pocket best.',
         'Check the calibration square below: it must measure exactly 1 inch (2.54 cm).',
         'Pieces sit edge to edge, so one straight cut along a dashed line frees two pieces at once; nothing is printed on your artwork, which stops a hair short of every line. Each pocket location is printed in the sheet margin beside its row.',
-        'Wide pieces share the sheets with the singles, one beside a single per row. Fold each on its dotted line (the strip between the two halves), then each half slides into its pocket pair.',
+        'Wide pieces (labelled "fold") share the sheets with the singles. Fold each down the middle of the narrow strip between its two halves, then each half slides into its pocket pair.',
         'Slide each piece into its pocket. Neighboring pieces are gap-compensated, so the picture reads continuous across the dividers.',
       ]
     : [

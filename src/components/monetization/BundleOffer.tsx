@@ -30,8 +30,19 @@ import { useTier } from '@/hooks/use-tier';
 
 export { TCGSCAN_URL };
 
+/**
+ * EVERY WAY OUT TO TCGSCAN goes through here: the rail link, the pairing card's button, the inline
+ * mentions and the bundle card. A signed-in member gets a one-time handoff hash on the link so
+ * they land on tcgscan.ai already signed in (tcgscan redeems it on any arrival page since
+ * 2026-09-06); a guest, a signed-out visitor or a failed mint gets the plain link. Same-tab on
+ * web: window.open after an await trips popup blockers.
+ */
 export function openTcgscan() {
-  void Linking.openURL(TCGSCAN_URL).catch(() => {});
+  void (async () => {
+    const target = withHandoffHash(TCGSCAN_URL, await mintHandoffHash());
+    if (Platform.OS === 'web' && typeof window !== 'undefined') window.location.assign(target);
+    else await Linking.openURL(target).catch(() => {});
+  })();
 }
 
 /** Inline tappable "tcgscan" word for prose mentions — always points at the landing page. */

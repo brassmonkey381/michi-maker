@@ -15,16 +15,14 @@
  */
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Linking,
-  Platform,
+  ActivityIndicator, Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  View,
-} from 'react-native';
+  View, } from 'react-native';
 
+import { openTcgscanUrl } from '@/components/monetization/BundleOffer';
 import { FontSize, Palette, Radius, Shadows, Spacing, Weight } from '@/constants/theme';
 import {
   changePlan,
@@ -464,7 +462,8 @@ export function PlanComparison() {
             {f.link ? (
               <Text
                 style={styles.footnoteLink}
-                onPress={() => void Linking.openURL(f.link!.url).catch(() => {})}>
+                // A TCGScan address carries the sign-in handoff; anything else opens plainly.
+                onPress={() => openTcgscanUrl(f.link!.url)}>
                 {' '}
                 {f.link.label}
               </Text>

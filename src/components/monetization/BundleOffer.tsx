@@ -38,8 +38,14 @@ export { TCGSCAN_URL };
  * web: window.open after an await trips popup blockers.
  */
 export function openTcgscan() {
+  openTcgscanUrl(TCGSCAN_URL);
+}
+
+/** Any tcgscan.ai address, with the handoff; a non-tcgscan address opens plainly. */
+export function openTcgscanUrl(url: string) {
   void (async () => {
-    const target = withHandoffHash(TCGSCAN_URL, await mintHandoffHash());
+    const isTcgscan = /^https:\/\/([a-z0-9-]+\.)?tcgscan\.ai(\/|$)/i.test(url);
+    const target = isTcgscan ? withHandoffHash(url, await mintHandoffHash()) : url;
     if (Platform.OS === 'web' && typeof window !== 'undefined') window.location.assign(target);
     else await Linking.openURL(target).catch(() => {});
   })();

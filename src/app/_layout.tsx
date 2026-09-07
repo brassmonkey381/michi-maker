@@ -10,6 +10,7 @@ import { UsernameGate } from '@/components/auth/UsernameGate';
 import { ProStatusBanner } from '@/components/monetization/ProStatusBanner';
 import { AppRail } from '@/components/nav/AppRail';
 import { CatalogWarm } from '@/components/CatalogWarm';
+import { redeemHandoffHashFromLocation } from '@/data/handoff';
 import { AuthProvider } from '@/store/auth';
 import { BinderProvider } from '@/store/binders';
 
@@ -23,6 +24,18 @@ export default function TabLayout() {
     const prevent = (e: Event) => e.preventDefault();
     document.addEventListener('dragstart', prevent);
     return () => document.removeEventListener('dragstart', prevent);
+  }, []);
+
+  // INBOUND SIGN-IN FROM TCGSCAN, ON ANY PAGE. A link from tcgscan-app can carry a one-time
+  // `#th=` hash (auth-handoff, see src/data/handoff.ts). Only /plans used to redeem it, so a
+  // link straight to /my-binders arrived signed out with the hash still in the URL. Redeeming
+  // here covers every arrival page: a no-op without the fragment; with one, it is scrubbed from
+  // the URL before anything else and verified into a session the auth store picks up through
+  // onAuthStateChange. Plans keeps its own call so it can refresh the tier the moment the
+  // session lands; a child's effect runs before this one, and the scrub is synchronous, so the
+  // second caller finds nothing to redeem and the single-use token is never sent twice.
+  useEffect(() => {
+    void redeemHandoffHashFromLocation();
   }, []);
 
   return (

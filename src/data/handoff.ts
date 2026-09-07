@@ -44,8 +44,9 @@ export function withHandoffHash(url: string, tokenHash: string | null): string {
 
 /**
  * Redeem an inbound `#th=` fragment (web only): verify the OTP hash into a real session, then
- * scrub the fragment from the URL/history so it can't be re-read or shared onward. Call once on
- * mount of the arrival page. Returns true when a session was established.
+ * scrub the fragment from the URL/history so it can't be re-read or shared onward. Called once on
+ * load from the root layout (every arrival page) and again by /plans for its tier refresh; the
+ * synchronous scrub makes the second call a no-op. Returns true when a session was established.
  *
  * Already signed in → the fragment is scrubbed but NOT redeemed (never silently switch an
  * active session; the visitor can sign out and use the banner's button if they meant to).
@@ -55,8 +56,14 @@ export async function redeemHandoffHashFromLocation(): Promise<boolean> {
   const match = /[#&]th=([^&]+)/.exec(window.location.hash);
   if (!match) return false;
   // Scrub first: whatever happens next, the single-use hash must not linger in the URL bar
-  // or history where a copied link would carry it onward.
-  window.history.replaceState(null, '', window.location.pathname + window.location.search);
+  // or history where a copied link would carry it onward. Expo Router writes its own idea of
+  // the location back to the URL as it settles on first load, which put the fragment straight
+  // back (seen on every arrival page, /plans included), so the scrub is repeated after it has.
+  const scrub = () => {
+    if (/[#&]th=/.test(window.location.hash)) window.history.replaceState(null, '', window.location.pathname + window.location.search);
+  };
+  scrub();
+  for (const ms of [250, 1000, 3000]) setTimeout(scrub, ms);
   try {
     const supabase = requireSupabase();
     const { data: sessionData } = await supabase.auth.getSession();

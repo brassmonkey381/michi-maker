@@ -25,7 +25,7 @@ import { fetchUserCards } from '@/data/collectionRepo';
 import { EXAMPLE_FILL_SHEET_BINDER, EXAMPLE_FILL_SHEET_OWNED } from '@/data/exampleFillSheetBinder';
 import { createWebArtLoader } from '@/data/fillSheetArt';
 import { startCheckout } from '@/data/checkout';
-import { buildFillSheetPdfs, collectFillTiles, type FillSheetPdf } from '@/data/placeholderPdf';
+import { buildFillSheetPdfs, collectFillTiles, type FillSheetPdf, CARDSTOCK_SHEET_USD } from '@/data/placeholderPdf';
 import {
   binderFingerprint,
   downloadPurchasedPdf,
@@ -506,6 +506,16 @@ export function PrintPlaceholdersSheet({
                       : ''}
                   </ThemedText>
                 ) : null}
+                {counts && counts.art > 0 && counts.artSheetsSpaced > counts.artSheets ? (
+                  // The print space optimizer: art shares cut lines and folds go four to a landscape
+                  // sheet, so the cardstock bill is smaller than it was. Priced at a plain estimate.
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.optimizer}>
+                    <ThemedText type="smallBold">Print space optimizer:</ThemedText>{' '}
+                    {counts.artSheets} sheet{counts.artSheets === 1 ? '' : 's'} of cardstock instead of {counts.artSheetsSpaced}, about{' '}
+                    <ThemedText type="smallBold">${((counts.artSheetsSpaced - counts.artSheets) * CARDSTOCK_SHEET_USD).toFixed(2)}</ThemedText> saved at{' '}
+                    {Math.round(CARDSTOCK_SHEET_USD * 100)}¢ a sheet.
+                  </ThemedText>
+                ) : null}
                 {ownedIds && ownedIds.size > 0 && counts && counts.total > 0 ? (
                   <Pressable
                     onPress={() => setColorOwned((v) => !v)}
@@ -927,6 +937,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 44,
   },
+  optimizer: { marginTop: 6 },
   error: { color: Palette.danger, lineHeight: 20 },
   poolLink: { fontSize: FontSize.label, marginTop: 2 },
   lockedBox: {

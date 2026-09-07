@@ -17,9 +17,17 @@
  *
  * Layout: US Letter. Singles (placeholders, inserts, 1-pocket art) pack 3 × 3 EDGE TO EDGE so
  * neighboring pieces share one dashed cut line (fewest cuts, no waste strips); folded 2-wide
- * art pieces print on their own sheets AT THE END, at true assembled width. Margin rulers
+ * art pieces print on their own LANDSCAPE sheets AT THE END, four to a sheet at true assembled
+ * width, edge to edge as well. Art carries no ink: single art pieces are labelled in the side
+ * margins (rotated, beside their row), folds in the top and bottom margins. Margin rulers
  * (cumulative inches at every cut) and a cover with instructions + a 1-inch calibration
  * square — home printers love "fit to page", which would shrink the pieces.
+ *
+ * PRINT SPACE OPTIMIZER (2026-09-06): art used to print spaced, six singles and two folds to a
+ * sheet, so the labels had room. Matte cardstock is the expensive part of this, and a long-blade
+ * cutter prefers shared lines anyway, so art now packs like the placeholders do: nine singles
+ * and four folds to a sheet. `FillCounts.artSheetsSpaced` keeps the old count so the app can say
+ * what the tighter layout saved.
  *
  * All geometry is in PDF points (72 pt = 1 inch), so the physical sizes are exact.
  */
@@ -36,11 +44,13 @@ import {
   PDFPage,
   popGraphicsState,
   pushGraphicsState,
+  degrees,
   rgb,
   StandardFonts,
 } from 'pdf-lib';
 
-import { insideEdgePairStarts, pageSide } from '@/data/binderPhysics';
+// Relative, not '@/': this module is exercised by node --test (fillSheetPacking.test.ts).
+import { insideEdgePairStarts, pageSide } from './binderPhysics.ts';
 import type { DemoBinder, DemoSlot, ImageTransform } from '@/data/binderTypes';
 import type { ArtLoader, LoadedArt } from '@/data/fillSheetArt';
 
@@ -64,6 +74,25 @@ const GRID_W = COLS * CARD_W; // 540 pt (7.5")
 const GRID_H = ROWS * CARD_H; // 756 pt (10.5")
 /** Fold pieces: 2 cards + the fold strip, art continuous across the fold. */
 const FOLD_W = 2 * CARD_W + POCKET_GAP; // 369 pt (5.125")
+/**
+ * Fold sheets are LANDSCAPE Letter: two folds across (738 pt of 792) and two down (504 pt of
+ * 612) fit edge to edge, four to a sheet, where portrait held two with room to spare and three
+ * only when tight. A third fold rotated sideways would not fit beside an upright one in either
+ * orientation (369 + 252 > 612), so the landscape grid is the better answer.
+ */
+const FOLD_SHEET_W = SHEET_H;
+const FOLD_SHEET_H = SHEET_W;
+const FOLD_COLS = 2;
+const FOLD_ROWS_LANDSCAPE = 2;
+const FOLD_GRID_W = FOLD_COLS * FOLD_W; // 738 pt
+const FOLD_GRID_H = FOLD_ROWS_LANDSCAPE * CARD_H; // 504 pt
+const FOLD_LS_MARGIN_X = (FOLD_SHEET_W - FOLD_GRID_W) / 2; // 27 pt
+const FOLD_LS_MARGIN_Y = (FOLD_SHEET_H - FOLD_GRID_H) / 2; // 54 pt
+/** The spaced layout's capacities, kept only to report what the tight one saves. */
+const SPACED_SINGLES_PER_SHEET = 6;
+const SPACED_FOLDS_PER_SHEET = 2;
+/** What one sheet of matte cardstock costs, roughly, for the saving the app shows. */
+export const CARDSTOCK_SHEET_USD = 0.3;
 
 /**
  * Sheet layout, in two modes:
@@ -118,7 +147,6 @@ function makeLayout(cutMargins: boolean): SheetLayout {
 
 const colX = (L: SheetLayout, c: number) => L.marginX + c * (CARD_W + L.gap);
 const rowY = (L: SheetLayout, r: number) => SHEET_H - L.marginY - (r + 1) * CARD_H - r * L.gap;
-const foldRowY = (L: SheetLayout, r: number) => SHEET_H - L.foldMarginY - (r + 1) * CARD_H - r * L.gap;
 
 // ---- colors (ink-friendly grays; soft green for owned cards) ---------------
 const FILL = rgb(0.93, 0.93, 0.93);
@@ -189,8 +217,10 @@ export interface FillCounts {
   sheets: number;
   /** Sheets in the PLACEHOLDERS file — plain paper: card placeholders + inserts, 3 × 3 edge to edge. */
   placeholderSheets: number;
-  /** Sheets in the ART file — matte cardstock: art pieces, spaced (singles 3-up, folds their own). */
+  /** Sheets in the ART file — matte cardstock: singles 3 × 3 edge to edge, folds 2 × 2 on landscape sheets. */
   artSheets: number;
+  /** What the ART file would have taken under the old spaced layout (6 singles / 2 folds a sheet): the saving. */
+  artSheetsSpaced: number;
 }
 
 /** Card metadata lookup the builder needs — satisfied by the kit catalog's `getCard`. */
@@ -420,6 +450,9 @@ export function collectFillTiles(
   });
   const placeholderSheets = packSection(tiles, 'placeholders').sheetCount;
   const artSheets = packSection(tiles, 'art').sheetCount;
+  const artSingles = tiles.filter((t) => t.kind === 'art' && t.w === 1).length;
+  const artFolds = tiles.filter((t) => t.kind === 'art' && t.w === 2).length;
+  const artSheetsSpaced = Math.ceil(artSingles / SPACED_SINGLES_PER_SHEET) + Math.ceil(artFolds / SPACED_FOLDS_PER_SHEET);
   const counts: FillCounts = {
     cards: tiles.filter((t) => t.kind === 'card').length,
     ownedCards: tiles.filter((t) => t.kind === 'card' && t.owned).length,
@@ -428,6 +461,7 @@ export function collectFillTiles(
     total: tiles.length,
     placeholderSheets,
     artSheets,
+    artSheetsSpaced,
     sheets: placeholderSheets + artSheets,
   };
   return { tiles, counts };
@@ -439,6 +473,11 @@ interface PlacedTile {
   sheet: number;
   x: number;
   y: number;
+  /** The sheet's column and row in its grid, for margin labels. */
+  col: number;
+  row: number;
+  /** On a landscape fold sheet. */
+  landscape?: boolean;
 }
 
 /**
@@ -447,8 +486,9 @@ interface PlacedTile {
  *
  *  - 'placeholders': card placeholders + inserts fill the 3 × 3 grid EDGE TO EDGE in reading
  *    order — no blanks, every interior edge is one shared cut. (Art tiles are ignored here.)
- *  - 'art': art pieces print SPACED (never on ink) — singles 3-up per the spaced layout, then
- *    folded 2-wide pieces on their own sheets at the end (FOLD_ROWS per sheet, true width).
+ *  - 'art': single art pieces fill the same 3 × 3 edge-to-edge grid (labels go in the side
+ *    margins, never on the art), then folded 2-wide pieces on their own LANDSCAPE sheets at the
+ *    end, 2 × 2 edge to edge at true assembled width.
  */
 function packSection(
   tiles: FillTile[],
@@ -463,31 +503,42 @@ function packSection(
       sheet: Math.floor(n / perPlain),
       x: colX(L, n % COLS),
       y: rowY(L, Math.floor(n / COLS) % L.rows),
+      col: n % COLS,
+      row: Math.floor(n / COLS) % L.rows,
     }));
     return { placed, sheetCount: Math.ceil(plain.length / perPlain) };
   }
-  // ART is NEVER printed tight: art pieces get the spaced layout — labels beneath them,
-  // outlines outset, no ink on the artwork.
-  const art = makeLayout(true);
+  // Art packs as tight as the placeholders: shared cut lines, no waste strips, and the ink for
+  // the labels goes in the margins instead of between the pieces.
+  const L = makeLayout(false);
   const singles = tiles.filter((t): t is ArtTile => t.kind === 'art' && t.w === 1);
   const folded = tiles.filter((t): t is ArtTile => t.kind === 'art' && t.w === 2);
-  const perArt = COLS * art.rows;
+  const perArt = COLS * L.rows;
   const placed: PlacedTile[] = singles.map((tile, n) => ({
     tile,
     sheet: Math.floor(n / perArt),
-    x: colX(art, n % COLS),
-    y: rowY(art, Math.floor(n / COLS) % art.rows),
+    x: colX(L, n % COLS),
+    y: rowY(L, Math.floor(n / COLS) % L.rows),
+    col: n % COLS,
+    row: Math.floor(n / COLS) % L.rows,
   }));
   const foldStartSheet = Math.ceil(singles.length / perArt);
+  const perFoldSheet = FOLD_COLS * FOLD_ROWS_LANDSCAPE;
   folded.forEach((tile, n) => {
+    const k = n % perFoldSheet;
+    const col = k % FOLD_COLS;
+    const row = Math.floor(k / FOLD_COLS);
     placed.push({
       tile,
-      sheet: foldStartSheet + Math.floor(n / art.foldRows),
-      x: art.foldMarginX,
-      y: foldRowY(art, n % art.foldRows),
+      sheet: foldStartSheet + Math.floor(n / perFoldSheet),
+      x: FOLD_LS_MARGIN_X + col * FOLD_W,
+      y: FOLD_SHEET_H - FOLD_LS_MARGIN_Y - (row + 1) * CARD_H,
+      col,
+      row,
+      landscape: true,
     });
   });
-  return { placed, sheetCount: foldStartSheet + Math.ceil(folded.length / art.foldRows) };
+  return { placed, sheetCount: foldStartSheet + Math.ceil(folded.length / perFoldSheet) };
 }
 
 // ---- text helpers -----------------------------------------------------------
@@ -627,11 +678,12 @@ async function buildSectionDoc(
 
   const { placed, sheetCount } = packSection(tiles, section);
   const L = makeLayout(false);
-  const artLayout = makeLayout(true); // art draws with the spaced treatment
   for (let s = 0; s < sheetCount; s += 1) {
-    const page = doc.addPage([SHEET_W, SHEET_H]);
     const batch = placed.filter((p) => p.sheet === s);
-    for (const { tile, x, y } of batch) {
+    const landscape = batch.some((p) => p.landscape);
+    const pageW = landscape ? FOLD_SHEET_W : SHEET_W;
+    const page = doc.addPage(landscape ? [FOLD_SHEET_W, FOLD_SHEET_H] : [SHEET_W, SHEET_H]);
+    for (const { tile, x, y, col, row } of batch) {
       if (tile.kind === 'card') {
         drawCardTile(page, tile, x, y, bold, regular);
         drawPieceOutline(page, x, y, CARD_W, L);
@@ -644,11 +696,25 @@ async function buildSectionDoc(
         const img = images.get(tile.group.imageUrl) ?? null;
         if (img) drawArtPiece(page, img, tile, x, y);
         else drawArtFallback(page, tile, x, y, bold, regular);
-        // Art markings NEVER touch the artwork: label below the piece, outline outset.
-        drawTag(page, `P${tile.page} · R${tile.row}C${tile.col}${tile.w === 2 ? ' · fold' : ''}`, x, y, regular, artLayout);
-        drawPieceOutline(page, x, y, pieceW, artLayout);
-        if (tile.w === 2) drawFoldTicks(page, x + CARD_W + POCKET_GAP / 2, y);
+        // Art markings NEVER touch the artwork: the label sits in the sheet margin beside (or
+        // above / below) the piece, the outline is the shared cut line.
+        const label = `P${tile.page} · R${tile.row}C${tile.col}${tile.w === 2 ? ' · fold' : ''}`;
+        if (tile.w === 2) drawFoldMarginTag(page, label, x, y, row, regular);
+        else drawSideMarginTag(page, label, x, y, col, regular);
+        drawPieceOutline(page, x, y, pieceW, L);
       }
+    }
+    // Fold marks: one vertical fold line per column, marked in the top and bottom margins where
+    // the rows share cut lines and there is no gap between them.
+    if (landscape) {
+      for (let c = 0; c < FOLD_COLS; c += 1) {
+        const fx = FOLD_LS_MARGIN_X + c * FOLD_W + CARD_W + POCKET_GAP / 2;
+        const top = FOLD_SHEET_H - FOLD_LS_MARGIN_Y;
+        const bottom = FOLD_LS_MARGIN_Y;
+        page.drawLine({ start: { x: fx, y: top + 3 }, end: { x: fx, y: top + 12 }, thickness: 0.8, color: GUIDE, dashArray: [2, 2] });
+        page.drawLine({ start: { x: fx, y: bottom - 3 }, end: { x: fx, y: bottom - 12 }, thickness: 0.8, color: GUIDE, dashArray: [2, 2] });
+      }
+      drawCentered(page, 'fold on the dashed marks · each half slides into its own pocket', FOLD_SHEET_H - 14, regular, 7, MUTED, pageW / 2);
     }
     if (section === 'placeholders') drawMarginRulers(page, regular, false, L);
     const hosts = [...new Set(
@@ -660,7 +726,7 @@ async function buildSectionDoc(
       'cards 2.5" × 3.5" (63.5 × 88.9 mm)',
       hosts.length ? `art: ${hosts.join(', ')}` : '',
     ].filter(Boolean).join(' · ');
-    drawCentered(page, footer, 3, regular, 7, MUTED);
+    drawCentered(page, footer, 3, regular, 7, MUTED, pageW / 2);
   }
 
   return { bytes: await doc.save(), sheets: sheetCount };
@@ -684,16 +750,6 @@ function drawPieceOutline(page: PDFPage, x: number, y: number, width: number, L:
     height: CARD_H + 2 * L.outset,
     borderColor: GUIDE, borderWidth: 0.5, borderDashArray: [3, 3],
   });
-}
-
-/** Fold marks on a 2-wide piece: short ticks ABOVE and BELOW the piece, in the surrounding
- *  gap — never on the artwork itself. Fold on the line between them, then each half slides
- *  into its pocket. (Fold sheets always use the spaced layout, so the gap exists.) */
-function drawFoldTicks(page: PDFPage, foldX: number, y: number) {
-  const tick = (y1: number, y2: number) =>
-    page.drawLine({ start: { x: foldX, y: y1 }, end: { x: foldX, y: y2 }, thickness: 0.8, color: GUIDE, dashArray: [2, 2] });
-  tick(y - 9, y - 3);
-  tick(y + CARD_H + 3, y + CARD_H + 9);
 }
 
 /**
@@ -720,6 +776,33 @@ function drawMarginRulers(page: PDFPage, regular: PDFFont, fold: boolean, L: She
   for (const e of colEdges) top(originX + e, e / PT);
   const rows = fold ? L.foldRows : L.rows;
   for (let r = 0; r <= rows; r += 1) left(SHEET_H - originY - r * CARD_H, (r * CARD_H) / PT);
+}
+
+/**
+ * A single art piece's label, in the sheet's SIDE margin beside its row, rotated to run along
+ * the piece's edge. The first column's label sits nearest the grid in the left margin, the
+ * second column's just outside it, the third's in the right margin: read them left to right the
+ * way the pieces sit. The art itself stays clean and the pieces still share their cut lines.
+ */
+function drawSideMarginTag(page: PDFPage, text: string, x: number, y: number, col: number, regular: PDFFont) {
+  const size = 5.5;
+  const label = `${col + 1}. ${text}`;
+  if (col < 2) {
+    // Left margin: rotated 90° the baseline runs upward and the glyphs extend LEFT of x, so the
+    // first column's label sits 4 pt outside the grid edge and the second's one line further out.
+    const leftEdge = colX(makeLayout(false), 0);
+    page.drawText(label, { x: leftEdge - 4 - col * (size + 3), y: y + 4, size, font: regular, color: MUTED, rotate: degrees(90) });
+    return;
+  }
+  // Right margin: baseline runs upward just outside the grid's right edge.
+  page.drawText(label, { x: x + CARD_W + 4 + size, y: y + 4, size, font: regular, color: MUTED, rotate: degrees(90) });
+}
+
+/** A fold piece's label on a landscape sheet: above a top-row piece, below a bottom-row one. */
+function drawFoldMarginTag(page: PDFPage, text: string, x: number, y: number, row: number, regular: PDFFont) {
+  const size = 6;
+  if (row === 0) page.drawText(text, { x: x + 2, y: y + CARD_H + 4, size, font: regular, color: MUTED });
+  else page.drawText(text, { x: x + 2, y: y - 4 - size, size, font: regular, color: MUTED });
 }
 
 /** Assembly tag on art/insert pieces. CUT MARGINS: printed BELOW the piece in the gap — the
@@ -944,6 +1027,18 @@ function drawCover(
     9.5,
     MUTED,
   );
+  if (isArt) {
+    y -= 15;
+    const saved = counts.artSheetsSpaced - counts.artSheets;
+    drawCentered(
+      page,
+      `Pieces share cut lines: nine singles a sheet, four folded pieces a landscape sheet. Labels sit in the margins.${saved > 0 ? ` ${saved} sheet${saved === 1 ? '' : 's'} of cardstock saved.` : ''}`,
+      y,
+      regular,
+      9,
+      MUTED,
+    );
+  }
 
   if (!isArt && counts.ownedCards > 0) {
     y -= 15;
@@ -962,8 +1057,8 @@ function drawCover(
     ? [
         'Print at 100% scale (“Actual size”), NOT “Fit to page”. Matte-coated cardstock holds the ink and slides into a pocket best.',
         'Check the calibration square below: it must measure exactly 1 inch (2.54 cm).',
-        'Pieces print spaced apart, nothing is ever printed on your artwork. Cut just inside each dashed outline; the pocket location prints in the margin below each piece.',
-        'Wide pieces fold at the tick marks above and below the fold line, then each half slides into its pocket pair.',
+        'Pieces sit edge to edge, so one straight cut along a dashed line frees two pieces at once; nothing is printed on your artwork. Each pocket location is printed in the sheet margin beside its row (singles) or above and below the piece (folds).',
+        'Wide pieces print on landscape sheets. Fold each at the dashed marks in the top and bottom margins, then each half slides into its pocket pair.',
         'Slide each piece into its pocket. Neighboring pieces are gap-compensated, so the picture reads continuous across the dividers.',
       ]
     : [

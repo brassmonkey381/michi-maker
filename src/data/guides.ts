@@ -242,9 +242,9 @@ export const GUIDE_LIST: Guide[] = [
         figure: { kind: 'results', query: 'theme:forest rarity:illustration' },
       },
       {
-        title: 'Two ideas at once',
-        body: 'Two themes must both show, so the water cards drawn at sunset are one search. Each theme you add narrows it further.',
-        figure: { kind: 'results', query: 'theme:water theme:sunset' },
+        title: 'One idea minus another',
+        body: 'A leading minus takes an idea away, so the water cards that are not a beach are one search. Two themes without a minus must both show.',
+        figure: { kind: 'results', query: 'theme:water -theme:beach' },
       },
       {
         title: 'Try what you see',

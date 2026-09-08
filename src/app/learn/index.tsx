@@ -61,7 +61,7 @@ export default function LearnHubScreen() {
             <ExternalLink key={g.slug} href={g.externalHref as Href & string} asChild>
               <Pressable
                 accessibilityRole="link"
-                style={({ pressed }) => [twoUp && styles.half, pressed && styles.pressed]}>
+                style={({ pressed }) => [twoUp && !g.wide && styles.half, pressed && styles.pressed]}>
                 {card}
               </Pressable>
             </ExternalLink>
@@ -70,7 +70,7 @@ export default function LearnHubScreen() {
               key={g.slug}
               onPress={() => router.push(`/learn/${g.slug}` as Href)}
               accessibilityRole="link"
-              style={({ pressed }) => [twoUp && styles.half, pressed && styles.pressed]}>
+              style={({ pressed }) => [twoUp && !g.wide && styles.half, pressed && styles.pressed]}>
               {card}
             </Pressable>
           );

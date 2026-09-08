@@ -65,6 +65,8 @@ export interface Guide {
   lede: string;
   /** The hook on the hub card: what the guide is about, drawn small. */
   hook: GuideHook;
+  /** The hub card takes the whole row even where cards pair up: for a hook three cards wide. */
+  wide?: boolean;
   /** The guide's opening picture. */
   hero?: GuideFigure;
   /** A closing picture, after the steps and before the tip: the whole thing in motion. */
@@ -225,6 +227,7 @@ export const GUIDE_LIST: Guide[] = [
     title: 'How to search Pokémon cards by what the artwork shows',
     lede: 'Ask for a picture instead of a name: a forest, a night sky, something underwater. Then stack it with everything else you already know.',
     hook: { kind: 'theme', query: 'theme:forest' },
+    wide: true,
     hero: { kind: 'results', query: 'theme:forest', note: 'Every match, on every plan.' },
     ctaLabel: 'Open the interactive cheatsheet',
     ctaHref: '/search-guide',

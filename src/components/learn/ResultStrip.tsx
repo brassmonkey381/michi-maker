@@ -31,14 +31,16 @@ export function ResultStrip({
   limit = 9,
   note,
   compact = false,
+  width = 84,
 }: {
   query: string;
   /** How many cards to show at most (the server may hand back fewer on a metered plan). */
   limit?: number;
   /** One line under the cards, after the count. */
   note?: string;
-  /** The hub-card hook: three thumbnails, no chrome. */
+  /** The hub-card hook: three thumbnails, no chrome, each `width` wide (card-sized). */
   compact?: boolean;
+  width?: number;
 }) {
   const router = useRouter();
   const [page, setPage] = useState<Page | null>(null);
@@ -64,12 +66,18 @@ export function ResultStrip({
   };
 
   if (compact) {
+    // Three cards at the hook's card size, side by side: the guide's subject is the pictures,
+    // so they get the room a single card hook would take, three times over.
+    const size = { width, height: Math.round((width * 88) / 63) };
+    const shown = (page?.cards ?? []).slice(0, 3);
     return (
       <View style={styles.compactRow}>
-        {(page?.cards ?? []).slice(0, 3).map((c) => (
-          <Image key={c.id} source={{ uri: cardThumbUrl(c.id, 245) }} style={styles.compactThumb} contentFit="cover" transition={150} accessibilityLabel="" />
+        {shown.map((c) => (
+          <Image key={c.id} source={{ uri: cardThumbUrl(c.id, 245) }} style={[styles.compactThumb, size]} contentFit="cover" transition={150} accessibilityLabel="" />
         ))}
-        {!page ? <View style={[styles.compactThumb, styles.thumbEmpty]} /> : null}
+        {Array.from({ length: 3 - shown.length }, (_, i) => (
+          <View key={`empty-${i}`} style={[styles.compactThumb, styles.thumbEmpty, size]} />
+        ))}
       </View>
     );
   }
@@ -145,6 +153,6 @@ const styles = StyleSheet.create({
   loading: { height: THUMB_H, justifyContent: 'center' },
   caption: { lineHeight: 18 },
   pressed: { opacity: 0.7 },
-  compactRow: { flexDirection: 'row', gap: 3 },
-  compactThumb: { width: 22, height: 31, borderRadius: 3, backgroundColor: Palette.panelAlt },
+  compactRow: { flexDirection: 'row', gap: Spacing.two },
+  compactThumb: { borderRadius: Radius.sm, backgroundColor: Palette.panelAlt },
 });

@@ -60,7 +60,7 @@ export function GuideHook({ hook, width = 72 }: { hook: GuideHookData; width?: n
     return <Image source={{ uri: hook.src }} style={[hookStyles.art, { width, height: Math.round((width * 100) / 72) }]} contentFit="cover" transition={150} accessibilityLabel="" />;
   if (hook.kind === 'slice') return <SliceHook src={hook.src} width={width} />;
   if (hook.kind === 'sheet') return <SheetHook width={width} />;
-  if (hook.kind === 'theme') return <ResultStrip query={hook.query} limit={3} compact />;
+  if (hook.kind === 'theme') return <ResultStrip query={hook.query} limit={3} compact width={width} />;
   return <QueryHook width={width} />;
 }
 

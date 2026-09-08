@@ -106,6 +106,247 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-09-08',
+    title: 'Artwork search on every plan, scene pages, and a guide',
+    items: [
+      {
+        products: ['michi', 'tcgscan'],
+        head: 'Search the artwork on every plan',
+        kind: 'new',
+        area: 'browse',
+        big: true,
+        body:
+          'theme:, art: and scene: now run for everyone. Free and guest accounts see the top matches '
+          + 'and a row saying how many more there are; PRO and VIP see every match. theme:forest shows '
+          + 'every match on every plan, so the Theme Search button is a real demonstration.',
+      },
+      {
+        products: ['michi', 'tcgscan'],
+        head: 'Be exact about the picture, or take an idea away',
+        kind: 'new',
+        area: 'browse',
+        body:
+          'pokemon:pikachu finds the cards that show a Pikachu whatever the name says, and scene:, '
+          + 'object:, mood: and action: narrow the same way. A leading minus excludes: theme:water '
+          + '-theme:beach is the water cards that are not a beach.',
+      },
+      {
+        products: ['michi'],
+        head: 'A guide to searching by what the artwork shows',
+        kind: 'new',
+        area: 'browse',
+        big: true,
+        body:
+          'On Learn. Every example is live: the query as the box shows it, the cards your own account '
+          + 'gets for it right now, and a Try it that opens Browse on it. The cheatsheet has three '
+          + 'more artwork recipes beside Forest scenes.',
+      },
+      {
+        products: ['michi', 'tcgscan'],
+        head: 'The ? panel is tabs',
+        kind: 'better',
+        area: 'browse',
+        body:
+          'The search help beside the box is now five tabs, Basics, Fields, Artwork, Collection and '
+          + 'More, and remembers the one you were on. The Artwork tab is new.',
+      },
+      {
+        products: ['michi'],
+        head: 'Same scene, in the fill sheet',
+        kind: 'new',
+        area: 'binders',
+        body:
+          'Fill page around an Illustration Rare offers Same scene: a page of cards whose artwork '
+          + 'shows the same kind of picture. PRO and VIP.',
+      },
+      {
+        products: ['michi'],
+        head: 'Build a binder proposes scene pages',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'When your collection allows it, about three in ten of the proposed pages are about what '
+          + 'the pictures show, one scene each, right after the chase board. PRO and VIP.',
+      },
+      {
+        products: ['michi'],
+        head: 'Fill page is a different page each time',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'A fill method with plenty to choose from now samples from its best candidates instead of '
+          + 'placing the same nine cards every run. The page keeps its structure; the cards in it change.',
+      },
+      {
+        products: ['michi'],
+        head: 'My Binders comes first',
+        kind: 'better',
+        area: 'binders',
+        body: 'On My binders the shelf is the top of the page for everyone; the curator card and the TCGScan pairing follow it.',
+      },
+      {
+        products: ['michi'],
+        head: 'Theme Search is included with PRO',
+        kind: 'better',
+        area: 'account',
+        body: 'Every match of an artwork search now comes with PRO as well as VIP. The plans table says so.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-06',
+    title: 'Share images, a sign-in that follows you, and faster shelves',
+    items: [
+      {
+        products: ['michi'],
+        head: 'Share images show the binder',
+        kind: 'better',
+        area: 'sharing',
+        big: true,
+        body:
+          'The picture a shared binder link shows in a chat or a post now gives the pages the whole '
+          + 'frame on a blurred collage of the binder’s own art, with no disclaimer text over it.',
+      },
+      {
+        products: ['michi'],
+        head: 'Export a public binder for Instagram',
+        kind: 'new',
+        area: 'sharing',
+        big: true,
+        body:
+          'A public binder can export its pages as stills and a thirteen-second Reel of the turns, '
+          + 'sized for the feed. From the binder header, for owners.',
+      },
+      {
+        products: ['michi', 'tcgscan'],
+        head: 'Signed in on one, signed in on the other',
+        kind: 'new',
+        area: 'account',
+        body:
+          'Every link from michi-maker to TCGScan, and back, carries your sign-in with it. Arrive '
+          + 'on either side already signed in, no second login.',
+      },
+      {
+        products: ['michi'],
+        head: 'Shelves list your latest work first',
+        kind: 'better',
+        area: 'binders',
+        body: 'My binders and every profile page order binders by when they were last edited, newest at the top.',
+      },
+      {
+        products: ['michi'],
+        head: 'Shelf tiles stand on their own art',
+        kind: 'better',
+        area: 'binders',
+        body: 'A 3x4 binder on the shelf no longer floats in white space: a blur of its own page sits behind it.',
+      },
+      {
+        products: ['michi'],
+        head: 'Swapping cards across pages saves cleanly',
+        kind: 'fix',
+        area: 'binders',
+        body: 'Swapping two pockets on different pages in double-sided view no longer asks you to reload.',
+      },
+      {
+        products: ['michi'],
+        head: 'A card shows its priciest finish',
+        kind: 'better',
+        area: 'binders',
+        body: 'Where a card has several finishes and you have not picked one, the pocket shows the most valuable instead of a question mark.',
+      },
+      {
+        products: ['michi'],
+        head: 'New cards go to the back',
+        kind: 'better',
+        area: 'binders',
+        body: 'Cards added from Browse or your collection land on an empty page at the back of the binder, or a new page there, never in the middle.',
+      },
+      {
+        products: ['michi'],
+        head: 'A shared binder fills the window',
+        kind: 'better',
+        area: 'sharing',
+        body:
+          'Viewing someone else’s binder uses the whole width on desktop, starts higher on the '
+          + 'screen, and fits a 3x3 on a phone with the filmstrip underneath.',
+      },
+      {
+        products: ['michi', 'tcgscan'],
+        head: 'A photographed binder rebuilt whole',
+        kind: 'fix',
+        area: 'scanning',
+        body: 'A binder photographed page by page in TCGScan and rebuilt in michi-maker showed half its cards. It shows all of them.',
+      },
+      {
+        products: ['michi'],
+        head: 'Soundtracks play for visitors, with a volume dial',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'A binder’s track plays for the people you share it with. The player gets a volume dial '
+          + 'that is remembered like mute, one press plays, and removing a track removes it for good.',
+      },
+      {
+        products: ['michi'],
+        head: 'Stock photos in the Art dock',
+        kind: 'new',
+        area: 'binders',
+        body: 'Search Pexels and Pixabay from the Art dock for cover art and for Slice Studio, without leaving the binder.',
+      },
+      {
+        products: ['michi'],
+        head: 'Art sheets print tighter',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'Art pieces pack edge to edge on the matte sheets and folded pieces go four to a landscape '
+          + 'sheet, so a print needs fewer sheets. The print sheet says how much cardstock that saves, '
+          + 'and the instructions are their own PDF.',
+      },
+      {
+        products: ['michi', 'tcgscan'],
+        head: 'One control strip in Browse',
+        kind: 'better',
+        area: 'browse',
+        body:
+          'Sort, size and the facets sit in one strip that flows or drops down; nothing scrolls '
+          + 'sideways. The card sheet shows the card at least as large as a large tile.',
+      },
+      {
+        products: ['michi', 'tcgscan'],
+        head: 'Phone feeds breathe',
+        kind: 'better',
+        area: 'browse',
+        body: 'On a phone the Recent and Upcoming feeds show fewer sealed products per set, and set tiles that fit the width.',
+      },
+      {
+        products: ['michi'],
+        head: 'Wider guides, four layouts across',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'Learn, The michi method, What’s new and the contest page use more of the screen. The '
+          + 'method shows four layouts across, and the guide cards sit two across with bigger pictures.',
+      },
+      {
+        products: ['michi'],
+        head: 'The curator card lives on My binders',
+        kind: 'better',
+        area: 'collection',
+        body:
+          'Curate from my collection and the TCGScan pairing card moved from Home to My binders, and '
+          + 'show for guests and signed-out visitors too. An empty shelf is a card like its neighbours.',
+      },
+      {
+        products: ['michi', 'tcgscan'],
+        head: 'The 20% sale runs to December 31st',
+        kind: 'better',
+        area: 'account',
+        body: 'Coupon OFF20_2026, on both apps, through the end of the year.',
+      },
+    ],
+  },
+  {
     date: '2026-09-03',
     title: 'Dressed covers, theme search, and guides with pictures',
     items: [

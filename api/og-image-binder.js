@@ -65,8 +65,8 @@ const H = Math.round(630 * S); // 1512
 // SPREADS ARE UNCHANGED and still render at W×H: two facing pages genuinely need the width.
 // Which shape is used is decided by api/og-binder.js and passed in the URL (see `ogImageUrl`), so
 // the og:image:width/height it declares and what this renders can never disagree.
-const SINGLE_W = 1800;
-const SINGLE_H = 1512;
+const SINGLE_W = Math.round(750 * S); // 1800 at the default scale
+const SINGLE_H = Math.round(630 * S); // 1512
 
 // JPEG settings. 4:4:4 (no chroma subsampling) costs ~0.2MB over 4:2:0 and is worth it here: the
 // frame is dense small card text and saturated red/blue art edges, which is precisely what

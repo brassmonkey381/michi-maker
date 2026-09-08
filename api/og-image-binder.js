@@ -51,7 +51,7 @@ const SITE = process.env.EXPO_PUBLIC_APP_URL || 'https://michi-maker.com';
 // and it is already ~2.6× the pixels Discord actually displays (~550 CSS px wide), so the scales
 // above it buy nothing anyone can see. All pixel sizes below are multiplied by S, scaling the
 // layout uniformly (fractional S is fine — Satori accepts sub-pixel styles).
-const S = 2.4;
+const S = Number(process.env.OG_SCALE) || 2.4;
 // The spread canvas is 1.7:1 since r12 (was 1.91:1): the pages' height binds, so the extra width
 // was empty cream either side. Keep in step with OG_SPREAD in api/_lib.js.
 const W = Math.round(1070 * S); // 2568 — ImageResponse needs integer dimensions

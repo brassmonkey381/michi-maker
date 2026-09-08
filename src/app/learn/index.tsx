@@ -40,7 +40,7 @@ export default function LearnHubScreen() {
           const card = (
             <ThemedView type="backgroundElement" style={styles.card}>
               <GuideHook hook={g.hook} width={hookW} />
-              <View style={styles.cardBody}>
+              <View style={[styles.cardBody, g.wide && styles.cardBodyWide]}>
               <View style={styles.cardHead}>
                 <ThemedText type="smallBold" style={styles.cardTitle}>
                   {g.title}
@@ -61,7 +61,7 @@ export default function LearnHubScreen() {
             <ExternalLink key={g.slug} href={g.externalHref as Href & string} asChild>
               <Pressable
                 accessibilityRole="link"
-                style={({ pressed }) => [twoUp && !g.wide && styles.half, pressed && styles.pressed]}>
+                style={({ pressed }) => [twoUp && (g.wide ? styles.wide : styles.half), pressed && styles.pressed]}>
                 {card}
               </Pressable>
             </ExternalLink>
@@ -70,7 +70,7 @@ export default function LearnHubScreen() {
               key={g.slug}
               onPress={() => router.push(`/learn/${g.slug}` as Href)}
               accessibilityRole="link"
-              style={({ pressed }) => [twoUp && !g.wide && styles.half, pressed && styles.pressed]}>
+              style={({ pressed }) => [twoUp && (g.wide ? styles.wide : styles.half), pressed && styles.pressed]}>
               {card}
             </Pressable>
           );
@@ -92,6 +92,10 @@ const styles = StyleSheet.create({
   // Two per row with one gap between: each takes half of what is left. Percentages would ignore
   // the gap and wrap to one per row.
   half: { width: '48.5%', flexGrow: 1 },
+  // A wide card (a hook three cards across) takes the full row, and no more: without an explicit
+  // width a row-wrapped item sizes to its content, and three real cards plus a long lede ran past
+  // the column the paired cards sit in.
+  wide: { width: '100%' },
   pressed: { opacity: 0.8 },
   card: {
     flex: 1,
@@ -103,6 +107,8 @@ const styles = StyleSheet.create({
     ...Shadows.page,
   },
   cardBody: { flex: 1, minWidth: 0, gap: Spacing.two },
+  // Beside three cards the text keeps a reading measure and wraps, rather than one long line.
+  cardBodyWide: { maxWidth: 480 },
   cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
   cardTitle: { fontSize: FontSize.md, flexShrink: 1 },
   cardLede: { lineHeight: 20 },

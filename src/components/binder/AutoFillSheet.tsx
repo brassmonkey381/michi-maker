@@ -35,6 +35,7 @@ import { useCatalog } from '@/hooks/use-catalog';
 import { useTier } from '@/hooks/use-tier';
 import { useBrowseTheme } from '@/lib/browseTheme';
 import { isSupabaseConfigured } from '@/lib/env';
+import { useSceneTags } from '@/lib/taggedCards';
 import { useLanguagePref } from '@/store/languagePref';
 
 // Session-remembered preference: once a collector fills from their collection, keep doing so.
@@ -134,7 +135,10 @@ export function AutoFillSheet({
       : seed;
   }, [seed, seedCardId, seedEvoById]);
 
-  const methods = enrichedSeed && catalog && ready ? availableMethods(enrichedSeed, catalog) : [];
+  // Scene tags for "Same scene" (lib/taggedCards): the method is offered once the seed is known
+  // to be a tagged card; until the read settles, or when it is refused, the list simply lacks it.
+  const sceneTags = useSceneTags(visible);
+  const methods = enrichedSeed && catalog && ready ? availableMethods(enrichedSeed, catalog, sceneTags) : [];
   const emptyCount = page.rows * page.cols - occupiedCells(page).size;
 
   const poolActive = fromCollection && !!ownedIds && ownedIds.size > 0;
@@ -150,6 +154,7 @@ export function AutoFillSheet({
         page,
         poolActive ? ownedIds : null,
         languages,
+        sceneTags,
       );
       // Pool fills consume owned copies — tag card pockets with collection provenance so the
       // (free/owned) inventory accounting and Reclaim see them.

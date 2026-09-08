@@ -22,6 +22,7 @@ import {
   useImageManifest,
 } from 'tcgscan-browse';
 
+import { FREE_THEME } from '@/data/freeTheme';
 import { freshToken, gatedCatalogSource } from '@/lib/catalogSource';
 import { supabaseUrl } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
@@ -69,13 +70,20 @@ configureBrowse({
   // round trip: guests and signed-out visitors are metered by definition. A signed-in account
   // the function refuses (403: free, or a plan the function does not entitle) falls back to the
   // same metered path, one round trip later.
+  //
+  // THE FREE THEME. A query whose every theme is the free one (theme:forest, the demonstration)
+  // offers the token even for a guest: the function answers it unmetered for anyone signed in at
+  // all, anonymous included, so the Theme Search button shows every match on every plan. A
+  // visitor with no session yet still takes the metered path; there is nothing to offer.
   themedSearch: supabaseUrl
     ? {
         url: `${supabaseUrl}/functions/v1/theme-search`,
-        getToken: async () => {
+        getToken: async ({ themes }) => {
           if (!supabase) return null;
           const { data } = await supabase.auth.getSession();
-          if (!data.session || data.session.user.is_anonymous) return null;
+          if (!data.session) return null;
+          const freeOnly = themes.length > 0 && themes.every((t) => t.trim().toLowerCase() === FREE_THEME);
+          if (data.session.user.is_anonymous && !freeOnly) return null;
           return freshToken();
         },
       }

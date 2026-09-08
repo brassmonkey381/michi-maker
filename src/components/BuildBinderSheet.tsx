@@ -35,6 +35,7 @@ import { useCatalog } from '@/hooks/use-catalog';
 import { useTrial } from '@/hooks/use-trial';
 import { track, trackCapGate, trackCapGateDismissed } from '@/lib/analytics';
 import { usePriceSummary } from '@/lib/prices';
+import { useSceneTags } from '@/lib/taggedCards';
 import { useBinders } from '@/store/binders';
 
 export function BuildBinderSheet({
@@ -93,12 +94,17 @@ export function BuildBinderSheet({
   // fills one page, so a 3×4 gathers twelve-card themes where a 3×3 gathers nine.
   const [shape, setShape] = useState<PageShape>(DEFAULT_SHAPE);
 
+  // Scene tags for the scene pages (lib/taggedCards): null while the read is in flight, so the
+  // plan waits for it rather than proposing without scene pages and then changing under the user.
+  // A refused read settles to an empty map and the plan goes ahead with none.
+  const sceneTags = useSceneTags(visible);
+
   const rawPlan = useMemo(
     () =>
-      visible && catalog
-        ? proposePages(freeCards, catalog, priceSummary, evoLines, shape)
+      visible && catalog && sceneTags
+        ? proposePages(freeCards, catalog, priceSummary, evoLines, shape, sceneTags)
         : null,
-    [visible, catalog, priceSummary, freeCards, evoLines, shape],
+    [visible, catalog, priceSummary, freeCards, evoLines, shape, sceneTags],
   );
   // Hold the "Reading your collection…" state for a deliberate minimum so the build
   // animation is actually seen — the plan itself computes near-instantly on a warm catalog.

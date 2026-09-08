@@ -34,7 +34,7 @@ import { hasBinderCovers } from '@/data/tiers';
 import { useOwnedCards } from '@/hooks/use-owned-cards';
 import { track } from '@/lib/analytics';
 import { fetchStockArtForAspect, fetchStockArtForPanel } from '@/lib/stockArt';
-import { fetchTaggedCards } from '@/lib/taggedCards';
+import { loadTaggedCards } from '@/lib/taggedCards';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
 
@@ -80,7 +80,7 @@ export function StoryBinderSheet({
   useEffect(() => {
     if (!visible || cards) return;
     let live = true;
-    fetchTaggedCards().then(
+    loadTaggedCards().then(
       (rows) => {
         if (!live) return;
         setCards(rows);

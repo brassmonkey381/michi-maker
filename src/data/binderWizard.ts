@@ -13,11 +13,14 @@ import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { uuidv4, type DemoPage, type DemoSlot } from '@/data/binderTypes';
 import { hasFreeColumn, pickTemplate, reservedCells, templateArtSlots } from '@/data/artTemplates';
 import { speciesOf } from '@/data/pageComposer';
+import { scoreCard } from '@/data/storyBinder';
+import { STORY_THEMES } from '@/data/storyThemes';
 import { formatUsd, type PriceSummary } from '@/lib/prices';
+import type { SceneTagMap } from '@/lib/taggedCards';
 
 export interface WizardProposal {
   key: string;
-  kind: 'chase' | 'trainer' | 'evolution' | 'species' | 'artist' | 'set' | 'type';
+  kind: 'chase' | 'scene' | 'trainer' | 'evolution' | 'species' | 'artist' | 'set' | 'type';
   /** Page title (also the picker row's headline). */
   title: string;
   /** One-line description for the picker row. */
@@ -61,6 +64,7 @@ const cellsOf = (shape: PageShape) => shape.rows * shape.cols;
 /** Minimum cluster size per kind — below this a "page" reads as an accident, not a theme. */
 const MIN_SIZE: Record<WizardProposal['kind'], number> = {
   chase: 3,
+  scene: 4,
   trainer: 5,
   evolution: 4,
   species: 4,
@@ -72,7 +76,8 @@ const MIN_SIZE: Record<WizardProposal['kind'], number> = {
  *  team is a strong theme (their named Pokémon belong together), so it outranks the generic
  *  evolution/species groupings — just under the value-first chase board. */
 const KIND_PRIORITY: Record<WizardProposal['kind'], number> = {
-  chase: 7,
+  chase: 8,
+  scene: 7, // claimed in its own pass before the ranked greedy, see SCENE_SHARE
   trainer: 6,
   evolution: 5,
   species: 4,
@@ -83,6 +88,14 @@ const KIND_PRIORITY: Record<WizardProposal['kind'], number> = {
 const MAX_THEME_PAGES = 12;
 /** A card this valuable is a "hit" — the chase board claims hits before any theme cluster. */
 const CHASE_MIN_VALUE = 10;
+/**
+ * SCENE PAGES: the share of the build given to pages about what the ARTWORK shows (a story theme
+ * from storyThemes, scored from the tagged set), when the collection allows it. Owner decision
+ * 2026-09-08: between a fifth and a third of the pages. The target is the middle of that band
+ * over the pages the build is expected to have, and a scene page only exists when at least
+ * MIN_SIZE.scene cards qualify for its theme, so a thin collection gets fewer, or none.
+ */
+const SCENE_SHARE = 0.3;
 
 const cap = (s: string) => s.replace(/(^|\s)\w/g, (m) => m.toUpperCase());
 
@@ -129,6 +142,8 @@ export function proposePages(
   prices?: PriceSummary | null,
   evolutionLines?: ReadonlyMap<string, string[]>,
   shape: PageShape = DEFAULT_SHAPE,
+  /** Card id → scene tags (lib/taggedCards) for the scene pages. Absent or empty: none proposed. */
+  sceneTags?: SceneTagMap | null,
 ): { proposals: WizardProposal[]; bulk: WizardProposal[] } {
   const PAGE_CELLS = cellsOf(shape);
   // Free copies per card id (≥1). Curated pages consume one; the bulk sweep takes the remainder.
@@ -168,6 +183,68 @@ export function proposePages(
         title: 'Chase board',
         blurb: `Your ${ids.length} most valuable cards · ${formatUsd(total)} · crown in the centre.`,
         cardIds: ordered,
+      });
+    }
+  }
+
+  // SCENE PAGES next: pages about what the picture shows, one story theme each. Every free card
+  // with scene tags is scored against every story theme (the same scoring the Story Binder uses);
+  // a card qualifies for a theme on a `want` match. Themes are ranked by how many cards they
+  // gathered, then by their total score, and the strongest claim their cards first, up to the
+  // build's scene share. A card is claimed once, so two overlapping themes (Winter and Snow) do
+  // not both print it; the second takes what is left, or falls under MIN_SIZE and is dropped.
+  const sceneProposals: WizardProposal[] = [];
+  if (sceneTags && sceneTags.size > 0) {
+    const copies = freeCards.reduce((n, f) => n + Math.max(1, Math.floor(f.qty)), 0);
+    const expectedPages = Math.min(WIZARD_MAX_PAGES, Math.ceil(copies / PAGE_CELLS));
+    const target = Math.max(1, Math.round(SCENE_SHARE * expectedPages));
+    type SceneCluster = { themeId: string; title: string; blurb: string; scored: { card: CatalogCard; score: number }[] };
+    const byTheme = new Map<string, SceneCluster>();
+    for (const c of cards) {
+      const tags = sceneTags.get(c.id);
+      if (!tags || tags.length === 0 || used.has(c.id)) continue;
+      const sc = { id: c.id, name: c.name, rarity: c.rarity, sceneTags: [...tags] };
+      for (const theme of STORY_THEMES) {
+        const s = scoreCard(sc, theme);
+        if (!s || !s.qualifies) continue;
+        const cluster = byTheme.get(theme.id) ?? { themeId: theme.id, title: theme.title, blurb: theme.blurb, scored: [] };
+        cluster.scored.push({ card: c, score: s.score });
+        byTheme.set(theme.id, cluster);
+      }
+    }
+    const total = (k: SceneCluster) => k.scored.reduce((n, x) => n + x.score, 0);
+    const rankedScenes = [...byTheme.values()].sort(
+      (a, b) => b.scored.length - a.scored.length || total(b) - total(a) || a.themeId.localeCompare(b.themeId),
+    );
+    for (const scene of rankedScenes) {
+      if (sceneProposals.length >= target) break;
+      const available = scene.scored.filter((x) => !used.has(x.card.id));
+      if (available.length < MIN_SIZE.scene) continue;
+      // Strongest match first, but one species before a second of any, so a Water page is nine
+      // pictures of water and not nine Magikarp in it.
+      const bySpecies = new Map<string, { card: CatalogCard; score: number }[]>();
+      for (const x of [...available].sort((a, b) => b.score - a.score || byRelease(a.card, b.card))) {
+        const key = speciesOf(x.card) || x.card.name.toLowerCase();
+        const list = bySpecies.get(key) ?? [];
+        list.push(x);
+        bySpecies.set(key, list);
+      }
+      const chosen: CatalogCard[] = [];
+      const queues = [...bySpecies.values()];
+      while (chosen.length < PAGE_CELLS && queues.some((q) => q.length > 0)) {
+        for (const q of queues) {
+          if (chosen.length >= PAGE_CELLS) break;
+          const next = q.shift();
+          if (next) chosen.push(next.card);
+        }
+      }
+      for (const c of chosen) used.add(c.id);
+      sceneProposals.push({
+        key: `scene|${scene.themeId}`,
+        kind: 'scene',
+        title: scene.title,
+        blurb: scene.blurb,
+        cardIds: chosen.map((c) => c.id),
       });
     }
   }
@@ -247,7 +324,7 @@ export function proposePages(
       b.cards.length - a.cards.length ||
       a.key.localeCompare(b.key),
   );
-  const proposals: WizardProposal[] = [...chaseProposals];
+  const proposals: WizardProposal[] = [...chaseProposals, ...sceneProposals];
   for (const cluster of ranked) {
     if (proposals.length >= MAX_THEME_PAGES) break;
     const available = cluster.cards.filter((c) => !used.has(c.id));

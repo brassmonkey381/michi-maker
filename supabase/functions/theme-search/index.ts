@@ -62,6 +62,16 @@ function json(status: number, body: unknown): Response {
   });
 }
 
+/** The theme every caller may search unmetered. Keep in step with michi's FREE_THEME_QUERY. */
+const FREE_THEME = 'forest';
+
+/** A search_cards body whose theme fields are all the free theme (and there is at least one). */
+function isForestOnly(body: Record<string, unknown>): boolean {
+  const fields = Array.isArray(body.p_fields) ? (body.p_fields as { key?: unknown; value?: unknown }[]) : [];
+  const themes = fields.filter((f) => f && f.key === 'theme');
+  return themes.length > 0 && themes.every((f) => typeof f.value === 'string' && f.value.trim().toLowerCase() === FREE_THEME);
+}
+
 /** Is a grant currently in effect? Lifetime rows (null expiry) always are — tcgscan-app's isActive. */
 function isActive(row: { expires_at: string | null }, nowMs: number): boolean {
   if (!row.expires_at) return true;
@@ -80,25 +90,7 @@ Deno.serve(async (req: Request) => {
   const authClient = createClient(Deno.env.get('SUPABASE_URL')!, publishableKey());
   const { data: { user } } = await authClient.auth.getUser(token);
   if (!user) return json(401, { error: 'not signed in' });
-  if ((user as { is_anonymous?: boolean }).is_anonymous) {
-    return json(403, { error: 'theme search is a PRO feature' });
-  }
-
-  // 2) Do they hold it. Read with the service client so a ledger RLS change can never turn
-  //    this into a silent "everyone is free".
-  const service = createClient(Deno.env.get('SUPABASE_URL')!, secretKey());
-  const { data: rows, error: ledgerErr } = await service
-    .from('entitlements')
-    .select('product, expires_at')
-    .eq('user_id', user.id);
-  if (ledgerErr) return json(503, { error: 'entitlements unavailable' });
-  const now = Date.now();
-  const entitled = (rows ?? []).some(
-    (r: { product: string; expires_at: string | null }) => ENTITLED_PRODUCTS.has(r.product) && isActive(r, now),
-  );
-  if (!entitled) return json(403, { error: 'theme search is a PRO feature' });
-
-  // 3) The RPC body, checked for shape before it is forwarded anywhere.
+  // 2) The body, read before the ledger: one query is on the house for everyone (see below).
   let body: Record<string, unknown>;
   try {
     body = await req.json();
@@ -106,6 +98,32 @@ Deno.serve(async (req: Request) => {
     return json(400, { error: 'body must be JSON' });
   }
   if (!body || typeof body !== 'object' || Array.isArray(body)) return json(400, { error: 'bad body' });
+
+  // THE FREE THEME. `theme:forest` answers unmetered for every caller, guest included (owner
+  // decision 2026-09-08): it is the demonstration the Theme Search button and the cheatsheet run,
+  // and a demonstration that stops at three cards demonstrates the meter, not the feature. Only
+  // a search whose EVERY theme field is forest qualifies; any other theme, or the bulk tag read,
+  // takes the ledger check as before.
+  const onTheHouse = body.rpc === undefined && isForestOnly(body);
+
+  // 3) Do they hold it. Read with the service client so a ledger RLS change can never turn
+  //    this into a silent "everyone is free".
+  if (!onTheHouse) {
+    if ((user as { is_anonymous?: boolean }).is_anonymous) {
+      return json(403, { error: 'theme search is a PRO feature' });
+    }
+    const service = createClient(Deno.env.get('SUPABASE_URL')!, secretKey());
+    const { data: rows, error: ledgerErr } = await service
+      .from('entitlements')
+      .select('product, expires_at')
+      .eq('user_id', user.id);
+    if (ledgerErr) return json(503, { error: 'entitlements unavailable' });
+    const now = Date.now();
+    const entitled = (rows ?? []).some(
+      (r: { product: string; expires_at: string | null }) => ENTITLED_PRODUCTS.has(r.product) && isActive(r, now),
+    );
+    if (!entitled) return json(403, { error: 'theme search is a PRO feature' });
+  }
 
   // 3a) THE BULK TAG READ. `{ rpc: 'tagged_cards', p_limit?, p_offset?, p_all? }` asks for the
   //     captioned set with its ordered scene_tags (data project migration 44): what the Story

@@ -47,8 +47,10 @@ import {
 } from 'tcgscan-browse';
 
 import type { Catalog, CatalogCard } from '@/lib/catalog';
+import type { SceneTagMap } from '@/lib/taggedCards';
 import { occupiedCells, type DemoPage } from '@/data/binderTypes';
 import { hasToken } from '@/data/nameMatch';
+import { rankedTags } from '@/data/storyBinder';
 import { THEME_BACKGROUNDS, themeBackgroundDataUri } from '@/data/themeBackgrounds';
 import { loadPokemonPartners, partnersFor } from '@/data/pokemonPartners';
 import { loadTrainerPartners, trainerFor } from '@/data/trainerPartners';
@@ -70,6 +72,7 @@ export type ComposeMethod =
   | 'pokemonFriends'
   | 'colorType'
   | 'colorTheme'
+  | 'sameScene'
   | 'fullPageSpread';
 
 /**
@@ -115,8 +118,17 @@ export const COMPOSE_METHODS: {
    *
    * The gate itself lives in the UI (AutoFillSheet), not here — this module stays tier-agnostic.
    */
-  paid?: 'triColor' | 'similarity';
+  paid?: 'triColor' | 'similarity' | 'theme';
 }[] = [
+  {
+    key: 'sameScene',
+    label: 'Same scene',
+    description: 'Cards whose artwork shows the same kind of picture: the setting, the mood, the moment.',
+    // Scored from the tagged set, which only an entitled account can read (lib/taggedCards), so
+    // this is offered only once the seed is known to be a tagged card. Listed first because a
+    // scene is the most michi-method reason to put nine cards together.
+    paid: 'theme',
+  },
   {
     key: 'moreLikeThis',
     label: '≈ More like this',
@@ -170,8 +182,15 @@ export const COMPOSE_METHODS: {
 ];
 
 /** Which methods make sense for this seed (e.g. no artist page when illustrator is unknown). */
-export function availableMethods(seed: CatalogCard, catalog: Catalog): ComposeMethod[] {
+export function availableMethods(
+  seed: CatalogCard,
+  catalog: Catalog,
+  /** Card id → scene tags (lib/taggedCards). Absent or without the seed: no "Same scene". */
+  sceneTags?: SceneTagMap | null,
+): ComposeMethod[] {
   const out: ComposeMethod[] = [];
+  // Same scene: only a tagged seed has a scene to match, and only an entitled read has the tags.
+  if (sceneTags?.has(seed.id)) out.push('sameScene');
   // ≈ More like this (paid): the embedding RPC. Listed whenever the server is configured, exactly
   // like the tri-colour method below — a locked method is SHOWN with its PRO pill rather than
   // withheld, so the sheet says what a plan adds instead of quietly being shorter.
@@ -498,12 +517,42 @@ export async function composePage(
    *  scans via filterAndDedupe. The SEED stays unbound: you can seed from a JP card and fill with
    *  EN neighbours. Omit / "both" languages = unconstrained, exactly as before. */
   languages?: CardLanguage[],
+  /** Card id → scene tags (lib/taggedCards), for `sameScene`. Absent: that method yields []. */
+  sceneTags?: SceneTagMap | null,
 ): Promise<ComposePlacement[]> {
   const cells = method === 'evolutionLine' ? emptyCellsColMajor(page) : emptyCellsRowMajor(page);
   if (cells.length === 0) return [];
   // Effective bound for the LOCAL scans (undefined when unconstrained). The RPCs take the raw list
   // and normalise it themselves, so they're handed `languages` directly.
   const langs = effectiveLanguages(languages);
+
+  if (method === 'sameScene') {
+    // The seed's picture, matched tag by tag: every tagged card scores the sum of the products of
+    // the rank weights of the tags it shares with the seed (rankedTags: strongest tag first, never
+    // below a quarter), so two cards that both lead with scene:water and mood:calm outrank two
+    // that share a fifteenth tag. Prefixed tags only, as the story planner reads them.
+    if (!sceneTags) return [];
+    const seedTags = rankedTags({ id: seed.id, name: seed.name, rarity: seed.rarity, sceneTags: [...(sceneTags.get(seed.id) ?? [])] });
+    if (seedTags.size === 0) return [];
+    const scored: { card: CatalogCard; score: number }[] = [];
+    for (const [id, tags] of sceneTags) {
+      if (id === seed.id) continue;
+      const card = catalog.getCard(id);
+      if (!card) continue;
+      const theirs = rankedTags({ id, name: card.name, rarity: card.rarity, sceneTags: [...tags] });
+      let score = 0;
+      for (const [t, w] of seedTags) {
+        const w2 = theirs.get(t);
+        if (w2) score += w * w2;
+      }
+      if (score > 0) scored.push({ card, score });
+    }
+    scored.sort((a, b) => b.score - a.score || a.card.id.localeCompare(b.card.id));
+    const cards = filterAndDedupe(scored.map((s) => s.card), page, pool, langs, catalog);
+    // Closest-first within a subject; across subjects one card each before a second of any, so a
+    // page of "the same scene" is nine pictures of it, not nine prints of one Pokémon in it.
+    return place(cells, spreadBySubject(cards).slice(0, cells.length));
+  }
 
   if (method === 'moreLikeThis') {
     // Ask for extra hits: some resolve to jumbo/V-UNION or cards already placed and get

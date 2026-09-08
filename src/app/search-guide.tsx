@@ -53,11 +53,12 @@ const RECIPES: { title: string; query: string; blurb: string; pro?: boolean; tas
     blurb: 'The whole catalog, newest release first — sets that have not shipped yet sit at the top. Stack rarity:illustration on it for the new art only.',
   },
   // THEME SEARCH runs for every tier: free and guest see the top few matches and how many more
-  // there are, PRO and VIP see them all. Try it runs this like any other recipe.
+  // there are, PRO and VIP see them all. This one theme is on the house for everyone (see
+  // data/freeTheme), and Try it runs it like any other recipe.
   {
     title: 'Forest scenes',
     query: FREE_THEME_QUERY,
-    blurb: 'theme: searches what the ARTWORK shows, from captions written about the picture — here, every card drawn among trees. Press Try it and watch it run; a paid plan shows every match.',
+    blurb: 'theme: searches what the ARTWORK shows, from captions written about the picture — here, every card drawn among trees. This one is on us, every match on every plan: press Try it and watch it run.',
     pro: true,
     taste: true,
   },

@@ -501,15 +501,16 @@ function allocateAcross(buckets: CatalogCard[][], total: number, weights?: numbe
  * holds and the cards in it change from one run to the next. Under the threshold the pool is
  * thin enough that every run would place most of it anyway, and a stable order reads as intent.
  *
- * The shuffle is a WINDOW, not the whole list, so relevance survives it: a ranked method
- * (similarity, palette, shared scene tags) samples from its top RANKED_WINDOW, which keeps a
- * similarity fill a similarity fill; a broad method (every card of a type, by an artist, of a
- * species) has no real ranking beyond the era round-robin, so it samples from a wider
- * BROAD_WINDOW. Whatever lies past the window keeps its order and only backfills.
+ * The shuffle is a WINDOW, not the whole list, so relevance survives it: a method samples from
+ * the top of its own ordering, and whatever lies past the window keeps its order and only
+ * backfills. Palette matching is the tightest ranking of all (a page that flows edge to edge
+ * stops flowing a dozen cards down), so it gets the narrowest window; the rest share one. Owner
+ * numbers 2026-09-08.
  */
-const SHUFFLE_MIN = 16;
-const RANKED_WINDOW = 32;
-const BROAD_WINDOW = 64;
+const SHUFFLE_MIN = 9;
+const PALETTE_WINDOW = 12;
+const RANKED_WINDOW = 24;
+const BROAD_WINDOW = 24;
 
 function shuffled<T>(xs: readonly T[]): T[] {
   const out = [...xs];
@@ -673,7 +674,7 @@ export async function composePage(
     if (cards.length === 0) return [];
     // Nearest-first is kept WITHIN each subject; across subjects the page takes the closest
     // match of each before doubling up, so a colour page is a palette, not one Pokemon five times.
-    return place(cells, spreadBySubject(varied(cards, RANKED_WINDOW)).slice(0, cells.length));
+    return place(cells, spreadBySubject(varied(cards, PALETTE_WINDOW)).slice(0, cells.length));
   }
 
   if (method === 'sameArtist') {

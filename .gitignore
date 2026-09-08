@@ -71,3 +71,5 @@ state/seo-shots/
 
 # Community seeding kit (house persona accounts + their shared password): never committed.
 state/personas/
+
+state/og-experiment/

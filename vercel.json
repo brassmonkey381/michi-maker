@@ -12,7 +12,7 @@
       "maxDuration": 60
     },
     "api/og-image-hires.js": {
-      "maxDuration": 60,
+      "maxDuration": 300,
       "memory": 3008
     },
     "api/page-binder.js": {

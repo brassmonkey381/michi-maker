@@ -11,6 +11,10 @@
     "api/og-warm.js": {
       "maxDuration": 60
     },
+    "api/og-image-hires.js": {
+      "maxDuration": 60,
+      "memory": 3008
+    },
     "api/page-binder.js": {
       "maxDuration": 15,
       "includeFiles": "dist/index.html"

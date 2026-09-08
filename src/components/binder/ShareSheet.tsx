@@ -26,7 +26,7 @@ import { fetchShareKey } from '@/data/binderRepo';
 import type { DemoBinder } from '@/data/binderTypes';
 import { CONTEST } from '@/data/contest';
 import { useTheme } from '@/hooks/use-theme';
-import { binderShareUrl, warmBinderPreview } from '@/lib/appUrl';
+import { binderShareUrl, downloadBinderHiresImage, warmBinderPreview } from '@/lib/appUrl';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
 
@@ -234,6 +234,22 @@ export function ShareSheet({
   const warmKey = `${binder.id}:${featured}:${binder.shareKey ?? ''}`;
   const [warmed, setWarmed] = useState<{ key: string; state: 'ready' | 'failed' } | null>(null);
   const warmth = !isPublic ? 'idle' : warmed?.key === warmKey ? warmed.state : 'warming';
+
+  // THE POSTER-SCALE DOWNLOAD (owner decision 2026-09-08, manual only). The same picture as the
+  // link preview at twice the scale, rendered when pressed: for posting the image itself where
+  // people zoom in, rather than the link. It takes half a minute the first time, so the button
+  // says so and stays busy until the file lands.
+  const [hires, setHires] = useState<'idle' | 'busy' | 'failed'>('idle');
+  const downloadHires = async () => {
+    if (hires === 'busy') return;
+    setHires('busy');
+    try {
+      await downloadBinderHiresImage(binder.id, binder.updatedAt);
+      setHires('idle');
+    } catch {
+      setHires('failed');
+    }
+  };
 
   /* eslint-disable react-hooks/set-state-in-effect -- see the stale-failure note below. */
   useEffect(() => {
@@ -516,6 +532,24 @@ export function ShareSheet({
                         : 'The preview image isn’t ready. The link works, but it may post without a picture.'}
                   </ThemedText>
                 </View>
+                {/* The picture itself, at poster scale, for posts where people zoom in. */}
+                <View style={styles.hiresRow}>
+                  <Pressable
+                    onPress={() => void downloadHires()}
+                    disabled={hires === 'busy'}
+                    accessibilityRole="button"
+                    style={({ pressed }) => [styles.hiresBtn, { borderColor: theme.backgroundSelected }, (pressed || hires === 'busy') && styles.dim]}>
+                    {hires === 'busy' ? <ActivityIndicator size="small" color={Palette.accent} /> : null}
+                    <ThemedText type="smallBold" style={styles.hiresText}>
+                      {hires === 'busy' ? 'Rendering, about half a minute…' : 'Download full-size image'}
+                    </ThemedText>
+                  </Pressable>
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.previewText}>
+                    {hires === 'failed'
+                      ? 'That render did not finish. Try again in a moment.'
+                      : 'The share picture at poster size, for posting the image itself where people zoom in.'}
+                  </ThemedText>
+                </View>
               </>
             ) : (
               <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
@@ -576,6 +610,19 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.accent,
   },
   copyText: { color: Palette.accentText },
+  hiresRow: { gap: Spacing.two, marginTop: Spacing.two },
+  hiresBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.four,
+    borderRadius: Radius.control,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
+  },
+  hiresText: { color: Palette.accent },
   hint: { lineHeight: 20 },
   gateBox: {
     gap: Spacing.two,

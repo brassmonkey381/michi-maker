@@ -52,6 +52,42 @@ export function binderShareUrl(id: string, shareKey?: string | null): string {
  * right now would carry a picture. Nothing should BLOCK on it — the link works immediately either
  * way; a cold preview only means the first scraper to see it may get no image.
  */
+/**
+ * The share image at poster scale (api/og-image-hires.js): 5136x3024 for a spread, 3600x3024 for a
+ * single page, as a download. `updatedAt` keys the CDN cache, so an edit gets a fresh render and a
+ * repeat of the same version is instant.
+ */
+export function binderHiresImageUrl(id: string, updatedAt?: string | null): string {
+  const stamp = updatedAt ? Date.parse(updatedAt) || 0 : 0;
+  return `${appOrigin()}/api/og-image-hires?id=${encodeURIComponent(id)}&t=${stamp}`;
+}
+
+/**
+ * Fetch the poster-scale share image and hand it to the browser as a download. Takes half a minute
+ * or more the first time (it is rendered on demand); resolves when the file is saved or the tab has
+ * it open. On native the URL opens in the system browser instead.
+ */
+export async function downloadBinderHiresImage(id: string, updatedAt?: string | null): Promise<void> {
+  const url = binderHiresImageUrl(id, updatedAt);
+  if (Platform.OS !== 'web' || typeof window === 'undefined') {
+    const { Linking } = await import('react-native');
+    await Linking.openURL(url);
+    return;
+  }
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`render failed (${res.status})`);
+  const blob = await res.blob();
+  const name = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') ?? '')?.[1] ?? `michi-maker-${id.slice(0, 8)}.jpg`;
+  const href = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = href;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 10_000);
+}
+
 export async function warmBinderPreview(id: string): Promise<'ready' | 'failed'> {
   if (!id) return 'failed';
   try {

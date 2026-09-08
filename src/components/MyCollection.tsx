@@ -163,10 +163,10 @@ export function MyCollection({
 }: {
   onToast?: ToastReport;
   /**
-   * THE BINDER SHELF, handed in so this component can decide where it goes. Someone with no
-   * collection yet finds the on-ramp ABOVE their binders — it is the thing to do next, not a
-   * footnote under the shelf — and once cards exist the collection strip drops back below.
-   * Owning the order here keeps one MyCollection instance alive across the switch, so the
+   * THE BINDER SHELF, handed in so this component can decide what goes under it. The shelf is
+   * always the top of the page (owner decision 2026-09-08: My Binders first); with no collection
+   * yet the on-ramp and the pairing story follow it, and once cards exist the collection strip
+   * does. Owning the order here keeps one MyCollection instance alive across the switch, so the
    * example flow's guidance survives the moment its cards arrive.
    */
   shelf?: ReactNode;
@@ -218,13 +218,13 @@ export function MyCollection({
   if (!cards || cards.length === 0)
     return (
       <>
+        {shelf}
         <EmptyCollection
           onToast={onToast}
           onStartExample={() => setExampleFlow(true)}
           autoCurate={autoCurate}
           autoCurateFrom={autoCurateFrom}
         />
-        {shelf}
         {/* No collection yet: the whole pairing story, pictures and all, so the on-ramp and
             where the cards come from sit on one page. With cards it is the one-line version. */}
         <View style={styles.pairing}>

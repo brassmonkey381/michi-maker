@@ -64,9 +64,9 @@ const RECIPES: { title: string; query: string; blurb: string; pro?: boolean; tas
   },
   // Three more scenes, metered on free: the top few and how many more, every match on a plan.
   {
-    title: 'Under the sea',
-    query: 'theme:water -theme:beach',
-    blurb: 'A theme, minus another: the water cards that are not a beach. The leading minus takes an idea away.',
+    title: 'Golden hour on the water',
+    query: 'theme:water theme:sunset',
+    blurb: 'Two themes, both must show: the water cards drawn at sunset. Every theme you add narrows it.',
     pro: true,
   },
   {

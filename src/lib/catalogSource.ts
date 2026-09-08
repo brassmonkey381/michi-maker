@@ -71,7 +71,7 @@ function gatedSupported(): boolean {
  * after a page load that can be an expired/stale-kid JWT that the key endpoint's getUser()
  * rejects (a 401 even though the user is signed in) — so refresh when it's expired or close.
  */
-async function freshToken(): Promise<string | null> {
+export async function freshToken(): Promise<string | null> {
   if (!supabase) return null;
   const { data } = await supabase.auth.getSession();
   const session = data.session;

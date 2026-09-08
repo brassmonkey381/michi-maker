@@ -31,10 +31,10 @@ import { planStoryBinder, themeCandidates, type PageShape, type RarityMode, type
 import { applyCoverArt, dropCoverArt, planStoryCover } from '@/data/storyCover';
 import { STORY_TEMPLATES, type StoryTemplate } from '@/data/storyThemes';
 import { hasBinderCovers } from '@/data/tiers';
-import { useCatalog } from '@/hooks/use-catalog';
 import { useOwnedCards } from '@/hooks/use-owned-cards';
 import { track } from '@/lib/analytics';
 import { fetchStockArtForAspect, fetchStockArtForPanel } from '@/lib/stockArt';
+import { fetchTaggedCards } from '@/lib/taggedCards';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
 
@@ -70,7 +70,26 @@ export function StoryBinderSheet({
   useEffect(() => {
     storeRef.current = store;
   }, [store]);
-  const { catalog, loading, guestGated } = useCatalog(visible);
+  // THE TAGGED SET comes from the server, not the catalog bundle (see lib/taggedCards): read once
+  // per opening, kept for the sheet's life, and a refusal is shown in the sheet rather than as an
+  // empty story. `cards` is null until the read lands; a failed read leaves it null with a reason,
+  // and the next opening retries. The reason stays on screen through the retry (cleared only by a
+  // success), so a retry that fails again never shows a blank sheet.
+  const [cards, setCards] = useState<StoryCard[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!visible || cards) return;
+    let live = true;
+    fetchTaggedCards().then(
+      (rows) => {
+        if (!live) return;
+        setCards(rows);
+        setLoadError(null);
+      },
+      (e: unknown) => { if (live) setLoadError(e instanceof Error ? e.message : 'The tagged cards could not be loaded.'); },
+    );
+    return () => { live = false; };
+  }, [visible, cards]);
   const owned = useOwnedCards();
   const { profile } = useAuth();
   const coversAllowed = hasBinderCovers(store.tier);
@@ -86,19 +105,18 @@ export function StoryBinderSheet({
   const cancelled = useRef(false);
 
   const template: StoryTemplate = STORY_TEMPLATES.find((t) => t.id === templateId) ?? STORY_TEMPLATES[0];
-  const cards: StoryCard[] = useMemo(() => (catalog ? catalog.listAll() : []), [catalog]);
   const pool = useMemo(() => (source === 'collection' ? owned ?? new Set<string>() : null), [source, owned]);
 
   // How many cards each theme has to choose from, so the picker shows what a story will be made of.
   const counts = useMemo(
-    () => template.spreads.map((theme) => themeCandidates(cards, theme, { pool, rarity }).filter((s) => s.qualifies).length),
+    () => template.spreads.map((theme) => themeCandidates(cards ?? [], theme, { pool, rarity }).filter((s) => s.qualifies).length),
     [cards, template, pool, rarity],
   );
 
   const building = progress !== null;
 
   const build = async () => {
-    if (!catalog || building) return;
+    if (!cards || building) return;
     setError(null);
     cancelled.current = false;
     let plan: StoryPlan;
@@ -184,7 +202,7 @@ export function StoryBinderSheet({
     onClose();
   };
 
-  const ready = !!catalog && !loading && !guestGated;
+  const ready = !!cards;
   const thin = counts.filter((c) => c < 6).length;
 
   return (
@@ -212,9 +230,9 @@ export function StoryBinderSheet({
 
             {!ready ? (
               <View style={styles.center}>
-                <ActivityIndicator />
+                {loadError ? null : <ActivityIndicator />}
                 <ThemedText type="small" themeColor="textSecondary">
-                  {guestGated ? 'Sign in to load the catalog.' : 'Loading the catalog…'}
+                  {loadError ?? 'Loading the tagged cards…'}
                 </ThemedText>
               </View>
             ) : (

@@ -19,7 +19,6 @@ import { CatalogBrowser, sendBrowseCommand, type BrowseFeature, type CardAction,
 import { ColorSearchSheet } from '@/components/ColorSearchSheet';
 import { runThemeDemo } from '@/data/themeDemo';
 import { EnergyColorSheet } from '@/components/EnergyColorSheet';
-import { hasThemeSearch as tierHasThemeSearch } from '@/data/tiers';
 import { useTier } from '@/hooks/use-tier';
 import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { useBrowseTheme } from '@/lib/browseTheme';
@@ -84,6 +83,7 @@ export function CardBrowse({
    *  with the trial); without it the fallback is the plans page, which is honest but colder. */
   onSimilarLocked?: () => void;
   /** A free or guest account typed a theme: / art: query the lock stripped. Show the offer. */
+  /** The meter row's tap ("+N more matches") on a metered themed search. Default: the plans page. */
   onThemeLocked?: () => void;
 }) {
   // App tokens → the kit's color contract, so the browser follows light/dark + variant
@@ -97,11 +97,7 @@ export function CardBrowse({
   // energy-type search instead (with an upsell to tri-color). The gate is host-side — the kit stays
   // tier-agnostic and just fires onColorSearch; we branch on the tier here. This single site covers
   // both kit entry points (the Tri-Color button + the Color facet chip) on every surface.
-  const { tier, isPaid, hasAdvancedSearch, hasFindSimilar, loading: tierUnknown } = useTier();
-  // Straight from tiers.ts rather than adding another boolean to useTier: this needs nothing from
-  // the hook beyond the tier it already returns, and the two beside it are only there because
-  // they predate that.
-  const hasThemeSearch = tierHasThemeSearch(tier);
+  const { isPaid, hasAdvancedSearch, hasFindSimilar, loading: tierUnknown } = useTier();
   const [colorOpen, setColorOpen] = useState(false);
   const [energyOpen, setEnergyOpen] = useState(false);
   const router = useRouter();
@@ -129,9 +125,13 @@ export function CardBrowse({
     const locked: BrowseFeature[] = [];
     if (!hasFindSimilar) locked.push('findSimilar');
     if (!hasAdvancedSearch) locked.push('sortByValue', 'priceFilter', 'similarRefine', 'colorSearch');
-    if (!hasThemeSearch) locked.push('themeSearch');
+    // THEME SEARCH IS NEVER LOCKED HERE (owner decision 2026-09-07). A locked theme: is stripped
+    // by the kit before the query leaves the device, which is exactly what the server's meter
+    // must not be bypassed by. Every tier runs any theme query; the data project hands a free or
+    // guest caller the top few rows and the true total, and the kit draws the "+N more matches"
+    // row under them. That row's tap comes back through onLockedFeature('themeSearch') below.
     return locked.length ? locked : undefined;
-  }, [hasAdvancedSearch, hasFindSimilar, hasThemeSearch, tierUnknown]);
+  }, [hasAdvancedSearch, hasFindSimilar, tierUnknown]);
   return (
     <>
       <CatalogBrowser
@@ -153,14 +153,14 @@ export function CardBrowse({
         onLockedFeature={(f) => {
           if (f === 'colorSearch') setEnergyOpen(true);
           else if (f === 'findSimilar' && onSimilarLocked) onSimilarLocked();
-          // A locked theme never navigates by itself: the surfaces that can, toast; the kit's own
-          // notice under the search box is tappable and leads to plans. Being sent to the plans
-          // page for opening a picker with an old query still in the box was the alternative.
-          else if (f === 'themeSearch') onThemeLocked?.();
+          // The meter row under a free themed search ("+N more matches"): a deliberate tap on an
+          // unlock offer, so the plans page is the right answer unless the surface says otherwise
+          // (the binder editor toasts rather than navigating away from an open binder).
+          else if (f === 'themeSearch') (onThemeLocked ?? (() => router.push('/plans' as Href)))();
           else router.push('/plans' as Href);
         }}
-        // The Theme Search button: the forest demonstration, for everyone, ungated (see themeDemo).
-        onThemeSearch={() => void runThemeDemo('browser')}
+        // The Theme Search button: runs the forest query like anything typed (see themeDemo).
+        onThemeSearch={() => runThemeDemo('browser')}
         onColorSearch={() => (isPaid ? setColorOpen(true) : setEnergyOpen(true))}
         footer={null}
         cardTileWidth={CARD_BROWSE_TILE_WIDTH}

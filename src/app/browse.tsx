@@ -264,11 +264,8 @@ export default function BrowseScreen() {
               catalog={catalog}
               cardActions={cardActions}
               onSimilarLocked={() => capGate.hit(similarityWall(store.tier, 'browse'))}
-              onThemeLocked={() =>
-                showLimitToast(
-                  'Artwork theme search (theme:, art:, scene:) is a VIP feature. Forest scenes is free to try: press Theme Search.',
-                )
-              }
+              // No onThemeLocked: the "+N more matches" row under a metered artwork search is a
+              // tap on an unlock offer, and CardBrowse sends it to the plans page by default.
               onPickCards={(cardIds) => setAddCardIds(cardIds)}
               // No `languages` pin: the browser reads the SHARED preference itself, which is the
               // same value this page used to thread through. Pinning it would suppress the

@@ -52,13 +52,12 @@ const RECIPES: { title: string; query: string; blurb: string; pro?: boolean; tas
     query: 'sort:date',
     blurb: 'The whole catalog, newest release first — sets that have not shipped yet sit at the top. Stack rarity:illustration on it for the new art only.',
   },
-  // THEME SEARCH is VIP. This one recipe is given away — and only this one: Try it fetches the
-  // forest results itself and hands the browser the finished list, so the browser's own lock on
-  // theme: stays exactly as it is for every other theme a free account types.
+  // THEME SEARCH runs for every tier: free and guest see the top few matches and how many more
+  // there are, PRO and VIP see them all. Try it runs this like any other recipe.
   {
     title: 'Forest scenes',
     query: FREE_THEME_QUERY,
-    blurb: 'theme: searches what the ARTWORK shows, from captions written about the picture — here, every card drawn among trees. This one is on us: press Try it and watch it run.',
+    blurb: 'theme: searches what the ARTWORK shows, from captions written about the picture — here, every card drawn among trees. Press Try it and watch it run; a paid plan shows every match.',
     pro: true,
     taste: true,
   },
@@ -116,8 +115,9 @@ export default function SearchGuideScreen() {
   const router = useRouter();
   const tryIt = (query: string) => {
     if (query === FREE_THEME_QUERY) {
-      // The demonstration, shared with the browser's Theme Search button (see themeDemo).
-      void runThemeDemo('cheatsheet').then(() => router.push('/browse'));
+      // Tracked as the demonstration, shared with the browser's Theme Search button (themeDemo).
+      runThemeDemo('cheatsheet');
+      router.push('/browse');
       return;
     }
     sendBrowseCommand({ type: 'search', query });

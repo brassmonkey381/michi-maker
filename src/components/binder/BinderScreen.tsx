@@ -2331,7 +2331,7 @@ export function BinderScreen({
           onToggleKeepAdding={() => setKeepAdding((v) => !v)}
           initialSimilar={similarSeed ?? undefined}
           onSimilarLocked={() => capGate.hit(similarityWall(store.tier, 'binder_editor'))}
-          onThemeLocked={() => showToast('Artwork theme search (theme:, art:, scene:) is a VIP feature. Forest scenes is free to try from Browse.')}
+          onThemeLocked={() => showToast('Artwork search shows the top matches on your plan. See Plans to search every match.')}
           // The Artwork tab is the slice tray now, so it takes the tray's wiring: the same handlers
           // the bottom tray uses, so a piece behaves identically whichever surface you pick it up
           // from, and the drag ghost is the same one.

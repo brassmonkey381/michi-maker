@@ -126,9 +126,9 @@ export interface TierLimits {
    */
   findSimilar: boolean;
   /**
-   * ARTWORK THEME SEARCH (VIP) — the `theme:` field (aliases `art:`, `scene:`), which
-   * searches what a vision model saw in the card ARTWORK rather than anything printed on it:
-   * `theme:underwater`, `theme:sunset`, `theme:crowd`.
+   * ARTWORK THEME SEARCH, UNMETERED (PRO and VIP) — the `theme:` field (aliases `art:`,
+   * `scene:`), which searches what a vision model saw in the card ARTWORK rather than anything
+   * printed on it: `theme:underwater`, `theme:sunset`, `theme:crowd`.
    *
    * Sold apart from `advancedSearch` because it is a different promise. That one is power tools
    * over data the browser already shows you; this is data that did not exist until the pipeline
@@ -136,9 +136,11 @@ export interface TierLimits {
    * which is the thing this product is for.
    *
    * Coverage is the Illustration Rares (728 printings today), the cards whose art IS the card.
-   * VIP ONLY (owner decision 2026-09-04): the plans table sells it as the thing VIP adds on top
-   * of PRO's Advanced Search, and a free taste (theme:forest) runs from the browser and the
-   * cheatsheet for everyone.
+   * EVERY tier can run any theme query (owner decision 2026-09-07, replacing the VIP-only lock of
+   * 2026-09-04): the data project meters a free or guest caller to its top few rows with the true
+   * total, and the app project's `theme-search` function forwards an entitled caller's query
+   * unclamped. This flag is the client's mirror of that entitlement, for copy and the plans
+   * table; the meter is enforced server-side and nothing here can widen it.
    *
    * Boolean, so like `fullPrint` and `advancedSearch` it is NOT mirrored in the `tier_caps` table
    * (that guard covers numeric caps only — see scripts/check-tier-caps.mjs).
@@ -224,7 +226,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     fullPrint: true,
     advancedSearch: true,
     findSimilar: true,
-    themeSearch: false,
+    themeSearch: true,
     binderCovers: true,
     binderTracks: false,
     multiPageCompose: false,
@@ -271,7 +273,7 @@ const UNLIMITED: TierLimits = {
   fullPrint: false, // print eligibility is decided by tier/entitlement, not by this switch
   advancedSearch: false, // likewise: a paid capability, not a cap the dev switch should hand out
   findSimilar: false, // likewise — PRO's similarity search, not something LIMITS_ENFORCED=0 grants
-  themeSearch: false, // likewise — VIP's artwork search, not something LIMITS_ENFORCED=0 grants
+  themeSearch: false, // likewise — the unmetered artwork search, not something LIMITS_ENFORCED=0 grants
   binderCovers: false, // likewise — PRO's covers, not something LIMITS_ENFORCED=0 grants
   binderTracks: false, // likewise — VIP's soundtracks
   multiPageCompose: false, // likewise — VIP's upgraded composer, not something LIMITS_ENFORCED=0 grants
@@ -404,7 +406,8 @@ export function hasFindSimilar(tier: Tier): boolean {
 }
 
 /**
- * Does this tier get artwork theme search? (PRO and above — see TierLimits.themeSearch.)
+ * Does this tier search artwork UNMETERED? (PRO and VIP — see TierLimits.themeSearch.) Every
+ * tier can run a theme: query; this only says whether the server hands back every match.
  *
  * Reads TIER_LIMITS directly rather than limitsForTier: a paid capability is not something the
  * LIMITS_ENFORCED dev switch should hand out, same as advancedSearch and findSimilar.

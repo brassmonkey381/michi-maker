@@ -239,8 +239,8 @@ export const COMPARISON: CompareRow[] = [
     capability: 'Advanced Search',
     mark: '(3)',
     free: { text: 'Basic', sub: 'grammar, filters, one colour' },
-    pro: { text: '✓', strong: true, sub: 'value sort, price, Tri-Color, similarity' },
-    vip: { text: 'PRO + Theme Search', strong: true },
+    pro: { text: '✓', strong: true, sub: 'value sort, price, Tri-Color, similarity, Theme Search' },
+    vip: { text: '✓', strong: true, sub: 'everything in PRO' },
   },
   {
     capability: 'Binder covers',
@@ -326,10 +326,11 @@ export const FOOTNOTES: { mark: string; text: string; link?: { label: string; ur
     mark: '(3)',
     text:
       'Advanced Search, PRO and VIP: sort by value, price filters (>$100), Tri-Color Search and ' +
-      'refine results by similarity. Theme Search is VIP: theme:, art: and scene: search what the ' +
+      'refine results by similarity. Theme Search: theme:, art: and scene: search what the ' +
       'picture shows (theme:underwater), from captions written about every Illustration Rare. ' +
-      'Free and guest keep the full grammar, every filter chip, favourites, single-colour search, ' +
-      'and the Forest scenes demonstration of Theme Search.',
+      'Every tier can run it; free and guest see the top matches and how many more there are, ' +
+      'PRO and VIP see every match. Free and guest keep the full grammar, every filter chip, ' +
+      'favourites and single-colour search.',
   },
   {
     mark: '(4)',

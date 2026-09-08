@@ -18,8 +18,8 @@
  * beside the ledger that defines it; no claim is stamped, no secret crosses projects. Only THEMED
  * queries take this hop — ordinary word/facet search never touches it.
  *
- * WHAT IT REFUSES. Guests (anonymous sessions) and accounts without an active tcgscan_pro or
- * tcgscan_vip grant get 403, and the client then falls back to the direct, clamped call — the
+ * WHAT IT REFUSES. Guests (anonymous sessions) and accounts without an active grant on any of
+ * ENTITLED_PRODUCTS get 403, and the client then falls back to the direct, clamped call — the
  * same degrade as the kit's other locked features. A body that is not the RPC's shape is refused
  * before anything is forwarded: this is a forwarder, not an open proxy to the data project.
  *
@@ -35,15 +35,20 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { publishableKey, secretKey } from '../_shared/keys.ts';
 
 const DATA_URL = Deno.env.get('DATA_SUPABASE_URL') ?? 'https://bmhjizcmwtmcrstadqto.supabase.co';
-/** The products whose holders search unmetered. Mirrors tcgscan-app lib/entitlements
- *  FEATURE_PRODUCT.artThemeSearch — keep the two in step. */
-const ENTITLED_PRODUCTS = new Set(['tcgscan_pro', 'tcgscan_vip']);
+/** The products whose holders search unmetered: TCGScan's two paid tiers (mirrors tcgscan-app
+ *  lib/entitlements FEATURE_PRODUCT.artThemeSearch — keep the two in step) and michi-maker's own
+ *  PRO and VIP (owner decision 2026-09-07: PRO searches every match, free is metered). One
+ *  ledger, so a member of either app searches unmetered from both. */
+const ENTITLED_PRODUCTS = new Set(['tcgscan_pro', 'tcgscan_vip', 'tier_pro', 'tier_vip']);
 /** The RPC's parameters, and nothing else, may be forwarded. */
 const RPC_KEYS = new Set([
   'p_words', 'p_fields', 'p_compares', 'p_facets', 'p_min_price', 'p_max_price',
   'p_sort', 'p_dir', 'p_limit', 'p_offset', 'p_lang',
 ]);
 const MAX_LIMIT = 200;
+/** The bulk tag read's parameters (`tagged_cards`, data project migration 44). */
+const TAGGED_KEYS = new Set(['p_limit', 'p_offset', 'p_all']);
+const TAGGED_MAX_LIMIT = 500;
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -101,6 +106,22 @@ Deno.serve(async (req: Request) => {
     return json(400, { error: 'body must be JSON' });
   }
   if (!body || typeof body !== 'object' || Array.isArray(body)) return json(400, { error: 'bad body' });
+
+  // 3a) THE BULK TAG READ. `{ rpc: 'tagged_cards', p_limit?, p_offset?, p_all? }` asks for the
+  //     captioned set with its ordered scene_tags (data project migration 44): what the Story
+  //     Binder planner scores whole binders from. Execute on that RPC is granted to service_role
+  //     alone, so this hop is the only way in, and only an entitled caller reaches this line.
+  if (body.rpc === 'tagged_cards') {
+    const tagged: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(body)) {
+      if (k === 'rpc') continue;
+      if (!TAGGED_KEYS.has(k)) return json(400, { error: `unknown parameter ${k}` });
+      tagged[k] = v;
+    }
+    if (typeof tagged.p_limit === 'number') tagged.p_limit = Math.min(TAGGED_MAX_LIMIT, Math.max(1, tagged.p_limit));
+    return forwardRpc('tagged_cards', tagged);
+  }
+
   const forward: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(body)) {
     if (!RPC_KEYS.has(k)) return json(400, { error: `unknown parameter ${k}` });
@@ -113,25 +134,25 @@ Deno.serve(async (req: Request) => {
   if (!fields.some((f) => f && f.key === 'theme')) return json(400, { error: 'not a themed query' });
 
   // 4) Forward as service_role, which is what the data project's depth clamp keys off.
-  let dataKey: string;
-  try {
-    dataKey = Deno.env.get('DATA_SECRET_KEY') ?? '';
-    if (!dataKey) throw new Error('DATA_SECRET_KEY is not set');
-  } catch (e) {
-    return json(503, { error: (e as Error).message });
-  }
-  const res = await fetch(`${DATA_URL}/rest/v1/rpc/search_cards`, {
+  return forwardRpc('search_cards', forward);
+});
+
+/** POST a checked body to one of the data project's RPCs with the secret key; relay the answer. */
+async function forwardRpc(rpc: 'search_cards' | 'tagged_cards', body: Record<string, unknown>): Promise<Response> {
+  const dataKey = Deno.env.get('DATA_SECRET_KEY') ?? '';
+  if (!dataKey) return json(503, { error: 'DATA_SECRET_KEY is not set' });
+  const res = await fetch(`${DATA_URL}/rest/v1/rpc/${rpc}`, {
     method: 'POST',
     headers: {
       apikey: dataKey,
       Authorization: `Bearer ${dataKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(forward),
+    body: JSON.stringify(body),
   });
   const text = await res.text();
   return new Response(text, {
     status: res.status,
     headers: { ...CORS, 'Content-Type': 'application/json' },
   });
-});
+}

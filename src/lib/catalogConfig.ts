@@ -22,7 +22,9 @@ import {
   useImageManifest,
 } from 'tcgscan-browse';
 
-import { gatedCatalogSource } from '@/lib/catalogSource';
+import { freshToken, gatedCatalogSource } from '@/lib/catalogSource';
+import { supabaseUrl } from '@/lib/env';
+import { supabase } from '@/lib/supabase';
 import { LANGUAGE_DEFAULT, languageStore } from '@/store/languagePref';
 
 /** Base URL the catalog JSON (and prices/alternates) are served from. */
@@ -59,6 +61,25 @@ configureBrowse({
   // pass it to every search RPC); this supplies the storage and the EN-only default. The signed-in
   // account layer is added on top in store/languagePref.tsx.
   languageStore,
+  // THE PAID PATH FOR ARTWORK SEARCH. theme:/art:/scene: queries always run on the server (the
+  // captions left the catalog bundle on 2026-09-07, so a warm client cannot answer them itself);
+  // the data project meters the direct call to the top few rows with a true total, and an
+  // entitled caller goes through this app project's `theme-search` function instead, which
+  // checks the ledger and forwards unclamped. A null token takes the metered path with no extra
+  // round trip: guests and signed-out visitors are metered by definition. A signed-in account
+  // the function refuses (403: free, or a plan the function does not entitle) falls back to the
+  // same metered path, one round trip later.
+  themedSearch: supabaseUrl
+    ? {
+        url: `${supabaseUrl}/functions/v1/theme-search`,
+        getToken: async () => {
+          if (!supabase) return null;
+          const { data } = await supabase.auth.getSession();
+          if (!data.session || data.session.user.is_anonymous) return null;
+          return freshToken();
+        },
+      }
+    : undefined,
 });
 
 // Pin the SYNCHRONOUS default before AsyncStorage resolves. The kit opens on both languages

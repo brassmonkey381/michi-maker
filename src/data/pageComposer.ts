@@ -496,12 +496,20 @@ function allocateAcross(buckets: CatalogCard[][], total: number, weights?: numbe
 
 /**
  * A FILL WITH CHOICES IS A DIFFERENT FILL EACH TIME (owner decision 2026-09-08). When a method has
- * this many candidates or more, the pool is shuffled before the method imposes its own order
- * (variety rank, subject spread, the evolution chain), so the structure of the page holds and the
- * cards in it change from one run to the next. Under the threshold the pool is thin enough that
- * every run would place most of it anyway, and a stable order reads as intent rather than luck.
+ * SHUFFLE_MIN candidates or more, the front of its list is shuffled before the method imposes its
+ * own order (variety rank, subject spread, the evolution chain), so the structure of the page
+ * holds and the cards in it change from one run to the next. Under the threshold the pool is
+ * thin enough that every run would place most of it anyway, and a stable order reads as intent.
+ *
+ * The shuffle is a WINDOW, not the whole list, so relevance survives it: a ranked method
+ * (similarity, palette, shared scene tags) samples from its top RANKED_WINDOW, which keeps a
+ * similarity fill a similarity fill; a broad method (every card of a type, by an artist, of a
+ * species) has no real ranking beyond the era round-robin, so it samples from a wider
+ * BROAD_WINDOW. Whatever lies past the window keeps its order and only backfills.
  */
 const SHUFFLE_MIN = 16;
+const RANKED_WINDOW = 32;
+const BROAD_WINDOW = 64;
 
 function shuffled<T>(xs: readonly T[]): T[] {
   const out = [...xs];
@@ -512,9 +520,14 @@ function shuffled<T>(xs: readonly T[]): T[] {
   return out;
 }
 
-/** `xs`, shuffled when the pool it was drawn from (`poolSize`, default its own length) is large. */
-function varied<T>(xs: T[], poolSize = xs.length): T[] {
-  return poolSize >= SHUFFLE_MIN ? shuffled(xs) : xs;
+/**
+ * `xs` with its first `window` entries shuffled, when the pool it was drawn from (`poolSize`,
+ * default its own length) has SHUFFLE_MIN or more. Bucketed methods pass the whole pool's size so
+ * a small bucket of a large pool still varies.
+ */
+function varied<T>(xs: T[], window: number, poolSize = xs.length): T[] {
+  if (poolSize < SHUFFLE_MIN) return xs;
+  return [...shuffled(xs.slice(0, window)), ...xs.slice(window)];
 }
 
 /** Zip candidates onto cells. */
@@ -574,7 +587,7 @@ export async function composePage(
     const cards = filterAndDedupe(scored.map((s) => s.card), page, pool, langs, catalog);
     // Closest-first within a subject; across subjects one card each before a second of any, so a
     // page of "the same scene" is nine pictures of it, not nine prints of one Pokémon in it.
-    return place(cells, spreadBySubject(varied(cards)).slice(0, cells.length));
+    return place(cells, spreadBySubject(varied(cards, RANKED_WINDOW)).slice(0, cells.length));
   }
 
   if (method === 'moreLikeThis') {
@@ -588,7 +601,7 @@ export async function composePage(
     // Spread by subject: the ranking is visual, so a distinctive card can have its five nearest
     // neighbours all be other prints of itself. Keep the nearest of each, and only come back for
     // a second of one once every other subject has had a pocket.
-    const ranked = spreadBySubject(varied(filterAndDedupe(cards, page, pool, langs, catalog)));
+    const ranked = spreadBySubject(varied(filterAndDedupe(cards, page, pool, langs, catalog), RANKED_WINDOW));
     return place(cells, ranked.slice(0, cells.length));
   }
 
@@ -628,8 +641,8 @@ export async function composePage(
     const type = seed.types[0] ?? '';
     if (!type) return [];
     const cards = spreadBySubject(
-      varietyRank(
-        varied(
+      varied(
+        varietyRank(
           filterAndDedupe(
             catalog.listAll().filter((c) => c.types.includes(type)),
             page,
@@ -638,6 +651,7 @@ export async function composePage(
             catalog,
           ),
         ),
+        BROAD_WINDOW,
       ),
     );
     return place(cells, cards.slice(0, cells.length));
@@ -659,7 +673,7 @@ export async function composePage(
     if (cards.length === 0) return [];
     // Nearest-first is kept WITHIN each subject; across subjects the page takes the closest
     // match of each before doubling up, so a colour page is a palette, not one Pokemon five times.
-    return place(cells, spreadBySubject(varied(cards)).slice(0, cells.length));
+    return place(cells, spreadBySubject(varied(cards, RANKED_WINDOW)).slice(0, cells.length));
   }
 
   if (method === 'sameArtist') {
@@ -668,7 +682,7 @@ export async function composePage(
     const cards = catalog.listAll().filter((c) => c.illustrator.trim().toLowerCase() === artist);
     // An illustrator gallery should show the range of what they drew: one Pokemon each before a
     // second of any, so a prolific Pikachu artist doesn't hand back a page of Pikachu.
-    const ordered = spreadBySubject(varietyRank(varied(filterAndDedupe(cards, page, pool, langs, catalog))));
+    const ordered = spreadBySubject(varied(varietyRank(filterAndDedupe(cards, page, pool, langs, catalog)), BROAD_WINDOW));
     return place(cells, ordered.slice(0, cells.length));
   }
 
@@ -681,7 +695,7 @@ export async function composePage(
     // of any. The trailing disambiguator the catalog appends to same-named prints ("Eevee (62)")
     // is stripped first, or every variant would be its own bucket and this would do nothing.
     const ordered = interleaveBy(
-      varietyRank(varied(filterAndDedupe(cards, page, pool, langs, catalog))),
+      varied(varietyRank(filterAndDedupe(cards, page, pool, langs, catalog)), BROAD_WINDOW),
       (c) => c.name.toLowerCase().replace(/\s*\([^)]*\)\s*$/, ''),
     );
     return place(cells, ordered.slice(0, cells.length));
@@ -710,15 +724,16 @@ export async function composePage(
     // first rather than back to the cycle.
     const seen = new Set<string>();
     const buckets = partners.map((p) =>
-      varietyRank(
-        varied(
+      varied(
+        varietyRank(
           deduped.filter((c) => {
             if (!hasToken(c.name, p) || seen.has(c.id)) return false;
             seen.add(c.id);
             return true;
           }),
-          deduped.length,
         ),
+        BROAD_WINDOW,
+        deduped.length,
       ),
     );
     return place(cells, roundRobin(buckets).slice(0, cells.length));
@@ -753,9 +768,9 @@ export async function composePage(
     // even third of the page spent on prints of the same Pokemon.
     const poolSize = signature.length + trainerCards.length + team.length;
     const groups = [
-      interleaveBy(varietyRank(varied(signature, poolSize)), (c) => sigOf(c) ?? ''),
-      interleaveBy(varietyRank(varied(trainerCards, poolSize)), subjectOf),
-      interleaveBy(varietyRank(varied(team, poolSize)), (c) => teamOf(c) ?? ''),
+      interleaveBy(varied(varietyRank(signature), BROAD_WINDOW, poolSize), (c) => sigOf(c) ?? ''),
+      interleaveBy(varied(varietyRank(trainerCards), BROAD_WINDOW, poolSize), subjectOf),
+      interleaveBy(varied(varietyRank(team), BROAD_WINDOW, poolSize), (c) => teamOf(c) ?? ''),
     ];
     const subjectCounts = [
       new Set(signature.map((c) => sigOf(c) ?? '')).size,
@@ -804,6 +819,6 @@ export async function composePage(
     if ((a === own) !== (b === own)) return a === own ? 1 : -1;
     return family.indexOf(a) - family.indexOf(b);
   });
-  const ordered = roundRobin(order.map((s) => varietyRank(varied(bySpecies.get(s)!, deduped.length))));
+  const ordered = roundRobin(order.map((s) => varied(varietyRank(bySpecies.get(s)!), BROAD_WINDOW, deduped.length)));
   return place(cells, ordered.slice(0, cells.length));
 }

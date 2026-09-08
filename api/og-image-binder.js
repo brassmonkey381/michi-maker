@@ -71,7 +71,9 @@ const SINGLE_H = 1512;
 // JPEG settings. 4:4:4 (no chroma subsampling) costs ~0.2MB over 4:2:0 and is worth it here: the
 // frame is dense small card text and saturated red/blue art edges, which is precisely what
 // subsampling smears. mozjpeg is what gets it back under a megabyte.
-const JPEG = { quality: 84, progressive: true, mozjpeg: true, chromaSubsampling: '4:4:4' };
+const JPEG = { quality: 88, progressive: true, mozjpeg: true, chromaSubsampling: '4:4:4' };
+/** Unsharp-mask radius applied before the JPEG (see `render`); 0 turns it off. */
+const SHARPEN = process.env.OG_SHARPEN === undefined ? 0.8 : Number(process.env.OG_SHARPEN) || 0;
 const CACHE = 'public, max-age=0, s-maxage=300, stale-while-revalidate=86400';
 const GAP = 8 * S;
 const CARD_ASPECT = 2.5 / 3.5; // real card proportions
@@ -980,7 +982,14 @@ async function render(pages, manifest, art, single, chrome) {
     }).arrayBuffer(),
   );
   try {
-    return { body: await sharp(png).jpeg(JPEG).toBuffer(), type: 'image/jpeg' };
+    // A LIGHT SHARPEN before the JPEG. The rasteriser shrinks each full-size card into its pocket
+    // with a plain filter, which leaves the card text and art edges a touch soft; an unsharp mask
+    // at this radius brings them back without haloing the blurred backdrop. Rendering larger and
+    // downscaling was tried first and is not an option here: time grows faster than the pixels
+    // (see the note on S above), and a scraper that times out shows nothing.
+    let img = sharp(png);
+    if (SHARPEN > 0) img = img.sharpen({ sigma: SHARPEN, m1: 0.8, m2: 0.5 });
+    return { body: await img.jpeg(JPEG).toBuffer(), type: 'image/jpeg' };
   } catch {
     return { body: png, type: 'image/png' };
   }

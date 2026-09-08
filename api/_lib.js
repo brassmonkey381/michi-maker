@@ -78,7 +78,7 @@ function cardImage(cardId) {
  *       2568×1512 (1.7:1) so the sides stop reading as empty; a centred brand lockup below; the
  *       spread sits on the same blurred collage as the single page
  */
-const OG_IMAGE_REV = 12;
+const OG_IMAGE_REV = 13;
 
 /**
  * The two canvases the renderer knows how to draw. A SPREAD needs the width for two facing pages;

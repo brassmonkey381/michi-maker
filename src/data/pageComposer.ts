@@ -494,6 +494,29 @@ function allocateAcross(buckets: CatalogCard[][], total: number, weights?: numbe
   return [...picked, ...leftovers].slice(0, total);
 }
 
+/**
+ * A FILL WITH CHOICES IS A DIFFERENT FILL EACH TIME (owner decision 2026-09-08). When a method has
+ * this many candidates or more, the pool is shuffled before the method imposes its own order
+ * (variety rank, subject spread, the evolution chain), so the structure of the page holds and the
+ * cards in it change from one run to the next. Under the threshold the pool is thin enough that
+ * every run would place most of it anyway, and a stable order reads as intent rather than luck.
+ */
+const SHUFFLE_MIN = 16;
+
+function shuffled<T>(xs: readonly T[]): T[] {
+  const out = [...xs];
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+/** `xs`, shuffled when the pool it was drawn from (`poolSize`, default its own length) is large. */
+function varied<T>(xs: T[], poolSize = xs.length): T[] {
+  return poolSize >= SHUFFLE_MIN ? shuffled(xs) : xs;
+}
+
 /** Zip candidates onto cells. */
 function place(cells: { row: number; col: number }[], cards: CatalogCard[]): ComposePlacement[] {
   return cells.slice(0, cards.length).map((cell, i) => ({ ...cell, cardId: cards[i].id }));
@@ -551,7 +574,7 @@ export async function composePage(
     const cards = filterAndDedupe(scored.map((s) => s.card), page, pool, langs, catalog);
     // Closest-first within a subject; across subjects one card each before a second of any, so a
     // page of "the same scene" is nine pictures of it, not nine prints of one Pokémon in it.
-    return place(cells, spreadBySubject(cards).slice(0, cells.length));
+    return place(cells, spreadBySubject(varied(cards)).slice(0, cells.length));
   }
 
   if (method === 'moreLikeThis') {
@@ -565,7 +588,7 @@ export async function composePage(
     // Spread by subject: the ranking is visual, so a distinctive card can have its five nearest
     // neighbours all be other prints of itself. Keep the nearest of each, and only come back for
     // a second of one once every other subject has had a pocket.
-    const ranked = spreadBySubject(filterAndDedupe(cards, page, pool, langs, catalog));
+    const ranked = spreadBySubject(varied(filterAndDedupe(cards, page, pool, langs, catalog)));
     return place(cells, ranked.slice(0, cells.length));
   }
 
@@ -606,12 +629,14 @@ export async function composePage(
     if (!type) return [];
     const cards = spreadBySubject(
       varietyRank(
-        filterAndDedupe(
-          catalog.listAll().filter((c) => c.types.includes(type)),
-          page,
-          pool,
-          langs,
-          catalog,
+        varied(
+          filterAndDedupe(
+            catalog.listAll().filter((c) => c.types.includes(type)),
+            page,
+            pool,
+            langs,
+            catalog,
+          ),
         ),
       ),
     );
@@ -634,7 +659,7 @@ export async function composePage(
     if (cards.length === 0) return [];
     // Nearest-first is kept WITHIN each subject; across subjects the page takes the closest
     // match of each before doubling up, so a colour page is a palette, not one Pokemon five times.
-    return place(cells, spreadBySubject(cards).slice(0, cells.length));
+    return place(cells, spreadBySubject(varied(cards)).slice(0, cells.length));
   }
 
   if (method === 'sameArtist') {
@@ -643,7 +668,7 @@ export async function composePage(
     const cards = catalog.listAll().filter((c) => c.illustrator.trim().toLowerCase() === artist);
     // An illustrator gallery should show the range of what they drew: one Pokemon each before a
     // second of any, so a prolific Pikachu artist doesn't hand back a page of Pikachu.
-    const ordered = spreadBySubject(varietyRank(filterAndDedupe(cards, page, pool, langs, catalog)));
+    const ordered = spreadBySubject(varietyRank(varied(filterAndDedupe(cards, page, pool, langs, catalog))));
     return place(cells, ordered.slice(0, cells.length));
   }
 
@@ -656,7 +681,7 @@ export async function composePage(
     // of any. The trailing disambiguator the catalog appends to same-named prints ("Eevee (62)")
     // is stripped first, or every variant would be its own bucket and this would do nothing.
     const ordered = interleaveBy(
-      varietyRank(filterAndDedupe(cards, page, pool, langs, catalog)),
+      varietyRank(varied(filterAndDedupe(cards, page, pool, langs, catalog))),
       (c) => c.name.toLowerCase().replace(/\s*\([^)]*\)\s*$/, ''),
     );
     return place(cells, ordered.slice(0, cells.length));
@@ -686,11 +711,14 @@ export async function composePage(
     const seen = new Set<string>();
     const buckets = partners.map((p) =>
       varietyRank(
-        deduped.filter((c) => {
-          if (!hasToken(c.name, p) || seen.has(c.id)) return false;
-          seen.add(c.id);
-          return true;
-        }),
+        varied(
+          deduped.filter((c) => {
+            if (!hasToken(c.name, p) || seen.has(c.id)) return false;
+            seen.add(c.id);
+            return true;
+          }),
+          deduped.length,
+        ),
       ),
     );
     return place(cells, roundRobin(buckets).slice(0, cells.length));
@@ -723,10 +751,11 @@ export async function composePage(
     // members), and the groups share the pockets in proportion to how many subjects they have to
     // show. An ace is usually one species, so it takes about one pocket per cycle instead of an
     // even third of the page spent on prints of the same Pokemon.
+    const poolSize = signature.length + trainerCards.length + team.length;
     const groups = [
-      interleaveBy(varietyRank(signature), (c) => sigOf(c) ?? ''),
-      interleaveBy(varietyRank(trainerCards), subjectOf),
-      interleaveBy(varietyRank(team), (c) => teamOf(c) ?? ''),
+      interleaveBy(varietyRank(varied(signature, poolSize)), (c) => sigOf(c) ?? ''),
+      interleaveBy(varietyRank(varied(trainerCards, poolSize)), subjectOf),
+      interleaveBy(varietyRank(varied(team, poolSize)), (c) => teamOf(c) ?? ''),
     ];
     const subjectCounts = [
       new Set(signature.map((c) => sigOf(c) ?? '')).size,
@@ -775,6 +804,6 @@ export async function composePage(
     if ((a === own) !== (b === own)) return a === own ? 1 : -1;
     return family.indexOf(a) - family.indexOf(b);
   });
-  const ordered = roundRobin(order.map((s) => varietyRank(bySpecies.get(s)!)));
+  const ordered = roundRobin(order.map((s) => varietyRank(varied(bySpecies.get(s)!, deduped.length))));
   return place(cells, ordered.slice(0, cells.length));
 }

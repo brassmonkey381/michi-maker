@@ -18,7 +18,13 @@ export const AUTO_FILL_SHOWCASE_ART = 'https://michi-maker.com/auto-fill-art/610
 const ART = (id: number) => `https://michi-maker.com/auto-fill-art/${id}.webp`;
 
 /** The hub card's hook: the guide's own subject at the size of a card (see GuideHook). */
-export type GuideHook = { kind: 'art'; src: string } | { kind: 'slice'; src: string } | { kind: 'sheet' } | { kind: 'query' };
+export type GuideHook =
+  | { kind: 'art'; src: string }
+  | { kind: 'slice'; src: string }
+  | { kind: 'sheet' }
+  | { kind: 'query' }
+  /** Three live cards from a query (ResultStrip, compact): the artwork search's own subject. */
+  | { kind: 'theme'; query: string };
 
 /** A drawn scene from src/components/learn/Diagrams.tsx. */
 export type DiagramName =
@@ -42,7 +48,9 @@ export type GuideFigure =
   | { kind: 'media'; src: string; poster?: string; alt: string }
   | { kind: 'diagram'; name: DiagramName }
   /** The Eevee loop: seven fill methods laying their cards around one seed (EeveeReplay). */
-  | { kind: 'replay' };
+  | { kind: 'replay' }
+  /** A live search: the query as the box shows it, the real cards it finds, a Try it (ResultStrip). */
+  | { kind: 'results'; query: string; limit?: number; note?: string };
 
 export interface GuideStep {
   title: string;
@@ -206,7 +214,48 @@ export const GUIDE_LIST: Guide[] = [
       { title: 'Stack and refine', body: 'Everything combines. Start broad, keep adding until it is exactly the pile you meant.' },
     ],
     tip: 'The cheatsheet puts a Try it button on every example.',
-    relatedSlugs: ['auto-page-fill'],
+    relatedSlugs: ['artwork-search', 'auto-page-fill'],
+  },
+  // ARTWORK SEARCH. Every figure is live (ResultStrip): the reader sees the cards their own
+  // account gets, and a free reader sees the meter row exactly where a paid one sees the rest.
+  // Copy says what the search finds and never how the cards were described; it names a few
+  // scenes worth trying and nothing like a vocabulary.
+  {
+    slug: 'artwork-search',
+    title: 'How to search Pokémon cards by what the artwork shows',
+    lede: 'Ask for a picture instead of a name: a forest, a night sky, something underwater. Then stack it with everything else you already know.',
+    hook: { kind: 'theme', query: 'theme:forest' },
+    hero: { kind: 'results', query: 'theme:forest', note: 'Every match, on every plan.' },
+    ctaLabel: 'Open the interactive cheatsheet',
+    ctaHref: '/search-guide',
+    steps: [
+      {
+        title: 'Ask for a picture',
+        body: 'theme: searches what the ARTWORK shows, not the name printed on the card. Forest is on us: everyone sees every match.',
+      },
+      {
+        title: 'Stack it with what you already know',
+        body: 'A theme is a field like any other, so set:, type:, rarity: and a sort all narrow it. Two words find the full-art printings of a scene.',
+        figure: { kind: 'results', query: 'theme:forest rarity:illustration' },
+      },
+      {
+        title: 'Two ideas, or one idea minus another',
+        body: 'Two themes must both show. A leading minus takes an idea away, so the water cards that are not a beach are one search.',
+        figure: { kind: 'results', query: 'theme:water -theme:beach' },
+      },
+      {
+        title: 'Try what you see',
+        body: 'Forest, water, snow, night, city, sky, sunset, flowers. Any plain word about a picture is worth a try; the grey line under the box says how it was read.',
+        figure: { kind: 'results', query: 'theme:night theme:city' },
+      },
+      {
+        title: 'Every match, and the pages built from them',
+        body: 'Free and guest accounts see the top few matches of any theme and how many more there are. PRO and VIP see every match, and the same pictures power Same scene in the fill sheet, the scene pages Build a binder proposes, and the Story binder.',
+        figure: { kind: 'results', query: 'theme:snow', note: 'The row under a metered search says what a plan adds.' },
+      },
+    ],
+    tip: 'The ? button beside the search box has an Artwork tab with these examples ready to tap.',
+    relatedSlugs: ['search-your-cards', 'auto-page-fill'],
   },
 ];
 

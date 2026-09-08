@@ -20,6 +20,7 @@ import {
   WantListDiagram,
 } from '@/components/learn/Diagrams';
 import { GuideMedia } from '@/components/learn/GuideMedia';
+import { ResultStrip } from '@/components/learn/ResultStrip';
 import { EeveeReplay } from '@/components/michi/EeveeReplay';
 import { Radius } from '@/constants/theme';
 import type { DiagramName, GuideFigure as GuideFigureData, GuideHook as GuideHookData } from '@/data/guides';
@@ -49,6 +50,7 @@ export function GuideFigure({ figure }: { figure: GuideFigureData }) {
   const { width } = useWindowDimensions();
   if (figure.kind === 'media') return <GuideMedia src={figure.src} poster={figure.poster} alt={figure.alt} />;
   if (figure.kind === 'replay') return <EeveeReplay width={Math.min(340, width - 48)} />;
+  if (figure.kind === 'results') return <ResultStrip query={figure.query} limit={figure.limit} note={figure.note} />;
   return <>{DIAGRAMS[figure.name]()}</>;
 }
 
@@ -58,6 +60,7 @@ export function GuideHook({ hook, width = 72 }: { hook: GuideHookData; width?: n
     return <Image source={{ uri: hook.src }} style={[hookStyles.art, { width, height: Math.round((width * 100) / 72) }]} contentFit="cover" transition={150} accessibilityLabel="" />;
   if (hook.kind === 'slice') return <SliceHook src={hook.src} width={width} />;
   if (hook.kind === 'sheet') return <SheetHook width={width} />;
+  if (hook.kind === 'theme') return <ResultStrip query={hook.query} limit={3} compact />;
   return <QueryHook width={width} />;
 }
 

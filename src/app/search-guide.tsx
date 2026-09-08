@@ -62,6 +62,25 @@ const RECIPES: { title: string; query: string; blurb: string; pro?: boolean; tas
     pro: true,
     taste: true,
   },
+  // Three more scenes, metered on free: the top few and how many more, every match on a plan.
+  {
+    title: 'Under the sea',
+    query: 'theme:water -theme:beach',
+    blurb: 'A theme, minus another: the water cards that are not a beach. The leading minus takes an idea away.',
+    pro: true,
+  },
+  {
+    title: 'After dark, in town',
+    query: 'theme:night theme:city',
+    blurb: 'Two themes, both must show. Stack a set: or type: on it like any other search.',
+    pro: true,
+  },
+  {
+    title: 'Snow, full art only',
+    query: 'theme:snow rarity:illustration',
+    blurb: 'A scene and a rarity: the Illustration Rares drawn in the snow. Free accounts see the top few and how many more; PRO and VIP see every match.',
+    pro: true,
+  },
   {
     title: 'Finish a set',
     query: 'set:"evolving skies" have:no',
@@ -159,7 +178,7 @@ export default function SearchGuideScreen() {
                     </ThemedText>
                     {r.pro ? (
                       <Text style={[styles.proBadge, r.taste && styles.proBadgeTaste]}>
-                        {r.taste ? 'VIP · free to try here' : 'VIP'}
+                        {r.taste ? 'Every match, on us' : 'Top matches free · all with PRO'}
                       </Text>
                     ) : null}
                   </View>

@@ -311,7 +311,7 @@ function Viewer({
             accessibilityRole="button"
             accessibilityLabel="About this binder"
             testID="binder-title">
-            <ThemedText type="subtitle" style={styles.title}>
+            <ThemedText type="subtitle" style={[styles.title, !wideHead && styles.titleNarrow]}>
               {binder.title}
             </ThemedText>
           </Pressable>
@@ -499,9 +499,11 @@ const styles = StyleSheet.create({
   gear: { fontSize: 18 },
   // Above the binder in paint order, so the hover card is not covered by the page below it.
   titleWrap: { alignSelf: 'center', zIndex: 20, maxWidth: '70%' },
-  // On a phone the like button and the gear take a good third of the row: wrap the title inside
-  // what is left rather than run it under them.
-  titleWrapNarrow: { maxWidth: '56%' },
+  // On a phone the like button and the gear take a good third of the row, on the right. A CENTRED
+  // title ran under them: centred in 56% of the row it spanned the middle, and the heart sat over
+  // its last letters. Start it at the left edge instead, in the 60% the actions leave free.
+  titleWrapNarrow: { alignSelf: 'flex-start', maxWidth: '60%' },
+  titleNarrow: { textAlign: 'left' },
   titleHover: { top: 36 },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginTop: Spacing.one, marginBottom: Spacing.two },
   likeHint: { marginTop: Spacing.two, textAlign: 'center' },

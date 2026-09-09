@@ -37,6 +37,18 @@ export async function mintHandoffHash(): Promise<string | null> {
   }
 }
 
+/**
+ * Whether THIS page load arrived carrying a handoff. Read once, at module load, before anything
+ * has scrubbed the fragment: the auth store needs the answer synchronously (see below) and the
+ * root layout's scrub runs in an effect, which may come first or second depending on tree order.
+ */
+const ARRIVED_WITH_HANDOFF =
+  Platform.OS === 'web' && typeof window !== 'undefined' && /[#&]th=/.test(window.location.hash);
+
+export function handoffPending(): boolean {
+  return ARRIVED_WITH_HANDOFF;
+}
+
 /** Append a minted hash to a sibling-app URL (no-op passthrough for a null hash). */
 export function withHandoffHash(url: string, tokenHash: string | null): string {
   return tokenHash ? `${url}#th=${encodeURIComponent(tokenHash)}` : url;
@@ -51,7 +63,16 @@ export function withHandoffHash(url: string, tokenHash: string | null): string {
  * Already signed in → the fragment is scrubbed but NOT redeemed (never silently switch an
  * active session; the visitor can sign out and use the banner's button if they meant to).
  */
-export async function redeemHandoffHashFromLocation(): Promise<boolean> {
+export function redeemHandoffHashFromLocation(): Promise<boolean> {
+  // SINGLE-FLIGHT. The auth store's bootstrap and the root layout both ask, in an order React
+  // does not promise; whichever asks second joins the first rather than finding a scrubbed URL
+  // and answering "no handoff here" while the real redeem is still in flight.
+  if (!redeeming) redeeming = redeemOnce();
+  return redeeming;
+}
+let redeeming: Promise<boolean> | null = null;
+
+async function redeemOnce(): Promise<boolean> {
   if (Platform.OS !== 'web' || typeof window === 'undefined') return false;
   const match = /[#&]th=([^&]+)/.exec(window.location.hash);
   if (!match) return false;

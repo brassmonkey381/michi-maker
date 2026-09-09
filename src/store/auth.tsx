@@ -34,6 +34,7 @@ import { Platform } from 'react-native';
 
 import { track, startSession, resetSessionUser, endSession } from '@/lib/analytics';
 import { authRedirectUrl } from '@/lib/authRedirect';
+import { handoffPending, redeemHandoffHashFromLocation } from '@/data/handoff';
 import { isSupabaseConfigured } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 import type { Profile } from '@/types/domain';
@@ -209,6 +210,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data } = await supabase.auth.getSession();
         if (!active) return;
         if (!data.session) {
+          // A HANDOFF FROM TCGSCAN WINS OVER A GUEST. A fresh browser arriving with `#th=` used
+          // to run two sign-ins at once: this bootstrap minted an anonymous guest while the root
+          // layout was verifying the one-time token, and whichever landed second was the session
+          // that stuck — on a phone's Safari that was the guest more often than not, so a person
+          // who tapped "Open in Michi" from their signed-in tcgscan account arrived as nobody and
+          // saw no binders. Redeem first (single-flight, so the layout's own call joins this
+          // one); only if that did not produce a session does the visitor become a guest.
+          const handedOff = handoffPending() && (await redeemHandoffHashFromLocation());
+          if (handedOff || !active) return;
           // No session. A brand-new visitor becomes a guest so binders save right away — but if
           // they *chose* to sign out, we leave them signed out (the home banner offers Sign in /
           // Continue as guest) instead of forcing them back into anonymous.

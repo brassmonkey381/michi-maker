@@ -315,7 +315,14 @@ export function BinderPages({
     setOn: setLabelsOn,
     toggleField: toggleLabelField,
   } = useCardLabelPrefs();
-  const captionFields = labelsOn ? labelFields : [];
+  // A PHONE SHOWS THE CARDS AND NOTHING ELSE (owner decision 2026-09-08). Below the width at
+  // which a page can have neighbours, a 3x3 card is about 90px wide: a label under it is a smear,
+  // and a rail beside it takes the width the cards need. So on a narrow window the labels are
+  // off and the page navigation is docked below, whatever the remembered preference says; the
+  // preference itself is untouched and comes back on a wider window, and the two controls that
+  // would set it are hidden here rather than left doing nothing.
+  const phone = availableWidth < PEEK_MIN_WIDTH;
+  const captionFields = labelsOn && !phone ? labelFields : [];
   // The viewer's owned cards → an optional green ✓ on card slots they own. Undefined for guests /
   // empty inventory (the "Owned" pill then stays hidden). Off by default; the pill flips it.
   // HOW YOU LAST LOOKED AT THIS BINDER, remembered per account — Owned, Scans and Double-sided
@@ -426,7 +433,7 @@ export function BinderPages({
    */
   const columnLabel = (pg: DemoPage | null | undefined, fallback: string) =>
     (pg?.title || '').trim() || fallback;
-  const railLeft = view.navDock === 'left';
+  const railLeft = view.navDock === 'left' && !phone;
   const heightBudget = Math.max(
     0,
     windowHeight -
@@ -1294,7 +1301,7 @@ export function BinderPages({
                     </Text>
                   </Pressable>
                 ) : null}
-                {count > 1 ? (
+                {count > 1 && !phone ? (
                   <Pressable
                     onPress={() => view.setPref('navDock', railLeft ? 'bottom' : 'left')}
                     accessibilityRole="button"
@@ -1309,6 +1316,7 @@ export function BinderPages({
             </View>
           ) : null}
 
+          {phone ? null : (
           <View style={styles.settingsRow}>
             <ThemedText type="smallBold" themeColor="textSecondary" style={styles.settingsRowLabel}>
               Labels
@@ -1329,6 +1337,7 @@ export function BinderPages({
               </Pressable>
             </View>
           </View>
+          )}
 
           {/* Owned: a green ✓ corner badge on the card slots the viewer owns — offered only when
               they have an inventory. Scans: pockets show the owner's own photos of the cards they

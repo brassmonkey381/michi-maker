@@ -416,6 +416,24 @@ export function hasThemeSearch(tier: Tier): boolean {
   return TIER_LIMITS[tier].themeSearch;
 }
 
+/**
+ * Does this ACCOUNT search artwork unmetered — the question the upsell should actually ask?
+ *
+ * THE TIER IS ONLY HALF THE ANSWER, and the missing half is the reason a TCGScan member was still
+ * being sold theme search while the server was already handing them every match. The
+ * `theme-search` function forwards for any holder of ENTITLED_PRODUCTS, which is one ledger
+ * shared with the sibling app: `tcgscan_pro` and `tcgscan_vip` count there. Neither grants a michi
+ * TIER (resolveTier reads tier_pro / tier_vip alone, by design — the apps sell their own plans),
+ * so a paying TCGScan VIP resolves to `free` here and every tier-only check calls them a free user.
+ *
+ * Ask this, not `hasThemeSearch`, before offering to unlock artwork search. Keep the two products
+ * in step with ENTITLED_PRODUCTS in supabase/functions/theme-search/index.ts: the server decides
+ * what a query returns, and this only decides whether we try to sell it.
+ */
+export function searchesArtworkUnmetered(tier: Tier, holdsTcgscanTier: boolean): boolean {
+  return hasThemeSearch(tier) || holdsTcgscanTier;
+}
+
 /** Can this tier put a cover on a binder and decorate it? (PRO and VIP — see TierLimits.binderCovers.) */
 export function hasBinderCovers(tier: Tier): boolean {
   return TIER_LIMITS[tier].binderCovers;

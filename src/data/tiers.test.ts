@@ -12,6 +12,7 @@ import {
   resolveTier,
   isActive,
   hasFindSimilar,
+  searchesArtworkUnmetered,
   limitsForTier,
   TIER_LIMITS,
   type EntitlementRow,
@@ -109,4 +110,21 @@ test('the dev switch does not hand out the similarity search', () => {
   for (const tier of ['guest', 'free'] as const) {
     assert.equal(limitsForTier(tier).findSimilar, false, `${tier} via limitsForTier`);
   }
+});
+
+/**
+ * WHO GETS OFFERED THEME SEARCH. The offer must ask about the ACCOUNT, not the michi tier: the
+ * theme-search function forwards for the sibling app's paid tiers too, and those grant no tier
+ * here, so a TCGScan member reads as `free` and was being sold a feature already working for them.
+ */
+test('a paid tier searches unmetered, and so does a TCGScan member with no michi tier', () => {
+  assert.equal(searchesArtworkUnmetered('pro', false), true);
+  assert.equal(searchesArtworkUnmetered('vip', false), true);
+  assert.equal(searchesArtworkUnmetered('free', true), true, 'tcgscan_pro/vip unlocks it server-side');
+  assert.equal(searchesArtworkUnmetered('guest', true), true);
+});
+
+test('free and guest with nothing else are still the ones to offer it to', () => {
+  assert.equal(searchesArtworkUnmetered('free', false), false);
+  assert.equal(searchesArtworkUnmetered('guest', false), false);
 });

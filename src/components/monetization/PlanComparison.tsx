@@ -194,7 +194,10 @@ export function PlanComparison() {
     return () => {
       live = false;
     };
-  }, [loading, tier]);
+    // onTrial belongs here too: a trial holds no subscription, so it turns every 'switch' into a
+    // purchase and there is nothing left to prorate. If it changes under an open page (a refresh
+    // lands after checkout), the previews have to be recomputed rather than left as the trial's.
+  }, [loading, tier, onTrial]);
 
   /**
    * One paid column's foot cell. What it offers depends entirely on the viewer's current plan

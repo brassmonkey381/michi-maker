@@ -53,6 +53,28 @@ export interface CapWall {
  *                          this exit is a conversion, and the old single `onClose` counted it as
  *                          a back-out because it was the same function.
  */
+/**
+ * THE PLAN'S NAME, SET APART. Every wall title here names the tier that lifts it, and as plain
+ * heading text the one word a reader is scanning for read like any other. Split rather than
+ * marked up in the copy, so the wall definitions stay plain strings that a test can assert on.
+ */
+function WallTitle({ text }: { text: string }) {
+  const parts = text.split(/(PRO|VIP)/);
+  return (
+    <ThemedText type="subtitle">
+      {parts.map((part, i) =>
+        part === 'PRO' || part === 'VIP' ? (
+          <ThemedText key={`${part}-${i}`} type="subtitle" style={styles.plan}>
+            {part}
+          </ThemedText>
+        ) : (
+          part
+        ),
+      )}
+    </ThemedText>
+  );
+}
+
 export function CapGateDialog({
   wall,
   onDismiss,
@@ -64,7 +86,7 @@ export function CapGateDialog({
 }) {
   if (!wall) return null;
   return (
-    <DialogCard visible title={wall.title} onClose={() => onDismiss('close')} maxWidth={420}>
+    <DialogCard visible title={<WallTitle text={wall.title} />} onClose={() => onDismiss('close')} maxWidth={420}>
       {wall.isGuest ? (
         <SignInPerk message={wall.message} />
       ) : (
@@ -86,5 +108,6 @@ export function CapGateDialog({
 
 const styles = StyleSheet.create({
   later: { alignSelf: 'center', marginTop: Spacing.three },
+  plan: { color: Palette.accent, fontWeight: '800', letterSpacing: 0.5 },
   laterText: { color: Palette.muted },
 });

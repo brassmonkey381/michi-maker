@@ -24,16 +24,18 @@ import type { Tier } from './tiers.ts';
 /** The `limit` key on the analytics row and the once-a-day dialog pacing. */
 export const THEME_SEARCH_LIMIT_KEY = 'themeSearch';
 
+const UNLOCK =
+  'Unlock theme search with over 500 themes related to art style, environment, cameos, scenery, and more.';
+
 export function themeSearchGateMessage(tier: Tier): string {
-  return tier === 'guest'
-    ? 'You are seeing the top matches for this theme. PRO searches every one of them, and a free account is the first step.'
-    : 'You are seeing the top matches for this theme. PRO searches every one of them, on any theme you can think of.';
+  return tier === 'guest' ? `${UNLOCK} A free account is the first step.` : UNLOCK;
 }
 
 export function themeSearchTrialMessage(): string {
-  // The dialog's trial button already promises no credit card and a return to Free on its own
-  // (TrialCta), so this line says what the trial is FOR rather than repeating those terms.
-  return 'PRO searches every match of every theme, not just the top few, and any theme you can think of. Try it free for 14 days.';
+  // The BUTTON under this line already says "Start free 14-day PRO trial", and the line under
+  // that already promises no credit card. Saying the term a third time here was the dialog
+  // talking about itself instead of about what the reader gets.
+  return UNLOCK;
 }
 
 export function themeSearchWall(tier: Tier, surface: CapSurface) {

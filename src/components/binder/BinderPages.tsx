@@ -742,6 +742,19 @@ export function BinderPages({
 
   // The open double-sided spread around the active page: [cover] alone, then [odd, odd+1].
   const bookGap = 16;
+  /**
+   * A BOOK WITH NOTHING TO FACE IS A SINGLE PAGE. The first spread is [nothing, page one], and an
+   * undressed binder has no inside front cover to put in that gap, so a one-page binder in
+   * double-sided mode drew its only page at half width with an empty half beside it. That is what
+   * a first-time user sees, and it made their first page look small in a wide window.
+   *
+   * ONE PAGE AND NO COVER ONLY, deliberately. From two pages up a turn is possible, and the turn
+   * overlay draws both halves at `bookW`: a width that changed between the spread being left and
+   * the one arriving would animate a sheet that grows mid-flight. A one-page binder has nothing
+   * to turn to, so the width is constant and the overlay never runs.
+   */
+  const bookSingle = doubleSided && !binder.cover && count <= 1;
+  const bookRowGap = bookSingle ? 0 : bookGap;
   // The book never had dimmed neighbours — both halves are live — so its only waste was the
   // ceiling, and fitting the height is the whole of its fix.
   const bookW = bookLayout({
@@ -753,6 +766,7 @@ export function BinderPages({
     gap: bookGap,
     maxWidth,
     minWidth: pageFloor,
+    halves: bookSingle ? 1 : 2,
   });
   /**
    * A HALF OF THE SPREAD IS NOT ALWAYS A PAGE.
@@ -1501,12 +1515,16 @@ export function BinderPages({
         ) : doubleSided ? (
           // The open book: left/right facing pages (the cover face sits alone on the right).
           // The non-active side is a full 'partner' surface; its label focuses it.
-          <View style={[styles.spreadRow, { gap: bookGap }]}>
+          <View style={[styles.spreadRow, { gap: bookRowGap }]}>
             <SpreadColumn
               // The column has to exist for an inside cover too, and a column with no page renders
               // nothing at all, so it is handed the active page purely as a presence check.
               page={leftPage ?? (coverOf(spreadLeftIdx, 'left') ? page : null)}
               width={bookW}
+              // An empty half reserves a page's width so the facing page keeps its place on the
+              // spread. When there IS no facing page (see bookSingle) it reserves nothing, or the
+              // one page would sit in the right half of a book that is not open.
+              peekWidth={bookSingle ? 0 : undefined}
               label={leftPage ? columnLabel(leftPage, `Page ${spreadLeftIdx + 1}`) : coverOf(spreadLeftIdx, 'left') ? 'Inside front' : ''}
               onFocus={
                 leftPage && spreadLeftIdx !== idx ? () => onPageChange(spreadLeftIdx) : undefined
@@ -1534,6 +1552,7 @@ export function BinderPages({
             <SpreadColumn
               page={rightPage ?? (coverOf(spreadRightIdx, 'right') ? page : null)}
               width={bookW}
+              peekWidth={bookSingle ? 0 : undefined}
               label={rightPage ? columnLabel(rightPage, `Page ${spreadRightIdx + 1}`) : coverOf(spreadRightIdx, 'right') ? 'Inside back' : ''}
               onFocus={
                 rightPage && spreadRightIdx !== idx ? () => onPageChange(spreadRightIdx) : undefined

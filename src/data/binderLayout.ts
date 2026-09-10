@@ -209,6 +209,7 @@ export function bookLayout({
   gap,
   maxWidth,
   minWidth,
+  halves = 2,
 }: {
   availableWidth: number;
   availableHeight: number;
@@ -219,9 +220,17 @@ export function bookLayout({
   maxWidth?: number;
   /** See spreadLayout. */
   minWidth?: number;
+  /**
+   * How many surfaces this book actually opens on. Two is the usual open book. ONE is a binder
+   * that never faces a page with anything: a single page and no cover, which is what a brand new
+   * binder is. Halving the width there drew a lone page at half size with an empty half beside
+   * it — the width was spent on nothing. One half means the page takes the room a single page
+   * would, and the caller collapses the empty column to match.
+   */
+  halves?: 1 | 2;
 }): number {
   const floor = minWidth ?? MIN_PAGE_WIDTH;
-  const byWidth = (availableWidth - gap) / 2;
+  const byWidth = halves === 1 ? availableWidth : (availableWidth - gap) / 2;
   // Same reversal as the spread: an open book that does not fit the window is two half-pages.
   const byHeight = availableHeight > 0 ? widthForHeight(availableHeight, rows, cols, captionsOn) : Infinity;
   const fitted = Math.min(byWidth, byHeight, maxWidth ?? Infinity);

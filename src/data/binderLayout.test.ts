@@ -199,6 +199,20 @@ test('the book fills the width it has, and fits the height', () => {
   assert.ok(short < LEGACY_MIN_WIDTH, 'and it got there by shrinking, as the spread does');
 });
 
+test('a book that opens on one surface takes the whole width, not half of it', () => {
+  const both = bookLayout({ availableWidth: 1888, availableHeight: TALL, rows: 3, cols: 3, captionsOn: false, gap: 16 });
+  const alone = bookLayout({ availableWidth: 1888, availableHeight: TALL, rows: 3, cols: 3, captionsOn: false, gap: 16, halves: 1 });
+  // A new binder: one page, no cover, nothing facing it. It gets the room a single page would.
+  assert.equal(alone, 1888);
+  assert.ok(alone > both * 1.9, 'a lone page is about twice the half-spread it used to be drawn at');
+  // The height fit still decides when height is what binds, exactly as it does for two halves.
+  const short = bookLayout({ availableWidth: 3000, availableHeight: 700, rows: 3, cols: 3, captionsOn: false, gap: 16, halves: 1 });
+  assert.ok(pageHeightAt(short, 3, 3, false) <= 701, `short window: lone page is ${pageHeightAt(short, 3, 3, false)} tall`);
+  // And a caller's ceiling is still a ceiling.
+  const capped = bookLayout({ availableWidth: 1888, availableHeight: TALL, rows: 3, cols: 3, captionsOn: false, gap: 16, halves: 1, maxWidth: 640 });
+  assert.equal(capped, 640);
+});
+
 test('every result is a whole number of pixels', () => {
   for (const w of [391, 703, 1025, 1441]) {
     const { pageWidth, peekWidth } = spread(w, 811);

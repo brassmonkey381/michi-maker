@@ -63,3 +63,24 @@ test('no column ever offers a lower tier than the viewer holds', () => {
     }
   }
 });
+
+/**
+ * A TRIAL IS NOT A SUBSCRIPTION. An active PRO trial resolves to tier 'pro', which used to make
+ * the PRO column read "Your current plan" and offer a trial member no way to start paying at all.
+ */
+test('on a trial, every paid column is a purchase, the trial tier included', () => {
+  const pro = planCta(col('pro'), 'pro', true);
+  assert.equal(pro.kind, 'buy');
+  assert.equal(pro.kind === 'buy' && pro.label, 'Subscribe to PRO');
+  const vip = planCta(col('vip'), 'pro', true);
+  // Never 'switch' on a trial: switching modifies a subscription that does not exist.
+  assert.equal(vip.kind, 'buy');
+  assert.equal(vip.kind === 'buy' && vip.label, 'Choose VIP');
+});
+
+test('a trial still offers no downgrade to Free, and a real subscriber is unaffected', () => {
+  assert.equal(planCta(col('free'), 'pro', true).kind, 'none');
+  // The same viewer WITHOUT the trial flag: their plan is their plan, and VIP is a switch.
+  assert.equal(planCta(col('pro'), 'pro').kind, 'current');
+  assert.equal(planCta(col('vip'), 'pro').kind, 'switch');
+});

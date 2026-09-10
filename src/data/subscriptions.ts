@@ -111,9 +111,24 @@ export type PlanCta =
 
 const TIER_RANK: Record<Tier, number> = { guest: 0, free: 1, pro: 2, vip: 3 };
 
-export function planCta(column: PlanHeader, current: Tier): PlanCta {
+/**
+ * What a column's button offers this viewer.
+ *
+ * A TRIAL IS NOT A SUBSCRIPTION, and `current` cannot say so on its own: an active PRO trial
+ * resolves to the tier it grants, so the PRO column read "Your current plan" and offered a trial
+ * member no way to become a paying one at all (owner, 2026-09-10). It also cannot be a 'switch',
+ * because switching modifies a subscription that does not exist. With `onTrial` every paid column
+ * is an ordinary purchase, and the one matching the trial says so plainly.
+ */
+export function planCta(column: PlanHeader, current: Tier, onTrial = false): PlanCta {
   const columnRank = TIER_RANK[column.tier];
   const currentRank = TIER_RANK[current];
+  if (onTrial && column.tier !== 'free' && columnRank >= currentRank) {
+    return {
+      kind: 'buy',
+      label: columnRank === currentRank ? `Subscribe to ${column.name}` : `Choose ${column.name}`,
+    };
+  }
   if (columnRank === currentRank) return { kind: 'current' };
   if (columnRank < currentRank) return { kind: 'none' };
   // Free sits above a guest, but joining is a sign-up, not a sale.

@@ -84,14 +84,27 @@ export function ProStatusBanner() {
       text: `${archived} binder${archived === 1 ? ' is' : 's are'} locked (over the Free limit). Subscribe to unlock ${archived === 1 ? 'it' : 'them'} again.`,
       cta: 'Unlock, subscribe',
     };
-  } else if (trial.state === 'active' && trial.daysLeft != null && trial.daysLeft <= 3) {
+  } else if (trial.state === 'active' && trial.daysLeft != null) {
+    /**
+     * THE WHOLE TRIAL, not only its last three days.
+     *
+     * Someone on the trial had no way to become a paying member at all until day eleven: every
+     * offer in the app is written for people who do NOT have PRO, so a trial member met walls that
+     * did not apply to them and no path that did (owner, 2026-09-10). One quiet line at the top of
+     * the app, saying how long is left and how to keep it, is that path. It sharpens in the last
+     * three days, which is when it stops being information and becomes a deadline.
+     */
     const d = trial.daysLeft;
+    const days = `${d} day${d === 1 ? '' : 's'}`;
+    const ending = d <= 3;
     body = {
       text:
-        liveExcess > 0
-          ? `${d} day${d === 1 ? '' : 's'} of PRO left. You have ${binderCount} binders, subscribe before it ends or ${liveExcess} will be locked.`
-          : `${d} day${d === 1 ? '' : 's'} of your PRO trial left. Keep your binders and prints with a plan.`,
-      cta: 'See plans',
+        liveExcess > 0 && ending
+          ? `${days} of PRO left. You have ${binderCount} binders, subscribe before it ends or ${liveExcess} will be locked.`
+          : ending
+            ? `${days} of your PRO trial left. Keep your binders and prints with a plan.`
+            : `You are on the PRO trial, ${days} left. Subscribe any time to keep it when it ends.`,
+      cta: ending ? 'See plans' : 'Make it permanent',
     };
   }
 

@@ -177,7 +177,7 @@ export function PlanComparison() {
     if (loading) return;
     // Only a paying subscriber has anything to prorate — planCta calls that case 'switch'.
     const upgrades = PLAN_HEADERS.filter(
-      (p) => p.tier !== 'free' && planCta(p, tier).kind === 'switch' && p.yearlyKey,
+      (p) => p.tier !== 'free' && planCta(p, tier, onTrial).kind === 'switch' && p.yearlyKey,
     );
     if (!upgrades.length) return;
     let live = true;
@@ -215,7 +215,7 @@ export function PlanComparison() {
     // Resolve nothing until the tier is known — a flash of "Choose PRO" at someone who already
     // pays for PRO is exactly the wrong first impression.
     if (loading) return <View style={styles.footPlaceholder} />;
-    const cta = planCta(plan, tier);
+    const cta = planCta(plan, tier, onTrial);
 
     if (cta.kind === 'none') return <View style={styles.footPlaceholder} />;
     if (cta.kind === 'current') {

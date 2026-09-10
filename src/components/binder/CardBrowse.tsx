@@ -20,6 +20,7 @@ import { ColorSearchSheet } from '@/components/ColorSearchSheet';
 import { nextDemoTheme } from '@/data/demoThemes';
 import { runThemeDemo } from '@/data/themeDemo';
 import { EnergyColorSheet } from '@/components/EnergyColorSheet';
+import { hasThemeSearch as tierHasThemeSearch } from '@/data/tiers';
 import { useTier } from '@/hooks/use-tier';
 import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { useBrowseTheme } from '@/lib/browseTheme';
@@ -101,7 +102,11 @@ export function CardBrowse({
   // energy-type search instead (with an upsell to tri-color). The gate is host-side — the kit stays
   // tier-agnostic and just fires onColorSearch; we branch on the tier here. This single site covers
   // both kit entry points (the Tri-Color button + the Color facet chip) on every surface.
-  const { isPaid, hasAdvancedSearch, hasFindSimilar, loading: tierUnknown } = useTier();
+  const { tier, isPaid, hasAdvancedSearch, hasFindSimilar, loading: tierUnknown } = useTier();
+  // Whether this account already searches artwork unmetered (PRO and VIP, an active trial
+  // included, since a trial resolves to the tier it grants). Read straight from tiers.ts: nothing
+  // else here needs it, and the offer below is the only thing it gates.
+  const hasThemeSearch = tierHasThemeSearch(tier);
   const [colorOpen, setColorOpen] = useState(false);
   /** The theme the button is offering right now; a new one is drawn after every press. */
   const [demoTheme, setDemoTheme] = useState(() => nextDemoTheme(null));
@@ -187,8 +192,10 @@ export function CardBrowse({
           setDemoTheme(nextDemoTheme(demoTheme));
           demoPresses.current += 1;
           // Every fifth press: they have understood the feature and are still pressing a button
-          // for it, which is the moment to say what searching one of their own costs.
-          if (demoPresses.current % DEMO_PRESSES_BEFORE_OFFER === 0) {
+          // for it, which is the moment to say what searching one of their own costs. NEVER to
+          // somebody who already has it, trial included: selling PRO to a PRO member is the app
+          // not knowing who it is talking to.
+          if (!hasThemeSearch && demoPresses.current % DEMO_PRESSES_BEFORE_OFFER === 0) {
             (onThemeLocked ?? (() => router.push('/plans' as Href)))();
           }
         }}

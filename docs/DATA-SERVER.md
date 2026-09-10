@@ -29,11 +29,46 @@ Catalog cards carry size tiers: `image_small` (245px webp — grids use it),
 
 ## Pending items this session may pick up
 
-1. **Vercel prod env vars** — ✅ DONE (2026-07-07). The three
+1. **⚠️ THE PAID DATA IS PUBLICLY READABLE** (data-server side, 2026-09-10, UNRESOLVED). PostgREST
+   publishes every column the `anon` role can select, so the derived data the paid tiers are sold on
+   is downloadable by anyone holding the publishable key — which ships in the web bundle. Measured
+   with `npm run check:exposure`:
+
+   | Readable as anon | What it is |
+   | --- | --- |
+   | `cards.embedding`, `cards_en.embedding`, `card_embeddings_candidate.embedding` | the 64-d artwork vectors behind Find Similar (23.6k rows live, 23.5k candidate) |
+   | `cards.scene_caption`, `cards_en.scene_caption` | the artwork descriptions themselves |
+   | `cards.scene_tags`, `cards_en.scene_tags` | the theme vocabulary and every card it applies to (28.5k rows in `cards_en`) — the whole of theme search |
+   | `cards.color_art`, `cards_en.color_art`, `cards_en.color_neighbors_art` | the palette vectors and precomputed neighbours behind colour search |
+   | `cards.full_art_score`, `cards_en.full_art_score` | the full-art scoring |
+
+   The page cap is 1000 rows, so the full set is ~59 requests; the rate limiter (PT429) paces a
+   scraper, it does not stop one. It also makes the theme meter cosmetic: `search_cards` clamps a
+   free caller to `search_config.free_theme_depth` (3), but
+   `GET /cards_en?scene_tags=cs.{"storm"}&limit=1000` returns all 63 matches with no clamp at all,
+   which is exactly the query `theme-search` exists to charge for.
+
+   **The fix is a column revoke, and it breaks nothing.** Neither michi nor `tcgscan-browse` ever
+   selects these columns: similarity, colour and theme all run through RPCs that compute
+   server-side (`find_similar_to_cards`, `search_cards`, `tagged_cards`) and return ids and scores.
+   The kit's only direct table reads are `CARD_COLS` (`dist/search.js`), prices, `series` and
+   `search_config` — none of them listed above. In the data project:
+
+   ```sql
+   REVOKE SELECT (embedding, scene_caption, scene_tags, color_art, color_neighbors_art, full_art_score)
+     ON public.cards FROM anon, authenticated;
+   -- repeat per relation; a VIEW does not inherit the base table's revoke, so cards_en needs its
+   -- own, and card_embeddings_candidate needs SELECT revoked wholesale.
+   ```
+
+   Check `tcgscan-app` for direct selects before revoking `authenticated` as well as `anon`, and
+   re-run `npm run check:exposure` after: it exits 1 while any of them is still public.
+
+2. **Vercel prod env vars** — ✅ DONE (2026-07-07). The three
    `EXPO_PUBLIC_CATALOG_*` values (in `.env.example`) are set in the Vercel
    dashboard, so prod no longer points at local paths. Re-check them if the
    browse/img/API endpoints ever move.
-2. **Binder pages → 640 tier** — ✅ effectively DONE (2026-07-07). Binder covers now
+3. **Binder pages → 640 tier** — ✅ effectively DONE (2026-07-07). Binder covers now
    resolve their image straight from the card id via `cardThumbUrl(id, tier)`
    (`src/lib/catalogConfig.ts`): `card-thumbs/245/<id>.webp` for grids/covers,
    `card-thumbs/640/<id>.webp` for the binder-page view, with an on-error fallback
@@ -41,7 +76,7 @@ Catalog cards carry size tiers: `image_small` (245px webp — grids use it),
    `BinderGrid` only reads the catalog (passively, `useCatalog(false)`) to enrich
    the jumbo/V-UNION badge. If some 640s are still missing, the full-jpg fallback
    covers them automatically.
-3. **Catalog first-load perf** (data-server side, recommended). `catalog.json` is
+4. **Catalog first-load perf** (data-server side, recommended). `catalog.json` is
    **25.7 MB** raw; Supabase already serves it **brotli (~1.36 MB on the wire)** with
    `Cache-Control: public, max-age=3600`. The remaining first-load cost is the
    client-side `JSON.parse` + index build. To cut repeat-load cost, bump the cache
@@ -50,14 +85,14 @@ Catalog cards carry size tiers: `image_small` (245px webp — grids use it),
    stale copy; a smaller id→image "lite" manifest would let the app defer the full
    catalog even further. The app already keeps it off the render critical path
    (item 2), so this only affects the editor's browse/search readiness.
-4. **Auth + saved binders** — ✅ DONE (2026-07-07). The app now has its own
+5. **Auth + saved binders** — ✅ DONE (2026-07-07). The app now has its own
    Supabase project, **tcgscan-michi-maker** (org "TCGScan", ref
    `piikwvntldytjejxmcla`), holding only user data (profiles/binders/pages/slots)
    under RLS. Full auth (email+password, email code, Google/Apple, guest+upgrade)
    is wired — see `docs/AUTH.md` for the remaining dashboard config (enable OAuth
    providers, add redirect URLs, flip the anonymous toggle). User tables were
    deliberately kept OUT of the shared tcgscan-data project.
-5. **Shared browse package (`tcgscan-browse`)** — ✅ DONE (2026-07-07). The
+6. **Shared browse package (`tcgscan-browse`)** — ✅ DONE (2026-07-07). The
    browse kit (`CatalogBrowser`, `CardActionModal`, query grammar + manual,
    catalog/prices/similarity clients, session browse state) was extracted
    verbatim into `github:brassmonkey381/tcgscan-browse` (MIT) and this app now
@@ -67,7 +102,7 @@ Catalog cards carry size tiers: `image_small` (245px webp — grids use it),
    keeps the `DemoCard` adapter; `src/lib/prices.ts` keeps binder/page totals.
    App-specific actions are injected via props. Remaining: have `tcgscan-app`
    consume the same package.
-6. **Set/series `language` field (data-server side, RECOMMENDED — 2026-07-18).**
+7. **Set/series `language` field (data-server side, RECOMMENDED — 2026-07-18).**
    Cards already carry `language` (`'en' | 'ja'`), and the browse surfaces filter by
    it (EN/JP toggles on Home Recent & Upcoming and `/browse`). But `browse/taxonomy.json`
    and `catalog.json` do **not** carry a language on their **sets** or **series**, so the

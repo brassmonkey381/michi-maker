@@ -41,6 +41,7 @@ Catalog cards carry size tiers: `image_small` (245px webp — grids use it),
    | `cards.scene_tags`, `cards_en.scene_tags` | the theme vocabulary and every card it applies to (28.5k rows in `cards_en`) — the whole of theme search |
    | `cards.color_art`, `cards_en.color_art`, `cards_en.color_neighbors_art` | the palette vectors and precomputed neighbours behind colour search |
    | `cards.full_art_score`, `cards_en.full_art_score` | the full-art scoring |
+   | `cards.art_text`, `cards_en.art_text` | **generated** as `scene_caption \|\| scene_tags`; reproduces theme search by itself |
 
    The page cap is 1000 rows, so the full set is ~59 requests; the rate limiter (PT429) paces a
    scraper, it does not stop one. It also makes the theme meter cosmetic: `search_cards` clamps a
@@ -48,18 +49,37 @@ Catalog cards carry size tiers: `image_small` (245px webp — grids use it),
    `GET /cards_en?scene_tags=cs.{"storm"}&limit=1000` returns all 63 matches with no clamp at all,
    which is exactly the query `theme-search` exists to charge for.
 
-   **The fix is a column revoke, and it breaks nothing.** Neither michi nor `tcgscan-browse` ever
-   selects these columns: similarity, colour and theme all run through RPCs that compute
-   server-side (`find_similar_to_cards`, `search_cards`, `tagged_cards`) and return ids and scores.
-   The kit's only direct table reads are `CARD_COLS` (`dist/search.js`), prices, `series` and
-   `search_config` — none of them listed above. In the data project:
+   **A BARE REVOKE IS NOT THE FIX — it would blank browse and search for every user of both apps.**
+   The first version of this note said a revoke breaks nothing, on the evidence that no client
+   selects these columns. That is true and beside the point: what matters is what the SERVER selects
+   on the client's behalf. Corrected by the data session, 2026-09-10, and confirmed here:
+
+   - **`anon` is the role EVERY catalog request arrives as, signed in or not.** Both apps
+     authenticate against the app project (`piikwvntldytjejxmcla`) and read the data project
+     anonymously — michi's data-project calls send `apikey` and no `Authorization` (see
+     `dist/search.js`; the only bearer token in the kit goes to michi's own `theme-search`
+     function). So `authenticated` is nearly a no-op here and `anon` is the breaking half, not the
+     safe one. There is no half of this that can ship on its own.
+   - **`search_cards` is SECURITY INVOKER and does `select c.*`** from `cards_en`, and the
+     `public.cards` union view is `security_invoker = true` naming these columns in its definition.
+     Revoking any of them from `anon` therefore breaks the RPC and the view for everyone.
+   - **`art_text` must be in the list.** It is a generated column, and a generated column carries
+     its own grant: revoking its sources does nothing for it. After the SQL below,
+     `GET /cards_en?select=id,name&art_text=ilike.*storm*` still returns 51 rows (measured).
+
+   So this needs a real migration, not a grant statement: recreate the view without the columns,
+   give `search_cards` an explicit column list (or make it definer with a JWT-claim check — note
+   migration 43's finding that `sb_secret` keys may present no JWT role at all), and carry the
+   revoke in the same migration.
 
    ```sql
-   REVOKE SELECT (embedding, scene_caption, scene_tags, color_art, color_neighbors_art, full_art_score)
-     ON public.cards FROM anon, authenticated;
-   -- repeat per relation; a VIEW does not inherit the base table's revoke, so cards_en needs its
-   -- own, and card_embeddings_candidate needs SELECT revoked wholesale.
+   -- The columns that must end up unreadable by anon and authenticated, on cards AND cards_en
+   -- (a view does not inherit its base table's revoke), plus card_embeddings_candidate wholesale:
+   --   embedding, scene_caption, scene_tags, color_art, color_neighbors_art, full_art_score, art_text
    ```
+
+   Leave the RPCs' own EXECUTE grants alone (TCGScan-DS's request, and correct: revoking a column
+   has no business touching execute on `find_similar_candidate`).
 
    **Cleared by tcgscan-data-science (2026-09-10).** Every reader of these columns over there takes
    the service-role key (`SUPABASE_SECRET_KEY` via `register_model._load_env`), and service role
@@ -68,10 +88,15 @@ Catalog cards carry size tiers: `image_small` (245px webp — grids use it),
    and `list_candidate_models`. No dedicated evaluation role is needed. Their one request: leave
    the RPCs' own grants alone - revoking a column must not touch execute on the functions.
 
-   Still open: `tcgscan-app`'s own confirmation before revoking from `authenticated` as well as
-   `anon`. Revoking `anon` closes the anonymous download and needs nobody's sign-off; the
-   `authenticated` half is what stops a free account (which costs nothing to make) doing the same.
-   Re-run `npm run check:exposure` after: it exits 1 while any column is still public.
+   **Client side is fully cleared.** The data session grepped `tcgscan-app`, `tcgscan-browse` and
+   `michi-maker` and found no direct select of any of these columns anywhere; only the data repo's
+   own apply scripts read them, with the secret key. So both roles can be revoked once the view and
+   the RPC are fixed.
+
+   **Status: DEFERRED, pending Brian.** He was offered this choice on 2026-09-10 and chose to leave
+   it; the data session holds the change and will not act on a relayed request. Unblocking it takes
+   one instruction from him in THAT session. Re-run `npm run check:exposure` after: it exits 1
+   while any column is still public (14 today, across 3 relations).
 
 2. **Vercel prod env vars** — ✅ DONE (2026-07-07). The three
    `EXPO_PUBLIC_CATALOG_*` values (in `.env.example`) are set in the Vercel

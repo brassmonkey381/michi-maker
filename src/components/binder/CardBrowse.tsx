@@ -17,7 +17,7 @@ import { Platform } from 'react-native';
 import { CatalogBrowser, sendBrowseCommand, type BrowseFeature, type CardAction, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
 
 import { ColorSearchSheet } from '@/components/ColorSearchSheet';
-import { FREE_THEME_QUERY } from '@/data/freeTheme';
+import { nextDemoTheme } from '@/data/demoThemes';
 import { runThemeDemo } from '@/data/themeDemo';
 import { EnergyColorSheet } from '@/components/EnergyColorSheet';
 import { useTier } from '@/hooks/use-tier';
@@ -34,8 +34,8 @@ const FORCE_COLD =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).has('coldsearch');
 
-/** How many presses of the demo button before it offers the real thing instead (see below). */
-const DEMO_PRESSES_BEFORE_OFFER = 3;
+/** How many presses of the theme button before it also puts the offer up (see below). */
+const DEMO_PRESSES_BEFORE_OFFER = 5;
 
 /** Target card-thumbnail width (px) — larger ⇒ fewer, bigger cards (≈ binder size). */
 export const CARD_BROWSE_TILE_WIDTH = 140;
@@ -103,18 +103,19 @@ export function CardBrowse({
   // both kit entry points (the Tri-Color button + the Color facet chip) on every surface.
   const { isPaid, hasAdvancedSearch, hasFindSimilar, loading: tierUnknown } = useTier();
   const [colorOpen, setColorOpen] = useState(false);
+  /** The theme the button is offering right now; a new one is drawn after every press. */
+  const [demoTheme, setDemoTheme] = useState(() => nextDemoTheme(null));
   /**
-   * PRESSING THE DEMO AGAIN AND AGAIN IS A QUESTION, and the answer is not more forests.
+   * PRESSING IT AGAIN AND AGAIN IS A QUESTION, and the answer is not only more pictures.
    *
-   * The button runs one fixed query (theme:forest, on the house for everyone). Someone who presses
-   * it repeatedly is not asking for that query a third time; they have understood that searching by
-   * artwork exists and are looking for the way to search a theme of their own, which the button
-   * cannot give them (owner decision 2026-09-10). On the third press the artwork wall opens instead
-   * of the search running: the same dialog the "+N more matches" row raises, so an eligible member
-   * starts the free trial there and everyone else meets one consistent offer.
+   * Someone still pressing after five themes has understood that searching by artwork exists and
+   * is working their way through a button because they do not know they can type one of their own.
+   * So every fifth press ALSO raises the artwork wall - the same dialog the "+N more matches" row
+   * raises, so an eligible member starts the free trial there and everyone meets one offer. The
+   * search still runs; the offer is added to it, never instead of it.
    *
-   * A ref, not state: it changes what the NEXT press does and nothing on screen depends on it, so
-   * re-rendering the browser on every press would be a repaint for nobody.
+   * A ref, not state: it changes what a later press does and nothing on screen depends on it, so
+   * re-rendering the browser to count would be a repaint for nobody.
    */
   const demoPresses = useRef(0);
   const [energyOpen, setEnergyOpen] = useState(false);
@@ -177,19 +178,22 @@ export function CardBrowse({
           else if (f === 'themeSearch') (onThemeLocked ?? (() => router.push('/plans' as Href)))();
           else router.push('/plans' as Href);
         }}
-        // The Theme Search button: runs the forest query like anything typed (see themeDemo). It
-        // is NAMED for that query rather than for the feature: called "Theme Search" it read as
-        // the way in to artwork search itself, and people pressed it expecting to choose a theme.
+        // A DIFFERENT PICTURE EVERY PRESS (see data/demoThemes). The button carries the theme it
+        // will run, so it reads as "this is the kind of thing you can ask for" rather than as one
+        // fixed demo; the label is always one press behind what the box will show, which is the
+        // right way round, because the label IS the offer.
         onThemeSearch={() => {
+          runThemeDemo('browser', demoTheme);
+          setDemoTheme(nextDemoTheme(demoTheme));
           demoPresses.current += 1;
-          if (demoPresses.current >= DEMO_PRESSES_BEFORE_OFFER) {
-            demoPresses.current = 0;
+          // Every fifth press: they have understood the feature and are still pressing a button
+          // for it, which is the moment to say what searching one of their own costs.
+          if (demoPresses.current % DEMO_PRESSES_BEFORE_OFFER === 0) {
             (onThemeLocked ?? (() => router.push('/plans' as Href)))();
-            return;
           }
-          runThemeDemo('browser');
         }}
-        themeSearchLabel={`${FREE_THEME_QUERY} (DEMO)`}
+        themeSearchLabel={`Theme: ${demoTheme}`}
+        colorSearchLabel="Color Search"
         onColorSearch={() => (isPaid ? setColorOpen(true) : setEnergyOpen(true))}
         footer={null}
         cardTileWidth={CARD_BROWSE_TILE_WIDTH}

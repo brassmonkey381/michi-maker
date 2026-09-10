@@ -50,7 +50,26 @@ export function EnergyColorSheet({ catalog, onClose }: { catalog: Catalog | null
             </Pressable>
           </View>
 
-          <Text style={styles.hint}>Pick an energy type to browse cards in its colour.</Text>
+          {/* THE PAID SEARCH FIRST, and looking like the better thing, because it is. Below the
+              energy grid it read as a footnote to the free feature; a reader picking a colour had
+              already chosen before they met it. Owner decision 2026-09-10. */}
+          <Pressable onPress={() => setUpsell(true)} style={({ pressed }) => [styles.upsellRow, pressed && styles.pressed]}>
+            <View style={styles.upsellText}>
+              <View style={styles.upsellHead}>
+                <Text style={styles.upsellTitle}>Tri-Color Search</Text>
+                <View style={styles.proPill}>
+                  <Text style={styles.proPillText}>PRO</Text>
+                </View>
+              </View>
+              <Text style={styles.upsellDesc}>
+                Mix up to three colours and rank every card by how close its artwork actually is. Far
+                beyond one energy type.
+              </Text>
+              <Text style={styles.upsellCta}>See how it works →</Text>
+            </View>
+          </Pressable>
+
+          <Text style={styles.hint}>Or pick one energy type to browse cards in its colour.</Text>
           <ScrollView contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
             {ENERGY.map((e) => (
               <Pressable key={e.type} onPress={() => pick(e.type)} style={styles.swatchItem}>
@@ -60,16 +79,6 @@ export function EnergyColorSheet({ catalog, onClose }: { catalog: Catalog | null
             ))}
           </ScrollView>
 
-          {/* Upsell to the paid palette search. */}
-          <Pressable onPress={() => setUpsell(true)} style={styles.upsellRow}>
-            <View style={styles.upsellText}>
-              <Text style={styles.upsellTitle}>Tri-Color Search</Text>
-              <Text style={styles.upsellDesc}>Match cards by their exact palette. Mix up to three colours.</Text>
-            </View>
-            <View style={styles.proPill}>
-              <Text style={styles.proPillText}>PRO</Text>
-            </View>
-          </Pressable>
         </Pressable>
       </Pressable>
 
@@ -109,10 +118,15 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     padding: Spacing.three,
     borderRadius: Radius.panel,
-    borderWidth: 1,
-    borderColor: Palette.hairlineStrong,
-    backgroundColor: Palette.panel,
+    // The accent border and tint the app uses for the thing it wants you to look at, not the
+    // hairline-on-panel it wore as a footnote.
+    borderWidth: 2,
+    borderColor: Palette.accent,
+    backgroundColor: Palette.accentSoft,
   },
+  upsellHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  upsellCta: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.accent, marginTop: 2 },
+  pressed: { opacity: 0.75 },
   upsellText: { flex: 1, gap: 2 },
   upsellTitle: { fontSize: FontSize.control, fontWeight: Weight.bold, color: Palette.ink },
   upsellDesc: { fontSize: FontSize.label, color: Palette.ink2, lineHeight: 16 },
@@ -120,9 +134,9 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     paddingHorizontal: Spacing.two,
     borderRadius: Radius.pill,
-    backgroundColor: Palette.surface,
-    borderWidth: 1,
-    borderColor: Palette.hairlineStrong,
+    backgroundColor: Palette.accent,
+    borderWidth: 0,
+    borderColor: Palette.accent,
   },
-  proPillText: { fontSize: FontSize.tag, color: Palette.ink2, fontWeight: '700', letterSpacing: 0.5 },
+  proPillText: { fontSize: FontSize.tag, color: Palette.accentText, fontWeight: '700', letterSpacing: 0.5 },
 });

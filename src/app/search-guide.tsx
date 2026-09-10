@@ -13,6 +13,7 @@ import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-n
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { QUERY_MANUAL, sendBrowseCommand } from 'tcgscan-browse';
 
+import { FREE_THEME } from '@/data/freeTheme';
 import { FREE_THEME_QUERY, runThemeDemo } from '@/data/themeDemo';
 
 import { HoverLift } from '@/components/landing/HoverLift';
@@ -135,8 +136,9 @@ export default function SearchGuideScreen() {
   const router = useRouter();
   const tryIt = (query: string) => {
     if (query === FREE_THEME_QUERY) {
-      // Tracked as the demonstration, shared with the browser's Theme Search button (themeDemo).
-      runThemeDemo('cheatsheet');
+      // Tracked as the demonstration, shared with the browser's theme button (themeDemo). The
+      // recipe names forest, so it runs forest; only the button rotates.
+      runThemeDemo('cheatsheet', FREE_THEME);
       router.push('/browse');
       return;
     }

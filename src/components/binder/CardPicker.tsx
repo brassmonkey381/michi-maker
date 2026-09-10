@@ -136,8 +136,13 @@ interface CardPickerProps {
 export const CARD_PICKER_DOCK_MIN_WIDTH = 1100;
 /** Wide enough for the browse grid's 140px tiles three across, plus its chrome. */
 export const CARD_PICKER_DOCK_WIDTH = 460;
-/** Collapsed, the dock leaves behind a rail just wide enough to grab and pull back out. */
-export const CARD_PICKER_RAIL_WIDTH = 34;
+/**
+ * Collapsed, the dock leaves behind a rail. 34px was "just wide enough to grab", and that turned
+ * out to be the whole problem: at that width it read as a border, people did not know the card
+ * browser and the art tray were there, and a binder's two most useful tools went unfound (owner
+ * decision 2026-09-10). Wide enough now to carry a real button, a readable name and a grip.
+ */
+export const CARD_PICKER_RAIL_WIDTH = 56;
 
 export function CardPicker({
   visible,
@@ -561,8 +566,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: CARD_PICKER_RAIL_WIDTH,
     backgroundColor: Palette.panel,
-    borderLeftWidth: 1,
-    borderLeftColor: Palette.hairlineStrong,
+    // A heavy edge on the page-facing side: the line says where the panel comes back from.
+    borderLeftWidth: 3,
+    borderLeftColor: Palette.accent,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 70,

@@ -2026,8 +2026,9 @@ export function BinderScreen({
                   hitSlop={10}>
                   {/* A filled pill so entering/leaving the workbench reads as a real mode change. */}
                   <View style={styles.modeBtn}>
-                    {/* "Done" alone was ambiguous beside a dock's own Done; this one names the mode it ends. */}
-                    <Text style={styles.modeBtnText}>{editing ? 'Done Editing' : 'Edit'}</Text>
+                    {/* NAMES THE MODE IT SWITCHES TO, both ways round. "Done" alone was ambiguous beside
+                        a dock's own Done, and "Edit" did not say that reading was a mode at all. */}
+                    <Text style={styles.modeBtnText}>{editing ? 'Viewing Mode' : 'Edit Mode'}</Text>
                   </View>
                 </Pressable>
               </View>

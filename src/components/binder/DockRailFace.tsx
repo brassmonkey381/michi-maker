@@ -71,38 +71,57 @@ export function DockRailFace({ label, chevron }: { label: string; chevron: strin
           styles.disc,
           still ? null : { transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.16] }) }] },
         ]}>
-        <Text style={styles.chevron}>{chevron}</Text>
+        {/* DOUBLE, and large. One thin chevron is a decoration; two heavy ones are an instruction. */}
+        <Text style={styles.chevron}>{chevron === '◂' ? '‹‹' : '››'}</Text>
       </Animated.View>
       <Text style={styles.label}>{label.toUpperCase().split('').join('\n')}</Text>
-      {/* The same three dots the resize handle wears: this edge is a thing you take hold of. */}
+      {/* The grip the resize handle wears, in the rail's own size: this edge is a thing you take
+          hold of. Two columns of dots rather than one, because a single column at this width read
+          as a row of full stops under the word. */}
       <View style={styles.grip}>
-        <View style={styles.dot} />
-        <View style={styles.dot} />
-        <View style={styles.dot} />
+        {Array.from({ length: 5 }, (_, i) => (
+          <View key={i} style={styles.gripRow}>
+            <View style={styles.dot} />
+            <View style={styles.dot} />
+          </View>
+        ))}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, paddingVertical: 16 },
+  wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, paddingVertical: 16 },
   disc: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: Palette.accent,
     alignItems: 'center',
     justifyContent: 'center',
+    // Lifted off the rail, so it reads as a button sitting on the edge rather than a painted mark.
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
-  chevron: { fontSize: FontSize.base, color: Palette.accentText, lineHeight: 16 },
-  label: {
-    fontSize: FontSize.sm,
+  chevron: {
+    fontSize: FontSize.control,
     fontWeight: Weight.bold,
-    color: Palette.ink2,
-    textAlign: 'center',
-    lineHeight: 13,
-    letterSpacing: 0.5,
+    color: Palette.accentText,
+    lineHeight: 20,
+    letterSpacing: -1,
   },
-  grip: { gap: 3, alignItems: 'center' },
+  label: {
+    fontSize: FontSize.label,
+    fontWeight: Weight.bold,
+    color: Palette.ink,
+    textAlign: 'center',
+    lineHeight: 15,
+    letterSpacing: 0.6,
+  },
+  grip: { gap: 4, alignItems: 'center' },
+  gripRow: { flexDirection: 'row', gap: 4 },
   dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: Palette.muted2 },
 });

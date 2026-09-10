@@ -16,6 +16,7 @@
 import { useState, type ReactNode } from 'react';
 import Animated from 'react-native-reanimated';
 
+import { CARD_PICKER_RAIL_WIDTH } from '@/components/binder/CardPicker';
 import { DockRailFace, markDockOpened } from '@/components/binder/DockRailFace';
 import { useDockResize } from '@/components/binder/DockResizeHandle';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -45,7 +46,7 @@ const INSERT_COLOURS = [
 
 export interface ArtworkDockProps {
   visible: boolean;
-  /** Collapsed to a rail: always present, always in the same place, 34px wide. */
+  /** Collapsed to a rail: always present, always in the same place (CARD_PICKER_RAIL_WIDTH). */
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
   /** False when the window cannot spare the width — the panel becomes a centred modal instead. */
@@ -157,9 +158,10 @@ export function ArtworkDock({
         accessibilityLabel="Expand your artwork and inserts"
         style={[
           styles.rail,
+          // A heavy edge on the page-facing side, as the card rail wears (see CardPicker.rail).
           side === 'left'
-            ? { left: 0, borderRightWidth: 1, borderRightColor: Palette.hairlineStrong }
-            : { right: 0, borderLeftWidth: 1, borderLeftColor: Palette.hairlineStrong },
+            ? { left: 0, borderRightWidth: 3, borderRightColor: Palette.accent }
+            : { right: 0, borderLeftWidth: 3, borderLeftColor: Palette.accent },
         ]}>
         <DockRailFace label="Art" chevron={side === 'left' ? '▸' : '◂'} />
       </Pressable>
@@ -287,7 +289,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     bottom: 0,
-    width: 34,
+    width: CARD_PICKER_RAIL_WIDTH,
     backgroundColor: Palette.panel,
     alignItems: 'center',
     justifyContent: 'center',

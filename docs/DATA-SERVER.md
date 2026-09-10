@@ -95,8 +95,14 @@ Catalog cards carry size tiers: `image_small` (245px webp — grids use it),
 
    **Status: DEFERRED, pending Brian.** He was offered this choice on 2026-09-10 and chose to leave
    it; the data session holds the change and will not act on a relayed request. Unblocking it takes
-   one instruction from him in THAT session. Re-run `npm run check:exposure` after: it exits 1
-   while any column is still public (14 today, across 3 relations).
+   one instruction from him in THAT session. When it is scheduled, the data session sends the
+   migration HERE for review before it runs; check that the recreated view and `search_cards` still
+   return everything the kit reads (`CARD_COLS` in `dist/search.js`, and the `search_cards` row
+   shape `rowToCard` maps, `total_count` and `cur` included), and that michi's browse and cold
+   search survive it — michi reads as `anon` too, so it breaks exactly as the app does. Re-run
+   `npm run check:exposure` after: it exits 1 while any column is still public (14 today, across 3
+   relations). Verify the meter separately by querying `cards_en` directly: a column being
+   unreadable and a search being unanswerable are not the same thing.
 
 2. **Vercel prod env vars** — ✅ DONE (2026-07-07). The three
    `EXPO_PUBLIC_CATALOG_*` values (in `.env.example`) are set in the Vercel

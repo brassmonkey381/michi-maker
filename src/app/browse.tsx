@@ -25,6 +25,7 @@ import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
 import { similarityWall } from '@/data/similarityGate';
+import { themeSearchWall } from '@/data/themeGate';
 import { CopyPickerSheet } from '@/components/binder/CopyPickerSheet';
 import { catalogArtNote, type OwnedEntry } from '@/data/ownedCopies';
 import { useAvailableCopies, useCopyAssigner, useOwnedCopies } from '@/hooks/use-owned-copies';
@@ -264,8 +265,10 @@ export default function BrowseScreen() {
               catalog={catalog}
               cardActions={cardActions}
               onSimilarLocked={() => capGate.hit(similarityWall(store.tier, 'browse'))}
-              // No onThemeLocked: the "+N more matches" row under a metered artwork search is a
-              // tap on an unlock offer, and CardBrowse sends it to the plans page by default.
+              // "+N more matches" under a metered artwork search. It used to fall through to the
+              // plans page; the cap gate is the better answer, because an eligible member can
+              // start the free PRO trial from it without leaving the search they were running.
+              onThemeLocked={() => capGate.hit(themeSearchWall(store.tier, 'browse'))}
               onPickCards={(cardIds) => setAddCardIds(cardIds)}
               // No `languages` pin: the browser reads the SHARED preference itself, which is the
               // same value this page used to thread through. Pinning it would suppress the

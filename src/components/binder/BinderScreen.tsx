@@ -46,6 +46,7 @@ import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
 import { similarityWall } from '@/data/similarityGate';
+import { themeSearchWall } from '@/data/themeGate';
 import { hasBinderCovers, hasBinderTracks, hasFindSimilar } from '@/data/tiers';
 import { SoundtrackField } from '@/components/binder/SoundtrackField';
 import { TrackPill } from '@/components/binder/TrackPill';
@@ -2325,7 +2326,10 @@ export function BinderScreen({
           onClear={handleClear}
           initialSimilar={similarSeed ?? undefined}
           onSimilarLocked={() => capGate.hit(similarityWall(store.tier, 'binder_editor'))}
-          onThemeLocked={() => showToast('Artwork search shows the top matches on your plan. See Plans to search every match.')}
+          // "+N more matches" under a metered artwork search. The same cap gate every other
+          // wall uses, so an eligible member gets the free PRO trial in one press rather than a
+          // toast pointing at the plans page.
+          onThemeLocked={() => capGate.hit(themeSearchWall(store.tier, 'binder_editor'))}
           // The Artwork tab is the slice tray now, so it takes the tray's wiring: the same handlers
           // the bottom tray uses, so a piece behaves identically whichever surface you pick it up
           // from, and the drag ghost is the same one.

@@ -61,8 +61,17 @@ Catalog cards carry size tiers: `image_small` (245px webp — grids use it),
    -- own, and card_embeddings_candidate needs SELECT revoked wholesale.
    ```
 
-   Check `tcgscan-app` for direct selects before revoking `authenticated` as well as `anon`, and
-   re-run `npm run check:exposure` after: it exits 1 while any of them is still public.
+   **Cleared by tcgscan-data-science (2026-09-10).** Every reader of these columns over there takes
+   the service-role key (`SUPABASE_SECRET_KEY` via `register_model._load_env`), and service role
+   bypasses column grants, so `coverage_report.py` / `embed_new.py` keep working; the candidate
+   table is only written from there and its evaluation reads go through `find_similar_candidate`
+   and `list_candidate_models`. No dedicated evaluation role is needed. Their one request: leave
+   the RPCs' own grants alone - revoking a column must not touch execute on the functions.
+
+   Still open: `tcgscan-app`'s own confirmation before revoking from `authenticated` as well as
+   `anon`. Revoking `anon` closes the anonymous download and needs nobody's sign-off; the
+   `authenticated` half is what stops a free account (which costs nothing to make) doing the same.
+   Re-run `npm run check:exposure` after: it exits 1 while any column is still public.
 
 2. **Vercel prod env vars** — ✅ DONE (2026-07-07). The three
    `EXPO_PUBLIC_CATALOG_*` values (in `.env.example`) are set in the Vercel

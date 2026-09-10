@@ -308,14 +308,9 @@ const styles = StyleSheet.create({
   swatch: { width: 56, height: 78, borderRadius: Radius.thumb, borderWidth: 1, borderColor: Palette.hairline },
   clearBtn: { paddingVertical: 8, alignSelf: 'flex-start' },
   clearText: { fontSize: FontSize.label, fontWeight: Weight.semibold, color: Palette.muted2 },
-  closeBtn: {
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Palette.hairlineStrong,
-    backgroundColor: Palette.panel,
-  },
+  /** The app's primary chip, as the card browser's and "Done Editing" wear. Slightly tighter than
+   *  those two because it shares its row with the Artwork / Inserts / Cover tabs. */
+  closeBtn: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: Radius.pill, backgroundColor: Palette.accent },
   closeBtnPressed: { opacity: 0.7 },
-  closeBtnText: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.ink2 },
+  closeBtnText: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.accentText },
 });

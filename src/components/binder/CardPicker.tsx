@@ -579,16 +579,10 @@ const styles = StyleSheet.create({
   sheetTall: { height: '94%', maxHeight: '94%' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
   headerTitle: { flex: 1 },
-  closeBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Palette.hairlineStrong,
-    backgroundColor: Palette.panel,
-  },
+  /** The app's primary chip, the same one "Done Editing" wears: this ends a mode, like that does. */
+  closeBtn: { paddingVertical: 8, paddingHorizontal: 18, borderRadius: Radius.pill, backgroundColor: Palette.accent },
   closeBtnPressed: { opacity: 0.7 },
-  closeBtnText: { fontSize: FontSize.base, fontWeight: Weight.bold, color: Palette.ink2 },
+  closeBtnText: { fontSize: FontSize.body, fontWeight: Weight.bold, color: Palette.accentText },
   controlsLabel: {
     fontSize: FontSize.sm,
     color: Palette.muted,

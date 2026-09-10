@@ -32,6 +32,17 @@ export interface CapHit extends CapWall {
   used: number;
   /** The limit they hit. */
   cap: number;
+  /**
+   * ALWAYS THE DIALOG, never the day's-second toast.
+   *
+   * The pacing below exists for walls a person BUMPS INTO while doing something else: a third
+   * binder, a fourth page, a print. Stopping them twice in a day for the same news is a nag, so
+   * the second hit is a toast. A wall raised by a deliberate press on an offer is the opposite
+   * case — "+N more matches" is a question, and answering it with a toast that cannot start the
+   * trial is answering a question with a poster (owner decision 2026-09-10). Set it only where
+   * the user asked to see the offer.
+   */
+  always?: boolean;
 }
 
 export function useCapGate(onToast: (message: string) => void) {
@@ -59,8 +70,8 @@ export function useCapGate(onToast: (message: string) => void) {
 
   const hit = useCallback(
     (h: CapHit) => {
-      const { tier, used, cap, ...w } = h;
-      const asDialog = shouldPromptCap(w.limit);
+      const { tier, used, cap, always, ...w } = h;
+      const asDialog = always === true || shouldPromptCap(w.limit);
       if (asDialog) {
         markCapPrompted(w.limit);
         offeredTrialRef.current = !w.isGuest && offersTrial;

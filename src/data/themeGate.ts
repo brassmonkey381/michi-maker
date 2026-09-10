@@ -47,6 +47,10 @@ export function themeSearchWall(tier: Tier, surface: CapSurface) {
     title: 'Every match comes with PRO',
     message: themeSearchGateMessage(tier),
     trialMessage: isGuest ? undefined : themeSearchTrialMessage(),
+    // Every time, not once a day. Nothing raises this wall by accident: it takes a press on
+    // "+N more matches" or a third press of the theme demo, and both are someone asking to see
+    // the offer. A toast on the second ask would drop the one control that answers them.
+    always: true,
     tier,
     // A capability, not an allowance: there is nothing to count. Sent anyway so every cap-gate row
     // has the same columns (the reason similarityGate does it too).

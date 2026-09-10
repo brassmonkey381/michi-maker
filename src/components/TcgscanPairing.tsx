@@ -6,7 +6,7 @@
  * month without learning it existed.
  *
  * One block, the same on every surface it appears on (Home, Welcome, My binders), with the loop
- * drawn as three steps and one button. The button goes through openTcgscan, which mints the SSO
+ * drawn as three steps and one button. The button goes through useTcgscanOpen, which mints the SSO
  * handoff so a signed-in member lands on tcgscan.ai already signed in.
  *
  * THE THREE STEPS ARE DRAWN WITH THE APP'S OWN PAGES, NOT EMOJI. A camera, a book and a printer
@@ -24,10 +24,10 @@
  * carry an art piece.
  */
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 
 import { BinderGrid } from '@/components/binder/BinderGrid';
-import { openTcgscan } from '@/components/monetization/BundleOffer';
+import { useTcgscanOpen } from '@/components/monetization/BundleOffer';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Shadows, Spacing, Weight } from '@/constants/theme';
@@ -296,17 +296,28 @@ export function TcgscanPairing({ surface, compact = false }: { surface: string; 
   // Wide enough for the button to sit beside the lede; below this it wraps under, left-aligned.
   const [cardW, onCardLayout] = useMeasuredWidth();
   const sideBySide = cardW >= 860;
+  // Opening TCGScan mints a sign-in ticket first, so a second or two passes before the page
+  // changes. The button says so and stops taking presses for that moment; without it the card
+  // read as broken and a second press minted a second ticket (see useTcgscanOpen).
+  const { opening, open } = useTcgscanOpen();
   const go = () => {
+    if (opening) return;
     track('tcgscan.pairing_click', { surface });
-    openTcgscan();
+    open();
   };
   const actions = (
     <View style={styles.actions}>
-      <Pressable onPress={go} accessibilityRole="link" style={({ pressed }) => [styles.primary, pressed && styles.pressed]}>
-        <Text style={styles.primaryText}>Start Scanning</Text>
+      <Pressable
+        onPress={go}
+        disabled={opening}
+        accessibilityRole="link"
+        accessibilityState={{ disabled: opening, busy: opening }}
+        style={({ pressed }) => [styles.primary, (pressed || opening) && styles.pressed]}>
+        {opening ? <ActivityIndicator size="small" color={Palette.accentText} /> : null}
+        <Text style={styles.primaryText}>{opening ? 'Opening TCGScan…' : 'Start Scanning'}</Text>
       </Pressable>
       <ThemedText type="small" themeColor="textSecondary" style={styles.actionsNote}>
-        Free Forever. Unlimited on device scanning.
+        {opening ? 'Signing you in over there, one moment.' : 'Free Forever. Unlimited on device scanning.'}
       </ThemedText>
     </View>
   );
@@ -498,7 +509,15 @@ const styles = StyleSheet.create({
   stepBody: { lineHeight: 18 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.three, marginTop: Spacing.two, maxWidth: '100%' },
   actionsNote: { flexShrink: 1 },
-  primary: { backgroundColor: Palette.accent, borderRadius: Radius.pill, paddingHorizontal: Spacing.four, paddingVertical: 8 },
+  primary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    backgroundColor: Palette.accent,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: 8,
+  },
   primaryText: { color: Palette.accentText, fontSize: FontSize.body, fontWeight: Weight.semibold },
   pressed: { opacity: 0.75 },
 });

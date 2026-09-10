@@ -11,7 +11,7 @@ import { usePathname, useRouter, type Href } from 'expo-router';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { LogoMark } from '@/components/brand/LogoMark';
-import { openTcgscan } from '@/components/monetization/BundleOffer';
+import { useTcgscanOpen } from '@/components/monetization/BundleOffer';
 import { TCGSCAN_URL } from '@/data/subscriptions';
 import { Wordmark } from '@/components/brand/Wordmark';
 import { ThemedText } from '@/components/themed-text';
@@ -103,6 +103,9 @@ function RailGroup({
   pathname: string;
   onNavigate: (href: Href) => void;
 }) {
+  // The TCGScan item is the one link here that is not instant: it mints a sign-in ticket first.
+  // Only the group holding it ever shows a pending state, and the others simply never set it.
+  const { opening, open } = useTcgscanOpen();
   return (
     <>
       <ThemedText type="smallBold" themeColor="textSecondary" style={styles.groupLabel}>
@@ -114,15 +117,22 @@ function RailGroup({
           return (
             <Pressable
               key={item.label}
-              onPress={() => (item.external ? openTcgscan() : onNavigate(item.href))}
+              onPress={() => (item.external ? open() : onNavigate(item.href))}
+              disabled={item.external && opening}
               accessibilityRole="link"
-              accessibilityState={{ selected: active }}
-              style={({ pressed }) => [styles.item, active && styles.itemActive, pressed && styles.pressed]}>
+              accessibilityState={{ selected: active, busy: item.external && opening }}
+              style={({ pressed }) => [
+                styles.item,
+                active && styles.itemActive,
+                (pressed || (item.external && opening)) && styles.pressed,
+              ]}>
               <ThemedText
                 type={active ? 'smallBold' : 'small'}
                 themeColor={active ? undefined : 'textSecondary'}
                 style={styles.itemText}>
-                {item.label}
+                {/* The TCGScan link mints a sign-in ticket before it navigates; it says so while
+                    that is happening rather than looking like a link that missed the press. */}
+                {item.external && opening ? 'Opening…' : item.label}
               </ThemedText>
             </Pressable>
           );

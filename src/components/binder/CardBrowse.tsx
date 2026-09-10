@@ -17,6 +17,7 @@ import { Platform } from 'react-native';
 import { CatalogBrowser, sendBrowseCommand, type BrowseFeature, type CardAction, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
 
 import { ColorSearchSheet } from '@/components/ColorSearchSheet';
+import { FREE_THEME_QUERY } from '@/data/freeTheme';
 import { runThemeDemo } from '@/data/themeDemo';
 import { EnergyColorSheet } from '@/components/EnergyColorSheet';
 import { useTier } from '@/hooks/use-tier';
@@ -159,8 +160,11 @@ export function CardBrowse({
           else if (f === 'themeSearch') (onThemeLocked ?? (() => router.push('/plans' as Href)))();
           else router.push('/plans' as Href);
         }}
-        // The Theme Search button: runs the forest query like anything typed (see themeDemo).
+        // The Theme Search button: runs the forest query like anything typed (see themeDemo). It
+        // is NAMED for that query rather than for the feature: called "Theme Search" it read as
+        // the way in to artwork search itself, and people pressed it expecting to choose a theme.
         onThemeSearch={() => runThemeDemo('browser')}
+        themeSearchLabel={`${FREE_THEME_QUERY} (DEMO)`}
         onColorSearch={() => (isPaid ? setColorOpen(true) : setEnergyOpen(true))}
         footer={null}
         cardTileWidth={CARD_BROWSE_TILE_WIDTH}

@@ -19,7 +19,7 @@
  * Every TCGScan mention links to its landing page (TCGSCAN_URL → tcgscan.ai/welcome).
  * Nothing here removes access — these are additive CTAs.
  */
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -37,13 +37,21 @@ export { TCGSCAN_URL };
  * 2026-09-06); a guest, a signed-out visitor or a failed mint gets the plain link. Same-tab on
  * web: window.open after an await trips popup blockers.
  */
-export function openTcgscan() {
-  openTcgscanUrl(TCGSCAN_URL);
+export function openTcgscan(): Promise<void> {
+  return openTcgscanUrl(TCGSCAN_URL);
 }
 
-/** Any tcgscan.ai address, with the handoff; a non-tcgscan address opens plainly. */
-export function openTcgscanUrl(url: string) {
-  void (async () => {
+/**
+ * Any tcgscan.ai address, with the handoff; a non-tcgscan address opens plainly.
+ *
+ * AWAITABLE, because it is not instant. Minting the ticket is a round trip to the edge function
+ * and the navigation is another, so a second or two passes between the press and the page
+ * changing — during which this used to look like a button that did nothing, and a second press
+ * minted a second ticket. Every caller should hold a pending state over it; `useTcgscanOpen` is
+ * that state, and the reason this returns a promise rather than firing and forgetting.
+ */
+export function openTcgscanUrl(url: string): Promise<void> {
+  return (async () => {
     const isTcgscan = /^https:\/\/([a-z0-9-]+\.)?tcgscan\.ai(\/|$)/i.test(url);
     const target = isTcgscan ? withHandoffHash(url, await mintHandoffHash()) : url;
     if (Platform.OS === 'web' && typeof window !== 'undefined') window.location.assign(target);
@@ -51,11 +59,37 @@ export function openTcgscanUrl(url: string) {
   })();
 }
 
+/**
+ * A press that opens TCGScan, and whether one is in flight.
+ *
+ * `opening` stays true until the navigation happens, which on web means until this page is
+ * replaced — so the button reads as working for the whole wait rather than for a frame. A second
+ * press while it is true is ignored: two tickets for one journey is a wasted mint, and the second
+ * would be the one redeemed while the first went stale.
+ */
+export function useTcgscanOpen(): { opening: boolean; open: (url?: string) => void } {
+  const [opening, setOpening] = useState(false);
+  const open = useCallback(
+    (url?: string) => {
+      setOpening((was) => {
+        if (was) return was;
+        void openTcgscanUrl(url ?? TCGSCAN_URL).finally(() => setOpening(false));
+        return true;
+      });
+    },
+    [],
+  );
+  return { opening, open };
+}
+
 /** Inline tappable "tcgscan" word for prose mentions — always points at the landing page. */
 export function TcgscanLink({ label = 'TCGScan' }: { label?: string }) {
+  // A word in a sentence, so the pending state is an ellipsis rather than a spinner: enough to
+  // say the press landed, little enough not to reflow the paragraph around it.
+  const { opening, open } = useTcgscanOpen();
   return (
-    <ThemedText type="small" style={styles.inlineLink} onPress={openTcgscan}>
-      {label}
+    <ThemedText type="small" style={styles.inlineLink} onPress={() => open()}>
+      {opening ? `${label}…` : label}
     </ThemedText>
   );
 }
@@ -111,11 +145,18 @@ export function BundleOffer() {
   // reader a member and promises 60% - neither of which a trial has earned.
   if (loading || !michiIsPaid || hasTcgscanPro) return null;
   const onPress = async () => {
+    if (busy) return;
     if (!CHECKOUT_OPEN) {
-      openTcgscan();
+      // Held busy over the open for the same reason every other way out is: the handoff is minted
+      // before the page moves, and until it does the button must not look idle or take a second press.
+      setBusy(true);
+      try {
+        await openTcgscan();
+      } finally {
+        setBusy(false);
+      }
       return;
     }
-    if (busy) return;
     setBusy(true);
     try {
       // Open TCGScan's plans page rather than a pre-picked checkout: the member chooses PRO
@@ -145,12 +186,15 @@ export function BundleOffer() {
  */
 export function TcgscanSynergyNote() {
   const { hasTcgscanPro, loading } = useTier();
+  // Called before the early return so hook order never varies with the tier read landing.
+  const { opening, open } = useTcgscanOpen();
   if (loading || hasTcgscanPro) return null;
   return (
     <CrossAppCard
       message="Powered by TCGScan. Scan your cards to keep this collection accurate & valued, TCGScan Pro members get live prices and ROI."
       cta="Meet TCGScan →"
-      onPress={openTcgscan}
+      onPress={() => open()}
+      busy={opening}
     />
   );
 }

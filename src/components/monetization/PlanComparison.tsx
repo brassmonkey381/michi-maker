@@ -22,7 +22,7 @@ import {
   Text,
   View, } from 'react-native';
 
-import { openTcgscanUrl } from '@/components/monetization/BundleOffer';
+import { useTcgscanOpen } from '@/components/monetization/BundleOffer';
 import { FontSize, Palette, Radius, Shadows, Spacing, Weight } from '@/constants/theme';
 import {
   changePlan,
@@ -85,6 +85,7 @@ function saleSub(head: PlanHeader, percentOff: number): string {
 export function PlanComparison() {
   const { tier, loading, refresh, isPaid, tcgscanIsPaid, tcgscanIsYearly } = useTier();
   const { isSignedIn } = useAuth();
+  const { opening, open } = useTcgscanOpen();
   // Cross-app bundle: a member holding a sibling TCGScan tier earns 60% off PRO/VIP. Mirror the
   // /plans banner gate exactly — shown to FREE and TRIAL holders, hidden from a fully-paid plan.
   // The server (stripe-checkout) is the source of truth for the charged price and for term-level
@@ -462,10 +463,11 @@ export function PlanComparison() {
             {f.link ? (
               <Text
                 style={styles.footnoteLink}
-                // A TCGScan address carries the sign-in handoff; anything else opens plainly.
-                onPress={() => openTcgscanUrl(f.link!.url)}>
+                // A TCGScan address carries the sign-in handoff; anything else opens plainly. The
+                // handoff takes a moment to mint, so the label says so instead of sitting there.
+                onPress={() => open(f.link!.url)}>
                 {' '}
-                {f.link.label}
+                {opening ? 'Opening…' : f.link.label}
               </Text>
             ) : null}
           </Text>

@@ -59,7 +59,12 @@ export default function MyBindersScreen() {
   const { width } = useWindowDimensions();
   // Where the rail isn't present (native, or narrow web) the page carries its own way back Home.
   const railHidden = Platform.OS !== 'web' || width < Breakpoints.rail;
-  const openBinder = (id: string) => router.push(`/binder/${id}`);
+  // STRAIGHT INTO THE WORKBENCH. Your own shelf is where you go to WORK on a binder, so opening
+  // one from here lands in edit mode rather than in the reading view with an Edit button to find
+  // first (owner decision 2026-09-09: people were opening a new binder and leaving). A binder the
+  // viewer cannot edit — a locked contest finalist, an example — ignores this and opens read-only,
+  // because BinderScreen gates editing on the lease and the lock, not on how it was opened.
+  const openBinder = (id: string) => router.push(`/binder/${id}?edit=1`);
   // `/my-binders?curate=example|import&from=<surface>`: a CurateCallout elsewhere sent them here
   // to import, and the sheet should already be open when the page lands.
   const { curate, from, open } = useLocalSearchParams<{ curate?: string; from?: string; open?: string }>();

@@ -19,7 +19,6 @@ import { AutoFillSheet } from '@/components/binder/AutoFillSheet';
 import { ComposeAllSheet } from '@/components/binder/ComposeAllSheet';
 import { BinderGrid, type BinderGridHandle } from '@/components/binder/BinderGrid';
 import {
-  CARD_PICKER_DOCK_MIN_WIDTH,
   CARD_PICKER_RAIL_WIDTH,
   CardPicker,
 } from '@/components/binder/CardPicker';
@@ -310,13 +309,12 @@ export function BinderScreen({
   const [selectMode, setSelectMode] = useState(false);
   const modifierHeld = useRef(false);
   const multiIdsRef = useRef(multiIds);
-  // "Keep adding" fast-fill: after placing a card the picker stays open and jumps to the next pocket.
-  // Default ON wherever the picker docks. It was off because the picker was a sheet OVER the binder,
-  // so leaving it up meant staring at a search panel and guessing which pocket you were filling.
-  // Docked, the binder is right there beside it and the next pocket lights up — so the fast path
-  // (tap a pocket once, then one tap per card) is the one you get without having to find a toggle.
-  // Initialised, not synced: once you turn it off it stays off, resizing the window included.
-  const [keepAdding, setKeepAdding] = useState(() => width >= CARD_PICKER_DOCK_MIN_WIDTH);
+  // FILLING KEEPS GOING, ALWAYS. Placing a card moves to the next empty pocket and the browser
+  // stays where it is; nothing the reader did not ask for closes it. This was a "Keep adding"
+  // toggle, on by default wherever the picker docked, and it earned its removal twice over: the
+  // off state closed the browser under people who had not asked for that, and the toggle sat
+  // beside the button that closes the browser, which is the pair most easily confused (owner
+  // decision 2026-09-09). The dock now closes exactly one way — Close Card Browser, or its rail.
   /**
    * THE ARTWORK PANEL, on the other side.
    *
@@ -533,8 +531,11 @@ export function BinderScreen({
       <ThemedView style={styles.flex}>
         <SafeAreaView style={styles.flex} edges={['top']}>
           <View style={styles.header}>
-            <Pressable onPress={onClose} hitSlop={10}>
-              <Text style={[styles.headerAction, { color: theme.text }]}>Close</Text>
+            <Pressable onPress={onClose} hitSlop={10} accessibilityRole="link" accessibilityLabel="Back to My Binders">
+              {/* SAYS WHERE IT GOES. Called "Close" it read as closing something ON this page —
+                  the cards dock, the art dock — and people pressed it and lost the binder they
+                  were editing (owner decision 2026-09-09). */}
+              <Text style={[styles.headerAction, { color: theme.text }]}>← Back to My Binders</Text>
             </Pressable>
           </View>
           <View style={styles.notFound}>
@@ -1004,14 +1005,11 @@ export function BinderScreen({
       colSpan: cols,
       sourceEntryId,
     });
-    if (keepAdding) {
-      const next = nextEmptyCell(row, col, rows, cols);
-      if (next) {
-        setPickerCell(next);
-        return;
-      }
-    }
-    closePicker();
+    // On to the next empty pocket that fits. When the page has none left the browser stays open
+    // on the pocket just filled: there is nowhere to advance to, and closing it here would be the
+    // same unasked-for disappearance the old toggle's off state caused.
+    const next = nextEmptyCell(row, col, rows, cols);
+    if (next) setPickerCell(next);
   };
 
   // Whether the user owns ANY copy of this card, placed or not - the line between "aspirational
@@ -1494,16 +1492,10 @@ export function BinderScreen({
     if (!pickerCell) return;
     const { row, col } = pickerCell;
     store.upsertSlot(binder.id, page.id, { row, col, type: 'insert', insertColor, rowSpan, colSpan });
-    // Keep adding: jump to the next empty pocket that fits this insert's footprint (mirrors cards),
-    // so a run of dividers/spacers can be laid down without reopening the sheet each time.
-    if (keepAdding) {
-      const next = nextEmptyCell(row, col, rowSpan, colSpan);
-      if (next) {
-        setPickerCell(next);
-        return;
-      }
-    }
-    closePicker();
+    // Jump to the next empty pocket that fits this insert's footprint, exactly as cards do, so a
+    // run of dividers can be laid down without reopening anything. No next pocket: stay put.
+    const next = nextEmptyCell(row, col, rowSpan, colSpan);
+    if (next) setPickerCell(next);
   };
 
   const handleClear = () => {
@@ -1910,8 +1902,11 @@ export function BinderScreen({
           {/* The picker is a full-height column on the right edge, so the header's own controls
               have to step aside for it too — otherwise the panel clips Done and Share. */}
           <View style={[styles.header, headerInset]}>
-            <Pressable onPress={onClose} hitSlop={10}>
-              <Text style={[styles.headerAction, { color: theme.text }]}>Close</Text>
+            <Pressable onPress={onClose} hitSlop={10} accessibilityRole="link" accessibilityLabel="Back to My Binders">
+              {/* SAYS WHERE IT GOES. Called "Close" it read as closing something ON this page —
+                  the cards dock, the art dock — and people pressed it and lost the binder they
+                  were editing (owner decision 2026-09-09). */}
+              <Text style={[styles.headerAction, { color: theme.text }]}>← Back to My Binders</Text>
             </Pressable>
             {/* TAP THE TITLE TO EDIT IT. The binder's name is already on screen, so a separate
                 "Binder title" field in a dialog was the same words twice. Tapping opens the
@@ -2030,7 +2025,8 @@ export function BinderScreen({
                   hitSlop={10}>
                   {/* A filled pill so entering/leaving the workbench reads as a real mode change. */}
                   <View style={styles.modeBtn}>
-                    <Text style={styles.modeBtnText}>{editing ? 'Done' : 'Edit'}</Text>
+                    {/* "Done" alone was ambiguous beside a dock's own Done; this one names the mode it ends. */}
+                    <Text style={styles.modeBtnText}>{editing ? 'Done Editing' : 'Edit'}</Text>
                   </View>
                 </Pressable>
               </View>
@@ -2327,8 +2323,6 @@ export function BinderScreen({
           guest={store.tier === 'guest'}
           onPickInsert={handlePickInsert}
           onClear={handleClear}
-          keepAdding={keepAdding}
-          onToggleKeepAdding={() => setKeepAdding((v) => !v)}
           initialSimilar={similarSeed ?? undefined}
           onSimilarLocked={() => capGate.hit(similarityWall(store.tier, 'binder_editor'))}
           onThemeLocked={() => showToast('Artwork search shows the top matches on your plan. See Plans to search every match.')}

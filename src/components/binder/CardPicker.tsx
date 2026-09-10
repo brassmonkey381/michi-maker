@@ -7,6 +7,7 @@ import type { CardAction } from 'tcgscan-browse';
 import Animated, { type SharedValue } from 'react-native-reanimated';
 
 import { ArtworkPanel } from '@/components/binder/ArtworkPanel';
+import { DockRailFace, markDockOpened } from '@/components/binder/DockRailFace';
 import { useDockResize } from '@/components/binder/DockResizeHandle';
 import { CardBrowse } from '@/components/binder/CardBrowse';
 import { ThemedText } from '@/components/themed-text';
@@ -113,9 +114,6 @@ interface CardPickerProps {
   guest?: boolean;
   onPickInsert: (color: string, rowSpan: number, colSpan: number) => void;
   onClear: () => void;
-  /** "Keep adding" mode: after placing a card the sheet stays open and jumps to the next pocket. */
-  keepAdding: boolean;
-  onToggleKeepAdding: () => void;
   /** One-shot "find similar to all" seed (binder multi-select → this picker). Applied on the
    *  card browser's mount; bypasses the broadcast command bus so it can't be intercepted. */
   initialSimilar?: string[];
@@ -173,8 +171,6 @@ export function CardPicker({
   resizeMax = 0,
   onPickInsert,
   onClear,
-  keepAdding,
-  onToggleKeepAdding,
   initialSimilar,
   onSimilarLocked,
   onThemeLocked,
@@ -365,22 +361,15 @@ export function CardPicker({
         <ThemedText type="subtitle" style={styles.headerTitle}>
           {title}
         </ThemedText>
-        {/* "Keep adding" only does something on the Cards tab (place → jump to next pocket);
-            it's a no-op in the Slice Studio, so hide it there. */}
-        {tab !== 'artwork' ? (
-          <Pressable
-            onPress={onToggleKeepAdding}
-            hitSlop={8}
-            accessibilityRole="switch"
-            accessibilityState={{ checked: keepAdding }}
-            style={[styles.keepAdding, keepAdding && styles.keepAddingOn]}>
-            <Text style={[styles.keepAddingText, keepAdding && styles.keepAddingTextOn]}>
-              {keepAdding ? '✓ Keep adding' : 'Keep adding'}
-            </Text>
-          </Pressable>
-        ) : null}
-        <Pressable onPress={onDone} hitSlop={12}>
-          <Text style={styles.close}>Done</Text>
+        {/* A REAL BUTTON THAT SAYS WHAT IT CLOSES. As the word "Done" in accent text it read as
+            finishing with the binder, and sat one control away from the header's own Done: people
+            pressed it expecting to be finished and instead lost the browser they were using. */}
+        <Pressable
+          onPress={onDone}
+          hitSlop={12}
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.closeBtn, pressed && styles.closeBtnPressed]}>
+          <Text style={styles.closeBtnText}>Close Card Browser</Text>
         </Pressable>
         {/* Collapse, borrowing the slice tray's idiom: one chevron, pointing the way the panel
             travels. Docked only — a bottom sheet already collapses by being dismissed. */}
@@ -451,7 +440,10 @@ export function CardPicker({
         // between pockets — but in "keep adding" mode hold one browse so you can rattle
         // through a set filling pockets without it resetting.
         <CardBrowse
-          key={keepAdding ? 'fill-session' : `${cell?.row ?? 'x'}-${cell?.col ?? 'x'}-${slot?.id ?? 'new'}`}
+          // ONE BROWSE SESSION for the whole fill: the search, the filters and how far you
+            // have scrolled all survive moving to the next pocket, so the browser never throws
+            // away the pages it has already loaded (see the kit's onEndReached).
+            key="fill-session"
           catalog={catalog}
           selectedCardId={slot?.type === 'card' ? slot.cardId : undefined}
           onPickCard={onPickCard}
@@ -499,17 +491,15 @@ export function CardPicker({
       return (
         <Pressable
           style={styles.rail}
-          onPress={onToggleCollapsed}
+          onPress={() => {
+            markDockOpened();
+            onToggleCollapsed?.();
+          }}
           testID="card-picker-rail"
           accessibilityRole="button"
           accessibilityState={{ expanded: false }}
           accessibilityLabel={`Expand ${collapsedLabel ?? 'the card search'}`}>
-          <Text style={styles.chevron}>◂</Text>
-          {/* Named, because a 34px bar with a chevron on it is a mystery. One letter per line: the
-              rail is too narrow for a word laid flat and rotated text is worse to read than this. */}
-          {collapsedLabel ? (
-            <Text style={styles.railLabel}>{collapsedLabel.toUpperCase().split('').join('\n')}</Text>
-          ) : null}
+          <DockRailFace label={collapsedLabel ?? 'Cards'} chevron="◂" />
         </Pressable>
       );
     }
@@ -570,22 +560,14 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     width: CARD_PICKER_RAIL_WIDTH,
-    backgroundColor: Palette.surface,
+    backgroundColor: Palette.panel,
     borderLeftWidth: 1,
     borderLeftColor: Palette.hairlineStrong,
     alignItems: 'center',
-    paddingTop: 14,
+    justifyContent: 'center',
     zIndex: 70,
   },
   chevron: { fontSize: FontSize.md, color: Palette.muted },
-  railLabel: {
-    marginTop: 10,
-    fontSize: FontSize.sm,
-    fontWeight: Weight.semibold,
-    color: Palette.muted2,
-    textAlign: 'center',
-    lineHeight: 13,
-  },
   /** Even as a sheet it should not stretch to a 1920px monitor: a phone-shaped control the width
    *  of a desktop is nobody's idea of a good picker. The Slice Studio is the exception — it is a
    *  workspace and takes every pixel it is given. */
@@ -597,16 +579,16 @@ const styles = StyleSheet.create({
   sheetTall: { height: '94%', maxHeight: '94%' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
   headerTitle: { flex: 1 },
-  keepAdding: {
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+  closeBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
     borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
     backgroundColor: Palette.panel,
   },
-  keepAddingOn: { backgroundColor: Palette.accent },
-  keepAddingText: { fontSize: FontSize.base, fontWeight: Weight.bold, color: Palette.muted },
-  keepAddingTextOn: { color: Palette.accentText },
-  close: { fontSize: FontSize.md, fontWeight: Weight.semibold, color: Palette.accent },
+  closeBtnPressed: { opacity: 0.7 },
+  closeBtnText: { fontSize: FontSize.base, fontWeight: Weight.bold, color: Palette.ink2 },
   controlsLabel: {
     fontSize: FontSize.sm,
     color: Palette.muted,

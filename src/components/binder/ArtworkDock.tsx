@@ -16,6 +16,7 @@
 import { useState, type ReactNode } from 'react';
 import Animated from 'react-native-reanimated';
 
+import { DockRailFace, markDockOpened } from '@/components/binder/DockRailFace';
 import { useDockResize } from '@/components/binder/DockResizeHandle';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { SharedValue } from 'react-native-reanimated';
@@ -147,7 +148,10 @@ export function ArtworkDock({
     return (
       <Pressable
         testID="artwork-rail"
-        onPress={onToggleCollapsed}
+        onPress={() => {
+          markDockOpened();
+          onToggleCollapsed?.();
+        }}
         accessibilityRole="button"
         accessibilityState={{ expanded: false }}
         accessibilityLabel="Expand your artwork and inserts"
@@ -157,8 +161,7 @@ export function ArtworkDock({
             ? { left: 0, borderRightWidth: 1, borderRightColor: Palette.hairlineStrong }
             : { right: 0, borderLeftWidth: 1, borderLeftColor: Palette.hairlineStrong },
         ]}>
-        <Text style={styles.chevron}>{side === 'left' ? '▸' : '◂'}</Text>
-        <Text style={styles.railLabel}>{'ART'.split('').join('\n')}</Text>
+        <DockRailFace label="Art" chevron={side === 'left' ? '▸' : '◂'} />
       </Pressable>
     );
   }
@@ -182,8 +185,14 @@ export function ArtworkDock({
               ))
             : null}
         </View>
-        <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button">
-          <Text style={styles.close}>Done</Text>
+        {/* Named for what it closes, like the card browser's: "Done" beside the binder's own
+            Done was two different endings one control apart. */}
+        <Pressable
+          onPress={onClose}
+          hitSlop={10}
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.closeBtn, pressed && styles.closeBtnPressed]}>
+          <Text style={styles.closeBtnText}>Close Art Dock</Text>
         </Pressable>
       </View>
       {coverLayers ? <View style={styles.layersSlot}>{coverLayers}</View> : null}
@@ -279,19 +288,10 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: 34,
-    backgroundColor: Palette.surface,
+    backgroundColor: Palette.panel,
     alignItems: 'center',
-    paddingTop: 14,
+    justifyContent: 'center',
     zIndex: 70,
-  },
-  chevron: { fontSize: FontSize.md, color: Palette.muted2 },
-  railLabel: {
-    marginTop: 10,
-    fontSize: FontSize.sm,
-    fontWeight: Weight.semibold,
-    color: Palette.muted2,
-    textAlign: 'center',
-    lineHeight: 13,
   },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 6, gap: Spacing.two },
   tabs: { flexDirection: 'row', gap: 4 },
@@ -308,5 +308,14 @@ const styles = StyleSheet.create({
   swatch: { width: 56, height: 78, borderRadius: Radius.thumb, borderWidth: 1, borderColor: Palette.hairline },
   clearBtn: { paddingVertical: 8, alignSelf: 'flex-start' },
   clearText: { fontSize: FontSize.label, fontWeight: Weight.semibold, color: Palette.muted2 },
-  close: { fontSize: FontSize.label, fontWeight: Weight.semibold, color: Palette.accent },
+  closeBtn: {
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
+    backgroundColor: Palette.panel,
+  },
+  closeBtnPressed: { opacity: 0.7 },
+  closeBtnText: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.ink2 },
 });

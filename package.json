@@ -59,6 +59,7 @@
     "lint": "expo lint",
     "test": "node --test \"src/**/*.test.ts\"",
     "check:caps": "node scripts/check-tier-caps.mjs",
+    "check:themes": "node scripts/theme-counts.mjs --list",
     "warm:og": "node scripts/warm-og.mjs"
   },
   "private": true

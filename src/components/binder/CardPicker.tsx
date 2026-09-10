@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import type { CardAction } from 'tcgscan-browse';
@@ -122,6 +122,8 @@ interface CardPickerProps {
   onSimilarLocked?: () => void;
   /** A locked theme: typed into the picker's search box. Shown as a toast, never a navigation. */
   onThemeLocked?: () => void;
+  /** A line drawn above the head, from the first-pocket walkthrough. Absent for everyone else. */
+  banner?: ReactNode;
   /** Docked only: the column is tucked away to a rail, so the binder gets the width back. Owned by
    *  BinderScreen because the page's layout budget has to change with it, not merely the picker. */
   collapsed?: boolean;
@@ -167,6 +169,7 @@ export function CardPicker({
   ghostOn,
   ghostX,
   ghostY,
+  banner,
   docked: dockedProp,
   dockWidth,
   collapsedLabel,
@@ -366,6 +369,10 @@ export function CardPicker({
 
   const body = (
     <>
+      {/* THE WALKTHROUGH'S ONE LINE, when there is one. Inside `body` rather than in either
+          branch below, so the docked column and the narrow bottom sheet get it from one
+          insertion and it can never be covered by the panel it belongs to. */}
+      {banner}
       <View style={styles.header}>
         <ThemedText type="subtitle" style={styles.headerTitle}>
           {title}

@@ -47,13 +47,17 @@ export function ResultStrip({
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     let live = true;
-    setPage(null);
-    setFailed(false);
+    // Both settings happen in the promise's callbacks, never in the effect body: a synchronous
+    // setState there cascades renders, and clearing first would blink the strip empty on a
+    // re-run for no gain, since each strip's query never changes after it mounts.
     searchCards(parseQuery(query), { limit }).then(
       (p) => {
         if (!live) return;
         if (p.cards.length === 0) setFailed(true);
-        else setPage({ cards: p.cards.slice(0, limit), total: p.total, clamped: p.clamped });
+        else {
+          setPage({ cards: p.cards.slice(0, limit), total: p.total, clamped: p.clamped });
+          setFailed(false);
+        }
       },
       () => { if (live) setFailed(true); },
     );

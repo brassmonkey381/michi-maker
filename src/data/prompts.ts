@@ -33,6 +33,12 @@
 
 export type PromptId = 'avatar-consent' | 'rights-attestation' | 'pro-trial-offer';
 
+// NOT HERE, ON PURPOSE: the first-pocket walkthrough (src/data/firstPocketWalkthrough.ts). It is
+// not a dialog and it covers nothing, so it takes no turn from the queue - one that held the turn
+// for a whole editor session would silence the attestation for the page. Its audience is also
+// mostly guests, whom every due() below refuses by construction. This file still has to answer
+// "what opens uninvited", hence the pointer.
+
 /** Where a prompt is allowed to open. A surface renders the prompts that list it. */
 export type PromptSurface = 'home' | 'my-binders' | 'binder';
 

@@ -258,6 +258,15 @@ export interface BinderGridHandle {
    *  reads), or null if the grid hasn't been measured yet. Lets the editor turn a drop
    *  reported in the *source* grid's coords into a point it can hit-test every page with. */
   localToWindow: (localX: number, localY: number) => { x: number; y: number } | null;
+  /** One cell's rectangle in WINDOW coords, or null if the grid hasn't been measured yet. The
+   *  inverse of hitTest, and the same box() arithmetic the slots themselves are laid out with, so
+   *  anything drawn over a pocket lands exactly on it. Used by the first-pocket walkthrough. */
+  cellRect: (
+    row: number,
+    col: number,
+    rowSpan?: number,
+    colSpan?: number,
+  ) => { x: number; y: number; width: number; height: number } | null;
 }
 
 type BoxStyle = {
@@ -391,8 +400,20 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
         if (!origin) return null;
         return { x: origin.x + pad + localX, y: origin.y + pad + localY };
       },
+      cellRect: (row, col, rowSpan = 1, colSpan = 1) => {
+        const origin = originRef.current;
+        // Reject an unmeasured grid rather than return NaN, exactly as hitTest does: a caller
+        // drawing at a guessed position is worse than one drawing nothing.
+        if (!origin || !Number.isFinite(row) || !Number.isFinite(col)) return null;
+        return {
+          x: origin.x + pad + col * colStep,
+          y: origin.y + pad + row * rowStep,
+          width: colSpan * cellW + (colSpan - 1) * gap,
+          height: rowSpan * cellH + (rowSpan - 1) * (gap + captionH),
+        };
+      },
     }),
-    [pad, innerW, innerH, colStep, rowStep, page.cols, page.rows],
+    [pad, innerW, innerH, colStep, rowStep, cellW, cellH, gap, captionH, page.cols, page.rows],
   );
 
   // Shared drag state: which slot is lifted, and its live translation. Only one drags at a time.

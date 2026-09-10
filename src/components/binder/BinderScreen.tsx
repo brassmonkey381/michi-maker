@@ -35,7 +35,10 @@ import { LikersSheet } from '@/components/binder/LikersSheet';
 import { RightsPrompt } from '@/components/binder/RightsPrompt';
 import { PrintPlaceholdersSheet } from '@/components/binder/PrintPlaceholdersSheet';
 import { ShareSheet } from '@/components/binder/ShareSheet';
+import { PocketRing, type PocketRect } from '@/components/binder/PocketRing';
 import { SliceStudio, type SliceStudioHandle } from '@/components/binder/SliceStudio';
+import { WalkthroughBanner } from '@/components/binder/WalkthroughBanner';
+import { useFirstPocketWalkthrough } from '@/hooks/use-first-pocket-walkthrough';
 import { SlotMultiActions } from '@/components/binder/SlotMultiActions';
 import { pillChip, sheet } from '@/constants/ui';
 import { ContestLockBanner } from '@/components/contest/ContestLockBanner';
@@ -458,6 +461,17 @@ export function BinderScreen({
   }, [editing]);
 
   const binder = store.getBinder(binderId);
+  /**
+   * THE FIRST-POCKET WALKTHROUGH (src/data/firstPocketWalkthrough.ts). One ring and one line,
+   * shown once ever, to the people the analytics found: they open a new binder, tap a pocket, and
+   * never place a card. Declared here, above every early return, so hook order cannot vary with
+   * a binder that has not loaded.
+   */
+  const hasCard = useMemo(
+    () => !!binder?.pages.some((p) => p.slots.some((sl) => sl.type === 'card' && sl.cardId)),
+    [binder],
+  );
+
   // THE SOUNDTRACK FOLLOWS THE PAGE. The page's own track while it is open, else the binder's,
   // else silence; the player crossfades between them on a turn and stops when the binder closes.
   // Above the early return below, with the other hooks; the page is read from the index because
@@ -526,6 +540,47 @@ export function BinderScreen({
   // Hover shows the description at once, and a placeholder when there is none — never a dead
   // title. The dialog being open is the one time the card would only get in the way.
   const binderHover = useHoverReveal(!binderInfoOpen);
+
+  /**
+   * THE FIRST-POCKET WALKTHROUGH. Above the `if (!binder)` return below, like every other hook
+   * here, so its order can never vary with a binder that has not loaded yet.
+   */
+  const walkthrough = useFirstPocketWalkthrough({
+    hasCard,
+    editing,
+    studio: !!studio,
+    pickerOpen: pickerCell !== null,
+    width,
+    tier: store.tier,
+  });
+  /**
+   * WHERE THE RING GOES: the first empty pocket in reading order on the page being edited, in
+   * window coords. Re-measured on everything that moves that grid - the window's width, either
+   * dock opening or closing, and turning the page - because `cellRect` reads a measurement taken
+   * at mount, and a stale one would ring the wrong pocket with total confidence.
+   */
+  const [ringRect, setRingRect] = useState<PocketRect | null>(null);
+  const wantRing = walkthrough.step === 'ring';
+  const ringPage = binder ? binder.pages[Math.min(pageIndex, binder.pages.length - 1)] : null;
+  useEffect(() => {
+    if (!wantRing || !ringPage) return;
+    // EVERYTHING INSIDE THE TIMER, including the decision that there is nothing to ring. A
+    // re-measure taken in the same tick as a layout change reads the old box, and setting state
+    // straight from an effect body is the pattern the React rules forbid; a frame's delay solves
+    // both. Until it fires the render is gated on `wantRing`, so no stale ring is drawn.
+    const t = setTimeout(() => {
+      const taken = occupiedCells(ringPage);
+      let cell: { row: number; col: number } | null = null;
+      for (let r = 0; r < ringPage.rows && !cell; r += 1) {
+        for (let c = 0; c < ringPage.cols && !cell; c += 1) {
+          if (!taken.has(`${r},${c}`)) cell = { row: r, col: c };
+        }
+      }
+      curRef.current?.remeasure();
+      setRingRect(cell ? (curRef.current?.cellRect(cell.row, cell.col) ?? null) : null);
+    }, 60);
+    return () => clearTimeout(t);
+  }, [wantRing, ringPage, width, artworkOpen, cardsCollapsed]);
 
   if (!binder) {
     return (
@@ -621,6 +676,7 @@ export function BinderScreen({
     artWantsPanel && artworkFit === 'docked' ? panels.widths[widthIdx++] : CARD_PICKER_RAIL_WIDTH;
   const available =
     width - 32 - (pickerDocked ? pickerWidth : 0) - (artworkDocked ? artworkWidth : 0);
+
   /**
    * WHAT A DRAGGED EDGE IS ALLOWED TO REACH, and what it stores.
    *
@@ -2304,6 +2360,11 @@ export function BinderScreen({
         />
 
         <CardPicker
+          banner={
+            walkthrough.text && walkthrough.step !== 'ring' ? (
+              <WalkthroughBanner text={walkthrough.text} onDismiss={walkthrough.dismiss} />
+            ) : undefined
+          }
           visible={sidesShown}
           page={page}
           cell={pickerCell}
@@ -2521,6 +2582,7 @@ export function BinderScreen({
           onNextPage={() => changePage(idx + 1)}
         />
 
+        <PocketRing rect={wantRing ? ringRect : null} />
         <Toast spec={toast} onDismiss={() => setToast(null)} />
         <CapGateDialog wall={capGate.wall} onDismiss={capGate.dismissWall} onResolve={capGate.resolveWall} />
         <ConfirmDialog spec={confirm} onClose={() => setConfirm(null)} />

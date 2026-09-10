@@ -31,7 +31,9 @@ export function themeSearchGateMessage(tier: Tier): string {
 }
 
 export function themeSearchTrialMessage(): string {
-  return 'PRO searches every match of every theme, not just the top few. Try it free for 14 days.';
+  // The dialog's trial button already promises no credit card and a return to Free on its own
+  // (TrialCta), so this line says what the trial is FOR rather than repeating those terms.
+  return 'PRO searches every match of every theme, not just the top few, and any theme you can think of. Try it free for 14 days.';
 }
 
 export function themeSearchWall(tier: Tier, surface: CapSurface) {

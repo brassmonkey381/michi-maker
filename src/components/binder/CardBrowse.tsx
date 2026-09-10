@@ -11,7 +11,7 @@
  * element — it remounts this wrapper and the browser inside it.
  */
 import { useRouter, type Href } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 
 import { CatalogBrowser, sendBrowseCommand, type BrowseFeature, type CardAction, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
@@ -33,6 +33,9 @@ const FORCE_COLD =
   Platform.OS === 'web' &&
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).has('coldsearch');
+
+/** How many presses of the demo button before it offers the real thing instead (see below). */
+const DEMO_PRESSES_BEFORE_OFFER = 3;
 
 /** Target card-thumbnail width (px) — larger ⇒ fewer, bigger cards (≈ binder size). */
 export const CARD_BROWSE_TILE_WIDTH = 140;
@@ -100,6 +103,20 @@ export function CardBrowse({
   // both kit entry points (the Tri-Color button + the Color facet chip) on every surface.
   const { isPaid, hasAdvancedSearch, hasFindSimilar, loading: tierUnknown } = useTier();
   const [colorOpen, setColorOpen] = useState(false);
+  /**
+   * PRESSING THE DEMO AGAIN AND AGAIN IS A QUESTION, and the answer is not more forests.
+   *
+   * The button runs one fixed query (theme:forest, on the house for everyone). Someone who presses
+   * it repeatedly is not asking for that query a third time; they have understood that searching by
+   * artwork exists and are looking for the way to search a theme of their own, which the button
+   * cannot give them (owner decision 2026-09-10). On the third press the artwork wall opens instead
+   * of the search running: the same dialog the "+N more matches" row raises, so an eligible member
+   * starts the free trial there and everyone else meets one consistent offer.
+   *
+   * A ref, not state: it changes what the NEXT press does and nothing on screen depends on it, so
+   * re-rendering the browser on every press would be a repaint for nobody.
+   */
+  const demoPresses = useRef(0);
   const [energyOpen, setEnergyOpen] = useState(false);
   const router = useRouter();
   // "Advanced Search" (PRO/VIP) as the kit's feature locks. The kit enforces them — including
@@ -163,7 +180,15 @@ export function CardBrowse({
         // The Theme Search button: runs the forest query like anything typed (see themeDemo). It
         // is NAMED for that query rather than for the feature: called "Theme Search" it read as
         // the way in to artwork search itself, and people pressed it expecting to choose a theme.
-        onThemeSearch={() => runThemeDemo('browser')}
+        onThemeSearch={() => {
+          demoPresses.current += 1;
+          if (demoPresses.current >= DEMO_PRESSES_BEFORE_OFFER) {
+            demoPresses.current = 0;
+            (onThemeLocked ?? (() => router.push('/plans' as Href)))();
+            return;
+          }
+          runThemeDemo('browser');
+        }}
         themeSearchLabel={`${FREE_THEME_QUERY} (DEMO)`}
         onColorSearch={() => (isPaid ? setColorOpen(true) : setEnergyOpen(true))}
         footer={null}

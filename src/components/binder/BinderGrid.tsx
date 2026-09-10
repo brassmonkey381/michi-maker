@@ -258,15 +258,20 @@ export interface BinderGridHandle {
    *  reads), or null if the grid hasn't been measured yet. Lets the editor turn a drop
    *  reported in the *source* grid's coords into a point it can hit-test every page with. */
   localToWindow: (localX: number, localY: number) => { x: number; y: number } | null;
-  /** One cell's rectangle in WINDOW coords, or null if the grid hasn't been measured yet. The
-   *  inverse of hitTest, and the same box() arithmetic the slots themselves are laid out with, so
-   *  anything drawn over a pocket lands exactly on it. Used by the first-pocket walkthrough. */
-  cellRect: (
+  /**
+   * One cell's rectangle in WINDOW coords, handed to a callback.
+   *
+   * MEASURES ITSELF rather than reading the origin `remeasure` stores, because that origin arrives
+   * in a native callback: a caller that called remeasure and then read the rect got the PREVIOUS
+   * measurement, which on the first ever call is null. The inverse of hitTest otherwise, using the
+   * same box() arithmetic the slots are laid out with, so anything drawn over a pocket lands on it.
+   * Calls back with null if the grid is not mounted. Used by the first-pocket walkthrough.
+   */
+  measureCell: (
     row: number,
     col: number,
-    rowSpan?: number,
-    colSpan?: number,
-  ) => { x: number; y: number; width: number; height: number } | null;
+    done: (rect: { x: number; y: number; width: number; height: number } | null) => void,
+  ) => void;
 }
 
 type BoxStyle = {
@@ -400,17 +405,19 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
         if (!origin) return null;
         return { x: origin.x + pad + localX, y: origin.y + pad + localY };
       },
-      cellRect: (row, col, rowSpan = 1, colSpan = 1) => {
-        const origin = originRef.current;
-        // Reject an unmeasured grid rather than return NaN, exactly as hitTest does: a caller
-        // drawing at a guessed position is worse than one drawing nothing.
-        if (!origin || !Number.isFinite(row) || !Number.isFinite(col)) return null;
-        return {
-          x: origin.x + pad + col * colStep,
-          y: origin.y + pad + row * rowStep,
-          width: colSpan * cellW + (colSpan - 1) * gap,
-          height: rowSpan * cellH + (rowSpan - 1) * (gap + captionH),
-        };
+      measureCell: (row, col, done) => {
+        const node = rootRef.current;
+        // Reject an unmounted grid rather than return NaN, as hitTest does: a caller drawing at a
+        // guessed position is worse than one drawing nothing.
+        if (!node || !Number.isFinite(row) || !Number.isFinite(col)) {
+          done(null);
+          return;
+        }
+        node.measureInWindow((x, y) => {
+          // Keep the origin fresh for hitTest while we are here: this IS a remeasure.
+          originRef.current = { x, y };
+          done({ x: x + pad + col * colStep, y: y + pad + row * rowStep, width: cellW, height: cellH });
+        });
       },
     }),
     [pad, innerW, innerH, colStep, rowStep, cellW, cellH, gap, captionH, page.cols, page.rows],

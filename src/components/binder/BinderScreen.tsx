@@ -561,26 +561,40 @@ export function BinderScreen({
    */
   const [ringRect, setRingRect] = useState<PocketRect | null>(null);
   const wantRing = walkthrough.step === 'ring';
+  // Step three points at the card that just landed, so the same measurement serves both: an EMPTY
+  // pocket to ring, or the FIRST FILLED one to point at.
+  const wantPlaced = walkthrough.step === 'placed';
   const ringPage = binder ? binder.pages[Math.min(pageIndex, binder.pages.length - 1)] : null;
   useEffect(() => {
-    if (!wantRing || !ringPage) return;
+    if ((!wantRing && !wantPlaced) || !ringPage) return;
     // EVERYTHING INSIDE THE TIMER, including the decision that there is nothing to ring. A
     // re-measure taken in the same tick as a layout change reads the old box, and setting state
     // straight from an effect body is the pattern the React rules forbid; a frame's delay solves
     // both. Until it fires the render is gated on `wantRing`, so no stale ring is drawn.
     const t = setTimeout(() => {
-      const taken = occupiedCells(ringPage);
       let cell: { row: number; col: number } | null = null;
-      for (let r = 0; r < ringPage.rows && !cell; r += 1) {
-        for (let c = 0; c < ringPage.cols && !cell; c += 1) {
-          if (!taken.has(`${r},${c}`)) cell = { row: r, col: c };
+      if (wantPlaced) {
+        const filled = ringPage.slots.find((sl) => sl.type === 'card' && sl.cardId);
+        cell = filled ? { row: filled.row, col: filled.col } : null;
+      } else {
+        const taken = occupiedCells(ringPage);
+        for (let r = 0; r < ringPage.rows && !cell; r += 1) {
+          for (let c = 0; c < ringPage.cols && !cell; c += 1) {
+            if (!taken.has(`${r},${c}`)) cell = { row: r, col: c };
+          }
         }
       }
-      curRef.current?.remeasure();
-      setRingRect(cell ? (curRef.current?.cellRect(cell.row, cell.col) ?? null) : null);
+      if (!cell) {
+        setRingRect(null);
+        return;
+      }
+      curRef.current?.measureCell(cell.row, cell.col, (r) => setRingRect(r));
     }, 60);
     return () => clearTimeout(t);
-  }, [wantRing, ringPage, width, artworkOpen, cardsCollapsed]);
+    // Anything that MOVES THE GRID has to re-measure, not just anything that changes the page:
+    // adding a page brings in the page strip, which shifts the binder sideways and left a ring
+    // hanging over empty space. Page count and index are in here for exactly that.
+  }, [wantRing, wantPlaced, ringPage, binder?.pages.length, pageIndex, width, artworkOpen, cardsCollapsed]);
 
   if (!binder) {
     return (
@@ -2361,8 +2375,8 @@ export function BinderScreen({
 
         <CardPicker
           banner={
-            walkthrough.text && walkthrough.step !== 'ring' ? (
-              <WalkthroughBanner text={walkthrough.text} onDismiss={walkthrough.dismiss} />
+            walkthrough.copy && walkthrough.step === 'card' ? (
+              <WalkthroughBanner copy={walkthrough.copy} onDismiss={walkthrough.dismiss} />
             ) : undefined
           }
           visible={sidesShown}
@@ -2583,6 +2597,23 @@ export function BinderScreen({
         />
 
         <PocketRing rect={wantRing ? ringRect : null} />
+        {/* STEPS ONE AND THREE float over the binder rather than in the browser, because both name
+            something ON the binder: the pocket to tap, then the card that landed in it. Placed
+            UNDER the pocket they point at, arrow up, and clamped to the window so a pocket near
+            the right edge still shows its callout whole. Step two lives in the browser instead,
+            because that is where the control it names is. */}
+        {(wantPlaced || wantRing) && ringRect && walkthrough.copy ? (
+          <View
+            style={[
+              styles.walkthroughFloat,
+              {
+                top: ringRect.y + ringRect.height + 8,
+                left: Math.max(Spacing.three, Math.min(ringRect.x - 40, width - 340)),
+              },
+            ]}>
+            <WalkthroughBanner copy={walkthrough.copy} onDismiss={walkthrough.dismiss} />
+          </View>
+        ) : null}
         <Toast spec={toast} onDismiss={() => setToast(null)} />
         <CapGateDialog wall={capGate.wall} onDismiss={capGate.dismissWall} onResolve={capGate.resolveWall} />
         <ConfirmDialog spec={confirm} onClose={() => setConfirm(null)} />
@@ -2865,6 +2896,8 @@ function PillButton({
 }
 
 const styles = StyleSheet.create({
+  /** Above the page (60) and the ring (65), below the docks (70): it must never cover a panel. */
+  walkthroughFloat: { position: 'absolute', width: 320, maxWidth: '92%', zIndex: 66 },
   flex: { flex: 1 },
   dismiss: { flex: 1, backgroundColor: Palette.scrim30 },
   notFound: { flex: 1, alignItems: 'center', justifyContent: 'center' },

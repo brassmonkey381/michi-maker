@@ -5,6 +5,7 @@ import {
   EMPTY_RECORD,
   MAX_EDITOR_OPENS,
   WALKTHROUGH_COPY,
+  WALKTHROUGH_TOTAL,
   mergeRecord,
   normalizeRecord,
   resolveState,
@@ -86,11 +87,18 @@ test('anything storage hands back that is not a record reads as a fresh one', ()
   assert.deepEqual(normalizeRecord({ v: 1, opens: 2.7, retiredAt: '' }), { v: 1, opens: 2, retiredAt: null });
 });
 
-test('no line of copy carries an em-dash, and none of them explains the pocket plus', () => {
-  for (const [step, line] of Object.entries(WALKTHROUGH_COPY)) {
-    assert.ok(!line.includes('—'), `${step} has an em-dash`);
-    assert.ok(line.length < 110, `${step} is too long to read in a panel head`);
+test('every callout is numbered, short, em-dash free, and points somewhere', () => {
+  const seen = new Set<number>();
+  for (const [step, c] of Object.entries(WALKTHROUGH_COPY)) {
+    assert.ok(!`${c.title} ${c.body}`.includes('—'), `${step} has an em-dash`);
+    assert.ok(c.title.length < 40, `${step}'s heading is too long for a callout`);
+    assert.ok(c.body.length < 140, `${step}'s body is too long to be read at a glance`);
+    assert.ok(c.arrow === 'up' || c.arrow === 'down', `${step} points nowhere`);
+    assert.ok(c.index >= 1 && c.index <= WALKTHROUGH_TOTAL, `${step} is numbered ${c.index}`);
+    seen.add(c.index);
   }
+  // Three steps, numbered 1 2 3, so the counter can never read "2 of 3" twice.
+  assert.equal(seen.size, WALKTHROUGH_TOTAL);
   // The pocket's own + glyph is not drawn on a narrow page, so no copy may point at one.
-  assert.ok(!WALKTHROUGH_COPY.ring.includes('＋'));
+  assert.ok(!WALKTHROUGH_COPY.ring.body.includes('＋'));
 });

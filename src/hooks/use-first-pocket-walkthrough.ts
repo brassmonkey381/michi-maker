@@ -20,6 +20,7 @@ import {
   mergeRecord,
   normalizeRecord,
   resolveState,
+  type WalkthroughCopy,
   type WalkthroughEnding,
   type WalkthroughRecord,
   type WalkthroughStep,
@@ -33,8 +34,8 @@ const PREF_KEY = 'firstPocketWalkthrough';
 export interface FirstPocketWalkthrough {
   /** The step being shown, or null when nothing is. */
   step: WalkthroughStep | null;
-  /** The line for that step, or null. */
-  text: string | null;
+  /** The callout for that step, or null. */
+  copy: WalkthroughCopy | null;
   /** One press: over for good. */
   dismiss: () => void;
 }
@@ -174,7 +175,7 @@ export function useFirstPocketWalkthrough({
 
   return {
     step,
-    text: step ? WALKTHROUGH_COPY[step] : null,
+    copy: step ? WALKTHROUGH_COPY[step] : null,
     dismiss: useCallback(() => retireRef.current('dismissed'), []),
   };
 }

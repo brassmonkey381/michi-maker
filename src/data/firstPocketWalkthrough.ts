@@ -122,16 +122,50 @@ export function resolveState({
 }
 
 /**
- * THE COPY. Two lines, and neither of them explains the pocket tap.
+ * THE COPY, as callouts rather than captions.
+ *
+ * A single line along the top of a panel is the easiest thing on a screen to skip, which is what
+ * the first build of this was and why it changed (owner, 2026-09-10). Each step is now a card with
+ * a heading, a sentence, its place in the sequence, and an arrow pointing at the control it is
+ * talking about. The arrow is the part that does the work: a reader who has stalled needs to be
+ * shown where, not told what.
  *
  * The ＋ named here is the quick-place pill on a card TILE, which is drawn at every width. The
  * pocket's own ＋ glyph is not drawn under a 220px page, so no line here mentions one.
  */
+export interface WalkthroughCopy {
+  /** Which of the three, for the counter. */
+  index: number;
+  title: string;
+  body: string;
+  /** Where the arrow on the callout points, toward the control the body names. */
+  arrow: 'down' | 'up';
+}
+
+export const WALKTHROUGH_TOTAL = 3;
+
 export const WALKTHROUGH_COPY = {
-  /** While the browser is closed: the ring is doing the talking, this names what it is. */
-  ring: 'Tap a pocket to fill it. The card browser opens beside your binder.',
-  /** The line that matters, shown inside the browser's own head. */
-  card: 'Search for a card, then press the ＋ on it. It lands in the pocket you picked.',
-  /** Once the first card is in, one pointer onward and then silence. */
-  placed: 'That one is in. Tap a card you placed to see more ways to fill the page.',
-} as const satisfies Record<WalkthroughStep, string>;
+  /** The browser is shut and the ring is doing the pointing; this names what the ring means. */
+  ring: {
+    index: 1,
+    title: 'Pick a pocket',
+    body: 'Tap the ringed pocket above. The card browser opens beside your binder.',
+    // Up, because the callout sits UNDER the pocket it names: below always fits, where above runs
+    // off the top of the page for a pocket on the first row.
+    arrow: 'up',
+  },
+  /** Inside the browser, above the search box it is talking about. */
+  card: {
+    index: 2,
+    title: 'Find a card, then drop it in',
+    body: 'Search below for any card you like, then press the ＋ in its corner. It lands in the pocket you picked.',
+    arrow: 'down',
+  },
+  /** Over the binder, pointing at the card that just landed. */
+  placed: {
+    index: 3,
+    title: 'Now fill the page around it',
+    body: 'Tap the card you just placed and choose Fill page. Michi builds the rest of the page to match it.',
+    arrow: 'up',
+  },
+} as const satisfies Record<WalkthroughStep, WalkthroughCopy>;

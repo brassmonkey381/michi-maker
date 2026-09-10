@@ -326,6 +326,10 @@ export function CardPicker({
     enabled: !!onResize && !!dockWidth,
     onCommit: onResize ?? (() => {}),
     onReset: onResizeReset,
+    // Folds away to the right, where its rail lives. `docked` is derived below, so the dock's
+    // own width standing in for it here: a sheet has no dockWidth and offers no resize either.
+    onCollapse: dockWidth ? onToggleCollapsed : undefined,
+    collapseChevron: '›',
   });
   // TOLD, not decided here. This used to be its own width breakpoint, which disagreed with the
   // screen's: the screen shaved a panel's width off the page's budget while this rendered a

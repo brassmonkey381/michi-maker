@@ -123,6 +123,9 @@ export function ArtworkDock({
     enabled: !!onResize,
     onCommit: onResize ?? (() => {}),
     onReset: onResizeReset,
+    // Folds away toward its own edge, where its rail lives.
+    onCollapse: onToggleCollapsed,
+    collapseChevron: side === 'left' ? '‹' : '›',
   });
   const tabs = (['art', ...(onPickInsert ? (['insert'] as const) : []), ...(coverTools ? (['cover'] as const) : [])] as const) as readonly ('art' | 'insert' | 'cover')[];
   /**

@@ -96,13 +96,31 @@ Catalog cards carry size tiers: `image_small` (245px webp — grids use it),
    **Status: DEFERRED, pending Brian.** He was offered this choice on 2026-09-10 and chose to leave
    it; the data session holds the change and will not act on a relayed request. Unblocking it takes
    one instruction from him in THAT session. When it is scheduled, the data session sends the
-   migration HERE for review before it runs; check that the recreated view and `search_cards` still
-   return everything the kit reads (`CARD_COLS` in `dist/search.js`, and the `search_cards` row
-   shape `rowToCard` maps, `total_count` and `cur` included), and that michi's browse and cold
-   search survive it — michi reads as `anon` too, so it breaks exactly as the app does. Re-run
-   `npm run check:exposure` after: it exits 1 while any column is still public (14 today, across 3
-   relations). Verify the meter separately by querying `cards_en` directly: a column being
-   unreadable and a search being unanswerable are not the same thing.
+   migration HERE for review before it runs, and diffs it against this contract (sent 2026-09-10,
+   read out of the shipped kit):
+
+   - **Direct select on `public.cards`** — `CARD_COLS`, `dist/search.js:200`, used by the cold
+     drill-down: `id, name, number, rarity, card_type, set_id, set_name, series, release_date,
+     illustrator, types, stage, hp, evolution_stage_index, evolves_from, evolution_line, jumbo,
+     language`, plus the filters applied on the same view: `browse_visible`, `set_id`, `language`.
+   - **`search_cards` return list** — everything `rowToCard` maps plus the two read off row 0:
+     the same columns as above, **`full_art_kind`** (read from the RPC though it is NOT in
+     `CARD_COLS`), `total_count` (the meter, and how clamping is detected) and `cur` (`priceById`).
+   - `rowToCard` tolerates a missing field (`?? ''`), so a dropped column **degrades quietly rather
+     than throwing** — diff the header, do not trust a smoke test.
+   - Leave alone: `prices`, `sets`, `series`, `search_config`, `pokemon_partner_groups`,
+     `trainer_partners`, and the RPCs `search_facets`, `card_detail`, `search_by_color(s)`,
+     `find_similar_by_color`, `list_candidate_models`, `find_similar*`.
+
+   **There is no staging project** (the data repo references only `bmhjizcmwtmcrstadqto`), so the
+   rehearsal is a rolled-back transaction using `set local role anon` — the same role PostgREST
+   hands a client, so it exercises the real invoker path and the real grants. Assert the row SHAPE
+   (`row_to_json`), not a count, and include one search_cards call with no theme field: ordinary
+   word search is what breaks silently for everyone. Covering a live client rendering needs a
+   maintenance window with a tested rollback; that is Brian's call. Re-run `npm run check:exposure`
+   after: it exits 1 while any column is still public (14 today, across 3 relations). Verify the
+   meter separately by querying `cards_en` directly — a column being unreadable and a search being
+   unanswerable are not the same thing.
 
 2. **Vercel prod env vars** — ✅ DONE (2026-07-07). The three
    `EXPO_PUBLIC_CATALOG_*` values (in `.env.example`) are set in the Vercel

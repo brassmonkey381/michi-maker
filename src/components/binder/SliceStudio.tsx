@@ -1198,7 +1198,6 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
           {/* Source — one calm row. Everything here is about GETTING an image in. */}
           <View style={styles.sourceBar}>
             <Btn label="Card art" onPress={() => setCardPickOpen(true)} kind="primary" />
-            <Btn label={stockOpen ? 'Hide photo search' : 'Search photos'} onPress={() => setStockOpen((v) => !v)} />
             <Btn label="Art sources ↗" onPress={() => setSourcesOpen(true)} />
             <ArtUploadButton
               onUploaded={(url) => loadImage(url, { sourceName: 'your upload', origin: 'upload' })}
@@ -1216,6 +1215,29 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
               />
               <Btn label="Load" onPress={loadUrl} />
             </View>
+          </View>
+
+          {/* THE PHOTO LIBRARY, ITS OWN AREA. It was a plain button in the row above, between
+              Upload and the paste-a-URL box, and it read as one more way to bring in a file you
+              already had: nobody could tell there was a searchable library of free photography in
+              here at all (owner decision 2026-09-10). It is a band of its own now, under the
+              things you bring, because it is a different act: not fetching a picture you have,
+              but going looking for one. */}
+          <View style={styles.stockBand}>
+            <Pressable
+              onPress={() => setStockOpen((v) => !v)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: stockOpen }}
+              style={({ pressed }) => [styles.stockHead, pressed && styles.pressed]}>
+              <Text style={styles.stockGlyph}>{'⌕'}</Text>
+              <View style={styles.stockHeadText}>
+                <Text style={styles.stockTitle}>Search free photos</Text>
+                <Text style={styles.stockSub}>
+                  Millions of free-to-use pictures, searchable from here. Try a mood, a place or a colour.
+                </Text>
+              </View>
+              <Text style={styles.stockChevron}>{stockOpen ? '▴' : '▾'}</Text>
+            </Pressable>
           </View>
 
           {stockOpen ? (
@@ -1683,6 +1705,21 @@ function Ghost({ label, onPress }: { label: string; onPress: () => void }) {
 
 const styles = StyleSheet.create({
   stockWrap: { marginTop: 8 },
+  /** Its own band, tinted and ruled, so it cannot be read as another button in the source row. */
+  stockBand: {
+    marginTop: 12,
+    borderRadius: Radius.control,
+    borderWidth: 1,
+    borderColor: Palette.accent,
+    backgroundColor: Palette.accentSoft,
+    overflow: 'hidden',
+  },
+  stockHead: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingVertical: 10 },
+  stockGlyph: { fontSize: 20, color: Palette.accent, lineHeight: 24 },
+  stockHeadText: { flex: 1, minWidth: 0, gap: 1 },
+  stockTitle: { fontSize: FontSize.control, fontWeight: Weight.bold, color: Palette.ink },
+  stockSub: { fontSize: FontSize.sm, lineHeight: 16, color: Palette.ink2 },
+  stockChevron: { fontSize: FontSize.md, color: Palette.accent },
   flex: { flex: 1, backgroundColor: Palette.surface },
   header: {
     flexDirection: 'row',

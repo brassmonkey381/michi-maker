@@ -126,8 +126,18 @@ export function CoverArtSection({
         </Pressable>
       </View>
 
-      <Text style={styles.label}>From a photo search</Text>
-      <StockArtSearch onPick={(h) => void pickStock(h)} disabled={disabled} busyId={stockBusy} testID="cover-stock" />
+      {/* ITS OWN BAND, not a third grey label in a stack of them. "From a photo search" read as
+          another place a file might come from; this says there is a library to go looking in. */}
+      <View style={styles.stockBand}>
+        <View style={styles.stockHead}>
+          <Text style={styles.stockGlyph}>{'⌕'}</Text>
+          <View style={styles.stockHeadText}>
+            <Text style={styles.stockTitle}>Search free photos</Text>
+            <Text style={styles.stockSub}>Millions of free-to-use pictures. Try a mood, a place or a colour.</Text>
+          </View>
+        </View>
+        <StockArtSearch onPick={(h) => void pickStock(h)} disabled={disabled} busyId={stockBusy} testID="cover-stock" />
+      </View>
 
       <Text style={styles.label}>From your tray</Text>
       {slices.length === 0 ? (
@@ -164,6 +174,19 @@ const styles = StyleSheet.create({
   section: { gap: 6 },
   label: { fontSize: FontSize.sm, color: Palette.muted, fontWeight: Weight.medium, textTransform: 'uppercase', letterSpacing: 0.4 },
   hint: { fontSize: FontSize.sm, color: Palette.muted },
+  stockBand: {
+    gap: 8,
+    padding: 10,
+    borderRadius: Radius.control,
+    borderWidth: 1,
+    borderColor: Palette.accent,
+    backgroundColor: Palette.accentSoft,
+  },
+  stockHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  stockGlyph: { fontSize: 18, color: Palette.accent, lineHeight: 22 },
+  stockHeadText: { flex: 1, minWidth: 0, gap: 1 },
+  stockTitle: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.ink },
+  stockSub: { fontSize: FontSize.sm, lineHeight: 15, color: Palette.ink2 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   input: { flex: 1, height: 34, paddingHorizontal: 10, borderRadius: Radius.control, backgroundColor: Palette.panel, color: Palette.ink, fontSize: FontSize.label },
   go: { backgroundColor: Palette.accent, minWidth: 48, alignItems: 'center' },

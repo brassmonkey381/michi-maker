@@ -26,6 +26,7 @@ import { fetchShareKey } from '@/data/binderRepo';
 import type { DemoBinder } from '@/data/binderTypes';
 import { CONTEST } from '@/data/contest';
 import { useTheme } from '@/hooks/use-theme';
+import { previewDeepLinkPage } from '@/data/previewPages';
 import { binderShareUrl, downloadBinderHiresImage, warmBinderPreview } from '@/lib/appUrl';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
@@ -108,7 +109,10 @@ export function ShareSheet({
   // dims and copying is held for the moment it takes, rather than putting a link at the old preview
   // on the clipboard. It resolves itself; nothing here needs the user to do anything.
   const linkStale = liveKey != null && liveKey.featured !== featured;
-  const url = binderShareUrl(binder.id, liveKey?.value ?? binder.shareKey);
+  // The link carries the page its preview image shows, so the unfurled picture and the page the
+  // binder opens on are the same thing. Recomputed with the binder because featuring a page in this
+  // very sheet changes both the picture and the link.
+  const url = binderShareUrl(binder.id, liveKey?.value ?? binder.shareKey, previewDeepLinkPage(binder));
   const [copied, setCopied] = useState(false);
 
   // Park the link box at its FAR RIGHT, where ?v= lives. The tail is the only part that ever

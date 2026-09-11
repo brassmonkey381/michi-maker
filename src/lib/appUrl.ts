@@ -30,9 +30,16 @@ export function appOrigin(): string {
  * Omitting it is safe and resolves identically: nothing in the app reads `v`, so every link shared
  * before this — including ones carrying the old integer — still opens the same binder.
  */
-export function binderShareUrl(id: string, shareKey?: string | null): string {
+export function binderShareUrl(id: string, shareKey?: string | null, page?: number | null): string {
+  const q: string[] = [];
+  if (shareKey) q.push(`v=${encodeURIComponent(shareKey)}`);
+  // THE PAGE THE PREVIEW IMAGE SHOWS (see data/previewPages). Someone follows a link because of
+  // the picture on it, so the binder opens where that picture left off rather than at the front and
+  // making them hunt for what they just looked at. Omitted when the preview is page one, which is
+  // where it opens anyway.
+  if (page && page > 1) q.push(`page=${page}`);
   const base = `${appOrigin()}/binder/${id}`;
-  return shareKey ? `${base}?v=${encodeURIComponent(shareKey)}` : base;
+  return q.length ? `${base}?${q.join('&')}` : base;
 }
 
 /**

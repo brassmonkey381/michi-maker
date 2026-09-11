@@ -29,6 +29,7 @@ import {
 
 import { isCustomArtwork, isPrivateArt, markCopiedArtBorrowed } from '@/data/artAttributionCheck';
 import { deriveAttribution } from '@/data/artworkLibrary';
+import { withPinnedFeatured } from '@/data/featuredPin';
 import type { ComposePlacement } from '@/data/pageComposer';
 import * as repo from '@/data/binderRepo';
 import { slotSignature } from '@/data/savedSlices';
@@ -364,6 +365,13 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   // Featured = the top public binders by likes in the last rolling 3 days, fetched live from the
   // backend (empty in local mode, or when nothing qualifies → the Featured section stays hidden).
   const [featured, setFeatured] = useState<DemoBinder[]>([]);
+  /**
+   * WHEN the pin is judged, sampled once per mount rather than read during render. The clock is not
+   * a render input: calling it in the memo below would make the shelf depend on which frame asked,
+   * and a pin that expires mid-session is not worth a re-render. It lapses on the next load, which
+   * for a seven-day pin is soon enough.
+   */
+  const [pinNow] = useState(() => Date.now());
 
   // The auth store owns the session. We load the signed-in user's binders and reload whenever
   // the user identity changes (sign in / out / new guest). A guest → account *upgrade* keeps
@@ -2207,7 +2215,10 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     () => ({
       binders,
       exampleBinders: binders.filter((binder) => binder.isExample),
-      featuredBinders: featured,
+      // The ranked shelf, with a time-limited pin at the front when one is live (see
+      // data/featuredPin). `binders` is passed as the lookup because the pinned binder is a
+      // BUNDLED example with no database row, so it is never in `featured` itself.
+      featuredBinders: withPinnedFeatured(featured, binders, pinNow),
       userBinders: binders.filter((binder) => !binder.isExample),
       loading,
       canEdit,
@@ -2306,6 +2317,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       redo,
       history.past.length,
       history.future.length,
+      pinNow,
     ],
   );
 

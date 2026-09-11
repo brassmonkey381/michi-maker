@@ -35,13 +35,40 @@ import { fetchBinderOwner, profileHandle, type PublicProfile } from '@/data/prof
 import { CONTEST } from '@/data/contest';
 import { fetchEntry } from '@/data/contestRepo';
 import { isSupabaseConfigured } from '@/lib/env';
+import { useOpeningFlip } from '@/hooks/use-opening-flip';
 import { useBinders } from '@/store/binders';
 
+/**
+ * `?page=N` — which page a link opens on. ONE-BASED, because the number in the link is the number
+ * the page strip shows and the one someone would say out loud; page=1 is the first page.
+ *
+ * Anything that is not a whole number at least 1 is ignored rather than argued with, so a truncated
+ * or hand-edited link opens the binder at the front instead of failing. The TOP of the range needs
+ * no handling here: the binder is not loaded yet at this point, and both surfaces already clamp an
+ * out-of-range index to the last page (BinderPages line ~362, BinderScreen's own render), so
+ * page=999 lands on the end of the book.
+ *
+ * In double-sided mode a page is half of a spread, so the binder opens on the SPREAD holding it,
+ * which is what "open to the page" means once a binder reads as a book.
+ */
+function pageParam(page: string | string[] | undefined): number {
+  const raw = Array.isArray(page) ? page[0] : page;
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 1 ? n - 1 : 0;
+}
+
 export default function BinderRoute() {
-  const { id, print, edit, slice } = useLocalSearchParams<{ id: string; print?: string; edit?: string; slice?: string }>();
+  const { id, print, edit, slice, page } = useLocalSearchParams<{
+    id: string;
+    print?: string;
+    edit?: string;
+    slice?: string;
+    page?: string;
+  }>();
   const router = useRouter();
   const store = useBinders();
   const goHome = () => (router.canGoBack() ? router.back() : router.replace('/'));
+  const openAt = pageParam(page);
 
   const local = id ? store.getBinder(id) : undefined;
   if (local) {
@@ -52,6 +79,7 @@ export default function BinderRoute() {
         initialPrintOpen={print === '1'}
         initialEditing={edit === '1' || slice === '1'}
         initialStudioOpen={slice === '1'}
+        initialPageIndex={openAt}
         onClose={goHome}
         onOpenBinder={(bid) => router.replace(`/binder/${bid}`)}
       />
@@ -69,7 +97,7 @@ export default function BinderRoute() {
       </ThemedView>
     );
   }
-  return <PublicViewer id={id} />;
+  return <PublicViewer id={id} openAt={openAt} />;
 }
 
 type State =
@@ -78,7 +106,7 @@ type State =
   | { status: 'missing' };
 
 /** Read-only viewer for a shared link (a public binder that isn't in your local store). */
-function PublicViewer({ id }: { id?: string }) {
+function PublicViewer({ id, openAt }: { id?: string; openAt: number }) {
   const { width } = useWindowDimensions();
   // Clamp to the scroll shell's usable width (max width minus its padding) — the window can be
   // wider than the shell, and BinderPages sizes the wide-screen spread from this number. On a
@@ -94,6 +122,13 @@ function PublicViewer({ id }: { id?: string }) {
   const wideHead = width >= WIDE_HEAD_MIN;
   const [state, setState] = useState<State>({ status: 'loading' });
   const [pageIndex, setPageIndex] = useState(0);
+  // Same opening as the owner's view: start at the front, turn through to the linked page.
+  useOpeningFlip({
+    target: openAt,
+    pageCount: state.status === 'ok' ? state.binder.pages.length : 0,
+    ready: state.status === 'ok',
+    onPage: setPageIndex,
+  });
 
   /* eslint-disable react-hooks/set-state-in-effect -- fetch-on-id-change: reset to loading, then resolve. */
   useEffect(() => {

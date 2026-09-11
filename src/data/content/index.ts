@@ -38,7 +38,33 @@ const MODULES = [showcase, release, anniversary, featured, generated];
 
 export const CONTENT_CARDS: DemoCard[] = MODULES.flatMap((module) => module.cards);
 
-export const CONTENT_BINDERS: DemoBinder[] = MODULES.flatMap((module) => module.binders);
+/**
+ * RETIRED EXAMPLES, hidden rather than deleted.
+ *
+ * Deleting is not available to us: every module here is GENERATED, so a binder cut from
+ * `releaseBinders.json` comes back the next time anyone runs the builder, and the next person
+ * wonders why. A list of ids the aggregator filters is the only removal that survives a rebuild,
+ * and it keeps the reason next to the decision.
+ *
+ * Two grounds for retiring one (owner, 2026-09-11): it has gone stale and is no longer interesting,
+ * or a better binder now covers the same set.
+ */
+const RETIRED = new Set([
+  // Superseded by "Thirty Years, Thirty Pages", which covers both anniversary sets across thirty
+  // pages. These three were also built when the catalogue held nineteen cards for the set and say
+  // so in their copy; it holds 154 now, so a "Chase Board" of ten cards and an "Every Last Card"
+  // of nine are both wrong on their face.
+  'rel-30th-celebration-chase',
+  'rel-30th-celebration-showcase',
+  'rel-30th-celebration-bulk',
+  // One page, eight cards, for a set that is no longer new. Too thin to earn a slot in a carousel
+  // that is meant to show what the app can do.
+  'gen-prismatic-rarity-ladder',
+]);
+
+export const CONTENT_BINDERS: DemoBinder[] = MODULES.flatMap((module) => module.binders).filter(
+  (binder) => !RETIRED.has(binder.id),
+);
 
 /**
  * THE BINDER THE HOME ARTWORK DRAWS. The TCGScan pairing card and the curate callout both render a

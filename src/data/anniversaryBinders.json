@@ -1,21 +1,1309 @@
 [
  {
-  "id": "anniv-classic-collection",
-  "title": "Thirty Years, Thirty Cards",
-  "description": "The Classic Collection in full, read as thirty years of the game. The second page is the one to linger on: each anniversary reprint sits beside the print it came from, so you can see what two decades did to the same card.",
+  "id": "anniv-thirty-years",
+  "title": "Thirty Years, Thirty Pages",
+  "description": "Both 30th anniversary sets read as one story: the artists who kept drawing the same Pokemon, the weather and the places the pictures actually show, and thirty years of the cards themselves, ending on the ones that are simply beautiful.",
   "layoutStyle": "themed_story",
   "isExample": true,
-  "coverCardId": "714372",
+  "coverCardId": "696688",
   "pages": [
    {
-    "id": "anniv-classic-collection_p0",
+    "id": "anniv-thirty-years_p0",
     "title": "Thirty Years",
+    "description": "Two anniversary sets in one binder. One is thirty years of artists drawing the same mouse, the other is thirty years of the cards themselves. They belong together.",
     "rows": 3,
     "cols": 3,
     "slots": [
      {
-      "id": "anniv-classic-collection_p0_r1c0",
+      "id": "anniv-thirty-years_p0_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 2,
+      "colSpan": 2,
+      "type": "artwork",
+      "cardId": "696688"
+     },
+     {
+      "id": "anniv-thirty-years_p0_s1",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696687"
+     },
+     {
+      "id": "anniv-thirty-years_p0_s2",
       "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714372"
+     },
+     {
+      "id": "anniv-thirty-years_p0_s3",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714386"
+     },
+     {
+      "id": "anniv-thirty-years_p0_s4",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716208"
+     },
+     {
+      "id": "anniv-thirty-years_p0_s5",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712953"
+     }
+    ]
+   },
+   {
+    "id": "anniv-thirty-years_p1",
+    "title": "Where It Began",
+    "description": "Mew and Mewtwo, drawn as Futuristic Rares. The set closes the anniversary on the pair the first generation was built around, so the binder opens on them instead.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "anniv-thirty-years_p1_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 3,
+      "colSpan": 2,
+      "type": "artwork",
+      "cardId": "696687"
+     },
+     {
+      "id": "anniv-thirty-years_p1_s1",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696688"
+     },
+     {
+      "id": "anniv-thirty-years_p1_s2",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716207"
+     },
+     {
+      "id": "anniv-thirty-years_p1_s3",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "insert",
+      "insertColor": "#161A22"
+     }
+    ]
+   },
+   {
+    "id": "anniv-thirty-years_p2",
+    "title": "The First Card",
+    "description": "Base Set Charizard, reprinted at its original number. For a lot of people this is not a card, it is the reason they have the others.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "anniv-thirty-years_p2_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "insert",
+      "insertColor": "#7A2B2B"
+     },
+     {
+      "id": "anniv-thirty-years_p2_s1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 2,
+      "colSpan": 2,
+      "type": "card",
+      "cardId": "714372"
+     },
+     {
+      "id": "anniv-thirty-years_p2_s2",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "insert",
+      "insertColor": "#7A2B2B"
+     },
+     {
+      "id": "anniv-thirty-years_p2_s3",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716194"
+     },
+     {
+      "id": "anniv-thirty-years_p2_s4",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716195"
+     },
+     {
+      "id": "anniv-thirty-years_p2_s5",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716159"
+     }
+    ]
+   },
+   {
+    "id": "anniv-thirty-years_p3",
+    "title": "Pikachu, By Many Hands",
+    "description": "The Celebration prints the same Pokemon twenty-three times, once per illustrator. Nothing else in thirty years of this game has said so plainly that the artwork is the point.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "anniv-thirty-years_p3_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712934"
+     },
+     {
+      "id": "anniv-thirty-years_p3_s1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696682"
+     },
+     {
+      "id": "anniv-thirty-years_p3_s2",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712939"
+     },
+     {
+      "id": "anniv-thirty-years_p3_s3",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712946"
+     },
+     {
+      "id": "anniv-thirty-years_p3_s4",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "712953"
+     },
+     {
+      "id": "anniv-thirty-years_p3_s5",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712937"
+     },
+     {
+      "id": "anniv-thirty-years_p3_s6",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712940"
+     },
+     {
+      "id": "anniv-thirty-years_p3_s7",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712936"
+     },
+     {
+      "id": "anniv-thirty-years_p3_s8",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712935"
+     }
+    ]
+   },
+   {
+    "id": "anniv-thirty-years_p4",
+    "title": "The Ones Who Drew Him First",
+    "description": "Ken Sugimori drew the originals. Atsuko Nishida designed Pikachu in the first place. They sit either side of the artists who grew up on what they made.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "anniv-thirty-years_p4_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 2,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712934"
+     },
+     {
+      "id": "anniv-thirty-years_p4_s1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712938"
+     },
+     {
+      "id": "anniv-thirty-years_p4_s2",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696680"
+     },
+     {
+      "id": "anniv-thirty-years_p4_s3",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712942"
+     },
+     {
+      "id": "anniv-thirty-years_p4_s4",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712943"
+     },
+     {
+      "id": "anniv-thirty-years_p4_s5",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696682"
+     },
+     {
+      "id": "anniv-thirty-years_p4_s6",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712944"
+     },
+     {
+      "id": "anniv-thirty-years_p4_s7",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712945"
+     }
+    ]
+   },
+   {
+    "id": "anniv-thirty-years_p5",
+    "title": "And The Rest Of Them",
+    "description": "Nine more, nine more hands. Same ears, same cheeks, no two alike.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "anniv-thirty-years_p5_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712941"
+     },
+     {
+      "id": "anniv-thirty-years_p5_s1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696681"
+     },
+     {
+      "id": "anniv-thirty-years_p5_s2",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712947"
+     },
+     {
+      "id": "anniv-thirty-years_p5_s3",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712948"
+     },
+     {
+      "id": "anniv-thirty-years_p5_s4",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712949"
+     },
+     {
+      "id": "anniv-thirty-years_p5_s5",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712950"
+     },
+     {
+      "id": "anniv-thirty-years_p5_s6",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712951"
+     },
+     {
+      "id": "anniv-thirty-years_p5_s7",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712952"
+     },
+     {
+      "id": "anniv-thirty-years_p5_s8",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716194"
+     }
+    ]
+   },
+   {
+    "id": "anniv-thirty-years_p6",
+    "title": "The Same Card, Twice",
+    "description": "Pikachu ex as an ordinary print and as a Special Illustration Rare. The rules text is identical. Everything that makes the second one cost more is the picture.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "anniv-thirty-years_p6_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712951"
+     },
+     {
+      "id": "anniv-thirty-years_p6_s1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 2,
+      "colSpan": 2,
+      "type": "artwork",
+      "cardId": "712953"
+     },
+     {
+      "id": "anniv-thirty-years_p6_s2",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712952"
+     },
+     {
+      "id": "anniv-thirty-years_p6_s3",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696676"
+     },
+     {
+      "id": "anniv-thirty-years_p6_s4",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696677"
+     },
+     {
+      "id": "anniv-thirty-years_p6_s5",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "cardId": "712954"
+     },
+     {
+      "id": "anniv-thirty-years_p6_s6",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "cardId": "716230"
+     }
+    ]
+   },
+   {
+    "id": "anniv-thirty-years_p7",
+    "title": "Eevee, Three Ways",
+    "description": "Three illustrators, one Pokemon whose whole character is that it could become something else. The set leans on that and so does this page.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "anniv-thirty-years_p7_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714357"
+     },
+     {
+      "id": "anniv-thirty-years_p7_s1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696832"
+     },
+     {
+      "id": "anniv-thirty-years_p7_s2",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696833"
+     },
+     {
+      "id": "anniv-thirty-years_p7_s3",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 2,
+      "colSpan": 2,
+      "type": "artwork",
+      "cardId": "716231"
+     },
+     {
+      "id": "anniv-thirty-years_p7_s4",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696678"
+     },
+     {
+      "id": "anniv-thirty-years_p7_s5",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696679"
+     }
+    ]
+   },
+   {
+    "id": "anniv-thirty-years_p8",
+    "title": "What It Became",
+    "description": "Espeon, Umbreon and Sylveon, each as a plain print and as an ex. The evolution is the theme twice over.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "anniv-thirty-years_p8_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696678"
+     },
+     {
+      "id": "anniv-thirty-years_p8_s1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696834"
+     },
+     {
+      "id": "anniv-thirty-years_p8_s2",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696679"
+     },
+     {
+      "id": "anniv-thirty-years_p8_s3",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696835"
+     },
+     {
+      "id": "anniv-thirty-years_p8_s4",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 2,
+      "colSpan": 2,
+      "type": "artwork",
+      "cardId": "716231"
+     },
+     {
+      "id": "anniv-thirty-years_p8_s5",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696677"
+     },
+     {
+      "id": "anniv-thirty-years_p8_s6",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714357"
+     },
+     {
+      "id": "anniv-thirty-years_p8_s7",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696832"
+     },
+     {
+      "id": "anniv-thirty-years_p8_s8",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696833"
+     }
+    ]
+   },
+   {
+    "id": "anniv-thirty-years_p9",
+    "title": "The Birds",
+    "description": "Articuno, Zapdos and Moltres as Illustration Rares, in the order the first generation put them in. Thirty years and they still travel together.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "anniv-thirty-years_p9_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716220"
+     },
+     {
+      "id": "anniv-thirty-years_p9_s1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716221"
+     },
+     {
+      "id": "anniv-thirty-years_p9_s2",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716219"
+     },
+     {
+      "id": "anniv-thirty-years_p9_s3",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 3,
+      "type": "insert",
+      "insertColor": "#161A22"
+     },
+     {
+      "id": "anniv-thirty-years_p9_s4",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714386"
+     },
+     {
+      "id": "anniv-thirty-years_p9_s5",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716192"
+     },
+     {
+      "id": "anniv-thirty-years_p9_s6",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716196"
+     }
+    ]
+   },
+   {
+    "id": "anniv-thirty-years_p10",
+    "title": "Storm",
+    "description": "Electricity, which this game has always drawn as weather rather than as an attack. Zapdos and Raikou on one side, the mouse who started it on the other.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "anniv-thirty-years_p10_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 2,
+      "colSpan": 2,
+      "type": "artwork",
+      "cardId": "716221"
+     },
+     {
+      "id": "anniv-thirty-years_p10_s1",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716192"
+     },
+     {
+      "id": "anniv-thirty-years_p10_s2",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714373"
+     },
+     {
+      "id": "anniv-thirty-years_p10_s3",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696831"
+     },
+     {
+      "id": "anniv-thirty-years_p10_s4",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716222"
+     },
+     {
+      "id": "anniv-thirty-years_p10_s5",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716209"
+     }
+    ]
+   },
+   {
+    "id": "anniv-thirty-years_p11",
+    "title": "Water",
+    "description": "Lapras crossing open water, Greninja mid-strike, and the two Water legendaries the Classic Collection brought back. Also a Magikarp, because a water page owes you one.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "anniv-thirty-years_p11_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 2,
+      "colSpan": 2,
+      "type": "artwork",
+      "cardId": "696683"
+     },
+     {
+      "id": "anniv-thirty-years_p11_s1",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696676"
+     },
+     {
+      "id": "anniv-thirty-years_p11_s2",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716203"
+     },
+     {
+      "id": "anniv-thirty-years_p11_s3",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716162"
+     },
+     {
+      "id": "anniv-thirty-years_p11_s4",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716210"
+     },
+     {
+      "id": "anniv-thirty-years_p11_s5",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "cardId": "716230"
+     },
+     {
+      "id": "anniv-thirty-years_p11_s6",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716206"
+     },
+     {
+      "id": "anniv-thirty-years_p11_s7",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716156"
+     }
+    ]
+   },
+   {
+    "id": "anniv-thirty-years_p12",
+    "title": "After Dark",
+    "description": "Drifloon and Chandelure are lit from inside. Umbreon, Gengar and Darkrai are lit from outside, barely. The whole page is one lighting decision.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "anniv-thirty-years_p12_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "696684"
+     },
+     {
+      "id": "anniv-thirty-years_p12_s1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716224"
+     },
+     {
+      "id": "anniv-thirty-years_p12_s2",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716198"
+     },
+     {
+      "id": "anniv-thirty-years_p12_s3",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696835"
+     },
+     {
+      "id": "anniv-thirty-years_p12_s4",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "insert",
+      "insertColor": "#161A22"
+     },
+     {
+      "id": "anniv-thirty-years_p12_s5",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716199"
+     },
+     {
+      "id": "anniv-thirty-years_p12_s6",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696679"
+     },
+     {
+      "id": "anniv-thirty-years_p12_s7",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716160"
+     },
+     {
+      "id": "anniv-thirty-years_p12_s8",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716200"
+     }
+    ]
+   },
+   {
+    "id": "anniv-thirty-years_p13",
+    "title": "One Picture, Two Cards",
+    "description": "Darkrai and Cresselia is a single illustration split across a LEGEND pair. It only works with both halves in the binder, which is the most binder-shaped card ever printed.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "anniv-thirty-years_p13_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "insert",
+      "insertColor": "#161A22"
+     },
+     {
+      "id": "anniv-thirty-years_p13_s1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716199"
+     },
+     {
+      "id": "anniv-thirty-years_p13_s2",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "insert",
+      "insertColor": "#161A22"
+     },
+     {
+      "id": "anniv-thirty-years_p13_s3",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "insert",
+      "insertColor": "#161A22"
+     },
+     {
+      "id": "anniv-thirty-years_p13_s4",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716200"
+     },
+     {
+      "id": "anniv-thirty-years_p13_s5",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "insert",
+      "insertColor": "#161A22"
+     },
+     {
+      "id": "anniv-thirty-years_p13_s6",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716163"
+     },
+     {
+      "id": "anniv-thirty-years_p13_s7",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716191"
+     },
+     {
+      "id": "anniv-thirty-years_p13_s8",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716203"
+     }
+    ]
+   },
+   {
+    "id": "anniv-thirty-years_p14",
+    "title": "Cats",
+    "description": "Meowth three ways in one set, a Delcatty and a Sneasel from the other. A theme nobody planned that both sets happen to have.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "anniv-thirty-years_p14_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "714358"
+     },
+     {
+      "id": "anniv-thirty-years_p14_s1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "714360"
+     },
+     {
+      "id": "anniv-thirty-years_p14_s2",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716226"
+     },
+     {
+      "id": "anniv-thirty-years_p14_s3",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714356"
+     },
+     {
+      "id": "anniv-thirty-years_p14_s4",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714359"
+     },
+     {
+      "id": "anniv-thirty-years_p14_s5",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716156"
+     },
+     {
+      "id": "anniv-thirty-years_p14_s6",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716161"
+     },
+     {
+      "id": "anniv-thirty-years_p14_s7",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "insert",
+      "insertColor": "#EDE7DA"
+     }
+    ]
+   },
+   {
+    "id": "anniv-thirty-years_p15",
+    "title": "Small Things",
+    "description": "Scraggy, Morpeko, Maushold, Hisuian Zorua. The Illustration Rares are at their best when the Pokemon is tiny and the world around it is not.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "anniv-thirty-years_p15_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716225"
+     },
+     {
+      "id": "anniv-thirty-years_p15_s1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716223"
+     },
+     {
+      "id": "anniv-thirty-years_p15_s2",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716228"
+     },
+     {
+      "id": "anniv-thirty-years_p15_s3",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "696686"
+     },
+     {
+      "id": "anniv-thirty-years_p15_s4",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 4,
+      "type": "insert",
+      "insertColor": "#EDE7DA"
+     },
+     {
+      "id": "anniv-thirty-years_p15_s5",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696830"
+     },
+     {
+      "id": "anniv-thirty-years_p15_s6",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714357"
+     },
+     {
+      "id": "anniv-thirty-years_p15_s7",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716205"
+     },
+     {
+      "id": "anniv-thirty-years_p15_s8",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716195"
+     }
+    ]
+   },
+   {
+    "id": "anniv-thirty-years_p16",
+    "title": "Big Things",
+    "description": "Alolan Exeggutor, Lycanroc, Gholdengo, Salamence. The same trick in reverse, and the reason the art on these is worth a full pocket rather than a frame.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "anniv-thirty-years_p16_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 2,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716218"
+     },
+     {
+      "id": "anniv-thirty-years_p16_s1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "cardId": "696685"
+     },
+     {
+      "id": "anniv-thirty-years_p16_s2",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716227"
+     },
+     {
+      "id": "anniv-thirty-years_p16_s3",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716204"
+     },
+     {
+      "id": "anniv-thirty-years_p16_s4",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "cardId": "716233"
+     },
+     {
+      "id": "anniv-thirty-years_p16_s5",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716196"
+     }
+    ]
+   },
+   {
+    "id": "anniv-thirty-years_p17",
+    "title": "Thirty Years Of Cards",
+    "description": "The Classic Collection reprints thirty cards at their ORIGINAL numbers, so 4/102 is still Base Set and 94/102 is still Triumphant. The rest of this binder is that list, read as a history.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "anniv-thirty-years_p17_s0",
+      "row": 0,
       "col": 0,
       "rowSpan": 1,
       "colSpan": 1,
@@ -23,8 +1311,8 @@
       "cardId": "714372"
      },
      {
-      "id": "anniv-classic-collection_p0_r1c1",
-      "row": 1,
+      "id": "anniv-thirty-years_p17_s1",
+      "row": 0,
       "col": 1,
       "rowSpan": 1,
       "colSpan": 1,
@@ -32,8 +1320,62 @@
       "cardId": "714386"
      },
      {
-      "id": "anniv-classic-collection_p0_r1c2",
+      "id": "anniv-thirty-years_p17_s2",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716198"
+     },
+     {
+      "id": "anniv-thirty-years_p17_s3",
       "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716157"
+     },
+     {
+      "id": "anniv-thirty-years_p17_s4",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716203"
+     },
+     {
+      "id": "anniv-thirty-years_p17_s5",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716202"
+     },
+     {
+      "id": "anniv-thirty-years_p17_s6",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716162"
+     },
+     {
+      "id": "anniv-thirty-years_p17_s7",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714373"
+     },
+     {
+      "id": "anniv-thirty-years_p17_s8",
+      "row": 2,
       "col": 2,
       "rowSpan": 1,
       "colSpan": 1,
@@ -43,165 +1385,50 @@
     ]
    },
    {
-    "id": "anniv-classic-collection_p1",
-    "title": "Then and Now",
-    "rows": 3,
-    "cols": 4,
-    "slots": [
-     {
-      "id": "anniv-classic-collection_p1_r0c0",
-      "row": 0,
-      "col": 0,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "87342"
-     },
-     {
-      "id": "anniv-classic-collection_p1_r0c1",
-      "row": 0,
-      "col": 1,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "716157"
-     },
-     {
-      "id": "anniv-classic-collection_p1_r0c2",
-      "row": 0,
-      "col": 2,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "88967"
-     },
-     {
-      "id": "anniv-classic-collection_p1_r0c3",
-      "row": 0,
-      "col": 3,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "716206"
-     },
-     {
-      "id": "anniv-classic-collection_p1_r1c0",
-      "row": 1,
-      "col": 0,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "85679"
-     },
-     {
-      "id": "anniv-classic-collection_p1_r1c1",
-      "row": 1,
-      "col": 1,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "716198"
-     },
-     {
-      "id": "anniv-classic-collection_p1_r1c2",
-      "row": 1,
-      "col": 2,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "90260"
-     },
-     {
-      "id": "anniv-classic-collection_p1_r1c3",
-      "row": 1,
-      "col": 3,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "716163"
-     },
-     {
-      "id": "anniv-classic-collection_p1_r2c0",
-      "row": 2,
-      "col": 0,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "88645"
-     },
-     {
-      "id": "anniv-classic-collection_p1_r2c1",
-      "row": 2,
-      "col": 1,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "716196"
-     },
-     {
-      "id": "anniv-classic-collection_p1_r2c2",
-      "row": 2,
-      "col": 2,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "111548"
-     },
-     {
-      "id": "anniv-classic-collection_p1_r2c3",
-      "row": 2,
-      "col": 3,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "716162"
-     }
-    ]
-   },
-   {
-    "id": "anniv-classic-collection_p2",
-    "title": "The First Twenty Years",
+    "id": "anniv-thirty-years_p18",
+    "title": "The First Generation",
+    "description": "Base Set, Gym and Neo. A Charizard, a Pikachu, two trainers people still argue about, and a Shining Celebi that was the hardest pull of its year.",
     "rows": 3,
     "cols": 3,
     "slots": [
      {
-      "id": "anniv-classic-collection_p2_r0c0",
+      "id": "anniv-thirty-years_p18_s0",
       "row": 0,
       "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714372"
+     },
+     {
+      "id": "anniv-thirty-years_p18_s1",
+      "row": 0,
+      "col": 1,
       "rowSpan": 1,
       "colSpan": 1,
       "type": "card",
       "cardId": "716194"
      },
      {
-      "id": "anniv-classic-collection_p2_r0c1",
+      "id": "anniv-thirty-years_p18_s2",
       "row": 0,
-      "col": 1,
+      "col": 2,
       "rowSpan": 1,
       "colSpan": 1,
       "type": "card",
       "cardId": "716159"
      },
      {
-      "id": "anniv-classic-collection_p2_r0c2",
-      "row": 0,
-      "col": 2,
+      "id": "anniv-thirty-years_p18_s3",
+      "row": 1,
+      "col": 0,
       "rowSpan": 1,
       "colSpan": 1,
       "type": "card",
       "cardId": "716195"
      },
      {
-      "id": "anniv-classic-collection_p2_r1c0",
-      "row": 1,
-      "col": 0,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "716161"
-     },
-     {
-      "id": "anniv-classic-collection_p2_r1c1",
+      "id": "anniv-thirty-years_p18_s4",
       "row": 1,
       "col": 1,
       "rowSpan": 1,
@@ -210,26 +1437,152 @@
       "cardId": "716205"
      },
      {
-      "id": "anniv-classic-collection_p2_r1c2",
+      "id": "anniv-thirty-years_p18_s5",
       "row": 1,
       "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716161"
+     },
+     {
+      "id": "anniv-thirty-years_p18_s6",
+      "row": 2,
+      "col": 0,
       "rowSpan": 1,
       "colSpan": 1,
       "type": "card",
       "cardId": "716160"
      },
      {
-      "id": "anniv-classic-collection_p2_r2c0",
+      "id": "anniv-thirty-years_p18_s7",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714386"
+     },
+     {
+      "id": "anniv-thirty-years_p18_s8",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716156"
+     }
+    ]
+   },
+   {
+    "id": "anniv-thirty-years_p19",
+    "title": "The Trainers",
+    "description": "Misty, Erika and N. Supporter art is where this game has always been least careful and most interesting, and all three of these were a whole deck in their day.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "anniv-thirty-years_p19_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "insert",
+      "insertColor": "#EDE7DA"
+     },
+     {
+      "id": "anniv-thirty-years_p19_s1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716159"
+     },
+     {
+      "id": "anniv-thirty-years_p19_s2",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "insert",
+      "insertColor": "#EDE7DA"
+     },
+     {
+      "id": "anniv-thirty-years_p19_s3",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716195"
+     },
+     {
+      "id": "anniv-thirty-years_p19_s4",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "insert",
+      "insertColor": "#EDE7DA"
+     },
+     {
+      "id": "anniv-thirty-years_p19_s5",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716202"
+     },
+     {
+      "id": "anniv-thirty-years_p19_s6",
       "row": 2,
       "col": 0,
       "rowSpan": 1,
       "colSpan": 1,
       "type": "card",
-      "cardId": "716156"
+      "cardId": "716158"
      },
      {
-      "id": "anniv-classic-collection_p2_r2c1",
+      "id": "anniv-thirty-years_p19_s7",
       "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716191"
+     },
+     {
+      "id": "anniv-thirty-years_p19_s8",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716163"
+     }
+    ]
+   },
+   {
+    "id": "anniv-thirty-years_p20",
+    "title": "Every Mechanic We Tried",
+    "description": "ex, LV.X, Prime, LEGEND, EX, BREAK, GX, V, VMAX, VSTAR. Ten ways of saying \"this one is stronger\", one per era, and the Classic Collection has nearly all of them.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "anniv-thirty-years_p20_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716206"
+     },
+     {
+      "id": "anniv-thirty-years_p20_s1",
+      "row": 0,
       "col": 1,
       "rowSpan": 1,
       "colSpan": 1,
@@ -237,96 +1590,61 @@
       "cardId": "716203"
      },
      {
-      "id": "anniv-classic-collection_p2_r2c2",
-      "row": 2,
+      "id": "anniv-thirty-years_p20_s2",
+      "row": 0,
       "col": 2,
       "rowSpan": 1,
       "colSpan": 1,
       "type": "card",
-      "cardId": "716191"
-     }
-    ]
-   },
-   {
-    "id": "anniv-classic-collection_p3",
-    "title": "Legends and the Modern Game",
-    "rows": 3,
-    "cols": 4,
-    "slots": [
+      "cardId": "716198"
+     },
      {
-      "id": "anniv-classic-collection_p3_r0c0",
+      "id": "anniv-thirty-years_p20_s3",
       "row": 0,
-      "col": 0,
+      "col": 3,
       "rowSpan": 1,
       "colSpan": 1,
       "type": "card",
       "cardId": "716199"
      },
      {
-      "id": "anniv-classic-collection_p3_r0c1",
-      "row": 0,
-      "col": 1,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "716202"
-     },
-     {
-      "id": "anniv-classic-collection_p3_r0c2",
-      "row": 0,
-      "col": 2,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "716158"
-     },
-     {
-      "id": "anniv-classic-collection_p3_r0c3",
-      "row": 0,
-      "col": 3,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "716204"
-     },
-     {
-      "id": "anniv-classic-collection_p3_r1c0",
+      "id": "anniv-thirty-years_p20_s4",
       "row": 1,
       "col": 0,
       "rowSpan": 1,
       "colSpan": 1,
       "type": "card",
-      "cardId": "716200"
+      "cardId": "716196"
      },
      {
-      "id": "anniv-classic-collection_p3_r1c1",
+      "id": "anniv-thirty-years_p20_s5",
       "row": 1,
       "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716162"
+     },
+     {
+      "id": "anniv-thirty-years_p20_s6",
+      "row": 1,
+      "col": 2,
       "rowSpan": 1,
       "colSpan": 1,
       "type": "card",
       "cardId": "716193"
      },
      {
-      "id": "anniv-classic-collection_p3_r1c2",
+      "id": "anniv-thirty-years_p20_s7",
       "row": 1,
-      "col": 2,
+      "col": 3,
       "rowSpan": 1,
       "colSpan": 1,
       "type": "card",
       "cardId": "716197"
      },
      {
-      "id": "anniv-classic-collection_p3_r1c3",
-      "row": 1,
-      "col": 3,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "714373"
-     },
-     {
-      "id": "anniv-classic-collection_p3_r2c0",
+      "id": "anniv-thirty-years_p20_s8",
       "row": 2,
       "col": 0,
       "rowSpan": 1,
@@ -335,7 +1653,7 @@
       "cardId": "716209"
      },
      {
-      "id": "anniv-classic-collection_p3_r2c1",
+      "id": "anniv-thirty-years_p20_s9",
       "row": 2,
       "col": 1,
       "rowSpan": 1,
@@ -344,8 +1662,143 @@
       "cardId": "716207"
      },
      {
-      "id": "anniv-classic-collection_p3_r2c2",
+      "id": "anniv-thirty-years_p20_s10",
       "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716208"
+     },
+     {
+      "id": "anniv-thirty-years_p20_s11",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716204"
+     }
+    ]
+   },
+   {
+    "id": "anniv-thirty-years_p21",
+    "title": "The Delta Years",
+    "description": "Metagross as a Delta Species, a Scizor ex, a Genesect in Team Plasma livery. The eras when the game kept reskinning its own Pokemon, and the art got stranger for it.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "anniv-thirty-years_p21_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 2,
+      "colSpan": 2,
+      "type": "card",
+      "cardId": "716157"
+     },
+     {
+      "id": "anniv-thirty-years_p21_s1",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716206"
+     },
+     {
+      "id": "anniv-thirty-years_p21_s2",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716158"
+     },
+     {
+      "id": "anniv-thirty-years_p21_s3",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716160"
+     },
+     {
+      "id": "anniv-thirty-years_p21_s4",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716191"
+     },
+     {
+      "id": "anniv-thirty-years_p21_s5",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716156"
+     }
+    ]
+   },
+   {
+    "id": "anniv-thirty-years_p22",
+    "title": "Legends, Literally",
+    "description": "Lugia from Aquapolis, Uxie, Palkia at LV.X, Arceus. The cards the game reaches for when it wants a page to feel like scripture.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "anniv-thirty-years_p22_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714386"
+     },
+     {
+      "id": "anniv-thirty-years_p22_s1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716203"
+     },
+     {
+      "id": "anniv-thirty-years_p22_s2",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716163"
+     },
+     {
+      "id": "anniv-thirty-years_p22_s3",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716208"
+     },
+     {
+      "id": "anniv-thirty-years_p22_s4",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716207"
+     },
+     {
+      "id": "anniv-thirty-years_p22_s5",
+      "row": 1,
       "col": 2,
       "rowSpan": 1,
       "colSpan": 1,
@@ -353,325 +1806,463 @@
       "cardId": "716192"
      },
      {
-      "id": "anniv-classic-collection_p3_r2c3",
+      "id": "anniv-thirty-years_p22_s6",
       "row": 2,
-      "col": 3,
+      "col": 0,
       "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "716210"
+      "colSpan": 3,
+      "type": "insert",
+      "insertColor": "#26402F"
      }
     ]
-   }
-  ]
- },
- {
-  "id": "anniv-30th-celebration",
-  "title": "Pikachu, By Many Hands",
-  "description": "Thirty of the sixty-one in the 30th Celebration. A page where the same card appears twice, ordinary print beside its Special Illustration Rare; a gallery where every Pikachu is a different illustrator; and the Illustration Rares worth slowing down for.",
-  "layoutStyle": "themed_story",
-  "isExample": true,
-  "coverCardId": "696688",
-  "pages": [
+   },
    {
-    "id": "anniv-30th-celebration_p0",
-    "title": "The 30th Celebration",
+    "id": "anniv-thirty-years_p23",
+    "title": "Mitsuhiro Arita",
+    "description": "Base Set Charizard and Pikachu & Zekrom GX, twenty-two years apart, same hand. The Classic Collection is quietly a retrospective of a handful of illustrators.",
     "rows": 3,
     "cols": 3,
     "slots": [
      {
-      "id": "anniv-30th-celebration_p0_r1c0",
+      "id": "anniv-thirty-years_p23_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 2,
+      "colSpan": 2,
+      "type": "card",
+      "cardId": "714372"
+     },
+     {
+      "id": "anniv-thirty-years_p23_s1",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714373"
+     },
+     {
+      "id": "anniv-thirty-years_p23_s2",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716206"
+     },
+     {
+      "id": "anniv-thirty-years_p23_s3",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716157"
+     },
+     {
+      "id": "anniv-thirty-years_p23_s4",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716199"
+     },
+     {
+      "id": "anniv-thirty-years_p23_s5",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716200"
+     }
+    ]
+   },
+   {
+    "id": "anniv-thirty-years_p24",
+    "title": "The Special Illustration Rares",
+    "description": "Six of the seven, given the space they were drawn for. A Special Illustration Rare in a frame is a card; in a full pocket it is a picture.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "anniv-thirty-years_p24_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 2,
+      "colSpan": 2,
+      "type": "artwork",
+      "cardId": "716229"
+     },
+     {
+      "id": "anniv-thirty-years_p24_s1",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716232"
+     },
+     {
+      "id": "anniv-thirty-years_p24_s2",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716233"
+     },
+     {
+      "id": "anniv-thirty-years_p24_s3",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716231"
+     },
+     {
+      "id": "anniv-thirty-years_p24_s4",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716230"
+     },
+     {
+      "id": "anniv-thirty-years_p24_s5",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "cardId": "712953"
+     },
+     {
+      "id": "anniv-thirty-years_p24_s6",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "cardId": "712954"
+     }
+    ]
+   },
+   {
+    "id": "anniv-thirty-years_p25",
+    "title": "Jirachi",
+    "description": "One card, one page. A wish Pokemon drawn against a sky, which is the sort of thing this set does when it stops trying to be a set.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "anniv-thirty-years_p25_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 3,
+      "colSpan": 3,
+      "type": "artwork",
+      "cardId": "716232"
+     }
+    ]
+   },
+   {
+    "id": "anniv-thirty-years_p26",
+    "title": "Colour",
+    "description": "Toxtricity, Morpeko, Gholdengo and Alolan Exeggutor. Grouped for nothing but their palette, which is a perfectly good reason to group cards.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "anniv-thirty-years_p26_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716222"
+     },
+     {
+      "id": "anniv-thirty-years_p26_s1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716223"
+     },
+     {
+      "id": "anniv-thirty-years_p26_s2",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716227"
+     },
+     {
+      "id": "anniv-thirty-years_p26_s3",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "cardId": "716218"
+     },
+     {
+      "id": "anniv-thirty-years_p26_s4",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696830"
+     },
+     {
+      "id": "anniv-thirty-years_p26_s5",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696831"
+     },
+     {
+      "id": "anniv-thirty-years_p26_s6",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716204"
+     },
+     {
+      "id": "anniv-thirty-years_p26_s7",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716197"
+     }
+    ]
+   },
+   {
+    "id": "anniv-thirty-years_p27",
+    "title": "Faces",
+    "description": "Scraggy, Hisuian Zorua, Alolan Meowth, Galarian Meowth. The Illustration Rares that are mostly an expression.",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "anniv-thirty-years_p27_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716225"
+     },
+     {
+      "id": "anniv-thirty-years_p27_s1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "696686"
+     },
+     {
+      "id": "anniv-thirty-years_p27_s2",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "714360"
+     },
+     {
+      "id": "anniv-thirty-years_p27_s3",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716226"
+     },
+     {
+      "id": "anniv-thirty-years_p27_s4",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "714358"
+     },
+     {
+      "id": "anniv-thirty-years_p27_s5",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716228"
+     },
+     {
+      "id": "anniv-thirty-years_p27_s6",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "696684"
+     },
+     {
+      "id": "anniv-thirty-years_p27_s7",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716224"
+     },
+     {
+      "id": "anniv-thirty-years_p27_s8",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 4,
+      "type": "insert",
+      "insertColor": "#161A22"
+     }
+    ]
+   },
+   {
+    "id": "anniv-thirty-years_p28",
+    "title": "The Whole Point",
+    "description": "Lycanroc at dusk, Lapras on open water, Alolan Exeggutor against the sky. If you only ever see three cards from this set, these are a good three.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "anniv-thirty-years_p28_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 2,
+      "colSpan": 2,
+      "type": "artwork",
+      "cardId": "696685"
+     },
+     {
+      "id": "anniv-thirty-years_p28_s1",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "696683"
+     },
+     {
+      "id": "anniv-thirty-years_p28_s2",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716218"
+     },
+     {
+      "id": "anniv-thirty-years_p28_s3",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716219"
+     },
+     {
+      "id": "anniv-thirty-years_p28_s4",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716220"
+     },
+     {
+      "id": "anniv-thirty-years_p28_s5",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716221"
+     }
+    ]
+   },
+   {
+    "id": "anniv-thirty-years_p29",
+    "title": "Thirty Years, And Then Some",
+    "description": "Where it started and where it is now, on one page. Mew opened the first generation, Arceus closed a later one, and the mouse is still here.",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "anniv-thirty-years_p29_s0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714372"
+     },
+     {
+      "id": "anniv-thirty-years_p29_s1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 2,
+      "colSpan": 2,
+      "type": "artwork",
+      "cardId": "696688"
+     },
+     {
+      "id": "anniv-thirty-years_p29_s2",
       "row": 1,
       "col": 0,
       "rowSpan": 1,
       "colSpan": 1,
       "type": "card",
-      "cardId": "696688"
+      "cardId": "716208"
      },
      {
-      "id": "anniv-30th-celebration_p0_r1c1",
-      "row": 1,
-      "col": 1,
+      "id": "anniv-thirty-years_p29_s3",
+      "row": 2,
+      "col": 0,
       "rowSpan": 1,
       "colSpan": 1,
       "type": "card",
       "cardId": "712953"
      },
      {
-      "id": "anniv-30th-celebration_p0_r1c2",
-      "row": 1,
-      "col": 2,
+      "id": "anniv-thirty-years_p29_s4",
+      "row": 2,
+      "col": 1,
       "rowSpan": 1,
       "colSpan": 1,
       "type": "card",
       "cardId": "696687"
-     }
-    ]
-   },
-   {
-    "id": "anniv-30th-celebration_p1",
-    "title": "The Same Card, Twice",
-    "rows": 3,
-    "cols": 2,
-    "slots": [
-     {
-      "id": "anniv-30th-celebration_p1_r0c0",
-      "row": 0,
-      "col": 0,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "696676"
      },
      {
-      "id": "anniv-30th-celebration_p1_r0c1",
-      "row": 0,
-      "col": 1,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "716230"
-     },
-     {
-      "id": "anniv-30th-celebration_p1_r1c0",
-      "row": 1,
-      "col": 0,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "696677"
-     },
-     {
-      "id": "anniv-30th-celebration_p1_r1c1",
-      "row": 1,
-      "col": 1,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "716231"
-     },
-     {
-      "id": "anniv-30th-celebration_p1_r2c0",
-      "row": 2,
-      "col": 0,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "712952"
-     },
-     {
-      "id": "anniv-30th-celebration_p1_r2c1",
-      "row": 2,
-      "col": 1,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "712954"
-     }
-    ]
-   },
-   {
-    "id": "anniv-30th-celebration_p2",
-    "title": "Pikachu, by many hands",
-    "rows": 3,
-    "cols": 3,
-    "slots": [
-     {
-      "id": "anniv-30th-celebration_p2_r0c0",
-      "row": 0,
-      "col": 0,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "712934"
-     },
-     {
-      "id": "anniv-30th-celebration_p2_r0c1",
-      "row": 0,
-      "col": 1,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "696682"
-     },
-     {
-      "id": "anniv-30th-celebration_p2_r0c2",
-      "row": 0,
-      "col": 2,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "712939"
-     },
-     {
-      "id": "anniv-30th-celebration_p2_r1c0",
-      "row": 1,
-      "col": 0,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "712946"
-     },
-     {
-      "id": "anniv-30th-celebration_p2_r1c1",
-      "row": 1,
-      "col": 1,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "712937"
-     },
-     {
-      "id": "anniv-30th-celebration_p2_r1c2",
-      "row": 1,
-      "col": 2,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "712940"
-     },
-     {
-      "id": "anniv-30th-celebration_p2_r2c0",
-      "row": 2,
-      "col": 0,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "712936"
-     },
-     {
-      "id": "anniv-30th-celebration_p2_r2c1",
-      "row": 2,
-      "col": 1,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "712935"
-     },
-     {
-      "id": "anniv-30th-celebration_p2_r2c2",
+      "id": "anniv-thirty-years_p29_s5",
       "row": 2,
       "col": 2,
       "rowSpan": 1,
       "colSpan": 1,
       "type": "card",
-      "cardId": "712938"
-     }
-    ]
-   },
-   {
-    "id": "anniv-30th-celebration_p3",
-    "title": "Worth Slowing Down For",
-    "rows": 3,
-    "cols": 4,
-    "slots": [
-     {
-      "id": "anniv-30th-celebration_p3_r0c0",
-      "row": 0,
-      "col": 0,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "716220"
-     },
-     {
-      "id": "anniv-30th-celebration_p3_r0c1",
-      "row": 0,
-      "col": 1,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "716221"
-     },
-     {
-      "id": "anniv-30th-celebration_p3_r0c2",
-      "row": 0,
-      "col": 2,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "716219"
-     },
-     {
-      "id": "anniv-30th-celebration_p3_r0c3",
-      "row": 0,
-      "col": 3,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "696683"
-     },
-     {
-      "id": "anniv-30th-celebration_p3_r1c0",
-      "row": 1,
-      "col": 0,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "696684"
-     },
-     {
-      "id": "anniv-30th-celebration_p3_r1c1",
-      "row": 1,
-      "col": 1,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "696685"
-     },
-     {
-      "id": "anniv-30th-celebration_p3_r1c2",
-      "row": 1,
-      "col": 2,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "714358"
-     },
-     {
-      "id": "anniv-30th-celebration_p3_r1c3",
-      "row": 1,
-      "col": 3,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "714360"
-     },
-     {
-      "id": "anniv-30th-celebration_p3_r2c0",
-      "row": 2,
-      "col": 0,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "696686"
-     },
-     {
-      "id": "anniv-30th-celebration_p3_r2c1",
-      "row": 2,
-      "col": 1,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "716232"
-     },
-     {
-      "id": "anniv-30th-celebration_p3_r2c2",
-      "row": 2,
-      "col": 2,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "716233"
-     },
-     {
-      "id": "anniv-30th-celebration_p3_r2c3",
-      "row": 2,
-      "col": 3,
-      "rowSpan": 1,
-      "colSpan": 1,
-      "type": "card",
-      "cardId": "716229"
+      "cardId": "716207"
      }
     ]
    }

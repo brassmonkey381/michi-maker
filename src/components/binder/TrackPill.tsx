@@ -13,7 +13,8 @@
  * THE PULSE IS THE ONLY MOVING THING IN A BINDER HEADER, which is what makes it work and also what
  * makes it rude if it outstays its welcome. It runs only while playback is actually blocked, so the
  * first press, the first gesture anywhere on the page (the player arms one), or a mute all end it.
- * Reduce motion gets the accent and the copy without the movement.
+ * Reduce motion gets the accent and the copy without the movement. It is deliberately faint: see
+ * PULSE_SCALE and PULSE_MS below, and the note on why.
  *
  * THE DIAL SITS AFTER THE MUTE, not in a menu behind it. Volume on someone else's binder is the
  * control people reach for second (after "make it stop"), and a pill that hides it behind a press
@@ -33,6 +34,17 @@ import {
   togglePlay,
   type PlayerState,
 } from '@/lib/binderAudio';
+
+/**
+ * THE BREATH, tuned down from a first attempt the owner called "a little too big and fast".
+ *
+ * A pill that pulses hard reads as an alert, and an alert is the wrong register for "there is music
+ * here if you want it". The point is to catch a wandering eye, not to demand the press. So: half
+ * the swell, and a cycle slow enough that it is barely a motion at all, more like something
+ * breathing at the edge of the header than something flashing in it.
+ */
+const PULSE_SCALE = 1.02;
+const PULSE_MS = 1400;
 
 export function TrackPill() {
   const [s, setS] = useState<PlayerState>(getPlayerState);
@@ -65,8 +77,8 @@ export function TrackPill() {
     }
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: PULSE_MS, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: PULSE_MS, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
       ]),
     );
     loop.start();
@@ -77,7 +89,7 @@ export function TrackPill() {
 
   const glyph = s.muted ? '🔇' : s.playing ? '⏸' : '▶';
   const hint = s.muted ? 'muted' : s.playing ? '' : 'paused';
-  const scale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.045] });
+  const scale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, PULSE_SCALE] });
 
   if (blocked) {
     // One target, the whole pill: the thing being asked for is a press, so every part of it presses.

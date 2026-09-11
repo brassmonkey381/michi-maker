@@ -52,6 +52,24 @@ export const FLIP_MIN_STEP_MS = 150;
 export const FLIP_MAX_STEP_MS = 420;
 export const FLIP_HOLD_MS = 420;
 
+/** The whole opening, cover included, must land inside this. Owner's number: two to three seconds. */
+export const FLIP_TOTAL_MS = 2900;
+/** How long the shut binder is seen before the cover starts to move. Long enough to register. */
+export const FLIP_COVER_BEAT_MS = 260;
+
+/**
+ * The riffle's share of the opening, once the cover has taken its turn.
+ *
+ * A binder with a cover spends the beat plus one COMPLETE cover turn before a single page moves,
+ * and that turn is not negotiable: a cover that opens in a third of a turn reads as a glitch, not
+ * as a book. So the cover is paid first and the riffle gets the remainder, which is why a binder
+ * with a cover riffles faster than one without to reach the same page in the same total.
+ */
+export function riffleBudget(coverTurnMs: number): { holdMs: number; budgetMs: number } {
+  const holdMs = coverTurnMs > 0 ? FLIP_COVER_BEAT_MS + coverTurnMs : FLIP_HOLD_MS;
+  return { holdMs, budgetMs: Math.max(FLIP_MIN_STEP_MS, FLIP_TOTAL_MS - holdMs) };
+}
+
 /**
  * How to get from the front of the binder to `target` (a zero-based page index).
  *
@@ -75,7 +93,9 @@ export function flipPlan(target: number, opts: FlipOptions = {}): FlipPlan {
 
   if (target <= maxSteps) {
     // Every page gets turned. Spend the budget, but never dawdle past the ceiling.
-    const stepMs = Math.min(maxStepMs, Math.max(minStepMs, Math.round(budgetMs / target)));
+    // FLOOR, not round: rounding up puts steps * stepMs past the budget and the total over its
+    // ceiling, which is the one promise this module makes.
+    const stepMs = Math.min(maxStepMs, Math.max(minStepMs, Math.floor(budgetMs / target)));
     return { startAt: 0, steps: range(1, target), stepMs, holdMs };
   }
 

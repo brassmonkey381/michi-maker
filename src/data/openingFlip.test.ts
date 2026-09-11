@@ -15,6 +15,9 @@ import {
   FLIP_HOLD_MS,
   FLIP_MIN_STEP_MS,
   FLIP_MAX_STEP_MS,
+  FLIP_TOTAL_MS,
+  FLIP_COVER_BEAT_MS,
+  riffleBudget,
 } from './openingFlip.ts';
 
 const CEILING = FLIP_HOLD_MS + FLIP_BUDGET_MS;
@@ -78,4 +81,30 @@ test('reduce motion lands on the page with no movement and no wait', () => {
   assert.equal(plan.startAt, 40, 'it opens where it was asked to, not at the front');
   assert.deepEqual(plan.steps, []);
   assert.equal(flipDuration(plan), 0);
+});
+
+/**
+ * With a cover the opening pays for a full cover turn first, so the riffle has less time and must
+ * move faster. What must NOT change is the total, which is the number the owner specified.
+ */
+test('a cover is paid for first, and the whole opening still lands in two to three seconds', () => {
+  const { holdMs, budgetMs } = riffleBudget(620);
+  assert.equal(holdMs, FLIP_COVER_BEAT_MS + 620, 'the cover turn completes before any page moves');
+  for (const target of [1, 6, 14, 40, 300]) {
+    const plan = flipPlan(target, { holdMs, budgetMs });
+    const total = flipDuration(plan);
+    assert.ok(total <= FLIP_TOTAL_MS, `page ${target} with a cover takes ${total}ms, over the ceiling`);
+    // No floor on a one page hop: page 1 is the spread the cover just opened onto, and dawdling
+    // there would be worse than arriving. The floor only means something once there is a riffle.
+    if (target >= 6) {
+      assert.ok(total >= 1800, `page ${target} finishes in ${total}ms, too fast to read as an opening`);
+    }
+  }
+});
+
+test('without a cover the riffle gets the ordinary hold and more of the budget', () => {
+  const withCover = riffleBudget(620);
+  const without = riffleBudget(0);
+  assert.ok(without.budgetMs > withCover.budgetMs, 'no cover to pay for means more time to riffle');
+  assert.equal(without.holdMs, FLIP_HOLD_MS);
 });

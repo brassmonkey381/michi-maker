@@ -12,7 +12,7 @@
  */
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Animated, {
   runOnJS,
   useAnimatedStyle,
@@ -22,6 +22,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { CaptionControls, CaptionFieldRow } from '@/components/binder/CaptionControls';
+import { FLIP_COVER_BEAT_MS, flipPlan, riffleBudget } from '@/data/openingFlip';
 import {
   SingleTurnLeaf,
   TURN_EASING,
@@ -156,6 +157,16 @@ export interface BinderPagesProps {
   /** Caller-owned current page (clamped here for display). */
   pageIndex: number;
   onPageChange: (index: number) => void;
+  /**
+   * THE OPENING, for a `?page=N` link: the zero-based page to arrive at, or null for the ordinary
+   * case of opening at the front and staying there.
+   *
+   * It lives here rather than in the caller because the sequence needs the cover, and the cover is
+   * this component's state: a binder with one starts SHUT on its front, takes one complete turn to
+   * open, and only then riffles. The caller keeps owning `pageIndex`; this drives it through
+   * `onPageChange` exactly as a reader's own page turns do.
+   */
+  openTo?: number | null;
   /** Usable content width (viewport minus horizontal padding) — drives the spread breakpoint. */
   availableWidth: number;
   /**
@@ -285,6 +296,7 @@ export function BinderPages({
   binder,
   pageIndex,
   onPageChange,
+  openTo = null,
   availableWidth,
   viewportTop = 0,
   viewportBottom = 0,
@@ -543,7 +555,11 @@ export function BinderPages({
   // 'tail' is the spread AFTER the last page of a binder with an odd page count: the back of its
   // final sheet (blank, since that page does not exist) facing the inside back cover. A binder with
   // an even count reaches its inside back on an ordinary spread and never needs this.
-  const [shut, setShut] = useState<ShutState>(null);
+  const [shut, setShut] = useState<ShutState>(
+    // A `?page=N` link on a binder that HAS a cover starts shut, so the opening can begin by
+    // opening it. Everything else starts as it always did, on the pages.
+    openTo != null && openTo > 0 && doubleSided && Boolean(binder.cover) && count > 0 ? 'front' : null,
+  );
 
   /**
    * THE COVER SURFACE BEING DECORATED, in edit mode. Chosen from the filmstrip (FC, IFC, IBC, BC)
@@ -586,6 +602,65 @@ export function BinderPages({
     return () => setHoverSuspended(false);
   }, [pageTurn, coverTurn]);
   const coverT = useSharedValue(0);
+
+  /**
+   * RUN THE OPENING ONCE, and never again: a re-run would yank the binder back under the reader's
+   * hand. The shape is the owner's: hold on the shut cover, one COMPLETE cover turn, then riffle
+   * the pages, the whole thing inside `FLIP_TOTAL_MS`. Reduce motion arrives with no movement.
+   *
+   * Every state change sits inside a timer callback, which is both what the schedule needs and what
+   * the set-state-in-effect rule wants. `setShut(null)` plus a `coverTurn` is exactly what a
+   * reader's own forward step does from a shut front cover (see `step`), so the animation is the
+   * same one, not a second implementation of it.
+   */
+  const openingRan = useRef(false);
+  useEffect(() => {
+    if (openingRan.current) return;
+    if (openTo == null || openTo <= 0 || count <= 0) {
+      openingRan.current = true;
+      return;
+    }
+    openingRan.current = true;
+    const target = Math.min(openTo, count - 1);
+    const fromCover = shut === 'front';
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    let cancelled = false;
+
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((reduce) => {
+        if (cancelled) return;
+        if (reduce) {
+          timers.push(setTimeout(() => {
+            if (fromCover) setShut(null);
+            onPageChange(target);
+          }, 0));
+          return;
+        }
+        const { holdMs, budgetMs } = riffleBudget(fromCover ? TURN_MS : 0);
+        if (fromCover) {
+          timers.push(setTimeout(() => {
+            setShut(null);
+            setCoverTurn({ end: 'front', closing: false });
+          }, FLIP_COVER_BEAT_MS));
+        }
+        const plan = flipPlan(target, { holdMs, budgetMs });
+        // A deep link skips most of the book the moment the riffle is due to start, so the pages
+        // that do turn are the ones next to where the reader is going.
+        if (plan.startAt > 0) timers.push(setTimeout(() => onPageChange(plan.startAt), holdMs));
+        plan.steps.forEach((index, i) => {
+          timers.push(setTimeout(() => onPageChange(index), holdMs + (i + 1) * plan.stepMs));
+        });
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+      for (const t of timers) clearTimeout(t);
+    };
+    // Mount-only by design: `openingRan` makes a later run impossible, and the deps are the values
+    // the first run reads.
+  }, [openTo, count]); // eslint-disable-line react-hooks/exhaustive-deps
+
   /** The page the last turn was built for. State, not a ref: this is read DURING render. */
   const [turnedAt, setTurnedAt] = useState(idx);
 

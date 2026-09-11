@@ -35,7 +35,6 @@ import { fetchBinderOwner, profileHandle, type PublicProfile } from '@/data/prof
 import { CONTEST } from '@/data/contest';
 import { fetchEntry } from '@/data/contestRepo';
 import { isSupabaseConfigured } from '@/lib/env';
-import { useOpeningFlip } from '@/hooks/use-opening-flip';
 import { useBinders } from '@/store/binders';
 
 /**
@@ -122,13 +121,7 @@ function PublicViewer({ id, openAt }: { id?: string; openAt: number }) {
   const wideHead = width >= WIDE_HEAD_MIN;
   const [state, setState] = useState<State>({ status: 'loading' });
   const [pageIndex, setPageIndex] = useState(0);
-  // Same opening as the owner's view: start at the front, turn through to the linked page.
-  useOpeningFlip({
-    target: openAt,
-    pageCount: state.status === 'ok' ? state.binder.pages.length : 0,
-    ready: state.status === 'ok',
-    onPage: setPageIndex,
-  });
+
 
   /* eslint-disable react-hooks/set-state-in-effect -- fetch-on-id-change: reset to loading, then resolve. */
   useEffect(() => {
@@ -245,6 +238,7 @@ function PublicViewer({ id, openAt }: { id?: string; openAt: number }) {
               binder={state.binder}
               pageIndex={Math.min(pageIndex, state.binder.pages.length - 1)}
               onPage={setPageIndex}
+              openAt={openAt}
               availableWidth={availableWidth}
               wideHead={wideHead}
             />
@@ -259,12 +253,15 @@ function Viewer({
   binder,
   pageIndex,
   onPage,
+  openAt,
   availableWidth,
   wideHead,
 }: {
   binder: DemoBinder;
   pageIndex: number;
   onPage: (i: number) => void;
+  /** Zero-based page a `?page=N` link asked for; the opening runs inside BinderPages. */
+  openAt: number;
   availableWidth: number;
   /** The back link shares the title row (wide windows) rather than sitting above it. */
   wideHead: boolean;
@@ -410,6 +407,7 @@ function Viewer({
         onCloseSettings={() => setSettingsOpen(false)}
         binder={binder}
         pageIndex={pageIndex}
+        openTo={openAt}
         onPageChange={onPage}
         availableWidth={availableWidth}
         editable={false}

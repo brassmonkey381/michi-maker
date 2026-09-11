@@ -39,7 +39,6 @@ import { PocketRing, type PocketRect } from '@/components/binder/PocketRing';
 import { SliceStudio, type SliceStudioHandle } from '@/components/binder/SliceStudio';
 import { WalkthroughBanner } from '@/components/binder/WalkthroughBanner';
 import { useFirstPocketWalkthrough } from '@/hooks/use-first-pocket-walkthrough';
-import { useOpeningFlip } from '@/hooks/use-opening-flip';
 import { SlotMultiActions } from '@/components/binder/SlotMultiActions';
 import { pillChip, sheet } from '@/constants/ui';
 import { ContestLockBanner } from '@/components/contest/ContestLockBanner';
@@ -567,17 +566,6 @@ export function BinderScreen({
    * dock opening or closing, and turning the page - because `cellRect` reads a measurement taken
    * at mount, and a stale one would ring the wrong pocket with total confidence.
    */
-  /**
-   * A `?page=N` link opens the binder at the front and TURNS to the page rather than arriving
-   * there. Above the `if (!binder)` guard with the rest of the hooks, hence the optional chain.
-   */
-  useOpeningFlip({
-    target: initialPageIndex,
-    pageCount: binder?.pages.length ?? 0,
-    ready: !!binder,
-    onPage: setPageIndex,
-  });
-
   const [ringRect, setRingRect] = useState<PocketRect | null>(null);
   const wantRing = walkthrough.step === 'ring';
   // Step three points at the card that just landed, so the same measurement serves both: an EMPTY
@@ -2201,6 +2189,7 @@ export function BinderScreen({
             <BinderPages
               binder={binder}
               pageIndex={idx}
+              openTo={initialPageIndex}
               onPageChange={changePage}
               coversLocked={!hasBinderCovers(store.tier)}
               onCoversLocked={() => showLimitToast('Binder covers are a PRO feature: dress the binder and decorate all four cover surfaces.')}

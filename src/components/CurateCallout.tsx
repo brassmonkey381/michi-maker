@@ -21,6 +21,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Fonts, Palette, Radii, Radius, Shadows, Spacing, Weight } from '@/constants/theme';
 import { pillChip } from '@/constants/ui';
+import { HOME_ARTWORK_BINDER_ID } from '@/data/content';
 import { EXAMPLE_COLLECTION_CSV } from '@/data/exampleCollection';
 import { useBinders } from '@/store/binders';
 
@@ -72,7 +73,10 @@ export function CurateCallout({
   const afterW = Math.round(AFTER_W * fit);
   // The "after": the first page of the first example binder, drawn small. Real pockets, real
   // cards — a picture of the outcome beats a sentence about it.
-  const afterPage = store.exampleBinders.find((b) => b.pages[0]?.slots?.some((s) => s.cardId))?.pages[0] ?? store.exampleBinders[0]?.pages[0];
+  const afterPage =
+    (store.exampleBinders.find((b) => b.id === HOME_ARTWORK_BINDER_ID)
+      ?? store.exampleBinders.find((b) => b.pages[0]?.slots?.some((s) => s.cardId))
+      ?? store.exampleBinders[0])?.pages[0];
   const go = (mode: CurateMode) => {
     if (onPick) {
       onPick(mode);

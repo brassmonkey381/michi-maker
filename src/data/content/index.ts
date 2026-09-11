@@ -30,17 +30,27 @@ import * as showcase from './showcase';
 // binders for the set dropping next week), the anniversary pair, the owner's real featured
 // binders, and the generated examples.
 //
-// ORDER IS LOAD-BEARING BEYOND DISPLAY, which is not obvious and cost a regression. The TCGScan
-// pairing card on Home and the curate callout both draw a real page, and they find it with
-// `exampleBinders.find(b => b.pages[0]?.slots?.some(s => s.cardId))` (TcgscanPairing.tsx:98,
-// CurateCallout.tsx:75). No showcase binder qualifies - those open on art layouts - so the first
-// match is the leading RELEASE binder, whose page 0 is a nine-card chase board. Putting a module
-// ahead of `release` silently repaints both illustrations with whatever that module's first page
-// happens to be. The anniversary module did exactly that: its cover leaf holds three cards, so the
-// Home artwork lost two thirds of its pockets and nothing failed. Add new modules AFTER release
-// unless you mean to change those two pictures.
+// Display order only. It USED to decide the Home illustration as well, because the TCGScan pairing
+// card and the curate callout took the first example binder with a card on page 0, and inserting a
+// module ahead of `release` silently repainted both with whatever that module's first page held.
+// That is pinned now (see HOME_ARTWORK_BINDER_ID), so this list is safe to reorder again.
 const MODULES = [showcase, release, anniversary, featured, generated];
 
 export const CONTENT_CARDS: DemoCard[] = MODULES.flatMap((module) => module.cards);
 
 export const CONTENT_BINDERS: DemoBinder[] = MODULES.flatMap((module) => module.binders);
+
+/**
+ * THE BINDER THE HOME ARTWORK DRAWS. The TCGScan pairing card and the curate callout both render a
+ * real example page rather than a mockup, and the page they choose is a design decision: a full
+ * nine-card chase board reads as a binder, a three-card cover leaf reads as a mistake.
+ *
+ * It was "the first example binder with a card on page 0", which made a picture on the home page
+ * depend on the order of the array above. Adding a content module moved it, nothing failed, and the
+ * illustration lost two thirds of its pockets in silence. Naming the binder is the fix.
+ *
+ * Callers keep their old fallback behind this, so if a rebuild of the release binders ever retires
+ * this id the artwork degrades to the previous rule instead of disappearing. `homeArtwork.test.ts`
+ * fails when the id stops resolving, which is the signal to pick its replacement deliberately.
+ */
+export const HOME_ARTWORK_BINDER_ID = 'rel-pitch-black-chase';

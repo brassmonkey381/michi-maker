@@ -32,6 +32,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Shadows, Spacing, Weight } from '@/constants/theme';
 import type { DemoPage, DemoSlot } from '@/data/binderTypes';
+import { HOME_ARTWORK_BINDER_ID } from '@/data/content';
 import { track } from '@/lib/analytics';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 import { useBinders } from '@/store/binders';
@@ -95,7 +96,12 @@ function useMeasuredWidth(): [number, (e: LayoutChangeEvent) => void] {
 function useExamplePages(): { page: DemoPage; facing: DemoPage; cards: DemoSlot[] } | null {
   const store = useBinders();
   const manifestReady = useImageManifest();
-  const binder = store.exampleBinders.find((b) => b.pages[0]?.slots?.some((s) => s.cardId)) ?? store.exampleBinders[0];
+  // Pinned, not positional: see HOME_ARTWORK_BINDER_ID. The old rule is kept as the fallback so a
+  // retired id degrades to a reasonable page rather than to nothing.
+  const binder =
+    store.exampleBinders.find((b) => b.id === HOME_ARTWORK_BINDER_ID)
+    ?? store.exampleBinders.find((b) => b.pages[0]?.slots?.some((s) => s.cardId))
+    ?? store.exampleBinders[0];
   return useMemo(() => {
     const base = binder?.pages[0];
     if (!base) return null;

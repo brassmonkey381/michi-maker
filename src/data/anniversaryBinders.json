@@ -1,0 +1,680 @@
+[
+ {
+  "id": "anniv-classic-collection",
+  "title": "Thirty Years, Thirty Cards",
+  "description": "The Classic Collection in full, read as thirty years of the game. The second page is the one to linger on: each anniversary reprint sits beside the print it came from, so you can see what two decades did to the same card.",
+  "layoutStyle": "themed_story",
+  "isExample": true,
+  "coverCardId": "714372",
+  "pages": [
+   {
+    "id": "anniv-classic-collection_p0",
+    "title": "Thirty Years",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "anniv-classic-collection_p0_r1c0",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714372"
+     },
+     {
+      "id": "anniv-classic-collection_p0_r1c1",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714386"
+     },
+     {
+      "id": "anniv-classic-collection_p0_r1c2",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716208"
+     }
+    ]
+   },
+   {
+    "id": "anniv-classic-collection_p1",
+    "title": "Then and Now",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "anniv-classic-collection_p1_r0c0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "87342"
+     },
+     {
+      "id": "anniv-classic-collection_p1_r0c1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716157"
+     },
+     {
+      "id": "anniv-classic-collection_p1_r0c2",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "88967"
+     },
+     {
+      "id": "anniv-classic-collection_p1_r0c3",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716206"
+     },
+     {
+      "id": "anniv-classic-collection_p1_r1c0",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "85679"
+     },
+     {
+      "id": "anniv-classic-collection_p1_r1c1",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716198"
+     },
+     {
+      "id": "anniv-classic-collection_p1_r1c2",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "90260"
+     },
+     {
+      "id": "anniv-classic-collection_p1_r1c3",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716163"
+     },
+     {
+      "id": "anniv-classic-collection_p1_r2c0",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "88645"
+     },
+     {
+      "id": "anniv-classic-collection_p1_r2c1",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716196"
+     },
+     {
+      "id": "anniv-classic-collection_p1_r2c2",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "111548"
+     },
+     {
+      "id": "anniv-classic-collection_p1_r2c3",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716162"
+     }
+    ]
+   },
+   {
+    "id": "anniv-classic-collection_p2",
+    "title": "The First Twenty Years",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "anniv-classic-collection_p2_r0c0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716194"
+     },
+     {
+      "id": "anniv-classic-collection_p2_r0c1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716159"
+     },
+     {
+      "id": "anniv-classic-collection_p2_r0c2",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716195"
+     },
+     {
+      "id": "anniv-classic-collection_p2_r1c0",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716161"
+     },
+     {
+      "id": "anniv-classic-collection_p2_r1c1",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716205"
+     },
+     {
+      "id": "anniv-classic-collection_p2_r1c2",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716160"
+     },
+     {
+      "id": "anniv-classic-collection_p2_r2c0",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716156"
+     },
+     {
+      "id": "anniv-classic-collection_p2_r2c1",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716203"
+     },
+     {
+      "id": "anniv-classic-collection_p2_r2c2",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716191"
+     }
+    ]
+   },
+   {
+    "id": "anniv-classic-collection_p3",
+    "title": "Legends and the Modern Game",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "anniv-classic-collection_p3_r0c0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716199"
+     },
+     {
+      "id": "anniv-classic-collection_p3_r0c1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716202"
+     },
+     {
+      "id": "anniv-classic-collection_p3_r0c2",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716158"
+     },
+     {
+      "id": "anniv-classic-collection_p3_r0c3",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716204"
+     },
+     {
+      "id": "anniv-classic-collection_p3_r1c0",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716200"
+     },
+     {
+      "id": "anniv-classic-collection_p3_r1c1",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716193"
+     },
+     {
+      "id": "anniv-classic-collection_p3_r1c2",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716197"
+     },
+     {
+      "id": "anniv-classic-collection_p3_r1c3",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714373"
+     },
+     {
+      "id": "anniv-classic-collection_p3_r2c0",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716209"
+     },
+     {
+      "id": "anniv-classic-collection_p3_r2c1",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716207"
+     },
+     {
+      "id": "anniv-classic-collection_p3_r2c2",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716192"
+     },
+     {
+      "id": "anniv-classic-collection_p3_r2c3",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716210"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "anniv-30th-celebration",
+  "title": "Pikachu, By Many Hands",
+  "description": "Thirty of the sixty-one in the 30th Celebration. A page where the same card appears twice, ordinary print beside its Special Illustration Rare; a gallery where every Pikachu is a different illustrator; and the Illustration Rares worth slowing down for.",
+  "layoutStyle": "themed_story",
+  "isExample": true,
+  "coverCardId": "696688",
+  "pages": [
+   {
+    "id": "anniv-30th-celebration_p0",
+    "title": "The 30th Celebration",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "anniv-30th-celebration_p0_r1c0",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696688"
+     },
+     {
+      "id": "anniv-30th-celebration_p0_r1c1",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712953"
+     },
+     {
+      "id": "anniv-30th-celebration_p0_r1c2",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696687"
+     }
+    ]
+   },
+   {
+    "id": "anniv-30th-celebration_p1",
+    "title": "The Same Card, Twice",
+    "rows": 3,
+    "cols": 2,
+    "slots": [
+     {
+      "id": "anniv-30th-celebration_p1_r0c0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696676"
+     },
+     {
+      "id": "anniv-30th-celebration_p1_r0c1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716230"
+     },
+     {
+      "id": "anniv-30th-celebration_p1_r1c0",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696677"
+     },
+     {
+      "id": "anniv-30th-celebration_p1_r1c1",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716231"
+     },
+     {
+      "id": "anniv-30th-celebration_p1_r2c0",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712952"
+     },
+     {
+      "id": "anniv-30th-celebration_p1_r2c1",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712954"
+     }
+    ]
+   },
+   {
+    "id": "anniv-30th-celebration_p2",
+    "title": "Pikachu, by many hands",
+    "rows": 3,
+    "cols": 3,
+    "slots": [
+     {
+      "id": "anniv-30th-celebration_p2_r0c0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712934"
+     },
+     {
+      "id": "anniv-30th-celebration_p2_r0c1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696682"
+     },
+     {
+      "id": "anniv-30th-celebration_p2_r0c2",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712939"
+     },
+     {
+      "id": "anniv-30th-celebration_p2_r1c0",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712946"
+     },
+     {
+      "id": "anniv-30th-celebration_p2_r1c1",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712937"
+     },
+     {
+      "id": "anniv-30th-celebration_p2_r1c2",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712940"
+     },
+     {
+      "id": "anniv-30th-celebration_p2_r2c0",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712936"
+     },
+     {
+      "id": "anniv-30th-celebration_p2_r2c1",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712935"
+     },
+     {
+      "id": "anniv-30th-celebration_p2_r2c2",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "712938"
+     }
+    ]
+   },
+   {
+    "id": "anniv-30th-celebration_p3",
+    "title": "Worth Slowing Down For",
+    "rows": 3,
+    "cols": 4,
+    "slots": [
+     {
+      "id": "anniv-30th-celebration_p3_r0c0",
+      "row": 0,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716220"
+     },
+     {
+      "id": "anniv-30th-celebration_p3_r0c1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716221"
+     },
+     {
+      "id": "anniv-30th-celebration_p3_r0c2",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716219"
+     },
+     {
+      "id": "anniv-30th-celebration_p3_r0c3",
+      "row": 0,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696683"
+     },
+     {
+      "id": "anniv-30th-celebration_p3_r1c0",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696684"
+     },
+     {
+      "id": "anniv-30th-celebration_p3_r1c1",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696685"
+     },
+     {
+      "id": "anniv-30th-celebration_p3_r1c2",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714358"
+     },
+     {
+      "id": "anniv-30th-celebration_p3_r1c3",
+      "row": 1,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "714360"
+     },
+     {
+      "id": "anniv-30th-celebration_p3_r2c0",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "696686"
+     },
+     {
+      "id": "anniv-30th-celebration_p3_r2c1",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716232"
+     },
+     {
+      "id": "anniv-30th-celebration_p3_r2c2",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716233"
+     },
+     {
+      "id": "anniv-30th-celebration_p3_r2c3",
+      "row": 2,
+      "col": 3,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "card",
+      "cardId": "716229"
+     }
+    ]
+   }
+  ]
+ }
+]

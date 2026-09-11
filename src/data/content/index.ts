@@ -5,7 +5,9 @@
  * `src/data/sampleData.ts` exposes `CONTENT_BINDERS` as the app's example binders. The module
  * order here is the display order of the example binders on the home screen.
  *
- * Modules: `showcase` — the two layout showcases, which lead; `release` — the upcoming-release
+ * Modules: `showcase` — the two layout showcases, which lead; `anniversary` — the two 30th
+ * binders, whose pairing pages are the only examples that seat a card beside another print of
+ * itself; `release` — the upcoming-release
  * prep binders (chase board / set showcase /
  * beautiful bulk, from scripts/build-release-binders.mjs), `featured` — the owner's real
  * binders exported from their live accounts (scripts/build-featured-binders.mjs), and
@@ -16,6 +18,7 @@
 
 import type { DemoBinder, DemoCard } from '@/data/binderTypes';
 
+import * as anniversary from './anniversary';
 import * as featured from './featured';
 import * as generated from './generated';
 import * as release from './release';
@@ -23,10 +26,11 @@ import * as showcase from './showcase';
 
 // SHOWCASE FIRST. The two layout showcases are the clearest statement of what the app does to a
 // page, and the examples section is where someone goes to find that out; every other binder here
-// shows a collection, these show the craft. Then the release binders (the timely hook: prep
-// binders for the set dropping next week), the owner's real featured binders, and the generated
-// examples.
-const MODULES = [showcase, release, featured, generated];
+// shows a collection, these show the craft. Then the anniversary pair, which are the timeliest
+// thing here and the only examples that teach the then-and-now pocket pairing. Then the release
+// binders (prep binders for the set dropping next week), the owner's real featured binders, and
+// the generated examples.
+const MODULES = [showcase, anniversary, release, featured, generated];
 
 export const CONTENT_CARDS: DemoCard[] = MODULES.flatMap((module) => module.cards);
 

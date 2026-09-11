@@ -29,7 +29,15 @@ Catalog cards carry size tiers: `image_small` (245px webp — grids use it),
 
 ## Pending items this session may pick up
 
-1. **⚠️ THE PAID DATA IS PUBLICLY READABLE** (data-server side, 2026-09-10, UNRESOLVED). PostgREST
+1. **⚠️ THE PAID DATA IS PUBLICLY READABLE** — **superseded by `DATA-EXPOSURE.md` (2026-09-10).**
+   Read that first: it corrects two things in the summary below. The captioned corpus is **3,272**
+   cards, not 28,533 (`scene_caption` defaults to `''`, so `not.is.null` matches every row and
+   measures nothing), and the embeddings and colour vectors are **already public files in Storage**
+   that two shipped products fetch with no key, so revoking those columns confers no
+   confidentiality. The recommended fix is a grant boundary, not a schema move, and two items
+   outrank it: the caption gate is uncommitted, and two applied migrations live in the wrong repo.
+
+1. **The original note, kept for the measurements** (data-server side, 2026-09-10, UNRESOLVED). PostgREST
    publishes every column the `anon` role can select, so the derived data the paid tiers are sold on
    is downloadable by anyone holding the publishable key — which ships in the web bundle. Measured
    with `npm run check:exposure`:

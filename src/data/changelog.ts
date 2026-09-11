@@ -106,6 +106,184 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-09-11',
+    title: 'Two anniversary binders, and a page that shows the same card twice',
+    items: [
+      {
+        products: ['michi'],
+        head: 'Example binders for the two 30th anniversary sets',
+        kind: 'new',
+        area: 'binders',
+        big: true,
+        body:
+          'Thirty Years, Thirty Cards is the Classic Collection in full, read as thirty years of the '
+          + 'game. Pikachu, By Many Hands is thirty of the sixty-one in the 30th Celebration, with a '
+          + 'gallery where every Pikachu is a different illustrator. Both are on Home under Example '
+          + 'Binders, and either can be duplicated into a copy you can edit.',
+      },
+      {
+        products: ['michi'],
+        head: 'Then and now, in two pockets',
+        kind: 'new',
+        area: 'binders',
+        body:
+          'The Classic Collection binder has a page that seats each anniversary reprint beside the '
+          + 'print it came from, which works because that set keeps every card at its original '
+          + 'collector number. Six pairs, the ones where the original is unambiguous. The other '
+          + 'binder does the same inside one set: an ordinary print beside its Special Illustration '
+          + 'Rare.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-10',
+    title: 'The binder editor stops hiding its tools',
+    items: [
+      {
+        products: ['michi'],
+        head: 'The editor opens ready to edit',
+        kind: 'better',
+        area: 'binders',
+        big: true,
+        body:
+          'Opening a binder from My Binders starts in edit mode instead of making you find the '
+          + 'button. Close now reads Back to My Binders, and the edit toggle reads Edit Mode and '
+          + 'Viewing Mode, so it says which one you are in.',
+      },
+      {
+        products: ['michi'],
+        head: 'A walkthrough for your first card',
+        kind: 'new',
+        area: 'binders',
+        big: true,
+        body:
+          'An empty binder now shows three callouts with arrows: where to search, which card to tap, '
+          + 'and which Fill Page button to press. It appears once for an account that has not placed '
+          + 'a card yet, and not again after you place one or dismiss it.',
+      },
+      {
+        products: ['michi'],
+        head: 'The closed docks look like docks',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'The collapsed card browser and art dock are wider, with double chevrons and a grip, so it '
+          + 'is clear they open. An expanded dock shows that its edge can be dragged, and offers a '
+          + 'button to fold it away. Close Card Browser and Close Art Dock wear the same chip as the '
+          + 'other main buttons.',
+      },
+      {
+        products: ['michi'],
+        head: 'The photo library has its own area',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'Searching photos to use as binder art sat in the same row as Upload and Load URL and read '
+          + 'as part of them. It is its own band below now.',
+      },
+      {
+        products: ['michi', 'tcgscan'],
+        head: 'Color Search, and a different theme every press',
+        kind: 'better',
+        area: 'browse',
+        body:
+          'The two demo buttons above the search box are now Color Search and Theme, and the theme '
+          + 'one draws a different word each press from thirty that were checked against the '
+          + 'catalogue first. The old one always ran the same search, and one word it could have '
+          + 'shown matched a single card.',
+      },
+      {
+        products: ['michi'],
+        head: 'The artwork offer starts the free trial',
+        kind: 'better',
+        area: 'browse',
+        body:
+          'Pressing the row that says how many more matches there are opens the offer with a one '
+          + 'press free PRO trial, instead of sending you to the plans page to work it out.',
+      },
+      {
+        products: ['michi', 'tcgscan'],
+        head: 'A metered artwork search stopped calling itself broken',
+        kind: 'fix',
+        area: 'browse',
+        body:
+          'A free or guest account running a theme search saw a note saying artwork search was '
+          + 'temporarily unavailable. Nothing was wrong: seeing the top matches is the free '
+          + 'experience, and it says so now.',
+      },
+      {
+        products: ['michi'],
+        head: 'A PRO trial can become a paid plan',
+        kind: 'fix',
+        area: 'account',
+        body:
+          'During a free trial the plans page called PRO your current plan and offered no way to '
+          + 'start paying. Every paid plan is a purchase during a trial now, and the banner offers '
+          + 'to make it permanent for the whole trial rather than only in its last three days.',
+      },
+      {
+        products: ['michi'],
+        head: 'TCGScan members are not sold artwork search',
+        kind: 'fix',
+        area: 'browse',
+        body:
+          'A paid TCGScan membership already searches every match, but michi-maker still offered to '
+          + 'unlock it, because it read the michi plan rather than the account.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-09',
+    title: 'Binders on a phone, and the way across to TCGScan',
+    items: [
+      {
+        products: ['michi'],
+        head: 'On a phone, the cards and nothing else',
+        kind: 'better',
+        area: 'binders',
+        big: true,
+        body:
+          'Opening a binder in a phone browser hides the card labels and docks the page controls at '
+          + 'the bottom, so the pockets get the screen. Desktop is unchanged.',
+      },
+      {
+        products: ['michi'],
+        head: 'A one page binder fills the width',
+        kind: 'fix',
+        area: 'binders',
+        body:
+          'In double sided mode a binder with a single page was drawn at half width, as though its '
+          + 'facing page were there. It uses the whole width now, which is what a new binder looks '
+          + 'like on its first day.',
+      },
+      {
+        products: ['michi'],
+        head: 'The pairing button says it is working',
+        kind: 'fix',
+        area: 'account',
+        body:
+          'Start Scanning takes a second or two to hand your account across, and the button looked '
+          + 'dead while it did. It disables itself and says it is opening TCGScan.',
+      },
+      {
+        products: ['michi'],
+        head: 'A shared binder title clears the controls on a phone',
+        kind: 'fix',
+        area: 'sharing',
+        body: 'The title of a shared binder ran under the heart and the settings icon on narrow screens.',
+      },
+      {
+        products: ['michi', 'tcgscan'],
+        head: 'Arriving from TCGScan keeps your account',
+        kind: 'fix',
+        area: 'account',
+        body:
+          'Opening michi-maker from TCGScan could race the guest sign in and land you as a visitor. '
+          + 'The handoff wins now.',
+      },
+    ],
+  },
+  {
     date: '2026-09-08',
     title: 'Artwork search on every plan, scene pages, and a guide',
     items: [

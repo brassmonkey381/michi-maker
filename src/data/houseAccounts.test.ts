@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { demoteHouseAccounts, isHouseAccount } from './houseAccounts.ts';
+import { demoteHouseAccounts, isHouseAccount, DEMOTION_EXEMPT_BINDERS } from './houseAccounts.ts';
 
 const row = (author_name: string | null, id = author_name ?? 'x') => ({ author_name, id });
 
@@ -35,4 +35,32 @@ test('case and missing names do not smuggle a house binder to the top', () => {
   assert.equal(isHouseAccount('FakeMichi'), true);
   assert.equal(isHouseAccount(null), false);
   assert.equal(isHouseAccount('fakemichi2'), false, 'exact usernames only, never a prefix');
+});
+
+/**
+ * The one-off exemption. It is permission to COMPETE, not a reserved seat: an exempt house binder
+ * holds the rank its likes earned, which is why the assertion below is about position and not
+ * about being first.
+ */
+test('an exempt house binder keeps its earned rank instead of being demoted', () => {
+  const exempt = [...DEMOTION_EXEMPT_BINDERS][0];
+  const out = demoteHouseAccounts([
+    { author_name: 'lemmy', binder_id: 'a' },
+    { author_name: 'fakemichi', binder_id: exempt },
+    { author_name: 'fakemichi', binder_id: 'house-1' },
+    { author_name: 'luctem', binder_id: 'b' },
+  ]);
+  assert.deepEqual(out.map((r) => r.binder_id), ['a', exempt, 'b', 'house-1']);
+});
+
+test('the exemption is by id alone, so another house binder is still demoted', () => {
+  const out = demoteHouseAccounts([
+    { author_name: 'fakemichi', binder_id: 'not-exempt' },
+    { author_name: 'lemmy', binder_id: 'a' },
+  ]);
+  assert.deepEqual(out.map((r) => r.binder_id), ['a', 'not-exempt']);
+});
+
+test('the exemption list stays short enough to be a judgement, not a repeal', () => {
+  assert.ok(DEMOTION_EXEMPT_BINDERS.size <= 3, 'more than three and the demotion rule is gone');
 });

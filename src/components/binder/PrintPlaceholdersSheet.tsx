@@ -513,12 +513,14 @@ export function PrintPlaceholdersSheet({
                 ) : null}
                 {counts && counts.art > 0 && counts.artSheetsSpaced > counts.artSheets ? (
                   // The print space optimizer: art shares cut lines and folds share the sheets with
-                  // the singles, so the cardstock bill is smaller than it was. Priced at a plain estimate.
+                  // the singles, so the cardstock bill is smaller than it was. Priced from
+                  // CARDSTOCK_SHEET_USD, a colour print on cardstock rather than a blank sheet, and
+                  // written in dollars because at that rate cents would read as a typo.
                   <ThemedText type="small" themeColor="textSecondary" style={styles.optimizer}>
                     <ThemedText type="smallBold">Print space optimizer:</ThemedText>{' '}
                     {counts.artSheets} sheet{counts.artSheets === 1 ? '' : 's'} of cardstock instead of {counts.artSheetsSpaced}, about{' '}
                     <ThemedText type="smallBold">${((counts.artSheetsSpaced - counts.artSheets) * CARDSTOCK_SHEET_USD).toFixed(2)}</ThemedText> saved at{' '}
-                    {Math.round(CARDSTOCK_SHEET_USD * 100)}¢ a sheet.
+                    ${CARDSTOCK_SHEET_USD.toFixed(2)} a sheet.
                   </ThemedText>
                 ) : null}
                 {ownedIds && ownedIds.size > 0 && counts && counts.total > 0 ? (

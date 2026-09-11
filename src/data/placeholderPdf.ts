@@ -99,8 +99,16 @@ const ART_INSET = 1.5;
 /** The spaced layout's capacities, kept only to report what the tight one saves. */
 const SPACED_SINGLES_PER_SHEET = 6;
 const SPACED_FOLDS_PER_SHEET = 2;
-/** What one sheet of matte cardstock costs, roughly, for the saving the app shows. */
-export const CARDSTOCK_SHEET_USD = 0.3;
+/**
+ * What one sheet of matte cardstock costs to PRINT IN COLOUR, roughly, for the saving the app
+ * shows. Owner's figure, 2026-09-11.
+ *
+ * It was 0.3, which was the price of the blank sheet rather than of a printed one, and it made the
+ * optimizer look like it saved pennies. What the saving is actually worth is a colour print on
+ * cardstock at a copy shop, and at that rate the same two sheets saved are worth six times as much.
+ * Anyone updating this should change the RATE only: the copy beside it formats from this number.
+ */
+export const CARDSTOCK_SHEET_USD = 1.8;
 
 /**
  * Sheet layout, in two modes:

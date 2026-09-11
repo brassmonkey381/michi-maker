@@ -73,3 +73,8 @@ state/seo-shots/
 state/personas/
 
 state/og-experiment/
+
+# Story-binder builder: the SECRET only. The script itself is committed on purpose - a
+# load-bearing file that exists only in a working tree is the failure docs/DATA-EXPOSURE.md
+# was written about.
+state/story-binders/story.secrets

@@ -77,8 +77,10 @@ const SET_CONFIGS = [
     bulk: {
       title: '30th Celebration: Every Last Card',
       description:
-        'A nineteen-card set is one you can actually COMPLETE. Here are the commons and promo prints that finish it, organized by type. Fill the chase pages, then close the book with these.',
+        'Every card in the set, in one binder, organized by type. Not a selection and not the leftovers: the commons, the exes, the Illustration Rares and the secret prints, in the order a complete set sits in.',
       layoutStyle: 'color_theme',
+      // The title is a promise, so this one takes the whole pool rather than the bulk rarities.
+      everyCard: true,
     },
     storyNames: [],
     partnerName: '',
@@ -299,7 +301,13 @@ function setShowcase(cfg, pool) {
 function beautifulBulk(cfg, pool) {
   const key = `rel-${cfg.keyPrefix}-bulk`;
   const base = baseSize(pool);
-  const bulk = pool.filter((c) => BULK_RARITIES.has(c.rarity ?? '') && num(c) <= base);
+  // EVERY LAST CARD means every last card. The default is BULK: commons, uncommons and rares up to
+  // the printed set size, which is the right pool for a binder that exists to make a shoebox of
+  // leftovers look deliberate. A set whose binder is titled "Every Last Card" is making a different
+  // promise, so it opts out of both filters and takes the whole pool, secret rares included.
+  const bulk = cfg.bulk?.everyCard
+    ? [...pool]
+    : pool.filter((c) => BULK_RARITIES.has(c.rarity ?? '') && num(c) <= base);
   if (bulk.length === 0) return null;
 
   const typeCount = new Map();

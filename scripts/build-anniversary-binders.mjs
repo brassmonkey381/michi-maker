@@ -43,12 +43,13 @@ const API = 'https://bmhjizcmwtmcrstadqto.supabase.co/rest/v1';
 const SETS = { e: 24722, c: 24837 };
 
 /**
- * ONE SHAPE FOR THE WHOLE BINDER (owner, 2026-09-11: "you can't mix and match the shapes").
+ * ONE SHAPE FOR THE WHOLE BINDER (owner, 2026-09-11: "you can't mix and match the shapes", then
+ * "I like the 3x3 version more").
  * A binder is a physical object and its pages do not change size halfway through. Declared here
  * rather than per page so a future page cannot quietly reintroduce the mix.
  */
 const ROWS = 3;
-const COLS = 4;
+const COLS = 3;
 const BINDER_ID = 'anniv-thirty-years';
 
 // ── slot helpers (mirror src/data/content/_helpers) ──────────────────────────
@@ -63,17 +64,16 @@ const EMBER = '#7A2B2B';
 const MOSS = '#26402F';
 
 /**
- * THE THIRTY PAGES, every one of them 3x4.
+ * THE THIRTY PAGES, every one of them 3x3.
  *
  * ONE SHAPE THROUGHOUT (owner, 2026-09-11). A binder is a physical object and its pages do not
- * change size halfway through; mixing 3x3 and 3x4 read as a mistake even where each page was fine
- * on its own. Twelve pockets rather than nine, because the pages this binder is actually for are
- * the art ones: seven Special Illustration Rares want a wall, the mechanics page wants ten cards in
- * era order, and a 2x2 hero needs somewhere to sit that is not the whole page.
+ * change size halfway through. Nine pockets rather than twelve, on the owner's read after seeing
+ * both: 3x4 gave the art more room and read wider than a binder, and the nine-pocket page is the
+ * shape the cards were made for. Seven pages that had been drawn at 3x4 were re-cut rather than
+ * cropped, and the mechanics page dropped from ten eras to nine to fit.
  *
- * EMPTY POCKETS ARE NOT A SHORTFALL. Twelve times thirty is 360 pockets and there are 91 cards
- * worth using, so most pages breathe on purpose. A tonal insert is used where the space wants
- * weight, and nothing at all where it wants air.
+ * EMPTY POCKETS ARE NOT A SHORTFALL. A tonal insert goes where the space wants weight and nothing
+ * at all where it wants air.
  *
  * Read as a book: it opens on the two cards that opened everything, walks the mouse through the
  * hands that drew him, spends its middle on the weather and the places the artwork actually shows,
@@ -88,9 +88,8 @@ const PAGES = [
       + 'the other is thirty years of the cards themselves. They belong together.',
     slots: [
       art(0, 0, 'e:158/128', { rowSpan: 2, colSpan: 2 }),
-      card(0, 2, 'e:157/128'), card(0, 3, 'c:4/102'),
-      card(1, 2, 'c:149/147'), card(1, 3, 'c:123/172'),
-      gap(2, 0, INK), card(2, 1, 'e:149/128'), card(2, 2, 'c:114/264'), gap(2, 3, INK),
+      card(0, 2, 'e:157/128'), card(1, 2, 'c:4/102'),
+      card(2, 0, 'c:149/147'), card(2, 1, 'c:123/172'), card(2, 2, 'e:149/128'),
     ],
   },
   {
@@ -100,8 +99,7 @@ const PAGES = [
       + 'first generation was built around, so the binder opens on them instead.',
     slots: [
       art(0, 0, 'e:157/128', { rowSpan: 3, colSpan: 2 }),
-      art(0, 2, 'e:158/128', { rowSpan: 2, colSpan: 2 }),
-      card(2, 2, 'c:114/264'), card(2, 3, 'c:43/146'),
+      card(0, 2, 'e:158/128'), card(1, 2, 'c:114/264'), gap(2, 2, INK),
     ],
   },
   {
@@ -110,9 +108,9 @@ const PAGES = [
       'Base Set Charizard, reprinted at its original number. For a lot of people this is not a card, '
       + 'it is the reason they have the others.',
     slots: [
-      gap(0, 0, EMBER), card(0, 1, 'c:4/102', { rowSpan: 2, colSpan: 2 }), gap(0, 3, EMBER),
-      gap(1, 0, EMBER), gap(1, 3, EMBER),
-      card(2, 0, 'c:58/102'), card(2, 1, 'c:69/132'), card(2, 2, 'c:18/132'), card(2, 3, 'c:106/105'),
+      gap(0, 0, EMBER), card(0, 1, 'c:4/102', { rowSpan: 2, colSpan: 2 }),
+      gap(1, 0, EMBER),
+      card(2, 0, 'c:58/102'), card(2, 1, 'c:69/132'), card(2, 2, 'c:18/132'),
     ],
   },
 
@@ -123,9 +121,9 @@ const PAGES = [
       'The Celebration prints the same Pokemon twenty-three times, once per illustrator. Nothing '
       + 'else in thirty years of this game has said so plainly that the artwork is the point.',
     slots: [
-      card(0, 0, 'e:023/128'), card(0, 1, 'e:047/128'), card(0, 2, 'e:032/128'), card(0, 3, 'e:042/128'),
-      card(1, 0, 'e:028/128'), art(1, 1, 'e:149/128', { rowSpan: 2, colSpan: 2 }), card(1, 3, 'e:033/128'),
-      card(2, 0, 'e:026/128'), card(2, 3, 'e:025/128'),
+      card(0, 0, 'e:023/128'), card(0, 1, 'e:047/128'), card(0, 2, 'e:032/128'),
+      card(1, 0, 'e:042/128'), art(1, 1, 'e:149/128'), card(1, 2, 'e:028/128'),
+      card(2, 0, 'e:033/128'), card(2, 1, 'e:026/128'), card(2, 2, 'e:025/128'),
     ],
   },
   {
@@ -134,29 +132,30 @@ const PAGES = [
       'Ken Sugimori drew the originals. Atsuko Nishida designed Pikachu in the first place. They '
       + 'sit either side of the artists who grew up on what they made.',
     slots: [
-      card(0, 0, 'e:023/128'), gap(0, 1, BONE, { colSpan: 2 }), card(0, 3, 'e:047/128'),
-      card(1, 0, 'e:030/128'), card(1, 1, 'e:036/128'), card(1, 2, 'e:038/128'), card(1, 3, 'e:039/128'),
-      card(2, 0, 'e:040/128'), card(2, 1, 'e:041/128'), card(2, 2, 'e:043/128'), card(2, 3, 'e:044/128'),
+      card(0, 0, 'e:023/128', { rowSpan: 2, colSpan: 1 }),
+      card(0, 1, 'e:030/128'), card(0, 2, 'e:036/128'),
+      card(1, 1, 'e:038/128'), card(1, 2, 'e:039/128'),
+      card(2, 0, 'e:047/128', { colSpan: 1 }), card(2, 1, 'e:040/128'), card(2, 2, 'e:041/128'),
     ],
   },
   {
     title: 'And The Rest Of Them',
-    description: 'More hands, same ears, same cheeks, no two alike. The gallery keeps going.',
+    description: 'Nine more, nine more hands. Same ears, same cheeks, no two alike.',
     slots: [
-      card(0, 0, 'e:034/128'), card(0, 1, 'e:037/128'), card(0, 2, 'e:049/128'), card(0, 3, 'e:050/128'),
-      card(1, 0, 'e:053/128'), card(1, 1, 'e:054/128'), art(1, 2, 'e:150/128', { rowSpan: 2, colSpan: 2 }),
-      card(2, 0, 'c:58/102'), card(2, 1, 'c:33/181'),
+      card(0, 0, 'e:034/128'), card(0, 1, 'e:037/128'), card(0, 2, 'e:043/128'),
+      card(1, 0, 'e:044/128'), card(1, 1, 'e:049/128'), card(1, 2, 'e:050/128'),
+      card(2, 0, 'e:053/128'), card(2, 1, 'e:054/128'), card(2, 2, 'c:58/102'),
     ],
   },
   {
     title: 'The Same Card, Twice',
     description:
-      'Pikachu ex, Greninja ex and Sylveon ex as ordinary prints and as Special Illustration Rares. '
-      + 'The rules text is identical. Everything that makes the second one cost more is the picture.',
+      'Pikachu ex as an ordinary print and as a Special Illustration Rare. The rules text is '
+      + 'identical. Everything that makes the second one cost more is the picture.',
     slots: [
-      card(0, 0, 'e:053/128'), art(0, 1, 'e:149/128', { colSpan: 3 }),
-      card(1, 0, 'e:021/128'), art(1, 1, 'e:148/128', { colSpan: 3 }),
-      card(2, 0, 'e:071/128'), art(2, 1, 'e:153/128', { colSpan: 3 }),
+      card(0, 0, 'e:053/128'), art(0, 1, 'e:149/128', { colSpan: 2 }),
+      card(1, 0, 'e:021/128'), art(1, 1, 'e:148/128', { colSpan: 2 }),
+      card(2, 0, 'e:071/128'), art(2, 1, 'e:153/128', { colSpan: 2 }),
     ],
   },
 
@@ -167,10 +166,9 @@ const PAGES = [
       'Three illustrators, one Pokemon whose whole character is that it could become something '
       + 'else. The set leans on that and so does this page.',
     slots: [
-      card(0, 0, 'e:116/128'), card(0, 1, 'e:117/128'), card(0, 2, 'e:118/128'), gap(0, 3, BONE),
+      card(0, 0, 'e:116/128'), card(0, 1, 'e:117/128'), card(0, 2, 'e:118/128'),
       art(1, 0, 'e:153/128', { rowSpan: 2, colSpan: 2 }),
-      card(1, 2, 'e:069/128'), card(1, 3, 'e:091/128'),
-      card(2, 2, 'e:070/128'), card(2, 3, 'e:092/128'),
+      card(1, 2, 'e:069/128'), card(2, 2, 'e:091/128'),
     ],
   },
   {
@@ -179,9 +177,9 @@ const PAGES = [
       'Espeon, Umbreon and Sylveon, each as a plain print and as an ex. The evolution is the theme '
       + 'twice over.',
     slots: [
-      card(0, 0, 'e:069/128'), card(0, 1, 'e:070/128'), gap(0, 2, MOSS, { colSpan: 2 }),
-      card(1, 0, 'e:091/128'), card(1, 1, 'e:092/128'), art(1, 2, 'e:153/128', { rowSpan: 2, colSpan: 2 }),
-      card(2, 0, 'e:071/128'), card(2, 1, 'e:116/128'),
+      art(0, 0, 'e:153/128', { rowSpan: 2, colSpan: 2 }), card(0, 2, 'e:069/128'),
+      card(1, 2, 'e:070/128'),
+      card(2, 0, 'e:091/128'), card(2, 1, 'e:092/128'), card(2, 2, 'e:071/128'),
     ],
   },
 
@@ -192,9 +190,9 @@ const PAGES = [
       'Articuno, Zapdos and Moltres as Illustration Rares, in the order the first generation put '
       + 'them in. Thirty years and they still travel together.',
     slots: [
-      art(0, 0, 'e:132/128'), art(0, 1, 'e:133/128'), art(0, 2, 'e:130/128'), gap(0, 3, INK),
-      gap(1, 0, INK, { colSpan: 4 }),
-      card(2, 0, 'c:149/147'), card(2, 1, 'c:050/185'), card(2, 2, 'c:85/124'), card(2, 3, 'c:123/172'),
+      art(0, 0, 'e:132/128'), art(0, 1, 'e:133/128'), art(0, 2, 'e:130/128'),
+      gap(1, 0, INK, { colSpan: 3 }),
+      card(2, 0, 'c:149/147'), card(2, 1, 'c:050/185'), card(2, 2, 'c:85/124'),
     ],
   },
   {
@@ -204,9 +202,8 @@ const PAGES = [
       + 'and Raikou on one side, the mouse who started it on the other.',
     slots: [
       art(0, 0, 'e:133/128', { rowSpan: 2, colSpan: 2 }),
-      card(0, 2, 'c:050/185'), card(0, 3, 'c:33/181'),
-      card(1, 2, 'e:057/128'), card(1, 3, 'c:138/202'),
-      card(2, 0, 'e:134/128'), card(2, 1, 'e:053/128'), gap(2, 2, INK, { colSpan: 2 }),
+      card(0, 2, 'c:050/185'), card(1, 2, 'c:33/181'),
+      card(2, 0, 'e:057/128'), card(2, 1, 'e:134/128'), card(2, 2, 'c:138/202'),
     ],
   },
   {
@@ -215,10 +212,9 @@ const PAGES = [
       'Lapras crossing open water, Greninja mid-strike, and the two Water legendaries the Classic '
       + 'Collection brought back. Also a Magikarp, because a water page owes you one.',
     slots: [
-      art(0, 0, 'e:131/128', { rowSpan: 2, colSpan: 2 }),
-      card(0, 2, 'e:021/128'), card(0, 3, 'c:106/106'),
-      card(1, 2, 'c:41/122'), card(1, 3, 'c:203/193'),
-      art(2, 0, 'e:148/128', { colSpan: 2 }), card(2, 2, 'c:108/115'), card(2, 3, 'c:5/109'),
+      art(0, 0, 'e:131/128', { rowSpan: 2, colSpan: 2 }), card(0, 2, 'e:021/128'),
+      card(1, 2, 'c:106/106'),
+      art(2, 0, 'e:148/128', { colSpan: 2 }), card(2, 2, 'c:203/193'),
     ],
   },
   {
@@ -227,9 +223,9 @@ const PAGES = [
       'Drifloon and Chandelure are lit from inside. Umbreon, Gengar and Darkrai are lit from '
       + 'outside, barely. The whole page is one lighting decision.',
     slots: [
-      art(0, 0, 'e:136/128'), art(0, 1, 'e:137/128'), card(0, 2, 'c:94/102'), card(0, 3, 'c:99/102'),
-      card(1, 0, 'e:092/128'), gap(1, 1, INK, { colSpan: 2 }), card(1, 3, 'c:100/102'),
-      card(2, 0, 'e:091/128'), card(2, 1, 'c:19/109'), card(2, 2, 'c:25/111'), card(2, 3, 'c:47/127'),
+      art(0, 0, 'e:136/128'), art(0, 1, 'e:137/128'), card(0, 2, 'c:94/102'),
+      card(1, 0, 'e:092/128'), gap(1, 1, INK), card(1, 2, 'c:99/102'),
+      card(2, 0, 'e:091/128'), card(2, 1, 'c:19/109'), card(2, 2, 'c:100/102'),
     ],
   },
   {
@@ -238,9 +234,9 @@ const PAGES = [
       'Darkrai and Cresselia is a single illustration split across a LEGEND pair. It only works '
       + 'with both halves in the binder, which is the most binder-shaped card ever printed.',
     slots: [
-      gap(0, 0, INK), card(0, 1, 'c:99/102'), gap(0, 2, INK, { colSpan: 2 }),
-      gap(1, 0, INK), card(1, 1, 'c:100/102'), gap(1, 2, INK, { colSpan: 2 }),
-      card(2, 0, 'c:43/146'), card(2, 1, 'c:106/106'), card(2, 2, 'c:94/102'), card(2, 3, 'c:89/149'),
+      gap(0, 0, INK), card(0, 1, 'c:99/102'), gap(0, 2, INK),
+      gap(1, 0, INK), card(1, 1, 'c:100/102'), gap(1, 2, INK),
+      card(2, 0, 'c:43/146'), card(2, 1, 'c:47/127'), card(2, 2, 'c:106/106'),
     ],
   },
   {
@@ -249,9 +245,9 @@ const PAGES = [
       'Meowth three ways in one set, a Delcatty and a Sneasel from the other. A theme nobody '
       + 'planned that both sets happen to have.',
     slots: [
-      art(0, 0, 'e:144/128'), art(0, 1, 'e:139/128'), art(0, 2, 'e:141/128'), gap(0, 3, BONE),
-      card(1, 0, 'e:113/128'), card(1, 1, 'e:089/128'), card(1, 2, 'c:5/109'), card(1, 3, 'c:25/111'),
-      gap(2, 0, BONE, { colSpan: 2 }), card(2, 2, 'e:145/128'), card(2, 3, 'e:146/128'),
+      art(0, 0, 'e:144/128'), art(0, 1, 'e:139/128'), art(0, 2, 'e:141/128'),
+      card(1, 0, 'e:113/128'), card(1, 1, 'e:089/128'), card(1, 2, 'c:5/109'),
+      card(2, 0, 'c:25/111'), gap(2, 1, BONE, { colSpan: 2 }),
     ],
   },
   {
@@ -260,9 +256,9 @@ const PAGES = [
       'Scraggy, Morpeko, Maushold, Hisuian Zorua. The Illustration Rares are at their best when the '
       + 'Pokemon is tiny and the world around it is not.',
     slots: [
-      art(0, 0, 'e:140/128'), art(0, 1, 'e:135/128'), art(0, 2, 'e:146/128'), art(0, 3, 'e:145/128'),
-      gap(1, 0, BONE, { colSpan: 4 }),
-      card(2, 0, 'e:013/128'), card(2, 1, 'e:116/128'), card(2, 2, 'c:106/105'), card(2, 3, 'c:69/132'),
+      art(0, 0, 'e:140/128'), art(0, 1, 'e:135/128'), art(0, 2, 'e:146/128'),
+      gap(1, 0, BONE, { colSpan: 3 }),
+      art(2, 0, 'e:145/128'), card(2, 1, 'c:106/105'), card(2, 2, 'c:69/132'),
     ],
   },
   {
@@ -271,9 +267,10 @@ const PAGES = [
       'Alolan Exeggutor, Lycanroc, Gholdengo, Salamence. The same trick in reverse, and the reason '
       + 'the art on these is worth a full pocket rather than a frame.',
     slots: [
-      art(0, 0, 'e:129/128', { rowSpan: 2, colSpan: 1 }), art(0, 1, 'e:138/128', { colSpan: 2 }), card(0, 3, 'c:106/160'),
-      art(1, 1, 'e:142/128'), card(1, 2, 'c:85/124'), card(1, 3, 'c:114/264'),
-      art(2, 0, 'e:156/128', { colSpan: 2 }), gap(2, 2, MOSS, { colSpan: 2 }),
+      art(0, 0, 'e:129/128', { rowSpan: 2, colSpan: 1 }),
+      art(0, 1, 'e:138/128', { colSpan: 2 }),
+      art(1, 1, 'e:142/128'), card(1, 2, 'c:106/160'),
+      art(2, 0, 'e:156/128', { colSpan: 2 }), card(2, 2, 'c:85/124'),
     ],
   },
 
@@ -285,9 +282,9 @@ const PAGES = [
       + 'Base Set and 94/102 is still Triumphant. The rest of this binder is that list, read as a '
       + 'history.',
     slots: [
-      card(0, 0, 'c:4/102'), card(0, 1, 'c:149/147'), card(0, 2, 'c:94/102'), card(0, 3, 'c:11/113'),
-      card(1, 0, 'c:106/106'), card(1, 1, 'c:101/101'), card(1, 2, 'c:41/122'), card(1, 3, 'c:33/181'),
-      card(2, 0, 'c:123/172'), card(2, 1, 'c:57/111'), card(2, 2, 'c:138/202'), card(2, 3, 'c:203/193'),
+      card(0, 0, 'c:4/102'), card(0, 1, 'c:149/147'), card(0, 2, 'c:94/102'),
+      card(1, 0, 'c:11/113'), card(1, 1, 'c:106/106'), card(1, 2, 'c:101/101'),
+      card(2, 0, 'c:41/122'), card(2, 1, 'c:33/181'), card(2, 2, 'c:123/172'),
     ],
   },
   {
@@ -296,9 +293,9 @@ const PAGES = [
       'Base Set, Gym and Neo. A Charizard, a Pikachu, two trainers people still argue about, and a '
       + 'Shining Celebi that was the hardest pull of its year.',
     slots: [
-      card(0, 0, 'c:4/102'), card(0, 1, 'c:58/102'), card(0, 2, 'c:18/132'), card(0, 3, 'c:69/132'),
-      card(1, 0, 'c:106/105'), card(1, 1, 'c:25/111'), card(1, 2, 'c:19/109'), card(1, 3, 'c:5/109'),
-      gap(2, 0, BONE), card(2, 1, 'c:149/147'), card(2, 2, 'c:108/115'), gap(2, 3, BONE),
+      card(0, 0, 'c:4/102'), card(0, 1, 'c:58/102'), card(0, 2, 'c:18/132'),
+      card(1, 0, 'c:69/132'), card(1, 1, 'c:106/105'), card(1, 2, 'c:25/111'),
+      card(2, 0, 'c:19/109'), card(2, 1, 'c:149/147'), card(2, 2, 'c:5/109'),
     ],
   },
   {
@@ -307,20 +304,20 @@ const PAGES = [
       'Misty, Erika and N. Supporter art is where this game has always been least careful and most '
       + 'interesting, and all three of these were a whole deck in their day.',
     slots: [
-      gap(0, 0, BONE), card(0, 1, 'c:18/132'), card(0, 2, 'c:69/132'), gap(0, 3, BONE),
-      gap(1, 0, BONE), card(1, 1, 'c:101/101'), card(1, 2, 'c:11/101'), gap(1, 3, BONE),
-      card(2, 0, 'c:47/127'), card(2, 1, 'c:43/146'), card(2, 2, 'c:106/160'), card(2, 3, 'c:85/124'),
+      gap(0, 0, BONE), card(0, 1, 'c:18/132'), gap(0, 2, BONE),
+      card(1, 0, 'c:69/132'), gap(1, 1, BONE), card(1, 2, 'c:101/101'),
+      card(2, 0, 'c:11/101'), card(2, 1, 'c:47/127'), card(2, 2, 'c:43/146'),
     ],
   },
   {
     title: 'Every Mechanic We Tried',
     description:
-      'ex, LV.X, Prime, LEGEND, EX, BREAK, GX, V, VMAX, VSTAR. Ten ways of saying "this one is '
+      'ex, LV.X, Prime, LEGEND, EX, BREAK, GX, V, VSTAR. Nine ways of saying "this one is '
       + 'stronger", one per era, and the Classic Collection has nearly all of them.',
     slots: [
-      card(0, 0, 'c:108/115'), card(0, 1, 'c:106/106'), card(0, 2, 'c:94/102'), card(0, 3, 'c:99/102'),
-      card(1, 0, 'c:85/124'), card(1, 1, 'c:41/122'), card(1, 2, 'c:57/111'), card(1, 3, 'c:89/149'),
-      card(2, 0, 'c:138/202'), card(2, 1, 'c:114/264'), card(2, 2, 'c:123/172'), card(2, 3, 'c:106/160'),
+      card(0, 0, 'c:108/115'), card(0, 1, 'c:106/106'), card(0, 2, 'c:94/102'),
+      card(1, 0, 'c:99/102'), card(1, 1, 'c:85/124'), card(1, 2, 'c:41/122'),
+      card(2, 0, 'c:57/111'), card(2, 1, 'c:138/202'), card(2, 2, 'c:123/172'),
     ],
   },
   {
@@ -329,9 +326,9 @@ const PAGES = [
       'Metagross as a Delta Species, a Scizor ex, a Genesect in Team Plasma livery. The eras when '
       + 'the game kept reskinning its own Pokemon, and the art got stranger for it.',
     slots: [
-      card(0, 0, 'c:11/113', { rowSpan: 2, colSpan: 2 }), card(0, 2, 'c:108/115'), card(0, 3, 'c:11/101'),
-      card(1, 2, 'c:19/109'), card(1, 3, 'c:47/127'),
-      card(2, 0, 'c:5/109'), card(2, 1, 'c:43/146'), gap(2, 2, MOSS, { colSpan: 2 }),
+      card(0, 0, 'c:11/113', { rowSpan: 2, colSpan: 2 }),
+      card(0, 2, 'c:108/115'), card(1, 2, 'c:11/101'),
+      card(2, 0, 'c:19/109'), card(2, 1, 'c:47/127'), card(2, 2, 'c:5/109'),
     ],
   },
   {
@@ -340,9 +337,9 @@ const PAGES = [
       'Lugia from Aquapolis, Uxie, Palkia at LV.X, Arceus. The cards the game reaches for when it '
       + 'wants a page to feel like scripture.',
     slots: [
-      card(0, 0, 'c:149/147'), card(0, 1, 'c:106/106'), card(0, 2, 'c:43/146'), card(0, 3, 'c:123/172'),
-      card(1, 0, 'c:114/264'), card(1, 1, 'c:050/185'), card(1, 2, 'c:138/202'), card(1, 3, 'c:89/149'),
-      gap(2, 0, MOSS, { colSpan: 4 }),
+      card(0, 0, 'c:149/147'), card(0, 1, 'c:106/106'), card(0, 2, 'c:43/146'),
+      card(1, 0, 'c:123/172'), card(1, 1, 'c:114/264'), card(1, 2, 'c:050/185'),
+      gap(2, 0, MOSS, { colSpan: 3 }),
     ],
   },
   {
@@ -351,9 +348,9 @@ const PAGES = [
       'Base Set Charizard and Pikachu & Zekrom GX, twenty-two years apart, same hand. The Classic '
       + 'Collection is quietly a retrospective of a handful of illustrators.',
     slots: [
-      card(0, 0, 'c:4/102', { rowSpan: 2, colSpan: 2 }), card(0, 2, 'c:33/181'), card(0, 3, 'c:108/115'),
-      card(1, 2, 'c:11/113'), card(1, 3, 'c:5/109'),
-      card(2, 0, 'c:99/102'), card(2, 1, 'c:100/102'), gap(2, 2, EMBER, { colSpan: 2 }),
+      card(0, 0, 'c:4/102', { rowSpan: 2, colSpan: 2 }),
+      card(0, 2, 'c:33/181'), card(1, 2, 'c:108/115'),
+      card(2, 0, 'c:11/113'), card(2, 1, 'c:99/102'), card(2, 2, 'c:100/102'),
     ],
   },
 
@@ -361,13 +358,12 @@ const PAGES = [
   {
     title: 'The Special Illustration Rares',
     description:
-      'All seven, given the space they were drawn for. A Special Illustration Rare in a frame is a '
-      + 'card; in a full pocket it is a picture.',
+      'Six of the seven, given the space they were drawn for. A Special Illustration Rare in a '
+      + 'frame is a card; in a full pocket it is a picture.',
     slots: [
-      art(0, 0, 'e:147/128', { rowSpan: 2, colSpan: 2 }),
-      art(0, 2, 'e:155/128'), art(0, 3, 'e:156/128'),
-      art(1, 2, 'e:153/128'), art(1, 3, 'e:148/128'),
-      art(2, 0, 'e:149/128', { colSpan: 2 }), art(2, 2, 'e:150/128', { colSpan: 2 }),
+      art(0, 0, 'e:147/128', { rowSpan: 2, colSpan: 2 }), art(0, 2, 'e:155/128'),
+      art(1, 2, 'e:156/128'),
+      art(2, 0, 'e:149/128'), art(2, 1, 'e:150/128'), art(2, 2, 'e:153/128'),
     ],
   },
   {
@@ -376,9 +372,7 @@ const PAGES = [
       'One card, one page. A wish Pokemon drawn against a sky, which is the sort of thing this set '
       + 'does when it stops trying to be a set.',
     slots: [
-      gap(0, 0, INK, { rowSpan: 3, colSpan: 1 }),
-      art(0, 1, 'e:155/128', { rowSpan: 3, colSpan: 2 }),
-      gap(0, 3, INK, { rowSpan: 3, colSpan: 1 }),
+      art(0, 0, 'e:155/128', { rowSpan: 3, colSpan: 3 }),
     ],
   },
   {
@@ -387,9 +381,9 @@ const PAGES = [
       'Toxtricity, Morpeko, Gholdengo and Alolan Exeggutor. Grouped for nothing but their palette, '
       + 'which is a perfectly good reason to group cards.',
     slots: [
-      art(0, 0, 'e:134/128'), art(0, 1, 'e:135/128'), art(0, 2, 'e:142/128'), card(0, 3, 'e:013/128'),
-      art(1, 0, 'e:129/128', { colSpan: 2 }), card(1, 2, 'e:057/128'), card(1, 3, 'c:106/160'),
-      card(2, 0, 'c:89/149'), card(2, 1, 'e:070/128'), gap(2, 2, BONE, { colSpan: 2 }),
+      art(0, 0, 'e:134/128'), art(0, 1, 'e:135/128'), art(0, 2, 'e:142/128'),
+      art(1, 0, 'e:129/128', { colSpan: 2 }), card(1, 2, 'e:013/128'),
+      card(2, 0, 'e:057/128'), card(2, 1, 'c:106/160'), card(2, 2, 'c:89/149'),
     ],
   },
   {
@@ -398,9 +392,9 @@ const PAGES = [
       'Scraggy, Hisuian Zorua, Alolan Meowth, Galarian Meowth. The Illustration Rares that are '
       + 'mostly an expression.',
     slots: [
-      art(0, 0, 'e:140/128'), art(0, 1, 'e:145/128'), art(0, 2, 'e:139/128'), art(0, 3, 'e:141/128'),
-      art(1, 0, 'e:144/128'), art(1, 1, 'e:146/128'), art(1, 2, 'e:136/128'), art(1, 3, 'e:137/128'),
-      gap(2, 0, INK, { colSpan: 4 }),
+      art(0, 0, 'e:140/128'), art(0, 1, 'e:145/128'), art(0, 2, 'e:139/128'),
+      art(1, 0, 'e:141/128'), art(1, 1, 'e:144/128'), art(1, 2, 'e:146/128'),
+      gap(2, 0, INK, { colSpan: 3 }),
     ],
   },
   {
@@ -410,9 +404,8 @@ const PAGES = [
       + 'see three cards from this set, these are a good three.',
     slots: [
       art(0, 0, 'e:138/128', { rowSpan: 2, colSpan: 2 }),
-      art(0, 2, 'e:131/128'), art(0, 3, 'e:129/128'),
-      art(1, 2, 'e:132/128'), art(1, 3, 'e:133/128'),
-      art(2, 0, 'e:130/128'), art(2, 1, 'e:134/128'), art(2, 2, 'e:142/128'), art(2, 3, 'e:135/128'),
+      art(0, 2, 'e:131/128'), art(1, 2, 'e:129/128'),
+      art(2, 0, 'e:130/128'), art(2, 1, 'e:132/128'), art(2, 2, 'e:133/128'),
     ],
   },
   {
@@ -421,9 +414,9 @@ const PAGES = [
       'Where it started and where it is now, on one page. Mew opened the first generation, Arceus '
       + 'closed a later one, and the mouse is still here.',
     slots: [
-      card(0, 0, 'c:4/102'), art(0, 1, 'e:158/128', { rowSpan: 2, colSpan: 2 }), card(0, 3, 'c:123/172'),
-      card(1, 0, 'e:157/128'), card(1, 3, 'c:114/264'),
-      gap(2, 0, EMBER), card(2, 1, 'e:149/128'), card(2, 2, 'c:58/102'), gap(2, 3, EMBER),
+      card(0, 0, 'c:4/102'), art(0, 1, 'e:158/128', { rowSpan: 2, colSpan: 2 }),
+      card(1, 0, 'c:123/172'),
+      card(2, 0, 'e:149/128'), card(2, 1, 'e:157/128'), card(2, 2, 'c:114/264'),
     ],
   },
 ];

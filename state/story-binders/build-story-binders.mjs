@@ -21,9 +21,11 @@
  * run time. Ids are opaque and would rot; a number plus a set is checkable by eye against the card
  * in your hand, and the script fails loudly rather than silently skipping one it cannot find.
  *
- * SECRETS. Your michi email and password come from `story.secrets` beside this file (gitignored,
- * same shape as the persona kit's bots.secrets). They are read into variables and never printed.
- * Nothing else here needs a secret: the catalog is read with the public publishable key.
+ * SECRETS, in this order. `../../../tcgscan.secrets` (the repo-root store that already holds
+ * MICHI_TEST_EMAIL / MICHI_TEST_PASSWORD) is used by default, so there is nothing to set up. To
+ * build into a DIFFERENT account, put MICHI_EMAIL / MICHI_PASSWORD in `story.secrets` beside this
+ * file and that wins. Either way the values are read into variables and never printed, and nothing
+ * else here needs a secret: the catalog is read with the public publishable key.
  *
  * Flags: --rebuild deletes any binder of the same title first. --public publishes them
  * (default: private). --dry-run resolves and prints the plan without writing anything.
@@ -128,13 +130,17 @@ const CATALOG_KEY = env.EXPO_PUBLIC_CATALOG_API_KEY;
 if (!APP_URL || !APP_KEY) fail('read .env', 'EXPO_PUBLIC_SUPABASE_URL / _PUBLISHABLE_KEY missing');
 if (!CATALOG_KEY) fail('read .env', 'EXPO_PUBLIC_CATALOG_API_KEY missing');
 
-const secrets = readEnvFile(path.join(HERE, 'story.secrets'));
-const EMAIL = secrets.MICHI_EMAIL;
-const PASSWORD = secrets.MICHI_PASSWORD;
+// story.secrets overrides; otherwise the repo-root store the rest of the tooling already uses.
+const override = readEnvFile(path.join(HERE, 'story.secrets'));
+const shared = readEnvFile(path.resolve(ROOT, '..', 'tcgscan.secrets'));
+const EMAIL = override.MICHI_EMAIL || shared.MICHI_TEST_EMAIL;
+const PASSWORD = override.MICHI_PASSWORD || shared.MICHI_TEST_PASSWORD;
+const WHICH = override.MICHI_EMAIL ? 'story.secrets' : 'tcgscan.secrets (MICHI_TEST_*)';
 if (!DRY && (!EMAIL || !PASSWORD)) {
   fail(
-    'read story.secrets',
-    'put MICHI_EMAIL and MICHI_PASSWORD in state/story-binders/story.secrets (see story.secrets.example)',
+    'read credentials',
+    'no login found. Expected MICHI_TEST_EMAIL / MICHI_TEST_PASSWORD in tcgscan.secrets, or '
+      + 'MICHI_EMAIL / MICHI_PASSWORD in state/story-binders/story.secrets',
   );
 }
 

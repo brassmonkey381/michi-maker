@@ -65,7 +65,7 @@ const SET_CONFIGS = [
     chase: {
       title: '30th Celebration: Chase Board',
       description:
-        'The anniversary special (September). Nineteen cards, and the ones to hunt: the Futuristic Rare Mewtwo ex and Mew ex crowns, the Illustration Rare quartet, and every anniversary ex. One page of history in the making.',
+        'The anniversary special (September), and the cards worth hunting in it: the Futuristic Rare Mewtwo ex and Mew ex crowns, the Special Illustration Rares, the full Illustration Rare wall, and every anniversary ex. Duplicate it and check them off as you rip.',
       layoutStyle: 'anchor',
     },
     showcase: {

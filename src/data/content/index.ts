@@ -52,17 +52,10 @@ export const CONTENT_CARDS: DemoCard[] = MODULES.flatMap((module) => module.card
  * or a better binder now covers the same set.
  */
 const RETIRED = new Set([
-  // Superseded by "Thirty Years, Thirty Pages", which covers both anniversary sets across thirty
-  // pages. Both were also built when the catalogue held nineteen cards for the set and still say so
-  // in their copy; it holds 154 now, so a "Chase Board" of ten cards was wrong on its face. A
-  // rebuild has since restored them to 8 pages and 2 pages, so the staleness is gone and only the
-  // "superseded" half of the reason stands. The chase board in particular is a different job from
-  // the story binder and could come back; its description still says nineteen cards, so fix that
-  // first.
-  'rel-30th-celebration-chase',
+  // Two pages and sixteen cards, and the one of the three whose job the story binder actually does
+  // better. Its siblings both came back: the chase board is a checklist and Every Last Card is the
+  // complete set, neither of which "Thirty Years, Thirty Pages" is trying to be.
   'rel-30th-celebration-showcase',
-  // NOT retired: 'rel-30th-celebration-bulk' is back by request (owner, 2026-09-11) and now holds
-  // every card in the set, 154 across 18 pages, rather than the nine it shipped with.
   // One page, eight cards, for a set that is no longer new. Too thin to earn a slot in a carousel
   // that is meant to show what the app can do.
   'gen-prismatic-rarity-ladder',

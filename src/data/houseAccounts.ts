@@ -31,11 +31,18 @@ export const isHouseAccount = (username: string | null | undefined): boolean =>
  * Keep this SHORT. Two or three ids and the exception is a judgement; a dozen and the rule has
  * quietly been repealed without anyone deciding to repeal it.
  *
- * `anniv-thirty-years-published` is "Thirty Years, Thirty Pages", which ships as a bundled example
- * AND is published to the house account so it can be shared and ranked. It must be published under
- * exactly this id for the exemption to find it.
+ * Both ids below are "Thirty Years, Thirty Pages", because it lives in two id spaces and the one
+ * that matters here is not the obvious one. `anniv-thirty-years` is what the BUNDLED example calls
+ * itself, which is the id to reach for in app code. The uuid is what a PUBLISHED copy has to use:
+ * `public.binders.id` is a uuid column (20260707055603_init_user_schema.sql:53), so the row this
+ * rule actually sees cannot be called `anniv-thirty-years` however much we would prefer it. The
+ * featured RPC returns that uuid, so the uuid is the entry doing the work and the publish has to
+ * use it. The readable id is kept beside it so nobody deletes the uuid as a mystery.
  */
-export const DEMOTION_EXEMPT_BINDERS = new Set(['4493ccbc-8ae0-4874-ab27-7253b40d7e47']);
+export const DEMOTION_EXEMPT_BINDERS = new Set([
+  'anniv-thirty-years',
+  '4493ccbc-8ae0-4874-ab27-7253b40d7e47',
+]);
 
 /** Is this row exempt? Rows come from the featured RPC, which names the binder `binder_id`. */
 function isExempt(row: { binder_id?: string | null; id?: string | null }): boolean {

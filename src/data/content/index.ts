@@ -5,7 +5,8 @@
  * `src/data/sampleData.ts` exposes `CONTENT_BINDERS` as the app's example binders. The module
  * order here is the display order of the example binders on the home screen.
  *
- * Modules: `showcase` — the two layout showcases, which lead; `release` — the upcoming-release
+ * Modules: `anniversary` — the thirty-page 30th binder, which leads; `showcase` — the two layout
+ * showcases; `release` — the upcoming-release
  * prep binders (chase board / set showcase /
  * beautiful bulk, from scripts/build-release-binders.mjs), `featured` — the owner's real
  * binders exported from their live accounts (scripts/build-featured-binders.mjs), and
@@ -24,17 +25,18 @@ import * as generated from './generated';
 import * as release from './release';
 import * as showcase from './showcase';
 
-// SHOWCASE FIRST. The two layout showcases are the clearest statement of what the app does to a
-// page, and the examples section is where someone goes to find that out; every other binder here
-// shows a collection, these show the craft. Then the release binders (the timely hook: prep
-// binders for the set dropping next week), the anniversary pair, the owner's real featured
-// binders, and the generated examples.
+// ANNIVERSARY FIRST (owner, 2026-09-11). "Thirty Years, Thirty Pages" is thirty 3x4 pages and
+// fifty-nine artwork panels across both anniversary sets, and it makes the case the layout
+// showcases used to have to make on their own: this is what the app does to a page, shown on
+// cards people want rather than on a grid of layouts. The showcases follow, then the release
+// binders (the timely hook: prep binders for the set dropping next week), the owner's real
+// featured binders, and the generated examples.
 //
 // Display order only. It USED to decide the Home illustration as well, because the TCGScan pairing
 // card and the curate callout took the first example binder with a card on page 0, and inserting a
 // module ahead of `release` silently repainted both with whatever that module's first page held.
 // That is pinned now (see HOME_ARTWORK_BINDER_ID), so this list is safe to reorder again.
-const MODULES = [showcase, release, anniversary, featured, generated];
+const MODULES = [anniversary, showcase, release, featured, generated];
 
 export const CONTENT_CARDS: DemoCard[] = MODULES.flatMap((module) => module.cards);
 

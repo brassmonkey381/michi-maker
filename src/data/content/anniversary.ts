@@ -10,10 +10,13 @@
  * into two four-page binders, which made each half look thinner than it is and put the rhymes
  * between them on different shelves.
  *
- * It is also the fullest michi-method example that ships: fifty-four artwork panels across thirty
+ * It is also the fullest michi-method example that ships: fifty-nine artwork panels across thirty
  * pages, spent on the Special Illustration Rares and Illustration Rares whose whole point is a
  * picture with no card furniture on it, with ordinary prints carrying the trainer, mechanic and
  * history pages where the story is what changed rather than what is beautiful.
+ *
+ * EVERY PAGE IS 3x4 (owner, 2026-09-11). A binder is a physical object and its pages do not change
+ * size halfway through, so the shape is declared once in the builder rather than per page.
  *
  * To regenerate (after a card list changes, or to re-cut a page): edit PAGES at the top of the
  * builder, run `node scripts/build-anniversary-binders.mjs`, commit the JSON. The builder refuses

@@ -69,8 +69,34 @@ not only on a revoke.
 | `search_cards` | 200 | 21: the 18 above plus `cur, score, total_count` |
 | `search_facets` | 200 | 3: `facet, value, n` |
 | `card_detail` | 200 | **15**: `id, language, evolution_line, evolves_from, evolution_line_length, dex, subtypes, regulation_mark, attacks, retreat_cost, weakness, resistance, card_text, card_type_b, attributes` |
-| `find_similar`, `find_similar_to_cards`, `find_similar_weighted` | 200 | 2: `id, similarity` |
-| `search_by_color`, `search_by_colors`, `find_similar_by_color` | 200 | 2: `product_id, dist` / `product_id, score` |
+| `find_similar`, `find_similar_to_cards` | 200 | **8**: `id, name, set_name, number, rarity, image_url, image_small_url, similarity` |
+| `find_similar_weighted` | 200 | 2: `id, similarity` |
+| `search_by_color` | 200 (usually 500) | 2: `product_id, score` |
+| `search_by_colors`, `find_similar_by_color` | **500** | statement timeout, see below |
+
+**Correction, 2026-09-11.** The first version of this table said the whole `find_similar` family
+returned `id, similarity`. That was read off the client's TypeScript annotation at `similar.ts:143`,
+not off the wire, and printed in a table headed "measured live". A TS annotation that names two
+fields of an eight-field row compiles perfectly and tells you nothing about what the server sent.
+Track A caught it. `find_similar` and `find_similar_to_cards` return seven card columns plus the
+score, so **`image_url` and `image_small_url` are in the boundary because they are RETURNED**, not
+only because a body reads them.
+
+`find_similar_weighted` really does return `id, similarity`, so the family is not uniform. Track A's
+correction over-generalised by one function in the other direction.
+
+**The colour family is broken in production right now.** Six live calls: five returned HTTP 500
+`canceling statement due to statement timeout` after 3.1 to 3.5 seconds, one returned 200 after
+1.48s. The audit flagged `find_similar_by_color` alone; `search_by_color` and `search_by_colors`
+are failing the same way. Converting these to definer preserves a feature that does not currently
+work. Dropping them, which the audit already recommended for one of the three, is the better call
+for all three.
+
+**There are two detail functions and clients call only one.** `card_detail` and `get_card_detail`
+both exist, both are anon-executable, and both return **the identical 15 columns**, measured.
+Every client call site uses `card_detail` (six references, no dynamic construction outside
+`similar.ts`). `get_card_detail` is dead surface from the client side: drop it rather than convert
+it.
 
 **`full_art_kind` confirmed absent from `search_cards`.** The audit was right and `DATA-SERVER.md`
 overstates it. `rowToCard.fullArtKind` is permanently `''` on the cold path. It reaches the client
@@ -96,7 +122,8 @@ source as a literal**: `similar.ts:124` builds them as `` `${liveRpc}_candidate`
 | `search_facets` | no | yes |
 | `card_detail` | yes, 15 | yes |
 | `tagged_cards` | yes (service_role only) | yes |
-| `find_similar`, `find_similar_to_cards`, `find_similar_weighted` | no, ids only | **yes: `embedding`** |
+| `find_similar`, `find_similar_to_cards` | **yes, 7** (`name, set_name, number, rarity, image_url, image_small_url` + `id`) | **yes: `embedding`** |
+| `find_similar_weighted` | no, ids only | **yes: `embedding`** |
 | `find_similar_candidate`, `find_similar_to_cards_candidate`, `find_similar_weighted_candidate` | no, ids only | **yes: `embedding`**, plus `card_embeddings_candidate` |
 | `search_by_color`, `search_by_colors`, `find_similar_by_color` | no, ids only | **yes: `color_art` / `color_noborder`** |
 | `list_candidate_models`, `get_similarity_model` | no | no |
@@ -161,6 +188,12 @@ Two of those three reads live in the apps directly.
 
 Every one of these misses was a grep that looked for the symbol it expected rather than for the
 module's full export surface or the call template. All four failures are silent at runtime.
+
+**A fifth, of a different kind.** The function return table said "measured live" while two of its
+rows were read off a TypeScript annotation instead. A client type that names a subset of the
+returned fields is not wrong as TypeScript and gives no hint that it is a subset, so the only way
+to know a row shape is to look at the row. Section 3 now distinguishes what was read from the wire
+from what was read from source, and nothing is called measured unless it was.
 
 ---
 

@@ -18,10 +18,20 @@
  * ambiguous title rather than guessing. A refresh REPLACES a binder's pages and slots; it does not
  * try to diff them.
  *
- * CREDENTIALS. The house account's own login, from `house.secrets` beside this file (gitignored):
- *   MICHI_EMAIL=...
- *   MICHI_PASSWORD=...
- * Read into variables and never printed. The catalog is not touched; card ids travel as they are.
+ * CREDENTIALS. The app project's OPERATOR key, `APP_SECRET_KEY` from `../../tcgscan.secrets`
+ * (owner authorised its use for this, 2026-09-11). The house account has no password anyone holds,
+ * and with this key it does not need one: writing as service_role sets `owner_id` explicitly rather
+ * than inheriting it from a session.
+ *
+ * THAT KEY BYPASSES RLS, so this is careful in the three ways that matter. READS use the ordinary
+ * publishable key, so no read path can be the thing that escalates. WRITES set owner_id to the
+ * house account, resolved from the username rather than pasted in. DELETES are scoped by owner_id
+ * as well as by id, so a wrong id cannot reach another account's binder. It is an operator script
+ * run by hand and never shipped: AGENTS.md's rule about the secret key governs app code, and this
+ * is not app code.
+ *
+ * The key is read into a variable and never printed. The catalog is not touched; card ids travel as
+ * they are.
  */
 import { readFileSync, existsSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
@@ -68,16 +78,22 @@ const URL_ = env.EXPO_PUBLIC_SUPABASE_URL;
 const KEY = env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 if (!URL_ || !KEY) die('read .env', 'EXPO_PUBLIC_SUPABASE_URL / _PUBLISHABLE_KEY missing');
 
-const secrets = readEnvFile(join(HERE, 'house.secrets'));
-const EMAIL = secrets.MICHI_EMAIL;
-const PASSWORD = secrets.MICHI_PASSWORD;
+// The repo-root operator store the rest of the tooling already uses.
+const secrets = readEnvFile(resolve(ROOT, '..', 'tcgscan.secrets'));
+const SECRET = secrets.APP_SECRET_KEY;
 
-async function api(path, { method = 'GET', token, body, headers = {} } = {}) {
+/**
+ * `asOperator` is the whole privilege boundary of this script. Without it a call uses the
+ * publishable key and is an ordinary anonymous read; with it the call writes as service_role.
+ * Every read below omits it deliberately.
+ */
+async function api(path, { method = 'GET', asOperator = false, body, headers = {} } = {}) {
+  const key = asOperator ? SECRET : KEY;
   const res = await fetch(`${URL_}${path}`, {
     method,
     headers: {
-      apikey: KEY,
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      apikey: key,
+      ...(asOperator ? { Authorization: `Bearer ${key}` } : {}),
       ...(body ? { 'Content-Type': 'application/json' } : {}),
       ...headers,
     },
@@ -142,20 +158,12 @@ if (!APPLY) {
   console.log('\nDry run. Nothing was written. Re-run with --apply (and --prune to delete).');
   process.exit(0);
 }
-if (!EMAIL || !PASSWORD) {
-  die('read house.secrets', 'put MICHI_EMAIL and MICHI_PASSWORD for @michimaker in scripts/house.secrets', 6);
-}
+if (!SECRET) die('read tcgscan.secrets', 'APP_SECRET_KEY missing from ../tcgscan.secrets', 6);
 
 // ── write ────────────────────────────────────────────────────────────────────
-const signIn = await api('/auth/v1/token?grant_type=password', {
-  method: 'POST',
-  body: { email: EMAIL, password: PASSWORD },
-});
-if (!signIn.ok || !signIn.json?.access_token) die('sign in', `credentials refused (${signIn.status})`, 7);
-const token = signIn.json.access_token;
-if (signIn.json.user.id !== HOUSE_ID) {
-  die('sign in', 'those credentials are not @michimaker; refusing to write to the wrong account', 8);
-}
+// One last check before anything privileged runs: HOUSE_ID came from a username lookup, and every
+// write below is scoped to it. If that lookup ever returned something that is not a uuid, stop.
+if (!/^[0-9a-f-]{36}$/i.test(HOUSE_ID)) die('resolve @michimaker', `unexpected owner id ${HOUSE_ID}`, 7);
 const rep = { Prefer: 'return=representation' };
 
 /** Pages and slots for a bundled binder, under a fresh binder id. */
@@ -200,13 +208,17 @@ function rowsFor(binder, binderId) {
 async function publish(binder, existingId) {
   const binderId = existingId ?? randomUUID();
   if (existingId) {
-    const del = await api(`/rest/v1/binder_pages?binder_id=eq.${binderId}`, { method: 'DELETE', token });
+    const del = await api(`/rest/v1/binder_pages?binder_id=eq.${binderId}`, { method: 'DELETE', asOperator: true });
     if (!del.ok) die('clear pages', `${del.status} ${del.text.slice(0, 120)}`, 9);
   } else {
     const ins = await api('/rest/v1/binders', {
-      method: 'POST', token, headers: rep,
+      method: 'POST', asOperator: true, headers: rep,
       body: {
-        id: binderId, title: binder.title, description: binder.description ?? null,
+        id: binderId,
+        // EXPLICIT: service_role has no auth.uid(), so the column default cannot fill this in, and
+        // an unowned binder would belong to nobody and show nowhere.
+        owner_id: HOUSE_ID,
+        title: binder.title, description: binder.description ?? null,
         layout_style: binder.layoutStyle ?? 'freeform', cover_card_id: binder.coverCardId ?? null,
         is_public: true, is_demo: false,
       },
@@ -215,11 +227,11 @@ async function publish(binder, existingId) {
   }
   const { pages, slots } = rowsFor(binder, binderId);
   if (pages.length) {
-    const pg = await api('/rest/v1/binder_pages', { method: 'POST', token, headers: rep, body: pages });
+    const pg = await api('/rest/v1/binder_pages', { method: 'POST', asOperator: true, headers: rep, body: pages });
     if (!pg.ok) die('insert pages', `${pg.status} ${pg.text.slice(0, 160)}`, 11);
   }
   for (let i = 0; i < slots.length; i += 500) {
-    const sl = await api('/rest/v1/binder_slots', { method: 'POST', token, headers: rep, body: slots.slice(i, i + 500) });
+    const sl = await api('/rest/v1/binder_slots', { method: 'POST', asOperator: true, headers: rep, body: slots.slice(i, i + 500) });
     if (!sl.ok) die('insert slots', `${sl.status} ${sl.text.slice(0, 160)}`, 12);
   }
   console.log(`   ${existingId ? 'refreshed' : 'published'} ${binder.title}: ${pages.length}p ${slots.length} slots`);
@@ -232,7 +244,10 @@ for (const r of toRefresh) await publish(r.bundled, r.live.id);
 
 if (PRUNE) {
   for (const b of toPrune) {
-    const del = await api(`/rest/v1/binders?id=eq.${b.id}`, { method: 'DELETE', token });
+    // Owner-scoped as well as id-scoped, so a wrong id can only ever miss, never hit somebody else.
+    const del = await api(`/rest/v1/binders?id=eq.${b.id}&owner_id=eq.${HOUSE_ID}`, {
+      method: 'DELETE', asOperator: true,
+    });
     if (!del.ok) die('delete binder', `${del.status} ${del.text.slice(0, 120)}`, 13);
     console.log(`   deleted ${b.title}`);
   }

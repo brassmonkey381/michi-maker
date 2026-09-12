@@ -326,7 +326,14 @@ for (const c of PARITY) {
     if ((got.hits ?? []).join('|') !== e.hits.join('|')) bad.push(`${e.id} hits [${(got.hits ?? []).join(',')}] != [${e.hits.join(',')}]`);
     if (Boolean(got.qualifies) !== e.qualifies) bad.push(`${e.id} qualifies ${got.qualifies} != ${e.qualifies}`);
   }
-  if (bad.length) fail('DRIFT', `parity: ${c.label}`, bad.slice(0, 3).join('; '));
+  // THE INPUTS GO IN THE FAILURE, not just in this file. The moment this fails is the moment
+  // someone has to decide whether the SQL regressed or the tagging was republished, and they
+  // cannot re-derive the number without the arrays that produced it. Making them open the source
+  // to find out is how a red run gets edited green.
+  const inputs = `want [${c.want.join(', ')}]`
+    + (c.bonus.length ? ` bonus [${c.bonus.join(', ')}]` : '')
+    + (c.avoid.length ? ` avoid [${c.avoid.join(', ')}]` : '');
+  if (bad.length) fail('DRIFT', `parity: ${c.label}`, `${bad.slice(0, 3).join('; ')}\n      inputs: ${inputs}`);
   else notes.push(`  ok   parity: ${c.label}`);
   await pause(250);
 }

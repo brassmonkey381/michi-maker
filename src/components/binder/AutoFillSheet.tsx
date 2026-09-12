@@ -35,7 +35,7 @@ import { useCatalog } from '@/hooks/use-catalog';
 import { useTier } from '@/hooks/use-tier';
 import { useBrowseTheme } from '@/lib/browseTheme';
 import { isSupabaseConfigured } from '@/lib/env';
-import { useSceneTags } from '@/lib/taggedCards';
+import { hasSceneTags } from '@/lib/themeScores';
 import { useLanguagePref } from '@/store/languagePref';
 
 // Session-remembered preference: once a collector fills from their collection, keep doing so.
@@ -135,10 +135,22 @@ export function AutoFillSheet({
       : seed;
   }, [seed, seedCardId, seedEvoById]);
 
-  // Scene tags for "Same scene" (lib/taggedCards): the method is offered once the seed is known
+  // Is the SEED tagged, for "Same scene" (lib/themeScores). One question per seed instead of the
   // to be a tagged card; until the read settles, or when it is refused, the list simply lacks it.
-  const sceneTags = useSceneTags(visible);
-  const methods = enrichedSeed && catalog && ready ? availableMethods(enrichedSeed, catalog, sceneTags) : [];
+  // whole corpus: the tags themselves stay on the server and only the yes/no comes back.
+  // Keyed by the seed rather than reset on change: a synchronous setState in an effect body is
+  // what the compiler rules refuse, and an answer that names the card it is about cannot be shown
+  // against a different one.
+  const [tagged, setTagged] = useState<{ id: string; yes: boolean } | null>(null);
+  const seedId = enrichedSeed?.id;
+  useEffect(() => {
+    if (!visible || !seedId || tagged?.id === seedId) return;
+    let live = true;
+    hasSceneTags(seedId).then((yes) => { if (live) setTagged({ id: seedId, yes }); });
+    return () => { live = false; };
+  }, [visible, seedId, tagged?.id]);
+  const taggedSeed = !!tagged && tagged.id === seedId && tagged.yes;
+  const methods = enrichedSeed && catalog && ready ? availableMethods(enrichedSeed, catalog, taggedSeed) : [];
   const emptyCount = page.rows * page.cols - occupiedCells(page).size;
 
   const poolActive = fromCollection && !!ownedIds && ownedIds.size > 0;
@@ -154,7 +166,6 @@ export function AutoFillSheet({
         page,
         poolActive ? ownedIds : null,
         languages,
-        sceneTags,
       );
       // Pool fills consume owned copies — tag card pockets with collection provenance so the
       // (free/owned) inventory accounting and Reclaim see them.

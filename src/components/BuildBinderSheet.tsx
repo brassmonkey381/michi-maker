@@ -35,7 +35,9 @@ import { useCatalog } from '@/hooks/use-catalog';
 import { useTrial } from '@/hooks/use-trial';
 import { track, trackCapGate, trackCapGateDismissed } from '@/lib/analytics';
 import { usePriceSummary } from '@/lib/prices';
-import { useSceneTags } from '@/lib/taggedCards';
+import type { ThemeScore } from '@/data/storyBinder';
+import { STORY_THEMES } from '@/data/storyThemes';
+import { scoreThemes } from '@/lib/themeScores';
 import { useBinders } from '@/store/binders';
 
 export function BuildBinderSheet({
@@ -94,17 +96,26 @@ export function BuildBinderSheet({
   // fills one page, so a 3×4 gathers twelve-card themes where a 3×3 gathers nine.
   const [shape, setShape] = useState<PageShape>(DEFAULT_SHAPE);
 
-  // Scene tags for the scene pages (lib/taggedCards): null while the read is in flight, so the
+  // Scored candidates per story theme (lib/themeScores): null while the read is in flight, so the
   // plan waits for it rather than proposing without scene pages and then changing under the user.
   // A refused read settles to an empty map and the plan goes ahead with none.
-  const sceneTags = useSceneTags(visible);
+  const [themeScores, setThemeScores] = useState<ThemeScore[][] | null>(null);
+  useEffect(() => {
+    if (!visible || themeScores) return;
+    let live = true;
+    // Every story theme at once, because the wizard ranks them against each other to decide which
+    // scene pages a collection can actually fill. Scoring is server-side now (the tag corpus is
+    // not downloadable), so this is one pass of calls per opening rather than one corpus read.
+    scoreThemes(STORY_THEMES).then((lists) => { if (live) setThemeScores(lists); });
+    return () => { live = false; };
+  }, [visible, themeScores]);
 
   const rawPlan = useMemo(
     () =>
-      visible && catalog && sceneTags
-        ? proposePages(freeCards, catalog, priceSummary, evoLines, shape, sceneTags)
+      visible && catalog && themeScores
+        ? proposePages(freeCards, catalog, priceSummary, evoLines, shape, themeScores)
         : null,
-    [visible, catalog, priceSummary, freeCards, evoLines, shape, sceneTags],
+    [visible, catalog, priceSummary, freeCards, evoLines, shape, themeScores],
   );
   // Hold the "Reading your collection…" state for a deliberate minimum so the build
   // animation is actually seen — the plan itself computes near-instantly on a warm catalog.

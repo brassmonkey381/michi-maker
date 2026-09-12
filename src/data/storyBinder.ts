@@ -36,9 +36,10 @@ export interface StoryCard {
   name: string;
   rarity: string;
   illustrator?: string;
-  sceneTags?: string[];
   evolutionLine?: string[];
   language?: string;
+  // NO sceneTags. They were removed on 2026-09-11 when scoring moved to the server so the tag
+  // corpus stops being downloadable; a card arrives here already scored. See lib/themeScores.
 }
 
 export interface PageShape {
@@ -49,7 +50,15 @@ export interface PageShape {
 export type RarityMode = 'illustration' | 'all';
 
 export interface StoryPlanOptions {
-  cards: StoryCard[];
+  /**
+   * Scored candidates, ONE ARRAY PER SPREAD, aligned to `template.spreads`.
+   *
+   * It used to be the tagged cards, and the planner scored them itself. Scoring is a server call
+   * now (lib/themeScores.scoreThemes), so the caller does the awaiting and this function stays
+   * pure and synchronous — which is what keeps it testable against synthetic scores with no
+   * network, and is why the other 400 lines of it did not have to move.
+   */
+  ranked: ThemeScore[][];
   template: StoryTemplate;
   shape: PageShape;
   /** Restrict to these card ids (the owner's collection). Null/undefined = every eligible card. */
@@ -110,20 +119,6 @@ export interface StoryPlan {
 
 // ─── Scoring ─────────────────────────────────────────────────────────────────────────────────────
 
-const PREFIXED = /^(object|scene|action|mood|style|flag):(.+)$/;
-
-/** A card's prefixed tags with a rank weight: strongest first, never below 0.25. */
-export function rankedTags(card: StoryCard): Map<string, number> {
-  const out = new Map<string, number>();
-  let rank = 0;
-  for (const raw of card.sceneTags ?? []) {
-    if (!PREFIXED.test(raw)) continue;
-    if (!out.has(raw)) out.set(raw, Math.max(0.25, 1 - 0.07 * rank));
-    rank += 1;
-  }
-  return out;
-}
-
 const PICTURE_RARITY = /illustration rare|special art|art rare|full art|hyper rare|secret rare|ultra rare|trainer gallery|character rare|radiant/i;
 
 /** The rarity ladder: how much a card's printing says "this one is about the picture". */
@@ -149,60 +144,32 @@ export interface ThemeScore {
   qualifies: boolean;
 }
 
-/** Score one card against one theme. Null when the card has nothing to do with it. */
-export function scoreCard(card: StoryCard, theme: StoryTheme): ThemeScore | null {
-  const tags = rankedTags(card);
-  if (tags.size === 0) return null;
-  let score = 0;
-  const hits: string[] = [];
-  for (const t of theme.want) {
-    const w = tags.get(t);
-    if (w) {
-      score += w;
-      hits.push(t);
-    }
-  }
-  let bonus = 0;
-  for (const t of theme.bonus ?? []) {
-    const w = tags.get(t);
-    if (w) {
-      score += 0.5 * w;
-      bonus += 1;
-    }
-  }
-  for (const t of theme.avoid ?? []) {
-    const w = tags.get(t);
-    if (w) score -= 0.8 * w;
-  }
-  const qualifies = hits.length > 0;
-  // Two soft signals make a fallback candidate; one is coincidence.
-  if (!qualifies && bonus < 2) return null;
-  score += rarityBoost(card.rarity);
-  if (tags.has('flag:foil-obscured')) score -= 0.6;
-  if (tags.has('flag:no-pokemon')) score -= 0.4;
-  if (score <= 0) return null;
-  return { card, score, hits, qualifies };
-}
-
 /**
  * Every card that belongs to a theme, best first. `pool` restricts to owned ids; `rarity`
  * 'illustration' keeps only the picture printings.
  */
 export function themeCandidates(
-  cards: StoryCard[],
-  theme: StoryTheme,
+  scored: readonly ThemeScore[],
   opts: { pool?: ReadonlySet<string> | null; rarity?: RarityMode } = {},
 ): ThemeScore[] {
-  const out: ThemeScore[] = [];
-  for (const card of cards) {
-    if (card.language && card.language !== 'en') continue;
-    if (opts.pool && !opts.pool.has(card.id)) continue;
-    if ((opts.rarity ?? 'illustration') === 'illustration' && !isPictureRarity(card.rarity)) continue;
-    const s = scoreCard(card, theme);
-    if (s) out.push(s);
-  }
+  // IT TAKES SCORES NOW, NOT CARDS. The scoring moved to the server on 2026-09-11 so the tag
+  // corpus stops being downloadable (see lib/themeScores); what is left here is the filtering the
+  // server cannot do and the sort the planner depends on.
+  //
+  // The rarity rule stays on this side deliberately: isPictureRarity is a judgement about what a
+  // PRINTING says, read off a rarity string, and has nothing to do with the tag data. The pool and
+  // language filters are applied server-side as well, and are kept here because a caller may hold
+  // a narrower pool than it asked with, and filtering twice is free.
+  const out = scored.filter((s) => {
+    if (s.card.language && s.card.language !== 'en') return false;
+    if (opts.pool && !opts.pool.has(s.card.id)) return false;
+    if ((opts.rarity ?? 'illustration') === 'illustration' && !isPictureRarity(s.card.rarity)) return false;
+    return true;
+  });
   // Qualifying cards first, then by score; ties by id so a plan is reproducible.
-  return out.sort((a, b) => Number(b.qualifies) - Number(a.qualifies) || b.score - a.score || a.card.id.localeCompare(b.card.id));
+  return out
+    .slice()
+    .sort((a, b) => Number(b.qualifies) - Number(a.qualifies) || b.score - a.score || a.card.id.localeCompare(b.card.id));
 }
 
 // ─── Species / illustrator diversity ─────────────────────────────────────────────────────────────
@@ -329,7 +296,8 @@ export function planStoryBinder(opts: StoryPlanOptions): StoryPlan {
   const allPlaced: ThemeScore[] = [];
 
   // Rank every theme up front: the cover borrows each theme's best card before the spreads pick.
-  const ranked = template.spreads.map((theme) => themeCandidates(opts.cards, theme, { pool: opts.pool, rarity: opts.rarity }));
+  const ranked = template.spreads.map((_theme, i) =>
+    themeCandidates(opts.ranked[i] ?? [], { pool: opts.pool, rarity: opts.rarity }));
 
   // ── Cover: page 0, a right-hand leaf on its own.
   const heroes: ThemeScore[] = [];

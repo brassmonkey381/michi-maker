@@ -1,57 +1,58 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { pickDiverse, planStoryBinder, rankedTags, scoreCard, seatingOrder, speciesKey, themeCandidates, type StoryCard } from './storyBinder.ts';
+import { pickDiverse, planStoryBinder, seatingOrder, speciesKey, themeCandidates, type StoryCard, type ThemeScore } from './storyBinder.ts';
 import { STORY_TEMPLATES, storyTheme } from './storyThemes.ts';
 
 const WINTER = storyTheme('winter')!;
 const SUMMER = storyTheme('summer')!;
 
-/** A tagged card the way the catalog publishes one: bare + prefixed pairs, strongest first. */
-function card(id: string, name: string, tags: string[], extra: Partial<StoryCard> = {}): StoryCard {
-  const sceneTags = tags.flatMap((t) => [t.split(':')[1], t]);
-  return { id, name, rarity: 'Illustration Rare', illustrator: `ill-${id}`, sceneTags, ...extra };
+/**
+ * A card as the planner now receives it: already scored.
+ *
+ * IT USED TO CARRY TAGS. Scoring moved to the data project on 2026-09-11 so the tag corpus stops
+ * being downloadable, and with it went rankedTags and scoreCard and the three tests that pinned
+ * their arithmetic. Those rules are now asserted against the database by the migration's own
+ * parity harness, which compared 400 scored cards for score, hits and qualify agreement. What is
+ * left on this side is the filtering and the planning, which is what these tests exercise.
+ */
+function card(id: string, name: string, extra: Partial<StoryCard> = {}): StoryCard {
+  return { id, name, rarity: 'Illustration Rare', illustrator: `ill-${id}`, ...extra };
+}
+
+/** A scored candidate, the shape score_cards_by_theme returns. `hits` is always a subset of want. */
+function scored(c: StoryCard, score: number, hits: string[] = ['scene:snow']): ThemeScore {
+  return { card: c, score, hits, qualifies: hits.length > 0 };
 }
 
 let n = 0;
 const mkId = () => `id-${(n += 1)}`;
 
-test('rankedTags weights prefixed tags by their published order and ignores bare duplicates', () => {
-  const tags = rankedTags(card('1', 'Crabominable', ['scene:snow', 'flag:foil-obscured', 'mood:cold']));
-  assert.equal(tags.size, 3);
-  assert.equal(tags.get('scene:snow'), 1);
-  assert.ok(tags.get('mood:cold')! < tags.get('flag:foil-obscured')!, 'later tags weigh less');
-  assert.ok(tags.get('mood:cold')! >= 0.25);
-});
-
-test('scoreCard: a want match qualifies, avoid tags subtract, foil penalty applies', () => {
-  const snowy = scoreCard(card('1', 'Glaceon', ['scene:snow', 'mood:cold']), WINTER)!;
-  assert.ok(snowy.qualifies);
-  assert.deepEqual(snowy.hits, ['scene:snow', 'mood:cold']);
-  const beach = scoreCard(card('2', 'Vaporeon', ['scene:beach', 'mood:sunny']), WINTER);
-  assert.equal(beach, null, 'a sunny beach is not winter');
-  const foiled = scoreCard(card('3', 'Crabominable', ['scene:snow', 'flag:foil-obscured']), WINTER)!;
-  assert.ok(foiled.score < snowy.score, 'the foil penalty ranks it below a clean snow card');
-});
-
-test('scoreCard: bonus-only needs two signals, and prefers picture rarities', () => {
-  assert.equal(scoreCard(card('1', 'Eevee', ['mood:quiet']), WINTER), null);
-  const two = scoreCard(card('2', 'Eevee', ['mood:quiet', 'scene:mountain']), WINTER)!;
-  assert.equal(two.qualifies, false);
-  const common = scoreCard(card('3', 'Snom', ['scene:snow'], { rarity: 'Common' }), WINTER)!;
-  const ir = scoreCard(card('4', 'Snom', ['scene:snow'], { rarity: 'Special Illustration Rare' }), WINTER)!;
-  assert.ok(ir.score > common.score);
-});
-
 test('themeCandidates honours the pool and the rarity mode', () => {
-  const cards = [
-    card('a', 'Glaceon', ['scene:snow']),
-    card('b', 'Snom', ['scene:ice'], { rarity: 'Common' }),
-    card('c', 'Frosmoth', ['scene:snow'], { language: 'ja' }),
+  // The filtering the server cannot do, over rows it has already scored: the rarity rule reads a
+  // printing's rarity string and has nothing to do with the tag data, and the pool is narrowed
+  // again here because a caller may hold a tighter one than it asked with.
+  const rows = [
+    scored(card('a', 'Glaceon'), 2),
+    scored(card('b', 'Snom', { rarity: 'Common' }), 1.5),
+    scored(card('c', 'Frosmoth', { language: 'ja' }), 3),
   ];
-  assert.deepEqual(themeCandidates(cards, WINTER).map((s) => s.card.id), ['a']);
-  assert.deepEqual(themeCandidates(cards, WINTER, { rarity: 'all' }).map((s) => s.card.id), ['a', 'b']);
-  assert.deepEqual(themeCandidates(cards, WINTER, { rarity: 'all', pool: new Set(['b']) }).map((s) => s.card.id), ['b']);
+  assert.deepEqual(themeCandidates(rows).map((s) => s.card.id), ['a']);
+  assert.deepEqual(themeCandidates(rows, { rarity: 'all' }).map((s) => s.card.id), ['a', 'b']);
+  assert.deepEqual(themeCandidates(rows, { rarity: 'all', pool: new Set(['b']) }).map((s) => s.card.id), ['b']);
+});
+
+test('themeCandidates sorts qualifiers first, then by score, ties by id', () => {
+  // The planner depends on this order: pickDiverse walks it front to back, so a change here moves
+  // which cards reach a spread. It is asserted separately because the sort is no longer a side
+  // effect of scoring, it is the only ordering guarantee left on this side.
+  const rows = [
+    { card: card('z', 'Z'), score: 9, hits: [], qualifies: false },
+    scored(card('b', 'B'), 1),
+    scored(card('a', 'A'), 1),
+    scored(card('c', 'C'), 5),
+  ];
+  assert.deepEqual(themeCandidates(rows, { rarity: 'all' }).map((s) => s.card.id), ['c', 'a', 'b', 'z']);
 });
 
 test('speciesKey strips decorations and reads the evolution line', () => {
@@ -61,17 +62,15 @@ test('speciesKey strips decorations and reads the evolution line', () => {
 });
 
 test('pickDiverse: one per species, two per illustrator, never a used card', () => {
-  const ranked = themeCandidates(
-    [
-      card('1', 'Glaceon', ['scene:snow']),
-      card('2', 'Glaceon ex', ['scene:snow']),
-      card('3', 'Snom', ['scene:snow'], { illustrator: 'same' }),
-      card('4', 'Frosmoth', ['scene:snow'], { illustrator: 'same' }),
-      card('5', 'Cubchoo', ['scene:snow'], { illustrator: 'same' }),
-      card('6', 'Beartic', ['scene:ice']),
-    ],
-    WINTER,
-  );
+  // Descending scores, so the order pickDiverse walks is the one the sort would have produced.
+  const ranked = themeCandidates([
+    scored(card('1', 'Glaceon'), 6),
+    scored(card('2', 'Glaceon ex'), 5),
+    scored(card('3', 'Snom', { illustrator: 'same' }), 4),
+    scored(card('4', 'Frosmoth', { illustrator: 'same' }), 3),
+    scored(card('5', 'Cubchoo', { illustrator: 'same' }), 2),
+    scored(card('6', 'Beartic'), 1),
+  ]);
   const picked = pickDiverse(ranked, 10, new Set(['1']));
   const ids = picked.map((s) => s.card.id);
   assert.ok(!ids.includes('1'), 'used card skipped');
@@ -90,13 +89,12 @@ test('seatingOrder puts the pockets nearest the art first, row-major otherwise',
 
 test('planStoryBinder: a cover plus one two-page spread per theme, art jobs for every panel', () => {
   n = 0;
-  const cards: StoryCard[] = [];
-  const themes = { spring: 'scene:flowers', summer: 'scene:beach', autumn: 'object:leaves', winter: 'scene:snow' };
-  for (const [season, tag] of Object.entries(themes)) {
-    for (let i = 0; i < 20; i += 1) cards.push(card(`${season}-${i}`, `${season}mon ${i}`, [tag, 'flag:outdoor']));
-  }
   const seasons = STORY_TEMPLATES.find((t) => t.id === 'seasons')!;
-  const plan = planStoryBinder({ cards, template: seasons, shape: { rows: 3, cols: 4 }, mkId });
+  // One scored list per spread, which is what the server returns: twenty cards each, named for
+  // their season so the "each spread's cards belong to its theme" assertion below still bites.
+  const ranked = seasons.spreads.map((theme) =>
+    Array.from({ length: 20 }, (_, i) => scored(card(`${theme.id}-${i}`, `${theme.id}mon ${i}`), 20 - i, [theme.want[0]])));
+  const plan = planStoryBinder({ ranked, template: seasons, shape: { rows: 3, cols: 4 }, mkId });
 
   assert.equal(plan.pages.length, 1 + 4 * 2, 'cover + four spreads');
   assert.equal(plan.spreads.length, 4);
@@ -147,8 +145,9 @@ test('planStoryBinder: a cover plus one two-page spread per theme, art jobs for 
 
 test('planStoryBinder: a thin theme still builds, with fewer cards and no crash', () => {
   n = 0;
-  const cards = [card('s1', 'Vaporeon', ['scene:beach']), card('s2', 'Wailord', ['scene:ocean'])];
-  const plan = planStoryBinder({ cards, template: { id: 't', title: 'T', blurb: '', coverArt: ['x'], spreads: [SUMMER, WINTER] }, shape: { rows: 3, cols: 3 }, mkId });
+  // Summer has two cards, winter none — a theme the server found nothing for.
+  const ranked = [[scored(card('s1', 'Vaporeon'), 2, ['scene:beach']), scored(card('s2', 'Wailord'), 1, ['scene:ocean'])], []];
+  const plan = planStoryBinder({ ranked, template: { id: 't', title: 'T', blurb: '', coverArt: ['x'], spreads: [SUMMER, WINTER] }, shape: { rows: 3, cols: 3 }, mkId });
   assert.equal(plan.pages.length, 5);
   const winter = plan.spreads.find((s) => s.theme.id === 'winter')!;
   assert.equal(winter.placed, 0);

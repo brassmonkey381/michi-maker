@@ -13,10 +13,9 @@ import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { uuidv4, type DemoPage, type DemoSlot } from '@/data/binderTypes';
 import { hasFreeColumn, pickTemplate, reservedCells, templateArtSlots } from '@/data/artTemplates';
 import { speciesOf } from '@/data/pageComposer';
-import { scoreCard } from '@/data/storyBinder';
+import type { ThemeScore } from '@/data/storyBinder';
 import { STORY_THEMES } from '@/data/storyThemes';
 import { formatUsd, type PriceSummary } from '@/lib/prices';
-import type { SceneTagMap } from '@/lib/taggedCards';
 
 export interface WizardProposal {
   key: string;
@@ -142,8 +141,14 @@ export function proposePages(
   prices?: PriceSummary | null,
   evolutionLines?: ReadonlyMap<string, string[]>,
   shape: PageShape = DEFAULT_SHAPE,
-  /** Card id → scene tags (lib/taggedCards) for the scene pages. Absent or empty: none proposed. */
-  sceneTags?: SceneTagMap | null,
+  /**
+   * Scored candidates per story theme, ALIGNED TO STORY_THEMES, from lib/themeScores.scoreThemes.
+   * Absent or empty: no scene pages proposed, exactly as an absent tag map used to mean.
+   *
+   * It was a card-id-to-tags map and this function did the scoring. Scoring is a server call now,
+   * so the caller awaits it and hands the results in; nothing here sees a tag.
+   */
+  themeScores?: ThemeScore[][] | null,
 ): { proposals: WizardProposal[]; bulk: WizardProposal[] } {
   const PAGE_CELLS = cellsOf(shape);
   // Free copies per card id (≥1). Curated pages consume one; the bulk sweep takes the remainder.
@@ -194,24 +199,24 @@ export function proposePages(
   // build's scene share. A card is claimed once, so two overlapping themes (Winter and Snow) do
   // not both print it; the second takes what is left, or falls under MIN_SIZE and is dropped.
   const sceneProposals: WizardProposal[] = [];
-  if (sceneTags && sceneTags.size > 0) {
+  if (themeScores && themeScores.length > 0) {
     const copies = freeCards.reduce((n, f) => n + Math.max(1, Math.floor(f.qty)), 0);
     const expectedPages = Math.min(WIZARD_MAX_PAGES, Math.ceil(copies / PAGE_CELLS));
     const target = Math.max(1, Math.round(SCENE_SHARE * expectedPages));
     type SceneCluster = { themeId: string; title: string; blurb: string; scored: { card: CatalogCard; score: number }[] };
     const byTheme = new Map<string, SceneCluster>();
-    for (const c of cards) {
-      const tags = sceneTags.get(c.id);
-      if (!tags || tags.length === 0 || used.has(c.id)) continue;
-      const sc = { id: c.id, name: c.name, rarity: c.rarity, sceneTags: [...tags] };
-      for (const theme of STORY_THEMES) {
-        const s = scoreCard(sc, theme);
-        if (!s || !s.qualifies) continue;
+    // The eligible cards, by id, so a scored row can be resolved back to the printing we hold.
+    const eligible = new Map(cards.map((c) => [c.id, c]));
+    STORY_THEMES.forEach((theme, i) => {
+      for (const s of themeScores[i] ?? []) {
+        if (!s.qualifies) continue;               // a want match, same rule as before
+        const card = eligible.get(s.card.id);
+        if (!card || used.has(card.id)) continue;
         const cluster = byTheme.get(theme.id) ?? { themeId: theme.id, title: theme.title, blurb: theme.blurb, scored: [] };
-        cluster.scored.push({ card: c, score: s.score });
+        cluster.scored.push({ card, score: s.score });
         byTheme.set(theme.id, cluster);
       }
-    }
+    });
     const total = (k: SceneCluster) => k.scored.reduce((n, x) => n + x.score, 0);
     const rankedScenes = [...byTheme.values()].sort(
       (a, b) => b.scored.length - a.scored.length || total(b) - total(a) || a.themeId.localeCompare(b.themeId),

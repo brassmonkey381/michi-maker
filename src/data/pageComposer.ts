@@ -47,10 +47,9 @@ import {
 } from 'tcgscan-browse';
 
 import type { Catalog, CatalogCard } from '@/lib/catalog';
-import type { SceneTagMap } from '@/lib/taggedCards';
+import { similarByTags } from '@/lib/themeScores';
 import { occupiedCells, type DemoPage } from '@/data/binderTypes';
 import { hasToken } from '@/data/nameMatch';
-import { rankedTags } from '@/data/storyBinder';
 import { THEME_BACKGROUNDS, themeBackgroundDataUri } from '@/data/themeBackgrounds';
 import { loadPokemonPartners, partnersFor } from '@/data/pokemonPartners';
 import { loadTrainerPartners, trainerFor } from '@/data/trainerPartners';
@@ -185,12 +184,21 @@ export const COMPOSE_METHODS: {
 export function availableMethods(
   seed: CatalogCard,
   catalog: Catalog,
-  /** Card id → scene tags (lib/taggedCards). Absent or without the seed: no "Same scene". */
-  sceneTags?: SceneTagMap | null,
+  /**
+   * Is this seed tagged? Resolved by the caller, because the answer lives on the server now.
+   *
+   * It used to be `sceneTags.has(seed.id)` against a downloaded map of the whole corpus. That map
+   * is gone (see lib/themeScores), so the caller asks once per seed and passes the answer in
+   * rather than this function becoming async for one boolean. Undefined means "not known yet",
+   * which withholds the method exactly as an absent map did.
+   */
+  taggedSeed?: boolean,
 ): ComposeMethod[] {
   const out: ComposeMethod[] = [];
-  // Same scene: only a tagged seed has a scene to match, and only an entitled read has the tags.
-  if (sceneTags?.has(seed.id)) out.push('sameScene');
+  // Same scene: only a tagged seed has a scene to match. Withheld rather than shown-and-locked,
+  // unlike the two below, because an untagged card has no scene at all — the method would not be
+  // locked, it would simply produce an empty page.
+  if (taggedSeed) out.push('sameScene');
   // ≈ More like this (paid): the embedding RPC. Listed whenever the server is configured, exactly
   // like the tri-colour method below — a locked method is SHOWN with its PRO pill rather than
   // withheld, so the sheet says what a plan adds instead of quietly being shorter.
@@ -554,8 +562,6 @@ export async function composePage(
    *  scans via filterAndDedupe. The SEED stays unbound: you can seed from a JP card and fill with
    *  EN neighbours. Omit / "both" languages = unconstrained, exactly as before. */
   languages?: CardLanguage[],
-  /** Card id → scene tags (lib/taggedCards), for `sameScene`. Absent: that method yields []. */
-  sceneTags?: SceneTagMap | null,
 ): Promise<ComposePlacement[]> {
   const cells = method === 'evolutionLine' ? emptyCellsColMajor(page) : emptyCellsRowMajor(page);
   if (cells.length === 0) return [];
@@ -564,30 +570,17 @@ export async function composePage(
   const langs = effectiveLanguages(languages);
 
   if (method === 'sameScene') {
-    // The seed's picture, matched tag by tag: every tagged card scores the sum of the products of
-    // the rank weights of the tags it shares with the seed (rankedTags: strongest tag first, never
-    // below a quarter), so two cards that both lead with scene:water and mood:calm outrank two
-    // that share a fifteenth tag. Prefixed tags only, as the story planner reads them.
-    if (!sceneTags) return [];
-    const seedTags = rankedTags({ id: seed.id, name: seed.name, rarity: seed.rarity, sceneTags: [...(sceneTags.get(seed.id) ?? [])] });
-    if (seedTags.size === 0) return [];
-    const scored: { card: CatalogCard; score: number }[] = [];
-    for (const [id, tags] of sceneTags) {
-      if (id === seed.id) continue;
-      const card = catalog.getCard(id);
-      if (!card) continue;
-      const theirs = rankedTags({ id, name: card.name, rarity: card.rarity, sceneTags: [...tags] });
-      let score = 0;
-      for (const [t, w] of seedTags) {
-        const w2 = theirs.get(t);
-        if (w2) score += w * w2;
-      }
-      if (score > 0) scored.push({ card, score });
-    }
-    scored.sort((a, b) => b.score - a.score || a.card.id.localeCompare(b.card.id));
-    const cards = filterAndDedupe(scored.map((s) => s.card), page, pool, langs, catalog);
+    // The seed's picture, matched tag by tag. This used to run HERE, over a downloaded map of
+    // every card's tags, multiplying rank weights pairwise. It is a similarity query and it now
+    // runs beside find_similar on the server (lib/themeScores), which is both where the tags live
+    // and the only place they now are. Ids and scores come back; no tag does.
+    const hits = await similarByTags(seed.id, { pool, languages, limit: pool ? 200 : cells.length * 6 + 16 });
+    const cards = filterAndDedupe(
+      hits.map((h) => catalog.getCard(h.id)).filter((c): c is CatalogCard => !!c),
+      page, pool, langs, catalog,
+    );
     // Closest-first within a subject; across subjects one card each before a second of any, so a
-    // page of "the same scene" is nine pictures of it, not nine prints of one Pokémon in it.
+    // page of "the same scene" is nine pictures of it, not nine prints of one Pokemon in it.
     return place(cells, spreadBySubject(varied(cards, RANKED_WINDOW)).slice(0, cells.length));
   }
 

@@ -68,6 +68,24 @@ const WRITERS = [
   'update_card_embeddings_jp', 'set_scan_flow', 'promote_scan_flow', 'set_similarity_live',
 ];
 
+/**
+ * Functions to probe WITH THEIR REAL ARGUMENTS, so the refusal is proved rather than assumed.
+ *
+ * THE FIRST VERSION OF THIS SCRIPT CHECKED EVERY WRITER WITH `{}` AND PASSED ALL OF THEM, and it
+ * was proving nothing: PostgREST answers an argument list it cannot resolve with 404 PGRST202
+ * BEFORE any privilege check runs, so a writer wide open to anon looks identical to one revoked.
+ * Six of the eight scored a vacuous pass. Same lesson as everywhere else this week — a 404 is
+ * unproven, and only a 42501 is a measurement — and it is worth noting the detector caught it in
+ * itself only because two helper functions happened to be checked with real arguments.
+ *
+ * Anything without a signature here is still probed, but a 404 is now reported as INCONCLUSIVE
+ * rather than counted as protected. Fill these in as signatures are confirmed.
+ */
+const SIGNED = {
+  tag_rank_weights: { p_tags: ['scene:snow', 'mood:cold'] },
+  rarity_boost: { p_rarity: 'Illustration Rare' },
+};
+
 /** Dropped on 2026-09-11. A 200 here means something was put back. */
 const DROPPED = ['find_similar_by_color', 'get_scanner_rollout', 'set_scanner_rollout'];
 
@@ -187,6 +205,18 @@ expectShape(await rpc('find_similar_weighted', { p_card_ids: ['219233'], p_weigh
 await expectShapeWarm(() => rpc('search_by_color', { p_region: 'art', p_l: 50, p_a: 10, p_b: 10, p_limit: 5, p_lambda: 0.5, p_lang: ['en', 'ja'] }), 'search_by_color (reads color_art)', ['product_id']);
 await expectShapeWarm(() => rpc('search_by_colors', { p_region: 'art', p_colors: [[50, 10, 10, 1]], p_limit: 5, p_lang: ['en', 'ja'] }), 'search_by_colors', ['product_id']);
 expectShape(await rpc('get_scan_flows', {}), 'get_scan_flows', ['mode', 'channel', 'flow']);
+// The theme scoring that replaced the corpus download (michi's Story Binder and the two binder
+// sheets). It must WORK, and it must not hand back a tag the caller did not send.
+const WANT = ['scene:forest', 'object:tree'];
+const themeScored = await rpc('score_cards_by_theme', { p_want: WANT, p_bonus: [], p_avoid: [], p_limit: 5 });
+expectShape(themeScored, 'score_cards_by_theme', ['id', 'name', 'rarity', 'score', 'hits', 'qualifies']);
+checks++;
+{
+  const extra = [...new Set((themeScored.rows ?? []).flatMap((r) => r.hits ?? []))].filter((t) => !WANT.includes(t));
+  if (extra.length) fail('LEAK', 'score_cards_by_theme returned unsent tags', `${extra.slice(0, 4).join(', ')} — the corpus is walking out through hits`);
+  else notes.push('  ok   score_cards_by_theme returns no tag the caller did not send');
+}
+expectShape(await rpc('similar_by_tags', { p_card_id: '124115', p_limit: 5 }), 'similar_by_tags', ['id', 'score']);
 
 // The correction flow: card_alternates is the ONLY way to look-alikes now that the table is
 // revoked and the bulk file is deleted. Checked from a MEMBER id, because a scan can land on one
@@ -249,16 +279,20 @@ else ok('public.alternates refused');
 
 // ---------------------------------------------------------------- 5. NOBODY CAN WRITE
 console.log('5. nobody anonymous can write');
-for (const fn of WRITERS) {
-  const res = await rpc(fn, {});
+let proved = 0;
+for (const fn of [...WRITERS, ...Object.keys(SIGNED)]) {
+  const res = await rpc(fn, SIGNED[fn] ?? {});
   checks++;
-  // 404 = gone, 401/403 = refused, both fine. A 400 means it RAN and rejected our arguments,
-  // which means anon holds EXECUTE — the argument list is the only thing standing in the way.
-  if (res.status === 400) fail('LEAK', `${fn} is executable by anon`, 'it parsed our arguments, so only the argument list is stopping a caller');
-  else if (res.status === 200) fail('LEAK', `${fn} RAN for an anonymous caller`, 'this writes');
+  if (res.status === 200) fail('LEAK', `${fn} RAN for an anonymous caller`, 'this writes');
+  else if (res.status === 400) fail('LEAK', `${fn} is executable by anon`, 'it parsed our arguments, so only the argument list is stopping a caller');
+  else if (res.status === 401 || res.status === 403) proved++;   // 42501, the real refusal
+  else if (res.body?.code === 'PGRST202') {
+    // Resolved before privileges are checked, so this says nothing about the grant.
+    fail('INCONCLUSIVE', `${fn} could not be probed`, 'no signature known: add one to SIGNED, a 404 proves nothing');
+  }
   await pause(250);
 }
-ok(`${WRITERS.length} writer functions refuse an anonymous caller`);
+ok(`${proved} function(s) PROVED to refuse an anonymous caller (42501)`);
 for (const fn of DROPPED) {
   const res = await rpc(fn, {});
   checks++;

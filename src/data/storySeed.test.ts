@@ -2,21 +2,26 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { MAX_DECORATIONS_PER_SURFACE, normalizeCover } from './coverDecorations.ts';
-import { planStoryBinder, type StoryCard } from './storyBinder.ts';
+import { planStoryBinder, type StoryCard, type ThemeScore } from './storyBinder.ts';
 import { emptyCoverArtIds, planStoryCover } from './storyCover.ts';
 import { STORY_TEMPLATES } from './storyThemes.ts';
 
 let n = 0;
 const mkId = () => `s-${(n += 1)}`;
 
-function cards(): StoryCard[] {
-  const out: StoryCard[] = [];
-  const tags: Record<string, string> = { spring: 'scene:flowers', summer: 'scene:beach', autumn: 'object:leaves', winter: 'scene:snow' };
-  for (const [k, tag] of Object.entries(tags)) for (let i = 0; i < 24; i += 1) out.push({ id: `${k}-${i}`, name: `${k}mon ${i}`, rarity: 'Illustration Rare', illustrator: `ill-${i}`, sceneTags: [tag.split(':')[1], tag] });
-  return out;
-}
 const seasons = STORY_TEMPLATES.find((t) => t.id === 'seasons')!;
-const build = (seed?: string) => planStoryBinder({ cards: cards(), template: seasons, shape: { rows: 3, cols: 4 }, mkId, seed });
+
+/** Twenty-four scored candidates per spread. Scored on the server since 2026-09-11, so the planner
+ *  receives ThemeScore rows rather than tagged cards; see lib/themeScores. */
+const ranked = (): ThemeScore[][] =>
+  seasons.spreads.map((theme) =>
+    Array.from({ length: 24 }, (_, i) => ({
+      card: { id: `${theme.id}-${i}`, name: `${theme.id}mon ${i}`, rarity: 'Illustration Rare', illustrator: `ill-${i}` } as StoryCard,
+      score: 24 - i,
+      hits: [theme.want[0]],
+      qualifies: true,
+    })));
+const build = (seed?: string) => planStoryBinder({ ranked: ranked(), template: seasons, shape: { rows: 3, cols: 4 }, mkId, seed });
 const rhythm = (p: ReturnType<typeof build>) => p.spreads.map((s) => s.templateId).join('|');
 
 test('a seed reproduces the same page rhythm; different seeds give different ones', () => {

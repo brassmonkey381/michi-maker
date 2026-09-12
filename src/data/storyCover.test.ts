@@ -2,23 +2,28 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { MAX_DECORATIONS_PER_SURFACE, normalizeCover } from './coverDecorations.ts';
-import { planStoryBinder, type StoryCard } from './storyBinder.ts';
+import { planStoryBinder, type StoryCard, type ThemeScore } from './storyBinder.ts';
 import { applyCoverArt, dropCoverArt, emptyCoverArtIds, estimateLines, planStoryCover } from './storyCover.ts';
 import { STORY_TEMPLATES } from './storyThemes.ts';
 
 let n = 0;
 const mkId = () => `c-${(n += 1)}`;
 
-function cards(): StoryCard[] {
-  const out: StoryCard[] = [];
-  const tags: Record<string, string> = { forest: 'scene:forest', water: 'scene:ocean', mountain: 'scene:mountain', town: 'scene:town', indoors: 'flag:indoor', heat: 'scene:desert' };
-  for (const [k, tag] of Object.entries(tags)) for (let i = 0; i < 16; i += 1) out.push({ id: `${k}-${i}`, name: `${k}mon ${i}`, rarity: 'Illustration Rare', sceneTags: [tag.split(':')[1], tag] });
-  return out;
+/** Sixteen scored candidates per spread, which is the shape score_cards_by_theme returns. Cards
+ *  arrive already scored since 2026-09-11; see lib/themeScores. */
+function rankedFor(template: { spreads: { id: string; want: string[] }[] }): ThemeScore[][] {
+  return template.spreads.map((theme) =>
+    Array.from({ length: 16 }, (_, i) => ({
+      card: { id: `${theme.id}-${i}`, name: `${theme.id}mon ${i}`, rarity: 'Illustration Rare' } as StoryCard,
+      score: 16 - i,
+      hits: [theme.want[0]],
+      qualifies: true,
+    })));
 }
 
 function planFor(templateId: string) {
   const template = STORY_TEMPLATES.find((t) => t.id === templateId)!;
-  const plan = planStoryBinder({ cards: cards(), template, shape: { rows: 3, cols: 4 }, mkId });
+  const plan = planStoryBinder({ ranked: rankedFor(template), template, shape: { rows: 3, cols: 4 }, mkId });
   return { template, plan };
 }
 

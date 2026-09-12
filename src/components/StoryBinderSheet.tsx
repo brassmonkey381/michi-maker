@@ -27,14 +27,14 @@ import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
 import { uuidv4 } from '@/data/binderTypes';
 import { WIZARD_SHAPES } from '@/data/binderWizard';
-import { planStoryBinder, themeCandidates, type PageShape, type RarityMode, type StoryCard, type StoryPlan } from '@/data/storyBinder';
+import { planStoryBinder, themeCandidates, type PageShape, type RarityMode, type StoryPlan, type ThemeScore } from '@/data/storyBinder';
 import { applyCoverArt, dropCoverArt, planStoryCover } from '@/data/storyCover';
 import { STORY_TEMPLATES, type StoryTemplate } from '@/data/storyThemes';
 import { hasBinderCovers } from '@/data/tiers';
 import { useOwnedCards } from '@/hooks/use-owned-cards';
 import { track } from '@/lib/analytics';
 import { fetchStockArtForAspect, fetchStockArtForPanel } from '@/lib/stockArt';
-import { loadTaggedCards } from '@/lib/taggedCards';
+import { scoreThemes } from '@/lib/themeScores';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
 
@@ -70,27 +70,8 @@ export function StoryBinderSheet({
   useEffect(() => {
     storeRef.current = store;
   }, [store]);
-  // THE TAGGED SET comes from the server, not the catalog bundle (see lib/taggedCards): read once
-  // per opening, kept for the sheet's life, and a refusal is shown in the sheet rather than as an
-  // empty story. `cards` is null until the read lands; a failed read leaves it null with a reason,
-  // and the next opening retries. The reason stays on screen through the retry (cleared only by a
-  // success), so a retry that fails again never shows a blank sheet.
-  const [cards, setCards] = useState<StoryCard[] | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  useEffect(() => {
-    if (!visible || cards) return;
-    let live = true;
-    loadTaggedCards().then(
-      (rows) => {
-        if (!live) return;
-        setCards(rows);
-        setLoadError(null);
-      },
-      (e: unknown) => { if (live) setLoadError(e instanceof Error ? e.message : 'The tagged cards could not be loaded.'); },
-    );
-    return () => { live = false; };
-  }, [visible, cards]);
-  const owned = useOwnedCards();
+  const owned0 = useOwnedCards();
+  const owned = owned0;
   const { profile } = useAuth();
   const coversAllowed = hasBinderCovers(store.tier);
 
@@ -105,18 +86,51 @@ export function StoryBinderSheet({
   const cancelled = useRef(false);
 
   const template: StoryTemplate = STORY_TEMPLATES.find((t) => t.id === templateId) ?? STORY_TEMPLATES[0];
+
+  // THE SCORING HAPPENS ON THE SERVER (see lib/themeScores). This used to download the whole
+  // tagged corpus and score it here; the corpus is not downloadable any more, so the sheet asks
+  // for one scored candidate list per theme in the chosen template and plans from that.
+  //
+  // RE-FETCHED ON TEMPLATE AND SOURCE, NOT ON EVERY CONTROL. Of the four things the sheet lets you
+  // change, only those two alter which cards are scored; `shape` is pure layout and `rarity` is a
+  // filter over rows already in hand (themeCandidates applies it). So a session is a handful of
+  // calls, and the two controls people fiddle with most stay instant.
+  // KEYED, not cleared. The obvious shape is to setRanked(null) at the top of the effect and fill
+  // it in when the read lands, but that is a synchronous setState in an effect body and the
+  // compiler rules refuse it. Carrying the request key WITH the answer says the same thing without
+  // the extra render: a result whose key is not the current one is simply not shown.
+  const [ranked, setRanked] = useState<{ key: string; lists: ThemeScore[][] } | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const rankKey = `${template.id}|${source === 'collection' ? `c:${owned0?.size ?? 0}` : 'all'}`;
+  useEffect(() => {
+    if (!visible || ranked?.key === rankKey) return;
+    let live = true;
+    const pool = source === 'collection' ? owned0 ?? new Set<string>() : null;
+    scoreThemes(template.spreads, { pool }).then((lists) => {
+      if (!live) return;
+      setRanked({ key: rankKey, lists });
+      // FAIL-SOFT IS NOT SILENT HERE. scoreTheme returns [] on any failure, so an outage and a
+      // template nothing matches look identical from this side. Every theme empty is the one that
+      // is almost certainly a failure rather than an answer, and it is worth saying so: the old
+      // read showed a refusal in the sheet, and going quiet would be a regression from that.
+      setLoadError(lists.every((l) => l.length === 0) ? 'No cards could be scored for this story. Check your connection and try again.' : null);
+    });
+    return () => { live = false; };
+  }, [visible, template, source, rankKey, owned0, ranked?.key]);
+  /** The scores for the CURRENT template and source, or null while a change is in flight. */
+  const lists = ranked?.key === rankKey ? ranked.lists : null;
   const pool = useMemo(() => (source === 'collection' ? owned ?? new Set<string>() : null), [source, owned]);
 
   // How many cards each theme has to choose from, so the picker shows what a story will be made of.
   const counts = useMemo(
-    () => template.spreads.map((theme) => themeCandidates(cards ?? [], theme, { pool, rarity }).filter((s) => s.qualifies).length),
-    [cards, template, pool, rarity],
+    () => template.spreads.map((_theme, i) => themeCandidates(lists?.[i] ?? [], { pool, rarity }).filter((s) => s.qualifies).length),
+    [lists, template, pool, rarity],
   );
 
   const building = progress !== null;
 
   const build = async () => {
-    if (!cards || building) return;
+    if (!lists || building) return;
     setError(null);
     cancelled.current = false;
     let plan: StoryPlan;
@@ -125,7 +139,7 @@ export function StoryBinderSheet({
       // One seed for the plan and its cover, minted per build: every story binder gets its own
       // page rhythm and cover arrangement, and nothing about it depends on the clock or the user.
       seed = uuidv4();
-      plan = planStoryBinder({ cards, template, shape, pool, rarity, mkId: uuidv4, seed });
+      plan = planStoryBinder({ ranked: lists, template, shape, pool, rarity, mkId: uuidv4, seed });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not plan this story.');
       return;
@@ -202,7 +216,7 @@ export function StoryBinderSheet({
     onClose();
   };
 
-  const ready = !!cards;
+  const ready = !!lists;
   const thin = counts.filter((c) => c < 6).length;
 
   return (

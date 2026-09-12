@@ -71,8 +71,8 @@ not only on a revoke.
 | `card_detail` | 200 | **15**: `id, language, evolution_line, evolves_from, evolution_line_length, dex, subtypes, regulation_mark, attacks, retreat_cost, weakness, resistance, card_text, card_type_b, attributes` |
 | `find_similar`, `find_similar_to_cards` | 200 | **8**: `id, name, set_name, number, rarity, image_url, image_small_url, similarity` |
 | `find_similar_weighted` | 200 | 2: `id, similarity` |
-| `search_by_color` | 200 (usually 500) | 2: `product_id, score` |
-| `search_by_colors`, `find_similar_by_color` | **500** | statement timeout, see below |
+| `search_by_color`, `search_by_colors` | 200 | 2: `product_id, score` / `product_id, dist` |
+| `find_similar_by_color` | **500** | never succeeds, see below |
 
 **Correction, 2026-09-11.** The first version of this table said the whole `find_similar` family
 returned `id, similarity`. That was read off the client's TypeScript annotation at `similar.ts:143`,
@@ -85,12 +85,37 @@ only because a body reads them.
 `find_similar_weighted` really does return `id, similarity`, so the family is not uniform. Track A's
 correction over-generalised by one function in the other direction.
 
-**The colour family is broken in production right now.** Six live calls: five returned HTTP 500
-`canceling statement due to statement timeout` after 3.1 to 3.5 seconds, one returned 200 after
-1.48s. The audit flagged `find_similar_by_color` alone; `search_by_color` and `search_by_colors`
-are failing the same way. Converting these to definer preserves a feature that does not currently
-work. Dropping them, which the audit already recommended for one of the three, is the better call
-for all three.
+**One colour function is broken, not three.** My first pass read three-out-of-three as broken and
+recommended dropping all of them, which would have deleted two working features. A 6-trial run per
+variant, with a deliberate signature-mismatch control:
+
+| Call | Succeeded | ms |
+| --- | --- | --- |
+| `search_by_color` (client args) | 6/6 | 780 to 1090 |
+| `search_by_color` (+`p_lang`) | 6/6 | 461 to 606 |
+| `search_by_colors` (client args) | 6/6 | 1494 to 2084 |
+| `search_by_colors` (+`p_lang`) | 6/6 | 796 to 870 |
+| `find_similar_by_color` | **0/6** | 3102 to 3136, all `57014` |
+| control: one bogus argument name | 0/6 | 91 to 246, `404 PGRST202` |
+
+So `find_similar_by_color` is deterministically broken at the statement timeout, exactly as the
+audit said, and the other two work. Drop the first, convert the other two.
+
+**But the failures were real, not malformed calls.** Track A's proposed explanation was that my
+500s were signature mismatches. The control row is the disproof: a mismatch is a **404 PGRST202 in
+about 100ms**, because the function is never resolved and so never runs. A `57014` statement
+timeout at 3.1 seconds is the function running and being killed. A mismatch also cannot return 200,
+and one of my original calls did.
+
+**What actually differed is worth keeping.** The same two payloads that fail nothing now failed on
+first touch earlier in the day, at 3.1 to 3.5 seconds, right at the timeout boundary. I cannot
+force a cold state to prove the mechanism, so treat the cause as unproven, but the observation
+stands: a first-touch colour query failed and warm ones do not. Both functions sit close enough to
+the 3s ceiling that this is a live user-facing risk rather than a curiosity.
+
+**And `p_lang` roughly halves the runtime** (1090 to 538, 1535 to 859). `color.ts:71` omits it
+whenever the language is unconstrained, which is the default, so the shipped client takes the slow
+arm of both functions every time a user has not set a language filter.
 
 **There are two detail functions and clients call only one.** `card_detail` and `get_card_detail`
 both exist, both are anon-executable, and both return **the identical 15 columns**, measured.

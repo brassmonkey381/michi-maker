@@ -84,7 +84,58 @@ const WRITERS = [
 const SIGNED = {
   tag_rank_weights: { p_tags: ['scene:snow', 'mood:cold'] },
   rarity_boost: { p_rarity: 'Illustration Rare' },
+  // The writers, from pg_proc. Values are deliberately harmless — empty arrays and objects, a mode
+  // that matches nothing — because the privilege check fires BEFORE the body runs. If any of these
+  // ever answers anything but 401/42501, that is a real finding and not a probe artefact.
+  set_browse_visible: { p_ids: [] },
+  update_card_colors: { p: {} },
+  update_card_colors_jp: { p: {} },
+  update_card_color_neighbors: { p: {} },
+  update_card_embeddings_jp: { p: {} },
+  set_scan_flow: { p_mode: '__probe__', p_channel: '__probe__', p_flow: {}, p_note: 'exposure probe' },
+  promote_scan_flow: { p_mode: '__probe__', p_note: 'exposure probe' },
+  set_similarity_live: { p_model_version: '__probe__' },
+  upsert_candidate_embeddings: { p_model_version: '__probe__', p: {}, p_language: 'en' },
+  ensure_candidate_embedding_index: { p_model_version: '__probe__' },
 };
+
+/**
+ * SCORING PARITY, WITHOUT HOLDING A SINGLE TAG.
+ *
+ * The theme scoring moved into the database on 2026-09-11, and with it went the only copy of the
+ * arithmetic this repo could test. So the gap is real: someone edits the SQL, nothing on this side
+ * notices, and binders quietly change composition. The data session offered a golden fixture of 20
+ * cards' real tags to close it, committed to both repos.
+ *
+ * THIS IS THE SAME CHECK WITHOUT THE TAGS. A fixture needs tags only if this side recomputes the
+ * score; it does not, and should not — a second implementation kept in sync by hand is the drift
+ * risk rather than the mitigation. What it needs is (card, theme) -> the numbers the server
+ * produced, and those pin the arithmetic just as tightly: the three rows of the first case share
+ * the same two hits and differ only in tag RANK, so a change to the rank curve moves them.
+ *
+ * THE ONE FALSE POSITIVE is a tag republish, which moves these legitimately. That is why the
+ * failure text says so rather than claiming drift: re-bless from a run when the publisher has just
+ * gone out, do not edit a number to make a red run green.
+ */
+const PARITY = [
+  {
+    label: 'rank weighting (same two hits, three different ranks)',
+    want: ['scene:forest', 'object:tree'], bonus: [], avoid: [],
+    expect: [
+      { id: '509987', score: 2.28, hits: ['scene:forest', 'object:tree'], qualifies: true },
+      { id: '567424', score: 2.04, hits: ['object:tree', 'scene:forest'], qualifies: true },
+      { id: '654525', score: 1.81, hits: ['object:tree', 'scene:forest'], qualifies: true },
+    ],
+  },
+  {
+    label: 'the bonus rule: two soft signals qualify nothing on their own',
+    want: ['object:cannon'], bonus: ['scene:water', 'mood:calm'], avoid: [],
+    expect: [
+      { id: '117892', score: 1.30, hits: ['object:cannon'], qualifies: true },
+      { id: '542892', score: 1.225, hits: [], qualifies: false },
+    ],
+  },
+];
 
 /** Dropped on 2026-09-11. A 200 here means something was put back. */
 const DROPPED = ['find_similar_by_color', 'get_scanner_rollout', 'set_scanner_rollout'];
@@ -257,6 +308,29 @@ if (themed.status !== 200 || !themed.rows?.length) {
   ok('themed search clamps and still reports the true total', `${themed.rows.length} of ${themed.rows[0].total_count}`);
 }
 
+// ---------------------------------------------------------------- 3b. THE SCORING HAS NOT DRIFTED
+console.log('3b. the scoring matches what it produced when it was written');
+for (const c of PARITY) {
+  const res = await rpc('score_cards_by_theme', { p_want: c.want, p_bonus: c.bonus, p_avoid: c.avoid, p_limit: 200 });
+  checks++;
+  if (res.status !== 200 || !res.rows?.length) {
+    fail('BROKEN', `parity: ${c.label}`, `HTTP ${res.status}, ${res.rows?.length ?? 0} rows`);
+    continue;
+  }
+  const byId = new Map(res.rows.map((r) => [String(r.id), r]));
+  const bad = [];
+  for (const e of c.expect) {
+    const got = byId.get(e.id);
+    if (!got) { bad.push(`${e.id} absent`); continue; }
+    if (Math.abs(Number(got.score) - e.score) > 0.0005) bad.push(`${e.id} score ${Number(got.score).toFixed(4)} != ${e.score}`);
+    if ((got.hits ?? []).join('|') !== e.hits.join('|')) bad.push(`${e.id} hits [${(got.hits ?? []).join(',')}] != [${e.hits.join(',')}]`);
+    if (Boolean(got.qualifies) !== e.qualifies) bad.push(`${e.id} qualifies ${got.qualifies} != ${e.qualifies}`);
+  }
+  if (bad.length) fail('DRIFT', `parity: ${c.label}`, bad.slice(0, 3).join('; '));
+  else notes.push(`  ok   parity: ${c.label}`);
+  await pause(250);
+}
+
 // ---------------------------------------------------------------- 4. THE MOAT IS CLOSED
 console.log('4. the moat is closed');
 for (const relation of CARD_RELATIONS) {
@@ -280,7 +354,7 @@ else ok('public.alternates refused');
 // ---------------------------------------------------------------- 5. NOBODY CAN WRITE
 console.log('5. nobody anonymous can write');
 let proved = 0;
-for (const fn of [...WRITERS, ...Object.keys(SIGNED)]) {
+for (const fn of [...new Set([...WRITERS, ...Object.keys(SIGNED)])]) {
   const res = await rpc(fn, SIGNED[fn] ?? {});
   checks++;
   if (res.status === 200) fail('LEAK', `${fn} RAN for an anonymous caller`, 'this writes');
@@ -306,6 +380,7 @@ const leaks = problems.filter((p) => p.kind === 'LEAK');
 const broken = problems.filter((p) => p.kind === 'BROKEN');
 const unsure = problems.filter((p) => p.kind === 'INCONCLUSIVE');
 const headroom = problems.filter((p) => p.kind === 'HEADROOM');
+const drift = problems.filter((p) => p.kind === 'DRIFT');
 
 if (!leaks_broken_unsure_count()) {
   if (headroom.length) {
@@ -319,10 +394,11 @@ if (!leaks_broken_unsure_count()) {
   process.exit(0);
 }
 console.error('');
-for (const [label, list] of [['LEAK', leaks], ['BROKEN', broken], ['INCONCLUSIVE', unsure], ['HEADROOM', headroom]]) {
+for (const [label, list] of [['LEAK', leaks], ['BROKEN', broken], ['DRIFT', drift], ['INCONCLUSIVE', unsure], ['HEADROOM', headroom]]) {
   if (!list.length) continue;
   console.error(`${label}:`);
-  for (const p of list) console.error(`  ${p.what}`.padEnd(52) + p.detail);
+  for (const p of list) console.error(`  ${p.what}`.padEnd(52) + (p.what.length > 49 ? '
+      ' : '') + p.detail);
   console.error('');
 }
 if (leaks.length) {
@@ -332,11 +408,19 @@ if (leaks.length) {
   console.error('arrives as. The view must stay definer and the twenty functions must keep their');
   console.error('security clause in the SAME migration that carries any grant change.\n');
 }
+if (drift.length) {
+  console.error('DRIFT means score_cards_by_theme no longer returns what it did when these numbers');
+  console.error('were recorded. Two causes, and they need opposite responses: the SQL changed, which');
+  console.error('is a bug unless it was deliberate — binder composition moves with it; or the tagging');
+  console.error('was republished, which is legitimate and means re-blessing the PARITY block from a');
+  console.error('fresh run. Do NOT edit a number to make a red run green without knowing which.');
+  console.error('');
+}
 if (broken.length) {
   console.error('A BREAK means a shipped client is reading nothing and showing an empty grid rather');
   console.error('than an error. Restoring the four relation grants and setting the view back to');
   console.error('security_invoker = true undoes the boundary; it is written out at the bottom of');
   console.error('tcgscan-data migration 59. The definer flips are harmless to leave in place.\n');
 }
-console.error(`FAILED: ${leaks.length} leak(s), ${broken.length} break(s), ${unsure.length} inconclusive (exit 1)`);
+console.error(`FAILED: ${leaks.length} leak(s), ${broken.length} break(s), ${drift.length} drift, ${unsure.length} inconclusive (exit 1)`);
 process.exit(1);

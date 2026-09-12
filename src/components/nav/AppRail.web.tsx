@@ -15,6 +15,7 @@ import { useTcgscanOpen } from '@/components/monetization/BundleOffer';
 import { TCGSCAN_URL } from '@/data/subscriptions';
 import { Wordmark } from '@/components/brand/Wordmark';
 import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
 import { Breakpoints, Fonts, FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { useAuth } from '@/store/auth';
 
@@ -50,7 +51,7 @@ export function AppRail() {
   if (pathname === '/welcome' || pathname.startsWith('/binder/')) return null;
 
   return (
-    <View style={styles.rail}>
+    <ThemedView style={styles.rail}>
       <Pressable
         onPress={() => router.push('/')}
         accessibilityLabel="Michi-Maker home"
@@ -88,7 +89,7 @@ export function AppRail() {
           </Pressable>
         ) : null}
       </View>
-    </View>
+    </ThemedView>
   );
 }
 
@@ -143,6 +144,21 @@ function RailGroup({
 }
 
 const styles = StyleSheet.create({
+  /**
+   * A ThemedView, because THE RAIL HAS TO PAINT ITS OWN GROUND.
+   *
+   * It never set a background at all, and neither does the frame it sits in, so in dark mode the
+   * browser's white showed through under text that had already flipped to near-white: the
+   * "Michi-Maker" wordmark was #ffffff on #ffffff, and every nav label was #C4C8CE on #ffffff at
+   * 1.68:1. The only thing visible was the accent hyphen, which is its own colour, and the
+   * selected pill, which brings its own fill. The routed screen beside it was correct throughout,
+   * which is why this survived so long: the half of the window people look at was never wrong.
+   *
+   * `theme.background` rather than a raised surface, so the relationship the light build already
+   * had is unchanged — the rail is the page's own ground and the active pill is the raised thing
+   * on it (Palette.panel: #f0f0f3 on white, #212225 on #131417). Themed rather than
+   * Palette-resolved so it follows a scheme flip live, like the text it has to stay behind.
+   */
   rail: {
     width: 216,
     borderRightWidth: 1,

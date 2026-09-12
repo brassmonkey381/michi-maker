@@ -1,13 +1,14 @@
 import { DarkTheme, DefaultTheme, Slot, ThemeProvider } from 'expo-router';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { Platform, useColorScheme, View } from 'react-native';
+import { Platform, useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { RouteTracker } from '@/components/analytics/RouteTracker';
 import { AvatarConsentPrompt } from '@/components/auth/AvatarConsentPrompt';
 import { UsernameGate } from '@/components/auth/UsernameGate';
 import { ProStatusBanner } from '@/components/monetization/ProStatusBanner';
+import { ThemedView } from '@/components/themed-view';
 import { AppRail } from '@/components/nav/AppRail';
 import { CatalogWarm } from '@/components/CatalogWarm';
 import { redeemHandoffHashFromLocation } from '@/data/handoff';
@@ -53,14 +54,19 @@ export default function TabLayout() {
             <CatalogWarm />
             {/* Site frame: the wide-web left rail beside the routed screen. On native (and on
                 narrow web / excluded routes) AppRail renders null and the row collapses. */}
-            <View style={{ flex: 1, flexDirection: 'row' }}>
+            {/* THEMED, because the frame is the last thing between the app and the browser's own
+                white. Every routed screen paints its own background, so this looked fine for as
+                long as nobody checked the strip the rail sits in — which in dark mode was pure
+                white behind near-white text. A ThemedView here means any surface that forgets to
+                paint one lands on the app's ground rather than on the browser's. */}
+            <ThemedView style={{ flex: 1, flexDirection: 'row' }}>
               <AppRail />
-              <View style={{ flex: 1 }}>
+              <ThemedView style={{ flex: 1 }}>
                 {/* PRO trial nudge / over-cap reclaim warning / restore — null unless it applies. */}
                 <ProStatusBanner />
                 <Slot />
-              </View>
-            </View>
+              </ThemedView>
+            </ThemedView>
             {/* Blocks any real account with no @username yet — required, immutable, once per account. */}
             <UsernameGate />
             {/* Offers back the profile photo withdrawn by 20260826140000. Mounted here rather

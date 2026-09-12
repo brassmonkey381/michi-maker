@@ -1,30 +1,33 @@
 /**
- * IS THE DATA BEHIND OUR PAID FEATURES PUBLIC? — run: `npm run check:exposure`
+ * IS THE BOUNDARY STILL THERE? — run: `npm run check:exposure`
  *
- * The catalog is meant to be readable by anyone: it is card names, sets, prices and images, and
- * the app hands out the data project's PUBLISHABLE key in its web bundle to read them. What is
- * NOT meant to be readable is the derived data the paid tiers are sold on — the artwork
- * embeddings, the scene captions and their tags, the palette vectors. Those are the product.
+ * The data project serves the catalog to an anonymous caller holding the publishable key that
+ * ships in our own web bundle. On 2026-09-11 that stopped being a blanket grant: `public.cards`
+ * went definer, the relation grant was replaced with nineteen named columns, and twenty functions
+ * were re-specced as SECURITY DEFINER so their bodies keep reading the columns their callers no
+ * longer can. This script watches both halves of that, because BOTH can fail silently:
  *
- * PostgREST exposes whatever the `anon` role can select. A column added to `cards` for an RPC's
- * benefit is therefore published to the world by default, and nothing in the app would notice:
- * every michi and tcgscan-browse code path reads this data through RPCs that compute server-side
- * (find_similar_to_cards, search_cards, tagged_cards), so a revoke breaks no client while a
- * missing revoke costs the whole moat. That asymmetry is what this script watches.
+ *   the MOAT reopens   — one `grant select on public.cards to anon` inside the next view respec,
+ *                        or a create-or-replace that drops a function's security clause (Postgres
+ *                        assigns all unspecified properties on replace, so an ALTER-applied
+ *                        clause expires on the next unrelated migration).
+ *   the CLIENTS break  — a column dropped from the grant yields an EMPTY GRID, not an error,
+ *                        because tcgscan-browse maps rows with `?? ''` on every field and every
+ *                        fetcher returns [] on a non-2xx.
  *
- * It signs in as nobody, asks for each column by name, and fails if one comes back. Read-only.
- * The remediation lives in the DATA project (a different repo — see docs/DATA-SERVER.md); this
- * only detects, so the day someone republishes a view we hear about it from a test, not a forum.
+ * THE RULE THIS SCRIPT IS BUILT ON: ASSERT A ROW SHAPE, NEVER A STATUS CODE. Every silent failure
+ * found during the lock-down week was an HTTP 200 — the empty grid, the [] swallowed client-side
+ * from a timing-out RPC, the 200-with-null from card_alternates. A detector that checked status
+ * codes would have caught none of them. So a read passes only when it is 200 AND has rows AND
+ * carries every column the client's mapper destructures.
  *
- * DETECTING IS NOT THE SAME AS PRESCRIBING, and this script deliberately does not prescribe. A
- * plain revoke on `anon` would blank browse and search for EVERY user of both apps: neither app
- * holds a user session on the data project (they authenticate against piikwvntldytjejxmcla and
- * read the catalog anonymously), so `anon` is the role every catalog request arrives as, and
- * search_cards is SECURITY INVOKER selecting `c.*` from a security_invoker view that names these
- * columns. The view and the RPC have to be fixed in the same migration that carries the revoke.
- * See docs/DATA-SERVER.md before acting on the SQL this prints.
+ * IT ALSO REFUSES TO PASS WHEN IT CANNOT TELL. The previous version treated every non-2xx as
+ * "protected", so a 429 from the rate limiter, a statement timeout or a total outage scored a
+ * perfect run. There is a positive control now: if the nineteen contract columns do not come back
+ * with a row, the run is VOID and exits non-zero without judging anything else.
  *
- * Exit 0 = nothing sensitive readable. Exit 1 = at least one column is public.
+ * Read-only. Remediation lives in the DATA project; this only detects.
+ * Exit 0 = boundary intact and clients working. Exit 1 = a leak, a break, or an inconclusive run.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -33,21 +36,40 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const API = 'https://bmhjizcmwtmcrstadqto.supabase.co/rest/v1';
 
-/** Column → what an outsider gets from it. Relations to try each against. */
-const GUARDED = {
-  embedding: 'the artwork similarity vectors — Find Similar, rebuilt offline',
+/** The nineteen columns anon is granted, derived from shipped client code and verified live.
+ *  See docs/CLIENT-COLUMN-CONTRACT.md. `browse_visible` is FILTER-ONLY and never selected, which
+ *  is why it has its own check: a contract read off `select=` lists misses it, and a WHERE on a
+ *  column you cannot select is 42501, which takes out the set drill-down and both feeds. */
+const CARD_COLS = [
+  'id', 'name', 'number', 'rarity', 'card_type', 'set_id', 'set_name', 'series', 'release_date',
+  'illustrator', 'types', 'stage', 'hp', 'evolution_stage_index', 'evolves_from', 'evolution_line',
+  'jumbo', 'language',
+];
+
+/** Column → what an outsider gets from it. Must be refused on every relation below. */
+const CLOSED = {
   scene_caption: 'the artwork descriptions themselves',
   scene_tags: 'the theme vocabulary and every card it applies to — all of theme search',
+  art_text: 'captions and tags concatenated — reproduces theme search by itself, and a GENERATED '
+    + 'column carries its own grant, so revoking its sources does nothing for it',
+  embedding: 'the artwork similarity vectors — Find Similar, rebuilt offline',
   color_art: 'the palette vectors behind colour search',
-  color_neighbors_art: 'the precomputed colour neighbours',
+  color_noborder: 'the palette vectors, full-card region',
   full_art_score: 'the full-art scoring',
-  // GENERATED FROM THE TWO ABOVE, AND NOT PROTECTED BY REVOKING THEM. art_text is
-  // scene_caption || scene_tags, so `art_text=ilike.*storm*` reproduces a theme search on its own
-  // (51 rows, measured). A generated column carries its own grant; revoking its sources does
-  // nothing for it. Caught by the data session, 2026-09-10 - it was missing from the first list.
-  art_text: 'the captions and tags concatenated - reproduces theme search by itself',
 };
-const RELATIONS = ['cards', 'cards_en', 'card_embeddings_candidate'];
+const CARD_RELATIONS = ['cards', 'cards_en', 'cards_jp'];
+
+/** Functions that WRITE. Anon must not hold EXECUTE on any of them. Checked by NAME rather than
+ *  by convention, because "looks like a writer" is a convention and not a guarantee: five of the
+ *  eleven found open on 2026-09-11 had been revoked from anon/authenticated but never from
+ *  PUBLIC, so anon still held EXECUTE by default. set_browse_visible could hide the catalog. */
+const WRITERS = [
+  'set_browse_visible', 'update_card_colors', 'update_card_colors_jp', 'update_card_color_neighbors',
+  'update_card_embeddings_jp', 'set_scan_flow', 'promote_scan_flow', 'set_similarity_live',
+];
+
+/** Dropped on 2026-09-11. A 200 here means something was put back. */
+const DROPPED = ['find_similar_by_color', 'get_scanner_rollout', 'set_scanner_rollout'];
 
 function publishableKey() {
   const file = path.join(ROOT, '.env');
@@ -65,41 +87,222 @@ if (!key) {
   process.exit(1);
 }
 const headers = { apikey: key, Authorization: `Bearer ${key}` };
+const jsonHeaders = { ...headers, 'Content-Type': 'application/json' };
 const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** Can an anonymous caller select this column? null = the relation or column does not exist. */
-async function readable(relation, column) {
-  const res = await fetch(`${API}/${relation}?select=${column}&limit=1`, { headers });
-  if (res.status === 404) return null; // no such relation
-  if (!res.ok) return false; // 400 "column does not exist", 401/403 "not yours" - both fine
-  const rows = await res.json().catch(() => null);
-  if (!Array.isArray(rows) || !rows.length) return false;
-  return Object.prototype.hasOwnProperty.call(rows[0], column);
+const problems = [];
+const leaks_broken_unsure_count = () => problems.filter((p) => p.kind !== 'HEADROOM').length;
+const notes = [];
+let checks = 0;
+
+function fail(kind, what, detail) { problems.push({ kind, what, detail }); }
+function ok(what, detail) { checks++; notes.push(`  ok   ${what}${detail ? `   ${detail}` : ''}`); }
+
+async function get(pathAndQuery) {
+  const res = await fetch(`${API}/${pathAndQuery}`, { headers });
+  const text = await res.text();
+  let body = null; try { body = JSON.parse(text); } catch { /* not json */ }
+  return { status: res.status, body, rows: Array.isArray(body) ? body : null };
+}
+async function rpc(fn, payload) {
+  const res = await fetch(`${API}/rpc/${fn}`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) });
+  const text = await res.text();
+  let body = null; try { body = JSON.parse(text); } catch { /* not json */ }
+  return { status: res.status, body, rows: Array.isArray(body) ? body : null };
 }
 
-const leaks = [];
-for (const relation of RELATIONS) {
-  for (const column of Object.keys(GUARDED)) {
-    const open = await readable(relation, column);
-    if (open === null) break; // relation absent, skip its remaining columns
-    if (open) leaks.push({ relation, column });
-    await pause(900); // the data server rate-limits; this is not a race
+/** A client read passes only if 200 AND rows AND every named column present on row 0. */
+function expectShape(res, what, cols) {
+  checks++;
+  if (res.status !== 200) return fail('BROKEN', what, `HTTP ${res.status} ${String(res.body?.message ?? '').slice(0, 70)}`);
+  if (!res.rows?.length) return fail('BROKEN', what, '200 with ZERO ROWS — the silent failure this script exists for');
+  const missing = cols.filter((c) => !(c in res.rows[0]));
+  if (missing.length) return fail('BROKEN', what, `missing column(s): ${missing.join(', ')}`);
+  notes.push(`  ok   ${what}   ${res.rows.length} row(s)`);
+}
+
+/**
+ * The same check, for a call that is known to fail COLD and pass warm.
+ *
+ * The two colour RPCs sit close to the 3s statement timeout: measured 780 to 2084ms warm, and
+ * 3.1 to 3.5s on a first call, where they are killed with SQLSTATE 57014. A single attempt makes
+ * this script flaky and a silent retry hides a real user-facing fault, so it does neither: a
+ * retry that succeeds is reported as HEADROOM, which is a warning about the margin rather than a
+ * claim that the grant is broken. Two failures in a row is a genuine break.
+ */
+async function expectShapeWarm(call, what, cols) {
+  const first = await call();
+  if (first.status === 200 && first.rows?.length) return expectShape(first, what, cols);
+  const second = await call();
+  if (second.status === 200 && second.rows?.length) {
+    checks++;
+    const detail = String(first.body?.message ?? `HTTP ${first.status}`).slice(0, 60);
+    fail('HEADROOM', what, `failed cold, passed warm — ${detail}`);
+    return;
+  }
+  expectShape(second, what, cols);
+}
+
+// ---------------------------------------------------------------- 0. POSITIVE CONTROL
+// Without this a total outage scores a perfect run: every leak check would "refuse" and pass.
+console.log('0. positive control');
+const control = await get(`cards?select=${CARD_COLS.join(',')}&limit=1`);
+if (control.status !== 200 || !control.rows?.length) {
+  console.error(`\nVOID: the contract columns did not come back (HTTP ${control.status}, `
+    + `${control.rows?.length ?? 0} rows). The server is unreachable, rate-limiting, or the grant `
+    + `is broken — either way NOTHING below can be trusted, so no result is reported.`);
+  console.error('\nFAILED: inconclusive run (exit 1)');
+  process.exit(1);
+}
+const missingContract = CARD_COLS.filter((c) => !(c in control.rows[0]));
+if (missingContract.length) {
+  fail('BROKEN', 'the client column contract', `anon lost: ${missingContract.join(', ')}`);
+} else {
+  ok('all 19 contract columns readable', `${CARD_COLS.length} selected + browse_visible below`);
+}
+
+// ---------------------------------------------------------------- 1. CLIENTS STILL WORK
+console.log('1. the clients still work');
+// browse_visible is filter-only. This is the check that would have caught the drill-down break.
+expectShape(await get(`cards?select=id,name&browse_visible=is.true&limit=2`),
+  'browse_visible as a FILTER (set drill-down, both feeds)', ['id', 'name']);
+expectShape(await get('sets?select=id,name,series,card_count,logo_url&limit=1'), 'sets (kit)', ['id', 'name', 'series', 'card_count', 'logo_url']);
+expectShape(await get('sets?select=name,code,symbol_url&limit=1'), 'sets (app set symbols)', ['name', 'code', 'symbol_url']);
+expectShape(await get('prices?select=date,variant,market_price,avg_sales_price,quantity&limit=1'), 'prices', ['date', 'variant', 'market_price']);
+expectShape(await get('model_versions?select=public_version,published_at,dataset_version&limit=1'), 'model_versions', ['public_version']);
+expectShape(await get('pokemon_partner_groups?select=members&order=id&limit=1'), 'pokemon_partner_groups (ordered by id)', ['members']);
+expectShape(await get('trainer_partners?select=name,signature,pokemon,associates,tokens&limit=1'), 'trainer_partners', ['name', 'signature', 'tokens']);
+expectShape(await get('search_config?select=free_theme_depth&limit=1'), 'search_config', ['free_theme_depth']);
+
+// ---------------------------------------------------------------- 2. THE DEFINER FLIP HELD
+// These functions read columns their caller cannot. A row back means the security clause is still
+// on; 42501 means a create-or-replace dropped it, which is the failure that expires silently.
+console.log('2. the definer flip held (these read what the caller cannot)');
+const plain = await rpc('search_cards', { p_words: ['pikachu'], p_fields: [], p_compares: [], p_facets: {}, p_limit: 5, p_offset: 0 });
+expectShape(plain, 'search_cards', ['id', 'name', 'cur', 'total_count']);
+expectShape(await rpc('search_facets', { p_words: ['pikachu'], p_fields: [], p_compares: [], p_facets: {} }), 'search_facets', ['facet', 'value', 'n']);
+expectShape(await rpc('card_detail', { p_ids: ['219233'] }), 'card_detail', ['id', 'evolves_from', 'evolution_line']);
+expectShape(await rpc('find_similar', { p_card_id: '219233', p_limit: 5 }), 'find_similar (reads embedding)', ['id', 'name', 'image_url', 'similarity']);
+expectShape(await rpc('find_similar_weighted', { p_card_ids: ['219233'], p_weights: [1.0], p_limit: 5 }), 'find_similar_weighted', ['id', 'similarity']);
+await expectShapeWarm(() => rpc('search_by_color', { p_region: 'art', p_l: 50, p_a: 10, p_b: 10, p_limit: 5, p_lambda: 0.5, p_lang: ['en', 'ja'] }), 'search_by_color (reads color_art)', ['product_id']);
+await expectShapeWarm(() => rpc('search_by_colors', { p_region: 'art', p_colors: [[50, 10, 10, 1]], p_limit: 5, p_lang: ['en', 'ja'] }), 'search_by_colors', ['product_id']);
+expectShape(await rpc('get_scan_flows', {}), 'get_scan_flows', ['mode', 'channel', 'flow']);
+
+// The correction flow: card_alternates is the ONLY way to look-alikes now that the table is
+// revoked and the bulk file is deleted. Checked from a MEMBER id, because a scan can land on one
+// and a member lookup returning null was a live hole on 2026-09-11.
+const altCanonical = await rpc('card_alternates', { p_card_id: '107055' });
+expectShape(altCanonical, 'card_alternates by canonical id', ['id', 'name', 'number', 'set_name', 'source', 'hint']);
+const altMember = await rpc('card_alternates', { p_card_id: '123634' });
+expectShape(altMember, 'card_alternates by MEMBER id', ['id', 'name', 'hint']);
+checks++;
+if (altCanonical.rows?.length && altMember.rows?.length) {
+  // The invariant: two group-mates must resolve to the same set of cards. This is enforced inside
+  // a database function no test on this side can see, so if it regresses this is the only notice.
+  const a = new Set([...altCanonical.rows.map((r) => String(r.id)), '107055']);
+  const b = new Set([...altMember.rows.map((r) => String(r.id)), '123634']);
+  const same = a.size === b.size && [...a].every((x) => b.has(x));
+  if (!same) fail('BROKEN', 'group-mates resolve to the same group', `canonical [${[...a].sort()}] vs member [${[...b].sort()}]`);
+  else if (altCanonical.rows.some((r) => String(r.id) === '107055')) fail('BROKEN', 'card_alternates excludes the card itself', 'the picker would offer the card as a printing of itself');
+  else notes.push('  ok   group-mates resolve to the same group, self excluded');
+}
+
+// ---------------------------------------------------------------- 3. THE METER STILL METERS
+console.log('3. the meter still meters');
+const depthRow = await get('search_config?select=free_theme_depth&limit=1');
+const depth = Number(depthRow.rows?.[0]?.free_theme_depth ?? 0);
+const themed = await rpc('search_cards', { p_words: [], p_fields: [{ key: 'theme', value: 'fire' }], p_compares: [], p_facets: {}, p_limit: 50, p_offset: 0 });
+checks++;
+if (themed.status !== 200 || !themed.rows?.length) {
+  fail('BROKEN', 'themed search', `HTTP ${themed.status}, ${themed.rows?.length ?? 0} rows`);
+} else if (!depth) {
+  fail('INCONCLUSIVE', 'free_theme_depth', 'could not be read, so the clamp cannot be judged');
+} else if (themed.rows.length !== depth) {
+  // MORE than depth is the one that costs money: the meter has inverted and theme search is free.
+  fail(themed.rows.length > depth ? 'LEAK' : 'BROKEN', 'the themed clamp',
+    `asked for 50, got ${themed.rows.length}, free_theme_depth is ${depth}`);
+} else if (!(Number(themed.rows[0].total_count) > depth)) {
+  fail('BROKEN', 'the upsell', `total_count ${themed.rows[0].total_count} does not exceed the ${depth} shown, so "+N more" disappears`);
+} else {
+  ok('themed search clamps and still reports the true total', `${themed.rows.length} of ${themed.rows[0].total_count}`);
+}
+
+// ---------------------------------------------------------------- 4. THE MOAT IS CLOSED
+console.log('4. the moat is closed');
+for (const relation of CARD_RELATIONS) {
+  for (const column of Object.keys(CLOSED)) {
+    const res = await get(`${relation}?select=${column}&limit=1`);
+    checks++;
+    if (res.status === 200 && res.rows?.length && column in res.rows[0]) {
+      fail('LEAK', `${relation}.${column}`, CLOSED[column]);
+    } else if (res.status === 200) {
+      // 200 with no rows tells us nothing about the grant. Do not score it as protected.
+      fail('INCONCLUSIVE', `${relation}.${column}`, '200 with no rows — cannot tell closed from empty');
+    }
+    await pause(350); // the data server rate-limits; this is not a race
   }
 }
+const altTable = await get('alternates?select=reason,difficulty,hint,max_distance&limit=1');
+checks++;
+if (altTable.status === 200 && altTable.rows?.length) fail('LEAK', 'public.alternates', 'the confusability map: which cards the recognizer cannot tell apart, with its reasons');
+else ok('public.alternates refused');
 
-if (!leaks.length) {
-  console.log('OK: no guarded column is readable by an anonymous caller.');
+// ---------------------------------------------------------------- 5. NOBODY CAN WRITE
+console.log('5. nobody anonymous can write');
+for (const fn of WRITERS) {
+  const res = await rpc(fn, {});
+  checks++;
+  // 404 = gone, 401/403 = refused, both fine. A 400 means it RAN and rejected our arguments,
+  // which means anon holds EXECUTE — the argument list is the only thing standing in the way.
+  if (res.status === 400) fail('LEAK', `${fn} is executable by anon`, 'it parsed our arguments, so only the argument list is stopping a caller');
+  else if (res.status === 200) fail('LEAK', `${fn} RAN for an anonymous caller`, 'this writes');
+  await pause(250);
+}
+ok(`${WRITERS.length} writer functions refuse an anonymous caller`);
+for (const fn of DROPPED) {
+  const res = await rpc(fn, {});
+  checks++;
+  if (res.status === 200 || res.status === 400) fail('LEAK', `${fn} is back`, 'it was dropped on 2026-09-11');
+  await pause(250);
+}
+ok(`${DROPPED.length} dropped functions are still gone`);
+
+// ---------------------------------------------------------------- report
+const leaks = problems.filter((p) => p.kind === 'LEAK');
+const broken = problems.filter((p) => p.kind === 'BROKEN');
+const unsure = problems.filter((p) => p.kind === 'INCONCLUSIVE');
+const headroom = problems.filter((p) => p.kind === 'HEADROOM');
+
+if (!leaks_broken_unsure_count()) {
+  if (headroom.length) {
+    console.error('\nHEADROOM (not a failure, but the margin is thin):');
+    for (const p of headroom) console.error(`  ${p.what}`.padEnd(52) + p.detail);
+    console.error('  These sit near the 3s statement timeout. A user hitting one cold gets an empty');
+    console.error('  result, because the client returns [] on any non-2xx.\n');
+  }
+  console.log(`\n${notes.join('\n')}`);
+  console.log(`\nOK: ${checks} checks. The boundary holds and every shipped client read works.`);
   process.exit(0);
 }
-console.error('PUBLIC DATA FOUND — an anonymous holder of the publishable key can read:\n');
-for (const { relation, column } of leaks) {
-  console.error(`  ${relation}.${column}`.padEnd(44), GUARDED[column]);
+console.error('');
+for (const [label, list] of [['LEAK', leaks], ['BROKEN', broken], ['INCONCLUSIVE', unsure], ['HEADROOM', headroom]]) {
+  if (!list.length) continue;
+  console.error(`${label}:`);
+  for (const p of list) console.error(`  ${p.what}`.padEnd(52) + p.detail);
+  console.error('');
 }
-console.error(`\nFix in the DATA project — READ docs/DATA-SERVER.md FIRST. A bare revoke on anon`);
-console.error(`blanks browse and search for every user of BOTH apps (neither holds a user session`);
-console.error(`there, so anon is the role every catalog request arrives as), and search_cards is`);
-console.error(`SECURITY INVOKER over a view that names these columns. The view and the RPC have to`);
-console.error(`be fixed in the same migration as the revoke. Columns to end up protected:`);
-console.error(`  ${Object.keys(GUARDED).join(', ')}`);
-console.error(`\nFAILED: ${leaks.length} guarded column(s) publicly readable (exit 1)`);
+if (leaks.length) {
+  console.error('A LEAK is fixed in the DATA project, not here. Read docs/CLIENT-COLUMN-CONTRACT.md');
+  console.error('first: a bare revoke blanks browse and search for every user of BOTH apps, because');
+  console.error('neither app holds a user session there and anon is the role every catalog request');
+  console.error('arrives as. The view must stay definer and the twenty functions must keep their');
+  console.error('security clause in the SAME migration that carries any grant change.\n');
+}
+if (broken.length) {
+  console.error('A BREAK means a shipped client is reading nothing and showing an empty grid rather');
+  console.error('than an error. Restoring the four relation grants and setting the view back to');
+  console.error('security_invoker = true undoes the boundary; it is written out at the bottom of');
+  console.error('tcgscan-data migration 59. The definer flips are harmless to leave in place.\n');
+}
+console.error(`FAILED: ${leaks.length} leak(s), ${broken.length} break(s), ${unsure.length} inconclusive (exit 1)`);
 process.exit(1);

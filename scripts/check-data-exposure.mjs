@@ -113,9 +113,17 @@ const SIGNED = {
  * produced, and those pin the arithmetic just as tightly: the three rows of the first case share
  * the same two hits and differ only in tag RANK, so a change to the rank curve moves them.
  *
- * THE ONE FALSE POSITIVE is a tag republish, which moves these legitimately. That is why the
- * failure text says so rather than claiming drift: re-bless from a run when the publisher has just
- * gone out, do not edit a number to make a red run green.
+ * THE ONE FALSE POSITIVE is a tag republish or a change to the rank rule, both of which move these
+ * legitimately. That is why the failure text says so rather than claiming drift: re-bless from a
+ * run once you know which, do not edit a number to make a red run green.
+ *
+ * RE-BLESSED 2026-09-12 for tcgscan-data c11a9ae, which widened the rank rule to count EVERY
+ * namespaced tag rather than six of them. Worth reading before assuming the old numbers were fine:
+ * the previous rule skipped a non-matching tag WITHOUT advancing the rank counter, so a scoreable
+ * tag sitting behind skipped ones was promoted to a weight the publisher never gave it. On 2,245
+ * of 2,248 cards the weights were not the published ranking at all. These five moved because the
+ * arithmetic was corrected, not because it broke: 509987 and 117892 did not move, and the two
+ * properties each case exists to pin still hold.
  */
 const PARITY = [
   {
@@ -123,8 +131,8 @@ const PARITY = [
     want: ['scene:forest', 'object:tree'], bonus: [], avoid: [],
     expect: [
       { id: '509987', score: 2.28, hits: ['scene:forest', 'object:tree'], qualifies: true },
-      { id: '567424', score: 2.04, hits: ['object:tree', 'scene:forest'], qualifies: true },
-      { id: '654525', score: 1.81, hits: ['object:tree', 'scene:forest'], qualifies: true },
+      { id: '567424', score: 1.90, hits: ['object:tree', 'scene:forest'], qualifies: true },
+      { id: '654525', score: 1.74, hits: ['object:tree', 'scene:forest'], qualifies: true },
     ],
   },
   {
@@ -137,7 +145,7 @@ const PARITY = [
       // bonus tags matched and the rule only discards a hitless card when fewer than two did. A
       // scorer that returned null here, or that derived `qualifies` from "did we return it" rather
       // than from the hits, would pass every other assertion in this file and fail only this one.
-      { id: '542892', score: 1.225, hits: [], qualifies: false },
+      { id: '542892', score: 1.19, hits: [], qualifies: false },
     ],
   },
 ];

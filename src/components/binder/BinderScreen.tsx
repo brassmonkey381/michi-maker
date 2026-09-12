@@ -557,6 +557,7 @@ export function BinderScreen({
     editing,
     studio: !!studio,
     pickerOpen: pickerCell !== null,
+    pageCount: binder?.pages.length ?? 1,
     width,
     tier: store.tier,
   });
@@ -567,6 +568,16 @@ export function BinderScreen({
    * at mount, and a stale one would ring the wrong pocket with total confidence.
    */
   const [ringRect, setRingRect] = useState<PocketRect | null>(null);
+  /**
+   * WHERE THE LAST STEP GOES: under the page tools in the header, pointing up at them.
+   *
+   * Measured rather than positioned by hand, because that group sits at the right-hand end of a
+   * row whose width is the window's and whose contents come and go (the like chip, the select
+   * toggle). A hard-coded offset would be right on one screen and wrong on the next.
+   */
+  const pageToolsRef = useRef<View>(null);
+  const [pageToolsRect, setPageToolsRect] = useState<PocketRect | null>(null);
+  const wantPageTools = walkthrough.step === 'page';
   const wantRing = walkthrough.step === 'ring';
   // Step three points at the card that just landed, so the same measurement serves both: an EMPTY
   // pocket to ring, or the FIRST FILLED one to point at.
@@ -602,6 +613,18 @@ export function BinderScreen({
     // adding a page brings in the page strip, which shifts the binder sideways and left a ring
     // hanging over empty space. Page count and index are in here for exactly that.
   }, [wantRing, wantPlaced, ringPage, binder?.pages.length, pageIndex, width, artworkOpen, cardsCollapsed]);
+
+  // The same shape as the ring's measurement, and for the same reasons: inside a timer so the box
+  // is read after layout has settled, and never straight from an effect body.
+  useEffect(() => {
+    if (!wantPageTools) return;
+    const t = setTimeout(() => {
+      pageToolsRef.current?.measureInWindow((x, y, w, h) => {
+        if (w > 0 && h > 0) setPageToolsRect({ x, y, width: w, height: h });
+      });
+    }, 60);
+    return () => clearTimeout(t);
+  }, [wantPageTools, width, binder?.pages.length]);
 
   if (!binder) {
     return (
@@ -1826,7 +1849,7 @@ export function BinderScreen({
       <IconBtn glyph="↶" label="Undo" onPress={store.undo} disabled={!store.canUndo} testID="tool-undo" />
       <IconBtn glyph="↷" label="Redo" onPress={store.redo} disabled={!store.canRedo} testID="tool-redo" />
       <View style={styles.groupRule} />
-      <View style={styles.pageGroup}>
+      <View ref={pageToolsRef} style={styles.pageGroup}>
         {/* Tapping it opens the page's details — the same dialog the title above the page opens —
             so a page's name sits at the head of the page's own tools as well as over its art. */}
         <Pressable
@@ -1840,6 +1863,10 @@ export function BinderScreen({
         </Pressable>
         <IconBtn
           glyph="+"
+          // THE ONE THAT CARRIES ITS WORDS. People were reported not to find this at all: a bare
+          // `+` in a row of six symbols is only legible to someone who already knows it is there,
+          // and its meaning lived in a tooltip that needs a pointer and a guess to reach.
+          word="Page"
           // Named for what it does. "Add a page", beside three this-page tools, read as "insert one
           // here" — which it has never done.
           label="Add a page at the end"
@@ -2622,6 +2649,24 @@ export function BinderScreen({
             <WalkthroughBanner copy={walkthrough.copy} onDismiss={walkthrough.dismiss} />
           </View>
         ) : null}
+        {/* STEP FOUR hangs under the page tools it names, arrow up, right-aligned to them: that
+            group sits at the right-hand end of the header, so anchoring the card's LEFT edge to it
+            would push most of the card off-screen. Clamped to the window at both ends. */}
+        {wantPageTools && pageToolsRect && walkthrough.copy ? (
+          <View
+            style={[
+              styles.walkthroughFloat,
+              {
+                top: pageToolsRect.y + pageToolsRect.height + 8,
+                left: Math.max(
+                  Spacing.three,
+                  Math.min(pageToolsRect.x + pageToolsRect.width - 300, width - 340),
+                ),
+              },
+            ]}>
+            <WalkthroughBanner copy={walkthrough.copy} onDismiss={walkthrough.dismiss} />
+          </View>
+        ) : null}
         <Toast spec={toast} onDismiss={() => setToast(null)} />
         <CapGateDialog wall={capGate.wall} onDismiss={capGate.dismissWall} onResolve={capGate.resolveWall} />
         <ConfirmDialog spec={confirm} onClose={() => setConfirm(null)} />
@@ -2831,9 +2876,20 @@ function LabeledInput({
  * above the binder and take height from the pages. The words survive in `label`, which is both the
  * accessible name and the hover title, so nothing is lost by dropping them from the face.
  */
+/**
+ * A HEADER TOOL. A glyph by default, and a glyph with a word when `word` is set.
+ *
+ * WHY ONE OF THEM GETS WORDS. A symbol-only control is only readable to someone who already knows
+ * what it does, and in a row of six the one you have never pressed is indistinguishable from the
+ * five you have. Labelling all of them would double the width of a header that has no room; a
+ * `title` tooltip is web-only and needs a pointer that is already resting on the thing you are
+ * looking for. So the word goes on the ONE control people were reported not to find, and the rest
+ * stay glyphs. The row's height is unchanged, so the binder below it does not move.
+ */
 function IconBtn({
   glyph,
   label,
+  word,
   onPress,
   disabled = false,
   active = false,
@@ -2842,6 +2898,8 @@ function IconBtn({
 }: {
   glyph: string;
   label: string;
+  /** Printed next to the glyph. Short: this sits in chrome, not in the flow. */
+  word?: string;
   onPress: () => void;
   disabled?: boolean;
   active?: boolean;
@@ -2861,6 +2919,7 @@ function IconBtn({
       {...({ title: label } as object)}
       style={({ pressed }) => [
         styles.iconBtn,
+        word ? styles.iconBtnWide : null,
         active && styles.iconBtnActive,
         pressed && !disabled && styles.pressed,
       ]}>
@@ -2873,6 +2932,17 @@ function IconBtn({
         ]}>
         {glyph}
       </Text>
+      {word ? (
+        <Text
+          style={[
+            styles.iconWord,
+            tone === 'danger' && styles.iconGlyphDanger,
+            active && styles.iconGlyphActive,
+            disabled && styles.iconGlyphOff,
+          ]}>
+          {word}
+        </Text>
+      ) : null}
     </Pressable>
   );
 }
@@ -2992,6 +3062,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  /**
+   * The labelled variant. Width goes from fixed to content, HEIGHT DOES NOT MOVE: the 30px here is
+   * what keeps the header under the Done pill, and a taller row would push the binder down.
+   * Tinted, because in a bordered group of hairline glyphs a fill is what says "this one is the
+   * action" without a second row of chrome to say it in words.
+   */
+  iconBtnWide: {
+    width: 'auto',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 7,
+    backgroundColor: Palette.accentSoft,
+  },
+  iconWord: { fontSize: FontSize.sm, fontWeight: Weight.bold, color: Palette.ink, lineHeight: 20 },
   iconBtnActive: { backgroundColor: Palette.accent },
   iconGlyph: { fontSize: FontSize.md, color: Palette.ink, lineHeight: 20 },
   iconGlyphActive: { color: Palette.accentText },

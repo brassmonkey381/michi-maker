@@ -45,6 +45,7 @@ export function useFirstPocketWalkthrough({
   editing,
   studio,
   pickerOpen,
+  pageCount,
   width,
   tier,
 }: {
@@ -52,6 +53,8 @@ export function useFirstPocketWalkthrough({
   editing: boolean;
   studio: boolean;
   pickerOpen: boolean;
+  /** How many pages the binder has RIGHT NOW. The last step ends when this grows. */
+  pageCount: number;
   /** The window's width, so the report can tell a docked browser from a bottom sheet. */
   width: number;
   tier: string;
@@ -108,7 +111,14 @@ export function useFirstPocketWalkthrough({
   // read during render and a ref read there is the thing the React rules forbid.
   const [hadCardOnArrival] = useState(hasCard);
 
-  const state = resolveState({ hasCard, hadCardOnArrival, record, editing, studio, pickerOpen });
+  // AND HOW LONG IT WAS. Same latch, same reason: the last step is over the moment the reader adds
+  // a page, and "added" can only mean "more than there were when we arrived". A page removed then
+  // re-added leaves the count where it started and the step simply stays up, which is the harmless
+  // direction for this to be wrong in.
+  const [pagesOnArrival] = useState(pageCount);
+  const pageAdded = pageCount > pagesOnArrival;
+
+  const state = resolveState({ hasCard, hadCardOnArrival, record, editing, studio, pickerOpen, pageAdded });
   const step = state.show ? state.step : null;
 
   /** The furthest step this session actually reached, for the ending event. Written in the effect

@@ -52,6 +52,16 @@ const ROWS = 3;
 const COLS = 3;
 const BINDER_ID = 'anniv-thirty-years';
 
+/**
+ * WHEN THIS BINDER WAS AUTHORED, not when the script last ran.
+ *
+ * The examples shelf is sorted newest first, so this decides where a binder lands. It is a declared
+ * constant rather than a build timestamp on purpose: stamping `new Date()` would send every binder
+ * in this module to the top of the shelf every time anyone regenerated it, so a no-op rebuild would
+ * silently reshuffle the front page. Bump it by hand when the binder actually changes.
+ */
+const AUTHORED = '2026-09-11';
+
 // ── slot helpers (mirror src/data/content/_helpers) ──────────────────────────
 const card = (row, col, ref, opts = {}) => ({ row, col, rowSpan: opts.rowSpan ?? 1, colSpan: opts.colSpan ?? 1, type: 'card', ref });
 const art = (row, col, ref, opts = {}) => ({ ...card(row, col, ref, opts), type: 'artwork' });
@@ -490,6 +500,7 @@ const binder = {
     + 'themselves, ending on the ones that are simply beautiful.',
   layoutStyle: 'themed_story',
   isExample: true,
+  updatedAt: AUTHORED,
   coverCardId: resolve1('e:158/128', 'cover').id,
   pages,
 };

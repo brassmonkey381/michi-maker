@@ -49,6 +49,7 @@ import {
   occupiedCells,
   remintBinderIds,
   slotCells,
+  sortByRecentEdit,
   uuidv4,
   type DemoBinder,
   type DemoPage,
@@ -2214,7 +2215,13 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   const value = useMemo<BinderStore>(
     () => ({
       binders,
-      exampleBinders: binders.filter((binder) => binder.isExample),
+      // NEWEST FIRST (owner, 2026-09-11). There was no sort before this: the shelf ran in curation
+      // order, MODULES in data/content/index then each module's array, which is why putting a
+      // binder at the front used to mean editing that list. `updatedAt` on a bundled binder is the
+      // date it was AUTHORED, declared in its builder rather than stamped at build time, so a
+      // regeneration does not reshuffle the front page. An undated binder keeps its incoming order
+      // at the end, so a module that never learns to stamp one degrades to the old behaviour.
+      exampleBinders: sortByRecentEdit(binders.filter((binder) => binder.isExample)),
       // The ranked shelf, with a time-limited pin at the front when one is live (see
       // data/featuredPin). `binders` is passed as the lookup because the pinned binder is a
       // BUNDLED example with no database row, so it is never in `featured` itself.

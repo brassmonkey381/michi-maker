@@ -35,6 +35,7 @@ const OUT = join(ROOT, 'src', 'data', 'releaseBinders.json');
 const SET_CONFIGS = [
   {
     setId: 24688, // ME05: Pitch Black — releases 2026-07-17
+    authored: '2026-07-17',
     keyPrefix: 'pitch-black',
     chase: {
       title: 'Pitch Black: Chase Board',
@@ -61,6 +62,7 @@ const SET_CONFIGS = [
   },
   {
     setId: 24722, // ME: 30th Celebration — releases 2026-09
+    authored: '2026-09-11', // rebuilt when the set grew from 19 cards to 154
     keyPrefix: '30th-celebration',
     chase: {
       title: '30th Celebration: Chase Board',
@@ -90,6 +92,7 @@ const SET_CONFIGS = [
   },
   {
     setId: 24655, // ME04: Chaos Rising — released 2026-05
+    authored: '2026-05-15',
     keyPrefix: 'chaos-rising',
     chase: {
       title: 'Chaos Rising: Chase Board',
@@ -207,10 +210,22 @@ function page(binderId, pageIdx, ids, { rows = 3, cols = 3, center = false } = {
 const id = (c) => String(c.id);
 const firstCover = (pages) => pages[0]?.slots.find((s) => s.cardId)?.cardId;
 
-function makeBinder(key, meta, pages) {
+/**
+ * WHEN THIS BINDER WAS AUTHORED, not when the script last ran.
+ *
+ * The examples shelf is sorted newest first, so this decides where a binder lands. It is a declared
+ * constant rather than a build timestamp on purpose: stamping `new Date()` would send every binder
+ * in this module to the top of the shelf every time anyone regenerated it, so a no-op rebuild would
+ * silently reshuffle the front page. Bump it by hand when the binder actually changes.
+ */
+function makeBinder(key, meta, pages, cfg) {
   const kept = pages.filter((p) => p.slots.length > 0);
   if (kept.length === 0) return null;
-  return { id: key, ...meta, isExample: true, coverCardId: firstCover(kept), pages: kept };
+  const { everyCard, ...rest } = meta; // builder-only knobs never reach the binder
+  return {
+    id: key, ...rest, isExample: true, updatedAt: cfg?.authored ?? null,
+    coverCardId: firstCover(kept), pages: kept,
+  };
 }
 
 // ---- 1) Chase Board ----------------------------------------------------------
@@ -233,7 +248,7 @@ function chaseBoard(cfg, pool) {
     rest = rest.slice(9);
     p += 1;
   }
-  return makeBinder(key, cfg.chase, pages);
+  return makeBinder(key, cfg.chase, pages, cfg);
 }
 
 // ---- 2) Set Showcase ---------------------------------------------------------
@@ -294,7 +309,7 @@ function setShowcase(cfg, pool) {
   const storyIds = story.slice(0, 9).map(id);
   if (storyIds.length > 0) pages.push(page(key, p++, storyIds));
 
-  return makeBinder(key, cfg.showcase, pages);
+  return makeBinder(key, cfg.showcase, pages, cfg);
 }
 
 // ---- 3) Beautiful Bulk ---------------------------------------------------------
@@ -326,7 +341,7 @@ function beautifulBulk(cfg, pool) {
   for (let p = 0; p * 9 < ordered.length; p += 1) {
     pages.push(page(key, p, ordered.slice(p * 9, p * 9 + 9).map(id)));
   }
-  return makeBinder(key, cfg.bulk, pages);
+  return makeBinder(key, cfg.bulk, pages, cfg);
 }
 
 // ---- assemble ------------------------------------------------------------------

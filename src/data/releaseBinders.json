@@ -5,6 +5,7 @@
     "description": "Releases July 17. Prep this before you open a single pack. Every hit worth pulling from ME05: the Mega Hyper Rare Mega Darkrai crowning page one, the full Illustration Rare wall, and the ex board. Duplicate it and check them off as you rip.",
     "layoutStyle": "anchor",
     "isExample": true,
+    "updatedAt": "2026-07-17",
     "coverCardId": "704871",
     "pages": [
       {
@@ -471,6 +472,7 @@
     "description": "What makes this set special: Mega Evolution rarity ladders (Double Rare → Ultra Rare → Special Illustration Rare, one Mega per row), the Darkness-type stars, and the Gladion / Gwynn / Rust Syndicate storyline — each character beside their secret-rare self, Silvally beside its partner.",
     "layoutStyle": "themed_story",
     "isExample": true,
+    "updatedAt": "2026-07-17",
     "coverCardId": "704805",
     "pages": [
       {
@@ -745,6 +747,7 @@
     "description": "The other 74 cards deserve a home too. Every common, uncommon and rare, color-blocked by energy type so page after page of \"bulk\" reads as one organized, intentional collection. The reward for actually opening packs.",
     "layoutStyle": "color_theme",
     "isExample": true,
+    "updatedAt": "2026-07-17",
     "coverCardId": "704786",
     "pages": [
       {
@@ -1484,6 +1487,7 @@
     "description": "The anniversary special (September), and the cards worth hunting in it: the Futuristic Rare Mewtwo ex and Mew ex crowns, the Special Illustration Rares, the full Illustration Rare wall, and every anniversary ex. Duplicate it and check them off as you rip.",
     "layoutStyle": "anchor",
     "isExample": true,
+    "updatedAt": "2026-09-11",
     "coverCardId": "696688",
     "pages": [
       {
@@ -2153,6 +2157,7 @@
     "description": "Thirty years in one spread: the Eevee line's base-and-ex pairs, the anniversary exes and Illustration Rares, and Mew & Mewtwo closing the celebration the way they opened 1996.",
     "layoutStyle": "themed_story",
     "isExample": true,
+    "updatedAt": "2026-09-11",
     "coverCardId": "714357",
     "pages": [
       {
@@ -2320,8 +2325,8 @@
     "title": "30th Celebration: Every Last Card",
     "description": "Every card in the set, in one binder, organized by type. Not a selection and not the leftovers: the commons, the exes, the Illustration Rares and the secret prints, in the order a complete set sits in.",
     "layoutStyle": "color_theme",
-    "everyCard": true,
     "isExample": true,
+    "updatedAt": "2026-09-11",
     "coverCardId": "712934",
     "pages": [
       {
@@ -3844,6 +3849,7 @@
     "description": "Still ripping ME04? Every hit in one place: the Mega Hyper Rare crown centered on page one, the Special Illustration Rares, the Illustration Rare wall, and the ex board — duplicate it and track your pulls.",
     "layoutStyle": "anchor",
     "isExample": true,
+    "updatedAt": "2026-05-15",
     "coverCardId": "693517",
     "pages": [
       {
@@ -4310,6 +4316,7 @@
     "description": "The set’s identity: five Mega Evolutions climbing their rarity ladders one per row (base ex → secret prints), the Dragon-type stars that give ME04 its bite, and the AZ / Emma / Roxie supporter story beside their full-art selves.",
     "layoutStyle": "themed_story",
     "isExample": true,
+    "updatedAt": "2026-05-15",
     "coverCardId": "693515",
     "pages": [
       {
@@ -4575,6 +4582,7 @@
     "description": "Seventy-six commons, uncommons and rares, color-blocked by energy type: the binder that makes a stack of ME04 bulk look like a curated collection instead of a shoebox.",
     "layoutStyle": "color_theme",
     "isExample": true,
+    "updatedAt": "2026-05-15",
     "coverCardId": "693539",
     "pages": [
       {

@@ -397,8 +397,12 @@ console.error('');
 for (const [label, list] of [['LEAK', leaks], ['BROKEN', broken], ['DRIFT', drift], ['INCONCLUSIVE', unsure], ['HEADROOM', headroom]]) {
   if (!list.length) continue;
   console.error(`${label}:`);
-  for (const p of list) console.error(`  ${p.what}`.padEnd(52) + (p.what.length > 49 ? '
-      ' : '') + p.detail);
+  // A long label wraps rather than running into its detail, which is what made the first DRIFT
+  // report read as "...three different ranks)509987 score 2.2800".
+  for (const p of list) {
+    const label2 = `  ${p.what}`;
+    console.error(label2.length > 50 ? `${label2}\n      ${p.detail}` : label2.padEnd(52) + p.detail);
+  }
   console.error('');
 }
 if (leaks.length) {

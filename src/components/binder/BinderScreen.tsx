@@ -37,6 +37,7 @@ import { PrintPlaceholdersSheet } from '@/components/binder/PrintPlaceholdersShe
 import { ShareSheet } from '@/components/binder/ShareSheet';
 import { PocketRing, type PocketRect } from '@/components/binder/PocketRing';
 import { SliceStudio, type SliceStudioHandle } from '@/components/binder/SliceStudio';
+import { Tipped, ToolTip } from '@/components/binder/ToolTip';
 import { WalkthroughBanner } from '@/components/binder/WalkthroughBanner';
 import { useFirstPocketWalkthrough } from '@/hooks/use-first-pocket-walkthrough';
 import { SlotMultiActions } from '@/components/binder/SlotMultiActions';
@@ -1851,16 +1852,19 @@ export function BinderScreen({
       <View style={styles.groupRule} />
       <View ref={pageToolsRef} style={styles.pageGroup}>
         {/* Tapping it opens the page's details — the same dialog the title above the page opens —
-            so a page's name sits at the head of the page's own tools as well as over its art. */}
-        <Pressable
-          onPress={() => setPageInfoOpen(true)}
-          hitSlop={6}
-          accessibilityRole="button"
-          accessibilityLabel={`Page ${idx + 1} of ${binder.pages.length} — name and description`}
-          testID="tool-page-badge"
-          style={styles.pageBadge}>
-          <Text style={styles.pageBadgeText}>{`▤ ${idx + 1}/${binder.pages.length}`}</Text>
-        </Pressable>
+            so a page's name sits at the head of the page's own tools as well as over its art.
+            Not an IconBtn (it is a counter, not a 30px square), so it carries its own tip. */}
+        <Tipped text={`Page ${idx + 1} of ${binder.pages.length}. Name and describe this page`}>
+          <Pressable
+            onPress={() => setPageInfoOpen(true)}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel={`Page ${idx + 1} of ${binder.pages.length} — name and description`}
+            testID="tool-page-badge"
+            style={styles.pageBadge}>
+            <Text style={styles.pageBadgeText}>{`▤ ${idx + 1}/${binder.pages.length}`}</Text>
+          </Pressable>
+        </Tipped>
         <IconBtn
           glyph="+"
           // THE ONE THAT CARRIES ITS WORDS. People were reported not to find this at all: a bare
@@ -2051,24 +2055,31 @@ export function BinderScreen({
                 onLayout={(e) => setHeaderRightW(e.nativeEvent.layout.width)}>
                 {editing ? editIcons : null}
                 {isSupabaseConfigured && likeCount !== null ? (
-                  <Pressable
-                    onPress={() => setLikesOpen(true)}
-                    hitSlop={8}
-                    accessibilityLabel="See who liked this binder"
-                    style={styles.likeChip}>
-                    <Text style={styles.likeChipHeart}>♥</Text>
-                    <Text style={styles.likeChipText}>{likeCount}</Text>
-                  </Pressable>
+                  <Tipped text="See who liked this binder">
+                    <Pressable
+                      onPress={() => setLikesOpen(true)}
+                      hitSlop={8}
+                      accessibilityLabel="See who liked this binder"
+                      style={styles.likeChip}>
+                      <Text style={styles.likeChipHeart}>♥</Text>
+                      <Text style={styles.likeChipText}>{likeCount}</Text>
+                    </Pressable>
+                  </Tipped>
                 ) : null}
-                {/* The view settings, in both modes. A gear, not a row. */}
-                <Pressable
-                  onPress={() => setSettingsOpen(true)}
-                  hitSlop={10}
-                  accessibilityRole="button"
-                  accessibilityLabel="View settings"
-                  testID="binder-settings-btn">
-                  <Text style={[styles.headerAction, { color: theme.text }]}>⚙</Text>
-                </Pressable>
+                {/* The view settings, in both modes. A gear, not a row. Tipped like the tools it
+                    sits beside: a bare glyph among labelled neighbours is the odd one out twice
+                    over, once for having no word and once for being the only one that stays mute
+                    under the pointer. */}
+                <Tipped text="How this binder looks: page size, background, soundtrack">
+                  <Pressable
+                    onPress={() => setSettingsOpen(true)}
+                    hitSlop={10}
+                    accessibilityRole="button"
+                    accessibilityLabel="View settings"
+                    testID="binder-settings-btn">
+                    <Text style={[styles.headerAction, { color: theme.text }]}>⚙</Text>
+                  </Pressable>
+                </Tipped>
                 {/* SELECT SEVERAL POCKETS acts on a SELECTION, not on the page, so it belongs
                     with the count it produces rather than inside the page group.
 
@@ -2890,6 +2901,7 @@ function IconBtn({
   glyph,
   label,
   word,
+  tip,
   onPress,
   disabled = false,
   active = false,
@@ -2900,50 +2912,62 @@ function IconBtn({
   label: string;
   /** Printed next to the glyph. Short: this sits in chrome, not in the flow. */
   word?: string;
+  /** What the hover tip says, when the full `label` is longer than a tip should be. */
+  tip?: string;
   onPress: () => void;
   disabled?: boolean;
   active?: boolean;
   tone?: 'default' | 'danger';
   testID?: string;
 }) {
+  /**
+   * THE WORDS, ON HOVER. Every one of these buttons already carried its meaning in `label` and
+   * spread it onto the Pressable as `title`, the browser's own tooltip — which react-native-web
+   * does not forward, so it has never once been shown. See ToolTip.tsx. A disabled button still
+   * gets its tip: "why can I not press this" is the question a greyed-out glyph most provokes.
+   */
+  const hover = useHoverReveal(true);
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      hitSlop={6}
-      testID={testID}
-      accessibilityRole="button"
-      accessibilityState={{ disabled, selected: active }}
-      accessibilityLabel={label}
-      // Web only, and harmless elsewhere: the same words as a native tooltip.
-      {...({ title: label } as object)}
-      style={({ pressed }) => [
-        styles.iconBtn,
-        word ? styles.iconBtnWide : null,
-        active && styles.iconBtnActive,
-        pressed && !disabled && styles.pressed,
-      ]}>
-      <Text
-        style={[
-          styles.iconGlyph,
-          tone === 'danger' && styles.iconGlyphDanger,
-          active && styles.iconGlyphActive,
-          disabled && styles.iconGlyphOff,
+    <View style={styles.tipAnchor} onPointerEnter={hover.onHoverIn} onPointerLeave={hover.onHoverOut}>
+      <Pressable
+        onPress={onPress}
+        disabled={disabled}
+        hitSlop={6}
+        testID={testID}
+        accessibilityRole="button"
+        accessibilityState={{ disabled, selected: active }}
+        accessibilityLabel={label}
+        onHoverIn={hover.onHoverIn}
+        onHoverOut={hover.onHoverOut}
+        style={({ pressed }) => [
+          styles.iconBtn,
+          word ? styles.iconBtnWide : null,
+          active && styles.iconBtnActive,
+          pressed && !disabled && styles.pressed,
         ]}>
-        {glyph}
-      </Text>
-      {word ? (
         <Text
           style={[
-            styles.iconWord,
+            styles.iconGlyph,
             tone === 'danger' && styles.iconGlyphDanger,
             active && styles.iconGlyphActive,
             disabled && styles.iconGlyphOff,
           ]}>
-          {word}
+          {glyph}
         </Text>
-      ) : null}
-    </Pressable>
+        {word ? (
+          <Text
+            style={[
+              styles.iconWord,
+              tone === 'danger' && styles.iconGlyphDanger,
+              active && styles.iconGlyphActive,
+              disabled && styles.iconGlyphOff,
+            ]}>
+            {word}
+          </Text>
+        ) : null}
+      </Pressable>
+      {hover.shown ? <ToolTip text={tip ?? label} /> : null}
+    </View>
   );
 }
 
@@ -3055,6 +3079,12 @@ const styles = StyleSheet.create({
   groupRule: { width: 1, height: 18, marginHorizontal: 5, backgroundColor: Palette.hairline },
   pageBadge: { height: 24, paddingHorizontal: 5, justifyContent: 'center' },
   pageBadgeText: { fontSize: FontSize.sm, fontWeight: Weight.semibold, color: Palette.ink2 },
+  /**
+   * What a hover tip centres on. It must not change the control's own size, so it has no padding
+   * and no flex of its own: `alignItems` is the whole job, because Yoga positions an absolute child
+   * with no left/right by its parent's alignment.
+   */
+  tipAnchor: { position: 'relative', alignItems: 'center' },
   iconBtn: {
     width: 30,
     height: 30,

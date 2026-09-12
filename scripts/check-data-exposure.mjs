@@ -370,14 +370,18 @@ const altTable = await get('alternates?select=reason,difficulty,hint,max_distanc
 checks++;
 if (altTable.status === 200 && altTable.rows?.length) fail('LEAK', 'public.alternates', 'the confusability map: which cards the recognizer cannot tell apart, with its reasons');
 else ok('public.alternates refused');
-// The tcgcsv shadow price table (tcgscan-data migration 67). Private until a swap decision, so
-// ANY grant to anon is wrong, including one RLS happens to hide: a 200 with zero rows means the
-// grant exists and only a missing policy is holding. Only a 401/403 proves it is closed.
-const shadow = await get('prices_tcgcsv?select=product_id&limit=1');
-checks++;
-if (shadow.status === 401 || shadow.status === 403) ok('prices_tcgcsv refused (private shadow table)');
-else if (shadow.status === 200) fail('LEAK', 'prices_tcgcsv is readable by anon', 'a private shadow table answered 200; the revoke did not hold');
-else fail('INCONCLUSIVE', 'prices_tcgcsv could not be probed', `HTTP ${shadow.status}: if 404, the table is not in the API schema cache yet`);
+// Private tcgcsv tables: the shadow price table (tcgscan-data migration 67) and the One Piece
+// catalog (migration 68). ANY grant to anon is wrong, including one RLS happens to hide: a 200 with
+// zero rows means the grant exists and only a missing policy is holding. Only a 401/403 proves it
+// is closed.
+for (const [table, column] of [['prices_tcgcsv', 'product_id'], ['onepiece_sets', 'id'], ['onepiece_cards', 'id'], ['onepiece_sealed', 'id']]) {
+  const res = await get(`${table}?select=${column}&limit=1`);
+  checks++;
+  if (res.status === 401 || res.status === 403) ok(`${table} refused (private tcgcsv table)`);
+  else if (res.status === 200) fail('LEAK', `${table} is readable by anon`, 'a private table answered 200; the revoke did not hold');
+  else fail('INCONCLUSIVE', `${table} could not be probed`, `HTTP ${res.status}: if 404, the table is not in the API schema cache yet`);
+  await pause(250);
+}
 
 // ---------------------------------------------------------------- 5. NOBODY CAN WRITE
 console.log('5. nobody anonymous can write');

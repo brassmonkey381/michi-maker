@@ -132,6 +132,11 @@ const PARITY = [
     want: ['object:cannon'], bonus: ['scene:water', 'mood:calm'], avoid: [],
     expect: [
       { id: '117892', score: 1.30, hits: ['object:cannon'], qualifies: true },
+      // 542892 IS THE SHARPEST PIN IN THE SET, so do not drop it for being the odd one. It has no
+      // want hit at all, which makes `qualifies` false — and it is still RETURNED, because both
+      // bonus tags matched and the rule only discards a hitless card when fewer than two did. A
+      // scorer that returned null here, or that derived `qualifies` from "did we return it" rather
+      // than from the hits, would pass every other assertion in this file and fail only this one.
       { id: '542892', score: 1.225, hits: [], qualifies: false },
     ],
   },

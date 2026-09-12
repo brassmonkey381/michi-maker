@@ -38,9 +38,15 @@ export function loadTrainerPartners(): Promise<void> {
   if (!loadPromise) {
     loadPromise = (async () => {
       try {
-        const res = await fetch(`${getApiUrl()}/trainer_partners?select=*`, {
-          headers: { apikey: getApiKey() },
-        });
+        // PINNED, NOT `select=*`. A star asks for whatever the table happens to have, so the
+        // client's actual needs cannot be read off the client, which makes it the one relation a
+        // column grant has to guess at. It also fails on a column RENAME and not just a revoke,
+        // silently, because the catch below is fail-soft by design. These five are exactly the
+        // fields mapped immediately underneath; keep the two lists in step.
+        const res = await fetch(
+          `${getApiUrl()}/trainer_partners?select=name,signature,pokemon,associates,tokens`,
+          { headers: { apikey: getApiKey() } },
+        );
         if (!res.ok) return;
         const rows = (await res.json()) as {
           name: string;

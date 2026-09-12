@@ -900,7 +900,31 @@ export function BinderProvider({ children }: { children: ReactNode }) {
           binder.id === binderId ? { ...binder, pages: [...binder.pages, page] } : binder,
         ),
       );
-      if (!target.isExample) persist(() => repo.insertPage(binderId, page, target.pages.length));
+      if (!target.isExample) {
+        /**
+         * SELF-HEALING, because binders gapped by the old `removePage` are already out there.
+         *
+         * `position` is derived from the page COUNT, which is only the next free slot while the
+         * run is 0..n-1. A binder whose run has a hole (see removePage) has its maximum one above
+         * the count, so this aims at an occupied position and `unique (binder_id, position)`
+         * refuses it — permanently, on every future add, with nothing but a save banner to say so.
+         *
+         * Rather than leave those binders needing a hand-run data repair, close the run and try
+         * once more. This is the same discipline `upsertSlot` applies one pocket at a time: the
+         * write makes itself true rather than assuming the server agrees with local state. The
+         * retry is bounded to one and only fires on that specific constraint, so a genuine failure
+         * still surfaces as a save error rather than looping.
+         */
+        persist(async () => {
+          try {
+            await repo.insertPage(binderId, page, target.pages.length);
+          } catch (error) {
+            if (!repo.isPagePositionConflict(error)) throw error;
+            await repo.reorderPages(binderId, target.pages.map((p) => p.id));
+            await repo.insertPage(binderId, page, target.pages.length);
+          }
+        });
+      }
     },
     [binders, limits.pagesPerBinder, commit, persist],
   );
@@ -1180,11 +1204,42 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         prev.map((binder) => (binder.id === binderId ? { ...binder, pages } : binder)),
       );
       if (!target.isExample) {
-        // A spacer changes page positions and adds rows — persist wholesale; a plain removal
-        // stays the cheap single delete.
-        persist(() =>
-          blanksInserted ? repo.replaceBinder({ ...target, pages }) : repo.deletePage(pageId),
-        );
+        /**
+         * A HOLE IN `position` IS PERMANENT, AND IT BREAKS THE NEXT ADD.
+         *
+         * `binder_pages` carries `unique (binder_id, position)` (declared inline in the table
+         * body, init_user_schema.sql:80, which is why it does not turn up next to the word
+         * "binder_pages" in a grep). The cheap branch here used to delete the row and stop, so
+         * removing any page but the last left the run gapped: 0,1,2,3,4,5,6,8.
+         *
+         * `addPage` then asks for `pages.length` as the new position, which after a hole is one
+         * short of the real maximum — so it targets a position that is still occupied, the insert
+         * violates the constraint, and every subsequent add on that binder fails the same way
+         * while the optimistic local state says it worked. That is the SaveErrorBanner the owner
+         * hit on "Punchy Art" (2026-09-12); exactly two binders in the table were in this state
+         * and both were gapped in precisely the way that collides.
+         *
+         * NOT the same rule as binder_slots'. That one was made DEFERRABLE INITIALLY DEFERRED on
+         * 2026-09-06 and `upsertSlot` self-heals a cell besides; the comment saying so sits close
+         * enough to this code to imply a guarantee that does not exist here. Pages get neither.
+         *
+         * One ordered op, because `persist` is fire-and-forget and unordered: the delete has to
+         * land before the resequence, or the resequence writes around a row that is still there.
+         * `reorderPages` parks every page at a negative position first, so the immediate
+         * constraint is never violated mid-update.
+         */
+        const removedIndex = target.pages.findIndex((page) => page.id === pageId);
+        const leavesHole = !blanksInserted && removedIndex >= 0 && removedIndex < target.pages.length - 1;
+        persist(async () => {
+          if (blanksInserted) {
+            // A spacer changes page positions and adds rows — persist wholesale.
+            await repo.replaceBinder({ ...target, pages });
+            return;
+          }
+          await repo.deletePage(pageId);
+          // Removing the LAST page leaves 0..n-1 intact, so it stays the cheap single delete.
+          if (leavesHole) await repo.reorderPages(binderId, pages.map((page) => page.id));
+        });
       }
       return { blanksInserted };
     },

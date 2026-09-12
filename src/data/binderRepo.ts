@@ -430,6 +430,26 @@ export async function insertPage(binderId: string, page: DemoPage, position: num
   if (error) throw new Error(`insert page: ${error.message}`);
 }
 
+/**
+ * Was a failed page write rejected by `unique (binder_id, position)`?
+ *
+ * That rule is declared inline in the table body (init_user_schema.sql:80) and is IMMEDIATE. It is
+ * easy to assume otherwise from here, because `upsertSlot` a few lines down documents at length
+ * how the neighbouring `binder_slots` cell rule is deferrable and self-healing. Pages have neither
+ * property, so a caller that wants to survive a collision has to handle it itself.
+ *
+ * Matched on the message because that is all PostgREST's error hands back through our own wrapper.
+ * The constraint's generated name is checked first; the generic duplicate-key text is the fallback
+ * for a server that phrases it differently.
+ */
+export function isPagePositionConflict(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  return (
+    message.includes('binder_pages_binder_id_position_key')
+    || (message.includes('duplicate key') && message.includes('binder_pages'))
+  );
+}
+
 export async function updatePage(id: string, patch: Partial<DemoPage>): Promise<void> {
   const supabase = requireSupabase();
   const row: PageUpdate = {};

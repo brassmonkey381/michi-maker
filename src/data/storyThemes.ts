@@ -543,6 +543,335 @@ const OPEN_COUNTRY: StoryTheme = {
   artKind: 'any',
 };
 
+// ─── The elements ────────────────────────────────────────────────────────────────────────────────
+// Nine spreads on what a picture is MADE of rather than where it happens. Deliberately not
+// Habitats: that binder sorts by place, this one by substance, so lava and crystal and starfield
+// sit beside water and stone instead of being scattered across a map.
+//
+// Every theme below was measured against the live scorer before it was written down. The thinnest
+// is Firelight at 22 picture-rarity qualifiers and the fattest is Growing things at 329; a spread
+// wants a dozen, so all of them fill. One candidate tag was dropped for never firing at all.
+
+const EL_FIRE: StoryTheme = {
+  id: 'el-fire',
+  title: 'Fire',
+  blurb: 'Lava, embers and the light they throw.',
+  want: ['object:lava', 'scene:lava', 'scene:volcano', 'scene:campfire'],
+  bonus: ['action:glowing', 'mood:dramatic', 'mood:warm', 'scene:desert'],
+  avoid: ['scene:snow', 'scene:ice', 'scene:underwater'],
+  art: ['lava texture close up', 'ember sparks dark background', 'volcano illustration'],
+  artKind: 'any',
+};
+
+const EL_WATER: StoryTheme = {
+  id: 'el-water',
+  title: 'Water',
+  blurb: 'Open sea, river shallows and everything under the surface.',
+  want: ['scene:ocean', 'scene:underwater', 'scene:river', 'scene:lake'],
+  bonus: ['action:swimming', 'action:splashing', 'mood:calm', 'scene:beach'],
+  avoid: ['scene:desert', 'scene:lava'],
+  art: ['underwater light rays', 'ocean surface texture', 'river stones clear water'],
+  artKind: 'any',
+};
+
+const EL_EARTH: StoryTheme = {
+  id: 'el-earth',
+  title: 'Earth',
+  blurb: 'Stone, soil and the rooms under it.',
+  want: ['scene:rocks', 'object:rocks', 'scene:cave', 'scene:underground'],
+  bonus: ['flag:underground', 'action:digging', 'action:burrowing', 'scene:mountain'],
+  avoid: ['scene:sky', 'scene:space'],
+  art: ['rock strata texture', 'cave interior illustration', 'cracked earth close up'],
+  artKind: 'any',
+};
+
+const EL_AIR: StoryTheme = {
+  id: 'el-air',
+  title: 'Air',
+  blurb: 'Everything with nothing underneath it.',
+  want: ['scene:sky', 'scene:clouds', 'object:clouds', 'action:flying', 'action:soaring'],
+  bonus: ['action:floating', 'action:drifting', 'flag:outdoor', 'mood:hopeful'],
+  avoid: ['flag:indoor', 'scene:underground', 'scene:underwater'],
+  art: ['cloud study sky', 'wind swept clouds illustration', 'high altitude blue sky'],
+  artKind: 'any',
+};
+
+const EL_ICE: StoryTheme = {
+  id: 'el-ice',
+  title: 'Ice',
+  blurb: 'Cold as a material: frost, drifts and hard blue light.',
+  want: ['scene:ice', 'scene:snow', 'object:snow', 'mood:cold'],
+  bonus: ['mood:quiet', 'mood:serene', 'scene:mountain'],
+  avoid: ['scene:lava', 'scene:desert', 'mood:sunny'],
+  art: ['ice crystal macro', 'frost on glass texture', 'glacier blue ice'],
+  artKind: 'any',
+};
+
+const EL_STORM: StoryTheme = {
+  id: 'el-storm',
+  title: 'Storm',
+  blurb: 'Weather with a temper.',
+  want: ['scene:storm', 'mood:stormy', 'scene:rain'],
+  bonus: ['mood:dramatic', 'mood:tense', 'scene:clouds', 'action:shouting'],
+  avoid: ['mood:sunny', 'mood:calm', 'flag:indoor'],
+  art: ['storm clouds dramatic', 'lightning over water', 'rain on dark window'],
+  artKind: 'any',
+};
+
+const EL_CRYSTAL: StoryTheme = {
+  id: 'el-crystal',
+  title: 'Crystal',
+  blurb: 'Facets, gemstones and things that hold light.',
+  want: ['object:crystals', 'object:gems', 'object:orbs'],
+  bonus: ['action:glowing', 'mood:mysterious', 'scene:cave', 'object:coin'],
+  art: ['crystal cluster macro', 'gemstone facets light', 'amethyst geode'],
+  artKind: 'any',
+};
+
+const EL_GROWING: StoryTheme = {
+  id: 'el-growing',
+  title: 'Growing things',
+  blurb: 'The green element: leaf, petal and blade.',
+  want: ['scene:flowers', 'object:flowers', 'scene:grass', 'scene:meadow', 'object:leaves'],
+  bonus: ['scene:garden', 'scene:forest', 'object:mushrooms', 'mood:tender'],
+  avoid: ['scene:city', 'scene:lava'],
+  art: ['pressed leaves botanical', 'wildflower meadow close up', 'fern fronds pattern'],
+  artKind: 'any',
+};
+
+const EL_STARFIELD: StoryTheme = {
+  id: 'el-starfield',
+  title: 'Starfield',
+  blurb: 'The element nobody can stand on.',
+  want: ['scene:space', 'scene:stars', 'object:stars', 'scene:moon'],
+  bonus: ['flag:night', 'mood:dreamy', 'action:floating', 'action:glowing'],
+  avoid: ['flag:day', 'mood:sunny', 'flag:indoor'],
+  art: ['star field deep space', 'nebula illustration', 'moon surface detail'],
+  artKind: 'any',
+};
+
+// ─── The journey ─────────────────────────────────────────────────────────────────────────────────
+// Nine spreads that run in ORDER, which no other template does: leave, travel, cross, climb, go
+// under, make camp, find the thing, meet what guards it, come home. Read as a book it is a story
+// rather than a set of categories, so the SPREAD ORDER here is load-bearing and should not be
+// sorted or shuffled for tidiness.
+
+const JR_SETTING_OUT: StoryTheme = {
+  id: 'jr-setting-out',
+  title: 'Setting out',
+  blurb: 'Packed, carrying something, already walking.',
+  want: ['object:backpack', 'action:walking', 'action:carrying', 'object:basket'],
+  bonus: ['flag:outdoor', 'mood:hopeful', 'action:holding', 'scene:road'],
+  avoid: ['action:sleeping'],
+  art: ['vintage backpack illustration', 'walking boots path', 'travel kit flat lay'],
+  artKind: 'any',
+};
+
+const JR_OPEN_ROAD: StoryTheme = {
+  id: 'jr-open-road',
+  title: 'The open road',
+  blurb: 'Roads, bridges and anything with wheels.',
+  want: ['scene:road', 'object:car', 'object:bicycle', 'action:riding', 'scene:bridge'],
+  bonus: ['action:running', 'scene:town', 'mood:energetic'],
+  avoid: ['flag:indoor', 'scene:underwater'],
+  art: ['empty road vanishing point', 'old bridge illustration', 'bicycle against wall'],
+  artKind: 'any',
+};
+
+const JR_CROSSING: StoryTheme = {
+  id: 'jr-crossing',
+  title: 'The crossing',
+  blurb: 'Water in the way, and the boat or the swim that gets past it.',
+  want: ['object:boat', 'scene:river', 'scene:lake', 'action:swimming'],
+  bonus: ['action:splashing', 'scene:bridge', 'mood:calm', 'scene:ocean'],
+  avoid: ['scene:desert'],
+  art: ['wooden rowboat on water', 'river crossing stones', 'ferry illustration'],
+  artKind: 'any',
+};
+
+const JR_CLIMB: StoryTheme = {
+  id: 'jr-climb',
+  title: 'The climb',
+  blurb: 'Upward, on rock.',
+  want: ['action:climbing', 'scene:mountain', 'scene:rocks'],
+  bonus: ['action:jumping', 'mood:grand', 'scene:sky', 'object:rocks'],
+  avoid: ['flag:indoor', 'scene:underwater'],
+  art: ['mountain ridge silhouette', 'rock face climbing route', 'summit view clouds'],
+  artKind: 'any',
+};
+
+const JR_INTO_THE_DARK: StoryTheme = {
+  id: 'jr-into-the-dark',
+  title: 'Into the dark',
+  blurb: 'Underground, and whatever lives there.',
+  want: ['scene:cave', 'flag:underground', 'scene:underground', 'action:burrowing', 'action:digging'],
+  bonus: ['mood:eerie', 'object:lantern', 'action:glowing', 'object:crystals'],
+  avoid: ['flag:day', 'mood:sunny', 'scene:sky'],
+  art: ['cave mouth darkness', 'mine tunnel lantern', 'underground cavern illustration'],
+  artKind: 'any',
+};
+
+const JR_MAKING_CAMP: StoryTheme = {
+  id: 'jr-making-camp',
+  title: 'Making camp',
+  blurb: 'Fire lit, something cooking, nobody going any further tonight.',
+  want: ['scene:campfire', 'object:lantern', 'action:cooking', 'action:resting'],
+  bonus: ['mood:cozy', 'object:food', 'flag:night', 'action:sitting'],
+  avoid: ['mood:frantic', 'mood:chaotic'],
+  art: ['campfire at night', 'camp lantern glow', 'tent under stars illustration'],
+  artKind: 'any',
+};
+
+const JR_THE_FIND: StoryTheme = {
+  id: 'jr-the-find',
+  title: 'The find',
+  blurb: 'What the whole trip was for.',
+  want: ['object:gems', 'object:crystals', 'object:coin', 'action:digging'],
+  bonus: ['object:orbs', 'action:holding', 'mood:triumphant', 'action:glowing'],
+  art: ['treasure chest open illustration', 'gold coins pile', 'gemstones in hand'],
+  artKind: 'any',
+};
+
+const JR_OLD_STONES: StoryTheme = {
+  id: 'jr-old-stones',
+  title: 'Old stones',
+  blurb: 'Ruins, temples and whatever has been standing guard the whole time.',
+  want: ['scene:ruins', 'scene:temple', 'action:guarding', 'mood:solemn'],
+  bonus: ['mood:grand', 'mood:mysterious', 'mood:eerie', 'scene:rocks'],
+  avoid: ['mood:playful', 'scene:city'],
+  art: ['ancient stone ruins overgrown', 'temple columns illustration', 'carved monolith'],
+  artKind: 'any',
+};
+
+const JR_HOMEWARD: StoryTheme = {
+  id: 'jr-homeward',
+  title: 'Homeward',
+  blurb: 'Indoors, warm, and finally asleep.',
+  want: ['flag:indoor', 'scene:house', 'action:sleeping', 'mood:cozy'],
+  bonus: ['scene:bedroom', 'scene:kitchen', 'mood:warm', 'action:resting', 'object:cushions'],
+  avoid: ['mood:chaotic', 'scene:storm'],
+  art: ['lit window at dusk', 'cosy room illustration', 'front door lantern evening'],
+  artKind: 'any',
+};
+
+// ─── Light and dark ──────────────────────────────────────────────────────────────────────────────
+// Ten spreads sorted by WHERE THE LIGHT COMES FROM, which is a different question from what time
+// it is (Day to night) or how the card was drawn (Drawn). A lantern, a city sign and a star are
+// the same subject here and land in three different spreads in every other template.
+
+const LD_SUNLIT: StoryTheme = {
+  id: 'ld-sunlit',
+  title: 'Sunlit',
+  blurb: 'Daylight doing the work, no other source needed.',
+  want: ['mood:sunny', 'flag:day', 'scene:sky'],
+  bonus: ['flag:outdoor', 'mood:cheerful', 'scene:meadow', 'scene:beach'],
+  avoid: ['flag:night', 'mood:gloomy', 'flag:indoor'],
+  art: ['sunbeams through leaves', 'bright summer sky', 'sunlight on water surface'],
+  artKind: 'any',
+};
+
+const LD_GOLDEN_HOUR: StoryTheme = {
+  id: 'ld-golden-hour',
+  title: 'Golden hour',
+  blurb: 'The last warm hour, and everything it flatters.',
+  want: ['scene:sunset', 'mood:warm', 'mood:nostalgic'],
+  bonus: ['mood:tender', 'scene:clouds', 'mood:calm', 'mood:sleepy'],
+  avoid: ['mood:chaotic', 'scene:underground'],
+  art: ['golden hour field backlit', 'sunset gradient sky', 'long shadows evening light'],
+  artKind: 'any',
+};
+
+const LD_LANTERNS: StoryTheme = {
+  id: 'ld-lanterns',
+  title: 'Lanterns',
+  blurb: 'Light somebody hung up on purpose.',
+  want: ['object:lantern', 'object:lights', 'scene:festival'],
+  bonus: ['flag:night', 'mood:festive', 'object:bunting', 'mood:cozy'],
+  avoid: ['flag:day'],
+  art: ['paper lanterns strung night', 'festival lights warm bokeh', 'lantern illustration'],
+  artKind: 'any',
+};
+
+const LD_FIRELIGHT: StoryTheme = {
+  id: 'ld-firelight',
+  title: 'Firelight',
+  blurb: 'The oldest light source there is.',
+  want: ['scene:campfire', 'object:lava', 'scene:lava'],
+  bonus: ['action:glowing', 'mood:warm', 'mood:cozy', 'flag:night'],
+  avoid: ['mood:cold', 'scene:ice'],
+  art: ['campfire embers close up', 'firelight on faces', 'burning coals texture'],
+  artKind: 'any',
+};
+
+const LD_CITY_GLOW: StoryTheme = {
+  id: 'ld-city-glow',
+  title: 'City glow',
+  blurb: 'Signs, screens and streetlight.',
+  want: ['scene:city', 'object:lights', 'object:screen', 'scene:road'],
+  bonus: ['flag:night', 'scene:town', 'object:sign', 'mood:busy'],
+  avoid: ['scene:forest', 'scene:meadow'],
+  art: ['neon signs wet street', 'city skyline at night', 'shop window glow evening'],
+  artKind: 'any',
+};
+
+const LD_STARLIGHT: StoryTheme = {
+  id: 'ld-starlight',
+  title: 'Starlight',
+  blurb: 'Light that left a long time ago.',
+  want: ['scene:stars', 'object:stars', 'scene:space'],
+  bonus: ['flag:night', 'mood:dreamy', 'mood:serene', 'scene:moon'],
+  avoid: ['flag:day', 'flag:indoor'],
+  art: ['milky way over horizon', 'constellation chart illustration', 'star trails long exposure'],
+  artKind: 'any',
+};
+
+const LD_MOONLIGHT: StoryTheme = {
+  id: 'ld-moonlight',
+  title: 'Moonlight',
+  blurb: 'Cool, low and enough to see by.',
+  want: ['scene:moon', 'flag:night', 'mood:dreamy'],
+  bonus: ['mood:quiet', 'mood:serene', 'action:sleeping', 'scene:clouds'],
+  avoid: ['flag:day', 'mood:sunny'],
+  art: ['full moon through clouds', 'moonlit water surface', 'night landscape blue'],
+  artKind: 'any',
+};
+
+const LD_SILHOUETTE: StoryTheme = {
+  id: 'ld-silhouette',
+  title: 'Silhouettes',
+  blurb: 'Shape first, detail never.',
+  want: ['style:silhouette', 'style:high contrast', 'style:flat'],
+  bonus: ['style:graphic poster', 'style:no outlines', 'mood:dramatic'],
+  avoid: ['style:soft focus'],
+  art: ['silhouette against sunset', 'high contrast shapes poster', 'paper cut shadow art'],
+  artKind: 'illustration',
+};
+
+const LD_GLOWING: StoryTheme = {
+  id: 'ld-glowing',
+  title: 'Things that glow',
+  blurb: 'The light is coming from the subject.',
+  want: ['action:glowing', 'object:orbs', 'object:crystals'],
+  bonus: ['mood:mysterious', 'flag:night', 'object:lights', 'mood:dreamy'],
+  avoid: ['mood:sunny', 'flag:day'],
+  art: ['bioluminescence dark water', 'glowing orb illustration', 'fireflies at dusk'],
+  artKind: 'any',
+};
+
+const LD_IN_THE_DARK: StoryTheme = {
+  id: 'ld-in-the-dark',
+  title: 'In the dark',
+  blurb: 'Where the light has run out.',
+  // `mood:mysterious` was in the first draft of this list and is NOT here: measured against the
+  // live scorer it never once fired, so it would have been a tag that looked like it was doing
+  // work and was not. The other three carry the theme on their own.
+  want: ['mood:eerie', 'mood:gloomy', 'flag:night'],
+  bonus: ['mood:menacing', 'mood:moody', 'scene:cave', 'mood:tense'],
+  avoid: ['mood:sunny', 'mood:cheerful', 'flag:day'],
+  art: ['dark forest fog', 'deep shadow texture', 'moonless night illustration'],
+  artKind: 'any',
+};
+
 // ─── Templates ───────────────────────────────────────────────────────────────────────────────────
 
 export const STORY_TEMPLATES: StoryTemplate[] = [
@@ -610,6 +939,27 @@ export const STORY_TEMPLATES: StoryTemplate[] = [
     blurb: 'Shops, ruins, city streets and one big crowd.',
     coverArt: ['old town street map illustration', 'travel postcards collage'],
     spreads: [SIGNS_AND_SHOPS, RUINS, CITY_LIGHTS, CROWD],
+  },
+  {
+    id: 'elements',
+    title: 'The elements',
+    blurb: 'Nine spreads on what a picture is made of: fire, water, earth, air and five more.',
+    coverArt: ['alchemy elements engraving', 'four elements symbols illustration'],
+    spreads: [EL_FIRE, EL_WATER, EL_EARTH, EL_AIR, EL_ICE, EL_STORM, EL_CRYSTAL, EL_GROWING, EL_STARFIELD],
+  },
+  {
+    id: 'journey',
+    title: 'The journey',
+    blurb: 'Out the door, over the water, up the mountain, under it, and home. Read it in order.',
+    coverArt: ['old adventure map compass', 'travel journal open illustration'],
+    spreads: [JR_SETTING_OUT, JR_OPEN_ROAD, JR_CROSSING, JR_CLIMB, JR_INTO_THE_DARK, JR_MAKING_CAMP, JR_THE_FIND, JR_OLD_STONES, JR_HOMEWARD],
+  },
+  {
+    id: 'light-and-dark',
+    title: 'Light and dark',
+    blurb: 'Ten spreads sorted by where the light is coming from, ending where it runs out.',
+    coverArt: ['light through darkness illustration', 'candle flame black background'],
+    spreads: [LD_SUNLIT, LD_GOLDEN_HOUR, LD_LANTERNS, LD_FIRELIGHT, LD_CITY_GLOW, LD_STARLIGHT, LD_MOONLIGHT, LD_SILHOUETTE, LD_GLOWING, LD_IN_THE_DARK],
   },
 ];
 

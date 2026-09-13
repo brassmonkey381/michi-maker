@@ -16,19 +16,70 @@
     "cols": 3,
     "slots": [
      {
-      "id": "anniv-thirty-years_p0_s0",
+      "id": "anniv-thirty-years_p0_s0_0",
       "row": 0,
       "col": 0,
-      "rowSpan": 2,
-      "colSpan": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
       "type": "artwork",
       "cardId": "696688",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/696688.ebb0728172c6.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
-       "h": 0.45
+       "w": 0.225,
+       "h": 0.225
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p0_s0_1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "696688",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/696688.ebb0728172c6.jpg",
+      "imageCrop": {
+       "x": 0.5,
+       "y": 0.085,
+       "w": 0.225,
+       "h": 0.225
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p0_s0_2",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "696688",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/696688.ebb0728172c6.jpg",
+      "imageCrop": {
+       "x": 0.275,
+       "y": 0.31,
+       "w": 0.225,
+       "h": 0.225
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p0_s0_3",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "696688",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/696688.ebb0728172c6.jpg",
+      "imageCrop": {
+       "x": 0.5,
+       "y": 0.31,
+       "w": 0.225,
+       "h": 0.225
       },
       "imageFit": "cover"
      },
@@ -87,19 +138,53 @@
     "cols": 3,
     "slots": [
      {
-      "id": "anniv-thirty-years_p1_s0",
+      "id": "anniv-thirty-years_p1_s0_0",
       "row": 0,
       "col": 0,
-      "rowSpan": 3,
+      "rowSpan": 1,
       "colSpan": 2,
       "type": "artwork",
       "cardId": "696687",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/696687.2b03618117ea.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.35000000000000003,
        "y": 0.085,
-       "w": 0.92,
-       "h": 0.45
+       "w": 0.3,
+       "h": 0.15
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p1_s0_1",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "cardId": "696687",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/696687.2b03618117ea.jpg",
+      "imageCrop": {
+       "x": 0.35000000000000003,
+       "y": 0.235,
+       "w": 0.3,
+       "h": 0.15
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p1_s0_2",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "cardId": "696687",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/696687.2b03618117ea.jpg",
+      "imageCrop": {
+       "x": 0.35000000000000003,
+       "y": 0.385,
+       "w": 0.3,
+       "h": 0.15
       },
       "imageFit": "cover"
      },
@@ -149,19 +234,36 @@
       "insertColor": "#7A2B2B"
      },
      {
-      "id": "anniv-thirty-years_p2_s1",
+      "id": "anniv-thirty-years_p2_s1_0",
       "row": 0,
       "col": 1,
-      "rowSpan": 2,
+      "rowSpan": 1,
       "colSpan": 2,
       "type": "artwork",
       "cardId": "714372",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/714372.80fbbccfb625.jpg",
       "imageCrop": {
-       "x": 0.06,
+       "x": 0.3,
        "y": 0.125,
-       "w": 0.88,
-       "h": 0.4
+       "w": 0.4,
+       "h": 0.2
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p2_s1_1",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "cardId": "714372",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/714372.80fbbccfb625.jpg",
+      "imageCrop": {
+       "x": 0.3,
+       "y": 0.325,
+       "w": 0.4,
+       "h": 0.2
       },
       "imageFit": "cover"
      },
@@ -256,9 +358,9 @@
       "cardId": "712953",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/712953.dd44bc91fc7b.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -309,19 +411,36 @@
     "cols": 3,
     "slots": [
      {
-      "id": "anniv-thirty-years_p4_s0",
+      "id": "anniv-thirty-years_p4_s0_0",
       "row": 0,
       "col": 0,
-      "rowSpan": 2,
+      "rowSpan": 1,
       "colSpan": 1,
       "type": "artwork",
       "cardId": "712934",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/712934.00fb69672df6.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.3875,
        "y": 0.085,
-       "w": 0.92,
-       "h": 0.45
+       "w": 0.225,
+       "h": 0.225
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p4_s0_1",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "712934",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/712934.00fb69672df6.jpg",
+      "imageCrop": {
+       "x": 0.3875,
+       "y": 0.31,
+       "w": 0.225,
+       "h": 0.225
       },
       "imageFit": "cover"
      },
@@ -506,9 +625,9 @@
       "cardId": "712953",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/712953.dd44bc91fc7b.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.05000000000000001,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.9,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -532,9 +651,9 @@
       "cardId": "716230",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716230.d61e141f9aac.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.05000000000000001,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.9,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -558,9 +677,9 @@
       "cardId": "716231",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716231.4b00753777e7.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.05000000000000001,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.9,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -602,19 +721,36 @@
       "cardId": "696833"
      },
      {
-      "id": "anniv-thirty-years_p7_s3",
+      "id": "anniv-thirty-years_p7_s3_0",
       "row": 1,
       "col": 0,
-      "rowSpan": 2,
+      "rowSpan": 1,
       "colSpan": 2,
       "type": "artwork",
       "cardId": "716231",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716231.4b00753777e7.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
-       "h": 0.45
+       "w": 0.45,
+       "h": 0.225
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p7_s3_1",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "cardId": "716231",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716231.4b00753777e7.jpg",
+      "imageCrop": {
+       "x": 0.275,
+       "y": 0.31,
+       "w": 0.45,
+       "h": 0.225
       },
       "imageFit": "cover"
      },
@@ -646,19 +782,70 @@
     "cols": 3,
     "slots": [
      {
-      "id": "anniv-thirty-years_p8_s0",
+      "id": "anniv-thirty-years_p8_s0_0",
       "row": 0,
       "col": 0,
-      "rowSpan": 2,
-      "colSpan": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
       "type": "artwork",
       "cardId": "716231",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716231.4b00753777e7.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
-       "h": 0.45
+       "w": 0.225,
+       "h": 0.225
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p8_s0_1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716231",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716231.4b00753777e7.jpg",
+      "imageCrop": {
+       "x": 0.5,
+       "y": 0.085,
+       "w": 0.225,
+       "h": 0.225
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p8_s0_2",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716231",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716231.4b00753777e7.jpg",
+      "imageCrop": {
+       "x": 0.275,
+       "y": 0.31,
+       "w": 0.225,
+       "h": 0.225
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p8_s0_3",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716231",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716231.4b00753777e7.jpg",
+      "imageCrop": {
+       "x": 0.5,
+       "y": 0.31,
+       "w": 0.225,
+       "h": 0.225
       },
       "imageFit": "cover"
      },
@@ -726,9 +913,9 @@
       "cardId": "716220",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716220.a0076d1e61b5.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -743,9 +930,9 @@
       "cardId": "716221",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716221.b7fe3723ddaa.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -760,9 +947,9 @@
       "cardId": "716219",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716219.7a0cd26ab96b.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -813,19 +1000,70 @@
     "cols": 3,
     "slots": [
      {
-      "id": "anniv-thirty-years_p10_s0",
+      "id": "anniv-thirty-years_p10_s0_0",
       "row": 0,
       "col": 0,
-      "rowSpan": 2,
-      "colSpan": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
       "type": "artwork",
       "cardId": "716221",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716221.b7fe3723ddaa.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
-       "h": 0.45
+       "w": 0.225,
+       "h": 0.225
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p10_s0_1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716221",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716221.b7fe3723ddaa.jpg",
+      "imageCrop": {
+       "x": 0.5,
+       "y": 0.085,
+       "w": 0.225,
+       "h": 0.225
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p10_s0_2",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716221",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716221.b7fe3723ddaa.jpg",
+      "imageCrop": {
+       "x": 0.275,
+       "y": 0.31,
+       "w": 0.225,
+       "h": 0.225
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p10_s0_3",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716221",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716221.b7fe3723ddaa.jpg",
+      "imageCrop": {
+       "x": 0.5,
+       "y": 0.31,
+       "w": 0.225,
+       "h": 0.225
       },
       "imageFit": "cover"
      },
@@ -884,19 +1122,36 @@
     "cols": 3,
     "slots": [
      {
-      "id": "anniv-thirty-years_p11_s0",
+      "id": "anniv-thirty-years_p11_s0_0",
       "row": 0,
       "col": 0,
-      "rowSpan": 2,
+      "rowSpan": 1,
       "colSpan": 2,
       "type": "artwork",
       "cardId": "696683",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/696683.cbc7337c70ee.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
-       "h": 0.45
+       "w": 0.45,
+       "h": 0.225
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p11_s0_1",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "cardId": "696683",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/696683.cbc7337c70ee.jpg",
+      "imageCrop": {
+       "x": 0.275,
+       "y": 0.31,
+       "w": 0.45,
+       "h": 0.225
       },
       "imageFit": "cover"
      },
@@ -928,9 +1183,9 @@
       "cardId": "716230",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716230.d61e141f9aac.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.05000000000000001,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.9,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -963,9 +1218,9 @@
       "cardId": "696684",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/696684.02f2bc5514bf.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -980,9 +1235,9 @@
       "cardId": "716224",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716224.460c1bfbc3c4.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -1159,9 +1414,9 @@
       "cardId": "714358",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/714358.6df5bb0c7080.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -1176,9 +1431,9 @@
       "cardId": "714360",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/714360.5148909679c2.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -1193,9 +1448,9 @@
       "cardId": "716226",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716226.f81fa6640fd4.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -1264,9 +1519,9 @@
       "cardId": "716225",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716225.8cd6f656c529.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -1281,9 +1536,9 @@
       "cardId": "716223",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716223.c505df909e51.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -1298,9 +1553,9 @@
       "cardId": "716228",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716228.875e45af0d42.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -1324,9 +1579,9 @@
       "cardId": "696686",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/696686.1523f5703c18.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -1359,19 +1614,36 @@
     "cols": 3,
     "slots": [
      {
-      "id": "anniv-thirty-years_p16_s0",
+      "id": "anniv-thirty-years_p16_s0_0",
       "row": 0,
       "col": 0,
-      "rowSpan": 2,
+      "rowSpan": 1,
       "colSpan": 1,
       "type": "artwork",
       "cardId": "716218",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716218.b19d651e15ff.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.3875,
        "y": 0.085,
-       "w": 0.92,
-       "h": 0.45
+       "w": 0.225,
+       "h": 0.225
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p16_s0_1",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716218",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716218.b19d651e15ff.jpg",
+      "imageCrop": {
+       "x": 0.3875,
+       "y": 0.31,
+       "w": 0.225,
+       "h": 0.225
       },
       "imageFit": "cover"
      },
@@ -1385,9 +1657,9 @@
       "cardId": "696685",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/696685.a19e242684cb.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.05000000000000001,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.9,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -1402,9 +1674,9 @@
       "cardId": "716227",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716227.a2225fbb54f3.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -1419,18 +1691,35 @@
       "cardId": "716204"
      },
      {
-      "id": "anniv-thirty-years_p16_s4",
+      "id": "anniv-thirty-years_p16_s4_0",
       "row": 2,
       "col": 0,
       "rowSpan": 1,
-      "colSpan": 2,
+      "colSpan": 1,
       "type": "artwork",
       "cardId": "716233",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716233.38dfd55537d3.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.05000000000000001,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
+       "h": 0.45
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p16_s4_1",
+      "row": 2,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716233",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716233.38dfd55537d3.jpg",
+      "imageCrop": {
+       "x": 0.5,
+       "y": 0.085,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -1814,19 +2103,36 @@
     "cols": 3,
     "slots": [
      {
-      "id": "anniv-thirty-years_p21_s0",
+      "id": "anniv-thirty-years_p21_s0_0",
       "row": 0,
       "col": 0,
-      "rowSpan": 2,
+      "rowSpan": 1,
       "colSpan": 2,
       "type": "artwork",
       "cardId": "716157",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716157.1be59215c931.jpg",
       "imageCrop": {
-       "x": 0.06,
+       "x": 0.3,
        "y": 0.125,
-       "w": 0.88,
-       "h": 0.4
+       "w": 0.4,
+       "h": 0.2
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p21_s0_1",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "cardId": "716157",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716157.1be59215c931.jpg",
+      "imageCrop": {
+       "x": 0.3,
+       "y": 0.325,
+       "w": 0.4,
+       "h": 0.2
       },
       "imageFit": "cover"
      },
@@ -1957,19 +2263,36 @@
     "cols": 3,
     "slots": [
      {
-      "id": "anniv-thirty-years_p23_s0",
+      "id": "anniv-thirty-years_p23_s0_0",
       "row": 0,
       "col": 0,
-      "rowSpan": 2,
+      "rowSpan": 1,
       "colSpan": 2,
       "type": "artwork",
       "cardId": "714372",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/714372.80fbbccfb625.jpg",
       "imageCrop": {
-       "x": 0.06,
+       "x": 0.3,
        "y": 0.125,
-       "w": 0.88,
-       "h": 0.4
+       "w": 0.4,
+       "h": 0.2
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p23_s0_1",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "cardId": "714372",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/714372.80fbbccfb625.jpg",
+      "imageCrop": {
+       "x": 0.3,
+       "y": 0.325,
+       "w": 0.4,
+       "h": 0.2
       },
       "imageFit": "cover"
      },
@@ -2028,19 +2351,70 @@
     "cols": 3,
     "slots": [
      {
-      "id": "anniv-thirty-years_p24_s0",
+      "id": "anniv-thirty-years_p24_s0_0",
       "row": 0,
       "col": 0,
-      "rowSpan": 2,
-      "colSpan": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
       "type": "artwork",
       "cardId": "716229",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716229.056266b92a93.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
-       "h": 0.45
+       "w": 0.225,
+       "h": 0.225
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p24_s0_1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716229",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716229.056266b92a93.jpg",
+      "imageCrop": {
+       "x": 0.5,
+       "y": 0.085,
+       "w": 0.225,
+       "h": 0.225
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p24_s0_2",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716229",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716229.056266b92a93.jpg",
+      "imageCrop": {
+       "x": 0.275,
+       "y": 0.31,
+       "w": 0.225,
+       "h": 0.225
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p24_s0_3",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716229",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716229.056266b92a93.jpg",
+      "imageCrop": {
+       "x": 0.5,
+       "y": 0.31,
+       "w": 0.225,
+       "h": 0.225
       },
       "imageFit": "cover"
      },
@@ -2054,9 +2428,9 @@
       "cardId": "716232",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716232.fa9f66cabc93.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -2071,9 +2445,9 @@
       "cardId": "716233",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716233.38dfd55537d3.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -2088,9 +2462,9 @@
       "cardId": "712953",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/712953.dd44bc91fc7b.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -2105,9 +2479,9 @@
       "cardId": "712954",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/712954.a882bc4ca2f0.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -2122,9 +2496,9 @@
       "cardId": "716231",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716231.4b00753777e7.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -2139,19 +2513,104 @@
     "cols": 3,
     "slots": [
      {
-      "id": "anniv-thirty-years_p25_s0",
+      "id": "anniv-thirty-years_p25_s0_0",
       "row": 0,
       "col": 0,
-      "rowSpan": 3,
-      "colSpan": 3,
+      "rowSpan": 1,
+      "colSpan": 2,
       "type": "artwork",
       "cardId": "716232",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716232.fa9f66cabc93.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
-       "h": 0.45
+       "w": 0.3,
+       "h": 0.15
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p25_s0_1",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716232",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716232.fa9f66cabc93.jpg",
+      "imageCrop": {
+       "x": 0.575,
+       "y": 0.085,
+       "w": 0.15,
+       "h": 0.15
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p25_s0_2",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "cardId": "716232",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716232.fa9f66cabc93.jpg",
+      "imageCrop": {
+       "x": 0.275,
+       "y": 0.235,
+       "w": 0.3,
+       "h": 0.15
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p25_s0_3",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716232",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716232.fa9f66cabc93.jpg",
+      "imageCrop": {
+       "x": 0.575,
+       "y": 0.235,
+       "w": 0.15,
+       "h": 0.15
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p25_s0_4",
+      "row": 2,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 2,
+      "type": "artwork",
+      "cardId": "716232",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716232.fa9f66cabc93.jpg",
+      "imageCrop": {
+       "x": 0.275,
+       "y": 0.385,
+       "w": 0.3,
+       "h": 0.15
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p25_s0_5",
+      "row": 2,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716232",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716232.fa9f66cabc93.jpg",
+      "imageCrop": {
+       "x": 0.575,
+       "y": 0.385,
+       "w": 0.15,
+       "h": 0.15
       },
       "imageFit": "cover"
      }
@@ -2174,9 +2633,9 @@
       "cardId": "716222",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716222.3922487c834f.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -2191,9 +2650,9 @@
       "cardId": "716223",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716223.c505df909e51.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -2208,26 +2667,43 @@
       "cardId": "716227",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716227.a2225fbb54f3.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
      },
      {
-      "id": "anniv-thirty-years_p26_s3",
+      "id": "anniv-thirty-years_p26_s3_0",
       "row": 1,
       "col": 0,
       "rowSpan": 1,
-      "colSpan": 2,
+      "colSpan": 1,
       "type": "artwork",
       "cardId": "716218",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716218.b19d651e15ff.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.05000000000000001,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
+       "h": 0.45
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p26_s3_1",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "716218",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716218.b19d651e15ff.jpg",
+      "imageCrop": {
+       "x": 0.5,
+       "y": 0.085,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -2287,9 +2763,9 @@
       "cardId": "716225",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716225.8cd6f656c529.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -2304,9 +2780,9 @@
       "cardId": "696686",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/696686.1523f5703c18.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -2321,9 +2797,9 @@
       "cardId": "714360",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/714360.5148909679c2.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -2338,9 +2814,9 @@
       "cardId": "716226",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716226.f81fa6640fd4.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -2355,9 +2831,9 @@
       "cardId": "714358",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/714358.6df5bb0c7080.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -2372,9 +2848,9 @@
       "cardId": "716228",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716228.875e45af0d42.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -2398,19 +2874,70 @@
     "cols": 3,
     "slots": [
      {
-      "id": "anniv-thirty-years_p28_s0",
+      "id": "anniv-thirty-years_p28_s0_0",
       "row": 0,
       "col": 0,
-      "rowSpan": 2,
-      "colSpan": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
       "type": "artwork",
       "cardId": "696685",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/696685.a19e242684cb.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
-       "h": 0.45
+       "w": 0.225,
+       "h": 0.225
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p28_s0_1",
+      "row": 0,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "696685",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/696685.a19e242684cb.jpg",
+      "imageCrop": {
+       "x": 0.5,
+       "y": 0.085,
+       "w": 0.225,
+       "h": 0.225
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p28_s0_2",
+      "row": 1,
+      "col": 0,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "696685",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/696685.a19e242684cb.jpg",
+      "imageCrop": {
+       "x": 0.275,
+       "y": 0.31,
+       "w": 0.225,
+       "h": 0.225
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p28_s0_3",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "696685",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/696685.a19e242684cb.jpg",
+      "imageCrop": {
+       "x": 0.5,
+       "y": 0.31,
+       "w": 0.225,
+       "h": 0.225
       },
       "imageFit": "cover"
      },
@@ -2424,9 +2951,9 @@
       "cardId": "696683",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/696683.cbc7337c70ee.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -2441,9 +2968,9 @@
       "cardId": "716218",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716218.b19d651e15ff.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -2458,9 +2985,9 @@
       "cardId": "716219",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716219.7a0cd26ab96b.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -2475,9 +3002,9 @@
       "cardId": "716220",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716220.a0076d1e61b5.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -2492,9 +3019,9 @@
       "cardId": "716221",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/716221.b7fe3723ddaa.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
+       "w": 0.45,
        "h": 0.45
       },
       "imageFit": "cover"
@@ -2518,19 +3045,70 @@
       "cardId": "714372"
      },
      {
-      "id": "anniv-thirty-years_p29_s1",
+      "id": "anniv-thirty-years_p29_s1_0",
       "row": 0,
       "col": 1,
-      "rowSpan": 2,
-      "colSpan": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
       "type": "artwork",
       "cardId": "696688",
       "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/696688.ebb0728172c6.jpg",
       "imageCrop": {
-       "x": 0.04,
+       "x": 0.275,
        "y": 0.085,
-       "w": 0.92,
-       "h": 0.45
+       "w": 0.225,
+       "h": 0.225
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p29_s1_1",
+      "row": 0,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "696688",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/696688.ebb0728172c6.jpg",
+      "imageCrop": {
+       "x": 0.5,
+       "y": 0.085,
+       "w": 0.225,
+       "h": 0.225
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p29_s1_2",
+      "row": 1,
+      "col": 1,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "696688",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/696688.ebb0728172c6.jpg",
+      "imageCrop": {
+       "x": 0.275,
+       "y": 0.31,
+       "w": 0.225,
+       "h": 0.225
+      },
+      "imageFit": "cover"
+     },
+     {
+      "id": "anniv-thirty-years_p29_s1_3",
+      "row": 1,
+      "col": 2,
+      "rowSpan": 1,
+      "colSpan": 1,
+      "type": "artwork",
+      "cardId": "696688",
+      "imageUrl": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/card-imgs/696688.ebb0728172c6.jpg",
+      "imageCrop": {
+       "x": 0.5,
+       "y": 0.31,
+       "w": 0.225,
+       "h": 0.225
       },
       "imageFit": "cover"
      },

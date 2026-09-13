@@ -35,6 +35,12 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// THE BINDER'S PHYSICS, from the app itself rather than a copy of it: the same module the editor,
+// the store and the print sheet obey. A side-load pocket opens sideways, so a printed art piece is
+// either 1x1, or 1x2 folded down the middle into a pocket pair that opens along the same inside
+// edge, and which pair that is depends on the page's side of the spine (odd or even page).
+import { artPieceAllowed, legalizeArtPanels, pageSide } from '../src/data/binderPhysics.ts';
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
 const OUT = join(ROOT, 'src', 'data', 'anniversaryBinders.json');
@@ -511,6 +517,21 @@ function imageOf(cardId, where) {
   return `${base}/${key}`;
 }
 
+/**
+ * The window of the card image a panel of rs x cs pockets shows. A card scan and a pocket are the
+ * same shape (63:88; the scans measure 0.716), so in normalised crop units a window is panel-shaped
+ * exactly when w/h = cs/rs. Take the largest such window centred inside the picture band.
+ */
+function panelCrop(band, rs, cs) {
+  const want = cs / rs;
+  if (band.w / band.h > want) {
+    const w = band.h * want;
+    return { x: band.x + (band.w - w) / 2, y: band.y, w, h: band.h };
+  }
+  const h = band.w / want;
+  return { x: band.x, y: band.y + (band.h - h) / 2, w: band.w, h };
+}
+
 function resolve1(ref, where) {
   const [prefix, number] = [ref.slice(0, 1), ref.slice(2)];
   const found = catalog[prefix]?.get(number);
@@ -530,14 +551,29 @@ const pages = PAGES.map((p, i) => {
     if (seen.has(s.ref)) die(`page ${i + 1} "${p.title}" uses ${s.ref} twice`, 4);
     seen.add(s.ref);
     if (s.type !== 'artwork') return { ...base, cardId: c.id };
-    return {
-      ...base,
+    const imageUrl = imageOf(c.id, `page ${i + 1} "${p.title}"`);
+    const band = FRAMED_RARITIES.has(c.rarity) ? FRAMED_ART_CROP : FULL_ART_CROP;
+    // Cut the panel into pieces a real pocket page can hold, with proportional crops so the
+    // assembled picture is unchanged. The crop has to match the WHOLE panel's shape first: each
+    // piece is drawn into its own pocket, so a crop the panel would have trimmed at render time
+    // would otherwise be trimmed per piece and the seams would not line up.
+    const crop = panelCrop(band, s.rowSpan, s.colSpan);
+    const pieces = legalizeArtPanels(s.col, [{ r: 0, c: 0, rs: s.rowSpan, cs: s.colSpan, crop }], COLS, pageSide(i));
+    return pieces.map((pc, k) => ({
+      id: pieces.length === 1 ? base.id : `${base.id}_${k}`,
+      row: s.row + pc.r, col: s.col + pc.c, rowSpan: pc.rs, colSpan: pc.cs, type: 'artwork',
       cardId: c.id,
-      imageUrl: imageOf(c.id, `page ${i + 1} "${p.title}"`),
-      imageCrop: FRAMED_RARITIES.has(c.rarity) ? FRAMED_ART_CROP : FULL_ART_CROP,
+      imageUrl,
+      imageCrop: pc.crop,
       imageFit: 'cover',
-    };
-  });
+    }));
+  }).flat();
+  // Belt and braces: nothing leaves this script that a real page could not hold.
+  for (const s of slots) {
+    if (s.type !== 'artwork') continue;
+    const verdict = artPieceAllowed(s.col, s.rowSpan, s.colSpan, COLS, pageSide(i));
+    if (!verdict.ok) die(`page ${i + 1} "${p.title}": art at (${s.row},${s.col}) ${s.colSpan}x${s.rowSpan}: ${verdict.reason}`, 8);
+  }
   // A CARD that spans pockets is a jumbo to every reader of the data, the print sheet included, and
   // this binder has no jumbos. A picture that big is an art panel.
   for (const s of slots) {

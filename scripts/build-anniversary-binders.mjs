@@ -60,7 +60,38 @@ const BINDER_ID = 'anniv-thirty-years';
  * in this module to the top of the shelf every time anyone regenerated it, so a no-op rebuild would
  * silently reshuffle the front page. Bump it by hand when the binder actually changes.
  */
-const AUTHORED = '2026-09-11';
+const AUTHORED = '2026-09-13';
+
+/**
+ * AN ART PANEL NEEDS ITS OWN IMAGE (owner, 2026-09-13). The first build gave artwork slots a card id
+ * and nothing else. The app draws such a slot as the WHOLE CARD SCAN blown up to cover the panel, so
+ * a 2x2 or 3x3 read as an impossibly large card, frame, name bar and all; and the print sheet only
+ * puts artwork that carries an `imageUrl` on cardstock, so all 51 panels were silently left out and
+ * the download came back as plain-paper placeholders only. Four real CARD slots also spanned
+ * pockets, which the print sheet reads as jumbo cards. Those four are art panels now.
+ *
+ * So every artwork slot carries the card's full image from the catalogue's content-hashed image
+ * manifest, plus a crop. The card id stays on the slot, which keeps it counted as our own catalogue
+ * art (public, shareable, never "borrowed" on a copy).
+ */
+const IMAGES = 'https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/browse/images.json';
+
+/**
+ * WHERE THE PICTURE IS. A full-art card (Illustration Rare, Special Illustration Rare and the like)
+ * is picture edge to edge, but its name bar sits across the top and its attack text runs over the
+ * lower half. Trimming only the border (the first cut of this fix) left a 3x2 panel reading as a
+ * giant card again, text and all. So the crop takes the band between the name bar and the text:
+ * below the top tenth, down to just past the middle, where the Pokemon almost always is. A
+ * classic-frame card keeps its picture in the window above the text box: the same window Slice
+ * Studio's "Just the art" starts from. Both are cover-fit into the panel, which trims further to
+ * the panel's shape.
+ */
+// Tuned on the rendered binder (2026-09-13): h 0.5 still let an attack name (Mewtwo ex's "Photon
+// Bullets") into the bottom of a 3x2 panel, and the classic window's top edge caught the bottom of
+// the name bar on the base-set Charizard.
+const FULL_ART_CROP = { x: 0.04, y: 0.085, w: 0.92, h: 0.45 };
+const FRAMED_ART_CROP = { x: 0.06, y: 0.125, w: 0.88, h: 0.4 };
+const FRAMED_RARITIES = new Set(['Classic Collection', 'Common', 'Uncommon', 'Rare', 'Rare Holo', 'Holo Rare', 'Promo']);
 
 // ── slot helpers (mirror src/data/content/_helpers) ──────────────────────────
 const card = (row, col, ref, opts = {}) => ({ row, col, rowSpan: opts.rowSpan ?? 1, colSpan: opts.colSpan ?? 1, type: 'card', ref });
@@ -118,7 +149,7 @@ const PAGES = [
       'Base Set Charizard, reprinted at its original number. For a lot of people this is not a card, '
       + 'it is the reason they have the others.',
     slots: [
-      gap(0, 0, EMBER), card(0, 1, 'c:4/102', { rowSpan: 2, colSpan: 2 }),
+      gap(0, 0, EMBER), art(0, 1, 'c:4/102', { rowSpan: 2, colSpan: 2 }),
       gap(1, 0, EMBER),
       card(2, 0, 'c:58/102'), card(2, 1, 'c:69/132'), card(2, 2, 'c:18/132'),
     ],
@@ -142,7 +173,7 @@ const PAGES = [
       'Ken Sugimori drew the originals. Atsuko Nishida designed Pikachu in the first place. They '
       + 'sit either side of the artists who grew up on what they made.',
     slots: [
-      card(0, 0, 'e:023/128', { rowSpan: 2, colSpan: 1 }),
+      art(0, 0, 'e:023/128', { rowSpan: 2, colSpan: 1 }),
       card(0, 1, 'e:030/128'), card(0, 2, 'e:036/128'),
       card(1, 1, 'e:038/128'), card(1, 2, 'e:039/128'),
       card(2, 0, 'e:047/128', { colSpan: 1 }), card(2, 1, 'e:040/128'), card(2, 2, 'e:041/128'),
@@ -336,7 +367,7 @@ const PAGES = [
       'Metagross as a Delta Species, a Scizor ex, a Genesect in Team Plasma livery. The eras when '
       + 'the game kept reskinning its own Pokemon, and the art got stranger for it.',
     slots: [
-      card(0, 0, 'c:11/113', { rowSpan: 2, colSpan: 2 }),
+      art(0, 0, 'c:11/113', { rowSpan: 2, colSpan: 2 }),
       card(0, 2, 'c:108/115'), card(1, 2, 'c:11/101'),
       card(2, 0, 'c:19/109'), card(2, 1, 'c:47/127'), card(2, 2, 'c:5/109'),
     ],
@@ -358,7 +389,7 @@ const PAGES = [
       'Base Set Charizard and Pikachu & Zekrom GX, twenty-two years apart, same hand. The Classic '
       + 'Collection is quietly a retrospective of a handful of illustrators.',
     slots: [
-      card(0, 0, 'c:4/102', { rowSpan: 2, colSpan: 2 }),
+      art(0, 0, 'c:4/102', { rowSpan: 2, colSpan: 2 }),
       card(0, 2, 'c:33/181'), card(1, 2, 'c:108/115'),
       card(2, 0, 'c:11/113'), card(2, 1, 'c:99/102'), card(2, 2, 'c:100/102'),
     ],
@@ -462,6 +493,24 @@ for (const [prefix, setId] of Object.entries(SETS)) {
   await new Promise((r) => setTimeout(r, 900));
 }
 
+const manifest = await (async () => {
+  const res = await fetch(IMAGES);
+  if (!res.ok) die(`image manifest ${res.status}`, 2);
+  return res.json();
+})();
+
+/** The card's full image, content-hashed, straight from the manifest (schema 2 leads with a lang). */
+function imageOf(cardId, where) {
+  const entry = manifest.cards?.[cardId];
+  const field = manifest.fields?.indexOf('image') ?? -1;
+  if (!entry || field < 0) die(`${where}: no image in the manifest for card ${cardId}`, 6);
+  const lang = manifest.schema === 2 ? entry[0] : null;
+  const key = manifest.schema === 2 ? entry[field + 1] : entry[field];
+  const base = manifest.schema === 2 ? manifest.base?.[lang]?.image : manifest.base?.image;
+  if (!key || !base) die(`${where}: card ${cardId} has no full image`, 6);
+  return `${base}/${key}`;
+}
+
 function resolve1(ref, where) {
   const [prefix, number] = [ref.slice(0, 1), ref.slice(2)];
   const found = catalog[prefix]?.get(number);
@@ -480,8 +529,22 @@ const pages = PAGES.map((p, i) => {
     const c = resolve1(s.ref, `page ${i + 1} "${p.title}"`);
     if (seen.has(s.ref)) die(`page ${i + 1} "${p.title}" uses ${s.ref} twice`, 4);
     seen.add(s.ref);
-    return { ...base, cardId: c.id };
+    if (s.type !== 'artwork') return { ...base, cardId: c.id };
+    return {
+      ...base,
+      cardId: c.id,
+      imageUrl: imageOf(c.id, `page ${i + 1} "${p.title}"`),
+      imageCrop: FRAMED_RARITIES.has(c.rarity) ? FRAMED_ART_CROP : FULL_ART_CROP,
+      imageFit: 'cover',
+    };
   });
+  // A CARD that spans pockets is a jumbo to every reader of the data, the print sheet included, and
+  // this binder has no jumbos. A picture that big is an art panel.
+  for (const s of slots) {
+    if (s.type === 'card' && (s.rowSpan > 1 || s.colSpan > 1)) {
+      die(`page ${i + 1} "${p.title}": card ${s.cardId} spans ${s.colSpan}x${s.rowSpan}; use art() for a panel`, 7);
+    }
+  }
   // A slot that runs off its page is invisible in the JSON and obvious on screen.
   for (const s of slots) {
     if (s.row + s.rowSpan > ROWS || s.col + s.colSpan > COLS) {

@@ -6,6 +6,15 @@
  *   node scripts/sync-house-binders.mjs                 # dry run, writes nothing
  *   node scripts/sync-house-binders.mjs --apply         # publish new + refresh stale
  *   node scripts/sync-house-binders.mjs --apply --prune # also delete the binders listed in PRUNE
+ *   node scripts/sync-house-binders.mjs --apply --only "Thirty Years, Thirty Pages" --force
+ *                                                       # refresh ONE binder even if its page count matches
+ *
+ * `--only` AND `--force` (2026-09-13). Drift is judged on page count alone, so a binder whose slots
+ * changed but whose page count did not (Thirty Years' art panels gaining their images) never shows
+ * as stale. And a plain --apply publishes every bundled binder missing from the account, which
+ * includes binders the app has RETIRED at runtime but whose JSON still ships, so it would put five
+ * pruned binders back on the shelf. `--only` narrows the plan to one title; `--force` refreshes it
+ * regardless of page count. Use them together for a targeted refresh.
  *
  * WHY THIS EXISTS. Those twenty binders were placed by hand on 2026-08-27 and nothing has kept them
  * in step since, so the shelf drifted: "Every Last Card" is one page there and eighteen in the app,
@@ -42,6 +51,11 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
 const APPLY = process.argv.includes('--apply');
 const PRUNE = process.argv.includes('--prune');
+const FORCE = process.argv.includes('--force');
+const ONLY = (() => {
+  const i = process.argv.indexOf('--only');
+  return i >= 0 ? process.argv[i + 1] ?? null : null;
+})();
 
 /**
  * TO DELETE, and why each one. Every entry is two pages or fewer AFTER the sync, so nothing here is
@@ -138,12 +152,15 @@ for (const b of live) {
 // ── the plan ─────────────────────────────────────────────────────────────────
 const toPublish = [];
 const toRefresh = [];
+if (ONLY && !byTitle.has(ONLY)) die('--only', `no bundled binder is titled "${ONLY}"`, 2);
 for (const [title, b] of byTitle) {
+  if (ONLY && title !== ONLY) continue;
   const there = liveByTitle.get(title);
   if (!there) toPublish.push(b);
-  else if (there.pages !== (b.pages || []).length) toRefresh.push({ bundled: b, live: there });
+  else if ((FORCE && ONLY) || there.pages !== (b.pages || []).length) toRefresh.push({ bundled: b, live: there });
 }
-const toPrune = PRUNE_TITLES.map((t) => liveByTitle.get(t)).filter(Boolean);
+if (FORCE && !ONLY) die('--force', 'only allowed together with --only, so it cannot refresh every binder', 2);
+const toPrune = ONLY ? [] : PRUNE_TITLES.map((t) => liveByTitle.get(t)).filter(Boolean);
 const pruneMissing = PRUNE_TITLES.filter((t) => !liveByTitle.has(t));
 
 console.log('PUBLISH (bundled, not on the account):');

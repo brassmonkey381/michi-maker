@@ -192,7 +192,16 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   message: { color: Palette.white, flexShrink: 1, textAlign: 'center' },
-  action: { color: Palette.accentSoft },
+  /**
+   * WHITE, NOT A TINT. `accentSoft` is a chip background, and it flips with the scheme: pale
+   * #E7EEFD in light, near-black #17233C in dark. The pill it sat on is `Palette.toast`, fixed dark
+   * chrome in both schemes. So in dark mode Undo was #17233C on #222228, 1.005:1, invisible, on the
+   * one control that takes back a delete (the dark-mode audit, 2026-09-12). Dark Vault pins dark, so
+   * its users never saw it at all. White does not flip: 15.8:1 on this pill in every variant, the
+   * same ink the message beside it already uses. It still reads as the action by being bold and set
+   * apart by the pill's gap, rather than by a colour that only worked on half the schemes.
+   */
+  action: { color: Palette.white },
 
   // --- the `limit` tone ---------------------------------------------------------------------
   card: {

@@ -137,7 +137,7 @@ Deno.serve(async (req: Request) => {
       tagged[k] = v;
     }
     if (typeof tagged.p_limit === 'number') tagged.p_limit = Math.min(TAGGED_MAX_LIMIT, Math.max(1, tagged.p_limit));
-    return forwardRpc('tagged_cards', tagged);
+    return forwardRpc('tagged_cards', tagged, `user:${user.id}`);
   }
 
   const forward: Record<string, unknown> = {};
@@ -152,11 +152,26 @@ Deno.serve(async (req: Request) => {
   if (!fields.some((f) => f && f.key === 'theme')) return json(400, { error: 'not a themed query' });
 
   // 4) Forward as service_role, which is what the data project's depth clamp keys off.
-  return forwardRpc('search_cards', forward);
+  return forwardRpc('search_cards', forward, `user:${user.id}`);
 });
 
-/** POST a checked body to one of the data project's RPCs with the secret key; relay the answer. */
-async function forwardRpc(rpc: 'search_cards' | 'tagged_cards', body: Record<string, unknown>): Promise<Response> {
+/**
+ * POST a checked body to one of the data project's RPCs with the secret key; relay the answer.
+ *
+ * WHO TO COUNT. Every call leaves from this function's own egress address, so the data project's
+ * rate limiter used to see all of michi's theme searches as one visitor: 60 calls per 10s shared by
+ * everyone, which in a traffic spike would have started refusing theme search to all users at
+ * once. Since data migration 68 it leaves secret-key calls unmetered instead, and counts them per
+ * visitor when told who the visitor is. `x-rl-identity` is that statement, and the data project
+ * trusts it only on a secret-key call, so a browser cannot forge it. `user:<id>` is the verified
+ * JWT's user; for a guest on the free forest path that is the anonymous session's id, which is the
+ * right granularity (one visitor, one bucket).
+ */
+async function forwardRpc(
+  rpc: 'search_cards' | 'tagged_cards',
+  body: Record<string, unknown>,
+  identity: string,
+): Promise<Response> {
   const dataKey = Deno.env.get('DATA_SECRET_KEY') ?? '';
   if (!dataKey) return json(503, { error: 'DATA_SECRET_KEY is not set' });
   const res = await fetch(`${DATA_URL}/rest/v1/rpc/${rpc}`, {
@@ -165,6 +180,7 @@ async function forwardRpc(rpc: 'search_cards' | 'tagged_cards', body: Record<str
       apikey: dataKey,
       Authorization: `Bearer ${dataKey}`,
       'Content-Type': 'application/json',
+      'x-rl-identity': identity,
     },
     body: JSON.stringify(body),
   });

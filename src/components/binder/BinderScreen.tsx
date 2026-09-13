@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Modal,
   Platform,
@@ -85,16 +85,7 @@ import { fetchLikeCount } from '@/data/binderRepo';
 import { isPrivateArt } from '@/data/artAttributionCheck';
 import { ArtworkDock } from '@/components/binder/ArtworkDock';
 import { artPieceAllowed, pageSide, REAL_PAGE_SIZES } from '@/data/binderPhysics';
-import {
-  DOCK_PCT_MAX,
-  LEGACY_MIN_WIDTH,
-  MIN_PAGE_WIDTH,
-  PANEL_GAP,
-  PANEL_MAX_WIDTH,
-  PANEL_MIN_WIDTH,
-  PEEK_MIN_WIDTH,
-  panelLayout,
-} from '@/data/binderLayout';
+import { DOCK_PCT_MAX, LEGACY_MIN_WIDTH, MIN_PAGE_WIDTH, PANEL_GAP, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH, PEEK_MIN_WIDTH, panelLayout, PHONE_MAX_WIDTH } from '@/data/binderLayout';
 import type { CaptionFieldKey } from '@/data/cardCaption';
 import type { ComposePlacement } from '@/data/pageComposer';
 import { isSupabaseConfigured } from '@/lib/env';
@@ -670,9 +661,17 @@ export function BinderScreen({
   // panel (elastic), so the rails come off the top of the budget and panelLayout divides what is
   // left between however many are actually open.
   const sidesShown = editing;
+  /**
+   * A PHONE GETS NO DOCKS (owner, 2026-09-13, Safari on an iPhone). Two 56px rails on a 390pt
+   * screen are more than a quarter of it gone before the page is drawn, for panels that could never
+   * open beside the page there anyway. So below PHONE_MAX_WIDTH neither side keeps a rail and
+   * neither docks: the card browser opens as its sheet when a pocket is tapped, and the art panel
+   * opens as its modal from the Art button on the header's tool row.
+   */
+  const phone = width < PHONE_MAX_WIDTH;
   const cardsWantsPanel = sidesShown && !cardsCollapsed;
   const artWantsPanel = sidesShown && artworkOpen;
-  const railCount = sidesShown ? (cardsWantsPanel ? 0 : 1) + (artWantsPanel ? 0 : 1) : 0;
+  const railCount = sidesShown && !phone ? (cardsWantsPanel ? 0 : 1) + (artWantsPanel ? 0 : 1) : 0;
   const railCost = railCount * CARD_PICKER_RAIL_WIDTH;
   const panelCount = (cardsWantsPanel ? 1 : 0) + (artWantsPanel ? 1 : 0);
   /**
@@ -710,8 +709,8 @@ export function BinderScreen({
    * budget while the picker rendered as a full-screen sheet. There is one answer now, it comes from
    * the arithmetic that also decides the width, and the panel is told it.
    */
-  const pickerDocked = sidesShown && (cardsWantsPanel ? pickerFit === 'docked' : true);
-  const artworkDocked = sidesShown && (artWantsPanel ? artworkFit === 'docked' : true);
+  const pickerDocked = sidesShown && !phone && (cardsWantsPanel ? pickerFit === 'docked' : true);
+  const artworkDocked = sidesShown && !phone && (artWantsPanel ? artworkFit === 'docked' : true);
   // A side that is not open, or is open but too narrow to dock, still holds its rail.
   // Per side now, not one shared number: the two can be dragged to different widths.
   let widthIdx = 0;
@@ -2004,174 +2003,244 @@ export function BinderScreen({
   const headerContentW = width - headerInset.paddingLeft - headerInset.paddingRight;
   const titleMaxW = Math.max(120, headerContentW - 2 * (headerRightW + Spacing.three));
 
+  /**
+   * THE HEADER'S PIECES, built once and arranged twice: one row on a wide screen, two on a phone
+   * (see the phone branch in the render). Splitting what a control IS from where it sits is what
+   * lets the phone layout move things without a second copy of every handler to keep in step.
+   */
+  const titleWords = binder.title || (editing ? 'Untitled binder' : '');
+  const titleA11y = editing ? 'Binder details \u2014 edit the title and description' : 'About this binder';
+  const backLink = (
+    <Pressable onPress={onClose} hitSlop={10} accessibilityRole="link" accessibilityLabel="Back to My Binders">
+      {/* SAYS WHERE IT GOES. Called "Close" it read as closing something ON this page (the cards
+          dock, the art dock) and people pressed it and lost the binder they were editing (owner
+          decision 2026-09-09). On a phone the arrow alone carries it; the words stay in the label. */}
+      <Text style={[styles.headerAction, phone && styles.phoneBack, { color: theme.text }]}>
+        {phone ? '\u2190' : '\u2190 Back to My Binders'}
+      </Text>
+    </Pressable>
+  );
+  /** The art panel's own button, phone only: with no rail there is nothing else to press. */
+  const artToggle =
+    phone && editing ? (
+      <Pressable
+        onPress={() => setArtworkOpen((v) => !v)}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: artworkOpen }}
+        accessibilityLabel={artworkOpen ? 'Close your artwork and inserts' : 'Open your artwork and inserts'}
+        testID="phone-art-toggle">
+        <View style={[pillChip.base, artworkOpen && pillChip.active]}>
+          <Text style={[pillChip.text, artworkOpen && pillChip.textActive]}>Art</Text>
+        </View>
+      </Pressable>
+    ) : null;
+  const printLink = (
+    <Pressable onPress={() => setPrintOpen(true)} hitSlop={10} accessibilityLabel="Print fill sheets">
+      <Text style={[styles.headerAction, { color: theme.text }]}>Print</Text>
+    </Pressable>
+  );
+  let toolItems: ReactNode = null;
+  let primaryAction: ReactNode = null;
+  if (canEdit) {
+    toolItems = (
+      <>
+        {artToggle}
+        {editing ? editIcons : null}
+        {isSupabaseConfigured && likeCount !== null ? (
+          <Tipped text="See who liked this binder">
+            <Pressable
+              onPress={() => setLikesOpen(true)}
+              hitSlop={8}
+              accessibilityLabel="See who liked this binder"
+              style={styles.likeChip}>
+              <Text style={styles.likeChipHeart}>{'\u2665'}</Text>
+              <Text style={styles.likeChipText}>{likeCount}</Text>
+            </Pressable>
+          </Tipped>
+        ) : null}
+        {/* The view settings, in both modes. A gear, not a row. */}
+        <Tipped text="How this binder looks: page size, background, soundtrack">
+          <Pressable
+            onPress={() => setSettingsOpen(true)}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="View settings"
+            testID="binder-settings-btn">
+            <Text style={[styles.headerAction, { color: theme.text }]}>{'\u2699'}</Text>
+          </Pressable>
+        </Tipped>
+        {/* SELECT SEVERAL POCKETS acts on a SELECTION, not on the page. Gone while the picker is
+            aimed at a pocket (the two modes are mutually exclusive in code) and on an empty page,
+            which has nothing to select. */}
+        {editing && !pickerCell && page.slots.length > 0 ? (
+          <IconBtn
+            glyph={'\u2295'}
+            label="Select several pockets"
+            testID="binder-select-toggle"
+            active={selectMode}
+            onPress={() => {
+              setSelectMode((v) => {
+                if (v) clearMulti();
+                return !v;
+              });
+              setSelectedSlotId(null);
+            }}
+          />
+        ) : null}
+        {/* SELECT MODE HAS TO SAY IT IS ON somewhere visible without a dialog: it changes what
+            every tap on the binder does. Doubles as the one-tap route to the selection's actions. */}
+        {editing && selectMode ? (
+          <Pressable
+            onPress={() => setMultiActionsOpen(true)}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={`Actions for ${multiIds.size} selected pockets`}
+            testID="binder-actions-btn">
+            <View style={[pillChip.base, pillChip.active]}>
+              <Text style={[pillChip.text, pillChip.textActive]}>{`\u2713 Selecting \u00b7 ${multiIds.size}`}</Text>
+            </View>
+          </Pressable>
+        ) : null}
+        <TrackPill />
+        {printLink}
+        {isSupabaseConfigured ? (
+          <Pressable onPress={() => setShareOpen(true)} hitSlop={10}>
+            <Text style={[styles.headerAction, { color: theme.text }]}>Share</Text>
+          </Pressable>
+        ) : null}
+      </>
+    );
+    primaryAction = (
+      <Pressable
+        onPress={() => {
+          setEditingWanted((e) => !e);
+          setSelectedSlotId(null);
+          clearMulti();
+          setMultiActionsOpen(false);
+        }}
+        hitSlop={10}>
+        {/* A filled pill so entering/leaving the workbench reads as a real mode change. NAMES THE
+            MODE IT SWITCHES TO, both ways round. */}
+        <View style={styles.modeBtn}>
+          <Text style={styles.modeBtnText}>{editing ? 'Viewing Mode' : 'Edit Mode'}</Text>
+        </View>
+      </Pressable>
+    );
+  } else if (binder.locked) {
+    // A locked reference (the print sampler): view only, no edit, no Duplicate. Print is the whole
+    // point of it, though: the sheet's free example is this binder.
+    primaryAction = (
+      <Pressable onPress={() => setPrintOpen(true)} hitSlop={10} accessibilityLabel="Print fill sheets">
+        <View style={styles.modeBtn}>
+          <Text style={styles.modeBtnText}>Print</Text>
+        </View>
+      </Pressable>
+    );
+    toolItems = <Text style={[styles.headerAction, { color: theme.textSecondary }]}>View only</Text>;
+  } else {
+    toolItems = (
+      <>
+        <TrackPill />
+        {printLink}
+      </>
+    );
+    primaryAction = (
+      <Pressable onPress={handleDuplicate} hitSlop={10}>
+        <View style={styles.modeBtn}>
+          <Text style={styles.modeBtnText}>Duplicate</Text>
+        </View>
+      </Pressable>
+    );
+  }
+
   return (
     <ThemedView style={styles.flex}>
       <SafeAreaView style={styles.flex} edges={['top']}>
           {/* Header */}
-          {/* The picker is a full-height column on the right edge, so the header's own controls
-              have to step aside for it too — otherwise the panel clips Done and Share. */}
-          <View style={[styles.header, headerInset]}>
-            <Pressable onPress={onClose} hitSlop={10} accessibilityRole="link" accessibilityLabel="Back to My Binders">
-              {/* SAYS WHERE IT GOES. Called "Close" it read as closing something ON this page —
-                  the cards dock, the art dock — and people pressed it and lost the binder they
-                  were editing (owner decision 2026-09-09). */}
-              <Text style={[styles.headerAction, { color: theme.text }]}>← Back to My Binders</Text>
-            </Pressable>
-            {/* TAP THE TITLE TO EDIT IT. The binder's name is already on screen, so a separate
-                "Binder title" field in a dialog was the same words twice. Tapping opens the
-                binder's details while editing — its name and its description — and, while
-                reading, the description on its own. Both are keyed to MODE, not to permission: an
-                owner reading their own binder wants what a visitor wants.
-
-                Live in both modes, described or not: a blank description opens onto the
-                placeholder, which says where to write one. */}
-            <View pointerEvents="box-none" style={[styles.titleFloat, headerInset]}>
-              <Pressable
-                onPress={() => setBinderInfoOpen(true)}
-                onHoverIn={binderHover.onHoverIn}
-                onHoverOut={binderHover.onHoverOut}
-                hitSlop={6}
-                style={[styles.titlePress, { maxWidth: titleMaxW }]}
-                accessibilityRole="button"
-                testID="binder-title"
-                accessibilityLabel={
-                  editing ? 'Binder details \u2014 edit the title and description' : 'About this binder'
-                }>
-                <ThemedText type="subtitle" numberOfLines={1} style={styles.titleText}>
-                  {binder.title || (editing ? 'Untitled binder' : '')}
-                </ThemedText>
-              </Pressable>
-              {binderHover.shown ? (
-                <AboutHoverCard
-                  kicker={binder.title || 'This binder'}
-                  text={binder.description?.trim() || BINDER_DESCRIPTION_PLACEHOLDER}
-                  style={styles.titleHover}
-                />
+          {phone ? (
+            /**
+             * THE PHONE HEADER (owner, 2026-09-13). The wide header is one row with the title floated
+             * over all of it. At 390pt that drew the title over "Back to My Binders", pushed Print,
+             * Share and the mode button off the right edge, and left undo and redo as the only tools
+             * in reach. Two rows here: back, title and the one primary action on top, where they
+             * cannot collide; every other tool on a row of its own that scrolls sideways rather
+             * than hiding.
+             */
+            <View style={styles.phoneHeader}>
+              <View style={styles.phoneHeaderTop}>
+                {backLink}
+                <Pressable
+                  onPress={() => setBinderInfoOpen(true)}
+                  hitSlop={6}
+                  style={styles.phoneTitlePress}
+                  accessibilityRole="button"
+                  testID="binder-title"
+                  accessibilityLabel={titleA11y}>
+                  <ThemedText type="subtitle" numberOfLines={1} style={styles.phoneTitleText}>
+                    {titleWords}
+                  </ThemedText>
+                </Pressable>
+                {primaryAction}
+              </View>
+              {toolItems ? (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.phoneToolRow}
+                  testID="binder-tool-row">
+                  {toolItems}
+                </ScrollView>
               ) : null}
             </View>
-            {canEdit ? (
-              <View
-                style={styles.headerRight}
-                onLayout={(e) => setHeaderRightW(e.nativeEvent.layout.width)}>
-                {editing ? editIcons : null}
-                {isSupabaseConfigured && likeCount !== null ? (
-                  <Tipped text="See who liked this binder">
-                    <Pressable
-                      onPress={() => setLikesOpen(true)}
-                      hitSlop={8}
-                      accessibilityLabel="See who liked this binder"
-                      style={styles.likeChip}>
-                      <Text style={styles.likeChipHeart}>♥</Text>
-                      <Text style={styles.likeChipText}>{likeCount}</Text>
-                    </Pressable>
-                  </Tipped>
-                ) : null}
-                {/* The view settings, in both modes. A gear, not a row. Tipped like the tools it
-                    sits beside: a bare glyph among labelled neighbours is the odd one out twice
-                    over, once for having no word and once for being the only one that stays mute
-                    under the pointer. */}
-                <Tipped text="How this binder looks: page size, background, soundtrack">
-                  <Pressable
-                    onPress={() => setSettingsOpen(true)}
-                    hitSlop={10}
-                    accessibilityRole="button"
-                    accessibilityLabel="View settings"
-                    testID="binder-settings-btn">
-                    <Text style={[styles.headerAction, { color: theme.text }]}>⚙</Text>
-                  </Pressable>
-                </Tipped>
-                {/* SELECT SEVERAL POCKETS acts on a SELECTION, not on the page, so it belongs
-                    with the count it produces rather than inside the page group.
-
-                    Gone entirely while the picker is aimed at a pocket: the two modes are already
-                    mutually exclusive in code — handleAddCell clears the selection on the way in,
-                    and every further empty-pocket tap clears it again — so offering it beside an
-                    "Add to pocket" panel offers a mode the next tap destroys. That is exactly the
-                    state in the screenshot this came from. An empty page has nothing to select
-                    either, so it waits for the page to have something on it. */}
-                {editing && !pickerCell && page.slots.length > 0 ? (
-                  <IconBtn
-                    glyph="⊕"
-                    label="Select several pockets"
-                    testID="binder-select-toggle"
-                    active={selectMode}
-                    onPress={() => {
-                      setSelectMode((v) => {
-                        if (v) clearMulti();
-                        return !v;
-                      });
-                      setSelectedSlotId(null);
-                    }}
+          ) : (
+            // The picker is a full-height column on the right edge, so the header's own controls
+            // have to step aside for it too, otherwise the panel clips the mode button and Share.
+            <View style={[styles.header, headerInset]}>
+              {backLink}
+              {/* TAP THE TITLE TO EDIT IT. Tapping opens the binder's details while editing (its name
+                  and description) and, while reading, the description on its own. Keyed to MODE,
+                  not permission. Floated so it centres on the pages, not on what the buttons leave. */}
+              <View pointerEvents="box-none" style={[styles.titleFloat, headerInset]}>
+                <Pressable
+                  onPress={() => setBinderInfoOpen(true)}
+                  onHoverIn={binderHover.onHoverIn}
+                  onHoverOut={binderHover.onHoverOut}
+                  hitSlop={6}
+                  style={[styles.titlePress, { maxWidth: titleMaxW }]}
+                  accessibilityRole="button"
+                  testID="binder-title"
+                  accessibilityLabel={titleA11y}>
+                  <ThemedText type="subtitle" numberOfLines={1} style={styles.titleText}>
+                    {titleWords}
+                  </ThemedText>
+                </Pressable>
+                {binderHover.shown ? (
+                  <AboutHoverCard
+                    kicker={binder.title || 'This binder'}
+                    text={binder.description?.trim() || BINDER_DESCRIPTION_PLACEHOLDER}
+                    style={styles.titleHover}
                   />
                 ) : null}
-                {/* SELECT MODE HAS TO SAY IT IS ON somewhere you can see without opening a
-                    dialog — it changes what every tap on the binder does. The header is chrome
-                    this screen already draws, so saying it here costs the page no height, and it
-                    doubles as the one-tap route to the actions the selection leads to. */}
-                {editing && selectMode ? (
-                  <Pressable
-                    onPress={() => setMultiActionsOpen(true)}
-                    hitSlop={10}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Actions for ${multiIds.size} selected pockets`}
-                    testID="binder-actions-btn">
-                    <View style={[pillChip.base, pillChip.active]}>
-                      <Text style={[pillChip.text, pillChip.textActive]}>
-                        ✓ Selecting · {multiIds.size}
-                      </Text>
-                    </View>
-                  </Pressable>
-                ) : null}
-                <TrackPill />
-                <Pressable onPress={() => setPrintOpen(true)} hitSlop={10} accessibilityLabel="Print fill sheets">
-                  <Text style={[styles.headerAction, { color: theme.text }]}>Print</Text>
-                </Pressable>
-                {isSupabaseConfigured ? (
-                  <Pressable onPress={() => setShareOpen(true)} hitSlop={10}>
-                    <Text style={[styles.headerAction, { color: theme.text }]}>Share</Text>
-                  </Pressable>
-                ) : null}
-                <Pressable
-                  onPress={() => {
-                    setEditingWanted((e) => !e);
-                    setSelectedSlotId(null);
-                    clearMulti();
-                    setMultiActionsOpen(false);
-                  }}
-                  hitSlop={10}>
-                  {/* A filled pill so entering/leaving the workbench reads as a real mode change. */}
-                  <View style={styles.modeBtn}>
-                    {/* NAMES THE MODE IT SWITCHES TO, both ways round. "Done" alone was ambiguous beside
-                        a dock's own Done, and "Edit" did not say that reading was a mode at all. */}
-                    <Text style={styles.modeBtnText}>{editing ? 'Viewing Mode' : 'Edit Mode'}</Text>
-                  </View>
-                </Pressable>
               </View>
-            ) : binder.locked ? (
-              // A locked reference (the print sampler): view only — no edit, no Duplicate. Print
-              // is the whole point of it, though: the sheet's free example is this binder.
-              <View style={styles.headerRight}>
-                <Pressable onPress={() => setPrintOpen(true)} hitSlop={10} accessibilityLabel="Print fill sheets">
-                  <View style={styles.modeBtn}>
-                    <Text style={styles.modeBtnText}>Print</Text>
-                  </View>
-                </Pressable>
-                <Text style={[styles.headerAction, { color: theme.textSecondary }]}>View only</Text>
-              </View>
-            ) : (
-              <View style={styles.headerRight}>
-                <TrackPill />
-                <Pressable onPress={() => setPrintOpen(true)} hitSlop={10} accessibilityLabel="Print fill sheets">
-                  <Text style={[styles.headerAction, { color: theme.text }]}>Print</Text>
-                </Pressable>
-                <Pressable onPress={handleDuplicate} hitSlop={10}>
-                  <View style={styles.modeBtn}>
-                    <Text style={styles.modeBtnText}>Duplicate</Text>
-                  </View>
-                </Pressable>
-              </View>
-            )}
-          </View>
+              {canEdit ? (
+                <View style={styles.headerRight} onLayout={(e) => setHeaderRightW(e.nativeEvent.layout.width)}>
+                  {toolItems}
+                  {primaryAction}
+                </View>
+              ) : binder.locked ? (
+                <View style={styles.headerRight}>
+                  {primaryAction}
+                  {toolItems}
+                </View>
+              ) : (
+                <View style={styles.headerRight}>
+                  {toolItems}
+                  {primaryAction}
+                </View>
+              )}
+            </View>
+          )}
 
           {/* Pad the page over by whatever the picker occupies, so the binder sits centred in the
               space it actually has rather than centred in the window with a panel parked on top of
@@ -2363,7 +2432,8 @@ export function BinderScreen({
         {/* THE OTHER SIDE. Cards on the right, cut art on the left, both feeding the one pocket
             you have selected — which is why the active pocket had to become unmistakable. */}
         <ArtworkDock
-          visible={sidesShown}
+          // On a phone there is no rail to show while it is shut, so shut means absent.
+          visible={sidesShown && (!phone || artWantsPanel)}
           collapsed={!artWantsPanel}
           onToggleCollapsed={() => setArtworkOpen((v) => !v)}
           onResize={commitDock('artDockPct')}
@@ -2425,7 +2495,8 @@ export function BinderScreen({
               <WalkthroughBanner copy={walkthrough.copy} onDismiss={walkthrough.dismiss} />
             ) : undefined
           }
-          visible={sidesShown}
+          // Same on a phone: the sheet is up while a pocket has asked for it, and gone otherwise.
+          visible={sidesShown && (!phone || cardsWantsPanel)}
           page={page}
           cell={pickerCell}
           slot={slotAtCell}
@@ -3019,6 +3090,32 @@ const styles = StyleSheet.create({
     borderBottomColor: Palette.hairline,
   },
   headerAction: { fontSize: FontSize.md, fontWeight: Weight.semibold },
+  // --- the phone header (see the phone branch in the render) ---
+  phoneHeader: {
+    paddingTop: Spacing.two,
+    zIndex: 30,
+    borderBottomWidth: 1,
+    borderBottomColor: Palette.hairline,
+  },
+  phoneHeaderTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingBottom: Spacing.two,
+  },
+  /** The arrow alone, so it has to be big enough to be the obvious way out. */
+  phoneBack: { fontSize: FontSize.h2, lineHeight: 26, paddingRight: 2 },
+  /** In the flow and taking what is left, so it truncates rather than drawing over its neighbours. */
+  phoneTitlePress: { flex: 1, minWidth: 0 },
+  phoneTitleText: { fontFamily: Fonts?.brand, fontSize: FontSize.lg, lineHeight: 24 },
+  phoneToolRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    paddingHorizontal: Spacing.three,
+    paddingBottom: Spacing.two,
+  },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',

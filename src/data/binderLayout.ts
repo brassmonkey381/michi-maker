@@ -62,6 +62,14 @@ export const SPREAD_GAP = 12;
 /** Below this there is no room for a page AND two peeks; the page goes it alone. */
 export const PEEK_MIN_WIDTH = 700;
 
+/**
+ * BELOW THIS IS A PHONE, and the binder editor lays itself out as one: a two-row header whose tools
+ * scroll sideways, and no side docks at all, only the card sheet and the art modal (owner,
+ * 2026-09-13). The same number as PEEK_MIN_WIDTH on purpose: under it the spread is already a
+ * single page, so there is no second page for a rail to have been making room beside.
+ */
+export const PHONE_MAX_WIDTH = PEEK_MIN_WIDTH;
+
 /** The floor a page is never squeezed under, even when the viewport is short. */
 export const MIN_PAGE_WIDTH = 320;
 

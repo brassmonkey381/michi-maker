@@ -673,6 +673,12 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
           !small &&
           page.slots.map((slot) => {
             if (!slot.cardId) return null;
+            // CARDS ONLY (owner, 2026-09-13). A finish is a fact about a printed card in a pocket:
+            // holo, reverse holo, first edition. An art piece is a picture printed on cardstock, so
+            // it has no finish to state, even when the picture was cut from a card and keeps that
+            // card's id. Thirty Years, Thirty Pages put an "H" in the corner of every panel cut from
+            // a holo card, which read as a claim that the art itself was holographic.
+            if (slot.type !== 'card') return null;
             const variant = variantOf(slot);
             // An unanswered pocket still gets a target, but only where it can be answered.
             const asking = !variant && !!onVariantPress && !!finishAskable?.(slot);

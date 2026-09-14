@@ -546,13 +546,21 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
                   weld is the dotted line you see around each window in a Vault X. One dotted ring
                   three px outside the pocket, in thread cut from the mat's lightness. */}
               {dressed ? (
-                <View
-                  pointerEvents="none"
-                  style={[
-                    styles.stitchRing,
-                    { left: b.left - 3, top: b.top - 3, width: b.width + 6, height: b.height + 6, borderRadius: slotRadius + 3, borderColor: stitchInk(matColor) },
-                  ]}
-                />
+                <>
+                  {/* The rim the weld raises: a dark line a px further out, so the thread reads as
+                      sitting on an edge rather than floating on the cloth. */}
+                  <View
+                    pointerEvents="none"
+                    style={[styles.seamRim, { left: b.left - 4, top: b.top - 4, width: b.width + 8, height: b.height + 8, borderRadius: slotRadius + 4 }]}
+                  />
+                  <View
+                    pointerEvents="none"
+                    style={[
+                      styles.stitchRing,
+                      { left: b.left - 3, top: b.top - 3, width: b.width + 6, height: b.height + 6, borderRadius: slotRadius + 3, borderColor: stitchInk(matColor) },
+                    ]}
+                  />
+                </>
               ) : null}
               <View style={[b, styles.pocket, { borderRadius: slotRadius }, dressed && styles.pocketOnFabric]}>
                 <View style={[styles.pocketInnerShadow, { borderTopLeftRadius: slotRadius, borderTopRightRadius: slotRadius }]} />
@@ -1537,8 +1545,10 @@ function SlotContent({
         styles.fill,
         styles.cardFrame,
         { borderRadius: radius },
-        dressed && styles.cardFrameOnFabric,
-        sleeve ? { borderColor: sleeve, borderWidth: small ? 1.5 : 3, padding: 0 } : null,
+        // ONE PADDING, ALWAYS (owner, 2026-09-13): the frame keeps its hairline and its 2px whatever
+        // the page is, and that 2px is see-through unless a sleeve colour fills it. So a sleeve never
+        // changes a card's size, only what shows in the ring around it.
+        sleeve ? { borderColor: sleeve, backgroundColor: sleeve } : null,
       ]}>
       <View style={[styles.fill, { backgroundColor: dressed ? 'transparent' : SlotBackingFallback }]}>
         <CardImage key={id} id={id} radius={radius} small={small} contentFit="contain" scanUri={scanUri} instant={instantImages} trim />
@@ -2087,7 +2097,9 @@ function PageDressing({
   const [size, setSize] = useState({ w: 0, h: 0 });
   // The coil's centreline sits in the middle of the band; the tape is TAPE wide around it.
   const TAPE = 12;
-  const PITCH = 7;
+  // Teeth sit 3px apart along the coil, in two rows that meet at the tape's centreline: the row
+  // toward the outside of the binder and the row toward the pockets, staggered by half a pitch.
+  const PITCH = 4;
   const c = band / 2;
   const runW = Math.max(0, size.w - c * 2);
   const runH = Math.max(0, size.h - c * 2);
@@ -2098,10 +2110,10 @@ function PageDressing({
     <View
       key={i}
       style={[
-        styles.tooth,
+        vertical ? styles.toothAcross : styles.toothAlong,
         vertical
-          ? { marginBottom: PITCH - 4, marginLeft: i % 2 === 0 ? -3 : 3 }
-          : { marginRight: PITCH - 4, marginTop: i % 2 === 0 ? -3 : 3 },
+          ? { marginBottom: PITCH - 3, marginLeft: i % 2 === 0 ? -3.5 : 3.5 }
+          : { marginRight: PITCH - 3, marginTop: i % 2 === 0 ? -3.5 : 3.5 },
       ]}
     />
   );
@@ -2130,8 +2142,8 @@ function PageDressing({
             bottom: c - 1,
             left: c - 1,
             right: c - 1,
-            borderWidth: 1.5,
-            borderStyle: 'dotted',
+            borderWidth: 1,
+            borderStyle: 'dashed',
             borderColor: ink,
             borderRadius: Math.max(2, radius - c + 1),
           }}
@@ -2240,23 +2252,20 @@ const styles = StyleSheet.create({
   },
   artBacking: { overflow: 'hidden' },
   /** The welded seam round a pocket on a fabric page. Thread colour is set inline from the mat. */
-  stitchRing: { position: 'absolute', borderWidth: 1, borderStyle: 'dotted' },
+  stitchRing: { position: 'absolute', borderWidth: 1, borderStyle: 'dashed' },
+  seamRim: { position: 'absolute', borderWidth: 1, borderColor: 'rgba(0,0,0,0.55)' },
   /** On fabric the pocket is a clear sleeve over dark cloth: a pale, slightly glossy window. */
   pocketOnFabric: { backgroundColor: 'rgba(255,255,255,0.10)', borderColor: 'rgba(255,255,255,0.22)' },
-  /** No white card behind a card on fabric; the sleeve or the pocket is the edge. */
-  cardFrameOnFabric: { backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.14)', padding: 0 },
+  /** On fabric the hairline is pale rather than dark, so the ring still reads against the cloth. */
+  cardFrameOnFabric: { borderColor: 'rgba(255,255,255,0.14)' },
   /** A framed card's scan, drawn 4.4% larger than its box so the JPG's white margin falls outside it. */
   trimmed: { position: 'absolute', left: '-2.2%', top: '-2.2%', width: '104.4%', height: '104.4%' },
   /** The zip's tape: a dark channel the teeth sit in. */
-  tape: { position: 'absolute', backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 3, overflow: 'hidden' },
-  tooth: {
-    width: 4,
-    height: 4,
-    borderRadius: 1,
-    backgroundColor: '#4c4c54',
-    borderTopWidth: 1,
-    borderTopColor: '#7a7a84',
-  },
+  tape: { position: 'absolute', backgroundColor: '#121215', borderRadius: 3, overflow: 'hidden' },
+  /** A coil tooth on a horizontal run: 3 along the tape, 5 across it, a lit top edge. */
+  toothAlong: { width: 3, height: 5, borderRadius: 1, backgroundColor: '#55555e', borderTopWidth: 1, borderTopColor: '#8e8e98' },
+  /** The same tooth turned for the vertical run down the outer edge. */
+  toothAcross: { width: 5, height: 3, borderRadius: 1, backgroundColor: '#55555e', borderLeftWidth: 1, borderLeftColor: '#8e8e98' },
   pull: {
     position: 'absolute',
     width: 10,
@@ -2271,7 +2280,9 @@ const styles = StyleSheet.create({
   },
   pullHole: { width: 4, height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.35)' },
   cardFrame: {
-    backgroundColor: BinderSurface.cardFrame,
+    // See-through, not the white card it used to be: the ring round a card shows the page unless a
+    // sleeve colour is set, and it is the same 2px + hairline on every page and in every state.
+    backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: BinderSurface.cardFrameBorder,
     padding: 2,

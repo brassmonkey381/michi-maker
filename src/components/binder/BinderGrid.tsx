@@ -162,8 +162,8 @@ const CARD_ASPECT = 88 / 63; // height / width of a standard card
  */
 export function pageBoxHeight(width: number, rows: number, cols: number): number {
   const small = width < 220;
-  const pad = small ? 6 : 12;
-  const gap = small ? 3 : 6;
+  const pad = small ? 6 : 14;
+  const gap = small ? 3 : 10;
   const cellW = (width - pad * 2 - gap * (cols - 1)) / cols;
   return pad * 2 + cellW * CARD_ASPECT * rows + gap * (rows - 1);
 }
@@ -363,8 +363,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   const priceOn = captionFields.includes('price');
   const priceSummary = usePriceSummaryWhen(priceOn);
   const small = width < 220;
-  const pad = small ? 6 : 12;
-  const gap = small ? 3 : 6;
+  const pad = small ? 6 : 14;
+  const gap = small ? 3 : 10;
   const radius = small ? Radii.pageSmall : Radii.page;
   const slotRadius = small ? Radii.slotSmall : Radii.slot;
   // A MATERIAL NEVER CHANGES THE BACKGROUND (owner, 2026-09-13): the page stays whatever colour the
@@ -382,7 +382,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   /**
    * A MATERIAL NEVER MOVES A POCKET (owner, 2026-09-13): the spacing is the classic page's in every
    * material, so switching Stitched or Zip on changes what the page is made of and nothing about
-   * where anything sits. The hem and the coil are drawn in the page's own 12px padding.
+   * where anything sits. The hem and the coil are drawn in the page's own 14px padding (see
+   * binderLayout PAD/GAP for where the two spacing numbers are decided).
    */
   const frame = 0;
   // Strip reserved under each card for its labels (0 when off). Fits ~two lines of small text;

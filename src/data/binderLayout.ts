@@ -35,8 +35,11 @@
 export const CARD_ASPECT = 88 / 63;
 
 /** Grid internals, mirroring BinderGrid's non-small branch (a page below 220px is "small"). */
-const PAD = 12;
-const GAP = 6;
+// THE POCKET SPACING (owner, 2026-09-14, picked from four trials): 14px of page round the grid and
+// 10px between pockets. It was 12 and 6, which read as cards touching once the pages wore sleeves
+// and a zip. BinderGrid draws with the same two numbers; keep them together.
+const PAD = 14;
+const GAP = 10;
 const SMALL_PAD = 6;
 const SMALL_GAP = 3;
 /** Caption strip reserved under each row when text labels are on. */

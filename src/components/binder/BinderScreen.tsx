@@ -85,6 +85,7 @@ import { fetchLikeCount } from '@/data/binderRepo';
 import { isPrivateArt } from '@/data/artAttributionCheck';
 import { ArtworkDock } from '@/components/binder/ArtworkDock';
 import { artPieceAllowed, pageSide, REAL_PAGE_SIZES } from '@/data/binderPhysics';
+import { PAGE_MATERIALS, defaultMatFor } from '@/data/pageStyle';
 import { DOCK_PCT_MAX, LEGACY_MIN_WIDTH, MIN_PAGE_WIDTH, PANEL_GAP, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH, PEEK_MIN_WIDTH, panelLayout, PHONE_MAX_WIDTH } from '@/data/binderLayout';
 import type { CaptionFieldKey } from '@/data/cardCaption';
 import type { ComposePlacement } from '@/data/pageComposer';
@@ -1681,6 +1682,8 @@ export function BinderScreen({
   // wire slot editing + cross-page drag; neighbours are drag-only surfaces (no per-slot editing),
   // the current page and the single (narrow) view are fully editable. Refs stay here so the drag
   // hit-test above (localToWindow / resolveSpreadHit) keeps measuring these exact grids.
+  /** The edge away from the spine, for a page style that decorates it (binderPhysics.pageSide). */
+  const outerEdgeOf = (p: DemoPage): 'left' | 'right' => (pageSide(binder.pages.findIndex((pg) => pg.id === p.id)) === 'left' ? 'left' : 'right');
   const renderGrid = ({
     page: p,
     width,
@@ -1706,6 +1709,8 @@ export function BinderScreen({
         <BinderGrid
           page={p}
           width={width}
+          pageStyle={binder.pageStyle}
+          outerEdge={outerEdgeOf(p)}
           editable={false}
           captionFields={captionFields}
           ownedIds={ownedIds}
@@ -1717,7 +1722,7 @@ export function BinderScreen({
     }
     if (!editing) {
       return (
-        <BinderGrid page={p} width={width} editable={false} captionFields={captionFields} ownedIds={ownedIds} scanUrlOf={scanUrlOf} variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable} />
+        <BinderGrid page={p} width={width} pageStyle={binder.pageStyle} outerEdge={outerEdgeOf(p)} editable={false} captionFields={captionFields} ownedIds={ownedIds} scanUrlOf={scanUrlOf} variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable} />
       );
     }
     if (role === 'prev' || role === 'next') {
@@ -1727,6 +1732,8 @@ export function BinderScreen({
           ref={role === 'prev' ? prevRef : nextRef}
           page={p}
           width={width}
+          pageStyle={binder.pageStyle}
+          outerEdge={outerEdgeOf(p)}
           editable
           captionFields={captionFields}
           ownedIds={ownedIds} scanUrlOf={scanUrlOf}
@@ -1754,6 +1761,8 @@ export function BinderScreen({
           ref={isPrev ? prevRef : nextRef}
           page={p}
           width={width}
+          pageStyle={binder.pageStyle}
+          outerEdge={outerEdgeOf(p)}
           editable
           captionFields={captionFields}
           ownedIds={ownedIds} scanUrlOf={scanUrlOf}
@@ -1785,6 +1794,8 @@ export function BinderScreen({
         ref={curRef}
         page={p}
         width={width}
+        pageStyle={binder.pageStyle}
+        outerEdge={outerEdgeOf(p)}
         editable
         captionFields={captionFields}
         ownedIds={ownedIds} scanUrlOf={scanUrlOf}
@@ -1956,10 +1967,61 @@ export function BinderScreen({
         <View style={styles.colorFieldBox}>
           <ColorField
             key={binder.id}
-            value={page.backgroundColor}
+            // The mat a material brings with it, when nothing has been chosen, so the swatch shows the
+            // colour actually on screen rather than white under a near-black stitched page.
+            value={page.backgroundColor ?? defaultMatFor(binder.pageStyle?.material)}
             onChange={(backgroundColor) => store.setBinderBackground(binder.id, backgroundColor)}
           />
         </View>
+      </View>
+      {/* WHAT THE PAGES ARE MADE OF (owner, 2026-09-13): the material, and what the pockets wear.
+          Binder-wide, like the two rows above, and for the same reason. See src/data/pageStyle.ts. */}
+      <View style={styles.inlineRow}>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
+          Page style
+        </ThemedText>
+        <View style={styles.segGroup}>
+          {PAGE_MATERIALS.map((m) => {
+            const active = (binder.pageStyle?.material ?? 'classic') === m.id;
+            return (
+              <Pressable
+                key={m.id}
+                onPress={() => store.setPageStyle(binder.id, { material: m.id === 'classic' ? null : m.id })}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={`${m.label}: ${m.blurb}`}
+                style={[styles.seg, active && styles.segActive]}>
+                <Text style={[styles.segText, active && styles.segTextActive]}>{m.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+      <View style={styles.inlineRow}>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
+          Sleeves
+        </ThemedText>
+        <View style={styles.colorFieldBox}>
+          <ColorField
+            key={`${binder.id}-sleeve`}
+            value={binder.pageStyle?.sleeve}
+            onChange={(sleeve) => store.setPageStyle(binder.id, { sleeve })}
+          />
+        </View>
+        {binder.pageStyle?.sleeve ? <PillButton label="No sleeves" onPress={() => store.setPageStyle(binder.id, { sleeve: null })} /> : null}
+      </View>
+      <View style={styles.inlineRow}>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
+          Art backing
+        </ThemedText>
+        <View style={styles.colorFieldBox}>
+          <ColorField
+            key={`${binder.id}-backing`}
+            value={binder.pageStyle?.artBacking}
+            onChange={(artBacking) => store.setPageStyle(binder.id, { artBacking })}
+          />
+        </View>
+        {binder.pageStyle?.artBacking ? <PillButton label="No backing" onPress={() => store.setPageStyle(binder.id, { artBacking: null })} /> : null}
       </View>
       {binder.pages.some(isBlankPage) ? (
         <PillButton

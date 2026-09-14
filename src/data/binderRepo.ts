@@ -15,6 +15,7 @@ import { requireSupabase } from '@/lib/supabase';
 import type { Database, Json } from '@/types/database';
 import type { BinderCover, BinderTrack, DemoBinder, DemoPage, DemoSlot, MichiLayoutStyle } from '@/data/binderTypes';
 import { normalizeCover } from '@/data/coverDecorations';
+import { normalizePageStyle } from '@/data/pageStyle';
 
 type Tables = Database['public']['Tables'];
 type BinderUpdate = Tables['binders']['Update'];
@@ -36,6 +37,9 @@ function binderRow(binder: DemoBinder): Tables['binders']['Insert'] {
   // Like share_page_ids: only on the payload when set, so a save never names the column on a
   // database the tracks migration has not reached yet.
   if (binder.track) row.track = binder.track as unknown as Json;
+  // Same rule: a binder with no page style never names the column on insert, so creation keeps
+  // working on a database the page_style migration has not reached yet.
+  if (binder.pageStyle) row.page_style = binder.pageStyle as unknown as Json;
   // Only send share_page_ids when actually set. Keeping it OFF the insert payload by default means
   // binder creation never references the column, so it can't break before the share_page_ids
   // migration is applied (new binders + clones have no selection anyway).
@@ -132,6 +136,7 @@ interface BinderRowIn {
   layout_style: MichiLayoutStyle;
   cover_card_id: string | null;
   cover: BinderCover | null;
+  page_style?: unknown;
   track?: BinderTrack | null;
   is_public: boolean;
   is_demo: boolean | null;
@@ -224,6 +229,7 @@ function mapBinder(row: BinderRowIn): DemoBinder {
       row.cover && typeof row.cover === 'object' && row.cover.modelId
         ? normalizeCover(row.cover as BinderCover)
         : undefined,
+    pageStyle: normalizePageStyle(row.page_style),
     track: trackOf(row.track),
     isPublic: row.is_public,
     sharePageIds: row.share_page_ids ?? undefined,
@@ -391,6 +397,7 @@ export async function updateBinder(id: string, patch: Partial<DemoBinder>): Prom
   // strings, numbers and arrays, which is exactly that, but structurally TS wants to be told.
   if (patch.cover !== undefined) row.cover = (patch.cover ?? null) as unknown as Json;
   if (patch.track !== undefined) row.track = (patch.track ?? null) as unknown as Json;
+  if (patch.pageStyle !== undefined) row.page_style = (patch.pageStyle ?? null) as unknown as Json;
   if (patch.isPublic !== undefined) row.is_public = patch.isPublic;
   if (patch.sharePageIds !== undefined)
     row.share_page_ids = patch.sharePageIds && patch.sharePageIds.length ? patch.sharePageIds : null;

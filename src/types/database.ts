@@ -548,6 +548,7 @@ export type Database = {
       binders: {
         Row: {
           cover: Json | null
+          page_style: Json | null
           track: Json | null
           cover_card_id: string | null
           created_at: string
@@ -565,6 +566,7 @@ export type Database = {
         }
         Insert: {
           cover?: Json | null
+          page_style?: Json | null
           track?: Json | null
           cover_card_id?: string | null
           created_at?: string
@@ -582,6 +584,7 @@ export type Database = {
         }
         Update: {
           cover?: Json | null
+          page_style?: Json | null
           track?: Json | null
           cover_card_id?: string | null
           created_at?: string

@@ -1,4 +1,5 @@
 import { useHoverSuspended } from '@/components/binder/hoverGate';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
 import { useRouter } from 'expo-router';
@@ -17,6 +18,7 @@ import Animated, {
 
 import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { BinderSurface, FontSize, Palette, Radii, Radius, Shadows, SlotBackingFallback, Weight } from '@/constants/theme';
+import { defaultMatFor, stitchInk, type PageStyle } from '@/data/pageStyle';
 import { UNSET_CHIP, chipFor } from '@/constants/printVariant';
 import { attributionLabel, deriveAttribution, type ArtAttribution } from '@/data/artworkLibrary';
 import { resolveCardWith, resolveCatalogCardWith } from '@/data/cardResolver';
@@ -170,6 +172,13 @@ interface BinderGridProps {
   page: DemoPage;
   /** Outer page width in px (padding is added internally). */
   width: number;
+  /** What the binder's pages are made of and what the pockets wear. Absent = the plain page. */
+  pageStyle?: PageStyle | null;
+  /**
+   * Which edge is away from the spine, for a material that decorates it (the zip). A right-hand
+   * page's outer edge is its right edge. Absent = no edge decoration, whatever the material.
+   */
+  outerEdge?: 'left' | 'right';
   /**
    * Draw the page at least this tall, with the pockets centred in it. How a shape whose pockets
    * do not fill the shelf's box (a 3×4) still occupies the whole box: the same page, wider
@@ -286,6 +295,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   {
     page,
     width,
+    pageStyle,
+    outerEdge,
     minHeight,
     editable = false,
     captionFields = [],
@@ -353,6 +364,11 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   const gap = small ? 3 : 6;
   const radius = small ? Radii.pageSmall : Radii.page;
   const slotRadius = small ? Radii.slotSmall : Radii.slot;
+  // A material brings its own dark mat, but the binder's own background still wins.
+  const material = pageStyle?.material;
+  const matColor = page.backgroundColor ?? defaultMatFor(material) ?? BinderSurface.mat;
+  // Thumbnails are too small for thread and teeth; they keep the mat colour only.
+  const dressed = !!material && material !== 'classic' && !small;
   // Strip reserved under each card for its labels (0 when off). Fits ~two lines of small text;
   // the card keeps its aspect and the caption sits in this strip directly below it.
   const captionH = captionOn ? (small ? 30 : 34) : 0;
@@ -493,9 +509,12 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
       {...({ dataSet: { binderPage: '1' } } as unknown as ViewProps)}
       style={[
         styles.page,
-        { width, padding: pad, borderRadius: radius, backgroundColor: page.backgroundColor ?? BinderSurface.mat },
+        { width, padding: pad, borderRadius: radius, backgroundColor: matColor },
         minHeight != null && { minHeight, justifyContent: 'center' },
       ]}>
+      {/* THE PAGE'S MATERIAL, drawn under the pockets and over the mat: a fabric vignette, a
+          stitched edge, a zip along the outer edge. See PageDressing. */}
+      {dressed ? <PageDressing material={material!} mat={matColor} radius={radius} pad={pad} outerEdge={outerEdge} small={small} /> : null}
       <View style={{ width: innerW, height: innerH }}>
         {/* Pocket recesses for every cell — visible, deliberate negative space. */}
         {Array.from({ length: page.rows * page.cols }).map((_, i) => {
@@ -622,6 +641,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               scanUri={slot.cardId ? scanUrlOf?.(slot) : undefined}
               captionFields={captionFields}
               instantImages={instantImages}
+              sleeve={pageStyle?.sleeve}
+              artBacking={pageStyle?.artBacking}
               label={label}
               price={slot.cardId ? priceFor(priceSummary, slot.cardId, variantOf?.(slot)) : undefined}
             chipScale={chipScale}
@@ -795,6 +816,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               scanUri={dragged.cardId ? scanUrlOf?.(dragged) : undefined}
               captionFields={captionFields}
               instantImages={instantImages}
+              sleeve={pageStyle?.sleeve}
+              artBacking={pageStyle?.artBacking}
               label={label}
               price={dragged.cardId ? priceFor(priceSummary, dragged.cardId, variantOf?.(dragged)) : undefined}
             chipScale={chipScale}
@@ -1344,9 +1367,15 @@ function SlotContent({
   price,
   chipScale = 1,
   instantImages = false,
+  sleeve,
+  artBacking,
   label,
   onLabel,
 }: {
+  /** The binder's sleeve colour for card pockets, if any (PageStyle.sleeve). */
+  sleeve?: string;
+  /** The binder's backing colour behind art pieces, if any (PageStyle.artBacking). */
+  artBacking?: string;
   /** Chip fill + text from the live appearance (see labelColors). */
   label: { bg: string; text: string };
   /** When set, the on-card labels are links (see the grid's openLabel). */
@@ -1395,10 +1424,10 @@ function SlotContent({
   // A custom artwork panel — a pasted / uploaded image, sized to fill the slot (or a slice
   // of a larger image when imageCrop is set).
   if (slot.type === 'artwork' && slot.imageUrl) {
-    return (
+    const art = (
       <ArtworkImage
         uri={slot.imageUrl}
-        radius={radius}
+        radius={artBacking ? Math.max(0, radius - 2) : radius}
         small={small}
         instant={instantImages}
         crop={slot.imageCrop}
@@ -1406,6 +1435,13 @@ function SlotContent({
         transform={slot.imageTransform}
       />
     );
+    // A BACKING, when the binder has one: the coloured card an art print sits on inside its
+    // pocket. A few px of it show around the picture, the way a mount shows around a photo.
+    return artBacking ? (
+      <View style={[styles.fill, styles.artBacking, { borderRadius: radius, backgroundColor: artBacking, padding: small ? 1 : 3 }]}>
+        <View style={[styles.fill, { borderRadius: Math.max(0, radius - 2), overflow: 'hidden' }]}>{art}</View>
+      </View>
+    ) : art;
   }
 
   // An empty artwork slot is a RESERVED ART GAP (the Build-a-binder wizard leaves these): a
@@ -1450,8 +1486,10 @@ function SlotContent({
   }
 
   // 'card' — framed like a card in a pocket, with a subtle diagonal foil sheen layered on top.
+  // A SLEEVE, when the binder has one: a coloured border around the card, thicker than the frame's
+  // hairline, with the frame's own edge kept inside it so the card still reads as a card.
   return (
-    <View style={[styles.fill, styles.cardFrame, { borderRadius: radius }]}>
+    <View style={[styles.fill, styles.cardFrame, { borderRadius: radius }, sleeve ? { borderColor: sleeve, borderWidth: small ? 1.5 : 3, padding: small ? 1 : 2 } : null]}>
       <View style={[styles.fill, { backgroundColor: SlotBackingFallback }]}>
         <CardImage key={id} id={id} radius={radius} small={small} contentFit="contain" scanUri={scanUri} instant={instantImages} />
         {/* Diagonal foil sheen: two translucent rotated bars layered as plain Views. */}
@@ -1951,6 +1989,106 @@ function Skeleton({ radius }: { radius: number }) {
   );
 }
 
+/**
+ * WHAT THE PAGE IS MADE OF, drawn as three cheap layers under the pockets:
+ *
+ *   - DEPTH: a vignette, light from the top-left and shadow toward the bottom-right, so a flat
+ *     colour reads as fabric with a little body rather than as a rectangle. Two gradients.
+ *   - STITCHING: a dotted line just inside the edge, in a thread colour cut from the mat's own
+ *     lightness (pale on dark fabric, dark on pale). A dotted border is what every renderer we ship
+ *     to can draw natively, so it costs no image and scales with the page.
+ *   - ZIP: on the outer edge only, a tape with a run of teeth down it and a pull at the top. Plain
+ *     views, one per tooth, counted from the page's height so the pitch is constant.
+ *
+ * pointerEvents="none" throughout: none of this is a control, and the pockets above it must keep
+ * every tap. Absolute, inside the page's padding box, so it never changes the layout of anything.
+ */
+function PageDressing({
+  material,
+  mat,
+  radius,
+  pad,
+  outerEdge,
+  small,
+}: {
+  material: 'stitched' | 'zip';
+  mat: string;
+  radius: number;
+  pad: number;
+  outerEdge?: 'left' | 'right';
+  small: boolean;
+}) {
+  const ink = stitchInk(mat);
+  const inset = Math.max(3, Math.round(pad * 0.42));
+  const zip = material === 'zip' && !!outerEdge && !small;
+  const tapeW = 14;
+  const [teethH, setTeethH] = useState(0);
+  const toothPitch = 7;
+  const teeth = teethH > 0 ? Math.max(0, Math.floor((teethH - 16) / toothPitch)) : 0;
+  return (
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: radius, overflow: 'hidden' }]}>
+      {/* Depth: a soft light at the top-left, a soft shade at the bottom-right. */}
+      <LinearGradient
+        colors={['rgba(255,255,255,0.10)', 'rgba(255,255,255,0)']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0.7, y: 0.7 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <LinearGradient
+        colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.22)']}
+        start={{ x: 0.3, y: 0.3 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      {/* Stitching: a dotted run just inside the edge. On a zip page it stops short of the tape. */}
+      <View
+        style={{
+          position: 'absolute',
+          top: inset,
+          bottom: inset,
+          left: inset + (zip && outerEdge === 'left' ? tapeW : 0),
+          right: inset + (zip && outerEdge === 'right' ? tapeW : 0),
+          borderWidth: 1.5,
+          borderStyle: 'dotted',
+          borderColor: ink,
+          borderRadius: Math.max(2, radius - inset),
+        }}
+      />
+      {zip ? (
+        <View
+          onLayout={(e) => setTeethH(e.nativeEvent.layout.height)}
+          style={{
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            width: tapeW,
+            [outerEdge === 'left' ? 'left' : 'right']: 0,
+            backgroundColor: 'rgba(0,0,0,0.35)',
+            alignItems: 'center',
+            paddingTop: 8,
+          }}>
+          {/* The pull: a small bar at the top of the run. */}
+          <View style={{ width: 6, height: 10, borderRadius: 2, backgroundColor: 'rgba(235,235,240,0.9)', marginBottom: 4 }} />
+          {Array.from({ length: teeth }).map((_, i) => (
+            <View
+              key={i}
+              style={{
+                width: 4,
+                height: 4,
+                marginBottom: toothPitch - 4,
+                borderRadius: 1,
+                // Teeth alternate sides of the tape's centre, the way a closed zip's do.
+                marginLeft: i % 2 === 0 ? -3 : 3,
+                backgroundColor: 'rgba(220,220,228,0.85)',
+              }}
+            />
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   page: {
     ...Shadows.page,
@@ -2020,6 +2158,7 @@ const styles = StyleSheet.create({
     height: '100%',
     overflow: 'hidden',
   },
+  artBacking: { overflow: 'hidden' },
   cardFrame: {
     backgroundColor: BinderSurface.cardFrame,
     borderWidth: 1,

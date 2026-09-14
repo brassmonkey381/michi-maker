@@ -34,6 +34,8 @@ import type { ComposePlacement } from '@/data/pageComposer';
 import * as repo from '@/data/binderRepo';
 import { slotSignature } from '@/data/savedSlices';
 import { legalizeArtPanels, pageSide, requiredPageSide } from '@/data/binderPhysics';
+import { withPageStyle, type PageMaterial } from '@/data/pageStyle';
+
 import { diffSnapshots } from '@/data/binderSync';
 import { EXAMPLE_FILL_SHEET_BINDER } from '@/data/exampleFillSheetBinder';
 import {
@@ -69,6 +71,9 @@ import { importRemoteArtToBucket } from '@/lib/importArt';
 import { useAuth } from '@/store/auth';
 
 const CLOUD = isSupabaseConfigured;
+
+/** What setPageStyle accepts: each field set, cleared with null, or left alone. */
+export type PageStylePatch = { material?: PageMaterial | null; sleeve?: string | null; artBacking?: string | null };
 const HISTORY_LIMIT = 50;
 
 /**
@@ -202,6 +207,8 @@ interface BinderStore {
   setBinderPageSize: (binderId: string, rows: number, cols: number) => { ok: boolean; reason?: string };
   /** One background colour for the whole binder — see setBinderBackground. */
   setBinderBackground: (binderId: string, backgroundColor?: string) => void;
+  /** The page material, sleeve and art backing, merged (null clears a field). See pageStyle.ts. */
+  setPageStyle: (binderId: string, patch: PageStylePatch) => void;
   /** Delete a page; the remainder is re-spaced with blanks so later folded art keeps its side. */
   removePage: (binderId: string, pageId: string) => { blanksInserted: number } | null;
   /** Copy (or move) a page into another binder. See the implementation for the refusal reasons. */
@@ -1173,6 +1180,18 @@ export function BinderProvider({ children }: { children: ReactNode }) {
    * object. Per-page colours let a binder drift into a patchwork nobody chose, and the colour
    * control sat in a per-page dialog where that drift was invisible until you flipped.
    */
+  const setPageStyle = useCallback(
+    (binderId: string, patch: PageStylePatch) => {
+      const target = binders.find((binder) => binder.id === binderId);
+      if (!target) return;
+      // Normalised on the way in, so the column only ever holds a usable style or null.
+      const pageStyle = withPageStyle(target.pageStyle, patch) ?? null;
+      commit((prev) => prev.map((binder) => (binder.id === binderId ? { ...binder, pageStyle } : binder)));
+      if (!target.isExample) persist(() => repo.updateBinder(binderId, { pageStyle }));
+    },
+    [binders, commit, persist],
+  );
+
   const setBinderBackground = useCallback(
     (binderId: string, backgroundColor?: string) => {
       const target = binders.find((binder) => binder.id === binderId);
@@ -2305,6 +2324,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       updatePage,
       setBinderPageSize,
       setBinderBackground,
+      setPageStyle,
       removePage,
       sendPageToBinder,
       reorderPages,
@@ -2355,6 +2375,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       updatePage,
       setBinderPageSize,
       setBinderBackground,
+      setPageStyle,
       removePage,
       sendPageToBinder,
       reorderPages,

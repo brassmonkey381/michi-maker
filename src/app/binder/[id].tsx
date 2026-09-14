@@ -8,6 +8,7 @@
  * Card images resolve from ids (no catalog needed), so a shared page paints without the catalog.
  */
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
+import { pageSide } from '@/data/binderPhysics';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -415,6 +416,8 @@ function Viewer({
           <BinderGrid
             page={page}
             width={width}
+            pageStyle={binder.pageStyle}
+            outerEdge={pageSide(binder.pages.findIndex((pg) => pg.id === page.id)) === 'left' ? 'left' : 'right'}
             editable={false}
             captionFields={captionFields}
             // A page-turn copy of a page already on screen: no fade-in, or it reads as refreshing.

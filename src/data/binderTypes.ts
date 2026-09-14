@@ -8,6 +8,7 @@
  */
 
 import type { ArtAttribution } from '@/data/artworkLibrary';
+import type { PageStyle } from '@/data/pageStyle';
 import type { CoverSurfaceId } from '@/data/binderModels';
 import type { BinderSlotType, CardOrientation, MichiLayoutStyle } from '@/types/domain';
 
@@ -347,6 +348,11 @@ export interface DemoBinder {
    * surfaces. Absent means undressed, which is every binder made before covers existed.
    */
   cover?: BinderCover;
+  /**
+   * What the pages are made of and what the pockets wear: material, sleeve, art backing. Absent
+   * is the plain page; `null` is an explicit clearing, the value a removal must carry (see track).
+   */
+  pageStyle?: PageStyle | null;
   /** The binder's soundtrack (VIP): plays from the first open or turn. Absent = silent, and
    *  `null` = explicitly cleared, which is the value a removal must carry (see DemoPage.track). */
   track?: BinderTrack | null;

@@ -74,7 +74,13 @@ export function DockRailFace({ label, chevron }: { label: string; chevron: strin
         {/* DOUBLE, and large. One thin chevron is a decoration; two heavy ones are an instruction. */}
         <Text style={styles.chevron}>{chevron === '◂' ? '‹‹' : '››'}</Text>
       </Animated.View>
-      <Text style={styles.label}>{label.toUpperCase().split('').join('\n')}</Text>
+      {/* THE NAME AS A WORD, TURNED (owner, 2026-09-14). One letter per line read as a column of
+          initials, not a name; a word rotated to run up the rail is the tab convention every
+          reader already knows. Both rails read bottom-to-top. The box is tall and the text is
+          turned inside it, so the rotation costs the layout nothing. */}
+      <View style={styles.labelBox}>
+        <Text style={styles.label}>{label.toUpperCase()}</Text>
+      </View>
       {/* The grip the resize handle wears, in the rail's own size: this edge is a thing you take
           hold of. Two columns of dots rather than one, because a single column at this width read
           as a row of full stops under the word. */}
@@ -113,13 +119,21 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     letterSpacing: -1,
   },
+  // The box is 24 wide and 72 tall; the text is laid out 72 wide OUTSIDE the box's width (absolute,
+  // so the rail's width never clamps it) and turned to fit. left = (24 - 72) / 2, top = (72 - 20) / 2.
+  labelBox: { height: 72, width: 24 },
   label: {
-    fontSize: FontSize.label,
+    position: 'absolute',
+    left: -24,
+    top: 26,
+    width: 72,
+    fontSize: FontSize.control,
     fontWeight: Weight.bold,
     color: Palette.ink,
     textAlign: 'center',
-    lineHeight: 15,
-    letterSpacing: 0.6,
+    lineHeight: 20,
+    letterSpacing: 1.4,
+    transform: [{ rotate: '-90deg' }],
   },
   grip: { gap: 4, alignItems: 'center' },
   gripRow: { flexDirection: 'row', gap: 4 },

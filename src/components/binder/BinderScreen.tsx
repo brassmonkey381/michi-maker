@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Modal,
   Platform,
@@ -39,6 +39,8 @@ import { PocketRing, type PocketRect } from '@/components/binder/PocketRing';
 import { SliceStudio, type SliceStudioHandle } from '@/components/binder/SliceStudio';
 import { Tipped, ToolTip } from '@/components/binder/ToolTip';
 import { WalkthroughBanner } from '@/components/binder/WalkthroughBanner';
+import { ShortcutsCard } from '@/components/binder/ShortcutsCard';
+import { PLAIN_KEYS, SHORTCUTS_SEEN_KEY } from '@/data/keyboardShortcuts';
 import { useFirstPocketWalkthrough } from '@/hooks/use-first-pocket-walkthrough';
 import { SlotMultiActions } from '@/components/binder/SlotMultiActions';
 import { pillChip, sheet } from '@/constants/ui';
@@ -343,6 +345,21 @@ export function BinderScreen({
    * 34px, always in the same place, and says what is behind it — the slice tray's old trick.
    */
   const [cardsCollapsed, setCardsCollapsed] = useState(true);
+  /**
+   * THE SHORTCUTS CARD (owner, 2026-09-14). Opened by the ⌨ button, and once by itself: the first
+   * time this device edits a binder with a keyboard in front of it. Web only, wide only: on a phone
+   * there is no keyboard to learn. The device remembers under SHORTCUTS_SEEN_KEY; a private window
+   * sees it again, which is the right way to be wrong.
+   */
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const dismissShortcuts = useCallback(() => {
+    setShortcutsOpen(false);
+    try {
+      if (typeof localStorage !== 'undefined') localStorage.setItem(SHORTCUTS_SEEN_KEY, '1');
+    } catch {
+      /* storage refused: it shows once more next time, and no more than that per visit */
+    }
+  }, []);
   // Where the scroller starts in the window: the only part of the page's height budget that lives
   // outside the scroller, so the only part BinderPages cannot measure for itself.
   // What the page settled on, reported up by BinderPages so the panel beside it can be sized from
@@ -556,6 +573,19 @@ export function BinderScreen({
     width,
     tier: store.tier,
   });
+  // The shortcuts card's one unprompted showing: the first edit on this device, on a wide web
+  // screen. Above the early returns with the other hooks, so hook order cannot vary. Deferred a
+  // beat so it arrives after the editor has drawn, not in the same frame as the mode switch.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !editing || width < PHONE_MAX_WIDTH) return;
+    try {
+      if (typeof localStorage === 'undefined' || localStorage.getItem(SHORTCUTS_SEEN_KEY)) return;
+    } catch {
+      return;
+    }
+    const t = setTimeout(() => setShortcutsOpen(true), 400);
+    return () => clearTimeout(t);
+  }, [editing, width]);
   /**
    * WHERE THE RING GOES: the first empty pocket in reading order on the page being edited, in
    * window coords. Re-measured on everything that moves that grid - the window's width, either
@@ -2150,6 +2180,13 @@ export function BinderScreen({
    * (see the phone branch in the render). Splitting what a control IS from where it sits is what
    * lets the phone layout move things without a second copy of every handler to keep in step.
    */
+  /** The one mode switch, shared by the button and the E key. */
+  const toggleEditing = () => {
+    setEditingWanted((e) => !e);
+    setSelectedSlotId(null);
+    clearMulti();
+    setMultiActionsOpen(false);
+  };
   const titleWords = binder.title || (editing ? 'Untitled binder' : '');
   const titleA11y = editing ? 'Binder details \u2014 edit the title and description' : 'About this binder';
   const backLink = (
@@ -2182,6 +2219,14 @@ export function BinderScreen({
       <Text style={[styles.headerAction, { color: theme.text }]}>Print</Text>
     </Pressable>
   );
+  /**
+   * THE TOOLS ROW (owner, 2026-09-14). The header used to hold every control in one strip: back,
+   * title, history, the page group, likes, settings, select, the track, Print, Share and the mode
+   * button, fourteen things with no priority among them. Now the header row is navigation only
+   * (back, title, mode) and everything that ACTS sits on a row of its own under it, in scope
+   * order: history, this page, then the binder (settings, select, likes, track, Print, Share).
+   * The phone already laid it out this way; the wide screen now does the same.
+   */
   let toolItems: ReactNode = null;
   let primaryAction: ReactNode = null;
   if (canEdit) {
@@ -2189,6 +2234,19 @@ export function BinderScreen({
       <>
         {artToggle}
         {editing ? editIcons : null}
+        {editing ? <View style={styles.groupRule} /> : null}
+        {/* The view settings, in both modes. Named, not a bare gear: a gear in a row of glyphs
+            was one more thing to guess at. */}
+        <Tipped text="How this binder looks: page size, background, page style, sleeves">
+          <Pressable
+            onPress={() => setSettingsOpen(true)}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="View settings"
+            testID="binder-settings-btn">
+            <Text style={[styles.headerAction, { color: theme.text }]}>{'⚙ Settings'}</Text>
+          </Pressable>
+        </Tipped>
         {isSupabaseConfigured && likeCount !== null ? (
           <Tipped text="See who liked this binder">
             <Pressable
@@ -2201,17 +2259,6 @@ export function BinderScreen({
             </Pressable>
           </Tipped>
         ) : null}
-        {/* The view settings, in both modes. A gear, not a row. */}
-        <Tipped text="How this binder looks: page size, background, soundtrack">
-          <Pressable
-            onPress={() => setSettingsOpen(true)}
-            hitSlop={10}
-            accessibilityRole="button"
-            accessibilityLabel="View settings"
-            testID="binder-settings-btn">
-            <Text style={[styles.headerAction, { color: theme.text }]}>{'\u2699'}</Text>
-          </Pressable>
-        </Tipped>
         {/* SELECT SEVERAL POCKETS acts on a SELECTION, not on the page. Gone while the picker is
             aimed at a pocket (the two modes are mutually exclusive in code) and on an empty page,
             which has nothing to select. */}
@@ -2251,17 +2298,23 @@ export function BinderScreen({
             <Text style={[styles.headerAction, { color: theme.text }]}>Share</Text>
           </Pressable>
         ) : null}
+        {/* The shortcuts card, on request. A keyboard thing, so only where there is one. */}
+        {Platform.OS === 'web' && !phone ? (
+          <Tipped text="Keyboard shortcuts">
+            <Pressable
+              onPress={() => setShortcutsOpen((v) => !v)}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Keyboard shortcuts"
+              testID="binder-shortcuts-btn">
+              <Text style={[styles.headerAction, { color: theme.textSecondary }]}>{'⌨'}</Text>
+            </Pressable>
+          </Tipped>
+        ) : null}
       </>
     );
     primaryAction = (
-      <Pressable
-        onPress={() => {
-          setEditingWanted((e) => !e);
-          setSelectedSlotId(null);
-          clearMulti();
-          setMultiActionsOpen(false);
-        }}
-        hitSlop={10}>
+      <Pressable onPress={toggleEditing} hitSlop={10} testID="binder-mode-btn">
         {/* A filled pill so entering/leaving the workbench reads as a real mode change. NAMES THE
             MODE IT SWITCHES TO, both ways round. */}
         <View style={styles.modeBtn}>
@@ -2338,6 +2391,7 @@ export function BinderScreen({
           ) : (
             // The picker is a full-height column on the right edge, so the header's own controls
             // have to step aside for it too, otherwise the panel clips the mode button and Share.
+            <View style={styles.headerWrap}>
             <View style={[styles.header, headerInset]}>
               {backLink}
               {/* TAP THE TITLE TO EDIT IT. Tapping opens the binder's details while editing (its name
@@ -2365,22 +2419,16 @@ export function BinderScreen({
                   />
                 ) : null}
               </View>
-              {canEdit ? (
-                <View style={styles.headerRight} onLayout={(e) => setHeaderRightW(e.nativeEvent.layout.width)}>
-                  {toolItems}
-                  {primaryAction}
-                </View>
-              ) : binder.locked ? (
-                <View style={styles.headerRight}>
-                  {primaryAction}
-                  {toolItems}
-                </View>
-              ) : (
-                <View style={styles.headerRight}>
-                  {toolItems}
-                  {primaryAction}
-                </View>
-              )}
+              {/* Navigation only: the one primary action sits here, every tool is on the row below. */}
+              <View style={styles.headerRight} onLayout={(e) => setHeaderRightW(e.nativeEvent.layout.width)}>
+                {primaryAction}
+              </View>
+            </View>
+            {toolItems ? (
+              <View style={[styles.toolbar, headerInset]} testID="binder-tool-row">
+                {toolItems}
+              </View>
+            ) : null}
             </View>
           )}
 
@@ -2904,6 +2952,7 @@ export function BinderScreen({
 
         {/* Web keyboard shortcuts (edit mode; disabled while a sheet is open). */}
         <EditorKeyboardShortcuts
+          active={canEdit && !studio && !confirm}
           undoable={editing && !studio && !confirm}
           pocketKeys={!pickerCell}
           onUndo={store.undo}
@@ -2911,7 +2960,17 @@ export function BinderScreen({
           onDelete={deleteSelection}
           onPrevPage={() => changePage(idx - 1)}
           onNextPage={() => changePage(idx + 1)}
+          onToggleEdit={toggleEditing}
+          onToggleArt={phone ? undefined : () => setArtworkOpen((v) => !v)}
+          onToggleCards={phone ? undefined : () => setCardsCollapsed((v) => !v)}
         />
+        {/* THE SHORTCUTS CARD: once, on a keyboard, the first time this device edits a binder;
+            again from ⌨ in the tools row. Bottom centre, over the page, under the docks. */}
+        {shortcutsOpen ? (
+          <View style={styles.shortcutsFloat}>
+            <ShortcutsCard onDismiss={dismissShortcuts} />
+          </View>
+        ) : null}
 
         <PocketRing rect={wantRing ? ringRect : null} />
         {/* STEPS ONE AND THREE float over the binder rather than in the browser, because both name
@@ -3050,6 +3109,7 @@ export function BinderScreen({
  * is the kind of help nobody asked for.
  */
 function EditorKeyboardShortcuts({
+  active,
   undoable,
   pocketKeys,
   onUndo,
@@ -3057,7 +3117,12 @@ function EditorKeyboardShortcuts({
   onDelete,
   onPrevPage,
   onNextPage,
+  onToggleEdit,
+  onToggleArt,
+  onToggleCards,
 }: {
+  /** The binder is this person's and nothing modal sits over it: the mode key applies. */
+  active: boolean;
   /** The editor is up: undo/redo apply. */
   undoable: boolean;
   /** Nothing is layered over the page, so keys that act ON the page apply too. */
@@ -3067,16 +3132,35 @@ function EditorKeyboardShortcuts({
   onDelete: () => void;
   onPrevPage: () => void;
   onNextPage: () => void;
+  /** E: Edit and Viewing mode. */
+  onToggleEdit: () => void;
+  /** A and C: the two docks, absent on a phone where there are none. */
+  onToggleArt?: () => void;
+  onToggleCards?: () => void;
 }) {
   useEffect(() => {
-    if (Platform.OS !== 'web' || !undoable || typeof window === 'undefined') return;
+    if (Platform.OS !== 'web' || !active || typeof window === 'undefined') return;
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return;
       const meta = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
-      if (meta && key === 'z') {
+      // THE PLAIN LETTERS (owner, 2026-09-14): no modifier, so they are refused whenever a field
+      // has focus (above) and whenever a modifier is down, so Ctrl+C stays copy.
+      if (!meta && !e.altKey && key === PLAIN_KEYS.editMode) {
+        e.preventDefault();
+        onToggleEdit();
+        return;
+      }
+      if (!undoable) return;
+      if (!meta && !e.altKey && key === PLAIN_KEYS.artDock && onToggleArt) {
+        e.preventDefault();
+        onToggleArt();
+      } else if (!meta && !e.altKey && (PLAIN_KEYS.cardsDock as readonly string[]).includes(key) && onToggleCards) {
+        e.preventDefault();
+        onToggleCards();
+      } else if (meta && key === 'z') {
         e.preventDefault();
         if (e.shiftKey) onRedo();
         else onUndo();
@@ -3098,7 +3182,7 @@ function EditorKeyboardShortcuts({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [undoable, pocketKeys, onUndo, onRedo, onDelete, onPrevPage, onNextPage]);
+  }, [active, undoable, pocketKeys, onUndo, onRedo, onDelete, onPrevPage, onNextPage, onToggleEdit, onToggleArt, onToggleCards]);
   return null;
 }
 
@@ -3325,21 +3409,38 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   dismiss: { flex: 1, backgroundColor: Palette.scrim30 },
   notFound: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  /**
+   * The two rows together. The header is EARLIER in the tree than the binder, so anything of its
+   * own that hangs below it — today the title's hover card — paints under the page without this.
+   * Raising the header rather than the card is what actually works: a z-index only sorts against
+   * siblings, and the card's sibling is the rest of the header, not the page it needs to sit over.
+   */
+  headerWrap: {
+    zIndex: 30,
+    borderBottomWidth: 1,
+    borderBottomColor: Palette.hairline,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
     gap: 12,
-    // The header is EARLIER in the tree than the binder, so anything of its own that hangs below
-    // it — today the title's hover card — paints under the page without this. Raising the header
-    // rather than the card is what actually works: a z-index only sorts against siblings, and the
-    // card's sibling is the rest of the header, not the page it needs to sit over.
-    zIndex: 30,
-    borderBottomWidth: 1,
-    borderBottomColor: Palette.hairline,
   },
+  /** The tools, centred under the title so they sit over the pages they act on. */
+  toolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: Spacing.three,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  /** Bottom right, clear of the cards rail, above the docks: a small card that covers no pocket. */
+  shortcutsFloat: { position: 'absolute', bottom: 20, right: 72, zIndex: 71 },
   headerAction: { fontSize: FontSize.md, fontWeight: Weight.semibold },
   // --- the phone header (see the phone branch in the render) ---
   phoneHeader: {

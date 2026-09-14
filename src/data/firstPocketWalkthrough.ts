@@ -192,7 +192,7 @@ export const WALKTHROUGH_COPY = {
   page: {
     index: 4,
     title: 'Add your next page',
-    body: 'Press "+ Page" above to add one at the end. The tools next to it duplicate, move and delete the page you are on.',
+    body: 'Press "+ Page" in the tools row above to add one at the end. The tools next to it duplicate, move and delete the page you are on.',
     arrow: 'up',
   },
 } as const satisfies Record<WalkthroughStep, WalkthroughCopy>;

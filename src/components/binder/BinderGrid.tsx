@@ -1,7 +1,7 @@
 import { useHoverSuspended } from '@/components/binder/hoverGate';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, useCallback, type ReactNode, Fragment } from 'react';
 import { useRouter } from 'expo-router';
 import { Linking, Pressable, StyleSheet, Text, View, type DimensionValue, type StyleProp, type ViewProps, type ViewStyle } from 'react-native';
 import { productUrl, sendBrowseCommand } from 'tcgscan-browse';
@@ -369,11 +369,19 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   const matColor = page.backgroundColor ?? defaultMatFor(material) ?? BinderSurface.mat;
   // Thumbnails are too small for thread and teeth; they keep the mat colour only.
   const dressed = !!material && material !== 'classic' && !small;
+  /**
+   * THE FRAME THE MATERIAL TAKES, inside the page's own footprint. The page's outer size is decided
+   * by binderLayout.pageHeightAt from a fixed PAD, and BinderPages budgets height from it, so a
+   * material cannot make the page bigger; it takes its band from the pockets instead. A zip page
+   * gives up 22px a side for the cover band its coil runs in; a stitched page 6px for a hem. The
+   * grid is centred in what is left, and the page keeps the height the plain page would have had.
+   */
+  const frame = !dressed ? 0 : material === 'zip' ? 22 : 6;
   // Strip reserved under each card for its labels (0 when off). Fits ~two lines of small text;
   // the card keeps its aspect and the caption sits in this strip directly below it.
   const captionH = captionOn ? (small ? 30 : 34) : 0;
 
-  const innerW = width - pad * 2;
+  const innerW = width - pad * 2 - frame * 2;
   const cellW = (innerW - gap * (page.cols - 1)) / page.cols;
   const cellH = cellW * CARD_ASPECT;
   // How much the emphasised labels (price / owned / finish) grow at this pocket size.
@@ -385,6 +393,13 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   const colStep = cellW + gap;
   const rowStep = cellH + gap + captionH;
   const innerH = (cellH + captionH) * page.rows + gap * (page.rows - 1);
+  // The plain page's inner height for this width, which is the height this page still occupies.
+  const classicCellW = (width - pad * 2 - gap * (page.cols - 1)) / page.cols;
+  const classicH = (classicCellW * CARD_ASPECT + captionH) * page.rows + gap * (page.rows - 1);
+  const frameTop = Math.round((classicH - innerH) / 2);
+  // Where the grid's (0,0) sits inside the page box: the padding, plus the material's band.
+  const gridX = pad + frame;
+  const gridY = pad + frameTop;
 
   const box = (row: number, col: number, rowSpan: number, colSpan: number): BoxStyle => ({
     position: 'absolute',
@@ -409,8 +424,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
         // Reject unmeasured grids and non-finite coords — otherwise a NaN slips past the
         // bounds check below (NaN comparisons are all false) and returns a bogus hit.
         if (!origin || !Number.isFinite(windowX) || !Number.isFinite(windowY)) return null;
-        const localX = windowX - origin.x - pad;
-        const localY = windowY - origin.y - pad;
+        const localX = windowX - origin.x - gridX;
+        const localY = windowY - origin.y - gridY;
         if (localX < 0 || localY < 0 || localX > innerW || localY > innerH) return null;
         const col = Math.max(0, Math.min(page.cols - 1, Math.floor(localX / colStep)));
         const row = Math.max(0, Math.min(page.rows - 1, Math.floor(localY / rowStep)));
@@ -419,7 +434,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
       localToWindow: (localX, localY) => {
         const origin = originRef.current;
         if (!origin) return null;
-        return { x: origin.x + pad + localX, y: origin.y + pad + localY };
+        return { x: origin.x + gridX + localX, y: origin.y + gridY + localY };
       },
       measureCell: (row, col, done) => {
         const node = rootRef.current;
@@ -432,7 +447,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
         node.measureInWindow((x, y) => {
           // Keep the origin fresh for hitTest while we are here: this IS a remeasure.
           originRef.current = { x, y };
-          done({ x: x + pad + col * colStep, y: y + pad + row * rowStep, width: cellW, height: cellH });
+          done({ x: x + gridX + col * colStep, y: y + gridY + row * rowStep, width: cellW, height: cellH });
         });
       },
     }),
@@ -510,22 +525,39 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
       style={[
         styles.page,
         { width, padding: pad, borderRadius: radius, backgroundColor: matColor },
+        // A dressed page keeps the plain page's height and centres its smaller grid in it.
+        dressed && { height: classicH + pad * 2 },
         minHeight != null && { minHeight, justifyContent: 'center' },
       ]}>
-      {/* THE PAGE'S MATERIAL, drawn under the pockets and over the mat: a fabric vignette, a
-          stitched edge, a zip along the outer edge. See PageDressing. */}
-      {dressed ? <PageDressing material={material!} mat={matColor} radius={radius} pad={pad} outerEdge={outerEdge} small={small} /> : null}
-      <View style={{ width: innerW, height: innerH }}>
+      {/* THE PAGE'S MATERIAL, drawn under the pockets and over the mat: fabric, a hem or a cover
+          band with the zip's coil in it. See PageDressing. */}
+      {dressed ? (
+        <PageDressing material={material as 'stitched' | 'zip'} mat={matColor} radius={radius} band={pad + frame} outerEdge={outerEdge} />
+      ) : null}
+      <View style={{ width: innerW, height: innerH, marginLeft: frame, marginTop: dressed ? frameTop : 0 }}>
         {/* Pocket recesses for every cell — visible, deliberate negative space. */}
         {Array.from({ length: page.rows * page.cols }).map((_, i) => {
           const row = Math.floor(i / page.cols);
           const col = i % page.cols;
+          const b = box(row, col, 1, 1);
           return (
-            <View
-              key={`pocket-${row}-${col}`}
-              style={[box(row, col, 1, 1), styles.pocket, { borderRadius: slotRadius }]}>
-              <View style={[styles.pocketInnerShadow, { borderTopLeftRadius: slotRadius, borderTopRightRadius: slotRadius }]} />
-            </View>
+            <Fragment key={`pocket-${row}-${col}`}>
+              {/* THE SEAM. A real pocket page is welded to the sheet around every pocket, and that
+                  weld is the dotted line you see around each window in a Vault X. One dotted ring
+                  three px outside the pocket, in thread cut from the mat's lightness. */}
+              {dressed ? (
+                <View
+                  pointerEvents="none"
+                  style={[
+                    styles.stitchRing,
+                    { left: b.left - 3, top: b.top - 3, width: b.width + 6, height: b.height + 6, borderRadius: slotRadius + 3, borderColor: stitchInk(matColor) },
+                  ]}
+                />
+              ) : null}
+              <View style={[b, styles.pocket, { borderRadius: slotRadius }, dressed && styles.pocketOnFabric]}>
+                <View style={[styles.pocketInnerShadow, { borderTopLeftRadius: slotRadius, borderTopRightRadius: slotRadius }]} />
+              </View>
+            </Fragment>
           );
         })}
 
@@ -643,6 +675,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               instantImages={instantImages}
               sleeve={pageStyle?.sleeve}
               artBacking={pageStyle?.artBacking}
+              dressed={dressed}
               label={label}
               price={slot.cardId ? priceFor(priceSummary, slot.cardId, variantOf?.(slot)) : undefined}
             chipScale={chipScale}
@@ -818,6 +851,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               instantImages={instantImages}
               sleeve={pageStyle?.sleeve}
               artBacking={pageStyle?.artBacking}
+              dressed={dressed}
               label={label}
               price={dragged.cardId ? priceFor(priceSummary, dragged.cardId, variantOf?.(dragged)) : undefined}
             chipScale={chipScale}
@@ -1369,9 +1403,12 @@ function SlotContent({
   instantImages = false,
   sleeve,
   artBacking,
+  dressed = false,
   label,
   onLabel,
 }: {
+  /** The page is fabric (a material is set), so the white card frame would read as a white border. */
+  dressed?: boolean;
   /** The binder's sleeve colour for card pockets, if any (PageStyle.sleeve). */
   sleeve?: string;
   /** The binder's backing colour behind art pieces, if any (PageStyle.artBacking). */
@@ -1488,10 +1525,23 @@ function SlotContent({
   // 'card' — framed like a card in a pocket, with a subtle diagonal foil sheen layered on top.
   // A SLEEVE, when the binder has one: a coloured border around the card, thicker than the frame's
   // hairline, with the frame's own edge kept inside it so the card still reads as a card.
+  //
+  // THE WHITE BORDER (owner, 2026-09-13). Two things drew one. The frame itself is a white card
+  // (cardFrame) with 2px of padding, which on a white page reads as a sleeve's edge and on dark
+  // fabric reads as a white border round every card, so on a dressed page it is transparent with
+  // no padding. And the scans carry a white margin of their own, baked into the JPG, so CardImage
+  // trims a little off every edge (`trim`) and clips the corners to the card's own radius.
   return (
-    <View style={[styles.fill, styles.cardFrame, { borderRadius: radius }, sleeve ? { borderColor: sleeve, borderWidth: small ? 1.5 : 3, padding: small ? 1 : 2 } : null]}>
-      <View style={[styles.fill, { backgroundColor: SlotBackingFallback }]}>
-        <CardImage key={id} id={id} radius={radius} small={small} contentFit="contain" scanUri={scanUri} instant={instantImages} />
+    <View
+      style={[
+        styles.fill,
+        styles.cardFrame,
+        { borderRadius: radius },
+        dressed && styles.cardFrameOnFabric,
+        sleeve ? { borderColor: sleeve, borderWidth: small ? 1.5 : 3, padding: 0 } : null,
+      ]}>
+      <View style={[styles.fill, { backgroundColor: dressed ? 'transparent' : SlotBackingFallback }]}>
+        <CardImage key={id} id={id} radius={radius} small={small} contentFit="contain" scanUri={scanUri} instant={instantImages} trim />
         {/* Diagonal foil sheen: two translucent rotated bars layered as plain Views. */}
         <View pointerEvents="none" style={styles.foil}>
           <View style={[styles.foilBar, styles.foilBarA]} />
@@ -1865,9 +1915,17 @@ function CardImage({
   contentFit,
   scanUri,
   instant,
+  trim = false,
 }: {
   /** Skip the fade-in: this is a copy drawn for an animation, not a picture arriving. */
   instant?: boolean;
+  /**
+   * Cut the scan's own white margin off. The catalogue's JPGs carry a couple of percent of white
+   * around the card and square corners, and a JPG cannot be transparent, so the pocket clips them
+   * instead: the picture is drawn 4.4% larger than its box and the box has the card's own corner
+   * radius. Only for a framed card; art panels and covers show their whole picture.
+   */
+  trim?: boolean;
   id: string;
   radius: number;
   small: boolean;
@@ -1945,7 +2003,7 @@ function CardImage({
   }
 
   return (
-    <View style={styles.fill}>
+    <View style={[styles.fill, trim && { borderRadius: radius, overflow: 'hidden' }]}>
       <Image
         // Keyed by the resolved URI: when the image manifest lands mid-load the uri SWAPS
         // (flat convention path → hashed/CDN). Without a remount, the aborted first request's
@@ -1954,7 +2012,7 @@ function CardImage({
         // instance per uri means stale callbacks die with the old one.
         key={uri}
         source={{ uri }}
-        style={styles.fill}
+        style={trim ? styles.trimmed : styles.fill}
         contentFit={contentFit}
         cachePolicy="memory-disk"
         recyclingKey={`${id}-${stage}`}
@@ -1990,100 +2048,122 @@ function Skeleton({ radius }: { radius: number }) {
 }
 
 /**
- * WHAT THE PAGE IS MADE OF, drawn as three cheap layers under the pockets:
+ * WHAT THE PAGE IS MADE OF, drawn under the pockets. Modelled on a zip-around collector's binder
+ * lying open: a sheet of dark fabric, each pocket welded to it with a dotted seam (drawn with the
+ * pockets, see stitchRing), and around the sheet a cover band of heavier fabric with the zip's
+ * coil running along the three edges that are not the spine.
  *
- *   - DEPTH: a vignette, light from the top-left and shadow toward the bottom-right, so a flat
- *     colour reads as fabric with a little body rather than as a rectangle. Two gradients.
- *   - STITCHING: a dotted line just inside the edge, in a thread colour cut from the mat's own
- *     lightness (pale on dark fabric, dark on pale). A dotted border is what every renderer we ship
- *     to can draw natively, so it costs no image and scales with the page.
- *   - ZIP: on the outer edge only, a tape with a run of teeth down it and a pull at the top. Plain
- *     views, one per tooth, counted from the page's height so the pitch is constant.
+ *   - FABRIC: a vignette, light from the top-left, shade toward the bottom-right, so a flat colour
+ *     reads as cloth with a little body. Two gradients.
+ *   - HEM (stitched): one dotted run just inside the page edge, where the sheet is bound.
+ *   - COVER BAND (zip): a ring of darker fabric the width of the material's frame, with a fine
+ *     edge line where it meets the sheet, and the coil down its middle on the top, bottom and outer
+ *     edges. The coil is a dark tape with a row of interlocking teeth: small blocks, alternately
+ *     raised and lowered, each with a lighter top edge so they catch the light the way metal does.
+ *     A coloured pull sits at the bottom outer corner, where a zip parks when the binder is open.
+ *
+ * Which edge is the outer one comes from the page's side of the spine (outerEdge). No outer edge
+ * means no coil at all: a page drawn alone, with no spread to belong to.
  *
  * pointerEvents="none" throughout: none of this is a control, and the pockets above it must keep
- * every tap. Absolute, inside the page's padding box, so it never changes the layout of anything.
+ * every tap. Absolute, inside the page's box, so it never changes the layout of anything.
  */
 function PageDressing({
   material,
   mat,
   radius,
-  pad,
+  band,
   outerEdge,
-  small,
 }: {
   material: 'stitched' | 'zip';
   mat: string;
   radius: number;
-  pad: number;
+  /** The page's padding plus the material's frame: how wide the cover band is. */
+  band: number;
   outerEdge?: 'left' | 'right';
-  small: boolean;
 }) {
   const ink = stitchInk(mat);
-  const inset = Math.max(3, Math.round(pad * 0.42));
-  const zip = material === 'zip' && !!outerEdge && !small;
-  const tapeW = 14;
-  const [teethH, setTeethH] = useState(0);
-  const toothPitch = 7;
-  const teeth = teethH > 0 ? Math.max(0, Math.floor((teethH - 16) / toothPitch)) : 0;
+  const zip = material === 'zip' && !!outerEdge;
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  // The coil's centreline sits in the middle of the band; the tape is TAPE wide around it.
+  const TAPE = 12;
+  const PITCH = 7;
+  const c = band / 2;
+  const runW = Math.max(0, size.w - c * 2);
+  const runH = Math.max(0, size.h - c * 2);
+  const teethAcross = Math.floor(runW / PITCH);
+  const teethDown = Math.floor(runH / PITCH);
+  const onOuter = outerEdge === 'right' ? { right: c - TAPE / 2 } : { left: c - TAPE / 2 };
+  const tooth = (i: number, vertical: boolean) => (
+    <View
+      key={i}
+      style={[
+        styles.tooth,
+        vertical
+          ? { marginBottom: PITCH - 4, marginLeft: i % 2 === 0 ? -3 : 3 }
+          : { marginRight: PITCH - 4, marginTop: i % 2 === 0 ? -3 : 3 },
+      ]}
+    />
+  );
   return (
-    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: radius, overflow: 'hidden' }]}>
-      {/* Depth: a soft light at the top-left, a soft shade at the bottom-right. */}
+    <View
+      pointerEvents="none"
+      onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+      style={[StyleSheet.absoluteFill, { borderRadius: radius, overflow: 'hidden' }]}>
       <LinearGradient
-        colors={['rgba(255,255,255,0.10)', 'rgba(255,255,255,0)']}
+        colors={['rgba(255,255,255,0.09)', 'rgba(255,255,255,0)']}
         start={{ x: 0, y: 0 }}
-        end={{ x: 0.7, y: 0.7 }}
+        end={{ x: 0.6, y: 0.8 }}
         style={StyleSheet.absoluteFill}
       />
       <LinearGradient
-        colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.22)']}
-        start={{ x: 0.3, y: 0.3 }}
+        colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.26)']}
+        start={{ x: 0.4, y: 0.2 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      {/* Stitching: a dotted run just inside the edge. On a zip page it stops short of the tape. */}
-      <View
-        style={{
-          position: 'absolute',
-          top: inset,
-          bottom: inset,
-          left: inset + (zip && outerEdge === 'left' ? tapeW : 0),
-          right: inset + (zip && outerEdge === 'right' ? tapeW : 0),
-          borderWidth: 1.5,
-          borderStyle: 'dotted',
-          borderColor: ink,
-          borderRadius: Math.max(2, radius - inset),
-        }}
-      />
-      {zip ? (
+      {material === 'stitched' ? (
         <View
-          onLayout={(e) => setTeethH(e.nativeEvent.layout.height)}
           style={{
             position: 'absolute',
-            top: 0,
-            bottom: 0,
-            width: tapeW,
-            [outerEdge === 'left' ? 'left' : 'right']: 0,
-            backgroundColor: 'rgba(0,0,0,0.35)',
-            alignItems: 'center',
-            paddingTop: 8,
-          }}>
-          {/* The pull: a small bar at the top of the run. */}
-          <View style={{ width: 6, height: 10, borderRadius: 2, backgroundColor: 'rgba(235,235,240,0.9)', marginBottom: 4 }} />
-          {Array.from({ length: teeth }).map((_, i) => (
-            <View
-              key={i}
-              style={{
-                width: 4,
-                height: 4,
-                marginBottom: toothPitch - 4,
-                borderRadius: 1,
-                // Teeth alternate sides of the tape's centre, the way a closed zip's do.
-                marginLeft: i % 2 === 0 ? -3 : 3,
-                backgroundColor: 'rgba(220,220,228,0.85)',
-              }}
-            />
+            top: c - 1,
+            bottom: c - 1,
+            left: c - 1,
+            right: c - 1,
+            borderWidth: 1.5,
+            borderStyle: 'dotted',
+            borderColor: ink,
+            borderRadius: Math.max(2, radius - c + 1),
+          }}
+        />
+      ) : null}
+      {zip ? (
+        <>
+          {/* The cover band: a ring of heavier, darker fabric, and the fine edge where it meets the sheet. */}
+          <View style={[StyleSheet.absoluteFill, { borderWidth: band - 3, borderColor: 'rgba(0,0,0,0.42)', borderRadius: radius }]} />
+          <View style={[StyleSheet.absoluteFill, { borderWidth: band - 3, borderColor: 'transparent', borderRadius: radius }]}>
+            <View style={[StyleSheet.absoluteFill, { margin: -1, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', borderRadius: 4 }]} />
+          </View>
+          {/* The coil, top and bottom: tape, then teeth laid along it. */}
+          {[c - TAPE / 2, size.h - c - TAPE / 2].map((top, k) => (
+            <View key={`h${k}`} style={[styles.tape, { top, left: c - TAPE / 2, right: c - TAPE / 2, height: TAPE, flexDirection: 'row', paddingLeft: 4 }]}>
+              {Array.from({ length: teethAcross }).map((_, i) => tooth(i, false))}
+            </View>
           ))}
-        </View>
+          {/* The coil down the outer edge. */}
+          <View style={[styles.tape, { top: c - TAPE / 2, bottom: c - TAPE / 2, width: TAPE, paddingTop: 4, alignItems: 'center' }, onOuter]}>
+            {Array.from({ length: teethDown }).map((_, i) => tooth(i, true))}
+          </View>
+          {/* The pull, parked at the bottom outer corner and angled the way a hanging pull sits. */}
+          <View
+            style={[
+              styles.pull,
+              { bottom: c - 14, transform: [{ rotate: outerEdge === 'right' ? '-28deg' : '28deg' }] },
+              outerEdge === 'right' ? { right: c - 4 } : { left: c - 4 },
+            ]}>
+            <View style={styles.pullHole} />
+          </View>
+        </>
       ) : null}
     </View>
   );
@@ -2159,6 +2239,37 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   artBacking: { overflow: 'hidden' },
+  /** The welded seam round a pocket on a fabric page. Thread colour is set inline from the mat. */
+  stitchRing: { position: 'absolute', borderWidth: 1, borderStyle: 'dotted' },
+  /** On fabric the pocket is a clear sleeve over dark cloth: a pale, slightly glossy window. */
+  pocketOnFabric: { backgroundColor: 'rgba(255,255,255,0.10)', borderColor: 'rgba(255,255,255,0.22)' },
+  /** No white card behind a card on fabric; the sleeve or the pocket is the edge. */
+  cardFrameOnFabric: { backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.14)', padding: 0 },
+  /** A framed card's scan, drawn 4.4% larger than its box so the JPG's white margin falls outside it. */
+  trimmed: { position: 'absolute', left: '-2.2%', top: '-2.2%', width: '104.4%', height: '104.4%' },
+  /** The zip's tape: a dark channel the teeth sit in. */
+  tape: { position: 'absolute', backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 3, overflow: 'hidden' },
+  tooth: {
+    width: 4,
+    height: 4,
+    borderRadius: 1,
+    backgroundColor: '#4c4c54',
+    borderTopWidth: 1,
+    borderTopColor: '#7a7a84',
+  },
+  pull: {
+    position: 'absolute',
+    width: 10,
+    height: 24,
+    borderRadius: 4,
+    backgroundColor: '#3fcf5e',
+    borderWidth: 1,
+    borderColor: '#1e8f3a',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: 3,
+  },
+  pullHole: { width: 4, height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.35)' },
   cardFrame: {
     backgroundColor: BinderSurface.cardFrame,
     borderWidth: 1,

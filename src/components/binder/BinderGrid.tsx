@@ -217,6 +217,8 @@ interface BinderGridProps {
   onDuplicateSlot?: () => void;
   onRemoveSlot?: () => void;
   onDeselectSlot?: () => void;
+  /** Open the pocket's own colour (sleeve or art backing) for the selected slot. */
+  onStyleSlot?: () => void;
   /** "✨ Fill page" — auto-curate the page around the selected card (card slots only). */
   onAutoFillSlot?: () => void;
   /** Open "which of my copies is this?" for the selected card pocket. */
@@ -312,6 +314,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
     onDuplicateSlot,
     onRemoveSlot,
     onDeselectSlot,
+    onStyleSlot,
     onAutoFillSlot,
     onPickCopySlot,
     variantOf,
@@ -693,8 +696,9 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               scanUri={slot.cardId ? scanUrlOf?.(slot) : undefined}
               captionFields={captionFields}
               instantImages={instantImages}
-              sleeve={pageStyle?.sleeve}
-              artBacking={pageStyle?.artBacking}
+              // POCKET, THEN PAGE, THEN BINDER (owner, 2026-09-14): the first that is set wins.
+              sleeve={slot.sleeve ?? page.sleeve ?? pageStyle?.sleeve ?? undefined}
+              artBacking={slot.artBacking ?? page.artBacking ?? pageStyle?.artBacking ?? undefined}
               dressed={dressed}
               ring={matColor}
               ringPad={ringPad}
@@ -871,8 +875,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               scanUri={dragged.cardId ? scanUrlOf?.(dragged) : undefined}
               captionFields={captionFields}
               instantImages={instantImages}
-              sleeve={pageStyle?.sleeve}
-              artBacking={pageStyle?.artBacking}
+              sleeve={dragged.sleeve ?? page.sleeve ?? pageStyle?.sleeve ?? undefined}
+              artBacking={dragged.artBacking ?? page.artBacking ?? pageStyle?.artBacking ?? undefined}
               dressed={dressed}
               ring={matColor}
               ringPad={ringPad}
@@ -913,6 +917,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
             onDuplicate={onDuplicateSlot}
             onRemove={onRemoveSlot}
             onDeselect={onDeselectSlot}
+            onStyle={onStyleSlot}
             onAutoFill={resizeSlot.cardId ? onAutoFillSlot : undefined}
             onPickCopy={resizeSlot.cardId ? onPickCopySlot : undefined}
             hasCopy={!!resizeSlot.sourceEntryId}
@@ -940,6 +945,7 @@ function SlotToolbar({
   onDuplicate,
   onRemove,
   onDeselect,
+  onStyle,
   onAutoFill,
   onPickCopy,
   hasCopy,
@@ -954,6 +960,8 @@ function SlotToolbar({
   onDuplicate?: () => void;
   onRemove?: () => void;
   onDeselect?: () => void;
+  /** This pocket's own colour: its sleeve (a card) or its backing (an art piece). */
+  onStyle?: () => void;
   onAutoFill?: () => void;
   onPickCopy?: () => void;
   /** Whether this pocket already names one of the owner's copies (ticked in the label). */
@@ -990,6 +998,7 @@ function SlotToolbar({
       {onPickCopy ? (
         <ToolButton label={hasCopy ? 'My card ✓' : 'My card'} onPress={onPickCopy} />
       ) : null}
+      {onStyle ? <ToolButton label={slot.type === 'artwork' ? 'Backing' : 'Sleeve'} onPress={onStyle} /> : null}
       {/* Everything left of this line changes the pocket; everything right of it ends something.
           Remove sat flush against Duplicate in a row of six with 2px between them — one slip on a
           crowded toolbar and the card is gone rather than copied. */}

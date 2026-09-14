@@ -251,6 +251,8 @@ export function BinderScreen({
    */
   const [binderInfoOpen, setBinderInfoOpen] = useState(false);
   const [pageInfoOpen, setPageInfoOpen] = useState(false);
+  /** The selected pocket's own colour dialog (its sleeve, or its art backing). */
+  const [slotStyleOpen, setSlotStyleOpen] = useState(false);
   // The view chips (double-sided, labels, strip side, owned, scans) are rendered by BinderPages,
   // but the gear that opens them belongs up in this screen's header, where it costs no page height.
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -1812,6 +1814,7 @@ export function BinderScreen({
         onDuplicateSlot={duplicateSelected}
         onRemoveSlot={removeSelected}
         onDeselectSlot={() => setSelectedSlotId(null)}
+        onStyleSlot={() => setSlotStyleOpen(true)}
         onAutoFillSlot={() => setAutoFillOpen(true)}
         onPickCopySlot={pickCopyForSelected}
         dropTargets={p.id === page.id ? dropTargets : undefined}
@@ -2776,6 +2779,49 @@ export function BinderScreen({
 
         {/* PAGE DETAILS — opened by tapping the page's own title above it, and split by mode
             exactly the way the binder's is. */}
+        {/* ONE POCKET'S OWN COLOUR. A card's sleeve or an art piece's backing, over the page's and the
+            binder's; "Use page's" hands it back. */}
+        {slotStyleOpen && selectedSlot ? (
+          <Modal visible transparent animationType="fade" onRequestClose={() => setSlotStyleOpen(false)}>
+            <View style={sheet.dialogBackdrop}>
+              <Pressable style={StyleSheet.absoluteFill} onPress={() => setSlotStyleOpen(false)} />
+              <ThemedView type="backgroundElement" style={[styles.toolsCard, { maxWidth: 420 }]}>
+                <View style={styles.toolsHead}>
+                  <ThemedText type="subtitle">{selectedSlot.type === 'artwork' ? 'This art piece' : 'This pocket'}</ThemedText>
+                  <Pressable onPress={() => setSlotStyleOpen(false)} hitSlop={10} testID="slot-style-done">
+                    <Text style={[styles.headerAction, styles.primaryText]}>Done</Text>
+                  </Pressable>
+                </View>
+                <View style={styles.inlineRow}>
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
+                    {selectedSlot.type === 'artwork' ? 'Backing' : 'Sleeve'}
+                  </ThemedText>
+                  <View style={styles.colorFieldBox}>
+                    <ColorField
+                      key={`${selectedSlot.id}-style`}
+                      value={
+                        selectedSlot.type === 'artwork'
+                          ? (selectedSlot.artBacking ?? page.artBacking ?? binder.pageStyle?.artBacking ?? '#ffffff')
+                          : (selectedSlot.sleeve ?? page.sleeve ?? binder.pageStyle?.sleeve ?? '#ffffff')
+                      }
+                      onChange={(hex) =>
+                        store.setSlotStyle(binder.id, page.id, selectedSlot.id, selectedSlot.type === 'artwork' ? { artBacking: hex } : { sleeve: hex })
+                      }
+                    />
+                  </View>
+                  {(selectedSlot.type === 'artwork' ? selectedSlot.artBacking : selectedSlot.sleeve) ? (
+                    <PillButton
+                      label="Use page's"
+                      onPress={() =>
+                        store.setSlotStyle(binder.id, page.id, selectedSlot.id, selectedSlot.type === 'artwork' ? { artBacking: null } : { sleeve: null })
+                      }
+                    />
+                  ) : null}
+                </View>
+              </ThemedView>
+            </View>
+          </Modal>
+        ) : null}
         {pageInfoOpen && !editing ? (
           <AboutPopup
             kicker={page.title || `Page ${idx + 1}`}
@@ -2808,6 +2854,34 @@ export function BinderScreen({
                     placeholder="What's on this page?"
                     multiline
                   />
+                  {/* THIS PAGE'S OWN sleeves and art backing (owner, 2026-09-14). Blank means the
+                      binder's; a pocket can still say otherwise on top of these. */}
+                  <View style={styles.inlineRow}>
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
+                      Sleeves on this page
+                    </ThemedText>
+                    <View style={styles.colorFieldBox}>
+                      <ColorField
+                        key={`${page.id}-sleeve`}
+                        value={page.sleeve ?? binder.pageStyle?.sleeve ?? '#ffffff'}
+                        onChange={(sleeve) => store.updatePage(binder.id, page.id, { sleeve })}
+                      />
+                    </View>
+                    {page.sleeve ? <PillButton label="Use binder's" onPress={() => store.updatePage(binder.id, page.id, { sleeve: null })} /> : null}
+                  </View>
+                  <View style={styles.inlineRow}>
+                    <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
+                      Art backing on this page
+                    </ThemedText>
+                    <View style={styles.colorFieldBox}>
+                      <ColorField
+                        key={`${page.id}-backing`}
+                        value={page.artBacking ?? binder.pageStyle?.artBacking ?? '#ffffff'}
+                        onChange={(artBacking) => store.updatePage(binder.id, page.id, { artBacking })}
+                      />
+                    </View>
+                    {page.artBacking ? <PillButton label="Use binder's" onPress={() => store.updatePage(binder.id, page.id, { artBacking: null })} /> : null}
+                  </View>
                   <SoundtrackField
                     label="This page's track"
                     track={page.track}

@@ -108,6 +108,12 @@ export interface DemoSlot {
    */
   finish?: string;
   /**
+   * THIS POCKET'S OWN sleeve colour (a card) or art backing (an art piece), #rrggbb. Absent or
+   * null falls through to the page's, then the binder's (owner, 2026-09-14).
+   */
+  sleeve?: string | null;
+  artBacking?: string | null;
+  /**
    * True when this pocket was filled FROM the owner's card inventory ("My collection" /
    * fill-from-my-collection) — it consumes one owned copy in the (free/owned) accounting and
    * can be reclaimed. Absent/false ⇒ placed from general browsing (aspirational; doesn't
@@ -298,6 +304,12 @@ export interface DemoPage {
   rows: number;
   cols: number;
   backgroundColor?: string;
+  /**
+   * THIS PAGE'S OWN sleeve colour and art backing, #rrggbb. Absent or null means the binder's
+   * (PageStyle.sleeve / artBacking). A pocket can say otherwise again: see DemoSlot.
+   */
+  sleeve?: string | null;
+  artBacking?: string | null;
   /**
    * Whether the page is visible to public viewers of a public binder. Absent ⇒ public (the DB
    * default). A private page is hidden from everyone but the owner even inside a public binder.

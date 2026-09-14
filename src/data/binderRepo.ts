@@ -59,6 +59,10 @@ function pageRow(page: DemoPage, binderId: string, position: number): Tables['bi
     background_color: page.backgroundColor ?? null,
     is_public: page.isPublic ?? true,
     ...(page.track ? { track: page.track as unknown as Json } : {}),
+    // Only on the payload when set (null counts: it is a clearing), so a save never names the
+    // column on a database the pocket-style migration has not reached yet.
+    ...(page.sleeve !== undefined ? { sleeve: page.sleeve } : {}),
+    ...(page.artBacking !== undefined ? { art_backing: page.artBacking } : {}),
   };
 }
 
@@ -88,6 +92,8 @@ function slotRow(slot: DemoSlot, pageId: string): Tables['binder_slots']['Insert
     from_collection: slot.fromCollection ?? null,
     source_entry_id: slot.sourceEntryId ?? null,
     finish: slot.finish ?? null,
+    ...(slot.sleeve !== undefined ? { sleeve: slot.sleeve } : {}),
+    ...(slot.artBacking !== undefined ? { art_backing: slot.artBacking } : {}),
   };
 }
 
@@ -112,6 +118,8 @@ interface SlotRowIn {
   source_entry_id?: string | null;
   // Optional: rows written before 20260901120000 have no such key.
   finish?: string | null;
+  sleeve?: string | null;
+  art_backing?: string | null;
   updated_at?: string;
 }
 
@@ -123,6 +131,8 @@ interface PageRowIn {
   rows: number;
   cols: number;
   background_color: string | null;
+  sleeve?: string | null;
+  art_backing?: string | null;
   is_public: boolean;
   position: number;
   track?: BinderTrack | null;
@@ -187,6 +197,8 @@ function mapSlot(row: SlotRowIn): DemoSlot {
     fromCollection: row.from_collection ?? undefined,
     sourceEntryId: row.source_entry_id ?? undefined,
     finish: row.finish ?? undefined,
+    sleeve: row.sleeve ?? undefined,
+    artBacking: row.art_backing ?? undefined,
   };
 }
 
@@ -205,6 +217,8 @@ function mapPage(row: PageRowIn): DemoPage {
     rows: row.rows,
     cols: row.cols,
     backgroundColor: row.background_color ?? undefined,
+    sleeve: row.sleeve ?? undefined,
+    artBacking: row.art_backing ?? undefined,
     isPublic: row.is_public,
     track: trackOf(row.track),
     slots,
@@ -465,6 +479,8 @@ export async function updatePage(id: string, patch: Partial<DemoPage>): Promise<
   if (patch.rows !== undefined) row.rows = patch.rows;
   if (patch.cols !== undefined) row.cols = patch.cols;
   if (patch.backgroundColor !== undefined) row.background_color = patch.backgroundColor ?? null;
+  if (patch.sleeve !== undefined) row.sleeve = patch.sleeve ?? null;
+  if (patch.artBacking !== undefined) row.art_backing = patch.artBacking ?? null;
   if (patch.isPublic !== undefined) row.is_public = patch.isPublic;
   if (patch.track !== undefined) row.track = (patch.track ?? null) as unknown as Json;
   if (Object.keys(row).length === 0) return;

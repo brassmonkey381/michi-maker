@@ -170,6 +170,8 @@ export type Database = {
       binder_pages: {
         Row: {
           background_color: string | null
+          sleeve: string | null
+          art_backing: string | null
           binder_id: string
           cols: number
           created_at: string
@@ -184,6 +186,8 @@ export type Database = {
         }
         Insert: {
           background_color?: string | null
+          sleeve?: string | null
+          art_backing?: string | null
           binder_id: string
           cols?: number
           created_at?: string
@@ -198,6 +202,8 @@ export type Database = {
         }
         Update: {
           background_color?: string | null
+          sleeve?: string | null
+          art_backing?: string | null
           binder_id?: string
           cols?: number
           created_at?: string
@@ -258,6 +264,8 @@ export type Database = {
           created_at: string
           from_collection: boolean | null
           finish: string | null
+          sleeve: string | null
+          art_backing: string | null
           id: string
           image_crop: Json | null
           image_fit: string | null
@@ -281,6 +289,8 @@ export type Database = {
           created_at?: string
           from_collection?: boolean | null
           finish?: string | null
+          sleeve?: string | null
+          art_backing?: string | null
           id?: string
           image_crop?: Json | null
           image_fit?: string | null
@@ -304,6 +314,8 @@ export type Database = {
           created_at?: string
           from_collection?: boolean | null
           finish?: string | null
+          sleeve?: string | null
+          art_backing?: string | null
           id?: string
           image_crop?: Json | null
           image_fit?: string | null

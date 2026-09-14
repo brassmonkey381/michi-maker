@@ -207,6 +207,8 @@ interface BinderStore {
   setBinderBackground: (binderId: string, backgroundColor?: string) => void;
   /** The page material, sleeve and art backing, merged (null clears a field). See pageStyle.ts. */
   setPageStyle: (binderId: string, patch: PageStylePatch) => void;
+  /** One pocket's own sleeve or art backing; null hands it back to the page's, then the binder's. */
+  setSlotStyle: (binderId: string, pageId: string, slotId: string, patch: { sleeve?: string | null; artBacking?: string | null }) => void;
   /** Delete a page; the remainder is re-spaced with blanks so later folded art keeps its side. */
   removePage: (binderId: string, pageId: string) => { blanksInserted: number } | null;
   /** Copy (or move) a page into another binder. See the implementation for the refusal reasons. */
@@ -1186,6 +1188,25 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       const pageStyle = withPageStyle(target.pageStyle, patch) ?? null;
       commit((prev) => prev.map((binder) => (binder.id === binderId ? { ...binder, pageStyle } : binder)));
       if (!target.isExample) persist(() => repo.updateBinder(binderId, { pageStyle }));
+    },
+    [binders, commit, persist],
+  );
+
+  const setSlotStyle = useCallback(
+    (binderId: string, pageId: string, slotId: string, patch: { sleeve?: string | null; artBacking?: string | null }) => {
+      const target = binders.find((binder) => binder.id === binderId);
+      const page = target?.pages.find((p) => p.id === pageId);
+      const slot = page?.slots.find((sl) => sl.id === slotId);
+      if (!target || !page || !slot) return;
+      const next: DemoSlot = { ...slot, ...patch };
+      commit((prev) =>
+        prev.map((binder) =>
+          binder.id === binderId
+            ? { ...binder, pages: binder.pages.map((p) => (p.id === pageId ? { ...p, slots: p.slots.map((sl) => (sl.id === slotId ? next : sl)) } : p)) }
+            : binder,
+        ),
+      );
+      if (!target.isExample) persist(() => repo.upsertSlot(pageId, next));
     },
     [binders, commit, persist],
   );
@@ -2323,6 +2344,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       setBinderPageSize,
       setBinderBackground,
       setPageStyle,
+      setSlotStyle,
       removePage,
       sendPageToBinder,
       reorderPages,
@@ -2374,6 +2396,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       setBinderPageSize,
       setBinderBackground,
       setPageStyle,
+      setSlotStyle,
       removePage,
       sendPageToBinder,
       reorderPages,

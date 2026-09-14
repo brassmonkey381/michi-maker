@@ -1949,6 +1949,15 @@ function CardImage({
   const [stage, setStage] = useState<'scan' | 'tier' | 'full' | 'failed'>(scanUri ? 'scan' : 'tier');
   const [loaded, setLoaded] = useState(false);
   const [attempts, setAttempts] = useState(0);
+  /**
+   * THE CORNERS. A scan's corners are white triangles outside the card's own rounded corner, and
+   * the pocket's radius is a fixed 8px, which at a 200px pocket is smaller than the card's corner,
+   * so a triangle of white peeked out at every corner (owner, 2026-09-13). A trimmed card clips at
+   * the card's own proportion instead: a real card's corner is about 4% of its width, and 5.2%
+   * covers the scan's margin on top of that. Measured from the box, so it scales with the pocket.
+   */
+  const [boxW, setBoxW] = useState(0);
+  const clipRadius = trim ? Math.max(radius, boxW * 0.052) : radius;
   const tier: 245 | 640 = small ? 245 : 640;
   // THE fix for blank slots on a cold refresh: cardThumbUrl reads the image manifest, which is
   // mutable MODULE state the React Compiler can't track. A plain `const uri = cardThumbUrl(...)`
@@ -2013,7 +2022,9 @@ function CardImage({
   }
 
   return (
-    <View style={[styles.fill, trim && { borderRadius: radius, overflow: 'hidden' }]}>
+    <View
+      onLayout={trim ? (e) => setBoxW(e.nativeEvent.layout.width) : undefined}
+      style={[styles.fill, trim && { borderRadius: clipRadius, overflow: 'hidden' }]}>
       <Image
         // Keyed by the resolved URI: when the image manifest lands mid-load the uri SWAPS
         // (flat convention path → hashed/CDN). Without a remount, the aborted first request's

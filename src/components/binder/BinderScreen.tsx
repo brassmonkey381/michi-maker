@@ -6,7 +6,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
   useWindowDimensions,
 } from 'react-native';
@@ -23,13 +22,11 @@ import {
   CardPicker,
 } from '@/components/binder/CardPicker';
 import { AboutHoverCard, AboutPopup, BINDER_DESCRIPTION_PLACEHOLDER, PAGE_DESCRIPTION_PLACEHOLDER, useHoverReveal } from '@/components/binder/AboutPopup';
-import { PageComposition } from '@/components/binder/PageComposition';
 import { BinderPages, type CoverToolsContext, type GridRole } from '@/components/binder/BinderPages';
 import { CoverPanel } from '@/components/binder/CoverPanel';
 import { withSurface } from '@/components/binder/CoverEditor';
 import { MAX_DECORATIONS_PER_SURFACE, addDecoration, sliceToDecoration } from '@/data/coverDecorations';
 import { LayersTray } from '@/components/binder/LayersTray';
-import { ColorField } from '@/components/binder/ColorField';
 import { ConfirmDialog, type ConfirmSpec } from '@/components/binder/ConfirmDialog';
 import { LikersSheet } from '@/components/binder/LikersSheet';
 import { RightsPrompt } from '@/components/binder/RightsPrompt';
@@ -40,6 +37,9 @@ import { SliceStudio, type SliceStudioHandle } from '@/components/binder/SliceSt
 import { Tipped, ToolTip } from '@/components/binder/ToolTip';
 import { WalkthroughBanner } from '@/components/binder/WalkthroughBanner';
 import { ShortcutsCard } from '@/components/binder/ShortcutsCard';
+import { BinderFields, BinderLook } from '@/components/binder/inspector/BinderSection';
+import { PageFields } from '@/components/binder/inspector/PageSection';
+import { PocketWear } from '@/components/binder/inspector/PocketSection';
 import { PLAIN_KEYS, SHORTCUTS_SEEN_KEY } from '@/data/keyboardShortcuts';
 import { useFirstPocketWalkthrough } from '@/hooks/use-first-pocket-walkthrough';
 import { SlotMultiActions } from '@/components/binder/SlotMultiActions';
@@ -54,7 +54,6 @@ import { useCapGate } from '@/hooks/use-cap-gate';
 import { similarityWall } from '@/data/similarityGate';
 import { themeSearchWall } from '@/data/themeGate';
 import { hasBinderCovers, hasBinderTracks, hasFindSimilar } from '@/data/tiers';
-import { SoundtrackField } from '@/components/binder/SoundtrackField';
 import { TrackPill } from '@/components/binder/TrackPill';
 import { setTrack, stopPlayer } from '@/lib/binderAudio';
 import { CopyPickerSheet } from '@/components/binder/CopyPickerSheet';
@@ -86,8 +85,7 @@ import {
 import { fetchLikeCount } from '@/data/binderRepo';
 import { isPrivateArt } from '@/data/artAttributionCheck';
 import { ArtworkDock } from '@/components/binder/ArtworkDock';
-import { artPieceAllowed, pageSide, REAL_PAGE_SIZES } from '@/data/binderPhysics';
-import { DEFAULT_THREAD_OPACITY, DEFAULT_ZIP_PULL, PAGE_MATERIALS, SPINE_STYLES, THREAD_OPACITIES, WEAR_NONE, ZIP_TRACKS, luminance, resolveWear } from '@/data/pageStyle';
+import { artPieceAllowed, pageSide } from '@/data/binderPhysics';
 import { DOCK_PCT_MAX, LEGACY_MIN_WIDTH, MIN_PAGE_WIDTH, PANEL_GAP, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH, PEEK_MIN_WIDTH, panelLayout, PHONE_MAX_WIDTH } from '@/data/binderLayout';
 import type { CaptionFieldKey } from '@/data/cardCaption';
 import type { ComposePlacement } from '@/data/pageComposer';
@@ -99,12 +97,11 @@ import { artLimitMessage, artTrialMessage, binderLimitMessage, binderTrialMessag
 
 import { SliceThumb } from '@/components/binder/SliceTray';
 import type { CatalogCard } from '@/lib/catalog';
-import { isBlankPage, useBinders } from '@/store/binders';
+import { useBinders } from '@/store/binders';
 import { useTheme } from '@/hooks/use-theme';
 import { useViewPrefs } from '@/hooks/use-view-prefs';
 
 // Real side-load page grids only — 4 rows × 3 columns doesn't exist physically (binderPhysics).
-const PAGE_SIZES = REAL_PAGE_SIZES;
 
 /** Every free footprint on `page` where `slice` legally fits (side-load physics) — the pockets
  *  highlighted while a tray slice is armed or dragged, and the set drops are validated against. */
@@ -1967,199 +1964,7 @@ export function BinderScreen({
    * you flipped onto the odd page out. Both live with the other "how this binder shows itself"
    * choices instead of in a per-page tools card.
    */
-  const binderLookSettings = editing ? (
-    <View style={styles.lookBox}>
-      <View style={styles.inlineRow}>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
-          Page size
-        </ThemedText>
-        {/* Segmented control — same voice as the studio's fit/view toggles. */}
-        <View style={styles.segGroup}>
-          {PAGE_SIZES.map((size) => {
-            const active = page.rows === size.rows && page.cols === size.cols;
-            return (
-              <Pressable
-                key={size.label}
-                onPress={() => {
-                  const res = store.setBinderPageSize(binder.id, size.rows, size.cols);
-                  if (!res.ok && res.reason) showToast(res.reason);
-                  else if (res.ok && binder.pages.length > 1)
-                    showToast(`All ${binder.pages.length} pages set to ${size.label}`);
-                }}
-                style={[styles.seg, active && styles.segActive]}>
-                <Text style={[styles.segText, active && styles.segTextActive]}>{size.label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-      <View style={styles.inlineRow}>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
-          Background
-        </ThemedText>
-        <View style={styles.colorFieldBox}>
-          <ColorField
-            key={binder.id}
-            value={page.backgroundColor}
-            onChange={(backgroundColor) => store.setBinderBackground(binder.id, backgroundColor)}
-          />
-        </View>
-      </View>
-      {/* WHAT THE PAGES ARE MADE OF (owner, 2026-09-13): the material, and what the pockets wear.
-          Binder-wide, like the two rows above, and for the same reason. See src/data/pageStyle.ts. */}
-      <View style={styles.inlineRow}>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
-          Page style
-        </ThemedText>
-        <View style={styles.segGroup}>
-          {PAGE_MATERIALS.map((m) => {
-            const active = (binder.pageStyle?.material ?? 'classic') === m.id;
-            return (
-              <Pressable
-                key={m.id}
-                onPress={() => store.setPageStyle(binder.id, { material: m.id === 'classic' ? null : m.id })}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                accessibilityLabel={`${m.label}: ${m.blurb}`}
-                style={[styles.seg, active && styles.segActive]}>
-                <Text style={[styles.segText, active && styles.segTextActive]}>{m.label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-      {binder.pageStyle?.material ? (
-        <View style={styles.inlineRow}>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
-            Thread
-          </ThemedText>
-          <View style={styles.colorFieldBox}>
-            <ColorField
-              key={`${binder.id}-thread`}
-              value={binder.pageStyle.thread?.color ?? (luminance(page.backgroundColor ?? '#ffffff') < 0.35 ? '#ffffff' : '#000000')}
-              onChange={(color) => store.setPageStyle(binder.id, { thread: { color } })}
-            />
-          </View>
-          <View style={styles.segGroup}>
-            {THREAD_OPACITIES.map((o) => {
-              const active = (binder.pageStyle?.thread?.opacity ?? DEFAULT_THREAD_OPACITY) === o;
-              return (
-                <Pressable
-                  key={o}
-                  onPress={() => store.setPageStyle(binder.id, { thread: { opacity: o } })}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                  accessibilityLabel={`Thread at ${Math.round(o * 100)} percent`}
-                  style={[styles.seg, active && styles.segActive]}>
-                  <Text style={[styles.segText, active && styles.segTextActive]}>{Math.round(o * 100)}%</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          {binder.pageStyle.thread ? <PillButton label="Auto" onPress={() => store.setPageStyle(binder.id, { thread: null })} /> : null}
-        </View>
-      ) : null}
-      {/* BINDER DETAILS (owner, 2026-09-14): the hardware of the binder round the page. A set, not a
-          pick: a binder can have a zip AND a spine, and each is its own toggle with its own options. */}
-      <View style={styles.inlineRow}>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
-          Binder details
-        </ThemedText>
-        <Pressable
-          onPress={() => store.setPageStyle(binder.id, { zip: binder.pageStyle?.details?.zip ? null : {} })}
-          accessibilityRole="button"
-          accessibilityState={{ selected: !!binder.pageStyle?.details?.zip }}
-          accessibilityLabel="Zipper: a zip round the cover, with a coloured pull">
-          <View style={[pillChip.base, binder.pageStyle?.details?.zip && pillChip.active]}>
-            <Text style={[pillChip.text, binder.pageStyle?.details?.zip && pillChip.textActive]}>Zipper</Text>
-          </View>
-        </Pressable>
-        {SPINE_STYLES.map((sp) => {
-          const on = binder.pageStyle?.details?.spine === sp.id;
-          return (
-            <Pressable
-              key={sp.id}
-              onPress={() => store.setPageStyle(binder.id, { spine: on ? null : sp.id })}
-              accessibilityRole="button"
-              accessibilityState={{ selected: on }}
-              accessibilityLabel={`${sp.label}: ${sp.blurb}`}>
-              <View style={[pillChip.base, on && pillChip.active]}>
-                <Text style={[pillChip.text, on && pillChip.textActive]}>{sp.label}</Text>
-              </View>
-            </Pressable>
-          );
-        })}
-      </View>
-      {binder.pageStyle?.details?.zip ? (
-        <View style={styles.inlineRow}>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
-            Zip pull
-          </ThemedText>
-          <View style={styles.colorFieldBox}>
-            <ColorField
-              key={`${binder.id}-pull`}
-              value={binder.pageStyle.details.zip.pull ?? DEFAULT_ZIP_PULL}
-              onChange={(pull) => store.setPageStyle(binder.id, { zip: { pull } })}
-            />
-          </View>
-          <View style={styles.segGroup}>
-            {ZIP_TRACKS.map((t) => {
-              const active = (binder.pageStyle?.details?.zip?.track ?? 'straight') === t.id;
-              return (
-                <Pressable
-                  key={t.id}
-                  onPress={() => store.setPageStyle(binder.id, { zip: { track: t.id === 'straight' ? null : t.id } })}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                  style={[styles.seg, active && styles.segActive]}>
-                  <Text style={[styles.segText, active && styles.segTextActive]}>{t.label}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-      ) : null}
-      <WearRow
-        label="Sleeves"
-        fieldKey={`${binder.id}-sleeve`}
-        own={binder.pageStyle?.sleeve ?? WEAR_NONE}
-        onChange={(sleeve) => store.setPageStyle(binder.id, { sleeve })}
-        testID="binder-sleeve"
-      />
-      <WearRow
-        label="Art backing"
-        fieldKey={`${binder.id}-backing`}
-        own={binder.pageStyle?.artBacking ?? WEAR_NONE}
-        onChange={(artBacking) => store.setPageStyle(binder.id, { artBacking })}
-        testID="binder-backing"
-      />
-      {binder.pages.some(isBlankPage) ? (
-        <PillButton
-          label="Compact blanks"
-          onPress={() => {
-            const result = store.compactBlankPages(binder.id);
-            if (!result) return;
-            if (result.removed === 0) {
-              showToast(
-                result.kept > 0
-                  ? 'Every blank page here keeps folded art on its pocket pairs.'
-                  : 'No blank pages to remove.',
-              );
-              return;
-            }
-            showToast(
-              `Removed ${result.removed} blank page${result.removed === 1 ? '' : 's'}${
-                result.kept > 0
-                  ? `. ${result.kept === 1 ? 'One stays' : `${result.kept} stay`} to keep folded art aligned.`
-                  : ''
-              }`,
-              true,
-            );
-          }}
-        />
-      ) : null}
-    </View>
-  ) : null;
+  const binderLookSettings = editing ? <BinderLook binder={binder} page={page} showToast={showToast} /> : null;
 
   /**
    * ONE SOURCE OF TRUTH FOR THE HEADER'S CONTENT BOX. The header row and the floating title take
@@ -2784,29 +2589,7 @@ export function BinderScreen({
                   </Pressable>
                 </View>
                 <View style={styles.binderFields}>
-                  <LabeledInput
-                    label="Binder title"
-                    value={binder.title}
-                    onChangeText={(title) => store.updateBinder(binder.id, { title })}
-                    placeholder="Binder title"
-                  />
-                  <LabeledInput
-                    label="Binder description"
-                    value={binder.description ?? ''}
-                    onChangeText={(description) => store.updateBinder(binder.id, { description })}
-                    placeholder="What is this binder about?"
-                    multiline
-                  />
-                  <SoundtrackField
-                    label="Soundtrack"
-                    track={binder.track}
-                    // `track` straight through: Remove hands over null, and null is what the
-                    // repo needs to write the column. `?? undefined` turned a removal into an
-                    // absent field, which the patch guard reads as "do not touch this column".
-                    onChange={(track) => store.updateBinder(binder.id, { track })}
-                    locked={tracksLocked}
-                    onLocked={onTracksLocked}
-                  />
+                  <BinderFields binder={binder} tracksLocked={tracksLocked} onTracksLocked={onTracksLocked} />
                 </View>
               </ThemedView>
             </View>
@@ -2828,27 +2611,7 @@ export function BinderScreen({
                     <Text style={[styles.headerAction, styles.primaryText]}>Done</Text>
                   </Pressable>
                 </View>
-                {selectedSlot.type === 'artwork' ? (
-                  <WearRow
-                    label="Backing"
-                    fieldKey={`${selectedSlot.id}-style`}
-                    own={selectedSlot.artBacking}
-                    above={resolveWear(page.artBacking, binder.pageStyle?.artBacking)}
-                    inherit="Use page's"
-                    onChange={(artBacking) => store.setSlotStyle(binder.id, page.id, selectedSlot.id, { artBacking })}
-                    testID="slot-backing"
-                  />
-                ) : (
-                  <WearRow
-                    label="Sleeve"
-                    fieldKey={`${selectedSlot.id}-style`}
-                    own={selectedSlot.sleeve}
-                    above={resolveWear(page.sleeve, binder.pageStyle?.sleeve)}
-                    inherit="Use page's"
-                    onChange={(sleeve) => store.setSlotStyle(binder.id, page.id, selectedSlot.id, { sleeve })}
-                    testID="slot-sleeve"
-                  />
-                )}
+                <PocketWear binder={binder} page={page} slot={selectedSlot} />
               </ThemedView>
             </View>
           </Modal>
@@ -2872,49 +2635,7 @@ export function BinderScreen({
                 </View>
                 {/* Scrolls: the composition notes below can run past a short phone. */}
                 <ScrollView contentContainerStyle={styles.binderFields} keyboardShouldPersistTaps="handled">
-                  <LabeledInput
-                    label="Page title"
-                    value={page.title ?? ''}
-                    onChangeText={(title) => store.updatePage(binder.id, page.id, { title })}
-                    placeholder="Untitled page"
-                  />
-                  <LabeledInput
-                    label="Page description"
-                    value={page.description ?? ''}
-                    onChangeText={(description) => store.updatePage(binder.id, page.id, { description })}
-                    placeholder="What's on this page?"
-                    multiline
-                  />
-                  {/* THIS PAGE'S OWN sleeves and art backing (owner, 2026-09-14). Blank means the
-                      binder's, "None" means bare pockets here; a pocket can still say otherwise. */}
-                  <WearRow
-                    label="Sleeves on this page"
-                    fieldKey={`${page.id}-sleeve`}
-                    own={page.sleeve}
-                    above={binder.pageStyle?.sleeve}
-                    inherit="Use binder's"
-                    onChange={(sleeve) => store.updatePage(binder.id, page.id, { sleeve })}
-                    testID="page-sleeve"
-                  />
-                  <WearRow
-                    label="Art backing on this page"
-                    fieldKey={`${page.id}-backing`}
-                    own={page.artBacking}
-                    above={binder.pageStyle?.artBacking}
-                    inherit="Use binder's"
-                    onChange={(artBacking) => store.updatePage(binder.id, page.id, { artBacking })}
-                    testID="page-backing"
-                  />
-                  <SoundtrackField
-                    label="This page's track"
-                    track={page.track}
-                    onChange={(track) => store.updatePage(binder.id, page.id, { track })}
-                    locked={tracksLocked}
-                    onLocked={onTracksLocked}
-                  />
-                  {/* Why the page looks the way it does: what the open pockets mean, and what each
-                      reserved art panel is for. See PageComposition for why it lives here. */}
-                  <PageComposition page={page} />
+                  <PageFields binder={binder} page={page} tracksLocked={tracksLocked} onTracksLocked={onTracksLocked} />
                 </ScrollView>
               </ThemedView>
             </View>
@@ -3197,45 +2918,6 @@ function EditorKeyboardShortcuts({
  * so every editable field reads unmistakably as editable while staying visually quiet. Used for
  * the binder/page title–description fields, which used to be bare page-wide boxes.
  */
-function LabeledInput({
-  label,
-  value,
-  onChangeText,
-  placeholder,
-  multiline = false,
-  style,
-}: {
-  label: string;
-  value: string;
-  onChangeText: (text: string) => void;
-  placeholder?: string;
-  multiline?: boolean;
-  style?: object;
-}) {
-  const theme = useTheme();
-  return (
-    <View style={style}>
-      <Text style={[styles.fieldMiniLabel, { color: theme.textSecondary }]}>{label}</Text>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={theme.textSecondary}
-        multiline={multiline}
-        style={[
-          styles.fieldInput,
-          multiline && styles.fieldInputMulti,
-          {
-            color: theme.text,
-            borderColor: theme.backgroundSelected,
-            backgroundColor: theme.backgroundElement,
-          },
-        ]}
-      />
-    </View>
-  );
-}
-
 /**
  * A tool as a symbol. Thirty pixels square, so a row of them fits in a header beside the title —
  * which is the whole point: a labelled pill row cannot live there, and anywhere else it would sit
@@ -3322,83 +3004,6 @@ function IconBtn({
         ) : null}
       </Pressable>
       {hover.shown ? <ToolTip text={tip ?? label} /> : null}
-    </View>
-  );
-}
-
-function PillButton({
-  label,
-  onPress,
-  tone = 'default',
-  disabled = false,
-  active = false,
-  testID,
-}: {
-  label: string;
-  onPress: () => void;
-  tone?: 'default' | 'danger';
-  disabled?: boolean;
-  /** The pill names the current state (a chosen option), not an action: outlined in the brand colour. */
-  active?: boolean;
-  testID?: string;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      testID={testID}
-      style={({ pressed }) => [
-        styles.pill,
-        tone === 'danger' && styles.pillDanger,
-        active && styles.pillActive,
-        pressed && styles.pressed,
-        disabled && styles.pillDisabled,
-      ]}>
-      <Text style={[styles.pillText, tone === 'danger' && styles.pillTextDanger, active && styles.pillTextActive]}>{label}</Text>
-    </Pressable>
-  );
-}
-
-/**
- * ONE ROW OF WHAT A POCKET WEARS: a sleeve colour, or an art backing, at the binder, the page or
- * the pocket. Three states (owner, 2026-09-14): a colour of its own, "None" (bare here even if the
- * layer above wears one), or nothing set, which inherits. The colour swatch always shows what is
- * in effect so the picker opens on it; `inherit` is the pill that hands the choice back up (absent
- * at the binder, which has nothing above it, so there "None" and clearing are the same thing).
- */
-function WearRow({
-  label,
-  fieldKey,
-  own,
-  above,
-  inherit,
-  onChange,
-  testID,
-}: {
-  label: string;
-  fieldKey: string;
-  /** This layer's own value: a colour, WEAR_NONE, or nothing. */
-  own: string | null | undefined;
-  /** What the layers above resolve to, already reduced. */
-  above?: string;
-  /** Label of the hand-it-back pill, e.g. "Use binder's". Omit at the top layer. */
-  inherit?: string;
-  /** A colour, WEAR_NONE, or null to inherit. */
-  onChange: (value: string | null) => void;
-  testID?: string;
-}) {
-  const isNone = own === WEAR_NONE;
-  const inEffect = resolveWear(own, above);
-  return (
-    <View style={styles.inlineRow}>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
-        {label}
-      </ThemedText>
-      <View style={styles.colorFieldBox}>
-        <ColorField key={`${fieldKey}-${isNone ? 'none' : 'colour'}`} value={inEffect ?? '#ffffff'} onChange={onChange} />
-      </View>
-      <PillButton label="None" active={isNone} onPress={() => onChange(inherit ? WEAR_NONE : null)} testID={testID ? `${testID}-none` : undefined} />
-      {inherit && own ? <PillButton label={inherit} onPress={() => onChange(null)} testID={testID ? `${testID}-inherit` : undefined} /> : null}
     </View>
   );
 }
@@ -3561,7 +3166,6 @@ const styles = StyleSheet.create({
   iconGlyphActive: { color: Palette.accentText },
   iconGlyphDanger: { color: Palette.dangerAlt },
   iconGlyphOff: { opacity: 0.3 },
-  lookBox: { alignSelf: 'stretch', gap: 10, paddingTop: 4 },
   headerPrimary: { color: Palette.accent },
   // The Edit/Done mode toggle — filled pill, same voice as the studio's "Save slices".
   modeBtn: { paddingVertical: 8, paddingHorizontal: 18, borderRadius: Radius.pill, backgroundColor: Palette.accent },
@@ -3595,36 +3199,7 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.two,
   },
   primaryText: { color: Palette.accent },
-  editTopRow: { width: '100%', maxWidth: 1120, alignSelf: 'center', marginTop: 8, gap: 12, flexDirection: 'column' },
-  editTopRowWide: { flexDirection: 'row', alignItems: 'flex-start' },
   binderFields: { gap: 10, flexGrow: 1, flexBasis: 300, minWidth: 240 },
-  editToolsCol: { flexGrow: 1, flexBasis: 360, minWidth: 280 },
-  pageDetails: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    width: '100%',
-    maxWidth: 680,
-    alignSelf: 'center',
-    marginTop: 10,
-  },
-  pageTitleField: { flexGrow: 1, flexBasis: 200 },
-  pageDescField: { flexGrow: 2, flexBasis: 280 },
-  fieldMiniLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: Weight.semibold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 3,
-  },
-  fieldInput: {
-    borderWidth: 1,
-    borderRadius: Radius.control,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    fontSize: FontSize.control,
-  },
-  fieldInputMulti: { minHeight: 36, textAlignVertical: 'top' },
   // "Send page to…" copy/move switch, shown above the destination list.
   sendModeRow: {
     flexDirection: 'row',
@@ -3645,30 +3220,7 @@ const styles = StyleSheet.create({
   sendModeBoxOn: { backgroundColor: Palette.accent, borderColor: Palette.accent },
   sendModeTick: { color: Palette.accentText, fontSize: 12, fontWeight: Weight.bold, lineHeight: 14 },
   sendModeText: { flex: 1, lineHeight: 18 },
-  inlineRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   // Segmented control (matches the studio's fit/view toggles).
-  segGroup: { flexDirection: 'row', alignItems: 'center', backgroundColor: Palette.panel, borderRadius: Radius.pill, padding: 2 },
-  seg: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: Radius.pill },
-  segActive: {
-    backgroundColor: Palette.surface,
-    shadowColor: '#000000',
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
-  },
-  segText: { fontSize: FontSize.label, color: Palette.muted, fontWeight: Weight.medium },
-  segTextActive: { color: Palette.ink, fontWeight: Weight.semibold },
-  inlineLabel: { marginRight: 2 },
-  inlineLabelGap: { marginLeft: 10 },
-  colorFieldBox: { width: 170 },
-  pill: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: Radius.pill, backgroundColor: Palette.panel },
-  pillDisabled: { opacity: 0.4 },
-  pillDanger: { backgroundColor: Palette.dangerBg },
-  pillActive: { backgroundColor: Palette.surface, borderWidth: 1.5, borderColor: Palette.accent, paddingVertical: 6.5, paddingHorizontal: 12.5 },
-  pillText: { fontSize: FontSize.body, fontWeight: Weight.semibold, color: Palette.ink2 },
-  pillTextDanger: { color: Palette.dangerAlt },
-  pillTextActive: { color: Palette.accent },
   pressed: { opacity: 0.7 },
   // A contained danger chip, centred and sized to its label — so the tap target is the button,
   // not the whole row width (an easy place to fat-finger a destructive action).

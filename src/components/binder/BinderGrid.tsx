@@ -370,13 +370,11 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   // Thumbnails are too small for thread and teeth; they keep the mat colour only.
   const dressed = !!material && material !== 'classic' && !small;
   /**
-   * THE FRAME THE MATERIAL TAKES, inside the page's own footprint. The page's outer size is decided
-   * by binderLayout.pageHeightAt from a fixed PAD, and BinderPages budgets height from it, so a
-   * material cannot make the page bigger; it takes its band from the pockets instead. A zip page
-   * gives up 22px a side for the cover band its coil runs in; a stitched page 6px for a hem. The
-   * grid is centred in what is left, and the page keeps the height the plain page would have had.
+   * A MATERIAL NEVER MOVES A POCKET (owner, 2026-09-13): the spacing is the classic page's in every
+   * material, so switching Stitched or Zip on changes what the page is made of and nothing about
+   * where anything sits. The hem and the coil are drawn in the page's own 12px padding.
    */
-  const frame = !dressed ? 0 : material === 'zip' ? 22 : 6;
+  const frame = 0;
   // Strip reserved under each card for its labels (0 when off). Fits ~two lines of small text;
   // the card keeps its aspect and the caption sits in this strip directly below it.
   const captionH = captionOn ? (small ? 30 : 34) : 0;
@@ -393,13 +391,18 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   const colStep = cellW + gap;
   const rowStep = cellH + gap + captionH;
   const innerH = (cellH + captionH) * page.rows + gap * (page.rows - 1);
-  // The plain page's inner height for this width, which is the height this page still occupies.
-  const classicCellW = (width - pad * 2 - gap * (page.cols - 1)) / page.cols;
-  const classicH = (classicCellW * CARD_ASPECT + captionH) * page.rows + gap * (page.rows - 1);
-  const frameTop = Math.round((classicH - innerH) / 2);
-  // Where the grid's (0,0) sits inside the page box: the padding, plus the material's band.
+  // Where the grid's (0,0) sits inside the page box.
   const gridX = pad + frame;
-  const gridY = pad + frameTop;
+  const gridY = pad;
+  /**
+   * THE RING ROUND EVERY SLOT (owner, 2026-09-13). A card is drawn 3% smaller than its pocket and the
+   * band that leaves is a solid colour: the page's own background, exactly, so it reads as
+   * transparent on any page, or the sleeve colour when one is set. It used to be a near-white
+   * backing with square corners behind a rounded picture, which on a coloured page showed as a
+   * white triangle at every corner. Art pieces take the same ring (the backing colour, or the page's)
+   * so a card and the art beside it share one grid line, top and bottom.
+   */
+  const ringPad = Math.max(2, Math.round(cellW * 0.03));
 
   const box = (row: number, col: number, rowSpan: number, colSpan: number): BoxStyle => ({
     position: 'absolute',
@@ -525,49 +528,50 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
       style={[
         styles.page,
         { width, padding: pad, borderRadius: radius, backgroundColor: matColor },
-        // A dressed page keeps the plain page's height and centres its smaller grid in it.
-        dressed && { height: classicH + pad * 2 },
         minHeight != null && { minHeight, justifyContent: 'center' },
       ]}>
       {/* THE PAGE'S MATERIAL, drawn under the pockets and over the mat: fabric, a hem or a cover
           band with the zip's coil in it. See PageDressing. */}
       {dressed ? (
-        <PageDressing material={material as 'stitched' | 'zip'} mat={matColor} radius={radius} band={pad + frame} outerEdge={outerEdge} />
+        <PageDressing material={material as 'stitched' | 'zip'} mat={matColor} radius={radius} band={pad} outerEdge={outerEdge} />
       ) : null}
-      <View style={{ width: innerW, height: innerH, marginLeft: frame, marginTop: dressed ? frameTop : 0 }}>
+      <View style={{ width: innerW, height: innerH }}>
         {/* Pocket recesses for every cell — visible, deliberate negative space. */}
         {Array.from({ length: page.rows * page.cols }).map((_, i) => {
           const row = Math.floor(i / page.cols);
           const col = i % page.cols;
           const b = box(row, col, 1, 1);
+          // On fabric a pocket is a squarer window: the seams round it are straight, so its corners
+          // are barely rounded, the way a welded sleeve's are.
+          const pocketRadius = dressed ? 3 : slotRadius;
           return (
-            <Fragment key={`pocket-${row}-${col}`}>
-              {/* THE SEAM. A real pocket page is welded to the sheet around every pocket, and that
-                  weld is the dotted line you see around each window in a Vault X. One dotted ring
-                  three px outside the pocket, in thread cut from the mat's lightness. */}
-              {dressed ? (
-                <>
-                  {/* The rim the weld raises: a dark line a px further out, so the thread reads as
-                      sitting on an edge rather than floating on the cloth. */}
-                  <View
-                    pointerEvents="none"
-                    style={[styles.seamRim, { left: b.left - 4, top: b.top - 4, width: b.width + 8, height: b.height + 8, borderRadius: slotRadius + 4 }]}
-                  />
-                  <View
-                    pointerEvents="none"
-                    style={[
-                      styles.stitchRing,
-                      { left: b.left - 3, top: b.top - 3, width: b.width + 6, height: b.height + 6, borderRadius: slotRadius + 3, borderColor: stitchInk(matColor) },
-                    ]}
-                  />
-                </>
-              ) : null}
-              <View style={[b, styles.pocket, { borderRadius: slotRadius }, dressed && styles.pocketOnFabric]}>
-                <View style={[styles.pocketInnerShadow, { borderTopLeftRadius: slotRadius, borderTopRightRadius: slotRadius }]} />
-              </View>
-            </Fragment>
+            <View key={`pocket-${row}-${col}`} style={[b, styles.pocket, { borderRadius: pocketRadius }, dressed && styles.pocketOnFabric]}>
+              <View style={[styles.pocketInnerShadow, { borderTopLeftRadius: pocketRadius, borderTopRightRadius: pocketRadius }]} />
+            </View>
           );
         })}
+
+        {/* THE SEAMS (owner, 2026-09-13). A pocket page is welded to its sheet along STRAIGHT lines,
+            a grid of them: one seam down every gap between columns, one across every gap between
+            rows, each a pair of stitch lines with the weld between them, and they run the full
+            length of the page regardless of what is in the pockets. Nothing about them follows a
+            card. Drawn in the grid's own coordinates, in thread cut from the mat's lightness. */}
+        {dressed
+          ? [
+              ...Array.from({ length: page.cols - 1 }, (_, i) => {
+                const x = (i + 1) * colStep - gap / 2;
+                return [x - 2, x + 1].map((left, k) => (
+                  <View key={`seam-v-${i}-${k}`} pointerEvents="none" style={[styles.seamV, { left, height: innerH, borderColor: stitchInk(matColor) }]} />
+                ));
+              }),
+              ...Array.from({ length: page.rows - 1 }, (_, i) => {
+                const y = (i + 1) * rowStep - gap / 2;
+                return [y - 2, y + 1].map((top, k) => (
+                  <View key={`seam-h-${i}-${k}`} pointerEvents="none" style={[styles.seamH, { top, width: innerW, borderColor: stitchInk(matColor) }]} />
+                ));
+              }),
+            ]
+          : null}
 
         {/* WHERE THIS CARD WILL LAND. Slices have had a drop-target highlight since they existed;
             a dragged CARD had none, so the only way to learn where it would go was to let go and
@@ -684,6 +688,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               sleeve={pageStyle?.sleeve}
               artBacking={pageStyle?.artBacking}
               dressed={dressed}
+              ring={pageStyle?.sleeve ?? matColor}
+              ringPad={ringPad}
               label={label}
               price={slot.cardId ? priceFor(priceSummary, slot.cardId, variantOf?.(slot)) : undefined}
             chipScale={chipScale}
@@ -860,6 +866,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               sleeve={pageStyle?.sleeve}
               artBacking={pageStyle?.artBacking}
               dressed={dressed}
+              ring={pageStyle?.sleeve ?? matColor}
+              ringPad={ringPad}
               label={label}
               price={dragged.cardId ? priceFor(priceSummary, dragged.cardId, variantOf?.(dragged)) : undefined}
             chipScale={chipScale}
@@ -1412,9 +1420,15 @@ function SlotContent({
   sleeve,
   artBacking,
   dressed = false,
+  ring,
+  ringPad = 2,
   label,
   onLabel,
 }: {
+  /** The colour of the band round a card: the page's background, or the sleeve. See ringPad. */
+  ring?: string;
+  /** How wide that band is: 4% of the pocket. */
+  ringPad?: number;
   /** The page is fabric (a material is set), so the white card frame would read as a white border. */
   dressed?: boolean;
   /** The binder's sleeve colour for card pockets, if any (PageStyle.sleeve). */
@@ -1480,13 +1494,14 @@ function SlotContent({
         transform={slot.imageTransform}
       />
     );
-    // A BACKING, when the binder has one: the coloured card an art print sits on inside its
-    // pocket. A few px of it show around the picture, the way a mount shows around a photo.
-    return artBacking ? (
-      <View style={[styles.fill, styles.artBacking, { borderRadius: radius, backgroundColor: artBacking, padding: small ? 1 : 3 }]}>
-        <View style={[styles.fill, { borderRadius: Math.max(0, radius - 2), overflow: 'hidden' }]}>{art}</View>
+    // THE SAME RING A CARD WEARS, so a card and the art beside it share a grid line: the backing
+    // colour when the binder has one (the mount an art print sits on), else the page's own colour,
+    // which reads as no ring at all.
+    return (
+      <View style={[styles.fill, styles.artBacking, { borderRadius: radius, backgroundColor: artBacking ?? ring ?? 'transparent', padding: ringPad }]}>
+        <View style={[styles.fill, { borderRadius: Math.max(0, radius - ringPad), overflow: 'hidden' }]}>{art}</View>
       </View>
-    ) : art;
+    );
   }
 
   // An empty artwork slot is a RESERVED ART GAP (the Build-a-binder wizard leaves these): a
@@ -1521,9 +1536,10 @@ function SlotContent({
     // Full-bleed hero art. A spanning slot (>1 cell) covers its box edge-to-edge so a
     // 2×2 reads as one big picture; a single 1×1 stays framed/contained. No card frame.
     const spanning = slot.rowSpan > 1 || slot.colSpan > 1;
+    // Ringed like every other slot, in the backing colour or the page's, so it lines up with them.
     return (
-      <View style={[styles.fill, { borderRadius: radius, backgroundColor: SlotBackingFallback }]}>
-        <CardImage key={id} id={id} radius={radius} small={small} contentFit={spanning ? 'cover' : 'contain'} instant={instantImages} />
+      <View style={[styles.fill, { borderRadius: radius, backgroundColor: artBacking ?? ring ?? SlotBackingFallback, padding: ringPad }]}>
+        <CardImage key={id} id={id} radius={Math.max(0, radius - ringPad)} small={small} contentFit={spanning ? 'cover' : 'contain'} instant={instantImages} />
         <KindBadge kind={kind} small={small} />
         <OwnedBadge owned={owned} small={small} scale={chipScale} />
       </View>
@@ -1544,13 +1560,15 @@ function SlotContent({
       style={[
         styles.fill,
         styles.cardFrame,
-        { borderRadius: radius },
-        // ONE PADDING, ALWAYS (owner, 2026-09-13): the frame keeps its hairline and its 2px whatever
-        // the page is, and that 2px is see-through unless a sleeve colour fills it. So a sleeve never
-        // changes a card's size, only what shows in the ring around it.
-        sleeve ? { borderColor: sleeve, backgroundColor: sleeve } : null,
+        // ONE RING, ALWAYS: 4% of the pocket, on every page and in every material, painted the page's
+        // own colour so it reads as transparent, or the sleeve colour when one is set. The hairline
+        // stays as the pocket's edge; a sleeve takes it over too.
+        { borderRadius: radius, padding: ringPad, backgroundColor: sleeve ?? ring ?? 'transparent' },
+        dressed && styles.cardFrameOnFabric,
+        sleeve ? { borderColor: sleeve } : null,
       ]}>
-      <View style={[styles.fill, { backgroundColor: dressed ? 'transparent' : SlotBackingFallback }]}>
+      {/* The same colour behind the picture, so the corners the rounded clip leaves are the ring's. */}
+      <View style={[styles.fill, { backgroundColor: sleeve ?? ring ?? SlotBackingFallback, borderRadius: Math.max(0, radius - ringPad) }]}>
         <CardImage key={id} id={id} radius={radius} small={small} contentFit="contain" scanUri={scanUri} instant={instantImages} trim />
         {/* Diagonal foil sheen: two translucent rotated bars layered as plain Views. */}
         <View pointerEvents="none" style={styles.foil}>
@@ -2107,10 +2125,10 @@ function PageDressing({
   const zip = material === 'zip' && !!outerEdge;
   const [size, setSize] = useState({ w: 0, h: 0 });
   // The coil's centreline sits in the middle of the band; the tape is TAPE wide around it.
-  const TAPE = 12;
+  const TAPE = 8;
   // Teeth sit 3px apart along the coil, in two rows that meet at the tape's centreline: the row
   // toward the outside of the binder and the row toward the pockets, staggered by half a pitch.
-  const PITCH = 4;
+  const PITCH = 3;
   const c = band / 2;
   const runW = Math.max(0, size.w - c * 2);
   const runH = Math.max(0, size.h - c * 2);
@@ -2123,8 +2141,8 @@ function PageDressing({
       style={[
         vertical ? styles.toothAcross : styles.toothAlong,
         vertical
-          ? { marginBottom: PITCH - 3, marginLeft: i % 2 === 0 ? -3.5 : 3.5 }
-          : { marginRight: PITCH - 3, marginTop: i % 2 === 0 ? -3.5 : 3.5 },
+          ? { marginBottom: PITCH - 2, marginLeft: i % 2 === 0 ? -2 : 2 }
+          : { marginRight: PITCH - 2, marginTop: i % 2 === 0 ? -2 : 2 },
       ]}
     />
   );
@@ -2163,8 +2181,8 @@ function PageDressing({
       {zip ? (
         <>
           {/* The cover band: a ring of heavier, darker fabric, and the fine edge where it meets the sheet. */}
-          <View style={[StyleSheet.absoluteFill, { borderWidth: band - 3, borderColor: 'rgba(0,0,0,0.42)', borderRadius: radius }]} />
-          <View style={[StyleSheet.absoluteFill, { borderWidth: band - 3, borderColor: 'transparent', borderRadius: radius }]}>
+          <View style={[StyleSheet.absoluteFill, { borderWidth: band - 2, borderColor: 'rgba(0,0,0,0.42)', borderRadius: radius }]} />
+          <View style={[StyleSheet.absoluteFill, { borderWidth: band - 2, borderColor: 'transparent', borderRadius: radius }]}>
             <View style={[StyleSheet.absoluteFill, { margin: -1, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', borderRadius: 4 }]} />
           </View>
           {/* The coil, top and bottom: tape, then teeth laid along it. */}
@@ -2181,8 +2199,8 @@ function PageDressing({
           <View
             style={[
               styles.pull,
-              { bottom: c - 14, transform: [{ rotate: outerEdge === 'right' ? '-28deg' : '28deg' }] },
-              outerEdge === 'right' ? { right: c - 4 } : { left: c - 4 },
+              { bottom: c - 10, transform: [{ rotate: outerEdge === 'right' ? '-28deg' : '28deg' }] },
+              outerEdge === 'right' ? { right: c - 3 } : { left: c - 3 },
             ]}>
             <View style={styles.pullHole} />
           </View>
@@ -2262,9 +2280,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   artBacking: { overflow: 'hidden' },
-  /** The welded seam round a pocket on a fabric page. Thread colour is set inline from the mat. */
-  stitchRing: { position: 'absolute', borderWidth: 1, borderStyle: 'dashed' },
-  seamRim: { position: 'absolute', borderWidth: 1, borderColor: 'rgba(0,0,0,0.55)' },
+  /** One stitch line of a seam: a dashed hairline the full length of the grid, vertical or horizontal. */
+  seamV: { position: 'absolute', top: 0, width: 0, borderLeftWidth: 1, borderStyle: 'dashed' },
+  seamH: { position: 'absolute', left: 0, height: 0, borderTopWidth: 1, borderStyle: 'dashed' },
   /** On fabric the pocket is a clear sleeve over dark cloth: a pale, slightly glossy window. */
   pocketOnFabric: { backgroundColor: 'rgba(255,255,255,0.10)', borderColor: 'rgba(255,255,255,0.22)' },
   /** On fabric the hairline is pale rather than dark, so the ring still reads against the cloth. */
@@ -2274,13 +2292,13 @@ const styles = StyleSheet.create({
   /** The zip's tape: a dark channel the teeth sit in. */
   tape: { position: 'absolute', backgroundColor: '#121215', borderRadius: 3, overflow: 'hidden' },
   /** A coil tooth on a horizontal run: 3 along the tape, 5 across it, a lit top edge. */
-  toothAlong: { width: 3, height: 5, borderRadius: 1, backgroundColor: '#55555e', borderTopWidth: 1, borderTopColor: '#8e8e98' },
+  toothAlong: { width: 2, height: 4, borderRadius: 1, backgroundColor: '#55555e', borderTopWidth: 1, borderTopColor: '#8e8e98' },
   /** The same tooth turned for the vertical run down the outer edge. */
-  toothAcross: { width: 5, height: 3, borderRadius: 1, backgroundColor: '#55555e', borderLeftWidth: 1, borderLeftColor: '#8e8e98' },
+  toothAcross: { width: 4, height: 2, borderRadius: 1, backgroundColor: '#55555e', borderLeftWidth: 1, borderLeftColor: '#8e8e98' },
   pull: {
     position: 'absolute',
-    width: 10,
-    height: 24,
+    width: 8,
+    height: 18,
     borderRadius: 4,
     backgroundColor: '#3fcf5e',
     borderWidth: 1,
@@ -2291,12 +2309,9 @@ const styles = StyleSheet.create({
   },
   pullHole: { width: 4, height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.35)' },
   cardFrame: {
-    // See-through, not the white card it used to be: the ring round a card shows the page unless a
-    // sleeve colour is set, and it is the same 2px + hairline on every page and in every state.
-    backgroundColor: 'transparent',
+    // Colour and padding come inline (the page's own colour or the sleeve; 4% of the pocket).
     borderWidth: 1,
     borderColor: BinderSurface.cardFrameBorder,
-    padding: 2,
   },
   insert: {
     borderWidth: 1,

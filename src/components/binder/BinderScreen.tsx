@@ -85,7 +85,7 @@ import { fetchLikeCount } from '@/data/binderRepo';
 import { isPrivateArt } from '@/data/artAttributionCheck';
 import { ArtworkDock } from '@/components/binder/ArtworkDock';
 import { artPieceAllowed, pageSide, REAL_PAGE_SIZES } from '@/data/binderPhysics';
-import { PAGE_MATERIALS, defaultMatFor } from '@/data/pageStyle';
+import { PAGE_MATERIALS } from '@/data/pageStyle';
 import { DOCK_PCT_MAX, LEGACY_MIN_WIDTH, MIN_PAGE_WIDTH, PANEL_GAP, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH, PEEK_MIN_WIDTH, panelLayout, PHONE_MAX_WIDTH } from '@/data/binderLayout';
 import type { CaptionFieldKey } from '@/data/cardCaption';
 import type { ComposePlacement } from '@/data/pageComposer';
@@ -1967,9 +1967,7 @@ export function BinderScreen({
         <View style={styles.colorFieldBox}>
           <ColorField
             key={binder.id}
-            // The mat a material brings with it, when nothing has been chosen, so the swatch shows the
-            // colour actually on screen rather than white under a near-black stitched page.
-            value={page.backgroundColor ?? defaultMatFor(binder.pageStyle?.material)}
+            value={page.backgroundColor}
             onChange={(backgroundColor) => store.setBinderBackground(binder.id, backgroundColor)}
           />
         </View>

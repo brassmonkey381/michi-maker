@@ -18,7 +18,7 @@ import Animated, {
 
 import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { BinderSurface, FontSize, Palette, Radii, Radius, Shadows, SlotBackingFallback, Weight } from '@/constants/theme';
-import { defaultMatFor, stitchInk, type PageStyle } from '@/data/pageStyle';
+import { luminance, stitchInk, type PageStyle } from '@/data/pageStyle';
 import { UNSET_CHIP, chipFor } from '@/constants/printVariant';
 import { attributionLabel, deriveAttribution, type ArtAttribution } from '@/data/artworkLibrary';
 import { resolveCardWith, resolveCatalogCardWith } from '@/data/cardResolver';
@@ -364,9 +364,12 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   const gap = small ? 3 : 6;
   const radius = small ? Radii.pageSmall : Radii.page;
   const slotRadius = small ? Radii.slotSmall : Radii.slot;
-  // A material brings its own dark mat, but the binder's own background still wins.
+  // A MATERIAL NEVER CHANGES THE BACKGROUND (owner, 2026-09-13): the page stays whatever colour the
+  // binder has, white by default, and the thread, the band and the pocket windows take their tone
+  // from that colour's lightness instead of assuming dark cloth.
   const material = pageStyle?.material;
-  const matColor = page.backgroundColor ?? defaultMatFor(material) ?? BinderSurface.mat;
+  const matColor = page.backgroundColor ?? BinderSurface.mat;
+  const darkMat = luminance(matColor) < 0.35;
   // Thumbnails are too small for thread and teeth; they keep the mat colour only.
   const dressed = !!material && material !== 'classic' && !small;
   /**
@@ -395,14 +398,14 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   const gridX = pad + frame;
   const gridY = pad;
   /**
-   * THE RING ROUND EVERY SLOT (owner, 2026-09-13). A card is drawn 3% smaller than its pocket and the
+   * THE RING ROUND EVERY SLOT (owner, 2026-09-13). A card is drawn 1.5% smaller than its pocket and the
    * band that leaves is a solid colour: the page's own background, exactly, so it reads as
    * transparent on any page, or the sleeve colour when one is set. It used to be a near-white
    * backing with square corners behind a rounded picture, which on a coloured page showed as a
    * white triangle at every corner. Art pieces take the same ring (the backing colour, or the page's)
    * so a card and the art beside it share one grid line, top and bottom.
    */
-  const ringPad = Math.max(2, Math.round(cellW * 0.03));
+  const ringPad = Math.max(1, Math.round(cellW * 0.015));
 
   const box = (row: number, col: number, rowSpan: number, colSpan: number): BoxStyle => ({
     position: 'absolute',
@@ -545,7 +548,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
           // are barely rounded, the way a welded sleeve's are.
           const pocketRadius = dressed ? 3 : slotRadius;
           return (
-            <View key={`pocket-${row}-${col}`} style={[b, styles.pocket, { borderRadius: pocketRadius }, dressed && styles.pocketOnFabric]}>
+            <View key={`pocket-${row}-${col}`} style={[b, styles.pocket, { borderRadius: pocketRadius }, dressed && darkMat && styles.pocketOnFabric]}>
               <View style={[styles.pocketInnerShadow, { borderTopLeftRadius: pocketRadius, borderTopRightRadius: pocketRadius }]} />
             </View>
           );
@@ -688,7 +691,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               sleeve={pageStyle?.sleeve}
               artBacking={pageStyle?.artBacking}
               dressed={dressed}
-              ring={pageStyle?.sleeve ?? matColor}
+              ring={matColor}
               ringPad={ringPad}
               label={label}
               price={slot.cardId ? priceFor(priceSummary, slot.cardId, variantOf?.(slot)) : undefined}
@@ -866,7 +869,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               sleeve={pageStyle?.sleeve}
               artBacking={pageStyle?.artBacking}
               dressed={dressed}
-              ring={pageStyle?.sleeve ?? matColor}
+              ring={matColor}
               ringPad={ringPad}
               label={label}
               price={dragged.cardId ? priceFor(priceSummary, dragged.cardId, variantOf?.(dragged)) : undefined}
@@ -1564,7 +1567,7 @@ function SlotContent({
         // own colour so it reads as transparent, or the sleeve colour when one is set. The hairline
         // stays as the pocket's edge; a sleeve takes it over too.
         { borderRadius: radius, padding: ringPad, backgroundColor: sleeve ?? ring ?? 'transparent' },
-        dressed && styles.cardFrameOnFabric,
+        dressed && !!ring && luminance(ring) < 0.35 && styles.cardFrameOnFabric,
         sleeve ? { borderColor: sleeve } : null,
       ]}>
       {/* The same colour behind the picture, so the corners the rounded clip leaves are the ring's. */}
@@ -2122,6 +2125,7 @@ function PageDressing({
   outerEdge?: 'left' | 'right';
 }) {
   const ink = stitchInk(mat);
+  const dark = luminance(mat) < 0.35;
   const zip = material === 'zip' && !!outerEdge;
   const [size, setSize] = useState({ w: 0, h: 0 });
   // The coil's centreline sits in the middle of the band; the tape is TAPE wide around it.
@@ -2158,7 +2162,7 @@ function PageDressing({
         style={StyleSheet.absoluteFill}
       />
       <LinearGradient
-        colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.26)']}
+        colors={['rgba(0,0,0,0)', dark ? 'rgba(0,0,0,0.26)' : 'rgba(0,0,0,0.07)']}
         start={{ x: 0.4, y: 0.2 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -2181,9 +2185,9 @@ function PageDressing({
       {zip ? (
         <>
           {/* The cover band: a ring of heavier, darker fabric, and the fine edge where it meets the sheet. */}
-          <View style={[StyleSheet.absoluteFill, { borderWidth: band - 2, borderColor: 'rgba(0,0,0,0.42)', borderRadius: radius }]} />
+          <View style={[StyleSheet.absoluteFill, { borderWidth: band - 2, borderColor: dark ? 'rgba(0,0,0,0.42)' : 'rgba(0,0,0,0.16)', borderRadius: radius }]} />
           <View style={[StyleSheet.absoluteFill, { borderWidth: band - 2, borderColor: 'transparent', borderRadius: radius }]}>
-            <View style={[StyleSheet.absoluteFill, { margin: -1, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', borderRadius: 4 }]} />
+            <View style={[StyleSheet.absoluteFill, { margin: -1, borderWidth: 1, borderColor: dark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.12)', borderRadius: 4 }]} />
           </View>
           {/* The coil, top and bottom: tape, then teeth laid along it. */}
           {[c - TAPE / 2, size.h - c - TAPE / 2].map((top, k) => (

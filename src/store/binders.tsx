@@ -34,7 +34,7 @@ import type { ComposePlacement } from '@/data/pageComposer';
 import * as repo from '@/data/binderRepo';
 import { slotSignature } from '@/data/savedSlices';
 import { legalizeArtPanels, pageSide, requiredPageSide } from '@/data/binderPhysics';
-import { withPageStyle, type PageMaterial } from '@/data/pageStyle';
+import { withPageStyle, type PageStylePatch } from '@/data/pageStyle';
 
 import { diffSnapshots } from '@/data/binderSync';
 import { EXAMPLE_FILL_SHEET_BINDER } from '@/data/exampleFillSheetBinder';
@@ -72,8 +72,6 @@ import { useAuth } from '@/store/auth';
 
 const CLOUD = isSupabaseConfigured;
 
-/** What setPageStyle accepts: each field set, cleared with null, or left alone. */
-export type PageStylePatch = { material?: PageMaterial | null; sleeve?: string | null; artBacking?: string | null };
 const HISTORY_LIMIT = 50;
 
 /**

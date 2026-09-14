@@ -85,7 +85,7 @@ import { fetchLikeCount } from '@/data/binderRepo';
 import { isPrivateArt } from '@/data/artAttributionCheck';
 import { ArtworkDock } from '@/components/binder/ArtworkDock';
 import { artPieceAllowed, pageSide, REAL_PAGE_SIZES } from '@/data/binderPhysics';
-import { PAGE_MATERIALS } from '@/data/pageStyle';
+import { DEFAULT_THREAD_OPACITY, DEFAULT_ZIP_PULL, PAGE_MATERIALS, SPINE_STYLES, THREAD_OPACITIES, ZIP_TRACKS, luminance } from '@/data/pageStyle';
 import { DOCK_PCT_MAX, LEGACY_MIN_WIDTH, MIN_PAGE_WIDTH, PANEL_GAP, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH, PEEK_MIN_WIDTH, panelLayout, PHONE_MAX_WIDTH } from '@/data/binderLayout';
 import type { CaptionFieldKey } from '@/data/cardCaption';
 import type { ComposePlacement } from '@/data/pageComposer';
@@ -1995,6 +1995,97 @@ export function BinderScreen({
           })}
         </View>
       </View>
+      {binder.pageStyle?.material ? (
+        <View style={styles.inlineRow}>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
+            Thread
+          </ThemedText>
+          <View style={styles.colorFieldBox}>
+            <ColorField
+              key={`${binder.id}-thread`}
+              value={binder.pageStyle.thread?.color ?? (luminance(page.backgroundColor ?? '#ffffff') < 0.35 ? '#ffffff' : '#000000')}
+              onChange={(color) => store.setPageStyle(binder.id, { thread: { color } })}
+            />
+          </View>
+          <View style={styles.segGroup}>
+            {THREAD_OPACITIES.map((o) => {
+              const active = (binder.pageStyle?.thread?.opacity ?? DEFAULT_THREAD_OPACITY) === o;
+              return (
+                <Pressable
+                  key={o}
+                  onPress={() => store.setPageStyle(binder.id, { thread: { opacity: o } })}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                  accessibilityLabel={`Thread at ${Math.round(o * 100)} percent`}
+                  style={[styles.seg, active && styles.segActive]}>
+                  <Text style={[styles.segText, active && styles.segTextActive]}>{Math.round(o * 100)}%</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          {binder.pageStyle.thread ? <PillButton label="Auto" onPress={() => store.setPageStyle(binder.id, { thread: null })} /> : null}
+        </View>
+      ) : null}
+      {/* BINDER DETAILS (owner, 2026-09-14): the hardware of the binder round the page. A set, not a
+          pick: a binder can have a zip AND a spine, and each is its own toggle with its own options. */}
+      <View style={styles.inlineRow}>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
+          Binder details
+        </ThemedText>
+        <Pressable
+          onPress={() => store.setPageStyle(binder.id, { zip: binder.pageStyle?.details?.zip ? null : {} })}
+          accessibilityRole="button"
+          accessibilityState={{ selected: !!binder.pageStyle?.details?.zip }}
+          accessibilityLabel="Zipper: a zip round the cover, with a coloured pull">
+          <View style={[pillChip.base, binder.pageStyle?.details?.zip && pillChip.active]}>
+            <Text style={[pillChip.text, binder.pageStyle?.details?.zip && pillChip.textActive]}>Zipper</Text>
+          </View>
+        </Pressable>
+        {SPINE_STYLES.map((sp) => {
+          const on = binder.pageStyle?.details?.spine === sp.id;
+          return (
+            <Pressable
+              key={sp.id}
+              onPress={() => store.setPageStyle(binder.id, { spine: on ? null : sp.id })}
+              accessibilityRole="button"
+              accessibilityState={{ selected: on }}
+              accessibilityLabel={`${sp.label}: ${sp.blurb}`}>
+              <View style={[pillChip.base, on && pillChip.active]}>
+                <Text style={[pillChip.text, on && pillChip.textActive]}>{sp.label}</Text>
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+      {binder.pageStyle?.details?.zip ? (
+        <View style={styles.inlineRow}>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
+            Zip pull
+          </ThemedText>
+          <View style={styles.colorFieldBox}>
+            <ColorField
+              key={`${binder.id}-pull`}
+              value={binder.pageStyle.details.zip.pull ?? DEFAULT_ZIP_PULL}
+              onChange={(pull) => store.setPageStyle(binder.id, { zip: { pull } })}
+            />
+          </View>
+          <View style={styles.segGroup}>
+            {ZIP_TRACKS.map((t) => {
+              const active = (binder.pageStyle?.details?.zip?.track ?? 'straight') === t.id;
+              return (
+                <Pressable
+                  key={t.id}
+                  onPress={() => store.setPageStyle(binder.id, { zip: { track: t.id === 'straight' ? null : t.id } })}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                  style={[styles.seg, active && styles.segActive]}>
+                  <Text style={[styles.segText, active && styles.segTextActive]}>{t.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
       <View style={styles.inlineRow}>
         <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
           Sleeves

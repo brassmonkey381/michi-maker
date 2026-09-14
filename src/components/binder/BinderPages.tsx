@@ -1591,6 +1591,11 @@ export function BinderPages({
           // The open book: left/right facing pages (the cover face sits alone on the right).
           // The non-active side is a full 'partner' surface; its label focuses it.
           <View style={[styles.spreadRow, { gap: bookRowGap }]}>
+            {/* THE SPINE (owner, 2026-09-14): the band down the middle of the open book, drawn in
+                the gap between the two pages when the binder's details ask for one. */}
+            {!bookSingle && binder.pageStyle?.details?.spine ? (
+              <Spine style={binder.pageStyle.details.spine} width={bookGap} top={COLUMN_LABEL_H} />
+            ) : null}
             <SpreadColumn
               // The column has to exist for an inside cover too, and a column with no page renders
               // nothing at all, so it is handed the active page purely as a presence check.
@@ -2086,6 +2091,37 @@ function CoverColumn({
  * flips to its page — via its label always, and (read-only only) by tapping the whole page. When
  * editable the grid stays a bare drag surface. `dragCol` lifts the mid-drag column above the rest.
  */
+/**
+ * The binder's spine, seen from inside the open book: a band of the binder's own fabric between
+ * the two pages. Cross-stitch is a run of thick X's the length of the band, the way a heavy
+ * gusset is sewn in; ribbed is a stack of ridges. Plain views, counted from the band's height.
+ * Absolute in the spread row, centred on its gap, so it costs the pages nothing.
+ */
+function Spine({ style, width, top }: { style: 'cross' | 'ribbed'; width: number; top: number }) {
+  const [h, setH] = useState(0);
+  const unit = style === 'cross' ? 12 : 6;
+  const n = h > 0 ? Math.floor((h - 8) / unit) : 0;
+  return (
+    <View
+      pointerEvents="none"
+      onLayout={(e) => setH(e.nativeEvent.layout.height)}
+      style={[styles.spine, { width, top, marginLeft: -width / 2 }]}>
+      <View style={styles.spineInner}>
+        {Array.from({ length: n }).map((_, i) =>
+          style === 'cross' ? (
+            <View key={i} style={{ width: width - 4, height: unit, alignItems: 'center', justifyContent: 'center' }}>
+              <View style={[styles.spineThread, { width: width - 2, transform: [{ rotate: '45deg' }] }]} />
+              <View style={[styles.spineThread, { width: width - 2, transform: [{ rotate: '-45deg' }], position: 'absolute' }]} />
+            </View>
+          ) : (
+            <View key={i} style={[styles.spineRib, { width: width - 6, marginBottom: unit - 2 }]} />
+          ),
+        )}
+      </View>
+    </View>
+  );
+}
+
 function SpreadColumn({
   page,
   width,
@@ -2296,6 +2332,10 @@ const styles = StyleSheet.create({
   // rebuilt when it is shown is the thing this replaced.
   kept: { opacity: 0 },
   spreadRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center' },
+  spine: { position: 'absolute', left: '50%', bottom: 0, zIndex: 3, backgroundColor: '#1c1c20', borderRadius: 3, overflow: 'hidden' },
+  spineInner: { flex: 1, alignItems: 'center', paddingTop: 4 },
+  spineThread: { height: 2, borderRadius: 1, backgroundColor: 'rgba(235,235,240,0.85)' },
+  spineRib: { height: 2, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.22)' },
   neighbor: { alignItems: 'center' },
   // ONE LINE, ALWAYS, WORDS OR NOT. `type="small"` is lineHeight 20, and stating it as a height
   // means an empty label occupies exactly what a full one does. Every place that needs the space

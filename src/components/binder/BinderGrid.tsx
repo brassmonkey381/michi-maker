@@ -18,7 +18,7 @@ import Animated, {
 
 import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { BinderSurface, FontSize, Palette, Radii, Radius, Shadows, SlotBackingFallback, Weight } from '@/constants/theme';
-import { luminance, stitchInk, type PageStyle } from '@/data/pageStyle';
+import { DEFAULT_ZIP_PULL, luminance, threadInk, type PageStyle } from '@/data/pageStyle';
 import { UNSET_CHIP, chipFor } from '@/constants/printVariant';
 import { attributionLabel, deriveAttribution, type ArtAttribution } from '@/data/artworkLibrary';
 import { resolveCardWith, resolveCatalogCardWith } from '@/data/cardResolver';
@@ -370,8 +370,12 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   const material = pageStyle?.material;
   const matColor = page.backgroundColor ?? BinderSurface.mat;
   const darkMat = luminance(matColor) < 0.35;
+  // The stitching is the page's; the zip is the binder's (a detail). Either dresses the page.
   // Thumbnails are too small for thread and teeth; they keep the mat colour only.
-  const dressed = !!material && material !== 'classic' && !small;
+  const stitched = (material === 'stitch' || material === 'double') && !small;
+  const zip = pageStyle?.details?.zip;
+  const dressed = (stitched || !!zip) && !small;
+  const ink = threadInk(matColor, pageStyle?.thread);
   /**
    * A MATERIAL NEVER MOVES A POCKET (owner, 2026-09-13): the spacing is the classic page's in every
    * material, so switching Stitched or Zip on changes what the page is made of and nothing about
@@ -536,7 +540,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
       {/* THE PAGE'S MATERIAL, drawn under the pockets and over the mat: fabric, a hem or a cover
           band with the zip's coil in it. See PageDressing. */}
       {dressed ? (
-        <PageDressing material={material as 'stitched' | 'zip'} mat={matColor} radius={radius} band={pad} outerEdge={outerEdge} />
+        <PageDressing stitch={stitched ? (material as 'stitch' | 'double') : null} zip={small ? undefined : zip} mat={matColor} ink={ink} radius={radius} band={pad} outerEdge={outerEdge} />
       ) : null}
       <View style={{ width: innerW, height: innerH }}>
         {/* Pocket recesses for every cell — visible, deliberate negative space. */}
@@ -559,18 +563,19 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
             rows, each a pair of stitch lines with the weld between them, and they run the full
             length of the page regardless of what is in the pockets. Nothing about them follows a
             card. Drawn in the grid's own coordinates, in thread cut from the mat's lightness. */}
-        {dressed
+        {stitched
           ? [
               ...Array.from({ length: page.cols - 1 }, (_, i) => {
                 const x = (i + 1) * colStep - gap / 2;
-                return [x - 2, x + 1].map((left, k) => (
-                  <View key={`seam-v-${i}-${k}`} pointerEvents="none" style={[styles.seamV, { left, height: innerH, borderColor: stitchInk(matColor) }]} />
+                // Double stitch: two threads either side of the weld. Stitch: one, down its centre.
+                return (material === 'double' ? [x - 2, x + 1] : [x - 0.5]).map((left, k) => (
+                  <View key={`seam-v-${i}-${k}`} pointerEvents="none" style={[styles.seamV, { left, height: innerH, borderColor: ink }]} />
                 ));
               }),
               ...Array.from({ length: page.rows - 1 }, (_, i) => {
                 const y = (i + 1) * rowStep - gap / 2;
-                return [y - 2, y + 1].map((top, k) => (
-                  <View key={`seam-h-${i}-${k}`} pointerEvents="none" style={[styles.seamH, { top, width: innerW, borderColor: stitchInk(matColor) }]} />
+                return (material === 'double' ? [y - 2, y + 1] : [y - 0.5]).map((top, k) => (
+                  <View key={`seam-h-${i}-${k}`} pointerEvents="none" style={[styles.seamH, { top, width: innerW, borderColor: ink }]} />
                 ));
               }),
             ]
@@ -2111,22 +2116,30 @@ function Skeleton({ radius }: { radius: number }) {
  * every tap. Absolute, inside the page's box, so it never changes the layout of anything.
  */
 function PageDressing({
-  material,
+  stitch,
+  zip: zipDetail,
   mat,
+  ink,
   radius,
   band,
   outerEdge,
 }: {
-  material: 'stitched' | 'zip';
+  /** The page's stitching, for the hem: one thread, two, or none. */
+  stitch: 'stitch' | 'double' | null;
+  /** The binder's zip, when it has one: pull colour and track shape. */
+  zip?: { pull?: string; track?: 'straight' | 'wavy' };
   mat: string;
+  /** The thread the hem is sewn with, as chosen (threadInk). */
+  ink: string;
   radius: number;
-  /** The page's padding plus the material's frame: how wide the cover band is. */
+  /** The page's padding: how wide the cover band is. */
   band: number;
   outerEdge?: 'left' | 'right';
 }) {
-  const ink = stitchInk(mat);
   const dark = luminance(mat) < 0.35;
-  const zip = material === 'zip' && !!outerEdge;
+  const zip = !!zipDetail && !!outerEdge;
+  const wavy = zipDetail?.track === 'wavy';
+  const pull = zipDetail?.pull ?? DEFAULT_ZIP_PULL;
   const [size, setSize] = useState({ w: 0, h: 0 });
   // The coil's centreline sits in the middle of the band; the tape is TAPE wide around it.
   const TAPE = 8;
@@ -2139,14 +2152,17 @@ function PageDressing({
   const teethAcross = Math.floor(runW / PITCH);
   const teethDown = Math.floor(runH / PITCH);
   const onOuter = outerEdge === 'right' ? { right: c - TAPE / 2 } : { left: c - TAPE / 2 };
+  // A wavy track wanders: the whole coil drifts across the tape on a slow sine, the way a coiled
+  // zip does when its tape is sewn on a curve, on top of the tooth-by-tooth stagger.
+  const drift = (i: number) => (wavy ? Math.round(Math.sin(i / 5) * 2) : 0);
   const tooth = (i: number, vertical: boolean) => (
     <View
       key={i}
       style={[
         vertical ? styles.toothAcross : styles.toothAlong,
         vertical
-          ? { marginBottom: PITCH - 2, marginLeft: i % 2 === 0 ? -2 : 2 }
-          : { marginRight: PITCH - 2, marginTop: i % 2 === 0 ? -2 : 2 },
+          ? { marginBottom: PITCH - 2, marginLeft: (i % 2 === 0 ? -2 : 2) + drift(i) }
+          : { marginRight: PITCH - 2, marginTop: (i % 2 === 0 ? -2 : 2) + drift(i) },
       ]}
     />
   );
@@ -2167,21 +2183,26 @@ function PageDressing({
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      {material === 'stitched' ? (
-        <View
-          style={{
-            position: 'absolute',
-            top: c - 1,
-            bottom: c - 1,
-            left: c - 1,
-            right: c - 1,
-            borderWidth: 1,
-            borderStyle: 'dashed',
-            borderColor: ink,
-            borderRadius: Math.max(2, radius - c + 1),
-          }}
-        />
-      ) : null}
+      {/* The hem: the page's stitching along its own edge, one thread or two, unless a zip's band
+          takes that edge instead. */}
+      {stitch && !zip
+        ? (stitch === 'double' ? [c - 2, c + 1] : [c - 0.5]).map((inset, k) => (
+            <View
+              key={`hem-${k}`}
+              style={{
+                position: 'absolute',
+                top: inset,
+                bottom: inset,
+                left: inset,
+                right: inset,
+                borderWidth: 1,
+                borderStyle: 'dashed',
+                borderColor: ink,
+                borderRadius: Math.max(2, radius - inset),
+              }}
+            />
+          ))
+        : null}
       {zip ? (
         <>
           {/* The cover band: a ring of heavier, darker fabric, and the fine edge where it meets the sheet. */}
@@ -2203,6 +2224,7 @@ function PageDressing({
           <View
             style={[
               styles.pull,
+              { backgroundColor: pull, borderColor: 'rgba(0,0,0,0.35)' },
               { bottom: c - 10, transform: [{ rotate: outerEdge === 'right' ? '-28deg' : '28deg' }] },
               outerEdge === 'right' ? { right: c - 3 } : { left: c - 3 },
             ]}>

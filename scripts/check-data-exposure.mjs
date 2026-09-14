@@ -371,13 +371,12 @@ checks++;
 if (altTable.status === 200 && altTable.rows?.length) fail('LEAK', 'public.alternates', 'the confusability map: which cards the recognizer cannot tell apart, with its reasons');
 else ok('public.alternates refused');
 // Private tcgcsv tables: the shadow price table (tcgscan-data migration 67), the One Piece catalog
-// (migration 68) and the Disney Lorcana catalog (migration 72). ANY grant to anon is wrong, including
-// one RLS happens to hide: a 200 with zero rows means the grant exists and only a missing policy is
-// holding. Only a 401/403 proves it is closed.
+// (migration 68), Disney Lorcana (72), Riftbound (73) and Digimon (74). ANY grant to anon is wrong,
+// including one RLS happens to hide: a 200 with zero rows means the grant exists and only a missing
+// policy is holding. Only a 401/403 proves it is closed.
 for (const [table, column] of [
   ['prices_tcgcsv', 'product_id'],
-  ['onepiece_sets', 'id'], ['onepiece_cards', 'id'], ['onepiece_sealed', 'id'],
-  ['lorcana_sets', 'id'], ['lorcana_cards', 'id'], ['lorcana_sealed', 'id'],
+  ...['onepiece', 'lorcana', 'riftbound', 'digimon'].flatMap((g) => [[`${g}_sets`, 'id'], [`${g}_cards`, 'id'], [`${g}_sealed`, 'id']]),
 ]) {
   const res = await get(`${table}?select=${column}&limit=1`);
   checks++;

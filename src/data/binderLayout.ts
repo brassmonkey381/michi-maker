@@ -40,6 +40,8 @@ export const CARD_ASPECT = 88 / 63;
 // and a zip. BinderGrid draws with the same two numbers; keep them together.
 const PAD = 14;
 const GAP = 10;
+/** The page margin, for anything drawn against the grid's edge from outside the grid (the spine). */
+export const PAGE_PAD = PAD;
 const SMALL_PAD = 6;
 const SMALL_GAP = 3;
 /** Caption strip reserved under each row when text labels are on. */

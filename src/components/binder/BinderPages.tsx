@@ -47,7 +47,7 @@ import { pillChip, sheet } from '@/constants/ui';
 import { setHoverSuspended } from '@/components/binder/hoverGate';
 import { AboutHoverCard, PAGE_DESCRIPTION_PLACEHOLDER, useHoverReveal } from '@/components/binder/AboutPopup';
 import { hasTextCaption, type CaptionFieldKey } from '@/data/cardCaption';
-import { PEEK_MIN_WIDTH, PHONE_DOCK_MIN_WIDTH, SPREAD_GAP, bookLayout, pageHeightAt, spreadLayout } from '@/data/binderLayout';
+import { PAGE_PAD, PEEK_MIN_WIDTH, PHONE_DOCK_MIN_WIDTH, SPREAD_GAP, bookLayout, pageHeightAt, spreadLayout } from '@/data/binderLayout';
 import { useCardLabelPrefs } from '@/hooks/use-card-label-prefs';
 import { useViewPrefs, type ViewPrefsState } from '@/hooks/use-view-prefs';
 import { CoverSurface } from '@/components/binder/BinderCover';
@@ -2104,8 +2104,11 @@ function CoverColumn({
  * gusset is sewn in; ribbed is a stack of ridges. Plain views, counted from the band's height.
  * Absolute in the spread row, centred on its gap, so it costs the pages nothing.
  */
-/** How much of the gap's height the band leaves open at each end, so it reads as sitting behind the pages. */
-const SPINE_END_INSET = 0.11;
+/**
+ * The band ends level with the pockets (owner, 2026-09-14): its top at the top of the top cards
+ * and its bottom at the bottom of the bottom ones, which is the page margin in from each edge.
+ */
+const SPINE_END_INSET = PAGE_PAD;
 /** The cross-stitch when no thread has been chosen (owner, 2026-09-14): half-strength. */
 const SPINE_THREAD_OPACITY = 0.5;
 
@@ -2128,7 +2131,7 @@ function Spine({
   const unit = style === 'cross' ? 12 : 6;
   // The band is shorter than the gap at both ends, which is what makes it read as a spine the
   // pages are bound to rather than a stripe painted between them.
-  const inset = Math.round(h * SPINE_END_INSET);
+  const inset = SPINE_END_INSET;
   const n = h > 0 ? Math.floor((h - inset * 2 - 8) / unit) : 0;
   const ink = threadInk(cloth, { color: thread?.color, opacity: thread?.opacity ?? SPINE_THREAD_OPACITY });
   // The ribs are ridges in the cloth, lit or shaded by its lightness rather than sewn.

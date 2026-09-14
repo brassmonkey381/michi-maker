@@ -18,7 +18,7 @@ import Animated, {
 
 import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { BinderSurface, FontSize, Palette, Radii, Radius, Shadows, SlotBackingFallback, Weight } from '@/constants/theme';
-import { DEFAULT_ZIP_PULL, luminance, threadInk, type PageStyle } from '@/data/pageStyle';
+import { DEFAULT_ZIP_PULL, luminance, resolveWear, threadInk, type PageStyle } from '@/data/pageStyle';
 import { UNSET_CHIP, chipFor } from '@/constants/printVariant';
 import { attributionLabel, deriveAttribution, type ArtAttribution } from '@/data/artworkLibrary';
 import { resolveCardWith, resolveCatalogCardWith } from '@/data/cardResolver';
@@ -696,9 +696,10 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               scanUri={slot.cardId ? scanUrlOf?.(slot) : undefined}
               captionFields={captionFields}
               instantImages={instantImages}
-              // POCKET, THEN PAGE, THEN BINDER (owner, 2026-09-14): the first that is set wins.
-              sleeve={slot.sleeve ?? page.sleeve ?? pageStyle?.sleeve ?? undefined}
-              artBacking={slot.artBacking ?? page.artBacking ?? pageStyle?.artBacking ?? undefined}
+              // POCKET, THEN PAGE, THEN BINDER (owner, 2026-09-14): the first that is set wins,
+              // and a layer set to "none" wins with bare pockets (resolveWear).
+              sleeve={resolveWear(slot.sleeve, page.sleeve, pageStyle?.sleeve)}
+              artBacking={resolveWear(slot.artBacking, page.artBacking, pageStyle?.artBacking)}
               dressed={dressed}
               ring={matColor}
               ringPad={ringPad}
@@ -875,8 +876,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
               scanUri={dragged.cardId ? scanUrlOf?.(dragged) : undefined}
               captionFields={captionFields}
               instantImages={instantImages}
-              sleeve={dragged.sleeve ?? page.sleeve ?? pageStyle?.sleeve ?? undefined}
-              artBacking={dragged.artBacking ?? page.artBacking ?? pageStyle?.artBacking ?? undefined}
+              sleeve={resolveWear(dragged.sleeve, page.sleeve, pageStyle?.sleeve)}
+              artBacking={resolveWear(dragged.artBacking, page.artBacking, pageStyle?.artBacking)}
               dressed={dressed}
               ring={matColor}
               ringPad={ringPad}
@@ -2176,6 +2177,7 @@ function PageDressing({
     />
   );
   return (
+    <>
     <View
       pointerEvents="none"
       onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
@@ -2229,19 +2231,32 @@ function PageDressing({
           <View style={[styles.tape, { top: c - TAPE / 2, bottom: c - TAPE / 2, width: TAPE, paddingTop: 4, alignItems: 'center' }, onOuter]}>
             {Array.from({ length: teethDown }).map((_, i) => tooth(i, true))}
           </View>
-          {/* The pull, parked at the bottom outer corner and angled the way a hanging pull sits. */}
-          <View
-            style={[
-              styles.pull,
-              { backgroundColor: pull, borderColor: 'rgba(0,0,0,0.35)' },
-              { bottom: c - 10, transform: [{ rotate: outerEdge === 'right' ? '-28deg' : '28deg' }] },
-              outerEdge === 'right' ? { right: c - 3 } : { left: c - 3 },
-            ]}>
-            <View style={styles.pullHole} />
-          </View>
         </>
       ) : null}
     </View>
+    {/* THE PULL HANGS OFF THE BINDER (owner, 2026-09-14): the slider parks at the bottom outer
+        corner where the coil ends, and the tab dangles past the page's edge the way a real one
+        does, so it is drawn outside the clipped band. */}
+    {zip ? (
+      <View
+        pointerEvents="none"
+        style={[
+          styles.pullSlider,
+          { bottom: c - 5 },
+          outerEdge === 'right' ? { right: c - 5 } : { left: c - 5 },
+        ]}>
+        <View
+          style={[
+            styles.pull,
+            { backgroundColor: pull, borderColor: 'rgba(0,0,0,0.35)' },
+            { transform: [{ rotate: outerEdge === 'right' ? '-34deg' : '34deg' }] },
+            outerEdge === 'right' ? { right: -9 } : { left: -9 },
+          ]}>
+          <View style={styles.pullHole} />
+        </View>
+      </View>
+    ) : null}
+    </>
   );
 }
 
@@ -2330,10 +2345,22 @@ const styles = StyleSheet.create({
   toothAlong: { width: 2, height: 4, borderRadius: 1, backgroundColor: '#55555e', borderTopWidth: 1, borderTopColor: '#8e8e98' },
   /** The same tooth turned for the vertical run down the outer edge. */
   toothAcross: { width: 4, height: 2, borderRadius: 1, backgroundColor: '#55555e', borderLeftWidth: 1, borderLeftColor: '#8e8e98' },
+  /** The slider the pull hangs from: a small metal block astride the coil at the corner. */
+  pullSlider: {
+    position: 'absolute',
+    width: 10,
+    height: 12,
+    borderRadius: 2,
+    backgroundColor: '#6a6a74',
+    borderWidth: 1,
+    borderColor: '#2a2a30',
+    zIndex: 4,
+  },
   pull: {
     position: 'absolute',
-    width: 8,
-    height: 18,
+    top: 8,
+    width: 9,
+    height: 22,
     borderRadius: 4,
     backgroundColor: '#3fcf5e',
     borderWidth: 1,

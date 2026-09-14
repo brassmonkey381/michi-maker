@@ -1,7 +1,21 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { luminance, normalizePageStyle, stitchInk, withPageStyle } from './pageStyle.ts';
+import { luminance, normalizePageStyle, normalizeWear, resolveWear, stitchInk, WEAR_NONE, withPageStyle } from './pageStyle.ts';
+
+test('a pocket wears the first layer that speaks, and "none" speaks as nothing', () => {
+  assert.equal(resolveWear(undefined, undefined, '#ffaa00'), '#ffaa00');
+  assert.equal(resolveWear(undefined, '#123456', '#ffaa00'), '#123456');
+  assert.equal(resolveWear('#000000', WEAR_NONE, '#ffaa00'), '#000000');
+  assert.equal(resolveWear(undefined, WEAR_NONE, '#ffaa00'), undefined);
+  assert.equal(resolveWear(null, '', undefined), undefined);
+});
+
+test('a page or pocket column is a colour, "none", or nothing at all', () => {
+  assert.equal(normalizeWear('#FFAA00'), '#ffaa00');
+  assert.equal(normalizeWear(WEAR_NONE), WEAR_NONE);
+  for (const bad of [null, undefined, 3, 'red', '#12', 'NONE']) assert.equal(normalizeWear(bad), undefined);
+});
 
 test('anything storage hands back that is not a style reads as the plain page', () => {
   for (const bad of [null, undefined, 42, 'x', [], {}, { material: 'velvet' }, { sleeve: 'red' }, { sleeve: '#12' }, { details: 'zip' }]) {

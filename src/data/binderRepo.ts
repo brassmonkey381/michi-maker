@@ -15,7 +15,7 @@ import { requireSupabase } from '@/lib/supabase';
 import type { Database, Json } from '@/types/database';
 import type { BinderCover, BinderTrack, DemoBinder, DemoPage, DemoSlot, MichiLayoutStyle } from '@/data/binderTypes';
 import { normalizeCover } from '@/data/coverDecorations';
-import { normalizePageStyle } from '@/data/pageStyle';
+import { normalizePageStyle, normalizeWear } from '@/data/pageStyle';
 
 type Tables = Database['public']['Tables'];
 type BinderUpdate = Tables['binders']['Update'];
@@ -197,8 +197,8 @@ function mapSlot(row: SlotRowIn): DemoSlot {
     fromCollection: row.from_collection ?? undefined,
     sourceEntryId: row.source_entry_id ?? undefined,
     finish: row.finish ?? undefined,
-    sleeve: row.sleeve ?? undefined,
-    artBacking: row.art_backing ?? undefined,
+    sleeve: normalizeWear(row.sleeve),
+    artBacking: normalizeWear(row.art_backing),
   };
 }
 
@@ -217,8 +217,8 @@ function mapPage(row: PageRowIn): DemoPage {
     rows: row.rows,
     cols: row.cols,
     backgroundColor: row.background_color ?? undefined,
-    sleeve: row.sleeve ?? undefined,
-    artBacking: row.art_backing ?? undefined,
+    sleeve: normalizeWear(row.sleeve),
+    artBacking: normalizeWear(row.art_backing),
     isPublic: row.is_public,
     track: trackOf(row.track),
     slots,

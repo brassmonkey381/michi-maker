@@ -108,7 +108,8 @@ export interface DemoSlot {
    */
   finish?: string;
   /**
-   * THIS POCKET'S OWN sleeve colour (a card) or art backing (an art piece), #rrggbb. Absent or
+   * THIS POCKET'S OWN sleeve colour (a card) or art backing (an art piece), #rrggbb, or 'none'
+   * for a bare pocket under a page or binder that wears one (pageStyle.WEAR_NONE). Absent or
    * null falls through to the page's, then the binder's (owner, 2026-09-14).
    */
   sleeve?: string | null;
@@ -305,7 +306,8 @@ export interface DemoPage {
   cols: number;
   backgroundColor?: string;
   /**
-   * THIS PAGE'S OWN sleeve colour and art backing, #rrggbb. Absent or null means the binder's
+   * THIS PAGE'S OWN sleeve colour and art backing, #rrggbb, or 'none' for bare pockets on this
+   * page under a binder that wears one (pageStyle.WEAR_NONE). Absent or null means the binder's
    * (PageStyle.sleeve / artBacking). A pocket can say otherwise again: see DemoSlot.
    */
   sleeve?: string | null;

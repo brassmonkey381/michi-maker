@@ -140,7 +140,9 @@ function PublicViewer({ id, openAt }: { id?: string; openAt: number }) {
     Promise.all([fetchBinder(id), fetchEntry(id).catch(() => null)])
       .then(([binder, entry]) => {
         if (!active) return;
-        if (!binder) {
+        // A binder with no visible pages (all private, or a copy whose pages are still being
+        // written) has nothing to show, and BinderPages needs at least one page to lay out.
+        if (!binder || binder.pages.length === 0) {
           setState({ status: 'missing' });
           return;
         }

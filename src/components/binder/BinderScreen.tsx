@@ -85,7 +85,7 @@ import { fetchLikeCount } from '@/data/binderRepo';
 import { isPrivateArt } from '@/data/artAttributionCheck';
 import { ArtworkDock } from '@/components/binder/ArtworkDock';
 import { artPieceAllowed, pageSide, REAL_PAGE_SIZES } from '@/data/binderPhysics';
-import { DEFAULT_THREAD_OPACITY, DEFAULT_ZIP_PULL, PAGE_MATERIALS, SPINE_STYLES, THREAD_OPACITIES, ZIP_TRACKS, luminance } from '@/data/pageStyle';
+import { DEFAULT_THREAD_OPACITY, DEFAULT_ZIP_PULL, PAGE_MATERIALS, SPINE_STYLES, THREAD_OPACITIES, WEAR_NONE, ZIP_TRACKS, luminance, resolveWear } from '@/data/pageStyle';
 import { DOCK_PCT_MAX, LEGACY_MIN_WIDTH, MIN_PAGE_WIDTH, PANEL_GAP, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH, PEEK_MIN_WIDTH, panelLayout, PHONE_MAX_WIDTH } from '@/data/binderLayout';
 import type { CaptionFieldKey } from '@/data/cardCaption';
 import type { ComposePlacement } from '@/data/pageComposer';
@@ -2089,32 +2089,20 @@ export function BinderScreen({
           </View>
         </View>
       ) : null}
-      <View style={styles.inlineRow}>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
-          Sleeves
-        </ThemedText>
-        <View style={styles.colorFieldBox}>
-          <ColorField
-            key={`${binder.id}-sleeve`}
-            value={binder.pageStyle?.sleeve}
-            onChange={(sleeve) => store.setPageStyle(binder.id, { sleeve })}
-          />
-        </View>
-        {binder.pageStyle?.sleeve ? <PillButton label="No sleeves" onPress={() => store.setPageStyle(binder.id, { sleeve: null })} /> : null}
-      </View>
-      <View style={styles.inlineRow}>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
-          Art backing
-        </ThemedText>
-        <View style={styles.colorFieldBox}>
-          <ColorField
-            key={`${binder.id}-backing`}
-            value={binder.pageStyle?.artBacking}
-            onChange={(artBacking) => store.setPageStyle(binder.id, { artBacking })}
-          />
-        </View>
-        {binder.pageStyle?.artBacking ? <PillButton label="No backing" onPress={() => store.setPageStyle(binder.id, { artBacking: null })} /> : null}
-      </View>
+      <WearRow
+        label="Sleeves"
+        fieldKey={`${binder.id}-sleeve`}
+        own={binder.pageStyle?.sleeve ?? WEAR_NONE}
+        onChange={(sleeve) => store.setPageStyle(binder.id, { sleeve })}
+        testID="binder-sleeve"
+      />
+      <WearRow
+        label="Art backing"
+        fieldKey={`${binder.id}-backing`}
+        own={binder.pageStyle?.artBacking ?? WEAR_NONE}
+        onChange={(artBacking) => store.setPageStyle(binder.id, { artBacking })}
+        testID="binder-backing"
+      />
       {binder.pages.some(isBlankPage) ? (
         <PillButton
           label="Compact blanks"
@@ -2792,32 +2780,27 @@ export function BinderScreen({
                     <Text style={[styles.headerAction, styles.primaryText]}>Done</Text>
                   </Pressable>
                 </View>
-                <View style={styles.inlineRow}>
-                  <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
-                    {selectedSlot.type === 'artwork' ? 'Backing' : 'Sleeve'}
-                  </ThemedText>
-                  <View style={styles.colorFieldBox}>
-                    <ColorField
-                      key={`${selectedSlot.id}-style`}
-                      value={
-                        selectedSlot.type === 'artwork'
-                          ? (selectedSlot.artBacking ?? page.artBacking ?? binder.pageStyle?.artBacking ?? '#ffffff')
-                          : (selectedSlot.sleeve ?? page.sleeve ?? binder.pageStyle?.sleeve ?? '#ffffff')
-                      }
-                      onChange={(hex) =>
-                        store.setSlotStyle(binder.id, page.id, selectedSlot.id, selectedSlot.type === 'artwork' ? { artBacking: hex } : { sleeve: hex })
-                      }
-                    />
-                  </View>
-                  {(selectedSlot.type === 'artwork' ? selectedSlot.artBacking : selectedSlot.sleeve) ? (
-                    <PillButton
-                      label="Use page's"
-                      onPress={() =>
-                        store.setSlotStyle(binder.id, page.id, selectedSlot.id, selectedSlot.type === 'artwork' ? { artBacking: null } : { sleeve: null })
-                      }
-                    />
-                  ) : null}
-                </View>
+                {selectedSlot.type === 'artwork' ? (
+                  <WearRow
+                    label="Backing"
+                    fieldKey={`${selectedSlot.id}-style`}
+                    own={selectedSlot.artBacking}
+                    above={resolveWear(page.artBacking, binder.pageStyle?.artBacking)}
+                    inherit="Use page's"
+                    onChange={(artBacking) => store.setSlotStyle(binder.id, page.id, selectedSlot.id, { artBacking })}
+                    testID="slot-backing"
+                  />
+                ) : (
+                  <WearRow
+                    label="Sleeve"
+                    fieldKey={`${selectedSlot.id}-style`}
+                    own={selectedSlot.sleeve}
+                    above={resolveWear(page.sleeve, binder.pageStyle?.sleeve)}
+                    inherit="Use page's"
+                    onChange={(sleeve) => store.setSlotStyle(binder.id, page.id, selectedSlot.id, { sleeve })}
+                    testID="slot-sleeve"
+                  />
+                )}
               </ThemedView>
             </View>
           </Modal>
@@ -2855,33 +2838,25 @@ export function BinderScreen({
                     multiline
                   />
                   {/* THIS PAGE'S OWN sleeves and art backing (owner, 2026-09-14). Blank means the
-                      binder's; a pocket can still say otherwise on top of these. */}
-                  <View style={styles.inlineRow}>
-                    <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
-                      Sleeves on this page
-                    </ThemedText>
-                    <View style={styles.colorFieldBox}>
-                      <ColorField
-                        key={`${page.id}-sleeve`}
-                        value={page.sleeve ?? binder.pageStyle?.sleeve ?? '#ffffff'}
-                        onChange={(sleeve) => store.updatePage(binder.id, page.id, { sleeve })}
-                      />
-                    </View>
-                    {page.sleeve ? <PillButton label="Use binder's" onPress={() => store.updatePage(binder.id, page.id, { sleeve: null })} /> : null}
-                  </View>
-                  <View style={styles.inlineRow}>
-                    <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
-                      Art backing on this page
-                    </ThemedText>
-                    <View style={styles.colorFieldBox}>
-                      <ColorField
-                        key={`${page.id}-backing`}
-                        value={page.artBacking ?? binder.pageStyle?.artBacking ?? '#ffffff'}
-                        onChange={(artBacking) => store.updatePage(binder.id, page.id, { artBacking })}
-                      />
-                    </View>
-                    {page.artBacking ? <PillButton label="Use binder's" onPress={() => store.updatePage(binder.id, page.id, { artBacking: null })} /> : null}
-                  </View>
+                      binder's, "None" means bare pockets here; a pocket can still say otherwise. */}
+                  <WearRow
+                    label="Sleeves on this page"
+                    fieldKey={`${page.id}-sleeve`}
+                    own={page.sleeve}
+                    above={binder.pageStyle?.sleeve}
+                    inherit="Use binder's"
+                    onChange={(sleeve) => store.updatePage(binder.id, page.id, { sleeve })}
+                    testID="page-sleeve"
+                  />
+                  <WearRow
+                    label="Art backing on this page"
+                    fieldKey={`${page.id}-backing`}
+                    own={page.artBacking}
+                    above={binder.pageStyle?.artBacking}
+                    inherit="Use binder's"
+                    onChange={(artBacking) => store.updatePage(binder.id, page.id, { artBacking })}
+                    testID="page-backing"
+                  />
                   <SoundtrackField
                     label="This page's track"
                     track={page.track}
@@ -3272,24 +3247,75 @@ function PillButton({
   onPress,
   tone = 'default',
   disabled = false,
+  active = false,
+  testID,
 }: {
   label: string;
   onPress: () => void;
   tone?: 'default' | 'danger';
   disabled?: boolean;
+  /** The pill names the current state (a chosen option), not an action: outlined in the brand colour. */
+  active?: boolean;
+  testID?: string;
 }) {
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
+      testID={testID}
       style={({ pressed }) => [
         styles.pill,
         tone === 'danger' && styles.pillDanger,
+        active && styles.pillActive,
         pressed && styles.pressed,
         disabled && styles.pillDisabled,
       ]}>
-      <Text style={[styles.pillText, tone === 'danger' && styles.pillTextDanger]}>{label}</Text>
+      <Text style={[styles.pillText, tone === 'danger' && styles.pillTextDanger, active && styles.pillTextActive]}>{label}</Text>
     </Pressable>
+  );
+}
+
+/**
+ * ONE ROW OF WHAT A POCKET WEARS: a sleeve colour, or an art backing, at the binder, the page or
+ * the pocket. Three states (owner, 2026-09-14): a colour of its own, "None" (bare here even if the
+ * layer above wears one), or nothing set, which inherits. The colour swatch always shows what is
+ * in effect so the picker opens on it; `inherit` is the pill that hands the choice back up (absent
+ * at the binder, which has nothing above it, so there "None" and clearing are the same thing).
+ */
+function WearRow({
+  label,
+  fieldKey,
+  own,
+  above,
+  inherit,
+  onChange,
+  testID,
+}: {
+  label: string;
+  fieldKey: string;
+  /** This layer's own value: a colour, WEAR_NONE, or nothing. */
+  own: string | null | undefined;
+  /** What the layers above resolve to, already reduced. */
+  above?: string;
+  /** Label of the hand-it-back pill, e.g. "Use binder's". Omit at the top layer. */
+  inherit?: string;
+  /** A colour, WEAR_NONE, or null to inherit. */
+  onChange: (value: string | null) => void;
+  testID?: string;
+}) {
+  const isNone = own === WEAR_NONE;
+  const inEffect = resolveWear(own, above);
+  return (
+    <View style={styles.inlineRow}>
+      <ThemedText type="small" themeColor="textSecondary" style={styles.inlineLabel}>
+        {label}
+      </ThemedText>
+      <View style={styles.colorFieldBox}>
+        <ColorField key={`${fieldKey}-${isNone ? 'none' : 'colour'}`} value={inEffect ?? '#ffffff'} onChange={onChange} />
+      </View>
+      <PillButton label="None" active={isNone} onPress={() => onChange(inherit ? WEAR_NONE : null)} testID={testID ? `${testID}-none` : undefined} />
+      {inherit && own ? <PillButton label={inherit} onPress={() => onChange(null)} testID={testID ? `${testID}-inherit` : undefined} /> : null}
+    </View>
   );
 }
 
@@ -3538,8 +3564,10 @@ const styles = StyleSheet.create({
   pill: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: Radius.pill, backgroundColor: Palette.panel },
   pillDisabled: { opacity: 0.4 },
   pillDanger: { backgroundColor: Palette.dangerBg },
+  pillActive: { backgroundColor: Palette.surface, borderWidth: 1.5, borderColor: Palette.accent, paddingVertical: 6.5, paddingHorizontal: 12.5 },
   pillText: { fontSize: FontSize.body, fontWeight: Weight.semibold, color: Palette.ink2 },
   pillTextDanger: { color: Palette.dangerAlt },
+  pillTextActive: { color: Palette.accent },
   pressed: { opacity: 0.7 },
   // A contained danger chip, centred and sized to its label — so the tap target is the button,
   // not the whole row width (an easy place to fat-finger a destructive action).

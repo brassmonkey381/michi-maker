@@ -22,6 +22,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { CaptionControls, CaptionFieldRow } from '@/components/binder/CaptionControls';
+import { luminance, threadInk, type PageStyle } from '@/data/pageStyle';
 import { FLIP_COVER_BEAT_MS, flipPlan, riffleBudget } from '@/data/openingFlip';
 import {
   SingleTurnLeaf,
@@ -40,7 +41,7 @@ import { boxContains, decorationBox } from '@/data/coverGeometry';
 import { useBinders } from '@/store/binders';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { FontSize, Palette, Radius, Weight } from '@/constants/theme';
+import { BinderSurface, FontSize, Palette, Radius, Weight } from '@/constants/theme';
 
 import { pillChip, sheet } from '@/constants/ui';
 import { setHoverSuspended } from '@/components/binder/hoverGate';
@@ -1594,7 +1595,13 @@ export function BinderPages({
             {/* THE SPINE (owner, 2026-09-14): the band down the middle of the open book, drawn in
                 the gap between the two pages when the binder's details ask for one. */}
             {!bookSingle && binder.pageStyle?.details?.spine ? (
-              <Spine style={binder.pageStyle.details.spine} width={bookGap} top={COLUMN_LABEL_H} />
+              <Spine
+                style={binder.pageStyle.details.spine}
+                width={bookGap}
+                top={COLUMN_LABEL_H}
+                thread={binder.pageStyle.thread}
+                cloth={page.backgroundColor ?? BinderSurface.mat}
+              />
             ) : null}
             <SpreadColumn
               // The column has to exist for an inside cover too, and a column with no page renders
@@ -2097,26 +2104,53 @@ function CoverColumn({
  * gusset is sewn in; ribbed is a stack of ridges. Plain views, counted from the band's height.
  * Absolute in the spread row, centred on its gap, so it costs the pages nothing.
  */
-function Spine({ style, width, top }: { style: 'cross' | 'ribbed'; width: number; top: number }) {
+/** How much of the gap's height the band leaves open at each end, so it reads as sitting behind the pages. */
+const SPINE_END_INSET = 0.11;
+/** The cross-stitch when no thread has been chosen (owner, 2026-09-14): half-strength. */
+const SPINE_THREAD_OPACITY = 0.5;
+
+function Spine({
+  style,
+  width,
+  top,
+  thread,
+  cloth,
+}: {
+  style: 'cross' | 'ribbed';
+  width: number;
+  top: number;
+  /** The binder's thread (PageStyle.thread): the cross-stitch is sewn with the same one as the seams. */
+  thread?: PageStyle['thread'];
+  /** The spine's fabric: the page's own background colour (owner, 2026-09-14), so the book is one cloth. */
+  cloth: string;
+}) {
   const [h, setH] = useState(0);
   const unit = style === 'cross' ? 12 : 6;
-  const n = h > 0 ? Math.floor((h - 8) / unit) : 0;
+  // The band is shorter than the gap at both ends, which is what makes it read as a spine the
+  // pages are bound to rather than a stripe painted between them.
+  const inset = Math.round(h * SPINE_END_INSET);
+  const n = h > 0 ? Math.floor((h - inset * 2 - 8) / unit) : 0;
+  const ink = threadInk(cloth, { color: thread?.color, opacity: thread?.opacity ?? SPINE_THREAD_OPACITY });
+  // The ribs are ridges in the cloth, lit or shaded by its lightness rather than sewn.
+  const rib = luminance(cloth) < 0.35 ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.16)';
   return (
     <View
       pointerEvents="none"
       onLayout={(e) => setH(e.nativeEvent.layout.height)}
-      style={[styles.spine, { width, top, marginLeft: -width / 2 }]}>
+      style={[styles.spineTrack, { width, top, marginLeft: -width / 2 }]}>
+      <View style={[styles.spine, { top: inset, bottom: inset, backgroundColor: cloth }]}>
       <View style={styles.spineInner}>
         {Array.from({ length: n }).map((_, i) =>
           style === 'cross' ? (
             <View key={i} style={{ width: width - 4, height: unit, alignItems: 'center', justifyContent: 'center' }}>
-              <View style={[styles.spineThread, { width: width - 2, transform: [{ rotate: '45deg' }] }]} />
-              <View style={[styles.spineThread, { width: width - 2, transform: [{ rotate: '-45deg' }], position: 'absolute' }]} />
+              <View style={[styles.spineThread, { width: width - 2, backgroundColor: ink, transform: [{ rotate: '45deg' }] }]} />
+              <View style={[styles.spineThread, { width: width - 2, backgroundColor: ink, transform: [{ rotate: '-45deg' }], position: 'absolute' }]} />
             </View>
           ) : (
-            <View key={i} style={[styles.spineRib, { width: width - 6, marginBottom: unit - 2 }]} />
+            <View key={i} style={[styles.spineRib, { width: width - 6, marginBottom: unit - 2, backgroundColor: rib }]} />
           ),
         )}
+      </View>
       </View>
     </View>
   );
@@ -2332,10 +2366,12 @@ const styles = StyleSheet.create({
   // rebuilt when it is shown is the thing this replaced.
   kept: { opacity: 0 },
   spreadRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center' },
-  spine: { position: 'absolute', left: '50%', bottom: 0, zIndex: 3, backgroundColor: '#1c1c20', borderRadius: 3, overflow: 'hidden' },
+  // The track is the full gap (for measuring); the band inside stops short of both ends.
+  spineTrack: { position: 'absolute', left: '50%', bottom: 0, zIndex: 3 },
+  spine: { position: 'absolute', left: 0, right: 0, borderRadius: 3, overflow: 'hidden' },
   spineInner: { flex: 1, alignItems: 'center', paddingTop: 4 },
-  spineThread: { height: 2, borderRadius: 1, backgroundColor: 'rgba(235,235,240,0.85)' },
-  spineRib: { height: 2, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.22)' },
+  spineThread: { height: 2, borderRadius: 1 },
+  spineRib: { height: 2, borderRadius: 1 },
   neighbor: { alignItems: 'center' },
   // ONE LINE, ALWAYS, WORDS OR NOT. `type="small"` is lineHeight 20, and stating it as a height
   // means an empty label occupies exactly what a full one does. Every place that needs the space

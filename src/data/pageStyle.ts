@@ -68,6 +68,32 @@ export interface PageStyle {
   thread?: { color?: string; opacity?: number };
 }
 
+/**
+ * A page's or a pocket's "none": bare pockets here even though the binder (or the page) wears a
+ * sleeve. Stored in the same text column as a colour; a blank column means "inherit" and this
+ * means "stop here, nothing". The binder itself has no such value: at the top, absent IS none.
+ */
+export const WEAR_NONE = 'none';
+
+/**
+ * What a pocket wears, resolved pocket -> page -> binder: the first layer that says anything
+ * wins, and a layer saying WEAR_NONE wins with "nothing". Returns a #rrggbb or undefined.
+ */
+export function resolveWear(...layers: (string | null | undefined)[]): string | undefined {
+  for (const layer of layers) {
+    if (layer === undefined || layer === null || layer === '') continue;
+    return layer === WEAR_NONE ? undefined : layer;
+  }
+  return undefined;
+}
+
+/** A page/pocket column as the app should read it: a lower-cased colour, WEAR_NONE, or nothing. */
+export function normalizeWear(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  if (value === WEAR_NONE) return WEAR_NONE;
+  return HEX.test(value) ? value.toLowerCase() : undefined;
+}
+
 /** The opacities the thread can be set to. */
 export const THREAD_OPACITIES = [0.25, 0.5, 0.75, 1] as const;
 export const DEFAULT_THREAD_OPACITY = 0.6;

@@ -169,7 +169,7 @@ export function ArtworkPanel({
       {slices.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyText}>
-            No pieces yet. Slice some art and the parts land here — then drag one into a pocket, or
+            No pieces yet. Slice some art and the parts land here. Then drag one into a pocket, or
             tap it and tap the pocket.
           </Text>
         </View>

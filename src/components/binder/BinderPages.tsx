@@ -1376,7 +1376,9 @@ export function BinderPages({
           {/* WHERE THE PAGE STRIP SITS. Along the bottom it costs the page about 115px of height;
               as a left rail it costs width, which a height-fitted page has to spare. Both controls
               here shape the spread itself, so they share a row. */}
-          {canDoubleSide || count > 1 ? (
+          {/* The row only exists when one of its pills does: on a phone neither shows, and a
+              label with nothing beside it read as a broken setting. */}
+          {canDoubleSide || (count > 1 && !phone) ? (
             <View style={styles.settingsRow}>
               <ThemedText type="smallBold" themeColor="textSecondary" style={styles.settingsRowLabel}>
                 Layout

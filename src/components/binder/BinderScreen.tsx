@@ -40,6 +40,7 @@ import { ShortcutsCard } from '@/components/binder/ShortcutsCard';
 import { BinderFields, BinderLook } from '@/components/binder/inspector/BinderSection';
 import { PageFields } from '@/components/binder/inspector/PageSection';
 import { PocketWear } from '@/components/binder/inspector/PocketSection';
+import { PageWearBar } from '@/components/binder/PageWearBar';
 import { PLAIN_KEYS, SHORTCUTS_SEEN_KEY } from '@/data/keyboardShortcuts';
 import { useFirstPocketWalkthrough } from '@/hooks/use-first-pocket-walkthrough';
 import { SlotMultiActions } from '@/components/binder/SlotMultiActions';
@@ -1817,6 +1818,9 @@ export function BinderScreen({
       );
     }
     return (
+      // THE PAGE BAR rides the bottom edge of the page being edited (see PageWearBar). The wrapper
+      // is sized by the grid and positions nothing else, so the grid's own measurements stand.
+      <View style={{ width }}>
       <BinderGrid
         // The active-page grid in both the spread ('current') and the narrow single view — curRef
         // must point to it either way so a tray slice can hit-test its drop cell.
@@ -1852,6 +1856,8 @@ export function BinderScreen({
             }
           : { onDropSlot: handleDropSlot })}
       />
+      {p.id === page.id ? <PageWearBar binder={binder} page={p} /> : null}
+      </View>
     );
   };
 

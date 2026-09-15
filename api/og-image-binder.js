@@ -680,8 +680,9 @@ function pageMat(grid, look, gridW, gridH) {
     // is ~140 teeth a side at this scale, and 840 nodes on a spread pushed the raster past the
     // function's 60 seconds (a 504 is no preview at all). Each gradient is one row of teeth at
     // twice the pitch; the second is shifted by one pitch and sits 2px the other side of the
-    // centreline, which is exactly the editor's stagger. A tooth is 2px of #9a9aa4 with a 1px
-    // lit edge, then dark tape. The wavy drift is the one thing a gradient cannot do; a wavy
+    // centreline, which is exactly the editor's stagger. A tooth is 2px of #5e5e67 with a 1px
+    // lit edge, a shade quieter than the editor's coil: at share size the pale one shouted
+    // (owner, 2026-09-15), then dark tape. The wavy drift is the one thing a gradient cannot do; a wavy
     // track shows as a straight coil here.
     const runW = w - (c - TAPE / 2) * 2;
     const runH = hgt - (c - TAPE / 2) * 2;
@@ -696,8 +697,8 @@ function pageMat(grid, look, gridW, gridH) {
             ? { top: 4 * S, bottom: 0, width: 4 * S, left: TAPE / 2 - 2 * S + side * 2 * S }
             : { left: 4 * S, right: 0, height: 4 * S, top: TAPE / 2 - 2 * S + side * 2 * S }),
           backgroundImage: vertical
-            ? `repeating-linear-gradient(180deg, transparent 0px, transparent ${shift}px, #d6d6dc ${shift}px, #d6d6dc ${shift + S}px, #9a9aa4 ${shift + S}px, #9a9aa4 ${shift + toothW}px, transparent ${shift + toothW}px, transparent ${period}px)`
-            : `repeating-linear-gradient(90deg, transparent 0px, transparent ${shift}px, #d6d6dc ${shift}px, #d6d6dc ${shift + S}px, #9a9aa4 ${shift + S}px, #9a9aa4 ${shift + toothW}px, transparent ${shift + toothW}px, transparent ${period}px)`,
+            ? `repeating-linear-gradient(180deg, transparent 0px, transparent ${shift}px, #8a8a93 ${shift}px, #8a8a93 ${shift + S}px, #5e5e67 ${shift + S}px, #5e5e67 ${shift + toothW}px, transparent ${shift + toothW}px, transparent ${period}px)`
+            : `repeating-linear-gradient(90deg, transparent 0px, transparent ${shift}px, #8a8a93 ${shift}px, #8a8a93 ${shift + S}px, #5e5e67 ${shift + S}px, #5e5e67 ${shift + toothW}px, transparent ${shift + toothW}px, transparent ${period}px)`,
         },
       });
     const tape = (style, vertical) =>
@@ -781,12 +782,15 @@ function pageMat(grid, look, gridW, gridH) {
 function spineV2(height, look) {
   // The editor's book: a 16px gap between the leaves (BinderPages bookGap), the band ending one
   // page margin in from each end (PAGE_PAD), X's every 12px or ribs every 6px.
+  // NARROWER AND QUIETER THAN THE EDITOR'S (owner, 2026-09-15): at share size a 16px band of
+  // bright X's between two dark pages pulled the eye off the cards. Ten wide, thread at six
+  // tenths of its strength.
   const inset = PAGE_PAD;
-  const width = 16 * S;
+  const width = 10 * S;
   const unit = (look.spine === 'cross' ? 12 : 6) * S;
   const bandH = height - inset * 2;
   const n = Math.max(0, Math.floor((bandH - 8 * S) / unit));
-  const ink = threadInk(look.mat, { color: look.thread && look.thread.color, opacity: look.thread && look.thread.opacity !== undefined ? look.thread.opacity : 0.5 });
+  const ink = threadInk(look.mat, { color: look.thread && look.thread.color, opacity: (look.thread && look.thread.opacity !== undefined ? look.thread.opacity : 0.5) * 0.6 });
   const rib = look.dark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.16)';
   const marks = [];
   if (look.spine === 'cross') {
@@ -1103,8 +1107,6 @@ function backdropSource(page, manifest, art) {
   return null;
 }
 
-/** What the page keeps clear of the bottom edge now that no text sits there (r12). */
-const SINGLE_BOTTOM_MARGIN = Math.round(24 * S);
 
 /**
  * The single-page frame's chrome, settled 2026-08-27 after rendering five variants through this
@@ -1220,32 +1222,20 @@ function singleFrame(page, manifest, art, backdrop, chrome, look) {
   const cols = page.cols || 3;
   const rows = page.rows || 3;
 
-  // ── vertical geometry, derived rather than clamped ──────────────────────────────────────
+  // ── THE PAGE TAKES THE HEIGHT (owner, 2026-09-15) ────────────────────────────────────────
   //
-  // Everything below hangs off ONE fixed point: the page's bottom edge, SINGLE_BOTTOM_MARGIN above
-  // the frame's foot (the disclaimer that used to sit there is gone since r12). From there:
-  //
-  //   band top    = page bottom - FOOTER_OVERHANG    (so the page laps over it by that much)
-  //   top band    = page bottom - matH               (whatever is left above the page)
-  //
-  // WHY THE PAGE IS SIZED TO FIT RATHER THAN CLAMPED. This used to read
-  // `Math.max(70 * S, SINGLE_H - ... - matH - below)`, with the card box capped at a fixed height.
-  // On a tall page the computed band went under the floor, the floor won, and the mat was pushed
-  // DOWN by the difference — straight through the disclaimer. The clamp silently spent the
-  // clearance, so adding more clearance did nothing, which is exactly how it presented. Sizing the
-  // card grid to the room that actually exists means the floor can never bind and the three lines
-  // above hold for every page shape.
-  const FOOTER_OVERHANG = 26 * S;
-  const MIN_TOP_BAND = 66 * S;
-  const pageBottom = SINGLE_H - SINGLE_BOTTOM_MARGIN;
+  // The lockup used to sit in a band above the page and the page took what was left. Now the
+  // page stands the full height of the frame less a small margin, against the left edge, and the
+  // lockup stands in the column beside it: the mark over the wordmark. The column is guaranteed
+  // SIDE_MIN wide, so a wide page (3x4) gives up a little height rather than crowd the words out.
+  const MARGIN = 22 * S;
+  const SIDE_MIN = 190 * S;
   // The mat's own padding and hairline, both sides of each, are not available to the cards.
   const matChrome = 36 * S + 2 * MAT_EDGE;
-  // Width: the canvas less the mat chrome and a modest margin, so a wide page (3x4) can use it;
-  // height: everything under the lockup's band. Whichever binds decides the card size.
-  const { cw, ch } = cardSize(cols, rows, SINGLE_W - matChrome - 60 * S, pageBottom - MIN_TOP_BAND - matChrome);
+  const { cw, ch } = cardSize(cols, rows, SINGLE_W - matChrome - SIDE_MIN - MARGIN * 2, SINGLE_H - matChrome - MARGIN * 2);
+  const matW = cols * cw + (cols - 1) * GAP + matChrome;
   const matH = rows * ch + (rows - 1) * GAP + matChrome;
-  const topBand = pageBottom - matH;
-  const bandBottomH = SINGLE_BOTTOM_MARGIN + FOOTER_OVERHANG;
+  const sideW = SINGLE_W - MARGIN - matW;
   const layers = [];
   if (backdrop) {
     layers.push(
@@ -1269,28 +1259,14 @@ function singleFrame(page, manifest, art, backdrop, chrome, look) {
       }),
     );
   }
-  // The bands are drawn HERE, as layers beneath the content, and deliberately not as backgrounds
-  // on the header and footer rows.
-  //
-  // As a row background the footer painted AFTER the page, and BAND_FILL is 94% cream, so the part
-  // of the page overhanging it kept its cream body (cream over cream, no difference) while its
-  // black edge came through at 6% and vanished. The header looked right only by accident of being
-  // an earlier sibling. Underneath both, the page overhangs both bands with its edge intact, which
-  // is the whole point of the treatment: a page laid over the frame, not slotted between two strips.
+  // The band face: one band behind the lockup's column, drawn HERE beneath the content so the
+  // page's edge stays intact where it meets it (see the spread's note on row backgrounds).
   if (bands) {
-    const band = (edge, height) =>
+    layers.push(
       h('div', {
-        style: {
-          display: 'flex',
-          position: 'absolute',
-          left: 0,
-          [edge]: 0,
-          width: SINGLE_W,
-          height,
-          backgroundColor: BAND_FILL,
-        },
-      });
-    layers.push(band('top', topBand), band('bottom', bandBottomH));
+        style: { display: 'flex', position: 'absolute', right: 0, top: 0, width: sideW, height: SINGLE_H, backgroundColor: BAND_FILL },
+      }),
+    );
   }
   layers.push(
     h(
@@ -1303,57 +1279,38 @@ function singleFrame(page, manifest, art, backdrop, chrome, look) {
           top: 0,
           width: SINGLE_W,
           height: SINGLE_H,
-          flexDirection: 'column',
+          flexDirection: 'row',
+          alignItems: 'center',
         },
       },
       [
         h(
           'div',
-          {
-            style: {
-              display: 'flex',
-              height: topBand,
-              alignItems: 'center',
-              justifyContent: 'center',
-            },
-          },
-          h(
-            'div',
-            {
-              style: { display: 'flex', alignItems: 'center' },
-            },
-            [
-              logoMark(28 * S, topInk.pocket),
-              h(
-                'div',
-                {
-                  style: {
-                    display: 'flex',
-                    marginLeft: 11 * S,
-                    fontSize: 17 * S,
-                    color: topInk.ink,
-                    ...(topInk.halo ? { textShadow: topInk.halo } : {}),
-                  },
-                },
-                'michi-maker.com',
-              ),
-            ],
-          ),
+          { style: { display: 'flex', marginLeft: MARGIN, width: matW, height: matH, transform: 'rotate(-1deg)' } },
+          look
+            ? pageMat(pageGrid(page, cw, ch, manifest, art, look), look, cols * cw + (cols - 1) * GAP, rows * ch + (rows - 1) * GAP)
+            : mat(pageGrid(page, cw, ch, manifest, art), 0, true),
         ),
         h(
           'div',
-          { style: { display: 'flex', flex: 1, alignItems: 'flex-start', justifyContent: 'center' } },
-          look
-            ? h(
-                'div',
-                { style: { display: 'flex', transform: 'rotate(-1.5deg)' } },
-                pageMat(pageGrid(page, cw, ch, manifest, art, look), look, cols * cw + (cols - 1) * GAP, rows * ch + (rows - 1) * GAP),
-              )
-            : mat(pageGrid(page, cw, ch, manifest, art), -1.5, true),
+          { style: { display: 'flex', flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center' } },
+          [
+            logoMark(34 * S, topInk.pocket),
+            h(
+              'div',
+              {
+                style: {
+                  display: 'flex',
+                  marginTop: 12 * S,
+                  fontSize: 17 * S,
+                  color: topInk.ink,
+                  ...(topInk.halo ? { textShadow: topInk.halo } : {}),
+                },
+              },
+              'michi-maker.com',
+            ),
+          ],
         ),
-        // The foot of the frame: nothing sits here any more, but the row keeps its height so the
-        // page's bottom edge lands where the geometry above says it does.
-        h('div', { style: { display: 'flex', height: bands ? bandBottomH : SINGLE_BOTTOM_MARGIN } }),
       ],
     ),
   );

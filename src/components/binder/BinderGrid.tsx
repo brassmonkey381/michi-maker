@@ -2260,18 +2260,30 @@ function PageDressing({
           nylon rather than paint. Skipped in a thumbnail, where it would be a moiré. */}
       {!tiny && size.w > 0 ? <Weave w={size.w} h={size.h} dark={dark} /> : null}
       {/* THE HEMS: the page's stitching along its own edges, where the sheet is welded to its
-          backing, unless a zip's band takes those edges instead. Which hems exist is seamLines'
-          call (both, on the reference); rows and cols are the grid's, passed in. */}
-      {stitch && !zip && size.w > 0
+          backing. Top, bottom and outer hems sit out at the band's centre, and step aside for a
+          zip's coil. THE SPINE-SIDE SEAM (owner, 2026-09-15) hugs the inside card column instead,
+          as the reference shows it, and is drawn zip or no zip: the coil never runs along the
+          spine edge. Which hems exist is seamLines' call. */}
+      {stitch && size.w > 0
         ? (() => {
             const lines = seamLines(rows, cols, outerEdge);
+            const spineEdge = (outerEdge ?? 'right') === 'left' ? 'right' : 'left';
             const runW = size.w - c * 2;
             const runH = size.h - c * 2;
             const hems = [];
-            if (lines.h.includes(0)) hems.push(<Seam key="hem-top" at={c} from={c} length={runW} double={stitch === 'double'} ink={ink} dark={dark} tiny={tiny} />);
-            if (lines.h.includes(rows)) hems.push(<Seam key="hem-bottom" at={size.h - c} from={c} length={runW} double={stitch === 'double'} ink={ink} dark={dark} tiny={tiny} />);
-            if (lines.v.includes(0)) hems.push(<Seam key="hem-left" vertical at={c} from={c} length={runH} double={stitch === 'double'} ink={ink} dark={dark} tiny={tiny} />);
-            if (lines.v.includes(cols)) hems.push(<Seam key="hem-right" vertical at={size.w - c} from={c} length={runH} double={stitch === 'double'} ink={ink} dark={dark} tiny={tiny} />);
+            if (!zip) {
+              if (lines.h.includes(0)) hems.push(<Seam key="hem-top" at={c} from={c} length={runW} double={stitch === 'double'} ink={ink} dark={dark} tiny={tiny} />);
+              if (lines.h.includes(rows)) hems.push(<Seam key="hem-bottom" at={size.h - c} from={c} length={runW} double={stitch === 'double'} ink={ink} dark={dark} tiny={tiny} />);
+              if (spineEdge !== 'left' && lines.v.includes(0)) hems.push(<Seam key="hem-left" vertical at={c} from={c} length={runH} double={stitch === 'double'} ink={ink} dark={dark} tiny={tiny} />);
+              if (spineEdge !== 'right' && lines.v.includes(cols)) hems.push(<Seam key="hem-right" vertical at={size.w - c} from={c} length={runH} double={stitch === 'double'} ink={ink} dark={dark} tiny={tiny} />);
+            }
+            // A thread's width outside the pockets, the full height of the pocket column.
+            const hug = band - (tiny ? 2 : 3);
+            if (lines.v.includes(spineEdge === 'left' ? 0 : cols)) {
+              hems.push(
+                <Seam key="hem-spine" vertical at={spineEdge === 'left' ? hug : size.w - hug} from={band} length={size.h - band * 2} double={stitch === 'double'} ink={ink} dark={dark} tiny={tiny} />,
+              );
+            }
             return hems;
           })()
         : null}

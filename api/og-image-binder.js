@@ -646,13 +646,20 @@ function pageMat(grid, look, gridW, gridH) {
   }
   const c = band / 2;
   if (look.stitch || look.zip) layers.push(...weaveV2(w, hgt, look.dark, radius));
-  if (look.stitch && !look.zip) {
-    // The hems, where seamLines says the sheet is sealed (both, on the reference).
+  if (look.stitch) {
+    // The hems, where seamLines says the sheet is sealed. Top, bottom and outer sit at the band's
+    // centre and step aside for a zip; the spine-side seam hugs the inside card column and is
+    // drawn zip or no zip, as BinderGrid's PageDressing does.
     const lines = seamLines(look.rows, look.cols, look.edge);
-    if (lines.h.includes(0)) layers.push(...seamV2(false, c, c, w - c * 2, look));
-    if (lines.h.includes(look.rows)) layers.push(...seamV2(false, hgt - c, c, w - c * 2, look));
-    if (lines.v.includes(0)) layers.push(...seamV2(true, c, c, hgt - c * 2, look));
-    if (lines.v.includes(look.cols)) layers.push(...seamV2(true, w - c, c, hgt - c * 2, look));
+    const spineEdge = look.edge === 'left' ? 'right' : 'left';
+    if (!look.zip) {
+      if (lines.h.includes(0)) layers.push(...seamV2(false, c, c, w - c * 2, look));
+      if (lines.h.includes(look.rows)) layers.push(...seamV2(false, hgt - c, c, w - c * 2, look));
+      if (spineEdge !== 'left' && lines.v.includes(0)) layers.push(...seamV2(true, c, c, hgt - c * 2, look));
+      if (spineEdge !== 'right' && lines.v.includes(look.cols)) layers.push(...seamV2(true, w - c, c, hgt - c * 2, look));
+    }
+    const hug = band - 3 * S;
+    if (lines.v.includes(spineEdge === 'left' ? 0 : look.cols)) layers.push(...seamV2(true, spineEdge === 'left' ? hug : w - hug, band, hgt - band * 2, look));
   }
   if (look.zip) {
     const TAPE = 8 * S;

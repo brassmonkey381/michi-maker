@@ -1353,7 +1353,9 @@ export function BinderPages({
             <Pressable style={StyleSheet.absoluteFill} onPress={onCloseSettings} />
             <ThemedView type="backgroundElement" style={styles.settingsCard}>
               <View style={styles.settingsHead}>
-                <ThemedText type="subtitle">View</ThemedText>
+                {/* "Binder" when the binder's own look is in here (editing); "View" when only how
+                    you look at it is. A sheet of zips and sleeves called View said the wrong thing. */}
+                <ThemedText type="subtitle">{settingsExtras ? 'Binder' : 'View'}</ThemedText>
                 <Pressable onPress={onCloseSettings} hitSlop={10}>
                   <Text style={styles.fieldsDone}>Done</Text>
                 </Pressable>
@@ -1370,8 +1372,18 @@ export function BinderPages({
             A label column fixes both. Each row names its group and holds its own controls, so the
             groups line up down a common left edge, a control that appears or disappears moves only
             its own row, and "Which labels" sits beside "Card labels" where it plainly belongs. */}
-        <View style={styles.settingsGroups}>
-          {toolPills ? <View style={styles.settingsRowControls}>{toolPills}</View> : null}
+        {/* THE BINDER'S LOOK FIRST, in its own groups (Pages, Binder, Pockets), then how YOU view
+            it. The view rows are a group of their own with a note, because they are the one thing
+            in this sheet that is not saved in the binder and the heading alone could not say so. */}
+        {settingsExtras}
+        {toolPills ? <View style={styles.settingsRowControls}>{toolPills}</View> : null}
+        <View style={[styles.settingsGroups, settingsExtras ? styles.settingsGroupsAfter : null]}>
+          {settingsExtras ? (
+            <View style={styles.settingsGroupHead}>
+              <Text style={styles.settingsGroupTitle}>Your view</Text>
+              <Text style={styles.settingsGroupNote}>How you look at binders. Not saved in this one.</Text>
+            </View>
+          ) : null}
 
           {/* WHERE THE PAGE STRIP SITS. Along the bottom it costs the page about 115px of height;
               as a left rail it costs width, which a height-fitted page has to spare. Both controls
@@ -1490,7 +1502,6 @@ export function BinderPages({
             </View>
           </Modal>
         ) : null}
-                {settingsExtras}
               </ScrollView>
             </ThemedView>
           </View>
@@ -2309,6 +2320,11 @@ const styles = StyleSheet.create({
   // Wraps: it now carries the editor's chips as well as the view pills, and on a narrow window
   // that is more than one line's worth. Wrapping as one group beats two rows that each half-fill.
   settingsGroups: { alignSelf: 'stretch', gap: 2 },
+  /** Under the binder's groups: a rule and a heading of its own, in the same voice as theirs. */
+  settingsGroupsAfter: { paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Palette.hairline },
+  settingsGroupHead: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: 8, paddingBottom: 2 },
+  settingsGroupTitle: { fontSize: FontSize.xs, fontWeight: Weight.semibold, textTransform: 'uppercase', letterSpacing: 0.6, color: Palette.muted },
+  settingsGroupNote: { fontSize: FontSize.xs, color: Palette.muted },
   // A hairline per row rather than a border on the group: the rule then sits between rows and
   // never under the last one, whichever rows this binder actually offers.
   settingsRow: {

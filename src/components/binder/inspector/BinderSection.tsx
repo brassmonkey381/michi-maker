@@ -13,7 +13,7 @@
 import { View } from 'react-native';
 
 import { SoundtrackField } from '@/components/binder/SoundtrackField';
-import { ColorBox, LabeledInput, PillButton, Row, Seg, ToggleChip, WearRow, styles } from '@/components/binder/inspector/controls';
+import { ColorBox, Group, LabeledInput, PillButton, Row, Seg, ToggleChip, WearRow, styles } from '@/components/binder/inspector/controls';
 import { REAL_PAGE_SIZES } from '@/data/binderPhysics';
 import type { BinderTrack, DemoBinder, DemoPage } from '@/data/binderTypes';
 import { DEFAULT_THREAD_OPACITY, DEFAULT_ZIP_PULL, PAGE_MATERIALS, SPINE_STYLES, THREAD_OPACITIES, WEAR_NONE, ZIP_TRACKS, isImageRef, luminance } from '@/data/pageStyle';
@@ -75,119 +75,130 @@ export function BinderLook({
   const store = useBinders();
   const ps = binder.pageStyle;
   const sizeId = PAGE_SIZE_OPTIONS.find((s) => s.rows === page.rows && s.cols === page.cols)?.id ?? PAGE_SIZE_OPTIONS[0].id;
+  const compact = binder.pages.some(isBlankPage) ? (
+    <Row label="Blank pages">
+      <PillButton
+        label="Compact blanks"
+        onPress={() => {
+          const result = store.compactBlankPages(binder.id);
+          if (!result) return;
+          if (result.removed === 0) {
+            showToast(result.kept > 0 ? 'Every blank page here keeps folded art on its pocket pairs.' : 'No blank pages to remove.');
+            return;
+          }
+          showToast(
+            `Removed ${result.removed} blank page${result.removed === 1 ? '' : 's'}${
+              result.kept > 0 ? `. ${result.kept === 1 ? 'One stays' : `${result.kept} stay`} to keep folded art aligned.` : ''
+            }`,
+            true,
+          );
+        }}
+      />
+    </Row>
+  ) : null;
   return (
-    <View style={styles.section}>
-      <Row label="Page size">
-        <Seg
-          options={PAGE_SIZE_OPTIONS}
-          value={sizeId}
-          onChange={(id) => {
-            const size = PAGE_SIZE_OPTIONS.find((s) => s.id === id);
-            if (!size) return;
-            const res = store.setBinderPageSize(binder.id, size.rows, size.cols);
-            if (!res.ok && res.reason) showToast(res.reason);
-            else if (res.ok && binder.pages.length > 1) showToast(`All ${binder.pages.length} pages set to ${size.label}`);
-          }}
-        />
-      </Row>
-      {/* A COLOUR ONLY (owner, 2026-09-15): a picture behind the pages is a share-image choice,
-          set in the Share sheet, so the editor's pages stay printable and the two are not confused. */}
-      <Row label="Background">
-        <ColorBox
-          fieldKey={binder.id}
-          value={isImageRef(page.backgroundColor) ? undefined : page.backgroundColor}
-          onChange={(backgroundColor) => store.setBinderBackground(binder.id, backgroundColor)}
-        />
-      </Row>
-      {/* WHAT THE PAGES ARE MADE OF (owner, 2026-09-13): the material, and what the pockets wear.
-          See src/data/pageStyle.ts. */}
-      <Row label="Page style">
-        <Seg
-          options={PAGE_MATERIALS}
-          value={ps?.material ?? 'classic'}
-          onChange={(id) => store.setPageStyle(binder.id, { material: id === 'classic' ? null : id })}
-        />
-      </Row>
-      {ps?.material ? (
-        <Row label="Thread">
-          <ColorBox
-            fieldKey={`${binder.id}-thread`}
-            value={ps.thread?.color ?? (luminance(page.backgroundColor ?? '#ffffff') < 0.35 ? '#ffffff' : '#000000')}
-            onChange={(color) => store.setPageStyle(binder.id, { thread: { color } })}
-          />
+    <View style={styles.groups}>
+      {/* THREE GROUPS, BY WHAT THEY ARE MADE OF (owner, 2026-09-15): the pages, the binder round
+          them, and the pockets on them. One column of nine rows said none of that. */}
+      <Group title="Pages" testID="binder-group-pages">
+        <Row label="Page size">
           <Seg
-            options={THREAD_OPTIONS}
-            value={String(ps.thread?.opacity ?? DEFAULT_THREAD_OPACITY)}
-            onChange={(id) => store.setPageStyle(binder.id, { thread: { opacity: Number(id) } })}
+            options={PAGE_SIZE_OPTIONS}
+            value={sizeId}
+            onChange={(id) => {
+              const size = PAGE_SIZE_OPTIONS.find((s) => s.id === id);
+              if (!size) return;
+              const res = store.setBinderPageSize(binder.id, size.rows, size.cols);
+              if (!res.ok && res.reason) showToast(res.reason);
+              else if (res.ok && binder.pages.length > 1) showToast(`All ${binder.pages.length} pages set to ${size.label}`);
+            }}
           />
-          {ps.thread ? <PillButton label="Auto" onPress={() => store.setPageStyle(binder.id, { thread: null })} /> : null}
         </Row>
-      ) : null}
+        {/* A COLOUR ONLY (owner, 2026-09-15): a picture behind the pages is a share-image choice,
+            set in the Share sheet, so the editor's pages stay printable and the two are not confused. */}
+        <Row label="Background">
+          <ColorBox
+            fieldKey={binder.id}
+            value={isImageRef(page.backgroundColor) ? undefined : page.backgroundColor}
+            onChange={(backgroundColor) => store.setBinderBackground(binder.id, backgroundColor)}
+          />
+        </Row>
+        {/* WHAT THE PAGES ARE MADE OF (owner, 2026-09-13): the material, and what the pockets wear.
+            See src/data/pageStyle.ts. */}
+        <Row label="Page style">
+          <Seg
+            options={PAGE_MATERIALS}
+            value={ps?.material ?? 'classic'}
+            onChange={(id) => store.setPageStyle(binder.id, { material: id === 'classic' ? null : id })}
+          />
+        </Row>
+        {ps?.material ? (
+          <Row label="Thread">
+            <ColorBox
+              fieldKey={`${binder.id}-thread`}
+              value={ps.thread?.color ?? (luminance(page.backgroundColor ?? '#ffffff') < 0.35 ? '#ffffff' : '#000000')}
+              onChange={(color) => store.setPageStyle(binder.id, { thread: { color } })}
+            />
+            <Seg
+              options={THREAD_OPTIONS}
+              value={String(ps.thread?.opacity ?? DEFAULT_THREAD_OPACITY)}
+              onChange={(id) => store.setPageStyle(binder.id, { thread: { opacity: Number(id) } })}
+            />
+            {ps.thread ? <PillButton label="Auto" onPress={() => store.setPageStyle(binder.id, { thread: null })} /> : null}
+          </Row>
+        ) : null}
+        {compact}
+      </Group>
       {/* BINDER DETAILS (owner, 2026-09-14): the hardware of the binder round the page. A set, not
           a pick: a binder can have a zip AND a spine, and each is its own toggle with its own options. */}
-      <Row label="Binder details">
-        <ToggleChip
-          label="Zipper"
-          on={!!ps?.details?.zip}
-          onPress={() => store.setPageStyle(binder.id, { zip: ps?.details?.zip ? null : {} })}
-          accessibilityLabel="Zipper: a zip round the cover, with a coloured pull"
-        />
-        {SPINE_STYLES.map((sp) => {
-          const on = ps?.details?.spine === sp.id;
-          return (
-            <ToggleChip
-              key={sp.id}
-              label={sp.label}
-              on={on}
-              onPress={() => store.setPageStyle(binder.id, { spine: on ? null : sp.id })}
-              accessibilityLabel={`${sp.label}: ${sp.blurb}`}
-            />
-          );
-        })}
-      </Row>
-      {ps?.details?.zip ? (
-        <Row label="Zip pull">
-          <ColorBox fieldKey={`${binder.id}-pull`} value={ps.details.zip.pull ?? DEFAULT_ZIP_PULL} onChange={(pull) => store.setPageStyle(binder.id, { zip: { pull } })} />
-          <Seg
-            options={ZIP_TRACKS}
-            value={ps.details.zip.track ?? 'straight'}
-            onChange={(id) => store.setPageStyle(binder.id, { zip: { track: id === 'straight' ? null : id } })}
+      <Group title="Binder" testID="binder-group-binder">
+        <Row label="Hardware">
+          <ToggleChip
+            label="Zipper"
+            on={!!ps?.details?.zip}
+            onPress={() => store.setPageStyle(binder.id, { zip: ps?.details?.zip ? null : {} })}
+            accessibilityLabel="Zipper: a zip round the cover, with a coloured pull"
           />
-        </Row>
-      ) : null}
-      <WearRow
-        label="Sleeves"
-        fieldKey={`${binder.id}-sleeve`}
-        own={ps?.sleeve ?? WEAR_NONE}
-        onChange={(sleeve) => store.setPageStyle(binder.id, { sleeve })}
-        testID="binder-sleeve"
-      />
-      <WearRow
-        label="Art backing"
-        fieldKey={`${binder.id}-backing`}
-        own={ps?.artBacking ?? WEAR_NONE}
-        onChange={(artBacking) => store.setPageStyle(binder.id, { artBacking })}
-        testID="binder-backing"
-      />
-      {binder.pages.some(isBlankPage) ? (
-        <PillButton
-          label="Compact blanks"
-          onPress={() => {
-            const result = store.compactBlankPages(binder.id);
-            if (!result) return;
-            if (result.removed === 0) {
-              showToast(result.kept > 0 ? 'Every blank page here keeps folded art on its pocket pairs.' : 'No blank pages to remove.');
-              return;
-            }
-            showToast(
-              `Removed ${result.removed} blank page${result.removed === 1 ? '' : 's'}${
-                result.kept > 0 ? `. ${result.kept === 1 ? 'One stays' : `${result.kept} stay`} to keep folded art aligned.` : ''
-              }`,
-              true,
+          {SPINE_STYLES.map((sp) => {
+            const on = ps?.details?.spine === sp.id;
+            return (
+              <ToggleChip
+                key={sp.id}
+                label={sp.label}
+                on={on}
+                onPress={() => store.setPageStyle(binder.id, { spine: on ? null : sp.id })}
+                accessibilityLabel={`${sp.label}: ${sp.blurb}`}
+              />
             );
-          }}
+          })}
+        </Row>
+        {ps?.details?.zip ? (
+          <Row label="Zip pull">
+            <ColorBox fieldKey={`${binder.id}-pull`} value={ps.details.zip.pull ?? DEFAULT_ZIP_PULL} onChange={(pull) => store.setPageStyle(binder.id, { zip: { pull } })} />
+            <Seg
+              options={ZIP_TRACKS}
+              value={ps.details.zip.track ?? 'straight'}
+              onChange={(id) => store.setPageStyle(binder.id, { zip: { track: id === 'straight' ? null : id } })}
+            />
+          </Row>
+        ) : null}
+      </Group>
+      <Group title="Pockets" note="What every page's pockets wear unless a page or pocket says otherwise." testID="binder-group-pockets">
+        <WearRow
+          label="Sleeves"
+          fieldKey={`${binder.id}-sleeve`}
+          own={ps?.sleeve ?? WEAR_NONE}
+          onChange={(sleeve) => store.setPageStyle(binder.id, { sleeve })}
+          testID="binder-sleeve"
         />
-      ) : null}
+        <WearRow
+          label="Art backing"
+          fieldKey={`${binder.id}-backing`}
+          own={ps?.artBacking ?? WEAR_NONE}
+          onChange={(artBacking) => store.setPageStyle(binder.id, { artBacking })}
+          testID="binder-backing"
+        />
+      </Group>
     </View>
   );
 }

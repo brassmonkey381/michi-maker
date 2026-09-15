@@ -26,7 +26,10 @@ import { useBinders } from '@/store/binders';
 
 type Kind = 'background' | 'sleeve' | 'artBacking';
 
-const CARD_W = 360;
+/** Wide enough for Colour, the swatch, Picture and None on one line; narrower only on a phone. */
+const CARD_W = 460;
+/** The card's height before it has been measured: about one title and one row. */
+const CARD_H_GUESS = 96;
 
 export interface PageSelect {
   /** Select mode is on: taps on pockets add to the selection instead of opening them. */
@@ -50,7 +53,10 @@ export function PageWearBar({
 }) {
   const store = useBinders();
   const { width: winW, height: winH } = useWindowDimensions();
-  const [open, setOpen] = useState<{ kind: Kind; x: number; y: number } | null>(null);
+  const [open, setOpen] = useState<{ kind: Kind; x: number; top: number; bottom: number } | null>(null);
+  // The card's real height, once drawn: placed above the bar it has to clear the whole bar, and a
+  // guess put it over the chips (the first draw sat 150px up and covered the row it came from).
+  const [cardH, setCardH] = useState(CARD_H_GUESS);
   const refs = { background: useRef<ViewType>(null), sleeve: useRef<ViewType>(null), artBacking: useRef<ViewType>(null) };
 
   const background = page.backgroundColor ?? BinderSurface.mat;
@@ -61,7 +67,7 @@ export function PageWearBar({
   const show = (kind: Kind) => {
     const node = refs[kind].current;
     if (!node) return;
-    node.measureInWindow((x, y, w, h) => setOpen({ kind, x: x + w / 2, y: y + h }));
+    node.measureInWindow((x, y, w, h) => setOpen({ kind, x: x + w / 2, top: y, bottom: y + h }));
   };
 
   const chip = (kind: Kind, label: string, colour: string | undefined) => (
@@ -81,10 +87,13 @@ export function PageWearBar({
     </Pressable>
   );
 
-  // The card sits under the chip, centred on it, clamped to the window; above it near the bottom.
-  const cardLeft = open ? Math.max(8, Math.min(open.x - CARD_W / 2, winW - CARD_W - 8)) : 0;
-  const below = open ? open.y + 8 : 0;
-  const cardTop = open && below + 120 > winH ? Math.max(8, open.y - 150) : below;
+  // The card sits under the chip, centred on it, clamped to the window. Near the bottom, where it
+  // would not fit, it goes ABOVE the bar instead: its bottom edge 8px over the chip's top, so the
+  // chip that opened it and its neighbours stay in view.
+  const cardW = Math.min(CARD_W, winW - 16);
+  const cardLeft = open ? Math.max(8, Math.min(open.x - cardW / 2, winW - cardW - 8)) : 0;
+  const below = open ? open.bottom + 8 : 0;
+  const cardTop = open && below + cardH > winH - 8 ? Math.max(8, open.top - 8 - cardH) : below;
 
   return (
     <>
@@ -123,7 +132,11 @@ export function PageWearBar({
       {open ? (
         <Modal visible transparent animationType="none" onRequestClose={() => setOpen(null)}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setOpen(null)} accessibilityLabel="Close" />
-          <ThemedView type="backgroundElement" style={[styles.card, { top: cardTop, left: cardLeft, width: CARD_W }]}>
+          <ThemedView
+            type="backgroundElement"
+            onLayout={(e) => setCardH(e.nativeEvent.layout.height)}
+            testID="page-bar-card"
+            style={[styles.card, { top: cardTop, left: cardLeft, width: cardW }]}>
             <ThemedText type="smallBold" style={styles.cardTitle}>
               {open.kind === 'background' ? 'Background of this page' : open.kind === 'sleeve' ? 'Sleeves on this page' : 'Art backing on this page'}
             </ThemedText>

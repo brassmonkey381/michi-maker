@@ -17,6 +17,25 @@ import { FontSize, Palette, Radius, Weight } from '@/constants/theme';
 import { WEAR_NONE, isImageRef, resolveWear } from '@/data/pageStyle';
 import { useTheme } from '@/hooks/use-theme';
 
+/**
+ * A NAMED GROUP OF ROWS (owner, 2026-09-15: "improve groupings"). The settings sheet had grown to
+ * nine rows in one column with nothing saying which belonged together, so Zipper sat under Page
+ * style as if it were one. A group gives a run of rows a heading and a rule above it, and an
+ * optional note for the one thing a heading cannot say (that the view rows are yours, not the
+ * binder's).
+ */
+export function Group({ title, note, children, testID }: { title: string; note?: string; children: React.ReactNode; testID?: string }) {
+  return (
+    <View style={styles.group} testID={testID}>
+      <View style={styles.groupHead}>
+        <Text style={styles.groupTitle}>{title}</Text>
+        {note ? <Text style={styles.groupNote}>{note}</Text> : null}
+      </View>
+      <View style={styles.section}>{children}</View>
+    </View>
+  );
+}
+
 /** A labelled row: the name on the left, its controls wrapping after it. */
 export function Row({ label, children, testID }: { label: string; children: React.ReactNode; testID?: string }) {
   return (
@@ -277,8 +296,16 @@ export function LabeledInput({
 export const styles = StyleSheet.create({
   /** A section: rows down a column, the same gap the modals used. */
   section: { gap: 10, alignSelf: 'stretch' },
+  /** Groups down a column: each brings its own rule, so nothing sits between them. */
+  groups: { alignSelf: 'stretch' },
+  /** A group: a rule, its name, then its rows. Groups stack with no extra gap; the rule is the gap. */
+  group: { alignSelf: 'stretch', gap: 8, paddingTop: 10, paddingBottom: 6, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Palette.hairline },
+  groupHead: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: 8 },
+  groupTitle: { fontSize: FontSize.xs, fontWeight: Weight.semibold, textTransform: 'uppercase', letterSpacing: 0.6, color: Palette.muted },
+  groupNote: { fontSize: FontSize.xs, color: Palette.muted },
   inlineRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
-  inlineLabel: { marginRight: 2 },
+  /** A fixed column, so every row's first control starts at the same x whatever its name's length. */
+  inlineLabel: { minWidth: 76, marginRight: 2 },
   colorFieldBox: { width: 170 },
   segGroup: { flexDirection: 'row', alignItems: 'center', backgroundColor: Palette.panel, borderRadius: Radius.pill, padding: 2 },
   seg: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: Radius.pill },

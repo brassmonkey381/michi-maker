@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   Modal,
   Platform,
@@ -256,6 +257,21 @@ export function BinderScreen({
   // The view chips (double-sided, labels, strip side, owned, scans) are rendered by BinderPages,
   // but the gear that opens them belongs up in this screen's header, where it costs no page height.
   const [settingsOpen, setSettingsOpen] = useState(false);
+  /**
+   * WHETHER THE PHONE'S TOOLS ROW HAS MORE OFF EITHER EDGE (owner, 2026-09-15). The row scrolls
+   * sideways, and nothing said so: at 390pt "Settings" was cut to "Se" at the right edge and read
+   * as broken. A fade over each edge that has more behind it is the cue. Measured, not assumed,
+   * so a row that fits shows no fade at all.
+   */
+  const [toolMore, setToolMore] = useState({ left: false, right: false });
+  const toolRowW = useRef(0);
+  const toolContentW = useRef(0);
+  const toolScrollX = useRef(0);
+  const updateToolMore = () => {
+    const left = toolScrollX.current > 2;
+    const right = toolContentW.current - toolRowW.current - toolScrollX.current > 2;
+    setToolMore((m) => (m.left === left && m.right === right ? m : { left, right }));
+  };
   /**
    * WHICH BINDER COVER IS BEING DECORATED — FC, IFC, IBC or BC — and which sticker on it.
    *
@@ -2087,7 +2103,9 @@ export function BinderScreen({
             accessibilityRole="button"
             accessibilityLabel="View settings"
             testID="binder-settings-btn">
-            <Text style={[styles.headerAction, { color: theme.text }]}>{'⚙ Settings'}</Text>
+            {/* On a phone while editing the row is full, and the name is what pushed it past the
+                edge; the gear keeps its accessible name. Everywhere else it is named. */}
+            <Text style={[styles.headerAction, { color: theme.text }]}>{phone && editing ? '⚙' : '⚙ Settings'}</Text>
           </Pressable>
         </Tipped>
         {/* LIKES, PRINT AND SHARE ARE FOR LOOKING, NOT MAKING (owner, 2026-09-15): they show while
@@ -2194,13 +2212,47 @@ export function BinderScreen({
                 {primaryAction}
               </View>
               {toolItems ? (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.phoneToolRow}
-                  testID="binder-tool-row">
-                  {toolItems}
-                </ScrollView>
+                <View style={styles.phoneToolWrap}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.phoneToolRow}
+                    onLayout={(e) => {
+                      toolRowW.current = e.nativeEvent.layout.width;
+                      updateToolMore();
+                    }}
+                    onContentSizeChange={(w) => {
+                      toolContentW.current = w;
+                      updateToolMore();
+                    }}
+                    onScroll={(e) => {
+                      toolScrollX.current = e.nativeEvent.contentOffset.x;
+                      updateToolMore();
+                    }}
+                    scrollEventThrottle={32}
+                    testID="binder-tool-row">
+                    {toolItems}
+                  </ScrollView>
+                  {toolMore.left ? (
+                    <LinearGradient
+                      pointerEvents="none"
+                      colors={[theme.background, `${theme.background}00`]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[styles.phoneToolFade, styles.phoneToolFadeLeft]}
+                    />
+                  ) : null}
+                  {toolMore.right ? (
+                    <LinearGradient
+                      pointerEvents="none"
+                      colors={[`${theme.background}00`, theme.background]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[styles.phoneToolFade, styles.phoneToolFadeRight]}
+                      testID="binder-tool-row-more"
+                    />
+                  ) : null}
+                </View>
               ) : null}
             </View>
           ) : (
@@ -3078,6 +3130,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingBottom: Spacing.two,
   },
+  phoneToolWrap: { position: 'relative' },
+  /** Over the edge that has more tools behind it: the page colour fading in, so the cut-off reads as a scroll. */
+  phoneToolFade: { position: 'absolute', top: 0, bottom: Spacing.two, width: 28 },
+  phoneToolFadeLeft: { left: 0 },
+  phoneToolFadeRight: { right: 0 },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',

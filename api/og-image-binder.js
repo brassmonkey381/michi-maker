@@ -621,46 +621,42 @@ function pageMat(grid, look, gridW, gridH) {
     // THE COIL, TOOTH BY TOOTH, as PageDressing draws it: a dark tape, and teeth 3px apart in two
     // rows that meet at the tape's centreline, staggered by 2px, with a wavy track drifting the
     // whole coil on a slow sine. Each tooth is 2x4 with a lit top edge (turned for the vertical run).
-    const wavy = look.zip.wavy;
-    const drift = (i) => (wavy ? Math.round(Math.sin(i / 5) * 2) : 0);
+    // Drawn as TWO REPEATING GRADIENTS per tape rather than a div per tooth: the editor's coil
+    // is ~140 teeth a side at this scale, and 840 nodes on a spread pushed the raster past the
+    // function's 60 seconds (a 504 is no preview at all). Each gradient is one row of teeth at
+    // twice the pitch; the second is shifted by one pitch and sits 2px the other side of the
+    // centreline, which is exactly the editor's stagger. A tooth is 2px of #55555e with a 1px
+    // lit edge, then dark tape. The wavy drift is the one thing a gradient cannot do; a wavy
+    // track shows as a straight coil here.
     const runW = w - (c - TAPE / 2) * 2;
     const runH = hgt - (c - TAPE / 2) * 2;
-    const tooth = (i, vertical) =>
+    const period = 2 * PITCH;
+    const toothW = 2 * S;
+    const row = (vertical, shift, side) =>
       h('div', {
         style: {
           display: 'flex',
-          flexShrink: 0,
-          width: (vertical ? 4 : 2) * S,
-          height: (vertical ? 2 : 4) * S,
-          borderRadius: S,
-          backgroundColor: '#55555e',
-          ...(vertical ? { borderLeftWidth: S, borderLeftColor: '#8e8e98', borderLeftStyle: 'solid' } : { borderTopWidth: S, borderTopColor: '#8e8e98', borderTopStyle: 'solid' }),
+          position: 'absolute',
           ...(vertical
-            ? { marginBottom: PITCH - 2 * S, marginLeft: ((i % 2 === 0 ? -2 : 2) + drift(i)) * S }
-            : { marginRight: PITCH - 2 * S, marginTop: ((i % 2 === 0 ? -2 : 2) + drift(i)) * S }),
+            ? { top: 4 * S, bottom: 0, width: 4 * S, left: TAPE / 2 - 2 * S + side * 2 * S }
+            : { left: 4 * S, right: 0, height: 4 * S, top: TAPE / 2 - 2 * S + side * 2 * S }),
+          backgroundImage: vertical
+            ? `repeating-linear-gradient(180deg, transparent 0px, transparent ${shift}px, #8e8e98 ${shift}px, #8e8e98 ${shift + S}px, #55555e ${shift + S}px, #55555e ${shift + toothW}px, transparent ${shift + toothW}px, transparent ${period}px)`
+            : `repeating-linear-gradient(90deg, transparent 0px, transparent ${shift}px, #8e8e98 ${shift}px, #8e8e98 ${shift + S}px, #55555e ${shift + S}px, #55555e ${shift + toothW}px, transparent ${shift + toothW}px, transparent ${period}px)`,
         },
       });
-    const tape = (style, vertical, count) =>
+    const tape = (style, vertical) =>
       h(
         'div',
         {
-          style: {
-            display: 'flex',
-            position: 'absolute',
-            borderRadius: 3 * S,
-            backgroundColor: '#121215',
-            overflow: 'hidden',
-            flexDirection: vertical ? 'column' : 'row',
-            ...(vertical ? { paddingTop: 4 * S, alignItems: 'center' } : { paddingLeft: 4 * S }),
-            ...style,
-          },
+          style: { display: 'flex', position: 'absolute', borderRadius: 3 * S, backgroundColor: '#121215', overflow: 'hidden', ...style },
         },
-        Array.from({ length: count }, (_, i) => tooth(i, vertical)),
+        [row(vertical, 0, -1), row(vertical, PITCH, 1)],
       );
     layers.push(
-      tape({ top: c - TAPE / 2, left: c - TAPE / 2, width: runW, height: TAPE }, false, Math.floor(runW / PITCH)),
-      tape({ top: hgt - c - TAPE / 2, left: c - TAPE / 2, width: runW, height: TAPE }, false, Math.floor(runW / PITCH)),
-      tape({ top: c - TAPE / 2, [outer]: c - TAPE / 2, width: TAPE, height: runH }, true, Math.floor(runH / PITCH)),
+      tape({ top: c - TAPE / 2, left: c - TAPE / 2, width: runW, height: TAPE }, false),
+      tape({ top: hgt - c - TAPE / 2, left: c - TAPE / 2, width: runW, height: TAPE }, false),
+      tape({ top: c - TAPE / 2, [outer]: c - TAPE / 2, width: TAPE, height: runH }, true),
     );
     // The slider at the bottom outer corner, and the pull hanging from it past the page's edge:
     // the pull is a child of the slider, at the editor's offsets (top 8, out 9, 34 degrees).
@@ -738,13 +734,29 @@ function spineV2(height, look) {
   const ink = threadInk(look.mat, { color: look.thread && look.thread.color, opacity: look.thread && look.thread.opacity !== undefined ? look.thread.opacity : 0.5 });
   const rib = look.dark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.16)';
   const marks = [];
-  for (let i = 0; i < n; i++) {
-    const top = 4 * S + i * unit;
-    if (look.spine === 'cross') {
-      for (const deg of [45, -45]) {
-        marks.push(h('div', { style: { display: 'flex', position: 'absolute', left: S, top: top + unit / 2 - S, width: width - 2 * S, height: 2 * S, borderRadius: S, backgroundColor: ink, transform: `rotate(${deg}deg)` } }));
-      }
-    } else {
+  if (look.spine === 'cross') {
+    // TWO DIAGONAL GRADIENTS, not ninety rotated divs: a rotated element is the slowest thing
+    // Satori draws, and the X's cost a spread five seconds on their own. Two 2px threads at 45 and
+    // -45 degrees, one every `unit` down the band, cross exactly where the editor's do.
+    const pitch = unit / Math.SQRT2;
+    for (const deg of [45, -45]) {
+      marks.push(
+        h('div', {
+          style: {
+            display: 'flex',
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            width,
+            height: bandH,
+            backgroundImage: `repeating-linear-gradient(${deg}deg, ${ink} 0px, ${ink} ${2 * S}px, transparent ${2 * S}px, transparent ${pitch}px)`,
+          },
+        }),
+      );
+    }
+  } else {
+    for (let i = 0; i < n; i++) {
+      const top = 4 * S + i * unit;
       marks.push(h('div', { style: { display: 'flex', position: 'absolute', left: 3 * S, top: top + 2 * S, width: width - 6 * S, height: 2 * S, borderRadius: S, backgroundColor: rib } }));
     }
   }

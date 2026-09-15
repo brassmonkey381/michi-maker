@@ -372,6 +372,12 @@ export interface DemoBinder {
   track?: BinderTrack | null;
   /** When true, anyone with the link can view this binder (see the `/binder/[id]` route). */
   isPublic?: boolean;
+  /**
+   * A picture behind the share image (owner, 2026-09-15): a hotlinked image address drawn edge to
+   * edge under the page in place of the blurred page art. A share setting, set in the Share sheet.
+   * Persisted to binders.share_backdrop; read by api/og-image-binder.js.
+   */
+  shareBackdrop?: string | null;
   /** Up to 2 page ids to feature in the shared-link OG preview. Absent/empty = auto (fullest pages).
    *  Persisted to binders.share_page_ids; read by api/og-image-binder.js. */
   sharePageIds?: string[];

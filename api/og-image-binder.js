@@ -71,7 +71,7 @@ const SINGLE_H = Math.round(630 * S); // 1512
 // JPEG settings. 4:4:4 (no chroma subsampling) costs ~0.2MB over 4:2:0 and is worth it here: the
 // frame is dense small card text and saturated red/blue art edges, which is precisely what
 // subsampling smears. mozjpeg is what gets it back under a megabyte.
-const JPEG = { quality: 88, progressive: true, mozjpeg: true, chromaSubsampling: '4:4:4' };
+const JPEG = { quality: Number(process.env.OG_JPEG_QUALITY) || 88, progressive: true, mozjpeg: true, chromaSubsampling: '4:4:4' };
 /** Unsharp-mask radius applied before the JPEG (see `render`); 0 turns it off. */
 const SHARPEN = process.env.OG_SHARPEN === undefined ? 0.8 : Number(process.env.OG_SHARPEN) || 0;
 const CACHE = 'public, max-age=0, s-maxage=300, stale-while-revalidate=86400';
@@ -94,13 +94,15 @@ async function fetchBinder(id) {
   // THE LOOK (v2, 2026-09-15): the binder's page style and each page's and pocket's own colours,
   // for the render that draws them. Tried first; an older schema 400s it and the plain select
   // below still serves v1.
-  const looked = `title,cover_card_id,page_style,binder_pages(id,position,rows,cols,background_color,sleeve,art_backing,binder_slots(${slots},sleeve,art_backing))`;
+  const looked = `title,cover_card_id,page_style,share_backdrop,binder_pages(id,position,rows,cols,background_color,sleeve,art_backing,binder_slots(${slots},sleeve,art_backing))`;
   const headers = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
   // Try WITH the featured-pages column first; if the share_page_ids migration hasn't landed yet that
   // select 400s (fetchJson → null), so fall back to the base select. Keeps the composed image working
   // regardless of migration timing — the featured-page selection simply activates once the column
   // exists. (A genuinely private/missing binder returns [] on the first try and resolves to null.)
-  for (const select of [`share_page_ids,${looked}`, `share_page_ids,${base}`, base]) {
+  // The middle entry keeps the look on a database that has page styles but not yet the backdrop.
+  const styled = looked.replace('share_backdrop,', '');
+  for (const select of [`share_page_ids,${looked}`, `share_page_ids,${styled}`, `share_page_ids,${base}`, base]) {
     const url = `${SUPABASE_URL}/rest/v1/binders?id=eq.${encodeURIComponent(
       id,
     )}&is_public=eq.true&select=${encodeURIComponent(select)}`;
@@ -193,9 +195,10 @@ async function loadArt(pages, binder) {
     // v2: the page's pictured background, sleeves or backing.
     for (const w of [page.background_color, page.sleeve, page.art_backing]) if (isImageRef(w)) urls.add(w);
   }
-  // v2: the binder-wide pictures.
+  // v2: the binder-wide pictures, and the picture behind the whole share image.
   const ps = binder && binder.page_style;
   if (ps) for (const w of [ps.sleeve, ps.artBacking]) if (isImageRef(w)) urls.add(w);
+  if (binder && isImageRef(binder.share_backdrop)) urls.add(binder.share_backdrop);
   const out = new Map();
   await Promise.all(
     [...urls].map(async (u) => {
@@ -333,7 +336,8 @@ function pocket(left, top, w, hgt, art, spanning, wear) {
   const children = [];
   if (wear && wear.image) {
     children.push(
-      h('img', { src: wear.image, width: w, height: hgt, style: { position: 'absolute', left: 0, top: 0, objectFit: 'cover' } }),
+      // Stretched to the pocket, as the app draws a pictured sleeve.
+      h('img', { src: wear.image, width: w, height: hgt, style: { position: 'absolute', left: 0, top: 0, objectFit: 'fill' } }),
     );
   }
   if (inner) {
@@ -884,7 +888,7 @@ const mat = (children, tilt, edge) =>
  * Returns null on any failure — a missing backdrop just means the plain cream frame, never a
  * failed render.
  */
-async function blurBackdrop(src, shape = { w: 560, h: 470 }) {
+async function blurBackdrop(src, shape = { w: 560, h: 470 }, opts) {
   if (!src) return null;
   try {
     const bytes = src.startsWith('data:')
@@ -892,12 +896,24 @@ async function blurBackdrop(src, shape = { w: 560, h: 470 }) {
       : Buffer.from(await (await fetch(src)).arrayBuffer());
     // `shape` matches the canvas the blur will cover (single 1800x1512 by default; the spread
     // passes its own), so the strips sampled below map to the same fraction of that canvas.
-    const out = await sharp(bytes)
-      .resize(shape.w, shape.h, { fit: 'cover' })
-      .blur(22)
-      .modulate({ brightness: 1.06, saturation: 1.15 })
-      .jpeg({ quality: 62 })
-      .toBuffer();
+    //
+    // A CHOSEN BACKDROP (opts.sharp, 2026-09-15) is the owner's own picture and is drawn as it is:
+    // no blur, at a size the canvas can show, so the wave or the sky they picked stays a wave or
+    // a sky. The strips are still measured, so the chrome's ink still answers to what is behind it.
+    const sharpen = opts && opts.sharp;
+    let pipe = sharp(bytes).resize(sharpen ? shape.w * 3 : shape.w, sharpen ? shape.h * 3 : shape.h, { fit: 'cover' });
+    if (!sharpen) pipe = pipe.blur(22).modulate({ brightness: 1.06, saturation: 1.15 });
+    const out = await pipe.jpeg({ quality: sharpen ? 80 : 62 }).toBuffer();
+    if (sharpen) {
+      // The strips are read from a small copy at the measuring shape.
+      const small = await sharp(out).resize(shape.w, shape.h, { fit: 'cover' }).jpeg({ quality: 60 }).toBuffer();
+      const stripH = Math.round(shape.h * 0.21);
+      const strip = async (top, height) => {
+        const st = await sharp(small).extract({ left: 0, top, width: shape.w, height }).stats();
+        return st.channels.slice(0, 3).map((c) => c.mean);
+      };
+      return { uri: `data:image/jpeg;base64,${out.toString('base64')}`, top: await strip(0, stripH), bottom: await strip(shape.h - stripH, stripH) };
+    }
     // Mean colour of the top and bottom strips, so the chrome can be coloured against what is
     // actually behind it. The blurred image and the canvas share an aspect ratio to within 0.1%
     // (560/470 vs 1800/1512) and it is drawn objectFit:cover, so a strip here maps to the same
@@ -1267,13 +1283,16 @@ async function render(pages, manifest, art, single, chrome, opts) {
     opts && opts.look && binder
       ? pages.map((p, i) => pageLook(p, binder, art, pages.length >= 2 ? (i === 0 ? 'left' : 'right') : (p.position || 0) % 2 === 1 ? 'left' : 'right'))
       : null;
+  // THE OWNER'S OWN BACKDROP (2026-09-15) replaces the blurred page art when it loaded, as itself.
+  const chosen = binder && isImageRef(binder.share_backdrop) && art ? art.get(binder.share_backdrop) || null : null;
   const node = single
     ? singleFrame(
         pages[0],
         manifest,
         art,
-        await blurBackdrop(backdropSource(pages[0], manifest, art)),
-        chrome || flipChrome(),
+        chosen ? await blurBackdrop(chosen, undefined, { sharp: true }) : await blurBackdrop(backdropSource(pages[0], manifest, art)),
+        // A chosen picture is the point of the image, so it is never hidden behind the bands.
+        chosen ? 'collage' : chrome || flipChrome(),
         looks ? looks[0] : null,
       )
     : compose(
@@ -1281,11 +1300,13 @@ async function render(pages, manifest, art, single, chrome, opts) {
         manifest,
         art,
         // The spread's blur, at the spread's own aspect. Whichever page has art supplies it.
-        await blurBackdrop(
-          backdropSource(pages[0], manifest, art) ||
-            (pages[1] ? backdropSource(pages[1], manifest, art) : null),
-          { w: 800, h: Math.round((800 * H) / W) },
-        ),
+        chosen
+          ? await blurBackdrop(chosen, { w: 800, h: Math.round((800 * H) / W) }, { sharp: true })
+          : await blurBackdrop(
+              backdropSource(pages[0], manifest, art) ||
+                (pages[1] ? backdropSource(pages[1], manifest, art) : null),
+              { w: 800, h: Math.round((800 * H) / W) },
+            ),
         looks,
       );
   const png = Buffer.from(

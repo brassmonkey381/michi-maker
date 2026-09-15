@@ -15,7 +15,7 @@ import { requireSupabase } from '@/lib/supabase';
 import type { Database, Json } from '@/types/database';
 import type { BinderCover, BinderTrack, DemoBinder, DemoPage, DemoSlot, MichiLayoutStyle } from '@/data/binderTypes';
 import { normalizeCover } from '@/data/coverDecorations';
-import { normalizePageStyle, normalizeSurface, normalizeWear } from '@/data/pageStyle';
+import { isImageRef, normalizePageStyle, normalizeSurface, normalizeWear } from '@/data/pageStyle';
 
 type Tables = Database['public']['Tables'];
 type BinderUpdate = Tables['binders']['Update'];
@@ -44,6 +44,8 @@ function binderRow(binder: DemoBinder): Tables['binders']['Insert'] {
   // binder creation never references the column, so it can't break before the share_page_ids
   // migration is applied (new binders + clones have no selection anyway).
   if (binder.sharePageIds && binder.sharePageIds.length) row.share_page_ids = binder.sharePageIds;
+  // Same rule again for the share backdrop (2026-09-15).
+  if (binder.shareBackdrop) row.share_backdrop = binder.shareBackdrop;
   return row;
 }
 
@@ -151,6 +153,7 @@ interface BinderRowIn {
   is_public: boolean;
   is_demo: boolean | null;
   share_page_ids: string[] | null;
+  share_backdrop?: string | null;
   share_key: string | null;
   made_public_at: string | null;
   updated_at?: string;
@@ -247,6 +250,7 @@ function mapBinder(row: BinderRowIn): DemoBinder {
     track: trackOf(row.track),
     isPublic: row.is_public,
     sharePageIds: row.share_page_ids ?? undefined,
+    shareBackdrop: isImageRef(row.share_backdrop) ? row.share_backdrop : undefined,
     shareKey: row.share_key ?? undefined,
     madePublicAt: row.made_public_at ?? undefined,
     updatedAt: lastEditedAt(row),
@@ -415,6 +419,7 @@ export async function updateBinder(id: string, patch: Partial<DemoBinder>): Prom
   if (patch.isPublic !== undefined) row.is_public = patch.isPublic;
   if (patch.sharePageIds !== undefined)
     row.share_page_ids = patch.sharePageIds && patch.sharePageIds.length ? patch.sharePageIds : null;
+  if (patch.shareBackdrop !== undefined) row.share_backdrop = patch.shareBackdrop || null;
   if (Object.keys(row).length === 0) return;
   const { error } = await supabase.from('binders').update(row).eq('id', id);
   if (error) throw new Error(`update binder: ${error.message}`);

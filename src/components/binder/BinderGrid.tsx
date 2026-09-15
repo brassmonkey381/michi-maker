@@ -1262,13 +1262,17 @@ function DraggableSlot({
  * is given (a sliced artwork), the image is sized to the whole grid and offset so this slot
  * shows just its sub-rectangle — so one image reads as a sliced scene across the pockets.
  */
-/** A hotlinked picture filling a ring: a sleeve's, or an art backing's. Under the card, clipped to the ring. */
+/**
+ * A hotlinked picture filling a ring: a sleeve's, or an art backing's. Under the card, clipped to
+ * the ring, and STRETCHED to the pocket's shape (owner, 2026-09-15): a sleeve print is made for
+ * the card's proportions, so whatever is linked is fitted to them rather than cropped.
+ */
 function WearImage({ uri, radius, instant }: { uri: string; radius: number; instant?: boolean }) {
   return (
     <Image
       source={{ uri }}
       style={[StyleSheet.absoluteFill, { borderRadius: radius }]}
-      contentFit="cover"
+      contentFit="fill"
       cachePolicy="memory-disk"
       transition={instant ? 0 : 150}
       pointerEvents="none"

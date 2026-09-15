@@ -15,6 +15,9 @@
       "maxDuration": 300,
       "memory": 3008
     },
+    "api/og-image-quick.js": {
+      "maxDuration": 30
+    },
     "api/page-binder.js": {
       "maxDuration": 15,
       "includeFiles": "dist/index.html"

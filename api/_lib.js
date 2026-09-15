@@ -78,7 +78,9 @@ function cardImage(cardId) {
  *       2568×1512 (1.7:1) so the sides stop reading as empty; a centred brand lockup below; the
  *       spread sits on the same blurred collage as the single page
  */
-const OG_IMAGE_REV = 13;
+//   r14 v2 by default: the binder's look (backgrounds, stitch and thread, zipper and pull, spine,
+//       sleeves and art backing) drawn into the image, and the owner's own backdrop when set
+const OG_IMAGE_REV = 14;
 
 /**
  * The two canvases the renderer knows how to draw. A SPREAD needs the width for two facing pages;
@@ -182,7 +184,7 @@ function ogImageUrl(id, updatedAt, binder) {
   const size = single ? OG_SINGLE : OG_SPREAD;
   const url =
     `${SITE}/api/og-image-binder?id=${encodeURIComponent(id)}` +
-    `&r=${OG_IMAGE_REV}&t=${stamp}&w=${size.w}&h=${size.h}`;
+    `&r=${OG_IMAGE_REV}&t=${stamp}&w=${size.w}&h=${size.h}&v=2`;
   return { url, width: size.w, height: size.h };
 }
 

@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 
 import { ContestEntrySection } from '@/components/contest/ContestEntrySection';
+import { QuickPreviewButton, ShareBackdropField } from '@/components/binder/SharePreview';
 import { ThemedText } from '@/components/themed-text';
 import { DialogCard } from '@/components/ui/DialogCard';
 import { Palette, Radius, Spacing, Weight } from '@/constants/theme';
@@ -553,6 +554,12 @@ export function ShareSheet({
                       ? 'That render did not finish. Try again in a moment.'
                       : 'The share picture at poster size, for posting the image itself where people zoom in.'}
                   </ThemedText>
+                </View>
+                {/* A picture of the owner's choosing behind the share image, and a quick look at
+                    the result, so a backdrop that is not what they expected costs seconds. */}
+                <ShareBackdropField binder={binder} />
+                <View style={styles.hiresRow}>
+                  <QuickPreviewButton binder={binder} />
                 </View>
               </>
             ) : (

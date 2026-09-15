@@ -572,6 +572,7 @@ export type Database = {
           owner_id: string
           removed_at: string | null
           share_page_ids: string[] | null
+          share_backdrop: string | null
           share_key: string | null
           title: string
           updated_at: string
@@ -590,6 +591,7 @@ export type Database = {
           owner_id?: string
           removed_at?: string | null
           share_page_ids?: string[] | null
+          share_backdrop?: string | null
           share_key?: string | null
           title: string
           updated_at?: string
@@ -608,6 +610,7 @@ export type Database = {
           owner_id?: string
           removed_at?: string | null
           share_page_ids?: string[] | null
+          share_backdrop?: string | null
           share_key?: string | null
           title?: string
           updated_at?: string

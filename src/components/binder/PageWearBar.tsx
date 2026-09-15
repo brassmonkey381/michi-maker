@@ -16,7 +16,7 @@ import { Image } from 'expo-image';
 import { useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions, type View as ViewType } from 'react-native';
 
-import { ColorBox, ImageLinkField, PillButton, Row, WearRow } from '@/components/binder/inspector/controls';
+import { ColorBox, PillButton, Row, WearRow } from '@/components/binder/inspector/controls';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BinderSurface, FontSize, Palette, Radius, Shadows, Weight } from '@/constants/theme';
@@ -55,7 +55,6 @@ export function PageWearBar({
 
   const background = page.backgroundColor ?? BinderSurface.mat;
   const bgPictured = isImageRef(background);
-  const [bgLink, setBgLink] = useState(false);
   const sleeve = resolveWear(page.sleeve, binder.pageStyle?.sleeve);
   const backing = resolveWear(page.artBacking, binder.pageStyle?.artBacking);
 
@@ -131,24 +130,16 @@ export function PageWearBar({
             {open.kind === 'background' ? (
               // THIS PAGE'S OWN COLOUR (owner, 2026-09-15). The binder's Background in Settings
               // paints every page at once; this paints one, and "All pages" spreads it.
-              <>
-                <Row label="Colour">
-                  <ColorBox
-                    fieldKey={`${page.id}-bar-bg-${bgPictured ? 'picture' : 'colour'}`}
-                    value={bgPictured ? undefined : background}
-                    onChange={(backgroundColor) => store.updatePage(binder.id, page.id, { backgroundColor })}
-                  />
-                  <PillButton label="Picture" active={bgPictured} onPress={() => setBgLink((v) => !v)} testID="page-bg-picture" />
-                  <PillButton label="All pages" onPress={() => store.setBinderBackground(binder.id, background)} testID="page-bg-all" />
-                </Row>
-                {bgLink || bgPictured ? (
-                  <ImageLinkField
-                    value={bgPictured ? background : undefined}
-                    onChange={(backgroundColor) => store.updatePage(binder.id, page.id, { backgroundColor })}
-                    testID="page-bg-link"
-                  />
-                ) : null}
-              </>
+              // A colour only (owner, 2026-09-15): a picture behind the pages is a share-image
+              // choice, made in the Share sheet.
+              <Row label="Colour">
+                <ColorBox
+                  fieldKey={`${page.id}-bar-bg`}
+                  value={bgPictured ? undefined : background}
+                  onChange={(backgroundColor) => store.updatePage(binder.id, page.id, { backgroundColor })}
+                />
+                <PillButton label="All pages" onPress={() => store.setBinderBackground(binder.id, bgPictured ? BinderSurface.mat : background)} testID="page-bg-all" />
+              </Row>
             ) : open.kind === 'sleeve' ? (
               <WearRow
                 label="Colour"

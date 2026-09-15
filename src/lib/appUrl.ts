@@ -66,7 +66,16 @@ export function binderShareUrl(id: string, shareKey?: string | null, page?: numb
  */
 export function binderHiresImageUrl(id: string, updatedAt?: string | null): string {
   const stamp = updatedAt ? Date.parse(updatedAt) || 0 : 0;
-  return `${appOrigin()}/api/og-image-hires?id=${encodeURIComponent(id)}&t=${stamp}`;
+  return `${appOrigin()}/api/og-image-hires?id=${encodeURIComponent(id)}&t=${stamp}&v=2`;
+}
+
+/**
+ * The share image at a glance (api/og-image-quick.js): the same picture at 1x, drawn in a few
+ * seconds, for the Share sheet's preview. `updatedAt` keys it so a change shows on the next look.
+ */
+export function binderQuickPreviewUrl(id: string, updatedAt?: string | null): string {
+  const stamp = updatedAt ? Date.parse(updatedAt) || 0 : 0;
+  return `${appOrigin()}/api/og-image-quick?id=${encodeURIComponent(id)}&t=${stamp}&n=${Date.now()}`;
 }
 
 /**

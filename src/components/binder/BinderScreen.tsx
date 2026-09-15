@@ -1856,7 +1856,31 @@ export function BinderScreen({
             }
           : { onDropSlot: handleDropSlot })}
       />
-      {p.id === page.id ? <PageWearBar binder={binder} page={p} /> : null}
+      {p.id === page.id ? (
+        <PageWearBar
+          binder={binder}
+          page={p}
+          // SELECT SEVERAL POCKETS acts on a SELECTION on this page. Gone while the picker is
+          // aimed at a pocket (the two modes are mutually exclusive in code) and on an empty
+          // page, which has nothing to select.
+          select={
+            !pickerCell && p.slots.length > 0
+              ? {
+                  on: selectMode,
+                  count: multiIds.size,
+                  onToggle: () => {
+                    setSelectMode((v) => {
+                      if (v) clearMulti();
+                      return !v;
+                    });
+                    setSelectedSlotId(null);
+                  },
+                  onActions: () => setMultiActionsOpen(true),
+                }
+              : undefined
+          }
+        />
+      ) : null}
       </View>
     );
   };
@@ -2058,7 +2082,10 @@ export function BinderScreen({
             <Text style={[styles.headerAction, { color: theme.text }]}>{'⚙ Settings'}</Text>
           </Pressable>
         </Tipped>
-        {isSupabaseConfigured && likeCount !== null ? (
+        {/* LIKES, PRINT AND SHARE ARE FOR LOOKING, NOT MAKING (owner, 2026-09-15): they show while
+            viewing and step aside while editing, so the editing row holds only editing. Selecting
+            several pockets lives on the page bar now, beside the page's other controls. */}
+        {!editing && isSupabaseConfigured && likeCount !== null ? (
           <Tipped text="See who liked this binder">
             <Pressable
               onPress={() => setLikesOpen(true)}
@@ -2070,47 +2097,16 @@ export function BinderScreen({
             </Pressable>
           </Tipped>
         ) : null}
-        {/* SELECT SEVERAL POCKETS acts on a SELECTION, not on the page. Gone while the picker is
-            aimed at a pocket (the two modes are mutually exclusive in code) and on an empty page,
-            which has nothing to select. */}
-        {editing && !pickerCell && page.slots.length > 0 ? (
-          <IconBtn
-            glyph={'\u2295'}
-            label="Select several pockets"
-            testID="binder-select-toggle"
-            active={selectMode}
-            onPress={() => {
-              setSelectMode((v) => {
-                if (v) clearMulti();
-                return !v;
-              });
-              setSelectedSlotId(null);
-            }}
-          />
-        ) : null}
-        {/* SELECT MODE HAS TO SAY IT IS ON somewhere visible without a dialog: it changes what
-            every tap on the binder does. Doubles as the one-tap route to the selection's actions. */}
-        {editing && selectMode ? (
-          <Pressable
-            onPress={() => setMultiActionsOpen(true)}
-            hitSlop={10}
-            accessibilityRole="button"
-            accessibilityLabel={`Actions for ${multiIds.size} selected pockets`}
-            testID="binder-actions-btn">
-            <View style={[pillChip.base, pillChip.active]}>
-              <Text style={[pillChip.text, pillChip.textActive]}>{`\u2713 Selecting \u00b7 ${multiIds.size}`}</Text>
-            </View>
-          </Pressable>
-        ) : null}
         <TrackPill />
-        {printLink}
-        {isSupabaseConfigured ? (
+        {!editing ? printLink : null}
+        {!editing && isSupabaseConfigured ? (
           <Pressable onPress={() => setShareOpen(true)} hitSlop={10}>
             <Text style={[styles.headerAction, { color: theme.text }]}>Share</Text>
           </Pressable>
         ) : null}
-        {/* The shortcuts card, on request. A keyboard thing, so only where there is one. */}
-        {Platform.OS === 'web' && !phone ? (
+        {/* The shortcuts card, on request. A keyboard thing, so only where there is one, and an
+            editing thing, so only while editing. */}
+        {editing && Platform.OS === 'web' && !phone ? (
           <Tipped text="Keyboard shortcuts">
             <Pressable
               onPress={() => setShortcutsOpen((v) => !v)}

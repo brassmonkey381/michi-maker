@@ -50,8 +50,10 @@ module.exports = async (req, res) => {
       res.setHeader('content-type', 'application/json');
       return res.end(JSON.stringify({ error: 'nothing to draw' }));
     }
-    const art = await loadArt(pages);
-    const { body, type } = await render(pages, manifest, art, pages.length === 1);
+    // v2 (an experiment, 2026-09-15): draw the binder's look. Opt-in by URL while it is judged.
+    const look = String((req.query && req.query.v) || '') === '2';
+    const art = await loadArt(pages, look ? binder : null);
+    const { body, type } = await render(pages, manifest, art, pages.length === 1, undefined, { look, binder });
     res.setHeader('content-type', type);
     res.setHeader('cache-control', CACHE);
     res.setHeader(

@@ -71,9 +71,12 @@ if (args[0] === '--contrast') {
 
 // Production never passes a face: render() flips a coin per render (see flipChrome). Forcing one
 // here is the only way to look at a specific face on purpose, which is what this script is for.
-const [id, outDir = '.', ...faces] = args;
+// `--v2` draws the binder's look (page style, zip, spine, sleeves, backgrounds) — the 2026-09-15
+// experiment — so the two versions can be judged side by side from the same binder.
+const v2 = args.includes('--v2');
+const [id, outDir = '.', ...faces] = args.filter((a) => a !== '--v2');
 if (!id) {
-  console.log('FAILED: pass a binder id [outDir] [collage|bands ...]');
+  console.log('FAILED: pass a binder id [outDir] [collage|bands ...] [--v2]');
   process.exit(2);
 }
 const [binder, manifest] = await Promise.all([fetchBinder(id), fetchManifest()]);
@@ -82,14 +85,14 @@ if (!binder) {
   process.exit(3);
 }
 const pages = pickPages(binder);
-const art = await loadArt(pages);
+const art = await loadArt(pages, v2 ? binder : null);
 const single = pages.length === 1;
-console.log(`"${binder.title}" -> ${pages.length} page(s), ${single ? 'narrow 1800x1512' : 'spread 2880x1512'}`);
+console.log(`"${binder.title}" -> ${pages.length} page(s), ${single ? 'narrow 1800x1512' : 'spread 2880x1512'}${v2 ? ', v2 look' : ''}`);
 
 mkdirSync(outDir, { recursive: true });
 for (const face of faces.length ? faces : [undefined]) {
-  const { body, type } = await render(pages, manifest, art, single, face);
-  const label = face || 'flipped';
+  const { body, type } = await render(pages, manifest, art, single, face, { look: v2, binder });
+  const label = (face || 'flipped') + (v2 ? '-v2' : '');
   const file = join(outDir, `og-${id.slice(0, 8)}-${label}.${type === 'image/jpeg' ? 'jpg' : 'png'}`);
   writeFileSync(file, body);
   console.log(`  ${label.padEnd(8)} ${String(Math.round(body.length / 1024)).padStart(5)} KB  ${file}`);

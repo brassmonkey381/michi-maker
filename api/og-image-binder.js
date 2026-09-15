@@ -89,14 +89,18 @@ async function fetchJson(url, headers) {
 
 async function fetchBinder(id) {
   if (!SUPABASE_URL || !SUPABASE_KEY) return null;
-  const base =
-    'title,cover_card_id,binder_pages(id,position,rows,cols,binder_slots(row_index,col_index,row_span,col_span,card_id,slot_type,image_url,image_fit,image_crop,image_transform))';
+  const slots = 'row_index,col_index,row_span,col_span,card_id,slot_type,image_url,image_fit,image_crop,image_transform';
+  const base = `title,cover_card_id,binder_pages(id,position,rows,cols,binder_slots(${slots}))`;
+  // THE LOOK (v2, 2026-09-15): the binder's page style and each page's and pocket's own colours,
+  // for the render that draws them. Tried first; an older schema 400s it and the plain select
+  // below still serves v1.
+  const looked = `title,cover_card_id,page_style,binder_pages(id,position,rows,cols,background_color,sleeve,art_backing,binder_slots(${slots},sleeve,art_backing))`;
   const headers = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
   // Try WITH the featured-pages column first; if the share_page_ids migration hasn't landed yet that
   // select 400s (fetchJson → null), so fall back to the base select. Keeps the composed image working
   // regardless of migration timing — the featured-page selection simply activates once the column
   // exists. (A genuinely private/missing binder returns [] on the first try and resolves to null.)
-  for (const select of [`share_page_ids,${base}`, base]) {
+  for (const select of [`share_page_ids,${looked}`, `share_page_ids,${base}`, base]) {
     const url = `${SUPABASE_URL}/rest/v1/binders?id=eq.${encodeURIComponent(
       id,
     )}&is_public=eq.true&select=${encodeURIComponent(select)}`;
@@ -175,15 +179,23 @@ const MAX_ART_BYTES = 4 * 1024 * 1024;
  * rather than left to Satori so the bytes can be sniffed first (see `sniffImage`) — and so a
  * 404 or a slow host costs one empty pocket instead of the whole render.
  */
-async function loadArt(pages) {
+async function loadArt(pages, binder) {
   const urls = new Set();
   for (const page of pages) {
     for (const s of page.binder_slots || []) {
-      if (s.card_id || s.slot_type !== 'artwork') continue;
-      const u = artUrl(s.image_url);
-      if (u) urls.add(u);
+      if (!s.card_id && s.slot_type === 'artwork') {
+        const u = artUrl(s.image_url);
+        if (u) urls.add(u);
+      }
+      // v2: a pocket's own pictured sleeve or backing.
+      for (const w of [s.sleeve, s.art_backing]) if (isImageRef(w)) urls.add(w);
     }
+    // v2: the page's pictured background, sleeves or backing.
+    for (const w of [page.background_color, page.sleeve, page.art_backing]) if (isImageRef(w)) urls.add(w);
   }
+  // v2: the binder-wide pictures.
+  const ps = binder && binder.page_style;
+  if (ps) for (const w of [ps.sleeve, ps.artBacking]) if (isImageRef(w)) urls.add(w);
   const out = new Map();
   await Promise.all(
     [...urls].map(async (u) => {
@@ -308,8 +320,43 @@ function slotImage(art, boxW, boxH, spanning) {
   });
 }
 
-/** One pocket: a positioned box, tinted by what it holds, clipping its image. */
-function pocket(left, top, w, hgt, art, spanning) {
+/**
+ * One pocket: a positioned box, tinted by what it holds, clipping its image.
+ *
+ * `wear` (v2) is what the pocket wears: `{ ring, color, image }`. The box becomes a ring `ring`
+ * wide in the sleeve or backing colour (or the page's own, which reads as no ring), a pictured
+ * sleeve fills it, and the card sits inside. Mirrors the ring in BinderGrid's SlotContent.
+ */
+function pocket(left, top, w, hgt, art, spanning, wear) {
+  const ring = wear ? wear.ring : 0;
+  const inner = art ? slotImage(art, w - ring * 2, hgt - ring * 2, spanning) : null;
+  const children = [];
+  if (wear && wear.image) {
+    children.push(
+      h('img', { src: wear.image, width: w, height: hgt, style: { position: 'absolute', left: 0, top: 0, objectFit: 'cover' } }),
+    );
+  }
+  if (inner) {
+    children.push(
+      h(
+        'div',
+        {
+          style: {
+            display: 'flex',
+            position: 'absolute',
+            left: ring,
+            top: ring,
+            width: w - ring * 2,
+            height: hgt - ring * 2,
+            borderRadius: Math.max(0, 9 * S - ring),
+            overflow: 'hidden',
+            backgroundColor: art.artwork ? '#11111a' : wear ? 'transparent' : '#e9e4da',
+          },
+        },
+        inner,
+      ),
+    );
+  }
   return h(
     'div',
     {
@@ -324,10 +371,18 @@ function pocket(left, top, w, hgt, art, spanning) {
         overflow: 'hidden',
         // Artwork is often a transparent PNG, and the app backs it with the dark
         // `Palette.chromeDeep` panel — light art on a light pocket would vanish.
-        backgroundColor: !art ? 'rgba(120,116,108,0.10)' : art.artwork ? '#11111a' : '#e9e4da',
+        backgroundColor: !art
+          ? wear
+            ? wear.empty
+            : 'rgba(120,116,108,0.10)'
+          : wear
+            ? wear.color || 'transparent'
+            : art.artwork
+              ? '#11111a'
+              : '#e9e4da',
       },
     },
-    art ? slotImage(art, w, hgt, spanning) : null,
+    children,
   );
 }
 
@@ -340,7 +395,7 @@ function pocket(left, top, w, hgt, art, spanning) {
  * its crop window was cut for). Same model as `box()` in BinderGrid.tsx, minus the caption
  * strip this frame doesn't draw. Cells no slot covers get the empty-pocket tint.
  */
-function pageGrid(page, cw, ch, manifest, art) {
+function pageGrid(page, cw, ch, manifest, art, look) {
   const cols = page.cols || 3;
   const rows = page.rows || 3;
   const colStep = cw + GAP;
@@ -355,21 +410,42 @@ function pageGrid(page, cw, ch, manifest, art) {
     const rs = Math.max(1, Math.min(Math.trunc(s.row_span) || 1, rows - r));
     const cs = Math.max(1, Math.min(Math.trunc(s.col_span) || 1, cols - c));
     for (let i = 0; i < rs; i++) for (let j = 0; j < cs; j++) covered.add(`${r + i}:${c + j}`);
+    const a = slotArt(s, manifest, art);
     boxes.push(
       pocket(
         c * colStep,
         r * rowStep,
         cs * cw + (cs - 1) * GAP,
         rs * ch + (rs - 1) * GAP,
-        slotArt(s, manifest, art),
+        a,
         rs > 1 || cs > 1,
+        look ? pocketWear(look, s, a, cw) : null,
       ),
     );
   }
   const empties = [];
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      if (!covered.has(`${r}:${c}`)) empties.push(pocket(c * colStep, r * rowStep, cw, ch, null));
+      if (!covered.has(`${r}:${c}`)) empties.push(pocket(c * colStep, r * rowStep, cw, ch, null, false, look ? pocketWear(look, null, null, cw) : null));
+    }
+  }
+  const innerW = cols * cw + (cols - 1) * GAP;
+  const innerH = rows * ch + (rows - 1) * GAP;
+  // v2: the seams, straight lines down every gap, in the page's thread (see BinderGrid).
+  const seams = [];
+  if (look && look.stitch) {
+    const dbl = look.stitch === 'double';
+    for (let i = 1; i < cols; i++) {
+      const x = i * colStep - GAP / 2;
+      for (const off of dbl ? [-2 * S, S] : [-0.5 * S]) {
+        seams.push(h('div', { style: { position: 'absolute', top: 0, left: x + off, width: 0, height: innerH, borderLeftWidth: S, borderLeftStyle: 'dashed', borderLeftColor: look.ink } }));
+      }
+    }
+    for (let i = 1; i < rows; i++) {
+      const y = i * rowStep - GAP / 2;
+      for (const off of dbl ? [-2 * S, S] : [-0.5 * S]) {
+        seams.push(h('div', { style: { position: 'absolute', left: 0, top: y + off, height: 0, width: innerW, borderTopWidth: S, borderTopStyle: 'dashed', borderTopColor: look.ink } }));
+      }
     }
   }
   return h(
@@ -378,11 +454,211 @@ function pageGrid(page, cw, ch, manifest, art) {
       style: {
         display: 'flex',
         position: 'relative',
-        width: cols * cw + (cols - 1) * GAP,
-        height: rows * ch + (rows - 1) * GAP,
+        width: innerW,
+        height: innerH,
       },
     },
-    [...empties, ...boxes], // empties first so a slot always paints over the tint
+    [...empties, ...seams, ...boxes], // empties first so a slot always paints over the tint
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// V2: THE LOOK (2026-09-15). What the binder, the page and the pocket chose in the editor, drawn
+// into the share image: background (colour or picture), page style (stitch, double stitch) with
+// its thread, the zip with its pull, the spine, sleeves and art backing at every level. Mirrors
+// src/data/pageStyle.ts and BinderGrid's PageDressing; keep the numbers in step. v1 draws none of
+// it and is untouched: `look` is null there.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+
+const HEX = /^#[0-9a-f]{6}$/i;
+const WEAR_NONE = 'none';
+function isImageRef(v) {
+  return typeof v === 'string' && /^https?:\/\/\S{1,2000}$/i.test(v);
+}
+/** The first layer that says anything wins; "none" wins with nothing. */
+function resolveWear(...layers) {
+  for (const l of layers) {
+    if (l === undefined || l === null || l === '') continue;
+    return l === WEAR_NONE ? undefined : l;
+  }
+  return undefined;
+}
+function luminance(hex) {
+  if (!HEX.test(hex || '')) return 1;
+  const c = (i) => {
+    const x = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * c(1) + 0.7152 * c(3) + 0.0722 * c(5);
+}
+/** The thread as chosen, else cut from the page's lightness. */
+function threadInk(mat, thread) {
+  const dark = luminance(mat) < 0.35;
+  if (!thread || (!thread.color && thread.opacity === undefined)) return dark ? 'rgba(255,255,255,0.78)' : 'rgba(0,0,0,0.42)';
+  const hex = (HEX.test(thread.color || '') ? thread.color : dark ? '#ffffff' : '#000000').slice(1);
+  const n = (i) => parseInt(hex.slice(i, i + 2), 16);
+  return `rgba(${n(0)},${n(2)},${n(4)},${thread.opacity === undefined ? 0.6 : thread.opacity})`;
+}
+/** v2's plain page is v1's cream, so a binder with no choices renders as it always did. */
+const V2_MAT = '#fbfaf7';
+
+/** Everything the drawing needs about one page, resolved once. `edge` is the side away from the spine. */
+function pageLook(page, binder, art, edge) {
+  const ps = (binder && binder.page_style) || {};
+  const details = ps.details || {};
+  const bg = page.background_color;
+  const bgImage = isImageRef(bg) && art ? art.get(bg) || null : null;
+  const mat = HEX.test(bg || '') ? bg : V2_MAT;
+  const material = ps.material === 'stitched' ? 'double' : ps.material;
+  const stitch = material === 'stitch' || material === 'double' ? material : null;
+  const zip = details.zip || (ps.material === 'zip' ? {} : null);
+  return {
+    mat,
+    bgImage,
+    dark: luminance(mat) < 0.35,
+    stitch,
+    ink: threadInk(mat, ps.thread),
+    zip: zip ? { pull: HEX.test(zip.pull || '') ? zip.pull : '#3fcf5e', wavy: zip.track === 'wavy' } : null,
+    spine: details.spine === 'cross' || details.spine === 'ribbed' ? details.spine : null,
+    thread: ps.thread,
+    edge,
+    sleeve: [page.sleeve, ps.sleeve],
+    backing: [page.art_backing, ps.artBacking],
+    art,
+  };
+}
+
+/** What one pocket wears, for `pocket()`: the ring width, its colour, and its picture if any. */
+function pocketWear(look, slot, a, cw) {
+  const ring = Math.max(1, Math.round(cw * 0.015));
+  const isArt = a && (a.artwork || a.hero);
+  const chosen = slot
+    ? isArt
+      ? resolveWear(slot.art_backing, look.backing[0], look.backing[1])
+      : resolveWear(slot.sleeve, look.sleeve[0], look.sleeve[1])
+    : undefined;
+  const image = isImageRef(chosen) ? look.art.get(chosen) || null : null;
+  const color = image ? undefined : HEX.test(chosen || '') ? chosen : look.mat;
+  return { ring, color, image, empty: look.dark ? 'rgba(255,255,255,0.10)' : 'rgba(120,116,108,0.10)' };
+}
+
+/**
+ * The page's mat, v2: its own colour or picture, its hem or its zip band, and the pull hanging off
+ * the bottom outer corner. Same padding and radius as v1's `mat`, so the two versions share a
+ * geometry and only the dressing differs.
+ */
+function pageMat(grid, look, gridW, gridH) {
+  const band = 18 * S;
+  const radius = 24 * S;
+  const w = gridW + band * 2;
+  const hgt = gridH + band * 2;
+  const layers = [];
+  if (look.bgImage) {
+    layers.push(h('img', { src: look.bgImage, width: w, height: hgt, style: { display: 'flex', position: 'absolute', left: 0, top: 0, objectFit: 'cover', borderRadius: radius } }));
+  }
+  // The material's vignette, as the app draws it: a light catch top-left, a shade bottom-right.
+  if (look.stitch || look.zip) {
+    layers.push(
+      h('div', { style: { display: 'flex', position: 'absolute', left: 0, top: 0, width: w, height: hgt, borderRadius: radius, background: 'linear-gradient(135deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0) 60%)' } }),
+      h('div', { style: { display: 'flex', position: 'absolute', left: 0, top: 0, width: w, height: hgt, borderRadius: radius, background: `linear-gradient(135deg, rgba(0,0,0,0) 40%, ${look.dark ? 'rgba(0,0,0,0.26)' : 'rgba(0,0,0,0.07)'} 100%)` } }),
+    );
+  }
+  const c = band / 2;
+  if (look.stitch && !look.zip) {
+    // The hem: one thread or two along the page's own edge.
+    for (const inset of look.stitch === 'double' ? [c - 2 * S, c + S] : [c - 0.5 * S]) {
+      layers.push(
+        h('div', {
+          style: { display: 'flex', position: 'absolute', left: inset, top: inset, width: w - inset * 2, height: hgt - inset * 2, borderWidth: S, borderStyle: 'dashed', borderColor: look.ink, borderRadius: Math.max(2, radius - inset) },
+        }),
+      );
+    }
+  }
+  if (look.zip) {
+    const TAPE = 8 * S;
+    const PITCH = 3 * S;
+    const outer = look.edge === 'left' ? 'left' : 'right';
+    // The cover band: a ring of heavier, darker fabric with a fine edge where it meets the sheet.
+    layers.push(
+      h('div', { style: { display: 'flex', position: 'absolute', left: 0, top: 0, width: w, height: hgt, borderRadius: radius, borderWidth: band - 2 * S, borderStyle: 'solid', borderColor: look.dark ? 'rgba(0,0,0,0.42)' : 'rgba(0,0,0,0.16)' } }),
+      h('div', { style: { display: 'flex', position: 'absolute', left: band - 3 * S, top: band - 3 * S, width: w - (band - 3 * S) * 2, height: hgt - (band - 3 * S) * 2, borderRadius: 4 * S, borderWidth: S, borderStyle: 'solid', borderColor: look.dark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.12)' } }),
+    );
+    // The coil: a dark tape with teeth drawn as a repeating gradient, a wavy track wobbling the tape.
+    const teeth = (vertical) =>
+      vertical
+        ? 'repeating-linear-gradient(180deg, #8e8e98 0px, #55555e 1px, #55555e 2px, #121215 2px, #121215 3px)'
+        : 'repeating-linear-gradient(90deg, #8e8e98 0px, #55555e 1px, #55555e 2px, #121215 2px, #121215 3px)';
+    const tape = (style, vertical) =>
+      h('div', {
+        style: { display: 'flex', position: 'absolute', borderRadius: 3 * S, backgroundColor: '#121215', overflow: 'hidden', ...style },
+      }, h('div', { style: { display: 'flex', position: 'absolute', left: vertical ? TAPE / 2 - 2 * S : 0, top: vertical ? 0 : TAPE / 2 - 2 * S, width: vertical ? 4 * S : '100%', height: vertical ? '100%' : 4 * S, backgroundImage: teeth(vertical), backgroundSize: vertical ? `${4 * S}px ${PITCH}px` : `${PITCH}px ${4 * S}px` } }));
+    layers.push(
+      tape({ top: c - TAPE / 2, left: c - TAPE / 2, width: w - (c - TAPE / 2) * 2, height: TAPE }, false),
+      tape({ top: hgt - c - TAPE / 2, left: c - TAPE / 2, width: w - (c - TAPE / 2) * 2, height: TAPE }, false),
+      tape({ top: c - TAPE / 2, [outer]: c - TAPE / 2, width: TAPE, height: hgt - (c - TAPE / 2) * 2 }, true),
+    );
+    // The slider at the bottom outer corner, and the pull hanging off it past the page's edge.
+    const slider = { position: 'absolute', bottom: c - 5 * S, [outer]: c - 5 * S, width: 10 * S, height: 12 * S, borderRadius: 2 * S, backgroundColor: '#6a6a74', borderWidth: S, borderStyle: 'solid', borderColor: '#2a2a30' };
+    layers.push(
+      h('div', { style: slider }),
+      h('div', {
+        style: {
+          position: 'absolute',
+          bottom: c - 5 * S - 18 * S,
+          [outer]: c - 5 * S - 9 * S,
+          width: 9 * S,
+          height: 22 * S,
+          borderRadius: 4 * S,
+          backgroundColor: look.zip.pull,
+          borderWidth: S,
+          borderStyle: 'solid',
+          borderColor: 'rgba(0,0,0,0.35)',
+          transform: `rotate(${outer === 'right' ? -34 : 34}deg)`,
+        },
+      }),
+    );
+  }
+  return h(
+    'div',
+    {
+      style: {
+        display: 'flex',
+        position: 'relative',
+        width: w,
+        height: hgt,
+        borderRadius: radius,
+        backgroundColor: look.mat,
+        boxShadow: `0 ${26 * S}px ${70 * S}px rgba(60,50,35,0.30)`,
+      },
+    },
+    [...layers, h('div', { style: { display: 'flex', position: 'absolute', left: band, top: band, width: gridW, height: gridH } }, grid)],
+  );
+}
+
+/** The binder's spine between two facing pages, v2: the page's cloth, cross-stitched or ribbed. */
+function spineV2(height, look) {
+  const inset = 18 * S;
+  const width = 26 * S;
+  const unit = (look.spine === 'cross' ? 12 : 6) * S;
+  const bandH = height - inset * 2;
+  const n = Math.max(0, Math.floor((bandH - 8 * S) / unit));
+  const ink = threadInk(look.mat, { color: look.thread && look.thread.color, opacity: look.thread && look.thread.opacity !== undefined ? look.thread.opacity : 0.5 });
+  const rib = look.dark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.16)';
+  const marks = [];
+  for (let i = 0; i < n; i++) {
+    const top = 4 * S + i * unit;
+    if (look.spine === 'cross') {
+      for (const deg of [45, -45]) {
+        marks.push(h('div', { style: { display: 'flex', position: 'absolute', left: S, top: top + unit / 2 - S, width: width - 2 * S, height: 2 * S, borderRadius: S, backgroundColor: ink, transform: `rotate(${deg}deg)` } }));
+      }
+    } else {
+      marks.push(h('div', { style: { display: 'flex', position: 'absolute', left: 3 * S, top: top + 2 * S, width: width - 6 * S, height: 2 * S, borderRadius: S, backgroundColor: rib } }));
+    }
+  }
+  return h(
+    'div',
+    { style: { display: 'flex', position: 'relative', width, height } },
+    h('div', { style: { display: 'flex', position: 'absolute', left: 0, top: inset, width, height: bandH, borderRadius: 3 * S, backgroundColor: look.mat, overflow: 'hidden' } }, marks),
   );
 }
 
@@ -507,7 +783,7 @@ const frame = (inner, backdrop) => {
         src: backdrop.uri,
         width: W,
         height: H,
-        style: { position: 'absolute', left: 0, top: 0, objectFit: 'cover' },
+        style: { display: 'flex', position: 'absolute', left: 0, top: 0, objectFit: 'cover' },
       }),
       h('div', {
         style: {
@@ -759,7 +1035,7 @@ function chromeInk(bg, scrim) {
  */
 const SCRIM = 0.34;
 
-function singleFrame(page, manifest, art, backdrop, chrome) {
+function singleFrame(page, manifest, art, backdrop, chrome, look) {
   const bands = chrome === 'bands';
   // The SAME measurement serves both faces; only the ground differs. Under bands the chrome sits
   // on 94% cream, so this reliably returns the dark ink at about 11:1 — which is the point: the
@@ -805,7 +1081,7 @@ function singleFrame(page, manifest, art, backdrop, chrome) {
         src: backdrop.uri,
         width: SINGLE_W,
         height: SINGLE_H,
-        style: { position: 'absolute', left: 0, top: 0, objectFit: 'cover' },
+        style: { display: 'flex', position: 'absolute', left: 0, top: 0, objectFit: 'cover' },
       }),
       // Scrim: the text has to stay readable over whatever art happens to land behind it.
       h('div', {
@@ -895,7 +1171,13 @@ function singleFrame(page, manifest, art, backdrop, chrome) {
         h(
           'div',
           { style: { display: 'flex', flex: 1, alignItems: 'flex-start', justifyContent: 'center' } },
-          mat(pageGrid(page, cw, ch, manifest, art), -1.5, true),
+          look
+            ? h(
+                'div',
+                { style: { display: 'flex', transform: 'rotate(-1.5deg)' } },
+                pageMat(pageGrid(page, cw, ch, manifest, art, look), look, cols * cw + (cols - 1) * GAP, rows * ch + (rows - 1) * GAP),
+              )
+            : mat(pageGrid(page, cw, ch, manifest, art), -1.5, true),
         ),
         // The foot of the frame: nothing sits here any more, but the row keeps its height so the
         // page's bottom edge lands where the geometry above says it does.
@@ -918,7 +1200,7 @@ function singleFrame(page, manifest, art, backdrop, chrome) {
   );
 }
 
-function compose(pages, manifest, art, backdrop) {
+function compose(pages, manifest, art, backdrop, looks) {
   if (pages.length >= 2) {
     // Open spread: shared card size so both pages align; sized to a half-frame box.
     const cols = Math.max(pages[0].cols || 3, pages[1].cols || 3);
@@ -928,6 +1210,23 @@ function compose(pages, manifest, art, backdrop) {
     // so a 3x3 spread is as tall as the frame allows and a 3x4 spread as wide.
     const { cw, ch } = cardSize(cols, rows, (W - 36 * S - 60 * S) / 2, H - BRAND_STRIP - 36 * S - 20 * S - (rows - 1) * GAP);
     const spineH = rows * ch + (rows - 1) * GAP;
+    if (looks) {
+      // v2: two mats, each its own page, and the binder's spine (or v1's rings) between them.
+      const gw = cols * cw + (cols - 1) * GAP;
+      const ridge = looks[0].spine ? spineV2(spineH + 36 * S, looks[0]) : spine(spineH);
+      return frame(
+        h(
+          'div',
+          { style: { display: 'flex', alignItems: 'center', transform: 'rotate(-1deg)' } },
+          [
+            pageMat(pageGrid(pages[0], cw, ch, manifest, art, looks[0]), looks[0], gw, spineH),
+            ridge,
+            pageMat(pageGrid(pages[1], cw, ch, manifest, art, looks[1]), looks[1], gw, spineH),
+          ],
+        ),
+        backdrop,
+      );
+    }
     return frame(
       mat(
         [
@@ -943,6 +1242,11 @@ function compose(pages, manifest, art, backdrop) {
   }
   const page = pages[0];
   const { cw, ch } = cardSize(page.cols || 3, page.rows || 3, 760 * S, H - BRAND_STRIP - 36 * S - 20 * S - ((page.rows || 3) - 1) * GAP);
+  if (looks) {
+    const gw = (page.cols || 3) * cw + ((page.cols || 3) - 1) * GAP;
+    const gh = (page.rows || 3) * ch + ((page.rows || 3) - 1) * GAP;
+    return frame(h('div', { style: { display: 'flex', transform: 'rotate(-1.5deg)' } }, pageMat(pageGrid(page, cw, ch, manifest, art, looks[0]), looks[0], gw, gh)), backdrop);
+  }
   return frame(mat(pageGrid(page, cw, ch, manifest, art), -1.5, Boolean(backdrop)), backdrop);
 }
 
@@ -953,9 +1257,16 @@ function compose(pages, manifest, art, backdrop) {
  * committed to a width and a height, and the render must match what was declared. So when the
  * narrow canvas is asked for, only the first page is drawn even if `pickPages` found two.
  */
-async function render(pages, manifest, art, single, chrome) {
+async function render(pages, manifest, art, single, chrome, opts) {
   // @vercel/og is ESM-only and this file is CJS; the import is cached after the first invocation.
   const { ImageResponse } = await import('@vercel/og');
+  // v2 (opts.look): the binder's look, resolved per page. The outer edge is the page's side of the
+  // book: on a spread the first page is the left leaf; a single page goes by its position.
+  const binder = opts && opts.binder;
+  const looks =
+    opts && opts.look && binder
+      ? pages.map((p, i) => pageLook(p, binder, art, pages.length >= 2 ? (i === 0 ? 'left' : 'right') : (p.position || 0) % 2 === 1 ? 'left' : 'right'))
+      : null;
   const node = single
     ? singleFrame(
         pages[0],
@@ -963,6 +1274,7 @@ async function render(pages, manifest, art, single, chrome) {
         art,
         await blurBackdrop(backdropSource(pages[0], manifest, art)),
         chrome || flipChrome(),
+        looks ? looks[0] : null,
       )
     : compose(
         pages,
@@ -974,6 +1286,7 @@ async function render(pages, manifest, art, single, chrome) {
             (pages[1] ? backdropSource(pages[1], manifest, art) : null),
           { w: 800, h: Math.round((800 * H) / W) },
         ),
+        looks,
       );
   const png = Buffer.from(
     await new ImageResponse(node, {
@@ -1000,6 +1313,8 @@ module.exports = async (req, res) => {
   // The shape the meta tags committed to. Only the two known canvases are honoured, so a hand-typed
   // width can't make this render something no og:image:width ever declared.
   const single = String((req.query && req.query.w) || '') === String(SINGLE_W);
+  // v2 (an experiment, 2026-09-15): draw the binder's look. Opt-in by URL while it is judged.
+  const look = String((req.query && req.query.v) || '') === '2';
   let cover = `${SITE}/og.png`;
   try {
     if (id) {
@@ -1007,14 +1322,14 @@ module.exports = async (req, res) => {
       if (binder) {
         cover = manifestUrl(manifest, binder.cover_card_id, 'image') || cover;
         const pages = pickPages(binder);
-        const art = await loadArt(pages);
+        const art = await loadArt(pages, look ? binder : null);
         // Only compose when at least one pocket actually resolves to an image — otherwise
         // an all-blank page is worse than the cover fallback.
         const anyImage = pages.some((page) =>
           (page.binder_slots || []).some((s) => slotArt(s, manifest, art)),
         );
         if (pages.length && anyImage) {
-          const { body, type } = await render(pages, manifest, art, single);
+          const { body, type } = await render(pages, manifest, art, single, undefined, { look, binder });
           res.setHeader('content-type', type);
           res.setHeader('cache-control', CACHE);
           return res.end(body);

@@ -78,6 +78,17 @@ SEO/marketing surface — it credits Michi (@peeplop) as the method's creator, l
 core layouts, and links out to the community guides. Crawlers get its preview from
 `api/og-michi.js`. It's linked from the landing header.
 
+## v2: the binder's look in the image (experiment, 2026-09-15)
+
+`?v=2` on `api/og-image-binder` and `api/og-image-hires` draws what the editor chose: each page's
+background (colour or picture), the page style (stitch or double stitch, with the thread), the
+zipper with its pull, the spine (cross-stitch or ribbed) between two pages, and sleeves and art
+backing at binder, page and pocket level. Without `v=2` nothing changes, and a binder with no
+choices renders identically under both. Judge it with `node scripts/og-preview.mjs <id> <dir>
+collage --v2` beside the same command without the flag. To make it the default, add `&v=2` in
+`ogImageUrl` (api/_lib.js), bump `OG_IMAGE_REV`, and add `&v=2` in `binderHiresImageUrl`
+(src/lib/appUrl.ts).
+
 ## Follow-ups
 
 - **Backfill the art already in `binder-art`.** New uploads are fixed — `uploadArt.ts` now

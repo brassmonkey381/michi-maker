@@ -75,7 +75,14 @@ const JPEG = { quality: Number(process.env.OG_JPEG_QUALITY) || 88, progressive: 
 /** Unsharp-mask radius applied before the JPEG (see `render`); 0 turns it off. */
 const SHARPEN = process.env.OG_SHARPEN === undefined ? 0.8 : Number(process.env.OG_SHARPEN) || 0;
 const CACHE = 'public, max-age=0, s-maxage=300, stale-while-revalidate=86400';
-const GAP = 8 * S;
+// THE EDITOR'S NUMBERS (2026-09-15): 10px between pockets, a 14px page margin, a 16px page radius
+// and an 8px pocket radius, all times S, so the share image, the poster and the quick look draw
+// the page the way the editor and the shelf draw it. Keep in step with binderLayout PAD/GAP and
+// theme Radii.
+const GAP = 10 * S;
+const PAGE_PAD = 14 * S;
+const PAGE_RADIUS = 16 * S;
+const POCKET_RADIUS = 8 * S;
 const CARD_ASPECT = 2.5 / 3.5; // real card proportions
 
 /** Minimal hyperscript — Satori reads `{ type, props: { style, children, ... } }`. */
@@ -332,7 +339,24 @@ function slotImage(art, boxW, boxH, spanning) {
  */
 function pocket(left, top, w, hgt, art, spanning, wear) {
   const ring = wear ? wear.ring : 0;
-  const inner = art ? slotImage(art, w - ring * 2, hgt - ring * 2, spanning) : null;
+  const isCard = art && !art.artwork && !art.hero;
+  // A CARD IN THE EDITOR IS TRIMMED (BinderGrid CardImage `trim`): the scan's baked-in white
+  // margin falls outside the box and the corners are clipped at 5.2% of the width, so the ring
+  // meets the card's own edge. Same here, for the same reason.
+  const inner = art
+    ? isCard && wear
+      ? h(
+          'div',
+          { style: { display: 'flex', position: 'relative', width: w - ring * 2, height: hgt - ring * 2, overflow: 'hidden', borderRadius: Math.max(POCKET_RADIUS - ring, (w - ring * 2) * 0.052) } },
+          h('img', {
+            src: art.src,
+            width: Math.round((w - ring * 2) * 1.044),
+            height: Math.round((hgt - ring * 2) * 1.044),
+            style: { position: 'absolute', left: -Math.round((w - ring * 2) * 0.022), top: -Math.round((hgt - ring * 2) * 0.022), objectFit: 'contain' },
+          }),
+        )
+      : slotImage(art, w - ring * 2, hgt - ring * 2, spanning)
+    : null;
   const children = [];
   if (wear && wear.image) {
     children.push(
@@ -352,7 +376,7 @@ function pocket(left, top, w, hgt, art, spanning, wear) {
             top: ring,
             width: w - ring * 2,
             height: hgt - ring * 2,
-            borderRadius: Math.max(0, 9 * S - ring),
+            borderRadius: Math.max(0, POCKET_RADIUS - ring),
             overflow: 'hidden',
             backgroundColor: art.artwork ? '#11111a' : wear ? 'transparent' : '#e9e4da',
           },
@@ -371,8 +395,13 @@ function pocket(left, top, w, hgt, art, spanning, wear) {
         top,
         width: w,
         height: hgt,
-        borderRadius: 9 * S,
+        borderRadius: POCKET_RADIUS,
         overflow: 'hidden',
+        // The editor's hairline round a card's frame (cardFrame / cardFrameOnFabric), and round
+        // an empty pocket; a pictured sleeve takes the edge over.
+        ...(wear && !wear.image && (isCard || !art)
+          ? { borderWidth: S, borderStyle: 'solid', borderColor: wear.dark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.10)' }
+          : {}),
         // Artwork is often a transparent PNG, and the app backs it with the dark
         // `Palette.chromeDeep` panel — light art on a light pocket would vanish.
         backgroundColor: !art
@@ -543,7 +572,7 @@ function pocketWear(look, slot, a, cw) {
     : undefined;
   const image = isImageRef(chosen) ? look.art.get(chosen) || null : null;
   const color = image ? undefined : HEX.test(chosen || '') ? chosen : look.mat;
-  return { ring, color, image, empty: look.dark ? 'rgba(255,255,255,0.10)' : 'rgba(120,116,108,0.10)' };
+  return { ring, color, image, dark: look.dark, empty: look.dark ? 'rgba(255,255,255,0.10)' : 'rgba(120,116,108,0.10)' };
 }
 
 /**
@@ -552,8 +581,8 @@ function pocketWear(look, slot, a, cw) {
  * geometry and only the dressing differs.
  */
 function pageMat(grid, look, gridW, gridH) {
-  const band = 18 * S;
-  const radius = 24 * S;
+  const band = PAGE_PAD;
+  const radius = PAGE_RADIUS;
   const w = gridW + band * 2;
   const hgt = gridH + band * 2;
   const layers = [];
@@ -563,8 +592,10 @@ function pageMat(grid, look, gridW, gridH) {
   // The material's vignette, as the app draws it: a light catch top-left, a shade bottom-right.
   if (look.stitch || look.zip) {
     layers.push(
-      h('div', { style: { display: 'flex', position: 'absolute', left: 0, top: 0, width: w, height: hgt, borderRadius: radius, background: 'linear-gradient(135deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0) 60%)' } }),
-      h('div', { style: { display: 'flex', position: 'absolute', left: 0, top: 0, width: w, height: hgt, borderRadius: radius, background: `linear-gradient(135deg, rgba(0,0,0,0) 40%, ${look.dark ? 'rgba(0,0,0,0.26)' : 'rgba(0,0,0,0.07)'} 100%)` } }),
+      // The editor's two LinearGradients: (0,0)->(0.6,0.8) and (0.4,0.2)->(1,1), both along the
+      // same 143deg diagonal; the second starts 35% of the way in.
+      h('div', { style: { display: 'flex', position: 'absolute', left: 0, top: 0, width: w, height: hgt, borderRadius: radius, background: 'linear-gradient(143deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0) 100%)' } }),
+      h('div', { style: { display: 'flex', position: 'absolute', left: 0, top: 0, width: w, height: hgt, borderRadius: radius, background: `linear-gradient(143deg, rgba(0,0,0,0) 35%, ${look.dark ? 'rgba(0,0,0,0.26)' : 'rgba(0,0,0,0.07)'} 100%)` } }),
     );
   }
   const c = band / 2;
@@ -587,39 +618,95 @@ function pageMat(grid, look, gridW, gridH) {
       h('div', { style: { display: 'flex', position: 'absolute', left: 0, top: 0, width: w, height: hgt, borderRadius: radius, borderWidth: band - 2 * S, borderStyle: 'solid', borderColor: look.dark ? 'rgba(0,0,0,0.42)' : 'rgba(0,0,0,0.16)' } }),
       h('div', { style: { display: 'flex', position: 'absolute', left: band - 3 * S, top: band - 3 * S, width: w - (band - 3 * S) * 2, height: hgt - (band - 3 * S) * 2, borderRadius: 4 * S, borderWidth: S, borderStyle: 'solid', borderColor: look.dark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.12)' } }),
     );
-    // The coil: a dark tape with teeth drawn as a repeating gradient, a wavy track wobbling the tape.
-    const teeth = (vertical) =>
-      vertical
-        ? 'repeating-linear-gradient(180deg, #8e8e98 0px, #55555e 1px, #55555e 2px, #121215 2px, #121215 3px)'
-        : 'repeating-linear-gradient(90deg, #8e8e98 0px, #55555e 1px, #55555e 2px, #121215 2px, #121215 3px)';
-    const tape = (style, vertical) =>
-      h('div', {
-        style: { display: 'flex', position: 'absolute', borderRadius: 3 * S, backgroundColor: '#121215', overflow: 'hidden', ...style },
-      }, h('div', { style: { display: 'flex', position: 'absolute', left: vertical ? TAPE / 2 - 2 * S : 0, top: vertical ? 0 : TAPE / 2 - 2 * S, width: vertical ? 4 * S : '100%', height: vertical ? '100%' : 4 * S, backgroundImage: teeth(vertical), backgroundSize: vertical ? `${4 * S}px ${PITCH}px` : `${PITCH}px ${4 * S}px` } }));
-    layers.push(
-      tape({ top: c - TAPE / 2, left: c - TAPE / 2, width: w - (c - TAPE / 2) * 2, height: TAPE }, false),
-      tape({ top: hgt - c - TAPE / 2, left: c - TAPE / 2, width: w - (c - TAPE / 2) * 2, height: TAPE }, false),
-      tape({ top: c - TAPE / 2, [outer]: c - TAPE / 2, width: TAPE, height: hgt - (c - TAPE / 2) * 2 }, true),
-    );
-    // The slider at the bottom outer corner, and the pull hanging off it past the page's edge.
-    const slider = { position: 'absolute', bottom: c - 5 * S, [outer]: c - 5 * S, width: 10 * S, height: 12 * S, borderRadius: 2 * S, backgroundColor: '#6a6a74', borderWidth: S, borderStyle: 'solid', borderColor: '#2a2a30' };
-    layers.push(
-      h('div', { style: slider }),
+    // THE COIL, TOOTH BY TOOTH, as PageDressing draws it: a dark tape, and teeth 3px apart in two
+    // rows that meet at the tape's centreline, staggered by 2px, with a wavy track drifting the
+    // whole coil on a slow sine. Each tooth is 2x4 with a lit top edge (turned for the vertical run).
+    const wavy = look.zip.wavy;
+    const drift = (i) => (wavy ? Math.round(Math.sin(i / 5) * 2) : 0);
+    const runW = w - (c - TAPE / 2) * 2;
+    const runH = hgt - (c - TAPE / 2) * 2;
+    const tooth = (i, vertical) =>
       h('div', {
         style: {
-          position: 'absolute',
-          bottom: c - 5 * S - 18 * S,
-          [outer]: c - 5 * S - 9 * S,
-          width: 9 * S,
-          height: 22 * S,
-          borderRadius: 4 * S,
-          backgroundColor: look.zip.pull,
-          borderWidth: S,
-          borderStyle: 'solid',
-          borderColor: 'rgba(0,0,0,0.35)',
-          transform: `rotate(${outer === 'right' ? -34 : 34}deg)`,
+          display: 'flex',
+          flexShrink: 0,
+          width: (vertical ? 4 : 2) * S,
+          height: (vertical ? 2 : 4) * S,
+          borderRadius: S,
+          backgroundColor: '#55555e',
+          ...(vertical ? { borderLeftWidth: S, borderLeftColor: '#8e8e98', borderLeftStyle: 'solid' } : { borderTopWidth: S, borderTopColor: '#8e8e98', borderTopStyle: 'solid' }),
+          ...(vertical
+            ? { marginBottom: PITCH - 2 * S, marginLeft: ((i % 2 === 0 ? -2 : 2) + drift(i)) * S }
+            : { marginRight: PITCH - 2 * S, marginTop: ((i % 2 === 0 ? -2 : 2) + drift(i)) * S }),
         },
-      }),
+      });
+    const tape = (style, vertical, count) =>
+      h(
+        'div',
+        {
+          style: {
+            display: 'flex',
+            position: 'absolute',
+            borderRadius: 3 * S,
+            backgroundColor: '#121215',
+            overflow: 'hidden',
+            flexDirection: vertical ? 'column' : 'row',
+            ...(vertical ? { paddingTop: 4 * S, alignItems: 'center' } : { paddingLeft: 4 * S }),
+            ...style,
+          },
+        },
+        Array.from({ length: count }, (_, i) => tooth(i, vertical)),
+      );
+    layers.push(
+      tape({ top: c - TAPE / 2, left: c - TAPE / 2, width: runW, height: TAPE }, false, Math.floor(runW / PITCH)),
+      tape({ top: hgt - c - TAPE / 2, left: c - TAPE / 2, width: runW, height: TAPE }, false, Math.floor(runW / PITCH)),
+      tape({ top: c - TAPE / 2, [outer]: c - TAPE / 2, width: TAPE, height: runH }, true, Math.floor(runH / PITCH)),
+    );
+    // The slider at the bottom outer corner, and the pull hanging from it past the page's edge:
+    // the pull is a child of the slider, at the editor's offsets (top 8, out 9, 34 degrees).
+    layers.push(
+      h(
+        'div',
+        {
+          style: {
+            display: 'flex',
+            position: 'absolute',
+            bottom: c - 5 * S,
+            [outer]: c - 5 * S,
+            width: 10 * S,
+            height: 12 * S,
+            borderRadius: 2 * S,
+            backgroundColor: '#6a6a74',
+            borderWidth: S,
+            borderStyle: 'solid',
+            borderColor: '#2a2a30',
+          },
+        },
+        h(
+          'div',
+          {
+            style: {
+              display: 'flex',
+              position: 'absolute',
+              top: 8 * S,
+              [outer]: -9 * S,
+              width: 9 * S,
+              height: 22 * S,
+              borderRadius: 4 * S,
+              backgroundColor: look.zip.pull,
+              borderWidth: S,
+              borderStyle: 'solid',
+              borderColor: 'rgba(0,0,0,0.35)',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              paddingBottom: 3 * S,
+              transform: `rotate(${outer === 'right' ? -34 : 34}deg)`,
+            },
+          },
+          // The pull's hole.
+          h('div', { style: { display: 'flex', width: 4 * S, height: 4 * S, borderRadius: 2 * S, backgroundColor: 'rgba(0,0,0,0.35)' } }),
+        ),
+      ),
     );
   }
   return h(
@@ -641,8 +728,10 @@ function pageMat(grid, look, gridW, gridH) {
 
 /** The binder's spine between two facing pages, v2: the page's cloth, cross-stitched or ribbed. */
 function spineV2(height, look) {
-  const inset = 18 * S;
-  const width = 26 * S;
+  // The editor's book: a 16px gap between the leaves (BinderPages bookGap), the band ending one
+  // page margin in from each end (PAGE_PAD), X's every 12px or ribs every 6px.
+  const inset = PAGE_PAD;
+  const width = 16 * S;
   const unit = (look.spine === 'cross' ? 12 : 6) * S;
   const bandH = height - inset * 2;
   const n = Math.max(0, Math.floor((bandH - 8 * S) / unit));
@@ -1229,7 +1318,7 @@ function compose(pages, manifest, art, backdrop, looks) {
     if (looks) {
       // v2: two mats, each its own page, and the binder's spine (or v1's rings) between them.
       const gw = cols * cw + (cols - 1) * GAP;
-      const ridge = looks[0].spine ? spineV2(spineH + 36 * S, looks[0]) : spine(spineH);
+      const ridge = looks[0].spine ? spineV2(spineH + PAGE_PAD * 2, looks[0]) : spine(spineH);
       return frame(
         h(
           'div',

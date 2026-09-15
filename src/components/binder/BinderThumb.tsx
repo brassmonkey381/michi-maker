@@ -73,14 +73,14 @@ export function BinderThumb({ binder, width, onPress, accessory }: BinderThumbPr
         <View style={[styles.box, styles.ground, { height: boxH }]}>
           <Ground uri={backdrop} width={width} height={boxH} />
           <View style={styles.pageShadow}>
-            <BinderGrid page={firstPage} width={width} />
+            <BinderGrid page={firstPage} width={width} pageStyle={binder.pageStyle} outerEdge="right" />
           </View>
         </View>
       ) : firstPage ? (
         // The soft page shadow makes the binder page read as a physical object on the shelf —
         // shared by every carousel (home, Featured, examples, profiles) for one consistent look.
         <View style={styles.pageShadow}>
-          <BinderGrid page={firstPage} width={width} minHeight={boxH} />
+          <BinderGrid page={firstPage} width={width} pageStyle={binder.pageStyle} outerEdge="right" minHeight={boxH} />
         </View>
       ) : (
         <View style={[styles.placeholder, { width, height: boxH }]} />

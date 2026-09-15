@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { luminance, normalizePageStyle, normalizeWear, resolveWear, stitchInk, WEAR_NONE, withPageStyle } from './pageStyle.ts';
+import { isImageRef, luminance, normalizePageStyle, normalizeWear, resolveWear, stitchInk, WEAR_NONE, withPageStyle } from './pageStyle.ts';
 
 test('a pocket wears the first layer that speaks, and "none" speaks as nothing', () => {
   assert.equal(resolveWear(undefined, undefined, '#ffaa00'), '#ffaa00');
@@ -11,10 +11,17 @@ test('a pocket wears the first layer that speaks, and "none" speaks as nothing',
   assert.equal(resolveWear(null, '', undefined), undefined);
 });
 
-test('a page or pocket column is a colour, "none", or nothing at all', () => {
+test('a page or pocket column is a colour, a picture, "none", or nothing at all', () => {
   assert.equal(normalizeWear('#FFAA00'), '#ffaa00');
   assert.equal(normalizeWear(WEAR_NONE), WEAR_NONE);
-  for (const bad of [null, undefined, 3, 'red', '#12', 'NONE']) assert.equal(normalizeWear(bad), undefined);
+  assert.equal(normalizeWear('https://example.com/sleeve.png'), 'https://example.com/sleeve.png');
+  for (const bad of [null, undefined, 3, 'red', '#12', 'NONE', 'ftp://x/y.png', 'https://a b']) assert.equal(normalizeWear(bad), undefined);
+});
+
+test('a picture is told from a colour by shape, in the binder style too', () => {
+  assert.ok(isImageRef('http://example.com/a.jpg') && isImageRef('https://example.com/a.jpg'));
+  assert.ok(!isImageRef('#ffaa00') && !isImageRef('none') && !isImageRef(''));
+  assert.deepEqual(normalizePageStyle({ sleeve: 'https://example.com/s.png', artBacking: 'bad' }), { sleeve: 'https://example.com/s.png' });
 });
 
 test('anything storage hands back that is not a style reads as the plain page', () => {

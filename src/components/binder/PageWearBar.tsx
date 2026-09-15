@@ -12,27 +12,50 @@
  * height. The card is a transparent Modal placed at window coordinates, so it is never clipped
  * by the column or the scroller and closes on a tap anywhere else.
  */
+import { Image } from 'expo-image';
 import { useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions, type View as ViewType } from 'react-native';
 
-import { WearRow } from '@/components/binder/inspector/controls';
+import { ColorBox, ImageLinkField, PillButton, Row, WearRow } from '@/components/binder/inspector/controls';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { FontSize, Palette, Radius, Shadows, Weight } from '@/constants/theme';
+import { BinderSurface, FontSize, Palette, Radius, Shadows, Weight } from '@/constants/theme';
 import type { DemoBinder, DemoPage } from '@/data/binderTypes';
-import { resolveWear } from '@/data/pageStyle';
+import { isImageRef, resolveWear } from '@/data/pageStyle';
 import { useBinders } from '@/store/binders';
 
-type Kind = 'sleeve' | 'artBacking';
+type Kind = 'background' | 'sleeve' | 'artBacking';
 
 const CARD_W = 360;
 
-export function PageWearBar({ binder, page }: { binder: DemoBinder; page: DemoPage }) {
+export interface PageSelect {
+  /** Select mode is on: taps on pockets add to the selection instead of opening them. */
+  on: boolean;
+  /** How many pockets are selected. */
+  count: number;
+  onToggle: () => void;
+  /** Open the actions for the selection. */
+  onActions: () => void;
+}
+
+export function PageWearBar({
+  binder,
+  page,
+  select,
+}: {
+  binder: DemoBinder;
+  page: DemoPage;
+  /** The multi-select chip, when this page can be selected on. */
+  select?: PageSelect;
+}) {
   const store = useBinders();
   const { width: winW, height: winH } = useWindowDimensions();
   const [open, setOpen] = useState<{ kind: Kind; x: number; y: number } | null>(null);
-  const refs = { sleeve: useRef<ViewType>(null), artBacking: useRef<ViewType>(null) };
+  const refs = { background: useRef<ViewType>(null), sleeve: useRef<ViewType>(null), artBacking: useRef<ViewType>(null) };
 
+  const background = page.backgroundColor ?? BinderSurface.mat;
+  const bgPictured = isImageRef(background);
+  const [bgLink, setBgLink] = useState(false);
   const sleeve = resolveWear(page.sleeve, binder.pageStyle?.sleeve);
   const backing = resolveWear(page.artBacking, binder.pageStyle?.artBacking);
 
@@ -51,7 +74,8 @@ export function PageWearBar({ binder, page }: { binder: DemoBinder; page: DemoPa
       accessibilityLabel={`${label} on this page: ${colour ?? 'none'}. Change`}
       testID={`page-bar-${kind}`}
       style={({ pressed }) => [styles.chip, pressed && styles.pressed]}>
-      <View style={[styles.swatch, colour ? { backgroundColor: colour } : styles.swatchNone]}>
+      <View style={[styles.swatch, colour && !isImageRef(colour) ? { backgroundColor: colour } : styles.swatchNone]}>
+        {isImageRef(colour) ? <Image source={{ uri: colour }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} /> : null}
         {colour ? null : <View style={styles.swatchSlash} />}
       </View>
       <Text style={styles.chipText}>{label}</Text>
@@ -66,17 +90,66 @@ export function PageWearBar({ binder, page }: { binder: DemoBinder; page: DemoPa
   return (
     <>
       <View style={styles.bar} pointerEvents="box-none" testID="page-bar">
+        {chip('background', 'Background', background)}
         {chip('sleeve', 'Sleeves', sleeve)}
         {chip('artBacking', 'Art backing', backing)}
+        {select ? (
+          <Pressable
+            // ONE CHIP, TWO JOBS (owner, 2026-09-15): off, it starts selecting; on with pockets
+            // chosen, it opens their actions; on with none chosen, it stops. The count sits in
+            // the chip, so nothing else on screen has to announce the mode.
+            onPress={select.on && select.count > 0 ? select.onActions : select.onToggle}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityState={{ selected: select.on }}
+            accessibilityLabel={
+              select.on
+                ? select.count > 0
+                  ? `Actions for ${select.count} selected pockets`
+                  : 'Stop selecting pockets'
+                : 'Select several pockets'
+            }
+            testID="binder-select-toggle"
+            style={({ pressed }) => [styles.chip, select.on && styles.chipOn, pressed && styles.pressed]}>
+            <Text style={[styles.chipGlyph, select.on && styles.chipTextOn]}>{'⊕'}</Text>
+            <Text style={[styles.chipText, select.on && styles.chipTextOn]}>Select</Text>
+            {select.on && select.count > 0 ? (
+              <View style={styles.count} testID="binder-select-count">
+                <Text style={styles.countText}>{select.count}</Text>
+              </View>
+            ) : null}
+          </Pressable>
+        ) : null}
       </View>
       {open ? (
         <Modal visible transparent animationType="none" onRequestClose={() => setOpen(null)}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setOpen(null)} accessibilityLabel="Close" />
           <ThemedView type="backgroundElement" style={[styles.card, { top: cardTop, left: cardLeft, width: CARD_W }]}>
             <ThemedText type="smallBold" style={styles.cardTitle}>
-              {open.kind === 'sleeve' ? 'Sleeves on this page' : 'Art backing on this page'}
+              {open.kind === 'background' ? 'Background of this page' : open.kind === 'sleeve' ? 'Sleeves on this page' : 'Art backing on this page'}
             </ThemedText>
-            {open.kind === 'sleeve' ? (
+            {open.kind === 'background' ? (
+              // THIS PAGE'S OWN COLOUR (owner, 2026-09-15). The binder's Background in Settings
+              // paints every page at once; this paints one, and "All pages" spreads it.
+              <>
+                <Row label="Colour">
+                  <ColorBox
+                    fieldKey={`${page.id}-bar-bg-${bgPictured ? 'picture' : 'colour'}`}
+                    value={bgPictured ? undefined : background}
+                    onChange={(backgroundColor) => store.updatePage(binder.id, page.id, { backgroundColor })}
+                  />
+                  <PillButton label="Picture" active={bgPictured} onPress={() => setBgLink((v) => !v)} testID="page-bg-picture" />
+                  <PillButton label="All pages" onPress={() => store.setBinderBackground(binder.id, background)} testID="page-bg-all" />
+                </Row>
+                {bgLink || bgPictured ? (
+                  <ImageLinkField
+                    value={bgPictured ? background : undefined}
+                    onChange={(backgroundColor) => store.updatePage(binder.id, page.id, { backgroundColor })}
+                    testID="page-bg-link"
+                  />
+                ) : null}
+              </>
+            ) : open.kind === 'sleeve' ? (
               <WearRow
                 label="Colour"
                 fieldKey={`${page.id}-bar-sleeve`}
@@ -130,6 +203,12 @@ const styles = StyleSheet.create({
     ...Shadows.page,
   },
   chipText: { fontSize: FontSize.sm, fontWeight: Weight.semibold, color: Palette.ink2 },
+  chipGlyph: { fontSize: FontSize.md, lineHeight: 16, color: Palette.ink2 },
+  chipOn: { backgroundColor: Palette.accent, borderColor: Palette.accent },
+  chipTextOn: { color: Palette.accentText },
+  /** The count, inside the chip: a small number, not a second control. */
+  count: { minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, backgroundColor: Palette.surface, alignItems: 'center', justifyContent: 'center' },
+  countText: { fontSize: FontSize.xs, fontWeight: Weight.bold, color: Palette.accent, fontVariant: ['tabular-nums'] },
   swatch: { width: 16, height: 16, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(0,0,0,0.25)', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   swatchNone: { backgroundColor: Palette.panel },
   /** A diagonal through an empty swatch: "none", the way a colour picker draws it. */

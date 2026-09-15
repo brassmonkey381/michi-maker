@@ -15,7 +15,7 @@ import { requireSupabase } from '@/lib/supabase';
 import type { Database, Json } from '@/types/database';
 import type { BinderCover, BinderTrack, DemoBinder, DemoPage, DemoSlot, MichiLayoutStyle } from '@/data/binderTypes';
 import { normalizeCover } from '@/data/coverDecorations';
-import { normalizePageStyle, normalizeWear } from '@/data/pageStyle';
+import { normalizePageStyle, normalizeSurface, normalizeWear } from '@/data/pageStyle';
 
 type Tables = Database['public']['Tables'];
 type BinderUpdate = Tables['binders']['Update'];
@@ -216,7 +216,7 @@ function mapPage(row: PageRowIn): DemoPage {
     description: row.notes ?? undefined,
     rows: row.rows,
     cols: row.cols,
-    backgroundColor: row.background_color ?? undefined,
+    backgroundColor: normalizeSurface(row.background_color),
     sleeve: normalizeWear(row.sleeve),
     artBacking: normalizeWear(row.art_backing),
     isPublic: row.is_public,

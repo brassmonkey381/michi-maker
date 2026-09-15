@@ -1522,6 +1522,7 @@ export function BinderPages({
       {railLeft && (count > 1 || coverStripExtras) ? (
         <View style={[styles.navRail, { backgroundColor: theme.background, height: railHeight }]}>
           <PageStrip
+            pageStyle={binder.pageStyle}
             axis="vertical"
             pages={binder.pages}
             currentIndex={shut || coverFocus ? -1 : idx}
@@ -2010,6 +2011,7 @@ export function BinderPages({
             Platform.OS === 'web' ? (WEB_STICKY as object) : null,
           ]}>
         <PageStrip
+            pageStyle={binder.pageStyle}
           pages={binder.pages}
           // A shut binder, or one focused on a cover, has no page to highlight.
           currentIndex={shut || coverFocus ? -1 : idx}

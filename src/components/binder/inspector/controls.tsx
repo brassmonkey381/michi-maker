@@ -7,12 +7,13 @@
  * layout of their own: a section is a column of rows, and whatever holds the section decides the
  * width, the scrolling and the chrome.
  */
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ColorField } from '@/components/binder/ColorField';
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Weight } from '@/constants/theme';
-import { WEAR_NONE, resolveWear } from '@/data/pageStyle';
+import { WEAR_NONE, isImageRef, resolveWear } from '@/data/pageStyle';
 import { useTheme } from '@/hooks/use-theme';
 
 /** A labelled row: the name on the left, its controls wrapping after it. */
@@ -120,6 +121,35 @@ export function ColorBox({ fieldKey, value, onChange }: { fieldKey: string; valu
  * in effect so the picker opens on it; `inherit` is the pill that hands the choice back up (absent
  * at the binder, which has nothing above it, so there "None" and clearing are the same thing).
  */
+/**
+ * A PICTURE BY LINK (owner, 2026-09-15). A field for an image address; it hands over the address
+ * once it is one (http or https), on Enter or when the field is left, and never anything else, so
+ * a half-typed link changes nothing. Shows the current picture's address when there is one.
+ */
+export function ImageLinkField({ value, onChange, testID }: { value?: string; onChange: (url: string) => void; testID?: string }) {
+  const theme = useTheme();
+  const [text, setText] = useState(isImageRef(value) ? value : '');
+  const commit = () => {
+    const next = text.trim();
+    if (isImageRef(next) && next !== value) onChange(next);
+  };
+  return (
+    <TextInput
+      value={text}
+      onChangeText={setText}
+      onSubmitEditing={commit}
+      onBlur={commit}
+      placeholder="https://… image link"
+      placeholderTextColor={theme.textSecondary}
+      autoCapitalize="none"
+      autoCorrect={false}
+      keyboardType="url"
+      testID={testID}
+      style={[styles.fieldInput, styles.linkInput, { color: theme.text, borderColor: theme.backgroundSelected, backgroundColor: theme.backgroundElement }]}
+    />
+  );
+}
+
 export function WearRow({
   label,
   fieldKey,
@@ -131,24 +161,32 @@ export function WearRow({
 }: {
   label: string;
   fieldKey: string;
-  /** This layer's own value: a colour, WEAR_NONE, or nothing. */
+  /** This layer's own value: a colour, a picture, WEAR_NONE, or nothing. */
   own: string | null | undefined;
   /** What the layers above resolve to, already reduced. */
   above?: string;
   /** Label of the hand-it-back pill, e.g. "Use binder's". Omit at the top layer. */
   inherit?: string;
-  /** A colour, WEAR_NONE, or null to inherit. */
+  /** A colour, a picture, WEAR_NONE, or null to inherit. */
   onChange: (value: string | null) => void;
   testID?: string;
 }) {
   const isNone = own === WEAR_NONE;
   const inEffect = resolveWear(own, above);
+  const pictured = isImageRef(inEffect);
+  // The link field shows when the value in effect IS a picture, or when asked for.
+  const [linkOpen, setLinkOpen] = useState(false);
+  const showLink = pictured || linkOpen;
   return (
-    <Row label={label}>
-      <ColorBox fieldKey={`${fieldKey}-${isNone ? 'none' : 'colour'}`} value={inEffect ?? '#ffffff'} onChange={onChange} />
-      <PillButton label="None" active={isNone} onPress={() => onChange(inherit ? WEAR_NONE : null)} testID={testID ? `${testID}-none` : undefined} />
-      {inherit && own ? <PillButton label={inherit} onPress={() => onChange(null)} testID={testID ? `${testID}-inherit` : undefined} /> : null}
-    </Row>
+    <View style={styles.wearRows}>
+      <Row label={label}>
+        <ColorBox fieldKey={`${fieldKey}-${isNone ? 'none' : pictured ? 'picture' : 'colour'}`} value={pictured ? undefined : (inEffect ?? '#ffffff')} onChange={onChange} />
+        <PillButton label="Picture" active={pictured} onPress={() => setLinkOpen((v) => !v)} testID={testID ? `${testID}-picture` : undefined} />
+        <PillButton label="None" active={isNone} onPress={() => onChange(inherit ? WEAR_NONE : null)} testID={testID ? `${testID}-none` : undefined} />
+        {inherit && own ? <PillButton label={inherit} onPress={() => onChange(null)} testID={testID ? `${testID}-inherit` : undefined} /> : null}
+      </Row>
+      {showLink ? <ImageLinkField value={pictured ? inEffect : undefined} onChange={onChange} testID={testID ? `${testID}-link` : undefined} /> : null}
+    </View>
   );
 }
 
@@ -223,4 +261,7 @@ export const styles = StyleSheet.create({
   fieldMiniLabel: { fontSize: FontSize.xs, fontWeight: Weight.semibold, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 },
   fieldInput: { borderWidth: 1, borderRadius: Radius.control, paddingHorizontal: 10, paddingVertical: 6, fontSize: FontSize.control },
   fieldInputMulti: { minHeight: 36, textAlignVertical: 'top' },
+  /** A wear row and, under it, its picture link when one is wanted. */
+  wearRows: { gap: 6, alignSelf: 'stretch' },
+  linkInput: { alignSelf: 'stretch', fontSize: FontSize.label },
 });

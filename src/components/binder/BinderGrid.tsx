@@ -18,7 +18,7 @@ import Animated, {
 
 import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { BinderSurface, FontSize, Palette, Radii, Radius, Shadows, SlotBackingFallback, Weight } from '@/constants/theme';
-import { DEFAULT_ZIP_PULL, luminance, resolveWear, threadInk, type PageStyle } from '@/data/pageStyle';
+import { DEFAULT_ZIP_PULL, isImageRef, luminance, resolveWear, threadInk, type PageStyle } from '@/data/pageStyle';
 import { UNSET_CHIP, chipFor } from '@/constants/printVariant';
 import { attributionLabel, deriveAttribution, type ArtAttribution } from '@/data/artworkLibrary';
 import { resolveCardWith, resolveCatalogCardWith } from '@/data/cardResolver';
@@ -371,13 +371,18 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   // binder has, white by default, and the thread, the band and the pocket windows take their tone
   // from that colour's lightness instead of assuming dark cloth.
   const material = pageStyle?.material;
-  const matColor = page.backgroundColor ?? BinderSurface.mat;
+  // A PICTURE FOR A BACKGROUND (owner, 2026-09-15): the page's colour column may hold a hotlinked
+  // image instead. It is drawn under everything; the mat colour stays the plain page's, so the
+  // thread, the band and the rings take a light-page tone, which is the safe guess for a photo.
+  const matImage = isImageRef(page.backgroundColor) ? page.backgroundColor : undefined;
+  const matColor = matImage ? BinderSurface.mat : (page.backgroundColor ?? BinderSurface.mat);
   const darkMat = luminance(matColor) < 0.35;
   // The stitching is the page's; the zip is the binder's (a detail). Either dresses the page.
-  // Thumbnails are too small for thread and teeth; they keep the mat colour only.
-  const stitched = (material === 'stitch' || material === 'double') && !small;
+  // THUMBNAILS DRESS TOO (owner, 2026-09-15): a binder's preview on the shelf shows its stitches
+  // and its zip, scaled down in PageDressing, so a list of binders shows what each one is.
+  const stitched = material === 'stitch' || material === 'double';
   const zip = pageStyle?.details?.zip;
-  const dressed = (stitched || !!zip) && !small;
+  const dressed = stitched || !!zip;
   const ink = threadInk(matColor, pageStyle?.thread);
   /**
    * A MATERIAL NEVER MOVES A POCKET (owner, 2026-09-13): the spacing is the classic page's in every
@@ -541,10 +546,21 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
         { width, padding: pad, borderRadius: radius, backgroundColor: matColor },
         minHeight != null && { minHeight, justifyContent: 'center' },
       ]}>
+      {/* The page's picture, when its background is one: under the material and the pockets. */}
+      {matImage ? (
+        <Image
+          source={{ uri: matImage }}
+          style={[StyleSheet.absoluteFill, { borderRadius: radius }]}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={instantImages ? 0 : 150}
+          pointerEvents="none"
+        />
+      ) : null}
       {/* THE PAGE'S MATERIAL, drawn under the pockets and over the mat: fabric, a hem or a cover
           band with the zip's coil in it. See PageDressing. */}
       {dressed ? (
-        <PageDressing stitch={stitched ? (material as 'stitch' | 'double') : null} zip={small ? undefined : zip} mat={matColor} ink={ink} radius={radius} band={pad} outerEdge={outerEdge} />
+        <PageDressing stitch={stitched ? (material as 'stitch' | 'double') : null} zip={zip} mat={matColor} ink={ink} radius={radius} band={pad} outerEdge={outerEdge} />
       ) : null}
       <View style={{ width: innerW, height: innerH }}>
         {/* Pocket recesses for every cell — visible, deliberate negative space. */}
@@ -1246,6 +1262,20 @@ function DraggableSlot({
  * is given (a sliced artwork), the image is sized to the whole grid and offset so this slot
  * shows just its sub-rectangle — so one image reads as a sliced scene across the pockets.
  */
+/** A hotlinked picture filling a ring: a sleeve's, or an art backing's. Under the card, clipped to the ring. */
+function WearImage({ uri, radius, instant }: { uri: string; radius: number; instant?: boolean }) {
+  return (
+    <Image
+      source={{ uri }}
+      style={[StyleSheet.absoluteFill, { borderRadius: radius }]}
+      contentFit="cover"
+      cachePolicy="memory-disk"
+      transition={instant ? 0 : 150}
+      pointerEvents="none"
+    />
+  );
+}
+
 function ArtworkImage({
   uri,
   radius,
@@ -1499,6 +1529,13 @@ function SlotContent({
     );
   }
 
+  // WHAT THE POCKET WEARS, split by kind (owner, 2026-09-15): a colour paints the ring, a picture
+  // fills it (WearImage) and the ring's colour falls back to the page's.
+  const sleeveImage = isImageRef(sleeve) ? sleeve : undefined;
+  const sleeveColor = sleeveImage ? undefined : sleeve;
+  const backingImage = isImageRef(artBacking) ? artBacking : undefined;
+  const backingColor = backingImage ? undefined : artBacking;
+
   // A custom artwork panel — a pasted / uploaded image, sized to fill the slot (or a slice
   // of a larger image when imageCrop is set).
   if (slot.type === 'artwork' && slot.imageUrl) {
@@ -1517,7 +1554,8 @@ function SlotContent({
     // colour when the binder has one (the mount an art print sits on), else the page's own colour,
     // which reads as no ring at all.
     return (
-      <View style={[styles.fill, styles.artBacking, { borderRadius: radius, backgroundColor: artBacking ?? ring ?? 'transparent', padding: ringPad }]}>
+      <View style={[styles.fill, styles.artBacking, { borderRadius: radius, backgroundColor: backingColor ?? ring ?? 'transparent', padding: ringPad }]}>
+        {backingImage ? <WearImage uri={backingImage} radius={radius} instant={instantImages} /> : null}
         <View style={[styles.fill, { borderRadius: Math.max(0, radius - ringPad), overflow: 'hidden' }]}>{art}</View>
       </View>
     );
@@ -1557,7 +1595,8 @@ function SlotContent({
     const spanning = slot.rowSpan > 1 || slot.colSpan > 1;
     // Ringed like every other slot, in the backing colour or the page's, so it lines up with them.
     return (
-      <View style={[styles.fill, { borderRadius: radius, backgroundColor: artBacking ?? ring ?? SlotBackingFallback, padding: ringPad }]}>
+      <View style={[styles.fill, { borderRadius: radius, backgroundColor: backingColor ?? ring ?? SlotBackingFallback, padding: ringPad }]}>
+        {backingImage ? <WearImage uri={backingImage} radius={radius} instant={instantImages} /> : null}
         <CardImage key={id} id={id} radius={Math.max(0, radius - ringPad)} small={small} contentFit={spanning ? 'cover' : 'contain'} instant={instantImages} />
         <KindBadge kind={kind} small={small} />
         <OwnedBadge owned={owned} small={small} scale={chipScale} />
@@ -1582,12 +1621,16 @@ function SlotContent({
         // ONE RING, ALWAYS: 4% of the pocket, on every page and in every material, painted the page's
         // own colour so it reads as transparent, or the sleeve colour when one is set. The hairline
         // stays as the pocket's edge; a sleeve takes it over too.
-        { borderRadius: radius, padding: ringPad, backgroundColor: sleeve ?? ring ?? 'transparent' },
+        { borderRadius: radius, padding: ringPad, backgroundColor: sleeveColor ?? ring ?? 'transparent' },
         dressed && !!ring && luminance(ring) < 0.35 && styles.cardFrameOnFabric,
-        sleeve ? { borderColor: sleeve } : null,
+        sleeveColor ? { borderColor: sleeveColor } : null,
+        sleeveImage ? styles.cardFrameImage : null,
       ]}>
+      {/* A pictured sleeve: the image fills the frame and the card sits on it, so the ring is a
+          window onto the picture. */}
+      {sleeveImage ? <WearImage uri={sleeveImage} radius={radius} instant={instantImages} /> : null}
       {/* The same colour behind the picture, so the corners the rounded clip leaves are the ring's. */}
-      <View style={[styles.fill, { backgroundColor: sleeve ?? ring ?? SlotBackingFallback, borderRadius: Math.max(0, radius - ringPad) }]}>
+      <View style={[styles.fill, { backgroundColor: sleeveImage ? 'transparent' : (sleeveColor ?? ring ?? SlotBackingFallback), borderRadius: Math.max(0, radius - ringPad) }]}>
         <CardImage key={id} id={id} radius={radius} small={small} contentFit="contain" scanUri={scanUri} instant={instantImages} trim />
         {/* Diagonal foil sheen: two translucent rotated bars layered as plain Views. */}
         <View pointerEvents="none" style={styles.foil}>
@@ -2152,11 +2195,15 @@ function PageDressing({
   const wavy = zipDetail?.track === 'wavy';
   const pull = zipDetail?.pull ?? DEFAULT_ZIP_PULL;
   const [size, setSize] = useState({ w: 0, h: 0 });
+  // A THUMBNAIL'S BAND IS HALF THE WIDTH (6px against 14), so the coil is drawn at half scale:
+  // narrower tape, tighter teeth, a smaller pull. Same drawing, same places.
+  const tiny = band < 10;
   // The coil's centreline sits in the middle of the band; the tape is TAPE wide around it.
-  const TAPE = 8;
+  const TAPE = tiny ? 4 : 8;
   // Teeth sit 3px apart along the coil, in two rows that meet at the tape's centreline: the row
   // toward the outside of the binder and the row toward the pockets, staggered by half a pitch.
-  const PITCH = 3;
+  const PITCH = tiny ? 2 : 3;
+  const stagger = tiny ? 1 : 2;
   const c = band / 2;
   const runW = Math.max(0, size.w - c * 2);
   const runH = Math.max(0, size.h - c * 2);
@@ -2171,9 +2218,10 @@ function PageDressing({
       key={i}
       style={[
         vertical ? styles.toothAcross : styles.toothAlong,
+        tiny ? (vertical ? styles.toothAcrossTiny : styles.toothAlongTiny) : null,
         vertical
-          ? { marginBottom: PITCH - 2, marginLeft: (i % 2 === 0 ? -2 : 2) + drift(i) }
-          : { marginRight: PITCH - 2, marginTop: (i % 2 === 0 ? -2 : 2) + drift(i) },
+          ? { marginBottom: Math.max(0, PITCH - (tiny ? 1 : 2)), marginLeft: (i % 2 === 0 ? -stagger : stagger) + drift(i) }
+          : { marginRight: Math.max(0, PITCH - (tiny ? 1 : 2)), marginTop: (i % 2 === 0 ? -stagger : stagger) + drift(i) },
       ]}
     />
   );
@@ -2245,6 +2293,7 @@ function PageDressing({
           styles.pullSlider,
           { bottom: c - 5 },
           outerEdge === 'right' ? { right: c - 5 } : { left: c - 5 },
+          tiny ? { transform: [{ scale: 0.5 }] } : null,
         ]}>
         <View
           style={[
@@ -2346,6 +2395,9 @@ const styles = StyleSheet.create({
   toothAlong: { width: 2, height: 4, borderRadius: 1, backgroundColor: '#55555e', borderTopWidth: 1, borderTopColor: '#8e8e98' },
   /** The same tooth turned for the vertical run down the outer edge. */
   toothAcross: { width: 4, height: 2, borderRadius: 1, backgroundColor: '#55555e', borderLeftWidth: 1, borderLeftColor: '#8e8e98' },
+  /** Half-scale teeth for a thumbnail's band. */
+  toothAlongTiny: { width: 1, height: 2, borderTopWidth: 0 },
+  toothAcrossTiny: { width: 2, height: 1, borderLeftWidth: 0 },
   /** The slider the pull hangs from: a small metal block astride the coil at the corner. */
   pullSlider: {
     position: 'absolute',
@@ -2376,6 +2428,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: BinderSurface.cardFrameBorder,
   },
+  /** A pictured sleeve clips its picture to the frame; the hairline goes so the picture reads to the edge. */
+  cardFrameImage: { overflow: 'hidden', borderColor: 'transparent' },
   insert: {
     borderWidth: 1,
     borderColor: BinderSurface.insertBorder,

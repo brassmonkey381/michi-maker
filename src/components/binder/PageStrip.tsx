@@ -5,7 +5,9 @@ import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-nativ
 
 import { BinderGrid } from '@/components/binder/BinderGrid';
 import { FontSize, Palette, Weight } from '@/constants/theme';
+import { pageSide } from '@/data/binderPhysics';
 import type { DemoPage } from '@/data/binderTypes';
+import type { PageStyle } from '@/data/pageStyle';
 
 const ITEM_W = 66; // width of each page thumbnail (incl. its margin step)
 const THUMB_W = 58;
@@ -47,6 +49,8 @@ export interface StripExtra {
 
 interface PageStripProps {
   pages: DemoPage[];
+  /** The binder's material and hardware, so a thumbnail shows the page as it is (owner, 2026-09-15). */
+  pageStyle?: PageStyle | null;
   currentIndex: number;
   onSelect: (index: number) => void;
   /** Omit to make the strip read-only (tap to jump only) — e.g. when inspecting a binder. */
@@ -60,6 +64,7 @@ interface PageStripProps {
 /** Horizontal filmstrip of page thumbnails: tap to jump, and (when editable) long-press-drag to reorder. */
 export function PageStrip({
   pages,
+  pageStyle,
   currentIndex,
   onSelect,
   onReorder,
@@ -87,6 +92,7 @@ export function PageStrip({
         <PageThumb
           key={page.id}
           page={page}
+          pageStyle={pageStyle}
           index={index}
           count={pages.length}
           current={index === currentIndex}
@@ -116,6 +122,7 @@ function ExtraThumb({ extra }: { extra: StripExtra }) {
 
 interface PageThumbProps {
   page: DemoPage;
+  pageStyle?: PageStyle | null;
   index: number;
   count: number;
   current: boolean;
@@ -124,7 +131,7 @@ interface PageThumbProps {
   vertical?: boolean;
 }
 
-function PageThumb({ page, index, count, current, onSelect, onReorder, vertical = false }: PageThumbProps) {
+function PageThumb({ page, pageStyle, index, count, current, onSelect, onReorder, vertical = false }: PageThumbProps) {
   // One offset, along whichever axis the strip runs. Two shared values would be two ways to be
   // half-reset.
   const drag = useSharedValue(0);
@@ -174,7 +181,7 @@ function PageThumb({ page, index, count, current, onSelect, onReorder, vertical 
         testID={`binder-strip-page-${index + 1}`}
         style={[styles.thumb, vertical && styles.thumbBoxed, animStyle]}>
         <View style={[styles.thumbInner, current && styles.thumbCurrent]} pointerEvents="none">
-          <BinderGrid page={page} width={THUMB_W} />
+          <BinderGrid page={page} width={THUMB_W} pageStyle={pageStyle} outerEdge={pageSide(index) === 'left' ? 'left' : 'right'} />
         </View>
         <Text style={[styles.num, current && styles.numCurrent]}>{index + 1}</Text>
       </Animated.View>

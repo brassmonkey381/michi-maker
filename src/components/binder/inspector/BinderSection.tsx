@@ -10,13 +10,14 @@
  * one object, and letting each page carry its own colour let one drift into a patchwork nobody
  * chose, invisible until you flipped onto the odd page out.
  */
+import { useState } from 'react';
 import { View } from 'react-native';
 
 import { SoundtrackField } from '@/components/binder/SoundtrackField';
-import { ColorBox, LabeledInput, PillButton, Row, Seg, ToggleChip, WearRow, styles } from '@/components/binder/inspector/controls';
+import { ColorBox, ImageLinkField, LabeledInput, PillButton, Row, Seg, ToggleChip, WearRow, styles } from '@/components/binder/inspector/controls';
 import { REAL_PAGE_SIZES } from '@/data/binderPhysics';
 import type { BinderTrack, DemoBinder, DemoPage } from '@/data/binderTypes';
-import { DEFAULT_THREAD_OPACITY, DEFAULT_ZIP_PULL, PAGE_MATERIALS, SPINE_STYLES, THREAD_OPACITIES, WEAR_NONE, ZIP_TRACKS, luminance } from '@/data/pageStyle';
+import { DEFAULT_THREAD_OPACITY, DEFAULT_ZIP_PULL, PAGE_MATERIALS, SPINE_STYLES, THREAD_OPACITIES, WEAR_NONE, ZIP_TRACKS, isImageRef, luminance } from '@/data/pageStyle';
 import { isBlankPage, useBinders } from '@/store/binders';
 
 const PAGE_SIZE_OPTIONS = REAL_PAGE_SIZES.map((s) => ({ id: s.label, label: s.label, rows: s.rows, cols: s.cols }));
@@ -74,6 +75,7 @@ export function BinderLook({
 }) {
   const store = useBinders();
   const ps = binder.pageStyle;
+  const [bgLink, setBgLink] = useState(false);
   const sizeId = PAGE_SIZE_OPTIONS.find((s) => s.rows === page.rows && s.cols === page.cols)?.id ?? PAGE_SIZE_OPTIONS[0].id;
   return (
     <View style={styles.section}>
@@ -91,8 +93,20 @@ export function BinderLook({
         />
       </Row>
       <Row label="Background">
-        <ColorBox fieldKey={binder.id} value={page.backgroundColor} onChange={(backgroundColor) => store.setBinderBackground(binder.id, backgroundColor)} />
+        <ColorBox
+          fieldKey={`${binder.id}-${isImageRef(page.backgroundColor) ? 'picture' : 'colour'}`}
+          value={isImageRef(page.backgroundColor) ? undefined : page.backgroundColor}
+          onChange={(backgroundColor) => store.setBinderBackground(binder.id, backgroundColor)}
+        />
+        <PillButton label="Picture" active={isImageRef(page.backgroundColor)} onPress={() => setBgLink((v) => !v)} testID="binder-bg-picture" />
       </Row>
+      {bgLink || isImageRef(page.backgroundColor) ? (
+        <ImageLinkField
+          value={isImageRef(page.backgroundColor) ? page.backgroundColor : undefined}
+          onChange={(url) => store.setBinderBackground(binder.id, url)}
+          testID="binder-bg-link"
+        />
+      ) : null}
       {/* WHAT THE PAGES ARE MADE OF (owner, 2026-09-13): the material, and what the pockets wear.
           See src/data/pageStyle.ts. */}
       <Row label="Page style">

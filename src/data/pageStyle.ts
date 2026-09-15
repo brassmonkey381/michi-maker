@@ -87,11 +87,28 @@ export function resolveWear(...layers: (string | null | undefined)[]): string | 
   return undefined;
 }
 
-/** A page/pocket column as the app should read it: a lower-cased colour, WEAR_NONE, or nothing. */
-export function normalizeWear(value: unknown): string | undefined {
+/**
+ * A PICTURE INSTEAD OF A COLOUR (owner, 2026-09-15): a sleeve, an art backing or a page background
+ * can be a hotlinked image, as the competition allows. Stored in the same text columns as a colour,
+ * told apart by shape: an http(s) URL is a picture, #rrggbb is a colour. Nothing is fetched or
+ * checked here; the renderer shows what loads and the colour behind it otherwise.
+ */
+const IMAGE_REF = /^https?:\/\/\S{1,2000}$/i;
+export function isImageRef(value: unknown): value is string {
+  return typeof value === 'string' && IMAGE_REF.test(value);
+}
+
+/** A colour or a picture, as the app should read it; anything else is nothing. */
+export function normalizeSurface(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
+  if (HEX.test(value)) return value.toLowerCase();
+  return isImageRef(value) ? value : undefined;
+}
+
+/** A page/pocket column as the app should read it: a colour, a picture, WEAR_NONE, or nothing. */
+export function normalizeWear(value: unknown): string | undefined {
   if (value === WEAR_NONE) return WEAR_NONE;
-  return HEX.test(value) ? value.toLowerCase() : undefined;
+  return normalizeSurface(value);
 }
 
 /** The opacities the thread can be set to. */
@@ -124,8 +141,10 @@ export function normalizePageStyle(value: unknown): PageStyle | undefined {
     legacyZip = true;
   }
   if (material && MATERIALS.has(material) && material !== 'classic') out.material = material as PageMaterial;
-  if (typeof raw.sleeve === 'string' && HEX.test(raw.sleeve)) out.sleeve = raw.sleeve.toLowerCase();
-  if (typeof raw.artBacking === 'string' && HEX.test(raw.artBacking)) out.artBacking = raw.artBacking.toLowerCase();
+  const sleeve = normalizeSurface(raw.sleeve);
+  if (sleeve) out.sleeve = sleeve;
+  const artBacking = normalizeSurface(raw.artBacking);
+  if (artBacking) out.artBacking = artBacking;
   const details = normalizeDetails(raw.details, legacyZip);
   if (details) out.details = details;
   const thread = normalizeThread(raw.thread);

@@ -18,7 +18,7 @@ import Animated, {
 
 import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { BinderSurface, FontSize, Palette, Radii, Radius, Shadows, SlotBackingFallback, Weight } from '@/constants/theme';
-import { DEFAULT_ZIP_PULL, STITCH, STITCH_TINY, isImageRef, luminance, openEdgeFor, resolveWear, stitchStops, threadInk, weaveStops, type PageStyle } from '@/data/pageStyle';
+import { DEFAULT_ZIP_PULL, STITCH, STITCH_TINY, isImageRef, luminance, resolveWear, seamLines, stitchStops, threadInk, weaveStops, type PageStyle } from '@/data/pageStyle';
 import { UNSET_CHIP, chipFor } from '@/constants/printVariant';
 import { attributionLabel, deriveAttribution, type ArtAttribution } from '@/data/artworkLibrary';
 import { resolveCardWith, resolveCatalogCardWith } from '@/data/cardResolver';
@@ -560,7 +560,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
       {/* THE PAGE'S MATERIAL, drawn under the pockets and over the mat: fabric, a hem or a cover
           band with the zip's coil in it. See PageDressing. */}
       {dressed ? (
-        <PageDressing stitch={stitched ? (material as 'stitch' | 'double') : null} zip={zip} mat={matColor} ink={ink} radius={radius} band={pad} outerEdge={outerEdge} />
+        <PageDressing stitch={stitched ? (material as 'stitch' | 'double') : null} zip={zip} mat={matColor} ink={ink} radius={radius} band={pad} outerEdge={outerEdge} rows={page.rows} cols={page.cols} />
       ) : null}
       <View style={{ width: innerW, height: innerH }}>
         {/* Pocket recesses for every cell — visible, deliberate negative space. */}
@@ -585,14 +585,24 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
             nothing about them follows a card. The hems round the outside, and which edge has none
             (the one the cards load through), are PageDressing's: see seamLines. */}
         {stitched
-          ? [
-              ...Array.from({ length: page.cols - 1 }, (_, i) => (
-                <Seam key={`seam-v-${i}`} vertical at={(i + 1) * colStep - gap / 2} from={0} length={innerH} double={material === 'double'} ink={ink} dark={darkMat} tiny={small} />
-              )),
-              ...Array.from({ length: page.rows - 1 }, (_, i) => (
-                <Seam key={`seam-h-${i}`} at={(i + 1) * rowStep - gap / 2} from={0} length={innerW} double={material === 'double'} ink={ink} dark={darkMat} tiny={small} />
-              )),
-            ]
+          ? (() => {
+              const lines = seamLines(page.rows, page.cols, outerEdge);
+              // The weld sits on the sealed pocket's edge, which is the outer-side column's: the
+              // run is nudged that way off the gap's centre, as the reference shows it.
+              const lean = (outerEdge ?? 'right') === 'left' ? -2 : 2;
+              return [
+                ...lines.v
+                  .filter((i) => i > 0 && i < page.cols)
+                  .map((i) => (
+                    <Seam key={`seam-v-${i}`} vertical at={i * colStep - gap / 2 + (small ? lean / 2 : lean)} from={0} length={innerH} double={material === 'double'} ink={ink} dark={darkMat} tiny={small} />
+                  )),
+                ...lines.h
+                  .filter((i) => i > 0 && i < page.rows)
+                  .map((i) => (
+                    <Seam key={`seam-h-${i}`} at={i * rowStep - gap / 2} from={0} length={innerW} double={material === 'double'} ink={ink} dark={darkMat} tiny={small} />
+                  )),
+              ];
+            })()
           : null}
 
         {/* WHERE THIS CARD WILL LAND. Slices have had a drop-target highlight since they existed;
@@ -2175,6 +2185,8 @@ function PageDressing({
   radius,
   band,
   outerEdge,
+  rows,
+  cols,
 }: {
   /** The page's stitching, for the hem: one thread, two, or none. */
   stitch: 'stitch' | 'double' | null;
@@ -2187,6 +2199,9 @@ function PageDressing({
   /** The page's padding: how wide the cover band is. */
   band: number;
   outerEdge?: 'left' | 'right';
+  /** The grid, for which hems are sealed (seamLines). */
+  rows: number;
+  cols: number;
 }) {
   const dark = luminance(mat) < 0.35;
   const zip = !!zipDetail && !!outerEdge;
@@ -2245,19 +2260,18 @@ function PageDressing({
           nylon rather than paint. Skipped in a thumbnail, where it would be a moiré. */}
       {!tiny && size.w > 0 ? <Weave w={size.w} h={size.h} dark={dark} /> : null}
       {/* THE HEMS: the page's stitching along its own edges, where the sheet is welded to its
-          backing, unless a zip's band takes those edges instead. Every edge but one: the cards
-          load through the edge facing the spine, so that edge has no seam (seamLines). */}
+          backing, unless a zip's band takes those edges instead. Which hems exist is seamLines'
+          call (both, on the reference); rows and cols are the grid's, passed in. */}
       {stitch && !zip && size.w > 0
         ? (() => {
-            const open = openEdgeFor(outerEdge);
+            const lines = seamLines(rows, cols, outerEdge);
             const runW = size.w - c * 2;
             const runH = size.h - c * 2;
-            const hems = [
-              <Seam key="hem-top" at={c} from={c} length={runW} double={stitch === 'double'} ink={ink} dark={dark} tiny={tiny} />,
-              <Seam key="hem-bottom" at={size.h - c} from={c} length={runW} double={stitch === 'double'} ink={ink} dark={dark} tiny={tiny} />,
-            ];
-            if (open !== 'left') hems.push(<Seam key="hem-left" vertical at={c} from={c} length={runH} double={stitch === 'double'} ink={ink} dark={dark} tiny={tiny} />);
-            if (open !== 'right') hems.push(<Seam key="hem-right" vertical at={size.w - c} from={c} length={runH} double={stitch === 'double'} ink={ink} dark={dark} tiny={tiny} />);
+            const hems = [];
+            if (lines.h.includes(0)) hems.push(<Seam key="hem-top" at={c} from={c} length={runW} double={stitch === 'double'} ink={ink} dark={dark} tiny={tiny} />);
+            if (lines.h.includes(rows)) hems.push(<Seam key="hem-bottom" at={size.h - c} from={c} length={runW} double={stitch === 'double'} ink={ink} dark={dark} tiny={tiny} />);
+            if (lines.v.includes(0)) hems.push(<Seam key="hem-left" vertical at={c} from={c} length={runH} double={stitch === 'double'} ink={ink} dark={dark} tiny={tiny} />);
+            if (lines.v.includes(cols)) hems.push(<Seam key="hem-right" vertical at={size.w - c} from={c} length={runH} double={stitch === 'double'} ink={ink} dark={dark} tiny={tiny} />);
             return hems;
           })()
         : null}

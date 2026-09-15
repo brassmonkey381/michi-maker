@@ -236,34 +236,36 @@ export function withPageStyle(current: PageStyle | undefined | null, patch: Page
 }
 
 /**
- * WHERE A PAGE'S SEAMS RUN (owner, 2026-09-15, from the reference binder: a black side-loading
- * 3x3 with a welded seam along every sealed pocket edge).
+ * WHERE A PAGE'S SEAMS RUN (owner, 2026-09-15, read off the reference binder: a black
+ * side-loading 3x3, spine on the right, with a welded seam along every sealed pocket edge).
  *
  * A pocket sheet is welded to its backing along straight lines, and the weld shows as a run of
  * small pale stitches. Every edge of a pocket is sealed except the one you load through, so the
- * stitches say which edge that is: a SIDE-LOADING page has a seam across the top and bottom of
- * every row and down every column boundary, and NO seam on the edge the cards slide in from.
- * The openings face the spine, which is what keeps the cards in a shut binder; so a right-hand
- * page (spine on its left) is open down its left edge, a left-hand page down its right.
+ * stitches say which edge that is. Across the page every row boundary is sealed: top, bottom and
+ * between the rows. Down the page the reference reads like this:
+ *
+ *   - The gap between columns 1 and 2 (from the outer edge) is BARE: column 1 loads through its
+ *     spine-side edge and column 2 through its outer edge, both into that one gap.
+ *   - The gap between columns 2 and 3 is stitched on column 2's side: column 2's spine-side edge
+ *     is sealed, and column 3 loads through its outer edge into that gap.
+ *   - Both hems, outer and spine-side, are sealed.
+ *
+ * So exactly one gap is bare, the first one in from the outer edge, and every column past it
+ * loads through its outer edge. The same reading gives a 2x2, 3x4 or 4x4 its seams.
  *
  * Lines are numbered like grid lines: vertical 0..cols (0 the hem before the first column, cols
- * the hem after the last), horizontal 0..rows. The same rule gives a 2x2, 3x4 or 4x4 its seams.
+ * the hem after the last), horizontal 0..rows.
  */
 export type SeamEdge = 'left' | 'right';
 
-/** Which edge of the page is open, given which edge is away from the spine. Alone, a page is a right-hand one. */
-export function openEdgeFor(outerEdge: SeamEdge | undefined): SeamEdge {
-  return outerEdge === 'left' ? 'right' : 'left';
-}
-
-/** The grid lines that carry a seam: every horizontal one, and every vertical one but the open edge. */
-export function seamLines(rows: number, cols: number, openEdge: SeamEdge): { v: number[]; h: number[] } {
+/**
+ * The grid lines that carry a seam. `outerEdge` is the page's edge away from the spine; a page
+ * drawn alone is a right-hand page (spine on its left, outer edge on its right).
+ */
+export function seamLines(rows: number, cols: number, outerEdge: SeamEdge | undefined): { v: number[]; h: number[] } {
+  const bare = (outerEdge ?? 'right') === 'left' ? 1 : cols - 1;
   const v: number[] = [];
-  for (let i = 0; i <= cols; i += 1) {
-    if (openEdge === 'left' && i === 0) continue;
-    if (openEdge === 'right' && i === cols) continue;
-    v.push(i);
-  }
+  for (let i = 0; i <= cols; i += 1) if (i !== bare || cols < 2) v.push(i);
   const h: number[] = [];
   for (let i = 0; i <= rows; i += 1) h.push(i);
   return { v, h };

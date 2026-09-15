@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { isImageRef, luminance, normalizePageStyle, normalizeWear, openEdgeFor, resolveWear, seamLines, stitchInk, stitchStops, WEAR_NONE, withPageStyle } from './pageStyle.ts';
+import { isImageRef, luminance, normalizePageStyle, normalizeWear, resolveWear, seamLines, stitchInk, stitchStops, WEAR_NONE, withPageStyle } from './pageStyle.ts';
 
 test('a pocket wears the first layer that speaks, and "none" speaks as nothing', () => {
   assert.equal(resolveWear(undefined, undefined, '#ffaa00'), '#ffaa00');
@@ -83,16 +83,17 @@ test('the thread is pale on a dark page and dark on a pale one', () => {
   assert.ok(stitchInk('#f6f6f8').startsWith('rgba(0'));
 });
 
-test('a side-loading page is sealed on every edge but the one facing the spine', () => {
-  // A right-hand page: spine on its left, so its left edge is open and every other line is a seam.
-  assert.deepEqual(seamLines(3, 3, openEdgeFor('right')), { v: [1, 2, 3], h: [0, 1, 2, 3] });
-  // A left-hand page: mirror image.
-  assert.deepEqual(seamLines(3, 3, openEdgeFor('left')), { v: [0, 1, 2], h: [0, 1, 2, 3] });
-  // Alone, a page is a right-hand one; and the rule is the same at every size.
-  assert.equal(openEdgeFor(undefined), 'left');
-  assert.deepEqual(seamLines(4, 4, 'left'), { v: [1, 2, 3, 4], h: [0, 1, 2, 3, 4] });
-  assert.deepEqual(seamLines(2, 2, 'right'), { v: [0, 1], h: [0, 1, 2] });
-  assert.deepEqual(seamLines(4, 3, 'left'), { v: [1, 2, 3], h: [0, 1, 2, 3, 4] });
+test('one gap is bare, the first in from the outer edge; every other line is a seam', () => {
+  // The reference: a left-hand page (spine on its right). Line 1 is bare; lines 0, 2 and 3 are seams.
+  assert.deepEqual(seamLines(3, 3, 'left'), { v: [0, 2, 3], h: [0, 1, 2, 3] });
+  // A right-hand page is the mirror image: line 2 bare.
+  assert.deepEqual(seamLines(3, 3, 'right'), { v: [0, 1, 3], h: [0, 1, 2, 3] });
+  // Alone, a page is a right-hand one.
+  assert.deepEqual(seamLines(3, 3, undefined), seamLines(3, 3, 'right'));
+  // The same reading at every size.
+  assert.deepEqual(seamLines(2, 2, 'left'), { v: [0, 2], h: [0, 1, 2] });
+  assert.deepEqual(seamLines(4, 4, 'right'), { v: [0, 1, 2, 4], h: [0, 1, 2, 3, 4] });
+  assert.deepEqual(seamLines(4, 3, 'left'), { v: [0, 2, 3], h: [0, 1, 2, 3, 4] });
 });
 
 test('a stitch run is ink for a dash of every pitch, as gradient stops in order', () => {

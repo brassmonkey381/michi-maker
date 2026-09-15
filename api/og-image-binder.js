@@ -464,12 +464,14 @@ function pageGrid(page, cw, ch, manifest, art, look) {
   }
   const innerW = cols * cw + (cols - 1) * GAP;
   const innerH = rows * ch + (rows - 1) * GAP;
-  // v2: the seams between the pockets, a welded run of stitches down every gap (see BinderGrid's
-  // Seam and pageStyle's seamLines). The hems, and the open edge, are pageMat's.
+  // v2: the seams between the pockets, a welded run of stitches down every sealed gap (see
+  // BinderGrid's Seam and pageStyle's seamLines). The hems are pageMat's.
   const seams = [];
   if (look && look.stitch) {
-    for (let i = 1; i < cols; i++) seams.push(...seamV2(true, i * colStep - GAP / 2, 0, innerH, look));
-    for (let i = 1; i < rows; i++) seams.push(...seamV2(false, i * rowStep - GAP / 2, 0, innerW, look));
+    const lines = seamLines(rows, cols, look.edge);
+    const lean = look.edge === 'left' ? -2 * S : 2 * S;
+    for (const i of lines.v) if (i > 0 && i < cols) seams.push(...seamV2(true, i * colStep - GAP / 2 + lean, 0, innerH, look));
+    for (const i of lines.h) if (i > 0 && i < rows) seams.push(...seamV2(false, i * rowStep - GAP / 2, 0, innerW, look));
   }
   return h(
     'div',
@@ -538,6 +540,8 @@ function pageLook(page, binder, art, edge) {
   return {
     mat,
     bgImage,
+    rows: page.rows || 3,
+    cols: page.cols || 3,
     dark: luminance(mat) < 0.35,
     stitch,
     ink: threadInk(mat, ps.thread),
@@ -571,6 +575,19 @@ function pocketWear(look, slot, a, cw) {
  * centreline across the run, `from` where it starts along it. STITCH = pitch 5, dash 3, thick 2.
  */
 const STITCH = { pitch: 5 * S, dash: 3 * S, thick: 2 * S };
+/**
+ * Which grid lines carry a seam, as pageStyle's seamLines: every row boundary, and every column
+ * line but the one gap between the outermost column and its neighbour. `edge` is the page's edge
+ * away from the spine.
+ */
+function seamLines(rows, cols, edge) {
+  const bare = (edge || 'right') === 'left' ? 1 : cols - 1;
+  const v = [];
+  for (let i = 0; i <= cols; i++) if (i !== bare || cols < 2) v.push(i);
+  const h = [];
+  for (let i = 0; i <= rows; i++) h.push(i);
+  return { v, h };
+}
 function seamV2(vertical, at, from, length, look) {
   const g = STITCH;
   const offsets = look.stitch === 'double' ? [-(g.thick + S), S] : [-g.thick / 2];
@@ -630,12 +647,12 @@ function pageMat(grid, look, gridW, gridH) {
   const c = band / 2;
   if (look.stitch || look.zip) layers.push(...weaveV2(w, hgt, look.dark, radius));
   if (look.stitch && !look.zip) {
-    // The hems: every edge but the one the cards load through, which faces the spine (a page
-    // drawn alone is a right-hand one, open on its left). See pageStyle's seamLines.
-    const open = look.edge === 'left' ? 'right' : 'left';
-    layers.push(...seamV2(false, c, c, w - c * 2, look), ...seamV2(false, hgt - c, c, w - c * 2, look));
-    if (open !== 'left') layers.push(...seamV2(true, c, c, hgt - c * 2, look));
-    if (open !== 'right') layers.push(...seamV2(true, w - c, c, hgt - c * 2, look));
+    // The hems, where seamLines says the sheet is sealed (both, on the reference).
+    const lines = seamLines(look.rows, look.cols, look.edge);
+    if (lines.h.includes(0)) layers.push(...seamV2(false, c, c, w - c * 2, look));
+    if (lines.h.includes(look.rows)) layers.push(...seamV2(false, hgt - c, c, w - c * 2, look));
+    if (lines.v.includes(0)) layers.push(...seamV2(true, c, c, hgt - c * 2, look));
+    if (lines.v.includes(look.cols)) layers.push(...seamV2(true, w - c, c, hgt - c * 2, look));
   }
   if (look.zip) {
     const TAPE = 8 * S;

@@ -6,10 +6,10 @@
   "framework": null,
   "functions": {
     "api/og-image-binder.js": {
-      "maxDuration": 60
+      "maxDuration": 120
     },
     "api/og-warm.js": {
-      "maxDuration": 60
+      "maxDuration": 120
     },
     "api/og-image-hires.js": {
       "maxDuration": 300,

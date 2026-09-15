@@ -464,22 +464,12 @@ function pageGrid(page, cw, ch, manifest, art, look) {
   }
   const innerW = cols * cw + (cols - 1) * GAP;
   const innerH = rows * ch + (rows - 1) * GAP;
-  // v2: the seams, straight lines down every gap, in the page's thread (see BinderGrid).
+  // v2: the seams between the pockets, a welded run of stitches down every gap (see BinderGrid's
+  // Seam and pageStyle's seamLines). The hems, and the open edge, are pageMat's.
   const seams = [];
   if (look && look.stitch) {
-    const dbl = look.stitch === 'double';
-    for (let i = 1; i < cols; i++) {
-      const x = i * colStep - GAP / 2;
-      for (const off of dbl ? [-2 * S, S] : [-0.5 * S]) {
-        seams.push(h('div', { style: { position: 'absolute', top: 0, left: x + off, width: 0, height: innerH, borderLeftWidth: S, borderLeftStyle: 'dashed', borderLeftColor: look.ink } }));
-      }
-    }
-    for (let i = 1; i < rows; i++) {
-      const y = i * rowStep - GAP / 2;
-      for (const off of dbl ? [-2 * S, S] : [-0.5 * S]) {
-        seams.push(h('div', { style: { position: 'absolute', left: 0, top: y + off, height: 0, width: innerW, borderTopWidth: S, borderTopStyle: 'dashed', borderTopColor: look.ink } }));
-      }
-    }
+    for (let i = 1; i < cols; i++) seams.push(...seamV2(true, i * colStep - GAP / 2, 0, innerH, look));
+    for (let i = 1; i < rows; i++) seams.push(...seamV2(false, i * rowStep - GAP / 2, 0, innerW, look));
   }
   return h(
     'div',
@@ -576,6 +566,45 @@ function pocketWear(look, slot, a, cw) {
 }
 
 /**
+ * ONE SEAM, as BinderGrid's Seam draws it: a faint weld band, and on it one run of stitches (two
+ * for a double stitch) as a repeating gradient rather than a div per stitch. `at` is the seam's
+ * centreline across the run, `from` where it starts along it. STITCH = pitch 5, dash 3, thick 2.
+ */
+const STITCH = { pitch: 5 * S, dash: 3 * S, thick: 2 * S };
+function seamV2(vertical, at, from, length, look) {
+  const g = STITCH;
+  const offsets = look.stitch === 'double' ? [-(g.thick + S), S] : [-g.thick / 2];
+  const weldW = look.stitch === 'double' ? g.thick * 2 + 2 * S + 4 * S : g.thick + 4 * S;
+  const weld = look.dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.045)';
+  const lead = (g.pitch - g.dash) / 2;
+  const box = (o, size) => (vertical ? { left: at + o, top: from, width: size, height: length } : { top: at + o, left: from, height: size, width: length });
+  const out = [h('div', { style: { display: 'flex', position: 'absolute', ...box(-weldW / 2, weldW), backgroundColor: weld, borderRadius: weldW / 2 } })];
+  for (const o of offsets) {
+    out.push(
+      h('div', {
+        style: {
+          display: 'flex',
+          position: 'absolute',
+          ...box(o, g.thick),
+          borderRadius: g.thick / 2,
+          backgroundImage: `repeating-linear-gradient(${vertical ? 180 : 90}deg, transparent 0px, transparent ${lead}px, ${look.ink} ${lead}px, ${look.ink} ${lead + g.dash}px, transparent ${lead + g.dash}px, transparent ${g.pitch}px)`,
+        },
+      }),
+    );
+  }
+  return out;
+}
+
+/** The cloth's weave over a box, as BinderGrid's Weave: hairlines both ways, 4px apart. */
+function weaveV2(w, hgt, dark, radius) {
+  const thread = dark ? 'rgba(255,255,255,0.055)' : 'rgba(0,0,0,0.035)';
+  const pitch = 4 * S;
+  const lead = (pitch - S) / 2;
+  const line = (deg) => `repeating-linear-gradient(${deg}deg, transparent 0px, transparent ${lead}px, ${thread} ${lead}px, ${thread} ${lead + S}px, transparent ${lead + S}px, transparent ${pitch}px)`;
+  return [90, 180].map((deg) => h('div', { style: { display: 'flex', position: 'absolute', left: 0, top: 0, width: w, height: hgt, borderRadius: radius, backgroundImage: line(deg) } }));
+}
+
+/**
  * The page's mat, v2: its own colour or picture, its hem or its zip band, and the pull hanging off
  * the bottom outer corner. Same padding and radius as v1's `mat`, so the two versions share a
  * geometry and only the dressing differs.
@@ -599,15 +628,14 @@ function pageMat(grid, look, gridW, gridH) {
     );
   }
   const c = band / 2;
+  if (look.stitch || look.zip) layers.push(...weaveV2(w, hgt, look.dark, radius));
   if (look.stitch && !look.zip) {
-    // The hem: one thread or two along the page's own edge.
-    for (const inset of look.stitch === 'double' ? [c - 2 * S, c + S] : [c - 0.5 * S]) {
-      layers.push(
-        h('div', {
-          style: { display: 'flex', position: 'absolute', left: inset, top: inset, width: w - inset * 2, height: hgt - inset * 2, borderWidth: S, borderStyle: 'dashed', borderColor: look.ink, borderRadius: Math.max(2, radius - inset) },
-        }),
-      );
-    }
+    // The hems: every edge but the one the cards load through, which faces the spine (a page
+    // drawn alone is a right-hand one, open on its left). See pageStyle's seamLines.
+    const open = look.edge === 'left' ? 'right' : 'left';
+    layers.push(...seamV2(false, c, c, w - c * 2, look), ...seamV2(false, hgt - c, c, w - c * 2, look));
+    if (open !== 'left') layers.push(...seamV2(true, c, c, hgt - c * 2, look));
+    if (open !== 'right') layers.push(...seamV2(true, w - c, c, hgt - c * 2, look));
   }
   if (look.zip) {
     const TAPE = 8 * S;
@@ -625,7 +653,7 @@ function pageMat(grid, look, gridW, gridH) {
     // is ~140 teeth a side at this scale, and 840 nodes on a spread pushed the raster past the
     // function's 60 seconds (a 504 is no preview at all). Each gradient is one row of teeth at
     // twice the pitch; the second is shifted by one pitch and sits 2px the other side of the
-    // centreline, which is exactly the editor's stagger. A tooth is 2px of #55555e with a 1px
+    // centreline, which is exactly the editor's stagger. A tooth is 2px of #9a9aa4 with a 1px
     // lit edge, then dark tape. The wavy drift is the one thing a gradient cannot do; a wavy
     // track shows as a straight coil here.
     const runW = w - (c - TAPE / 2) * 2;
@@ -641,8 +669,8 @@ function pageMat(grid, look, gridW, gridH) {
             ? { top: 4 * S, bottom: 0, width: 4 * S, left: TAPE / 2 - 2 * S + side * 2 * S }
             : { left: 4 * S, right: 0, height: 4 * S, top: TAPE / 2 - 2 * S + side * 2 * S }),
           backgroundImage: vertical
-            ? `repeating-linear-gradient(180deg, transparent 0px, transparent ${shift}px, #8e8e98 ${shift}px, #8e8e98 ${shift + S}px, #55555e ${shift + S}px, #55555e ${shift + toothW}px, transparent ${shift + toothW}px, transparent ${period}px)`
-            : `repeating-linear-gradient(90deg, transparent 0px, transparent ${shift}px, #8e8e98 ${shift}px, #8e8e98 ${shift + S}px, #55555e ${shift + S}px, #55555e ${shift + toothW}px, transparent ${shift + toothW}px, transparent ${period}px)`,
+            ? `repeating-linear-gradient(180deg, transparent 0px, transparent ${shift}px, #d6d6dc ${shift}px, #d6d6dc ${shift + S}px, #9a9aa4 ${shift + S}px, #9a9aa4 ${shift + toothW}px, transparent ${shift + toothW}px, transparent ${period}px)`
+            : `repeating-linear-gradient(90deg, transparent 0px, transparent ${shift}px, #d6d6dc ${shift}px, #d6d6dc ${shift + S}px, #9a9aa4 ${shift + S}px, #9a9aa4 ${shift + toothW}px, transparent ${shift + toothW}px, transparent ${period}px)`,
         },
       });
     const tape = (style, vertical) =>
@@ -763,7 +791,7 @@ function spineV2(height, look) {
   return h(
     'div',
     { style: { display: 'flex', position: 'relative', width, height } },
-    h('div', { style: { display: 'flex', position: 'absolute', left: 0, top: inset, width, height: bandH, borderRadius: 3 * S, backgroundColor: look.mat, overflow: 'hidden' } }, marks),
+    h('div', { style: { display: 'flex', position: 'absolute', left: 0, top: inset, width, height: bandH, borderRadius: 3 * S, backgroundColor: look.mat, overflow: 'hidden' } }, [...weaveV2(width, bandH, look.dark, 3 * S), ...marks]),
   );
 }
 

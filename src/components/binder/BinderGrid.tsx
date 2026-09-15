@@ -18,7 +18,7 @@ import Animated, {
 
 import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { BinderSurface, FontSize, Palette, Radii, Radius, Shadows, SlotBackingFallback, Weight } from '@/constants/theme';
-import { DEFAULT_ZIP_PULL, isImageRef, luminance, resolveWear, threadInk, type PageStyle } from '@/data/pageStyle';
+import { DEFAULT_ZIP_PULL, STITCH, STITCH_TINY, isImageRef, luminance, openEdgeFor, resolveWear, stitchStops, threadInk, weaveStops, type PageStyle } from '@/data/pageStyle';
 import { UNSET_CHIP, chipFor } from '@/constants/printVariant';
 import { attributionLabel, deriveAttribution, type ArtAttribution } from '@/data/artworkLibrary';
 import { resolveCardWith, resolveCatalogCardWith } from '@/data/cardResolver';
@@ -578,26 +578,20 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
           );
         })}
 
-        {/* THE SEAMS (owner, 2026-09-13). A pocket page is welded to its sheet along STRAIGHT lines,
-            a grid of them: one seam down every gap between columns, one across every gap between
-            rows, each a pair of stitch lines with the weld between them, and they run the full
-            length of the page regardless of what is in the pockets. Nothing about them follows a
-            card. Drawn in the grid's own coordinates, in thread cut from the mat's lightness. */}
+        {/* THE SEAMS BETWEEN THE POCKETS (owner, 2026-09-13; redrawn 2026-09-15 from the reference
+            binder). A pocket page is welded to its sheet along STRAIGHT lines, one down every gap
+            between columns and one across every gap between rows, and the weld shows as a run of
+            small pale stitches. They run the full length of the page whatever is in the pockets;
+            nothing about them follows a card. The hems round the outside, and which edge has none
+            (the one the cards load through), are PageDressing's: see seamLines. */}
         {stitched
           ? [
-              ...Array.from({ length: page.cols - 1 }, (_, i) => {
-                const x = (i + 1) * colStep - gap / 2;
-                // Double stitch: two threads either side of the weld. Stitch: one, down its centre.
-                return (material === 'double' ? [x - 2, x + 1] : [x - 0.5]).map((left, k) => (
-                  <View key={`seam-v-${i}-${k}`} pointerEvents="none" style={[styles.seamV, { left, height: innerH, borderColor: ink }]} />
-                ));
-              }),
-              ...Array.from({ length: page.rows - 1 }, (_, i) => {
-                const y = (i + 1) * rowStep - gap / 2;
-                return (material === 'double' ? [y - 2, y + 1] : [y - 0.5]).map((top, k) => (
-                  <View key={`seam-h-${i}-${k}`} pointerEvents="none" style={[styles.seamH, { top, width: innerW, borderColor: ink }]} />
-                ));
-              }),
+              ...Array.from({ length: page.cols - 1 }, (_, i) => (
+                <Seam key={`seam-v-${i}`} vertical at={(i + 1) * colStep - gap / 2} from={0} length={innerH} double={material === 'double'} ink={ink} dark={darkMat} tiny={small} />
+              )),
+              ...Array.from({ length: page.rows - 1 }, (_, i) => (
+                <Seam key={`seam-h-${i}`} at={(i + 1) * rowStep - gap / 2} from={0} length={innerW} double={material === 'double'} ink={ink} dark={darkMat} tiny={small} />
+              )),
             ]
           : null}
 
@@ -2247,25 +2241,25 @@ function PageDressing({
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      {/* The hem: the page's stitching along its own edge, one thread or two, unless a zip's band
-          takes that edge instead. */}
-      {stitch && !zip
-        ? (stitch === 'double' ? [c - 2, c + 1] : [c - 0.5]).map((inset, k) => (
-            <View
-              key={`hem-${k}`}
-              style={{
-                position: 'absolute',
-                top: inset,
-                bottom: inset,
-                left: inset,
-                right: inset,
-                borderWidth: 1,
-                borderStyle: 'dashed',
-                borderColor: ink,
-                borderRadius: Math.max(2, radius - inset),
-              }}
-            />
-          ))
+      {/* THE CLOTH (owner, 2026-09-15): a fine weave over the vignette, so the sheet reads as
+          nylon rather than paint. Skipped in a thumbnail, where it would be a moiré. */}
+      {!tiny && size.w > 0 ? <Weave w={size.w} h={size.h} dark={dark} /> : null}
+      {/* THE HEMS: the page's stitching along its own edges, where the sheet is welded to its
+          backing, unless a zip's band takes those edges instead. Every edge but one: the cards
+          load through the edge facing the spine, so that edge has no seam (seamLines). */}
+      {stitch && !zip && size.w > 0
+        ? (() => {
+            const open = openEdgeFor(outerEdge);
+            const runW = size.w - c * 2;
+            const runH = size.h - c * 2;
+            const hems = [
+              <Seam key="hem-top" at={c} from={c} length={runW} double={stitch === 'double'} ink={ink} dark={dark} tiny={tiny} />,
+              <Seam key="hem-bottom" at={size.h - c} from={c} length={runW} double={stitch === 'double'} ink={ink} dark={dark} tiny={tiny} />,
+            ];
+            if (open !== 'left') hems.push(<Seam key="hem-left" vertical at={c} from={c} length={runH} double={stitch === 'double'} ink={ink} dark={dark} tiny={tiny} />);
+            if (open !== 'right') hems.push(<Seam key="hem-right" vertical at={size.w - c} from={c} length={runH} double={stitch === 'double'} ink={ink} dark={dark} tiny={tiny} />);
+            return hems;
+          })()
         : null}
       {zip ? (
         <>
@@ -2314,10 +2308,74 @@ function PageDressing({
   );
 }
 
+/**
+ * ONE SEAM: a welded line with its stitches, drawn as one or two gradients rather than a view per
+ * stitch (a 3x3 page has some 700 stitches; a filmstrip of pages, thousands). `at` is the seam's
+ * centreline across the run, `from` where the run starts along it, in the parent's coordinates.
+ * The weld itself is a faint band under the stitches, a little lighter on dark cloth and a little
+ * darker on pale, the way a heat-sealed edge stands proud of the sheet.
+ */
+function Seam({
+  vertical = false,
+  at,
+  from,
+  length,
+  double,
+  ink,
+  dark,
+  tiny,
+}: {
+  vertical?: boolean;
+  at: number;
+  from: number;
+  length: number;
+  double: boolean;
+  ink: string;
+  dark: boolean;
+  tiny: boolean;
+}) {
+  const g = tiny ? STITCH_TINY : STITCH;
+  const stops = useMemo(() => stitchStops(length, ink, g), [length, ink, g]);
+  // Single: one run down the centre. Double: one either side of the weld, a thread's width apart.
+  const offsets = double ? [-(g.thick + 1), 1] : [-g.thick / 2];
+  const weldW = double ? g.thick * 2 + 2 + 4 : g.thick + 4;
+  const weld = dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.045)';
+  const across = (o: number, size: number) => (vertical ? { left: at + o, top: from, width: size, height: length } : { top: at + o, left: from, height: size, width: length });
+  return (
+    <>
+      <View pointerEvents="none" style={[styles.seamPiece, across(-weldW / 2, weldW), { backgroundColor: weld, borderRadius: weldW / 2 }]} />
+      {offsets.map((o) => (
+        <LinearGradient
+          key={o}
+          pointerEvents="none"
+          colors={stops.colors}
+          locations={stops.locations}
+          start={{ x: 0, y: 0 }}
+          end={vertical ? { x: 0, y: 1 } : { x: 1, y: 0 }}
+          style={[styles.seamPiece, across(o, g.thick), { borderRadius: g.thick / 2 }]}
+        />
+      ))}
+    </>
+  );
+}
+
+/** The cloth's weave over a whole box: hairlines both ways, from weaveStops. The spine wears it too. */
+export function Weave({ w, h, dark }: { w: number; h: number; dark: boolean }) {
+  const across = useMemo(() => weaveStops(w, dark), [w, dark]);
+  const down = useMemo(() => weaveStops(h, dark), [h, dark]);
+  return (
+    <>
+      <LinearGradient pointerEvents="none" colors={across.colors} locations={across.locations} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+      <LinearGradient pointerEvents="none" colors={down.colors} locations={down.locations} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFill} />
+    </>
+  );
+}
+
 const styles = StyleSheet.create({
   page: {
     ...Shadows.page,
   },
+  seamPiece: { position: 'absolute' },
   pocket: {
     borderWidth: 1,
     borderColor: BinderSurface.pocketBorder,
@@ -2385,8 +2443,6 @@ const styles = StyleSheet.create({
   },
   artBacking: { overflow: 'hidden' },
   /** One stitch line of a seam: a dashed hairline the full length of the grid, vertical or horizontal. */
-  seamV: { position: 'absolute', top: 0, width: 0, borderLeftWidth: 1, borderStyle: 'dashed' },
-  seamH: { position: 'absolute', left: 0, height: 0, borderTopWidth: 1, borderStyle: 'dashed' },
   /** On fabric the pocket is a clear sleeve over dark cloth: a pale, slightly glossy window. */
   pocketOnFabric: { backgroundColor: 'rgba(255,255,255,0.10)', borderColor: 'rgba(255,255,255,0.22)' },
   /** On fabric the hairline is pale rather than dark, so the ring still reads against the cloth. */
@@ -2395,10 +2451,12 @@ const styles = StyleSheet.create({
   trimmed: { position: 'absolute', left: '-2.2%', top: '-2.2%', width: '104.4%', height: '104.4%' },
   /** The zip's tape: a dark channel the teeth sit in. */
   tape: { position: 'absolute', backgroundColor: '#121215', borderRadius: 3, overflow: 'hidden' },
-  /** A coil tooth on a horizontal run: 3 along the tape, 5 across it, a lit top edge. */
-  toothAlong: { width: 2, height: 4, borderRadius: 1, backgroundColor: '#55555e', borderTopWidth: 1, borderTopColor: '#8e8e98' },
+  /** A coil tooth on a horizontal run: 3 along the tape, 5 across it, a lit top edge. The pale
+      nylon coil of the reference binder (owner, 2026-09-15), not gunmetal: it has to read
+      against black tape at thumbnail size. */
+  toothAlong: { width: 2, height: 4, borderRadius: 1, backgroundColor: '#9a9aa4', borderTopWidth: 1, borderTopColor: '#d6d6dc' },
   /** The same tooth turned for the vertical run down the outer edge. */
-  toothAcross: { width: 4, height: 2, borderRadius: 1, backgroundColor: '#55555e', borderLeftWidth: 1, borderLeftColor: '#8e8e98' },
+  toothAcross: { width: 4, height: 2, borderRadius: 1, backgroundColor: '#9a9aa4', borderLeftWidth: 1, borderLeftColor: '#d6d6dc' },
   /** Half-scale teeth for a thumbnail's band. */
   toothAlongTiny: { width: 1, height: 2, borderTopWidth: 0 },
   toothAcrossTiny: { width: 2, height: 1, borderLeftWidth: 0 },

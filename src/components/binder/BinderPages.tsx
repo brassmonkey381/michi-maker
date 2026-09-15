@@ -33,6 +33,7 @@ import {
 } from '@/components/binder/pageTurn';
 import { Directions, Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Weave } from '@/components/binder/BinderGrid';
 import { PageStrip, STRIP_THUMB_W, type StripExtra } from '@/components/binder/PageStrip';
 import { CoverDecorationLayer, type LiveDrag } from '@/components/binder/CoverDecorationLayer';
 import { COVER_ABBR, withSurface } from '@/components/binder/CoverEditor';
@@ -2157,6 +2158,8 @@ function Spine({
       onLayout={(e) => setH(e.nativeEvent.layout.height)}
       style={[styles.spineTrack, { width, top, marginLeft: -width / 2 }]}>
       <View style={[styles.spine, { top: inset, bottom: inset, backgroundColor: cloth }]}>
+      {/* The same cloth as the pages, weave and all (owner, 2026-09-15). */}
+      {h > 0 ? <Weave w={width} h={h - inset * 2} dark={luminance(cloth) < 0.35} /> : null}
       <View style={styles.spineInner}>
         {Array.from({ length: n }).map((_, i) =>
           style === 'cross' ? (

@@ -80,7 +80,7 @@ function cardImage(cardId) {
  */
 //   r14 v2 by default: the binder's look (backgrounds, stitch and thread, zipper and pull, spine,
 //       sleeves and art backing) drawn into the image, and the owner's own backdrop when set
-const OG_IMAGE_REV = 14;
+const OG_IMAGE_REV = 15;
 
 /**
  * The two canvases the renderer knows how to draw. A SPREAD needs the width for two facing pages;

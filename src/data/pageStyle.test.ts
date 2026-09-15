@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { isImageRef, luminance, normalizePageStyle, normalizeWear, resolveWear, stitchInk, WEAR_NONE, withPageStyle } from './pageStyle.ts';
+import { isImageRef, luminance, normalizePageStyle, normalizeWear, openEdgeFor, resolveWear, seamLines, stitchInk, stitchStops, WEAR_NONE, withPageStyle } from './pageStyle.ts';
 
 test('a pocket wears the first layer that speaks, and "none" speaks as nothing', () => {
   assert.equal(resolveWear(undefined, undefined, '#ffaa00'), '#ffaa00');
@@ -81,4 +81,31 @@ test('the thread is pale on a dark page and dark on a pale one', () => {
   assert.ok(luminance('#000000') < 0.01 && luminance('#ffffff') > 0.99);
   assert.ok(stitchInk('#17171a').startsWith('rgba(255'));
   assert.ok(stitchInk('#f6f6f8').startsWith('rgba(0'));
+});
+
+test('a side-loading page is sealed on every edge but the one facing the spine', () => {
+  // A right-hand page: spine on its left, so its left edge is open and every other line is a seam.
+  assert.deepEqual(seamLines(3, 3, openEdgeFor('right')), { v: [1, 2, 3], h: [0, 1, 2, 3] });
+  // A left-hand page: mirror image.
+  assert.deepEqual(seamLines(3, 3, openEdgeFor('left')), { v: [0, 1, 2], h: [0, 1, 2, 3] });
+  // Alone, a page is a right-hand one; and the rule is the same at every size.
+  assert.equal(openEdgeFor(undefined), 'left');
+  assert.deepEqual(seamLines(4, 4, 'left'), { v: [1, 2, 3, 4], h: [0, 1, 2, 3, 4] });
+  assert.deepEqual(seamLines(2, 2, 'right'), { v: [0, 1], h: [0, 1, 2] });
+  assert.deepEqual(seamLines(4, 3, 'left'), { v: [1, 2, 3], h: [0, 1, 2, 3, 4] });
+});
+
+test('a stitch run is ink for a dash of every pitch, as gradient stops in order', () => {
+  const run = stitchStops(20, 'ink', { pitch: 5, dash: 3 });
+  assert.equal(run.colors.length, run.locations.length);
+  // 4 stitches: 2 + 4 per stitch.
+  assert.equal(run.colors.length, 2 + 4 * 4);
+  for (let i = 1; i < run.locations.length; i += 1) assert.ok(run.locations[i] >= run.locations[i - 1], 'stops ascend');
+  assert.equal(run.locations[0], 0);
+  assert.equal(run.locations[run.locations.length - 1], 1);
+  // The first stitch: 1px in, 3px long.
+  assert.deepEqual(run.locations.slice(1, 5), [0.05, 0.05, 0.2, 0.2]);
+  assert.deepEqual(run.colors.slice(1, 5), ['rgba(0,0,0,0)', 'ink', 'ink', 'rgba(0,0,0,0)']);
+  // Nothing to draw is still a valid gradient.
+  assert.deepEqual(stitchStops(0, 'ink'), { colors: ['rgba(0,0,0,0)', 'rgba(0,0,0,0)'], locations: [0, 1] });
 });

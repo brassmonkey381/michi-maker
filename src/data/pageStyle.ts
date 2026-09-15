@@ -235,6 +235,83 @@ export function withPageStyle(current: PageStyle | undefined | null, patch: Page
   return normalizePageStyle(next);
 }
 
+/**
+ * WHERE A PAGE'S SEAMS RUN (owner, 2026-09-15, from the reference binder: a black side-loading
+ * 3x3 with a welded seam along every sealed pocket edge).
+ *
+ * A pocket sheet is welded to its backing along straight lines, and the weld shows as a run of
+ * small pale stitches. Every edge of a pocket is sealed except the one you load through, so the
+ * stitches say which edge that is: a SIDE-LOADING page has a seam across the top and bottom of
+ * every row and down every column boundary, and NO seam on the edge the cards slide in from.
+ * The openings face the spine, which is what keeps the cards in a shut binder; so a right-hand
+ * page (spine on its left) is open down its left edge, a left-hand page down its right.
+ *
+ * Lines are numbered like grid lines: vertical 0..cols (0 the hem before the first column, cols
+ * the hem after the last), horizontal 0..rows. The same rule gives a 2x2, 3x4 or 4x4 its seams.
+ */
+export type SeamEdge = 'left' | 'right';
+
+/** Which edge of the page is open, given which edge is away from the spine. Alone, a page is a right-hand one. */
+export function openEdgeFor(outerEdge: SeamEdge | undefined): SeamEdge {
+  return outerEdge === 'left' ? 'right' : 'left';
+}
+
+/** The grid lines that carry a seam: every horizontal one, and every vertical one but the open edge. */
+export function seamLines(rows: number, cols: number, openEdge: SeamEdge): { v: number[]; h: number[] } {
+  const v: number[] = [];
+  for (let i = 0; i <= cols; i += 1) {
+    if (openEdge === 'left' && i === 0) continue;
+    if (openEdge === 'right' && i === cols) continue;
+    v.push(i);
+  }
+  const h: number[] = [];
+  for (let i = 0; i <= rows; i += 1) h.push(i);
+  return { v, h };
+}
+
+/**
+ * ONE STITCH RUN'S GEOMETRY. The reference's stitches are small rectangles about twice as long
+ * as they are wide, a stitch's length apart. Two sizes: the page as edited, and a thumbnail.
+ */
+export const STITCH = { pitch: 5, dash: 3, thick: 2 } as const;
+export const STITCH_TINY = { pitch: 3, dash: 2, thick: 1 } as const;
+
+/**
+ * A run of stitches as gradient stops, so a whole seam is ONE drawn thing rather than a view per
+ * stitch: the ink on for `dash` of every `pitch`, off between, along a run `length` long. Hard
+ * edges come from repeating a location. Both arrays are what a linear gradient takes.
+ */
+/** Gradient stops as expo-linear-gradient types them: at least two of each. */
+export type GradientStops = { colors: [string, string, ...string[]]; locations: [number, number, ...number[]] };
+export function stitchStops(length: number, ink: string, geometry: { pitch: number; dash: number } = STITCH): GradientStops {
+  const off = 'rgba(0,0,0,0)';
+  const colors: string[] = [off];
+  const locations: number[] = [0];
+  if (length > 0) {
+    const n = Math.floor(length / geometry.pitch);
+    const lead = (geometry.pitch - geometry.dash) / 2;
+    for (let i = 0; i < n; i += 1) {
+      const a = (i * geometry.pitch + lead) / length;
+      const b = a + geometry.dash / length;
+      colors.push(off, ink, ink, off);
+      locations.push(a, a, b, b);
+    }
+  }
+  colors.push(off);
+  locations.push(1);
+  return { colors: colors as GradientStops['colors'], locations: locations as GradientStops['locations'] };
+}
+
+/**
+ * THE CLOTH'S WEAVE: a nylon binder is a fine grid of threads, and a flat colour with a vignette
+ * reads as paint. Two sets of hairlines, one each way, `pitch` apart, in a translucent thread
+ * cut from the cloth's lightness. As gradient stops, like the stitches, for the same reason.
+ */
+export const WEAVE_PITCH = 4;
+export function weaveStops(length: number, dark: boolean, pitch = WEAVE_PITCH): GradientStops {
+  return stitchStops(length, dark ? 'rgba(255,255,255,0.055)' : 'rgba(0,0,0,0.035)', { pitch, dash: 1 });
+}
+
 /** Relative luminance of #rrggbb, 0 (black) to 1 (white). WCAG's formula, nothing clever. */
 export function luminance(hex: string): number {
   const h = hex.replace('#', '');

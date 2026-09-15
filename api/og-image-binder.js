@@ -577,13 +577,16 @@ function pocketWear(look, slot, a, cw) {
 const STITCH = { pitch: 5 * S, dash: 3 * S, thick: 2 * S };
 /**
  * Which grid lines carry a seam, as pageStyle's seamLines: every row boundary, and every column
- * line but the one gap between the outermost column and its neighbour. `edge` is the page's edge
+ * line but the bare gap each pair of columns loads through. `edge` is the page's edge
  * away from the spine.
  */
 function seamLines(rows, cols, edge) {
-  const bare = (edge || 'right') === 'left' ? 1 : cols - 1;
+  const outer = edge || 'right';
+  // Columns pair off from the outer edge; each pair shares one bare gap (lines 1, 3, 5...).
+  const bare = new Set();
+  for (let k = 1; k < cols; k += 2) bare.add(outer === 'left' ? k : cols - k);
   const v = [];
-  for (let i = 0; i <= cols; i++) if (i !== bare || cols < 2) v.push(i);
+  for (let i = 0; i <= cols; i++) if (!bare.has(i)) v.push(i);
   const h = [];
   for (let i = 0; i <= rows; i++) h.push(i);
   return { v, h };

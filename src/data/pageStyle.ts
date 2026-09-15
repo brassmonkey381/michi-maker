@@ -250,8 +250,10 @@ export function withPageStyle(current: PageStyle | undefined | null, patch: Page
  *     is sealed, and column 3 loads through its outer edge into that gap.
  *   - Both hems, outer and spine-side, are sealed.
  *
- * So exactly one gap is bare, the first one in from the outer edge, and every column past it
- * loads through its outer edge. The same reading gives a 2x2, 3x4 or 4x4 its seams.
+ * So the columns PAIR OFF from the outer edge, each pair loading through the one bare gap between
+ * them, and an odd column left over against the spine loads through the gap on its outer side,
+ * which stays stitched on its neighbour's account. A 2-wide page has one bare gap; a 4-wide has
+ * two (lines 1 and 3 from the outer edge) and a seam down its middle; a 3-wide has one.
  *
  * Lines are numbered like grid lines: vertical 0..cols (0 the hem before the first column, cols
  * the hem after the last), horizontal 0..rows.
@@ -263,9 +265,12 @@ export type SeamEdge = 'left' | 'right';
  * drawn alone is a right-hand page (spine on its left, outer edge on its right).
  */
 export function seamLines(rows: number, cols: number, outerEdge: SeamEdge | undefined): { v: number[]; h: number[] } {
-  const bare = (outerEdge ?? 'right') === 'left' ? 1 : cols - 1;
+  const outer: SeamEdge = outerEdge ?? 'right';
+  // The pair gaps, counted from the outer edge: lines 1, 3, 5... short of the far hem.
+  const bare = new Set<number>();
+  for (let k = 1; k < cols; k += 2) bare.add(outer === 'left' ? k : cols - k);
   const v: number[] = [];
-  for (let i = 0; i <= cols; i += 1) if (i !== bare || cols < 2) v.push(i);
+  for (let i = 0; i <= cols; i += 1) if (!bare.has(i)) v.push(i);
   const h: number[] = [];
   for (let i = 0; i <= rows; i += 1) h.push(i);
   return { v, h };

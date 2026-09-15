@@ -7,7 +7,8 @@
  * layout of their own: a section is a column of rows, and whatever holds the section decides the
  * width, the scrolling and the chrome.
  */
-import { useState } from 'react';
+import { Image } from 'expo-image';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ColorField } from '@/components/binder/ColorField';
@@ -129,25 +130,70 @@ export function ColorBox({ fieldKey, value, onChange }: { fieldKey: string; valu
 export function ImageLinkField({ value, onChange, testID }: { value?: string; onChange: (url: string) => void; testID?: string }) {
   const theme = useTheme();
   const [text, setText] = useState(isImageRef(value) ? value : '');
-  const commit = () => {
-    const next = text.trim();
-    if (isImageRef(next) && next !== value) onChange(next);
-  };
+  // WHAT HAPPENED TO THE LINK (owner, 2026-09-15: "how do we know if it worked?"). The address is
+  // applied the moment it is a complete http(s) link, with no Enter needed (a popover that closes
+  // on an outside tap never got the blur), and a small preview of it reports whether the picture
+  // loads: a page address or a host that refuses hotlinks fails here, in words, not in silence.
+  // What the preview learned about an address, remembered with the address it is about, so a
+  // result for the previous link never describes the next one.
+  const [loaded, setLoaded] = useState<{ uri: string; ok: boolean } | null>(null);
+  const trimmed = text.trim();
+  const usable = isImageRef(trimmed);
+  const status: 'idle' | 'loading' | 'ok' | 'failed' = !trimmed
+    ? 'idle'
+    : !usable
+      ? 'failed'
+      : loaded?.uri === trimmed
+        ? loaded.ok
+          ? 'ok'
+          : 'failed'
+        : 'loading';
+  useEffect(() => {
+    if (!usable || trimmed === value) return;
+    const t = setTimeout(() => onChange(trimmed), 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- apply once per typed address
+  }, [trimmed]);
+  const note =
+    status === 'ok'
+      ? 'Picture loaded. It is in use.'
+      : status === 'failed'
+        ? trimmed && !usable
+          ? 'Paste a full link that starts with https://'
+          : 'That link did not load. It needs to point straight at an image (a .jpg or .png address), and some sites refuse to be linked.'
+        : status === 'loading'
+          ? 'Loading the picture…'
+          : 'Paste a direct link to an image.';
   return (
-    <TextInput
-      value={text}
-      onChangeText={setText}
-      onSubmitEditing={commit}
-      onBlur={commit}
-      placeholder="https://… image link"
-      placeholderTextColor={theme.textSecondary}
-      autoCapitalize="none"
-      autoCorrect={false}
-      keyboardType="url"
-      testID={testID}
-      style={[styles.fieldInput, styles.linkInput, { color: theme.text, borderColor: theme.backgroundSelected, backgroundColor: theme.backgroundElement }]}
-    />
+    <View style={styles.linkBox}>
+      <View style={styles.linkRow}>
+        {usable ? (
+          <View style={styles.linkPreview}>
+            <ColorPreview uri={trimmed} onLoad={() => setLoaded({ uri: trimmed, ok: true })} onError={() => setLoaded({ uri: trimmed, ok: false })} />
+          </View>
+        ) : null}
+        <TextInput
+          value={text}
+          onChangeText={setText}
+          placeholder="https://… image link"
+          placeholderTextColor={theme.textSecondary}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="url"
+          testID={testID}
+          style={[styles.fieldInput, styles.linkInput, { color: theme.text, borderColor: theme.backgroundSelected, backgroundColor: theme.backgroundElement }]}
+        />
+      </View>
+      <Text style={[styles.linkNote, status === 'failed' && styles.linkNoteBad, status === 'ok' && styles.linkNoteGood]} testID={testID ? `${testID}-status` : undefined}>
+        {note}
+      </Text>
+    </View>
   );
+}
+
+/** The link's picture, small, only to learn whether it loads. */
+function ColorPreview({ uri, onLoad, onError }: { uri: string; onLoad: () => void; onError: () => void }) {
+  return <Image source={{ uri }} style={styles.linkPreviewImg} contentFit="cover" cachePolicy="memory-disk" transition={0} onLoad={onLoad} onError={onError} />;
 }
 
 export function WearRow({
@@ -263,5 +309,12 @@ export const styles = StyleSheet.create({
   fieldInputMulti: { minHeight: 36, textAlignVertical: 'top' },
   /** A wear row and, under it, its picture link when one is wanted. */
   wearRows: { gap: 6, alignSelf: 'stretch' },
-  linkInput: { alignSelf: 'stretch', fontSize: FontSize.label },
+  linkBox: { gap: 4, alignSelf: 'stretch' },
+  linkRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  linkInput: { flex: 1, minWidth: 0, fontSize: FontSize.label },
+  linkPreview: { width: 36, height: 36, borderRadius: Radius.control, overflow: 'hidden', backgroundColor: Palette.panel, borderWidth: 1, borderColor: Palette.hairline },
+  linkPreviewImg: { width: 36, height: 36 },
+  linkNote: { fontSize: FontSize.xs, color: Palette.muted, lineHeight: 15 },
+  linkNoteBad: { color: Palette.dangerAlt },
+  linkNoteGood: { color: Palette.ink2 },
 });

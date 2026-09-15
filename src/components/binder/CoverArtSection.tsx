@@ -45,6 +45,7 @@ export function CoverArtSection({
   const [busy, setBusy] = useState(false);
   const [stockBusy, setStockBusy] = useState<string | null>(null);
   const slices = useSavedSlices();
+  const [shownTiles, setShownTiles] = useState(TILE_PAGE);
 
   const pickStock = async (hit: StockHit) => {
     if (stockBusy) return;
@@ -143,8 +144,10 @@ export function CoverArtSection({
       {slices.length === 0 ? (
         <Text style={styles.hint}>Pieces you cut in the studio will appear here. Tap one to put it on the cover.</Text>
       ) : (
+        // A PAGE AT A TIME (2026-09-15): five hundred tiles here made the cover tab, and the page
+        // turn behind it, crawl. Forty at once, and a button for the next forty.
         <View style={styles.tiles}>
-          {slices.map((slice) => (
+          {slices.slice(0, shownTiles).map((slice) => (
             <Pressable
               key={slice.id}
               disabled={disabled}
@@ -162,6 +165,11 @@ export function CoverArtSection({
               />
             </Pressable>
           ))}
+          {slices.length > shownTiles ? (
+            <Pressable onPress={() => setShownTiles((n) => n + TILE_PAGE)} accessibilityRole="button" style={({ pressed }) => [styles.tile, styles.moreTile, pressed && styles.pressed]}>
+              <Text style={styles.moreText}>+{slices.length - shownTiles}</Text>
+            </Pressable>
+          ) : null}
         </View>
       )}
     </View>
@@ -169,6 +177,7 @@ export function CoverArtSection({
 }
 
 const TILE = 64;
+const TILE_PAGE = 40;
 
 const styles = StyleSheet.create({
   section: { gap: 6 },
@@ -193,6 +202,8 @@ const styles = StyleSheet.create({
   goText: { color: Palette.accentText, fontWeight: Weight.semibold },
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   tile: { width: TILE, height: TILE, borderRadius: 6, overflow: 'hidden', backgroundColor: Palette.chromeDeepest },
+  moreTile: { backgroundColor: Palette.panel, alignItems: 'center', justifyContent: 'center' },
+  moreText: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.ink2 },
   pressed: { opacity: 0.6 },
   dim: { opacity: 0.4 },
 });

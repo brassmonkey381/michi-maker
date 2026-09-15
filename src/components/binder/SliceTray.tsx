@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS, type SharedValue } from 'react-native-reanimated';
@@ -162,7 +162,13 @@ export function SliceTray({
  * reimplementing the drag — the gesture reports WINDOW-absolute coordinates because that is what
  * the drop hit-test works in, and a second copy of that would be a second thing to get wrong.
  */
-export function SliceChip({
+/**
+ * MEMOISED (2026-09-15): a tray of five hundred chips is five hundred gesture detectors and five
+ * hundred images, and every one re-rendered whenever anything in the panel changed. With stable
+ * callbacks from the panel (see ArtworkPanel), a chip now re-renders only when its own slice or
+ * its armed state does.
+ */
+export const SliceChip = memo(function SliceChip({
   slice,
   armed,
   onArm,
@@ -244,7 +250,7 @@ export function SliceChip({
       </Pressable>
     </View>
   );
-}
+});
 
 /** Renders a slice's cropped window of its source image (preview quality — flips honoured, a
  *  quarter-turn is left to the true renderer once placed). Exported so the drag ghost reuses it. */
@@ -256,7 +262,7 @@ export function SliceThumb({ slice, style }: { slice: SavedSlice; style?: object
   if (!crop) {
     return (
       <View style={[styles.thumb, style]}>
-        <Image source={{ uri: slice.imageUrl }} style={[StyleSheet.absoluteFill, { transform }]} contentFit="cover" />
+        <Image source={{ uri: slice.imageUrl }} style={[StyleSheet.absoluteFill, { transform }]} contentFit="cover" cachePolicy="memory-disk" transition={0} />
       </View>
     );
   }
@@ -275,6 +281,8 @@ export function SliceThumb({ slice, style }: { slice: SavedSlice; style?: object
           transform,
         }}
         contentFit="cover"
+        cachePolicy="memory-disk"
+        transition={0}
       />
     </View>
   );

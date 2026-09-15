@@ -264,6 +264,14 @@ export function BinderScreen({
    * space under the binder, costs the pages no height at all.
    */
   const [coverCtx, setCoverCtx] = useState<CoverToolsContext | null>(null);
+  /**
+   * STABLE, or the cover editor spins (owner, 2026-09-15: "the surface editor slows the nav").
+   * This used to be an inline arrow: a new function every render, which re-ran BinderPages' report
+   * effect every render, which set a new context object here, which rendered again. While a cover
+   * was focused that was a render loop with nothing to stop it but React's batching. It also no
+   * longer opens the Art dock: turning to a cover is turning a page, not a request to decorate it.
+   */
+  const onCoverContext = useCallback((ctx: CoverToolsContext | null) => setCoverCtx(ctx), []);
   const editing = editingWanted && store.canEdit && !contestLocked;
   const [pageIndex, setPageIndex] = useState(0);
   const [pickerCell, setPickerCell] = useState<{ row: number; col: number } | null>(null);
@@ -2337,12 +2345,7 @@ export function BinderScreen({
               onCloseSettings={() => setSettingsOpen(false)}
               settingsExtras={binderLookSettings}
               view={view}
-              onCoverContext={(ctx) => {
-                setCoverCtx(ctx);
-                // Picking a surface IS the request to decorate it, so the panel holding the
-                // cover's tools comes forward with it.
-                if (ctx) setArtworkOpen(true);
-              }}
+              onCoverContext={onCoverContext}
               renderGrid={renderGrid}
             />
 

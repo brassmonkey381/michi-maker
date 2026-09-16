@@ -26,10 +26,10 @@ type RailItem = { label: string; href: Href; match: (path: string) => boolean; e
 const EXPLORE: RailItem[] = [
   { label: 'Home', href: '/', match: (p) => p === '/' },
   { label: 'Discover Binders', href: '/discover' as Href, match: (p) => p.startsWith('/discover') },
-  // Two contest destinations: the field to browse and vote in, and the rules/prizes page. The
-  // rules match is exact so it does not also light up on /contest-binders.
-  { label: 'Contest Binders 🏆', href: '/contest-binders' as Href, match: (p) => p.startsWith('/contest-binders') },
-  { label: 'Contest 🏆', href: '/contest' as Href, match: (p) => p === '/contest' },
+  // ONE contest line (owner call, 2026-09-15). /contest-binders is reached from the contest page's
+  // "See the entries" and from Discover's card, not from its own rail item; the rail item stays lit
+  // while you are on either contest page.
+  { label: 'Contest 🏆', href: '/contest' as Href, match: (p) => p.startsWith('/contest') },
   { label: 'Browse Cards', href: '/browse' as Href, match: (p) => p.startsWith('/browse') },
   { label: 'Plans', href: '/plans' as Href, match: (p) => p.startsWith('/plans') || p.startsWith('/subscriptions') || p.startsWith('/pricing') },
   { label: 'How-To', href: '/learn' as Href, match: (p) => p.startsWith('/learn') },

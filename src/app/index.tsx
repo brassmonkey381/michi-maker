@@ -252,7 +252,7 @@ export default function HomeScreen() {
               promo card that used to sit here): what is out this week is the reason to come back,
               and it was below three sections of binders. ONE feed for every auth state (the kit's
               RecentProducts runs catalog-free for guests/cold and from the catalog when
-              signed-in). The contest now lives on /contest-binders and the rail. */}
+              signed-in). The contest is one tap away from the rail's Contest line. */}
           <HomeRecent
             onFindSimilar={driveSimilar}
             onViewSet={driveViewSet}

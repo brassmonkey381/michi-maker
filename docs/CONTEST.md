@@ -128,7 +128,9 @@ Market as: **"Over $1,700 in prizes, including a once-ever LIFETIME VIP grand pr
   heading becomes "The Final", and every tile carries `FinalsVoteButton` instead of a heart
   count. Vote state is held by the page (not per tile) so the same binder on two views agrees
   with itself. Split off Discover 2026-09-15: it was above the search box, so everyone who came
-  to search scrolled past it, and the field had no page of its own to link to.
+  to search scrolled past it, and the field had no page of its own to link to. NO RAIL ITEM of
+  its own (owner call): it is reached from /contest's "See the entries" and Discover's card, and
+  the rail's single Contest line stays lit on both contest pages.
 - Discover — one contest card at the BOTTOM linking to `/contest-binders`; no boards of its own.
   Entries are no longer excluded from the Public binders shelf, since nothing shows them twice now.
 - Binder editor — `ContestLockBanner` says why editing is gone for a locked finalist, and

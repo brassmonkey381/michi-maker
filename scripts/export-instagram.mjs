@@ -15,7 +15,10 @@
  * needed. One headless browser, closed when done.
  *
  *   node scripts/export-instagram.mjs --binder <id> [--pages 6] [--out <dir>] [--video] [--seconds 13] [--base https://michi-maker.com]
- *       [--dwell 3] [--step 2] [--music]
+ *       [--dwell 3] [--step 2] [--music] [--covers]
+ *
+ * `--covers` records the whole book: it opens on the front cover, turns spread by spread by
+ * wheel, the way a visitor does, and closes on the back cover. Needs a binder with a cover.
  *
  * `--dwell N` holds each page N seconds (turn included) instead of fitting `--seconds`; `--step 2`
  * turns a spread at a time, which is what a desktop viewer sees; `--music` lays the binder's own
@@ -26,6 +29,7 @@
  * PATH the script converts; if not it says how to install it and leaves the WebM.
  */
 import { chromium } from 'playwright-core';
+import { Buffer } from 'node:buffer';
 import { mkdirSync, existsSync, renameSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
@@ -52,6 +56,7 @@ const DWELL_S = args.dwell ? Number(args.dwell) : null;
 /** Pages per turn: 1 walks every page, 2 turns spreads (page 1 alone, then 2·3, 4·5, ...). */
 const STEP = Math.max(1, Number(args.step ?? 1));
 const MUSIC = args.music === 'true';
+const COVERS = args.covers === 'true';
 /** The app's page-turn animation (src/components/binder/pageTurn.tsx TURN_MS). Keep in step. */
 const TURN_MS = 620;
 mkdirSync(OUT, { recursive: true });
@@ -183,11 +188,30 @@ try {
       recordVideo: { dir: OUT, size: { width: 1600, height: 900 } },
     });
     const vp = await vctx.newPage();
-    await vp.goto(`${BASE}/binder/${BINDER}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
     const t0 = Date.now(); // the recording began with the context
-    await vp.waitForSelector('[data-testid="binder-page-current"]', { timeout: 120000 });
+    // A `?page=N` link with N past the first page starts a covered binder SHUT on the front
+    // (BinderPages: openTo > 0). It would open onto page N, so `settle` below walks it back to
+    // page 1 and shuts it again, and the recorded walk opens onto the title page.
+    const url = `${BASE}/binder/${BINDER}${COVERS ? '?page=2' : ''}`;
+    await vp.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    await vp.waitForSelector('[data-binder-page]', { timeout: 120000 });
     await vp.waitForTimeout(2500);
     await vp.mouse.click(800, 40); // a gesture on the top bar, so a soundtrack may start
+    /** Shut on the front cover with page 1 behind it: open, back to page 1, back to shut. */
+    const shutOnFront = async () => {
+      await wheel(1, 1200);
+      await wheel(-1, 1200);
+      await wheel(-1, 1200);
+    };
+    /** One wheel notch over the page, which turns a spread (or opens/shuts a cover). */
+    const wheel = async (dir, settle) => {
+      const box = await vp.locator('[data-binder-page]').first().boundingBox();
+      if (!box) return false;
+      await vp.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await vp.mouse.wheel(0, 240 * dir);
+      await vp.waitForTimeout(settle);
+      return true;
+    };
 
     // WARM EVERY PAGE FIRST. A page turned to for the first time fetches its card images, and the
     // pockets paint white for the instant before they arrive: the flash seen mid-reel. Visiting each
@@ -197,13 +221,25 @@ try {
     const n = Math.max(1, await vp.locator('[data-testid^="binder-strip-page-"]').count());
     const stops = [1];
     for (let i = 2; i <= n; i += STEP) stops.push(i);
-    for (const i of stops.slice(1)) if (!(await goTo(i, vp, 900))) break;
-    await goTo(1, vp, 1200);
+    // With covers: front cover, page 1 alone, then spreads, then the back cover. One wheel
+    // notch per stop; the count is what the double-sided book turns through.
+    const coverSteps = 1 + 1 + Math.ceil((n - 1) / 2) + 1 - 1;
+    if (COVERS) {
+      await shutOnFront();
+      for (let i = 0; i < coverSteps; i++) await wheel(1, 700);
+      await vp.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
+      await vp.waitForSelector('[data-binder-page]', { timeout: 120000 });
+      await vp.waitForTimeout(2000);
+      await shutOnFront();
+    } else {
+      for (const i of stops.slice(1)) if (!(await goTo(i, vp, 900))) break;
+      await goTo(1, vp, 1200);
+    }
 
     // PACE TO THE TARGET. Whatever the page count, the reel runs REEL_SECONDS from first page to
     // last: a hold on page one, then every turn takes an equal share of what remains, the app's
     // own turn animation included, then a hold on the last page. Two pages dwell long; ten flick.
-    const turns = stops.length - 1;
+    const turns = COVERS ? coverSteps : stops.length - 1;
     const perTurn = DWELL_S ? DWELL_S * 1000 : turns ? (REEL_SECONDS * 1000 - 1800 - 1500) / turns : 0;
     const introMs = DWELL_S ? DWELL_S * 1000 : 1800;
     const outroMs = DWELL_S ? DWELL_S * 1000 : 1500;
@@ -211,8 +247,12 @@ try {
     console.log(`  ${n} page(s), ${turns} turn(s) of ${STEP}: ${(perTurn / 1000).toFixed(2)}s per turn, ${dwell}ms on each`);
     const tStart = Date.now();
     await vp.waitForTimeout(introMs);
-    for (const i of stops.slice(1)) {
-      if (!(await goTo(i, vp, TURN_MS + dwell))) break;
+    if (COVERS) {
+      for (let i = 0; i < coverSteps; i++) if (!(await wheel(1, TURN_MS + dwell))) break;
+    } else {
+      for (const i of stops.slice(1)) {
+        if (!(await goTo(i, vp, TURN_MS + dwell))) break;
+      }
     }
     await vp.waitForTimeout(outroMs);
     const tEnd = Date.now();

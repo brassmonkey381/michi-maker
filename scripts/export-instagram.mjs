@@ -15,7 +15,11 @@
  * needed. One headless browser, closed when done.
  *
  *   node scripts/export-instagram.mjs --binder <id> [--pages 6] [--out <dir>] [--video] [--seconds 13] [--base https://michi-maker.com]
- *       [--dwell 3] [--step 2] [--music] [--covers]
+ *       [--dwell 3] [--step 2] [--music] [--covers] [--frame binder]
+ *
+ * `--frame binder` crops the reel to the binder itself: no header, no filmstrip. The open spread
+ * is measured once and the crop is that box with a small margin, so a cover, which is narrower,
+ * sits centred in it.
  *
  * `--covers` records the whole book: the front cover, page 1, each spread, the back cover, each
  * reached by clicking its thumbnail in the strip. Needs a binder with a cover.
@@ -57,6 +61,7 @@ const DWELL_S = args.dwell ? Number(args.dwell) : null;
 const STEP = Math.max(1, Number(args.step ?? 1));
 const MUSIC = args.music === 'true';
 const COVERS = args.covers === 'true';
+const FRAME = args.frame ?? 'page';
 /** The app's page-turn animation (src/components/binder/pageTurn.tsx TURN_MS). Keep in step. */
 const TURN_MS = 620;
 mkdirSync(OUT, { recursive: true });
@@ -220,11 +225,29 @@ try {
     const go = async ([kind, at], settle) => (kind === 'cover' ? cover(at, settle) : goTo(at, vp, settle));
     if (COVERS) {
       for (const stop of coverStops.slice(1)) await go(stop, 700);
-      await go(coverStops[0], 1500);
     } else {
       for (const i of stops.slice(1)) if (!(await goTo(i, vp, 900))) break;
-      await goTo(1, vp, 1200);
     }
+    // THE BINDER'S BOX, for --frame binder: the union of the page rectangles on screen (the
+    // strip's thumbnails are page rectangles too, so only the big ones count), plus a margin.
+    let crop = null;
+    if (FRAME === 'binder') {
+      await goTo(Math.min(2, n), vp, 1200);
+      const boxes = await vp.locator('[data-binder-page]').evaluateAll((els) =>
+        els.map((el) => el.getBoundingClientRect()).filter((r) => r.width > 200).map((r) => ({ x: r.left, y: r.top, w: r.width, h: r.height })),
+      );
+      if (boxes.length) {
+        const m = 28;
+        const x0 = Math.max(0, Math.min(...boxes.map((b) => b.x)) - m);
+        const y0 = Math.max(0, Math.min(...boxes.map((b) => b.y)) - m);
+        const x1 = Math.min(1600, Math.max(...boxes.map((b) => b.x + b.w)) + m);
+        const y1 = Math.min(900, Math.max(...boxes.map((b) => b.y + b.h)) + m);
+        crop = { x: Math.floor(x0 / 2) * 2, y: Math.floor(y0 / 2) * 2, w: Math.floor((x1 - x0) / 2) * 2, h: Math.floor((y1 - y0) / 2) * 2 };
+        console.log(`  frame: the binder, ${crop.w}x${crop.h} at ${crop.x},${crop.y}`);
+      } else console.log('  frame: could not find the binder on screen; recording the whole page');
+    }
+    if (COVERS) await go(coverStops[0], 1500);
+    else await goTo(1, vp, 1200);
 
     // PACE TO THE TARGET. Whatever the page count, the reel runs REEL_SECONDS from first page to
     // last: a hold on page one, then every turn takes an equal share of what remains, the app's
@@ -267,9 +290,10 @@ try {
         console.log(`  soundtrack: ${track.split('/').pop().slice(0, 60)}`);
       } else console.log('  no soundtrack on this binder; the reel is silent');
     }
+    const vf = crop ? ['-vf', `crop=${crop.w}:${crop.h}:${crop.x}:${crop.y}`] : [];
     const ff = spawnSync(
       'ffmpeg',
-      ['-y', '-ss', trimFrom, '-i', target, ...audioArgs, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', join(OUT, 'reel.mp4')],
+      ['-y', '-ss', trimFrom, '-i', target, ...audioArgs, ...vf, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', join(OUT, 'reel.mp4')],
       { stdio: 'ignore' },
     );
     if (ff.status === 0) console.log(`  ${join(OUT, 'reel.mp4')}  (${length}s, trimmed, Instagram-ready)`);

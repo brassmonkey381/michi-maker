@@ -49,47 +49,49 @@ export function ShareBackdropField({ binder }: { binder: DemoBinder }) {
 }
 
 export function QuickPreviewButton({ binder }: { binder: DemoBinder }) {
-  const [src, setSrc] = useState<string | null>(null);
-  const [state, setState] = useState<'idle' | 'loading' | 'ok' | 'failed'>('idle');
-  const { width, height } = useWindowDimensions();
-  const look = () => {
-    setSrc(binderQuickPreviewUrl(binder.id, binder.updatedAt));
-    setState('loading');
-  };
+  const [open, setOpen] = useState(false);
   return (
     <>
-      <PillButton label="Quick look at the share image" onPress={look} testID="share-quick-look" />
-      {src ? (
-        <Modal visible transparent animationType="fade" onRequestClose={() => setSrc(null)}>
-          <Pressable style={styles.backdrop} onPress={() => setSrc(null)} accessibilityLabel="Close the preview">
-            <View style={[styles.frame, { width: Math.min(width - 32, 1100), height: Math.min(height - 120, ((Math.min(width - 32, 1100)) * 1512) / 2568 + 48) }]}>
-              {state === 'loading' ? (
-                <View style={styles.center}>
-                  <ActivityIndicator color={Palette.accent} />
-                  <ThemedText type="small" themeColor="textSecondary">Drawing a quick version, a few seconds…</ThemedText>
-                </View>
-              ) : null}
-              {state === 'failed' ? (
-                <View style={styles.center}>
-                  <ThemedText type="small" themeColor="textSecondary">That did not draw. The binder has to be public, and the picture link has to load.</ThemedText>
-                </View>
-              ) : null}
-              <Image
-                source={{ uri: src }}
-                style={[styles.img, state !== 'ok' && styles.hidden]}
-                contentFit="contain"
-                cachePolicy="none"
-                onLoad={() => setState('ok')}
-                onError={() => setState('failed')}
-              />
-              <ThemedText type="small" themeColor="textSecondary" style={styles.caption}>
-                A low-resolution look. Links and the download use the full version.
-              </ThemedText>
-            </View>
-          </Pressable>
-        </Modal>
-      ) : null}
+      <PillButton label="Quick look at the share image" onPress={() => setOpen(true)} testID="share-quick-look" />
+      {open ? <QuickPreviewModal binder={binder} onClose={() => setOpen(false)} /> : null}
     </>
+  );
+}
+
+/** The quick share image in a modal: the Share sheet's button opens it, and so does Q (owner, 2026-09-16). */
+export function QuickPreviewModal({ binder, onClose }: { binder: DemoBinder; onClose: () => void }) {
+  const [src] = useState(() => binderQuickPreviewUrl(binder.id, binder.updatedAt));
+  const [state, setState] = useState<'loading' | 'ok' | 'failed'>('loading');
+  const { width, height } = useWindowDimensions();
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close the preview" testID="quick-preview">
+        <View style={[styles.frame, { width: Math.min(width - 32, 1100), height: Math.min(height - 120, ((Math.min(width - 32, 1100)) * 1512) / 2568 + 48) }]}>
+          {state === 'loading' ? (
+            <View style={styles.center}>
+              <ActivityIndicator color={Palette.accent} />
+              <ThemedText type="small" themeColor="textSecondary">Drawing a quick version, a few seconds…</ThemedText>
+            </View>
+          ) : null}
+          {state === 'failed' ? (
+            <View style={styles.center}>
+              <ThemedText type="small" themeColor="textSecondary">That did not draw. The binder has to be public, and the picture link has to load.</ThemedText>
+            </View>
+          ) : null}
+          <Image
+            source={{ uri: src }}
+            style={[styles.img, state !== 'ok' && styles.hidden]}
+            contentFit="contain"
+            cachePolicy="none"
+            onLoad={() => setState('ok')}
+            onError={() => setState('failed')}
+          />
+          <ThemedText type="small" themeColor="textSecondary" style={styles.caption}>
+            A low-resolution look. Links and the download use the full version.
+          </ThemedText>
+        </View>
+      </Pressable>
+    </Modal>
   );
 }
 

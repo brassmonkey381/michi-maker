@@ -18,20 +18,24 @@ export interface Shortcut {
 /** Mac shows ⌘ where Windows shows Ctrl; the card swaps the word, nothing else. */
 export function shortcutList(mod: 'Ctrl' | '⌘'): Shortcut[] {
   return [
-    { keys: `${mod} Z`, does: 'Undo' },
-    { keys: `${mod} Shift Z`, does: 'Redo' },
+    { keys: `${mod} Z`, does: 'Undo, or with Shift, redo' },
     { keys: `${mod} click`, does: 'Select several pockets' },
     { keys: 'E', does: 'Switch between Edit and Viewing mode' },
     { keys: 'A', does: 'Open or close the Art dock' },
-    { keys: 'C', does: 'Open or close the Cards dock' },
+    { keys: 'C or D', does: 'Open or close the Cards dock' },
     { keys: 'S', does: 'Open or close Settings' },
-    { keys: '← →', does: 'Previous or next page' },
+    { keys: 'Q', does: 'Quick look at the share image' },
+    { keys: 'W', does: 'Move this page: swap it, or send it in front of another' },
+    { keys: 'Esc', does: 'Close whatever is open' },
+    { keys: '← → or wheel', does: 'Previous or next page, or type a page number to jump' },
     { keys: 'Delete', does: 'Clear the selected pocket' },
   ];
 }
 
 /** The plain keys (no modifier) the editor listens for, so a handler and the card agree. */
-export const PLAIN_KEYS = { editMode: 'e', artDock: 'a', cardsDock: ['c', 'd'], settings: 's' } as const;
+export const PLAIN_KEYS = { editMode: 'e', artDock: 'a', cardsDock: ['c', 'd'], settings: 's', quickPreview: 'q', movePage: 'w' } as const;
+/** How long after the last digit a typed page number is acted on. Long enough for a two-digit number, short enough to feel like a jump. */
+export const PAGE_NUMBER_DEBOUNCE_MS = 650;
 
 /** Where the device remembers that the card has been shown. */
 export const SHORTCUTS_SEEN_KEY = 'michi.shortcuts.seen.v1';

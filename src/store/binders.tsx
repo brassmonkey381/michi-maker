@@ -227,6 +227,8 @@ interface BinderStore {
     fromIndex: number,
     toIndex: number,
   ) => { pageIndex: number; blanksInserted: number } | null;
+  /** Exchange two pages' positions. Everything else stays where it is (owner, 2026-09-16). */
+  swapPages: (binderId: string, aIndex: number, bIndex: number) => { pageIndex: number; blanksInserted: number } | null;
   /** Remove every blank page (no slots, no title/description) the parity pass doesn't still
    *  need as a spacer. Returns how many were removed and how many blanks remain. */
   compactBlankPages: (binderId: string) => { removed: number; kept: number } | null;
@@ -1330,6 +1332,27 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     [binders, commit, persist],
   );
 
+  const swapPages = useCallback(
+    (binderId: string, aIndex: number, bIndex: number): { pageIndex: number; blanksInserted: number } | null => {
+      const target = binders.find((binder) => binder.id === binderId);
+      if (!target) return null;
+      const count = target.pages.length;
+      if (aIndex === bIndex || aIndex < 0 || bIndex < 0 || aIndex >= count || bIndex >= count) return null;
+      const arr = [...target.pages];
+      const moved = arr[aIndex];
+      arr[aIndex] = arr[bIndex];
+      arr[bIndex] = moved;
+      // A swap across parity flips both pages' sides; the same re-spacing reorderPages does.
+      const { pages, blanksInserted } = withParitySpacers(arr);
+      commit((prev) => prev.map((binder) => (binder.id === binderId ? { ...binder, pages } : binder)));
+      if (!target.isExample) {
+        persist(() => (blanksInserted ? repo.replaceBinder({ ...target, pages }) : repo.reorderPages(binderId, pages.map((p) => p.id))));
+      }
+      return { pageIndex: pages.findIndex((p) => p.id === moved.id), blanksInserted };
+    },
+    [binders, commit, persist],
+  );
+
   const compactBlankPages = useCallback(
     (binderId: string): { removed: number; kept: number } | null => {
       const target = binders.find((binder) => binder.id === binderId);
@@ -2357,6 +2380,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       removePage,
       sendPageToBinder,
       reorderPages,
+      swapPages,
       compactBlankPages,
       upsertSlot,
       rehostBinderArt,
@@ -2410,6 +2434,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       removePage,
       sendPageToBinder,
       reorderPages,
+      swapPages,
       compactBlankPages,
       upsertSlot,
       rehostBinderArt,

@@ -42,7 +42,9 @@ import { BinderFields, BinderLook } from '@/components/binder/inspector/BinderSe
 import { PageFields } from '@/components/binder/inspector/PageSection';
 import { PocketWear } from '@/components/binder/inspector/PocketSection';
 import { PageWearBar } from '@/components/binder/PageWearBar';
-import { PLAIN_KEYS, SHORTCUTS_SEEN_KEY } from '@/data/keyboardShortcuts';
+import { PAGE_NUMBER_DEBOUNCE_MS, PLAIN_KEYS, SHORTCUTS_SEEN_KEY } from '@/data/keyboardShortcuts';
+import { MovePageSheet } from '@/components/binder/MovePageSheet';
+import { QuickPreviewModal } from '@/components/binder/SharePreview';
 import { useFirstPocketWalkthrough } from '@/hooks/use-first-pocket-walkthrough';
 import { SlotMultiActions } from '@/components/binder/SlotMultiActions';
 import { pillChip, sheet } from '@/constants/ui';
@@ -257,6 +259,9 @@ export function BinderScreen({
   // The view chips (double-sided, labels, strip side, owned, scans) are rendered by BinderPages,
   // but the gear that opens them belongs up in this screen's header, where it costs no page height.
   const [settingsOpen, setSettingsOpen] = useState(false);
+  /** Q: the quick share image, and W: the move-this-page sheet (owner, 2026-09-16). */
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [movePageOpen, setMovePageOpen] = useState(false);
   /**
    * WHETHER THE PHONE'S TOOLS ROW HAS MORE OFF EITHER EDGE (owner, 2026-09-15). The row scrolls
    * sideways, and nothing said so: at 390pt "Settings" was cut to "Se" at the right edge and read
@@ -2742,7 +2747,51 @@ export function BinderScreen({
           onToggleArt={phone ? undefined : () => setArtworkOpen((v) => !v)}
           onToggleCards={phone ? undefined : () => setCardsCollapsed((v) => !v)}
           onToggleSettings={() => setSettingsOpen((v) => !v)}
+          onQuickPreview={() => setQuickOpen((v) => !v)}
+          onMovePage={() => setMovePageOpen((v) => !v)}
+          onGoToPage={(n) => changePage(n - 1)}
+          onEscape={() => {
+            // The topmost thing first, one per press: a preview, a sheet, a selection, select mode.
+            if (quickOpen) setQuickOpen(false);
+            else if (movePageOpen) setMovePageOpen(false);
+            else if (settingsOpen) setSettingsOpen(false);
+            else if (binderInfoOpen) setBinderInfoOpen(false);
+            else if (shareOpen) setShareOpen(false);
+            else if (likesOpen) setLikesOpen(false);
+            else if (multiActionsOpen) setMultiActionsOpen(false);
+            else if (selectedSlotId) setSelectedSlotId(null);
+            else if (selectMode) {
+              setSelectMode(false);
+              clearMulti();
+            }
+          }}
         />
+        {quickOpen ? <QuickPreviewModal binder={binder} onClose={() => setQuickOpen(false)} /> : null}
+        {movePageOpen && editing ? (
+          <MovePageSheet
+            pages={binder.pages}
+            current={idx}
+            onClose={() => setMovePageOpen(false)}
+            onSwap={(target) => {
+              const result = store.swapPages(binder.id, idx, target);
+              setMovePageOpen(false);
+              if (result) {
+                changePage(result.pageIndex);
+                showToast(result.blanksInserted ? `Swapped with page ${target + 1}. A blank page keeps folded art aligned.` : `Swapped with page ${target + 1}`, true);
+              }
+            }}
+            onMoveBefore={(target) => {
+              // Moving forward: the page leaves its slot, so the one in front of `target` is target - 1.
+              const to = target > idx ? target - 1 : target;
+              const result = store.reorderPages(binder.id, idx, to);
+              setMovePageOpen(false);
+              if (result) {
+                changePage(result.pageIndex);
+                showToast(target >= binder.pages.length ? 'Moved to the end' : `Moved in front of page ${target + 1}`, true);
+              }
+            }}
+          />
+        ) : null}
         {/* THE SHORTCUTS CARD: once, on a keyboard, the first time this device edits a binder;
             again from ⌨ in the tools row. Bottom centre, over the page, under the docks. */}
         {shortcutsOpen ? (
@@ -2900,6 +2949,10 @@ function EditorKeyboardShortcuts({
   onToggleArt,
   onToggleCards,
   onToggleSettings,
+  onQuickPreview,
+  onMovePage,
+  onGoToPage,
+  onEscape,
 }: {
   /** The binder is this person's and nothing modal sits over it: the mode key applies. */
   active: boolean;
@@ -2919,7 +2972,19 @@ function EditorKeyboardShortcuts({
   onToggleCards?: () => void;
   /** S: the settings sheet (owner, 2026-09-16), which everyone opens every session. */
   onToggleSettings?: () => void;
+  /** Q: the quick share image. */
+  onQuickPreview?: () => void;
+  /** W: move this page. Editing only. */
+  onMovePage?: () => void;
+  /** Digits: a page number, 1-based, acted on after a short pause; the caller clamps it. */
+  onGoToPage?: (n: number) => void;
+  /** Escape: close the topmost thing. */
+  onEscape?: () => void;
 }) {
+  // THE TYPED PAGE NUMBER: digits gather here and fire together after PAGE_NUMBER_DEBOUNCE_MS,
+  // so a two-digit number is one jump rather than a jump to the first digit and then the number.
+  const digits = useRef('');
+  const digitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (Platform.OS !== 'web' || !active || typeof window === 'undefined') return;
     const handler = (e: KeyboardEvent) => {
@@ -2935,13 +3000,36 @@ function EditorKeyboardShortcuts({
         onToggleEdit();
         return;
       }
+      if (e.key === 'Escape' && onEscape) {
+        onEscape();
+        return;
+      }
+      if (!meta && !e.altKey && /^[0-9]$/.test(e.key) && onGoToPage) {
+        e.preventDefault();
+        digits.current += e.key;
+        if (digitTimer.current) clearTimeout(digitTimer.current);
+        digitTimer.current = setTimeout(() => {
+          const n = Number(digits.current);
+          digits.current = '';
+          if (n >= 1) onGoToPage(n);
+        }, PAGE_NUMBER_DEBOUNCE_MS);
+        return;
+      }
+      if (!meta && !e.altKey && key === PLAIN_KEYS.quickPreview && onQuickPreview) {
+        e.preventDefault();
+        onQuickPreview();
+        return;
+      }
       if (!meta && !e.altKey && key === PLAIN_KEYS.settings && onToggleSettings) {
         e.preventDefault();
         onToggleSettings();
         return;
       }
       if (!undoable) return;
-      if (!meta && !e.altKey && key === PLAIN_KEYS.artDock && onToggleArt) {
+      if (!meta && !e.altKey && key === PLAIN_KEYS.movePage && onMovePage) {
+        e.preventDefault();
+        onMovePage();
+      } else if (!meta && !e.altKey && key === PLAIN_KEYS.artDock && onToggleArt) {
         e.preventDefault();
         onToggleArt();
       } else if (!meta && !e.altKey && (PLAIN_KEYS.cardsDock as readonly string[]).includes(key) && onToggleCards) {
@@ -2969,7 +3057,7 @@ function EditorKeyboardShortcuts({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [active, undoable, pocketKeys, onUndo, onRedo, onDelete, onPrevPage, onNextPage, onToggleEdit, onToggleArt, onToggleCards, onToggleSettings]);
+  }, [active, undoable, pocketKeys, onUndo, onRedo, onDelete, onPrevPage, onNextPage, onToggleEdit, onToggleArt, onToggleCards, onToggleSettings, onQuickPreview, onMovePage, onGoToPage, onEscape]);
   return null;
 }
 

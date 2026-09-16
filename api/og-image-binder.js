@@ -665,8 +665,11 @@ function pageMat(grid, look, gridW, gridH) {
     if (lines.v.includes(spineEdge === 'left' ? 0 : look.cols)) layers.push(...seamV2(true, spineEdge === 'left' ? hug : w - hug, band, hgt - band * 2, look));
   }
   if (look.zip) {
-    const TAPE = 8 * S;
+    // A quarter thinner than the editor's coil (owner, 2026-09-15): at share size the 8px tape
+    // was the loudest line on the page. Six wide, teeth three across.
+    const TAPE = 6 * S;
     const PITCH = 3 * S;
+    const ACROSS = 3 * S;
     const outer = look.edge === 'left' ? 'left' : 'right';
     // The cover band: a ring of heavier, darker fabric with a fine edge where it meets the sheet.
     layers.push(
@@ -694,8 +697,8 @@ function pageMat(grid, look, gridW, gridH) {
           display: 'flex',
           position: 'absolute',
           ...(vertical
-            ? { top: 4 * S, bottom: 0, width: 4 * S, left: TAPE / 2 - 2 * S + side * 2 * S }
-            : { left: 4 * S, right: 0, height: 4 * S, top: TAPE / 2 - 2 * S + side * 2 * S }),
+            ? { top: 4 * S, bottom: 0, width: ACROSS, left: TAPE / 2 - ACROSS / 2 + side * 1.5 * S }
+            : { left: 4 * S, right: 0, height: ACROSS, top: TAPE / 2 - ACROSS / 2 + side * 1.5 * S }),
           backgroundImage: vertical
             ? `repeating-linear-gradient(180deg, transparent 0px, transparent ${shift}px, #8a8a93 ${shift}px, #8a8a93 ${shift + S}px, #5e5e67 ${shift + S}px, #5e5e67 ${shift + toothW}px, transparent ${shift + toothW}px, transparent ${period}px)`
             : `repeating-linear-gradient(90deg, transparent 0px, transparent ${shift}px, #8a8a93 ${shift}px, #8a8a93 ${shift + S}px, #5e5e67 ${shift + S}px, #5e5e67 ${shift + toothW}px, transparent ${shift + toothW}px, transparent ${period}px)`,
@@ -716,7 +719,8 @@ function pageMat(grid, look, gridW, gridH) {
     );
     // The slider at the bottom outer corner, and the pull hanging from it past the page's edge:
     // the pull is a child of the slider, at the editor's offsets (top 8, out 9, 34 degrees).
-    layers.push(
+    // ONE PULL PER BINDER (owner, 2026-09-15): a spread draws it on the right leaf only.
+    if (!look.noPull) layers.push(
       h(
         'div',
         {
@@ -1404,6 +1408,7 @@ async function render(pages, manifest, art, single, chrome, opts) {
     opts && opts.look && binder
       ? pages.map((p, i) => pageLook(p, binder, art, pages.length >= 2 ? (i === 0 ? 'left' : 'right') : (p.position || 0) % 2 === 1 ? 'left' : 'right'))
       : null;
+  if (looks && looks.length >= 2) looks[0].noPull = true;
   // THE OWNER'S OWN BACKDROP (2026-09-15) replaces the blurred page art when it loaded, as itself.
   const chosen = binder && isImageRef(binder.share_backdrop) && art ? art.get(binder.share_backdrop) || null : null;
   const node = single

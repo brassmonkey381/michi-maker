@@ -74,9 +74,18 @@ if (args[0] === '--contrast') {
 // `--v2` draws the binder's look (page style, zip, spine, sleeves, backgrounds) — the 2026-09-15
 // experiment — so the two versions can be judged side by side from the same binder.
 const v2 = args.includes('--v2');
-const [id, outDir = '.', ...faces] = args.filter((a) => a !== '--v2');
+// `--page N` renders page N alone on the narrow canvas, the way a shared page link does;
+// `--backdrop URL` stands in for the binder's own share_backdrop, to try a picture without saving it.
+const opt = (name) => {
+  const i = args.indexOf(name);
+  return i >= 0 ? args[i + 1] : undefined;
+};
+const pageNo = opt('--page') ? Number(opt('--page')) : undefined;
+const backdropOverride = opt('--backdrop');
+const skip = new Set(['--v2', '--page', '--backdrop', opt('--page'), opt('--backdrop')].filter(Boolean));
+const [id, outDir = '.', ...faces] = args.filter((a) => !skip.has(a));
 if (!id) {
-  console.log('FAILED: pass a binder id [outDir] [collage|bands ...] [--v2]');
+  console.log('FAILED: pass a binder id [outDir] [collage|bands ...] [--v2] [--page N] [--backdrop URL]');
   process.exit(2);
 }
 const [binder, manifest] = await Promise.all([fetchBinder(id), fetchManifest()]);
@@ -84,7 +93,17 @@ if (!binder) {
   console.log(`FAILED: no binder ${id} (is it public?)`);
   process.exit(3);
 }
-const pages = pickPages(binder);
+if (backdropOverride) binder.share_backdrop = backdropOverride;
+let pages = pickPages(binder);
+if (pageNo) {
+  const all = (binder.binder_pages || []).slice().sort((a, b) => (a.position || 0) - (b.position || 0));
+  const one = all[pageNo - 1];
+  if (!one) {
+    console.log(`FAILED: no page ${pageNo} (binder has ${all.length})`);
+    process.exit(4);
+  }
+  pages = [one];
+}
 const art = await loadArt(pages, v2 ? binder : null);
 const single = pages.length === 1;
 console.log(`"${binder.title}" -> ${pages.length} page(s), ${single ? 'narrow 1800x1512' : 'spread 2880x1512'}${v2 ? ', v2 look' : ''}`);

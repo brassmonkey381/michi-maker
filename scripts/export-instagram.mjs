@@ -17,8 +17,8 @@
  *   node scripts/export-instagram.mjs --binder <id> [--pages 6] [--out <dir>] [--video] [--seconds 13] [--base https://michi-maker.com]
  *       [--dwell 3] [--step 2] [--music] [--covers]
  *
- * `--covers` records the whole book: it opens on the front cover, turns spread by spread by
- * wheel, the way a visitor does, and closes on the back cover. Needs a binder with a cover.
+ * `--covers` records the whole book: the front cover, page 1, each spread, the back cover, each
+ * reached by clicking its thumbnail in the strip. Needs a binder with a cover.
  *
  * `--dwell N` holds each page N seconds (turn included) instead of fitting `--seconds`; `--step 2`
  * turns a spread at a time, which is what a desktop viewer sees; `--music` lays the binder's own
@@ -189,30 +189,20 @@ try {
     });
     const vp = await vctx.newPage();
     const t0 = Date.now(); // the recording began with the context
-    // A `?page=N` link with N past the first page starts a covered binder SHUT on the front
-    // (BinderPages: openTo > 0). It would open onto page N, so `settle` below walks it back to
-    // page 1 and shuts it again, and the recorded walk opens onto the title page.
-    const url = `${BASE}/binder/${BINDER}${COVERS ? '?page=2' : ''}`;
+    const url = `${BASE}/binder/${BINDER}`;
     await vp.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
     await vp.waitForSelector('[data-binder-page]', { timeout: 120000 });
     await vp.waitForTimeout(2500);
     await vp.mouse.click(800, 40); // a gesture on the top bar, so a soundtrack may start
-    /** Shut on the front cover with page 1 behind it: open, back to page 1, back to shut. */
-    const shutOnFront = async () => {
-      await wheel(1, 1200);
-      await wheel(-1, 1200);
-      await wheel(-1, 1200);
-    };
-    /** One wheel notch over the page, which turns a spread (or opens/shuts a cover). */
-    const wheel = async (dir, settle) => {
-      const box = await vp.locator('[data-binder-page]').first().boundingBox();
-      if (!box) return false;
-      await vp.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-      await vp.mouse.wheel(0, 240 * dir);
+    /** A cover in the strip, by its label (FC, IFC, IBC, BC): the thumbs carry it as aria-label. */
+    const cover = async (abbr, settle) => {
+      const thumb = vp.locator(`[aria-label^="${abbr}"]`).first();
+      if (!(await thumb.count())) return false;
+      await thumb.scrollIntoViewIfNeeded().catch(() => {});
+      await thumb.click();
       await vp.waitForTimeout(settle);
       return true;
     };
-
     // WARM EVERY PAGE FIRST. A page turned to for the first time fetches its card images, and the
     // pockets paint white for the instant before they arrive: the flash seen mid-reel. Visiting each
     // page once, off the clock, fills the cache; the timed pass then turns onto pages that are
@@ -221,16 +211,16 @@ try {
     const n = Math.max(1, await vp.locator('[data-testid^="binder-strip-page-"]').count());
     const stops = [1];
     for (let i = 2; i <= n; i += STEP) stops.push(i);
-    // With covers: front cover, page 1 alone, then spreads, then the back cover. One wheel
-    // notch per stop; the count is what the double-sided book turns through.
-    const coverSteps = 1 + 1 + Math.ceil((n - 1) / 2) + 1 - 1;
+    // With covers: the front cover, page 1 alone, each spread by its left page's thumb, then the
+    // back cover. Every stop is a click in the strip, as a visitor would make it.
+    const coverStops = [['cover', 'FC'], ['page', 1]];
+    for (let i = 2; i <= n; i += 2) coverStops.push(['page', i]);
+    coverStops.push(['cover', 'BC']);
+    const coverSteps = coverStops.length - 1;
+    const go = async ([kind, at], settle) => (kind === 'cover' ? cover(at, settle) : goTo(at, vp, settle));
     if (COVERS) {
-      await shutOnFront();
-      for (let i = 0; i < coverSteps; i++) await wheel(1, 700);
-      await vp.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
-      await vp.waitForSelector('[data-binder-page]', { timeout: 120000 });
-      await vp.waitForTimeout(2000);
-      await shutOnFront();
+      for (const stop of coverStops.slice(1)) await go(stop, 700);
+      await go(coverStops[0], 1500);
     } else {
       for (const i of stops.slice(1)) if (!(await goTo(i, vp, 900))) break;
       await goTo(1, vp, 1200);
@@ -248,7 +238,7 @@ try {
     const tStart = Date.now();
     await vp.waitForTimeout(introMs);
     if (COVERS) {
-      for (let i = 0; i < coverSteps; i++) if (!(await wheel(1, TURN_MS + dwell))) break;
+      for (const stop of coverStops.slice(1)) if (!(await go(stop, TURN_MS + dwell))) break;
     } else {
       for (const i of stops.slice(1)) {
         if (!(await goTo(i, vp, TURN_MS + dwell))) break;

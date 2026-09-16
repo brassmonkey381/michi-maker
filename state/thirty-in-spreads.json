@@ -1,0 +1,1492 @@
+{
+ "title": "Thirty, In Spreads",
+ "description": "Sixteen spreads, every card of both anniversary sets exactly once. The kept ideas first, the plainest cards last.",
+ "preset": "anniversary-gold",
+ "cloth": "#efeeea",
+ "pages": [
+  {
+   "title": "Thirty, In Spreads",
+   "description": "Every card of ME: 30th Celebration and its Classic Collection, once, across sixteen spreads. One idea per open spread, the kept ideas first. This page holds the binder open so each spread lands on facing pages. Art still to come, full page: the 30th Celebration key art.",
+   "slots": []
+  },
+  {
+   "title": "Thirty Years of One Mouse",
+   "description": "Fourteen of the thirty Pikachu Rares, one per illustrator, with a 2x2 panel for art that says thirty years. The other sixteen close the binder.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "712934"
+    },
+    {
+     "row": 0,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716309"
+    },
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "712935"
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "712936"
+    },
+    {
+     "row": 1,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716310"
+    },
+    {
+     "row": 1,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "712937"
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716311"
+    },
+    {
+     "row": 2,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "712938"
+    },
+    {
+     "row": 2,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716312"
+    }
+   ]
+  },
+  {
+   "title": "Thirty Years of One Mouse",
+   "description": "Fourteen of the thirty Pikachu Rares, one per illustrator, with a 2x2 panel for art that says thirty years. The other sixteen close the binder. Art still to come, top left (2 by 2 pockets): 30th Celebration logo or key art, or a crowd of Pikachu across the eras. Wide, bright.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "712939"
+    },
+    {
+     "row": 1,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "712940"
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "712941"
+    },
+    {
+     "row": 2,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716313"
+    },
+    {
+     "row": 2,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "696680"
+    }
+   ]
+  },
+  {
+   "title": "The Eevee Line, Base and ex",
+   "description": "Three Eevees across the top, then each evolution as a plain print beside its ex. The right page opens with a tall Eevee-family panel, then Sylveon twice. Art still to come, middle right: Espeon art, purple, calm; bottom right: Umbreon art, night, rings glowing.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "714357"
+    },
+    {
+     "row": 0,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "696832"
+    },
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "696833"
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "696678"
+    },
+    {
+     "row": 1,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "696834"
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "696679"
+    },
+    {
+     "row": 2,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "696835"
+    }
+   ]
+  },
+  {
+   "title": "The Eevee Line, Base and ex",
+   "description": "Three Eevees across the top, then each evolution as a plain print beside its ex. The right page opens with a tall Eevee-family panel, then Sylveon twice. Art still to come, top left (3 by 2 pockets): the whole Eevee family in one picture, tall or square; bottom right: Sylveon ribbons, close.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "696677"
+    },
+    {
+     "row": 1,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716231"
+    }
+   ]
+  },
+  {
+   "title": "Seven Special Illustrations",
+   "description": "The Special Illustration Rares with their Double Rare prints, and the fancy prints of earlier eras below them: a Shining, a VMAX, a Mega. Jirachi gets a full-page panel on the right.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716229"
+    },
+    {
+     "row": 0,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716230"
+    },
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "712953"
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716448"
+    },
+    {
+     "row": 1,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "696676"
+    },
+    {
+     "row": 1,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "712954"
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716205"
+    },
+    {
+     "row": 2,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716207"
+    },
+    {
+     "row": 2,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716204"
+    }
+   ]
+  },
+  {
+   "title": "Seven Special Illustrations",
+   "description": "The Special Illustration Rares with their Double Rare prints, and the fancy prints of earlier eras below them: a Shining, a VMAX, a Mega. Jirachi gets a full-page panel on the right. Art still to come, bottom left: a wishing star, night sky, small; top centre (3 by 2 pockets): Jirachi against a night sky, tall. The set makes this its quiet centrepiece.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716232"
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716495"
+    }
+   ]
+  },
+  {
+   "title": "Futuristic",
+   "description": "Mewtwo and Mew: the plain print, the ex, and the Futuristic Rare, one column each, with a big panel between them for the art that ties the two together. Art still to come, top centre (3 by 2 pockets): Mewtwo, dark lab or night sky, tall.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716462"
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716463"
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "696687"
+    }
+   ]
+  },
+  {
+   "title": "Futuristic",
+   "description": "Mewtwo and Mew: the plain print, the ex, and the Futuristic Rare, one column each, with a big panel between them for the art that ties the two together. Art still to come, top left (3 by 2 pockets): Mew, pink and playful, tall.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716464"
+    },
+    {
+     "row": 1,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716465"
+    },
+    {
+     "row": 2,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "696688"
+    }
+   ]
+  },
+  {
+   "title": "The Birds and the Sky",
+   "description": "Articuno, Zapdos and Moltres as Illustration Rares over their plain prints, then a sky panel. On the right, everything else in these sets that flies: Lugia twice, Ho-Oh, Vivillon, Tropius, Minior, and the fireflies. Art still to come, bottom left (1 by 3 pockets): the three birds in one sky, wide. Storm on one side, snow on the other.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716220"
+    },
+    {
+     "row": 0,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716221"
+    },
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716219"
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716451"
+    },
+    {
+     "row": 1,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716455"
+    },
+    {
+     "row": 1,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716445"
+    }
+   ]
+  },
+  {
+   "title": "The Birds and the Sky",
+   "description": "Articuno, Zapdos and Moltres as Illustration Rares over their plain prints, then a sky panel. On the right, everything else in these sets that flies: Lugia twice, Ho-Oh, Vivillon, Tropius, Minior, and the fireflies. Art still to come, bottom right: a night sky full of fireflies, small.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "714386"
+    },
+    {
+     "row": 0,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716510"
+    },
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716446"
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716442"
+    },
+    {
+     "row": 1,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716439"
+    },
+    {
+     "row": 1,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716513"
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716437"
+    },
+    {
+     "row": 2,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716438"
+    }
+   ]
+  },
+  {
+   "title": "Box Legends, in Pairs",
+   "description": "Every pair of box legendaries these sets hold, two to a row, with a Classic Collection print closing the row where there is one. The Darkrai and Cresselia LEGEND halves are the most literal pair in the game. Art still to come, top right: Kyogre and Groudon, sea against land.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716452"
+    },
+    {
+     "row": 0,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716478"
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716496"
+    },
+    {
+     "row": 1,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716453"
+    },
+    {
+     "row": 1,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716203"
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716472"
+    },
+    {
+     "row": 2,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716493"
+    },
+    {
+     "row": 2,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716208"
+    }
+   ]
+  },
+  {
+   "title": "Box Legends, in Pairs",
+   "description": "Every pair of box legendaries these sets hold, two to a row, with a Classic Collection print closing the row where there is one. The Darkrai and Cresselia LEGEND halves are the most literal pair in the game.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716499"
+    },
+    {
+     "row": 0,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716500"
+    },
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716209"
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716470"
+    },
+    {
+     "row": 1,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716199"
+    },
+    {
+     "row": 1,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716200"
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716498"
+    },
+    {
+     "row": 2,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716476"
+    },
+    {
+     "row": 2,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716197"
+    }
+   ]
+  },
+  {
+   "title": "Lit From Inside",
+   "description": "Drifloon, Chandelure and Morpeko glow; the right page is Toxtricity in every print with a neon panel. A spread about light sources, which is what the Illustration Rares are best at.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "696684"
+    },
+    {
+     "row": 0,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716224"
+    },
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716223"
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716469"
+    },
+    {
+     "row": 1,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716471"
+    },
+    {
+     "row": 1,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716460"
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716485"
+    },
+    {
+     "row": 2,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716198"
+    },
+    {
+     "row": 2,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716486"
+    }
+   ]
+  },
+  {
+   "title": "Lit From Inside",
+   "description": "Drifloon, Chandelure and Morpeko glow; the right page is Toxtricity in every print with a neon panel. A spread about light sources, which is what the Illustration Rares are best at. Art still to come, top left (2 by 2 pockets): Toxtricity on stage, neon, wide or square; bottom right: a neon sign, small.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716457"
+    },
+    {
+     "row": 1,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716458"
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716459"
+    },
+    {
+     "row": 2,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716222"
+    }
+   ]
+  },
+  {
+   "title": "Meowth, Three Ways",
+   "description": "Kanto, Alola and Galar Meowth as Illustration Rares over their prints, with the two Classic cats. The right page is the mouse meeting the cat, with the Base Set Pikachu standing in for the mouse. Art still to come, bottom right: a cat, any region, curled up.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "714358"
+    },
+    {
+     "row": 0,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "714360"
+    },
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716226"
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "714356"
+    },
+    {
+     "row": 1,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "714359"
+    },
+    {
+     "row": 1,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716494"
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716156"
+    },
+    {
+     "row": 2,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716161"
+    }
+   ]
+  },
+  {
+   "title": "Meowth, Three Ways",
+   "description": "Kanto, Alola and Galar Meowth as Illustration Rares over their prints, with the two Classic cats. The right page is the mouse meeting the cat, with the Base Set Pikachu standing in for the mouse. Art still to come, top left (1 by 2 pockets): Pikachu and Meowth face to face, wide; middle left (2 by 2 pockets): Team Rocket Meowth, or the two of them arguing, square.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "712951"
+    },
+    {
+     "row": 1,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "712952"
+    },
+    {
+     "row": 2,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716194"
+    }
+   ]
+  },
+  {
+   "title": "Small and Big",
+   "description": "Scraggy, Maushold and Hisuian Zorua drawn tiny in a big world on the left; Alolan Exeggutor, Lycanroc, Snorlax and Kangaskhan on the right, with a tall panel for something enormous. Art still to come, middle left (1 by 3 pockets): something tiny in a huge landscape, wide.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716225"
+    },
+    {
+     "row": 0,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716228"
+    },
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "696686"
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716487"
+    },
+    {
+     "row": 2,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716514"
+    },
+    {
+     "row": 2,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716511"
+    }
+   ]
+  },
+  {
+   "title": "Small and Big",
+   "description": "Scraggy, Maushold and Hisuian Zorua drawn tiny in a big world on the left; Alolan Exeggutor, Lycanroc, Snorlax and Kangaskhan on the right, with a tall panel for something enormous. Art still to come, top left (3 by 1 pockets): Alolan Exeggutor from below, tall.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716218"
+    },
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716436"
+    },
+    {
+     "row": 1,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "696685"
+    },
+    {
+     "row": 1,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716481"
+    },
+    {
+     "row": 2,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716508"
+    },
+    {
+     "row": 2,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716506"
+    }
+   ]
+  },
+  {
+   "title": "Dragons",
+   "description": "Two dragon lines start to finish, the Classic Rayquaza, then the dragon legends: Reshiram and Zekrom with the Pikachu and Zekrom GX, Koraidon and Miraidon, and Salamence ex twice. Art still to come, bottom centre (1 by 2 pockets): Rayquaza high in the sky, wide.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716490"
+    },
+    {
+     "row": 0,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716491"
+    },
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716492"
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716503"
+    },
+    {
+     "row": 1,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716504"
+    },
+    {
+     "row": 1,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716505"
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716196"
+    }
+   ]
+  },
+  {
+   "title": "Dragons",
+   "description": "Two dragon lines start to finish, the Classic Rayquaza, then the dragon legends: Reshiram and Zekrom with the Pikachu and Zekrom GX, Koraidon and Miraidon, and Salamence ex twice. Art still to come, middle right: past and future, one frame; bottom right: Salamence diving, small.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716447"
+    },
+    {
+     "row": 0,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716456"
+    },
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "714373"
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716482"
+    },
+    {
+     "row": 1,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716461"
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716233"
+    },
+    {
+     "row": 2,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716502"
+    }
+   ]
+  },
+  {
+   "title": "Gold",
+   "description": "Gimmighoul to Gholdengo, the Metal types, and the ones that shine: Victini, Zeraora, Lucario. Built for the Anniversary Gold binder, where the zip matches the page. Art still to come, bottom left: gold leaf, small; bottom centre (1 by 2 pockets): gold coins, treasure, or a gold-foil texture. Wide.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716477"
+    },
+    {
+     "row": 0,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716501"
+    },
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716227"
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716497"
+    },
+    {
+     "row": 1,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716157"
+    },
+    {
+     "row": 1,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716206"
+    }
+   ]
+  },
+  {
+   "title": "Gold",
+   "description": "Gimmighoul to Gholdengo, the Metal types, and the ones that shine: Victini, Zeraora, Lucario. Built for the Anniversary Gold binder, where the zip matches the page. Art still to come, middle right: gold light through leaves, small; bottom left (1 by 3 pockets): Ho-Oh in gold light, wide.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716479"
+    },
+    {
+     "row": 0,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716158"
+    },
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716193"
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "696830"
+    },
+    {
+     "row": 1,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "696831"
+    }
+   ]
+  },
+  {
+   "title": "Trainers and Company",
+   "description": "Misty with her water, N with his Zoroark. Misty gets both Lapras prints and a Slowpoke; N gets the Zorua line and the Hisuian Zoroark. The right page is the Item cards, a lineup panel, and Zorua on its own. Art still to come, middle centre (1 by 2 pockets): the Cerulean gym pool, wide.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716159"
+    },
+    {
+     "row": 0,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716450"
+    },
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "696683"
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716449"
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716202"
+    },
+    {
+     "row": 2,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716489"
+    },
+    {
+     "row": 2,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716512"
+    }
+   ]
+  },
+  {
+   "title": "Trainers and Company",
+   "description": "Misty with her water, N with his Zoroark. Misty gets both Lapras prints and a Slowpoke; N gets the Zorua line and the Hisuian Zoroark. The right page is the Item cards, a lineup panel, and Zorua on its own. Art still to come, middle left (1 by 3 pockets): Misty and N together, or a gym-leader lineup. Wide; bottom centre: N and Zorua, small; bottom right: a trainer from behind, walking away, small.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716515"
+    },
+    {
+     "row": 0,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716516"
+    },
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716517"
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716488"
+    }
+   ]
+  },
+  {
+   "title": "Two Steps",
+   "description": "Evolution pairs, with a brief for the form the sets left out. Erika's Jigglypuff and Igglybuff, Marill and Azumarill, Cherubi and Cherrim, Vulpix and Ninetales, the Nidoran line, and Cosmog to Cosmoem. Art still to come, top right: Wigglytuff, small; middle right: Azurill, small; bottom right: Cherrim in sunshine, small.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716509"
+    },
+    {
+     "row": 0,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716195"
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716466"
+    },
+    {
+     "row": 1,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716467"
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716440"
+    },
+    {
+     "row": 2,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716441"
+    }
+   ]
+  },
+  {
+   "title": "Two Steps",
+   "description": "Evolution pairs, with a brief for the form the sets left out. Erika's Jigglypuff and Igglybuff, Marill and Azumarill, Cherubi and Cherrim, Vulpix and Ninetales, the Nidoran line, and Cosmog to Cosmoem. Art still to come, top right: Ninetales, nine tails fanned, small; middle right: Nidoqueen, small; bottom right: Lunala or Solgaleo emerging, small.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716443"
+    },
+    {
+     "row": 0,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716444"
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716483"
+    },
+    {
+     "row": 1,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716484"
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716474"
+    },
+    {
+     "row": 2,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716475"
+    }
+   ]
+  },
+  {
+   "title": "Odd Ones Out",
+   "description": "The cards that fit no theme: Unown, Ditto, a Wishiwashi that only counts in a crowd, Exeggcute, Comfey, Seismitoad; and the five Classic prints with no partner. A page for the collector who wants every card in. Art still to come, bottom left (1 by 3 pockets): a school of Wishiwashi, wide.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716468"
+    },
+    {
+     "row": 0,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716507"
+    },
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716454"
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716435"
+    },
+    {
+     "row": 1,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716473"
+    },
+    {
+     "row": 1,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716480"
+    }
+   ]
+  },
+  {
+   "title": "Odd Ones Out",
+   "description": "The cards that fit no theme: Unown, Ditto, a Wishiwashi that only counts in a crowd, Exeggcute, Comfey, Seismitoad; and the five Classic prints with no partner. A page for the collector who wants every card in. Art still to come, middle right: Raikou in a storm, small; bottom left (1 by 3 pockets): the eras these five came from, one strip of frames. Wide.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716162"
+    },
+    {
+     "row": 0,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716160"
+    },
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716191"
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716163"
+    },
+    {
+     "row": 1,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716192"
+    }
+   ]
+  },
+  {
+   "title": "The Other Sixteen",
+   "description": "The remaining Pikachu Rares, so all thirty illustrators are in the binder. Two panels for Pikachu art from the years these sets celebrate.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "696681"
+    },
+    {
+     "row": 0,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "712942"
+    },
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "712943"
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "712944"
+    },
+    {
+     "row": 1,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "712945"
+    },
+    {
+     "row": 1,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "712946"
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "712947"
+    },
+    {
+     "row": 2,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "712948"
+    },
+    {
+     "row": 2,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716314"
+    }
+   ]
+  },
+  {
+   "title": "The Other Sixteen",
+   "description": "The remaining Pikachu Rares, so all thirty illustrators are in the binder. Two panels for Pikachu art from the years these sets celebrate. Art still to come, bottom centre (1 by 2 pockets): Pikachu from the first anime opening, or a 1996 sketch. Wide.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716315"
+    },
+    {
+     "row": 0,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "696682"
+    },
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716316"
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "712949"
+    },
+    {
+     "row": 1,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "712950"
+    },
+    {
+     "row": 1,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716317"
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716318"
+    }
+   ]
+  },
+  {
+   "title": "The First Card",
+   "description": "Base Set Charizard at its original number, with the Magikarp beside it because the joke is thirty years old too. The right page is one panel, for the picture the whole binder has been leading to. Art still to come, top left (2 by 1 pockets): Charizard, the Base Set pose reimagined. Tall; middle centre: Magikarp splashing, small; middle right: a 1999 booster pack, small; bottom left (1 by 3 pockets): the original Base Set booster box, wide.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "714372"
+    },
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "716210"
+    }
+   ]
+  },
+  {
+   "title": "The First Card",
+   "description": "Base Set Charizard at its original number, with the Magikarp beside it because the joke is thirty years old too. The right page is one panel, for the picture the whole binder has been leading to. Art still to come, top left (3 by 3 pockets): the 30th anniversary Charizard art, full page.",
+   "slots": []
+  }
+ ]
+}

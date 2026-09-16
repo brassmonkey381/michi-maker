@@ -36,7 +36,11 @@ import * as showcase from './showcase';
 // card and the curate callout took the first example binder with a card on page 0, and inserting a
 // module ahead of `release` silently repainted both with whatever that module's first page held.
 // That is pinned now (see HOME_ARTWORK_BINDER_ID), so this list is safe to reorder again.
-const MODULES = [anniversary, showcase, release, featured, generated];
+// `anniversary` is HELD BACK (owner, 2026-09-16): the finished binder lives on @michimaker with the
+// art in place (see data/featuredPin), so the bundled draft no longer shows. The module and its JSON
+// stay; put it back in this list to show it again.
+void anniversary;
+const MODULES = [showcase, release, featured, generated];
 
 export const CONTENT_CARDS: DemoCard[] = MODULES.flatMap((module) => module.cards);
 

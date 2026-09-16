@@ -18,7 +18,7 @@
  */
 
 export interface FeaturedPin {
-  /** The binder's id. The BUNDLED id, since the pin prepends the example rather than a database row. */
+  /** The binder's id: a bundled example's id, or a published binder's uuid (the store fetches that one). */
   binderId: string;
   /** Exclusive: the pin is live strictly before this instant. ISO date, UTC midnight. */
   until: string;
@@ -28,11 +28,12 @@ export interface FeaturedPin {
 
 /** Set to null when nothing is pinned. One at a time, on purpose. */
 export const FEATURED_PIN: FeaturedPin | null = {
-  binderId: 'anniv-thirty-years',
-  until: '2026-09-18',
+  binderId: '9222e110-e2fe-4773-9143-d75165da6d32',
+  until: '2026-09-30',
   because:
-    'The 30th anniversary sets landed on 2026-09-09 and this thirty-page binder was built on them '
-    + 'two days later. Seven days to show that, then it competes like everything else.',
+    'The finished "Thirty Years, Thirty Pages": every card of both anniversary sets once, with the '
+    + 'art in place, published on @michimaker on 2026-09-16 in place of the bundled draft. Two weeks '
+    + 'at the front, then it competes like everything else.',
 };
 
 /**

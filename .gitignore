@@ -76,3 +76,4 @@ state/og-experiment/
 
 # House-binder sync: the @michimaker login only. The script itself is committed.
 scripts/house.secrets
+state/thirty-live.json

@@ -29,7 +29,7 @@ import {
 
 import { isCustomArtwork, isPrivateArt, markCopiedArtBorrowed } from '@/data/artAttributionCheck';
 import { deriveAttribution } from '@/data/artworkLibrary';
-import { withPinnedFeatured } from '@/data/featuredPin';
+import { activePin, withPinnedFeatured } from '@/data/featuredPin';
 import type { ComposePlacement } from '@/data/pageComposer';
 import * as repo from '@/data/binderRepo';
 import { slotSignature } from '@/data/savedSlices';
@@ -373,6 +373,10 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   // Featured = the top public binders by likes in the last rolling 3 days, fetched live from the
   // backend (empty in local mode, or when nothing qualifies → the Featured section stays hidden).
   const [featured, setFeatured] = useState<DemoBinder[]>([]);
+  // A PINNED BINDER THAT LIVES IN THE DATABASE (owner, 2026-09-16). The pin used to name a bundled
+  // example only, so the lookup was the binders the app already held. A published binder is not
+  // among them unless it is earning likes, so it is fetched by id here, once, while the pin is live.
+  const [pinnedLive, setPinnedLive] = useState<DemoBinder | null>(null);
   /**
    * WHEN the pin is judged, sampled once per mount rather than read during render. The clock is not
    * a render input: calling it in the memo below would make the shelf depend on which frame asked,
@@ -479,6 +483,11 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       try {
         const rows = await repo.fetchFeaturedBinders();
         if (active) setFeatured(rows);
+        const pin = activePin(pinNow);
+        if (pin && !rows.some((b) => b.id === pin.binderId) && !SAMPLE_BINDERS.some((b) => b.id === pin.binderId)) {
+          const pinned = await repo.fetchBinder(pin.binderId);
+          if (active) setPinnedLive(pinned);
+        }
       } catch (error) {
         console.warn(`[michi-maker] featured load failed: ${(error as Error).message}`);
       }
@@ -486,7 +495,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [authReady, userId]);
+  }, [authReady, userId, pinNow]);
 
   /** Apply an immutable update to the binders, recording it on the undo stack. */
   const commit = useCallback((updater: (prev: DemoBinder[]) => DemoBinder[]) => {
@@ -2318,7 +2327,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       // The ranked shelf, with a time-limited pin at the front when one is live (see
       // data/featuredPin). `binders` is passed as the lookup because the pinned binder is a
       // BUNDLED example with no database row, so it is never in `featured` itself.
-      featuredBinders: withPinnedFeatured(featured, binders, pinNow),
+      featuredBinders: withPinnedFeatured(featured, pinnedLive ? [...binders, pinnedLive] : binders, pinNow),
       userBinders: binders.filter((binder) => !binder.isExample),
       loading,
       canEdit,
@@ -2373,6 +2382,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     [
       binders,
       featured,
+      pinnedLive,
       loading,
       canEdit,
       saveError,

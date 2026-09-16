@@ -58,13 +58,13 @@ test('a pin naming a binder that is not there leaves the shelf alone', () => {
 });
 
 /** The shipped configuration, not a fixture: a wrong id here is a pin that silently does nothing. */
-test('the shipped pin names the anniversary binder and expires within a fortnight', () => {
+test('the shipped pin names the published anniversary binder and expires within a fortnight', () => {
   assert.ok(FEATURED_PIN, 'nothing pinned; delete this test with the pin if that is deliberate');
-  assert.equal(FEATURED_PIN!.binderId, 'anniv-thirty-years');
+  assert.equal(FEATURED_PIN!.binderId, '9222e110-e2fe-4773-9143-d75165da6d32');
   const until = Date.parse(`${FEATURED_PIN!.until}T00:00:00Z`);
   assert.ok(!Number.isNaN(until), 'the until date must parse, or the pin never applies');
   assert.ok(
-    until - Date.parse('2026-09-11T00:00:00Z') <= 14 * 86_400_000,
+    until - Date.parse('2026-09-16T00:00:00Z') <= 14 * 86_400_000,
     'a pin this long stops being a moment and starts being a policy',
   );
 });

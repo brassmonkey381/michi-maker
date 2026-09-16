@@ -42,6 +42,9 @@ export const isHouseAccount = (username: string | null | undefined): boolean =>
 export const DEMOTION_EXEMPT_BINDERS = new Set([
   'anniv-thirty-years',
   '4493ccbc-8ae0-4874-ab27-7253b40d7e47',
+  // The finished binder, published 2026-09-16 with the art in place; the row above is its
+  // earlier, now private, copy.
+  '9222e110-e2fe-4773-9143-d75165da6d32',
 ]);
 
 /** Is this row exempt? Rows come from the featured RPC, which names the binder `binder_id`. */

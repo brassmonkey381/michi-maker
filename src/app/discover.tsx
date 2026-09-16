@@ -1,18 +1,16 @@
 /**
- * Discover — everyone's public binders. Three views share one screen:
+ * Discover — everyone's public binders. Two views share one screen:
  *
  *   • TYPED QUERY — the debounced `search_binders` RPC (title / description / owner @username).
- *   • A CONTEST CATEGORY CHIP — that category's entries, ranked by votes.
- *   • NEITHER (the default) — three stacked sections: a feed of every contest entry, newest entry
- *     first; then Public binders, everything that is not an entry, ordered by likes or by when it
- *     was made public (the reader picks; likes is the default); then the house account's own
- *     reference binders, which are deliberately last.
+ *   • NO QUERY (the default) — Public binders, ordered by likes or by when they were made public
+ *     (the reader picks; likes is the default), then the house account's own reference binders,
+ *     which are deliberately last, then one card pointing at the contest.
  *
- * This page was once a single grid of the most-liked binders, which is a leaderboard rather than a
- * discovery surface: the same binders hold the top and something published today is invisible
- * until it earns votes. Splitting the contest entries into their own feed is what fixed that —
- * newly published work has a section of its own to appear in — which is why the main grid can
- * default to likes without swallowing everything new. "Recently public" is one tap away.
+ * THE CONTEST LIVES ON /contest-binders (owner call, 2026-09-15). Its category boards and entry
+ * feed used to sit at the top of this page, above the search box, so everyone who came here to
+ * search scrolled past them; and the field had no page of its own to link to. What is left here is
+ * the card at the bottom. Contest entries are ordinary public binders again in the shelf above —
+ * nothing shows them twice now, so nothing needs to exclude them.
  *
  * Results render as a responsive grid of the shared BinderThumb; tapping one opens `/binder/[id]`.
  * Guests can browse too (every RPC here is granted to anon) — this is discovery, not a personal
@@ -39,15 +37,7 @@ import { PagedCarousel } from '@/components/PagedCarousel';
 import { ProfileAvatarButton, TILE_AVATAR } from '@/components/people/ProfileAvatarButton';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { CATEGORIES, CONTEST, contestPhase, type ContestCategory } from '@/data/contest';
-import { FinalsVoteButton } from '@/components/contest/FinalsVoteButton';
-import {
-  fetchContestEntryFeed,
-  fetchContestLeaderboard,
-  fetchFinalsLeaderboard,
-  fetchMyFinalsVotes,
-  type FeedEntry,
-} from '@/data/contestRepo';
+import { CONTEST, contestPhase } from '@/data/contest';
 import {
   BottomTabInset,
   Breakpoints,
@@ -66,7 +56,6 @@ import {
 import type { DemoBinder } from '@/data/binderTypes';
 import { fetchAvatarsByUsername } from '@/data/profileRepo';
 import { isSupabaseConfigured } from '@/lib/env';
-import { useAuth } from '@/store/auth';
 import { useImageManifest } from '@/lib/catalogConfig';
 
 const GRID_GAP = Spacing.four;
@@ -106,11 +95,6 @@ function shelfPages<T>(items: T[], perPage: number, tile: (item: T) => ReactNode
   return pages;
 }
 
-/** Category slug to label, so a feed tile can say which category it was entered in. */
-const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
-  CATEGORIES.map((c) => [c.slug, c.label]),
-);
-
 /**
  * The orderings offered for the "everything else" section. This list is the chip ORDER only — the
  * default lives where the state is initialised (`useState<DiscoverSort>` below), so change it
@@ -137,129 +121,29 @@ export default function DiscoverScreen() {
   const [results, setResults] = useState<DemoBinder[] | null>(null);
   const reqId = useRef(0);
 
-  // Contest leaderboards — a selected category chip swaps the grid to that category's
-  // vote-ranked entries. Typing a search clears the selection.
-  // Voting needs a real account, and nobody votes for their own binder — the server refuses both,
-  // and the pill says so up front by being disabled rather than by failing on the tap.
-  const { isSignedIn, profile } = useAuth();
-  const myUsername = profile?.username?.toLowerCase();
+  // Whether to show the card at the bottom that points at /contest-binders. The contest's own
+  // views live there; this page only advertises it while a contest is running.
+  const contestOn = contestPhase() !== 'ended' && contestPhase() !== 'upcoming' && isSupabaseConfigured;
 
-  // The strip runs through BOTH rounds; what it lists changes. In the Final the boards are the
-  // frozen finalists ranked by stage-2 votes, not the open field ranked by likes.
-  const phase = contestPhase();
-  const isFinals = phase === 'finals';
-  const contestOn = (phase === 'open' || isFinals) && isSupabaseConfigured;
-  const [contestCat, setContestCat] = useState<ContestCategory | null>(null);
-  const [board, setBoard] = useState<DemoBinder[] | null>(null);
-  const boardReq = useRef(0);
-  // The board is reset to null (spinner) where contestCat is SET (the chip press), so this
-  // effect only fetches — no synchronous setState in the effect body.
-  useEffect(() => {
-    if (!contestCat) return;
-    const id = ++boardReq.current;
-    (isFinals ? fetchFinalsLeaderboard(contestCat) : fetchContestLeaderboard(contestCat))
-      .then((rows) => {
-        if (id === boardReq.current) setBoard(rows);
-      })
-      .catch(() => {
-        if (id === boardReq.current) setBoard([]);
-      });
-  }, [contestCat, isFinals]);
-
-  // WHICH FINALISTS THIS ACCOUNT HAS VOTED FOR. Held here rather than per tile so a binder that
-  // appears on both the category board and the all-categories shelf agrees with itself, and so a
-  // vote cast on one updates the other without a refetch.
-  const [myVotes, setMyVotes] = useState<Set<string>>(new Set());
-  const [voteError, setVoteError] = useState<string | null>(null);
-  useEffect(() => {
-    if (!isFinals || !isSupabaseConfigured) return;
-    let alive = true;
-    fetchMyFinalsVotes()
-      .then((v) => alive && setMyVotes(v))
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [isFinals]);
-
-  // Optimistic vote toggle: the set and the displayed count move together, and FinalsVoteButton
-  // calls this a second time with the old value if the server refuses.
-  const [voteDelta, setVoteDelta] = useState<Map<string, number>>(new Map());
-  const onVoteChange = (binderId: string, voted: boolean) => {
-    setVoteError(null);
-    setMyVotes((prev) => {
-      const next = new Set(prev);
-      if (voted) next.add(binderId);
-      else next.delete(binderId);
-      return next;
-    });
-    setVoteDelta((prev) => {
-      const next = new Map(prev);
-      next.set(binderId, (next.get(binderId) ?? 0) + (voted ? 1 : -1));
-      return next;
-    });
-  };
-  const voteCount = (b: DemoBinder) => Math.max(0, (b.likeCount ?? 0) + (voteDelta.get(b.id) ?? 0));
-
-  /** The vote pill for a finalist tile, or the plain heart count outside the Final. */
-  const finalsAccessory = (b: DemoBinder) => (
-    <FinalsVoteButton
-      binderId={b.id}
-      voted={myVotes.has(b.id)}
-      votes={voteCount(b)}
-      disabled={!isSignedIn || (!!myUsername && b.authorName?.toLowerCase() === myUsername)}
-      onChange={onVoteChange}
-      onError={setVoteError}
-    />
-  );
-
-  // The two default sections, shown when nobody has typed a query or picked a category.
-  //
-  //   1. the entry feed — every public contest entry, newest entry first
-  //   2. everything else — public binders that are NOT entries, by publish date or by likes
-  //
-  // Kept as separate fetches rather than one: they answer different questions, the feed is
-  // contest-scoped and disappears when the contest ends, and a failure in one should not blank
-  // the other.
-  const [feed, setFeed] = useState<FeedEntry[] | null>(null);
   // The default ordering for public binders — see SORTS above for why it is likes and not recency.
   const [sort, setSort] = useState<DiscoverSort>('likes');
   const [others, setOthers] = useState<DemoBinder[] | null>(null);
 
-  useEffect(() => {
-    if (!contestOn) return;
-    let alive = true;
-    // In the Final the shelf is the finalists themselves, every category together, ranked by
-    // stage-2 votes. The entry feed it replaces was ordered by ENTRY TIME, which stops meaning
-    // anything the moment the field is frozen.
-    const load = isFinals
-      ? fetchFinalsLeaderboard(null).then((binders) =>
-          binders.map((b) => ({ binder: b, category: 'aesthetic' as ContestCategory, enteredAt: '' })),
-        )
-      : fetchContestEntryFeed();
-    load.then((rows) => alive && setFeed(rows)).catch(() => alive && setFeed([]));
-    return () => {
-      alive = false;
-    };
-  }, [contestOn, isFinals]);
-
-  // Re-fetches when the sort flips. The contest id is passed so entries are left out of this
-  // section: they are already the feed above, and showing them twice makes the page look shorter
-  // than it is. Like the leaderboard above, `others` is cleared to null by the PRESS that changes
-  // the sort, so this effect only fetches and never sets state synchronously.
+  // Re-fetches when the sort flips. Contest entries are INCLUDED here: since the contest moved to
+  // its own page nothing else on Discover lists them, and leaving them out would hide public
+  // binders from the one page that is meant to show every public binder. `others` is cleared to
+  // null by the PRESS that changes the sort, so this effect only fetches and never sets state
+  // synchronously.
   useEffect(() => {
     if (!isSupabaseConfigured) return;
     let alive = true;
-    fetchDiscoverBinders(sort, {
-      excludeContest: contestOn ? CONTEST.id : undefined,
-      excludeAuthor: OFFICIAL_AUTHOR,
-    })
+    fetchDiscoverBinders(sort, { excludeAuthor: OFFICIAL_AUTHOR })
       .then((rows) => alive && setOthers(rows))
       .catch(() => alive && setOthers([]));
     return () => {
       alive = false;
     };
-  }, [sort, contestOn]);
+  }, [sort]);
 
   // Avatars for the people whose binders are on show. Keyed by username because that is the only
   // thing a listed binder knows about its owner (`authorName`), and it is enough: the username is
@@ -355,60 +239,9 @@ export default function DiscoverScreen() {
             Search everyone’s public binders by title, description, or creator.
           </ThemedText>
 
-          {/* Contest strip — category leaderboards while the contest runs. */}
-          {contestOn ? (
-            <View style={styles.contestBox}>
-              <View style={styles.contestHead}>
-                <ThemedText type="smallBold">🏆 {CONTEST.name}</ThemedText>
-                <Pressable onPress={() => router.push('/contest' as Href)} hitSlop={6}>
-                  <ThemedText type="small" style={styles.contestLink}>
-                    Prizes & rules ›
-                  </ThemedText>
-                </Pressable>
-              </View>
-              <ThemedText type="small" themeColor="textSecondary" style={styles.contestSub}>
-                {isFinals
-                  ? `The Final: the top ${CONTEST.finalistsPerCategory} of each category, locked as they qualified and back to zero votes. Tap a category to see its finalists.`
-                  : `${CONTEST.headline} Tap a category to see its entries, ranked by votes.`}
-              </ThemedText>
-              {voteError ? (
-                <ThemedText type="small" style={styles.voteError}>
-                  {voteError}
-                </ThemedText>
-              ) : null}
-              <View style={styles.contestChips}>
-                {CATEGORIES.map((c) => {
-                  const active = contestCat === c.slug;
-                  return (
-                    <Pressable
-                      key={c.slug}
-                      onPress={() => {
-                        setBoard(null);
-                        setContestCat(active ? null : c.slug);
-                      }}
-                      accessibilityRole="tab"
-                      accessibilityState={{ selected: active }}
-                      style={[styles.contestChip, active && styles.contestChipActive]}
-                      hitSlop={2}>
-                      <ThemedText
-                        type="small"
-                        style={[styles.contestChipText, active && styles.contestChipTextActive]}>
-                        {c.flagship ? '★ ' : ''}
-                        {c.label}
-                      </ThemedText>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-          ) : null}
-
           <TextInput
             value={query}
-            onChangeText={(t) => {
-              setQuery(t);
-              if (t.trim()) setContestCat(null);
-            }}
+            onChangeText={setQuery}
             placeholder="Search public binders…"
             placeholderTextColor={Palette.muted}
             autoCorrect={false}
@@ -417,38 +250,7 @@ export default function DiscoverScreen() {
             style={styles.search}
           />
 
-          {contestCat ? (
-            board === null ? (
-              <View style={styles.center}>
-                <ActivityIndicator />
-              </View>
-            ) : board.length === 0 ? (
-              <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
-                No entries in this category yet, yours could be first! Make a binder public, then
-                enter it from the Share sheet.
-              </ThemedText>
-            ) : (
-              <View style={[styles.grid, { gap: GRID_GAP }]}>
-                {board.map((b) => (
-                  <BinderThumb
-                    key={b.id}
-                    binder={b}
-                    width={tileW}
-                    onPress={() => openBinder(b.id)}
-                    accessory={
-                      isFinals ? (
-                        finalsAccessory(b)
-                      ) : (
-                        <ThemedText type="small" themeColor="textSecondary">
-                          ♥ {b.likeCount ?? 0}
-                        </ThemedText>
-                      )
-                    }
-                  />
-                ))}
-              </View>
-            )
-          ) : !isSupabaseConfigured ? (
+          {!isSupabaseConfigured ? (
             <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
               Public binder search isn’t available in this build.
             </ThemedText>
@@ -470,47 +272,7 @@ export default function DiscoverScreen() {
             )
           ) : (
             <>
-              {/* 1. Every entry in the running contest, newest first. */}
-              {contestOn && feed && feed.length > 0 ? (
-                <View style={styles.section}>
-                  <View style={styles.sectionHead}>
-                    <ThemedText
-                      type="smallBold"
-                      themeColor="textSecondary"
-                      style={styles.sectionLabel}>
-                      {isFinals ? 'The Final' : 'Contest entries'}
-                    </ThemedText>
-                    <ThemedText type="small" themeColor="textSecondary">
-                      {isFinals ? `${feed.length} finalists` : `${feed.length} entered`}
-                    </ThemedText>
-                  </View>
-                  <PagedCarousel
-                    width={contentW}
-                    prevLabel="Previous entries"
-                    nextLabel="More entries"
-                    pages={shelfPages(feed, perShelf, (e) => (
-                      <BinderThumb
-                        key={e.binder.id}
-                        binder={e.binder}
-                        width={shelfTileW}
-                        onPress={() => openBinder(e.binder.id)}
-                        accessory={
-                          isFinals ? (
-                            finalsAccessory(e.binder)
-                          ) : (
-                            <ThemedText type="small" themeColor="textSecondary">
-                              {CATEGORY_LABEL[e.category] ?? e.category} · ♥{' '}
-                              {e.binder.likeCount ?? 0}
-                            </ThemedText>
-                          )
-                        }
-                      />
-                    ))}
-                  />
-                </View>
-              ) : null}
-
-              {/* 2. Everything that is not an entry, in the order the reader chooses. */}
+              {/* 1. Every public binder, in the order the reader chooses. */}
               <View style={styles.section}>
                 <View style={styles.sectionHead}>
                   <ThemedText
@@ -585,8 +347,8 @@ export default function DiscoverScreen() {
                 <CurateCallout surface="discover" />
               </View>
 
-              {/* 3. The house account's reference binders, last. Hidden entirely when it has
-                  published none, so the heading never sits above an empty shelf. */}
+              {/* 2. The house account's reference binders. Hidden entirely when it has published
+                  none, so the heading never sits above an empty shelf. */}
               {house && house.length > 0 ? (
                 <View style={styles.section}>
                   <View style={styles.sectionHead}>
@@ -615,6 +377,29 @@ export default function DiscoverScreen() {
                     ))}
                   />
                 </View>
+              ) : null}
+
+              {/* 3. The contest, LAST and as one card: the boards and the entry feed live on
+                  /contest-binders since 2026-09-15. */}
+              {contestOn ? (
+                <Pressable
+                  onPress={() => router.push('/contest-binders' as Href)}
+                  style={({ pressed }) => [styles.contestBox, pressed && styles.dim]}>
+                  <View style={styles.contestHead}>
+                    <ThemedText type="smallBold">🏆 {CONTEST.name}</ThemedText>
+                    <ThemedText type="small" style={styles.contestLink}>
+                      See the entries ›
+                    </ThemedText>
+                  </View>
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.contestSub}>
+                    {CONTEST.headline}
+                  </ThemedText>
+                  <Pressable onPress={() => router.push('/contest' as Href)} hitSlop={6}>
+                    <ThemedText type="small" style={styles.contestLink}>
+                      Prizes & rules ›
+                    </ThemedText>
+                  </Pressable>
+                </Pressable>
               ) : null}
             </>
           )}
@@ -648,7 +433,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.four,
     maxWidth: 520,
   },
-  voteError: { color: Palette.dangerAlt, marginTop: Spacing.one },
   sectionLabel: { textTransform: 'uppercase', letterSpacing: 0.5, fontSize: FontSize.sm },
   section: { marginBottom: Spacing.five },
   sectionHead: {
@@ -690,16 +474,5 @@ const styles = StyleSheet.create({
   contestHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
   contestLink: { color: Palette.accent, fontWeight: '600' },
   contestSub: { lineHeight: 18 },
-  contestChips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  contestChip: {
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.two,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Palette.hairlineStrong,
-    backgroundColor: Palette.surface,
-  },
-  contestChipActive: { borderColor: Palette.accent, backgroundColor: Palette.accent },
-  contestChipText: { fontSize: 12 },
-  contestChipTextActive: { color: Palette.accentText },
+  dim: { opacity: 0.7 },
 });

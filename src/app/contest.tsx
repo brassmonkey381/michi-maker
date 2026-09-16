@@ -126,14 +126,16 @@ export default function ContestScreen() {
               {/* "Enter a binder" is a round-1 action. In the final it would send someone to a
                   screen that refuses them, so it becomes the way to go and watch instead. */}
               <Pressable
-                onPress={() => router.push(phase === 'finals' ? ('/discover' as Href) : ('/my-binders' as Href))}
+                onPress={() =>
+                  router.push(phase === 'finals' ? ('/contest-binders' as Href) : ('/my-binders' as Href))
+                }
                 style={({ pressed }) => [styles.cta, pressed && styles.dim]}>
                 <Text style={styles.ctaText}>
                   {phase === 'finals' ? 'Vote in the final ›' : 'Enter a binder ›'}
                 </Text>
               </Pressable>
               <Pressable
-                onPress={() => router.push('/discover' as Href)}
+                onPress={() => router.push('/contest-binders' as Href)}
                 style={({ pressed }) => [styles.ctaGhost, pressed && styles.dim]}>
                 <Text style={styles.ctaGhostText}>See the entries</Text>
               </Pressable>

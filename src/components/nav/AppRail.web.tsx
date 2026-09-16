@@ -26,7 +26,10 @@ type RailItem = { label: string; href: Href; match: (path: string) => boolean; e
 const EXPLORE: RailItem[] = [
   { label: 'Home', href: '/', match: (p) => p === '/' },
   { label: 'Discover Binders', href: '/discover' as Href, match: (p) => p.startsWith('/discover') },
-  { label: 'Contest 🏆', href: '/contest' as Href, match: (p) => p.startsWith('/contest') },
+  // Two contest destinations: the field to browse and vote in, and the rules/prizes page. The
+  // rules match is exact so it does not also light up on /contest-binders.
+  { label: 'Contest Binders 🏆', href: '/contest-binders' as Href, match: (p) => p.startsWith('/contest-binders') },
+  { label: 'Contest 🏆', href: '/contest' as Href, match: (p) => p === '/contest' },
   { label: 'Browse Cards', href: '/browse' as Href, match: (p) => p.startsWith('/browse') },
   { label: 'Plans', href: '/plans' as Href, match: (p) => p.startsWith('/plans') || p.startsWith('/subscriptions') || p.startsWith('/pricing') },
   { label: 'How-To', href: '/learn' as Href, match: (p) => p.startsWith('/learn') },

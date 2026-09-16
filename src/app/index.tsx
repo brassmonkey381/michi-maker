@@ -28,7 +28,6 @@ import { BottomTabInset, Breakpoints, Fonts, FontSize, MaxContentWidthWide, Pale
 import { pagesForCards } from '@/data/binderTypes';
 import { similarityWall } from '@/data/similarityGate';
 import { hasFindSimilar } from '@/data/tiers';
-import { CONTEST, contestPhase } from '@/data/contest';
 import { binderLimitMessage, binderTrialMessage, limitCta, pageLimitMessage, pageTrialMessage } from '@/data/limitMessages';
 import { fetchAvatarsByUsername } from '@/data/profileRepo';
 import { track } from '@/lib/analytics';
@@ -249,15 +248,17 @@ export default function HomeScreen() {
             </View>
           ) : null}
 
-          {/* Contest promo — runs until the contest ends. */}
-          {contestPhase() !== 'ended' ? (
-            <Pressable
-              onPress={() => router.push('/contest' as Href)}
-              style={({ pressed }) => [styles.contestPromo, pressed && styles.pressed]}>
-              <Text style={styles.contestPromoTitle}>🏆 {CONTEST.name}</Text>
-              <Text style={styles.contestPromoBody}>{CONTEST.headline} Tap for prizes & rules ›</Text>
-            </Pressable>
-          ) : null}
+          {/* Recent & Upcoming, FIRST on the page (owner call, 2026-09-15, in place of the contest
+              promo card that used to sit here): what is out this week is the reason to come back,
+              and it was below three sections of binders. ONE feed for every auth state (the kit's
+              RecentProducts runs catalog-free for guests/cold and from the catalog when
+              signed-in). The contest now lives on /contest-binders and the rail. */}
+          <HomeRecent
+            onFindSimilar={driveSimilar}
+            onViewSet={driveViewSet}
+            onOpenSet={driveViewSetById}
+            onAddToBinder={setAddCardId}
+          />
 
           <GuestBanner />
 
@@ -288,15 +289,6 @@ export default function HomeScreen() {
 
           {/* Catalog-free sealed carousel: renders for everyone (guests included). */}
           <HomeSealed languages={HOME_LANGUAGES} />
-
-          {/* Recent & Upcoming, ONE feed for every auth state (the kit's RecentProducts runs
-              catalog-free for guests/cold and from the catalog when signed-in). */}
-          <HomeRecent
-            onFindSimilar={driveSimilar}
-            onViewSet={driveViewSet}
-            onOpenSet={driveViewSetById}
-            onAddToBinder={setAddCardId}
-          />
 
           <HomeSection title="Example Binders">
             <BinderCarousel binders={store.exampleBinders} onOpen={openBinder} />
@@ -352,15 +344,4 @@ const styles = StyleSheet.create({
   },
   quickChipText: { color: Palette.ink2, fontSize: FontSize.label, fontWeight: Weight.semibold },
   pressed: { opacity: 0.7 },
-  contestPromo: {
-    borderWidth: 1,
-    borderColor: Palette.accent,
-    backgroundColor: Palette.selectionSoft,
-    borderRadius: Radius.lg,
-    padding: Spacing.three,
-    gap: 2,
-    marginBottom: Spacing.three,
-  },
-  contestPromoTitle: { fontSize: FontSize.control, fontWeight: Weight.bold, color: Palette.ink },
-  contestPromoBody: { fontSize: FontSize.sm, color: Palette.ink2, lineHeight: 18 },
 });

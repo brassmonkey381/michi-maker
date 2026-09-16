@@ -123,10 +123,14 @@ Market as: **"Over $1,700 in prizes, including a once-ever LIFETIME VIP grand pr
 - ShareSheet — a Contest section on public binders: category chips, Enter/Withdraw, the
   public-page-cap guard message, link to /contest. The page-visibility chips also refuse to
   flip a page public past the cap on an ENTERED binder (toast via the host screen).
-- Discover — a Contest strip above search through BOTH rounds: category chips → a vote-ranked
-  grid. In the Final the chips list finalists, the shelf above becomes "The Final", and every
-  tile carries `FinalsVoteButton` instead of a heart count. Vote state is held by the page (not
-  per tile) so the same binder on two shelves agrees with itself.
+- `/contest-binders` — the field itself, through BOTH rounds: category chips → a vote-ranked
+  grid, and with no chip picked, every entry newest first. In the Final it lists finalists, the
+  heading becomes "The Final", and every tile carries `FinalsVoteButton` instead of a heart
+  count. Vote state is held by the page (not per tile) so the same binder on two views agrees
+  with itself. Split off Discover 2026-09-15: it was above the search box, so everyone who came
+  to search scrolled past it, and the field had no page of its own to link to.
+- Discover — one contest card at the BOTTOM linking to `/contest-binders`; no boards of its own.
+  Entries are no longer excluded from the Public binders shelf, since nothing shows them twice now.
 - Binder editor — `ContestLockBanner` says why editing is gone for a locked finalist, and
   `canEdit` / `editing` in BinderScreen both fall to false on the lock. The trigger is the
   enforcement; this is the explanation.

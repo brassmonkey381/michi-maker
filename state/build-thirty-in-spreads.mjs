@@ -50,19 +50,23 @@ const pageStyle = { binder: payload.preset, details: { zip: {}, spine: 'cross' }
 // THE ANNIVERSARY BINDER round it: the Vault X 9-pocket Anniversary in white and gold, with the
 // two set logos as stickers and a title on the four surfaces. Positions are fractions of the
 // surface, centre-anchored, as the cover editor writes them; the owner moves them from there.
-const LOGO = (id) => `https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/set-art/set-art/sets/${id}-logo.png`;
+// The Classic Collection has no logo of its own in the catalogue, so the Celebration's logo and
+// its set symbol are the two stickers.
+const ART = (file) => `https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/set-art/set-art/sets/${file}`;
 const uuid = () => crypto.randomUUID();
-const sticker = (setId, x, y, w, rot) => ({ id: uuid(), kind: 'sticker', imageUrl: LOGO(setId), stickerId: `set:${setId}`, x, y, w, h: w * 0.42, ...(rot ? { rot } : {}), attribution: { sourceName: 'Pokémon TCG', origin: 'logo' } });
+const sticker = (file, aspect, x, y, w, rot) => ({ id: uuid(), kind: 'sticker', imageUrl: ART(file), stickerId: 'set:24722', x, y, w, h: w * aspect, ...(rot ? { rot } : {}), attribution: { sourceName: 'Pokémon TCG', origin: 'logo' } });
+const logo = (x, y, w, rot) => sticker('24722-logo.png', 0.42, x, y, w, rot);
+const symbol = (x, y, w, rot) => sticker('24722-sym.png', 1, x, y, w, rot);
 const text = (t, x, y, size, opts = {}) => ({ id: uuid(), kind: 'text', text: t, font: 'serif', size, weight: 'bold', align: 'center', color: '#8a6d1f', x, y, w: 0.8, h: size * 1.6, ...opts });
 const cover = {
   modelId: 'vaultx-exotec-zip-9-anniversary',
   colourway: 'anniversary-white',
   showCover: true,
   surfaces: {
-    front: [sticker(24722, 0.5, 0.36, 0.6), text('Thirty, In Spreads', 0.5, 0.62, 0.075), text('every card, once', 0.5, 0.72, 0.035, { weight: 'regular', italic: true })],
-    frontInside: [sticker(24837, 0.5, 0.3, 0.5), text('Sixteen spreads, one idea each.', 0.5, 0.55, 0.04, { weight: 'regular' })],
-    backInside: [sticker(24722, 0.28, 0.2, 0.3, 352), sticker(24837, 0.72, 0.8, 0.3, 8)],
-    back: [sticker(24837, 0.5, 0.5, 0.55), text('1996 to 2026', 0.5, 0.8, 0.05)],
+    front: [logo(0.5, 0.36, 0.6), text('Thirty, In Spreads', 0.5, 0.62, 0.075), text('every card, once', 0.5, 0.72, 0.035, { weight: 'regular', italic: true })],
+    frontInside: [symbol(0.5, 0.3, 0.22), text('Sixteen spreads, one idea each.', 0.5, 0.55, 0.04, { weight: 'regular' })],
+    backInside: [logo(0.3, 0.2, 0.34, 352), symbol(0.74, 0.78, 0.16, 8)],
+    back: [logo(0.5, 0.48, 0.55), text('1996 to 2026', 0.5, 0.8, 0.05)],
   },
 };
 const [binder] = await rest('binders', {

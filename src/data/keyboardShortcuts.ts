@@ -24,13 +24,14 @@ export function shortcutList(mod: 'Ctrl' | '⌘'): Shortcut[] {
     { keys: 'E', does: 'Switch between Edit and Viewing mode' },
     { keys: 'A', does: 'Open or close the Art dock' },
     { keys: 'C', does: 'Open or close the Cards dock' },
+    { keys: 'S', does: 'Open or close Settings' },
     { keys: '← →', does: 'Previous or next page' },
     { keys: 'Delete', does: 'Clear the selected pocket' },
   ];
 }
 
 /** The plain keys (no modifier) the editor listens for, so a handler and the card agree. */
-export const PLAIN_KEYS = { editMode: 'e', artDock: 'a', cardsDock: ['c', 'd'] } as const;
+export const PLAIN_KEYS = { editMode: 'e', artDock: 'a', cardsDock: ['c', 'd'], settings: 's' } as const;
 
 /** Where the device remembers that the card has been shown. */
 export const SHORTCUTS_SEEN_KEY = 'michi.shortcuts.seen.v1';

@@ -2741,6 +2741,7 @@ export function BinderScreen({
           onToggleEdit={toggleEditing}
           onToggleArt={phone ? undefined : () => setArtworkOpen((v) => !v)}
           onToggleCards={phone ? undefined : () => setCardsCollapsed((v) => !v)}
+          onToggleSettings={() => setSettingsOpen((v) => !v)}
         />
         {/* THE SHORTCUTS CARD: once, on a keyboard, the first time this device edits a binder;
             again from ⌨ in the tools row. Bottom centre, over the page, under the docks. */}
@@ -2898,6 +2899,7 @@ function EditorKeyboardShortcuts({
   onToggleEdit,
   onToggleArt,
   onToggleCards,
+  onToggleSettings,
 }: {
   /** The binder is this person's and nothing modal sits over it: the mode key applies. */
   active: boolean;
@@ -2915,6 +2917,8 @@ function EditorKeyboardShortcuts({
   /** A and C: the two docks, absent on a phone where there are none. */
   onToggleArt?: () => void;
   onToggleCards?: () => void;
+  /** S: the settings sheet (owner, 2026-09-16), which everyone opens every session. */
+  onToggleSettings?: () => void;
 }) {
   useEffect(() => {
     if (Platform.OS !== 'web' || !active || typeof window === 'undefined') return;
@@ -2929,6 +2933,11 @@ function EditorKeyboardShortcuts({
       if (!meta && !e.altKey && key === PLAIN_KEYS.editMode) {
         e.preventDefault();
         onToggleEdit();
+        return;
+      }
+      if (!meta && !e.altKey && key === PLAIN_KEYS.settings && onToggleSettings) {
+        e.preventDefault();
+        onToggleSettings();
         return;
       }
       if (!undoable) return;
@@ -2960,7 +2969,7 @@ function EditorKeyboardShortcuts({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [active, undoable, pocketKeys, onUndo, onRedo, onDelete, onPrevPage, onNextPage, onToggleEdit, onToggleArt, onToggleCards]);
+  }, [active, undoable, pocketKeys, onUndo, onRedo, onDelete, onPrevPage, onNextPage, onToggleEdit, onToggleArt, onToggleCards, onToggleSettings]);
   return null;
 }
 

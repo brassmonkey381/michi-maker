@@ -382,24 +382,34 @@ export default function DiscoverScreen() {
               {/* 3. The contest, LAST and as one card: the boards and the entry feed live on
                   /contest-binders since 2026-09-15. */}
               {contestOn ? (
-                <Pressable
-                  onPress={() => router.push('/contest-binders' as Href)}
-                  style={({ pressed }) => [styles.contestBox, pressed && styles.dim]}>
+                <View style={styles.contestBox}>
                   <View style={styles.contestHead}>
                     <ThemedText type="smallBold">🏆 {CONTEST.name}</ThemedText>
-                    <ThemedText type="small" style={styles.contestLink}>
-                      See the entries ›
-                    </ThemedText>
                   </View>
                   <ThemedText type="small" themeColor="textSecondary" style={styles.contestSub}>
                     {CONTEST.headline}
                   </ThemedText>
-                  <Pressable onPress={() => router.push('/contest' as Href)} hitSlop={6}>
-                    <ThemedText type="small" style={styles.contestLink}>
-                      Prizes & rules ›
-                    </ThemedText>
-                  </Pressable>
-                </Pressable>
+                  {/* Two SIBLING links, not a card-wide Pressable with a link inside it: a nested
+                      Pressable's tap is swallowed by the outer one on web. */}
+                  <View style={styles.contestLinks}>
+                    <Pressable
+                      onPress={() => router.push('/contest-binders' as Href)}
+                      hitSlop={6}
+                      style={({ pressed }) => [pressed && styles.dim]}>
+                      <ThemedText type="small" style={styles.contestLink}>
+                        See the entries ›
+                      </ThemedText>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => router.push('/contest' as Href)}
+                      hitSlop={6}
+                      style={({ pressed }) => [pressed && styles.dim]}>
+                      <ThemedText type="small" style={styles.contestLink}>
+                        Prizes & rules ›
+                      </ThemedText>
+                    </Pressable>
+                  </View>
+                </View>
               ) : null}
             </>
           )}
@@ -473,6 +483,7 @@ const styles = StyleSheet.create({
   },
   contestHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
   contestLink: { color: Palette.accent, fontWeight: '600' },
+  contestLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.four, marginTop: Spacing.one },
   contestSub: { lineHeight: 18 },
   dim: { opacity: 0.7 },
 });

@@ -119,7 +119,7 @@ test('the zip is cut from the cloth: white on a white binder, pale on black', ()
   assert.equal(mixHex('#000000', '#ffffff', 0.5), '#808080');
   const white = zipCloth('#ffffff');
   assert.equal(white.lit, '#ffffff');
-  assert.equal(white.tape, '#ebebeb');
+  assert.equal(white.tape, '#f2f2f2');
   const black = zipCloth('#000000');
   assert.equal(black.tape, '#000000');
   assert.equal(black.tooth, '#4d4d4d');

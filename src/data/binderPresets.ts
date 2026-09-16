@@ -19,7 +19,7 @@ export interface BinderPreset {
 }
 
 export const BINDER_PRESETS: readonly BinderPreset[] = [
-  { id: 'classic-white', label: 'Classic White', cloth: '#f4f4f4', zip: null, zipper: true, spine: 'cross' },
+  { id: 'classic-white', label: 'Classic White', cloth: '#fafafa', zip: null, zipper: true, spine: 'cross' },
   {
     id: 'anniversary-gold',
     label: 'Anniversary Gold',

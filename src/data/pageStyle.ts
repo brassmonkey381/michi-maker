@@ -356,7 +356,7 @@ export function zipCloth(matHex: string): { tape: string; tooth: string; lit: st
   const dark = luminance(mat) < 0.35;
   return dark
     ? { tape: mixHex(mat, '#000000', 0.45), tooth: mixHex(mat, '#ffffff', 0.3), lit: mixHex(mat, '#ffffff', 0.55), slider: mixHex(mat, '#ffffff', 0.4), sliderEdge: mixHex(mat, '#000000', 0.5), pull: mixHex(mat, '#ffffff', 0.3) }
-    : { tape: mixHex(mat, '#000000', 0.08), tooth: mixHex(mat, '#000000', 0.2), lit: mixHex(mat, '#ffffff', 0.5), slider: mixHex(mat, '#000000', 0.14), sliderEdge: mixHex(mat, '#000000', 0.4), pull: mixHex(mat, '#000000', 0.06) };
+    : { tape: mixHex(mat, '#000000', 0.05), tooth: mixHex(mat, '#000000', 0.14), lit: mixHex(mat, '#ffffff', 0.5), slider: mixHex(mat, '#000000', 0.1), sliderEdge: mixHex(mat, '#000000', 0.3), pull: mixHex(mat, '#000000', 0.05) };
 }
 
 /** The zip's colours for a binder: the named binder's own when it has some, else cut from the cloth. */
@@ -370,7 +370,7 @@ export function binderZip(style: PageStyle | undefined | null, matHex: string): 
  * at this strength, and the zip and pull are the cover colour's (zipCloth). Older rows may still
  * carry a material, a thread or a pull colour; they are read for compatibility and not drawn.
  */
-export const BINDER_STITCH_OPACITY = 0.12;
+export const BINDER_STITCH_OPACITY = 0.08;
 
 /** Relative luminance of #rrggbb, 0 (black) to 1 (white). WCAG's formula, nothing clever. */
 export function luminance(hex: string): number {

@@ -536,7 +536,7 @@ function zipCloth(mat) {
   const dark = luminance(mat) < 0.35;
   return dark
     ? { tape: mixHex(mat, '#000000', 0.45), tooth: mixHex(mat, '#ffffff', 0.3), lit: mixHex(mat, '#ffffff', 0.55), slider: mixHex(mat, '#ffffff', 0.4), sliderEdge: mixHex(mat, '#000000', 0.5), pull: mixHex(mat, '#ffffff', 0.3) }
-    : { tape: mixHex(mat, '#000000', 0.08), tooth: mixHex(mat, '#000000', 0.2), lit: mixHex(mat, '#ffffff', 0.5), slider: mixHex(mat, '#000000', 0.14), sliderEdge: mixHex(mat, '#000000', 0.4), pull: mixHex(mat, '#000000', 0.06) };
+    : { tape: mixHex(mat, '#000000', 0.05), tooth: mixHex(mat, '#000000', 0.14), lit: mixHex(mat, '#ffffff', 0.5), slider: mixHex(mat, '#000000', 0.1), sliderEdge: mixHex(mat, '#000000', 0.3), pull: mixHex(mat, '#000000', 0.05) };
 }
 /** v2's plain page is v1's cream, so a binder with no choices renders as it always did. */
 const V2_MAT = '#fbfaf7';
@@ -562,7 +562,7 @@ function pageLook(page, binder, art, edge) {
     cols: page.cols || 3,
     dark: luminance(mat) < 0.35,
     stitch: 'stitch',
-    ink: threadInk(mat, { opacity: 0.12 }),
+    ink: threadInk(mat, { opacity: 0.08 }),
     zip: zip ? { pull: zipPalette.pull, wavy: false } : null,
     zipPalette,
     spine: details.spine === 'cross' || details.spine === 'ribbed' ? details.spine : null,
@@ -662,7 +662,7 @@ function pageMat(grid, look, gridW, gridH) {
       // The editor's two LinearGradients: (0,0)->(0.6,0.8) and (0.4,0.2)->(1,1), both along the
       // same 143deg diagonal; the second starts 35% of the way in.
       h('div', { style: { display: 'flex', position: 'absolute', left: 0, top: 0, width: w, height: hgt, borderRadius: radius, background: 'linear-gradient(143deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0) 100%)' } }),
-      h('div', { style: { display: 'flex', position: 'absolute', left: 0, top: 0, width: w, height: hgt, borderRadius: radius, background: `linear-gradient(143deg, rgba(0,0,0,0) 35%, ${look.dark ? 'rgba(0,0,0,0.26)' : 'rgba(0,0,0,0.07)'} 100%)` } }),
+      h('div', { style: { display: 'flex', position: 'absolute', left: 0, top: 0, width: w, height: hgt, borderRadius: radius, background: `linear-gradient(143deg, rgba(0,0,0,0) 35%, ${look.dark ? 'rgba(0,0,0,0.26)' : 'rgba(0,0,0,0.035)'} 100%)` } }),
     );
   }
   const c = band / 2;
@@ -692,8 +692,8 @@ function pageMat(grid, look, gridW, gridH) {
     const outer = look.edge === 'left' ? 'left' : 'right';
     // The cover band: a ring of heavier, darker fabric with a fine edge where it meets the sheet.
     layers.push(
-      h('div', { style: { display: 'flex', position: 'absolute', left: 0, top: 0, width: w, height: hgt, borderRadius: radius, borderWidth: band - 2 * S, borderStyle: 'solid', borderColor: look.dark ? 'rgba(0,0,0,0.42)' : 'rgba(0,0,0,0.16)' } }),
-      h('div', { style: { display: 'flex', position: 'absolute', left: band - 3 * S, top: band - 3 * S, width: w - (band - 3 * S) * 2, height: hgt - (band - 3 * S) * 2, borderRadius: 4 * S, borderWidth: S, borderStyle: 'solid', borderColor: look.dark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.12)' } }),
+      h('div', { style: { display: 'flex', position: 'absolute', left: 0, top: 0, width: w, height: hgt, borderRadius: radius, borderWidth: band - 2 * S, borderStyle: 'solid', borderColor: look.dark ? 'rgba(0,0,0,0.42)' : 'rgba(0,0,0,0.08)' } }),
+      h('div', { style: { display: 'flex', position: 'absolute', left: band - 3 * S, top: band - 3 * S, width: w - (band - 3 * S) * 2, height: hgt - (band - 3 * S) * 2, borderRadius: 4 * S, borderWidth: S, borderStyle: 'solid', borderColor: look.dark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)' } }),
     );
     // THE COIL, TOOTH BY TOOTH, as PageDressing draws it: a dark tape, and teeth 3px apart in two
     // rows that meet at the tape's centreline, staggered by 2px, with a wavy track drifting the
@@ -813,7 +813,7 @@ function spineV2(height, look) {
   const unit = (look.spine === 'cross' ? 12 : 6) * S;
   const bandH = height - inset * 2;
   const n = Math.max(0, Math.floor((bandH - 8 * S) / unit));
-  const ink = threadInk(look.mat, { opacity: 0.25 });
+  const ink = threadInk(look.mat, { opacity: 0.14 });
   const rib = look.dark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.16)';
   const marks = [];
   if (look.spine === 'cross') {

@@ -2,7 +2,7 @@
 // image runs as plain Node and cannot import the TypeScript; pageStyle.test.ts checks the two
 // lists are identical, so edit both together.
 module.exports = [
-  { id: 'classic-white', label: 'Classic White', cloth: '#f4f4f4', zip: null, zipper: true, spine: 'cross' },
+  { id: 'classic-white', label: 'Classic White', cloth: '#fafafa', zip: null, zipper: true, spine: 'cross' },
   {
     id: 'anniversary-gold',
     label: 'Anniversary Gold',

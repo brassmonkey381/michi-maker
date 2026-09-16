@@ -2260,7 +2260,7 @@ function PageDressing({
         style={StyleSheet.absoluteFill}
       />
       <LinearGradient
-        colors={['rgba(0,0,0,0)', dark ? 'rgba(0,0,0,0.26)' : 'rgba(0,0,0,0.07)']}
+        colors={['rgba(0,0,0,0)', dark ? 'rgba(0,0,0,0.26)' : 'rgba(0,0,0,0.035)']}
         start={{ x: 0.4, y: 0.2 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -2299,9 +2299,9 @@ function PageDressing({
       {zip ? (
         <>
           {/* The cover band: a ring of heavier, darker fabric, and the fine edge where it meets the sheet. */}
-          <View style={[StyleSheet.absoluteFill, { borderWidth: band - 2, borderColor: dark ? 'rgba(0,0,0,0.42)' : 'rgba(0,0,0,0.16)', borderRadius: radius }]} />
+          <View style={[StyleSheet.absoluteFill, { borderWidth: band - 2, borderColor: dark ? 'rgba(0,0,0,0.42)' : 'rgba(0,0,0,0.08)', borderRadius: radius }]} />
           <View style={[StyleSheet.absoluteFill, { borderWidth: band - 2, borderColor: 'transparent', borderRadius: radius }]}>
-            <View style={[StyleSheet.absoluteFill, { margin: -1, borderWidth: 1, borderColor: dark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.12)', borderRadius: 4 }]} />
+            <View style={[StyleSheet.absoluteFill, { margin: -1, borderWidth: 1, borderColor: dark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)', borderRadius: 4 }]} />
           </View>
           {/* The coil, top and bottom: tape, then teeth laid along it. */}
           {[c - TAPE / 2, size.h - c - TAPE / 2].map((top, k) => (

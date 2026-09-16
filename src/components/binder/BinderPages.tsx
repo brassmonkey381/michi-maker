@@ -2125,7 +2125,7 @@ function CoverColumn({
  */
 const SPINE_END_INSET = PAGE_PAD;
 /** The cross-stitch's thread (owner, 2026-09-15): a quarter strength. */
-const SPINE_THREAD_OPACITY = 0.25;
+const SPINE_THREAD_OPACITY = 0.14;
 
 function Spine({
   style,

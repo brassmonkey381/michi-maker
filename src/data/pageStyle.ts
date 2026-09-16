@@ -18,6 +18,7 @@
  *
  * PURE, importing nothing from react-native, so `node --test` can reach all of it.
  */
+import { binderPreset } from './binderPresets.ts';
 
 /** The stitching on the page: none, one thread along every seam, or two. */
 export type PageMaterial = 'classic' | 'stitch' | 'double';
@@ -53,6 +54,8 @@ export const SPINE_STYLES: { id: SpineStyle; label: string; blurb: string }[] = 
 export const DEFAULT_ZIP_PULL = '#3fcf5e';
 
 export interface PageStyle {
+  /** The named binder this is (binderPresets), when one was picked. Absent means a custom one. */
+  binder?: string;
   /** Absent means classic. */
   material?: PageMaterial;
   /** Every card pocket wears a sleeve of this colour, #rrggbb. Absent means bare pockets. */
@@ -131,8 +134,9 @@ const SPINES = new Set<string>(SPINE_STYLES.map((s) => s.id));
  */
 export function normalizePageStyle(value: unknown): PageStyle | undefined {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
-  const raw = value as { material?: unknown; sleeve?: unknown; artBacking?: unknown; details?: unknown; thread?: unknown };
+  const raw = value as { binder?: unknown; material?: unknown; sleeve?: unknown; artBacking?: unknown; details?: unknown; thread?: unknown };
   const out: PageStyle = {};
+  if (typeof raw.binder === 'string' && binderPreset(raw.binder)) out.binder = raw.binder;
   let material = typeof raw.material === 'string' ? raw.material : undefined;
   let legacyZip = false;
   if (material === 'stitched') material = 'double';
@@ -181,6 +185,7 @@ function normalizeDetails(value: unknown, legacyZip: boolean): BinderDetails | u
 
 /** What a change to a style looks like: each field set, cleared with null, or left alone. */
 export interface PageStylePatch {
+  binder?: string | null;
   material?: PageMaterial | null;
   sleeve?: string | null;
   artBacking?: string | null;
@@ -197,7 +202,7 @@ export interface PageStylePatch {
  */
 export function withPageStyle(current: PageStyle | undefined | null, patch: PageStylePatch): PageStyle | undefined {
   const next: Record<string, unknown> = { ...(current ?? {}) };
-  for (const key of ['material', 'sleeve', 'artBacking'] as const) {
+  for (const key of ['binder', 'material', 'sleeve', 'artBacking'] as const) {
     if (patch[key] === undefined) continue;
     if (patch[key] === null) delete next[key];
     else next[key] = patch[key];
@@ -352,6 +357,11 @@ export function zipCloth(matHex: string): { tape: string; tooth: string; lit: st
   return dark
     ? { tape: mixHex(mat, '#000000', 0.45), tooth: mixHex(mat, '#ffffff', 0.3), lit: mixHex(mat, '#ffffff', 0.55), slider: mixHex(mat, '#ffffff', 0.4), sliderEdge: mixHex(mat, '#000000', 0.5), pull: mixHex(mat, '#ffffff', 0.3) }
     : { tape: mixHex(mat, '#000000', 0.08), tooth: mixHex(mat, '#000000', 0.2), lit: mixHex(mat, '#ffffff', 0.5), slider: mixHex(mat, '#000000', 0.14), sliderEdge: mixHex(mat, '#000000', 0.4), pull: mixHex(mat, '#000000', 0.06) };
+}
+
+/** The zip's colours for a binder: the named binder's own when it has some, else cut from the cloth. */
+export function binderZip(style: PageStyle | undefined | null, matHex: string): ReturnType<typeof zipCloth> {
+  return binderPreset(style?.binder)?.zip ?? zipCloth(matHex);
 }
 
 /**

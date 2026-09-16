@@ -82,7 +82,9 @@ const opt = (name) => {
 };
 const pageNo = opt('--page') ? Number(opt('--page')) : undefined;
 const backdropOverride = opt('--backdrop');
-const skip = new Set(['--v2', '--page', '--backdrop', opt('--page'), opt('--backdrop')].filter(Boolean));
+// `--preset id` renders as that named binder (see src/data/binderPresets.ts) without saving it.
+const presetOverride = opt('--preset');
+const skip = new Set(['--v2', '--page', '--backdrop', '--preset', opt('--page'), opt('--backdrop'), opt('--preset')].filter(Boolean));
 const [id, outDir = '.', ...faces] = args.filter((a) => !skip.has(a));
 if (!id) {
   console.log('FAILED: pass a binder id [outDir] [collage|bands ...] [--v2] [--page N] [--backdrop URL]');
@@ -94,6 +96,15 @@ if (!binder) {
   process.exit(3);
 }
 if (backdropOverride) binder.share_backdrop = backdropOverride;
+if (presetOverride) {
+  const preset = (await import('../api/_binderPresets.js')).default.find((p) => p.id === presetOverride);
+  if (!preset) {
+    console.log(`FAILED: no binder preset ${presetOverride}`);
+    process.exit(5);
+  }
+  binder.page_style = { ...(binder.page_style || {}), binder: preset.id, details: { zip: preset.zipper ? {} : undefined, spine: preset.spine || undefined } };
+  for (const p of binder.binder_pages || []) p.background_color = preset.cloth;
+}
 let pages = pickPages(binder);
 if (pageNo) {
   const all = (binder.binder_pages || []).slice().sort((a, b) => (a.position || 0) - (b.position || 0));

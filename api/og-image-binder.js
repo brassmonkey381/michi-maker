@@ -524,6 +524,7 @@ function threadInk(mat, thread) {
   const n = (i) => parseInt(hex.slice(i, i + 2), 16);
   return `rgba(${n(0)},${n(2)},${n(4)},${thread.opacity === undefined ? 0.6 : thread.opacity})`;
 }
+const BINDER_PRESETS = require('./_binderPresets.js');
 /** `t` of the way from hex a to hex b. */
 function mixHex(a, b, t) {
   const ch = (hex, i) => parseInt(hex.replace('#', '').slice(i, i + 2), 16);
@@ -551,6 +552,9 @@ function pageLook(page, binder, art, edge) {
   // single-stitched in the automatic thread at twelve percent, and the zip and its pull are
   // the cover colour's (zipCloth). A stored material, thread, pull or track is not drawn.
   const zip = details.zip || (ps.material === 'zip' ? {} : null);
+  // The named binder's own zip colours when it has some (binderPresets), else cut from the cloth.
+  const preset = BINDER_PRESETS.find((p) => p.id === ps.binder);
+  const zipPalette = (preset && preset.zip) || zipCloth(mat);
   return {
     mat,
     bgImage,
@@ -559,7 +563,8 @@ function pageLook(page, binder, art, edge) {
     dark: luminance(mat) < 0.35,
     stitch: 'stitch',
     ink: threadInk(mat, { opacity: 0.12 }),
-    zip: zip ? { pull: zipCloth(mat).pull, wavy: false } : null,
+    zip: zip ? { pull: zipPalette.pull, wavy: false } : null,
+    zipPalette,
     spine: details.spine === 'cross' || details.spine === 'ribbed' ? details.spine : null,
     thread: undefined,
     edge,
@@ -683,7 +688,7 @@ function pageMat(grid, look, gridW, gridH) {
     const TAPE = 6 * S;
     const PITCH = 3 * S;
     const ACROSS = 3 * S;
-    const zc = zipCloth(look.mat);
+    const zc = look.zipPalette;
     const outer = look.edge === 'left' ? 'left' : 'right';
     // The cover band: a ring of heavier, darker fabric with a fine edge where it meets the sheet.
     layers.push(

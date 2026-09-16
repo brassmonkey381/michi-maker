@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { createRequire } from 'node:module';
 
-import { isImageRef, luminance, normalizePageStyle, normalizeWear, resolveWear, seamLines, stitchInk, stitchStops, WEAR_NONE, withPageStyle, zipCloth, mixHex } from './pageStyle.ts';
+import { BINDER_PRESETS } from './binderPresets.ts';
+
+import { isImageRef, luminance, normalizePageStyle, normalizeWear, resolveWear, seamLines, stitchInk, stitchStops, WEAR_NONE, withPageStyle, zipCloth, mixHex, binderZip } from './pageStyle.ts';
 
 test('a pocket wears the first layer that speaks, and "none" speaks as nothing', () => {
   assert.equal(resolveWear(undefined, undefined, '#ffaa00'), '#ffaa00');
@@ -121,4 +124,20 @@ test('the zip is cut from the cloth: white on a white binder, pale on black', ()
   assert.equal(black.tape, '#000000');
   assert.equal(black.tooth, '#4d4d4d');
   assert.equal(black.lit, '#8c8c8c');
+});
+
+test('a named binder is kept only when it is one we have, and fixes the zip to its own colours', () => {
+  assert.deepEqual(normalizePageStyle({ binder: 'anniversary-gold' }), { binder: 'anniversary-gold' });
+  assert.equal(normalizePageStyle({ binder: 'no-such-binder' }), undefined);
+  assert.equal(binderZip({ binder: 'anniversary-gold' }, '#efeeea').pull, '#d4af37');
+  // A binder with no zip colours of its own, and a custom one, cut the zip from the cloth.
+  assert.deepEqual(binderZip({ binder: 'classic-white' }, '#f4f4f4'), zipCloth('#f4f4f4'));
+  assert.deepEqual(binderZip(undefined, '#000000'), zipCloth('#000000'));
+  assert.deepEqual(withPageStyle({ binder: 'navy' }, { binder: null }), undefined);
+});
+
+test('the share image has the same named binders as the app', () => {
+  const require = createRequire(import.meta.url);
+  const theirs = require('../../api/_binderPresets.js');
+  assert.deepEqual(theirs, JSON.parse(JSON.stringify(BINDER_PRESETS)));
 });

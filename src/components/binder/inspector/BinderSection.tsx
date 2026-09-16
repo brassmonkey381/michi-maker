@@ -10,12 +10,14 @@
  * one object, and letting each page carry its own colour let one drift into a patchwork nobody
  * chose, invisible until you flipped onto the odd page out.
  */
-import { View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { SoundtrackField } from '@/components/binder/SoundtrackField';
 import { ColorBox, Group, LabeledInput, PillButton, Row, Seg, ToggleChip, WearRow, styles } from '@/components/binder/inspector/controls';
 import { REAL_PAGE_SIZES } from '@/data/binderPhysics';
 import type { BinderTrack, DemoBinder, DemoPage } from '@/data/binderTypes';
+import { BINDER_PRESETS } from '@/data/binderPresets';
+import { Palette } from '@/constants/theme';
 import { SPINE_STYLES, WEAR_NONE, isImageRef } from '@/data/pageStyle';
 import { isBlankPage, useBinders } from '@/store/binders';
 
@@ -117,7 +119,8 @@ export function BinderLook({
             set in the Share sheet, so the editor's pages stay printable and the two are not confused. */}
         <Row label="Background">
           <ColorBox
-            fieldKey={binder.id}
+            // Re-keyed on the named binder, so picking one shows its cloth here at once.
+            fieldKey={`${binder.id}-${ps?.binder ?? ''}`}
             value={isImageRef(page.backgroundColor) ? undefined : page.backgroundColor}
             onChange={(backgroundColor) => store.setBinderBackground(binder.id, backgroundColor)}
           />
@@ -128,6 +131,30 @@ export function BinderLook({
           a pick: a binder can have a zip AND a spine. The zip's colour and its pull's are the
           cover colour's (owner, 2026-09-15: zipCloth), as the stitching is; none of those is a setting. */}
       <Group title="Binder" testID="binder-group-binder">
+        {/* THE NAMED BINDERS (owner, 2026-09-15): one tap sets the cloth, the zip and the spine
+            together, and fixes the zip's colours to the binder's own (the gold one). The rows
+            under it still adjust; the name stays until another is picked. */}
+        <Row label="Binder">
+          {BINDER_PRESETS.map((preset) => {
+            const on = ps?.binder === preset.id;
+            return (
+              <Pressable
+                key={preset.id}
+                onPress={() => {
+                  store.setBinderBackground(binder.id, preset.cloth);
+                  store.setPageStyle(binder.id, { binder: preset.id, zip: preset.zipper ? {} : null, spine: preset.spine });
+                }}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+                accessibilityLabel={`${preset.label} binder`}
+                testID={`binder-preset-${preset.id}`}
+                style={[styles.chip, local.presetChip, on && styles.chipActive]}>
+                <View style={[local.presetSwatch, { backgroundColor: preset.cloth }, preset.zip ? { borderColor: preset.zip.pull, borderWidth: 2 } : null]} />
+                <Text style={[styles.chipText, on && styles.chipTextActive]}>{preset.label}</Text>
+              </Pressable>
+            );
+          })}
+        </Row>
         <Row label="Hardware">
           <ToggleChip
             label="Zipper"
@@ -168,3 +195,9 @@ export function BinderLook({
     </View>
   );
 }
+
+const local = StyleSheet.create({
+  presetChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 6 },
+  /** The binder's cloth, and its zip's colour as the rim when it has one of its own. */
+  presetSwatch: { width: 14, height: 14, borderRadius: 7, borderWidth: 1, borderColor: Palette.hairlineStrong },
+});

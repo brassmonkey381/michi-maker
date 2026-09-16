@@ -18,7 +18,7 @@ import Animated, {
 
 import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { BinderSurface, FontSize, Palette, Radii, Radius, Shadows, SlotBackingFallback, Weight } from '@/constants/theme';
-import { BINDER_STITCH_OPACITY, STITCH, STITCH_TINY, isImageRef, luminance, resolveWear, seamLines, stitchStops, threadInk, weaveStops, zipCloth, type PageStyle } from '@/data/pageStyle';
+import { BINDER_STITCH_OPACITY, STITCH, STITCH_TINY, isImageRef, luminance, resolveWear, seamLines, stitchStops, threadInk, weaveStops, binderZip, type PageStyle } from '@/data/pageStyle';
 import { UNSET_CHIP, chipFor } from '@/constants/printVariant';
 import { attributionLabel, deriveAttribution, type ArtAttribution } from '@/data/artworkLibrary';
 import { resolveCardWith, resolveCatalogCardWith } from '@/data/cardResolver';
@@ -561,7 +561,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
       {/* THE PAGE'S MATERIAL, drawn under the pockets and over the mat: fabric, a hem or a cover
           band with the zip's coil in it. See PageDressing. */}
       {dressed ? (
-        <PageDressing stitch="stitch" zip={zip} mat={matColor} ink={ink} radius={radius} band={pad} outerEdge={outerEdge} rows={page.rows} cols={page.cols} />
+        <PageDressing stitch="stitch" zip={zip} style={pageStyle ?? undefined} mat={matColor} ink={ink} radius={radius} band={pad} outerEdge={outerEdge} rows={page.rows} cols={page.cols} />
       ) : null}
       <View style={{ width: innerW, height: innerH }}>
         {/* Pocket recesses for every cell — visible, deliberate negative space. */}
@@ -2180,6 +2180,7 @@ function Skeleton({ radius }: { radius: number }) {
  */
 function PageDressing({
   stitch,
+  style,
   zip: zipDetail,
   mat,
   ink,
@@ -2191,6 +2192,8 @@ function PageDressing({
 }: {
   /** The page's stitching, for the hem: one thread, two, or none. */
   stitch: 'stitch' | 'double' | null;
+  /** The binder's style, for the named binder's zip colours. */
+  style?: PageStyle;
   /** The binder's zip, when it has one: pull colour and track shape. */
   zip?: { pull?: string; track?: 'straight' | 'wavy' };
   mat: string;
@@ -2209,7 +2212,7 @@ function PageDressing({
   // Straight, always: the wavy track went with the zip's other settings (owner, 2026-09-15).
   const wavy = false;
   // THE ZIP IS THE CLOTH'S (owner, 2026-09-15): tape, teeth, slider and pull cut from the page's colour.
-  const zc = zipCloth(mat);
+  const zc = binderZip(style, mat);
   const pull = zc.pull;
   const [size, setSize] = useState({ w: 0, h: 0 });
   // A THUMBNAIL'S BAND IS HALF THE WIDTH (6px against 14), so the coil is drawn at half scale:

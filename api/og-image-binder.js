@@ -1218,24 +1218,22 @@ function singleFrame(page, manifest, art, backdrop, chrome, look) {
   // With no backdrop the frame is flat cream, where the dark ink already reads at about 12:1, so
   // the fallback needs no measurement.
   const flat = { ink: 'rgb(38,30,20)', pocket: BRAND_POCKET, halo: null };
-  const topInk = backdrop ? chromeInk(backdrop.top, groundScrim) : flat;
   const cols = page.cols || 3;
   const rows = page.rows || 3;
 
-  // ── THE PAGE TAKES THE HEIGHT (owner, 2026-09-15) ────────────────────────────────────────
+  // ── THE PAGE TAKES THE FRAME (owner, 2026-09-15) ────────────────────────────────────────
   //
   // The lockup used to sit in a band above the page and the page took what was left. Now the
-  // page stands the full height of the frame less a small margin, against the left edge, and the
-  // lockup stands in the column beside it: the mark over the wordmark. The column is guaranteed
-  // SIDE_MIN wide, so a wide page (3x4) gives up a little height rather than crowd the words out.
-  const MARGIN = 22 * S;
-  const SIDE_MIN = 190 * S;
+  // page stands the full height of the frame less a small margin, centred, and the lockup is a
+  // small stamp in the bottom-right corner, over the backdrop (and over a small pill on the band
+  // face). Level, not tilted: see the note on `rotate` in compose().
+  const MARGIN = 14 * S;
   // The mat's own padding and hairline, both sides of each, are not available to the cards.
   const matChrome = 36 * S + 2 * MAT_EDGE;
-  const { cw, ch } = cardSize(cols, rows, SINGLE_W - matChrome - SIDE_MIN - MARGIN * 2, SINGLE_H - matChrome - MARGIN * 2);
+  const { cw, ch } = cardSize(cols, rows, SINGLE_W - matChrome - MARGIN * 2, SINGLE_H - matChrome - MARGIN * 2);
   const matW = cols * cw + (cols - 1) * GAP + matChrome;
   const matH = rows * ch + (rows - 1) * GAP + matChrome;
-  const sideW = SINGLE_W - MARGIN - matW;
+  const stampInk = backdrop ? chromeInk(backdrop.bottom, groundScrim) : flat;
   const layers = [];
   if (backdrop) {
     layers.push(
@@ -1259,15 +1257,6 @@ function singleFrame(page, manifest, art, backdrop, chrome, look) {
       }),
     );
   }
-  // The band face: one band behind the lockup's column, drawn HERE beneath the content so the
-  // page's edge stays intact where it meets it (see the spread's note on row backgrounds).
-  if (bands) {
-    layers.push(
-      h('div', {
-        style: { display: 'flex', position: 'absolute', right: 0, top: 0, width: sideW, height: SINGLE_H, backgroundColor: BAND_FILL },
-      }),
-    );
-  }
   layers.push(
     h(
       'div',
@@ -1279,37 +1268,53 @@ function singleFrame(page, manifest, art, backdrop, chrome, look) {
           top: 0,
           width: SINGLE_W,
           height: SINGLE_H,
-          flexDirection: 'row',
           alignItems: 'center',
+          justifyContent: 'center',
+        },
+      },
+      h(
+        'div',
+        { style: { display: 'flex', width: matW, height: matH } },
+        look
+          ? pageMat(pageGrid(page, cw, ch, manifest, art, look), look, cols * cw + (cols - 1) * GAP, rows * ch + (rows - 1) * GAP)
+          : mat(pageGrid(page, cw, ch, manifest, art), 0, true),
+      ),
+    ),
+  );
+  // The stamp: mark and wordmark, small, bottom right. On the band face a pill sits under it so
+  // the ink keeps its contrast whatever the backdrop's corner holds.
+  layers.push(
+    h(
+      'div',
+      {
+        style: {
+          display: 'flex',
+          position: 'absolute',
+          right: 14 * S,
+          bottom: 10 * S,
+          alignItems: 'center',
+          paddingTop: 5 * S,
+          paddingBottom: 5 * S,
+          paddingLeft: 9 * S,
+          paddingRight: 10 * S,
+          borderRadius: 14 * S,
+          ...(bands ? { backgroundColor: BAND_FILL } : {}),
         },
       },
       [
+        logoMark(16 * S, stampInk.pocket),
         h(
           'div',
-          { style: { display: 'flex', marginLeft: MARGIN, width: matW, height: matH, transform: 'rotate(-1deg)' } },
-          look
-            ? pageMat(pageGrid(page, cw, ch, manifest, art, look), look, cols * cw + (cols - 1) * GAP, rows * ch + (rows - 1) * GAP)
-            : mat(pageGrid(page, cw, ch, manifest, art), 0, true),
-        ),
-        h(
-          'div',
-          { style: { display: 'flex', flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center' } },
-          [
-            logoMark(34 * S, topInk.pocket),
-            h(
-              'div',
-              {
-                style: {
-                  display: 'flex',
-                  marginTop: 12 * S,
-                  fontSize: 17 * S,
-                  color: topInk.ink,
-                  ...(topInk.halo ? { textShadow: topInk.halo } : {}),
-                },
-              },
-              'michi-maker.com',
-            ),
-          ],
+          {
+            style: {
+              display: 'flex',
+              marginLeft: 7 * S,
+              fontSize: 11 * S,
+              color: stampInk.ink,
+              ...(stampInk.halo ? { textShadow: stampInk.halo } : {}),
+            },
+          },
+          'michi-maker.com',
         ),
       ],
     ),
@@ -1346,7 +1351,10 @@ function compose(pages, manifest, art, backdrop, looks) {
       return frame(
         h(
           'div',
-          { style: { display: 'flex', alignItems: 'center', transform: 'rotate(-1deg)' } },
+          // LEVEL (owner, 2026-09-15). Satori applies a rotate here to the card images inside
+          // their clipped pockets and not to the mats, so every card came out turned a degree
+          // and cropped against a level pocket. The book lies flat instead.
+          { style: { display: 'flex', alignItems: 'center' } },
           [
             pageMat(pageGrid(pages[0], cw, ch, manifest, art, looks[0]), looks[0], gw, spineH),
             ridge,
@@ -1374,7 +1382,7 @@ function compose(pages, manifest, art, backdrop, looks) {
   if (looks) {
     const gw = (page.cols || 3) * cw + ((page.cols || 3) - 1) * GAP;
     const gh = (page.rows || 3) * ch + ((page.rows || 3) - 1) * GAP;
-    return frame(h('div', { style: { display: 'flex', transform: 'rotate(-1.5deg)' } }, pageMat(pageGrid(page, cw, ch, manifest, art, looks[0]), looks[0], gw, gh)), backdrop);
+    return frame(h('div', { style: { display: 'flex' } }, pageMat(pageGrid(page, cw, ch, manifest, art, looks[0]), looks[0], gw, gh)), backdrop);
   }
   return frame(mat(pageGrid(page, cw, ch, manifest, art), -1.5, Boolean(backdrop)), backdrop);
 }

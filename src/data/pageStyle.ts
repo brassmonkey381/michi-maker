@@ -360,7 +360,7 @@ export function zipCloth(matHex: string): { tape: string; tooth: string; lit: st
  * at this strength, and the zip and pull are the cover colour's (zipCloth). Older rows may still
  * carry a material, a thread or a pull colour; they are read for compatibility and not drawn.
  */
-export const BINDER_STITCH_OPACITY = 0.25;
+export const BINDER_STITCH_OPACITY = 0.12;
 
 /** Relative luminance of #rrggbb, 0 (black) to 1 (white). WCAG's formula, nothing clever. */
 export function luminance(hex: string): number {

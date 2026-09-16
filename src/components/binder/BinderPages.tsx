@@ -2124,8 +2124,8 @@ function CoverColumn({
  * and its bottom at the bottom of the bottom ones, which is the page margin in from each edge.
  */
 const SPINE_END_INSET = PAGE_PAD;
-/** The cross-stitch when no thread has been chosen (owner, 2026-09-14): half-strength. */
-const SPINE_THREAD_OPACITY = 0.5;
+/** The cross-stitch's thread (owner, 2026-09-15): a quarter strength. */
+const SPINE_THREAD_OPACITY = 0.25;
 
 function Spine({
   style,

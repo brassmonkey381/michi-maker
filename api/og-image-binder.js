@@ -548,7 +548,7 @@ function pageLook(page, binder, art, edge) {
   const bgImage = isImageRef(bg) && art ? art.get(bg) || null : null;
   const mat = HEX.test(bg || '') ? bg : V2_MAT;
   // THE BINDER DECIDES (owner, 2026-09-15, pageStyle BINDER_STITCH_OPACITY): every page is
-  // single-stitched in the automatic thread at a quarter strength, and the zip and its pull are
+  // single-stitched in the automatic thread at twelve percent, and the zip and its pull are
   // the cover colour's (zipCloth). A stored material, thread, pull or track is not drawn.
   const zip = details.zip || (ps.material === 'zip' ? {} : null);
   return {
@@ -558,7 +558,7 @@ function pageLook(page, binder, art, edge) {
     cols: page.cols || 3,
     dark: luminance(mat) < 0.35,
     stitch: 'stitch',
-    ink: threadInk(mat, { opacity: 0.25 }),
+    ink: threadInk(mat, { opacity: 0.12 }),
     zip: zip ? { pull: zipCloth(mat).pull, wavy: false } : null,
     spine: details.spine === 'cross' || details.spine === 'ribbed' ? details.spine : null,
     thread: undefined,
@@ -609,7 +609,7 @@ function seamV2(vertical, at, from, length, look) {
   const g = STITCH;
   const offsets = look.stitch === 'double' ? [-(g.thick + S), S] : [-g.thick / 2];
   const weldW = look.stitch === 'double' ? g.thick * 2 + 2 * S + 4 * S : g.thick + 4 * S;
-  const weld = look.dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.045)';
+  const weld = look.dark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)';
   const lead = (g.pitch - g.dash) / 2;
   const box = (o, size) => (vertical ? { left: at + o, top: from, width: size, height: length } : { top: at + o, left: from, height: size, width: length });
   const out = [h('div', { style: { display: 'flex', position: 'absolute', ...box(-weldW / 2, weldW), backgroundColor: weld, borderRadius: weldW / 2 } })];
@@ -801,14 +801,14 @@ function spineV2(height, look) {
   // The editor's book: a 16px gap between the leaves (BinderPages bookGap), the band ending one
   // page margin in from each end (PAGE_PAD), X's every 12px or ribs every 6px.
   // NARROWER AND QUIETER THAN THE EDITOR'S (owner, 2026-09-15): at share size a 16px band of
-  // bright X's between two dark pages pulled the eye off the cards. Ten wide, thread at six
-  // tenths of its strength.
+  // bright X's between two dark pages pulled the eye off the cards. Ten wide, thread at a
+  // quarter strength, as the editor's.
   const inset = PAGE_PAD;
   const width = 10 * S;
   const unit = (look.spine === 'cross' ? 12 : 6) * S;
   const bandH = height - inset * 2;
   const n = Math.max(0, Math.floor((bandH - 8 * S) / unit));
-  const ink = threadInk(look.mat, { color: look.thread && look.thread.color, opacity: (look.thread && look.thread.opacity !== undefined ? look.thread.opacity : 0.5) * 0.6 });
+  const ink = threadInk(look.mat, { opacity: 0.25 });
   const rib = look.dark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.16)';
   const marks = [];
   if (look.spine === 'cross') {

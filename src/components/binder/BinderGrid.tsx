@@ -2371,7 +2371,8 @@ function Seam({
   // Single: one run down the centre. Double: one either side of the weld, a thread's width apart.
   const offsets = double ? [-(g.thick + 1), 1] : [-g.thick / 2];
   const weldW = double ? g.thick * 2 + 2 + 4 : g.thick + 4;
-  const weld = dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.045)';
+  // The weld band is a whisper (owner, 2026-09-15: "way too prominent"): the stitches alone say seam.
+  const weld = dark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)';
   const across = (o: number, size: number) => (vertical ? { left: at + o, top: from, width: size, height: length } : { top: at + o, left: from, height: size, width: length });
   return (
     <>

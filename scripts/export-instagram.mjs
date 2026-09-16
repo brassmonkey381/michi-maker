@@ -15,6 +15,12 @@
  * needed. One headless browser, closed when done.
  *
  *   node scripts/export-instagram.mjs --binder <id> [--pages 6] [--out <dir>] [--video] [--seconds 13] [--base https://michi-maker.com]
+ *       [--dwell 3] [--step 2] [--music]
+ *
+ * `--dwell N` holds each page N seconds (turn included) instead of fitting `--seconds`; `--step 2`
+ * turns a spread at a time, which is what a desktop viewer sees; `--music` lays the binder's own
+ * soundtrack under the reel (looped and faded out, via ffmpeg). Playwright records no audio, so
+ * the music is muxed in afterwards from the same public file the app plays.
  *
  * The Reel comes out as WebM (what the browser records). Instagram wants MP4: if ffmpeg is on
  * PATH the script converts; if not it says how to install it and leaves the WebM.
@@ -41,6 +47,11 @@ const OUT = args.out ?? join(process.cwd(), 'state', 'instagram', BINDER.slice(0
 const VIDEO = args.video === 'true';
 /** How long the Reel should run from first page to last, whatever the page count. */
 const REEL_SECONDS = Number(args.seconds ?? 13);
+/** Seconds per page, turn included. Set, it wins over REEL_SECONDS. */
+const DWELL_S = args.dwell ? Number(args.dwell) : null;
+/** Pages per turn: 1 walks every page, 2 turns spreads (page 1 alone, then 2·3, 4·5, ...). */
+const STEP = Math.max(1, Number(args.step ?? 1));
+const MUSIC = args.music === 'true';
 /** The app's page-turn animation (src/components/binder/pageTurn.tsx TURN_MS). Keep in step. */
 const TURN_MS = 620;
 mkdirSync(OUT, { recursive: true });
@@ -50,6 +61,23 @@ const H = 1350;
 const MAT = '#F3EEE3';
 const INK = '#2B2A27';
 
+/** The binder's soundtrack URL, read the way the app reads it: anonymously, from a public binder. */
+async function binderTrack(id) {
+  let url = '';
+  let key = '';
+  try {
+    const { readFileSync } = await import('node:fs');
+    for (const line of readFileSync(join(process.cwd(), '.env'), 'utf8').split('\n').map((l) => l.replace(/\r$/, ''))) {
+      if (line.startsWith('EXPO_PUBLIC_SUPABASE_URL=')) url = line.slice(line.indexOf('=') + 1).trim();
+      if (line.startsWith('EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=')) key = line.slice(line.indexOf('=') + 1).trim();
+    }
+  } catch { /* no .env: no music */ }
+  if (!url || !key) return null;
+  const res = await fetch(`${url}/rest/v1/binders?id=eq.${id}&select=track`, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
+  const rows = res.ok ? await res.json() : [];
+  const t = rows[0]?.track;
+  return t && typeof t.url === 'string' && /^https?:/.test(t.url) ? t.url : null;
+}
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
 let ok = true;
 try {
@@ -87,9 +115,7 @@ try {
   };
 
   console.log(`Step 2/3: up to ${PAGES} page still(s)`);
-  let pagesFound = 0;
   for (let i = 0; i < PAGES; i++) {
-    pagesFound = i + 1;
     const grid = p.locator('[data-testid="binder-page-current"] [data-binder-page]').first();
     if (!(await grid.count())) {
       console.log('  no page grid found; stopping');
@@ -167,22 +193,25 @@ try {
     // pockets paint white for the instant before they arrive: the flash seen mid-reel. Visiting each
     // page once, off the clock, fills the cache; the timed pass then turns onto pages that are
     // already drawn. This footage is trimmed away below (or by hand in the editor).
-    const n = Math.max(1, pagesFound);
-    for (let i = 2; i <= n; i++) if (!(await goTo(i, vp, 900))) break;
+    // Every page the binder has, not just the ones the stills visited: the rail's thumbs are the count.
+    const n = Math.max(1, await vp.locator('[data-testid^="binder-strip-page-"]').count());
+    const stops = [1];
+    for (let i = 2; i <= n; i += STEP) stops.push(i);
+    for (const i of stops.slice(1)) if (!(await goTo(i, vp, 900))) break;
     await goTo(1, vp, 1200);
 
     // PACE TO THE TARGET. Whatever the page count, the reel runs REEL_SECONDS from first page to
     // last: a hold on page one, then every turn takes an equal share of what remains, the app's
     // own turn animation included, then a hold on the last page. Two pages dwell long; ten flick.
-    const introMs = 1800;
-    const outroMs = 1500;
-    const turns = n - 1;
-    const perTurn = turns ? (REEL_SECONDS * 1000 - introMs - outroMs) / turns : 0;
+    const turns = stops.length - 1;
+    const perTurn = DWELL_S ? DWELL_S * 1000 : turns ? (REEL_SECONDS * 1000 - 1800 - 1500) / turns : 0;
+    const introMs = DWELL_S ? DWELL_S * 1000 : 1800;
+    const outroMs = DWELL_S ? DWELL_S * 1000 : 1500;
     const dwell = Math.max(250, Math.round(perTurn - TURN_MS));
-    console.log(`  ${n} page(s), ${turns} turn(s): ${(perTurn / 1000).toFixed(2)}s per turn, ${dwell}ms on each page`);
+    console.log(`  ${n} page(s), ${turns} turn(s) of ${STEP}: ${(perTurn / 1000).toFixed(2)}s per turn, ${dwell}ms on each`);
     const tStart = Date.now();
     await vp.waitForTimeout(introMs);
-    for (let i = 2; i <= n; i++) {
+    for (const i of stops.slice(1)) {
       if (!(await goTo(i, vp, TURN_MS + dwell))) break;
     }
     await vp.waitForTimeout(outroMs);
@@ -197,9 +226,20 @@ try {
     const trimFrom = ((tStart - t0) / 1000).toFixed(2);
     const length = ((tEnd - tStart) / 1000).toFixed(1);
     console.log(`  ${target}  (full recording; the reel is the last ${length}s, from ${trimFrom}s)`);
+    // THE SOUNDTRACK. The binder's track is a public file in the app's storage; it is looped under
+    // the whole reel and faded out over the last two seconds.
+    let audioArgs = [];
+    if (MUSIC) {
+      const track = await binderTrack(BINDER);
+      if (track) {
+        const secs = Number(length);
+        audioArgs = ['-stream_loop', '-1', '-i', track, '-c:a', 'aac', '-b:a', '160k', '-af', `afade=t=out:st=${Math.max(0, secs - 2).toFixed(1)}:d=2`, '-shortest'];
+        console.log(`  soundtrack: ${track.split('/').pop().slice(0, 60)}`);
+      } else console.log('  no soundtrack on this binder; the reel is silent');
+    }
     const ff = spawnSync(
       'ffmpeg',
-      ['-y', '-ss', trimFrom, '-i', target, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', join(OUT, 'reel.mp4')],
+      ['-y', '-ss', trimFrom, '-i', target, ...audioArgs, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', join(OUT, 'reel.mp4')],
       { stdio: 'ignore' },
     );
     if (ff.status === 0) console.log(`  ${join(OUT, 'reel.mp4')}  (${length}s, trimmed, Instagram-ready)`);

@@ -79,8 +79,8 @@ const CACHE = 'public, max-age=0, s-maxage=300, stale-while-revalidate=86400';
 // and an 8px pocket radius, all times S, so the share image, the poster and the quick look draw
 // the page the way the editor and the shelf draw it. Keep in step with binderLayout PAD/GAP and
 // theme Radii.
-const GAP = 10 * S;
-const PAGE_PAD = 14 * S;
+const GAP = 6 * S;
+const PAGE_PAD = 12 * S;
 const PAGE_RADIUS = 16 * S;
 const POCKET_RADIUS = 8 * S;
 const CARD_ASPECT = 2.5 / 3.5; // real card proportions

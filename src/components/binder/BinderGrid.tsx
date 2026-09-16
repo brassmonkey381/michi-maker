@@ -162,8 +162,10 @@ const CARD_ASPECT = 88 / 63; // height / width of a standard card
  */
 export function pageBoxHeight(width: number, rows: number, cols: number): number {
   const small = width < 220;
-  const pad = small ? 6 : 14;
-  const gap = small ? 3 : 10;
+  // BACK TO 12 AND 6 (owner, 2026-09-16): the wider 14/10 spacing of 2026-09-15 left sliced art
+  // sitting off its pocket edges, because slices were cut for the pockets as they were.
+  const pad = small ? 6 : 12;
+  const gap = small ? 3 : 6;
   const cellW = (width - pad * 2 - gap * (cols - 1)) / cols;
   return pad * 2 + cellW * CARD_ASPECT * rows + gap * (rows - 1);
 }
@@ -363,8 +365,10 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   const priceOn = captionFields.includes('price');
   const priceSummary = usePriceSummaryWhen(priceOn);
   const small = width < 220;
-  const pad = small ? 6 : 14;
-  const gap = small ? 3 : 10;
+  // BACK TO 12 AND 6 (owner, 2026-09-16): the wider 14/10 spacing of 2026-09-15 left sliced art
+  // sitting off its pocket edges, because slices were cut for the pockets as they were.
+  const pad = small ? 6 : 12;
+  const gap = small ? 3 : 6;
   const radius = small ? Radii.pageSmall : Radii.page;
   const slotRadius = small ? Radii.slotSmall : Radii.slot;
   // A MATERIAL NEVER CHANGES THE BACKGROUND (owner, 2026-09-13): the page stays whatever colour the

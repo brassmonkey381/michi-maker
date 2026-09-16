@@ -16,11 +16,10 @@ import { SoundtrackField } from '@/components/binder/SoundtrackField';
 import { ColorBox, Group, LabeledInput, PillButton, Row, Seg, ToggleChip, WearRow, styles } from '@/components/binder/inspector/controls';
 import { REAL_PAGE_SIZES } from '@/data/binderPhysics';
 import type { BinderTrack, DemoBinder, DemoPage } from '@/data/binderTypes';
-import { DEFAULT_THREAD_OPACITY, DEFAULT_ZIP_PULL, PAGE_MATERIALS, SPINE_STYLES, THREAD_OPACITIES, WEAR_NONE, ZIP_TRACKS, isImageRef, luminance } from '@/data/pageStyle';
+import { SPINE_STYLES, WEAR_NONE, isImageRef } from '@/data/pageStyle';
 import { isBlankPage, useBinders } from '@/store/binders';
 
 const PAGE_SIZE_OPTIONS = REAL_PAGE_SIZES.map((s) => ({ id: s.label, label: s.label, rows: s.rows, cols: s.cols }));
-const THREAD_OPTIONS = THREAD_OPACITIES.map((o) => ({ id: String(o), label: `${Math.round(o * 100)}%`, blurb: `Thread at ${Math.round(o * 100)} percent` }));
 
 export function BinderFields({
   binder,
@@ -123,34 +122,11 @@ export function BinderLook({
             onChange={(backgroundColor) => store.setBinderBackground(binder.id, backgroundColor)}
           />
         </Row>
-        {/* WHAT THE PAGES ARE MADE OF (owner, 2026-09-13): the material, and what the pockets wear.
-            See src/data/pageStyle.ts. */}
-        <Row label="Page style">
-          <Seg
-            options={PAGE_MATERIALS}
-            value={ps?.material ?? 'classic'}
-            onChange={(id) => store.setPageStyle(binder.id, { material: id === 'classic' ? null : id })}
-          />
-        </Row>
-        {ps?.material ? (
-          <Row label="Thread">
-            <ColorBox
-              fieldKey={`${binder.id}-thread`}
-              value={ps.thread?.color ?? (luminance(page.backgroundColor ?? '#ffffff') < 0.35 ? '#ffffff' : '#000000')}
-              onChange={(color) => store.setPageStyle(binder.id, { thread: { color } })}
-            />
-            <Seg
-              options={THREAD_OPTIONS}
-              value={String(ps.thread?.opacity ?? DEFAULT_THREAD_OPACITY)}
-              onChange={(id) => store.setPageStyle(binder.id, { thread: { opacity: Number(id) } })}
-            />
-            {ps.thread ? <PillButton label="Auto" onPress={() => store.setPageStyle(binder.id, { thread: null })} /> : null}
-          </Row>
-        ) : null}
         {compact}
       </Group>
       {/* BINDER DETAILS (owner, 2026-09-14): the hardware of the binder round the page. A set, not
-          a pick: a binder can have a zip AND a spine, and each is its own toggle with its own options. */}
+          a pick: a binder can have a zip AND a spine. The zip's colour and its pull's are the
+          cover colour's (owner, 2026-09-15: zipCloth), as the stitching is; none of those is a setting. */}
       <Group title="Binder" testID="binder-group-binder">
         <Row label="Hardware">
           <ToggleChip
@@ -172,16 +148,6 @@ export function BinderLook({
             );
           })}
         </Row>
-        {ps?.details?.zip ? (
-          <Row label="Zip pull">
-            <ColorBox fieldKey={`${binder.id}-pull`} value={ps.details.zip.pull ?? DEFAULT_ZIP_PULL} onChange={(pull) => store.setPageStyle(binder.id, { zip: { pull } })} />
-            <Seg
-              options={ZIP_TRACKS}
-              value={ps.details.zip.track ?? 'straight'}
-              onChange={(id) => store.setPageStyle(binder.id, { zip: { track: id === 'straight' ? null : id } })}
-            />
-          </Row>
-        ) : null}
       </Group>
       <Group title="Pockets" note="What every page's pockets wear unless a page or pocket says otherwise." testID="binder-group-pockets">
         <WearRow

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { isImageRef, luminance, normalizePageStyle, normalizeWear, resolveWear, seamLines, stitchInk, stitchStops, WEAR_NONE, withPageStyle } from './pageStyle.ts';
+import { isImageRef, luminance, normalizePageStyle, normalizeWear, resolveWear, seamLines, stitchInk, stitchStops, WEAR_NONE, withPageStyle, zipCloth, mixHex } from './pageStyle.ts';
 
 test('a pocket wears the first layer that speaks, and "none" speaks as nothing', () => {
   assert.equal(resolveWear(undefined, undefined, '#ffaa00'), '#ffaa00');
@@ -110,4 +110,15 @@ test('a stitch run is ink for a dash of every pitch, as gradient stops in order'
   assert.deepEqual(run.colors.slice(1, 5), ['rgba(0,0,0,0)', 'ink', 'ink', 'rgba(0,0,0,0)']);
   // Nothing to draw is still a valid gradient.
   assert.deepEqual(stitchStops(0, 'ink'), { colors: ['rgba(0,0,0,0)', 'rgba(0,0,0,0)'], locations: [0, 1] });
+});
+
+test('the zip is cut from the cloth: white on a white binder, pale on black', () => {
+  assert.equal(mixHex('#000000', '#ffffff', 0.5), '#808080');
+  const white = zipCloth('#ffffff');
+  assert.equal(white.lit, '#ffffff');
+  assert.equal(white.tape, '#ebebeb');
+  const black = zipCloth('#000000');
+  assert.equal(black.tape, '#000000');
+  assert.equal(black.tooth, '#4d4d4d');
+  assert.equal(black.lit, '#8c8c8c');
 });

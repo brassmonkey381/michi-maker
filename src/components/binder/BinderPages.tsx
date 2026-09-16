@@ -22,7 +22,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { CaptionControls, CaptionFieldRow } from '@/components/binder/CaptionControls';
-import { luminance, threadInk, type PageStyle } from '@/data/pageStyle';
+import { luminance, threadInk } from '@/data/pageStyle';
 import { FLIP_COVER_BEAT_MS, flipPlan, riffleBudget } from '@/data/openingFlip';
 import {
   SingleTurnLeaf,
@@ -1614,7 +1614,6 @@ export function BinderPages({
                 style={binder.pageStyle.details.spine}
                 width={bookGap}
                 top={COLUMN_LABEL_H}
-                thread={binder.pageStyle.thread}
                 cloth={page.backgroundColor ?? BinderSurface.mat}
               />
             ) : null}
@@ -2132,14 +2131,11 @@ function Spine({
   style,
   width,
   top,
-  thread,
   cloth,
 }: {
   style: 'cross' | 'ribbed';
   width: number;
   top: number;
-  /** The binder's thread (PageStyle.thread): the cross-stitch is sewn with the same one as the seams. */
-  thread?: PageStyle['thread'];
   /** The spine's fabric: the page's own background colour (owner, 2026-09-14), so the book is one cloth. */
   cloth: string;
 }) {
@@ -2149,7 +2145,8 @@ function Spine({
   // pages are bound to rather than a stripe painted between them.
   const inset = SPINE_END_INSET;
   const n = h > 0 ? Math.floor((h - inset * 2 - 8) / unit) : 0;
-  const ink = threadInk(cloth, { color: thread?.color, opacity: thread?.opacity ?? SPINE_THREAD_OPACITY });
+  // The automatic thread for the cloth, at half strength: the binder's, not a setting (owner, 2026-09-15).
+  const ink = threadInk(cloth, { opacity: SPINE_THREAD_OPACITY });
   // The ribs are ridges in the cloth, lit or shaded by its lightness rather than sewn.
   const rib = luminance(cloth) < 0.35 ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.16)';
   return (

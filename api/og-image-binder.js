@@ -524,6 +524,19 @@ function threadInk(mat, thread) {
   const n = (i) => parseInt(hex.slice(i, i + 2), 16);
   return `rgba(${n(0)},${n(2)},${n(4)},${thread.opacity === undefined ? 0.6 : thread.opacity})`;
 }
+/** `t` of the way from hex a to hex b. */
+function mixHex(a, b, t) {
+  const ch = (hex, i) => parseInt(hex.replace('#', '').slice(i, i + 2), 16);
+  const one = (i) => Math.round(ch(a, i) + (ch(b, i) - ch(a, i)) * t).toString(16).padStart(2, '0');
+  return `#${one(0)}${one(2)}${one(4)}`;
+}
+/** The zip cut from the cloth, as pageStyle's zipCloth: a white binder has a white zip. */
+function zipCloth(mat) {
+  const dark = luminance(mat) < 0.35;
+  return dark
+    ? { tape: mixHex(mat, '#000000', 0.45), tooth: mixHex(mat, '#ffffff', 0.3), lit: mixHex(mat, '#ffffff', 0.55), slider: mixHex(mat, '#ffffff', 0.4), sliderEdge: mixHex(mat, '#000000', 0.5), pull: mixHex(mat, '#ffffff', 0.3) }
+    : { tape: mixHex(mat, '#000000', 0.08), tooth: mixHex(mat, '#000000', 0.2), lit: mixHex(mat, '#ffffff', 0.5), slider: mixHex(mat, '#000000', 0.14), sliderEdge: mixHex(mat, '#000000', 0.4), pull: mixHex(mat, '#000000', 0.06) };
+}
 /** v2's plain page is v1's cream, so a binder with no choices renders as it always did. */
 const V2_MAT = '#fbfaf7';
 
@@ -534,8 +547,9 @@ function pageLook(page, binder, art, edge) {
   const bg = page.background_color;
   const bgImage = isImageRef(bg) && art ? art.get(bg) || null : null;
   const mat = HEX.test(bg || '') ? bg : V2_MAT;
-  const material = ps.material === 'stitched' ? 'double' : ps.material;
-  const stitch = material === 'stitch' || material === 'double' ? material : null;
+  // THE BINDER DECIDES (owner, 2026-09-15, pageStyle BINDER_STITCH_OPACITY): every page is
+  // single-stitched in the automatic thread at a quarter strength, and the zip and its pull are
+  // the cover colour's (zipCloth). A stored material, thread, pull or track is not drawn.
   const zip = details.zip || (ps.material === 'zip' ? {} : null);
   return {
     mat,
@@ -543,11 +557,11 @@ function pageLook(page, binder, art, edge) {
     rows: page.rows || 3,
     cols: page.cols || 3,
     dark: luminance(mat) < 0.35,
-    stitch,
-    ink: threadInk(mat, ps.thread),
-    zip: zip ? { pull: HEX.test(zip.pull || '') ? zip.pull : '#3fcf5e', wavy: zip.track === 'wavy' } : null,
+    stitch: 'stitch',
+    ink: threadInk(mat, { opacity: 0.25 }),
+    zip: zip ? { pull: zipCloth(mat).pull, wavy: false } : null,
     spine: details.spine === 'cross' || details.spine === 'ribbed' ? details.spine : null,
-    thread: ps.thread,
+    thread: undefined,
     edge,
     sleeve: [page.sleeve, ps.sleeve],
     backing: [page.art_backing, ps.artBacking],
@@ -615,12 +629,11 @@ function seamV2(vertical, at, from, length, look) {
   return out;
 }
 
-/** The cloth's weave over a box, as BinderGrid's Weave: hairlines both ways, 4px apart. */
+/** The cloth's weave over a box, as BinderGrid's Weave: soft ripples both ways, 5px apart. */
 function weaveV2(w, hgt, dark, radius) {
-  const thread = dark ? 'rgba(255,255,255,0.055)' : 'rgba(0,0,0,0.035)';
-  const pitch = 4 * S;
-  const lead = (pitch - S) / 2;
-  const line = (deg) => `repeating-linear-gradient(${deg}deg, transparent 0px, transparent ${lead}px, ${thread} ${lead}px, ${thread} ${lead + S}px, transparent ${lead + S}px, transparent ${pitch}px)`;
+  const thread = dark ? 'rgba(255,255,255,0.045)' : 'rgba(0,0,0,0.028)';
+  const pitch = 5 * S;
+  const line = (deg) => `repeating-linear-gradient(${deg}deg, transparent 0px, ${thread} ${pitch / 2}px, transparent ${pitch}px)`;
   return [90, 180].map((deg) => h('div', { style: { display: 'flex', position: 'absolute', left: 0, top: 0, width: w, height: hgt, borderRadius: radius, backgroundImage: line(deg) } }));
 }
 
@@ -670,6 +683,7 @@ function pageMat(grid, look, gridW, gridH) {
     const TAPE = 6 * S;
     const PITCH = 3 * S;
     const ACROSS = 3 * S;
+    const zc = zipCloth(look.mat);
     const outer = look.edge === 'left' ? 'left' : 'right';
     // The cover band: a ring of heavier, darker fabric with a fine edge where it meets the sheet.
     layers.push(
@@ -700,15 +714,15 @@ function pageMat(grid, look, gridW, gridH) {
             ? { top: 4 * S, bottom: 0, width: ACROSS, left: TAPE / 2 - ACROSS / 2 + side * 1.5 * S }
             : { left: 4 * S, right: 0, height: ACROSS, top: TAPE / 2 - ACROSS / 2 + side * 1.5 * S }),
           backgroundImage: vertical
-            ? `repeating-linear-gradient(180deg, transparent 0px, transparent ${shift}px, #8a8a93 ${shift}px, #8a8a93 ${shift + S}px, #5e5e67 ${shift + S}px, #5e5e67 ${shift + toothW}px, transparent ${shift + toothW}px, transparent ${period}px)`
-            : `repeating-linear-gradient(90deg, transparent 0px, transparent ${shift}px, #8a8a93 ${shift}px, #8a8a93 ${shift + S}px, #5e5e67 ${shift + S}px, #5e5e67 ${shift + toothW}px, transparent ${shift + toothW}px, transparent ${period}px)`,
+            ? `repeating-linear-gradient(180deg, transparent 0px, transparent ${shift}px, ${zc.lit} ${shift}px, ${zc.lit} ${shift + S}px, ${zc.tooth} ${shift + S}px, ${zc.tooth} ${shift + toothW}px, transparent ${shift + toothW}px, transparent ${period}px)`
+            : `repeating-linear-gradient(90deg, transparent 0px, transparent ${shift}px, ${zc.lit} ${shift}px, ${zc.lit} ${shift + S}px, ${zc.tooth} ${shift + S}px, ${zc.tooth} ${shift + toothW}px, transparent ${shift + toothW}px, transparent ${period}px)`,
         },
       });
     const tape = (style, vertical) =>
       h(
         'div',
         {
-          style: { display: 'flex', position: 'absolute', borderRadius: 3 * S, backgroundColor: '#121215', overflow: 'hidden', ...style },
+          style: { display: 'flex', position: 'absolute', borderRadius: 3 * S, backgroundColor: zc.tape, overflow: 'hidden', ...style },
         },
         [row(vertical, 0, -1), row(vertical, PITCH, 1)],
       );
@@ -732,10 +746,10 @@ function pageMat(grid, look, gridW, gridH) {
             width: 10 * S,
             height: 12 * S,
             borderRadius: 2 * S,
-            backgroundColor: '#6a6a74',
+            backgroundColor: zc.slider,
             borderWidth: S,
             borderStyle: 'solid',
-            borderColor: '#2a2a30',
+            borderColor: zc.sliderEdge,
           },
         },
         h(

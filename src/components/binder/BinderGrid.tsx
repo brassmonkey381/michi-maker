@@ -18,7 +18,7 @@ import Animated, {
 
 import { CardPlaceholder } from '@/components/CardPlaceholder';
 import { BinderSurface, FontSize, Palette, Radii, Radius, Shadows, SlotBackingFallback, Weight } from '@/constants/theme';
-import { DEFAULT_ZIP_PULL, STITCH, STITCH_TINY, isImageRef, luminance, resolveWear, seamLines, stitchStops, threadInk, weaveStops, type PageStyle } from '@/data/pageStyle';
+import { BINDER_STITCH_OPACITY, STITCH, STITCH_TINY, isImageRef, luminance, resolveWear, seamLines, stitchStops, threadInk, weaveStops, zipCloth, type PageStyle } from '@/data/pageStyle';
 import { UNSET_CHIP, chipFor } from '@/constants/printVariant';
 import { attributionLabel, deriveAttribution, type ArtAttribution } from '@/data/artworkLibrary';
 import { resolveCardWith, resolveCatalogCardWith } from '@/data/cardResolver';
@@ -370,7 +370,6 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   // A MATERIAL NEVER CHANGES THE BACKGROUND (owner, 2026-09-13): the page stays whatever colour the
   // binder has, white by default, and the thread, the band and the pocket windows take their tone
   // from that colour's lightness instead of assuming dark cloth.
-  const material = pageStyle?.material;
   // A PICTURE FOR A BACKGROUND (owner, 2026-09-15): the page's colour column may hold a hotlinked
   // image instead. It is drawn under everything; the mat colour stays the plain page's, so the
   // thread, the band and the rings take a light-page tone, which is the safe guess for a photo.
@@ -380,10 +379,12 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   // The stitching is the page's; the zip is the binder's (a detail). Either dresses the page.
   // THUMBNAILS DRESS TOO (owner, 2026-09-15): a binder's preview on the shelf shows its stitches
   // and its zip, scaled down in PageDressing, so a list of binders shows what each one is.
-  const stitched = material === 'stitch' || material === 'double';
+  // THE BINDER DECIDES (owner, 2026-09-15): every page is single-stitched in the automatic
+  // thread at BINDER_STITCH_OPACITY; a stored material or thread is not drawn. See pageStyle.
+  const stitched = true;
   const zip = pageStyle?.details?.zip;
-  const dressed = stitched || !!zip;
-  const ink = threadInk(matColor, pageStyle?.thread);
+  const dressed = true;
+  const ink = threadInk(matColor, { opacity: BINDER_STITCH_OPACITY });
   /**
    * A MATERIAL NEVER MOVES A POCKET (owner, 2026-09-13): the spacing is the classic page's in every
    * material, so switching Stitched or Zip on changes what the page is made of and nothing about
@@ -560,7 +561,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
       {/* THE PAGE'S MATERIAL, drawn under the pockets and over the mat: fabric, a hem or a cover
           band with the zip's coil in it. See PageDressing. */}
       {dressed ? (
-        <PageDressing stitch={stitched ? (material as 'stitch' | 'double') : null} zip={zip} mat={matColor} ink={ink} radius={radius} band={pad} outerEdge={outerEdge} rows={page.rows} cols={page.cols} />
+        <PageDressing stitch="stitch" zip={zip} mat={matColor} ink={ink} radius={radius} band={pad} outerEdge={outerEdge} rows={page.rows} cols={page.cols} />
       ) : null}
       <View style={{ width: innerW, height: innerH }}>
         {/* Pocket recesses for every cell — visible, deliberate negative space. */}
@@ -594,12 +595,12 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
                 ...lines.v
                   .filter((i) => i > 0 && i < page.cols)
                   .map((i) => (
-                    <Seam key={`seam-v-${i}`} vertical at={i * colStep - gap / 2 + (small ? lean / 2 : lean)} from={0} length={innerH} double={material === 'double'} ink={ink} dark={darkMat} tiny={small} />
+                    <Seam key={`seam-v-${i}`} vertical at={i * colStep - gap / 2 + (small ? lean / 2 : lean)} from={0} length={innerH} double={false} ink={ink} dark={darkMat} tiny={small} />
                   )),
                 ...lines.h
                   .filter((i) => i > 0 && i < page.rows)
                   .map((i) => (
-                    <Seam key={`seam-h-${i}`} at={i * rowStep - gap / 2} from={0} length={innerW} double={material === 'double'} ink={ink} dark={darkMat} tiny={small} />
+                    <Seam key={`seam-h-${i}`} at={i * rowStep - gap / 2} from={0} length={innerW} double={false} ink={ink} dark={darkMat} tiny={small} />
                   )),
               ];
             })()
@@ -2205,8 +2206,11 @@ function PageDressing({
 }) {
   const dark = luminance(mat) < 0.35;
   const zip = !!zipDetail && !!outerEdge;
-  const wavy = zipDetail?.track === 'wavy';
-  const pull = zipDetail?.pull ?? DEFAULT_ZIP_PULL;
+  // Straight, always: the wavy track went with the zip's other settings (owner, 2026-09-15).
+  const wavy = false;
+  // THE ZIP IS THE CLOTH'S (owner, 2026-09-15): tape, teeth, slider and pull cut from the page's colour.
+  const zc = zipCloth(mat);
+  const pull = zc.pull;
   const [size, setSize] = useState({ w: 0, h: 0 });
   // A THUMBNAIL'S BAND IS HALF THE WIDTH (6px against 14), so the coil is drawn at half scale:
   // narrower tape, tighter teeth, a smaller pull. Same drawing, same places.
@@ -2231,6 +2235,8 @@ function PageDressing({
       key={i}
       style={[
         vertical ? styles.toothAcross : styles.toothAlong,
+        { backgroundColor: zc.tooth },
+        vertical ? { borderLeftColor: zc.lit } : { borderTopColor: zc.lit },
         tiny ? (vertical ? styles.toothAcrossTiny : styles.toothAlongTiny) : null,
         vertical
           ? { marginBottom: Math.max(0, PITCH - (tiny ? 1 : 2)), marginLeft: (i % 2 === 0 ? -stagger : stagger) + drift(i) }
@@ -2296,12 +2302,12 @@ function PageDressing({
           </View>
           {/* The coil, top and bottom: tape, then teeth laid along it. */}
           {[c - TAPE / 2, size.h - c - TAPE / 2].map((top, k) => (
-            <View key={`h${k}`} style={[styles.tape, { top, left: c - TAPE / 2, right: c - TAPE / 2, height: TAPE, flexDirection: 'row', paddingLeft: 4 }]}>
+            <View key={`h${k}`} style={[styles.tape, { backgroundColor: zc.tape, top, left: c - TAPE / 2, right: c - TAPE / 2, height: TAPE, flexDirection: 'row', paddingLeft: 4 }]}>
               {Array.from({ length: teethAcross }).map((_, i) => tooth(i, false))}
             </View>
           ))}
           {/* The coil down the outer edge. */}
-          <View style={[styles.tape, { top: c - TAPE / 2, bottom: c - TAPE / 2, width: TAPE, paddingTop: 4, alignItems: 'center' }, onOuter]}>
+          <View style={[styles.tape, { backgroundColor: zc.tape, top: c - TAPE / 2, bottom: c - TAPE / 2, width: TAPE, paddingTop: 4, alignItems: 'center' }, onOuter]}>
             {Array.from({ length: teethDown }).map((_, i) => tooth(i, true))}
           </View>
         </>
@@ -2315,7 +2321,7 @@ function PageDressing({
         pointerEvents="none"
         style={[
           styles.pullSlider,
-          { bottom: c - 5 },
+          { backgroundColor: zc.slider, borderColor: zc.sliderEdge, bottom: c - 5 },
           outerEdge === 'right' ? { right: c - 5 } : { left: c - 5 },
           tiny ? { transform: [{ scale: 0.5 }] } : null,
         ]}>
@@ -2475,14 +2481,13 @@ const styles = StyleSheet.create({
   cardFrameOnFabric: { borderColor: 'rgba(255,255,255,0.14)' },
   /** A framed card's scan, drawn 4.4% larger than its box so the JPG's white margin falls outside it. */
   trimmed: { position: 'absolute', left: '-2.2%', top: '-2.2%', width: '104.4%', height: '104.4%' },
-  /** The zip's tape: a dark channel the teeth sit in. */
-  tape: { position: 'absolute', backgroundColor: '#121215', borderRadius: 3, overflow: 'hidden' },
-  /** A coil tooth on a horizontal run: 3 along the tape, 5 across it, a lit top edge. The pale
-      nylon coil of the reference binder (owner, 2026-09-15), not gunmetal: it has to read
-      against black tape at thumbnail size. */
-  toothAlong: { width: 2, height: 4, borderRadius: 1, backgroundColor: '#9a9aa4', borderTopWidth: 1, borderTopColor: '#d6d6dc' },
+  /** The zip's tape: the channel the teeth sit in; its colour is the cloth's (zipCloth). */
+  tape: { position: 'absolute', borderRadius: 3, overflow: 'hidden' },
+  /** A coil tooth on a horizontal run: 3 along the tape, 5 across it, a lit top edge. Colours
+      are the cloth's (zipCloth), set inline. */
+  toothAlong: { width: 2, height: 4, borderRadius: 1, borderTopWidth: 1 },
   /** The same tooth turned for the vertical run down the outer edge. */
-  toothAcross: { width: 4, height: 2, borderRadius: 1, backgroundColor: '#9a9aa4', borderLeftWidth: 1, borderLeftColor: '#d6d6dc' },
+  toothAcross: { width: 4, height: 2, borderRadius: 1, borderLeftWidth: 1 },
   /** Half-scale teeth for a thumbnail's band. */
   toothAlongTiny: { width: 1, height: 2, borderTopWidth: 0 },
   toothAcrossTiny: { width: 2, height: 1, borderLeftWidth: 0 },

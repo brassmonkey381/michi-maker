@@ -311,13 +311,56 @@ export function stitchStops(length: number, ink: string, geometry: { pitch: numb
 
 /**
  * THE CLOTH'S WEAVE: a nylon binder is a fine grid of threads, and a flat colour with a vignette
- * reads as paint. Two sets of hairlines, one each way, `pitch` apart, in a translucent thread
- * cut from the cloth's lightness. As gradient stops, like the stitches, for the same reason.
+ * reads as paint. Two sets of soft ripples, one each way, `pitch` apart, in a translucent thread
+ * cut from the cloth's lightness. SOFT (owner, 2026-09-15): a ramp up to the thread and back,
+ * never a hard line, so it reads as texture rather than graph paper.
  */
-export const WEAVE_PITCH = 4;
+export const WEAVE_PITCH = 5;
 export function weaveStops(length: number, dark: boolean, pitch = WEAVE_PITCH): GradientStops {
-  return stitchStops(length, dark ? 'rgba(255,255,255,0.055)' : 'rgba(0,0,0,0.035)', { pitch, dash: 1 });
+  const ink = dark ? 'rgba(255,255,255,0.045)' : 'rgba(0,0,0,0.028)';
+  const off = 'rgba(0,0,0,0)';
+  const colors: string[] = [off];
+  const locations: number[] = [0];
+  if (length > 0) {
+    const n = Math.floor(length / pitch);
+    for (let i = 0; i < n; i += 1) {
+      colors.push(ink, off);
+      locations.push((i * pitch + pitch / 2) / length, ((i + 1) * pitch) / length);
+    }
+  }
+  colors.push(off);
+  locations.push(1);
+  return { colors: colors as GradientStops['colors'], locations: locations as GradientStops['locations'] };
 }
+
+/** `t` of the way from hex `a` to hex `b`, as #rrggbb. */
+export function mixHex(a: string, b: string, t: number): string {
+  const ch = (hex: string, i: number) => parseInt(hex.replace('#', '').slice(i, i + 2), 16);
+  const one = (i: number) => Math.round(ch(a, i) + (ch(b, i) - ch(a, i)) * t).toString(16).padStart(2, '0');
+  return `#${one(0)}${one(2)}${one(4)}`;
+}
+
+/**
+ * THE ZIP IS THE CLOTH'S (owner, 2026-09-15, from the white Vault X: a white binder has a white
+ * zip). The tape, the coil's teeth, the lit edge of each tooth and the slider are all cut from
+ * the page's own colour: a shade or two off it, darker on a pale cloth and paler on a dark one.
+ * Only the pull keeps a colour of its own.
+ */
+export function zipCloth(matHex: string): { tape: string; tooth: string; lit: string; slider: string; sliderEdge: string; pull: string } {
+  const mat = /^#[0-9a-f]{6}$/i.test(matHex) ? matHex : '#ffffff';
+  const dark = luminance(mat) < 0.35;
+  return dark
+    ? { tape: mixHex(mat, '#000000', 0.45), tooth: mixHex(mat, '#ffffff', 0.3), lit: mixHex(mat, '#ffffff', 0.55), slider: mixHex(mat, '#ffffff', 0.4), sliderEdge: mixHex(mat, '#000000', 0.5), pull: mixHex(mat, '#ffffff', 0.3) }
+    : { tape: mixHex(mat, '#000000', 0.08), tooth: mixHex(mat, '#000000', 0.2), lit: mixHex(mat, '#ffffff', 0.5), slider: mixHex(mat, '#000000', 0.14), sliderEdge: mixHex(mat, '#000000', 0.4), pull: mixHex(mat, '#000000', 0.06) };
+}
+
+/**
+ * THE BINDER DECIDES (owner, 2026-09-15). The stitching, its thread, the zip's colour and the
+ * pull's are the binder's, not settings: every page is single-stitched in the automatic thread
+ * at this strength, and the zip and pull are the cover colour's (zipCloth). Older rows may still
+ * carry a material, a thread or a pull colour; they are read for compatibility and not drawn.
+ */
+export const BINDER_STITCH_OPACITY = 0.25;
 
 /** Relative luminance of #rrggbb, 0 (black) to 1 (white). WCAG's formula, nothing clever. */
 export function luminance(hex: string): number {

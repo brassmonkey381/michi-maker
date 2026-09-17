@@ -28,7 +28,7 @@ import { LikeButton } from '@/components/binder/LikeButton';
 import { ReportSheet } from '@/components/binder/ReportSheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Fonts, FontSize, MaxContentWidthWide, Palette, Spacing } from '@/constants/theme';
+import { Fonts, FontSize, MaxContentWidthWide, Palette, Spacing, Weight } from '@/constants/theme';
 import { fetchBinder } from '@/data/binderRepo';
 import { setTrack, stopPlayer } from '@/lib/binderAudio';
 import type { DemoBinder } from '@/data/binderTypes';
@@ -269,7 +269,9 @@ function Viewer({
   /** The back link shares the title row (wide windows) rather than sitting above it. */
   wideHead: boolean;
 }) {
+  const store = useBinders();
   const [needAccount, setNeedAccount] = useState(false);
+  const [copyHint, setCopyHint] = useState<string | null>(null);
   const [reporting, setReporting] = useState(false);
   // Where the scroller starts in the window — the one term of the page's height budget that lives
   // outside it. Rounded and only accepted on a real change, so a sub-pixel wobble cannot loop.
@@ -361,6 +363,24 @@ function Viewer({
         {/* Beside the title rather than under it, and absolutely placed so a long title does not
             shove them off the row or drag the heading off centre. */}
         <View style={styles.headActions}>
+          {/* DUPLICATE, when the owner allows it (owner, 2026-09-16): a private copy in the
+              visitor's own account, the owner's art credited as borrowed. Refusals read the same
+              way the like button's do: a hint under the title, not a dialog. */}
+          {binder.allowCopies ? (
+            <Pressable
+              onPress={() => {
+                const copy = store.duplicateSharedBinder(binder);
+                if (copy) router.replace(`/binder/${copy.id}`);
+                else setCopyHint(store.canEdit ? 'You are at your binder limit, so there is no room for a copy.' : 'Sign in to duplicate this binder into your own account.');
+              }}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Duplicate this binder into your account"
+              testID="binder-duplicate-shared"
+              style={styles.dupBtn}>
+              <ThemedText type="small" style={styles.dupText}>Duplicate</ThemedText>
+            </Pressable>
+          ) : null}
           <LikeButton binderId={binder.id} onNeedsAccount={() => setNeedAccount(true)} />
           <Pressable
             onPress={() => setSettingsOpen(true)}
@@ -392,6 +412,11 @@ function Viewer({
       {needAccount ? (
         <ThemedText type="small" themeColor="textSecondary" style={styles.likeHint}>
           Sign in with an account to like this binder.
+        </ThemedText>
+      ) : null}
+      {copyHint ? (
+        <ThemedText type="small" themeColor="textSecondary" style={styles.likeHint}>
+          {copyHint}
         </ThemedText>
       ) : null}
       {infoOpen ? (
@@ -506,6 +531,8 @@ const styles = StyleSheet.create({
     // hover goes behind the pages" was.
     zIndex: 30,
   },
+  dupBtn: { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 999, backgroundColor: Palette.accent },
+  dupText: { color: Palette.accentText, fontWeight: Weight.semibold },
   headActions: {
     position: 'absolute',
     right: 0,

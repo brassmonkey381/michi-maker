@@ -184,6 +184,12 @@ interface BinderStore {
   createBinderWithCard: (cardId: string) => DemoBinder | undefined;
   duplicateBinder: (id: string) => DemoBinder | undefined;
   /**
+   * Copy SOMEONE ELSE'S public binder, fetched by the viewer, into this account (owner, 2026-09-16).
+   * Only when its owner allows copies; the source's custom art is stamped as borrowed. Same refusals
+   * as duplicateBinder: the tier cap, a tab that cannot save.
+   */
+  duplicateSharedBinder: (source: DemoBinder) => DemoBinder | undefined;
+  /**
    * True when `id` is a duplicate created THIS session whose content is still byte-for-byte what
    * duplication produced (session-scoped — a reload forgets it). Lets the delete UI skip the
    * "type the name to confirm" gate for a throwaway copy the user made and immediately wants gone.
@@ -872,6 +878,23 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       return copy;
     },
     [binders, binderCount, limits.binders, commit, persist],
+  );
+
+  const duplicateSharedBinder = useCallback(
+    (source: DemoBinder) => {
+      if (!source.allowCopies || source.locked) return undefined;
+      if (LIMITS_ENFORCED && binderCount >= limits.binders) return undefined;
+      if (!canEditRef.current) return undefined;
+      const clone = cloneBinder(source, { title: fillerName(), isPublic: false, sharePageIds: undefined, shareBackdrop: undefined });
+      // Another person's art is borrowed on copy, as an example's is: credited, private, and not
+      // re-shareable as the copier's own.
+      const copy = markCopiedArtBorrowed(clone);
+      pristineDupSigs.current.set(copy.id, binderSignature(copy));
+      commit((prev) => [...prev, copy]);
+      persist(() => repo.insertBinder(copy).then(() => repo.recordReshare(copy.id, source)));
+      return copy;
+    },
+    [binderCount, limits.binders, commit, persist],
   );
 
   const isPristineDuplicate = useCallback(
@@ -2367,6 +2390,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       createBinder,
       createBinderWithCard,
       duplicateBinder,
+      duplicateSharedBinder,
       isPristineDuplicate,
       updateBinder,
       deleteBinder,
@@ -2421,6 +2445,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       createBinder,
       createBinderWithCard,
       duplicateBinder,
+      duplicateSharedBinder,
       isPristineDuplicate,
       updateBinder,
       deleteBinder,

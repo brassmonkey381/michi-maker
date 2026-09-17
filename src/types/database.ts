@@ -573,6 +573,7 @@ export type Database = {
           removed_at: string | null
           share_page_ids: string[] | null
           share_backdrop: string | null
+          allow_copies: boolean
           share_key: string | null
           title: string
           updated_at: string
@@ -592,6 +593,7 @@ export type Database = {
           removed_at?: string | null
           share_page_ids?: string[] | null
           share_backdrop?: string | null
+          allow_copies?: boolean
           share_key?: string | null
           title: string
           updated_at?: string
@@ -611,6 +613,7 @@ export type Database = {
           removed_at?: string | null
           share_page_ids?: string[] | null
           share_backdrop?: string | null
+          allow_copies?: boolean
           share_key?: string | null
           title?: string
           updated_at?: string

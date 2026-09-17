@@ -378,6 +378,11 @@ export interface DemoBinder {
    * Persisted to binders.share_backdrop; read by api/og-image-binder.js.
    */
   shareBackdrop?: string | null;
+  /**
+   * The owner lets other people duplicate this binder into their own account (owner, 2026-09-16).
+   * Persisted to binders.allow_copies; only meaningful while public. Never carried onto a copy.
+   */
+  allowCopies?: boolean;
   /** Up to 2 page ids to feature in the shared-link OG preview. Absent/empty = auto (fullest pages).
    *  Persisted to binders.share_page_ids; read by api/og-image-binder.js. */
   sharePageIds?: string[];
@@ -640,6 +645,7 @@ export function cloneBinder(binder: DemoBinder, overrides?: Partial<DemoBinder>)
     isExample: false,
     isDemo: false, // a duplicate of the demo showcase becomes a real, editable, counted binder
     locked: false, // a copy is a real, freely editable binder (locked references can't be copied anyway)
+    allowCopies: false, // the owner's permission was about THEIR binder, not the copy
     isPublic: false, // a copy is private until the new owner shares it
     sharePageIds: undefined, // the copy's pages get fresh ids, so the source's featured picks are stale
     pages: binder.pages.map((page) => ({

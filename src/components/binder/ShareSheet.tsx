@@ -338,6 +338,28 @@ export function ShareSheet({
               <Switch value={isPublic} onValueChange={handleToggle} trackColor={{ true: Palette.accent, false: theme.backgroundSelected }} />
             </View>
 
+            {/* LET PEOPLE DUPLICATE IT (owner, 2026-09-16). Off by default. A visitor then gets a
+                Duplicate button and a private copy of their own, with this binder's custom art
+                credited as borrowed rather than theirs to re-share. Only meaningful while public. */}
+            {isPublic ? (
+              <View style={styles.toggleRow}>
+                <View style={styles.toggleText}>
+                  <ThemedText type="smallBold">Let people duplicate it</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {binder.allowCopies
+                      ? 'Visitors can copy this binder into their own account to edit. Your art stays credited to you.'
+                      : 'Visitors can look, not copy.'}
+                  </ThemedText>
+                </View>
+                <Switch
+                  value={!!binder.allowCopies}
+                  onValueChange={(on) => store.updateBinder(binder.id, { allowCopies: on })}
+                  trackColor={{ true: Palette.accent, false: theme.backgroundSelected }}
+                  testID="share-allow-copies"
+                />
+              </View>
+            ) : null}
+
             {/* Per-page visibility, a public binder can still keep individual pages private. Only
                 meaningful once the binder itself is public, so it lives here rather than the editor. */}
             {isPublic && binder.pages.length > 0 ? (

@@ -46,6 +46,8 @@ function binderRow(binder: DemoBinder): Tables['binders']['Insert'] {
   if (binder.sharePageIds && binder.sharePageIds.length) row.share_page_ids = binder.sharePageIds;
   // Same rule again for the share backdrop (2026-09-15).
   if (binder.shareBackdrop) row.share_backdrop = binder.shareBackdrop;
+  // And for allow_copies (2026-09-16): written only when on, so an older database never sees it.
+  if (binder.allowCopies) row.allow_copies = true;
   return row;
 }
 
@@ -154,6 +156,7 @@ interface BinderRowIn {
   is_demo: boolean | null;
   share_page_ids: string[] | null;
   share_backdrop?: string | null;
+  allow_copies?: boolean | null;
   share_key: string | null;
   made_public_at: string | null;
   updated_at?: string;
@@ -251,6 +254,7 @@ function mapBinder(row: BinderRowIn): DemoBinder {
     isPublic: row.is_public,
     sharePageIds: row.share_page_ids ?? undefined,
     shareBackdrop: isImageRef(row.share_backdrop) ? row.share_backdrop : undefined,
+    allowCopies: row.allow_copies === true,
     shareKey: row.share_key ?? undefined,
     madePublicAt: row.made_public_at ?? undefined,
     updatedAt: lastEditedAt(row),
@@ -420,6 +424,7 @@ export async function updateBinder(id: string, patch: Partial<DemoBinder>): Prom
   if (patch.sharePageIds !== undefined)
     row.share_page_ids = patch.sharePageIds && patch.sharePageIds.length ? patch.sharePageIds : null;
   if (patch.shareBackdrop !== undefined) row.share_backdrop = patch.shareBackdrop || null;
+  if (patch.allowCopies !== undefined) row.allow_copies = patch.allowCopies;
   if (Object.keys(row).length === 0) return;
   const { error } = await supabase.from('binders').update(row).eq('id', id);
   if (error) throw new Error(`update binder: ${error.message}`);

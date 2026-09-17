@@ -117,3 +117,10 @@ test('a re-mint remaps the share-preview picks onto the new page ids', () => {
   const empty = remintBinderIds({ ...binderWith({ cardId: 'x' }), sharePageIds: ['ghost'] } as DemoBinder);
   assert.equal(empty.sharePageIds, undefined, 'no surviving picks means auto, not []');
 });
+
+test('a copy never inherits the permission to be copied, nor the public flag', () => {
+  const src = { id: 'a', title: 'Shared', isExample: false, isPublic: true, allowCopies: true, pages: [] } as unknown as DemoBinder;
+  const copy = cloneBinder(src);
+  assert.equal(copy.allowCopies, false);
+  assert.equal(copy.isPublic, false);
+});

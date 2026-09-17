@@ -369,9 +369,21 @@ function Viewer({
           {binder.allowCopies ? (
             <Pressable
               onPress={() => {
-                const copy = store.duplicateSharedBinder(binder);
-                if (copy) router.replace(`/binder/${copy.id}`);
-                else setCopyHint(store.canEdit ? 'You are at your binder limit, so there is no room for a copy.' : 'Sign in to duplicate this binder into your own account.');
+                const result = store.duplicateSharedBinder(binder);
+                if ('copy' in result) {
+                  router.replace(`/binder/${result.copy.id}`);
+                  return;
+                }
+                const n = binder.pages.length;
+                setCopyHint(
+                  result.refused === 'pages'
+                    ? `This binder has ${n} pages. ${store.tier === 'guest' ? 'Guests get 6 per binder; sign in (free) for 16.' : `Your plan allows ${store.limits.pagesPerBinder} per binder.`}`
+                    : result.refused === 'binders'
+                      ? 'You are at your binder limit, so there is no room for a copy.'
+                      : result.refused === 'save'
+                        ? 'Sign in to duplicate this binder into your own account.'
+                        : 'This binder cannot be copied.',
+                );
               }}
               hitSlop={8}
               accessibilityRole="button"

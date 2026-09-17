@@ -188,7 +188,9 @@ interface BinderStore {
    * Only when its owner allows copies; the source's custom art is stamped as borrowed. Same refusals
    * as duplicateBinder: the tier cap, a tab that cannot save.
    */
-  duplicateSharedBinder: (source: DemoBinder) => DemoBinder | undefined;
+  duplicateSharedBinder: (source: DemoBinder) => { copy: DemoBinder } | { refused: 'pages' | 'binders' | 'save' | 'not-allowed' };
+  /** Would a copy of this binder fit this account's page cap? The server enforces it at insert, so ask first. */
+  pagesFit: (pageCount: number) => boolean;
   /**
    * True when `id` is a duplicate created THIS session whose content is still byte-for-byte what
    * duplication produced (session-scoped — a reload forgets it). Lets the delete UI skip the
@@ -882,9 +884,13 @@ export function BinderProvider({ children }: { children: ReactNode }) {
 
   const duplicateSharedBinder = useCallback(
     (source: DemoBinder) => {
-      if (!source.allowCopies || source.locked) return undefined;
-      if (LIMITS_ENFORCED && binderCount >= limits.binders) return undefined;
-      if (!canEditRef.current) return undefined;
+      if (!source.allowCopies || source.locked) return { refused: 'not-allowed' as const };
+      if (!canEditRef.current) return { refused: 'save' as const };
+      if (LIMITS_ENFORCED && binderCount >= limits.binders) return { refused: 'binders' as const };
+      // THE PAGE CAP IS ENFORCED BY THE SERVER AT INSERT (insert_time_tier_caps): a copy with more
+      // pages than this account may hold would be created and then lose its pages on save, which
+      // is the "a change didn't save" banner. Refuse here instead, with the reason.
+      if (LIMITS_ENFORCED && source.pages.length > limits.pagesPerBinder) return { refused: 'pages' as const };
       const clone = cloneBinder(source, { title: fillerName(), isPublic: false, sharePageIds: undefined, shareBackdrop: undefined });
       // Another person's art is borrowed on copy, as an example's is: credited, private, and not
       // re-shareable as the copier's own.
@@ -892,10 +898,11 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       pristineDupSigs.current.set(copy.id, binderSignature(copy));
       commit((prev) => [...prev, copy]);
       persist(() => repo.insertBinder(copy).then(() => repo.recordReshare(copy.id, source)));
-      return copy;
+      return { copy };
     },
-    [binderCount, limits.binders, commit, persist],
+    [binderCount, limits.binders, limits.pagesPerBinder, commit, persist],
   );
+  const pagesFit = useCallback((pageCount: number) => !LIMITS_ENFORCED || pageCount <= limits.pagesPerBinder, [limits.pagesPerBinder]);
 
   const isPristineDuplicate = useCallback(
     (id: string) => {
@@ -2391,6 +2398,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       createBinderWithCard,
       duplicateBinder,
       duplicateSharedBinder,
+      pagesFit,
       isPristineDuplicate,
       updateBinder,
       deleteBinder,
@@ -2446,6 +2454,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       createBinderWithCard,
       duplicateBinder,
       duplicateSharedBinder,
+      pagesFit,
       isPristineDuplicate,
       updateBinder,
       deleteBinder,

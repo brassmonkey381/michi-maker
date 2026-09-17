@@ -957,6 +957,12 @@ export function BinderScreen({
 
 
   const handleDuplicate = () => {
+    // The server refuses pages past the cap at insert, so a copy with too many would half-save
+    // and show the banner (owner, 2026-09-17). Say so first.
+    if (!store.pagesFit(binder.pages.length)) {
+      showLimitToast(pageLimitMessage(store.tier, store.limits));
+      return;
+    }
     const copy = store.duplicateBinder(binder.id);
     if (copy) {
       onOpenBinder?.(copy.id);

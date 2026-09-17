@@ -42,6 +42,27 @@ export interface ViewPrefs {
    */
   coverSnap: boolean;
   coverGrid: boolean;
+  /**
+   * Auto flip: how long each spread stays up before the binder turns the page itself, in seconds.
+   * Whole and half seconds only, between AUTO_FLIP_MIN and AUTO_FLIP_MAX. Whether it is PLAYING is
+   * not a preference: a binder opens still, and you press play.
+   */
+  autoFlipSeconds: number;
+}
+
+export const AUTO_FLIP_MIN = 1;
+export const AUTO_FLIP_MAX = 30;
+export const AUTO_FLIP_STEP = 0.5;
+
+/** A cadence this code could have written: finite, in range, on the half second. */
+export function isAutoFlipSeconds(v: unknown): v is number {
+  return (
+    typeof v === 'number' &&
+    Number.isFinite(v) &&
+    v >= AUTO_FLIP_MIN &&
+    v <= AUTO_FLIP_MAX &&
+    Math.abs(v / AUTO_FLIP_STEP - Math.round(v / AUTO_FLIP_STEP)) < 1e-9
+  );
 }
 
 export const VIEW_PREF_DEFAULTS: ViewPrefs = {
@@ -53,6 +74,7 @@ export const VIEW_PREF_DEFAULTS: ViewPrefs = {
   artDockPct: 0,
   coverSnap: true,
   coverGrid: false,
+  autoFlipSeconds: 4,
 };
 
 /**
@@ -87,7 +109,8 @@ export function normalizeViewPrefs(value: unknown): ViewPrefs | null {
     !('cardsDockPct' in raw) &&
     !('artDockPct' in raw) &&
     !('coverSnap' in raw) &&
-    !('coverGrid' in raw)
+    !('coverGrid' in raw) &&
+    !('autoFlipSeconds' in raw)
   ) {
     return null;
   }
@@ -113,6 +136,9 @@ export function normalizeViewPrefs(value: unknown): ViewPrefs | null {
     artDockPct: pct('artDockPct'),
     coverSnap: flag('coverSnap'),
     coverGrid: flag('coverGrid'),
+    autoFlipSeconds: isAutoFlipSeconds(raw.autoFlipSeconds)
+      ? raw.autoFlipSeconds
+      : VIEW_PREF_DEFAULTS.autoFlipSeconds,
   };
   // Written before the current rollout: force that rollout's settings on, keep the rest of what
   // they chose. Idempotent, so it re-applies harmlessly on every read until they next save.
@@ -136,6 +162,7 @@ export function storedViewPrefs(prefs: ViewPrefs): {
   artDockPct: number;
   coverSnap: boolean;
   coverGrid: boolean;
+  autoFlipSeconds: number;
   v: number;
 } {
   return stamp({
@@ -147,5 +174,6 @@ export function storedViewPrefs(prefs: ViewPrefs): {
     artDockPct: prefs.artDockPct,
     coverSnap: prefs.coverSnap,
     coverGrid: prefs.coverGrid,
+    autoFlipSeconds: prefs.autoFlipSeconds,
   });
 }

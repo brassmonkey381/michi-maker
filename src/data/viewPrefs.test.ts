@@ -104,7 +104,23 @@ test('the defaults are the binder as it is meant to read', () => {
     // Snap on, grid off: the image-editor default nearly everyone keeps.
     coverSnap: true,
     coverGrid: false,
+    // Four seconds a spread, the reel cadence the owner settled on.
+    autoFlipSeconds: 4,
   });
+});
+
+test('auto flip keeps a cadence on the half second and in range, and drops anything else', () => {
+  assert.equal(normalizeViewPrefs(stamped({ autoFlipSeconds: 2.5 }))?.autoFlipSeconds, 2.5);
+  assert.equal(normalizeViewPrefs(stamped({ autoFlipSeconds: 30 }))?.autoFlipSeconds, 30);
+  for (const bad of [0.5, 31, 2.3, NaN, Infinity, '4', true, null]) {
+    assert.equal(
+      normalizeViewPrefs(stamped({ autoFlipSeconds: bad }))?.autoFlipSeconds,
+      4,
+      `autoFlipSeconds: ${String(bad)}`,
+    );
+  }
+  // A bag that only knows the cadence is still our bag.
+  assert.equal(normalizeViewPrefs({ autoFlipSeconds: 6 })?.autoFlipSeconds, 6);
 });
 
 test('an unstamped bag gets the rollout, whatever it used to say', () => {

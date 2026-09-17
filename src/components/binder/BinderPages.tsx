@@ -51,6 +51,7 @@ import { hasTextCaption, type CaptionFieldKey } from '@/data/cardCaption';
 import { PAGE_PAD, PEEK_MIN_WIDTH, PHONE_DOCK_MIN_WIDTH, SPREAD_GAP, bookLayout, pageHeightAt, spreadLayout } from '@/data/binderLayout';
 import { useCardLabelPrefs } from '@/hooks/use-card-label-prefs';
 import { useViewPrefs, type ViewPrefsState } from '@/hooks/use-view-prefs';
+import { AUTO_FLIP_MAX, AUTO_FLIP_MIN, AUTO_FLIP_STEP } from '@/data/viewPrefs';
 import { CoverSurface } from '@/components/binder/BinderCover';
 import { COVER_SURFACE_LABELS, binderColourway, binderModel, type CoverSurfaceId } from '@/data/binderModels';
 import { cardThumbUrl } from '@/lib/catalogConfig';
@@ -1264,6 +1265,58 @@ export function BinderPages({
     [shut, forward, backward, count, canShut, onPageChange, doubleSided],
   );
   /**
+   * AUTO FLIP: the binder turns its own pages, one forward step per cadence, from wherever it is
+   * to the back cover, where it stops. Press play again there and it starts over from the front.
+   * The cadence is a view preference (see viewPrefs); playing is not, so a binder opens still.
+   *
+   * Every flip goes through `step`, so covers open and shut exactly as they do by hand, and the
+   * timer is armed afresh after each turn: `step` is rebuilt on every page or cover change, so the
+   * effect re-runs and the next flip is counted from the one that just landed. A page the reader
+   * turns by hand while it plays simply restarts the count.
+   */
+  const [wantPlaying, setWantPlaying] = useState(false);
+  const atEnd = canShut ? shut === 'back' : forward >= count;
+  const canAutoFlip = count > 1 || canShut;
+  // Reaching the end is what stops it, and that is derived rather than written from an effect:
+  // at the end the wish to play is simply not acted on, and the button reads as stopped.
+  const playing = wantPlaying && !atEnd;
+  useEffect(() => {
+    if (!playing) return;
+    const t = setTimeout(() => step(1), view.autoFlipSeconds * 1000);
+    return () => clearTimeout(t);
+  }, [playing, step, view.autoFlipSeconds]);
+  const toggleAutoFlip = () => {
+    if (playing) {
+      setWantPlaying(false);
+      return;
+    }
+    if (atEnd) {
+      // Back to the start: shut on the front cover when there is one, else on page 1.
+      if (canShut) focusCover('front');
+      else selectPage(0);
+    }
+    setWantPlaying(true);
+  };
+  const setCadence = (delta: number) => {
+    const next = Math.min(
+      AUTO_FLIP_MAX,
+      Math.max(AUTO_FLIP_MIN, Math.round((view.autoFlipSeconds + delta) / AUTO_FLIP_STEP) * AUTO_FLIP_STEP),
+    );
+    if (next !== view.autoFlipSeconds) view.setPref('autoFlipSeconds', next);
+  };
+  const autoFlip =
+    canAutoFlip && !editable ? (
+      <AutoFlipControls
+        playing={playing}
+        seconds={view.autoFlipSeconds}
+        onToggle={toggleAutoFlip}
+        onSlower={() => setCadence(AUTO_FLIP_STEP)}
+        onFaster={() => setCadence(-AUTO_FLIP_STEP)}
+        vertical={railLeft}
+      />
+    ) : null;
+
+  /**
    * SWIPE TO TURN THE PAGE. Until now the only way to change page on a phone was the filmstrip —
    * a row of 58px thumbnails — because the wheel and the arrow keys are both web-only. A binder
    * you cannot turn by hand is the one interaction a binder app has to get right.
@@ -1535,6 +1588,8 @@ export function BinderPages({
       <View style={[styles.pageRow, railLeft && styles.pageRowRailed]}>
       {railLeft && (count > 1 || coverStripExtras) ? (
         <View style={[styles.navRail, { backgroundColor: theme.background, height: railHeight }]}>
+          {autoFlip}
+          <View style={styles.railStrip}>
           <PageStrip
             pageStyle={binder.pageStyle}
             axis="vertical"
@@ -1544,6 +1599,7 @@ export function BinderPages({
             onReorder={onReorderPages}
             {...coverStripExtras}
           />
+          </View>
         </View>
       ) : null}
       <GestureDetector gesture={swipe}>
@@ -2023,6 +2079,9 @@ export function BinderPages({
             { backgroundColor: theme.background },
             Platform.OS === 'web' ? (WEB_STICKY as object) : null,
           ]}>
+        <View style={styles.dockRow}>
+        {autoFlip}
+        <View style={styles.dockStrip}>
         <PageStrip
             pageStyle={binder.pageStyle}
           pages={binder.pages}
@@ -2033,10 +2092,110 @@ export function BinderPages({
           {...coverStripExtras}
         />
         </View>
+        </View>
+        </View>
       ) : null}
     </>
   );
 }
+
+/**
+ * PLAY, PAUSE AND THE CADENCE, beside the page strip: in the rail it stacks above the thumbnails,
+ * in the bottom dock it sits at their left. The cadence steps by half a second, and the number
+ * is how many seconds each spread stays up.
+ */
+function AutoFlipControls({
+  playing,
+  seconds,
+  onToggle,
+  onSlower,
+  onFaster,
+  vertical,
+}: {
+  playing: boolean;
+  seconds: number;
+  onToggle: () => void;
+  onSlower: () => void;
+  onFaster: () => void;
+  vertical: boolean;
+}) {
+  const atMin = seconds <= AUTO_FLIP_MIN;
+  const atMax = seconds >= AUTO_FLIP_MAX;
+  return (
+    <View style={[autoStyles.wrap, vertical ? autoStyles.wrapVertical : autoStyles.wrapHorizontal]}>
+      <Pressable
+        onPress={onToggle}
+        hitSlop={6}
+        accessibilityRole="button"
+        accessibilityLabel={playing ? 'Pause auto flip' : 'Play: turn the pages automatically'}
+        testID="binder-autoflip-toggle"
+        style={[autoStyles.play, playing && autoStyles.playOn]}>
+        <Text style={[autoStyles.playText, playing && autoStyles.playTextOn]}>{playing ? '❚❚' : '▶'}</Text>
+      </Pressable>
+      <View style={autoStyles.cadence}>
+        <Pressable
+          onPress={onFaster}
+          disabled={atMin}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel="Flip half a second sooner"
+          testID="binder-autoflip-faster"
+          style={[autoStyles.stepBtn, atMin && autoStyles.stepOff]}>
+          <Text style={autoStyles.stepText}>−</Text>
+        </Pressable>
+        <Text style={autoStyles.seconds} accessibilityLabel={`${seconds} seconds a page`}>
+          {seconds.toFixed(1)}s
+        </Text>
+        <Pressable
+          onPress={onSlower}
+          disabled={atMax}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel="Flip half a second later"
+          testID="binder-autoflip-slower"
+          style={[autoStyles.stepBtn, atMax && autoStyles.stepOff]}>
+          <Text style={autoStyles.stepText}>+</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+const autoStyles = StyleSheet.create({
+  wrap: { alignItems: 'center', gap: 6 },
+  wrapVertical: { paddingBottom: 8, paddingHorizontal: 4 },
+  wrapHorizontal: { flexDirection: 'row', paddingRight: 10, paddingLeft: 4 },
+  play: {
+    width: 34,
+    height: 34,
+    borderRadius: Radius.pill,
+    backgroundColor: Palette.panel,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playOn: { backgroundColor: Palette.accent },
+  playText: { fontSize: FontSize.label, color: Palette.ink2, fontWeight: Weight.semibold },
+  playTextOn: { color: Palette.accentText },
+  cadence: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  stepBtn: {
+    width: 20,
+    height: 22,
+    borderRadius: Radius.pill,
+    backgroundColor: Palette.panel,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepOff: { opacity: 0.35 },
+  stepText: { fontSize: FontSize.label, color: Palette.ink2, fontWeight: Weight.semibold, lineHeight: 18 },
+  seconds: {
+    minWidth: 30,
+    textAlign: 'center',
+    fontSize: FontSize.sm,
+    color: Palette.muted2,
+    fontWeight: Weight.semibold,
+    fontVariant: ['tabular-nums'],
+  },
+});
 
 /**
  * A neighbour page, cropped to a strip of its inner edge — what the next page looks like sitting
@@ -2427,6 +2586,10 @@ const styles = StyleSheet.create({
   /** In a row the page has to be told to take the rest; on its own it already does. */
   pageWrapRailed: { flex: 1, minWidth: 0 },
   stripDock: { paddingTop: 4 },
+  /** The rail is a column now: the auto-flip controls, then the strip taking the rest. */
+  railStrip: { flex: 1, minHeight: 0, alignSelf: 'stretch' },
+  dockRow: { flexDirection: 'row', alignItems: 'center' },
+  dockStrip: { flex: 1, minWidth: 0 },
   // Neighbours recede. 0.92 was an 8% dim — indistinguishable from the page in focus, which is
   // exactly the complaint: three equally bright pages with no way to tell which one you were on.
   neighborGrid: { opacity: 0.55 },

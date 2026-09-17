@@ -1,0 +1,16 @@
+# Creates the themed showcase binders (All Things Autumn, Mountain Tops) under @fakemichi, private.
+#   powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Users\Brian\source\repos\tcgscan\michi-maker\state\build-theme-binders.ps1"
+param([string]$Username = 'fakemichi')
+$ErrorActionPreference = 'Stop'
+$repo = Split-Path -Parent $PSScriptRoot
+$secrets = 'C:\Users\Brian\source\repos\tcgscan\tcgscan.secrets'
+if (-not (Test-Path $secrets)) { Write-Host "FAILED: secrets file not found at $secrets"; exit 2 }
+$key = $null
+foreach ($line in Get-Content $secrets) { if ($line -match '^\s*APP_SECRET_KEY\s*=\s*(.+)$') { $key = $Matches[1].Trim() } }
+if ([string]::IsNullOrWhiteSpace($key)) { Write-Host 'FAILED: APP_SECRET_KEY is missing from tcgscan.secrets'; exit 3 }
+$env:MICHI_SERVICE_KEY = $key
+Write-Host 'Step 0: service key loaded'
+Push-Location $repo
+try { node "$PSScriptRoot\build-theme-binders.mjs" $Username; $code = $LASTEXITCODE }
+finally { Pop-Location; Remove-Item Env:\MICHI_SERVICE_KEY -ErrorAction SilentlyContinue }
+if ($code -ne 0) { Write-Host "FAILED: exit code $code"; exit $code }

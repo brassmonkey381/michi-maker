@@ -1,0 +1,168 @@
+[
+ {
+  "title": "All Things Autumn",
+  "description": "Nine full arts that all fell in the same season: leaves in every colour they turn, and the Pokemon standing in them.",
+  "cloth": "#5b2d12",
+  "page": {
+   "title": "All things autumn",
+   "description": "Pachirisu, Tepig and Starly in the leaves; Deerling, Hop's Zacian and Sawsbuck in the woods; Minccino, Pawmot and Dedenne in the last of the warm light.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "490068",
+     "name": "Pachirisu"
+    },
+    {
+     "row": 0,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "642211",
+     "name": "Tepig"
+    },
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "490079",
+     "name": "Starly"
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "542886",
+     "name": "Deerling"
+    },
+    {
+     "row": 1,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "623613",
+     "name": "Hop's Zacian ex"
+    },
+    {
+     "row": 1,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "542887",
+     "name": "Sawsbuck"
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "642606",
+     "name": "Minccino"
+    },
+    {
+     "row": 2,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "490069",
+     "name": "Pawmot"
+    },
+    {
+     "row": 2,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "684413",
+     "name": "Dedenne"
+    }
+   ]
+  }
+ },
+ {
+  "title": "Mountain Tops",
+  "description": "Nine full arts from above the treeline: snow, sky, and the Pokemon that live where the air gets thin.",
+  "cloth": "#1c2f45",
+  "page": {
+   "title": "Mountain tops",
+   "description": "Snover, Zapdos and Cubchoo in the snow; Charmander, Kyurem and Tyranitar on the ridges; Articuno, Hisuian Zorua and Metagross where the peaks meet the sky.",
+   "slots": [
+    {
+     "row": 0,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "654479",
+     "name": "Snover"
+    },
+    {
+     "row": 0,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "517048",
+     "name": "Zapdos ex"
+    },
+    {
+     "row": 0,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "642562",
+     "name": "Cubchoo"
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "502556",
+     "name": "Charmander"
+    },
+    {
+     "row": 1,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "642617",
+     "name": "Kyurem ex"
+    },
+    {
+     "row": 1,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "497625",
+     "name": "Tyranitar"
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "623588",
+     "name": "Articuno"
+    },
+    {
+     "row": 2,
+     "col": 1,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "696686",
+     "name": "Hisuian Zorua"
+    },
+    {
+     "row": 2,
+     "col": 2,
+     "rowSpan": 1,
+     "colSpan": 1,
+     "cardId": "542899",
+     "name": "Metagross"
+    }
+   ]
+  }
+ }
+]

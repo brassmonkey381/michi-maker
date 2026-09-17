@@ -1587,7 +1587,8 @@ function SlotContent({
     return (
       <View style={[styles.fill, styles.artBacking, { borderRadius: radius }]}>
         {art}
-        <View pointerEvents="none" style={[styles.fill, { borderRadius: radius, borderWidth: ringPad, borderColor: backingColor ?? ring ?? 'transparent' }]} />
+        {/* Absolute, or it stacks under the picture in flow and the backing never shows. */}
+        <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: radius, borderWidth: ringPad, borderColor: backingColor ?? ring ?? 'transparent' }]} />
       </View>
     );
   }

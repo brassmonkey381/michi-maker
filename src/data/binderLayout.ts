@@ -39,11 +39,26 @@ export const CARD_ASPECT = 88 / 63;
 // 10px between pockets. It was 12 and 6, which read as cards touching once the pages wore sleeves
 // and a zip. BinderGrid draws with the same two numbers; keep them together.
 const PAD = 12;
-const GAP = 6;
+/**
+ * THE GAP IS A SHARE OF THE POCKET, NOT A PIXEL COUNT (owner, 2026-09-17). A sliced picture is cut
+ * into per-pocket windows in the Slice Studio, and the space between two windows is the studio's
+ * gap as a fraction of ITS pocket. Drawn on a page whose gap is a different fraction of the
+ * pocket, adjacent pieces no longer meet: a road's white line steps sideways at every gap. So the
+ * studio and every renderer (editor, thumbnails, share image) use one ratio, and the gap follows
+ * the pocket. 0.032 is 6px on the desktop editor's 188px pocket, so nothing moves there.
+ */
+export const POCKET_GAP_RATIO = 0.032;
+/** The pocket width that fits `cols` pockets and their gaps into `innerW`. */
+export function cellWidthFor(innerW: number, cols: number): number {
+  return innerW / (cols + POCKET_GAP_RATIO * (cols - 1));
+}
+/** The gap beside a pocket this wide. */
+export function gapFor(cellW: number): number {
+  return cellW * POCKET_GAP_RATIO;
+}
 /** The page margin, for anything drawn against the grid's edge from outside the grid (the spine). */
 export const PAGE_PAD = PAD;
 const SMALL_PAD = 6;
-const SMALL_GAP = 3;
 /** Caption strip reserved under each row when text labels are on. */
 const CAPTION_H = 34;
 const SMALL_CAPTION_H = 30;
@@ -108,9 +123,9 @@ export const LEGACY_MIN_WIDTH = 560;
 export function pageHeightAt(width: number, rows: number, cols: number, captionsOn: boolean): number {
   const small = width < SMALL_BELOW;
   const pad = small ? SMALL_PAD : PAD;
-  const gap = small ? SMALL_GAP : GAP;
   const captionH = captionsOn ? (small ? SMALL_CAPTION_H : CAPTION_H) : 0;
-  const cellW = (width - pad * 2 - gap * (cols - 1)) / cols;
+  const cellW = cellWidthFor(width - pad * 2, cols);
+  const gap = gapFor(cellW);
   const cellH = cellW * CARD_ASPECT;
   return (cellH + captionH) * rows + gap * (rows - 1) + pad * 2;
 }
@@ -121,11 +136,11 @@ export function pageHeightAt(width: number, rows: number, cols: number, captions
  */
 export function widthForHeight(height: number, rows: number, cols: number, captionsOn: boolean): number {
   const captionH = captionsOn ? CAPTION_H : 0;
-  const usable = height - captionH * rows - GAP * (rows - 1) - PAD * 2;
-  if (usable <= 0) return MIN_PAGE_WIDTH;
-  const cellH = usable / rows;
+  // rows*cellH + (rows-1)*gap = usable, with gap = ratio*cellW = ratio*cellH/CARD_ASPECT.
+  const usable = height - captionH * rows - PAD * 2;
+  const cellH = usable / (rows + ((rows - 1) * POCKET_GAP_RATIO) / CARD_ASPECT);
   const cellW = cellH / CARD_ASPECT;
-  return cellW * cols + PAD * 2 + GAP * (cols - 1);
+  return cellW * cols + PAD * 2 + gapFor(cellW) * (cols - 1);
 }
 
 export interface SpreadLayout {

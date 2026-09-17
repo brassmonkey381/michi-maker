@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { POCKET_GAP_RATIO } from '@/data/binderLayout';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -42,7 +43,6 @@ import { useCatalog } from '@/hooks/use-catalog';
 import { cardThumbUrl } from '@/lib/catalogConfig';
 
 const CARD_ASPECT = 88 / 63;
-const GAP = 6;
 
 /**
  * HOW FAST THE WHEEL ZOOMS, per pixel of scroll, before modifiers.
@@ -469,13 +469,18 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
   // (32) + the canvasWrap's 4px marginTop + a small buffer — so the canvas fits exactly and the tab
   // doesn't scroll by default. Single-column: the old window budget (controls stack above the canvas).
   const availH = Math.max(300, twoCol && viewportH > 0 ? viewportH - 40 : height - 360);
+  // THE gap IS A SHARE OF THE POCKET (binderLayout POCKET_GAP_RATIO, owner 2026-09-17). It was a
+  // fixed 6px on a canvas whose pocket width depends on the window, so the space between two cut
+  // windows was a different fraction of the pocket on every screen, and pieces cut here met at a
+  // step on the page. One ratio here and in every renderer, and they meet.
   const cellW = Math.min(
-    (availW - GAP * (cols - 1)) / cols,
-    (availH - GAP * (rows - 1)) / rows / CARD_ASPECT,
+    availW / (cols + POCKET_GAP_RATIO * (cols - 1)),
+    availH / (rows * CARD_ASPECT + POCKET_GAP_RATIO * (rows - 1)),
   );
   const cellH = cellW * CARD_ASPECT;
-  const canvasW = cellW * cols + GAP * (cols - 1);
-  const canvasH = cellH * rows + GAP * (rows - 1);
+  const gap = cellW * POCKET_GAP_RATIO;
+  const canvasW = cellW * cols + gap * (cols - 1);
+  const canvasH = cellH * rows + gap * (rows - 1);
 
   // --- true-aspect crop windows -------------------------------------------------------------
   // The window lives in fractions of the (rotated) image. `ratio` is the h-per-w a window needs
@@ -576,8 +581,8 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
    * still is, the pull only bends the last few pixels, and this turns it off outright.
    */
   const [snap, setSnap] = useState(true);
-  const xLines = useMemo(() => gridLines(cols, cellW, GAP), [cols, cellW]);
-  const yLines = useMemo(() => gridLines(rows, cellH, GAP), [rows, cellH]);
+  const xLines = useMemo(() => gridLines(cols, cellW, gap), [cols, cellW, gap]);
+  const yLines = useMemo(() => gridLines(rows, cellH, gap), [rows, cellH, gap]);
 
   /**
    * Guides show only while you are MOVING the frame, and linger a moment after.
@@ -703,8 +708,8 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
   const selectAt = useCallback(
     (x: number, y: number, additive = false) => {
       if (!cellW) return;
-      const c = clamp(Math.floor(x / (cellW + GAP)), 0, cols - 1);
-      const r = clamp(Math.floor(y / (cellH + GAP)), 0, rows - 1);
+      const c = clamp(Math.floor(x / (cellW + gap)), 0, cols - 1);
+      const r = clamp(Math.floor(y / (cellH + gap)), 0, rows - 1);
       const panel = panels.find((p) => r >= p.r && r < p.r + p.rs && c >= p.c && c < p.c + p.cs);
       if (!panel) return;
       setSelected((sel) => {
@@ -719,7 +724,7 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
         return next;
       });
     },
-    [cellW, cellH, rows, cols, panels],
+    [cellW, cellH, gap, rows, cols, panels],
   );
   const selectAlso = useCallback((x: number, y: number) => selectAt(x, y, true), [selectAt]);
 
@@ -1049,10 +1054,10 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
 
   const box = (p: Panel) => ({
     position: 'absolute' as const,
-    left: p.c * (cellW + GAP),
-    top: p.r * (cellH + GAP),
-    width: p.cs * cellW + (p.cs - 1) * GAP,
-    height: p.rs * cellH + (p.rs - 1) * GAP,
+    left: p.c * (cellW + gap),
+    top: p.r * (cellH + gap),
+    width: p.cs * cellW + (p.cs - 1) * gap,
+    height: p.rs * cellH + (p.rs - 1) * gap,
   });
 
   // When a legal sideways pair is selected, draw the crease down the middle of the pair so the
@@ -1064,8 +1069,8 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
     if (!chosen.length) return null;
     const minC = Math.min(...chosen.map((p) => p.c));
     const minR = Math.min(...chosen.map((p) => p.r));
-    return { left: minC * (cellW + GAP) + cellW + GAP / 2, top: minR * (cellH + GAP), height: cellH };
-  }, [mergeLegal, panels, selected, cellW, cellH]);
+    return { left: minC * (cellW + gap) + cellW + gap / 2, top: minR * (cellH + gap), height: cellH };
+  }, [mergeLegal, panels, selected, cellW, cellH, gap]);
 
   const hasImage = Boolean(imageUrl);
 

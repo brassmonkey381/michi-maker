@@ -79,7 +79,10 @@ const CACHE = 'public, max-age=0, s-maxage=300, stale-while-revalidate=86400';
 // and an 8px pocket radius, all times S, so the share image, the poster and the quick look draw
 // the page the way the editor and the shelf draw it. Keep in step with binderLayout PAD/GAP and
 // theme Radii.
-const GAP = 6 * S;
+// THE GAP IS A SHARE OF THE POCKET (src/data/binderLayout POCKET_GAP_RATIO, owner 2026-09-17), so
+// pieces cut in the Slice Studio meet across it here as they do in the editor.
+const GAP_RATIO = 0.032;
+const gapOf = (cw) => cw * GAP_RATIO;
 const PAGE_PAD = 12 * S;
 const PAGE_RADIUS = 16 * S;
 const POCKET_RADIUS = 8 * S;
@@ -251,15 +254,12 @@ const pickPages = choosePreviewPages;
 
 /** Card size that fits `cols`×`rows` inside the given box while staying card-shaped. */
 function cardSize(cols, rows, maxGridW, maxGridH) {
-  const cellW = (maxGridW - GAP * (cols - 1)) / cols;
-  const cellH = (maxGridH - GAP * (rows - 1)) / rows;
-  let cw = cellW;
-  let ch = cw / CARD_ASPECT;
-  if (ch > cellH) {
-    ch = cellH;
-    cw = ch * CARD_ASPECT;
-  }
-  return { cw: Math.floor(cw), ch: Math.floor(ch) };
+  // The grid is cols*cw + (cols-1)*gap wide and rows*ch + (rows-1)*gap tall, with gap = GAP_RATIO*cw
+  // and ch = cw / CARD_ASPECT; whichever of width and height binds decides cw.
+  const byW = maxGridW / (cols + GAP_RATIO * (cols - 1));
+  const byH = maxGridH / (rows / CARD_ASPECT + GAP_RATIO * (rows - 1));
+  const cw = Math.floor(Math.min(byW, byH));
+  return { cw, ch: Math.floor(cw / CARD_ASPECT) };
 }
 
 /**
@@ -438,6 +438,7 @@ function pocket(left, top, w, hgt, art, spanning, wear) {
 function pageGrid(page, cw, ch, manifest, art, look) {
   const cols = page.cols || 3;
   const rows = page.rows || 3;
+  const GAP = gapOf(cw);
   const colStep = cw + GAP;
   const rowStep = ch + GAP;
   const covered = new Set();
@@ -1261,6 +1262,7 @@ function singleFrame(page, manifest, art, backdrop, chrome, look) {
   // The mat's own padding and hairline, both sides of each, are not available to the cards.
   const matChrome = 36 * S + 2 * MAT_EDGE;
   const { cw, ch } = cardSize(cols, rows, SINGLE_W - matChrome - MARGIN * 2, SINGLE_H - matChrome - MARGIN * 2);
+  const GAP = gapOf(cw);
   const matW = cols * cw + (cols - 1) * GAP + matChrome;
   const matH = rows * ch + (rows - 1) * GAP + matChrome;
   const stampInk = backdrop ? chromeInk(backdrop.bottom, groundScrim) : flat;
@@ -1372,7 +1374,8 @@ function compose(pages, manifest, art, backdrop, looks) {
     // Height: the frame less the brand strip, the mat's padding and a small margin above and
     // below. Width: half the canvas less the spine and the mat's padding. Whichever binds wins,
     // so a 3x3 spread is as tall as the frame allows and a 3x4 spread as wide.
-    const { cw, ch } = cardSize(cols, rows, (W - 36 * S - 60 * S) / 2, H - BRAND_STRIP - 36 * S - 20 * S - (rows - 1) * GAP);
+    const { cw, ch } = cardSize(cols, rows, (W - 36 * S - 60 * S) / 2, H - BRAND_STRIP - 36 * S - 20 * S);
+    const GAP = gapOf(cw);
     const spineH = rows * ch + (rows - 1) * GAP;
     if (looks) {
       // v2: two mats, each its own page, and the binder's spine (or v1's rings) between them.
@@ -1408,8 +1411,9 @@ function compose(pages, manifest, art, backdrop, looks) {
     );
   }
   const page = pages[0];
-  const { cw, ch } = cardSize(page.cols || 3, page.rows || 3, 760 * S, H - BRAND_STRIP - 36 * S - 20 * S - ((page.rows || 3) - 1) * GAP);
+  const { cw, ch } = cardSize(page.cols || 3, page.rows || 3, 760 * S, H - BRAND_STRIP - 36 * S - 20 * S);
   if (looks) {
+    const GAP = gapOf(cw);
     const gw = (page.cols || 3) * cw + ((page.cols || 3) - 1) * GAP;
     const gh = (page.rows || 3) * ch + ((page.rows || 3) - 1) * GAP;
     return frame(h('div', { style: { display: 'flex' } }, pageMat(pageGrid(page, cw, ch, manifest, art, looks[0]), looks[0], gw, gh)), backdrop);

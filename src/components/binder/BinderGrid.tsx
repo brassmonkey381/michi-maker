@@ -32,6 +32,7 @@ import {
   type ArtRole,
 } from '@/data/artTemplates';
 import { AboutHoverCard } from '@/components/binder/AboutPopup';
+import { cellWidthFor, gapFor } from '@/data/binderLayout';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useTheme } from '@/hooks/use-theme';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
@@ -165,8 +166,8 @@ export function pageBoxHeight(width: number, rows: number, cols: number): number
   // BACK TO 12 AND 6 (owner, 2026-09-16): the wider 14/10 spacing of 2026-09-15 left sliced art
   // sitting off its pocket edges, because slices were cut for the pockets as they were.
   const pad = small ? 6 : 12;
-  const gap = small ? 3 : 6;
-  const cellW = (width - pad * 2 - gap * (cols - 1)) / cols;
+  const cellW = cellWidthFor(width - pad * 2, cols);
+  const gap = gapFor(cellW);
   return pad * 2 + cellW * CARD_ASPECT * rows + gap * (rows - 1);
 }
 
@@ -368,7 +369,6 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   // BACK TO 12 AND 6 (owner, 2026-09-16): the wider 14/10 spacing of 2026-09-15 left sliced art
   // sitting off its pocket edges, because slices were cut for the pockets as they were.
   const pad = small ? 6 : 12;
-  const gap = small ? 3 : 6;
   const radius = small ? Radii.pageSmall : Radii.page;
   const slotRadius = small ? Radii.slotSmall : Radii.slot;
   // A MATERIAL NEVER CHANGES THE BACKGROUND (owner, 2026-09-13): the page stays whatever colour the
@@ -401,7 +401,10 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   const captionH = captionOn ? (small ? 30 : 34) : 0;
 
   const innerW = width - pad * 2 - frame * 2;
-  const cellW = (innerW - gap * (page.cols - 1)) / page.cols;
+  // THE GAP FOLLOWS THE POCKET (binderLayout POCKET_GAP_RATIO), the same share the Slice Studio
+  // cut the pieces with, so a picture across several pockets meets itself at every gap.
+  const cellW = cellWidthFor(innerW, page.cols);
+  const gap = gapFor(cellW);
   const cellH = cellW * CARD_ASPECT;
   // How much the emphasised labels (price / owned / finish) grow at this pocket size.
   const chipScale = emphasisScale(cellW);

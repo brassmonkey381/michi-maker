@@ -11,10 +11,10 @@
  * element — it remounts this wrapper and the browser inside it.
  */
 import { useRouter, type Href } from 'expo-router';
-import { useMemo, useRef, useState } from 'react';
-import { Platform } from 'react-native';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { CatalogBrowser, sendBrowseCommand, type BrowseFeature, type CardAction, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
+import { browseState, CatalogBrowser, sendBrowseCommand, type BrowseFeature, type CardAction, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
 
 import { ColorSearchSheet } from '@/components/ColorSearchSheet';
 import { nextDemoTheme } from '@/data/demoThemes';
@@ -24,6 +24,8 @@ import { searchesArtworkUnmetered } from '@/data/tiers';
 import { useTier } from '@/hooks/use-tier';
 import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { useBrowseTheme } from '@/lib/browseTheme';
+import { gameLabel, PICKER_GAMES, type GameId } from '@/lib/games';
+import { loadOtherGameCatalog, otherGameCatalog, otherGameVersion, subscribeOtherGame } from '@/lib/otherGame';
 
 /**
  * Dev/QA override: append `?coldsearch` to the URL (web) to force the COLD path — the kit
@@ -145,9 +147,62 @@ export function CardBrowse({
   //
   // Waiting costs a locked user nothing: the locks arrive a moment later, and the caps that
   // actually protect revenue are enforced server-side regardless of what this array says.
+  /**
+   * WHICH GAME THIS BROWSER IS SHOWING (lib/games — `?multi-tcg` only; otherwise Pokémon alone).
+   *
+   * One browser at a time, never two: `browseState` in the kit is a module singleton, so a second
+   * mounted CatalogBrowser corrupts the first one's query and sort. Switching the chip swaps which
+   * catalog this ONE browser holds, and its `key` remounts it so the previous game's query, filters
+   * and scroll position do not carry over into a catalog that has never heard of them.
+   */
+  const [game, setGame] = useState<GameId>('pokemon');
+  const [attempt, setAttempt] = useState(0);
+  // Repaint when One Piece's catalog finishes building (it is not the kit's catalog store).
+  useSyncExternalStore(subscribeOtherGame, otherGameVersion, otherGameVersion);
+  useEffect(() => {
+    if (game === 'onepiece') void loadOtherGameCatalog();
+  }, [game, attempt]);
+  const onePiece = game === 'onepiece';
+  const activeCatalog = onePiece ? otherGameCatalog() : FORCE_COLD ? null : catalog;
+  /**
+   * THE KIT'S BROWSE STATE IS A MODULE SINGLETON (`browseState`), not component state, so a
+   * remount re-reads the query, drill-down and facets the OTHER game left behind — a `key` change
+   * cannot clear it. Cleared here, before the swap, so One Piece never opens on "charizard" inside
+   * a set id it has never heard of.
+   */
+  const switchGame = (next: GameId) => {
+    if (next === game) return;
+    Object.assign(browseState, {
+      cardQuery: '',
+      seriesId: null,
+      setId: null,
+      selection: {},
+      sortSel: null,
+      similarTo: null,
+      similarCards: [],
+      similarSteps: [],
+    });
+    setGame(next);
+  };
+
   const lockedFeatures = useMemo<BrowseFeature[] | undefined>(() => {
-    if (tierUnknown) return undefined;
+    if (tierUnknown && !onePiece) return undefined;
     const locked: BrowseFeature[] = [];
+    if (onePiece) {
+      /**
+       * WHAT ONE PIECE HAS NO DATA FOR, locked rather than left to fail quietly. Similarity,
+       * colour search and artwork themes are Pokémon-only server features, and the kit's value
+       * sort / price filters read ITS price summary, which is Pokémon's alone (michi merges the
+       * two only for its own display, lib/prices).
+       *
+       * Locking `themeSearch` also closes the one real leak: the kit falls back to the server's
+       * `search_cards` RPC when a query is themed or the catalog is missing, and that RPC only
+       * knows Pokémon — so a One Piece search could silently return Pokémon cards. With a warm
+       * One Piece catalog AND themeSearch locked, the cold path is unreachable by construction.
+       */
+      locked.push('themeSearch', 'findSimilar', 'colorSearch', 'similarRefine', 'sortByValue', 'priceFilter');
+      return locked;
+    }
     if (!hasFindSimilar) locked.push('findSimilar');
     if (!hasAdvancedSearch) locked.push('sortByValue', 'priceFilter', 'similarRefine', 'colorSearch');
     // THEME SEARCH IS NEVER LOCKED HERE (owner decision 2026-09-07). A locked theme: is stripped
@@ -156,12 +211,55 @@ export function CardBrowse({
     // guest caller the top few rows and the true total, and the kit draws the "+N more matches"
     // row under them. That row's tap comes back through onLockedFeature('themeSearch') below.
     return locked.length ? locked : undefined;
-  }, [hasAdvancedSearch, hasFindSimilar, tierUnknown]);
+  }, [hasAdvancedSearch, hasFindSimilar, tierUnknown, onePiece]);
   return (
     <>
+      {PICKER_GAMES.length > 1 ? (
+        <View style={styles.gameRow}>
+          {PICKER_GAMES.map((g) => {
+            const on = g === game;
+            return (
+              <Pressable
+                key={g}
+                onPress={() => switchGame(g)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+                style={[
+                  styles.gameChip,
+                  { borderColor: browseTheme.border ?? '#e4e4e8' },
+                  on && { backgroundColor: browseTheme.accent ?? '#3B82F6' },
+                ]}>
+                <Text
+                  style={[
+                    styles.gameChipText,
+                    { color: on ? browseTheme.accentText ?? '#fff' : browseTheme.subtext ?? '#888' },
+                  ]}>
+                  {gameLabel(g)}
+                </Text>
+              </Pressable>
+            );
+          })}
+          {onePiece && !activeCatalog ? (
+            <Pressable onPress={() => setAttempt((n) => n + 1)} accessibilityRole="button">
+              <Text style={[styles.gameNote, { color: browseTheme.subtext ?? '#888' }]}>
+                loading One Piece… (tap to retry)
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
+      {/*
+        NOT MOUNTED COLD FOR ONE PIECE. The kit treats a null catalog as "search the server", and
+        that server (`search_cards`) only knows Pokémon — so mounting while One Piece's catalog is
+        still building would answer a One Piece query with Pokémon cards and a Pokémon set list.
+        `lockedFeatures` cannot close that door: the kit's cold path is `!warm || themedQuery`, and
+        locking themeSearch only removes the second half. Withholding the mount removes the first.
+      */}
+      {onePiece && !activeCatalog ? null : (
       <CatalogBrowser
+        key={game}
         theme={browseTheme}
-        catalog={FORCE_COLD ? null : catalog}
+        catalog={activeCatalog}
         selectedCardId={selectedCardId}
         onPickCard={onPickCard ?? (() => {})}
         onPickVUnion={onPickVUnion}
@@ -208,6 +306,7 @@ export function CardBrowse({
         cardTileWidth={CARD_BROWSE_TILE_WIDTH}
         taxTileHeight={CARD_BROWSE_TAX_TILE_HEIGHT}
       />
+      )}
       {colorOpen ? (
         <ColorSearchSheet
           onResults={(ids, label) => {
@@ -221,3 +320,10 @@ export function CardBrowse({
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  gameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 8, paddingBottom: 6 },
+  gameChip: { paddingVertical: 4, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1 },
+  gameChipText: { fontSize: 12, fontWeight: '600' },
+  gameNote: { fontSize: 11 },
+});

@@ -14,6 +14,7 @@
  */
 import type { DemoCard } from '@/data/binderTypes';
 import { catalogCardToDemoCard, getLoadedCatalog, type Catalog, type CatalogCard } from '@/lib/catalog';
+import { otherGameCard } from '@/lib/otherGame';
 
 /**
  * Resolve a slot's card id to a `DemoCard`, or `undefined` if the catalog can't resolve it.
@@ -36,8 +37,7 @@ export function resolveCardWith(
   catalog: Catalog | null,
   cardId: string | null | undefined,
 ): DemoCard | undefined {
-  if (!catalog || !cardId) return undefined;
-  const card = catalog.getCard(cardId);
+  const card = resolveCatalogCardWith(catalog, cardId);
   return card ? catalogCardToDemoCard(card) : undefined;
 }
 
@@ -53,5 +53,10 @@ export function resolveCatalogCardWith(
   cardId: string | null | undefined,
 ): CatalogCard | undefined {
   if (!catalog || !cardId) return undefined;
-  return catalog.getCard(cardId);
+  const card = catalog.getCard(cardId);
+  if (card) return card;
+  // A binder holds both games (lib/otherGame): an id the Pokémon catalog does not know may be a One
+  // Piece card. Only asked once the Pokémon catalog is LOADED — which it is here, by the guard
+  // above — so a guest, who never loads it, never triggers the One Piece fetch either.
+  return otherGameCard(cardId, true);
 }

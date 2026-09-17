@@ -17,12 +17,14 @@ import {
   getApiKey,
   getApiUrl,
   hydrateImageManifest,
+  registerImageManifest,
   resolveImageUrl,
   setBrowseLanguages,
   useImageManifest,
 } from 'tcgscan-browse';
 
 import { FREE_THEME } from '@/data/freeTheme';
+import { ONE_PIECE_MANIFEST_KEY } from '@/lib/otherGameKeys';
 import { freshToken, gatedCatalogSource } from '@/lib/catalogSource';
 import { supabaseUrl } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
@@ -88,6 +90,29 @@ configureBrowse({
         },
       }
     : undefined,
+});
+
+/**
+ * ONE PIECE PICTURES, declared as a SECONDARY manifest (kit >= 0.9.17).
+ *
+ * A binder can hold One Piece cards (their ids share the TCGplayer namespace), and every picture in
+ * this app — pockets, covers, thumbnails, the kit's own picker tiles — resolves through
+ * `cardThumbUrl`, which reads one manifest. A secondary is consulted only AFTER the Pokémon
+ * manifest misses, so nothing about a Pokémon card changes, and this is what lets One Piece art
+ * appear without touching a single call site.
+ *
+ * DECLARING IT COSTS NOTHING. The kit records the source here and fetches it only when a LOADED
+ * Pokémon manifest actually misses an id — so a collector with no One Piece cards never downloads
+ * these 664 KB, while someone who has one gets their art anywhere, including screens that
+ * deliberately skip the catalog (home covers, binder thumbnails).
+ *
+ * Its own cache key: the two manifests are different byte streams, and sharing one would have each
+ * overwrite the other on every launch.
+ */
+registerImageManifest({
+  key: ONE_PIECE_MANIFEST_KEY,
+  browseUrl: `${browseUrl}/onepiece`,
+  cacheKey: 'tcgscan-browse:images-manifest:onepiece:v1',
 });
 
 // Pin the SYNCHRONOUS default before AsyncStorage resolves. The kit opens on both languages

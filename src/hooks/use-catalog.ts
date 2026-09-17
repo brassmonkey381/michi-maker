@@ -8,6 +8,7 @@ import {
   type Catalog,
   type CatalogStatus,
 } from '@/lib/catalog';
+import { otherGameVersion, subscribeOtherGame } from '@/lib/otherGame';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { useAuth } from '@/store/auth';
 
@@ -47,6 +48,16 @@ export function useCatalog(enabled = true): UseCatalog {
   // Reactive snapshot of the load-once catalog: updates for enabled AND passive consumers
   // when the catalog publishes, without either of them forcing the fetch.
   const catalog = useSyncExternalStore(subscribeCatalog, getLoadedCatalog, getLoadedCatalog);
+  /**
+   * THE SECOND GAME REPAINTS THROUGH THIS HOOK TOO (lib/otherGame).
+   *
+   * One Piece cards in a binder resolve through the same `resolveCardWith(catalog, id)` path, but
+   * their data arrives later and outside the kit's catalog store, so nothing would tell a rendered
+   * pocket to look again. Subscribing here means every consumer of the catalog — which is every
+   * surface that shows a card's name — re-renders when One Piece lands, without each of them
+   * knowing a second game exists. A no-op for a Pokémon-only binder: the counter never moves.
+   */
+  useSyncExternalStore(subscribeOtherGame, otherGameVersion, otherGameVersion);
   const { status, progress } = useCatalogStatus();
   const [error, setError] = useState<Error | null>(null);
 

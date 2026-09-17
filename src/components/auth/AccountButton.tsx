@@ -1,5 +1,5 @@
 /**
- * The account entry point shown in the home header. Renders an avatar when signed in, or a
+ * The account entry point shown in the page header (home, my binders). Renders an avatar when signed in, or a
  * "Sign in" pill for guests / signed-out users, and opens the AuthSheet on press. Hidden
  * entirely in local mode (no Supabase configured).
  */
@@ -19,9 +19,10 @@ export function AccountButton() {
   const [open, setOpen] = useState(false);
 
   if (!isSupabaseConfigured) return null;
-  // With no session at all, the home guest banner already carries a "Sign in" — don't show a
-  // second one up here. Guests (who have a session, and no banner) keep the header pill.
-  if (!auth.user) return null;
+  // Wait for auth to settle so a signed-in visitor never sees a "Sign in" flash. After that the
+  // pill is always there for anyone without an account (no session, or a guest session), even
+  // where the home guest banner also offers one: the top right is where people look for it.
+  if (!auth.ready) return null;
 
   const initial = (auth.profile?.username || auth.user?.email || '?')
     .trim()

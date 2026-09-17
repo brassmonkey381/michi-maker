@@ -30,6 +30,7 @@ import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
 import { similarityWall } from '@/data/similarityGate';
 import { hasBinderCovers, hasFindSimilar } from '@/data/tiers';
+import { AccountButton } from '@/components/auth/AccountButton';
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { MyCollection } from '@/components/MyCollection';
 import { StoryBinderSheet } from '@/components/StoryBinderSheet';
@@ -270,17 +271,21 @@ export default function MyBindersScreen() {
               much as in the binder: adding a card from the collection saves too. */}
           <EditLockBanner />
           <SaveErrorBanner />
-          {/* No page title, the "My binders" section header is the top of the page. Where the
-              rail is hidden (native / narrow web), keep a way back Home. */}
-          {railHidden ? (
-            <View style={styles.backRow}>
+          {/* No page title, the "My binders" section header is the top of the page. The account
+              button (Sign in for anyone without an account) sits top right as it does on Home.
+              Where the rail is hidden (native / narrow web), keep a way back Home on the left. */}
+          <View style={styles.topRow}>
+            {railHidden ? (
               <Pressable onPress={() => router.push('/')} hitSlop={8}>
                 <ThemedText type="smallBold" themeColor="textSecondary">
                   ‹ Home
                 </ThemedText>
               </Pressable>
-            </View>
-          ) : null}
+            ) : (
+              <View />
+            )}
+            <AccountButton />
+          </View>
 
           {/* My collection — the tcgscan-fed inventory — and the binder shelf, whose order it
               decides: the import on-ramp sits above the shelf until there are cards. */}
@@ -589,7 +594,12 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidthWide,
     alignSelf: 'center',
   },
-  backRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.three },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.three,
+  },
   newBtn: {
     backgroundColor: Palette.accent,
     paddingVertical: Spacing.two,

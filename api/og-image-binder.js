@@ -355,8 +355,12 @@ function pocket(left, top, w, hgt, art, spanning, wear) {
             style: { position: 'absolute', left: -Math.round((w - ring * 2) * 0.022), top: -Math.round((hgt - ring * 2) * 0.022), objectFit: 'contain' },
           }),
         )
-      : slotImage(art, w - ring * 2, hgt - ring * 2, spanning)
+      : // ART KEEPS THE WHOLE POCKET (owner, 2026-09-17): a slice is cut for the full pocket, and
+        // a box shrunk by the ring put every piece a hair off its neighbour. The ring is laid over
+        // it below instead. A pictured backing still shrinks the box, as the editor does.
+        slotImage(art, wear && wear.image ? w - ring * 2 : w, wear && wear.image ? hgt - ring * 2 : hgt, spanning)
     : null;
+  const artFull = !!(art && art.artwork && wear && !wear.image);
   const children = [];
   if (wear && wear.image) {
     children.push(
@@ -372,10 +376,10 @@ function pocket(left, top, w, hgt, art, spanning, wear) {
           style: {
             display: 'flex',
             position: 'absolute',
-            left: ring,
-            top: ring,
-            width: w - ring * 2,
-            height: hgt - ring * 2,
+            left: artFull ? 0 : ring,
+            top: artFull ? 0 : ring,
+            width: artFull ? w : w - ring * 2,
+            height: artFull ? hgt : hgt - ring * 2,
             borderRadius: Math.max(0, POCKET_RADIUS - ring),
             overflow: 'hidden',
             backgroundColor: art.artwork ? '#11111a' : wear ? 'transparent' : '#e9e4da',
@@ -384,6 +388,9 @@ function pocket(left, top, w, hgt, art, spanning, wear) {
         inner,
       ),
     );
+  }
+  if (artFull && ring) {
+    children.push(h('div', { style: { display: 'flex', position: 'absolute', left: 0, top: 0, width: w, height: hgt, borderRadius: POCKET_RADIUS, borderWidth: ring, borderStyle: 'solid', borderColor: wear.color || 'transparent' } }));
   }
   return h(
     'div',

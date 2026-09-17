@@ -1566,10 +1566,25 @@ function SlotContent({
     // THE SAME RING A CARD WEARS, so a card and the art beside it share a grid line: the backing
     // colour when the binder has one (the mount an art print sits on), else the page's own colour,
     // which reads as no ring at all.
+    //
+    // THE RING LIES OVER THE PICTURE, NOT ROUND A SMALLER ONE (owner, 2026-09-17). A slice is cut
+    // for the whole pocket; drawn inside a box shrunk by the ring, every piece scaled down about
+    // its own centre and the picture no longer met itself across the gap (a road's white line
+    // stepping sideways between pockets). So the picture keeps the full pocket, and the ring is a
+    // border laid on top, covering its outer edge. A PICTURED backing is the one case that still
+    // shrinks the box: a picture cannot be drawn as a hollow border.
+    if (backingImage) {
+      return (
+        <View style={[styles.fill, styles.artBacking, { borderRadius: radius, padding: ringPad }]}>
+          <WearImage uri={backingImage} radius={radius} instant={instantImages} />
+          <View style={[styles.fill, { borderRadius: Math.max(0, radius - ringPad), overflow: 'hidden' }]}>{art}</View>
+        </View>
+      );
+    }
     return (
-      <View style={[styles.fill, styles.artBacking, { borderRadius: radius, backgroundColor: backingColor ?? ring ?? 'transparent', padding: ringPad }]}>
-        {backingImage ? <WearImage uri={backingImage} radius={radius} instant={instantImages} /> : null}
-        <View style={[styles.fill, { borderRadius: Math.max(0, radius - ringPad), overflow: 'hidden' }]}>{art}</View>
+      <View style={[styles.fill, styles.artBacking, { borderRadius: radius }]}>
+        {art}
+        <View pointerEvents="none" style={[styles.fill, { borderRadius: radius, borderWidth: ringPad, borderColor: backingColor ?? ring ?? 'transparent' }]} />
       </View>
     );
   }

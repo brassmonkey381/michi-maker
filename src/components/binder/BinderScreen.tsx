@@ -1003,6 +1003,21 @@ export function BinderScreen({
     }
   };
 
+  // "Insert" opens a BLANK page right after this one and jumps onto it, so room for the next run
+  // of cards appears where you are standing. `+ Page` still appends; this is the one that inserts.
+  const handleInsertPage = () => {
+    if (store.pageLimitReached(binder.id)) {
+      showLimitToast(pageLimitMessage(store.tier, store.limits));
+      return;
+    }
+    const result = store.insertPage(binder.id, page.id);
+    if (result) {
+      setSelectedSlotId(null);
+      setPageIndex(result.pageIndex);
+      showToast(parityNote('Empty page inserted', result.blanksInserted));
+    }
+  };
+
   /**
    * Send the current page to another binder. `move` also removes it here, so the page ends up in
    * exactly one binder; a plain send leaves this one untouched. Every refusal the store can
@@ -1993,6 +2008,14 @@ export function BinderScreen({
               ? showLimitToast(pageLimitMessage(store.tier, store.limits))
               : store.addPage(binder.id)
           }
+        />
+        {/* The insert, next to the append it is easy to confuse with — both say which they are in
+            their label, because "add a page" was read as "here" long before there was a here. */}
+        <IconBtn
+          glyph="⤵"
+          label="Insert an empty page after this one"
+          testID="tool-insert-page"
+          onPress={handleInsertPage}
         />
         <IconBtn glyph="⧉" label="Duplicate this page" onPress={handleDuplicatePage} testID="tool-duplicate" />
         {/* Send this page into ANOTHER of your binders (copy, or move it out of this one). */}

@@ -35,6 +35,7 @@ import * as repo from '@/data/binderRepo';
 import { slotSignature } from '@/data/savedSlices';
 import { pageSide, requiredPageSide } from '@/data/binderPhysics';
 import { withPageStyle, type PageStylePatch } from '@/data/pageStyle';
+import { reflowToShape } from '@/data/pageReflow';
 
 import { diffSnapshots } from '@/data/binderSync';
 import { EXAMPLE_FILL_SHEET_BINDER } from '@/data/exampleFillSheetBinder';
@@ -201,6 +202,13 @@ interface BinderStore {
   updateBinder: (id: string, patch: Partial<DemoBinder>) => void;
   deleteBinder: (id: string) => void;
   addPage: (binderId: string) => void;
+  /** Slide a fresh empty page in after `afterPageId` (end of binder when it isn't found), so a
+   *  page can be opened up mid-binder instead of only appended. Re-spaced like duplicatePage;
+   *  null when the binder is missing or at its tier's page cap. */
+  insertPage: (
+    binderId: string,
+    afterPageId?: string,
+  ) => { pageIndex: number; blanksInserted: number } | null;
   /** Clone a page (new ids for the page + every slot) and insert it right after the original.
    *  The result is re-spaced with blank pages wherever folded 1×2 art would land on the wrong
    *  side of the spine (withParitySpacers). Returns the copy's index and how many blanks were
@@ -210,8 +218,14 @@ interface BinderStore {
     pageId: string,
   ) => { pageIndex: number; blanksInserted: number } | null;
   updatePage: (binderId: string, pageId: string, patch: Partial<DemoPage>) => void;
-  /** Uniform pocket layout for the whole binder; refuses when content would fall outside. */
-  setBinderPageSize: (binderId: string, rows: number, cols: number) => { ok: boolean; reason?: string };
+  /** Uniform pocket layout for the whole binder. Cards REFLOW in reading order into the new grid
+   *  (spilling onto extra pages when it holds fewer); refuses only when a single piece can never
+   *  fit, or when the reflow would need more pages than the tier allows. */
+  setBinderPageSize: (
+    binderId: string,
+    rows: number,
+    cols: number,
+  ) => { ok: boolean; reason?: string; moved?: number; pageDelta?: number };
   /** One background colour for the whole binder — see setBinderBackground. */
   setBinderBackground: (binderId: string, backgroundColor?: string) => void;
   /** The page material, sleeve and art backing, merged (null clears a field). See pageStyle.ts. */
@@ -985,6 +999,40 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   );
 
   /**
+   * OPEN UP A PAGE WHERE YOU ARE, rather than only at the end.
+   *
+   * `addPage` appends, which is the wrong tool when someone is part-way through a binder and wants
+   * room before the next themed run: appending then dragging the page back through the filmstrip
+   * is the same result reached the long way. This inserts the empty page directly after `afterPageId`.
+   *
+   * Persisted wholesale for the same reason duplicatePage is — inserting mid-list shifts the
+   * `position` of every page after it, and `unique (binder_id, position)` is IMMEDIATE (see the
+   * essay in removePage), so a granular insert would collide.
+   */
+  const insertPage = useCallback(
+    (binderId: string, afterPageId?: string): { pageIndex: number; blanksInserted: number } | null => {
+      const target = binders.find((binder) => binder.id === binderId);
+      if (!target) return null;
+      if (LIMITS_ENFORCED && !target.isExample && target.pages.length >= limits.pagesPerBinder) return null;
+      // Appending is just inserting after the last page, so an unknown id is not an error.
+      const afterIndex = afterPageId ? target.pages.findIndex((p) => p.id === afterPageId) : -1;
+      const at = afterIndex >= 0 ? afterIndex + 1 : target.pages.length;
+      // One pocket layout throughout: the new page takes its neighbours' size (see addPage).
+      const shape = target.pages[afterIndex >= 0 ? afterIndex : target.pages.length - 1];
+      const page = emptyPage(shape?.rows ?? 3, shape?.cols ?? 3);
+      const { pages, blanksInserted } = withParitySpacers([
+        ...target.pages.slice(0, at),
+        page,
+        ...target.pages.slice(at),
+      ]);
+      commit((prev) => prev.map((binder) => (binder.id === binderId ? { ...binder, pages } : binder)));
+      if (!target.isExample) persist(() => repo.replaceBinder({ ...target, pages }));
+      return { pageIndex: pages.findIndex((p) => p.id === page.id), blanksInserted };
+    },
+    [binders, limits.pagesPerBinder, commit, persist],
+  );
+
+  /**
    * "Pages around this card" (VIP): append one finished page per kept method.
    *
    * Built as a single evolving working copy and committed once — the same discipline
@@ -1190,37 +1238,55 @@ export function BinderProvider({ children }: { children: ReactNode }) {
 
   /**
    * Set the pocket layout for the WHOLE binder — real binders don't mix page sizes, so the
-   * size chips apply to every page at once. Refuses (naming the blocking page) when any slot
-   * would fall outside the new grid; the user clears/moves it first, nothing is destroyed.
+   * size chips apply to every page at once.
+   *
+   * The cards COME WITH IT. This used to refuse the moment anything sat outside the new grid
+   * ("Page 3 has content that wouldn't fit 2×2"), which meant the person had to empty the very
+   * pages they were re-laying out before the control would work at all — so in practice a filled
+   * binder could never change shape. Now `reflowToShape` re-lays every pocket in reading order,
+   * spilling onto extra pages when the new page holds fewer (see src/data/pageReflow.ts).
+   *
+   * Two things still refuse, both because the alternative is losing something:
+   *  · a single piece that fits NO page of the new shape (a 2×2 art block on a 1-column page);
+   *  · a spill past the tier's page cap — the same rule addPage enforces, checked here because a
+   *    reshape is the one operation that can add several pages at once.
    */
   const setBinderPageSize = useCallback(
-    (binderId: string, rows: number, cols: number): { ok: boolean; reason?: string } => {
+    (
+      binderId: string,
+      rows: number,
+      cols: number,
+    ): { ok: boolean; reason?: string; moved?: number; pageDelta?: number } => {
       const target = binders.find((binder) => binder.id === binderId);
       if (!target) return { ok: false, reason: 'Binder not found.' };
-      for (let i = 0; i < target.pages.length; i += 1) {
-        const blocking = target.pages[i].slots.find(
-          (s) => s.row + s.rowSpan > rows || s.col + s.colSpan > cols,
-        );
-        if (blocking) {
-          return {
-            ok: false,
-            reason: `Page ${i + 1} has content that wouldn't fit ${rows}×${cols}. Move or clear it first.`,
-          };
+      const result = reflowToShape(target.pages, rows, cols);
+      if (result.blocked) return { ok: false, reason: result.blocked };
+      if (
+        LIMITS_ENFORCED &&
+        !target.isExample &&
+        result.pageDelta > 0 &&
+        result.pages.length > limits.pagesPerBinder
+      ) {
+        return {
+          ok: false,
+          reason: `${rows}×${cols} would need ${result.pages.length} pages, past your ${limits.pagesPerBinder}-page limit.`,
+        };
+      }
+      const pages = result.pages;
+      commit((prev) => prev.map((binder) => (binder.id === binderId ? { ...binder, pages } : binder)));
+      if (!target.isExample) {
+        // A reflow moves pockets BETWEEN pages and can add pages, which no per-page update covers;
+        // persist the binder wholesale (same reasoning as duplicatePage). Only a pure resize —
+        // nothing moved, no page added — stays on the cheap per-page writes.
+        if (result.moved === 0 && result.pageDelta === 0) {
+          for (const p of pages) persist(() => repo.updatePage(p.id, { rows, cols }));
+        } else {
+          persist(() => repo.replaceBinder({ ...target, pages }));
         }
       }
-      commit((prev) =>
-        prev.map((binder) =>
-          binder.id === binderId
-            ? { ...binder, pages: binder.pages.map((page) => ({ ...page, rows, cols })) }
-            : binder,
-        ),
-      );
-      if (!target.isExample) {
-        for (const p of target.pages) persist(() => repo.updatePage(p.id, { rows, cols }));
-      }
-      return { ok: true };
+      return { ok: true, moved: result.moved, pageDelta: result.pageDelta };
     },
-    [binders, commit, persist],
+    [binders, limits.pagesPerBinder, commit, persist],
   );
 
   /**
@@ -2477,6 +2543,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       updateBinder,
       deleteBinder,
       addPage,
+      insertPage,
       duplicatePage,
       updatePage,
       setBinderPageSize,
@@ -2535,6 +2602,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       updateBinder,
       deleteBinder,
       addPage,
+      insertPage,
       duplicatePage,
       updatePage,
       setBinderPageSize,

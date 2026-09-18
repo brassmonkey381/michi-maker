@@ -17,6 +17,7 @@ import { ColorBox, Group, LabeledInput, PillButton, Row, Seg, ToggleChip, WearRo
 import { REAL_PAGE_SIZES } from '@/data/binderPhysics';
 import type { BinderTrack, DemoBinder, DemoPage } from '@/data/binderTypes';
 import { BINDER_PRESETS } from '@/data/binderPresets';
+import { reflowSummary } from '@/data/pageReflow';
 import { Palette } from '@/constants/theme';
 import { SPINE_STYLES, WEAR_NONE, isImageRef } from '@/data/pageStyle';
 import { isBlankPage, useBinders } from '@/store/binders';
@@ -110,8 +111,17 @@ export function BinderLook({
               const size = PAGE_SIZE_OPTIONS.find((s) => s.id === id);
               if (!size) return;
               const res = store.setBinderPageSize(binder.id, size.rows, size.cols);
-              if (!res.ok && res.reason) showToast(res.reason);
-              else if (res.ok && binder.pages.length > 1) showToast(`All ${binder.pages.length} pages set to ${size.label}`);
+              if (!res.ok) {
+                if (res.reason) showToast(res.reason);
+                return;
+              }
+              // Cards reflow into the new grid, so the toast says what MOVED — a reshape that
+              // quietly re-laid half the binder should not read the same as one that changed nothing.
+              if (binder.pages.length > 1 || res.moved || res.pageDelta) {
+                showToast(
+                  reflowSummary({ moved: res.moved ?? 0, pageDelta: res.pageDelta ?? 0 }, size.rows, size.cols),
+                );
+              }
             }}
           />
         </Row>

@@ -307,13 +307,18 @@ export function CardBrowse({
         /**
          * WHILE THE DROPPER IS ARMED, A TILE IS A COLOUR, NOT A CARD.
          *
-         * The kit's tile body always opens its action sheet on a plain tap (CatalogBrowser's own
-         * `setActionCard`), and no prop from here can skip that — so both paths are covered: the
-         * quick pill becomes a one-tap colour pick, and the sheet is given a single action that
-         * does the same. Placement actions are withheld rather than listed beside it, because a
-         * sheet offering "place" during a colour pick is offering to do the thing the person
-         * already left this screen to avoid.
+         * A plain tap is claimed above by `onCardTap`, so the sheet should not appear at all.
+         * These two remain as the belt and braces: the quick pill is still a one-tap pick, and if
+         * the sheet is reached some other way it offers only the colour. Placement is withheld
+         * rather than listed beside it, because a sheet offering "place" during a colour pick is
+         * offering to do the thing the person left this screen to avoid.
          */
+        /**
+         * A PLAIN TAP IS THE PICK (kit >= 0.9.21). Without this the tile opens the card sheet and
+         * the colour is two taps behind a modal that covers the very grid you are picking from —
+         * which is not an eyedropper, it is a menu.
+         */
+        onCardTap={armed ? (c: CatalogCard) => pickWithEyedropper(c.id) : undefined}
         cardActions={
           armed
             ? () => [{ key: 'eyedropper', label: '⌇ Take these colours', kind: 'primary' as const, onPress: (c: CatalogCard) => pickWithEyedropper(c.id) }]

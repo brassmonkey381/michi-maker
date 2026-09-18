@@ -108,12 +108,20 @@ configureBrowse({
  *
  * Its own cache key: the two manifests are different byte streams, and sharing one would have each
  * overwrite the other on every launch.
+ *
+ * GUARDED, AND THE GUARD IS NOT PARANOIA. This runs at import time on every route, so if the
+ * installed kit predates 0.9.17 the call is `undefined(...)` and the WHOLE SITE is a white screen —
+ * which is exactly what shipped on 2026-09-17, when a stale package-lock entry (old version +
+ * integrity beside a new commit sha) made npm reinstall the previous kit from cache. One Piece art
+ * is worth far less than michi-maker.com booting, so a kit that cannot do this simply does not.
  */
-registerImageManifest({
-  key: ONE_PIECE_MANIFEST_KEY,
-  browseUrl: `${browseUrl}/onepiece`,
-  cacheKey: 'tcgscan-browse:images-manifest:onepiece:v1',
-});
+if (typeof registerImageManifest === 'function') {
+  registerImageManifest({
+    key: ONE_PIECE_MANIFEST_KEY,
+    browseUrl: `${browseUrl}/onepiece`,
+    cacheKey: 'tcgscan-browse:images-manifest:onepiece:v1',
+  });
+}
 
 // Pin the SYNCHRONOUS default before AsyncStorage resolves. The kit opens on both languages
 // (unconstrained), michi opens on English — without this, first paint would show JP cards for the

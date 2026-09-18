@@ -130,6 +130,25 @@ async function fetchManifest() {
   return m;
 }
 
+/**
+ * ONE PIECE CARDS (2026-09-17). A pocket's card_id is a TCGplayer productId, a namespace both games
+ * share, and the app resolves a One Piece card everywhere through the kit's secondary manifest.
+ * These renders read the Pokémon manifest alone, so a One Piece pocket drew as empty in the share
+ * preview, the quick look and the full-size download. This adds the second manifest the same way
+ * the kit does: only when a card in THIS binder misses the Pokémon manifest, so a Pokémon-only
+ * binder never fetches it. The result is a stack `manifestUrl` reads front to back.
+ */
+async function completeManifest(manifest, binder) {
+  if (!BROWSE_URL || !binder) return manifest;
+  const ids = [binder.cover_card_id];
+  for (const p of binder.binder_pages || []) for (const s of p.binder_slots || []) ids.push(s.card_id);
+  const misses = ids.some((id) => id && /^\d+$/.test(String(id)) && !(manifest && manifest.cards && manifest.cards[id]));
+  if (!misses) return manifest;
+  const other = await fetchJson(`${BROWSE_URL}/onepiece/images.json`);
+  if (!other || !Array.isArray(other.fields) || !other.base || !other.cards) return manifest;
+  return { stack: [manifest, other].filter(Boolean) };
+}
+
 /** id → absolute URL for a manifest field, or null. `image` is the full JPEG (Satori-safe).
  * Handles BOTH manifest schemas: schema 1 (single-language: base={field→url}, cards[id]=[keys]) and
  * schema 2 (EN+JP: base={lang→{field→url}}, cards[id]=[lang, ...keys] shifted right by one). The
@@ -137,6 +156,13 @@ async function fetchManifest() {
  * forcing this endpoint to always fall back to the generic cover image. */
 function manifestUrl(manifest, id, field) {
   if (!manifest || !id) return null;
+  if (manifest.stack) {
+    for (const m of manifest.stack) {
+      const u = manifestUrl(m, id, field);
+      if (u) return u;
+    }
+    return null;
+  }
   const i = manifest.fields.indexOf(field);
   if (i < 0) return null;
   const entry = manifest.cards[id];
@@ -1495,7 +1521,8 @@ module.exports = async (req, res) => {
   let cover = `${SITE}/og.png`;
   try {
     if (id) {
-      const [binder, manifest] = await Promise.all([fetchBinder(id), fetchManifest()]);
+      const [binder, pokemon] = await Promise.all([fetchBinder(id), fetchManifest()]);
+      const manifest = await completeManifest(pokemon, binder);
       if (binder) {
         cover = manifestUrl(manifest, binder.cover_card_id, 'image') || cover;
         const pages = pickPages(binder);
@@ -1540,6 +1567,8 @@ module.exports = async (req, res) => {
 module.exports.__tooling = {
   fetchBinder,
   fetchManifest,
+  completeManifest,
+  manifestUrl,
   pickPages,
   loadArt,
   render,

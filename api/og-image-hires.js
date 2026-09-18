@@ -19,7 +19,7 @@ process.env.OG_SCALE = process.env.OG_HIRES_SCALE || '4';
 process.env.OG_SHARPEN = process.env.OG_HIRES_SHARPEN || '0.6';
 
 const { __tooling } = require('./og-image-binder.js');
-const { fetchBinder, fetchManifest, pickPages, loadArt, render } = __tooling;
+const { fetchBinder, fetchManifest, pickPages, loadArt, render, completeManifest } = __tooling;
 
 const CACHE = 'public, max-age=0, s-maxage=86400, stale-while-revalidate=604800';
 
@@ -38,7 +38,8 @@ module.exports = async (req, res) => {
     return res.end(JSON.stringify({ error: 'id required' }));
   }
   try {
-    const [binder, manifest] = await Promise.all([fetchBinder(id), fetchManifest()]);
+    const [binder, pokemon] = await Promise.all([fetchBinder(id), fetchManifest()]);
+    const manifest = await completeManifest(pokemon, binder);
     if (!binder) {
       res.statusCode = 404;
       res.setHeader('content-type', 'application/json');

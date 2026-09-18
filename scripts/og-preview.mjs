@@ -23,6 +23,7 @@ const { __tooling } = require('../api/og-image-binder.js');
 const {
   fetchBinder,
   fetchManifest,
+  completeManifest,
   pickPages,
   loadArt,
   render,
@@ -90,7 +91,8 @@ if (!id) {
   console.log('FAILED: pass a binder id [outDir] [collage|bands ...] [--v2] [--page N] [--backdrop URL]');
   process.exit(2);
 }
-const [binder, manifest] = await Promise.all([fetchBinder(id), fetchManifest()]);
+const [binder, pokemon] = await Promise.all([fetchBinder(id), fetchManifest()]);
+const manifest = await completeManifest(pokemon, binder);
 if (!binder) {
   console.log(`FAILED: no binder ${id} (is it public?)`);
   process.exit(3);

@@ -47,6 +47,7 @@ import {
 } from 'tcgscan-browse';
 
 import type { Catalog, CatalogCard } from '@/lib/catalog';
+import { otherGameSimilar, otherGameSimilarReady } from '@/lib/otherGame';
 import { similarByTags } from '@/lib/themeScores';
 import { occupiedCells, type DemoPage } from '@/data/binderTypes';
 import { hasToken } from '@/data/nameMatch';
@@ -181,6 +182,38 @@ export const COMPOSE_METHODS: {
 ];
 
 /** Which methods make sense for this seed (e.g. no artist page when illustrator is unknown). */
+/**
+ * The method's name and blurb for the game it is about to run on. Only the Pokémon NOUNS change —
+ * "Same Pokémon" reads as a bug on a One Piece page, and "energy type" is an ink colour there —
+ * so the wording is resolved here rather than forked into a second methods table.
+ */
+export function methodCopy(
+  method: ComposeMethod,
+  game?: string,
+): { label: string; description: string } {
+  const base = COMPOSE_METHODS.find((m) => m.key === method);
+  const label = base?.label ?? method;
+  const description = base?.description ?? '';
+  if (!game || game === 'pokemon') return { label, description };
+  if (method === 'samePokemon') {
+    return { label: 'Same character', description: 'This character across sets and art styles.' };
+  }
+  if (method === 'colorType') {
+    return { label: 'Color by type', description: "Cards sharing this one's colour, sampled across sets." };
+  }
+  if (method === 'moreLikeThis') {
+    // NAMED FOR WHAT IT ACTUALLY DOES. Measured over all 6,854 One Piece anchors, the reliable
+    // signal is other printings of the same art (rank 1 at 0.83-0.92); only a quarter of a card's
+    // top five share its character. Promising "most similar" would oversell colour-and-layout
+    // matches as taste.
+    return {
+      label: '≈ Other printings & looks',
+      description: 'Its other printings first, then the cards that most look like it.',
+    };
+  }
+  return { label, description };
+}
+
 export function availableMethods(
   seed: CatalogCard,
   catalog: Catalog,
@@ -193,8 +226,28 @@ export function availableMethods(
    * which withholds the method exactly as an absent map did.
    */
   taggedSeed?: boolean,
+  /**
+   * The game the SEED belongs to ('pokemon' when omitted). A secondary game is browsed from its
+   * own published catalog and has none of Pokémon's server features — no embedding RPC, no scene
+   * tags, no palette blob, no evolution or trainer tables — so those methods are withheld rather
+   * than offered and left to return an empty page. What survives is what its catalog can answer
+   * on its own: colour by type (One Piece publishes its inks into `types`) and the procedural
+   * full-page spread. Each of the others returns as its data does (see the 2026-09-17 audit).
+   */
+  game?: string,
 ): ComposeMethod[] {
   const out: ComposeMethod[] = [];
+  const secondary = !!game && game !== 'pokemon';
+  if (secondary) {
+    // Same CHARACTER: the publisher puts a game's character key in `evolution_line` (One Piece has
+    // no evolution, but it has "every card of this character", which is what that field is used
+    // for), so speciesOf answers for both games and the label changes rather than the logic.
+    if (otherGameSimilarReady(game)) out.push('moreLikeThis');
+    if (speciesOf(seed)) out.push('samePokemon');
+    if (seed.types[0]) out.push('colorType');
+    out.push('fullPageSpread');
+    return out;
+  }
   // Same scene: only a tagged seed has a scene to match. Withheld rather than shown-and-locked,
   // unlike the two below, because an untagged card has no scene at all — the method would not be
   // locked, it would simply produce an empty page.
@@ -562,6 +615,9 @@ export async function composePage(
    *  scans via filterAndDedupe. The SEED stays unbound: you can seed from a JP card and fill with
    *  EN neighbours. Omit / "both" languages = unconstrained, exactly as before. */
   languages?: CardLanguage[],
+  /** The seed's game (see availableMethods). A secondary game ranks from its published
+   *  neighbour graph instead of Pokémon's embedding RPC, which it has no server for. */
+  game?: string,
 ): Promise<ComposePlacement[]> {
   const cells = method === 'evolutionLine' ? emptyCellsColMajor(page) : emptyCellsRowMajor(page);
   if (cells.length === 0) return [];
@@ -588,7 +644,13 @@ export async function composePage(
     // Ask for extra hits: some resolve to jumbo/V-UNION or cards already placed and get
     // filtered. A pool run casts a much wider net — the owned subset of a global ranking is
     // sparse, so rank deep and keep whichever owned cards surface.
-    const hits = await findSimilar(seed.id, pool ? 200 : cells.length * 3 + 8, { languages });
+    const want = pool ? 200 : cells.length * 3 + 8;
+    // A secondary game's neighbours are precomputed and already sorted nearest-first; Pokémon's
+    // come from the RPC. Everything below this line is identical for both.
+    const hits =
+      game && game !== 'pokemon'
+        ? otherGameSimilar(game, seed.id, want)
+        : await findSimilar(seed.id, want, { languages });
     const cards = hits
       .map((h) => catalog.getCard(h.id))
       .filter((c): c is CatalogCard => !!c);

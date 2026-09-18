@@ -6,7 +6,7 @@
  *
  * Forces the catalog load on open (like the CardPicker) — composition scans real metadata.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { fetchCardDetail, LanguageToggle } from 'tcgscan-browse';
 
@@ -23,6 +23,7 @@ import { occupiedCells, type DemoPage } from '@/data/binderTypes';
 import { fetchUserCards } from '@/data/collectionRepo';
 import {
   COMPOSE_METHODS,
+  methodCopy,
   availableMethods,
   composePage,
   loadPartnerData,
@@ -32,6 +33,7 @@ import {
 import { resolveCatalogCardWith } from '@/data/cardResolver';
 import type { CatalogCard } from '@/lib/catalog';
 import { useCatalog } from '@/hooks/use-catalog';
+import { loadOtherGameSimilar, otherGameCatalogFor, otherGameVersion, subscribeOtherGame } from '@/lib/otherGame';
 import { useTier } from '@/hooks/use-tier';
 import { useBrowseTheme } from '@/lib/browseTheme';
 import { isSupabaseConfigured } from '@/lib/env';
@@ -109,6 +111,21 @@ export function AutoFillSheet({
 
   const ready = !!catalog && partnersReady;
   const seed = catalog && seedCardId ? resolveCatalogCardWith(catalog, seedCardId) : undefined;
+  /**
+   * COMPOSE AGAINST THE SEED'S OWN GAME. `useCatalog` is Pokémon's, and a One Piece seed composed
+   * against it scanned 20,000 cards that share nothing with it — every method came back empty,
+   * which read as "fill methods don't work for One Piece". The seed already resolves across games
+   * (resolveCatalogCardWith), so the catalog under it follows the same rule.
+   */
+  useSyncExternalStore(subscribeOtherGame, otherGameVersion, otherGameVersion);
+  const other = catalog && seedCardId && !catalog.getCard(seedCardId) ? otherGameCatalogFor(seedCardId) : null;
+  const seedCatalog = other?.catalog ?? catalog;
+  const seedGame = other?.game ?? 'pokemon';
+  // "More like this" for a secondary game reads a published neighbour graph, not an RPC — load it
+  // when a seed from that game opens the sheet, so the method can be offered rather than withheld.
+  useEffect(() => {
+    if (visible && seedGame !== 'pokemon') void loadOtherGameSimilar(seedGame);
+  }, [visible, seedGame]);
 
   // Evolution family for the seed. The slim catalog ships evolutionLine: [] in bulk (it's lazy-loaded
   // via rpc/card_detail), which hid the "Evolution line" fill option and broke its composer. Fetch it
@@ -150,22 +167,25 @@ export function AutoFillSheet({
     return () => { live = false; };
   }, [visible, seedId, tagged?.id]);
   const taggedSeed = !!tagged && tagged.id === seedId && tagged.yes;
-  const methods = enrichedSeed && catalog && ready ? availableMethods(enrichedSeed, catalog, taggedSeed) : [];
+  const methods =
+    enrichedSeed && seedCatalog && ready ? availableMethods(enrichedSeed, seedCatalog, taggedSeed, seedGame) : [];
   const emptyCount = page.rows * page.cols - occupiedCells(page).size;
 
   const poolActive = fromCollection && !!ownedIds && ownedIds.size > 0;
   const run = async (method: ComposeMethod) => {
-    if (!enrichedSeed || !catalog || busy) return;
+    if (!enrichedSeed || !seedCatalog || busy) return;
     setBusy(method);
     setError(null);
     try {
       let placements = await composePage(
         method,
         enrichedSeed,
-        catalog,
+        // The seed's own game (see seedCatalog above) — a One Piece page is filled from One Piece.
+        seedCatalog,
         page,
         poolActive ? ownedIds : null,
         languages,
+        seedGame,
       );
       // Pool fills consume owned copies — tag card pockets with collection provenance so the
       // (free/owned) inventory accounting and Reclaim see them.
@@ -180,7 +200,7 @@ export function AutoFillSheet({
         );
         return;
       }
-      onPlaced(placements, COMPOSE_METHODS.find((m) => m.key === method)?.label ?? method);
+      onPlaced(placements, methodCopy(method, seedGame).label);
       onClose();
     } finally {
       setBusy(null);
@@ -267,7 +287,9 @@ export function AutoFillSheet({
                     The page is full. Clear a pocket or two first.
                   </ThemedText>
                 ) : (
-                  COMPOSE_METHODS.filter((m) => methods.includes(m.key)).map((m) => {
+                  COMPOSE_METHODS.filter((m) => methods.includes(m.key)).map((rawMethod) => {
+                    // Pokémon nouns do not travel: a One Piece seed reads "Same character".
+                    const m = { ...rawMethod, ...methodCopy(rawMethod.key, seedGame) };
                     // Each paid method against ITS OWN capability, not a shared isPaid: they
                     // line up today, and writing it this way is what stops a future split from
                     // silently locking the wrong one.

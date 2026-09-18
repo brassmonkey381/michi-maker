@@ -12,12 +12,14 @@
  */
 import { Platform } from 'react-native';
 
-export type GameId = 'pokemon' | 'onepiece';
+import { SECONDARY_GAMES, type SecondaryGameKey } from '@/lib/otherGameKeys';
+
+export type GameId = 'pokemon' | SecondaryGameKey;
 
 const FLAG_KEY = 'michi.multiTcg';
 
 export function gameLabel(game: GameId): string {
-  return game === 'onepiece' ? 'One Piece' : 'Pokémon';
+  return SECONDARY_GAMES.find((g) => g.key === game)?.label ?? 'Pokémon';
 }
 
 function readFlag(): boolean {
@@ -41,4 +43,6 @@ function readFlag(): boolean {
 export const MULTI_TCG: boolean = readFlag();
 
 /** The games the picker offers, in order. Pokémon alone unless the flag is on. */
-export const PICKER_GAMES: readonly GameId[] = MULTI_TCG ? ['pokemon', 'onepiece'] : ['pokemon'];
+export const PICKER_GAMES: readonly GameId[] = MULTI_TCG
+  ? ['pokemon', ...SECONDARY_GAMES.map((g) => g.key)]
+  : ['pokemon'];

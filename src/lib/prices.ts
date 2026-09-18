@@ -16,7 +16,7 @@ import { getPriceSummary as pokemonPriceSummary } from 'tcgscan-browse';
 import type { PriceSummary } from 'tcgscan-browse';
 
 import type { DemoBinder, DemoPage } from '@/data/binderTypes';
-import { otherGameCatalog, otherGamePriceSummary, otherGameVersion, subscribeOtherGame } from '@/lib/otherGame';
+import { anyOtherGameLoaded, otherGamePriceSummary, otherGameVersion, subscribeOtherGame } from '@/lib/otherGame';
 
 export { formatUsd, type PriceSummary, type PriceSummaryEntry } from 'tcgscan-browse';
 
@@ -35,12 +35,12 @@ let mergedSnapshot: PriceSummary | null = null;
 export function getPriceSummary(): Promise<PriceSummary> {
   merged ??= pokemonPriceSummary()
     .then(async (pokemon) => {
-      // ONE PIECE ONLY WHEN ONE PIECE IS IN PLAY. Its catalog is built only after a pocket held an
-      // id the Pokémon catalog missed, so this asks for its prices exactly when a binder has one —
-      // never on a Pokémon-only launch, and never BEFORE Pokémon's own numbers, which used to wait
-      // behind a second fetch every user paid for.
-      const onePiece = otherGameCatalog() ? await otherGamePriceSummary() : ({} as PriceSummary);
-      const all = { ...onePiece, ...pokemon };
+      // ANOTHER GAME ONLY WHEN ANOTHER GAME IS IN PLAY. A secondary catalog is built only after a
+      // pocket held an id the Pokémon catalog missed, so this asks for those prices exactly when a
+      // binder has one — never on a Pokémon-only launch, and never BEFORE Pokémon's own numbers,
+      // which used to wait behind a second fetch every user paid for.
+      const others = anyOtherGameLoaded() ? await otherGamePriceSummary() : ({} as PriceSummary);
+      const all = { ...others, ...pokemon };
       // Never pin a failed Pokemon fetch: the kit resolves {} on failure, and a cached empty map
       // would render every binder at $0.00 until the process restarts.
       if (Object.keys(pokemon).length === 0) merged = null;
@@ -55,12 +55,12 @@ export function getPriceSummary(): Promise<PriceSummary> {
 }
 
 /**
- * Re-merge once One Piece arrives after the summary was already built — otherwise a binder whose
- * One Piece cards resolved a moment later would show them at $0.00 for the rest of the session.
+ * Re-merge once another game arrives after the summary was already built — otherwise a binder whose
+ * other-game cards resolved a moment later would show them at $0.00 for the rest of the session.
  * Cheap: the kit caches Pokémon's fetch, so re-merging costs one small file at most.
  */
 subscribeOtherGame(() => {
-  if (mergedSnapshot && otherGameCatalog()) {
+  if (mergedSnapshot && anyOtherGameLoaded()) {
     merged = null;
     void getPriceSummary();
   }

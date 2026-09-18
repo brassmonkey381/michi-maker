@@ -24,7 +24,7 @@ import {
 } from 'tcgscan-browse';
 
 import { FREE_THEME } from '@/data/freeTheme';
-import { ONE_PIECE_MANIFEST_KEY } from '@/lib/otherGameKeys';
+import { SECONDARY_GAMES } from '@/lib/otherGameKeys';
 import { freshToken, gatedCatalogSource } from '@/lib/catalogSource';
 import { supabaseUrl } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
@@ -116,11 +116,15 @@ configureBrowse({
  * is worth far less than michi-maker.com booting, so a kit that cannot do this simply does not.
  */
 if (typeof registerImageManifest === 'function') {
-  registerImageManifest({
-    key: ONE_PIECE_MANIFEST_KEY,
-    browseUrl: `${browseUrl}/onepiece`,
-    cacheKey: 'tcgscan-browse:images-manifest:onepiece:v1',
-  });
+  // One per secondary game (lib/otherGameKeys). The kit's registry is a real Map, so a third
+  // game's art costs one more entry in that list and nothing here.
+  for (const game of SECONDARY_GAMES) {
+    registerImageManifest({
+      key: game.key,
+      browseUrl: `${browseUrl}/${game.prefix}`,
+      cacheKey: `tcgscan-browse:images-manifest:${game.key}:v1`,
+    });
+  }
 }
 
 // Pin the SYNCHRONOUS default before AsyncStorage resolves. The kit opens on both languages

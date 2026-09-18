@@ -14,7 +14,7 @@
  * of them are network calls (similarity and palette) and running eight in series would be a
  * multi-second wait; each settles on its own so the grid fills in as results land.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import { cardThumbUrl } from 'tcgscan-browse';
@@ -26,12 +26,14 @@ import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { emptyPage, type DemoPage } from '@/data/binderTypes';
 import {
   COMPOSE_METHODS,
+  methodCopy,
   availableMethods,
   composePage,
   type ComposeMethod,
   type ComposePlacement,
 } from '@/data/pageComposer';
 import { useCatalog } from '@/hooks/use-catalog';
+import { loadOtherGameSimilar, otherGameCatalogFor, otherGameVersion, subscribeOtherGame } from '@/lib/otherGame';
 import { useLanguagePref } from '@/store/languagePref';
 import type { CatalogCard } from '@/lib/catalog';
 
@@ -100,8 +102,20 @@ export function ComposeAllSheet({
 }) {
   // Same pattern as the Fill sheet: the catalog loads on open, and the EN/JP bound is the shared
   // persisted one, so a built page honours the same printing language a single fill would.
-  const { catalog } = useCatalog(visible);
+  const { catalog: pokemon } = useCatalog(visible);
   const [languages] = useLanguagePref();
+  /**
+   * THE SEED'S OWN GAME, exactly as the Fill sheet resolves it: a One Piece seed previewed against
+   * Pokémon's catalog produced five empty pages, which is how "the fill methods don't work for One
+   * Piece" looked from the outside.
+   */
+  useSyncExternalStore(subscribeOtherGame, otherGameVersion, otherGameVersion);
+  const other = pokemon && seed && !pokemon.getCard(seed.id) ? otherGameCatalogFor(seed.id) : null;
+  const catalog = other?.catalog ?? pokemon;
+  const seedGame = other?.game ?? 'pokemon';
+  useEffect(() => {
+    if (visible && seedGame !== 'pokemon') void loadOtherGameSimilar(seedGame);
+  }, [visible, seedGame]);
   // Mounted fresh per invocation (the parent renders this only while open, keyed by seed), so
   // these start empty and the build effect never has to reset them synchronously.
   const [built, setBuilt] = useState<Built[]>([]);
@@ -139,10 +153,10 @@ export function ComposeAllSheet({
     // applies per method have to come with it — this loop would otherwise run a search a free
     // user was just refused.
     Promise.all(
-      availableMethods(seed, catalog).map(async (key) => {
+      availableMethods(seed, catalog, undefined, seedGame).map(async (key) => {
         let placements: ComposePlacement[] = [];
         try {
-          placements = await composePage(key, seed, catalog, blank, pool, languages);
+          placements = await composePage(key, seed, catalog, blank, pool, languages, seedGame);
         } catch {
           placements = []; // a method that fails is simply not offered
         }
@@ -151,13 +165,15 @@ export function ComposeAllSheet({
           .map((p) => (p.cardId ? catalog.getCard(p.cardId) : undefined))
           .filter((c): c is CatalogCard => !!c);
         const years = cards.map((c) => c.releaseDate.slice(0, 4)).filter(Boolean).sort();
+        // Per-game wording (Same Pokémon -> Same character); paid flag stays the method's own.
+        const copy = methodCopy(key, seedGame);
         const meta = METHOD_META[key];
         // Append as each settles, keeping COMPOSE_METHODS' order so the grid doesn't reshuffle.
         setBuilt((prev) =>
           [...prev, {
             key,
-            label: cleanLabel(meta?.label ?? key),
-            description: meta?.description ?? '',
+            label: cleanLabel(copy.label),
+            description: copy.description,
             paid: !!meta?.paid,
             placements,
             sets: new Set(cards.map((c) => c.setId)).size,
@@ -177,7 +193,7 @@ export function ComposeAllSheet({
     return () => {
       active = false;
     };
-  }, [seed, catalog, rows, cols, centre.row, centre.col, pool, languages]);
+  }, [seed, catalog, seedGame, rows, cols, centre.row, centre.col, pool, languages]);
 
   if (!seed) return null;
 

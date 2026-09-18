@@ -157,13 +157,14 @@ export function CardBrowse({
    */
   const [game, setGame] = useState<GameId>('pokemon');
   const [attempt, setAttempt] = useState(0);
-  // Repaint when One Piece's catalog finishes building (it is not the kit's catalog store).
+  // Repaint when a secondary catalog finishes building (it is not the kit's catalog store).
   useSyncExternalStore(subscribeOtherGame, otherGameVersion, otherGameVersion);
   useEffect(() => {
-    if (game === 'onepiece') void loadOtherGameCatalog();
+    if (game !== 'pokemon') void loadOtherGameCatalog(game);
   }, [game, attempt]);
-  const onePiece = game === 'onepiece';
-  const activeCatalog = onePiece ? otherGameCatalog() : FORCE_COLD ? null : catalog;
+  // Every game but Pokémon is a secondary source, browsed from its own published catalog.
+  const secondary = game !== 'pokemon';
+  const activeCatalog = secondary ? otherGameCatalog(game) : FORCE_COLD ? null : catalog;
   /**
    * THE KIT'S BROWSE STATE IS A MODULE SINGLETON (`browseState`), not component state, so a
    * remount re-reads the query, drill-down and facets the OTHER game left behind — a `key` change
@@ -186,21 +187,28 @@ export function CardBrowse({
   };
 
   const lockedFeatures = useMemo<BrowseFeature[] | undefined>(() => {
-    if (tierUnknown && !onePiece) return undefined;
+    if (tierUnknown && !secondary) return undefined;
     const locked: BrowseFeature[] = [];
-    if (onePiece) {
+    if (secondary) {
       /**
-       * WHAT ONE PIECE HAS NO DATA FOR, locked rather than left to fail quietly. Similarity,
+       * WHAT A SECONDARY GAME HAS NO DATA FOR, locked rather than left to fail quietly. Similarity,
        * colour search and artwork themes are Pokémon-only server features, and the kit's value
        * sort / price filters read ITS price summary, which is Pokémon's alone (michi merges the
        * two only for its own display, lib/prices).
        *
        * Locking `themeSearch` also closes the one real leak: the kit falls back to the server's
        * `search_cards` RPC when a query is themed or the catalog is missing, and that RPC only
-       * knows Pokémon — so a One Piece search could silently return Pokémon cards. With a warm
-       * One Piece catalog AND themeSearch locked, the cold path is unreachable by construction.
+       * knows Pokémon — so another game's search could silently return Pokémon cards. With a warm
+       * secondary catalog AND themeSearch locked, the cold path is unreachable by construction.
        */
-      locked.push('themeSearch', 'findSimilar', 'colorSearch', 'similarRefine', 'sortByValue', 'priceFilter');
+      /**
+       * COLOUR SEARCH IS NOT LOCKED ANY MORE for a game that publishes palettes: One Piece's blob
+       * lives at browse/onepiece/color/*, and the kit derives its colour URL from the active
+       * browse URL, so the picker searches the right game's art. (The kit's colour index is keyed
+       * by that URL as of 0.9.18 — before that it answered One Piece queries out of Pokémon's
+       * palettes.) `findSimilar` stays locked: that one is an RPC this game has no server for.
+       */
+      locked.push('themeSearch', 'findSimilar', 'similarRefine', 'sortByValue', 'priceFilter');
       return locked;
     }
     if (!hasFindSimilar) locked.push('findSimilar');
@@ -211,7 +219,7 @@ export function CardBrowse({
     // guest caller the top few rows and the true total, and the kit draws the "+N more matches"
     // row under them. That row's tap comes back through onLockedFeature('themeSearch') below.
     return locked.length ? locked : undefined;
-  }, [hasAdvancedSearch, hasFindSimilar, tierUnknown, onePiece]);
+  }, [hasAdvancedSearch, hasFindSimilar, tierUnknown, secondary]);
   return (
     <>
       {PICKER_GAMES.length > 1 ? (
@@ -239,23 +247,23 @@ export function CardBrowse({
               </Pressable>
             );
           })}
-          {onePiece && !activeCatalog ? (
+          {secondary && !activeCatalog ? (
             <Pressable onPress={() => setAttempt((n) => n + 1)} accessibilityRole="button">
               <Text style={[styles.gameNote, { color: browseTheme.subtext ?? '#888' }]}>
-                loading One Piece… (tap to retry)
+                {`loading ${gameLabel(game)}… (tap to retry)`}
               </Text>
             </Pressable>
           ) : null}
         </View>
       ) : null}
       {/*
-        NOT MOUNTED COLD FOR ONE PIECE. The kit treats a null catalog as "search the server", and
-        that server (`search_cards`) only knows Pokémon — so mounting while One Piece's catalog is
-        still building would answer a One Piece query with Pokémon cards and a Pokémon set list.
+        NOT MOUNTED COLD FOR A SECONDARY GAME. The kit treats a null catalog as "search the
+        server", and that server (`search_cards`) only knows Pokémon — so mounting while another
+        game's catalog is still building would answer its query with Pokémon cards and sets.
         `lockedFeatures` cannot close that door: the kit's cold path is `!warm || themedQuery`, and
         locking themeSearch only removes the second half. Withholding the mount removes the first.
       */}
-      {onePiece && !activeCatalog ? null : (
+      {secondary && !activeCatalog ? null : (
       <CatalogBrowser
         key={game}
         theme={browseTheme}

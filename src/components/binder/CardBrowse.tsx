@@ -334,6 +334,8 @@ export function CardBrowse({
       )}
       {colorOpen ? (
         <ColorSearchSheet
+          // The game on screen: "use a card's colours" searches this catalog, not Pokémon's.
+          catalog={activeCatalog}
           onResults={(ids, label) => {
             sendBrowseCommand({ type: 'showCards', ids, label });
             setColorOpen(false);

@@ -12,8 +12,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { findSimilarByColor, searchByColors, srgbToLab, useColorIndex, type ColorRegion, type Lab } from 'tcgscan-browse';
 
+import { CardPalettePicker } from '@/components/color/CardPalettePicker';
 import { GradientMixBar, HsvColorPicker, stopWeights, type Stop } from '@/components/color/ColorPicker';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import type { Catalog } from '@/lib/catalog';
 import { track } from '@/lib/analytics';
 
 const REGIONS: { value: ColorRegion; label: string }[] = [
@@ -49,11 +51,14 @@ let savedActive = 0; // which stop the HSV picker edits (open by default)
 export function ColorSearchSheet({
   seedCardId,
   seedName,
+  catalog,
   onResults,
   onClose,
 }: {
   seedCardId?: string;
   seedName?: string;
+  /** The catalog on screen, so "use a card's colours" searches the game being browsed. */
+  catalog?: Catalog | null;
   /** The ranked result ids (nearest first) + a short label — the page shows them in the browser. */
   onResults: (ids: string[], label: string) => void;
   onClose: () => void;
@@ -65,6 +70,7 @@ export function ColorSearchSheet({
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
   const [showHelp, setShowHelp] = useState(false);
+  const [pickCard, setPickCard] = useState(false);
 
   // Remember the mix + region + active stop across opens (session-sticky).
   useEffect(() => {
@@ -155,7 +161,18 @@ export function ColorSearchSheet({
             </Text>
           ) : !seedCardId ? (
             <View style={styles.picker}>
-              <Text style={styles.hint}>Drag a stop to reweight · pick its color below</Text>
+              <View style={styles.hintRow}>
+                <Text style={styles.hint}>Drag a stop to reweight · pick its color below</Text>
+                {/* START FROM A REAL CARD. Mixing three colours from nothing is the hard way to
+                    ask "more cards like this one looks"; a card already IS a palette. */}
+                <Pressable
+                  onPress={() => setPickCard(true)}
+                  style={({ pressed }) => [styles.cardBtn, pressed && styles.pressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Use a card's colours">
+                  <Text style={styles.cardBtnTxt}>Use a card&apos;s colours</Text>
+                </Pressable>
+              </View>
               <GradientMixBar stops={stops} active={active} onChange={setStops} onActive={setActive} />
               <HsvColorPicker
                 rgb={stops[active].rgb}
@@ -165,6 +182,23 @@ export function ColorSearchSheet({
           ) : (
             <Text style={styles.msg}>Find cards whose palette is closest to this card.</Text>
           )}
+
+          {pickCard ? (
+            <CardPalettePicker
+              catalog={catalog ?? null}
+              colorIndex={colorIndex}
+              region={region}
+              onPick={(picked, card) => {
+                setStops(picked);
+                // The HSV editor points at a stop by index; a two-colour card would leave it
+                // pointing past the end.
+                setActive(0);
+                setPickCard(false);
+                setNote(`Colours from ${card.name}`);
+              }}
+              onClose={() => setPickCard(false)}
+            />
+          ) : null}
 
           {note ? <Text style={styles.note}>{note}</Text> : null}
 
@@ -182,6 +216,14 @@ export function ColorSearchSheet({
 }
 
 const styles = StyleSheet.create({
+  hintRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  cardBtn: {
+    paddingHorizontal: Spacing.three,
+    paddingVertical: 4,
+    borderRadius: Radius.pill,
+    backgroundColor: Palette.panel,
+  },
+  cardBtnTxt: { color: Palette.ink, fontSize: FontSize.xs, fontWeight: Weight.semibold },
   backdrop: { flex: 1, backgroundColor: Palette.scrim45, justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: Palette.surface,

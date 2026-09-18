@@ -8,7 +8,7 @@
  */
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { fetchCardDetail, LanguageToggle } from 'tcgscan-browse';
+import { fetchCardDetail, LanguageToggle, loadColorIndex } from 'tcgscan-browse';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { SimilarityModelPicker } from '@/components/SimilarityModelPicker';
@@ -33,7 +33,7 @@ import {
 import { resolveCatalogCardWith } from '@/data/cardResolver';
 import type { CatalogCard } from '@/lib/catalog';
 import { useCatalog } from '@/hooks/use-catalog';
-import { loadOtherGameSimilar, otherGameCatalogFor, otherGameVersion, subscribeOtherGame } from '@/lib/otherGame';
+import { loadOtherGameSimilar, otherGameCatalogFor, otherGameColorUrl, otherGameVersion, subscribeOtherGame } from '@/lib/otherGame';
 import { useTier } from '@/hooks/use-tier';
 import { useBrowseTheme } from '@/lib/browseTheme';
 import { isSupabaseConfigured } from '@/lib/env';
@@ -124,7 +124,13 @@ export function AutoFillSheet({
   // "More like this" for a secondary game reads a published neighbour graph, not an RPC — load it
   // when a seed from that game opens the sheet, so the method can be offered rather than withheld.
   useEffect(() => {
-    if (visible && seedGame !== 'pokemon') void loadOtherGameSimilar(seedGame);
+    if (visible && seedGame !== 'pokemon') {
+      void loadOtherGameSimilar(seedGame);
+      // The palette blob too: availableMethods offers the colour method only once THIS game's
+      // index is in memory, and nothing else on this screen would ever load it.
+      const colorUrl = otherGameColorUrl(seedGame);
+      if (colorUrl) void loadColorIndex(colorUrl);
+    }
   }, [visible, seedGame]);
 
   // Evolution family for the seed. The slim catalog ships evolutionLine: [] in bulk (it's lazy-loaded

@@ -179,6 +179,16 @@ export function otherGameCard(id: string | null | undefined, pokemonLoaded: bool
   return undefined;
 }
 
+/**
+ * Where a game's colour palettes live. Published beside its catalog, and read with the kit's
+ * per-call override so a One Piece page can be composed from inside a Pokémon binder without
+ * repointing the whole session (kit >= 0.9.20).
+ */
+export function otherGameColorUrl(game: string): string | null {
+  const s = stateOf(game);
+  return s ? `${s.browse}/color` : null;
+}
+
 // ---- visual neighbours ("More like this") ---------------------------------------------------
 //
 // STATIC, BECAUSE THE OTHER GAMES HAVE NO SERVER. Pokémon ranks neighbours through a pgvector RPC

@@ -41,13 +41,15 @@ import {
   effectiveLanguages,
   findSimilar,
   findSimilarByColor,
+  getColorIndex,
+  loadColorIndex,
   imageManifestReady,
   similarAvailable,
   type CardLanguage,
 } from 'tcgscan-browse';
 
 import type { Catalog, CatalogCard } from '@/lib/catalog';
-import { otherGameSimilar, otherGameSimilarReady } from '@/lib/otherGame';
+import { otherGameColorUrl, otherGameSimilar, otherGameSimilarReady } from '@/lib/otherGame';
 import { similarByTags } from '@/lib/themeScores';
 import { occupiedCells, type DemoPage } from '@/data/binderTypes';
 import { hasToken } from '@/data/nameMatch';
@@ -243,6 +245,10 @@ export function availableMethods(
     // no evolution, but it has "every card of this character", which is what that field is used
     // for), so speciesOf answers for both games and the label changes rather than the logic.
     if (otherGameSimilarReady(game)) out.push('moreLikeThis');
+    // Palettes are per game too; offered only once this game's blob is in memory (the sheets
+    // start that load), never on the strength of Pokémon's being available.
+    const colorUrl = otherGameColorUrl(game);
+    if (colorUrl && getColorIndex(colorUrl)) out.push('colorTheme');
     if (speciesOf(seed)) out.push('samePokemon');
     if (seed.types[0]) out.push('colorType');
     out.push('fullPageSpread');
@@ -718,7 +724,24 @@ export async function composePage(
     // on-device/server, fails soft to []). Nearest-first, so we KEEP that order (no variety re-rank,
     // which would scramble the colour ranking). Every pocket gets a CARD (see the note above
     // COMPOSE_METHODS on why the tonal inserts are gone).
-    const ids = await findSimilarByColor(seed.id, 'noborder', { limit: cells.length * 3 + 8, languages });
+    const want = cells.length * 3 + 8;
+    /**
+     * A SECONDARY GAME'S PAGE IS COMPOSED FROM ITS OWN PALETTES. The kit derives its colour blob
+     * from the configured browseUrl, which here is always Pokémon's — michi's binder is Pokémon's
+     * even while the seed is not. Asking for One Piece neighbours out of Pokémon's blob returns
+     * Pokémon ids that the One Piece catalog then discards, which is an empty page and no error.
+     * The per-call URL keeps the rest of the session pointed where it was.
+     */
+    const colorUrl = game && game !== 'pokemon' ? otherGameColorUrl(game) : null;
+    let ids: string[];
+    if (colorUrl) {
+      const index = await loadColorIndex(colorUrl);
+      ids = index?.has(seed.id)
+        ? index.findSimilar(seed.id, 'noborder', want).map((h) => h.id)
+        : [];
+    } else {
+      ids = await findSimilarByColor(seed.id, 'noborder', { limit: want, languages });
+    }
     const cards = filterAndDedupe(
       ids.map((id) => catalog.getCard(id)).filter((c): c is CatalogCard => !!c),
       page,

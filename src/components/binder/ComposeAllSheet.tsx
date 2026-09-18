@@ -17,7 +17,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
-import { cardThumbUrl } from 'tcgscan-browse';
+import { cardThumbUrl, loadColorIndex } from 'tcgscan-browse';
 
 import { LogoLoader } from '@/components/brand/LogoLoader';
 import { ThemedText } from '@/components/themed-text';
@@ -33,7 +33,7 @@ import {
   type ComposePlacement,
 } from '@/data/pageComposer';
 import { useCatalog } from '@/hooks/use-catalog';
-import { loadOtherGameSimilar, otherGameCatalogFor, otherGameVersion, subscribeOtherGame } from '@/lib/otherGame';
+import { loadOtherGameSimilar, otherGameCatalogFor, otherGameColorUrl, otherGameVersion, subscribeOtherGame } from '@/lib/otherGame';
 import { useLanguagePref } from '@/store/languagePref';
 import type { CatalogCard } from '@/lib/catalog';
 
@@ -114,7 +114,13 @@ export function ComposeAllSheet({
   const catalog = other?.catalog ?? pokemon;
   const seedGame = other?.game ?? 'pokemon';
   useEffect(() => {
-    if (visible && seedGame !== 'pokemon') void loadOtherGameSimilar(seedGame);
+    if (visible && seedGame !== 'pokemon') {
+      void loadOtherGameSimilar(seedGame);
+      // The palette blob too: availableMethods offers the colour method only once THIS game's
+      // index is in memory, and nothing else on this screen would ever load it.
+      const colorUrl = otherGameColorUrl(seedGame);
+      if (colorUrl) void loadColorIndex(colorUrl);
+    }
   }, [visible, seedGame]);
   // Mounted fresh per invocation (the parent renders this only while open, keyed by seed), so
   // these start empty and the build effect never has to reset them synchronously.

@@ -12,10 +12,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { findSimilarByColor, searchByColors, srgbToLab, useColorIndex, type ColorRegion, type Lab } from 'tcgscan-browse';
 
-import { CardPalettePicker } from '@/components/color/CardPalettePicker';
 import { GradientMixBar, HsvColorPicker, stopWeights, type Stop } from '@/components/color/ColorPicker';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
-import type { Catalog } from '@/lib/catalog';
+import { stopsForCard } from '@/lib/cardPalette';
 import { track } from '@/lib/analytics';
 
 const REGIONS: { value: ColorRegion; label: string }[] = [
@@ -51,14 +50,17 @@ let savedActive = 0; // which stop the HSV picker edits (open by default)
 export function ColorSearchSheet({
   seedCardId,
   seedName,
-  catalog,
+  paletteCardId,
+  onEyedropper,
   onResults,
   onClose,
 }: {
   seedCardId?: string;
   seedName?: string;
-  /** The catalog on screen, so "use a card's colours" searches the game being browsed. */
-  catalog?: Catalog | null;
+  /** A card the eyedropper just took: its palette lands on the mix bar as this sheet reopens. */
+  paletteCardId?: string;
+  /** Arm the eyedropper. The host hides this sheet so the cards underneath can be tapped. */
+  onEyedropper?: () => void;
   /** The ranked result ids (nearest first) + a short label — the page shows them in the browser. */
   onResults: (ids: string[], label: string) => void;
   onClose: () => void;
@@ -70,7 +72,25 @@ export function ColorSearchSheet({
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
   const [showHelp, setShowHelp] = useState(false);
-  const [pickCard, setPickCard] = useState(false);
+  /**
+   * THE EYEDROPPER'S ANSWER. The host reopens this sheet with the card that was tapped, and its
+   * palette becomes the mix — read with the sheet's OWN region, so switching Full art / Art panel
+   * and dropping again gives the two different answers the toggle promises.
+   */
+  const [dropped, setDropped] = useState<string | undefined>(undefined);
+  // Adjusted DURING RENDER rather than in an effect: React's own idiom for "a prop changed, fold it
+  // into state", and it paints the new mix in the same pass instead of flashing the old one first.
+  if (paletteCardId && colorIndex && paletteCardId !== dropped) {
+    setDropped(paletteCardId);
+    const picked = stopsForCard(colorIndex, paletteCardId, region);
+    if (picked.length) {
+      setStops(picked);
+      setActive(0); // a two-colour card would leave the HSV editor pointing past the end
+      setNote('');
+    } else {
+      setNote('That card has no colour data yet.');
+    }
+  }
 
   // Remember the mix + region + active stop across opens (session-sticky).
   useEffect(() => {
@@ -165,13 +185,15 @@ export function ColorSearchSheet({
                 <Text style={styles.hint}>Drag a stop to reweight · pick its color below</Text>
                 {/* START FROM A REAL CARD. Mixing three colours from nothing is the hard way to
                     ask "more cards like this one looks"; a card already IS a palette. */}
-                <Pressable
-                  onPress={() => setPickCard(true)}
-                  style={({ pressed }) => [styles.cardBtn, pressed && styles.pressed]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Use a card's colours">
-                  <Text style={styles.cardBtnTxt}>Use a card&apos;s colours</Text>
-                </Pressable>
+                {onEyedropper ? (
+                  <Pressable
+                    onPress={onEyedropper}
+                    style={({ pressed }) => [styles.cardBtn, pressed && styles.pressed]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Take colours from a card on screen">
+                    <Text style={styles.cardBtnTxt}>⌇ Take from a card</Text>
+                  </Pressable>
+                ) : null}
               </View>
               <GradientMixBar stops={stops} active={active} onChange={setStops} onActive={setActive} />
               <HsvColorPicker
@@ -183,22 +205,6 @@ export function ColorSearchSheet({
             <Text style={styles.msg}>Find cards whose palette is closest to this card.</Text>
           )}
 
-          {pickCard ? (
-            <CardPalettePicker
-              catalog={catalog ?? null}
-              colorIndex={colorIndex}
-              region={region}
-              onPick={(picked, card) => {
-                setStops(picked);
-                // The HSV editor points at a stop by index; a two-colour card would leave it
-                // pointing past the end.
-                setActive(0);
-                setPickCard(false);
-                setNote(`Colours from ${card.name}`);
-              }}
-              onClose={() => setPickCard(false)}
-            />
-          ) : null}
 
           {note ? <Text style={styles.note}>{note}</Text> : null}
 

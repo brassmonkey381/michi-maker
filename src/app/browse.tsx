@@ -21,6 +21,7 @@ import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
 import { CheatsheetButton } from '@/components/CheatsheetButton';
 import { SimilarityModelPicker } from '@/components/SimilarityModelPicker';
 import { CardBrowse } from '@/components/binder/CardBrowse';
+import { EyedropperBanner } from '@/components/color/EyedropperBanner';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
@@ -260,6 +261,9 @@ export default function BrowseScreen() {
 
           {/* The browser owns the remaining height; its inner FlatList scrolls (no page ScrollView
               around it, so the list gets a bounded viewport). */}
+          {/* The dropper can be armed here too (no binder pockets on this route — the tiles below
+              are the only cards on screen), so its way out has to be here as well. */}
+          <EyedropperBanner />
           <View style={styles.panel}>
             <CardBrowse
               catalog={catalog}

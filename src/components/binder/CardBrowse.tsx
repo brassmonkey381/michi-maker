@@ -26,6 +26,7 @@ import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { useBrowseTheme } from '@/lib/browseTheme';
 import { gameLabel, PICKER_GAMES, type GameId } from '@/lib/games';
 import { browseUrl } from '@/lib/catalogConfig';
+import { armEyedropper, cancelEyedropper, eyedropperArmed, eyedropperVersion, pickWithEyedropper, subscribeEyedropper } from '@/lib/eyedropper';
 import { loadOtherGameCatalog, otherGameCatalog, otherGameVersion, subscribeOtherGame } from '@/lib/otherGame';
 import { SECONDARY_GAMES } from '@/lib/otherGameKeys';
 
@@ -113,6 +114,20 @@ export function CardBrowse({
   // all. The offer below is the only thing it gates.
   const unmetered = searchesArtworkUnmetered(tier, hasTcgscanPro);
   const [colorOpen, setColorOpen] = useState(false);
+  /** True while a tile tap should take the card's colours instead of placing it. */
+  const armed = eyedropperArmed();
+  /**
+   * THE MODE ENDS WITH THE SURFACE THAT OWNS IT. The colour sheet lives here, so if this browser
+   * goes away (the picker closed) there is nothing left to reopen with the colour — a later pocket
+   * tap would be swallowed and produce no visible result, which is worse than not being armed.
+   * On a wide screen the dock stays mounted beside the binder, which is what makes tapping a
+   * pocket work at all.
+   */
+  useEffect(() => () => cancelEyedropper(), []);
+  /** The card the eyedropper last took, handed to the colour sheet as it reopens. */
+  const [droppedCard, setDroppedCard] = useState<string | undefined>(undefined);
+  // Repaint the "tap a card" banner as the dropper is armed and released.
+  useSyncExternalStore(subscribeEyedropper, eyedropperVersion, eyedropperVersion);
   /** The theme the button is offering right now; a new one is drawn after every press. */
   const [demoTheme, setDemoTheme] = useState(() => nextDemoTheme(null));
   /**
@@ -289,8 +304,26 @@ export function CardBrowse({
         onPickCard={onPickCard ?? (() => {})}
         onPickVUnion={onPickVUnion}
         onPickCards={onPickCards}
-        cardActions={cardActions}
-        quickAction={quickAction}
+        /**
+         * WHILE THE DROPPER IS ARMED, A TILE IS A COLOUR, NOT A CARD.
+         *
+         * The kit's tile body always opens its action sheet on a plain tap (CatalogBrowser's own
+         * `setActionCard`), and no prop from here can skip that — so both paths are covered: the
+         * quick pill becomes a one-tap colour pick, and the sheet is given a single action that
+         * does the same. Placement actions are withheld rather than listed beside it, because a
+         * sheet offering "place" during a colour pick is offering to do the thing the person
+         * already left this screen to avoid.
+         */
+        cardActions={
+          armed
+            ? () => [{ key: 'eyedropper', label: '⌇ Take these colours', kind: 'primary' as const, onPress: (c: CatalogCard) => pickWithEyedropper(c.id) }]
+            : cardActions
+        }
+        quickAction={
+          armed
+            ? () => ({ key: 'eyedropper', label: '⌇', onPress: (c: CatalogCard) => pickWithEyedropper(c.id) })
+            : quickAction
+        }
         initialSimilar={initialSimilar}
         languages={languages}
         ownedIds={ownedIds}
@@ -334,8 +367,19 @@ export function CardBrowse({
       )}
       {colorOpen ? (
         <ColorSearchSheet
-          // The game on screen: "use a card's colours" searches this catalog, not Pokémon's.
-          catalog={activeCatalog}
+          paletteCardId={droppedCard}
+          /**
+           * ARM AND GET OUT OF THE WAY. The cards worth taking a colour from are underneath this
+           * sheet — in the binder, in the dock, in the results behind it — so arming closes it and
+           * the next card tap anywhere reopens it with that card's palette on the bar.
+           */
+          onEyedropper={() => {
+            setColorOpen(false);
+            armEyedropper((cardId) => {
+              setDroppedCard(cardId);
+              setColorOpen(true);
+            });
+          }}
           onResults={(ids, label) => {
             sendBrowseCommand({ type: 'showCards', ids, label });
             setColorOpen(false);

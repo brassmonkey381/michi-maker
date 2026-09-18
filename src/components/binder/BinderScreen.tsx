@@ -52,7 +52,9 @@ import { pillChip, sheet } from '@/constants/ui';
 import { ContestLockBanner } from '@/components/contest/ContestLockBanner';
 import { fetchLockState, type Finalist } from '@/data/contestRepo';
 import { EditLockBanner } from '@/components/binder/EditLockBanner';
+import { EyedropperBanner } from '@/components/color/EyedropperBanner';
 import { SaveErrorBanner } from '@/components/binder/SaveErrorBanner';
+import { pickWithEyedropper } from '@/lib/eyedropper';
 import { Toast, type ToastSpec } from '@/components/binder/Toast';
 import { CapGateDialog } from '@/components/monetization/CapGateDialog';
 import { useCapGate } from '@/hooks/use-cap-gate';
@@ -147,6 +149,9 @@ interface BinderScreenProps {
    */
   initialPageIndex?: number;
 }
+
+/** Pinned above the page, clear of the action bar — visible whatever the binder is doing. */
+const EYEDROPPER_BANNER = { position: 'absolute' as const, top: 8, left: 12, right: 12, alignItems: 'center' as const, zIndex: 40 };
 
 export function BinderScreen({
   binderId,
@@ -1101,7 +1106,20 @@ export function BinderScreen({
   // Tapping a filled pocket selects it (for the action bar + resize handle); tapping an empty
   // pocket opens the picker to add. Ctrl/Cmd-click instead toggles the pocket in a multi-selection
   // (seeding from any single selection so it extends). Selecting never opens the sheet.
+  /**
+   * THE EYEDROPPER GETS THE TAP FIRST.
+   *
+   * Same shape as `armedSlice` above — arm somewhere, and the next relevant tap means something
+   * else until it is consumed — except the dropper is armed from a sheet that has to CLOSE to let
+   * you reach these pockets, so its armed flag lives in lib/eyedropper rather than in this
+   * component's state. Only a real card can hand over a palette: artwork and insert pockets fall
+   * through and behave normally.
+   */
+  const takeColourFrom = (slot: DemoSlot): boolean =>
+    slot.type === 'card' ? pickWithEyedropper(slot.cardId) : false;
+
   const handleSelectSlot = (slot: DemoSlot) => {
+    if (takeColourFrom(slot)) return;
     if (modifierHeld.current || selectMode) {
       setMultiIds((cur) => {
         const next = new Set(cur);
@@ -1866,6 +1884,7 @@ export function BinderScreen({
             openPickerAt({ row, col });
           }}
           onSlotPress={(slot) => {
+            if (takeColourFrom(slot)) return;
             changePage(pIdx);
             setSelectedSlotId(slot.id);
           }}
@@ -2874,6 +2893,12 @@ export function BinderScreen({
             <WalkthroughBanner copy={walkthrough.copy} onDismiss={walkthrough.dismiss} />
           </View>
         ) : null}
+        {/* Sits with the other always-mounted overlays: the dropper outlives the sheet that
+            armed it (that sheet has to close to let you reach the pockets), so its way out cannot
+            live inside the picker. */}
+        <View style={EYEDROPPER_BANNER} pointerEvents="box-none">
+          <EyedropperBanner />
+        </View>
         <Toast spec={toast} onDismiss={() => setToast(null)} />
         <CapGateDialog wall={capGate.wall} onDismiss={capGate.dismissWall} onResolve={capGate.resolveWall} />
         <ConfirmDialog spec={confirm} onClose={() => setConfirm(null)} />

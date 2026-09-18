@@ -48,6 +48,11 @@ export interface ViewPrefs {
    * not a preference: a binder opens still, and you press play.
    */
   autoFlipSeconds: number;
+  /**
+   * Red dashed lines on the page where the fill sheet would cut a piece of art to fit real
+   * pockets, and a grey one where a folded pair folds (see printFit.cutBoundaries). Owner only.
+   */
+  cutLines: boolean;
 }
 
 export const AUTO_FLIP_MIN = 1;
@@ -75,6 +80,7 @@ export const VIEW_PREF_DEFAULTS: ViewPrefs = {
   coverSnap: true,
   coverGrid: false,
   autoFlipSeconds: 4,
+  cutLines: false,
 };
 
 /**
@@ -97,7 +103,7 @@ function applyEpoch(prefs: ViewPrefs): ViewPrefs {
 export function normalizeViewPrefs(value: unknown): ViewPrefs | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const raw = value as Record<string, unknown>;
-  const flag = (k: 'owned' | 'scans' | 'doubleSided' | 'coverSnap' | 'coverGrid') =>
+  const flag = (k: 'owned' | 'scans' | 'doubleSided' | 'coverSnap' | 'coverGrid' | 'cutLines') =>
     typeof raw[k] === 'boolean' ? (raw[k] as boolean) : VIEW_PREF_DEFAULTS[k];
   // A bag with none of our keys is not a preference we wrote; treat it as absent so the next
   // source in the precedence chain gets its say.
@@ -110,7 +116,8 @@ export function normalizeViewPrefs(value: unknown): ViewPrefs | null {
     !('artDockPct' in raw) &&
     !('coverSnap' in raw) &&
     !('coverGrid' in raw) &&
-    !('autoFlipSeconds' in raw)
+    !('autoFlipSeconds' in raw) &&
+    !('cutLines' in raw)
   ) {
     return null;
   }
@@ -139,6 +146,7 @@ export function normalizeViewPrefs(value: unknown): ViewPrefs | null {
     autoFlipSeconds: isAutoFlipSeconds(raw.autoFlipSeconds)
       ? raw.autoFlipSeconds
       : VIEW_PREF_DEFAULTS.autoFlipSeconds,
+    cutLines: flag('cutLines'),
   };
   // Written before the current rollout: force that rollout's settings on, keep the rest of what
   // they chose. Idempotent, so it re-applies harmlessly on every read until they next save.
@@ -163,6 +171,7 @@ export function storedViewPrefs(prefs: ViewPrefs): {
   coverSnap: boolean;
   coverGrid: boolean;
   autoFlipSeconds: number;
+  cutLines: boolean;
   v: number;
 } {
   return stamp({
@@ -175,5 +184,6 @@ export function storedViewPrefs(prefs: ViewPrefs): {
     coverSnap: prefs.coverSnap,
     coverGrid: prefs.coverGrid,
     autoFlipSeconds: prefs.autoFlipSeconds,
+    cutLines: prefs.cutLines,
   });
 }

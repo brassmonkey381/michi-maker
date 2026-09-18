@@ -33,6 +33,8 @@ import {
 } from '@/data/artTemplates';
 import { AboutHoverCard } from '@/components/binder/AboutPopup';
 import { cellWidthFor, gapFor } from '@/data/binderLayout';
+import { insideEdgePairStarts } from '@/data/binderPhysics';
+import { cutBoundaries } from '@/data/printFit';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useTheme } from '@/hooks/use-theme';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
@@ -183,6 +185,12 @@ interface BinderGridProps {
    */
   outerEdge?: 'left' | 'right';
   /**
+   * Draw where the fill sheet would cut each piece of art to fit real pockets: two red dashed
+   * lines along the pocket edges either side of the gap it loses, or one grey dashed line where a
+   * folded pair folds. A view preference of the owner's (viewPrefs.cutLines).
+   */
+  cutLines?: boolean;
+  /**
    * Draw the page at least this tall, with the pockets centred in it. How a shape whose pockets
    * do not fill the shelf's box (a 3×4) still occupies the whole box: the same page, wider
    * margins above and below its pockets, rather than a shorter page beside taller ones.
@@ -304,6 +312,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
     width,
     pageStyle,
     outerEdge,
+    cutLines = false,
     minHeight,
     editable = false,
     captionFields = [],
@@ -935,6 +944,35 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
             onResizeSlot={onResizeSlot}
           />
         ) : null}
+
+        {/* WHERE THE SHEET CUTS (owner, 2026-09-17). Over every piece of art that spans pockets:
+            red dashed lines on the two pocket edges either side of each gap the print has to cut
+            across, so the strip between them is the width the picture loses, and one grey dashed
+            line where a folded pair folds instead. Read from the same walk the export uses
+            (printFit), so the page never promises a piece the sheet will not print. */}
+        {cutLines
+          ? page.slots
+              .filter((s) => s.type === 'artwork' && s.imageUrl && (s.rowSpan > 1 || s.colSpan > 1))
+              .map((slot) => {
+                const b = box(slot.row, slot.col, slot.rowSpan, slot.colSpan);
+                const { rows, cols } = cutBoundaries(slot, insideEdgePairStarts(page.cols, outerEdge ?? 'right'));
+                const rowGap = gap + captionH;
+                return (
+                  <View key={`cut-${slot.id}`} pointerEvents="none" style={[styles.fill, { position: 'absolute' }, b]} testID="cut-lines">
+                    {cols.map(({ j, kind }) =>
+                      kind === 'cut' ? (
+                        <View key={`c${j}`} style={[styles.cutV, { left: j * colStep - gap, width: gap }]} />
+                      ) : (
+                        <View key={`f${j}`} style={[styles.foldV, { left: j * colStep - gap / 2 }]} />
+                      ),
+                    )}
+                    {rows.map((i) => (
+                      <View key={`r${i}`} style={[styles.cutH, { top: i * rowStep - rowGap, height: rowGap }]} />
+                    ))}
+                  </View>
+                );
+              })
+          : null}
 
         {/* Quick-action toolbar anchored to the selected pocket (edit mode). */}
         {onReplaceSlot && resizeSlot ? (
@@ -2650,6 +2688,11 @@ const styles = StyleSheet.create({
   // rather than a dark chrome bar, matching the studio's contextual action bars.
   /** A hairline between "change this pocket" and "stop": the only separation Remove had was 2px. */
   toolDivider: { width: 1, alignSelf: 'stretch', marginHorizontal: 4, backgroundColor: Palette.hairlineStrong },
+  /** A cut: the two pocket edges either side of the gap, so the strip between is what is lost. */
+  cutV: { position: 'absolute', top: 0, bottom: 0, borderLeftWidth: 1.5, borderRightWidth: 1.5, borderStyle: 'dashed', borderColor: Palette.danger },
+  cutH: { position: 'absolute', left: 0, right: 0, borderTopWidth: 1.5, borderBottomWidth: 1.5, borderStyle: 'dashed', borderColor: Palette.danger },
+  /** A fold: one quiet line down the crease. */
+  foldV: { position: 'absolute', top: 0, bottom: 0, width: 0, borderLeftWidth: 1, borderStyle: 'dashed', borderColor: Palette.muted2 },
   slotToolbar: {
     position: 'absolute',
     zIndex: 60,

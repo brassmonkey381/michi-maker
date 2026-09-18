@@ -1781,7 +1781,7 @@ export function BinderScreen({
         <BinderGrid
           page={p}
           width={width}
-          pageStyle={binder.pageStyle}
+          pageStyle={binder.pageStyle} cutLines={view.cutLines}
           outerEdge={outerEdgeOf(p)}
           editable={false}
           captionFields={captionFields}
@@ -1794,7 +1794,7 @@ export function BinderScreen({
     }
     if (!editing) {
       return (
-        <BinderGrid page={p} width={width} pageStyle={binder.pageStyle} outerEdge={outerEdgeOf(p)} editable={false} captionFields={captionFields} ownedIds={ownedIds} scanUrlOf={scanUrlOf} variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable} />
+        <BinderGrid page={p} width={width} pageStyle={binder.pageStyle} cutLines={view.cutLines} outerEdge={outerEdgeOf(p)} editable={false} captionFields={captionFields} ownedIds={ownedIds} scanUrlOf={scanUrlOf} variantOf={variantOf} onVariantPress={onFinishPress} finishAskable={finishAskable} />
       );
     }
     if (role === 'prev' || role === 'next') {
@@ -1804,7 +1804,7 @@ export function BinderScreen({
           ref={role === 'prev' ? prevRef : nextRef}
           page={p}
           width={width}
-          pageStyle={binder.pageStyle}
+          pageStyle={binder.pageStyle} cutLines={view.cutLines}
           outerEdge={outerEdgeOf(p)}
           editable
           captionFields={captionFields}
@@ -1833,7 +1833,7 @@ export function BinderScreen({
           ref={isPrev ? prevRef : nextRef}
           page={p}
           width={width}
-          pageStyle={binder.pageStyle}
+          pageStyle={binder.pageStyle} cutLines={view.cutLines}
           outerEdge={outerEdgeOf(p)}
           editable
           captionFields={captionFields}
@@ -1869,7 +1869,7 @@ export function BinderScreen({
         ref={curRef}
         page={p}
         width={width}
-        pageStyle={binder.pageStyle}
+        pageStyle={binder.pageStyle} cutLines={view.cutLines}
         outerEdge={outerEdgeOf(p)}
         editable
         captionFields={captionFields}

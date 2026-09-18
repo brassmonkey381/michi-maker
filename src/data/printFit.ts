@@ -41,6 +41,26 @@ export function cutPieces(slot: Pick<DemoSlot, 'col' | 'rowSpan' | 'colSpan'>, p
   return pieces;
 }
 
+/**
+ * WHERE THE LINES GO on one art piece, for the on-page overlay: every internal boundary between
+ * its pockets, by index (1..span-1), and what happens there. A row boundary is always a cut, since
+ * pockets only open sideways. A column boundary is a fold where it runs down the middle of a
+ * folded pair, and a cut everywhere else. Folds land at the same columns in every row (the pairs
+ * are a property of the page, not the row), so one list of columns serves the whole piece.
+ */
+export function cutBoundaries(
+  slot: Pick<DemoSlot, 'col' | 'rowSpan' | 'colSpan'>,
+  pairStarts: number[],
+): { rows: number[]; cols: { j: number; kind: 'cut' | 'fold' }[] } {
+  const rows: number[] = [];
+  for (let i = 1; i < slot.rowSpan; i += 1) rows.push(i);
+  const folds = new Set<number>();
+  for (const p of cutPieces(slot, pairStarts)) if (p.w === 2) folds.add(p.j + 1);
+  const cols: { j: number; kind: 'cut' | 'fold' }[] = [];
+  for (let j = 1; j < slot.colSpan; j += 1) cols.push({ j, kind: folds.has(j) ? 'fold' : 'cut' });
+  return { rows, cols };
+}
+
 export interface PrintCutWarning {
   /** 1-based, as the page strip numbers them. */
   page: number;

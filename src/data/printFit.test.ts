@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { DemoSlot } from './binderTypes.ts';
-import { cutPieces, printCutWarningText, printCutWarnings } from './printFit.ts';
+import { cutBoundaries, cutPieces, printCutWarningText, printCutWarnings } from './printFit.ts';
 
 const art = (over: Partial<DemoSlot>): DemoSlot => ({
   id: 'a',
@@ -64,6 +64,22 @@ test('warnings name the page, pocket and shape, 1-based, and skip what fits', ()
     printCutWarningText({ page: 3, row: 1, col: 1, shape: '2×3', folds: 2, singles: 2 }),
     '2×3 on page 3, row 1, column 1: 2 folded pairs and 2 singles',
   );
+});
+
+test('the overlay lines: every row boundary is a cut, a column boundary folds only inside a pair', () => {
+  // 2×3 on a right 3-column page (pair at columns 2–3): one cut between rows, then per column a
+  // cut after the single and a fold down the pair.
+  assert.deepEqual(cutBoundaries({ col: 0, rowSpan: 2, colSpan: 3 }, [1]), {
+    rows: [1],
+    cols: [
+      { j: 1, kind: 'cut' },
+      { j: 2, kind: 'fold' },
+    ],
+  });
+  // A fold that sits on its pair has one fold line and nothing else; off its pair, one cut.
+  assert.deepEqual(cutBoundaries({ col: 1, rowSpan: 1, colSpan: 2 }, [1]), { rows: [], cols: [{ j: 1, kind: 'fold' }] });
+  assert.deepEqual(cutBoundaries({ col: 0, rowSpan: 1, colSpan: 2 }, [1]), { rows: [], cols: [{ j: 1, kind: 'cut' }] });
+  assert.deepEqual(cutBoundaries({ col: 0, rowSpan: 1, colSpan: 1 }, [1]), { rows: [], cols: [] });
 });
 
 test('a binder whose art all fits has nothing to warn about', () => {

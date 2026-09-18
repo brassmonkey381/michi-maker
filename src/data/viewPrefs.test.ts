@@ -106,6 +106,8 @@ test('the defaults are the binder as it is meant to read', () => {
     coverGrid: false,
     // Four seconds a spread, the reel cadence the owner settled on.
     autoFlipSeconds: 4,
+    // Off until asked for: the lines are for planning a print, not for reading a binder.
+    cutLines: false,
   });
 });
 

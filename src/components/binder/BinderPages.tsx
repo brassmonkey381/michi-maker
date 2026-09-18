@@ -1500,12 +1500,26 @@ export function BinderPages({
           {/* Owned: a green ✓ corner badge on the card slots the viewer owns — offered only when
               they have an inventory. Scans: pockets show the owner's own photos of the cards they
               scanned into their collection, likewise only when they have any. */}
-          {ownedCards || scanImages ? (
+          {ownedCards || scanImages || viewerIsOwner ? (
             <View style={styles.settingsRow}>
               <ThemedText type="smallBold" themeColor="textSecondary" style={styles.settingsRowLabel}>
                 Overlays
               </ThemedText>
               <View style={styles.settingsRowControls}>
+                {/* Where the fill sheet would cut the art to fit real pockets (printFit). The
+                    owner's, since only the owner prints. */}
+                {viewerIsOwner ? (
+                  <Pressable
+                    onPress={() => view.setPref('cutLines', !view.cutLines)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Show where printed art would be cut to fit real pockets"
+                    testID="view-cut-lines"
+                    style={[pillChip.base, view.cutLines && pillChip.active]}>
+                    <Text style={[pillChip.text, view.cutLines && pillChip.textActive]}>
+                      {view.cutLines ? '✓ Cut lines' : 'Cut lines'}
+                    </Text>
+                  </Pressable>
+                ) : null}
                 {ownedCards ? (
                   <Pressable
                     onPress={() => setShowOwned(!showOwned)}

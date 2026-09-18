@@ -12,7 +12,7 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { choosePreviewPages, previewDeepLinkPage, PREVIEW_FETCH_CAP } from './previewPages.ts';
+import { choosePreviewPages, facePage, previewDeepLinkPage, PREVIEW_FETCH_CAP } from './previewPages.ts';
 import type { DemoBinder, DemoPage, DemoSlot } from './binderTypes.ts';
 
 const slot = (n: number): DemoSlot[] =>
@@ -101,4 +101,13 @@ test('the app and the Open Graph endpoints choose the same pages', () => {
     const theirs = lib.choosePreviewPages(asRow(pages, featured)).map((p: { id: string }) => p.id);
     assert.deepEqual(mine, theirs, `disagreement on ${JSON.stringify({ pages: pages.map((p) => p.id), featured })}`);
   }
+});
+
+test('a tile faces the first page with anything in it, and the first page when nothing has', () => {
+  const blank = (id: string) => ({ id, rows: 2, cols: 2, slots: [] });
+  const full = { id: 'c', rows: 2, cols: 2, slots: [{ id: 's', row: 0, col: 0, rowSpan: 1, colSpan: 1, type: 'card', cardId: '1' }] };
+  assert.equal(facePage([blank('a'), blank('b'), full] as never)?.id, 'c');
+  assert.equal(facePage([blank('a'), blank('b')] as never)?.id, 'a');
+  assert.equal(facePage([]), undefined);
+  assert.equal(facePage(undefined), undefined);
 });

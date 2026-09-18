@@ -29,6 +29,17 @@ function filled(page: DemoPage): number {
   return (page.slots ?? []).filter((s) => s.cardId || s.imageUrl).length;
 }
 
+/**
+ * THE PAGE A TILE SHOWS (owner, 2026-09-17): the first page that has anything in it. Binders often
+ * begin with a blank page or two (a title page still to be filled, a spacer the spine needed), and
+ * a shelf of blank 2×2 grids says nothing about what is inside. A binder with no filled page at all
+ * still shows its first page, so an empty binder looks empty rather than absent.
+ */
+export function facePage(pages: DemoPage[] | undefined): DemoPage | undefined {
+  const list = pages ?? [];
+  return list.find((p) => filled(p) > 0) ?? list[0];
+}
+
 /** The page or pages the link preview draws, in page order. Mirrors api/_lib.js choosePreviewPages. */
 export function choosePreviewPages(binder: Pick<DemoBinder, 'pages' | 'sharePageIds'>): DemoPage[] {
   const pages = (binder.pages ?? []).slice();

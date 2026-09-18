@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Radii, Radius, Shadows } from '@/constants/theme';
 import { binderModel } from '@/data/binderModels';
 import { binderMetaLine } from '@/data/binderShape';
+import { facePage } from '@/data/previewPages';
 import type { DemoBinder, DemoPage } from '@/data/binderTypes';
 import { cardThumbUrl } from '@/lib/catalogConfig';
 
@@ -20,7 +21,9 @@ interface BinderThumbProps {
 }
 
 export function BinderThumb({ binder, width, onPress, accessory }: BinderThumbProps) {
-  const firstPage = binder.pages[0];
+  // The first page with something in it, so a binder that opens on a blank page still shows
+  // what it holds (previewPages.facePage).
+  const firstPage = facePage(binder.pages);
   // ONE BOX FOR EVERY SHAPE. The shelf shows a 2×2 and a 4×4 at the 3×3's size, and a 3×4 has to
   // get the same treatment: drawn to its own aspect it came out shorter than the 3×3 beside it
   // and read as the smaller binder, which is the opposite of the truth. Page and cover alike are

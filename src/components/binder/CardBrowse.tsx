@@ -14,7 +14,7 @@ import { useRouter, type Href } from 'expo-router';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { browseState, CatalogBrowser, sendBrowseCommand, type BrowseFeature, type CardAction, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
+import { browseState, CatalogBrowser, sendBrowseCommand, setColorUrl, type BrowseFeature, type CardAction, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
 
 import { ColorSearchSheet } from '@/components/ColorSearchSheet';
 import { nextDemoTheme } from '@/data/demoThemes';
@@ -25,7 +25,9 @@ import { useTier } from '@/hooks/use-tier';
 import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { useBrowseTheme } from '@/lib/browseTheme';
 import { gameLabel, PICKER_GAMES, type GameId } from '@/lib/games';
+import { browseUrl } from '@/lib/catalogConfig';
 import { loadOtherGameCatalog, otherGameCatalog, otherGameVersion, subscribeOtherGame } from '@/lib/otherGame';
+import { SECONDARY_GAMES } from '@/lib/otherGameKeys';
 
 /**
  * Dev/QA override: append `?coldsearch` to the URL (web) to force the COLD path — the kit
@@ -162,6 +164,21 @@ export function CardBrowse({
   useEffect(() => {
     if (game !== 'pokemon') void loadOtherGameCatalog(game);
   }, [game, attempt]);
+  /**
+   * POINT COLOUR SEARCH AT THE GAME ON SCREEN. michi configures the kit ONCE, with Pokémon's
+   * browseUrl, because the binder is Pokémon's — but the picker can browse another game entirely.
+   * The kit derives its palette URL from browseUrl, so One Piece colour searches were reading
+   * POKÉMON's blob, getting Pokémon ids, and having every one filtered away against the One Piece
+   * catalog: "No color matches", from a game with 6,907 published palettes.
+   *
+   * Set before paint (useLayoutEffect-ish ordering is not needed: the sheet that reads it opens on
+   * a tap, long after this runs) and reset to '' for Pokémon so its own default comes back. The
+   * kit keys its colour index by URL, so flipping between games keeps both loaded.
+   */
+  useEffect(() => {
+    const secondaryGame = SECONDARY_GAMES.find((g) => g.key === game);
+    setColorUrl(secondaryGame ? `${browseUrl}/${secondaryGame.prefix}/color` : '');
+  }, [game]);
   // Every game but Pokémon is a secondary source, browsed from its own published catalog.
   const secondary = game !== 'pokemon';
   const activeCatalog = secondary ? otherGameCatalog(game) : FORCE_COLD ? null : catalog;

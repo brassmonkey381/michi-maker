@@ -17,6 +17,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { browseState, CatalogBrowser, sendBrowseCommand, setColorUrl, type BrowseFeature, type CardAction, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
 
 import { ColorSearchSheet } from '@/components/ColorSearchSheet';
+import { promoteArtCards } from '@/data/artRank';
 import { nextDemoTheme } from '@/data/demoThemes';
 import { runThemeDemo } from '@/data/themeDemo';
 import { EnergyColorSheet } from '@/components/EnergyColorSheet';
@@ -389,7 +390,14 @@ export function CardBrowse({
             });
           }}
           onResults={(ids, label) => {
-            sendBrowseCommand({ type: 'showCards', ids, label });
+            /**
+             * ARTWORK LEADS A COLOUR PAGE. Palette distance alone is honest and slightly joyless:
+             * the closest match to a red mix is as often a frame with a red symbol as it is the
+             * Illustration Rare whose whole picture is that red. Promoted, not filtered — a card
+             * that is the wrong colour is still the wrong colour, however beautiful (data/artRank).
+             */
+            const ranked = promoteArtCards(ids, (id) => activeCatalog?.getCard(id)?.fullArtKind);
+            sendBrowseCommand({ type: 'showCards', ids: ranked, label });
             setColorOpen(false);
           }}
           onClose={() => setColorOpen(false)}

@@ -27,6 +27,44 @@
 
 type PickHandler = (cardId: string) => void;
 
+/**
+ * THE POINTER IS A PROPERTY OF THE MODE, NOT OF A RENDER.
+ *
+ * This lived in the banner component and never fired once: michi compiles with the React
+ * Compiler, which memoised the banner's `eyedropperArmed()` read into a constant `false`, so the
+ * effect that injects it never ran. Driving it from the same code path that arms the dropper
+ * makes that class of failure impossible — if the dropper is armed, the cursor is applied, with
+ * no component in between.
+ *
+ * A stylesheet rule rather than `body.style.cursor`, because react-native-web puts
+ * `cursor: pointer` on every Pressable — a body-level cursor loses on exactly the things worth
+ * hovering, the cards. Hence `*{...!important}`.
+ */
+const CURSOR_SVG = encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">' +
+    '<g fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M3 21l1-4 9-9 3 3-9 9z"/><path d="M14 6l4-4 4 4-4 4z"/></g>' +
+    '<g fill="none" stroke="#111" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M3 21l1-4 9-9 3 3-9 9z"/><path d="M14 6l4-4 4 4-4 4z"/></g></svg>',
+);
+const CURSOR_RULE = `*{cursor:url("data:image/svg+xml,${CURSOR_SVG}") 3 21,crosshair!important}`;
+const STYLE_ID = 'michi-eyedropper-cursor';
+
+/** Web only, by construction: `document` is undefined on native and in the node test run. */
+function showDropperCursor(on: boolean): void {
+  if (typeof document === 'undefined' || !document.head) return;
+  const existing = document.getElementById(STYLE_ID);
+  if (!on) {
+    existing?.remove();
+    return;
+  }
+  if (existing) return;
+  const style = document.createElement('style');
+  style.id = STYLE_ID;
+  style.textContent = CURSOR_RULE;
+  document.head.appendChild(style);
+}
+
 let handler: PickHandler | null = null;
 let version = 0;
 const listeners = new Set<() => void>();
@@ -58,6 +96,7 @@ export function eyedropperArmed(): boolean {
  */
 export function armEyedropper(onPick: PickHandler): void {
   handler = onPick;
+  showDropperCursor(true);
   bump();
 }
 
@@ -65,6 +104,7 @@ export function armEyedropper(onPick: PickHandler): void {
 export function cancelEyedropper(): void {
   if (!handler) return;
   handler = null;
+  showDropperCursor(false);
   bump();
 }
 
@@ -79,6 +119,7 @@ export function pickWithEyedropper(cardId: string | null | undefined): boolean {
   if (!handler || !cardId) return false;
   const take = handler;
   handler = null;
+  showDropperCursor(false);
   bump();
   take(cardId);
   return true;

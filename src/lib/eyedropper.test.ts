@@ -97,3 +97,56 @@ test('subscribers hear every arm, pick and cancel', () => {
   assert.equal(beats, 4, 'an unsubscribed listener hears nothing');
   cancelEyedropper();
 });
+
+/**
+ * THE CURSOR, WHICH SILENTLY DID NOTHING FOR A WHOLE RELEASE. It used to be injected by an effect
+ * in the banner component, and the React Compiler had memoised that component's armed flag to a
+ * constant false, so the effect never ran and there was no way to tell from the outside. It is a
+ * side effect of the MODE now, so it can be tested without rendering anything.
+ */
+function withFakeDom<T>(run: () => T): T {
+  const head: { children: Record<string, unknown>[] } = { children: [] };
+  const fake = {
+    head,
+    createElement: () => ({ id: '', textContent: '', remove() { head.children = head.children.filter((c) => c !== this); } }),
+    getElementById: (id: string) => head.children.find((c) => (c as { id: string }).id === id) ?? null,
+  };
+  (fake.head as unknown as { appendChild: (el: unknown) => void }).appendChild = (el) => {
+    head.children.push(el as Record<string, unknown>);
+  };
+  const g = globalThis as unknown as { document?: unknown };
+  const had = 'document' in g;
+  const prev = g.document;
+  g.document = fake;
+  try {
+    return run();
+  } finally {
+    if (had) g.document = prev;
+    else delete g.document;
+  }
+}
+
+const cursorCount = (): number =>
+  ((globalThis as unknown as { document: { head: { children: { id: string }[] } } }).document.head.children
+    .filter((c) => c.id === 'michi-eyedropper-cursor').length);
+
+test('arming shows the dropper cursor, and taking a colour puts it away', () => {
+  withFakeDom(() => {
+    cancelEyedropper();
+    assert.equal(cursorCount(), 0);
+    armEyedropper(() => {});
+    assert.equal(cursorCount(), 1, 'the cursor rule must be injected the moment it is armed');
+    pickWithEyedropper('123');
+    assert.equal(cursorCount(), 0, 'and removed as soon as a colour is taken');
+  });
+});
+
+test('cancelling puts the cursor away too, and arming twice injects one rule', () => {
+  withFakeDom(() => {
+    armEyedropper(() => {});
+    armEyedropper(() => {});
+    assert.equal(cursorCount(), 1, 're-arming must not stack a second rule');
+    cancelEyedropper();
+    assert.equal(cursorCount(), 0);
+  });
+});

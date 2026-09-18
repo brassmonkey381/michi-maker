@@ -26,7 +26,7 @@ import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { useBrowseTheme } from '@/lib/browseTheme';
 import { gameLabel, PICKER_GAMES, type GameId } from '@/lib/games';
 import { browseUrl } from '@/lib/catalogConfig';
-import { armEyedropper, cancelEyedropper, eyedropperArmed, eyedropperVersion, pickWithEyedropper, subscribeEyedropper } from '@/lib/eyedropper';
+import { armEyedropper, cancelEyedropper, eyedropperArmed, pickWithEyedropper, subscribeEyedropper } from '@/lib/eyedropper';
 import { loadOtherGameCatalog, otherGameCatalog, otherGameVersion, subscribeOtherGame } from '@/lib/otherGame';
 import { SECONDARY_GAMES } from '@/lib/otherGameKeys';
 
@@ -114,8 +114,13 @@ export function CardBrowse({
   // all. The offer below is the only thing it gates.
   const unmetered = searchesArtworkUnmetered(tier, hasTcgscanPro);
   const [colorOpen, setColorOpen] = useState(false);
-  /** True while a tile tap should take the card's colours instead of placing it. */
-  const armed = eyedropperArmed();
+  /**
+   * True while a tile tap should take the card's colours instead of placing it — READ FROM THE
+   * STORE, because the React Compiler memoises a bare `eyedropperArmed()` call (it cannot know
+   * module state moved) and the flag then never leaves `false`: onCardTap is never handed over
+   * and every tile keeps opening the card sheet.
+   */
+  const armed = useSyncExternalStore(subscribeEyedropper, eyedropperArmed, eyedropperArmed);
   /**
    * THE MODE ENDS WITH THE SURFACE THAT OWNS IT. The colour sheet lives here, so if this browser
    * goes away (the picker closed) there is nothing left to reopen with the colour — a later pocket
@@ -126,8 +131,6 @@ export function CardBrowse({
   useEffect(() => () => cancelEyedropper(), []);
   /** The card the eyedropper last took, handed to the colour sheet as it reopens. */
   const [droppedCard, setDroppedCard] = useState<string | undefined>(undefined);
-  // Repaint the "tap a card" banner as the dropper is armed and released.
-  useSyncExternalStore(subscribeEyedropper, eyedropperVersion, eyedropperVersion);
   /** The theme the button is offering right now; a new one is drawn after every press. */
   const [demoTheme, setDemoTheme] = useState(() => nextDemoTheme(null));
   /**

@@ -59,6 +59,7 @@ import {
   type ImageTransform,
   type MichiLayoutStyle,
 } from '@/data/binderTypes';
+import { mergeSlices, splitSlice, type MergeResult } from '@/data/sliceMerge';
 import { SAMPLE_BINDERS } from '@/data/sampleData';
 import { loadOwnedEntriesShared } from '@/data/collectionRepo';
 import { track } from '@/lib/analytics';
@@ -347,6 +348,12 @@ interface BinderStore {
     toCol: number,
   ) => void;
   removeSlot: (binderId: string, pageId: string, slotId: string) => void;
+  /**
+   * Join two neighbouring pieces of the same picture into one pocket, or divide one piece into its
+   * cells, on the page and without Slice Studio (see data/sliceMerge). One history entry each.
+   */
+  mergeSlots: (binderId: string, pageId: string, slotIdA: string, slotIdB: string) => MergeResult | null;
+  splitSlot: (binderId: string, pageId: string, slotId: string) => number;
   /** Set the print finish a pocket shows (pockets that claim an owned copy use setEntryVariant). */
   setSlotFinish: (binderId: string, pageId: string, slotId: string, finish: string | undefined) => void;
   /** Remove every placed artwork slot whose content matches `signature` (slotSignature) across
@@ -2339,6 +2346,70 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     [binders, commit, persist],
   );
 
+  const mergeSlots = useCallback(
+    (binderId: string, pageId: string, slotIdA: string, slotIdB: string): MergeResult | null => {
+      const target = binders.find((binder) => binder.id === binderId);
+      const page = target?.pages.find((p) => p.id === pageId);
+      const a = page?.slots.find((s) => s.id === slotIdA);
+      const b = page?.slots.find((s) => s.id === slotIdB);
+      if (!target || !page || !a || !b) return null;
+      const result = mergeSlices(a, b);
+      if (!('merged' in result)) return result;
+      const { merged, removedId } = result;
+      commit((prev) =>
+        prev.map((binder) =>
+          binder.id === binderId
+            ? {
+                ...binder,
+                pages: binder.pages.map((p) =>
+                  p.id === pageId
+                    ? {
+                        ...p,
+                        slots: p.slots
+                          .filter((s) => s.id !== removedId)
+                          .map((s) => (s.id === merged.id ? merged : s)),
+                      }
+                    : p,
+                ),
+              }
+            : binder,
+        ),
+      );
+      if (!target.isExample) {
+        persist(() => repo.deleteSlot(removedId));
+        persist(() => repo.upsertSlot(pageId, merged));
+      }
+      return result;
+    },
+    [binders, commit, persist],
+  );
+
+  const splitSlot = useCallback(
+    (binderId: string, pageId: string, slotId: string): number => {
+      const target = binders.find((binder) => binder.id === binderId);
+      const page = target?.pages.find((p) => p.id === pageId);
+      const slot = page?.slots.find((s) => s.id === slotId);
+      if (!target || !page || !slot) return 0;
+      const pieces = splitSlice(slot, uuidv4);
+      if (!pieces) return 0;
+      commit((prev) =>
+        prev.map((binder) =>
+          binder.id === binderId
+            ? {
+                ...binder,
+                pages: binder.pages.map((p) =>
+                  p.id === pageId ? { ...p, slots: [...p.slots.filter((s) => s.id !== slotId), ...pieces] } : p,
+                ),
+              }
+            : binder,
+        ),
+      );
+      if (!target.isExample) for (const s of pieces) persist(() => repo.upsertSlot(pageId, s));
+      return pieces.length;
+    },
+    [binders, commit, persist],
+  );
+
   // Delete-everywhere for a tray slice: clear every artwork slot with this content signature.
   // Examples are skipped (read-only samples); removals persist per slot and undo as ONE entry.
   const removeArtworkBySignature = useCallback(
@@ -2427,6 +2498,8 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       swapSlots,
       moveSlotAcrossPages,
       removeSlot,
+      mergeSlots,
+      splitSlot,
       setSlotFinish,
       removeArtworkBySignature,
       refreshUserBinders,
@@ -2483,6 +2556,8 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       swapSlots,
       moveSlotAcrossPages,
       removeSlot,
+      mergeSlots,
+      splitSlot,
       setSlotFinish,
       removeArtworkBySignature,
       refreshUserBinders,

@@ -222,6 +222,8 @@ interface BinderGridProps {
   onDeselectSlot?: () => void;
   /** Open the pocket's own colour (sleeve or art backing) for the selected slot. */
   onStyleSlot?: () => void;
+  /** Divide the selected piece of art into its cells (given only when it spans more than one). */
+  onSplitSlot?: () => void;
   /** "✨ Fill page" — auto-curate the page around the selected card (card slots only). */
   onAutoFillSlot?: () => void;
   /** Open "which of my copies is this?" for the selected card pocket. */
@@ -318,6 +320,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
     onRemoveSlot,
     onDeselectSlot,
     onStyleSlot,
+    onSplitSlot,
     onAutoFillSlot,
     onPickCopySlot,
     variantOf,
@@ -948,6 +951,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
             onRemove={onRemoveSlot}
             onDeselect={onDeselectSlot}
             onStyle={onStyleSlot}
+            onSplit={onSplitSlot}
             onAutoFill={resizeSlot.cardId ? onAutoFillSlot : undefined}
             onPickCopy={resizeSlot.cardId ? onPickCopySlot : undefined}
             hasCopy={!!resizeSlot.sourceEntryId}
@@ -976,6 +980,7 @@ function SlotToolbar({
   onRemove,
   onDeselect,
   onStyle,
+  onSplit,
   onAutoFill,
   onPickCopy,
   hasCopy,
@@ -992,6 +997,8 @@ function SlotToolbar({
   onDeselect?: () => void;
   /** This pocket's own colour: its sleeve (a card) or its backing (an art piece). */
   onStyle?: () => void;
+  /** A piece of sliced art spanning several pockets: divide it into them. */
+  onSplit?: () => void;
   onAutoFill?: () => void;
   onPickCopy?: () => void;
   /** Whether this pocket already names one of the owner's copies (ticked in the label). */
@@ -1029,6 +1036,7 @@ function SlotToolbar({
         <ToolButton label={hasCopy ? 'My card ✓' : 'My card'} onPress={onPickCopy} />
       ) : null}
       {onStyle ? <ToolButton label={slot.type === 'artwork' ? 'Backing' : 'Sleeve'} onPress={onStyle} /> : null}
+      {onSplit ? <ToolButton label="Split" onPress={onSplit} /> : null}
       {/* Everything left of this line changes the pocket; everything right of it ends something.
           Remove sat flush against Duplicate in a row of six with 2px between them — one slip on a
           crowded toolbar and the card is gone rather than copied. */}

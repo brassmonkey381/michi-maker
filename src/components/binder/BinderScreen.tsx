@@ -43,6 +43,7 @@ import { PageFields } from '@/components/binder/inspector/PageSection';
 import { PocketWear } from '@/components/binder/inspector/PocketSection';
 import { PageWearBar } from '@/components/binder/PageWearBar';
 import { PAGE_NUMBER_DEBOUNCE_MS, PLAIN_KEYS, SHORTCUTS_SEEN_KEY } from '@/data/keyboardShortcuts';
+import { canSplitSlice, isSlicedArt, mergeRefusalText, mergeSlices } from '@/data/sliceMerge';
 import { MovePageSheet } from '@/components/binder/MovePageSheet';
 import { QuickPreviewModal } from '@/components/binder/SharePreview';
 import { useFirstPocketWalkthrough } from '@/hooks/use-first-pocket-walkthrough';
@@ -1408,6 +1409,36 @@ export function BinderScreen({
     showToast('Pocket cleared', true);
   };
 
+  // MERGE AND SPLIT ON THE PAGE (owner, 2026-09-17): two neighbouring pieces of one picture become
+  // one pocket, a spanning piece becomes its cells, with no trip back to Slice Studio. The
+  // geometry and the refusals live in data/sliceMerge; this is the wiring.
+  const splitSelected = () => {
+    if (!selectedSlot || !canSplitSlice(selectedSlot)) return;
+    const n = store.splitSlot(binder.id, page.id, selectedSlot.id);
+    if (n) showToast(`Split into ${n} pockets`, true);
+  };
+  // The two selected pockets, when there are exactly two and both are art: what Merge would join.
+  const mergePair = (() => {
+    if (multiIds.size !== 2) return null;
+    const [a, b] = page.slots.filter((s) => multiIds.has(s.id));
+    if (!a || !b || !isSlicedArt(a) || !isSlicedArt(b)) return null;
+    return { a, b, result: mergeSlices(a, b) };
+  })();
+  const mergeMany = () => {
+    if (!mergePair || !('merged' in mergePair.result)) return;
+    const r = store.mergeSlots(binder.id, page.id, mergePair.a.id, mergePair.b.id);
+    closeMultiActions();
+    if (r && 'merged' in r) {
+      setSelectedSlotId(r.merged.id);
+      showToast('Merged into one piece', true);
+    }
+  };
+  // M: merge the two selected pieces, or split the selected one, whichever the selection allows.
+  const mergeOrSplit = () => {
+    if (mergePair && 'merged' in mergePair.result) mergeMany();
+    else if (selectedSlot && canSplitSlice(selectedSlot)) splitSelected();
+  };
+
   // ✨ Fill page: place the composer's picks (one commit → one Undo) and report the result.
   const handleComposeAll = (seed: CatalogCard, pool: ReadonlySet<string> | null) => {
     setAutoFillOpen(false);
@@ -1881,6 +1912,7 @@ export function BinderScreen({
         onRemoveSlot={removeSelected}
         onDeselectSlot={() => setSelectedSlotId(null)}
         onStyleSlot={() => setSlotStyleOpen(true)}
+        onSplitSlot={selectedSlot && canSplitSlice(selectedSlot) ? splitSelected : undefined}
         onAutoFillSlot={() => setAutoFillOpen(true)}
         onPickCopySlot={pickCopyForSelected}
         dropTargets={p.id === page.id ? dropTargets : undefined}
@@ -2755,6 +2787,7 @@ export function BinderScreen({
           onToggleSettings={() => setSettingsOpen((v) => !v)}
           onQuickPreview={() => setQuickOpen((v) => !v)}
           onMovePage={() => setMovePageOpen((v) => !v)}
+          onMergeSplit={editing ? mergeOrSplit : undefined}
           onGoToPage={(n) => changePage(n - 1)}
           onEscape={() => {
             // The topmost thing first, one per press: a preview, a sheet, a selection, select mode.
@@ -2854,6 +2887,8 @@ export function BinderScreen({
               similarAvailable() && selectedCardIds().length > 0 ? findSimilarToAll : undefined
             }
             onAddToBinder={selectedCardIds().length > 0 ? addSelectionToBinder : undefined}
+            onMerge={mergePair && 'merged' in mergePair.result ? mergeMany : undefined}
+            mergeHint={mergePair && 'refused' in mergePair.result ? mergeRefusalText(mergePair.result.refused) : undefined}
             onClose={closeMultiActions}
           />
         ) : null}
@@ -2957,6 +2992,7 @@ function EditorKeyboardShortcuts({
   onToggleSettings,
   onQuickPreview,
   onMovePage,
+  onMergeSplit,
   onGoToPage,
   onEscape,
 }: {
@@ -2982,6 +3018,8 @@ function EditorKeyboardShortcuts({
   onQuickPreview?: () => void;
   /** W: move this page. Editing only. */
   onMovePage?: () => void;
+  /** M: merge the two selected art pieces, or split the selected one. Editing only. */
+  onMergeSplit?: () => void;
   /** Digits: a page number, 1-based, acted on after a short pause; the caller clamps it. */
   onGoToPage?: (n: number) => void;
   /** Escape: close the topmost thing. */
@@ -3035,6 +3073,9 @@ function EditorKeyboardShortcuts({
       if (!meta && !e.altKey && key === PLAIN_KEYS.movePage && onMovePage) {
         e.preventDefault();
         onMovePage();
+      } else if (!meta && !e.altKey && key === PLAIN_KEYS.mergeSplit && onMergeSplit) {
+        e.preventDefault();
+        onMergeSplit();
       } else if (!meta && !e.altKey && key === PLAIN_KEYS.artDock && onToggleArt) {
         e.preventDefault();
         onToggleArt();
@@ -3063,7 +3104,7 @@ function EditorKeyboardShortcuts({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [active, undoable, pocketKeys, onUndo, onRedo, onDelete, onPrevPage, onNextPage, onToggleEdit, onToggleArt, onToggleCards, onToggleSettings, onQuickPreview, onMovePage, onGoToPage, onEscape]);
+  }, [active, undoable, pocketKeys, onUndo, onRedo, onDelete, onPrevPage, onNextPage, onToggleEdit, onToggleArt, onToggleCards, onToggleSettings, onQuickPreview, onMovePage, onMergeSplit, onGoToPage, onEscape]);
   return null;
 }
 

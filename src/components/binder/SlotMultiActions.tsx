@@ -16,11 +16,17 @@ export function SlotMultiActions({
   onRemove,
   onFindSimilar,
   onAddToBinder,
+  onMerge,
+  mergeHint,
   onClose,
 }: {
   count: number;
   onDuplicate: () => void;
   onRemove: () => void;
+  /** Two neighbouring pieces of one picture: join them into one pocket (see data/sliceMerge). */
+  onMerge?: () => void;
+  /** Why two selected art pieces cannot be merged, shown in place of the button. */
+  mergeHint?: string;
   /** Provided only when similarity search is available and ≥1 card is selected — shows a
    *  "Find similar to all" action that opens the card browse seeded with the selection. */
   onFindSimilar?: () => void;
@@ -40,6 +46,20 @@ export function SlotMultiActions({
             <ThemedText type="subtitle" style={styles.title}>
               {label}
             </ThemedText>
+            {onMerge ? (
+              <Pressable
+                onPress={onMerge}
+                testID="multi-merge"
+                style={({ pressed }) => [styles.btn, styles.btnPrimary, pressed && styles.pressed]}>
+                <ThemedText type="smallBold" style={styles.btnFilledText}>
+                  Merge into one piece
+                </ThemedText>
+              </Pressable>
+            ) : mergeHint ? (
+              <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
+                {mergeHint}
+              </ThemedText>
+            ) : null}
             {onAddToBinder ? (
               <Pressable
                 onPress={onAddToBinder}
@@ -111,5 +131,6 @@ const styles = StyleSheet.create({
   btnDanger: { backgroundColor: Palette.danger },
   btnOutline: { borderWidth: 1 },
   btnFilledText: { color: Palette.accentText },
+  hint: { textAlign: 'center', marginBottom: Spacing.one },
   pressed: { opacity: 0.75 },
 });

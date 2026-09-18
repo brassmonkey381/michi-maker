@@ -58,11 +58,11 @@ test('warnings name the page, pocket and shape, 1-based, and skip what fits', ()
   ]);
   assert.equal(
     printCutWarningText(w[0]),
-    'The 1×2 art piece on page 1, row 3, column 1 would not fit a real binder as one piece. It will be cut into 2 1×1 pieces.',
+    '1×2 on page 1, row 3, column 1: 2 singles',
   );
   assert.equal(
     printCutWarningText({ page: 3, row: 1, col: 1, shape: '2×3', folds: 2, singles: 2 }),
-    'The 2×3 art piece on page 3, row 1, column 1 would not fit a real binder as one piece. It will be cut into 2 folded 1×2 pieces and 2 1×1 pieces.',
+    '2×3 on page 3, row 1, column 1: 2 folded pairs and 2 singles',
   );
 });
 

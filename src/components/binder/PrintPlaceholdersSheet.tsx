@@ -457,18 +457,15 @@ export function PrintPlaceholdersSheet({
               </ThemedText>
             ) : (
               <>
+                {/* SHORT (owner, 2026-09-17): what you get and what to do with it, in three lines.
+                    The file's own cover carries the full instructions. */}
                 <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-                  Print-ready cut sheets of this binder’s pages, as up to two files: a
-                  placeholders PDF for plain paper (card placeholders labeled with pocket +
-                  name/set/number, plus color inserts) and, if the binder has art, a separate art
-                  PDF for matte cardstock (gap-compensated so pictures stay continuous across the
-                  pocket dividers). Every piece is real card size (2.5″ × 3.5″): print at 100%,
-                  cut along the guides, slide in.
+                  Cut-ready PDFs at real card size (2.5″ × 3.5″): card placeholders on plain paper,
+                  art on matte cardstock. Print at 100%, cut along the guides, slide in.
                 </ThemedText>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.legalNote}>
-                  michi-maker lays out and exports your arrangement, the file is generated on
-                  your device from art you supplied, for your personal collection. You print it
-                  yourself, and you are responsible for the rights to any art it contains.
+                  Made on your device from art you supplied, for your own collection. The rights to
+                  that art are yours to hold.
                 </ThemedText>
 
                 {!catalog && loading ? (
@@ -479,7 +476,7 @@ export function PrintPlaceholdersSheet({
 
                 {counts ? (
                   <ThemedText type="small" themeColor="textSecondary">
-                    <ThemedText type="smallBold">{counts.cards}</ThemedText> card placeholder
+                    <ThemedText type="smallBold">{counts.cards}</ThemedText> placeholder
                     {counts.cards === 1 ? '' : 's'}
                     {counts.art > 0 ? (
                       <>
@@ -495,46 +492,44 @@ export function PrintPlaceholdersSheet({
                         {counts.inserts === 1 ? '' : 's'}
                       </>
                     ) : null}
-                    {' across '}
+                    {' · '}
                     <ThemedText type="smallBold">{sheets}</ThemedText> sheet
                     {sheets === 1 ? '' : 's'}
-                    {counts.art > 0 ? (
-                      <>
-                        {': '}
-                        <ThemedText type="smallBold">{counts.placeholderSheets}</ThemedText> on plain
-                        paper, <ThemedText type="smallBold">{counts.artSheets}</ThemedText> on matte
-                        cardstock (two files, each with its own cover).
-                      </>
-                    ) : (
-                      ' (plus a cover with print instructions).'
-                    )}
-                    {colorOwned && ownedCount > 0
-                      ? ` ${ownedCount} print${ownedCount === 1 ? 's' : ''} green, already in your collection.`
+                    {counts.art > 0
+                      ? ` (${counts.placeholderSheets} plain paper, ${counts.artSheets} matte cardstock)`
                       : ''}
+                    {colorOwned && ownedCount > 0 ? (
+                      <>
+                        {' · '}
+                        <ThemedText type="smallBold" style={styles.good}>{ownedCount} owned</ThemedText>, in green
+                      </>
+                    ) : null}
                   </ThemedText>
                 ) : null}
                 {counts && counts.art > 0 && counts.artSheetsSpaced > counts.artSheets ? (
                   // The print space optimizer: art shares cut lines and folds share the sheets with
                   // the singles, so the cardstock bill is smaller than it was. Priced from
                   // CARDSTOCK_SHEET_USD, a colour print on cardstock rather than a blank sheet, and
-                  // written in dollars because at that rate cents would read as a typo.
-                  <ThemedText type="small" themeColor="textSecondary" style={styles.optimizer}>
-                    <ThemedText type="smallBold">Print space optimizer:</ThemedText>{' '}
-                    {counts.artSheets} sheet{counts.artSheets === 1 ? '' : 's'} of cardstock instead of {counts.artSheetsSpaced}, about{' '}
-                    <ThemedText type="smallBold">${((counts.artSheetsSpaced - counts.artSheets) * CARDSTOCK_SHEET_USD).toFixed(2)}</ThemedText> saved at{' '}
-                    ${CARDSTOCK_SHEET_USD.toFixed(2)} a sheet.
-                  </ThemedText>
+                  // written in dollars because at that rate cents would read as a typo. GREEN: it
+                  // is the good news on this sheet, as the cut list below is the caution.
+                  <View style={styles.goodBox}>
+                    <ThemedText type="small" style={styles.good}>
+                      <ThemedText type="smallBold" style={styles.good}>Space optimizer:</ThemedText>{' '}
+                      {counts.artSheets} cardstock sheet{counts.artSheets === 1 ? '' : 's'} instead of {counts.artSheetsSpaced}, about{' '}
+                      <ThemedText type="smallBold" style={styles.good}>${((counts.artSheetsSpaced - counts.artSheets) * CARDSTOCK_SHEET_USD).toFixed(2)}</ThemedText> saved.
+                    </ThemedText>
+                  </View>
                 ) : null}
                 {/* WHAT A REAL POCKET MAKES OF THE ART (owner, 2026-09-17). The page may hold any
                     shape of art; a side-load pocket takes a single or a folded pair, so the sheet
                     cuts anything else down and this says which pieces, where, and into what. */}
                 {cutWarnings.length > 0 ? (
                   <View style={styles.cutWarn} testID="print-cut-warnings">
-                    <ThemedText type="smallBold">
-                      {cutWarnings.length === 1 ? 'One art piece' : `${cutWarnings.length} art pieces`} will be cut to fit real pockets
+                    <ThemedText type="smallBold" style={styles.bad}>
+                      {cutWarnings.length === 1 ? 'One art piece' : `${cutWarnings.length} art pieces`} will not fit a real pocket as one piece, so the sheet cuts them:
                     </ThemedText>
                     {cutWarnings.map((w) => (
-                      <ThemedText key={`${w.page}-${w.row}-${w.col}`} type="small" themeColor="textSecondary">
+                      <ThemedText key={`${w.page}-${w.row}-${w.col}`} type="small" style={styles.bad}>
                         {printCutWarningText(w)}
                       </ThemedText>
                     ))}
@@ -898,7 +893,10 @@ export function PrintPlaceholdersSheet({
 }
 
 const styles = StyleSheet.create({
-  cutWarn: { gap: 4, padding: Spacing.three, borderRadius: Radius.control, backgroundColor: Palette.panel },
+  cutWarn: { gap: 4, padding: Spacing.three, borderRadius: Radius.control, backgroundColor: Palette.dangerBg },
+  bad: { color: Palette.danger },
+  goodBox: { marginTop: 6, padding: Spacing.three, borderRadius: Radius.control, backgroundColor: `${Palette.success}1A` },
+  good: { color: Palette.success },
   sub: { lineHeight: 20 },
   legalNote: { lineHeight: 17, fontSize: FontSize.sm, fontStyle: 'italic' },
   center: { alignItems: 'center', gap: Spacing.one, paddingVertical: Spacing.two },
@@ -962,7 +960,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 44,
   },
-  optimizer: { marginTop: 6 },
   error: { color: Palette.danger, lineHeight: 20 },
   poolLink: { fontSize: FontSize.label, marginTop: 2 },
   lockedBox: {

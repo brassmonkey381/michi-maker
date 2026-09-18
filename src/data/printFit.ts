@@ -79,11 +79,11 @@ export function printCutWarnings(binder: Pick<DemoBinder, 'pages'>): PrintCutWar
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
-/** The warning, in the owner's words. */
+/** One line per piece, under a heading that says they are cut to fit: where it is, what it becomes. */
 export function printCutWarningText(w: PrintCutWarning): string {
   const parts = [
-    w.folds ? `${plural(w.folds, 'folded 1×2 piece')}` : '',
-    w.singles ? `${plural(w.singles, '1×1 piece')}` : '',
+    w.folds ? plural(w.folds, 'folded pair') : '',
+    w.singles ? plural(w.singles, 'single') : '',
   ].filter(Boolean);
-  return `The ${w.shape} art piece on page ${w.page}, row ${w.row}, column ${w.col} would not fit a real binder as one piece. It will be cut into ${parts.join(' and ')}.`;
+  return `${w.shape} on page ${w.page}, row ${w.row}, column ${w.col}: ${parts.join(' and ')}`;
 }

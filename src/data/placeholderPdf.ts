@@ -58,6 +58,7 @@ import {
 
 // Relative, not '@/': this module is exercised by node --test (fillSheetPacking.test.ts).
 import { insideEdgePairStarts, pageSide } from './binderPhysics.ts';
+import { cutPieces } from './printFit.ts';
 import type { DemoBinder, DemoSlot, ImageTransform } from '@/data/binderTypes';
 import type { ArtLoader, LoadedArt } from '@/data/fillSheetArt';
 
@@ -283,25 +284,12 @@ interface GroupedArt {
 }
 
 /**
- * The physical pieces one artwork slot prints as (slot-relative cells): 1×1 and merged 1×2
- * slots ARE single pieces; legacy oversized slots subdivide per row — folded pairs wherever
- * the footprint sits on an inside-edge pocket pair, singles elsewhere.
+ * The physical pieces one artwork slot prints as (slot-relative cells). The page may hold any
+ * shape now (owner, 2026-09-17), so this is the one cut walk in `printFit`: a single, or a fold on
+ * an inside-edge pair, is one piece; everything else is cut into folds at the pairs and singles
+ * elsewhere. The print sheet warns the owner about every piece that gets cut, from the same walk.
  */
-function slotPieces(slot: DemoSlot, pairStarts: number[]): { i: number; j: number; w: 1 | 2 }[] {
-  if (slot.rowSpan === 1 && slot.colSpan <= 2) {
-    return [{ i: 0, j: 0, w: slot.colSpan === 2 ? 2 : 1 }];
-  }
-  const pieces: { i: number; j: number; w: 1 | 2 }[] = [];
-  for (let i = 0; i < slot.rowSpan; i += 1) {
-    let j = 0;
-    while (j < slot.colSpan) {
-      const pairHere = j + 1 < slot.colSpan && pairStarts.includes(slot.col + j);
-      pieces.push({ i, j, w: pairHere ? 2 : 1 });
-      j += pairHere ? 2 : 1;
-    }
-  }
-  return pieces;
-}
+const slotPieces = cutPieces;
 
 /** Partition slots into connected components (slots touch when any of their cells are 4-adjacent). */
 function connectedComponents(slots: DemoSlot[]): DemoSlot[][] {

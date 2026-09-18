@@ -90,7 +90,7 @@ import {
 import { fetchLikeCount } from '@/data/binderRepo';
 import { isPrivateArt } from '@/data/artAttributionCheck';
 import { ArtworkDock } from '@/components/binder/ArtworkDock';
-import { artPieceAllowed, pageSide } from '@/data/binderPhysics';
+import { pageSide } from '@/data/binderPhysics';
 import { DOCK_PCT_MAX, LEGACY_MIN_WIDTH, MIN_PAGE_WIDTH, PANEL_GAP, PANEL_MAX_WIDTH, PANEL_MIN_WIDTH, PEEK_MIN_WIDTH, panelLayout, PHONE_MAX_WIDTH } from '@/data/binderLayout';
 import type { CaptionFieldKey } from '@/data/cardCaption';
 import type { ComposePlacement } from '@/data/pageComposer';
@@ -108,14 +108,14 @@ import { useViewPrefs } from '@/hooks/use-view-prefs';
 
 // Real side-load page grids only — 4 rows × 3 columns doesn't exist physically (binderPhysics).
 
-/** Every free footprint on `page` where `slice` legally fits (side-load physics) — the pockets
- *  highlighted while a tray slice is armed or dragged, and the set drops are validated against. */
+/** Every free footprint on `page` where `slice` fits — the pockets highlighted while a tray slice
+ *  is armed or dragged, and the set drops are validated against. Any free rectangle counts: the
+ *  page holds whatever shape you like, and printing cuts it to what a real pocket takes. */
 function computeDropTargets(
   slice: SavedSlice,
   page: DemoPage,
   pageIndex: number,
 ): { row: number; col: number; rs: number; cs: number }[] {
-  const side = pageSide(pageIndex);
   const occupied = new Set(page.slots.flatMap((s) => slotCells(s)));
   const out: { row: number; col: number; rs: number; cs: number }[] = [];
   for (let r = 0; r + slice.rs <= page.rows; r += 1) {
@@ -124,8 +124,7 @@ function computeDropTargets(
       for (let i = 0; i < slice.rs && free; i += 1)
         for (let j = 0; j < slice.cs && free; j += 1)
           if (occupied.has(`${r + i},${c + j}`)) free = false;
-      if (free && artPieceAllowed(c, slice.rs, slice.cs, page.cols, side).ok)
-        out.push({ row: r, col: c, rs: slice.rs, cs: slice.cs });
+      if (free) out.push({ row: r, col: c, rs: slice.rs, cs: slice.cs });
     }
   }
   return out;
@@ -838,11 +837,6 @@ export function BinderScreen({
       showToast('That slice doesn’t fit there.');
       return;
     }
-    const verdict = artPieceAllowed(col, slice.rs, slice.cs, pg.cols, pageSide(pgIndex));
-    if (!verdict.ok) {
-      showToast(verdict.reason ?? 'That pocket doesn’t fit this slice.');
-      return;
-    }
     const occupied = new Set(pg.slots.flatMap((s) => slotCells(s)));
     for (let i = 0; i < slice.rs; i += 1)
       for (let j = 0; j < slice.cs; j += 1)
@@ -1124,17 +1118,9 @@ export function BinderScreen({
     openPickerAt({ row, col });
   };
 
-  // Drag-to-resize commit: re-place the slot at its fixed top-left with the new footprint.
-  // Artwork obeys side-load physics — a piece can't grow into a shape that can't be inserted.
+  // Drag-to-resize commit: re-place the slot at its fixed top-left with the new footprint. Any
+  // shape goes (owner, 2026-09-17); the print sheet says what a real pocket makes of it.
   const handleResizeSlot = (row: number, col: number, rowSpan: number, colSpan: number) => {
-    const resizing = page.slots.find((s) => s.row === row && s.col === col);
-    if (resizing?.type === 'artwork') {
-      const verdict = artPieceAllowed(col, rowSpan, colSpan, page.cols, pageSide(pageIndex));
-      if (!verdict.ok) {
-        showToast(verdict.reason ?? 'That art shape can’t be inserted into side-load pockets.');
-        return;
-      }
-    }
     store.upsertSlot(binder.id, page.id, { row, col, rowSpan, colSpan });
   };
 
@@ -1711,16 +1697,6 @@ export function BinderScreen({
     const r = Math.max(0, Math.min(toRow, pg.rows - moving.rowSpan));
     const c = Math.max(0, Math.min(toCol, pg.cols - moving.colSpan));
     if (r === moving.row && c === moving.col) return;
-    // A folded 2-wide art piece only re-inserts at an inside-edge pocket pair — which pair is
-    // legal depends on the TARGET page's side of the spine. (Legacy wider pieces are left
-    // grandfathered: moving them neither fixes nor worsens their physics.)
-    if (moving.type === 'artwork' && moving.colSpan === 2 && moving.rowSpan === 1) {
-      const verdict = artPieceAllowed(c, 1, 2, pg.cols, pageSide(pgIndex));
-      if (!verdict.ok) {
-        showToast(verdict.reason ?? 'That pocket pair doesn’t open along the same edge.');
-        return;
-      }
-    }
     const occupant = pg.slots.find((s) => s.id !== slotId && slotCells(s).includes(`${r},${c}`));
     if (
       occupant &&

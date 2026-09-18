@@ -26,6 +26,7 @@ import { EXAMPLE_FILL_SHEET_BINDER, EXAMPLE_FILL_SHEET_OWNED } from '@/data/exam
 import { createWebArtLoader } from '@/data/fillSheetArt';
 import { startCheckout } from '@/data/checkout';
 import { buildFillSheetPdfs, collectFillTiles, type FillSheetPdf, CARDSTOCK_SHEET_USD } from '@/data/placeholderPdf';
+import { printCutWarningText, printCutWarnings } from '@/data/printFit';
 import {
   binderFingerprint,
   downloadPurchasedPdf,
@@ -91,6 +92,7 @@ export function PrintPlaceholdersSheet({
   onDone?: (sheets: number) => void;
 }) {
   const { catalog, guestGated, loading } = useCatalog(true);
+  const cutWarnings = useMemo(() => printCutWarnings(binder), [binder]);
   // Printing your OWN binder comes with a PRO/VIP subscription or this binder's own one-time
   // purchase (`pdf_binder:<id>`). Non-payers get the counts preview + a free short EXAMPLE PDF
   // (example cards + artwork) as the teaser — never their own binders.
@@ -523,6 +525,21 @@ export function PrintPlaceholdersSheet({
                     ${CARDSTOCK_SHEET_USD.toFixed(2)} a sheet.
                   </ThemedText>
                 ) : null}
+                {/* WHAT A REAL POCKET MAKES OF THE ART (owner, 2026-09-17). The page may hold any
+                    shape of art; a side-load pocket takes a single or a folded pair, so the sheet
+                    cuts anything else down and this says which pieces, where, and into what. */}
+                {cutWarnings.length > 0 ? (
+                  <View style={styles.cutWarn} testID="print-cut-warnings">
+                    <ThemedText type="smallBold">
+                      {cutWarnings.length === 1 ? 'One art piece' : `${cutWarnings.length} art pieces`} will be cut to fit real pockets
+                    </ThemedText>
+                    {cutWarnings.map((w) => (
+                      <ThemedText key={`${w.page}-${w.row}-${w.col}`} type="small" themeColor="textSecondary">
+                        {printCutWarningText(w)}
+                      </ThemedText>
+                    ))}
+                  </View>
+                ) : null}
                 {ownedIds && ownedIds.size > 0 && counts && counts.total > 0 ? (
                   <Pressable
                     onPress={() => setColorOwned((v) => !v)}
@@ -881,6 +898,7 @@ export function PrintPlaceholdersSheet({
 }
 
 const styles = StyleSheet.create({
+  cutWarn: { gap: 4, padding: Spacing.three, borderRadius: Radius.control, backgroundColor: Palette.panel },
   sub: { lineHeight: 20 },
   legalNote: { lineHeight: 17, fontSize: FontSize.sm, fontStyle: 'italic' },
   center: { alignItems: 'center', gap: Spacing.one, paddingVertical: Spacing.two },

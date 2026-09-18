@@ -144,7 +144,7 @@ export const GUIDE_LIST: Guide[] = [
       },
       {
         title: 'Fold a pair if you like',
-        body: 'Two sideways pockets that open on the same inside edge can take one folded piece.',
+        body: 'Merge any pieces that make a rectangle. Two sideways pockets that open on the same inside edge take one folded piece; printing cuts anything bigger to fit, and tells you where.',
         figure: diagram('fold'),
       },
       {

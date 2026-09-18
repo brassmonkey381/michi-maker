@@ -744,29 +744,33 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
         (p) => p.r < maxR && p.r + p.rs > minR && p.c < maxC && p.c + p.cs > minC,
       );
       if (selCells !== bboxCells || overlaps) return ps; // selection isn't a clean rectangle
-      // SIDE-LOAD physics caps a printable piece at a folded 1×2 — but WHERE that pair sits is
-      // a placement concern, not a studio one: any two side-by-side singles may merge here, and
-      // the pocket-pair rule is enforced when the slice is dropped onto a page.
-      if (maxR - minR !== 1 || maxC - minC !== 2) return ps;
+      // ANY clean rectangle merges (owner, 2026-09-17). A real side-load pocket takes a single
+      // or a folded 1×2, and the print sheet cuts a bigger piece down to those and says so; the
+      // studio no longer stands in the way of the shape someone wants on the page.
       return [...others, { id: uid('panel'), r: minR, c: minC, rs: maxR - minR, cs: maxC - minC }];
     });
     setSelected(new Set());
   }, [selected, remember]);
 
-  // Would merging the current selection produce a physically insertable piece? Drives the
-  // Merge button state + the hint line, mirroring the guard inside merge().
-  const mergeLegal = useMemo(() => {
-    if (selected.size < 2) return false;
+  // Would merging the current selection make one clean rectangle? Drives the Merge button state
+  // + the hint line, mirroring the guard inside merge(). `mergeFold` is the classic sideways
+  // pair, the one shape a real pocket pair takes whole; the hint says so.
+  const mergeShape = useMemo(() => {
+    if (selected.size < 2) return null;
     const chosen = panels.filter((p) => selected.has(p.id));
-    if (chosen.length < 2) return false;
+    if (chosen.length < 2) return null;
     const minR = Math.min(...chosen.map((p) => p.r));
     const maxR = Math.max(...chosen.map((p) => p.r + p.rs));
     const minC = Math.min(...chosen.map((p) => p.c));
     const maxC = Math.max(...chosen.map((p) => p.c + p.cs));
     const selCells = chosen.reduce((n, p) => n + p.rs * p.cs, 0);
-    if (selCells !== (maxR - minR) * (maxC - minC)) return false;
-    return maxR - minR === 1 && maxC - minC === 2;
+    if (selCells !== (maxR - minR) * (maxC - minC)) return null;
+    const others = panels.filter((p) => !selected.has(p.id));
+    if (others.some((p) => p.r < maxR && p.r + p.rs > minR && p.c < maxC && p.c + p.cs > minC)) return null;
+    return { rs: maxR - minR, cs: maxC - minC };
   }, [selected, panels]);
+  const mergeLegal = mergeShape !== null;
+  const mergeFold = mergeShape?.rs === 1 && mergeShape?.cs === 2;
 
   // Split only means something when a selected panel is actually merged (spans >1 cell) — drives
   // whether the contextual Split action shows.
@@ -1525,19 +1529,22 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
             {/* Contextual craft actions — only when there's a selection to act on. */}
             {hasImage && selCount > 0 ? (
               <View style={[styles.selBar, mergeLegal && styles.selBarLegal]}>
-                {mergeLegal ? (
+                {mergeFold ? (
                   <Text style={styles.selText}>
                     A sideways pair. Fold down the middle to join it into one 1×2 piece.
                   </Text>
+                ) : mergeLegal && mergeShape ? (
+                  <Text style={styles.selText}>
+                    Join these into one {mergeShape.rs}×{mergeShape.cs} piece. Printing cuts it to what a real pocket takes, and says so.
+                  </Text>
                 ) : selCount >= 2 ? (
                   <Text style={styles.selWarn}>
-                    Merging needs exactly two side-by-side pieces in the same row (a folded 1×2
-                    is the widest a pocket pair can take).
+                    Merging needs pieces that make one clean rectangle.
                   </Text>
                 ) : (
                   <Text style={styles.selText}>1 piece selected.</Text>
                 )}
-                {mergeLegal ? <Btn label="⤶ Fold & merge" onPress={merge} kind="primary" /> : null}
+                {mergeLegal ? <Btn label={mergeFold ? '⤶ Fold & merge' : 'Merge'} onPress={merge} kind="primary" /> : null}
                 {canSplit ? <Btn label="Split apart" onPress={split} /> : null}
                 <Btn label="Remove" onPress={removePanels} />
                 <Ghost label="Clear" onPress={() => setSelected(new Set())} />

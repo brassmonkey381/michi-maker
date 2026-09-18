@@ -44,6 +44,18 @@ Write-Host ""
 Write-Host "michi-maker web deploy - $Repo" -ForegroundColor Cyan
 
 if (-not $WarmOnly) {
+  # [0] THE CHECK THAT WOULD HAVE PREVENTED 2026-09-17, when michi-maker.com went white for
+  # everyone. The shared kit had been re-pinned by editing the lockfile's sha; the entry kept the
+  # PREVIOUS version + integrity, npm called it satisfied and installed the old package, and
+  # catalogConfig then called a function that did not exist - at import time, on every route.
+  # tsc and npm test both passed, because neither looks at what a BUILD installs. This does.
+  Write-Host ""
+  Write-Host "[0] Checking the shared browse kit is really installed (scripts/check-kit-integrity.mjs)" -ForegroundColor Cyan
+  & node scripts/check-kit-integrity.mjs
+  if ($LASTEXITCODE -ne 0) {
+    Fail '0' 'the installed tcgscan-browse does not match the lockfile, or is missing an export the app calls. Fix with: npm install "github:brassmonkey381/tcgscan-browse#<sha>" - nothing was deployed' $LASTEXITCODE
+  }
+
   Write-Host ""
   Write-Host "[1] Deploying to production (npx vercel --prod)" -ForegroundColor Cyan
   Write-Host "    A build takes a few minutes. Vercel may ask you to log in the first time."
@@ -51,6 +63,19 @@ if (-not $WarmOnly) {
   & npx vercel --prod
   if ($LASTEXITCODE -ne 0) { Fail '1' 'vercel --prod did not succeed; nothing was warmed' $LASTEXITCODE }
   Write-Host "    deploy ok" -ForegroundColor Green
+
+  # [1b] And the same question of what actually SHIPPED. The deploy above builds on Vercel, from
+  # the lockfile - so this reads the live bundle and fails loudly if the kit is missing from it,
+  # while a rollback is still one click away.
+  Write-Host ""
+  Write-Host "[1b] Verifying the LIVE bundle carries the kit" -ForegroundColor Cyan
+  & node scripts/check-kit-integrity.mjs --bundle https://michi-maker.com
+  if ($LASTEXITCODE -ne 0) {
+    Write-Host ""
+    Write-Host "ROLL BACK NOW: Vercel -> Deployments -> the previous one -> Promote to Production" -ForegroundColor Red
+    Write-Host "   (or: npx vercel rollback). The live bundle is missing kit code the app calls at boot." -ForegroundColor Red
+    Fail '1b' 'the deployed bundle does not carry the expected tcgscan-browse exports' 1
+  }
 } else {
   Write-Host ""
   Write-Host "[1] Skipped (-WarmOnly)" -ForegroundColor DarkGray

@@ -94,6 +94,16 @@ are deferring one, add it there rather than leaving it in a commit message.
 
 - Type-check: `npx tsc --noEmit`
 - Lint: `npm run lint`
+- **Shared-kit integrity: `npm run check:kit`** — and `npm run check:kit -- --bundle dist` (or
+  `--bundle https://michi-maker.com`) whenever a `tcgscan-browse` pin moves. On 2026-09-17 the site
+  went white for everyone because the kit was re-pinned by editing the lockfile's sha: the entry
+  kept the old `version`/`integrity`, npm installed the PREVIOUS package from cache, and
+  `src/lib/catalogConfig.ts` called a function that did not exist — at import time, on every route.
+  `tsc` and `npm test` both passed, because they ran against a hand-copied `node_modules`; neither
+  sees what a build installs. **Re-pin only with `npm install "github:brassmonkey381/tcgscan-browse#<sha>"`,
+  never by editing package.json/package-lock.json by hand**, and guard any new kit call that runs at
+  import time (`typeof f === 'function'`) so a mismatch costs a feature, not the site. `deploy-web.ps1`
+  now runs this check before deploying and against the live bundle after.
 - Unit tests: `npm test` (`node --test` over `src/**/*.test.ts` — pure data logic: tiers,
   proration, print windows). UI changes are verified at the surface — see
   `scripts/screenshots.mjs` for the Playwright harness pattern.

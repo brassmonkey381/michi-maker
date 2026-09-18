@@ -59,6 +59,7 @@
     "lint": "expo lint",
     "test": "node --test \"src/**/*.test.ts\"",
     "check:caps": "node scripts/check-tier-caps.mjs",
+    "check:kit": "node scripts/check-kit-integrity.mjs",
     "check:themes": "node scripts/theme-counts.mjs --list",
     "check:exposure": "node scripts/check-data-exposure.mjs",
     "warm:og": "node scripts/warm-og.mjs"

@@ -33,7 +33,7 @@ import { activePin, withPinnedFeatured } from '@/data/featuredPin';
 import type { ComposePlacement } from '@/data/pageComposer';
 import * as repo from '@/data/binderRepo';
 import { slotSignature } from '@/data/savedSlices';
-import { legalizeArtPanels, pageSide, requiredPageSide } from '@/data/binderPhysics';
+import { pageSide, requiredPageSide } from '@/data/binderPhysics';
 import { withPageStyle, type PageStylePatch } from '@/data/pageStyle';
 
 import { diffSnapshots } from '@/data/binderSync';
@@ -2092,7 +2092,10 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       const pageIndex = target?.pages.findIndex((p) => p.id === pageId) ?? -1;
       const page = pageIndex >= 0 ? target?.pages[pageIndex] : undefined;
       if (!target || !page) return;
-      const panels = legalizeArtPanels(baseCol, rawPanels, page.cols, pageSide(pageIndex));
+      // Placed as designed (owner, 2026-09-17): a piece keeps whatever footprint it was given.
+      // Side-load physics is applied where it is physical, in the fill-sheet export, which cuts
+      // each piece into inserts and warns the owner which ones that touches (data/printFit).
+      const panels = rawPanels;
 
       const coverCells = new Set<string>();
       const newSlots: DemoSlot[] = [];

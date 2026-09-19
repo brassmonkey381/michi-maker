@@ -44,6 +44,8 @@ import { PocketWear } from '@/components/binder/inspector/PocketSection';
 import { PageWearBar } from '@/components/binder/PageWearBar';
 import { PAGE_NUMBER_DEBOUNCE_MS, PLAIN_KEYS, SHORTCUTS_SEEN_KEY } from '@/data/keyboardShortcuts';
 import { canSplitSlice, isSlicedArt, mergeRefusalText, mergeSlices } from '@/data/sliceMerge';
+import { pageHalfFull } from '@/data/editorHints';
+import { useEditorHint } from '@/hooks/use-editor-hint';
 import { MovePageSheet } from '@/components/binder/MovePageSheet';
 import { QuickPreviewModal } from '@/components/binder/SharePreview';
 import { useFirstPocketWalkthrough } from '@/hooks/use-first-pocket-walkthrough';
@@ -608,6 +610,19 @@ export function BinderScreen({
     width,
     tier: store.tier,
   });
+  // THE TWO ONE-TIME HINTS that follow the walkthrough (data/editorHints): what the bar over a
+  // selected card does, and that the bar along the page's bottom edge dresses it. Here with the
+  // other hooks, above the `if (!binder)` return, hence the optional chains. The walkthrough has
+  // the floor while it is speaking, and the pocket hint outranks the page one.
+  const hintPage = binder?.pages[Math.max(0, Math.min(pageIndex, (binder?.pages.length ?? 1) - 1))];
+  const hintSlot = selectedSlotId ? hintPage?.slots.find((s) => s.id === selectedSlotId) : undefined;
+  const pocketHint = useEditorHint('pocket-bar', editing && !studio && !walkthrough.copy && !moving && !!hintSlot?.cardId);
+  const pageHint = useEditorHint(
+    'page-bar',
+    editing && !studio && !walkthrough.copy && !moving && !selectedSlotId && pickerCell === null && !!hintPage && pageHalfFull(hintPage),
+  );
+  const editorHint = pocketHint.copy ? pocketHint : pageHint.copy ? pageHint : null;
+
   // The shortcuts card's one unprompted showing: the first edit on this device, on a wide web
   // screen. Above the early returns with the other hooks, so hook order cannot vary. Deferred a
   // beat so it arrives after the editor has drawn, not in the same frame as the mode switch.
@@ -1986,6 +2001,7 @@ export function BinderScreen({
         onDeselectSlot={() => setSelectedSlotId(null)}
         onStyleSlot={() => setSlotStyleOpen(true)}
         onMoveSlot={armMove}
+        hintToolbar={!!pocketHint.copy}
         onSplitSlot={selectedSlot && canSplitSlice(selectedSlot) ? splitSelected : undefined}
         onSimilarSlot={similarAvailable() ? findSimilarToSelected : undefined}
         onAutoFillSlot={() => setAutoFillOpen(true)}
@@ -2002,6 +2018,7 @@ export function BinderScreen({
         <PageWearBar
           binder={binder}
           page={p}
+          hint={!pocketHint.copy && !!pageHint.copy}
           // SELECT SEVERAL POCKETS acts on a SELECTION on this page. Gone while the picker is
           // aimed at a pocket (the two modes are mutually exclusive in code) and on an empty
           // page, which has nothing to select.
@@ -2965,6 +2982,19 @@ export function BinderScreen({
         <View style={EYEDROPPER_BANNER} pointerEvents="box-none">
           <EyedropperBanner />
         </View>
+        {editorHint?.copy ? (
+          <View style={EYEDROPPER_BANNER} pointerEvents="box-none">
+            <View style={styles.hintCard} testID="editor-hint">
+              <View style={styles.hintText}>
+                <Text style={styles.hintTitle}>{editorHint.copy.title}</Text>
+                <Text style={styles.hintBody}>{editorHint.copy.body}</Text>
+              </View>
+              <Pressable onPress={editorHint.dismiss} hitSlop={8} accessibilityRole="button" testID="editor-hint-done">
+                <Text style={styles.hintDone}>Got it</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
         {moving ? (
           <View style={EYEDROPPER_BANNER} pointerEvents="box-none">
             <View style={styles.moveBanner} testID="move-banner">
@@ -3310,6 +3340,22 @@ function IconBtn({
 }
 
 const styles = StyleSheet.create({
+  hintCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    maxWidth: 520,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.lg,
+    backgroundColor: Palette.surface,
+    borderWidth: 2,
+    borderColor: Palette.accent,
+  },
+  hintText: { flex: 1, gap: 2 },
+  hintTitle: { color: Palette.ink2, fontSize: FontSize.label, fontWeight: Weight.bold },
+  hintBody: { color: Palette.ink2, fontSize: FontSize.label, lineHeight: 18 },
+  hintDone: { color: Palette.accent, fontSize: FontSize.label, fontWeight: Weight.bold },
   moveBanner: {
     flexDirection: 'row',
     alignItems: 'center',

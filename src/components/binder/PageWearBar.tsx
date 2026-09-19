@@ -45,9 +45,12 @@ export function PageWearBar({
   binder,
   page,
   select,
+  hint = false,
 }: {
   binder: DemoBinder;
   page: DemoPage;
+  /** A one-time hint is pointing at this bar (data/editorHints): ring it. */
+  hint?: boolean;
   /** The multi-select chip, when this page can be selected on. */
   select?: PageSelect;
 }) {
@@ -98,6 +101,7 @@ export function PageWearBar({
   return (
     <>
       <View style={styles.bar} pointerEvents="box-none" testID="page-bar">
+        {hint ? <View pointerEvents="none" style={styles.hintRing} /> : null}
         {chip('background', 'Background', background)}
         {chip('sleeve', 'Sleeves', sleeve)}
         {chip('artBacking', 'Art backing', backing)}
@@ -183,6 +187,17 @@ export function PageWearBar({
 
 const styles = StyleSheet.create({
   /** Over the page's bottom edge, centred: attached to the page, not a row of its own. */
+  /** The ring a one-time hint draws round the whole row of chips. */
+  hintRing: {
+    position: 'absolute',
+    top: -6,
+    bottom: -6,
+    left: '12%',
+    right: '12%',
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: Palette.accent,
+  },
   bar: {
     position: 'absolute',
     bottom: -15,

@@ -232,6 +232,8 @@ interface BinderGridProps {
   onStyleSlot?: () => void;
   /** Divide the selected piece of art into its cells (given only when it spans more than one). */
   onSplitSlot?: () => void;
+  /** Ring the selected pocket's bar: a one-time hint is pointing at it (data/editorHints). */
+  hintToolbar?: boolean;
   /** "Move" — arm this pocket so the next pocket tapped, on any page, receives it. */
   onMoveSlot?: () => void;
   /** "Similar" — open the card browser on cards like the selected one (card slots only). */
@@ -334,6 +336,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
     onDeselectSlot,
     onStyleSlot,
     onSplitSlot,
+    hintToolbar = false,
     onMoveSlot,
     onSimilarSlot,
     onAutoFillSlot,
@@ -997,6 +1000,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
             onStyle={onStyleSlot}
             onSplit={onSplitSlot}
             onMove={onMoveSlot}
+            hint={hintToolbar}
             onSimilar={resizeSlot.cardId ? onSimilarSlot : undefined}
             onAutoFill={resizeSlot.cardId ? onAutoFillSlot : undefined}
             onPickCopy={resizeSlot.cardId ? onPickCopySlot : undefined}
@@ -1028,6 +1032,7 @@ function SlotToolbar({
   onStyle,
   onSplit,
   onMove,
+  hint,
   onSimilar,
   onAutoFill,
   onPickCopy,
@@ -1051,6 +1056,8 @@ function SlotToolbar({
   onSimilar?: () => void;
   /** Arm this pocket for a move to any pocket on any page. */
   onMove?: () => void;
+  /** A one-time hint is pointing at this bar: ring it. */
+  hint?: boolean;
   onAutoFill?: () => void;
   onPickCopy?: () => void;
   /** Whether this pocket already names one of the owner's copies (ticked in the label). */
@@ -1081,7 +1088,7 @@ function SlotToolbar({
         const { width, height } = e.nativeEvent.layout;
         setSize((s) => (s.w === width && s.h === height ? s : { w: width, h: height }));
       }}
-      style={[styles.slotToolbar, { left, top, opacity: size.w ? 1 : 0 }]}>
+      style={[styles.slotToolbar, hint && styles.slotToolbarHint, { left, top, opacity: size.w ? 1 : 0 }]}>
       {twoFaces && more ? (
         <ToolButton label="‹" onPress={() => setMore(false)} accessibilityLabel="Back to the main actions" />
       ) : (
@@ -2739,6 +2746,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
+  slotToolbarHint: { borderWidth: 2, borderColor: Palette.accent },
   toolBtn: {
     // 5px of vertical padding on a 13px label is a 23px target. These sit in a row of six, so a
     // miss is not a no-op — it is the neighbouring verb, and one of the six is Remove.

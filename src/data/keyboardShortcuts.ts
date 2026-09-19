@@ -17,19 +17,21 @@ export interface Shortcut {
 
 /** Mac shows ⌘ where Windows shows Ctrl; the card swaps the word, nothing else. */
 export function shortcutList(mod: 'Ctrl' | '⌘'): Shortcut[] {
+  // TWO OR THREE WORDS EACH (owner, 2026-09-18): the key is the subject, the label only names what
+  // it toggles or does. Sentences made the card a page of reading for twelve keys.
   return [
-    { keys: `${mod} Z`, does: 'Undo, or with Shift, redo' },
-    { keys: `${mod} click`, does: 'Select several pockets' },
-    { keys: 'E', does: 'Switch between Edit and Viewing mode' },
-    { keys: 'A', does: 'Open or close the Art dock' },
-    { keys: 'C or D', does: 'Open or close the Cards dock' },
-    { keys: 'S', does: 'Open or close Settings' },
-    { keys: 'Q', does: 'Quick look at the share image' },
-    { keys: 'W', does: 'Move this page: swap it, or send it in front of another' },
-    { keys: 'M', does: 'Merge two selected pieces of art, or split the selected one' },
-    { keys: 'Esc', does: 'Close whatever is open' },
-    { keys: '← → or wheel', does: 'Previous or next page, or type a page number to jump' },
-    { keys: 'Delete', does: 'Clear the selected pocket' },
+    { keys: `${mod} Z`, does: 'Undo (Shift: redo)' },
+    { keys: `${mod} click`, does: 'Multi-select' },
+    { keys: 'E', does: 'Edit / View' },
+    { keys: 'A', does: 'Art dock' },
+    { keys: 'C or D', does: 'Cards dock' },
+    { keys: 'S', does: 'Settings' },
+    { keys: 'Q', does: 'Share image preview' },
+    { keys: 'W', does: 'Move page' },
+    { keys: 'M', does: 'Merge / split art' },
+    { keys: 'Esc', does: 'Close' },
+    { keys: '← → or wheel', does: 'Turn page (or type its number)' },
+    { keys: 'Delete', does: 'Clear pocket' },
   ];
 }
 

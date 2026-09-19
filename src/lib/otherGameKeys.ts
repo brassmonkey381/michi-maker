@@ -25,9 +25,7 @@ export interface SecondaryGameDef {
 
 export const SECONDARY_GAMES: readonly SecondaryGameDef[] = [
   { key: 'onepiece', label: 'One Piece', prefix: 'onepiece' },
-  // Lorcana: uncomment once its browse artifacts are published. Until then every miss would
-  // spend a 404, and the picker would offer a game with no cards in it.
-  // { key: 'lorcana', label: 'Disney Lorcana', prefix: 'lorcana' },
+  { key: 'lorcana', label: 'Disney Lorcana', prefix: 'lorcana' },
 ];
 
 /** The key One Piece's secondary image manifest is registered and cached under (kit >= 0.9.17). */

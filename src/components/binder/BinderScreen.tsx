@@ -81,6 +81,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Fonts, Palette, Radius, Spacing, Weight, FontSize } from '@/constants/theme';
 import {
+  canPlaceSlot,
   firstFreePlacement,
   occupiedCells,
   pagesForCards,
@@ -327,6 +328,8 @@ export function BinderScreen({
   >(null);
   // The pocket selected for quick actions (action bar + resize handle); distinct from pickerCell.
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  // A pocket armed by Move, waiting for the tap that says where it goes (see armMove below).
+  const [moving, setMoving] = useState<{ pageId: string; slotId: string } | null>(null);
   // "✨ Fill page" sheet (auto-curate around the selected card).
   const [autoFillOpen, setAutoFillOpen] = useState(false);
   // Ctrl/Cmd multi-select (web): a set of pocket ids highlighted together; releasing the modifier
@@ -1119,6 +1122,7 @@ export function BinderScreen({
     slot.type === 'card' ? pickWithEyedropper(slot.cardId) : false;
 
   const handleSelectSlot = (slot: DemoSlot) => {
+    if (landMove(page, slot.row, slot.col)) return;
     if (takeColourFrom(slot)) return;
     if (modifierHeld.current || selectMode) {
       setMultiIds((cur) => {
@@ -1135,6 +1139,7 @@ export function BinderScreen({
     setSelectedSlotId(slot.id);
   };
   const handleAddCell = (row: number, col: number) => {
+    if (landMove(page, row, col)) return;
     // A slice armed from the tray drops here instead of opening the picker (tap-to-place).
     if (armedSlice) {
       placeSliceAt(armedSlice, row, col);
@@ -1593,6 +1598,47 @@ export function BinderScreen({
     showToast(`Added ${count} card${count === 1 ? '' : 's'} to ${copy.title}${catalogArtNote(short, count)}`);
   };
 
+  // MOVE, TO ANY POCKET ON ANY PAGE (owner, 2026-09-19). Dragging already moves and swaps within
+  // the spread on screen; page 1 to page 9 had no way at all. Move arms the pocket, the way a tray
+  // slice is armed: flip to wherever it should go and tap. An empty pocket takes it; a pocket
+  // holding the same shape trades places with it, so one verb covers "move" and "swap". The store
+  // already had both operations for the drag; this is only another way to ask for them.
+  const armMove = () => {
+    if (!selectedSlot) return;
+    setMoving({ pageId: page.id, slotId: selectedSlot.id });
+    setSelectedSlotId(null);
+    clearMulti();
+  };
+  /** A tap while a move is armed. True when the tap was spent on the move (landed or refused). */
+  const landMove = (toPage: DemoPage, row: number, col: number): boolean => {
+    if (!moving) return false;
+    const fromPage = binder.pages.find((p) => p.id === moving.pageId);
+    const slot = fromPage?.slots.find((s) => s.id === moving.slotId);
+    setMoving(null);
+    if (!fromPage || !slot) return true;
+    const occupant = toPage.slots.find((s) => slotCells(s).includes(`${row},${col}`));
+    if (occupant?.id === slot.id) return true; // tapped itself: that is a cancel
+    const samePage = toPage.id === fromPage.id;
+    if (occupant) {
+      if (occupant.rowSpan !== slot.rowSpan || occupant.colSpan !== slot.colSpan) {
+        showToast('That pocket holds a different shape, so the two cannot trade places.');
+        return true;
+      }
+      if (samePage) store.swapSlots(binder.id, toPage.id, slot.id, occupant.id);
+      else store.moveSlotAcrossPages(binder.id, fromPage.id, slot.id, toPage.id, occupant.row, occupant.col);
+      showToast('Swapped', true);
+      return true;
+    }
+    if (!canPlaceSlot(toPage, { row, col, rowSpan: slot.rowSpan, colSpan: slot.colSpan }, samePage ? slot.id : undefined)) {
+      showToast('It does not fit there.');
+      return true;
+    }
+    if (samePage) store.moveSlot(binder.id, toPage.id, slot.id, row, col);
+    else store.moveSlotAcrossPages(binder.id, fromPage.id, slot.id, toPage.id, row, col);
+    showToast('Moved', true);
+    return true;
+  };
+
   // ONE CARD'S "Similar" (owner, 2026-09-19): the same seeded search the multi-select runs, with a
   // single id, from the pocket's own bar. Same tier gate, same reason the picker has to be open.
   const findSimilarToSelected = () => {
@@ -1890,6 +1936,7 @@ export function BinderScreen({
           // The facing page is a first-class drop surface for tray slices too.
           dropTargets={isPrev ? prevDropTargets : nextDropTargets}
           onCellPress={(row, col) => {
+            if (landMove(p, row, col)) return;
             // An armed tray slice places here directly — without stealing the page focus.
             if (armedSlice) {
               placeSliceOnPage(armedSlice, p, pIdx, row, col);
@@ -1899,6 +1946,7 @@ export function BinderScreen({
             openPickerAt({ row, col });
           }}
           onSlotPress={(slot) => {
+            if (landMove(p, slot.row, slot.col)) return;
             if (takeColourFrom(slot)) return;
             changePage(pIdx);
             setSelectedSlotId(slot.id);
@@ -1937,6 +1985,7 @@ export function BinderScreen({
         onRemoveSlot={removeSelected}
         onDeselectSlot={() => setSelectedSlotId(null)}
         onStyleSlot={() => setSlotStyleOpen(true)}
+        onMoveSlot={armMove}
         onSplitSlot={selectedSlot && canSplitSlice(selectedSlot) ? splitSelected : undefined}
         onSimilarSlot={similarAvailable() ? findSimilarToSelected : undefined}
         onAutoFillSlot={() => setAutoFillOpen(true)}
@@ -2825,7 +2874,8 @@ export function BinderScreen({
           onGoToPage={(n) => changePage(n - 1)}
           onEscape={() => {
             // The topmost thing first, one per press: a preview, a sheet, a selection, select mode.
-            if (quickOpen) setQuickOpen(false);
+            if (moving) setMoving(null);
+            else if (quickOpen) setQuickOpen(false);
             else if (movePageOpen) setMovePageOpen(false);
             else if (settingsOpen) setSettingsOpen(false);
             else if (binderInfoOpen) setBinderInfoOpen(false);
@@ -2915,6 +2965,16 @@ export function BinderScreen({
         <View style={EYEDROPPER_BANNER} pointerEvents="box-none">
           <EyedropperBanner />
         </View>
+        {moving ? (
+          <View style={EYEDROPPER_BANNER} pointerEvents="box-none">
+            <View style={styles.moveBanner} testID="move-banner">
+              <Text style={styles.moveBannerText}>Tap a pocket on any page to move it there. A filled pocket trades places.</Text>
+              <Pressable onPress={() => setMoving(null)} hitSlop={8} accessibilityRole="button">
+                <Text style={[styles.moveBannerText, styles.moveBannerCancel]}>Cancel</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
         <Toast spec={toast} onDismiss={() => setToast(null)} />
         <CapGateDialog wall={capGate.wall} onDismiss={capGate.dismissWall} onResolve={capGate.resolveWall} />
         <ConfirmDialog spec={confirm} onClose={() => setConfirm(null)} />
@@ -3250,6 +3310,17 @@ function IconBtn({
 }
 
 const styles = StyleSheet.create({
+  moveBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.pill,
+    backgroundColor: Palette.accent,
+  },
+  moveBannerText: { color: Palette.accentText, fontSize: FontSize.label, fontWeight: Weight.semibold },
+  moveBannerCancel: { textDecorationLine: 'underline' },
   /** Above the page (60) and the ring (65), below the docks (70): it must never cover a panel. */
   walkthroughFloat: { position: 'absolute', width: 320, maxWidth: '92%', zIndex: 66 },
   flex: { flex: 1 },

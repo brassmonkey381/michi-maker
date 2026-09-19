@@ -232,6 +232,8 @@ interface BinderGridProps {
   onStyleSlot?: () => void;
   /** Divide the selected piece of art into its cells (given only when it spans more than one). */
   onSplitSlot?: () => void;
+  /** "Move" — arm this pocket so the next pocket tapped, on any page, receives it. */
+  onMoveSlot?: () => void;
   /** "Similar" — open the card browser on cards like the selected one (card slots only). */
   onSimilarSlot?: () => void;
   /** "✨ Fill page" — auto-curate the page around the selected card (card slots only). */
@@ -332,6 +334,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
     onDeselectSlot,
     onStyleSlot,
     onSplitSlot,
+    onMoveSlot,
     onSimilarSlot,
     onAutoFillSlot,
     onPickCopySlot,
@@ -993,6 +996,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
             onDeselect={onDeselectSlot}
             onStyle={onStyleSlot}
             onSplit={onSplitSlot}
+            onMove={onMoveSlot}
             onSimilar={resizeSlot.cardId ? onSimilarSlot : undefined}
             onAutoFill={resizeSlot.cardId ? onAutoFillSlot : undefined}
             onPickCopy={resizeSlot.cardId ? onPickCopySlot : undefined}
@@ -1023,6 +1027,7 @@ function SlotToolbar({
   onDeselect,
   onStyle,
   onSplit,
+  onMove,
   onSimilar,
   onAutoFill,
   onPickCopy,
@@ -1044,6 +1049,8 @@ function SlotToolbar({
   onSplit?: () => void;
   /** Cards like this one, in the card browser. */
   onSimilar?: () => void;
+  /** Arm this pocket for a move to any pocket on any page. */
+  onMove?: () => void;
   onAutoFill?: () => void;
   onPickCopy?: () => void;
   /** Whether this pocket already names one of the owner's copies (ticked in the label). */
@@ -1086,6 +1093,7 @@ function SlotToolbar({
           said "Fill", so the one place you act on it was the one place it went by another name. */}
       {onAutoFill && !more ? <ToolButton label="✨ Fill page" onPress={onAutoFill} /> : null}
       {onSimilar && !more ? <ToolButton label="Similar" onPress={onSimilar} /> : null}
+      {onMove && !more ? <ToolButton label="Move" onPress={onMove} /> : null}
       {/* Whose card is in this pocket - a tick when it is one of the owner's, so the answer is
           visible without opening anything. The ✓ is state, not decoration, which is the line this
           row draws: a glyph earns its place by saying something the word does not. */}

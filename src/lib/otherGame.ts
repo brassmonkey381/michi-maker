@@ -128,6 +128,26 @@ export function loadOtherGameCatalog(game?: string): Promise<Catalog | null> {
   return Promise.all([...games.values()].map(loadOne)).then((all) => all.find(Boolean) ?? null);
 }
 
+/**
+ * Find the game that owns `id`, ONE AT A TIME, stopping at the first that answers.
+ *
+ * This used to load every secondary game at once, which was free when there was one of them and
+ * stopped being free at two: a binder holding a single One Piece card would also pull Lorcana's
+ * whole catalog to learn nothing. Asking in order costs a little latency when the owner is last in
+ * the list, and saves a download per game that is not in the binder at all — the common case, and
+ * the one that happens on a phone.
+ *
+ * Concurrent misses are safe: `loadOne` memoises per game, so ten pockets missing at once share
+ * one fetch rather than starting ten.
+ */
+async function loadUntilFound(id: string): Promise<Catalog | null> {
+  for (const s of games.values()) {
+    const catalog = s.catalog ?? (await loadOne(s));
+    if (catalog?.getCard(id)) return catalog;
+  }
+  return null;
+}
+
 /** One game's catalog once built, else null. Synchronous; subscribe for the moment it lands. */
 export function otherGameCatalog(game: string): Catalog | null {
   return stateOf(game)?.catalog ?? null;
@@ -175,7 +195,7 @@ export function otherGameCard(id: string | null | undefined, pokemonLoaded: bool
     const card = s.catalog.getCard(id);
     if (card) return card;
   }
-  if (missing) void loadOtherGameCatalog();
+  if (missing) void loadUntilFound(id);
   return undefined;
 }
 

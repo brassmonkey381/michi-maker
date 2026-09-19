@@ -1593,6 +1593,21 @@ export function BinderScreen({
     showToast(`Added ${count} card${count === 1 ? '' : 's'} to ${copy.title}${catalogArtNote(short, count)}`);
   };
 
+  // ONE CARD'S "Similar" (owner, 2026-09-19): the same seeded search the multi-select runs, with a
+  // single id, from the pocket's own bar. Same tier gate, same reason the picker has to be open.
+  const findSimilarToSelected = () => {
+    const cardId = selectedSlot?.cardId;
+    if (!cardId || !selectedSlot) return;
+    if (!hasFindSimilar(store.tier)) {
+      capGate.hit(similarityWall(store.tier, 'binder_editor'));
+      return;
+    }
+    setSimilarSeed([cardId]);
+    const cell = firstFreePlacement(page, 1, 1) ?? { row: selectedSlot.row, col: selectedSlot.col };
+    setSelectedSlotId(null);
+    openPickerAt(cell);
+  };
+
   const findSimilarToAll = () => {
     const cardIds = selectedCardIds();
     if (cardIds.length === 0) return;
@@ -1923,6 +1938,7 @@ export function BinderScreen({
         onDeselectSlot={() => setSelectedSlotId(null)}
         onStyleSlot={() => setSlotStyleOpen(true)}
         onSplitSlot={selectedSlot && canSplitSlice(selectedSlot) ? splitSelected : undefined}
+        onSimilarSlot={similarAvailable() ? findSimilarToSelected : undefined}
         onAutoFillSlot={() => setAutoFillOpen(true)}
         onPickCopySlot={pickCopyForSelected}
         dropTargets={p.id === page.id ? dropTargets : undefined}

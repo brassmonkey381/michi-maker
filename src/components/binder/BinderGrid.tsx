@@ -232,6 +232,8 @@ interface BinderGridProps {
   onStyleSlot?: () => void;
   /** Divide the selected piece of art into its cells (given only when it spans more than one). */
   onSplitSlot?: () => void;
+  /** "Similar" — open the card browser on cards like the selected one (card slots only). */
+  onSimilarSlot?: () => void;
   /** "✨ Fill page" — auto-curate the page around the selected card (card slots only). */
   onAutoFillSlot?: () => void;
   /** Open "which of my copies is this?" for the selected card pocket. */
@@ -330,6 +332,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
     onDeselectSlot,
     onStyleSlot,
     onSplitSlot,
+    onSimilarSlot,
     onAutoFillSlot,
     onPickCopySlot,
     variantOf,
@@ -990,6 +993,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
             onDeselect={onDeselectSlot}
             onStyle={onStyleSlot}
             onSplit={onSplitSlot}
+            onSimilar={resizeSlot.cardId ? onSimilarSlot : undefined}
             onAutoFill={resizeSlot.cardId ? onAutoFillSlot : undefined}
             onPickCopy={resizeSlot.cardId ? onPickCopySlot : undefined}
             hasCopy={!!resizeSlot.sourceEntryId}
@@ -1019,6 +1023,7 @@ function SlotToolbar({
   onDeselect,
   onStyle,
   onSplit,
+  onSimilar,
   onAutoFill,
   onPickCopy,
   hasCopy,
@@ -1037,12 +1042,21 @@ function SlotToolbar({
   onStyle?: () => void;
   /** A piece of sliced art spanning several pockets: divide it into them. */
   onSplit?: () => void;
+  /** Cards like this one, in the card browser. */
+  onSimilar?: () => void;
   onAutoFill?: () => void;
   onPickCopy?: () => void;
   /** Whether this pocket already names one of the owner's copies (ticked in the label). */
   hasCopy?: boolean;
 }) {
   const [size, setSize] = useState({ w: 0, h: 0 });
+  // TWO FACES, ONE SHORT BAR (owner, 2026-09-19). A card's bar had grown to eight buttons and was
+  // about to gain more. The face you see holds what changes WHAT THE PAGE HOLDS (Replace, Fill
+  // page, Similar); "More" turns the bar over to what you set once (Duplicate, My card, Sleeve).
+  // Remove and the close stay on both faces, right of the divider, where they always were. An art
+  // piece has few enough actions to need no second face.
+  const [more, setMore] = useState(false);
+  const twoFaces = slot.type !== 'artwork';
   const stepX = cellW + gap;
   const stepY = cellH + gap + captionH;
   const slotLeft = slot.col * stepX;
@@ -1061,20 +1075,26 @@ function SlotToolbar({
         setSize((s) => (s.w === width && s.h === height ? s : { w: width, h: height }));
       }}
       style={[styles.slotToolbar, { left, top, opacity: size.w ? 1 : 0 }]}>
-      <ToolButton label="Replace" onPress={onReplace} />
-      <ToolButton label="Duplicate" onPress={onDuplicate} />
+      {twoFaces && more ? (
+        <ToolButton label="‹" onPress={() => setMore(false)} accessibilityLabel="Back to the main actions" />
+      ) : (
+        <ToolButton label="Replace" onPress={onReplace} />
+      )}
+      {!twoFaces || more ? <ToolButton label="Duplicate" onPress={onDuplicate} /> : null}
       {/* "✨ Fill page" is what this feature is called EVERYWHERE else — the sheet's title, the
           guide that tells you to look for it here, the tier limits, the sign-in perk. The button
           said "Fill", so the one place you act on it was the one place it went by another name. */}
-      {onAutoFill ? <ToolButton label="✨ Fill page" onPress={onAutoFill} /> : null}
+      {onAutoFill && !more ? <ToolButton label="✨ Fill page" onPress={onAutoFill} /> : null}
+      {onSimilar && !more ? <ToolButton label="Similar" onPress={onSimilar} /> : null}
       {/* Whose card is in this pocket - a tick when it is one of the owner's, so the answer is
           visible without opening anything. The ✓ is state, not decoration, which is the line this
           row draws: a glyph earns its place by saying something the word does not. */}
-      {onPickCopy ? (
+      {onPickCopy && (!twoFaces || more) ? (
         <ToolButton label={hasCopy ? 'My card ✓' : 'My card'} onPress={onPickCopy} />
       ) : null}
-      {onStyle ? <ToolButton label={slot.type === 'artwork' ? 'Backing' : 'Sleeve'} onPress={onStyle} /> : null}
+      {onStyle && (!twoFaces || more) ? <ToolButton label={slot.type === 'artwork' ? 'Backing' : 'Sleeve'} onPress={onStyle} /> : null}
       {onSplit ? <ToolButton label="Split" onPress={onSplit} /> : null}
+      {twoFaces && !more ? <ToolButton label="More ⋯" onPress={() => setMore(true)} accessibilityLabel="More actions: duplicate, my card, sleeve" /> : null}
       {/* Everything left of this line changes the pocket; everything right of it ends something.
           Remove sat flush against Duplicate in a row of six with 2px between them — one slip on a
           crowded toolbar and the card is gone rather than copied. */}

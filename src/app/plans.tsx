@@ -16,6 +16,7 @@ import { BundleOffer } from '@/components/monetization/BundleOffer';
 import { PlanComparison, PLAN_BLOCK_WIDTH } from '@/components/monetization/PlanComparison';
 import { PromoBanner } from '@/components/monetization/PromoBanner';
 import { TrialCta } from '@/components/monetization/TrialCta';
+import { TRIAL_DAYS_TEXT } from '@/data/trialLength';
 import { PlanUsageSection } from '@/components/monetization/TierUsage';
 import { WelcomeAboardModal } from '@/components/monetization/WelcomeAboardModal';
 import { ThemedText } from '@/components/themed-text';
@@ -105,7 +106,7 @@ export default function PlansScreen() {
       {/* Eligible free users: the trial offer, front and centre. Self-gates (null unless eligible
           and checkout is open), so it simply doesn't show for subscribers or the ineligible. */}
       <View style={styles.trialHero}>
-        <TrialCta message="Try everything PRO before you decide, free for 14 days." surface="plans" />
+        <TrialCta message={`Try everything PRO before you decide, free for ${TRIAL_DAYS_TEXT}.`} surface="plans" />
       </View>
 
       {bundleEligible ? (

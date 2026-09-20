@@ -20,6 +20,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { TrialCta } from '@/components/monetization/TrialCta';
+import { TRIAL_DAYS } from '@/data/trialLength';
 import { ThemedText } from '@/components/themed-text';
 import { DialogCard } from '@/components/ui/DialogCard';
 import { promptById, type PromptSurface } from '@/data/prompts';
@@ -121,7 +122,7 @@ export function ProTrialPrompt({ surface }: { surface: PromptSurface }) {
   if (!open) return null;
 
   return (
-    <DialogCard visible title="Your 14 free days of PRO are still here" onClose={close} maxWidth={420}>
+    <DialogCard visible title={`Your ${TRIAL_DAYS} free days of PRO are still here`} onClose={close} maxWidth={420}>
       <ThemedText type="small" themeColor="textSecondary" style={styles.body}>
         You were offered a free PRO trial when you first signed up, before you had much in here to
         use it on. It has been sitting unclaimed since. PRO holds 12 binders of 40 pages, keeps

@@ -39,6 +39,7 @@ import { windowedImageStyle } from '@/data/imageWindow';
 import { IconBtn, Seg } from '@/components/binder/StudioControls';
 import { hasMoreSliceShapes, shapeKey, shapeLabel, visibleSliceShapes } from '@/data/sliceShapes';
 import { TIER_LIMITS } from '@/data/tiers';
+import { TRIAL_DAYS_TEXT } from '@/data/trialLength';
 import { useCatalog } from '@/hooks/use-catalog';
 import { cardThumbUrl } from '@/lib/catalogConfig';
 
@@ -1152,7 +1153,7 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
             ) : (
               <CapGateOffer
                 message={`You’re keeping ${trayCount} of ${trayLimit} artworks. Saving ${panels.length} more needs a bigger plan.`}
-                trialMessage={`You’re keeping ${trayCount} of ${trayLimit} artworks. PRO keeps ${TIER_LIMITS.pro.artUploads}. Try it free for 14 days.`}
+                trialMessage={`You’re keeping ${trayCount} of ${trayLimit} artworks. PRO keeps ${TIER_LIMITS.pro.artUploads}. Try it free for ${TRIAL_DAYS_TEXT}.`}
                 surface="slice_studio"
                 onBeforePress={onClose}
               />

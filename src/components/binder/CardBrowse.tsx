@@ -28,7 +28,7 @@ import { useBrowseTheme } from '@/lib/browseTheme';
 import { gameLabel, PICKER_GAMES, type GameId } from '@/lib/games';
 import { browseUrl } from '@/lib/catalogConfig';
 import { armEyedropper, cancelEyedropper, eyedropperArmed, pickWithEyedropper, subscribeEyedropper } from '@/lib/eyedropper';
-import { loadOtherGameCatalog, otherGameCatalog, otherGameVersion, subscribeOtherGame } from '@/lib/otherGame';
+import { loadOtherGameCatalog, loadOtherGameSimilar, otherGameCatalog, otherGameCatalogFor, otherGameSimilar, otherGameVersion, subscribeOtherGame } from '@/lib/otherGame';
 import { SECONDARY_GAMES } from '@/lib/otherGameKeys';
 
 /**
@@ -244,6 +244,73 @@ export function CardBrowse({
     setGame(next);
   };
 
+  /**
+   * FIND SIMILAR FOR A GAME WITH NO SERVER (2026-09-19). Pokémon's similarity is an RPC over the
+   * data project's embeddings, and that table holds Pokémon alone, so a One Piece seed came back
+   * empty from every entry point: the pocket's Similar button, "Find similar to all", and the
+   * tile's own action, which was locked and answered a PAYING account with the PRO wall. The
+   * neighbours exist, as the published graph Fill page already reads (lib/otherGame). This ranks
+   * from that graph, puts the browser on the seed's game, and shows the result the way a colour
+   * search does, as a result set filters and placement still apply to. Several seeds sum their
+   * neighbours' scores, which is the static stand-in for the server's mean-embedding search.
+   */
+  const [pendingShow, setPendingShow] = useState<{ game: string; ids: string[]; label: string } | null>(null);
+  const sentShow = useRef<object | null>(null);
+  const showOtherGameSimilar = async (seedIds: string[]): Promise<void> => {
+    let home = otherGameCatalogFor(seedIds[0]);
+    if (!home) {
+      await loadOtherGameCatalog();
+      home = otherGameCatalogFor(seedIds[0]);
+    }
+    if (!home) return;
+    await loadOtherGameSimilar(home.game);
+    const score = new Map<string, number>();
+    for (const seed of seedIds) {
+      for (const n of otherGameSimilar(home.game, seed, 60)) {
+        if (!seedIds.includes(n.id)) score.set(n.id, (score.get(n.id) ?? 0) + n.similarity);
+      }
+    }
+    const ids = [...score.entries()].sort((a, b) => b[1] - a[1]).slice(0, 60).map(([id]) => id);
+    const name = home.catalog.getCard(seedIds[0])?.name ?? 'this card';
+    const label = ids.length === 0 ? `Nothing similar to ${name} yet` : seedIds.length > 1 ? `Similar to ${seedIds.length} cards` : `Similar to ${name}`;
+    if (home.game !== game) switchGame(home.game as GameId);
+    setPendingShow({ game: home.game, ids, label });
+  };
+  // Sent once the browser showing that game is the one mounted: a child's effects run before this
+  // one, so the new browser is already listening, and the old one can no longer take the command.
+  useEffect(() => {
+    if (!pendingShow || pendingShow.game !== game || !activeCatalog || sentShow.current === pendingShow) return;
+    sentShow.current = pendingShow;
+    sendBrowseCommand({ type: 'showCards', ids: pendingShow.ids, label: pendingShow.label });
+  }, [pendingShow, game, activeCatalog]);
+  // A seed handed in from the binder (Similar, Find similar to all). With Pokémon's catalog loaded
+  // and the first id absent from it, the seed is another game's: it is withheld from the kit,
+  // whose RPC would answer with nothing, and ranked here instead.
+  const seedIsOther = !!initialSimilar?.length && !!catalog && !catalog.getCard(initialSimilar[0]);
+  const ranSeed = useRef<string[] | null>(null);
+  useEffect(() => {
+    if (!seedIsOther || !initialSimilar || ranSeed.current === initialSimilar) return;
+    ranSeed.current = initialSimilar;
+    void showOtherGameSimilar(initialSimilar);
+    // showOtherGameSimilar is rebuilt every render and reads only what the seed needs.
+  }, [seedIsOther, initialSimilar]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A secondary game's tile: the kit's own Find similar is the RPC this game has no server for, so
+  // it is taken out of the sheet and this one put in its place, behind the same tier gate.
+  const gameCardActions: CardActionsFactory | undefined = secondary
+    ? (card, builtins) => {
+        const base = cardActions ? cardActions(card, builtins) : ([builtins.viewSet, builtins.viewIllustrator].filter(Boolean) as CardAction[]);
+        const mine: CardAction = {
+          key: 'otherGameSimilar',
+          label: '≈ Find similar',
+          onPress: (c) => {
+            if (!hasFindSimilar && !tierUnknown) onSimilarLocked?.();
+            else void showOtherGameSimilar([c.id]);
+          },
+        };
+        return [...base.filter((a) => a !== builtins.findSimilar && a.key !== builtins.findSimilar?.key), mine];
+      }
+    : cardActions;
+
   const lockedFeatures = useMemo<BrowseFeature[] | undefined>(() => {
     if (tierUnknown && !secondary) return undefined;
     const locked: BrowseFeature[] = [];
@@ -354,14 +421,14 @@ export function CardBrowse({
         cardActions={
           armed
             ? () => [{ key: 'eyedropper', label: '⌇ Take these colours', kind: 'primary' as const, onPress: (c: CatalogCard) => pickWithEyedropper(c.id) }]
-            : cardActions
+            : gameCardActions
         }
         quickAction={
           armed
             ? () => ({ key: 'eyedropper', label: '⌇', onPress: (c: CatalogCard) => pickWithEyedropper(c.id) })
             : quickAction
         }
-        initialSimilar={initialSimilar}
+        initialSimilar={seedIsOther ? undefined : initialSimilar}
         languages={languages}
         ownedIds={ownedIds}
         lockedFeatures={lockedFeatures}

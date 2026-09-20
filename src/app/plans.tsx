@@ -17,6 +17,7 @@ import { PlanComparison, PLAN_BLOCK_WIDTH } from '@/components/monetization/Plan
 import { PromoBanner } from '@/components/monetization/PromoBanner';
 import { TrialCta } from '@/components/monetization/TrialCta';
 import { TRIAL_DAYS_TEXT } from '@/data/trialLength';
+import { CHECKOUT_OPEN } from '@/data/subscriptions';
 import { PlanUsageSection } from '@/components/monetization/TierUsage';
 import { WelcomeAboardModal } from '@/components/monetization/WelcomeAboardModal';
 import { ThemedText } from '@/components/themed-text';
@@ -101,10 +102,14 @@ export default function PlansScreen() {
 
       {/* The limited-time sale. michi's checkouts already went through the shared stripe-checkout
           coupon, so the discount was being GIVEN here before it was ever advertised here. */}
-      {promoActive() && !bundleEligible && !bundleArrival ? <PromoBanner /> : null}
+      {/* AND ONLY WHILE THERE IS SOMETHING TO BUY (2026-09-20). With checkout closed for the tier
+          rework this ran "20% off every plan, limited time" across the top of a page with nothing
+          to press: an urgent offer nobody could take. It comes back with checkout. */}
+      {CHECKOUT_OPEN && promoActive() && !bundleEligible && !bundleArrival ? <PromoBanner /> : null}
 
       {/* Eligible free users: the trial offer, front and centre. Self-gates (null unless eligible
-          and checkout is open), so it simply doesn't show for subscribers or the ineligible. */}
+          and trials are open, which is its own switch), so it simply doesn't show for subscribers
+          or the ineligible. */}
       <View style={styles.trialHero}>
         <TrialCta message={`Try everything PRO before you decide, free for ${TRIAL_DAYS_TEXT}.`} surface="plans" />
       </View>

@@ -117,6 +117,8 @@ interface CardPickerProps {
   /** One-shot "find similar to all" seed (binder multi-select → this picker). Applied on the
    *  card browser's mount; bypasses the broadcast command bus so it can't be intercepted. */
   initialSimilar?: string[];
+  /** One-shot palette seed from a pocket's Colors button; handed straight to CardBrowse. */
+  paletteSeed?: { cardId: string } | null;
   /** Passed to CardBrowse: what to do when a free/guest user asks for a similarity search.
    *  The editor owns a cap gate, so the refusal here is the same dialog every other wall shows. */
   onSimilarLocked?: () => void;
@@ -180,6 +182,7 @@ export function CardPicker({
   onPickInsert,
   onClear,
   initialSimilar,
+  paletteSeed,
   onSimilarLocked,
   onThemeLocked,
   collapsed = false,
@@ -467,6 +470,7 @@ export function CardPicker({
           onPickCards={onPickCards}
           quickAction={quickPlace}
           initialSimilar={initialSimilar}
+          paletteSeed={paletteSeed}
           ownedIds={ownedIds}
           onSimilarLocked={onSimilarLocked}
           onThemeLocked={onThemeLocked}

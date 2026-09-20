@@ -58,6 +58,7 @@ export function CardBrowse({
   cardActions,
   quickAction,
   initialSimilar,
+  paletteSeed,
   languages,
   ownedIds,
   onSimilarLocked,
@@ -83,6 +84,13 @@ export function CardBrowse({
    *  CatalogBrowser as an explicit prop so it survives the per-pocket remount and isn't stolen by
    *  another mounted browser via the command bus. */
   initialSimilar?: string[];
+  /**
+   * One-shot "cards in this card's colours" seed (a pocket's Colors button). A fresh OBJECT each
+   * press, so pressing it twice for the same card opens the sheet twice. Paid tiers get the
+   * Tri-Color sheet with the card's palette on the bar; everyone else gets what the Tri-Color
+   * button gives them, the energy colour sheet.
+   */
+  paletteSeed?: { cardId: string } | null;
   /** Constrain the browser (cards + series/set drill-down) to these printing languages; undefined
    *  = all. Passed straight to CatalogBrowser, which also auto-hides its language facet when one. */
   languages?: CardLanguage[];
@@ -148,6 +156,20 @@ export function CardBrowse({
    */
   const demoPresses = useRef(0);
   const [energyOpen, setEnergyOpen] = useState(false);
+  // A palette seed from a pocket's Colors button, applied once per seed object. Adjusted during
+  // render (not in an effect) so the sheet is up in the same commit the dock opens in, and held
+  // until the tier is known: locking a subscriber out on an entitlement read that has not landed
+  // is the mistake the similarity search already made once (see the note on tierUnknown below).
+  const [appliedSeed, setAppliedSeed] = useState<{ cardId: string } | null>(null);
+  if (paletteSeed && paletteSeed !== appliedSeed && !tierUnknown) {
+    setAppliedSeed(paletteSeed);
+    if (isPaid) {
+      setDroppedCard(paletteSeed.cardId);
+      setColorOpen(true);
+    } else {
+      setEnergyOpen(true);
+    }
+  }
   const router = useRouter();
   // "Advanced Search" (PRO/VIP) as the kit's feature locks. The kit enforces them — including
   // against typed `sort:value` / `>$100`, not just the chips — and calls back here for the upsell.
@@ -227,10 +249,8 @@ export function CardBrowse({
     const locked: BrowseFeature[] = [];
     if (secondary) {
       /**
-       * WHAT A SECONDARY GAME HAS NO DATA FOR, locked rather than left to fail quietly. Similarity,
-       * colour search and artwork themes are Pokémon-only server features, and the kit's value
-       * sort / price filters read ITS price summary, which is Pokémon's alone (michi merges the
-       * two only for its own display, lib/prices).
+       * WHAT A SECONDARY GAME HAS NO DATA FOR, locked rather than left to fail quietly. Similarity
+       * and artwork themes are Pokémon-only server features.
        *
        * Locking `themeSearch` also closes the one real leak: the kit falls back to the server's
        * `search_cards` RPC when a query is themed or the catalog is missing, and that RPC only
@@ -242,9 +262,17 @@ export function CardBrowse({
        * lives at browse/onepiece/color/*, and the kit derives its colour URL from the active
        * browse URL, so the picker searches the right game's art. (The kit's colour index is keyed
        * by that URL as of 0.9.18 — before that it answered One Piece queries out of Pokémon's
-       * palettes.) `findSimilar` stays locked: that one is an RPC this game has no server for.
+       * palettes.) A game whose blob is not published yet finds nothing rather than the wrong
+       * game's cards, which is the failure we can live with.
+       *
+       * VALUE SORT AND PRICE FILTERS ARE NOT LOCKED ANY MORE EITHER (kit >= 0.9.24). They read the
+       * kit's own price summary, and lib/catalogConfig now registers every secondary game's
+       * summary into it, so the kit prices these cards itself instead of seeing $0. A paying
+       * account could not sort One Piece or Lorcana by price at all before that.
+       *
+       * `findSimilar` stays locked: that one is an RPC this game has no server for.
        */
-      locked.push('themeSearch', 'findSimilar', 'similarRefine', 'sortByValue', 'priceFilter');
+      locked.push('themeSearch', 'findSimilar', 'similarRefine');
       return locked;
     }
     if (!hasFindSimilar) locked.push('findSimilar');

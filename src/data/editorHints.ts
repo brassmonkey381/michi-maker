@@ -21,7 +21,7 @@ export interface EditorHintCopy {
 export const EDITOR_HINTS: Record<EditorHintId, EditorHintCopy> = {
   'pocket-bar': {
     title: 'This bar acts on the card you picked',
-    body: 'Fill page builds the page around it. Similar finds cards like it. Move sends it to any pocket on any page.',
+    body: 'Fill page builds the page around it. Similar and Colors find cards like it. Move sends it to any pocket.',
   },
   'page-bar': {
     title: 'Dress the page',

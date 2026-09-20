@@ -323,6 +323,8 @@ export function BinderScreen({
   // "Find similar to all" seed handed to the picker's card browser as an explicit prop (not via
   // the broadcast command bus, which a second mounted browser would steal — see kit initialSimilar).
   const [similarSeed, setSimilarSeed] = useState<string[] | null>(null);
+  // A pocket's Colors button: the card whose palette the picker's colour sheet should open on.
+  const [paletteSeed, setPaletteSeed] = useState<{ cardId: string } | null>(null);
   // Held so a dismiss can commit unsaved framing before the studio unmounts.
   const studioRef = useRef<SliceStudioHandle>(null);
   const [studio, setStudio] = useState<
@@ -1669,6 +1671,18 @@ export function BinderScreen({
     openPickerAt(cell);
   };
 
+  // ONE CARD'S "Colors" (owner, 2026-09-19): cards in this card's colours. Opens the picker with
+  // the colour sheet already on this card's palette, which is the eyedropper's result without the
+  // eyedropper. The tier decides inside CardBrowse, exactly as it does for the Tri-Color button.
+  const findColorsOfSelected = () => {
+    const cardId = selectedSlot?.cardId;
+    if (!cardId || !selectedSlot) return;
+    setPaletteSeed({ cardId });
+    const cell = firstFreePlacement(page, 1, 1) ?? { row: selectedSlot.row, col: selectedSlot.col };
+    setSelectedSlotId(null);
+    openPickerAt(cell);
+  };
+
   const findSimilarToAll = () => {
     const cardIds = selectedCardIds();
     if (cardIds.length === 0) return;
@@ -2004,6 +2018,7 @@ export function BinderScreen({
         hintToolbar={!!pocketHint.copy}
         onSplitSlot={selectedSlot && canSplitSlice(selectedSlot) ? splitSelected : undefined}
         onSimilarSlot={similarAvailable() ? findSimilarToSelected : undefined}
+        onColorsSlot={findColorsOfSelected}
         onAutoFillSlot={() => setAutoFillOpen(true)}
         onPickCopySlot={pickCopyForSelected}
         dropTargets={p.id === page.id ? dropTargets : undefined}
@@ -2713,6 +2728,7 @@ export function BinderScreen({
           onPickInsert={handlePickInsert}
           onClear={handleClear}
           initialSimilar={similarSeed ?? undefined}
+          paletteSeed={paletteSeed}
           onSimilarLocked={() => capGate.hit(similarityWall(store.tier, 'binder_editor'))}
           // "+N more matches" under a metered artwork search. The same cap gate every other
           // wall uses, so an eligible member gets the free PRO trial in one press rather than a

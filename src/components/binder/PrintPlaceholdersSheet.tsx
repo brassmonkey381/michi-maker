@@ -10,7 +10,7 @@
  */
 import { useRouter } from 'expo-router';
 import { zipSync } from 'fflate';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
@@ -38,6 +38,7 @@ import {
 import { PrintCapExceededError, recordPrintEvent, type RecordedPrint } from '@/data/printRepo';
 import { ANNUAL_POOL, BINDER_PDF_LOOKUP_KEY, CHECKOUT_OPEN } from '@/data/subscriptions';
 import { useCatalog } from '@/hooks/use-catalog';
+import { loadOtherGameCatalog, otherGameCard, otherGameCatalogFor, otherGameVersion, subscribeOtherGame } from '@/lib/otherGame';
 import { track, trackProOfferDeclined } from '@/lib/analytics';
 import { usePrintAllowance } from '@/hooks/use-print-allowance';
 import { useTier } from '@/hooks/use-tier';
@@ -213,9 +214,33 @@ export function PrintPlaceholdersSheet({
   }, [isSignedIn]);
 
   const effectiveOwned = colorOwned ? (ownedIds ?? undefined) : undefined;
+  /**
+   * EVERY GAME'S CARDS, NOT POKÉMON'S ALONE (2026-09-20). The builder asks one lookup for a name,
+   * set and number, and it was handed Pokémon's catalog, so a One Piece or Lorcana pocket printed
+   * as "Unknown card" on a sheet someone paid for. This is the same lookup with the app's other
+   * games behind it (lib/otherGame), which is how those pockets are named everywhere else. The
+   * version is a dependency on purpose: a miss starts that game's catalog loading, and the counts
+   * have to be taken again when it lands.
+   */
+  const otherVersion = useSyncExternalStore(subscribeOtherGame, otherGameVersion, otherGameVersion);
+  const cardMeta = useMemo(
+    () => (catalog ? { version: otherVersion, getCard: (id: string) => catalog.getCard(id) ?? otherGameCard(id, true) } : null),
+    [catalog, otherVersion],
+  );
+  /** Before a file is built: make sure any game this binder needs has actually arrived. */
+  const ensureOtherGames = useCallback(
+    async (source: Pick<DemoBinder, 'pages'>) => {
+      if (!catalog) return;
+      const stranger = source.pages.some((p) =>
+        p.slots.some((s) => s.cardId && /^\d+$/.test(s.cardId) && !catalog.getCard(s.cardId) && !otherGameCatalogFor(s.cardId)),
+      );
+      if (stranger) await loadOtherGameCatalog();
+    },
+    [catalog],
+  );
   const collected = useMemo(
-    () => (catalog ? collectFillTiles(binder, catalog, effectiveOwned) : null),
-    [binder, catalog, effectiveOwned],
+    () => (cardMeta ? collectFillTiles(binder, cardMeta, effectiveOwned) : null),
+    [binder, cardMeta, effectiveOwned],
   );
   const counts = collected?.counts ?? null;
   const sheets = counts?.sheets ?? 0;
@@ -235,7 +260,8 @@ export function PrintPlaceholdersSheet({
     try {
       // A plain-paper placeholders PDF and a matte-cardstock art PDF (either omitted if the binder
       // has none of that kind), plus the instructions as their own PDF, last in the list.
-      const files = await buildFillSheetPdfs(binder, catalog, {
+      await ensureOtherGames(binder);
+      const files = await buildFillSheetPdfs(binder, cardMeta ?? catalog, {
         ownedIds: effectiveOwned,
         // Art pixels: direct CORS fetch → art-proxy edge fn fallback → webp/canvas convert.
         loadImage: createWebArtLoader(),
@@ -320,7 +346,8 @@ export function PrintPlaceholdersSheet({
           : null;
       if (source && catalog) {
         // Recoverable version → regenerate BOTH files (placeholders + art) with current options.
-        const files = await buildFillSheetPdfs(source, catalog, {
+        await ensureOtherGames(source);
+        const files = await buildFillSheetPdfs(source, cardMeta ?? catalog, {
           ownedIds: effectiveOwned,
           loadImage: createWebArtLoader(),
         });

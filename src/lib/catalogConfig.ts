@@ -18,6 +18,7 @@ import {
   getApiUrl,
   hydrateImageManifest,
   registerImageManifest,
+  registerPriceSummary,
   resolveImageUrl,
   setBrowseLanguages,
   useImageManifest,
@@ -124,6 +125,22 @@ if (typeof registerImageManifest === 'function') {
       browseUrl: `${browseUrl}/${game.prefix}`,
       cacheKey: `tcgscan-browse:images-manifest:${game.key}:v1`,
     });
+  }
+}
+
+/**
+ * THE SAME REGISTRATION FOR PRICES (kit >= 0.9.24), and the reason value sort works for every game
+ * now. The kit sorts and filters on ITS summary, which was Pokemon's alone, so another game's cards
+ * priced $0 inside the kit however well michi priced them for display (lib/prices merges there, but
+ * that map never reaches the kit). CardBrowse locked value sort and price filters for secondary
+ * games over exactly this.
+ *
+ * Guarded like the manifest above: an installed kit that predates this export must not turn every
+ * route into `undefined(...)`.
+ */
+if (typeof registerPriceSummary === 'function') {
+  for (const game of SECONDARY_GAMES) {
+    registerPriceSummary({ key: game.key, browseUrl: `${browseUrl}/${game.prefix}` });
   }
 }
 

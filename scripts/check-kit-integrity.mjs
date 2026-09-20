@@ -26,7 +26,7 @@ import { join } from 'node:path';
 
 const PKG = 'tcgscan-browse';
 /** Kit exports michi depends on. `registerImageManifest` is the one that took the site down. */
-const REQUIRED = ['registerImageManifest', 'loadImageManifest', 'imageManifestRevision', 'buildCatalog'];
+const REQUIRED = ['registerImageManifest', 'registerPriceSummary', 'loadImageManifest', 'imageManifestRevision', 'buildCatalog'];
 
 const fail = (msg) => {
   console.log(`FAIL  ${msg}`);

@@ -1,5 +1,5 @@
 /**
- * "Start free 14-day PRO trial" — shown wherever a Free user hits the PRO wall, when they're
+ * "Start free 3-day PRO trial" — shown wherever a Free user hits the PRO wall, when they're
  * eligible (never trialed, never paid) and trials are open (CHECKOUT_OPEN, so an expiring trial
  * always has a subscribe path). No card; the grant lands immediately via the start_pro_trial RPC.
  *
@@ -116,7 +116,7 @@ export function TrialCta({
           nothing to cancel — but a reader who has been burned by other trials assumes otherwise
           and does not start one. Say all three parts plainly. */}
       <ThemedText type="small" themeColor="textSecondary" style={styles.fine}>
-        No credit card required. Full PRO for 14 days, starting now, then back to Free on its own.
+        No credit card required. Full PRO for 3 days, starting now, then back to Free on its own.
         Nothing to cancel, and you are never charged.
       </ThemedText>
       {trial.error ? (

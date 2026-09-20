@@ -10,7 +10,11 @@ import assert from 'node:assert/strict';
 import { planCta, PLAN_HEADERS } from './subscriptions.ts';
 import type { Tier } from './tiers.ts';
 
-const col = (t: 'free' | 'pro' | 'vip') => PLAN_HEADERS.find((p) => p.tier === t)!;
+// VIP was retired from SALE in the 2026-09 tier rework, so it is no longer a column. The CTA rules
+// are about ANY higher plan, and a tier_vip row can still exist, so they stay under test with a
+// stand-in header rather than being deleted along with the column.
+const RETIRED_VIP = { tier: 'vip', name: 'VIP', price: '', sub: '', yearlyKey: 'michi_vip_yearly' } as (typeof PLAN_HEADERS)[number];
+const col = (t: 'free' | 'pro' | 'vip') => PLAN_HEADERS.find((p) => p.tier === t) ?? RETIRED_VIP;
 const kindOf = (c: 'free' | 'pro' | 'vip', viewer: Tier) => planCta(col(c), viewer).kind;
 const labelOf = (c: 'free' | 'pro' | 'vip', viewer: Tier) => {
   const cta = planCta(col(c), viewer);

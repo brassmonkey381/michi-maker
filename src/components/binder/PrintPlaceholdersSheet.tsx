@@ -753,8 +753,7 @@ export function PrintPlaceholdersSheet({
                     <ThemedText type="smallBold">This binder changed since you bought its PDF</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
                       Your purchased version{versions.length === 1 ? ' is' : 's are'} below, 
-                      download them anytime. Printing the edited version needs its own unlock, or
-                      a PRO/VIP plan.
+                      download them anytime. Printing the edited version needs its own unlock.
                     </ThemedText>
                     {CHECKOUT_OPEN ? (
                       <Pressable
@@ -773,9 +772,9 @@ export function PrintPlaceholdersSheet({
                   <View style={styles.lockedBox}>
                     <ThemedText type="smallBold">Printing is a paid feature</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-                      Fill-sheet PDFs come with a PRO or VIP plan. Or unlock just this binder once
-                      for $3.99, that download is this binder as it is today, yours to re-download
-                      forever (later edits need a new unlock).
+                      Unlock this binder's fill-sheet PDF once for $3.99. That download is this
+                      binder as it is today, yours to re-download forever (later edits need a new
+                      unlock).
                     </ThemedText>
                     {/* Eligible free users see the trial first, start it and the sheet re-renders
                         to the subscriber Download button. Renders null when not eligible. */}
@@ -797,9 +796,9 @@ export function PrintPlaceholdersSheet({
                   <View style={styles.lockedBox}>
                     <ThemedText type="smallBold">Printing is a paid feature</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-                      Fill-sheet PDFs of your own binders come with a PRO/VIP plan, or a one-time
-                      unlock for this binder (covering it as it is at purchase, later edits need a
-                      new unlock). Purchases aren’t open quite yet; check back soon.
+                      Fill-sheet PDFs of your own binders are a one-time unlock per binder (covering
+                      it as it is at purchase, later edits need a new unlock). Purchases aren’t open
+                      quite yet; check back soon.
                     </ThemedText>
                   </View>
                 )}

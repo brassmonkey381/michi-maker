@@ -34,7 +34,7 @@ export async function fetchTrialLedger(): Promise<TrialLedger> {
   }
 }
 
-/** Start the 14-day PRO trial. Resolves to the trial's end (ISO). Throws the RPC's message on
+/** Start the PRO trial (3 days; the length is the server's, public.trial_days()). Resolves to the trial's end (ISO). Throws the RPC's message on
  *  refusal (already used / not eligible / guest) so the CTA can surface it honestly. `surface` is
  *  passed to the RPC, which emits `trial.start` server-side (un-droppable, unlike the old client
  *  track — see ../ANALYTICS-TRIAL-START-DROPPED.md). */

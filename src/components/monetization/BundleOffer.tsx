@@ -25,7 +25,7 @@ import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing } from '@/constants/theme';
 import { mintHandoffHash, withHandoffHash } from '@/data/handoff';
-import { CHECKOUT_OPEN, TCGSCAN_PLANS_URL, TCGSCAN_URL } from '@/data/subscriptions';
+import { CHECKOUT_OPEN, CROSS_DISCOUNT_RETIRED, TCGSCAN_PLANS_URL, TCGSCAN_URL } from '@/data/subscriptions';
 import { useTier } from '@/hooks/use-tier';
 
 export { TCGSCAN_URL };
@@ -143,7 +143,8 @@ export function BundleOffer() {
   const [busy, setBusy] = useState(false);
   // michiIsPaid, not isPaid: isPaid is true on a TRIAL, and the copy below both calls the
   // reader a member and promises 60% - neither of which a trial has earned.
-  if (loading || !michiIsPaid || hasTcgscanPro) return null;
+  // The 60% cross-app discount this card sold is retired; the two-app bundle on /plans replaces it.
+  if (CROSS_DISCOUNT_RETIRED || loading || !michiIsPaid || hasTcgscanPro) return null;
   const onPress = async () => {
     if (busy) return;
     if (!CHECKOUT_OPEN) {

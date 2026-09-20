@@ -231,7 +231,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     pagesPerBinder: Infinity,
     composerPagesPerMonth: Infinity,
     artUploads: Infinity,
-    fullPrint: true,
+    fullPrint: false,
     advancedSearch: true,
     findSimilar: true,
     themeSearch: true,
@@ -250,7 +250,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     pagesPerBinder: Infinity,
     composerPagesPerMonth: Infinity,
     artUploads: Infinity,
-    fullPrint: true,
+    fullPrint: false,
     advancedSearch: true,
     findSimilar: true,
     themeSearch: true,
@@ -393,7 +393,10 @@ export function resolveTier(
  * PrintPlaceholdersSheet), not here. Free users get a short example PDF, never their own binders.
  */
 export function hasFullPrint(tier: Tier): boolean {
-  return tier === 'pro' || tier === 'vip';
+  // PRINTS ARE IN NO PLAN since the 2026-09 rework (the print offer is being reworked): every tier
+  // reads false, so a member buys a binder's PDF the same way a free account does. Reads the table
+  // rather than naming tiers, so putting prints back in a plan is one flag.
+  return TIER_LIMITS[tier].fullPrint;
 }
 
 /**

@@ -396,7 +396,7 @@ function SlideResults({ results, pagerW, active }: { results: string[] | null; p
         })}
       </View>
       <ThemedText type="small" themeColor="textSecondary" style={styles.hintCenter}>
-        Unlock this with any PRO or VIP plan. Free keeps “Color by type”.
+        Unlock this with PRO. Free keeps “Color by type”.
       </ThemedText>
     </>
   );

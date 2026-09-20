@@ -116,7 +116,7 @@ export function ResultStrip({
       {page ? (
         <ThemedText type="small" themeColor="textSecondary" style={styles.caption}>
           {page.clamped
-            ? `Top ${page.cards.length} of ${page.total} matches on your plan. ${hidden} more with PRO or VIP.`
+            ? `Top ${page.cards.length} of ${page.total} matches on your plan. ${hidden} more with PRO.`
             : hidden > 0
               ? `${page.cards.length} of ${page.total} matches.`
               : `${page.total} match${page.total === 1 ? '' : 'es'}.`}

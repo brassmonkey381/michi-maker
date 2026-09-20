@@ -269,7 +269,7 @@ export function AutoFillSheet({
                             Pages around this card
                           </ThemedText>
                           <View style={styles.vipPill}>
-                            <Text style={styles.proPillText}>VIP</Text>
+                            <Text style={styles.proPillText}>PRO</Text>
                           </View>
                         </View>
                         <ThemedText type="small" style={styles.allSub}>
@@ -279,8 +279,8 @@ export function AutoFillSheet({
                     </Pressable>
                   ) : (
                     <UpgradePerk
-                      message={`VIP builds all ${methods.length} of these as finished pages at once, so you can pick between them instead of choosing blind.`}
-                      cta="See VIP"
+                      message={`PRO builds all ${methods.length} of these as finished pages at once, so you can pick between them instead of choosing blind.`}
+                      cta="See PRO"
                       onBeforePress={onClose}
                     />
                   )

@@ -56,6 +56,8 @@ interface TierState {
 export interface UseTier {
   tier: Tier;
   limits: TierLimits;
+  /** For a Free account: which cap set it reads ('legacy_free' = kept its pre-2026-09 caps). Null otherwise. */
+  capSet: CapSet | null;
   /** Full fill-sheet / placeholder PDF export of your own binders (included with PRO/VIP). */
   hasFullPrint: boolean;
   /** "Advanced Search" (PRO/VIP): sort by value, price filters, tri-colour, refine by similarity. */
@@ -257,6 +259,7 @@ export function useTier(): UseTier {
   return {
     tier,
     limits: limitsForTier(tier, known ? state!.capSet : 'legacy_free'),
+    capSet: tier === 'free' ? (known ? state!.capSet : 'legacy_free') : null,
     hasFullPrint: known ? state!.hasFullPrint : false,
     hasAdvancedSearch: computeAdvancedSearch(tier),
     hasFindSimilar: computeFindSimilar(tier),

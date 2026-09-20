@@ -79,7 +79,7 @@ const RECIPES: { title: string; query: string; blurb: string; pro?: boolean; tas
   {
     title: 'Snow, full art only',
     query: 'theme:snow rarity:illustration',
-    blurb: 'A scene and a rarity: the Illustration Rares drawn in the snow. Free accounts see the top few and how many more; PRO and VIP see every match.',
+    blurb: 'A scene and a rarity: the Illustration Rares drawn in the snow. Free accounts see the top few and how many more; PRO sees every match.',
     pro: true,
   },
   {

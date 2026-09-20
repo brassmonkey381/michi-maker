@@ -47,16 +47,23 @@ test('all three cap messages point guests at signing in, not at upgrading', () =
   }
 });
 
-test('all three cap messages offer paid tiers an upgrade, not a sign-in', () => {
-  for (const tier of PAID) {
+test('all three cap messages point an account at PRO, not a sign-in, and say what stays', () => {
+  // Only a Free account can stand at one of these caps now (PRO is unlimited, so it never sees the
+  // message), and it may be on either Free cap set.
+  for (const limits of [TIER_LIMITS.free, LEGACY_FREE_LIMITS]) {
+    const tier: Tier = 'free';
     const messages = [
-      binderLimitMessage(tier, TIER_LIMITS[tier]),
-      pageLimitMessage(tier, TIER_LIMITS[tier]),
-      artLimitMessage(tier, TIER_LIMITS[tier]),
+      binderLimitMessage(tier, limits),
+      pageLimitMessage(tier, limits),
+      artLimitMessage(tier, limits),
     ];
     for (const msg of messages) {
-      assert.match(msg, /[Uu]pgrade/);
+      // The way forward for an account is PRO, never a sign-in, and since the 2026-09 rework the
+      // message also says that what they already have is safe.
+      assert.match(msg, /PRO/);
+      assert.match(msg, /stay/);
       assert.doesNotMatch(msg, /Sign in/);
+      assert.doesNotMatch(msg, /Infinity/, 'an unlimited cap must never be printed as a number');
     }
   }
 });
@@ -90,6 +97,6 @@ test('no similarity gate line quotes a number, because there is nothing to count
   // A capability, not an allowance. "You have reached your 0" is the shape of the bug this
   // catches: copy pasted from a cap message and left with a limit in it.
   for (const line of [similarityGateMessage('guest'), similarityGateMessage('free'), similarityTrialMessage()]) {
-    assert.ok(!/\d/.test(line.replace('14 days', '')), `no counts, got: ${line}`);
+    assert.ok(!/\d/.test(line.replace('3 days', '')), `no counts, got: ${line}`);
   }
 });

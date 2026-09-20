@@ -222,7 +222,18 @@ export function CardBrowse({
   }, [game]);
   // Every game but Pokémon is a secondary source, browsed from its own published catalog.
   const secondary = game !== 'pokemon';
-  const activeCatalog = secondary ? otherGameCatalog(game) : FORCE_COLD ? null : catalog;
+  // READ THROUGH THE STORE, NOT CALLED BARE (2026-09-20). `otherGameCatalog(game)` reads module
+  // state, and the React Compiler memoises a bare call on `game` alone: it cannot know the
+  // catalog landed. The version subscription above re-rendered this component and the cached
+  // `null` came straight back, so the picker said "loading" for ever over a catalog that had
+  // built. Same trap as `eyedropperArmed()` further up; the snapshot IS the value here, so there
+  // is nothing left to cache wrongly. A catalog or null is a stable reference, as a snapshot must be.
+  const secondaryCatalog = useSyncExternalStore(
+    subscribeOtherGame,
+    () => (game === 'pokemon' ? null : otherGameCatalog(game)),
+    () => (game === 'pokemon' ? null : otherGameCatalog(game)),
+  );
+  const activeCatalog = secondary ? secondaryCatalog : FORCE_COLD ? null : catalog;
   /**
    * THE KIT'S BROWSE STATE IS A MODULE SINGLETON (`browseState`), not component state, so a
    * remount re-reads the query, drill-down and facets the OTHER game left behind — a `key` change

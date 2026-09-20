@@ -108,7 +108,10 @@ function loadOne(s: GameState): Promise<Catalog | null> {
       bump();
       return s.catalog;
     })
-    .catch(() => {
+    .catch((e: unknown) => {
+      // SAID OUT LOUD. This swallowed a build failure whole on 2026-09-20: the file arrived with a
+      // 200, the picker said "loading" for ever, and nothing anywhere said why.
+      console.warn(`[otherGame] ${s.def.key} catalog failed:`, e instanceof Error ? e.message : e);
       s.load = null; // never pin a failure: a later miss retries, after the cooldown
       s.failedAt = Date.now();
       return null;

@@ -203,11 +203,15 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     includedPrintsPerMonth: 0,
   },
   // 3 binders × 16 pages × 16 cards (4×4) = 768 ("over 750 cards").
+  // THE 2026-09 REWORK (tcgscan-app docs/TIER-REWORK.md): 2 binders of 9 pages and 25 kept
+  // artworks. Art is what people use most (a third of real free accounts held more than 25 when
+  // this was measured), so it is the honest thing to charge for. Accounts that existed before the
+  // cutover read LEGACY_FREE_LIMITS below and keep what they signed up under.
   free: {
-    binders: 3,
-    pagesPerBinder: 16,
+    binders: 2,
+    pagesPerBinder: 9,
     composerPagesPerMonth: Infinity,
-    artUploads: 100,
+    artUploads: 25,
     fullPrint: false,
     advancedSearch: false,
     findSimilar: false,
@@ -217,23 +221,30 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     multiPageCompose: false,
     includedPrintsPerMonth: 0,
   },
+
   // 12 binders × 40 pages × 16 cards = 7,680 ("over 7,500 cards"). $3.99/mo or $39.99/yr.
+  // $5.99/mo, $49.99/yr, or Founder (one-time). EVERYTHING, UNLIMITED: VIP is retired, so its
+  // real features (soundtracks, the multi-page composer) live here, and a PRO cap would be a wall
+  // with nothing behind it. PRINTS ARE IN NO PLAN: the print offer is being reworked separately.
   pro: {
-    binders: 12,
-    pagesPerBinder: 40,
+    binders: Infinity,
+    pagesPerBinder: Infinity,
     composerPagesPerMonth: Infinity,
-    artUploads: 1000,
+    artUploads: Infinity,
     fullPrint: true,
     advancedSearch: true,
     findSimilar: true,
     themeSearch: true,
     binderCovers: true,
-    binderTracks: false,
-    multiPageCompose: false,
-    includedPrintsPerMonth: 1,
+    binderTracks: true,
+    multiPageCompose: true,
+    includedPrintsPerMonth: 0,
   },
+
   // $9.99/mo or $99.99/yr. Included prints cut 5 -> 3 (owner call 2026-07-19): a yearly VIP pool
   // of 60 was more print than the tier could carry. 3/mo = 36 on a yearly term.
+  // RETIRED FROM SALE (2026-09). Still resolves, because a tier_vip row may exist in the ledger
+  // (the owner's own), and it reads exactly as PRO does.
   vip: {
     binders: Infinity,
     pagesPerBinder: Infinity,
@@ -246,8 +257,9 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     binderCovers: true,
     binderTracks: true,
     multiPageCompose: true,
-    includedPrintsPerMonth: 3,
+    includedPrintsPerMonth: 0,
   },
+
 };
 
 /**
@@ -445,6 +457,23 @@ export function hasBinderTracks(tier: Tier): boolean {
 }
 
 /** The active limits for a tier — permissive (all unlimited) while LIMITS_ENFORCED is off. */
-export function limitsForTier(tier: Tier): TierLimits {
+/**
+ * FREE, FOR ACCOUNTS THAT EXISTED BEFORE THE 2026-09 REWORK: the caps they signed up under. The
+ * DATABASE decides who is legacy (`cap_tier_for`, account creation date against a cutover recorded
+ * once) and the app asks it (`my_cap_tier`, in hooks/use-tier); this mirrors the table's
+ * `legacy_free` rows as TIER_LIMITS.free mirrors its `free` rows.
+ */
+export const LEGACY_FREE_LIMITS: TierLimits = {
+  ...TIER_LIMITS.free,
+  binders: 3,
+  pagesPerBinder: 16,
+  artUploads: 100,
+};
+
+/** Which cap set a Free account reads. Paid tiers and guests are never remapped. */
+export type CapSet = 'free' | 'legacy_free';
+
+export function limitsForTier(tier: Tier, capSet: CapSet = 'free'): TierLimits {
+  if (LIMITS_ENFORCED && tier === 'free' && capSet === 'legacy_free') return LEGACY_FREE_LIMITS;
   return LIMITS_ENFORCED ? TIER_LIMITS[tier] : UNLIMITED;
 }

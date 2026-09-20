@@ -13,7 +13,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { TIER_LIMITS, type Tier } from './tiers.ts';
+import { LEGACY_FREE_LIMITS, TIER_LIMITS, type Tier } from './tiers.ts';
 import {
   artLimitMessage,
   binderLimitMessage,
@@ -61,9 +61,12 @@ test('all three cap messages offer paid tiers an upgrade, not a sign-in', () => 
   }
 });
 
-test('free hits the documented 16-page cap', () => {
-  assert.equal(TIER_LIMITS.free.pagesPerBinder, 16);
-  assert.match(pageLimitMessage('free', TIER_LIMITS.free), /16-page limit/);
+test('free hits the documented 9-page cap, and a legacy account its 16', () => {
+  assert.equal(TIER_LIMITS.free.pagesPerBinder, 9);
+  assert.match(pageLimitMessage('free', TIER_LIMITS.free), /9-page limit/);
+  // The message quotes the limits it is HANDED, so an account on the legacy set is told its own cap.
+  assert.equal(LEGACY_FREE_LIMITS.pagesPerBinder, 16);
+  assert.match(pageLimitMessage('free', LEGACY_FREE_LIMITS), /16-page limit/);
 });
 
 /**

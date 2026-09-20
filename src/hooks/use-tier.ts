@@ -14,6 +14,7 @@ import { useCallback, useEffect, useSyncExternalStore } from 'react';
 
 import type { BillingInterval } from '@/data/printWindow';
 import {
+  type CapSet,
   hasFullPrint as computeFullPrint,
   hasAdvancedSearch as computeAdvancedSearch,
   hasFindSimilar as computeFindSimilar,
@@ -48,6 +49,8 @@ interface TierState {
   interval: BillingInterval | null;
   periodStart: string | null;
   termAllocation: number | null;
+  /** Which Free cap set this account reads: the server's answer (my_cap_tier). */
+  capSet: CapSet;
 }
 
 export interface UseTier {
@@ -177,6 +180,17 @@ function loadTier(uid: string): Promise<void> {
           )
         : undefined;
       const rawInterval = (tierRow as { interval?: unknown } | undefined)?.interval;
+      // WHICH FREE CAP SET: new, or the one this account signed up under (the 2026-09 rework).
+      // The database owns the cutover, so the app asks rather than guessing from a date in the
+      // bundle. A failed call reads as 'legacy_free', the generous set: the server enforces
+      // either way, and the wrong guess in that direction never blocks a long-standing user.
+      let capSet: CapSet = 'legacy_free';
+      try {
+        const { data: capTier, error: capErr } = await supabase!.rpc('my_cap_tier', { p_tier: 'free' });
+        if (!capErr && capTier === 'free') capSet = 'free';
+      } catch {
+        /* stays legacy_free */
+      }
       tierCache = {
         uid,
         tier,
@@ -192,6 +206,7 @@ function loadTier(uid: string): Promise<void> {
         termAllocation:
           (tierRow as { term_print_allocation?: number | null } | undefined)
             ?.term_print_allocation ?? null,
+        capSet,
       };
     } catch {
       // Leave the cache empty and say nothing. Waking the listeners here would send every mounted
@@ -241,7 +256,7 @@ export function useTier(): UseTier {
 
   return {
     tier,
-    limits: limitsForTier(tier),
+    limits: limitsForTier(tier, known ? state!.capSet : 'legacy_free'),
     hasFullPrint: known ? state!.hasFullPrint : false,
     hasAdvancedSearch: computeAdvancedSearch(tier),
     hasFindSimilar: computeFindSimilar(tier),

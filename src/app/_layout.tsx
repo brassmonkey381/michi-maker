@@ -11,6 +11,12 @@ import { ProStatusBanner } from '@/components/monetization/ProStatusBanner';
 import { ThemedView } from '@/components/themed-view';
 import { AppRail } from '@/components/nav/AppRail';
 import { CatalogWarm } from '@/components/CatalogWarm';
+// READ `?multi-tcg` AT BOOT (2026-09-20). lib/games reads the flag once, when the module first
+// evaluates, and it was only ever imported by the card browser, which loads lazily with its route.
+// By then the router can have rewritten the address: a bare `?multi-tcg` stuck from /my-binders
+// and not from /browse, while `?multi-tcg=` survived both. Importing it here evaluates it with the
+// address exactly as the visitor typed it, the way constants/variants is (through the theme).
+import '@/lib/games';
 import { redeemHandoffHashFromLocation } from '@/data/handoff';
 import { AuthProvider } from '@/store/auth';
 import { BinderProvider } from '@/store/binders';

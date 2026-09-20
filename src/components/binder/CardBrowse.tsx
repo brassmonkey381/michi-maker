@@ -509,7 +509,7 @@ export function CardBrowse({
           onClose={() => setColorOpen(false)}
         />
       ) : null}
-      {energyOpen ? <EnergyColorSheet catalog={catalog} onClose={() => setEnergyOpen(false)} /> : null}
+      {energyOpen ? <EnergyColorSheet catalog={catalog} game={game} onClose={() => setEnergyOpen(false)} /> : null}
     </>
   );
 }

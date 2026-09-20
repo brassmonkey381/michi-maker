@@ -31,8 +31,52 @@ const ENERGY: { type: string; color: string }[] = [
   { type: 'Colorless', color: '#C9C6BE' },
 ];
 
-export function EnergyColorSheet({ catalog, onClose }: { catalog: Catalog | null; onClose: () => void }) {
+/**
+ * THE SAME SHEET FOR THE OTHER GAMES (2026-09-20). A free user browsing One Piece who tapped the
+ * colour button was handed Pokémon's energy types, and every one of them found nothing: the query
+ * is `type:<x>` against `card.types`, and One Piece's types are its six colours, Lorcana's its six
+ * inks. Counted from the published catalogs, each list is complete and roughly even (about 1,100
+ * cards a colour for One Piece, 570 an ink for Lorcana).
+ */
+const GAME_COLORS: Record<string, { noun: string; list: { type: string; color: string }[] }> = {
+  onepiece: {
+    noun: 'colour',
+    list: [
+      { type: 'Red', color: '#D6392E' },
+      { type: 'Green', color: '#2E9E5B' },
+      { type: 'Blue', color: '#2F7FD1' },
+      { type: 'Purple', color: '#8A4FBF' },
+      { type: 'Black', color: '#2B2B30' },
+      { type: 'Yellow', color: '#EBC334' },
+    ],
+  },
+  lorcana: {
+    noun: 'ink',
+    list: [
+      { type: 'Amber', color: '#F0B02E' },
+      { type: 'Amethyst', color: '#8E54B5' },
+      { type: 'Emerald', color: '#2F9E62' },
+      { type: 'Ruby', color: '#D23A4A' },
+      { type: 'Sapphire', color: '#2F84C9' },
+      { type: 'Steel', color: '#9AA3AD' },
+    ],
+  },
+};
+
+export function EnergyColorSheet({
+  catalog,
+  game = 'pokemon',
+  onClose,
+}: {
+  catalog: Catalog | null;
+  /** Which game the browser behind this sheet is showing. Pokémon's energy types by default. */
+  game?: string;
+  onClose: () => void;
+}) {
   const [upsell, setUpsell] = useState(false);
+  const other = GAME_COLORS[game];
+  const swatches = other?.list ?? ENERGY;
+  const noun = other?.noun ?? 'energy type';
 
   const pick = (type: string) => {
     sendBrowseCommand({ type: 'search', query: `type:${type.toLowerCase()}` });
@@ -63,15 +107,15 @@ export function EnergyColorSheet({ catalog, onClose }: { catalog: Catalog | null
               </View>
               <Text style={styles.upsellDesc}>
                 Mix up to three colours and rank every card by how close its artwork actually is. Far
-                beyond one energy type.
+                beyond one {noun}.
               </Text>
               <Text style={styles.upsellCta}>See how it works →</Text>
             </View>
           </Pressable>
 
-          <Text style={styles.hint}>Or pick one energy type to browse cards in its colour.</Text>
+          <Text style={styles.hint}>Or pick one {noun} to browse its cards.</Text>
           <ScrollView contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
-            {ENERGY.map((e) => (
+            {swatches.map((e) => (
               <Pressable key={e.type} onPress={() => pick(e.type)} style={styles.swatchItem}>
                 <View style={[styles.swatch, { backgroundColor: e.color }]} />
                 <Text style={styles.swatchLabel}>{e.type}</Text>

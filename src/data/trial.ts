@@ -1,7 +1,8 @@
 /**
  * Client side of the free PRO trial + over-cap reclaim (see docs/PRO-TRIALS.md).
  *
- * The trial is a 14-day `tier_pro` entitlement row granted by the `start_pro_trial()` RPC — the
+ * The trial is a `tier_pro` entitlement row, TRIAL_DAYS long (data/trialLength; the server's
+ * `trial_days()` is the authority), granted by the `start_pro_trial()` RPC — the
  * only writer (entitlements has no client insert policy). Eligibility is enforced server-side; the
  * reads here are just for CTA display. Reclaim/restore are the security-definer RPCs that archive
  * over-cap binders after a downgrade grace, or bring them back on upgrade.
@@ -34,7 +35,7 @@ export async function fetchTrialLedger(): Promise<TrialLedger> {
   }
 }
 
-/** Start the PRO trial (3 days; the length is the server's, public.trial_days()). Resolves to the trial's end (ISO). Throws the RPC's message on
+/** Start the PRO trial. Resolves to the trial's end (ISO). Throws the RPC's message on
  *  refusal (already used / not eligible / guest) so the CTA can surface it honestly. `surface` is
  *  passed to the RPC, which emits `trial.start` server-side (un-droppable, unlike the old client
  *  track — see ../ANALYTICS-TRIAL-START-DROPPED.md). */

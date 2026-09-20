@@ -7,6 +7,7 @@
  * See the guest-signin-notes rule — a guest at a gate gets "Sign in", never an upgrade pitch.
  */
 import { TIER_LIMITS, type Tier, type TierLimits } from './tiers.ts';
+import { TRIAL_DAYS_TEXT } from './trialLength.ts';
 
 export function binderLimitMessage(tier: Tier, limits: TierLimits): string {
   if (tier === 'guest') {
@@ -67,15 +68,15 @@ export function limitCta(tier: Tier): LimitCta {
  * just asked, where "try PRO free!" is an advert that happens to have appeared.
  */
 export function binderTrialMessage(limits: TierLimits): string {
-  return `You’ve reached your ${limits.binders}-binder limit. Your binders stay as they are. PRO has no binder limit. Try it free for 3 days.`;
+  return `You’ve reached your ${limits.binders}-binder limit. Your binders stay as they are. PRO has no binder limit. Try it free for ${TRIAL_DAYS_TEXT}.`;
 }
 
 export function pageTrialMessage(limits: TierLimits): string {
-  return `You’ve reached the ${limits.pagesPerBinder}-page limit. Every page you have stays. PRO has no page limit. Try it free for 3 days.`;
+  return `You’ve reached the ${limits.pagesPerBinder}-page limit. Every page you have stays. PRO has no page limit. Try it free for ${TRIAL_DAYS_TEXT}.`;
 }
 
 export function artTrialMessage(limits: TierLimits): string {
-  return `You’re keeping ${limits.artUploads} artworks, all this plan allows. They all stay. PRO keeps as many as you like. Try it free for 3 days.`;
+  return `You’re keeping ${limits.artUploads} artworks, all this plan allows. They all stay. PRO keeps as many as you like. Try it free for ${TRIAL_DAYS_TEXT}.`;
 }
 
 /**
@@ -96,5 +97,5 @@ export function similarityGateMessage(tier: Tier): string {
 }
 
 export function similarityTrialMessage(): string {
-  return 'Find similar matches a card against the whole catalogue by its artwork. PRO includes it. Try it free for 3 days.';
+  return `Find similar matches a card against the whole catalogue by its artwork. PRO includes it. Try it free for ${TRIAL_DAYS_TEXT}.`;
 }

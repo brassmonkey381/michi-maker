@@ -1,7 +1,7 @@
 /**
  * "Start free 3-day PRO trial" — shown wherever a Free user hits the PRO wall, when they're
- * eligible (never trialed, never paid) and trials are open (CHECKOUT_OPEN, so an expiring trial
- * always has a subscribe path). No card; the grant lands immediately via the start_pro_trial RPC.
+ * eligible (never trialed, never paid) and trials are open (TRIALS_OPEN, its own switch since
+ * 2026-09-20; the length is data/trialLength). No card; the grant lands immediately via the start_pro_trial RPC.
  *
  * Renders nothing when the user isn't trial-eligible — callers pair it with their existing
  * UpgradePerk, which covers the used/ineligible cases.
@@ -12,7 +12,8 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { track, trackTrialStartClick, trackTrialStartFailed } from '@/lib/analytics';
-import { CHECKOUT_OPEN } from '@/data/subscriptions';
+import { TRIALS_OPEN } from '@/data/subscriptions';
+import { TRIAL_DAYS_ADJ, TRIAL_DAYS_TEXT } from '@/data/trialLength';
 import { useTier } from '@/hooks/use-tier';
 import { useTrial, type UseTrial } from '@/hooks/use-trial';
 
@@ -25,7 +26,7 @@ import { useTrial, type UseTrial } from '@/hooks/use-trial';
  * the two quietly disagree, so there is one copy and both read it.
  */
 export const trialOfferVisible = (trial: Pick<UseTrial, 'loading' | 'state'>): boolean =>
-  CHECKOUT_OPEN && !trial.loading && trial.state === 'eligible';
+  TRIALS_OPEN && !trial.loading && trial.state === 'eligible';
 
 export function TrialCta({
   /** One line above the button, e.g. "Want more binders? Try PRO free." */
@@ -108,7 +109,7 @@ export function TrialCta({
         {trial.starting ? (
           <ActivityIndicator color={Palette.accentText} />
         ) : (
-          <Text style={styles.btnText}>Start free 14-day PRO trial</Text>
+          <Text style={styles.btnText}>{`Start free ${TRIAL_DAYS_ADJ} PRO trial`}</Text>
         )}
       </Pressable>
       {/* "No card" was too terse to do its job. The trial creates a `tier_pro` entitlement with an
@@ -116,7 +117,7 @@ export function TrialCta({
           nothing to cancel — but a reader who has been burned by other trials assumes otherwise
           and does not start one. Say all three parts plainly. */}
       <ThemedText type="small" themeColor="textSecondary" style={styles.fine}>
-        No credit card required. Full PRO for 3 days, starting now, then back to Free on its own.
+        No credit card required. Full PRO for {TRIAL_DAYS_TEXT}, starting now, then back to Free on its own.
         Nothing to cancel, and you are never charged.
       </ThemedText>
       {trial.error ? (

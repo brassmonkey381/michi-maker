@@ -17,6 +17,15 @@ import type { Tier } from '@/data/tiers';
 export const CHECKOUT_OPEN = process.env.EXPO_PUBLIC_CHECKOUT_OPEN === '1';
 
 /**
+ * Whether the free trial is OFFERED. It used to be CHECKOUT_OPEN and nothing else, on the
+ * reasoning that an expiring trial should always have a subscribe path. Closing checkout for the
+ * tier rework (2026-09-20) therefore took every trial offer in the app down with it, which nobody
+ * intended: a trial costs nothing to grant and is the main way a Free account meets PRO. So it
+ * has its own switch now (owner, 2026-09-20). Open checkout still implies open trials.
+ */
+export const TRIALS_OPEN = process.env.EXPO_PUBLIC_TRIALS_OPEN === '1' || CHECKOUT_OPEN;
+
+/**
  * Upgrades are driven SERVER-SIDE (`change_plan` in stripe-checkout), not through Checkout or the
  * Customer Portal:
  *   - Checkout can only CREATE a subscription, so it would bill both plans at once.

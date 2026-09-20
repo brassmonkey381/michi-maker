@@ -22,6 +22,7 @@ import {
   similarityGateMessage,
   similarityTrialMessage,
 } from './limitMessages.ts';
+import { TRIAL_DAYS_TEXT } from './trialLength.ts';
 
 const PAID: Tier[] = ['free', 'pro', 'vip'];
 
@@ -97,6 +98,6 @@ test('no similarity gate line quotes a number, because there is nothing to count
   // A capability, not an allowance. "You have reached your 0" is the shape of the bug this
   // catches: copy pasted from a cap message and left with a limit in it.
   for (const line of [similarityGateMessage('guest'), similarityGateMessage('free'), similarityTrialMessage()]) {
-    assert.ok(!/\d/.test(line.replace('3 days', '')), `no counts, got: ${line}`);
+    assert.ok(!/\d/.test(line.replace(TRIAL_DAYS_TEXT, '')), `no counts, got: ${line}`);
   }
 });

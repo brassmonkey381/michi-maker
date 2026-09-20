@@ -799,7 +799,7 @@ export function PrintPlaceholdersSheet({
                   <View style={styles.lockedBox}>
                     <ThemedText type="smallBold">Printing is a paid feature</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-                      Unlock this binder's fill-sheet PDF once for $3.99. That download is this
+                      Unlock this binder’s fill-sheet PDF once for $3.99. That download is this
                       binder as it is today, yours to re-download forever (later edits need a new
                       unlock).
                     </ThemedText>

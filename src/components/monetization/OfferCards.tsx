@@ -15,6 +15,7 @@
  * While checkout is closed (CHECKOUT_OPEN off) the cards still show and the buttons say so: a
  * price page with a hole in it reads as broken.
  */
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -44,7 +45,9 @@ export function OfferCards() {
   useEffect(() => {
     if (!supabase) return;
     let on = true;
-    void supabase.rpc('michi_founder_count').then(({ data, error }) => {
+    // Schema-agnostic, the way data/trial.ts reaches its RPCs: michi_founder_count is not in the
+    // generated Database types until the migration is applied and the types are regenerated.
+    void (supabase as unknown as SupabaseClient).rpc('michi_founder_count').then(({ data, error }) => {
       if (on && !error && typeof data === 'number') setTaken(data);
     });
     return () => {
@@ -153,7 +156,7 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: Palette.border,
+    borderColor: Palette.hairlineStrong,
   },
   eyebrow: { color: Palette.accent, fontSize: FontSize.sm, fontWeight: Weight.semibold, letterSpacing: 1 },
   btnRow: { flexDirection: 'row', gap: Spacing.two },

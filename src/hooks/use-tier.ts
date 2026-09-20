@@ -10,6 +10,7 @@
  * `hasFullPrint` is independent of that switch: full print of your own binders is a PRO/VIP
  * subscription perk (one-time prints are per-binder, checked via `products`).
  */
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 
 import type { BillingInterval } from '@/data/printWindow';
@@ -188,7 +189,8 @@ function loadTier(uid: string): Promise<void> {
       // either way, and the wrong guess in that direction never blocks a long-standing user.
       let capSet: CapSet = 'legacy_free';
       try {
-        const { data: capTier, error: capErr } = await supabase!.rpc('my_cap_tier', { p_tier: 'free' });
+        // Schema-agnostic (as data/trial.ts does): my_cap_tier is not in the generated types yet.
+        const { data: capTier, error: capErr } = await (supabase as unknown as SupabaseClient).rpc('my_cap_tier', { p_tier: 'free' });
         if (!capErr && capTier === 'free') capSet = 'free';
       } catch {
         /* stays legacy_free */

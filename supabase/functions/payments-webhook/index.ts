@@ -12,6 +12,8 @@
  *  - invoice.paid: renewal — re-upsert the tier row (pushes expires_at to the new period end).
  *  - customer.subscription.updated / deleted: recompute expires_at (cancel-at-period-end lapses
  *    exactly at period end; hard cancel/delete lapses now; active gets a 3-day dunning grace).
+ *  - charge.refunded: a fully refunded FOUNDER purchase ends its lifetime row (the Stripe endpoint
+ *    must be subscribed to this event for it to arrive).
  *  Always: record the user ↔ Stripe-customer mapping in billing_customers (portal needs it).
  *
  * Every tier row also carries `interval` ('month' | 'year') and `period_start` — the billing
@@ -38,6 +40,14 @@ const service = () =>
 /** Our subscription price lookup_keys map onto the entitlement products. `tcgscan_pro`/`tcgscan_vip`
  *  are the CROSS-APP subscriptions (sold by either app, read by both — see docs/SYNERGY.md); they
  *  are their OWN family, independent of the michi tiers. */
+/** THE WEB BUNDLE grants PRO in BOTH apps from one subscription (2026-09 tier rework). Every other
+ *  subscription grants exactly one product. */
+function tierProductsFromLookupKey(lookupKey: string | null | undefined): string[] {
+  if (lookupKey?.startsWith('bundle_pro')) return ['tier_pro', 'tcgscan_pro'];
+  const one = tierProductFromLookupKey(lookupKey);
+  return one ? [one] : [];
+}
+
 function tierProductFromLookupKey(lookupKey: string | null | undefined): string | null {
   if (!lookupKey) return null;
   if (lookupKey.startsWith('michi_vip')) return 'tier_vip';
@@ -169,9 +179,27 @@ async function userForSubscription(sub: Stripe.Subscription): Promise<string | n
 /** The tier grant for a subscription's current state. Idempotent — safe on redelivery. */
 async function upsertSubscriptionGrant(sub: Stripe.Subscription) {
   const userId = await userForSubscription(sub);
-  const product = tierProductFromLookupKey(sub.items?.data?.[0]?.price?.lookup_key);
-  if (!userId || !product) {
+  const products = tierProductsFromLookupKey(sub.items?.data?.[0]?.price?.lookup_key);
+  if (!userId || !products.length) {
     console.log('skipping subscription — unresolved user or product', sub.id);
+    return;
+  }
+  for (const product of products) await upsertOneGrant(sub, userId, product, products.length > 1);
+  await recordCustomer(userId, typeof sub.customer === 'string' ? sub.customer : sub.customer?.id);
+}
+
+/** One ledger row from one subscription. `bundled` = this subscription grants more than one product. */
+async function upsertOneGrant(sub: Stripe.Subscription, userId: string, product: string, bundled: boolean) {
+  // A FOUNDER ROW IS NOT A SUBSCRIPTION'S TO END. Lifetime rows have no expiry; a late event from
+  // a subscription the person held before buying Founder must never put one on it.
+  const { data: held } = await service()
+    .from('entitlements')
+    .select('expires_at, interval')
+    .eq('user_id', userId)
+    .eq('product', product)
+    .maybeSingle();
+  if (held && held.expires_at === null && held.interval === 'lifetime') {
+    console.log('lifetime row kept, subscription event not written', sub.id, product);
     return;
   }
 
@@ -251,13 +279,11 @@ async function upsertSubscriptionGrant(sub: Stripe.Subscription) {
   //
   // Best-effort: a failure here must never fail the webhook. It fires one more
   // customer.subscription.updated, which finds the metadata already correct and stops.
-  if (sub.metadata?.michi_product && sub.metadata.michi_product !== product) {
+  if (!bundled && sub.metadata?.michi_product && sub.metadata.michi_product !== product) {
     await stripe.subscriptions
       .update(sub.id, { metadata: { ...sub.metadata, michi_product: product } })
       .catch((e) => console.log('metadata sync skipped', (e as Error).message));
   }
-
-  await recordCustomer(userId, typeof sub.customer === 'string' ? sub.customer : sub.customer?.id);
 }
 
 Deno.serve(async (req: Request) => {
@@ -293,6 +319,33 @@ Deno.serve(async (req: Request) => {
           userId,
           typeof session.customer === 'string' ? session.customer : session.customer?.id,
         );
+        // FOUNDER: a one-time payment for lifetime PRO. The row has no expiry and carries
+        // interval 'lifetime', the marker the Founder counter, the 100 limit and the
+        // subscription guard above all read. Overwrites a trial row of the same product, which is
+        // the point: the trial becomes the membership.
+        const founderProduct = session.metadata?.michi_product;
+        if (
+          session.mode === 'payment' &&
+          session.metadata?.founder === 'true' &&
+          session.payment_status === 'paid' &&
+          (founderProduct === 'tier_pro' || founderProduct === 'tcgscan_pro')
+        ) {
+          await service()
+            .from('entitlements')
+            .upsert(
+              {
+                user_id: userId,
+                product: founderProduct,
+                source: 'stripe',
+                expires_at: null,
+                interval: 'lifetime',
+                period_start: new Date().toISOString(),
+                term_print_allocation: null,
+              },
+              { onConflict: 'user_id,product' },
+            );
+          break;
+        }
         if (session.mode === 'payment') {
           // One-time full-binder PDF → lifetime per-binder grant. granted_at is bumped on every
           // purchase: the unlock is a SNAPSHOT license (the binder as it was when spent — see
@@ -345,6 +398,35 @@ Deno.serve(async (req: Request) => {
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted': {
         await upsertSubscriptionGrant(event.data.object as Stripe.Subscription);
+        break;
+      }
+
+      case 'charge.refunded': {
+        // A FOUNDER REFUND ENDS THE MEMBERSHIP. A lifetime row has no expiry and no subscription
+        // to cancel, so nothing else would ever end it: a refunded Founder would keep PRO for good
+        // and keep counting toward the 100. Only a FULL refund counts (`charge.refunded` is true
+        // only then; a partial refund is a price adjustment, not a return), and only a row this
+        // purchase could have written is touched: stripe-sourced, lifetime, no expiry. A trial or
+        // an Apple row under the same product is left alone.
+        const charge = event.data.object as Stripe.Charge;
+        if (!charge.refunded) break;
+        const intent = typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent?.id;
+        if (!intent) break;
+        const sessions = await stripe.checkout.sessions.list({ payment_intent: intent, limit: 1 });
+        const session = sessions.data[0];
+        const product = session?.metadata?.michi_product;
+        const userId = session?.client_reference_id ?? session?.metadata?.supabase_user_id;
+        if (!session || session.metadata?.founder !== 'true' || !userId) break;
+        if (product !== 'tier_pro' && product !== 'tcgscan_pro') break;
+        await service()
+          .from('entitlements')
+          .update({ expires_at: new Date().toISOString() })
+          .eq('user_id', userId)
+          .eq('product', product)
+          .eq('source', 'stripe')
+          .eq('interval', 'lifetime')
+          .is('expires_at', null);
+        console.log('founder refunded, membership ended', product);
         break;
       }
 

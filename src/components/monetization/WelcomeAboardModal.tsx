@@ -22,7 +22,6 @@ const FEATURES: Record<'pro' | 'vip', string[]> = {
     'Full card catalog, Find similar, and every composer method',
     '1,000 Slice Studio artworks kept',
     'Fill-sheet PDFs with 1 included print a month, 12 a year on yearly billing',
-    'Move up to VIP any time, prorated',
   ],
   vip: [
     'Unlimited binders and pages',

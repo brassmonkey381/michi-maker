@@ -13,7 +13,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { TIER_LIMITS, type Tier } from './tiers.ts';
+import { LEGACY_FREE_LIMITS, TIER_LIMITS, type Tier } from './tiers.ts';
 import {
   artLimitMessage,
   binderLimitMessage,
@@ -48,23 +48,33 @@ test('all three cap messages point guests at signing in, not at upgrading', () =
   }
 });
 
-test('all three cap messages offer paid tiers an upgrade, not a sign-in', () => {
-  for (const tier of PAID) {
+test('all three cap messages point an account at PRO, not a sign-in, and say what stays', () => {
+  // Only a Free account can stand at one of these caps now (PRO is unlimited, so it never sees the
+  // message), and it may be on either Free cap set.
+  for (const limits of [TIER_LIMITS.free, LEGACY_FREE_LIMITS]) {
+    const tier: Tier = 'free';
     const messages = [
-      binderLimitMessage(tier, TIER_LIMITS[tier]),
-      pageLimitMessage(tier, TIER_LIMITS[tier]),
-      artLimitMessage(tier, TIER_LIMITS[tier]),
+      binderLimitMessage(tier, limits),
+      pageLimitMessage(tier, limits),
+      artLimitMessage(tier, limits),
     ];
     for (const msg of messages) {
-      assert.match(msg, /[Uu]pgrade/);
+      // The way forward for an account is PRO, never a sign-in, and since the 2026-09 rework the
+      // message also says that what they already have is safe.
+      assert.match(msg, /PRO/);
+      assert.match(msg, /stay/);
       assert.doesNotMatch(msg, /Sign in/);
+      assert.doesNotMatch(msg, /Infinity/, 'an unlimited cap must never be printed as a number');
     }
   }
 });
 
-test('free hits the documented 16-page cap', () => {
-  assert.equal(TIER_LIMITS.free.pagesPerBinder, 16);
-  assert.match(pageLimitMessage('free', TIER_LIMITS.free), /16-page limit/);
+test('free hits the documented 9-page cap, and a legacy account its 16', () => {
+  assert.equal(TIER_LIMITS.free.pagesPerBinder, 9);
+  assert.match(pageLimitMessage('free', TIER_LIMITS.free), /9-page limit/);
+  // The message quotes the limits it is HANDED, so an account on the legacy set is told its own cap.
+  assert.equal(LEGACY_FREE_LIMITS.pagesPerBinder, 16);
+  assert.match(pageLimitMessage('free', LEGACY_FREE_LIMITS), /16-page limit/);
 });
 
 /**

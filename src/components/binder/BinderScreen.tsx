@@ -583,7 +583,7 @@ export function BinderScreen({
   };
   const tracksLocked = !hasBinderTracks(store.tier);
   const onTracksLocked = () =>
-    showLimitToast('Binder soundtracks are a VIP feature: your own track on a binder or a page, played on open and on every turn.');
+    showLimitToast('Binder soundtracks are a PRO feature: your own track on a binder or a page, played on open and on every turn.');
   // One wall, one report: a dialog on its first hit today, the toast after that.
   const capGate = useCapGate(showLimitToast);
 

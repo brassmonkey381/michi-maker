@@ -293,7 +293,7 @@ export function ComposeAllSheet({
                 <ThemedText type="smallBold" numberOfLines={1} style={styles.cardTitle}>
                   {b.label}
                 </ThemedText>
-                {b.paid ? <ThemedText type="small" style={styles.vip}>VIP</ThemedText> : null}
+                {b.paid ? <ThemedText type="small" style={styles.vip}>PRO</ThemedText> : null}
               </View>
               <ThemedText type="small" themeColor="textSecondary" numberOfLines={2} style={styles.cardDesc}>
                 {b.description}

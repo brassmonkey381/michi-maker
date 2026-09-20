@@ -41,6 +41,7 @@ import {
   planCta,
   type CompareCell,
   type PlanHeader,
+  CROSS_DISCOUNT_RETIRED,
 } from '@/data/subscriptions';
 import { BUNDLE_PERCENT_OFF, formatMinor, PERCENT_OFF, promoActive, promoPriceMinor } from '@/data/promo';
 import { useTier } from '@/hooks/use-tier';
@@ -83,7 +84,9 @@ function saleSub(head: PlanHeader, percentOff: number): string {
 }
 
 export function PlanComparison() {
-  const { tier, loading, refresh, isPaid, tcgscanIsPaid, tcgscanIsYearly } = useTier();
+  const { tier: heldTier, capSet, loading, refresh, isPaid, tcgscanIsPaid, tcgscanIsYearly } = useTier();
+  // VIP is retired from sale; a VIP row that still exists is PRO as far as this page is concerned.
+  const tier = heldTier === 'vip' ? 'pro' : heldTier;
   const { isSignedIn } = useAuth();
   const { opening, open } = useTcgscanOpen();
   // Cross-app bundle: a member holding a sibling TCGScan tier earns 60% off PRO/VIP. Mirror the
@@ -93,7 +96,7 @@ export function PlanComparison() {
   const onTrial = useTrial().state === 'active';
   // tcgscanIsPaid, not hasTcgscanPro: a TRIALLING sibling earns no bundle, so quoting 60% off
   // monthly here would advertise a price stripe-checkout now refuses.
-  const bundleEligible = !loading && tcgscanIsPaid && !(isPaid && !onTrial);
+  const bundleEligible = !CROSS_DISCOUNT_RETIRED && !loading && tcgscanIsPaid && !(isPaid && !onTrial);
   // PER-TERM, mirroring the server's bundleQualifies (src/data/bundle.ts): a YEARLY plan gets the
   // 60% bundle ONLY when the qualifying tcgscan sibling is itself billed yearly; a MONTHLY plan
   // gets it for any active sibling. So a monthly/comp-sibling holder sees 60% on monthly and
@@ -142,7 +145,9 @@ export function PlanComparison() {
     }
   };
 
-  const [freeHead, proHead, vipHead] = PLAN_HEADERS;
+  const [freeHead, proHead] = PLAN_HEADERS;
+  // An account on the legacy Free caps reads ITS numbers in the Free column (CompareRow.freeLegacy).
+  const freeCell = (row: (typeof COMPARISON)[number]) => (capSet === 'legacy_free' && row.freeLegacy ? row.freeLegacy : row.free);
 
   // Real prorated cost of each upgrade available to an existing subscriber, so the CTA can quote
   // a number instead of promising "you only pay the difference". Read-only on Stripe's side.
@@ -380,25 +385,6 @@ export function PlanComparison() {
               <Text style={styles.tierSub}>{onSaleYearly ? saleSub(proHead, yearlyPercentOff) : proHead.sub}</Text>
               {!loading && tier === 'pro' ? <Text style={styles.current}>Your current plan</Text> : null}
             </View>
-            <View style={[styles.cell, styles.vipCol, styles.headCell, styles.vipHead]}>
-              <View style={styles.badgeVip}>
-                <Text style={styles.badgeVipText}>{vipHead.badge}</Text>
-              </View>
-              <Text style={[styles.tierName, styles.vipText]}>{vipHead.name}</Text>
-              {onSaleYearly ? <Text style={[styles.tierWas, styles.vipSubText]}>{vipHead.price}</Text> : null}
-              <Text style={[styles.tierPrice, styles.vipText]}>
-                {onSaleYearly && vipHead.yearlyMinor
-                  ? formatMinor(promoPriceMinor(vipHead.yearlyMinor, yearlyPercentOff))
-                  : vipHead.price}
-                <Text style={[styles.tierPer, styles.vipSubText]}>{vipHead.per}</Text>
-              </Text>
-              <Text style={[styles.tierSub, styles.vipSubText]}>
-                {onSaleYearly ? saleSub(vipHead, yearlyPercentOff) : vipHead.sub}
-              </Text>
-              {!loading && tier === 'vip' ? (
-                <Text style={styles.current}>Your current plan</Text>
-              ) : null}
-            </View>
           </View>
 
           {/* ── capability rows ────────────────────────── */}
@@ -411,13 +397,10 @@ export function PlanComparison() {
                 </Text>
               </View>
               <View style={[styles.cell, styles.freeCol, row.highlight && styles.hlCell]}>
-                <ValueCell cell={row.free} />
+                <ValueCell cell={freeCell(row)} />
               </View>
               <View style={[styles.cell, styles.proCol, row.highlight && styles.hlCell]}>
                 <ValueCell cell={row.pro} />
-              </View>
-              <View style={[styles.cell, styles.vipCol]}>
-                <ValueCell cell={row.vip} vip />
               </View>
             </View>
           ))}
@@ -430,9 +413,6 @@ export function PlanComparison() {
             </View>
             <View style={[styles.cell, styles.proCol, styles.footCell, styles.proFoot]}>
               {paidFoot(proHead)}
-            </View>
-            <View style={[styles.cell, styles.vipCol, styles.footCell, styles.vipFoot]}>
-              {paidFoot(vipHead)}
             </View>
           </View>
         </View>

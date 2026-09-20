@@ -67,29 +67,19 @@ export const PLAN_HEADERS: PlanHeader[] = [
   {
     tier: 'pro',
     name: 'PRO',
-    price: '$39.99',
+    price: '$49.99',
     per: '/yr',
-    sub: 'about $3.33 a month, billed yearly · or $3.99 month to month',
+    sub: 'about $4.17 a month, billed yearly · or $5.99 month to month',
     badge: 'Most popular',
     yearlyKey: 'michi_pro_yearly',
     monthlyKey: 'michi_pro_monthly',
-    monthlyLabel: 'or $3.99 month to month',
-    yearlyMinor: 3999,
-    monthlyMinor: 399,
+    monthlyLabel: 'or $5.99 month to month',
+    yearlyMinor: 4999,
+    monthlyMinor: 599,
   },
-  {
-    tier: 'vip',
-    name: 'VIP',
-    price: '$99.99',
-    per: '/yr',
-    sub: 'about $8.33 a month, billed yearly · or $9.99 month to month',
-    badge: 'Best value',
-    yearlyKey: 'michi_vip_yearly',
-    monthlyKey: 'michi_vip_monthly',
-    monthlyLabel: 'or $9.99 month to month',
-    yearlyMinor: 9999,
-    monthlyMinor: 999,
-  },
+  // VIP WAS RETIRED FROM SALE in the 2026-09 tier rework (tcgscan-app docs/TIER-REWORK.md): two
+  // plans, Free and PRO. Soundtracks and the all-at-once composer are PRO now. A tier_vip row that
+  // still exists reads as PRO everywhere, this page included.
 ];
 
 /**
@@ -180,8 +170,13 @@ export interface CompareRow {
   /** Accent-tinted row: an "included at every tier" highlight. */
   highlight?: boolean;
   free: CompareCell;
+  /**
+   * What the Free cell says to an account that existed before the 2026-09 rework and kept its caps
+   * (tiers.LEGACY_FREE_LIMITS). Absent = the same as `free`. A long-standing user must never be
+   * shown a lower number than the one they are actually held to.
+   */
+  freeLegacy?: CompareCell;
   pro: CompareCell;
-  vip: CompareCell;
 }
 
 /**
@@ -223,100 +218,70 @@ export const INCLUDED_EVERYWHERE = [
 export const COMPARISON: CompareRow[] = [
   {
     capability: 'Binders',
-    free: { text: '3' },
-    pro: { text: '12' },
-    vip: { text: 'Unlimited', strong: true },
+    free: { text: '2' },
+    freeLegacy: { text: '3' },
+    pro: { text: 'Unlimited', strong: true },
   },
   {
     capability: 'Pages per binder',
-    free: { text: '16' },
-    pro: { text: '40' },
-    vip: { text: 'Unlimited', strong: true },
+    free: { text: '9' },
+    freeLegacy: { text: '16' },
+    pro: { text: 'Unlimited', strong: true },
   },
   {
-    // TWO ROWS, NOT ONE. These shipped as a single "included at every tier" promise (owner
-    // decision 2026-07-16) reading "Similarity matching + composer methods: Included", and it
-    // over-promised twice over: tri-colour was already PRO in code, and find similar itself went
-    // PRO on 2026-09-01 (tiers.ts findSimilar), taking the "≈ More like this" fill method with
-    // it. Neither half is all-or-nothing at free any more, so each states its own split rather
-    // than one cell averaging them into a word that is wrong for both.
+    capability: 'Slice Studio artworks in your account',
+    free: { text: '25' },
+    freeLegacy: { text: '100' },
+    pro: { text: 'Unlimited', strong: true },
+  },
+  {
     capability: 'Similarity matching',
     mark: '(1)',
-    // Not 'No': the colour sheet's match-by-energy-type is similarity and it stays free, so a
-    // flat no would under-promise as badly as 'Included' over-promised.
     free: { text: 'Partial', sub: 'by energy colour only' },
     pro: { text: '✓', strong: true, sub: 'Find similar' },
-    vip: { text: '✓', strong: true, sub: 'Find similar' },
   },
   {
-    // Seven of the nine methods in pageComposer.ts are free; the two that are not are exactly
-    // the two capabilities sold above (similarity → '≈ More like this', tri-colour → 'Color
-    // match'). Keep the sub in step with `paid:` there if a method changes sides.
     capability: 'Composer methods',
     mark: '(2)',
     highlight: true,
     free: { text: '7 of 9', sub: 'all but "More Like This" and "Tri-Color Match"' },
-    pro: { text: 'All 9', strong: true },
-    vip: { text: 'All 9, at once', strong: true, sub: 'Pages around this card' },
+    pro: { text: 'All 9, at once', strong: true, sub: 'Pages around this card' },
   },
   {
     capability: 'Advanced Search',
     mark: '(3)',
     free: { text: 'Basic', sub: 'grammar, filters, one colour' },
     pro: { text: '✓', strong: true, sub: 'value sort, price, Tri-Color, similarity, Theme Search' },
-    vip: { text: '✓', strong: true, sub: 'everything in PRO' },
   },
   {
     capability: 'Binder covers',
     free: { text: 'No' },
     pro: { text: '✓', strong: true, sub: 'dress it, decorate all four surfaces' },
-    vip: { text: '✓', strong: true, sub: 'dress it, decorate all four surfaces' },
   },
   {
     capability: 'Binder soundtrack',
     free: { text: 'No' },
-    pro: { text: 'No' },
-    vip: { text: '✓', strong: true, sub: 'your own track, per binder or per page, plays on open and turn' },
-  },
-  {
-    capability: 'Slice Studio artworks in your account',
-    free: { text: '100' },
-    pro: { text: '1,000' },
-    vip: { text: 'Unlimited', strong: true },
+    pro: { text: '✓', strong: true, sub: 'your own track, per binder or per page, plays on open and turn' },
   },
   {
     capability: 'Build from cards you really own',
     mark: '(4)',
     highlight: true,
     free: { text: '✓' },
-    pro: { text: '✓', sub: 'TCGScan bundle discount' },
-    vip: { text: '✓', sub: 'TCGScan bundle discount' },
+    pro: { text: '✓' },
   },
   {
+    // PRINTS ARE IN NO PLAN (owner, 2026-09-20): the print offer is being reworked. Every plan
+    // previews for free and buys a binder's PDF one at a time.
     capability: 'Print-ready fill sheets',
     mark: '(5)',
-    free: { text: 'Example-sheet preview' },
-    // One plain sentence plus a saving stamp. Everything else — the yearly pool, the per-print
-    // maths, prorated upgrades — lives in footnote (5) rather than crowding the cell.
-    pro: {
-      text: 'Full binders',
-      strong: true,
-      stamp: `${YEARLY_PRINT_VALUE.pro.off} SAVINGS`,
-      sub: '1 binder PDF a month',
-    },
-    vip: {
-      text: 'Full binders',
-      strong: true,
-      stamp: `${YEARLY_PRINT_VALUE.vip.off} SAVINGS`,
-      sub: '3 binder PDFs a month',
-    },
+    free: { text: 'Example-sheet preview', sub: `full binder PDF ${'$3.99'} each` },
+    pro: { text: 'Example-sheet preview', sub: `full binder PDF ${'$3.99'} each` },
   },
   {
-    // The capability names itself, so the three cells only have to answer yes.
     capability: 'Share and like',
     free: { text: '✓' },
     pro: { text: '✓' },
-    vip: { text: '✓' },
   },
 ];
 
@@ -335,7 +300,7 @@ export const FOOTNOTES: { mark: string; text: string; link?: { label: string; ur
     mark: '(1)',
     text:
       'Find similar is the visual-similarity search: pick a card, or a whole selection, and get ' +
-      'the ones that look like it across the catalog. PRO and VIP. Free and guest keep matching ' +
+      'the ones that look like it across the catalog. PRO. Free and guest keep matching ' +
       'by colour: the energy-type colour sheet, and single-colour search in the browser.',
   },
   {
@@ -343,22 +308,22 @@ export const FOOTNOTES: { mark: string; text: string; link?: { label: string; ur
     text:
       'The composer fills a page around one seed card. Free: Same Pokémon, Evolution line, ' +
       'Friends & partners, Trainer page, Same artist, Color by type, Full-page spread. PRO adds ' +
-      'More like this and Color match (tri-color). VIP runs every method at once with Pages ' +
+      'More like this and Color match (tri-color). PRO runs every method at once with Pages ' +
       'around this card and adds the pages you keep.',
   },
   {
     mark: '(3)',
     text:
-      'Advanced Search, PRO and VIP: sort by value, price filters (>$100), Tri-Color Search and ' +
+      'Advanced Search, PRO: sort by value, price filters (>$100), Tri-Color Search and ' +
       'refine results by similarity. Theme Search: theme:, art: and scene: search what the ' +
       'picture shows (theme:underwater), from captions written about every Illustration Rare. ' +
       'Every tier can run it; free and guest see the top matches and how many more there are, ' +
-      'PRO and VIP see every match. Free and guest keep the full grammar, every filter chip, ' +
+      'PRO sees every match. Free and guest keep the full grammar, every filter chip, ' +
       'favourites and single-colour search.',
   },
   {
     mark: '(4)',
-    text: 'Every tier. Scan the cards you own with our partner app TCGScan and your collection syncs into michi-maker. PRO and VIP get bundle discounts on TCGScan memberships.',
+    text: 'Every tier. Scan the cards you own with our partner app TCGScan and your collection syncs into michi-maker.',
     link: { label: 'Meet TCGScan →', url: TCGSCAN_URL },
   },
   {
@@ -400,3 +365,10 @@ export const ANNUAL_POOL = {
   /** Nudge for month-to-month subscribers, who have no pool to release. */
   monthlyUpsell: 'Switch to yearly billing and you can use a whole year of prints whenever you want.',
 };
+
+/**
+ * The 60% cross-app discount (hold a plan in one app, get 60% off the other) is RETIRED as of the
+ * 2026-09 tier rework. The web bundle (both apps, one membership) replaces it, and stripe-checkout
+ * no longer applies the coupon, so no surface may promise it.
+ */
+export const CROSS_DISCOUNT_RETIRED = true;

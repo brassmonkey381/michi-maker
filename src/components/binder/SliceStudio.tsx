@@ -1153,7 +1153,7 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
             ) : (
               <CapGateOffer
                 message={`You’re keeping ${trayCount} of ${trayLimit} artworks. Saving ${panels.length} more needs a bigger plan.`}
-                trialMessage={`You’re keeping ${trayCount} of ${trayLimit} artworks. PRO keeps ${TIER_LIMITS.pro.artUploads}. Try it free for ${TRIAL_DAYS_TEXT}.`}
+                trialMessage={`You’re keeping ${trayCount} of ${trayLimit} artworks. They all stay. PRO keeps as many as you like. Try it free for ${TRIAL_DAYS_TEXT}.`}
                 surface="slice_studio"
                 onBeforePress={onClose}
               />

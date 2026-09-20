@@ -53,14 +53,26 @@ const CORS = {
 const SELLABLE = new Set([
   'michi_pro_monthly',
   'michi_pro_yearly',
-  'michi_vip_monthly',
-  'michi_vip_yearly',
   'michi_binder_pdf',
   'tcgscan_pro_monthly',
   'tcgscan_pro_yearly',
-  'tcgscan_vip_monthly',
-  'tcgscan_vip_yearly',
+  // THE 2026-09 TIER REWORK (tcgscan-app docs/TIER-REWORK.md). VIP is no longer sold in either app
+  // (its keys are gone from this set, so a stale client cannot buy it). Founder is a one-time
+  // lifetime PRO; the bundle is one subscription that grants PRO in both apps.
+  'michi_pro_founder',
+  'tcgscan_pro_founder',
+  'bundle_pro_monthly',
+  'bundle_pro_yearly',
 ]);
+
+/** A Founder key: one-time payment, lifetime PRO. */
+const isFounderKey = (k: string) => k === 'michi_pro_founder' || k === 'tcgscan_pro_founder';
+/** The web bundle: one subscription, PRO in both apps. */
+const isBundleKey = (k: string) => k.startsWith('bundle_pro');
+/** michi-maker sells 100 Founder memberships, counted from the ledger. TCGScan's has no limit. */
+const MICHI_FOUNDER_LIMIT = 100;
+/** The old 60% cross-app discount is replaced by the bundle; a client that still asks gets none. */
+const CROSS_DISCOUNT_RETIRED = true;
 
 /** Origins checkout may return to (success/cancel URLs are validated against these).
  *  Includes the sibling app — tcgscan launches checkouts against this same function. */
@@ -600,6 +612,39 @@ Deno.serve(async (req: Request) => {
   const binderId = String(body.binderId ?? '');
   if (michiProduct === 'pdf_binder' && !binderId) return json(400, { error: 'binderId required' });
 
+  // ── Founder: one per account, 100 for michi-maker, and never on top of a live subscription ──
+  const founder = isFounderKey(lookupKey);
+  if (founder) {
+    if (michiProduct !== 'tier_pro' && michiProduct !== 'tcgscan_pro') {
+      return json(500, { error: 'the Founder price is not on a PRO product' });
+    }
+    const { data: mine } = await service
+      .from('entitlements')
+      .select('product, expires_at, interval, source')
+      .eq('user_id', user.id)
+      .in('product', [michiProduct, michiProduct === 'tier_pro' ? 'tier_vip' : 'tcgscan_vip']);
+    const live = (mine ?? []).filter((r) => !r.expires_at || Date.parse(r.expires_at) > Date.now());
+    if (live.some((r) => r.product === michiProduct && !r.expires_at && r.interval === 'lifetime')) {
+      return json(409, { error: 'You already hold a Founder membership.' });
+    }
+    // A subscription that is still billing would go on billing after a lifetime purchase, and the
+    // ledger (one row per product) would hide it. Refuse rather than double-charge.
+    if (live.some((r) => r.source === 'stripe' || r.source === 'apple')) {
+      return json(409, {
+        error: 'You have an active membership. Cancel it first, then buy Founder when it ends; you will not lose access in between.',
+      });
+    }
+    if (michiProduct === 'tier_pro') {
+      const { count } = await service
+        .from('entitlements')
+        .select('user_id', { count: 'exact', head: true })
+        .eq('product', 'tier_pro')
+        .eq('interval', 'lifetime')
+        .is('expires_at', null);
+      if ((count ?? 0) >= MICHI_FOUNDER_LIMIT) return json(409, { error: 'All 100 Founder memberships are taken.' });
+    }
+  }
+
   // Reuse the mapped Stripe customer when one exists so purchases stack on one customer.
   const { data: mapping } = await service
     .from('billing_customers')
@@ -630,10 +675,15 @@ Deno.serve(async (req: Request) => {
     // within one app is a plan change, never a new subscription: a second one would bill both
     // while the webhook's sibling hygiene hides it (the ledger shows one clean tier).
     const existingKeys = existing.data.map((s) => s.items?.data?.[0]?.price?.lookup_key ?? '');
-    const holdsMichiTier = existingKeys.some((k) => k.startsWith('michi_pro') || k.startsWith('michi_vip'));
-    const holdsTcgscanTier = existingKeys.some((k) => k.startsWith('tcgscan_pro') || k.startsWith('tcgscan_vip'));
-    const buyingMichiTier = michiProduct === 'tier_pro' || michiProduct === 'tier_vip';
-    const buyingTcgscanTier = michiProduct === 'tcgscan_pro' || michiProduct === 'tcgscan_vip';
+    // THE BUNDLE COUNTS AS BOTH. It grants PRO in each app from one subscription, so holding it
+    // blocks a single-app plan in either app, and buying it is blocked by a plan in either app:
+    // every one of those pairs would bill twice for a ledger row that can only exist once.
+    const holdsBundle = existingKeys.some((k) => isBundleKey(k));
+    const buyingBundle = isBundleKey(lookupKey);
+    const holdsMichiTier = holdsBundle || existingKeys.some((k) => k.startsWith('michi_pro') || k.startsWith('michi_vip'));
+    const holdsTcgscanTier = holdsBundle || existingKeys.some((k) => k.startsWith('tcgscan_pro') || k.startsWith('tcgscan_vip'));
+    const buyingMichiTier = buyingBundle || michiProduct === 'tier_pro' || michiProduct === 'tier_vip';
+    const buyingTcgscanTier = buyingBundle || michiProduct === 'tcgscan_pro' || michiProduct === 'tcgscan_vip';
     if ((holdsMichiTier && buyingMichiTier) || (holdsTcgscanTier && buyingTcgscanTier)) {
       return json(409, {
         error:
@@ -646,7 +696,7 @@ Deno.serve(async (req: Request) => {
   // coupon only if it actually owns an active sibling Pro; see docs/SYNERGY.md). Stripe rejects
   // `discounts` together with `allow_promotion_codes`, so a discounted checkout gives up promo codes.
   let discounts: { coupon: string }[] | undefined;
-  if (body.bundle === true) {
+  if (body.bundle === true && !CROSS_DISCOUNT_RETIRED) {
     const coupon = Deno.env.get('STRIPE_BUNDLE_COUPON');
     const siblings = bundleSiblingsFor(lookupKey);
     if (coupon && siblings) {
@@ -735,6 +785,8 @@ Deno.serve(async (req: Request) => {
       supabase_user_id: user.id,
       michi_product: michiProduct,
       ...(binderId ? { binder_id: binderId } : {}),
+      // The webhook grants a lifetime row for exactly this flag plus a PRO michi_product.
+      ...(founder ? { founder: 'true' } : {}),
     },
     success_url: success.toString(),
     cancel_url: cancel.toString(),

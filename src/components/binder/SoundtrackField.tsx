@@ -81,7 +81,7 @@ export function SoundtrackField({
     <View style={styles.wrap}>
       <ThemedText type="smallBold" style={styles.label}>
         {label}
-        <Text style={styles.vip}> · VIP</Text>
+        <Text style={styles.vip}> · PRO</Text>
       </ThemedText>
       {track ? (
         <View style={styles.row}>

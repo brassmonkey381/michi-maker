@@ -116,7 +116,7 @@ export const GUIDE_LIST: Guide[] = [
         body: 'A fill only writes into empty pockets, so nothing you placed moves. It is one step, so one Undo reverses the whole fill and you can try another method.',
       },
     ],
-    tip: 'Turn on From my collection and every method draws only from cards you own. VIP adds Pages around this card: every method at once, and you keep the ones you like.',
+    tip: 'Turn on From my collection and every method draws only from cards you own. PRO adds Pages around this card: every method at once, and you keep the ones you like.',
     relatedSlugs: ['slice-studio', 'print-binder'],
   },
   {
@@ -253,7 +253,7 @@ export const GUIDE_LIST: Guide[] = [
       },
       {
         title: 'Every match, and the pages built from them',
-        body: 'Free and guest accounts see the top few matches of any theme and how many more there are. PRO and VIP see every match, and the same pictures power Same scene in the fill sheet, the scene pages Build a binder proposes, and the Story binder.',
+        body: 'Free and guest accounts see the top few matches of any theme and how many more there are. PRO sees every match, and the same pictures power Same scene in the fill sheet, the scene pages Build a binder proposes, and the Story binder.',
         figure: { kind: 'results', query: 'theme:snow', note: 'The row under a metered search says what a plan adds.' },
       },
     ],

@@ -30,7 +30,9 @@ import {
   Spacing,
 } from '@/constants/theme';
 import { redeemHandoffHashFromLocation } from '@/data/handoff';
+import { OfferCards } from '@/components/monetization/OfferCards';
 import { promoActive } from '@/data/promo';
+import { CROSS_DISCOUNT_RETIRED } from '@/data/subscriptions';
 import { useTier } from '@/hooks/use-tier';
 import { useTrial } from '@/hooks/use-trial';
 import { useAuth } from '@/store/auth';
@@ -62,8 +64,10 @@ export default function PlansScreen() {
   // and tcgscanIsPaid is the exact condition the server's bundleQualifies now applies. Reading
   // hasTcgscanPro here advertised a 60% that checkout refuses. The server (stripe-checkout) remains
   // the source of truth for the charged price and its term-level matching.
-  const bundleEligible = !tierLoading && tcgscanIsPaid && !(isPaid && !isTrial);
-  const bundleArrival = bundle === '1' && !tierLoading && !isPaid && !hasTcgscanPro;
+  // THE 60% CROSS-APP DISCOUNT IS RETIRED (2026-09 tier rework): the two-app bundle replaces it, and
+  // stripe-checkout no longer grants it. Nothing on the page may promise it.
+  const bundleEligible = !CROSS_DISCOUNT_RETIRED && !tierLoading && tcgscanIsPaid && !(isPaid && !isTrial);
+  const bundleArrival = !CROSS_DISCOUNT_RETIRED && bundle === '1' && !tierLoading && !isPaid && !hasTcgscanPro;
 
   // Back from Stripe Checkout: fulfillment is webhook-driven and lags the redirect by a few
   // seconds, so poll the entitlement read until the tier flips (or we give up quietly — the
@@ -87,7 +91,7 @@ export default function PlansScreen() {
   return (
     <PageShell
       title="Plans"
-      description="michi-maker plans: Free, PRO, and VIP."
+      description="michi-maker plans: Free and PRO."
       maxWidth={MaxContentWidthWide}>
       {/* ── masthead ───────────────────────────────────
           Two lines, not four. The chip read "michi-maker plans" on a page whose title is already
@@ -155,6 +159,9 @@ export default function PlansScreen() {
 
       {/* Remount on tier flip so the table's own entitlement read (Current plan tag) refreshes. */}
       <PlanComparison key={`plans-${isPaid}`} />
+
+      {/* Founder (with the real N-of-100 counter) and the two-app bundle. */}
+      <OfferCards />
 
       {/* The one-time $3.99 unlock used to be advertised here, in a panel with no way to buy it —
           a paragraph of purchase terms for a product you cannot reach from this page. It is sold

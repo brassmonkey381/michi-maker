@@ -14,6 +14,7 @@ import {
   hasFindSimilar,
   searchesArtworkUnmetered,
   limitsForTier,
+  LEGACY_FREE_LIMITS,
   TIER_LIMITS,
   type EntitlementRow,
 } from './tiers.ts';
@@ -56,25 +57,44 @@ test('isActive: future = active, past = lapsed, null = lifetime', () => {
  * print volume. If PRO ever reads true here the tier stops being distinguishable on features,
  * so pin the whole column rather than just the VIP cell.
  */
-test('multiPageCompose is VIP-only', () => {
-  assert.equal(TIER_LIMITS.vip.multiPageCompose, true);
-  for (const tier of ['guest', 'free', 'pro'] as const) {
+test('multiPageCompose is a PRO feature since VIP was retired (2026-09)', () => {
+  assert.equal(TIER_LIMITS.pro.multiPageCompose, true);
+  assert.equal(TIER_LIMITS.vip.multiPageCompose, true, 'a VIP row that still exists reads as PRO');
+  for (const tier of ['guest', 'free'] as const) {
     assert.equal(TIER_LIMITS[tier].multiPageCompose, false, `${tier} must not have it`);
   }
 });
 
-test('a VIP entitlement is what actually unlocks it', () => {
+test('a paid entitlement is what actually unlocks it', () => {
   const NOW2 = Date.parse('2026-08-20T12:00:00Z');
   const tierOf = (rows: EntitlementRow[]) => resolveTier({ isSignedIn: true, rows }, NOW2);
   const proRow: EntitlementRow = { product: 'tier_pro', expires_at: null };
   const vipRow: EntitlementRow = { product: 'tier_vip', expires_at: null };
-  assert.equal(TIER_LIMITS[tierOf([proRow])].multiPageCompose, false);
+  assert.equal(TIER_LIMITS[tierOf([proRow])].multiPageCompose, true);
   assert.equal(TIER_LIMITS[tierOf([vipRow])].multiPageCompose, true);
-  // A lapsed VIP loses it, same as every other paid capability.
+  // A lapsed plan loses it, same as every other paid capability.
   assert.equal(
-    TIER_LIMITS[tierOf([{ product: 'tier_vip', expires_at: '2026-01-01T00:00:00Z' }])].multiPageCompose,
+    TIER_LIMITS[tierOf([{ product: 'tier_pro', expires_at: '2026-01-01T00:00:00Z' }])].multiPageCompose,
     false,
   );
+});
+
+test('the 2026-09 rework: new Free, legacy Free, unlimited PRO, prints in no plan', () => {
+  assert.deepEqual(
+    [TIER_LIMITS.free.binders, TIER_LIMITS.free.pagesPerBinder, TIER_LIMITS.free.artUploads],
+    [2, 9, 25],
+  );
+  assert.deepEqual(
+    [LEGACY_FREE_LIMITS.binders, LEGACY_FREE_LIMITS.pagesPerBinder, LEGACY_FREE_LIMITS.artUploads],
+    [3, 16, 100],
+  );
+  for (const k of ['binders', 'pagesPerBinder', 'artUploads'] as const) {
+    assert.equal(TIER_LIMITS.pro[k], Infinity);
+    assert.equal(TIER_LIMITS.vip[k], TIER_LIMITS.pro[k]);
+  }
+  for (const tier of ['guest', 'free', 'pro', 'vip'] as const) {
+    assert.equal(TIER_LIMITS[tier].includedPrintsPerMonth, 0, `${tier}: prints are in no plan`);
+  }
 });
 
 /**

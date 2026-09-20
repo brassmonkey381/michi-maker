@@ -14,14 +14,14 @@ export function binderLimitMessage(tier: Tier, limits: TierLimits): string {
     const n = limits.binders;
     return `Guests can keep ${n} binder${n === 1 ? '' : 's'}. Sign in (free) to make up to ${TIER_LIMITS.free.binders}.`;
   }
-  return `You’ve reached your ${limits.binders}-binder limit. Upgrade for more room.`;
+  return `You’ve reached your ${limits.binders}-binder limit. Your binders stay as they are. PRO has no binder limit.`;
 }
 
 export function pageLimitMessage(tier: Tier, limits: TierLimits): string {
   if (tier === 'guest') {
     return `Guests get ${limits.pagesPerBinder} pages per binder. Sign in (free) for ${TIER_LIMITS.free.pagesPerBinder}.`;
   }
-  return `You’ve reached the ${limits.pagesPerBinder}-page limit. Upgrade for more.`;
+  return `You’ve reached the ${limits.pagesPerBinder}-page limit. Every page you have stays. PRO has no page limit.`;
 }
 
 /**
@@ -34,7 +34,7 @@ export function artLimitMessage(tier: Tier, limits: TierLimits): string {
   if (tier === 'guest') {
     return `Guests can keep ${limits.artUploads} artworks. Sign in (free) to keep up to ${TIER_LIMITS.free.artUploads}.`;
   }
-  return `You’ve reached your ${limits.artUploads}-artwork limit. Upgrade for more room.`;
+  return `You’ve reached your ${limits.artUploads}-artwork limit. Everything you’ve saved stays. Delete one to add another, or PRO keeps as many as you like.`;
 }
 
 /**
@@ -64,19 +64,19 @@ export function limitCta(tier: Tier): LimitCta {
  * naming the ceiling they are about to leave tells them nothing. No guest branch, because the
  * trial requires a real account (start_pro_trial refuses anons) and guests get SignInPerk first.
  *
- * The wall is named before the offer — "you're at 3, PRO gives 12" answers the question the user
+ * The wall is named before the offer — "you're at 2, PRO has no limit" answers the question the user
  * just asked, where "try PRO free!" is an advert that happens to have appeared.
  */
 export function binderTrialMessage(limits: TierLimits): string {
-  return `You’ve reached your ${limits.binders}-binder limit. PRO holds ${TIER_LIMITS.pro.binders}. Try it free for ${TRIAL_DAYS_TEXT}.`;
+  return `You’ve reached your ${limits.binders}-binder limit. Your binders stay as they are. PRO has no binder limit. Try it free for ${TRIAL_DAYS_TEXT}.`;
 }
 
 export function pageTrialMessage(limits: TierLimits): string {
-  return `You’ve reached the ${limits.pagesPerBinder}-page limit. PRO binders hold ${TIER_LIMITS.pro.pagesPerBinder}. Try it free for ${TRIAL_DAYS_TEXT}.`;
+  return `You’ve reached the ${limits.pagesPerBinder}-page limit. Every page you have stays. PRO has no page limit. Try it free for ${TRIAL_DAYS_TEXT}.`;
 }
 
 export function artTrialMessage(limits: TierLimits): string {
-  return `You’re keeping ${limits.artUploads} artworks, all this plan allows. PRO keeps ${TIER_LIMITS.pro.artUploads}. Try it free for ${TRIAL_DAYS_TEXT}.`;
+  return `You’re keeping ${limits.artUploads} artworks, all this plan allows. They all stay. PRO keeps as many as you like. Try it free for ${TRIAL_DAYS_TEXT}.`;
 }
 
 /**

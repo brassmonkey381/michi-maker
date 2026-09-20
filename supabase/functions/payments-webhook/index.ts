@@ -12,6 +12,8 @@
  *  - invoice.paid: renewal — re-upsert the tier row (pushes expires_at to the new period end).
  *  - customer.subscription.updated / deleted: recompute expires_at (cancel-at-period-end lapses
  *    exactly at period end; hard cancel/delete lapses now; active gets a 3-day dunning grace).
+ *  - charge.refunded: a fully refunded FOUNDER purchase ends its lifetime row (the Stripe endpoint
+ *    must be subscribed to this event for it to arrive).
  *  Always: record the user ↔ Stripe-customer mapping in billing_customers (portal needs it).
  *
  * Every tier row also carries `interval` ('month' | 'year') and `period_start` — the billing
@@ -396,6 +398,35 @@ Deno.serve(async (req: Request) => {
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted': {
         await upsertSubscriptionGrant(event.data.object as Stripe.Subscription);
+        break;
+      }
+
+      case 'charge.refunded': {
+        // A FOUNDER REFUND ENDS THE MEMBERSHIP. A lifetime row has no expiry and no subscription
+        // to cancel, so nothing else would ever end it: a refunded Founder would keep PRO for good
+        // and keep counting toward the 100. Only a FULL refund counts (`charge.refunded` is true
+        // only then; a partial refund is a price adjustment, not a return), and only a row this
+        // purchase could have written is touched: stripe-sourced, lifetime, no expiry. A trial or
+        // an Apple row under the same product is left alone.
+        const charge = event.data.object as Stripe.Charge;
+        if (!charge.refunded) break;
+        const intent = typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent?.id;
+        if (!intent) break;
+        const sessions = await stripe.checkout.sessions.list({ payment_intent: intent, limit: 1 });
+        const session = sessions.data[0];
+        const product = session?.metadata?.michi_product;
+        const userId = session?.client_reference_id ?? session?.metadata?.supabase_user_id;
+        if (!session || session.metadata?.founder !== 'true' || !userId) break;
+        if (product !== 'tier_pro' && product !== 'tcgscan_pro') break;
+        await service()
+          .from('entitlements')
+          .update({ expires_at: new Date().toISOString() })
+          .eq('user_id', userId)
+          .eq('product', product)
+          .eq('source', 'stripe')
+          .eq('interval', 'lifetime')
+          .is('expires_at', null);
+        console.log('founder refunded, membership ended', product);
         break;
       }
 

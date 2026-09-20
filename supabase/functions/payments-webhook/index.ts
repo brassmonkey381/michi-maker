@@ -38,6 +38,14 @@ const service = () =>
 /** Our subscription price lookup_keys map onto the entitlement products. `tcgscan_pro`/`tcgscan_vip`
  *  are the CROSS-APP subscriptions (sold by either app, read by both — see docs/SYNERGY.md); they
  *  are their OWN family, independent of the michi tiers. */
+/** THE WEB BUNDLE grants PRO in BOTH apps from one subscription (2026-09 tier rework). Every other
+ *  subscription grants exactly one product. */
+function tierProductsFromLookupKey(lookupKey: string | null | undefined): string[] {
+  if (lookupKey?.startsWith('bundle_pro')) return ['tier_pro', 'tcgscan_pro'];
+  const one = tierProductFromLookupKey(lookupKey);
+  return one ? [one] : [];
+}
+
 function tierProductFromLookupKey(lookupKey: string | null | undefined): string | null {
   if (!lookupKey) return null;
   if (lookupKey.startsWith('michi_vip')) return 'tier_vip';
@@ -169,9 +177,27 @@ async function userForSubscription(sub: Stripe.Subscription): Promise<string | n
 /** The tier grant for a subscription's current state. Idempotent — safe on redelivery. */
 async function upsertSubscriptionGrant(sub: Stripe.Subscription) {
   const userId = await userForSubscription(sub);
-  const product = tierProductFromLookupKey(sub.items?.data?.[0]?.price?.lookup_key);
-  if (!userId || !product) {
+  const products = tierProductsFromLookupKey(sub.items?.data?.[0]?.price?.lookup_key);
+  if (!userId || !products.length) {
     console.log('skipping subscription — unresolved user or product', sub.id);
+    return;
+  }
+  for (const product of products) await upsertOneGrant(sub, userId, product, products.length > 1);
+  await recordCustomer(userId, typeof sub.customer === 'string' ? sub.customer : sub.customer?.id);
+}
+
+/** One ledger row from one subscription. `bundled` = this subscription grants more than one product. */
+async function upsertOneGrant(sub: Stripe.Subscription, userId: string, product: string, bundled: boolean) {
+  // A FOUNDER ROW IS NOT A SUBSCRIPTION'S TO END. Lifetime rows have no expiry; a late event from
+  // a subscription the person held before buying Founder must never put one on it.
+  const { data: held } = await service()
+    .from('entitlements')
+    .select('expires_at, interval')
+    .eq('user_id', userId)
+    .eq('product', product)
+    .maybeSingle();
+  if (held && held.expires_at === null && held.interval === 'lifetime') {
+    console.log('lifetime row kept, subscription event not written', sub.id, product);
     return;
   }
 
@@ -251,13 +277,11 @@ async function upsertSubscriptionGrant(sub: Stripe.Subscription) {
   //
   // Best-effort: a failure here must never fail the webhook. It fires one more
   // customer.subscription.updated, which finds the metadata already correct and stops.
-  if (sub.metadata?.michi_product && sub.metadata.michi_product !== product) {
+  if (!bundled && sub.metadata?.michi_product && sub.metadata.michi_product !== product) {
     await stripe.subscriptions
       .update(sub.id, { metadata: { ...sub.metadata, michi_product: product } })
       .catch((e) => console.log('metadata sync skipped', (e as Error).message));
   }
-
-  await recordCustomer(userId, typeof sub.customer === 'string' ? sub.customer : sub.customer?.id);
 }
 
 Deno.serve(async (req: Request) => {
@@ -293,6 +317,33 @@ Deno.serve(async (req: Request) => {
           userId,
           typeof session.customer === 'string' ? session.customer : session.customer?.id,
         );
+        // FOUNDER: a one-time payment for lifetime PRO. The row has no expiry and carries
+        // interval 'lifetime', the marker the Founder counter, the 100 limit and the
+        // subscription guard above all read. Overwrites a trial row of the same product, which is
+        // the point: the trial becomes the membership.
+        const founderProduct = session.metadata?.michi_product;
+        if (
+          session.mode === 'payment' &&
+          session.metadata?.founder === 'true' &&
+          session.payment_status === 'paid' &&
+          (founderProduct === 'tier_pro' || founderProduct === 'tcgscan_pro')
+        ) {
+          await service()
+            .from('entitlements')
+            .upsert(
+              {
+                user_id: userId,
+                product: founderProduct,
+                source: 'stripe',
+                expires_at: null,
+                interval: 'lifetime',
+                period_start: new Date().toISOString(),
+                term_print_allocation: null,
+              },
+              { onConflict: 'user_id,product' },
+            );
+          break;
+        }
         if (session.mode === 'payment') {
           // One-time full-binder PDF → lifetime per-binder grant. granted_at is bumped on every
           // purchase: the unlock is a SNAPSHOT license (the binder as it was when spent — see

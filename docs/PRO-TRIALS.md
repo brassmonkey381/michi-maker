@@ -17,18 +17,27 @@
 > **Neither app's reclaim path has been exercised end to end with a real lapsed subscription.** It
 > is sandbox-verified (see the test plan at the bottom), not production-observed.
 
-A **14-day, no-card PRO trial**, one per real account, offered at high-intent moments. Pairs with
+> **TRIAL LENGTH, CURRENT STATE (2026-09-20).** The trial is **3 days in both apps**. The server is
+> the authority: `public.trial_days()` returns 3 and both `start_pro_trial` and
+> `start_tcgscan_pro_trial` read it (migration `20260920125000_trial_three_days.sql`, which is the
+> trial section of the tier rework migration applied ahead of it). The wording is one constant per
+> app: `src/data/trialLength.ts` here, `src/lib/trial-length.ts` in tcgscan-app. Whether the offer
+> SHOWS is `TRIALS_OPEN` in `src/data/subscriptions.ts`, its own switch and no longer tied to
+> checkout. The SQL further down is the original design and still shows `interval '14 days'`; the
+> live functions no longer contain that literal.
+
+A **3-day, no-card PRO trial** (14 days until 2026-09-20, see the note below), one per real account, offered at high-intent moments. Pairs with
 `docs/PAYMENTS.md` (how tiers/entitlements work) and `docs/GO-LIVE-BILLING.md` (the checkout cutover).
 
 ## Decision & rationale
 
 - **Mechanism: entitlement grant, NOT a Stripe trial.** The trial is an ordinary `tier_pro`
-  entitlement row with `source='trial'` and a 14-day `expires_at`. Everything downstream —
+  entitlement row with `source='trial'` and an `expires_at` `trial_days()` out. Everything downstream —
   `resolveTier`, `hasFullPrint`, caps, the print allowance — already keys on entitlement rows and
   their `expires_at`, so nothing about tier resolution changes. Fits the accepted **freemium,
   no-card-on-file** integration decision; no Stripe subscription, no card, **zero involuntary
   charges → zero trial-conversion chargebacks**.
-- **Duration: 14 days.** Long enough to curate a binder worth printing and to bump the Free caps;
+- **Duration: 3 days** (was 14 until 2026-09-20). Long enough to curate a binder worth printing and to bump the Free caps;
   short enough to keep urgency. (7 is too short for the print arc; 30 dissolves urgency.)
 - **Timing: triggered, not blanket-at-signup.** Offer it where a Free user hits the wall — 4th
   binder, 17th page, 101st artwork, or the Print button — reusing the existing `UpgradePerk` /
@@ -283,12 +292,12 @@ export async function startProTrial(): Promise<{ expiresAt: string }>;
 uid like `useTier`. `start()` calls the RPC then `useTier().refresh()`.
 
 **CTA surfaces** (trial-aware). Extend `UpgradePerk` with optional trial affordance rather than
-forking it: when `trialEligible`, the primary action becomes **"Start free 14-day PRO trial"**
+forking it: when `trialEligible`, the primary action becomes **"Start free 3-day PRO trial"**
 (calls `start()`), and the copy adapts by `TrialState`:
 
 | State | Primary CTA | Note |
 | --- | --- | --- |
-| `eligible` | **Start free 14-day PRO trial** | "No card. Full PRO for 14 days." |
+| `eligible` | **Start free 3-day PRO trial** | "No card. Full PRO for 3 days." |
 | `active` | (none here) | a `TrialBanner` shows "N days of PRO left" |
 | `used` (ended) | **Upgrade to PRO** (current behavior) | "Your PRO trial ended — subscribe to keep it" |
 | `ineligible` | **Upgrade to PRO** | current behavior |
@@ -369,7 +378,7 @@ The unit of reclaim is a **collection** rather than a binder; everything else mi
 above. Owner decisions taken during scoping:
 
 - **Archived collections do NOT count as cards you own.**
-- **tcgscan gets its own 14-day trial**, on a **separate ledger** (`tcgscan_pro_trials`) so
+- **tcgscan gets its own trial of the same length**, on a **separate ledger** (`tcgscan_pro_trials`) so
   trialing michi doesn't burn the tcgscan trial and vice versa.
 - **The keep-picker is required**, with the same date-based fallback when the user picks nothing.
 

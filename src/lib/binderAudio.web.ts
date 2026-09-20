@@ -78,17 +78,34 @@ function makeAudio(url: string): HTMLAudioElement {
   const a = new Audio(url);
   a.loop = true;
   a.preload = 'auto';
-  a.volume = state.muted ? 0 : state.volume;
+  setVol(a, state.muted ? 0 : state.volume);
   return a;
 }
 
+/**
+ * EVERY VOLUME WRITE GOES THROUGH HERE. `HTMLMediaElement.volume` throws (IndexSizeError) on
+ * anything outside 0..1, and a fade computes its value: `from + (to - from) * t` can land a hair
+ * past either end from floating point alone, which was the intermittent "volume" error in the
+ * public viewer. Clamped, and a NaN reads as silence rather than as a throw.
+ */
+function setVol(el: HTMLAudioElement, v: number) {
+  el.volume = Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0;
+}
+
+/** Which fade owns each element. A newer fade on the same element retires the older one, so a
+ *  crossfade started mid-fade cannot have two loops writing the same volume against each other. */
+const rampOwner = new WeakMap<HTMLAudioElement, object>();
+
 /** Ramp one element's volume over FADE_MS, then run `done`. */
 function ramp(el: HTMLAudioElement, to: number, done?: () => void) {
+  const me = {};
+  rampOwner.set(el, me);
   const from = el.volume;
   const start = performance.now();
   const step = (now: number) => {
-    const t = Math.min(1, (now - start) / FADE_MS);
-    el.volume = from + (to - from) * t;
+    if (rampOwner.get(el) !== me) return; // superseded: the newer fade finishes the job
+    const t = Math.min(1, Math.max(0, (now - start) / FADE_MS));
+    setVol(el, from + (to - from) * t);
     if (t < 1) requestAnimationFrame(step);
     else done?.();
   };
@@ -153,7 +170,7 @@ export function setTrack(url: string | null, name = ''): void {
     return;
   }
   const next = makeAudio(url);
-  next.volume = 0;
+  setVol(next, 0);
   current = next;
   emit({ url, name, playing: false, blocked: false });
   if (state.muted) return;
@@ -172,7 +189,7 @@ export function togglePlay(): void {
     return;
   }
   if (state.muted) setMuted(false);
-  current.volume = state.volume;
+  setVol(current, state.volume);
   void attemptPlay(current);
 }
 
@@ -181,11 +198,11 @@ export function setMuted(muted: boolean): void {
   emit({ muted });
   if (!current) return;
   if (muted) {
-    current.volume = 0;
+    setVol(current, 0);
     current.pause();
     emit({ playing: false });
   } else {
-    current.volume = state.volume;
+    setVol(current, state.volume);
     void attemptPlay(current);
   }
 }
@@ -204,7 +221,7 @@ export function setVolume(volume: number): void {
   if (unmute) writeMuted(false);
   emit({ volume: v, ...(unmute ? { muted: false } : {}) });
   if (!current) return;
-  current.volume = state.muted ? 0 : v;
+  setVol(current, state.muted ? 0 : v);
   if (unmute) void attemptPlay(current);
 }
 

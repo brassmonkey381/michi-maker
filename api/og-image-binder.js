@@ -131,12 +131,22 @@ async function fetchManifest() {
 }
 
 /**
- * ONE PIECE CARDS (2026-09-17). A pocket's card_id is a TCGplayer productId, a namespace both games
- * share, and the app resolves a One Piece card everywhere through the kit's secondary manifest.
- * These renders read the Pokémon manifest alone, so a One Piece pocket drew as empty in the share
- * preview, the quick look and the full-size download. This adds the second manifest the same way
- * the kit does: only when a card in THIS binder misses the Pokémon manifest, so a Pokémon-only
- * binder never fetches it. The result is a stack `manifestUrl` reads front to back.
+ * EVERY SECONDARY GAME'S PREFIX, mirroring src/lib/otherGameKeys.ts (SECONDARY_GAMES), which is the
+ * source of truth. These api/ functions are plain CommonJS on purpose - outside the Expo tsc and
+ * lint build - so they cannot import that module and the list is copied here instead. ADDING A GAME
+ * MEANS BOTH PLACES: the app resolved Lorcana cards from the day its artifacts were published
+ * (2026-09-18) while this render still asked for One Piece alone, so a Lorcana pocket drew empty.
+ */
+const SECONDARY_PREFIXES = ['onepiece', 'lorcana'];
+
+/**
+ * OTHER GAMES' CARDS (One Piece 2026-09-17, Lorcana 2026-09-19). A pocket's card_id is a TCGplayer
+ * productId, a namespace every game shares, and the app resolves any game's card through the kit's
+ * secondary manifests. These renders read the Pokémon manifest alone, so another game's pocket drew
+ * as empty in the share preview, the quick look and the full-size download. This adds the others the
+ * same way the kit does: only when a card in THIS binder misses the Pokémon manifest, so a
+ * Pokémon-only binder fetches nothing extra. The result is a stack `manifestUrl` reads front to back,
+ * and a game whose manifest is missing or malformed simply contributes nothing.
  */
 async function completeManifest(manifest, binder) {
   if (!BROWSE_URL || !binder) return manifest;
@@ -144,9 +154,12 @@ async function completeManifest(manifest, binder) {
   for (const p of binder.binder_pages || []) for (const s of p.binder_slots || []) ids.push(s.card_id);
   const misses = ids.some((id) => id && /^\d+$/.test(String(id)) && !(manifest && manifest.cards && manifest.cards[id]));
   if (!misses) return manifest;
-  const other = await fetchJson(`${BROWSE_URL}/onepiece/images.json`);
-  if (!other || !Array.isArray(other.fields) || !other.base || !other.cards) return manifest;
-  return { stack: [manifest, other].filter(Boolean) };
+  const others = await Promise.all(
+    SECONDARY_PREFIXES.map((prefix) => fetchJson(`${BROWSE_URL}/${prefix}/images.json`)),
+  );
+  const usable = others.filter((m) => m && Array.isArray(m.fields) && m.base && m.cards);
+  if (!usable.length) return manifest;
+  return { stack: [manifest, ...usable].filter(Boolean) };
 }
 
 /** id → absolute URL for a manifest field, or null. `image` is the full JPEG (Satori-safe).

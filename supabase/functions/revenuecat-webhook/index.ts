@@ -26,6 +26,7 @@
  *   billing issue                                  → Apple's own grace end when it gives one,
  *                                                    else the paid-through expiration
  *   expiration                                     → the expiration (already past)
+ *   Lifetime purchase (`*_lifetime`)               → no expiry at all; only its own refund ends it
  *
  * SANDBOX EVENTS GRANT TOO, on purpose: App Review buys in the sandbox, and a reviewer who pays
  * and sees nothing unlock is a rejection. The cost is that a TestFlight tester can hold a tier.
@@ -53,6 +54,9 @@ function tierProduct(productId: string | null | undefined): 'tcgscan_pro' | 'tcg
   if (productId.startsWith('tcgscan_pro')) return 'tcgscan_pro';
   return null;
 }
+
+/** `tcgscan_pro_lifetime`: a one-time purchase. Its ledger row has NO expiry, like any lifetime grant. */
+const isLifetime = (productId: string | null | undefined) => !!productId && productId.endsWith('_lifetime');
 
 function billingInterval(productId: string): 'month' | 'year' | null {
   if (productId.endsWith('_yearly')) return 'year';
@@ -91,9 +95,18 @@ function userIdOf(ev: RcEvent): string | null {
   return ids.find((x): x is string => !!x && UUID.test(x)) ?? null;
 }
 
-/** When access ends for this event, or null when the event changes nothing in the ledger. */
-function expiryFor(ev: RcEvent, now: number): number | null {
+/**
+ * When access ends for this event: a time, 'never' for a Lifetime purchase, or null when the event
+ * changes nothing in the ledger.
+ */
+function expiryFor(ev: RcEvent, now: number): number | 'never' | null {
   const paidThrough = ev.expiration_at_ms ?? null;
+  if (isLifetime(ev.product_id)) {
+    // Bought once, held for good; the only thing that ends it is a refund.
+    if (ev.type === 'NON_RENEWING_PURCHASE' || ev.type === 'INITIAL_PURCHASE') return 'never';
+    if (ev.type === 'CANCELLATION' && ev.cancel_reason === 'CUSTOMER_SUPPORT') return now;
+    return null;
+  }
   switch (ev.type) {
     case 'INITIAL_PURCHASE':
     case 'RENEWAL':
@@ -163,13 +176,20 @@ Deno.serve(async (req) => {
     console.log('revenuecat: live stripe row kept, apple event not written', ev.type, ev.id ?? '', product);
     return new Response('ok', { status: 200 });
   }
+  // A LIFETIME ROW IS NOT A SUBSCRIPTION'S TO END. Someone who subscribed and later bought Lifetime
+  // still has the old subscription's cancellation and expiration events on the way; written, they
+  // would put an end date on a purchase that has none. Only the Lifetime product's own refund may.
+  if (existing?.source === 'apple' && existing.expires_at === null && !isLifetime(productId)) {
+    console.log('revenuecat: lifetime row kept, subscription event not written', ev.type, ev.id ?? '', product);
+    return new Response('ok', { status: 200 });
+  }
 
   const { error } = await db.from('entitlements').upsert(
     {
       user_id: userId,
       product,
       source: 'apple',
-      expires_at: new Date(expiresAtMs).toISOString(),
+      expires_at: expiresAtMs === 'never' ? null : new Date(expiresAtMs).toISOString(),
       interval: billingInterval(productId),
       period_start: ev.purchased_at_ms ? new Date(ev.purchased_at_ms).toISOString() : null,
       // The included-print pool is a michi-maker tier benefit; tcgscan tiers carry none.
@@ -184,7 +204,7 @@ Deno.serve(async (req) => {
 
   // Plan switch hygiene, Apple rows only: PRO→VIP inside the subscription group must not leave
   // the other tier's Apple row alive. A Stripe row is Stripe's to end (its own webhook does).
-  if (expiresAtMs > now) {
+  if (expiresAtMs === 'never' || expiresAtMs > now) {
     await db
       .from('entitlements')
       .update({ expires_at: new Date(now).toISOString() })

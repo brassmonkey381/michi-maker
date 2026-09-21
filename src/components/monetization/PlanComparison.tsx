@@ -54,19 +54,40 @@ import { useAuth } from '@/store/auth';
 /** How far the PRO/VIP header tabs rise above the table body. */
 const TAB_RISE = Spacing.four;
 
+/**
+ * A bare "✓" glyph reads as an unfinished table; a filled accent disc reads as an answer, and
+ * it is the one mark the eye can find while scanning a column at speed. Only PRO gets it, because
+ * the whole job of this table is to make one column legible from across the room.
+ */
+function Tick() {
+  return (
+    <View style={styles.tick}>
+      <Text style={styles.tickMark}>{'✓'}</Text>
+    </View>
+  );
+}
+
 function ValueCell({ cell, vip, pro }: { cell: CompareCell; vip?: boolean; pro?: boolean }) {
+  const isTick = cell.text === '✓';
   return (
     <>
       <View style={styles.valueRow}>
+        {isTick && pro ? (
+          <Tick />
+        ) : (
         <Text
           style={[
             styles.value,
             vip && styles.vipText,
             cell.strong && styles.valueStrong,
             cell.strong && pro && styles.valueStrongPro,
+            // "No" is information the reader does not need to dwell on. Muted, so the eye slides
+            // past it to the column that says yes.
+            !pro && cell.text === 'No' && styles.valueNo,
           ]}>
           {cell.text}
         </Text>
+        )}
         {/* Sits beside the value rather than under it, so the saving reads as part of the
             headline instead of another line of small print. */}
         {cell.stamp ? (
@@ -554,6 +575,12 @@ const styles = StyleSheet.create({
    * and not its fill, which left the column we actually sell reading as plain white with a line
    * around it. accentSoft is the text-bearing tint, so labels on it still clear WCAG-AA.
    */
+  /**
+   * ONE COLUMN IS BLUE AND NOTHING ELSE IS. The first pass tinted the PRO column accentSoft AND
+   * banded three rows in selectionSoft, which are nearly the same pale blue (#E7EEFD against
+   * #e8f0fe): everything was faintly blue, so nothing read as featured. Blue now means exactly one
+   * thing on this table, and the band went neutral to protect that.
+   */
   proCol: {
     flexGrow: 1.1,
     backgroundColor: Palette.accentSoft,
@@ -579,9 +606,9 @@ const styles = StyleSheet.create({
     borderTopColor: Palette.accent,
     borderTopLeftRadius: Radius.actionBar,
     borderTopRightRadius: Radius.actionBar,
-    // Tinted like the rest of the column, so the raised tab reads as the TOP OF the PRO column
-    // rather than a white card sitting on a blue one.
-    backgroundColor: Palette.accentSoft,
+    // DEEPER THAN THE BODY, which is how a pricing card is built: the plan and its price sit on a
+    // stronger field, the capability list on a lighter one, and the eye starts at the price.
+    backgroundColor: Palette.selectionTint,
     ...Shadows.page,
   },
   vipHead: {
@@ -593,25 +620,55 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.selectionTint,
     ...Shadows.page,
   },
-  tierName: { fontSize: FontSize.control, fontWeight: Weight.bold, color: Palette.ink },
-  tierPrice: { fontSize: FontSize.title, fontWeight: Weight.bold, color: Palette.ink, marginTop: 2 },
+  /** The plan name is a label above the price, not a headline: small, spaced, out of the way. */
+  tierName: {
+    fontSize: FontSize.label,
+    fontWeight: Weight.bold,
+    color: Palette.ink,
+    letterSpacing: 0.9,
+    textTransform: 'uppercase',
+  },
+  /**
+   * TABULAR FIGURES AND NEGATIVE TRACKING. $49.99 set in proportional digits beside a struck $72
+   * wanders; tabular locks the columns of digits, and pulling the tracking in slightly is what
+   * makes a large price read as one object rather than five characters.
+   */
+  tierPrice: {
+    fontSize: FontSize.title,
+    fontWeight: Weight.bold,
+    color: Palette.ink,
+    marginTop: 2,
+    letterSpacing: -0.6,
+    fontVariant: ['tabular-nums'],
+  },
   // The struck list price above the sale figure: smaller and quieter, so the column still leads
   // with what you would actually pay, while leaving something to compare it against.
-  tierWas: { fontSize: FontSize.sm, color: Palette.muted, textDecorationLine: 'line-through', marginTop: 2 },
+  tierWas: {
+    fontSize: FontSize.sm,
+    color: Palette.muted,
+    textDecorationLine: 'line-through',
+    marginTop: 2,
+    fontVariant: ['tabular-nums'],
+  },
   /** The price and its saving sticker share a baseline, so the sticker reads as part of the price. */
   priceRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, flexWrap: 'wrap' },
+  /**
+   * SOLID ACCENT, not a tint. The header field is selectionTint now, and a selectionSoft chip on
+   * top of it is two near-identical blues with the saving lost between them. Reversed out on the
+   * accent it is the second thing the eye finds, right after the price it modifies.
+   */
   saveSticker: {
-    backgroundColor: Palette.selectionSoft,
+    backgroundColor: Palette.accent,
     borderRadius: Radius.pill,
     paddingHorizontal: Spacing.two,
-    paddingVertical: 2,
+    paddingVertical: 3,
   },
   saveStickerText: {
     fontSize: FontSize.xs,
     fontWeight: Weight.bold,
     letterSpacing: 0.7,
     textTransform: 'uppercase',
-    color: Palette.link,
+    color: Palette.accentText,
   },
   tierPer: { fontSize: FontSize.label, fontWeight: Weight.medium, color: Palette.muted },
   tierSub: { fontSize: FontSize.sm, color: Palette.muted, lineHeight: 16 },
@@ -619,7 +676,7 @@ const styles = StyleSheet.create({
 
   badgePro: {
     alignSelf: 'flex-start',
-    backgroundColor: Palette.selectionSoft,
+    backgroundColor: Palette.surface,
     borderRadius: Radius.pill,
     paddingVertical: 2,
     paddingHorizontal: Spacing.two,
@@ -672,17 +729,40 @@ const styles = StyleSheet.create({
   mark: { color: Palette.link, fontWeight: Weight.bold },
 
   /* highlight rows */
-  hlCell: { backgroundColor: Palette.selectionSoft },
-  hlLabel: { color: Palette.link },
+  /**
+   * NEUTRAL, not blue. These three rows are a band so they read as one block, but a blue band
+   * beside a blue column is two blues competing and neither winning. panelAlt groups them without
+   * spending the accent, which the PRO column needs all of.
+   */
+  hlCell: { backgroundColor: Palette.panelAlt },
+  hlLabel: { color: Palette.ink },
   /**
    * The PRO cell inside a highlighted row. It cannot take hlCell: selectionSoft and accentSoft are
    * nearly the same pale blue, so the band would swallow the column exactly where the column is
    * making its case. selectionTint is the next step up, which keeps PRO the deepest thing in the
    * row it is winning.
    */
+  /** Inside the band the PRO cell steps up too, so the column stays the deepest thing in it. */
   hlCellPro: { backgroundColor: Palette.selectionTint },
-  /** PRO's Unlimited and ticks in the primary, so the column reads as the answer. */
+  /** PRO's Unlimited in the primary, so the column reads as the answer. */
   valueStrongPro: { color: Palette.link, fontWeight: Weight.bold },
+  /** The Free side of a row PRO wins. Present, readable, and not competing for attention. */
+  valueNo: { color: Palette.muted },
+  /** The filled accent disc that replaces a bare tick glyph in the PRO column. */
+  tick: {
+    width: 22,
+    height: 22,
+    borderRadius: Radius.pill,
+    backgroundColor: Palette.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tickMark: {
+    color: Palette.accentText,
+    fontSize: FontSize.sm,
+    fontWeight: Weight.bold,
+    lineHeight: 16,
+  },
 
   /* foot row */
   footCell: { borderBottomWidth: 1, borderBottomColor: Palette.hairline, paddingBottom: Spacing.four },
@@ -705,8 +785,10 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
     alignItems: 'center',
-    minHeight: 38,
+    minHeight: 42,
     justifyContent: 'center',
+    // A primary action on a tinted field needs to sit ON it, not in it.
+    ...Shadows.page,
   },
   btnText: { color: Palette.accentText, fontSize: FontSize.body, fontWeight: Weight.semibold },
   dim: { opacity: 0.7 },

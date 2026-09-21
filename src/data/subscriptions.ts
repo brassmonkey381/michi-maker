@@ -205,7 +205,7 @@ export const INCLUDED_EVERYWHERE = [
   'Your pages synced across web, iOS and Android',
 ];
 
-/** The capability comparison, Free/PRO/VIP only (guest is unadvertised). */
+/** The capability comparison, Free and PRO (guest is unadvertised; VIP was retired 2026-09). */
 export const COMPARISON: CompareRow[] = [
   {
     capability: 'Binders',

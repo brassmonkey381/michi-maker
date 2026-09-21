@@ -1129,12 +1129,17 @@ export type Database = {
           p_contest?: string | null
           p_author?: string | null
           p_exclude_author?: string | null
+          p_after_likes?: number | null
+          p_after_at?: string | null
+          p_after_id?: string | null
         }
         Returns: {
           author_name: string
           binder_id: string
           like_count: number
           made_public_at: string
+          page_count: number
+          face_page_id: string | null
         }[]
       }
       featured_binders: {
@@ -1143,17 +1148,28 @@ export type Database = {
           author_name: string
           binder_id: string
           like_count: number
+          page_count: number
+          face_page_id: string | null
         }[]
       }
       normalize_username: { Args: { p: string }; Returns: string }
       profile_upvote_count: { Args: { p_profile_id: string }; Returns: number }
       username_available: { Args: { p_username: string }; Returns: Json }
       search_binders: {
-        Args: { p_query?: string; p_limit?: number }
+        Args: {
+          p_query?: string
+          p_limit?: number
+          p_after_likes?: number | null
+          p_after_at?: string | null
+          p_after_id?: string | null
+        }
         Returns: {
           author_name: string
           binder_id: string
           like_count: number
+          made_public_at: string
+          page_count: number
+          face_page_id: string | null
         }[]
       }
       search_profiles: {

@@ -53,7 +53,7 @@ export function BinderThumb({ binder, width, onPress, accessory }: BinderThumbPr
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
             {binder.authorName ? `by ${binder.authorName} · ` : ''}
-            {binderMetaLine(binder.pages)}
+            {binderMetaLine(binder.pages, binder.pageCount)}
           </ThemedText>
         </View>
         {accessory}

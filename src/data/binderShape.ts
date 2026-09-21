@@ -24,8 +24,9 @@ export function binderShapeLabel(pages: readonly ShapedPage[]): string {
  * The one meta line every binder tile shares: shape, then page count — "3×4 · 12 pages". The
  * shape leads because it is the thing a collector picks a binder by; the count is the size.
  */
-export function binderMetaLine(pages: readonly ShapedPage[]): string {
-  const n = pages.length;
+export function binderMetaLine(pages: readonly ShapedPage[], total?: number): string {
+  // A list tile carries one page and says how many there really are (DemoBinder.pageCount).
+  const n = total ?? pages.length;
   const count = `${n} ${n === 1 ? 'page' : 'pages'}`;
   const shape = binderShapeLabel(pages);
   return shape ? `${shape} · ${count}` : count;

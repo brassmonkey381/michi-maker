@@ -405,6 +405,13 @@ export interface DemoBinder {
   updatedAt?: string;
   /** Total likes this binder has received. Populated for Featured + when viewing a public binder. */
   likeCount?: number;
+  /**
+   * How many pages the binder has, WHEN `pages` DOES NOT HOLD THEM ALL. A binder in a public list
+   * (Discover, Featured, search) arrives as a tile: `pages` is the one page the tile draws, and
+   * this is the real count for the "3×3 · 12 pages" line. Absent on a binder loaded whole, where
+   * `pages.length` is the truth. Never open a tile as if it were the binder; the viewer fetches.
+   */
+  pageCount?: number;
   /** Whether the current signed-in viewer has liked this binder. */
   likedByMe?: boolean;
   pages: DemoPage[];

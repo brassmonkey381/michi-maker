@@ -29,3 +29,12 @@ test('the meta line leads with the shape and keeps the count grammatical', () =>
   assert.equal(binderMetaLine(pages([3, 3], [4, 4])), 'mixed · 2 pages');
   assert.equal(binderMetaLine([]), '0 pages');
 });
+
+test('a list tile says the real page count, not the one page it carries', () => {
+  // A binder in Discover arrives with the single page its tile draws and the true count beside it.
+  const onePage = [{ rows: 3, cols: 3 }];
+  assert.equal(binderMetaLine(onePage, 12), '3×3 · 12 pages');
+  assert.equal(binderMetaLine(onePage, 1), '3×3 · 1 page');
+  // A binder loaded whole passes no total and counts what it holds.
+  assert.equal(binderMetaLine(onePage), '3×3 · 1 page');
+});

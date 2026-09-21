@@ -49,8 +49,10 @@ import {
 } from '@/constants/theme';
 import {
   fetchDiscoverBinders,
+  fetchDiscoverPage,
   OFFICIAL_AUTHOR,
-  searchBinders,
+  searchBindersPage,
+  type BinderListCursor,
   type DiscoverSort,
 } from '@/data/binderRepo';
 import type { DemoBinder } from '@/data/binderTypes';
@@ -111,6 +113,24 @@ const SORTS: { key: DiscoverSort; label: string }[] = [
   { key: 'likes', label: 'Most liked' },
 ];
 
+/** Fewest letters that run a search. See the note where the search fires. */
+const MIN_QUERY = 2;
+
+/** "Load more": the next page of a list that has one. */
+function LoadMore({ busy, onPress, testID }: { busy: boolean; onPress: () => void; testID: string }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={busy}
+      accessibilityRole="button"
+      testID={testID}
+      style={({ pressed }) => [styles.moreBtn, (pressed || busy) && styles.moreBtnDim]}>
+      {busy ? <ActivityIndicator size="small" /> : null}
+      <ThemedText type="smallBold">{busy ? 'Loading…' : 'Load more binders'}</ThemedText>
+    </Pressable>
+  );
+}
+
 export default function DiscoverScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -120,6 +140,17 @@ export default function DiscoverScreen() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<DemoBinder[] | null>(null);
   const reqId = useRef(0);
+  // A PAGE AT A TIME (2026-09-20). Both lists used to stop at 40 with no way past: the 41st public
+  // binder existed only for someone who searched for it. Each list now remembers where it left
+  // off (`next`, null when finished) and "Load more" asks for the rows after it.
+  const [resultsNext, setResultsNext] = useState<BinderListCursor | null>(null);
+  const [othersNext, setOthersNext] = useState<BinderListCursor | null>(null);
+  const [loadingMore, setLoadingMore] = useState<'results' | 'others' | null>(null);
+  /** Append a page, never a binder twice: likes move while someone reads, so a row can recur. */
+  const appended = (have: DemoBinder[] | null, more: DemoBinder[]) => {
+    const seen = new Set((have ?? []).map((b) => b.id));
+    return [...(have ?? []), ...more.filter((b) => !seen.has(b.id))];
+  };
 
   // Whether to show the card at the bottom that points at /contest-binders. The contest's own
   // views live there; this page only advertises it while a contest is running.
@@ -137,8 +168,12 @@ export default function DiscoverScreen() {
   useEffect(() => {
     if (!isSupabaseConfigured) return;
     let alive = true;
-    fetchDiscoverBinders(sort, { excludeAuthor: OFFICIAL_AUTHOR })
-      .then((rows) => alive && setOthers(rows))
+    fetchDiscoverPage(sort, { excludeAuthor: OFFICIAL_AUTHOR })
+      .then((page) => {
+        if (!alive) return;
+        setOthers(page.binders);
+        setOthersNext(page.next);
+      })
       .catch(() => alive && setOthers([]));
     return () => {
       alive = false;
@@ -191,12 +226,16 @@ export default function DiscoverScreen() {
     // Bump the request id even when we don't search, so an in-flight query that the user has
     // since cleared cannot land and repaint the grid behind the default sections.
     const id = ++reqId.current;
-    if (!query.trim()) return;
+    // TWO LETTERS OR MORE. One letter matches nearly every title, and the trigram indexes that
+    // make this search fast need three characters to narrow anything; two is the compromise
+    // that still finds "XY". Below that the page keeps showing its shelves.
+    if (query.trim().length < MIN_QUERY) return;
     const handle = setTimeout(async () => {
       try {
-        const rows = await searchBinders(query.trim());
+        const page = await searchBindersPage(query.trim());
         if (id !== reqId.current) return; // a newer query superseded this one
-        setResults(rows);
+        setResults(page.binders);
+        setResultsNext(page.next);
       } catch {
         if (id === reqId.current) setResults([]);
       }
@@ -217,6 +256,37 @@ export default function DiscoverScreen() {
   const perShelf = shelfCols * SHELF_ROWS;
 
   const q = query.trim();
+  const searching = q.length >= MIN_QUERY;
+
+  const loadMoreResults = async () => {
+    if (!resultsNext || loadingMore) return;
+    const id = reqId.current;
+    setLoadingMore('results');
+    try {
+      const page = await searchBindersPage(q, { after: resultsNext });
+      if (id !== reqId.current) return; // the query changed while this was in flight
+      setResults((have) => appended(have, page.binders));
+      setResultsNext(page.next);
+    } catch {
+      setResultsNext(null);
+    } finally {
+      setLoadingMore(null);
+    }
+  };
+  const loadMoreOthers = async () => {
+    if (!othersNext || loadingMore) return;
+    const forSort = sort;
+    setLoadingMore('others');
+    try {
+      const page = await fetchDiscoverPage(forSort, { excludeAuthor: OFFICIAL_AUTHOR, after: othersNext });
+      setOthers((have) => appended(have, page.binders));
+      setOthersNext(page.next);
+    } catch {
+      setOthersNext(null);
+    } finally {
+      setLoadingMore(null);
+    }
+  };
 
   return (
     <ThemedView style={styles.container}>
@@ -254,7 +324,7 @@ export default function DiscoverScreen() {
             <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
               Public binder search isn’t available in this build.
             </ThemedText>
-          ) : q ? (
+          ) : searching ? (
             results === null ? (
               <View style={styles.center}>
                 <ActivityIndicator />
@@ -264,11 +334,16 @@ export default function DiscoverScreen() {
                 {`No public binders match “${q}”.`}
               </ThemedText>
             ) : (
-              <View style={[styles.grid, { gap: GRID_GAP }]}>
-                {results.map((b) => (
-                  <BinderThumb key={b.id} binder={b} width={tileW} onPress={() => openBinder(b.id)} />
-                ))}
-              </View>
+              <>
+                <View style={[styles.grid, { gap: GRID_GAP }]}>
+                  {results.map((b) => (
+                    <BinderThumb key={b.id} binder={b} width={tileW} onPress={() => openBinder(b.id)} />
+                  ))}
+                </View>
+                {resultsNext ? (
+                  <LoadMore busy={loadingMore === 'results'} onPress={loadMoreResults} testID="discover-more-results" />
+                ) : null}
+              </>
             )
           ) : (
             <>
@@ -290,6 +365,7 @@ export default function DiscoverScreen() {
                           onPress={() => {
                             if (active) return;
                             setOthers(null);
+                            setOthersNext(null);
                             setSort(s.key);
                           }}
                           accessibilityRole="tab"
@@ -339,6 +415,9 @@ export default function DiscoverScreen() {
                     ))}
                   />
                 )}
+                {othersNext ? (
+                  <LoadMore busy={loadingMore === 'others'} onPress={loadMoreOthers} testID="discover-more-binders" />
+                ) : null}
               </View>
 
               {/* The curator, between the shelves: the people browsing finished binders are the
@@ -471,6 +550,18 @@ const styles = StyleSheet.create({
   // row, or a partial one) from spreading its tiles down the height the tallest page set.
   shelfPage: { alignContent: 'flex-start' },
   center: { paddingVertical: Spacing.six, alignItems: 'center' },
+  moreBtn: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    marginTop: Spacing.three,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.four,
+    borderRadius: Radius.pill,
+    backgroundColor: Palette.panel,
+  },
+  moreBtnDim: { opacity: 0.6 },
   note: { paddingVertical: Spacing.three },
   contestBox: {
     gap: Spacing.two,

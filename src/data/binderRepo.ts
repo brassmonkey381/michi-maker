@@ -871,33 +871,12 @@ export async function fetchFeaturedBinders(limit = 12): Promise<DemoBinder[]> {
   const supabase = requireSupabase();
   const { data, error } = await supabase.rpc('featured_binders', { p_limit: limit });
   if (error) throw new Error(`featured: ${error.message}`);
-  const ranked = (data ?? []) as { binder_id: string; like_count: number; author_name: string | null }[];
+  const ranked = (data ?? []) as RankedBinderRow[];
   if (ranked.length === 0) return [];
   // Community binders first. The house's own binders out-like everyone by seniority, which would
   // make this shelf a permanent showcase of the project's work instead of its members'.
-  const rows = demoteHouseAccounts(ranked);
-
-  const ids = rows.map((r) => r.binder_id);
-  const { data: binders, error: bErr } = await supabase
-    .from('binders')
-    .select('*, binder_pages(*, binder_slots(*))')
-    .in('id', ids)
-    .order('position', { referencedTable: 'binder_pages', ascending: true });
-  if (bErr) throw new Error(`featured binders: ${bErr.message}`);
-  const byId = new Map(((binders ?? []) as unknown as BinderRowIn[]).map((b) => [b.id, b]));
-
-  return rows.flatMap((r) => {
-    const row = byId.get(r.binder_id);
-    if (!row) return []; // vanished/hidden between the ranking and the fetch
-    return [
-      {
-        ...mapBinder(row),
-        isFeatured: true,
-        authorName: r.author_name ?? undefined,
-        likeCount: Number(r.like_count),
-      },
-    ];
-  });
+  const binders = await hydrateRankedBinders(demoteHouseAccounts(ranked));
+  return binders.map((binder) => ({ ...binder, isFeatured: true }));
 }
 
 /**
@@ -910,27 +889,73 @@ export interface RankedBinderRow {
   binder_id: string;
   like_count: number;
   author_name: string | null;
+  /** When the binder went public (else when it was made). Half of the paging cursor. */
+  made_public_at?: string | null;
+  /** Pages a visitor can see. Present on rankings that describe a tile. */
+  page_count?: number | null;
+  /** The one page a tile draws: the first public page holding anything. Null when none is public. */
+  face_page_id?: string | null;
 }
 
+/** Where a list left off: the last ranked row. Opaque to callers; hand it back for the next page. */
+export interface BinderListCursor {
+  likes: number;
+  at: string;
+  id: string;
+}
+
+export interface BinderListPage {
+  binders: DemoBinder[];
+  /** Null when this page was the last. */
+  next: BinderListCursor | null;
+}
+
+/** How many tiles a public list asks for at a time. A page size, not a wall: see `next`. */
+export const BINDER_LIST_PAGE = 24;
+
+function cursorAfter(rows: RankedBinderRow[], limit: number): BinderListCursor | null {
+  const last = rows[rows.length - 1];
+  // Fewer rows than were asked for means the list is finished. A row without a time cannot be
+  // continued from (an older function that does not return one), so the list ends there too.
+  if (!last || rows.length < limit || !last.made_public_at) return null;
+  return { likes: Number(last.like_count), at: last.made_public_at, id: last.binder_id };
+}
+
+/**
+ * A LIST TILE LOADS ONE PAGE, NOT THE BINDER (2026-09-20). Measured before this: forty tiles
+ * pulled 425 pages and 3,475 pockets, 2.6 MB and most of a second, to draw one page each. The
+ * rankings now name the page a tile draws (`face_page_id`) and the real page count, so this asks
+ * for exactly those pages. The result is a TILE: `pages` holds that one page and `pageCount` the
+ * truth. Nothing opens a binder from a tile; the viewer always fetches it whole.
+ *
+ * A ranking that names no face page (the contest leaderboard, or an older function) still gets
+ * whole binders, exactly as before.
+ */
 export async function hydrateRankedBinders(rows: RankedBinderRow[]): Promise<DemoBinder[]> {
   if (rows.length === 0) return [];
   const supabase = requireSupabase();
   const ids = rows.map((r) => r.binder_id);
-  const { data: binders, error } = await supabase
-    .from('binders')
-    .select('*, binder_pages(*, binder_slots(*))')
-    .in('id', ids)
-    .order('position', { referencedTable: 'binder_pages', ascending: true });
+  const asTiles = rows.every((r) => r.face_page_id !== undefined);
+  const faceIds = rows.map((r) => r.face_page_id).filter((id): id is string => !!id);
+
+  let query = supabase.from('binders').select('*, binder_pages(*, binder_slots(*))').in('id', ids);
+  // A filter on the EMBEDDED pages: it narrows which pages come back, never which binders.
+  if (asTiles) query = query.in('binder_pages.id', faceIds);
+  const { data: binders, error } = await query.order('position', {
+    referencedTable: 'binder_pages',
+    ascending: true,
+  });
   if (error) throw new Error(`hydrate binders: ${error.message}`);
   const byId = new Map(((binders ?? []) as unknown as BinderRowIn[]).map((b) => [b.id, b]));
   return rows.flatMap((r) => {
     const row = byId.get(r.binder_id);
-    if (!row) return [];
+    if (!row) return []; // vanished or went private between the ranking and the fetch
     return [
       {
         ...mapBinder(row),
         authorName: r.author_name ?? undefined,
         likeCount: Number(r.like_count),
+        ...(asTiles && r.page_count != null ? { pageCount: Number(r.page_count) } : {}),
       },
     ];
   });
@@ -943,33 +968,27 @@ export async function hydrateRankedBinders(rows: RankedBinderRow[]): Promise<Dem
  * We hydrate the ranked ids' pages/slots via the public read path and re-attach author + like
  * count, preserving the RPC's order — identical shape to fetchFeaturedBinders. Returns [] for none.
  */
-export async function searchBinders(query: string, limit = 40): Promise<DemoBinder[]> {
+export async function searchBindersPage(
+  query: string,
+  opts: { limit?: number; after?: BinderListCursor | null } = {},
+): Promise<BinderListPage> {
   const supabase = requireSupabase();
-  const { data, error } = await supabase.rpc('search_binders', { p_query: query, p_limit: limit });
-  if (error) throw new Error(`search binders: ${error.message}`);
-  const rows = (data ?? []) as { binder_id: string; like_count: number; author_name: string | null }[];
-  if (rows.length === 0) return [];
-
-  const ids = rows.map((r) => r.binder_id);
-  const { data: binders, error: bErr } = await supabase
-    .from('binders')
-    .select('*, binder_pages(*, binder_slots(*))')
-    .in('id', ids)
-    .order('position', { referencedTable: 'binder_pages', ascending: true });
-  if (bErr) throw new Error(`search binders hydrate: ${bErr.message}`);
-  const byId = new Map(((binders ?? []) as unknown as BinderRowIn[]).map((b) => [b.id, b]));
-
-  return rows.flatMap((r) => {
-    const row = byId.get(r.binder_id);
-    if (!row) return [];
-    return [
-      {
-        ...mapBinder(row),
-        authorName: r.author_name ?? undefined,
-        likeCount: Number(r.like_count),
-      },
-    ];
+  const limit = opts.limit ?? BINDER_LIST_PAGE;
+  const { data, error } = await supabase.rpc('search_binders', {
+    p_query: query,
+    p_limit: limit,
+    ...(opts.after
+      ? { p_after_likes: opts.after.likes, p_after_at: opts.after.at, p_after_id: opts.after.id }
+      : {}),
   });
+  if (error) throw new Error(`search binders: ${error.message}`);
+  const rows = (data ?? []) as RankedBinderRow[];
+  return { binders: await hydrateRankedBinders(rows), next: cursorAfter(rows, limit) };
+}
+
+/** The first page of a search, as a plain list. */
+export async function searchBinders(query: string, limit = 40): Promise<DemoBinder[]> {
+  return (await searchBindersPage(query, { limit })).binders;
 }
 
 /** Discover's ordering for the main "Public binders" section. */
@@ -1004,24 +1023,36 @@ export interface DiscoverOptions {
  * binders under a section headed with one person's name would be a lie — so it returns nothing
  * and the caller drops the section.
  */
-export async function fetchDiscoverBinders(
+export async function fetchDiscoverPage(
   sort: DiscoverSort,
-  opts: DiscoverOptions = {},
-): Promise<DemoBinder[]> {
+  opts: DiscoverOptions & { after?: BinderListCursor | null } = {},
+): Promise<BinderListPage> {
   const supabase = requireSupabase();
-  const limit = opts.limit ?? 40;
+  const limit = opts.limit ?? BINDER_LIST_PAGE;
   const { data, error } = await supabase.rpc('discover_binders', {
     p_sort: sort,
     p_limit: limit,
     p_contest: opts.excludeContest ?? null,
     p_author: opts.author ?? null,
     p_exclude_author: opts.excludeAuthor ?? null,
+    ...(opts.after
+      ? { p_after_likes: opts.after.likes, p_after_at: opts.after.at, p_after_id: opts.after.id }
+      : {}),
   });
   if (error) {
-    if (error.code === 'PGRST202') return opts.author ? [] : searchBinders('', limit);
+    if (error.code === 'PGRST202') {
+      return { binders: opts.author ? [] : await searchBinders('', limit), next: null };
+    }
     throw new Error(`discover binders: ${error.message}`);
   }
-  return hydrateRankedBinders(
-    (data ?? []) as { binder_id: string; like_count: number; author_name: string | null }[],
-  );
+  const rows = (data ?? []) as RankedBinderRow[];
+  return { binders: await hydrateRankedBinders(rows), next: cursorAfter(rows, limit) };
+}
+
+/** The first page of Discover, as a plain list. */
+export async function fetchDiscoverBinders(
+  sort: DiscoverSort,
+  opts: DiscoverOptions = {},
+): Promise<DemoBinder[]> {
+  return (await fetchDiscoverPage(sort, { ...opts, limit: opts.limit ?? 40 })).binders;
 }

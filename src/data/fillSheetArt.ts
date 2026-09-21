@@ -56,10 +56,10 @@ async function fetchBytes(url: string): Promise<Uint8Array | null> {
 }
 
 /** Decode → (maybe downscale) → PNG re-encode via canvas. Needs the bytes already in hand. */
-async function canvasConvert(bytes: Uint8Array): Promise<LoadedArt | null> {
+async function canvasConvert(bytes: Uint8Array, shrink = 1): Promise<LoadedArt | null> {
   try {
     const bitmap = await createImageBitmap(new Blob([bytes as BlobPart]));
-    const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+    const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height)) * shrink;
     const w = Math.max(1, Math.round(bitmap.width * scale));
     const h = Math.max(1, Math.round(bitmap.height * scale));
     const canvas = document.createElement('canvas');
@@ -121,7 +121,13 @@ async function imageSize(bytes: Uint8Array): Promise<{ width: number; height: nu
   }
 }
 
-export function createWebArtLoader(): ArtLoader {
+/**
+ * `preview: true` is the loader for the watermarked preview of someone's own binder: every image
+ * goes through the canvas at HALF the size it would print at, so the file on screen is not the
+ * file that is for sale. Nothing passes through untouched in this mode.
+ */
+export function createWebArtLoader(opts: { preview?: boolean } = {}): ArtLoader {
+  const shrink = opts.preview ? 0.5 : 1;
   const cache = new Map<string, Promise<LoadedArt | null>>();
   return (url: string) => {
     const key = artOriginalUrl(url);
@@ -136,10 +142,10 @@ export function createWebArtLoader(): ArtLoader {
         const size = await imageSize(bytes);
         if (!size) return null;
         // Pass PNG/JPEG through untouched (no quality loss) unless oversized.
-        if (kind !== 'other' && Math.max(size.width, size.height) <= MAX_EDGE) {
+        if (shrink === 1 && kind !== 'other' && Math.max(size.width, size.height) <= MAX_EDGE) {
           return { bytes, kind, ...size };
         }
-        return canvasConvert(bytes);
+        return canvasConvert(bytes, shrink);
       })();
       cache.set(key, hit);
     }

@@ -17,6 +17,7 @@ import { SignInPerk } from '@/components/auth/SignInPerk';
 import { LogoLoader } from '@/components/brand/LogoLoader';
 import { ThemedText } from '@/components/themed-text';
 import { PdfUnlockedModal } from '@/components/monetization/PdfUnlockedModal';
+import { PrintPreview } from '@/components/binder/PrintPreview';
 import { TrialCta } from '@/components/monetization/TrialCta';
 import { DialogCard } from '@/components/ui/DialogCard';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
@@ -36,7 +37,7 @@ import {
   type PurchaseStatus,
 } from '@/data/pdfSnapshot';
 import { PrintCapExceededError, recordPrintEvent, type RecordedPrint } from '@/data/printRepo';
-import { ANNUAL_POOL, BINDER_PDF_LOOKUP_KEY, CHECKOUT_OPEN } from '@/data/subscriptions';
+import { ANNUAL_POOL, BINDER_PDF_LOOKUP_KEY, BINDER_PDF_PRICE, CHECKOUT_OPEN } from '@/data/subscriptions';
 import { useCatalog } from '@/hooks/use-catalog';
 import { loadOtherGameCatalog, otherGameCard, otherGameCatalogFor, otherGameVersion, subscribeOtherGame } from '@/lib/otherGame';
 import { track, trackProOfferDeclined } from '@/lib/analytics';
@@ -94,9 +95,10 @@ export function PrintPlaceholdersSheet({
 }) {
   const { catalog, guestGated, loading } = useCatalog(true);
   const cutWarnings = useMemo(() => printCutWarnings(binder), [binder]);
-  // Printing your OWN binder comes with a PRO/VIP subscription or this binder's own one-time
-  // purchase (`pdf_binder:<id>`). Non-payers get the counts preview + a free short EXAMPLE PDF
-  // (example cards + artwork) as the teaser — never their own binders.
+  // Printing your OWN binder is this binder's one-time purchase (`pdf_binder:<id>`). Before that,
+  // everyone can PREVIEW their own binder: the real sheets, watermarked and at half resolution,
+  // shown as pictures (PrintPreview). The premade example is now only for a binder with nothing
+  // in it to preview.
   //
   // The one-time purchase is a SNAPSHOT license (see data/pdfSnapshot.ts): it covers the binder
   // as it is when the purchase is spent (first download), forever. Editing the binder afterwards
@@ -150,7 +152,7 @@ export function PrintPlaceholdersSheet({
   // credit, locks a snapshot, or leaves for checkout on first click):
   //  'credit' → subscriber spends 1 included print on this version
   //  'spend'  → a one-time purchase locks onto the binder's current version
-  //  'buy'    → leave for Stripe checkout ($3.99 unlock)
+  //  'buy'    → leave for Stripe checkout (the BINDER_PDF_PRICE unlock)
   //  'pool'   → yearly subscriber releases the whole year's prints at once (IRREVERSIBLE)
   const [confirming, setConfirming] = useState<null | 'credit' | 'spend' | 'buy' | 'pool'>(null);
   // Where this binder's printed/purchased VERSIONS stand (subscribers archive credit prints the
@@ -396,11 +398,11 @@ export function PrintPlaceholdersSheet({
     },
     spend: {
       title: 'Lock your unlock to this version?',
-      body: 'This download locks your $3.99 unlock to the binder as it is right now, re-download this version anytime, forever. Printing future edits will need a new unlock or a plan.',
+      body: `This download locks your ${BINDER_PDF_PRICE} unlock to the binder as it is right now. Download this version again anytime, forever. Printing future edits needs a new unlock.`,
       cta: 'Download and lock in',
     },
     buy: {
-      title: 'Unlock this binder for $3.99?',
+      title: `Unlock this binder for ${BINDER_PDF_PRICE}?`,
       body: 'You will be taken to secure Stripe checkout. The one-time unlock covers this binder as it is today, yours to re-download forever.',
       cta: 'Continue to checkout',
     },
@@ -454,6 +456,44 @@ export function PrintPlaceholdersSheet({
       live = false;
     };
   }, [exBusy, catalog, colorOwned]);
+
+  // PREVIEW YOUR PRINT (owner, 2026-09-21). The person's own binder, built by the real builder in
+  // preview mode: watermarked, art at half the pixels, no instructions file. It is shown as
+  // pictures and never handed over as a file (PrintPreview). Armed like the example above, so the
+  // button is never hidden behind a cold catalog: the modal opens at once and says it is working.
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewFiles, setPreviewFiles] = useState<FillSheetPdf[] | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const openPreview = () => {
+    track('print.preview', { surface: 'print_gate', binder_id: binder.id });
+    setPreviewFiles(null);
+    setPreviewError(null);
+    setPreviewOpen(true);
+  };
+  const previewRunning = useRef(false);
+  useEffect(() => {
+    if (!previewOpen || previewFiles || previewError || !cardMeta || previewRunning.current) return;
+    previewRunning.current = true;
+    let live = true;
+    (async () => {
+      try {
+        await ensureOtherGames(binder);
+        const files = await buildFillSheetPdfs(binder, cardMeta, {
+          ownedIds: effectiveOwned,
+          loadImage: createWebArtLoader({ preview: true }),
+          preview: true,
+        });
+        if (live) setPreviewFiles(files);
+      } catch (e) {
+        if (live) setPreviewError((e as Error).message);
+      } finally {
+        previewRunning.current = false;
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [previewOpen, previewFiles, previewError, cardMeta, binder, effectiveOwned, ensureOtherGames]);
 
   // PRO-trial offer attribution for this surface. The offer (TrialCta) only renders for eligible
   // users; mark when it was actually shown, and when a start was initiated, so dismissing the sheet
@@ -744,7 +784,7 @@ export function PrintPlaceholdersSheet({
                       <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
                         {poolOffer.state === 'needsFirstPrint'
                           ? ANNUAL_POOL.needsFirstPrint(poolOffer.total)
-                          : `Included prints renew ${printWindow?.kind === 'year' ? 'when your plan renews' : 'at the start of your next billing month'}. Need this one now? Unlock just this binder once for $3.99, that version is yours to re-download forever.`}
+                          : `Included prints renew ${printWindow?.kind === 'year' ? 'when your plan renews' : 'at the start of your next billing month'}. Need this one now? Unlock just this binder once for ${BINDER_PDF_PRICE}. That version is yours to download again forever.`}
                       </ThemedText>
                     )}
                     {allowance.error ? (
@@ -764,7 +804,7 @@ export function PrintPlaceholdersSheet({
                           style={
                             poolOffer.state === 'available' ? styles.exampleBtnText : styles.btnText
                           }>
-                          Unlock this binder · $3.99
+                          {`Unlock this binder · ${BINDER_PDF_PRICE}`}
                         </Text>
                       </Pressable>
                     ) : null}
@@ -787,7 +827,7 @@ export function PrintPlaceholdersSheet({
                         onPress={() => setConfirming('buy')}
                         disabled={buying}
                         style={({ pressed }) => [styles.btn, (pressed || buying) && styles.dim]}>
-                        <Text style={styles.btnText}>Unlock this version · $3.99</Text>
+                        <Text style={styles.btnText}>{`Unlock this version · ${BINDER_PDF_PRICE}`}</Text>
                       </Pressable>
                     ) : (
                       <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
@@ -797,11 +837,10 @@ export function PrintPlaceholdersSheet({
                   </View>
                 ) : CHECKOUT_OPEN ? (
                   <View style={styles.lockedBox}>
-                    <ThemedText type="smallBold">Printing is a paid feature</ThemedText>
+                    <ThemedText type="smallBold">{`The print-ready PDF is ${BINDER_PDF_PRICE}, once`}</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-                      Unlock this binder’s fill-sheet PDF once for $3.99. That download is this
-                      binder as it is today, yours to re-download forever (later edits need a new
-                      unlock).
+                      Preview it free below. The unlock covers this binder as it is today, and that
+                      version is yours to download again forever. Later edits need a new unlock.
                     </ThemedText>
                     {/* Eligible free users see the trial first, start it and the sheet re-renders
                         to the subscriber Download button. Renders null when not eligible. */}
@@ -815,17 +854,16 @@ export function PrintPlaceholdersSheet({
                       onPress={() => setConfirming('buy')}
                       disabled={buying}
                       style={({ pressed }) => [styles.btn, (pressed || buying) && styles.dim]}>
-                      <Text style={styles.btnText}>Unlock this binder · $3.99</Text>
+                      <Text style={styles.btnText}>{`Unlock this binder · ${BINDER_PDF_PRICE}`}</Text>
                     </Pressable>
                   </View>
                 ) : (
                   // No dead purchase button while checkout isn't open — an honest note instead.
                   <View style={styles.lockedBox}>
-                    <ThemedText type="smallBold">Printing is a paid feature</ThemedText>
+                    <ThemedText type="smallBold">{`The print-ready PDF is ${BINDER_PDF_PRICE}, once`}</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-                      Fill-sheet PDFs of your own binders are a one-time unlock per binder (covering
-                      it as it is at purchase, later edits need a new unlock). Purchases aren’t open
-                      quite yet; check back soon.
+                      Preview it free below. The unlock covers this binder as it is at purchase, and
+                      later edits need a new one. Purchases aren’t open quite yet; check back soon.
                     </ThemedText>
                   </View>
                 )}
@@ -869,11 +907,19 @@ export function PrintPlaceholdersSheet({
                   </View>
                 ) : null}
 
-                {/* Example PDFs, the owner's first binder (placeholders + art), so both output
-                    files download. Always available (never hidden behind the catalog load): the
-                    button shows a spinner until the catalog is ready, then generates. Non-payers
-                    see the format before buying; payers test printer scale without spending a credit. */}
-                {exBusy ? (
+                {/* PREVIEW YOUR PRINT, where "See a free example" used to be (owner, 2026-09-21). A
+                    premade sample showed the format; this shows THEIR binder, which is the thing
+                    they are deciding about. A binder with nothing to print has nothing to preview,
+                    so it alone keeps the sample, and the way to look at the sample binder. */}
+                {counts && counts.total > 0 ? (
+                  <Pressable
+                    onPress={openPreview}
+                    accessibilityRole="button"
+                    testID="print-preview-open"
+                    style={({ pressed }) => [styles.exampleBtn, pressed && styles.dim]}>
+                    <Text style={styles.exampleBtnText}>Preview your print (free, watermarked)</Text>
+                  </Pressable>
+                ) : exBusy ? (
                   <View style={styles.center}>
                     <LogoLoader
                       label={catalog ? 'Generating example…' : 'Preparing example…'}
@@ -881,24 +927,23 @@ export function PrintPlaceholdersSheet({
                     />
                   </View>
                 ) : (
-                  <Pressable
-                    onPress={downloadExample}
-                    style={({ pressed }) => [styles.exampleBtn, pressed && styles.dim]}>
-                    <Text style={styles.exampleBtnText}>See a free example (2 sample PDFs)</Text>
-                  </Pressable>
+                  <>
+                    <Pressable
+                      onPress={downloadExample}
+                      style={({ pressed }) => [styles.exampleBtn, pressed && styles.dim]}>
+                      <Text style={styles.exampleBtnText}>See a free example (2 sample PDFs)</Text>
+                    </Pressable>
+                    <ThemedText
+                      type="linkPrimary"
+                      style={styles.viewExampleLink}
+                      onPress={() => {
+                        onClose();
+                        router.push(`/binder/${EXAMPLE_FILL_SHEET_BINDER.id}`);
+                      }}>
+                      View the example binder ›
+                    </ThemedText>
+                  </>
                 )}
-
-                {/* View the same binder (read-only reference, can't be edited or
-                    copied), so you can see how the pages map to the printed files. */}
-                <ThemedText
-                  type="linkPrimary"
-                  style={styles.viewExampleLink}
-                  onPress={() => {
-                    onClose();
-                    router.push(`/binder/${EXAMPLE_FILL_SHEET_BINDER.id}`);
-                  }}>
-                  View the example binder ›
-                </ThemedText>
 
                 {error ? (
                   <ThemedText type="small" style={styles.error}>
@@ -908,6 +953,32 @@ export function PrintPlaceholdersSheet({
               </>
             )}
 
+      {previewOpen ? (
+        <PrintPreview
+          files={previewFiles}
+          preparing={!previewFiles && !previewError}
+          error={previewError}
+          onClose={() => setPreviewOpen(false)}
+          footer={
+            purchased && pState !== 'edited' ? null : CHECKOUT_OPEN ? (
+              <Pressable
+                onPress={() => {
+                  setPreviewOpen(false);
+                  setConfirming('buy');
+                }}
+                disabled={buying}
+                testID="print-preview-buy"
+                style={({ pressed }) => [styles.btn, (pressed || buying) && styles.dim]}>
+                <Text style={styles.btnText}>{`Get the print-ready PDF · ${BINDER_PDF_PRICE}`}</Text>
+              </Pressable>
+            ) : (
+              <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
+                {`The print-ready PDF, without the watermark and at full resolution, is ${BINDER_PDF_PRICE} a binder. Purchases aren’t open quite yet; check back soon.`}
+              </ThemedText>
+            )
+          }
+        />
+      ) : null}
       {/* The unlock landed on this visit back from checkout — celebrate the document, once. */}
       <PdfUnlockedModal
         visible={cameFromCheckout && purchased && !celebrated}

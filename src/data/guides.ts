@@ -153,7 +153,7 @@ export const GUIDE_LIST: Guide[] = [
         figure: diagram('editor-tray'),
       },
     ],
-    tip: 'Slices follow print physics: single pockets or folded sideways pairs, never vertical spans.',
+    tip: 'Any shape goes on the page. Printing cuts a piece to what a real pocket takes, a single or a folded sideways pair, and tells you where.',
     relatedSlugs: ['print-binder', 'auto-page-fill'],
   },
   {
@@ -190,7 +190,7 @@ export const GUIDE_LIST: Guide[] = [
         figure: diagram('swap'),
       },
     ],
-    tip: 'Full-binder PDF export is a paid unlock; the free preview prints a premade example sheet.',
+    tip: 'Preview your own binder as print sheets for free, watermarked. The print-ready PDF is a one-time unlock per binder.',
     relatedSlugs: ['slice-studio', 'auto-page-fill'],
   },
   {

@@ -1,5 +1,5 @@
 /**
- * Post-checkout celebration for the ONE-TIME binder PDF unlock ($3.99) — the fourth michi
+ * Post-checkout celebration for the ONE-TIME binder PDF unlock (BINDER_PDF_PRICE) — the fourth michi
  * checkout, and the only one that doesn't return to /plans (Stripe bounces back to whatever
  * page the print sheet was opened from), so WelcomeAboardModal never covered it.
  *

@@ -145,6 +145,15 @@ export function planCta(column: PlanHeader, current: Tier, onTrial = false): Pla
 /** Lookup key for the one-time full-binder PDF (payment mode; needs a binderId). */
 export const BINDER_PDF_LOOKUP_KEY = 'michi_binder_pdf';
 
+/**
+ * WHAT ONE BINDER'S PRINT-READY PDF COSTS, written once (owner, 2026-09-21: $1.99, was $3.99).
+ * Every button, confirmation, plan row and guide reads this, so the app cannot quote two prices.
+ * The CHARGE is Stripe's: the `michi_binder_pdf` lookup key must point at a price of the same
+ * amount (scripts/stripe-binder-pdf-price.mjs moves it, and checks it).
+ */
+export const BINDER_PDF_PRICE = '$1.99';
+export const BINDER_PDF_PRICE_MINOR = 199;
+
 /** CROSS-APP: TCGScan Pro's yearly lookup key — sold from michi in the bundle cross-sell (the
  *  grant lands in the shared entitlements ledger both apps read; see docs/SYNERGY.md). */
 export const TCGSCAN_PRO_LOOKUP_KEY = 'tcgscan_pro_yearly';
@@ -180,26 +189,6 @@ export interface CompareRow {
   freeLegacy?: CompareCell;
   pro: CompareCell;
 }
-
-/**
- * What an included print effectively COSTS on yearly billing, next to the $3.99 one-off binder
- * PDF. Derived from the plan prices above — recompute if any of the three changes:
- *
- *   PRO yearly  $39.99 / 12 prints = $3.33 each → 16% less than $3.99
- *   VIP yearly  $99.99 / 36 prints = $2.78 each → 30% less than $3.99
- *
- * This attributes the WHOLE subscription price to prints, which is deliberately the conservative
- * framing: even valuing binders/pages/artworks at zero, prints alone come out cheaper. It is NOT
- * a coupon on top of the subscription, so every string built from it must read as "what your
- * included prints work out to", never "N% off when you buy prints".
- *
- * Month-to-month is pointedly absent: PRO monthly is $3.99 a print (12 × $3.99 = $47.88 for 12),
- * exactly the one-off price, so there is no saving to advertise there.
- */
-export const YEARLY_PRINT_VALUE = {
-  pro: { each: '$3.33', off: '16%' },
-  vip: { each: '$2.78', off: '30%' },
-};
 
 /**
  * What every plan has, so the comparison table can stop saying it three times.
@@ -273,12 +262,12 @@ export const COMPARISON: CompareRow[] = [
     pro: { text: '✓' },
   },
   {
-    // PRINTS ARE IN NO PLAN (owner, 2026-09-20): the print offer is being reworked. Every plan
-    // previews for free and buys a binder's PDF one at a time.
+    // PRINTS ARE IN NO PLAN (owner, 2026-09-20). Every plan previews its OWN binder for free,
+    // watermarked (2026-09-21), and buys a binder's print-ready PDF one at a time.
     capability: 'Print-ready fill sheets',
     mark: '(5)',
-    free: { text: 'Example-sheet preview', sub: `full binder PDF ${'$3.99'} each` },
-    pro: { text: 'Example-sheet preview', sub: `full binder PDF ${'$3.99'} each` },
+    free: { text: 'Free preview of your binder', sub: `print-ready PDF ${BINDER_PDF_PRICE} a binder` },
+    pro: { text: 'Free preview of your binder', sub: `print-ready PDF ${BINDER_PDF_PRICE} a binder` },
   },
   {
     capability: 'Share and like',
@@ -289,12 +278,12 @@ export const COMPARISON: CompareRow[] = [
 
 export const ONE_TIME_PDF = {
   name: 'Full-binder fill-sheet PDF',
-  price: '$3.99',
+  price: BINDER_PDF_PRICE,
   blurb:
     'One binder, one time: a print-ready PDF of every page as cut-ready fill sheets, true to ' +
-    'card size. Covers the binder as it is when you download, that version is yours to ' +
-    're-download forever; printing later edits needs a new unlock or a plan. The free preview ' +
-    'is a premade example sheet so you can test your printer first.',
+    'card size. Covers the binder as it is when you download, and that version is yours to ' +
+    'download again forever; printing later edits needs a new unlock. Preview your own binder ' +
+    'first, free: every sheet as it will be laid out, watermarked.',
 };
 
 export const FOOTNOTES: { mark: string; text: string; link?: { label: string; url: string } }[] = [
@@ -335,10 +324,9 @@ export const FOOTNOTES: { mark: string; text: string; link?: { label: string; ur
   {
     mark: '(5)',
     text:
-      // No per-print dollar figures here (owner decision 2026-09-04): a plan bought with the 20% or
-      // the 60% bundle coupon costs far less, so any number quoted would overstate the price.
-      'Yearly plans can release the whole year of prints at once; monthly plans get theirs a ' +
-      'month at a time. Upgrades are prorated, prints included.',
+      // Prints are in no plan since 2026-09-20, so this no longer talks about included prints.
+      `Preview any of your binders as print sheets for free, watermarked. The print-ready PDF is ${BINDER_PDF_PRICE} ` +
+      'a binder, one time, on every plan, and the version you bought is yours to download again.',
   },
 ];
 

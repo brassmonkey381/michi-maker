@@ -22,7 +22,7 @@ active while `expires_at` is NULL or in the future.
 | ----------- | -------------------- | ----- |
 | `tier_pro`  | PRO subscription — full print (1 included print/mo) + higher limits | `expires_at` per period |
 | `tier_vip`  | VIP subscription — unlimited + 3 included prints/mo + priority | `expires_at` per period |
-| `pdf_binder:<id>` | one-time single-binder fill-sheet PDF ($3.99) — a **SNAPSHOT license**: the binder as it is when the purchase is spent (first download), re-downloadable forever; later edits need a new purchase | checked directly (`products.includes('pdf_binder:<id>')`); spend/fingerprint/archive in `src/data/pdfSnapshot.ts` + `binder_pdf_snapshots` + the `binder-pdfs` bucket; re-purchase re-arms via `granted_at` (webhook bumps it) |
+| `pdf_binder:<id>` | one-time single-binder fill-sheet PDF ($1.99) — a **SNAPSHOT license**: the binder as it is when the purchase is spent (first download), re-downloadable forever; later edits need a new purchase | checked directly (`products.includes('pdf_binder:<id>')`); spend/fingerprint/archive in `src/data/pdfSnapshot.ts` + `binder_pdf_snapshots` + the `binder-pdfs` bucket; re-purchase re-arms via `granted_at` (webhook bumps it) |
 | `tcgscan_pro` | **CROSS-APP** — TCGScan Pro (sold by the sibling app). Unlocks scan-powered michi features (Build-a-binder-from-your-collection) + drives the bundle cross-sell | read via `hasTcgscanPro()`; michi never resolves a tier from it. See **docs/SYNERGY.md** |
 | `tcgscan_vip` | **CROSS-APP** — TCGScan VIP. A VIP subscriber gets **both** rows (`tcgscan_vip` *and* `tcgscan_pro`) | deliberate: every existing `hasTcgscanPro()` check in either repo keeps working without a sibling-repo change |
 
@@ -53,8 +53,16 @@ VERSION (`binder_pdf_snapshots` row + `binder-pdfs` bucket, one archive per vers
 binder matches any purchased version the PDF can be regenerated freely; after an edit the print
 sheet lists **every purchased version for re-download (forever)** and printing the edited version
 requires buying the binder again (the webhook bumps `granted_at`, which re-arms the spend) or a
-plan. This is what stops edit → reprint → repeat turning one $3.99 unlock into unlimited prints,
+plan. This is what stops edit → reprint → repeat turning one $1.99 unlock into unlimited prints,
 while multi-buy users keep a picker of everything they've paid for.
+
+**Before buying, a free preview (2026-09-21).** Anyone signed in can preview their OWN binder's
+print: the real builder in preview mode (a watermark tiled over every sheet, art at half the
+pixels, no instructions file), drawn to pictures by pdf.js and never handed over as a file. See
+`src/components/binder/PrintPreview.web.tsx`. It replaced the premade example as the teaser; the
+example remains only for a binder with nothing in it. The price is one constant,
+`BINDER_PDF_PRICE` in `src/data/subscriptions.ts`, and the charge is the Stripe price the
+`michi_binder_pdf` lookup key points at (`scripts/stripe-binder-pdf-price.mjs` moves and checks it).
 
 ### Included prints & the annual pool
 
@@ -184,7 +192,7 @@ build run against either mode:
 | `michi_pro_yearly` | $39.99/yr | michi-maker PRO (`tier_pro`) |
 | `michi_vip_monthly` | $9.99/mo | michi-maker VIP (`tier_vip`) |
 | `michi_vip_yearly` | $99.99/yr | michi-maker VIP (`tier_vip`) |
-| `michi_binder_pdf` | $3.99 one-time | Full-binder fill-sheet PDF (`pdf_binder`) |
+| `michi_binder_pdf` | $1.99 one-time (was $3.99 until 2026-09-21) | Full-binder fill-sheet PDF (`pdf_binder`) |
 | `tcgscan_pro_monthly` | $3.99/mo | **CROSS-APP** TCGScan Pro (`tcgscan_pro`) |
 | `tcgscan_pro_yearly` | $39.99/yr | **CROSS-APP** TCGScan Pro (`tcgscan_pro`) |
 | `tcgscan_vip_monthly` | $9.99/mo | **CROSS-APP** TCGScan VIP (`tcgscan_vip`) |

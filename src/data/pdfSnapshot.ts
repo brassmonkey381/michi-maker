@@ -1,7 +1,7 @@
 /**
  * Snapshot semantics for the one-time binder PDF (`pdf_binder:<id>`): the purchase buys the PDF
  * of the binder AS IT IS WHEN THE PURCHASE IS SPENT (first download), forever — not future edits.
- * Otherwise a single $3.99 unlock would be an all-you-can-print pass (edit → reprint → repeat).
+ * Otherwise a single unlock would be an all-you-can-print pass (edit → reprint → repeat).
  *
  * Mechanics (see supabase/migrations/20260716235900_binder_pdf_snapshots.sql):
  *  - SPEND: on the first download after a purchase we record the binder's content FINGERPRINT

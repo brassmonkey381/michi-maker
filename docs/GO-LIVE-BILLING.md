@@ -97,7 +97,7 @@ Set each product's `metadata.michi_product` (the webhook maps tiers from it as a
 | `michi_pro_yearly` | $39.99 / yr | michi-maker PRO · `tier_pro` |
 | `michi_vip_monthly` | $9.99 / mo | michi-maker VIP · `tier_vip` |
 | `michi_vip_yearly` | $99.99 / yr | michi-maker VIP · `tier_vip` |
-| `michi_binder_pdf` | $3.99 one-time | Full-binder fill-sheet PDF · `pdf_binder` |
+| `michi_binder_pdf` | $1.99 one-time (was $3.99 until 2026-09-21) | Full-binder fill-sheet PDF · `pdf_binder` |
 | `tcgscan_pro_monthly` | $3.99 / mo | **CROSS-APP** TCGScan Pro · `tcgscan_pro` |
 | `tcgscan_pro_yearly` | $39.99 / yr | **CROSS-APP** TCGScan Pro · `tcgscan_pro` |
 | `tcgscan_vip_monthly` | $9.99 / mo | **CROSS-APP** TCGScan VIP · `tcgscan_vip` |

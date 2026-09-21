@@ -163,7 +163,7 @@ export default function PlansScreen() {
       {/* Founder (with the real N-of-100 counter) and the two-app bundle. */}
       <OfferCards />
 
-      {/* The one-time $3.99 unlock used to be advertised here, in a panel with no way to buy it —
+      {/* The one-time PDF unlock used to be advertised here, in a panel with no way to buy it —
           a paragraph of purchase terms for a product you cannot reach from this page. It is sold
           where someone actually wants it (the print gate), and the § footnote still quotes its
           price against the per-print maths, which is the only place on /plans it earns its space. */}

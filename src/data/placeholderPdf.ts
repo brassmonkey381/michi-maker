@@ -629,7 +629,20 @@ export interface FillSheetPdf {
 export async function buildFillSheetPdfs(
   binder: DemoBinder,
   cards: CardMetaSource,
-  opts?: { ownedIds?: ReadonlySet<string>; loadImage?: ArtLoader },
+  opts?: {
+    ownedIds?: ReadonlySet<string>;
+    loadImage?: ArtLoader;
+    /**
+     * A PREVIEW OF SOMEONE'S OWN BINDER, for a person who has not paid for it (2026-09-21). The
+     * same sheets, the same packing, the same labels, so what they see is what they would get,
+     * with two things that make the file worthless as a print: a watermark tiled across every
+     * sheet, over the art and the placeholders alike, and no instructions file. Pair it with
+     * the preview art loader (fillSheetArt), which hands over half the pixels. The sheet shows
+     * it without a viewer's download or print controls; the watermark is what actually protects
+     * it, because anything drawn in a browser can be saved by someone determined.
+     */
+    preview?: boolean;
+  },
 ): Promise<FillSheetPdf[]> {
   const title = sanitize(binder.title);
   const { tiles, counts } = collectFillTiles(binder, cards, opts?.ownedIds);
@@ -638,16 +651,17 @@ export async function buildFillSheetPdfs(
   const out: FillSheetPdf[] = [];
   const sections: ('placeholders' | 'art')[] = [];
   if (plain.length > 0) {
-    const { bytes, sheets } = await buildSectionDoc('placeholders', title, tiles, counts);
+    const { bytes, sheets } = await buildSectionDoc('placeholders', title, tiles, counts, undefined, opts?.preview);
     out.push({ section: 'placeholders', bytes, sheets, pieces: plain.length });
     sections.push('placeholders');
   }
   if (art.length > 0) {
-    const { bytes, sheets } = await buildSectionDoc('art', title, tiles, counts, opts?.loadImage);
+    const { bytes, sheets } = await buildSectionDoc('art', title, tiles, counts, opts?.loadImage, opts?.preview);
     out.push({ section: 'art', bytes, sheets, pieces: art.length });
     sections.push('art');
   }
-  if (sections.length > 0) {
+  // A preview is the sheets and nothing else: the instructions are part of what is bought.
+  if (sections.length > 0 && !opts?.preview) {
     out.push({ section: 'instructions', bytes: await buildInstructionsDoc(title, counts, sections), sheets: 0, pieces: 0 });
   }
   return out;
@@ -680,11 +694,12 @@ async function buildSectionDoc(
   tiles: FillTile[],
   counts: FillCounts,
   loadImage?: ArtLoader,
+  preview = false,
 ): Promise<{ bytes: Uint8Array; sheets: number }> {
   const doc = await PDFDocument.create();
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
   const regular = await doc.embedFont(StandardFonts.Helvetica);
-  doc.setTitle(`${title} - ${section === 'art' ? 'art' : 'placeholder'} sheets`);
+  doc.setTitle(`${title} - ${section === 'art' ? 'art' : 'placeholder'} sheets${preview ? ' (PREVIEW)' : ''}`);
 
   // Only the ART file embeds images (placeholders are pure vector). Fetch + embed each distinct
   // art image once. Failures resolve null → fallback tiles.
@@ -745,9 +760,33 @@ async function buildSectionDoc(
       hosts.length ? `art: ${hosts.join(', ')}` : '',
     ].filter(Boolean).join(' · ');
     drawCentered(page, footer, 3, regular, 7, MUTED);
+    // LAST, so it lies over everything on the sheet.
+    if (preview) drawPreviewWatermark(page, bold);
   }
 
   return { bytes: await doc.save(), sheets: sheetCount };
+}
+
+/**
+ * The preview's watermark: the word tiled on the diagonal across the whole sheet, close enough
+ * together that no card-sized piece escapes it, in two tones so it shows over dark art and over
+ * white paper alike. Drawn after everything else.
+ */
+function drawPreviewWatermark(page: PDFPage, bold: PDFFont) {
+  const text = 'PREVIEW · michi-maker.com';
+  const size = 22;
+  const stepX = bold.widthOfTextAtSize(text, size) + 46;
+  const stepY = 92;
+  let row = 0;
+  for (let y = -40; y < SHEET_H + 120; y += stepY) {
+    const shift = row % 2 === 0 ? 0 : stepX / 2;
+    for (let x = -stepX + shift - 60; x < SHEET_W + 60; x += stepX) {
+      // A light pass under a dark one, a point apart: whichever the sheet is not, reads.
+      page.drawText(text, { x: x + 1, y: y - 1, size, font: bold, color: WHITE, opacity: 0.5, rotate: degrees(32) });
+      page.drawText(text, { x, y, size, font: bold, color: INK, opacity: 0.3, rotate: degrees(32) });
+    }
+    row += 1;
+  }
 }
 
 function hexColor(h: string) {

@@ -705,11 +705,11 @@ REGRESSION GUARD for kit 0.9.24. The kit sorts on its own price summary, which o
 
 source: `michi-maker/src/lib/catalogConfig.ts:141`, `tcgscan-browse v0.9.24`
 
-### `tcgscan.gating.checkout-closed-on-prod`
+### `tcgscan.gating.plans-page-never-self-charges`
 
-**Production tcgscan never posts to stripe-checkout**
+**Merely LOOKING at the plans page never reaches checkout**
 
-Both production builds bake EXPO_PUBLIC_CHECKOUT_OPEN=0, so plan buttons are inert. This check is the tripwire for a build that ships with the flag flipped: the airlock would abort the request anyway, but this records it as a product failure rather than a guard trip.
+Checkout reopened on 2026-09-21, so "the flag is off" is no longer the safety net it was, and this asserts the property that holds either way: reading a pricing page must never create a checkout session. A page that calls checkout on render turns a curious visitor into a payment attempt. It doubles as a tripwire for this suite, because the airlock would abort such a request and a guard trip reads as a broken check rather than the product failure it would actually be.
 
 | surface | severity | danger | observed by |
 | --- | --- | --- | --- |
@@ -717,9 +717,9 @@ Both production builds bake EXPO_PUBLIC_CHECKOUT_OPEN=0, so plan buttons are ine
 
 | guest | free | pro-trial |
 | --- | --- | --- |
-| zero requests to any stripe-checkout endpoint while browsing the plans page | zero requests to any stripe-checkout endpoint while browsing the plans page | - |
+| zero requests to any stripe-checkout endpoint from simply loading the plans page | zero requests to any stripe-checkout endpoint from simply loading the plans page | - |
 
-source: `tcgscan-app/vercel.json:3`, `michi-maker/vercel.json:2`
+source: `tcgscan-app/vercel.json:3`, `michi-maker/vercel.json:2`, `michi-maker/supabase/functions/stripe-checkout/index.ts`
 
 ## Routes and site health
 

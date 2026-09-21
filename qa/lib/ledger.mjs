@@ -128,7 +128,7 @@ export function rollup(checks, excluded = []) {
       : g.rows.length ? `${passed} check${passed === 1 ? '' : 's'} held across ${[...g.personas].join(', ')}` : 'nothing in this group ran';
 
     const withNote = notRun
-      ? `${headline}${g.rows.length ? '. ' : ''}${notRun} more not run (heavy: needs --heavy)`
+      ? `${headline}. ${notRun} more not run (heavy: needs --heavy)`
       : headline;
     return { group: g.group, verdict, passed, failed, void: void_, skipped, notRun, total: g.rows.length + notRun, personas: [...g.personas], headline: withNote };
   }).sort((a, b) => {

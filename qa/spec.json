@@ -1192,11 +1192,11 @@
     ]
   },
   {
-    "id": "tcgscan.gating.checkout-closed-on-prod",
+    "id": "tcgscan.gating.plans-page-never-self-charges",
     "area": "gating",
     "app": "tcgscan",
-    "title": "Production tcgscan never posts to stripe-checkout",
-    "proves": "Both production builds bake EXPO_PUBLIC_CHECKOUT_OPEN=0, so plan buttons are inert. This check is the tripwire for a build that ships with the flag flipped: the airlock would abort the request anyway, but this records it as a product failure rather than a guard trip.",
+    "title": "Merely LOOKING at the plans page never reaches checkout",
+    "proves": "Checkout reopened on 2026-09-21, so \"the flag is off\" is no longer the safety net it was, and this asserts the property that holds either way: reading a pricing page must never create a checkout session. A page that calls checkout on render turns a curious visitor into a payment attempt. It doubles as a tripwire for this suite, because the airlock would abort such a request and a guard trip reads as a broken check rather than the product failure it would actually be.",
     "surface": "/plans",
     "danger": "read-only",
     "severity": "blocker",
@@ -1205,7 +1205,7 @@
       "free"
     ],
     "expect": {
-      "*": "zero requests to any stripe-checkout endpoint while browsing the plans page"
+      "*": "zero requests to any stripe-checkout endpoint from simply loading the plans page"
     },
     "observe": [
       "network",
@@ -1213,7 +1213,8 @@
     ],
     "source": [
       "tcgscan-app/vercel.json:3",
-      "michi-maker/vercel.json:2"
+      "michi-maker/vercel.json:2",
+      "michi-maker/supabase/functions/stripe-checkout/index.ts"
     ],
     "heavy": false,
     "targets": [

@@ -232,19 +232,25 @@ export default {
       },
     },
     {
-      id: 'tcgscan.gating.checkout-closed-on-prod',
-      title: 'Production tcgscan never posts to stripe-checkout',
-      proves: 'Both production builds bake EXPO_PUBLIC_CHECKOUT_OPEN=0, so plan buttons are inert. This check is the tripwire for a build that ships with the flag flipped: the airlock would abort the request anyway, but this records it as a product failure rather than a guard trip.',
-      source: ['tcgscan-app/vercel.json:3', 'michi-maker/vercel.json:2'],
+      id: 'tcgscan.gating.plans-page-never-self-charges',
+      title: 'Merely LOOKING at the plans page never reaches checkout',
+      proves:
+        'Checkout reopened on 2026-09-21, so "the flag is off" is no longer the safety net it was, ' +
+        'and this asserts the property that holds either way: reading a pricing page must never ' +
+        'create a checkout session. A page that calls checkout on render turns a curious visitor ' +
+        'into a payment attempt. It doubles as a tripwire for this suite, because the airlock would ' +
+        'abort such a request and a guard trip reads as a broken check rather than the product ' +
+        'failure it would actually be.',
+      source: ['tcgscan-app/vercel.json:3', 'michi-maker/vercel.json:2', 'michi-maker/supabase/functions/stripe-checkout/index.ts'],
       app: 'tcgscan',
       area: 'gating',
-      group: 'Checkout stays closed on production',
+      group: 'Looking at prices never charges you',
       surface: '/plans',
       danger: 'read-only',
       personas: ['guest', 'free'],
       severity: 'blocker',
       targets: ['prod'],
-      expect: { '*': 'zero requests to any stripe-checkout endpoint while browsing the plans page' },
+      expect: { '*': 'zero requests to any stripe-checkout endpoint from simply loading the plans page' },
       observe: ['network', 'copy'],
       async run(ctx) {
         const hits = [];
@@ -253,7 +259,7 @@ export default {
         });
         await ctx.goto('/plans', { settle: 4000 });
         await ctx.tierSettled().catch(() => {});
-        ctx.assert(hits.length === 0, hits.length ? `the plans page reached checkout: ${hits.join(', ')}` : 'no checkout traffic');
+        ctx.assert(hits.length === 0, hits.length ? `the plans page reached checkout without a click: ${hits.join(', ')}` : 'no checkout traffic on load');
         const body = await ctx.text();
         ctx.assert(body.length > 300, 'the plans page rendered nothing to read');
       },

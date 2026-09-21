@@ -1,0 +1,56 @@
+{
+  "$comment": [
+    "THE BROWSE DATABASE MANIFEST. This is the file behind 'are all the card and sealed databases",
+    "loading as expected', and adding a game or an artifact is a data edit here, never a code edit.",
+    "",
+    "byteFloor values were MEASURED against production on 2026-09-20 and set to roughly 70% of the",
+    "observed Content-Length. That is loose enough to survive ordinary catalog growth and tight enough",
+    "to catch the failure that actually happens: a publish that truncates, or an empty file uploaded",
+    "over a good one. rowFloor is checked after parsing, where the shape allows it.",
+    "",
+    "expect 400 is not a mistake. Pokemon's plaintext catalog is deliberately retired from the public",
+    "bucket (it is served as catalog.enc behind the catalog-key function), and Pokemon's neighbour",
+    "graph is pgvector rather than a file. Asserting the 400 is how we notice if either quietly",
+    "returns, which would be a data leak in the first case."
+  ],
+  "base": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/browse",
+  "games": {
+    "pokemon": { "prefix": "", "label": "Pokemon" },
+    "onepiece": { "prefix": "onepiece/", "label": "One Piece" },
+    "lorcana": { "prefix": "lorcana/", "label": "Disney Lorcana" }
+  },
+  "artifacts": [
+    { "game": "pokemon", "file": "catalog.json", "expect": 400, "why": "Retired on purpose. A 200 here means the gated catalog leaked to anonymous callers.", "severity": "blocker" },
+    { "game": "pokemon", "file": "taxonomy.json", "expect": 200, "byteFloor": 180000, "rowPath": "series", "rowFloor": 10, "why": "The Series to Set drill-down every cold browse depends on." },
+    { "game": "pokemon", "file": "images.json", "expect": 200, "byteFloor": 3600000, "why": "The image manifest. Empty means every card tile falls back to a placeholder." },
+    { "game": "pokemon", "file": "sealed.json", "expect": 200, "byteFloor": 1200000, "rowFloor": 500, "why": "THE SEALED DATABASE. Ungated at every tier in both apps." },
+    { "game": "pokemon", "file": "prices-summary.json", "expect": 200, "byteFloor": 3000000, "why": "Card prices. Feeds value sort and every price label." },
+    { "game": "pokemon", "file": "prices-summary-sealed.json", "expect": 200, "byteFloor": 135000, "why": "Sealed prices." },
+    { "game": "pokemon", "file": "similar-compact.json", "expect": 400, "why": "Pokemon similarity is a pgvector RPC, not a file. A 200 would mean somebody published a graph over the top of another game's prefix." },
+
+    { "game": "onepiece", "file": "catalog.json", "expect": 200, "byteFloor": 1100000, "rowFloor": 2000, "why": "PUBLIC for secondary games, so every tier including guests browses One Piece warm." },
+    { "game": "onepiece", "file": "taxonomy.json", "expect": 200, "byteFloor": 15000, "rowPath": "series", "rowFloor": 1 },
+    { "game": "onepiece", "file": "images.json", "expect": 200, "byteFloor": 460000 },
+    { "game": "onepiece", "file": "sealed.json", "expect": 200, "byteFloor": 160000, "rowFloor": 50 },
+    { "game": "onepiece", "file": "prices-summary.json", "expect": 200, "byteFloor": 330000, "why": "Registered into the kit by michi since 0.9.24, which is what unlocked value sort for this game." },
+    { "game": "onepiece", "file": "prices-summary-sealed.json", "expect": 200, "byteFloor": 18000 },
+    { "game": "onepiece", "file": "similar-compact.json", "expect": 200, "byteFloor": 1200000, "why": "The neighbour graph michi reads for More like this." },
+
+    { "game": "lorcana", "file": "catalog.json", "expect": 200, "byteFloor": 570000, "rowFloor": 1500 },
+    { "game": "lorcana", "file": "taxonomy.json", "expect": 200, "byteFloor": 3200, "rowPath": "series", "rowFloor": 1 },
+    { "game": "lorcana", "file": "images.json", "expect": 200, "byteFloor": 230000 },
+    { "game": "lorcana", "file": "sealed.json", "expect": 200, "byteFloor": 66000, "rowFloor": 20 },
+    { "game": "lorcana", "file": "prices-summary.json", "expect": 200, "byteFloor": 200000 },
+    { "game": "lorcana", "file": "prices-summary-sealed.json", "expect": 200, "byteFloor": 8400 },
+    { "game": "lorcana", "file": "similar-compact.json", "expect": 200, "byteFloor": 560000, "why": "Published 2026-09-20 from the lor-v3 index." }
+  ],
+  "models": {
+    "$comment": "Scanner artifacts. A missing shard is a scanner that loads forever with no error.",
+    "base": "https://bmhjizcmwtmcrstadqto.supabase.co/storage/v1/object/public/models",
+    "sets": [
+      { "id": "capG-e15", "game": "pokemon", "files": ["classifiers/capG-e15/model.json", "data/capG-e15/cards_lookup.json", "data/capG-e15/catalog.json"] },
+      { "id": "op-v1", "game": "onepiece", "files": ["classifiers/op-v1/model.json", "data/op-v1/cards_lookup.json", "data/op-v1/catalog.json"] },
+      { "id": "lor-v3", "game": "lorcana", "files": ["classifiers/lor-v3/model.json", "data/lor-v3/cards_lookup.json", "data/lor-v3/catalog.json"] }
+    ]
+  }
+}

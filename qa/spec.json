@@ -1,0 +1,1951 @@
+[
+  {
+    "id": "michi.drift.deployed-caps-match-table",
+    "area": "drift",
+    "app": "michi",
+    "title": "The deployed cap numbers match the live tier_caps table",
+    "proves": "The client is an affordance and the database is the boundary. When they disagree, a user is shown one number and hits another, and the worse direction is a paying account being promised Unlimited by a UI while an insert trigger refuses the next row. Found live on 2026-09-21: PRO shipped as unlimited while the table still said 12 binders, 40 pages, 1000 artworks.",
+    "surface": "deployed bundle and public.tier_caps",
+    "danger": "read-only",
+    "severity": "blocker",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "every tier and every numeric cap agrees between the bundle the public loads and the table the triggers enforce from"
+    },
+    "observe": [
+      "network",
+      "rest"
+    ],
+    "source": [
+      "michi-maker/src/data/tiers.ts:229",
+      "michi-maker/supabase/migrations/20260920130000_tier_rework_caps.sql",
+      "michi-maker/scripts/check-tier-caps.mjs"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod"
+    ]
+  },
+  {
+    "id": "michi.drift.schema-the-app-depends-on",
+    "area": "drift",
+    "app": "michi",
+    "title": "The tables and functions the deployed app depends on exist",
+    "proves": "A migration that is committed but never applied leaves the app calling something that is not there. The failure is silent by design here: use-tier catches the error and falls back to the generous legacy caps, so nothing looks broken while the entire point of a caps release quietly does not happen.",
+    "surface": "deployed bundle and PostgREST schema cache",
+    "danger": "read-only",
+    "severity": "blocker",
+    "personas": [
+      "free"
+    ],
+    "expect": {
+      "free": "every table and function in SCHEMA_EXPECTED resolves in the live schema cache"
+    },
+    "observe": [
+      "rest"
+    ],
+    "source": [
+      "michi-maker/src/hooks/use-tier.ts:193",
+      "michi-maker/supabase/migrations/20260920130000_tier_rework_caps.sql:97"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod"
+    ]
+  },
+  {
+    "id": "both.data.artifact-pokemon-catalog",
+    "area": "data",
+    "app": "both",
+    "title": "Pokemon: catalog.json is served and intact",
+    "proves": "Retired on purpose. A 200 here means the gated catalog leaked to anonymous callers.",
+    "surface": "browse bucket",
+    "danger": "read-only",
+    "severity": "blocker",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 400, deliberately not public"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-data/pipeline/tcgscan/publish/",
+      "michi-maker/qa/catalog/artifacts.json"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "both.data.artifact-pokemon-taxonomy",
+    "area": "data",
+    "app": "both",
+    "title": "Pokemon: taxonomy.json is served and intact",
+    "proves": "The Series to Set drill-down every cold browse depends on.",
+    "surface": "browse bucket",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200, at least 180000 bytes, valid JSON"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-data/pipeline/tcgscan/publish/",
+      "michi-maker/qa/catalog/artifacts.json"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "both.data.artifact-pokemon-images",
+    "area": "data",
+    "app": "both",
+    "title": "Pokemon: images.json is served and intact",
+    "proves": "The image manifest. Empty means every card tile falls back to a placeholder.",
+    "surface": "browse bucket",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200, at least 3600000 bytes, valid JSON"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-data/pipeline/tcgscan/publish/",
+      "michi-maker/qa/catalog/artifacts.json"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "both.data.artifact-pokemon-sealed",
+    "area": "data",
+    "app": "both",
+    "title": "Pokemon: sealed.json is served and intact",
+    "proves": "THE SEALED DATABASE. Ungated at every tier in both apps.",
+    "surface": "browse bucket",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200, at least 1200000 bytes, valid JSON"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-data/pipeline/tcgscan/publish/",
+      "michi-maker/qa/catalog/artifacts.json"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "both.data.artifact-pokemon-prices-summary",
+    "area": "data",
+    "app": "both",
+    "title": "Pokemon: prices-summary.json is served and intact",
+    "proves": "Card prices. Feeds value sort and every price label.",
+    "surface": "browse bucket",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200, at least 3000000 bytes, valid JSON"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-data/pipeline/tcgscan/publish/",
+      "michi-maker/qa/catalog/artifacts.json"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "both.data.artifact-pokemon-prices-summary-sealed",
+    "area": "data",
+    "app": "both",
+    "title": "Pokemon: prices-summary-sealed.json is served and intact",
+    "proves": "Sealed prices.",
+    "surface": "browse bucket",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200, at least 135000 bytes, valid JSON"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-data/pipeline/tcgscan/publish/",
+      "michi-maker/qa/catalog/artifacts.json"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "both.data.artifact-pokemon-similar-compact",
+    "area": "data",
+    "app": "both",
+    "title": "Pokemon: similar-compact.json is served and intact",
+    "proves": "Pokemon similarity is a pgvector RPC, not a file. A 200 would mean somebody published a graph over the top of another game's prefix.",
+    "surface": "browse bucket",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 400, deliberately not public"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-data/pipeline/tcgscan/publish/",
+      "michi-maker/qa/catalog/artifacts.json"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "both.data.artifact-onepiece-catalog",
+    "area": "data",
+    "app": "both",
+    "title": "One Piece: catalog.json is served and intact",
+    "proves": "PUBLIC for secondary games, so every tier including guests browses One Piece warm.",
+    "surface": "browse bucket",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200, at least 1100000 bytes, valid JSON"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-data/pipeline/tcgscan/publish/",
+      "michi-maker/qa/catalog/artifacts.json"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "both.data.artifact-onepiece-taxonomy",
+    "area": "data",
+    "app": "both",
+    "title": "One Piece: taxonomy.json is served and intact",
+    "proves": "taxonomy.json for One Piece is present, the right size, and parses. An empty or truncated file renders an empty browser with no error.",
+    "surface": "browse bucket",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200, at least 15000 bytes, valid JSON"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-data/pipeline/tcgscan/publish/",
+      "michi-maker/qa/catalog/artifacts.json"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "both.data.artifact-onepiece-images",
+    "area": "data",
+    "app": "both",
+    "title": "One Piece: images.json is served and intact",
+    "proves": "images.json for One Piece is present, the right size, and parses. An empty or truncated file renders an empty browser with no error.",
+    "surface": "browse bucket",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200, at least 460000 bytes, valid JSON"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-data/pipeline/tcgscan/publish/",
+      "michi-maker/qa/catalog/artifacts.json"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "both.data.artifact-onepiece-sealed",
+    "area": "data",
+    "app": "both",
+    "title": "One Piece: sealed.json is served and intact",
+    "proves": "sealed.json for One Piece is present, the right size, and parses. An empty or truncated file renders an empty browser with no error.",
+    "surface": "browse bucket",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200, at least 160000 bytes, valid JSON"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-data/pipeline/tcgscan/publish/",
+      "michi-maker/qa/catalog/artifacts.json"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "both.data.artifact-onepiece-prices-summary",
+    "area": "data",
+    "app": "both",
+    "title": "One Piece: prices-summary.json is served and intact",
+    "proves": "Registered into the kit by michi since 0.9.24, which is what unlocked value sort for this game.",
+    "surface": "browse bucket",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200, at least 330000 bytes, valid JSON"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-data/pipeline/tcgscan/publish/",
+      "michi-maker/qa/catalog/artifacts.json"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "both.data.artifact-onepiece-prices-summary-sealed",
+    "area": "data",
+    "app": "both",
+    "title": "One Piece: prices-summary-sealed.json is served and intact",
+    "proves": "prices-summary-sealed.json for One Piece is present, the right size, and parses. An empty or truncated file renders an empty browser with no error.",
+    "surface": "browse bucket",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200, at least 18000 bytes, valid JSON"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-data/pipeline/tcgscan/publish/",
+      "michi-maker/qa/catalog/artifacts.json"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "both.data.artifact-onepiece-similar-compact",
+    "area": "data",
+    "app": "both",
+    "title": "One Piece: similar-compact.json is served and intact",
+    "proves": "The neighbour graph michi reads for More like this.",
+    "surface": "browse bucket",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200, at least 1200000 bytes, valid JSON"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-data/pipeline/tcgscan/publish/",
+      "michi-maker/qa/catalog/artifacts.json"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "both.data.artifact-lorcana-catalog",
+    "area": "data",
+    "app": "both",
+    "title": "Disney Lorcana: catalog.json is served and intact",
+    "proves": "catalog.json for Disney Lorcana is present, the right size, and parses. An empty or truncated file renders an empty browser with no error.",
+    "surface": "browse bucket",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200, at least 570000 bytes, valid JSON"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-data/pipeline/tcgscan/publish/",
+      "michi-maker/qa/catalog/artifacts.json"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "both.data.artifact-lorcana-taxonomy",
+    "area": "data",
+    "app": "both",
+    "title": "Disney Lorcana: taxonomy.json is served and intact",
+    "proves": "taxonomy.json for Disney Lorcana is present, the right size, and parses. An empty or truncated file renders an empty browser with no error.",
+    "surface": "browse bucket",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200, at least 3200 bytes, valid JSON"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-data/pipeline/tcgscan/publish/",
+      "michi-maker/qa/catalog/artifacts.json"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "both.data.artifact-lorcana-images",
+    "area": "data",
+    "app": "both",
+    "title": "Disney Lorcana: images.json is served and intact",
+    "proves": "images.json for Disney Lorcana is present, the right size, and parses. An empty or truncated file renders an empty browser with no error.",
+    "surface": "browse bucket",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200, at least 230000 bytes, valid JSON"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-data/pipeline/tcgscan/publish/",
+      "michi-maker/qa/catalog/artifacts.json"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "both.data.artifact-lorcana-sealed",
+    "area": "data",
+    "app": "both",
+    "title": "Disney Lorcana: sealed.json is served and intact",
+    "proves": "sealed.json for Disney Lorcana is present, the right size, and parses. An empty or truncated file renders an empty browser with no error.",
+    "surface": "browse bucket",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200, at least 66000 bytes, valid JSON"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-data/pipeline/tcgscan/publish/",
+      "michi-maker/qa/catalog/artifacts.json"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "both.data.artifact-lorcana-prices-summary",
+    "area": "data",
+    "app": "both",
+    "title": "Disney Lorcana: prices-summary.json is served and intact",
+    "proves": "prices-summary.json for Disney Lorcana is present, the right size, and parses. An empty or truncated file renders an empty browser with no error.",
+    "surface": "browse bucket",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200, at least 200000 bytes, valid JSON"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-data/pipeline/tcgscan/publish/",
+      "michi-maker/qa/catalog/artifacts.json"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "both.data.artifact-lorcana-prices-summary-sealed",
+    "area": "data",
+    "app": "both",
+    "title": "Disney Lorcana: prices-summary-sealed.json is served and intact",
+    "proves": "prices-summary-sealed.json for Disney Lorcana is present, the right size, and parses. An empty or truncated file renders an empty browser with no error.",
+    "surface": "browse bucket",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200, at least 8400 bytes, valid JSON"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-data/pipeline/tcgscan/publish/",
+      "michi-maker/qa/catalog/artifacts.json"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "both.data.artifact-lorcana-similar-compact",
+    "area": "data",
+    "app": "both",
+    "title": "Disney Lorcana: similar-compact.json is served and intact",
+    "proves": "Published 2026-09-20 from the lor-v3 index.",
+    "surface": "browse bucket",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200, at least 560000 bytes, valid JSON"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-data/pipeline/tcgscan/publish/",
+      "michi-maker/qa/catalog/artifacts.json"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "tcgscan.data.model-capg-e15-model",
+    "area": "data",
+    "app": "tcgscan",
+    "title": "Scanner capG-e15 (pokemon): model.json is served",
+    "proves": "A missing model file is a scanner that spins forever with no error message. The catalog file is the one that matters most: an anchor the catalog cannot name reads as \"Unrecognized card (#...)\" to the user.",
+    "surface": "models bucket",
+    "danger": "read-only",
+    "severity": "blocker",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-app/src/config.ts",
+      "tcgscan-data-science/docs/SHIP-A-GAME-MODEL.md"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "tcgscan.data.model-capg-e15-cards-lookup",
+    "area": "data",
+    "app": "tcgscan",
+    "title": "Scanner capG-e15 (pokemon): cards_lookup.json is served",
+    "proves": "A missing model file is a scanner that spins forever with no error message. The catalog file is the one that matters most: an anchor the catalog cannot name reads as \"Unrecognized card (#...)\" to the user.",
+    "surface": "models bucket",
+    "danger": "read-only",
+    "severity": "blocker",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-app/src/config.ts",
+      "tcgscan-data-science/docs/SHIP-A-GAME-MODEL.md"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "tcgscan.data.model-capg-e15-catalog",
+    "area": "data",
+    "app": "tcgscan",
+    "title": "Scanner capG-e15 (pokemon): catalog.json is served",
+    "proves": "A missing model file is a scanner that spins forever with no error message. The catalog file is the one that matters most: an anchor the catalog cannot name reads as \"Unrecognized card (#...)\" to the user.",
+    "surface": "models bucket",
+    "danger": "read-only",
+    "severity": "blocker",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-app/src/config.ts",
+      "tcgscan-data-science/docs/SHIP-A-GAME-MODEL.md"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "tcgscan.data.model-op-v1-model",
+    "area": "data",
+    "app": "tcgscan",
+    "title": "Scanner op-v1 (onepiece): model.json is served",
+    "proves": "A missing model file is a scanner that spins forever with no error message. The catalog file is the one that matters most: an anchor the catalog cannot name reads as \"Unrecognized card (#...)\" to the user.",
+    "surface": "models bucket",
+    "danger": "read-only",
+    "severity": "blocker",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-app/src/config.ts",
+      "tcgscan-data-science/docs/SHIP-A-GAME-MODEL.md"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "tcgscan.data.model-op-v1-cards-lookup",
+    "area": "data",
+    "app": "tcgscan",
+    "title": "Scanner op-v1 (onepiece): cards_lookup.json is served",
+    "proves": "A missing model file is a scanner that spins forever with no error message. The catalog file is the one that matters most: an anchor the catalog cannot name reads as \"Unrecognized card (#...)\" to the user.",
+    "surface": "models bucket",
+    "danger": "read-only",
+    "severity": "blocker",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-app/src/config.ts",
+      "tcgscan-data-science/docs/SHIP-A-GAME-MODEL.md"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "tcgscan.data.model-op-v1-catalog",
+    "area": "data",
+    "app": "tcgscan",
+    "title": "Scanner op-v1 (onepiece): catalog.json is served",
+    "proves": "A missing model file is a scanner that spins forever with no error message. The catalog file is the one that matters most: an anchor the catalog cannot name reads as \"Unrecognized card (#...)\" to the user.",
+    "surface": "models bucket",
+    "danger": "read-only",
+    "severity": "blocker",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-app/src/config.ts",
+      "tcgscan-data-science/docs/SHIP-A-GAME-MODEL.md"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "tcgscan.data.model-lor-v3-model",
+    "area": "data",
+    "app": "tcgscan",
+    "title": "Scanner lor-v3 (lorcana): model.json is served",
+    "proves": "A missing model file is a scanner that spins forever with no error message. The catalog file is the one that matters most: an anchor the catalog cannot name reads as \"Unrecognized card (#...)\" to the user.",
+    "surface": "models bucket",
+    "danger": "read-only",
+    "severity": "blocker",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-app/src/config.ts",
+      "tcgscan-data-science/docs/SHIP-A-GAME-MODEL.md"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "tcgscan.data.model-lor-v3-cards-lookup",
+    "area": "data",
+    "app": "tcgscan",
+    "title": "Scanner lor-v3 (lorcana): cards_lookup.json is served",
+    "proves": "A missing model file is a scanner that spins forever with no error message. The catalog file is the one that matters most: an anchor the catalog cannot name reads as \"Unrecognized card (#...)\" to the user.",
+    "surface": "models bucket",
+    "danger": "read-only",
+    "severity": "blocker",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-app/src/config.ts",
+      "tcgscan-data-science/docs/SHIP-A-GAME-MODEL.md"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "tcgscan.data.model-lor-v3-catalog",
+    "area": "data",
+    "app": "tcgscan",
+    "title": "Scanner lor-v3 (lorcana): catalog.json is served",
+    "proves": "A missing model file is a scanner that spins forever with no error message. The catalog file is the one that matters most: an anchor the catalog cannot name reads as \"Unrecognized card (#...)\" to the user.",
+    "surface": "models bucket",
+    "danger": "read-only",
+    "severity": "blocker",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "HTTP 200"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-app/src/config.ts",
+      "tcgscan-data-science/docs/SHIP-A-GAME-MODEL.md"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "both.data.sealed-images-resolve",
+    "area": "data",
+    "app": "both",
+    "title": "Sealed product images actually load, on every host the manifest uses",
+    "proves": "A sealed tile with a dead image is indistinguishable from a working catalog until someone looks at the page. Third-party hosts rot without telling us, and the fix is ours: mirror those products into our own bucket like the other 96% of them.",
+    "surface": "sealed.json image hosts",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "*": "every image host in the manifest serves 200 for a sample of its rows"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-browse/src/config.ts:364",
+      "tcgscan-data sealed publish"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "tcgscan.data.sealed-grid-renders",
+    "area": "data",
+    "app": "tcgscan",
+    "title": "The sealed product database renders on tcgscan /browse",
+    "proves": "Sealed is an ungated lane with no catalog dependency and no tier check anywhere, so every persona must see the same grid. An empty sealed shelf means the sealed artifact failed to load, which the manifest sweep would also catch but from the other end.",
+    "surface": "/browse?shelf=sealed",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest",
+      "free",
+      "pro-trial"
+    ],
+    "expect": {
+      "*": "the sealed shelf is selected and shows product tiles, identical at every tier including a paid one"
+    },
+    "observe": [
+      "copy",
+      "network"
+    ],
+    "source": [
+      "tcgscan-app/src/app/(tabs)/browse",
+      "tcgscan-browse SealedBrowser"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "tcgscan.data.pokemon-catalog-gate",
+    "area": "data",
+    "app": "tcgscan",
+    "title": "Pokemon catalog: a guest browses cold, a signed-in account browses warm",
+    "proves": "The plaintext Pokemon catalog is retired from the public bucket and served only as catalog.enc behind the catalog-key function, which 403s anonymous callers. A guest must therefore reach the search_cards RPC and never the blob. If a guest ever loads the blob, the gate has failed open.",
+    "surface": "/browse",
+    "danger": "read-only",
+    "severity": "blocker",
+    "personas": [
+      "guest",
+      "free",
+      "pro-trial"
+    ],
+    "expect": {
+      "guest": "no catalog-key call succeeds; the cold path is used",
+      "free": "the gated catalog is fetched and the browser goes warm",
+      "pro-trial": "same as free: the gate is on being signed in, not on paying"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "tcgscan-browse/src/catalog",
+      "michi-maker/src/lib/catalogSource.ts"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "michi.data.card-browser-loads",
+    "area": "data",
+    "app": "michi",
+    "title": "michi /browse reaches a populated card browser",
+    "proves": "michi browses the same shared bucket through the same kit. This is the end-to-end proof that the data reached a rendered grid rather than merely being downloadable.",
+    "surface": "/browse",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest",
+      "free",
+      "pro-trial"
+    ],
+    "expect": {
+      "*": "the heading renders and the grid is not the empty state"
+    },
+    "observe": [
+      "copy"
+    ],
+    "source": [
+      "michi-maker/src/components/binder/CardBrowse.tsx"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "tcgscan.gating.binder-lock-copy-guest",
+    "area": "gating",
+    "app": "tcgscan",
+    "title": "A guest tapping binder mode is asked to sign in, not asked to pay",
+    "proves": "Guests get zero free binder pages on purpose: a guest has no account for a binder to sync to, so the sign-in prompt is the right next step and a paywall is the wrong one. A refactor that treats guest as \"free with 0 left\" would show the paywall and nobody would notice.",
+    "surface": "/scan",
+    "danger": "writes-local",
+    "severity": "major",
+    "personas": [
+      "guest"
+    ],
+    "expect": {
+      "guest": "a sign-in prompt, and NOT the PRO binder paywall copy"
+    },
+    "observe": [
+      "copy"
+    ],
+    "source": [
+      "tcgscan-app/src/lib/binder-taste.ts:16",
+      "tcgscan-app/src/hooks/use-entitlements.ts:186"
+    ],
+    "heavy": true,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "tcgscan.gating.binder-taste-fresh",
+    "area": "gating",
+    "app": "tcgscan",
+    "title": "A Free account with no pages filed may enter binder mode",
+    "proves": "The first of the three free pages. A Free account files its first three binder pages exactly as a PRO account would; the wall arrives on the fourth.",
+    "surface": "/scan",
+    "danger": "writes-local",
+    "severity": "blocker",
+    "personas": [
+      "free"
+    ],
+    "expect": {
+      "free": "binder mode is selectable and the exhausted-taste wall is absent"
+    },
+    "observe": [
+      "copy",
+      "storage"
+    ],
+    "source": [
+      "tcgscan-app/src/lib/binder-taste.ts:21",
+      "tcgscan-app/src/hooks/use-entitlements.ts:186"
+    ],
+    "heavy": true,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "tcgscan.gating.binder-taste-exhausted",
+    "area": "gating",
+    "app": "tcgscan",
+    "title": "A Free account that has filed three pages hits the wall on the fourth",
+    "proves": "THE NEW CAP. Three binder pages free, ever, counted when a reviewed session is submitted. This is the revenue boundary of the tier rework and the single most valuable check in the suite.",
+    "surface": "/scan",
+    "danger": "writes-local",
+    "severity": "blocker",
+    "personas": [
+      "free"
+    ],
+    "expect": {
+      "free": "the binder lock copy or \"Your 3 free binder pages are used\" appears once the counter reads 3",
+      "pro-trial": "no wall at all, because the cap does not apply to a PRO account however many pages it has filed"
+    },
+    "observe": [
+      "copy",
+      "storage"
+    ],
+    "source": [
+      "tcgscan-app/src/lib/binder-taste.ts:21",
+      "tcgscan-app/src/hooks/use-submit-picks.ts:334"
+    ],
+    "heavy": true,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "tcgscan.gating.binder-taste-counter-monotonic",
+    "area": "gating",
+    "app": "tcgscan",
+    "title": "The binder page counter never decreases",
+    "proves": "The counter is a taste, not a meter: it is device-local and only ever goes up. A bug that resets it hands out unlimited free binder pages, which is the cap failing open and costs money silently.",
+    "surface": "localStorage",
+    "danger": "writes-local",
+    "severity": "major",
+    "personas": [
+      "free"
+    ],
+    "expect": {
+      "free": "a seeded count of 2 is still at least 2 after a reload"
+    },
+    "observe": [
+      "storage"
+    ],
+    "source": [
+      "tcgscan-app/src/lib/binder-taste.ts:74"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "tcgscan.gating.advanced-search-locked",
+    "area": "gating",
+    "app": "tcgscan",
+    "title": "Value sort is locked for guest and free on tcgscan",
+    "proves": "Advanced Search is the paid half of the card browser. The lock is on the affordance AND the action; a chip that looks locked but still sorts is the failure worth catching.",
+    "surface": "/browse",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest",
+      "free",
+      "pro-trial"
+    ],
+    "expect": {
+      "guest": "the Value chip carries aria-label \"Value (not included on your plan)\"",
+      "free": "the Value chip carries aria-label \"Value (not included on your plan)\"",
+      "pro-trial": "the Value chip carries NO locked marker, because Advanced Search is what the plan buys"
+    },
+    "observe": [
+      "aria",
+      "copy"
+    ],
+    "source": [
+      "tcgscan-app/src/lib/limit-messages.ts:117",
+      "tcgscan-browse/src/features.ts:109"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "michi.gating.secondary-value-sort-unlocked",
+    "area": "gating",
+    "app": "michi",
+    "title": "Value sort is NOT locked for One Piece and Lorcana on michi",
+    "proves": "REGRESSION GUARD for kit 0.9.24. The kit sorts on its own price summary, which once held only Pokemon prices, so michi locked value sort for secondary games and a paying account could not sort them. registerPriceSummary fixed it. If the kit pin ever rolls back, this is how we find out.",
+    "surface": "/browse?multi-tcg",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest",
+      "free"
+    ],
+    "expect": {
+      "*": "the secondary-game lock list contains themeSearch, findSimilar and similarRefine, and NOT sortByValue"
+    },
+    "observe": [
+      "network"
+    ],
+    "source": [
+      "michi-maker/src/lib/catalogConfig.ts:141",
+      "tcgscan-browse v0.9.24"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "tcgscan.gating.checkout-closed-on-prod",
+    "area": "gating",
+    "app": "tcgscan",
+    "title": "Production tcgscan never posts to stripe-checkout",
+    "proves": "Both production builds bake EXPO_PUBLIC_CHECKOUT_OPEN=0, so plan buttons are inert. This check is the tripwire for a build that ships with the flag flipped: the airlock would abort the request anyway, but this records it as a product failure rather than a guard trip.",
+    "surface": "/plans",
+    "danger": "read-only",
+    "severity": "blocker",
+    "personas": [
+      "guest",
+      "free"
+    ],
+    "expect": {
+      "*": "zero requests to any stripe-checkout endpoint while browsing the plans page"
+    },
+    "observe": [
+      "network",
+      "copy"
+    ],
+    "source": [
+      "tcgscan-app/vercel.json:3",
+      "michi-maker/vercel.json:2"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod"
+    ]
+  },
+  {
+    "id": "michi.reachability.welcome",
+    "area": "reachability",
+    "app": "michi",
+    "title": "michi /welcome renders",
+    "proves": "A cold first visit redirects here from /.",
+    "surface": "/welcome",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest",
+      "free"
+    ],
+    "expect": {
+      "*": "the route renders (text=Michi)"
+    },
+    "observe": [
+      "copy"
+    ],
+    "source": [
+      "michi-maker/src/app/welcome"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "michi.reachability.root",
+    "area": "reachability",
+    "app": "michi",
+    "title": "michi / renders",
+    "proves": "A cold browser redirects to /welcome; a returning one gets the home feed. Both are correct.",
+    "surface": "/",
+    "danger": "read-only",
+    "severity": "blocker",
+    "personas": [
+      "guest",
+      "free"
+    ],
+    "expect": {
+      "*": "the route renders (any=Featured Binders|Michi)"
+    },
+    "observe": [
+      "copy"
+    ],
+    "source": [
+      "michi-maker/src/app/index"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "michi.reachability.browse",
+    "area": "reachability",
+    "app": "michi",
+    "title": "michi /browse renders",
+    "proves": "/browse reaches its own content rather than a shell, a redirect, or somebody else's page.",
+    "surface": "/browse",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest",
+      "free"
+    ],
+    "expect": {
+      "*": "the route renders (text=Browse All Cards)"
+    },
+    "observe": [
+      "copy"
+    ],
+    "source": [
+      "michi-maker/src/app/browse"
+    ],
+    "heavy": true,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "michi.reachability.discover",
+    "area": "reachability",
+    "app": "michi",
+    "title": "michi /discover renders",
+    "proves": "/discover reaches its own content rather than a shell, a redirect, or somebody else's page.",
+    "surface": "/discover",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest",
+      "free"
+    ],
+    "expect": {
+      "*": "the route renders (placeholder=Search public binders)"
+    },
+    "observe": [
+      "copy"
+    ],
+    "source": [
+      "michi-maker/src/app/discover"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "michi.reachability.my-binders",
+    "area": "reachability",
+    "app": "michi",
+    "title": "michi /my-binders renders",
+    "proves": "/my-binders reaches its own content rather than a shell, a redirect, or somebody else's page.",
+    "surface": "/my-binders",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest",
+      "free"
+    ],
+    "expect": {
+      "*": "the route renders (text=My Binders)"
+    },
+    "observe": [
+      "copy"
+    ],
+    "source": [
+      "michi-maker/src/app/my-binders"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "michi.reachability.plans",
+    "area": "reachability",
+    "app": "michi",
+    "title": "michi /plans renders",
+    "proves": "/plans reaches its own content rather than a shell, a redirect, or somebody else's page.",
+    "surface": "/plans",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest",
+      "free"
+    ],
+    "expect": {
+      "*": "the route renders (text=Build binders free)"
+    },
+    "observe": [
+      "copy"
+    ],
+    "source": [
+      "michi-maker/src/app/plans"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "michi.reachability.pricing",
+    "area": "reachability",
+    "app": "michi",
+    "title": "michi /pricing renders",
+    "proves": "Redirects. The assertion is the final pathname.",
+    "surface": "/pricing",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest",
+      "free"
+    ],
+    "expect": {
+      "*": "the route renders (url=/plans)"
+    },
+    "observe": [
+      "copy"
+    ],
+    "source": [
+      "michi-maker/src/app/pricing"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "michi.reachability.subscriptions",
+    "area": "reachability",
+    "app": "michi",
+    "title": "michi /subscriptions renders",
+    "proves": "/subscriptions reaches its own content rather than a shell, a redirect, or somebody else's page.",
+    "surface": "/subscriptions",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest",
+      "free"
+    ],
+    "expect": {
+      "*": "the route renders (url=/plans)"
+    },
+    "observe": [
+      "copy"
+    ],
+    "source": [
+      "michi-maker/src/app/subscriptions"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "michi.reachability.contest",
+    "area": "reachability",
+    "app": "michi",
+    "title": "michi /contest renders",
+    "proves": "/contest reaches its own content rather than a shell, a redirect, or somebody else's page.",
+    "surface": "/contest",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest",
+      "free"
+    ],
+    "expect": {
+      "*": "the route renders (text=How it works)"
+    },
+    "observe": [
+      "copy"
+    ],
+    "source": [
+      "michi-maker/src/app/contest"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "michi.reachability.contest-binders",
+    "area": "reachability",
+    "app": "michi",
+    "title": "michi /contest-binders renders",
+    "proves": "/contest-binders reaches its own content rather than a shell, a redirect, or somebody else's page.",
+    "surface": "/contest-binders",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest",
+      "free"
+    ],
+    "expect": {
+      "*": "the route renders (text=Contest binders)"
+    },
+    "observe": [
+      "copy"
+    ],
+    "source": [
+      "michi-maker/src/app/contest-binders"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "michi.reachability.learn",
+    "area": "reachability",
+    "app": "michi",
+    "title": "michi /learn renders",
+    "proves": "/learn reaches its own content rather than a shell, a redirect, or somebody else's page.",
+    "surface": "/learn",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest",
+      "free"
+    ],
+    "expect": {
+      "*": "the route renders (title=Michi-Maker)"
+    },
+    "observe": [
+      "copy"
+    ],
+    "source": [
+      "michi-maker/src/app/learn"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "michi.reachability.michi-method",
+    "area": "reachability",
+    "app": "michi",
+    "title": "michi /michi-method renders",
+    "proves": "/michi-method reaches its own content rather than a shell, a redirect, or somebody else's page.",
+    "surface": "/michi-method",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest",
+      "free"
+    ],
+    "expect": {
+      "*": "the route renders (title=michi)"
+    },
+    "observe": [
+      "copy"
+    ],
+    "source": [
+      "michi-maker/src/app/michi-method"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "michi.reachability.purchases",
+    "area": "reachability",
+    "app": "michi",
+    "title": "michi /purchases renders",
+    "proves": "/purchases reaches its own content rather than a shell, a redirect, or somebody else's page.",
+    "surface": "/purchases",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest",
+      "free"
+    ],
+    "expect": {
+      "*": "the route renders (text=Purchases)"
+    },
+    "observe": [
+      "copy"
+    ],
+    "source": [
+      "michi-maker/src/app/purchases"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "michi.reachability.studio",
+    "area": "reachability",
+    "app": "michi",
+    "title": "michi /studio renders",
+    "proves": "Non-admin is the expected state. An admin sees the console instead, so this check is scoped to non-admin personas.",
+    "surface": "/studio",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest",
+      "free"
+    ],
+    "expect": {
+      "*": "the route renders (text=Not authorized)"
+    },
+    "observe": [
+      "copy"
+    ],
+    "source": [
+      "michi-maker/src/app/studio"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "michi.reachability.sitemap-xml",
+    "area": "reachability",
+    "app": "michi",
+    "title": "michi /sitemap.xml renders",
+    "proves": "/sitemap.xml reaches its own content rather than a shell, a redirect, or somebody else's page.",
+    "surface": "/sitemap.xml",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest",
+      "free"
+    ],
+    "expect": {
+      "*": "the route renders (xml)"
+    },
+    "observe": [
+      "copy"
+    ],
+    "source": [
+      "michi-maker/src/app/sitemap.xml"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "tcgscan.reachability.landing-html",
+    "area": "reachability",
+    "app": "tcgscan",
+    "title": "tcgscan /landing.html renders",
+    "proves": "A cold first visit hard-redirects here from /.",
+    "surface": "/landing.html",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest",
+      "free"
+    ],
+    "expect": {
+      "*": "the route renders (raw)"
+    },
+    "observe": [
+      "copy"
+    ],
+    "source": [
+      "tcgscan-app/src/app/landing.html"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "tcgscan.reachability.root",
+    "area": "reachability",
+    "app": "tcgscan",
+    "title": "tcgscan / renders",
+    "proves": "/ reaches its own content rather than a shell, a redirect, or somebody else's page.",
+    "surface": "/",
+    "danger": "read-only",
+    "severity": "blocker",
+    "personas": [
+      "guest",
+      "free"
+    ],
+    "expect": {
+      "*": "the route renders (tab=Home)"
+    },
+    "observe": [
+      "copy"
+    ],
+    "source": [
+      "tcgscan-app/src/app/index"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "tcgscan.reachability.browse",
+    "area": "reachability",
+    "app": "tcgscan",
+    "title": "tcgscan /browse renders",
+    "proves": "/browse reaches its own content rather than a shell, a redirect, or somebody else's page.",
+    "surface": "/browse",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest",
+      "free"
+    ],
+    "expect": {
+      "*": "the route renders (text=Cards)"
+    },
+    "observe": [
+      "copy"
+    ],
+    "source": [
+      "tcgscan-app/src/app/browse"
+    ],
+    "heavy": true,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "tcgscan.reachability.browse-shelf-sealed",
+    "area": "reachability",
+    "app": "tcgscan",
+    "title": "tcgscan /browse?shelf=sealed renders",
+    "proves": "/browse?shelf=sealed reaches its own content rather than a shell, a redirect, or somebody else's page.",
+    "surface": "/browse?shelf=sealed",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest",
+      "free"
+    ],
+    "expect": {
+      "*": "the route renders (text=Sealed)"
+    },
+    "observe": [
+      "copy"
+    ],
+    "source": [
+      "tcgscan-app/src/app/browse?shelf=sealed"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "tcgscan.reachability.collection",
+    "area": "reachability",
+    "app": "tcgscan",
+    "title": "tcgscan /collection renders",
+    "proves": "/collection reaches its own content rather than a shell, a redirect, or somebody else's page.",
+    "surface": "/collection",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest",
+      "free"
+    ],
+    "expect": {
+      "*": "the route renders (tab=Collection)"
+    },
+    "observe": [
+      "copy"
+    ],
+    "source": [
+      "tcgscan-app/src/app/collection"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "tcgscan.reachability.settings",
+    "area": "reachability",
+    "app": "tcgscan",
+    "title": "tcgscan /settings renders",
+    "proves": "/settings reaches its own content rather than a shell, a redirect, or somebody else's page.",
+    "surface": "/settings",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest",
+      "free"
+    ],
+    "expect": {
+      "*": "the route renders (tab=Settings)"
+    },
+    "observe": [
+      "copy"
+    ],
+    "source": [
+      "tcgscan-app/src/app/settings"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "tcgscan.reachability.plans",
+    "area": "reachability",
+    "app": "tcgscan",
+    "title": "tcgscan /plans renders",
+    "proves": "/plans reaches its own content rather than a shell, a redirect, or somebody else's page.",
+    "surface": "/plans",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest",
+      "free"
+    ],
+    "expect": {
+      "*": "the route renders (text=PRO)"
+    },
+    "observe": [
+      "copy"
+    ],
+    "source": [
+      "tcgscan-app/src/app/plans"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "tcgscan.reachability.welcome",
+    "area": "reachability",
+    "app": "tcgscan",
+    "title": "tcgscan /welcome renders",
+    "proves": "/welcome reaches its own content rather than a shell, a redirect, or somebody else's page.",
+    "surface": "/welcome",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest",
+      "free"
+    ],
+    "expect": {
+      "*": "the route renders (text=One trading card game today)"
+    },
+    "observe": [
+      "copy"
+    ],
+    "source": [
+      "tcgscan-app/src/app/welcome"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "tcgscan.reachability.sessions",
+    "area": "reachability",
+    "app": "tcgscan",
+    "title": "tcgscan /sessions renders",
+    "proves": "/sessions reaches its own content rather than a shell, a redirect, or somebody else's page.",
+    "surface": "/sessions",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "free"
+    ],
+    "expect": {
+      "*": "the route renders (text=Scan sessions)"
+    },
+    "observe": [
+      "copy"
+    ],
+    "source": [
+      "tcgscan-app/src/app/sessions"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "tcgscan.reachability.scan",
+    "area": "reachability",
+    "app": "tcgscan",
+    "title": "tcgscan /scan renders",
+    "proves": "Downloads a model. Excluded from the light sweep.",
+    "surface": "/scan",
+    "danger": "read-only",
+    "severity": "major",
+    "personas": [
+      "guest",
+      "free"
+    ],
+    "expect": {
+      "*": "the route renders (tab=Scan)"
+    },
+    "observe": [
+      "copy"
+    ],
+    "source": [
+      "tcgscan-app/src/app/scan"
+    ],
+    "heavy": true,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  },
+  {
+    "id": "both.reachability.console-and-network-clean",
+    "area": "reachability",
+    "app": "tcgscan",
+    "title": "No unexplained console errors or failed requests on the home route",
+    "proves": "A page can render correctly and still be quietly broken. This is the catch-all, and it only reports failures that are not on the known-noise list, so it stays worth reading.",
+    "surface": "/",
+    "danger": "read-only",
+    "severity": "minor",
+    "personas": [
+      "guest",
+      "free"
+    ],
+    "expect": {
+      "*": "nothing beyond the allow-listed font 404s and the alternates 400"
+    },
+    "observe": [
+      "console",
+      "network"
+    ],
+    "source": [
+      "michi-maker/qa/catalog/noise.json"
+    ],
+    "heavy": false,
+    "targets": [
+      "prod",
+      "export"
+    ]
+  }
+]

@@ -1,0 +1,48 @@
+{
+  "$comment": [
+    "KNOWN NOISE, so the rig does not cry wolf. Every entry needs an `expires` date and an `owner`.",
+    "Past that date the noise reports as a failure with the note 'noise waiver expired', which is what",
+    "stops an allow-list from quietly hiding a real break for a year.",
+    "",
+    "Match is a substring of the request URL plus the exact status. Both must match.",
+    "Keep this list SHORT. Anything here is a real defect nobody has fixed yet."
+  ],
+  "entries": [
+    {
+      "id": "tcgscan-fonts-404",
+      "urlIncludes": "/fonts/Inter-",
+      "status": 404,
+      "app": "tcgscan",
+      "owner": "brian",
+      "expires": "2026-12-31",
+      "why": "Sitewide since before 2026-09-20, on every page including Pokemon. Seven @font-face rules request files that are not in the export. Cosmetic: the fallback face renders. Separate small fix."
+    },
+    {
+      "id": "tcgscan-fonts-sora-404",
+      "urlIncludes": "/fonts/Sora-",
+      "status": 404,
+      "app": "tcgscan",
+      "owner": "brian",
+      "expires": "2026-12-31",
+      "why": "Same cause as tcgscan-fonts-404."
+    },
+    {
+      "id": "tcgscan-card-alternates-400",
+      "urlIncludes": "/rpc/card_alternates",
+      "status": 400,
+      "app": "tcgscan",
+      "owner": "brian",
+      "expires": "2026-12-31",
+      "why": "Pre-existing and shared with One Piece. The RPC replaced a file that no longer exists; a non-2xx sets an internal failed flag and the card page renders without alternates. Harmless today."
+    },
+    {
+      "id": "pokemon-catalog-json-400",
+      "urlIncludes": "/browse/catalog.json",
+      "status": 400,
+      "app": "both",
+      "owner": "brian",
+      "expires": "2026-12-31",
+      "why": "DELIBERATE, not a defect. Pokemon's plaintext catalog is retired from the public bucket and served only as catalog.enc behind the catalog-key edge function. A 400 here is the gate working. Listed so a sweep does not report it, and dated so somebody re-reads this in December."
+    }
+  ]
+}

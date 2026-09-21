@@ -1,0 +1,98 @@
+{
+  "$comment": [
+    "THE NETWORK AIRLOCK. Installed on every browser context before the first navigation, with no",
+    "per-check opt-out. A check cannot widen this file; only an edit here can, and an edit here is a",
+    "reviewed change to the safety layer rather than a line inside a test.",
+    "",
+    "Policies, most restrictive first:",
+    "  abort   the request never leaves the machine, and a request that MATCHED is a terminal event",
+    "          for the whole run (exit code 4). Reaching one of these means a check tried to spend",
+    "          money or write a ledger row, which is a bug in the check, not a flaky assertion.",
+    "  deny    aborted quietly and recorded. Used for third-party noise we simply do not want.",
+    "  gated   allowed only when the run carries the named capability, aborted otherwise.",
+    "  observe allowed, and every matching request is written to net.jsonl for later assertion.",
+    "  allow   allowed, unrecorded. The default for anything unmatched."
+  ],
+  "rules": [
+    {
+      "match": "**/functions/v1/stripe-checkout**",
+      "policy": "abort",
+      "why": "The shared checkout function. Its change_plan action finalizes an invoice and calls invoices.pay against the saved card with no hosted Stripe page in front of it (michi-maker/supabase/functions/stripe-checkout/index.ts:505). Nothing in a QA run may reach it."
+    },
+    {
+      "match": "https://checkout.stripe.com/**",
+      "policy": "abort",
+      "why": "Stripe hosted checkout. Live mode, real cards."
+    },
+    {
+      "match": "https://billing.stripe.com/**",
+      "policy": "abort",
+      "why": "The customer portal is a live cancel button for a real subscription."
+    },
+    {
+      "match": "https://api.stripe.com/**",
+      "policy": "abort",
+      "why": "Direct Stripe API. Never from a browser, never from here."
+    },
+    {
+      "match": "**/rest/v1/entitlements**",
+      "policy": "observe",
+      "why": "Reads are how a suite proves a tier resolved. Writes are impossible from a browser (no client write policy) but are still worth seeing in net.jsonl."
+    },
+    {
+      "match": "**/rpc/start_pro_trial**",
+      "policy": "gated",
+      "capability": "allow-trial",
+      "why": "One trial per account, forever. Burning it is irreversible without SQL against production."
+    },
+    {
+      "match": "**/rpc/start_tcgscan_pro_trial**",
+      "policy": "gated",
+      "capability": "allow-trial",
+      "why": "Same, on the tcgscan side."
+    },
+    {
+      "match": "**/rpc/reclaim_over_cap**",
+      "policy": "abort",
+      "why": "Archives real binders. Recoverable only by restore_archived_binders, which only runs when the account is paid again."
+    },
+    {
+      "match": "**/rpc/reclaim_over_cap_collections**",
+      "policy": "abort",
+      "why": "Archives real collections and withdraws cards from the shared user_cards rollup."
+    },
+    {
+      "match": "**/functions/v1/delete-account**",
+      "policy": "abort",
+      "why": "Account deletion is never a test step."
+    },
+    {
+      "match": "**/rest/v1/analytics_events**",
+      "policy": "observe",
+      "why": "Every route change POSTs one. We cannot suppress them without changing what the page does, so we record the keys instead and tag the run so the analytics side can exclude them."
+    },
+    {
+      "match": "https://bmhjizcmwtmcrstadqto.supabase.co/**",
+      "policy": "observe",
+      "methods": ["GET", "HEAD"],
+      "why": "The tcgscan-data catalog project. GET and HEAD only; any other method aborts as a terminal event. The rig never writes to the data project."
+    },
+    {
+      "match": "https://www.google-analytics.com/**",
+      "policy": "deny",
+      "why": "Third-party noise. Not ours to pollute."
+    },
+    {
+      "match": "https://fonts.gstatic.com/**",
+      "policy": "allow",
+      "why": "Real font loads. Allowed so a font regression is still visible."
+    }
+  ],
+  "clickRefusals": [
+    { "pattern": "^Pay \\$", "why": "The change_plan instant-charge button. Its accessible name starts with the amount." },
+    { "pattern": "^Confirm and pay", "why": "Any hosted-checkout confirmation." },
+    { "pattern": "Cancel (my )?(subscription|plan)", "why": "Portal cancel." },
+    { "pattern": "^Delete (my )?account", "why": "Irreversible." },
+    { "pattern": "^Start free .* trial", "why": "One per account forever. Requires the allow-trial capability, which lifts this refusal.", "capability": "allow-trial" }
+  ]
+}

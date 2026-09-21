@@ -1,0 +1,667 @@
+{
+  "$comment": [
+    "The sealed products whose image TCGplayer has removed, so the manifest still points at a dead URL.",
+    "Verified 2026-09-21: 403 at every size (_in_1000x1000, _in_437x437, _in_200x200, _in_115x115) and",
+    "200-with-an-HTML-404-body on product-images.tcgplayer.com. They are not retrievable from source.",
+    "The check both.data.sealed-images-resolve fails while any of these remain.",
+    "This list is data, not a waiver: shrink it by sourcing images, not by editing it."
+  ],
+  "verifiedAt": "2026-09-21",
+  "count": 109,
+  "products": [
+    {
+      "id": "235713",
+      "name": "Collector's Pin Two Pack Blisters [Dusk Mane Necrozma]",
+      "series": "Promos & Miscellaneous",
+      "release_date": null
+    },
+    {
+      "id": "235714",
+      "name": "Collector's Pin Two Pack Blisters [Dawn Wings Necrozma]",
+      "series": "Promos & Miscellaneous",
+      "release_date": null
+    },
+    {
+      "id": "610741",
+      "name": "Costco Pokemon Evolving Skies Elite Trainer Box and Tin",
+      "series": "Promos & Miscellaneous",
+      "release_date": null
+    },
+    {
+      "id": "621135",
+      "name": "Paldea Adventure Chest Case",
+      "series": "Promos & Miscellaneous",
+      "release_date": null
+    },
+    {
+      "id": "624518",
+      "name": "Pokemon TCG: Twin Mini Portfolio & Booster Packs [Mega Mewtwo & Guzzlord]",
+      "series": "Promos & Miscellaneous",
+      "release_date": null
+    },
+    {
+      "id": "636312",
+      "name": "Costco Pokemon Collector 3-Pack: Crown Zenith ETB + Paldea Legends Tins",
+      "series": "Promos & Miscellaneous",
+      "release_date": null
+    },
+    {
+      "id": "639446",
+      "name": "Charizard ex Special Collection Case",
+      "series": "Promos & Miscellaneous",
+      "release_date": null
+    },
+    {
+      "id": "639830",
+      "name": "Holiday Calendar 2025 Case",
+      "series": "Promos & Miscellaneous",
+      "release_date": null
+    },
+    {
+      "id": "649295",
+      "name": "Charizard ex Super-Premium Collection Case",
+      "series": "Promos & Miscellaneous",
+      "release_date": null
+    },
+    {
+      "id": "657111",
+      "name": "Lillie Premium Tournament Collection Box Case",
+      "series": "Promos & Miscellaneous",
+      "release_date": null
+    },
+    {
+      "id": "661998",
+      "name": "Mega Battle Deck Display (Mega Gengar ex/Mega Diancie ex)",
+      "series": "Promos & Miscellaneous",
+      "release_date": null
+    },
+    {
+      "id": "664895",
+      "name": "Mega Charizard X ex Ultra Premium Collection Case",
+      "series": "Promos & Miscellaneous",
+      "release_date": null
+    },
+    {
+      "id": "664898",
+      "name": "Team Rocket’s Moltres ex Ultra-Premium Collection Case",
+      "series": "Promos & Miscellaneous",
+      "release_date": null
+    },
+    {
+      "id": "668591",
+      "name": "Pokemon Day 2026 Collection Case",
+      "series": "Promos & Miscellaneous",
+      "release_date": null
+    },
+    {
+      "id": "679554",
+      "name": "Mega Charizard Tin Case",
+      "series": "Promos & Miscellaneous",
+      "release_date": null
+    },
+    {
+      "id": "683004",
+      "name": "Poke Ball with Two Mini Tins (Sam's Club)",
+      "series": "Promos & Miscellaneous",
+      "release_date": null
+    },
+    {
+      "id": "685924",
+      "name": "Costco 6-Pack Poke balls",
+      "series": "Promos & Miscellaneous",
+      "release_date": null
+    },
+    {
+      "id": "686503",
+      "name": "Pokemon Champions Tin [Gengar]",
+      "series": "Promos & Miscellaneous",
+      "release_date": null
+    },
+    {
+      "id": "690661",
+      "name": "Mega Greninja ex Premium Collection Case",
+      "series": "Promos & Miscellaneous",
+      "release_date": null
+    },
+    {
+      "id": "692923",
+      "name": "Team Rocket Tin Case",
+      "series": "Promos & Miscellaneous",
+      "release_date": null
+    },
+    {
+      "id": "692924",
+      "name": "Triple Whammy Tin Case",
+      "series": "Promos & Miscellaneous",
+      "release_date": null
+    },
+    {
+      "id": "693199",
+      "name": "Eevee Evolutions Premium Collection Case",
+      "series": "Promos & Miscellaneous",
+      "release_date": null
+    },
+    {
+      "id": "693200",
+      "name": "Pikachu & Zekrom GX Premium Collection Case",
+      "series": "Promos & Miscellaneous",
+      "release_date": null
+    },
+    {
+      "id": "710570",
+      "name": "Deck Crafter's Collection - Meowth ex",
+      "series": "Promos & Miscellaneous",
+      "release_date": null
+    },
+    {
+      "id": "718644",
+      "name": "League Battle Deck Case [Mega Greninja ex]",
+      "series": "Promos & Miscellaneous",
+      "release_date": null
+    },
+    {
+      "id": "712109",
+      "name": "Delta Reign Single Pack Blister (Target Exclusive) [Keldeo]",
+      "series": "Mega Evolution",
+      "release_date": "2026-11-06"
+    },
+    {
+      "id": "695118",
+      "name": "Chaos Rising 3-Pack Blister Case",
+      "series": "Mega Evolution",
+      "release_date": "2026-05-22"
+    },
+    {
+      "id": "709095",
+      "name": "Mega Evolution: Ascended Heroes Collection - Erika (1-Tab)",
+      "series": "Mega Evolution",
+      "release_date": "2026-01-30"
+    },
+    {
+      "id": "709097",
+      "name": "Mega Evolution: Ascended Heroes Collection - Larry (1-Tab)",
+      "series": "Mega Evolution",
+      "release_date": "2026-01-30"
+    },
+    {
+      "id": "644727",
+      "name": "Mega Evolution Elite Trainer Box Case",
+      "series": "Mega Evolution",
+      "release_date": "2025-09-26"
+    },
+    {
+      "id": "630692",
+      "name": "White Flare Pokemon Center Elite Trainer Box (Exclusive) Case",
+      "series": "Scarlet & Violet",
+      "release_date": "2025-07-18"
+    },
+    {
+      "id": "637491",
+      "name": "Black Bolt Deluxe Booster Box",
+      "series": "Scarlet & Violet -JP",
+      "release_date": "2025-06-06"
+    },
+    {
+      "id": "637492",
+      "name": "White Flare Deluxe Booster Box",
+      "series": "Scarlet & Violet -JP",
+      "release_date": "2025-06-06"
+    },
+    {
+      "id": "635328",
+      "name": "Destined Rivals 3 Pack Blister [Set of 2]",
+      "series": "Scarlet & Violet",
+      "release_date": "2025-05-30"
+    },
+    {
+      "id": "624925",
+      "name": "Journey Together Sleeved Booster Case",
+      "series": "Scarlet & Violet",
+      "release_date": "2025-03-28"
+    },
+    {
+      "id": "626659",
+      "name": "Journey Together Sleeved Booster Pack Art Bundle [Set of 4]",
+      "series": "Scarlet & Violet",
+      "release_date": "2025-03-28"
+    },
+    {
+      "id": "626660",
+      "name": "Journey Together Booster Pack Art Bundle [Set of 4]",
+      "series": "Scarlet & Violet",
+      "release_date": "2025-03-28"
+    },
+    {
+      "id": "631972",
+      "name": "Journey Together 3 Pack Blister [Set of 2]",
+      "series": "Scarlet & Violet",
+      "release_date": "2025-03-28"
+    },
+    {
+      "id": "615027",
+      "name": "Prismatic Evolutions Booster Bundle Case",
+      "series": "Scarlet & Violet",
+      "release_date": "2025-01-17"
+    },
+    {
+      "id": "617807",
+      "name": "Prismatic Evolutions Sleeved Booster Pack Art Bundle [Set of 4]",
+      "series": "Scarlet & Violet",
+      "release_date": "2025-01-17"
+    },
+    {
+      "id": "629828",
+      "name": "Prismatic Evolutions Accessory Pouch Special Collection Case",
+      "series": "Scarlet & Violet",
+      "release_date": "2025-01-17"
+    },
+    {
+      "id": "635011",
+      "name": "Prismatic Evolution Booster Bundle Display Case",
+      "series": "Scarlet & Violet",
+      "release_date": "2025-01-17"
+    },
+    {
+      "id": "638058",
+      "name": "Prismatic Evolutions Super-Premium Collection Case",
+      "series": "Scarlet & Violet",
+      "release_date": "2025-01-17"
+    },
+    {
+      "id": "670608",
+      "name": "Prismatic Evolutions Elite Trainer Box Case (Dollar General Exclusive)",
+      "series": "Scarlet & Violet",
+      "release_date": "2025-01-17"
+    },
+    {
+      "id": "646039",
+      "name": "Surging Sparks Half Booster Box",
+      "series": "Scarlet & Violet",
+      "release_date": "2024-11-08"
+    },
+    {
+      "id": "716009",
+      "name": "Paradise Dragona Booster Box Case",
+      "series": "Scarlet & Violet -JP",
+      "release_date": "2024-09-13"
+    },
+    {
+      "id": "618355",
+      "name": "Shrouded Fable Booster Bundle Display",
+      "series": "Scarlet & Violet",
+      "release_date": "2024-08-02"
+    },
+    {
+      "id": "635485",
+      "name": "Shrouded Fable Booster Bundle Display Case",
+      "series": "Scarlet & Violet",
+      "release_date": "2024-08-02"
+    },
+    {
+      "id": "635736",
+      "name": "Shrouded Fable Booster Bundle Case",
+      "series": "Scarlet & Violet",
+      "release_date": "2024-08-02"
+    },
+    {
+      "id": "665643",
+      "name": "Shrouded Fable 3 Pack Blister Case",
+      "series": "Scarlet & Violet",
+      "release_date": "2024-08-02"
+    },
+    {
+      "id": "688627",
+      "name": "Pokemon Go Special BOX",
+      "series": "Scarlet & Violet -JP",
+      "release_date": "2024-08-01"
+    },
+    {
+      "id": "625585",
+      "name": "Crimson Haze Booster Box Case",
+      "series": "Scarlet & Violet -JP",
+      "release_date": "2024-03-22"
+    },
+    {
+      "id": "680963",
+      "name": "Temporal Forces 3 Pack Blister Display",
+      "series": "Scarlet & Violet",
+      "release_date": "2024-03-22"
+    },
+    {
+      "id": "635609",
+      "name": "Paldean Fates Booster Bundle Display Case",
+      "series": "Scarlet & Violet",
+      "release_date": "2024-01-26"
+    },
+    {
+      "id": "654599",
+      "name": "Paldean Fates Tech Sticker Collection Case",
+      "series": "Scarlet & Violet",
+      "release_date": "2024-01-26"
+    },
+    {
+      "id": "688258",
+      "name": "Paldean Fates Tin Case",
+      "series": "Scarlet & Violet",
+      "release_date": "2024-01-26"
+    },
+    {
+      "id": "693569",
+      "name": "Paldean Fates Premium Collection Case",
+      "series": "Scarlet & Violet",
+      "release_date": "2024-01-26"
+    },
+    {
+      "id": "693612",
+      "name": "Paldean Fates Mini Tin Display Case",
+      "series": "Scarlet & Violet",
+      "release_date": "2024-01-26"
+    },
+    {
+      "id": "524394",
+      "name": "Paradox Rift Pokemon Center Elite Trainer Box (Exclusive) [Set of 2]",
+      "series": "Scarlet & Violet",
+      "release_date": "2023-11-03"
+    },
+    {
+      "id": "526674",
+      "name": "Paradox Rift Sleeved Booster Pack Art Bundle [Set of 4]",
+      "series": "Scarlet & Violet",
+      "release_date": "2023-11-03"
+    },
+    {
+      "id": "641808",
+      "name": "Paradox Rift Sleeved Booster Case",
+      "series": "Scarlet & Violet",
+      "release_date": "2023-11-03"
+    },
+    {
+      "id": "649417",
+      "name": "Paradox Rift Half Booster Box",
+      "series": "Scarlet & Violet",
+      "release_date": "2023-11-03"
+    },
+    {
+      "id": "657210",
+      "name": "Paradox Rift Pokemon Center Elite Trainer Box (Exclusive) Case [Iron Valiant]",
+      "series": "Scarlet & Violet",
+      "release_date": "2023-11-03"
+    },
+    {
+      "id": "668357",
+      "name": "151 Mini Tin Display Case",
+      "series": "Scarlet & Violet",
+      "release_date": "2023-09-22"
+    },
+    {
+      "id": "564134",
+      "name": "Trick or Trade BOOster Bundle 2023 (120 ct)",
+      "series": "Promos & Miscellaneous",
+      "release_date": "2023-09-01"
+    },
+    {
+      "id": "501261",
+      "name": "Obsidian Flames 3 Pack Blister [Set of 2]",
+      "series": "Scarlet & Violet",
+      "release_date": "2023-08-11"
+    },
+    {
+      "id": "514193",
+      "name": "Obsidian Flames Build & Battle Box Display",
+      "series": "Scarlet & Violet",
+      "release_date": "2023-08-11"
+    },
+    {
+      "id": "537410",
+      "name": "Paldea Evolved Pokemon Center Elite Trainer Box (Exclusive) Case",
+      "series": "Scarlet & Violet",
+      "release_date": "2023-06-09"
+    },
+    {
+      "id": "656928",
+      "name": "Paldea Evolved Booster Bundle Case",
+      "series": "Scarlet & Violet",
+      "release_date": "2023-06-09"
+    },
+    {
+      "id": "497166",
+      "name": "Scarlet & Violet Premium Checklane Blister [Hisuian Arcanine]",
+      "series": "Scarlet & Violet",
+      "release_date": "2023-03-31"
+    },
+    {
+      "id": "497167",
+      "name": "Scarlet & Violet Premium Checklane Blister [Hisuian Zoroark]",
+      "series": "Scarlet & Violet",
+      "release_date": "2023-03-31"
+    },
+    {
+      "id": "656429",
+      "name": "Triple Starter Deck Set VMAX",
+      "series": "Scarlet & Violet -JP",
+      "release_date": "2023-03-01"
+    },
+    {
+      "id": "631791",
+      "name": "Crown Zenith Mini Tin Display Case",
+      "series": "Sword & Shield",
+      "release_date": "2023-01-20"
+    },
+    {
+      "id": "664978",
+      "name": "Crown Zenith Premium Figure Collection Case",
+      "series": "Sword & Shield",
+      "release_date": "2023-01-20"
+    },
+    {
+      "id": "693210",
+      "name": "Morpeko V-UNION Premium Treasures Collection Case",
+      "series": "Sword & Shield",
+      "release_date": "2023-01-20"
+    },
+    {
+      "id": "711447",
+      "name": "Crown Zenith Pin Collection Case",
+      "series": "Sword & Shield",
+      "release_date": "2023-01-20"
+    },
+    {
+      "id": "486325",
+      "name": "Silver Tempest Premium Checklane Blister [Hisuian Sneasler]",
+      "series": "Sword & Shield",
+      "release_date": "2022-11-11"
+    },
+    {
+      "id": "486327",
+      "name": "Silver Tempest Premium Checklane Blister [Hisuian Lilligant]",
+      "series": "Sword & Shield",
+      "release_date": "2022-11-11"
+    },
+    {
+      "id": "648474",
+      "name": "Lost Origin Build & Battle Stadium Case",
+      "series": "Sword & Shield",
+      "release_date": "2022-09-09"
+    },
+    {
+      "id": "652759",
+      "name": "Lost Origin Pokemon Center Elite Trainer Box Case (Exclusive)",
+      "series": "Sword & Shield",
+      "release_date": "2022-09-09"
+    },
+    {
+      "id": "693585",
+      "name": "Arceus VSTAR Ultra-Premium Collection Case",
+      "series": "Sword & Shield",
+      "release_date": "2022-09-09"
+    },
+    {
+      "id": "659627",
+      "name": "Trick or Trade BOOster Bundle (120 ct)",
+      "series": "Promos & Miscellaneous",
+      "release_date": "2022-09-01"
+    },
+    {
+      "id": "630089",
+      "name": "Pokemon Go Pokemon Center Elite Trainer Box Plus Case (Exclusive)",
+      "series": "Sword & Shield",
+      "release_date": "2022-07-01"
+    },
+    {
+      "id": "675282",
+      "name": "Pokemon GO V Battle Deck Bundle Case [Mewtwo V/Melmetal V]",
+      "series": "Sword & Shield",
+      "release_date": "2022-07-01"
+    },
+    {
+      "id": "692922",
+      "name": "Pokemon GO Pin Collection Case",
+      "series": "Sword & Shield",
+      "release_date": "2022-07-01"
+    },
+    {
+      "id": "696160",
+      "name": "Astral Radiance Premium Checklane Blister Case",
+      "series": "Sword & Shield",
+      "release_date": "2022-05-27"
+    },
+    {
+      "id": "704916",
+      "name": "Astral Radiance Half Booster Box",
+      "series": "Sword & Shield",
+      "release_date": "2022-05-27"
+    },
+    {
+      "id": "639337",
+      "name": "Brilliant Stars Pokemon Center Elite Trainer Box (Exclusive) Case",
+      "series": "Sword & Shield",
+      "release_date": "2022-02-25"
+    },
+    {
+      "id": "638064",
+      "name": "Fusion Strike 3-Pack Blister Case",
+      "series": "Sword & Shield",
+      "release_date": "2021-11-12"
+    },
+    {
+      "id": "657836",
+      "name": "Chilling Reign Sleeved Booster Case",
+      "series": "Sword & Shield",
+      "release_date": "2021-06-18"
+    },
+    {
+      "id": "657837",
+      "name": "Chilling Reign Pokemon Center Elite Trainer Box Case (Exclusive)",
+      "series": "Sword & Shield",
+      "release_date": "2021-06-18"
+    },
+    {
+      "id": "680964",
+      "name": "Battle Styles Sleeved Booster Case",
+      "series": "Sword & Shield",
+      "release_date": "2021-03-19"
+    },
+    {
+      "id": "683003",
+      "name": "Alakazam V Box Case",
+      "series": "Sword & Shield",
+      "release_date": "2020-11-13"
+    },
+    {
+      "id": "218852",
+      "name": "Champion's Path Pin Collection Display: Ballonlea, Spikemuth, & Hammerlocke Gyms",
+      "series": "Sword & Shield",
+      "release_date": "2020-09-25"
+    },
+    {
+      "id": "279259",
+      "name": "Legends of Galar Tin [Set of 2] (International Version)",
+      "series": "Sword & Shield",
+      "release_date": "2020-05-01"
+    },
+    {
+      "id": "656706",
+      "name": "Cosmic Eclipse Sleeved Booster Case",
+      "series": "Sun & Moon",
+      "release_date": "2019-11-01"
+    },
+    {
+      "id": "656716",
+      "name": "Unified Minds Sleeved Booster Case",
+      "series": "Sun & Moon",
+      "release_date": "2019-08-02"
+    },
+    {
+      "id": "524331",
+      "name": "Unbroken Bonds Sleeved Booster Pack",
+      "series": "Sun & Moon",
+      "release_date": "2019-05-03"
+    },
+    {
+      "id": "656707",
+      "name": "Unbroken Bonds Sleeved Booster Case",
+      "series": "Sun & Moon",
+      "release_date": "2019-05-03"
+    },
+    {
+      "id": "246416",
+      "name": "Legends of Johto GX Collection Box",
+      "series": "Sun & Moon",
+      "release_date": "2018-02-02"
+    },
+    {
+      "id": "627740",
+      "name": "Evolutions Elite Trainer Box Case",
+      "series": "XY",
+      "release_date": "2016-11-02"
+    },
+    {
+      "id": "656718",
+      "name": "Steam Siege Sleeved Booster Case",
+      "series": "XY",
+      "release_date": "2016-08-03"
+    },
+    {
+      "id": "696115",
+      "name": "Steam Siege Elite Trainer Box Case",
+      "series": "XY",
+      "release_date": "2016-08-03"
+    },
+    {
+      "id": "656708",
+      "name": "Fates Collide Sleeved Booster Case",
+      "series": "XY",
+      "release_date": "2016-05-02"
+    },
+    {
+      "id": "656978",
+      "name": "Primal Clash Sleeved Booster Case",
+      "series": "XY",
+      "release_date": "2015-02-04"
+    },
+    {
+      "id": "610189",
+      "name": "Gaia Volcano Booster Box",
+      "series": "XY -JP",
+      "release_date": "2014-12-13"
+    },
+    {
+      "id": "610190",
+      "name": "Tidal Storm Booster Box",
+      "series": "XY -JP",
+      "release_date": "2014-12-13"
+    },
+    {
+      "id": "276601",
+      "name": "Plasma Storm Sleeved Booster Pack Art Bundle [Set of 4]",
+      "series": "Black & White",
+      "release_date": "2013-02-06"
+    },
+    {
+      "id": "680967",
+      "name": "Salamence Constructed Starter Deck",
+      "series": "EX -JP",
+      "release_date": "2003-06-25"
+    }
+  ]
+}

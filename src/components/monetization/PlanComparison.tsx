@@ -54,11 +54,17 @@ import { useAuth } from '@/store/auth';
 /** How far the PRO/VIP header tabs rise above the table body. */
 const TAB_RISE = Spacing.four;
 
-function ValueCell({ cell, vip }: { cell: CompareCell; vip?: boolean }) {
+function ValueCell({ cell, vip, pro }: { cell: CompareCell; vip?: boolean; pro?: boolean }) {
   return (
     <>
       <View style={styles.valueRow}>
-        <Text style={[styles.value, vip && styles.vipText, cell.strong && styles.valueStrong]}>
+        <Text
+          style={[
+            styles.value,
+            vip && styles.vipText,
+            cell.strong && styles.valueStrong,
+            cell.strong && pro && styles.valueStrongPro,
+          ]}>
           {cell.text}
         </Text>
         {/* Sits beside the value rather than under it, so the saving reads as part of the
@@ -423,8 +429,8 @@ export function PlanComparison() {
               <View style={[styles.cell, styles.freeCol, row.highlight && styles.hlCell]}>
                 <ValueCell cell={freeCell(row)} />
               </View>
-              <View style={[styles.cell, styles.proCol, row.highlight && styles.hlCell]}>
-                <ValueCell cell={row.pro} />
+              <View style={[styles.cell, styles.proCol, row.highlight && styles.hlCellPro]}>
+                <ValueCell cell={row.pro} pro />
               </View>
             </View>
           ))}
@@ -542,8 +548,15 @@ const styles = StyleSheet.create({
   // difference to the three plan columns, VIP most of all.
   labelCell: { flexGrow: 0.85, borderLeftWidth: 1, borderLeftColor: Palette.hairline },
   freeCol: { flexGrow: 1 },
+  /**
+   * THE FEATURED COLUMN IS FILLED, not just outlined. VIP used to carry the tint (see vipCol
+   * below, kept for the styles it still shares); when VIP was retired PRO inherited its borders
+   * and not its fill, which left the column we actually sell reading as plain white with a line
+   * around it. accentSoft is the text-bearing tint, so labels on it still clear WCAG-AA.
+   */
   proCol: {
     flexGrow: 1.1,
+    backgroundColor: Palette.accentSoft,
     borderLeftWidth: 2,
     borderRightWidth: 2,
     borderLeftColor: Palette.accent,
@@ -566,7 +579,9 @@ const styles = StyleSheet.create({
     borderTopColor: Palette.accent,
     borderTopLeftRadius: Radius.actionBar,
     borderTopRightRadius: Radius.actionBar,
-    backgroundColor: Palette.surface,
+    // Tinted like the rest of the column, so the raised tab reads as the TOP OF the PRO column
+    // rather than a white card sitting on a blue one.
+    backgroundColor: Palette.accentSoft,
     ...Shadows.page,
   },
   vipHead: {
@@ -659,6 +674,15 @@ const styles = StyleSheet.create({
   /* highlight rows */
   hlCell: { backgroundColor: Palette.selectionSoft },
   hlLabel: { color: Palette.link },
+  /**
+   * The PRO cell inside a highlighted row. It cannot take hlCell: selectionSoft and accentSoft are
+   * nearly the same pale blue, so the band would swallow the column exactly where the column is
+   * making its case. selectionTint is the next step up, which keeps PRO the deepest thing in the
+   * row it is winning.
+   */
+  hlCellPro: { backgroundColor: Palette.selectionTint },
+  /** PRO's Unlimited and ticks in the primary, so the column reads as the answer. */
+  valueStrongPro: { color: Palette.link, fontWeight: Weight.bold },
 
   /* foot row */
   footCell: { borderBottomWidth: 1, borderBottomColor: Palette.hairline, paddingBottom: Spacing.four },

@@ -257,18 +257,27 @@ export const INCLUDED_EVERYWHERE = [
 export const COMPARISON: CompareRow[] = [
   {
     capability: 'Binders',
+    // THE THREE ROWS THE PLAN IS SOLD ON. Free has a number here and PRO does not, which is the
+    // whole pitch, so they read as a band rather than as three rows among eight.
+    highlight: true,
     free: { text: '2' },
     freeLegacy: { text: '3' },
     pro: { text: 'Unlimited', strong: true },
   },
   {
     capability: 'Pages per binder',
+    // THE THREE ROWS THE PLAN IS SOLD ON. Free has a number here and PRO does not, which is the
+    // whole pitch, so they read as a band rather than as three rows among eight.
+    highlight: true,
     free: { text: '9' },
     freeLegacy: { text: '16' },
     pro: { text: 'Unlimited', strong: true },
   },
   {
     capability: 'Slice Studio artworks',
+    // THE THREE ROWS THE PLAN IS SOLD ON. Free has a number here and PRO does not, which is the
+    // whole pitch, so they read as a band rather than as three rows among eight.
+    highlight: true,
     free: { text: '25' },
     freeLegacy: { text: '100' },
     pro: { text: 'Unlimited', strong: true },

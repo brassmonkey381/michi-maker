@@ -46,14 +46,21 @@ test('exact halves round away from zero, as Stripe does', () => {
 test('the promotion is time-boxed', () => {
   const ends = Date.parse(ENDS_AT);
   assert.ok(Number.isFinite(ends), 'ENDS_AT must be a parseable ISO date');
-  // Pinned to the live coupon OFF20_2026, whose redeem_by is Dec 31 2026, and to tcgscan-app's
-  // ENDS_AT (commit c4468a8). A coupon's redeem_by cannot be edited, so extending the sale means a
-  // NEW coupon (apply-promo-coupon.ps1) AND changing this date in both apps — this test fails
-  // until the date is changed on purpose.
-  assert.equal(ENDS_AT, '2026-12-31T23:59:59Z', 'ENDS_AT must match coupon OFF20_2026 and tcgscan-app');
-  assert.equal(promoActive(ends - 1000), true);
+  assert.equal(promoActive(ends - 1000), true, 'running right up to the end instant');
   assert.equal(promoActive(ends), false, 'the end instant is over, not still running');
   assert.equal(promoActive(ends + 1000), false);
+});
+
+test('THE PROMOTION IS RETIRED: PRO sells at list', () => {
+  // Retired 2026-09-21 (owner): PRO is $49.99 a year and $5.99 a month, with no coupon. The 20%
+  // off was undercutting the price the tier rework had just set.
+  //
+  // This is the assertion that matters now, and it is deliberately the live clock rather than a
+  // pinned date: a promotion being over is a claim about NOW. If someone re-dates ENDS_AT into the
+  // future, this fails and they have to mean it, because turning the sale back on also needs a live
+  // Stripe coupon, the STRIPE_PROMO_COUPON secret, and tcgscan-app's copy of the same instant.
+  assert.equal(promoActive(), false, 'no promotion is running; PRO advertises its list price');
+  assert.ok(Date.parse(ENDS_AT) <= Date.now(), 'ENDS_AT is in the past');
 });
 
 test('NO STACKING: the bundle beats the promo, it does not compound with it', () => {

@@ -64,6 +64,28 @@ export interface PlanHeader {
 }
 
 /** Column headers, ascending order — the table reads as an upgrade path left to right. */
+/**
+ * WHAT A YEAR COSTS AT THE MONTHLY RATE, in minor units, and what the yearly plan saves against it.
+ *
+ * This is the honest comparison for an annual price, and it is the one that survives: it is true
+ * for as long as the two prices are, with no coupon to expire and no date to police. The 20% promo
+ * that used to sit here struck through the yearly price to show a discount on itself, which flatters
+ * the number and makes the plan page disagree with the plan.
+ *
+ * DERIVED, never typed. 12 x $5.99 is $71.88, not $72, and a rounded marketing figure struck through
+ * next to an exact one is the kind of small lie a careful reader notices.
+ */
+export function annualListMinor(h: Pick<PlanHeader, 'monthlyMinor'>): number | null {
+  return h.monthlyMinor ? h.monthlyMinor * 12 : null;
+}
+
+/** Percent saved by paying yearly instead of monthly, rounded to a whole number for display. */
+export function annualSavingPercent(h: Pick<PlanHeader, 'monthlyMinor' | 'yearlyMinor'>): number | null {
+  const list = annualListMinor(h);
+  if (!list || !h.yearlyMinor || h.yearlyMinor >= list) return null;
+  return Math.round(((list - h.yearlyMinor) / list) * 100);
+}
+
 export const PLAN_HEADERS: PlanHeader[] = [
   { tier: 'free', name: 'Free', price: '$0', sub: 'with a free account' },
   {
@@ -72,7 +94,7 @@ export const PLAN_HEADERS: PlanHeader[] = [
     price: '$49.99',
     per: '/yr',
     sub: 'about $4.17 a month, billed yearly · or $5.99 month to month',
-    badge: 'Most popular',
+    badge: 'Best value',
     yearlyKey: 'michi_pro_yearly',
     monthlyKey: 'michi_pro_monthly',
     monthlyLabel: 'or $5.99 month to month',

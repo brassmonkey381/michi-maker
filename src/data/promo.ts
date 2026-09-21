@@ -44,11 +44,25 @@ export const PERCENT_OFF = 20;
 export const BUNDLE_PERCENT_OFF = 60;
 
 /**
- * When the promotion stops, ISO 8601. MUST equal the Stripe coupon's redeem_by. The live coupon is
- * OFF20_2026 ("20 OFF", 20% once, expires Dec 31 2026), set as STRIPE_PROMO_COUPON on 2026-09-04;
- * tcgscan-app carries the same instant. promo.test.ts pins it.
+ * When the promotion stops, ISO 8601.
+ *
+ * RETIRED 2026-09-21 (owner): PRO is $49.99 a year and $5.99 a month, with no coupon. The 20% off
+ * was undercutting the price the tier rework had just set, so the yearly plan now earns its
+ * discount honestly, against twelve months at the monthly rate, rather than against itself.
+ *
+ * Retired by moving this instant into the past rather than deleting the machinery, because the
+ * expiry is already enforced in three places (client display, stripe-checkout's promoActive check,
+ * and the coupon's own redeem_by) and a past ENDS_AT turns off all three at once. Running another
+ * promotion later is a date and a coupon id, not a rebuild.
+ *
+ * TWO THINGS THIS ALONE DOES NOT DO, because they live outside the bundle:
+ *   - stripe-checkout imports promoActive from this file, so the LIVE edge function keeps the old
+ *     date until it is redeployed;
+ *   - the Stripe coupon OFF20_2026 still exists and STRIPE_PROMO_COUPON still names it.
+ * Neither can charge anyone today (both production builds ship EXPO_PUBLIC_CHECKOUT_OPEN=0), but
+ * both should be cleared before checkout reopens.
  */
-export const ENDS_AT = '2026-12-31T23:59:59Z';
+export const ENDS_AT = '2026-09-21T00:00:00Z';
 
 /** Marketing line for the banner. Kept here so the copy can't disagree with the number. */
 export const PROMO_LABEL = `Limited time · ${PERCENT_OFF}% off every plan`;

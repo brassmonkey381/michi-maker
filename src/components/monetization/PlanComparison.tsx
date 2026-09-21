@@ -35,6 +35,8 @@ import {
   CHECKOUT_CLOSED_NOTE,
   CHECKOUT_OPEN,
   COMPARISON,
+  annualListMinor,
+  annualSavingPercent,
   FOOTNOTES,
   INCLUDED_EVERYWHERE,
   EVERY_TIER_NOTE,
@@ -147,6 +149,10 @@ export function PlanComparison() {
   };
 
   const [freeHead, proHead] = PLAN_HEADERS;
+  // Twelve months at the monthly rate, and what the yearly plan saves against it. Always true while
+  // both prices are, so it needs no promotion behind it and nothing expires.
+  const annualList = annualListMinor(proHead);
+  const annualSaving = annualSavingPercent(proHead);
   // An account on the legacy Free caps reads ITS numbers in the Free column (CompareRow.freeLegacy).
   const freeCell = (row: (typeof COMPARISON)[number]) => (capSet === 'legacy_free' && row.freeLegacy ? row.freeLegacy : row.free);
 
@@ -376,13 +382,30 @@ export function PlanComparison() {
                 <Text style={styles.badgeProText}>{proHead.badge}</Text>
               </View>
               <Text style={styles.tierName}>{proHead.name}</Text>
-              {onSaleYearly ? <Text style={styles.tierWas}>{proHead.price}</Text> : null}
-              <Text style={styles.tierPrice}>
-                {onSaleYearly && proHead.yearlyMinor
-                  ? formatMinor(promoPriceMinor(proHead.yearlyMinor, yearlyPercentOff))
-                  : proHead.price}
-                <Text style={styles.tierPer}>{proHead.per}</Text>
-              </Text>
+              {/*
+                WHAT THE STRUCK PRICE COMPARES AGAINST. On a bundle it is the list yearly price,
+                because the bundle genuinely discounts it. Otherwise it is twelve months at the
+                monthly rate, which is the honest thing an annual plan is cheaper than. Striking
+                the yearly price against a coupon on itself flatters the number and expires.
+              */}
+              {onSaleYearly ? (
+                <Text style={styles.tierWas}>{proHead.price}</Text>
+              ) : annualList ? (
+                <Text style={styles.tierWas}>{formatMinor(annualList)}</Text>
+              ) : null}
+              <View style={styles.priceRow}>
+                <Text style={styles.tierPrice}>
+                  {onSaleYearly && proHead.yearlyMinor
+                    ? formatMinor(promoPriceMinor(proHead.yearlyMinor, yearlyPercentOff))
+                    : proHead.price}
+                  <Text style={styles.tierPer}>{proHead.per}</Text>
+                </Text>
+                {!onSaleYearly && annualSaving ? (
+                  <View style={styles.saveSticker}>
+                    <Text style={styles.saveStickerText}>Save {annualSaving}%</Text>
+                  </View>
+                ) : null}
+              </View>
               <Text style={styles.tierSub}>{onSaleYearly ? saleSub(proHead, yearlyPercentOff) : proHead.sub}</Text>
               {!loading && tier === 'pro' ? <Text style={styles.current}>Your current plan</Text> : null}
             </View>
@@ -560,6 +583,21 @@ const styles = StyleSheet.create({
   // The struck list price above the sale figure: smaller and quieter, so the column still leads
   // with what you would actually pay, while leaving something to compare it against.
   tierWas: { fontSize: FontSize.sm, color: Palette.muted, textDecorationLine: 'line-through', marginTop: 2 },
+  /** The price and its saving sticker share a baseline, so the sticker reads as part of the price. */
+  priceRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, flexWrap: 'wrap' },
+  saveSticker: {
+    backgroundColor: Palette.selectionSoft,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: 2,
+  },
+  saveStickerText: {
+    fontSize: FontSize.xs,
+    fontWeight: Weight.bold,
+    letterSpacing: 0.7,
+    textTransform: 'uppercase',
+    color: Palette.link,
+  },
   tierPer: { fontSize: FontSize.label, fontWeight: Weight.medium, color: Palette.muted },
   tierSub: { fontSize: FontSize.sm, color: Palette.muted, lineHeight: 16 },
   current: { fontSize: FontSize.sm, fontWeight: Weight.semibold, color: Palette.link, marginTop: 4 },

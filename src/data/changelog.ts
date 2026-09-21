@@ -2,6 +2,9 @@
  * The public changelog behind `/whats-new`: what shipped, in the user's language, grouped by
  * date, newest first.
  *
+ * HOW TO UPDATE IT, step by step (finding what landed, dating it from git, the sister-app
+ * switch): docs/WHATS-NEW.md. The rules below are about the WRITING.
+ *
  * HOUSE RULES for entries, so the page stays worth reading:
  *   - User-facing outcomes only. "Binders start out public once you turn sharing on", never
  *     "refactored the provenance gate". If a change has no visible effect, it does not belong.
@@ -105,6 +108,508 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    date: '2026-09-21',
+    title: 'Preview your print, and printing at $1.99',
+    items: [
+      {
+        products: ['michi'],
+        head: 'Preview your own binder before you buy its print',
+        kind: 'new',
+        area: 'binders',
+        big: true,
+        body:
+          'Open Print on any of your binders and press Preview your print. You see every sheet as it '
+          + 'will be laid out, with a watermark and softer art. It is free on every plan, on the web, '
+          + 'and it replaces the sample PDF.',
+      },
+      {
+        products: ['michi'],
+        head: 'A binder’s print-ready PDF is $1.99',
+        kind: 'better',
+        area: 'account',
+        body:
+          'Down from $3.99, one time per binder. The version you buy is yours to download again; '
+          + 'printing later edits needs a new unlock.',
+      },
+      {
+        products: ['michi'],
+        head: 'Founder: lifetime PRO for one payment',
+        kind: 'new',
+        area: 'account',
+        big: true,
+        body:
+          'A Founder membership is PRO for good, for $119.99 once. There are 100 of them, and the '
+          + 'plans page shows how many are taken.',
+      },
+      {
+        products: ['michi'],
+        head: 'PRO is $49.99 a year or $5.99 a month',
+        kind: 'better',
+        area: 'account',
+        body:
+          'Checkout is open again at the new prices, and the earlier sale has ended. Anyone already '
+          + 'subscribed keeps the price they signed up at.',
+      },
+      {
+        products: ['michi'],
+        head: 'Named binders, hardware and covers are together, and they are PRO',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'The cover is now chosen in binder settings, beside the named binder it goes with, and '
+          + 'picking Navy offers the Royal Blue cover in one tap. On Free the group shows but does not '
+          + 'change anything. A binder you dressed earlier keeps its look.',
+      },
+      {
+        products: ['michi'],
+        head: 'Contest prizes are PRO memberships',
+        kind: 'better',
+        area: 'sharing',
+        body:
+          'VIP is no longer a plan, so the grand prize is lifetime PRO, each category winner gets a '
+          + 'year of PRO, and second place gets six months. The other places are unchanged.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-20',
+    title: 'Two plans instead of three',
+    items: [
+      {
+        products: ['michi'],
+        head: 'Free and PRO, and PRO has no limits',
+        kind: 'better',
+        area: 'account',
+        big: true,
+        body:
+          'PRO now has unlimited binders, pages and artworks, and includes what VIP had: theme '
+          + 'search without a meter, covers and soundtracks. VIP is no longer sold.',
+      },
+      {
+        products: ['michi'],
+        head: 'New Free accounts start smaller; yours does not change',
+        kind: 'better',
+        area: 'account',
+        body:
+          'An account made from 21 September on gets 2 binders of 9 pages and 25 artworks on Free. '
+          + 'Every account that existed before keeps 3 binders, 16 pages and 100 artworks. Nothing you '
+          + 'have is removed.',
+      },
+      {
+        products: ['michi'],
+        head: 'Prints are bought one binder at a time',
+        kind: 'better',
+        area: 'account',
+        body:
+          'Monthly included prints have ended on every plan. A print you already made or bought is '
+          + 'still yours to download.',
+      },
+      {
+        products: ['michi'],
+        head: 'The free PRO trial is 3 days',
+        kind: 'better',
+        area: 'account',
+        body:
+          'It was 14. Still no card, still ends by itself. A trial that was already running keeps '
+          + 'the end date it was given.',
+      },
+      {
+        products: ['tcgscan'],
+        head: 'TCGScan has two plans too',
+        kind: 'better',
+        area: 'account',
+        body:
+          'Free is one collection of 150 cards with a month of price history, and PRO is unlimited. '
+          + 'Accounts that existed before the change keep their old Free limits. The free trial is 3 '
+          + 'days.',
+      },
+      {
+        products: ['michi'],
+        head: 'Discover loads about ten times less, and no longer stops at 40',
+        kind: 'better',
+        area: 'sharing',
+        body:
+          'Each tile now loads the one page it shows instead of the whole binder. Discover and its '
+          + 'search show 24 binders at a time with Load more, so every public binder can be reached. '
+          + 'Search starts at two letters.',
+      },
+      {
+        products: ['michi'],
+        head: 'A removed binder no longer holds a place in Discover',
+        kind: 'fix',
+        area: 'sharing',
+        body:
+          'A binder taken down by moderation could not be opened, but it still took a slot in the '
+          + 'ranking, so the page could come up short.',
+      },
+      {
+        products: ['michi'],
+        head: 'The soundtrack stops erroring while it fades',
+        kind: 'fix',
+        area: 'binders',
+        body: 'A fade between tracks could throw an error in the viewer. It no longer does.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-19',
+    title: 'Move a card anywhere, and find more like it',
+    items: [
+      {
+        products: ['michi'],
+        head: 'Move sends a pocket to any page',
+        kind: 'new',
+        area: 'binders',
+        big: true,
+        body:
+          'Select a pocket, press Move, turn to any page and tap where it should go. An empty pocket '
+          + 'takes it; a filled pocket of the same shape trades places with it. Esc cancels.',
+      },
+      {
+        products: ['michi'],
+        head: 'Similar and Colors on a single card',
+        kind: 'new',
+        area: 'binders',
+        body:
+          'Similar opens the card browser on cards that look like the one you picked, which is PRO. '
+          + 'Colors opens it on that card’s palette; on Free it opens the energy colours instead.',
+      },
+      {
+        products: ['michi'],
+        head: 'A shorter action bar over a selected card',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'The bar shows Replace, Fill page, Similar, Colors and Move. More turns it over to '
+          + 'Duplicate, My card and Sleeve. Remove stays on both.',
+      },
+      {
+        products: ['michi'],
+        head: 'Two hints, once each',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'The first time you select a card, a note says what its bar does. The first time a page is '
+          + 'about half full, another points at the bar that sets its background and sleeves. Got it '
+          + 'ends each for good.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-17',
+    title: 'Auto flip, and art that joins up',
+    items: [
+      {
+        products: ['michi'],
+        head: 'A binder can turn its own pages',
+        kind: 'new',
+        area: 'sharing',
+        big: true,
+        body:
+          'When viewing a binder, press play beside the page strip. It flips every 4 seconds, from '
+          + 'wherever you are to the back cover, and the speed steps by half a second.',
+      },
+      {
+        products: ['michi'],
+        head: 'Merge two pieces of art, or split one, on the page',
+        kind: 'new',
+        area: 'binders',
+        body:
+          'Ctrl-click two neighbouring pieces cut from the same picture and choose Merge into one '
+          + 'piece, or select a wide piece and press Split. No trip back to Slice Studio. Pieces framed '
+          + 'separately do not join, and the sheet says so.',
+      },
+      {
+        products: ['michi'],
+        head: 'Art can be any shape, and printing tells you what it cuts',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'The page no longer refuses a shape a real pocket cannot hold. The print sheet cuts such a '
+          + 'piece into singles and folded pairs, and lists each one by page, row and column before you '
+          + 'print.',
+      },
+      {
+        products: ['michi'],
+        head: 'Cut lines, to see it before you print',
+        kind: 'new',
+        area: 'binders',
+        body:
+          'In your own binder, settings has a Cut lines overlay: red dashes where the print would cut '
+          + 'a piece of art, grey where a pair folds.',
+      },
+      {
+        products: ['michi'],
+        head: 'Changing a binder’s page size moves the cards with it',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'Going from 3x3 to 3x4 reflows your cards across the new pages and says how many moved. A '
+          + 'new page can also be added right after the one you are on.',
+      },
+      {
+        products: ['michi'],
+        head: 'Take a colour mix from any card you can see',
+        kind: 'new',
+        area: 'browse',
+        body:
+          'In Tri-Color Search, arm the eyedropper and tap a card in your binder or in the results. '
+          + 'Its colours load into the mix. Results now put full-art cards first.',
+      },
+      {
+        products: ['michi'],
+        head: 'Sliced art lines up across pockets',
+        kind: 'fix',
+        area: 'binders',
+        body:
+          'A picture cut across several pockets could step slightly at each gap, in the editor and in '
+          + 'the share image. Pieces cut before this may need cutting again.',
+      },
+      {
+        products: ['michi'],
+        head: 'A tile shows the first page with something on it',
+        kind: 'fix',
+        area: 'sharing',
+        body: 'A binder that opens on a blank page used to show that blank page on Home and Discover.',
+      },
+      {
+        products: ['michi'],
+        head: 'Sign in is always at the top right',
+        kind: 'better',
+        area: 'account',
+        body: 'On Home and on My Binders, for anyone who is not signed in to an account.',
+      },
+      {
+        products: ['tcgscan'],
+        head: 'On the web, a card goes to a place, not just a collection',
+        kind: 'new',
+        area: 'collection',
+        body:
+          'Adding or moving a card on the web puts it in a binder pocket or a position in a pile, and '
+          + 'a binder’s pockets can be filled by hand from any collection.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-16',
+    title: 'Let people copy your binder',
+    items: [
+      {
+        products: ['michi'],
+        head: 'A public binder can be duplicated, when you say so',
+        kind: 'new',
+        area: 'sharing',
+        big: true,
+        body:
+          'The Share sheet has a switch, Let people duplicate it, which is off by default. With it '
+          + 'on, a signed-in visitor gets a Duplicate button and a private copy of their own, with '
+          + 'your custom art credited to you. The copy counts against their plan’s limits.',
+      },
+      {
+        products: ['michi'],
+        head: 'More of the editor from the keyboard',
+        kind: 'new',
+        area: 'binders',
+        body:
+          'S opens settings, Q the share image, W moves the page, Esc closes whatever is open, and '
+          + 'typing a page number jumps to it. M merges or splits art. The shortcuts card lists them.',
+      },
+      {
+        products: ['michi'],
+        head: 'Thirty Years, Thirty Pages is on Featured',
+        kind: 'new',
+        area: 'binders',
+        body:
+          'One thirty-page binder of the 30th Celebration, with its own cover and soundtrack, takes '
+          + 'the place of the four anniversary examples.',
+      },
+      {
+        products: ['tcgscan'],
+        head: 'Edit a whole selection at once',
+        kind: 'new',
+        area: 'collection',
+        body:
+          'Select several cards and set the price paid, split across them, the printing, the '
+          + 'condition and the date in one step.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-15',
+    title: 'Binders that look like binders',
+    items: [
+      {
+        products: ['michi'],
+        head: 'Six named binders',
+        kind: 'new',
+        area: 'binders',
+        big: true,
+        body:
+          'Classic White, Anniversary Gold, Midnight Black, Navy, Forest and Crimson. One tap in '
+          + 'binder settings sets the cloth, the zip and the spine together, and the zip and stitching '
+          + 'take their colour from the binder.',
+      },
+      {
+        products: ['michi'],
+        head: 'The share image shows the binder as you dressed it',
+        kind: 'better',
+        area: 'sharing',
+        big: true,
+        body:
+          'Link previews and the full-size download now draw the page material, seams, zip and '
+          + 'sleeves. You can set a backdrop picture of your own in the Share sheet, and Q gives a '
+          + 'quick low-resolution look.',
+      },
+      {
+        products: ['michi'],
+        head: 'Seams where a real page has them',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'Stitching runs along every sealed edge of a pocket and leaves the side the cards load '
+          + 'from bare, the way a side-loading binder is welded.',
+      },
+      {
+        products: ['michi'],
+        head: 'A sleeve, a backing or a background can be a picture',
+        kind: 'new',
+        area: 'binders',
+        body: 'Paste a picture link in any of the three, and it applies as you type and says whether it loaded.',
+      },
+      {
+        products: ['michi'],
+        head: 'Settings are grouped: Pages, Binder, Pockets, Your view',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'The background and multi-select moved to the bar along the bottom edge of the page you '
+          + 'are editing.',
+      },
+      {
+        products: ['michi'],
+        head: 'Contest binders have their own page',
+        kind: 'better',
+        area: 'sharing',
+        body: 'Recent and Upcoming now leads Home, and the contest is one line in the side rail.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-14',
+    title: 'Pages made of something',
+    items: [
+      {
+        products: ['michi'],
+        head: 'Page materials: stitched fabric, a zip, sleeves and art backing',
+        kind: 'new',
+        area: 'binders',
+        big: true,
+        body:
+          'A binder’s pages can be dressed in binder settings, with a spine and a zip round the '
+          + 'outside edge. Sleeves go round cards and a backing goes under art.',
+      },
+      {
+        products: ['michi'],
+        head: 'Sleeves and backing per pocket, per page, or for the whole binder',
+        kind: 'new',
+        area: 'binders',
+        body:
+          'The most specific choice wins, and a page or a pocket can be set to wear nothing. Select '
+          + 'a pocket and press Sleeve or Backing for just that one.',
+      },
+      {
+        products: ['michi'],
+        head: 'The editor fits a phone',
+        kind: 'better',
+        area: 'binders',
+        body: 'A two-row header, no side docks, and an Art button in their place.',
+      },
+      {
+        products: ['michi'],
+        head: 'The header is for getting around; the tools have their own row',
+        kind: 'better',
+        area: 'binders',
+        body: 'Undo, page tools and Settings sit in one row under the title, and the side rails say their names.',
+      },
+      {
+        products: ['michi'],
+        head: 'No white corners on a sleeved card',
+        kind: 'fix',
+        area: 'binders',
+        body: 'A framed card is clipped at the card’s own corner, so a scan’s white corners no longer show.',
+      },
+      {
+        products: ['tcgscan'],
+        head: 'Find a card on TCGplayer, PriceCharting and eBay',
+        kind: 'new',
+        area: 'cards',
+        body:
+          'On the web, card and sealed product pages link to a search on each marketplace, written '
+          + 'the way that marketplace names the card.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-12',
+    title: 'A link can open on a page',
+    items: [
+      {
+        products: ['michi'],
+        head: 'Binder links can point at a page',
+        kind: 'new',
+        area: 'sharing',
+        big: true,
+        body:
+          'A shared link opens on the page its preview picture shows. A binder with a cover starts '
+          + 'shut, opens, and turns to that page.',
+      },
+      {
+        products: ['michi'],
+        head: 'The add-page button says Page',
+        kind: 'better',
+        area: 'binders',
+        body: 'It was a bare plus among five other symbols. The first-binder walkthrough now points at it.',
+      },
+      {
+        products: ['michi'],
+        head: 'Deleting a page no longer breaks the pages added after it',
+        kind: 'fix',
+        area: 'binders',
+        body: 'Pages added after a delete could fail to save. They save now.',
+      },
+      {
+        products: ['michi'],
+        head: 'Two things you could not read in dark mode',
+        kind: 'fix',
+        area: 'binders',
+        body: 'The Undo on a toast, and the michi-maker wordmark in the side rail.',
+      },
+      {
+        products: ['michi'],
+        head: 'A search the server did not answer says so',
+        kind: 'fix',
+        area: 'browse',
+        body: 'The card browser used to show no results, which read as no cards.',
+      },
+      {
+        products: ['tcgscan'],
+        head: 'Riffle stops adding one card twice',
+        kind: 'fix',
+        area: 'scanning',
+        body:
+          'Riffle could split one card into two runs, which was the cause of every double add. Riffle '
+          + 'and binder review also have a Discard for the whole scan.',
+      },
+      {
+        products: ['tcgscan'],
+        head: 'Binders say what they are worth',
+        kind: 'new',
+        area: 'collection',
+        body: 'A binder shows its total value, and the pile view shows what each card cost.',
+      },
+    ],
+  },
   {
     date: '2026-09-11',
     title: 'Two anniversary binders, and a page that shows the same card twice',

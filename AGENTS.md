@@ -90,6 +90,11 @@ worthwhile changes are held back by exactly that, and they are collected in
 burning its own. **If you are about to add a native dependency, read that file first** — and if you
 are deferring one, add it there rather than leaving it in a commit message.
 
+## Updating What's New
+
+`/whats-new` is one array in `src/data/changelog.ts`. The procedure (what to include, dating entries
+from git, the sister-app switch) is `docs/WHATS-NEW.md`; the writing rules are that file's header.
+
 ## Before you finish
 
 - Type-check: `npx tsc --noEmit`

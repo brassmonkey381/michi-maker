@@ -27,6 +27,7 @@ import { FontSize, Palette, Radius, Spacing } from '@/constants/theme';
 import { mintHandoffHash, withHandoffHash } from '@/data/handoff';
 import { CHECKOUT_OPEN, CROSS_DISCOUNT_RETIRED, TCGSCAN_PLANS_URL, TCGSCAN_URL } from '@/data/subscriptions';
 import { useTier } from '@/hooks/use-tier';
+import { SHOW_CROSS_APP } from '@/lib/crossApp';
 
 export { TCGSCAN_URL };
 
@@ -189,7 +190,7 @@ export function TcgscanSynergyNote() {
   const { hasTcgscanPro, loading } = useTier();
   // Called before the early return so hook order never varies with the tier read landing.
   const { opening, open } = useTcgscanOpen();
-  if (loading || hasTcgscanPro) return null;
+  if (!SHOW_CROSS_APP || loading || hasTcgscanPro) return null;
   return (
     <CrossAppCard
       message="Powered by TCGScan. Scan your cards to keep this collection accurate & valued, TCGScan Pro members get live prices and ROI."

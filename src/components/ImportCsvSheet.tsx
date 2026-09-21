@@ -17,6 +17,7 @@ import { analyzeCsv, importAsPortfolio, parseCsv } from '@/data/csvImport';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useTheme } from '@/hooks/use-theme';
 import { track } from '@/lib/analytics';
+import { SHOW_CROSS_APP } from '@/lib/crossApp';
 
 export function ImportCsvSheet({
   visible,
@@ -147,9 +148,8 @@ export function ImportCsvSheet({
                 ) : null}
                 <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
                   Paste a TCGPlayer collection export, any CSV with a product-id or name column,
-                  or bare “productId,quantity” lines. The import becomes a portfolio. It shows
-                  up in <TcgscanLink /> too, and deleting it there removes these
-                  cards again.
+                  or bare “productId,quantity” lines. The import becomes a portfolio.
+                  {SHOW_CROSS_APP ? <> It shows up in <TcgscanLink /> too, and deleting it there removes these cards again.</> : null}
                 </ThemedText>
 
                 {Platform.OS === 'web' ? (

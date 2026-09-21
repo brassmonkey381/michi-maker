@@ -22,6 +22,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radius, Spacing, Weight, MaxContentWidthDoc } from '@/constants/theme';
 import { pillChip } from '@/constants/ui';
+import { SHOW_CROSS_APP } from '@/lib/crossApp';
 import {
   CHANGE_AREAS,
   CHANGE_KINDS,
@@ -78,8 +79,13 @@ const AREA_COLOR: Record<ChangeArea, string> = {
   cards: '#A8780A',
 };
 
+/** True when an item's own words name the other product, whatever its product tags say. */
+function namesOtherProduct(item: { head: string; body: string }): boolean {
+  return /tcgscan/i.test(item.head + ' ' + item.body);
+}
+
 export default function WhatsNewScreen() {
-  const [products, setProducts] = useState<ChangelogProduct[]>(CHANGELOG_PRODUCTS.map((p) => p.id));
+  const [products, setProducts] = useState<ChangelogProduct[]>(SHOW_CROSS_APP ? CHANGELOG_PRODUCTS.map((p) => p.id) : ['michi']);
   const [kinds, setKinds] = useState<ChangeKind[]>(CHANGE_KINDS.map((k) => k.id));
   const AREA_IDS = Object.keys(CHANGE_AREAS) as ChangeArea[];
   const [areas, setAreas] = useState<ChangeArea[]>(AREA_IDS);
@@ -97,6 +103,8 @@ export default function WhatsNewScreen() {
     ...entry,
     items: entry.items
       .filter((item) => item.products.some((p) => products.includes(p)) && kinds.includes(item.kind) && areas.includes(item.area))
+      // Kept apart (lib/crossApp): an item that is about the other product, in whole or in part, waits.
+      .filter((item) => SHOW_CROSS_APP || !namesOtherProduct(item))
       // The ones worth stopping for come first; the rest keep the order they were written in,
       // which is roughly the order they matter in.
       .sort((a, b) => Number(Boolean(b.big)) - Number(Boolean(a.big))),
@@ -109,18 +117,19 @@ export default function WhatsNewScreen() {
   return (
     <PageShell
       maxWidth={MaxContentWidthDoc}
-      title="What’s new in michi-maker and TCGScan"
-      description="New features, improvements and fixes in michi-maker and TCGScan, grouped by release date.">
+      title={SHOW_CROSS_APP ? 'What’s new in michi-maker and TCGScan' : 'What’s new in michi-maker'}
+      description={`New features, improvements and fixes in ${SHOW_CROSS_APP ? 'michi-maker and TCGScan' : 'michi-maker'}, grouped by release date.`}>
       <ThemedText type="subtitle" style={styles.h1}>
         What’s New
       </ThemedText>
       <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
-        Newest first. Both products share an account and a card catalogue, so plenty of this lands
-        in both.
+        {SHOW_CROSS_APP
+          ? 'Newest first. Both products share an account and a card catalogue, so plenty of this lands in both.'
+          : 'Newest first.'}
       </ThemedText>
 
       <View style={styles.filters}>
-        <View style={styles.filterRow}>
+        <View style={[styles.filterRow, !SHOW_CROSS_APP && styles.gone]}>
           {CHANGELOG_PRODUCTS.map((product) => {
             const on = products.includes(product.id);
             return (
@@ -226,9 +235,11 @@ export default function WhatsNewScreen() {
                       </View>
                       {/* Which products this one is. Shown even when only one filter is on, so an
                           item copied out of here, or landed on from a link, still says. */}
-                      <ThemedText style={styles.productText}>
-                        {item.products.map(productLabel).join(' · ')}
-                      </ThemedText>
+                      {SHOW_CROSS_APP ? (
+                        <ThemedText style={styles.productText}>
+                          {item.products.map(productLabel).join(' · ')}
+                        </ThemedText>
+                      ) : null}
                     </View>
                     <ThemedText type="smallBold" style={[styles.itemHead, item.big && styles.bigHead]}>
                       {item.head}
@@ -252,6 +263,7 @@ const styles = StyleSheet.create({
   lede: { lineHeight: 20, marginBottom: Spacing.three },
   filters: { gap: Spacing.two, marginBottom: Spacing.four },
   filterRow: { flexDirection: 'row', gap: Spacing.two, flexWrap: 'wrap' },
+  gone: { display: 'none' },
   pressed: { opacity: 0.7 },
   kindFilter: {
     flexDirection: 'row',

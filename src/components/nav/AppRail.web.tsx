@@ -17,6 +17,7 @@ import { Wordmark } from '@/components/brand/Wordmark';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Breakpoints, Fonts, FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { SHOW_CROSS_APP } from '@/lib/crossApp';
 import { useAuth } from '@/store/auth';
 
 type RailItem = { label: string; href: Href; match: (path: string) => boolean; external?: boolean };
@@ -36,7 +37,7 @@ const EXPLORE: RailItem[] = [
   { label: 'The Michi Method', href: '/michi-method', match: (p) => p.startsWith('/michi-method') },
   { label: 'What’s New', href: '/whats-new' as Href, match: (p) => p.startsWith('/whats-new') },
   // The sister app, in the rail where every page can see it. External: it leaves for tcgscan.ai.
-  { label: 'TCGScan ↗', href: TCGSCAN_URL as Href, match: () => false, external: true },
+  ...(SHOW_CROSS_APP ? [{ label: 'TCGScan ↗', href: TCGSCAN_URL as Href, match: () => false, external: true }] : []),
 ];
 const YOU: RailItem[] = [
   { label: 'My Binders', href: '/my-binders' as Href, match: (p) => p.startsWith('/my-binders') },

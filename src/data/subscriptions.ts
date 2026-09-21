@@ -13,6 +13,8 @@
  * deployed site keeps the honest "coming soon" note until live keys + owner go-live.
  */
 import type { Tier } from '@/data/tiers';
+// Relative, with its extension: the unit tests load this file without the path aliases.
+import { SHOW_CROSS_APP } from '../lib/crossApp.ts';
 
 export const CHECKOUT_OPEN = process.env.EXPO_PUBLIC_CHECKOUT_OPEN === '1';
 
@@ -323,8 +325,12 @@ export const FOOTNOTES: { mark: string; text: string; link?: { label: string; ur
   },
   {
     mark: '(4)',
-    text: 'Every tier. Scan the cards you own with our partner app TCGScan and your collection syncs into michi-maker.',
-    link: { label: 'Meet TCGScan →', url: TCGSCAN_URL },
+    ...(SHOW_CROSS_APP
+      ? {
+          text: 'Every tier. Scan the cards you own with our partner app TCGScan and your collection syncs into michi-maker.',
+          link: { label: 'Meet TCGScan →', url: TCGSCAN_URL },
+        }
+      : { text: 'Every tier. Import a CSV of the cards you own and fill binders from it: green for owned, gray for still hunting.' }),
   },
   {
     mark: '(5)',

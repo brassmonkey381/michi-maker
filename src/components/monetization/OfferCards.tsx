@@ -26,6 +26,7 @@ import { CHECKOUT_OPEN } from '@/data/subscriptions';
 import { useTier } from '@/hooks/use-tier';
 import { useTrial } from '@/hooks/use-trial';
 import { track } from '@/lib/analytics';
+import { SHOW_CROSS_APP } from '@/lib/crossApp';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/store/auth';
 
@@ -96,6 +97,7 @@ export function OfferCards() {
         )}
       </View>
 
+      {SHOW_CROSS_APP ? (
       <View style={styles.card}>
         <Text style={styles.eyebrow}>BOTH APPS</Text>
         <ThemedText type="subtitle">
@@ -111,6 +113,7 @@ export function OfferCards() {
           <BuyButton lookupKey={BUNDLE_MONTHLY_KEY} label="Monthly" busy={busy} onBuy={buy} />
         </View>
       </View>
+      ) : null}
 
       {note ? (
         <ThemedText type="small" themeColor="textSecondary" style={styles.note}>

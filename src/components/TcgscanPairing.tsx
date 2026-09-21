@@ -34,6 +34,7 @@ import { FontSize, Palette, Radii, Radius, Shadows, Spacing, Weight } from '@/co
 import type { DemoPage, DemoSlot } from '@/data/binderTypes';
 import { HOME_ARTWORK_BINDER_ID } from '@/data/content';
 import { track } from '@/lib/analytics';
+import { SHOW_CROSS_APP } from '@/lib/crossApp';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 import { useBinders } from '@/store/binders';
 
@@ -297,7 +298,12 @@ function Step({ kind, head, body, index, pages }: { kind: StepKind; head: string
   );
 }
 
-export function TcgscanPairing({ surface, compact = false }: { surface: string; compact?: boolean }) {
+/** Nothing while the two products are kept apart (lib/crossApp). */
+export function TcgscanPairing(props: { surface: string; compact?: boolean }) {
+  return SHOW_CROSS_APP ? <TcgscanPairingCard {...props} /> : null;
+}
+
+function TcgscanPairingCard({ surface, compact = false }: { surface: string; compact?: boolean }) {
   const pages = useExamplePages();
   // Wide enough for the button to sit beside the lede; below this it wraps under, left-aligned.
   const [cardW, onCardLayout] = useMeasuredWidth();

@@ -32,6 +32,7 @@ import {
 import { useCommunityStats } from '@/data/communityStats';
 import { SAMPLE_BINDERS } from '@/data/sampleData';
 import { useTheme } from '@/hooks/use-theme';
+import { SHOW_CROSS_APP } from '@/lib/crossApp';
 import { markLandingSeen } from '@/lib/landing';
 
 /**
@@ -122,7 +123,9 @@ const FEATURES = [
   },
   {
     title: 'My Collection',
-    body: 'Scans from the TCGScan app and CSV imports land here live. Fill binders from what you own: green for owned, gray for still hunting.',
+    body: SHOW_CROSS_APP
+      ? 'Scans from the TCGScan app and CSV imports land here live. Fill binders from what you own: green for owned, gray for still hunting.'
+      : 'CSV imports land here live. Fill binders from what you own: green for owned, gray for still hunting.',
   },
   {
     title: 'True-size printing',

@@ -71,6 +71,7 @@ import { isSupabaseConfigured } from '@/lib/env';
 import { cardThumbUrl } from '@/lib/catalogConfig';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useAuth } from '@/store/auth';
+import { SHOW_CROSS_APP } from '@/lib/crossApp';
 import { useBinders } from '@/store/binders';
 
 const TILE_W = 96;
@@ -1018,7 +1019,7 @@ function CollectionStrip({
           </ThemedText>
         ) : portfolioGroups.length === 0 ? (
           <ThemedText type="small" themeColor="textSecondary" style={styles.emptyNote}>
-            No collections yet. Collections you make in <TcgscanLink /> appear here.
+            No collections yet.{SHOW_CROSS_APP ? <> Collections you make in <TcgscanLink /> appear here.</> : ' Import a CSV to start one.'}
           </ThemedText>
         ) : (
           portfolioGroups.map((g) => (

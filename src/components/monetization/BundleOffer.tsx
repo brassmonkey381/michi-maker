@@ -16,7 +16,7 @@
  *   <TcgscanSynergyNote/>   — contextual note on scan-powered features (Build-a-binder-from-your-
  *                            collection): TCGScan makes your collection real; Pro unlocks more.
  *
- * Every TCGScan mention links to its landing page (TCGSCAN_URL → tcgscan.ai/welcome).
+ * Every TCGScan mention links to its landing page (TCGSCAN_URL → tcgscan.ai).
  * Nothing here removes access — these are additive CTAs.
  */
 import { useCallback, useState } from 'react';

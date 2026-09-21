@@ -38,10 +38,10 @@ test('six categories, all with unique slugs and a full prize ladder', () => {
   }
 });
 
-test('every category first place is two PRO years (or the lifetime), and no prize names VIP', () => {
+test('every category first place is a PRO year (or the lifetime), and no prize names VIP', () => {
   for (const c of CATEGORIES) {
     const first = c.prizes.find((p) => p.place === '1st')!.prize;
-    assert.ok(/^(2 Years PRO|LIFETIME PRO)$/.test(first), `${c.slug} 1st, got ${first}`);
+    assert.ok(/^(1 Year PRO|LIFETIME PRO)$/.test(first), `${c.slug} 1st, got ${first}`);
     // VIP stopped being a tier on 2026-09-20. A prize that names it promises something nobody
     // can be given.
     for (const p of c.prizes) assert.ok(!/VIP/.test(p.prize), `${c.slug} ${p.place} still says VIP`);

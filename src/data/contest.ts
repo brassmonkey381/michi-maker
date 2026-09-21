@@ -40,9 +40,10 @@ export const CONTEST = {
    *  first N public pages show in contest views. */
   pageCap: 16,
   // THE SUM, at list prices on 2026-09-21 (PRO $49.99 a year or $5.99 a month, lifetime PRO
-  // $119.99): five categories at $233.83 and the grand category at $303.83 is $1,472.98. It said
-  // $1,700 when VIP existed; recompute if a price or a prize row changes.
-  headline: 'Over $1,400 in prizes, including a LIFETIME PRO grand prize.',
+  // $119.99; months are valued at the monthly price): five categories at $169.79 and the grand
+  // category at $253.84 is $1,102.79. It said $1,700 when VIP existed; recompute if a price or a
+  // prize row changes.
+  headline: 'Over $1,100 in prizes, including a LIFETIME PRO grand prize.',
   subhead: '60 winners across 6 categories. Winners are decided purely by community votes.',
 } as const;
 
@@ -72,13 +73,13 @@ export function finalsVotingOpen(phase: ContestPhase = contestPhase()): boolean 
   return phase === 'finals';
 }
 
-// VIP IS GONE (tier rework, 2026-09-20): PRO is the whole product now. These prizes were already
-// promised to a contest in progress, so each VIP prize became the PRO prize of the same VALUE
-// rather than the same length: a VIP year listed at $99.99, which is two PRO years at $49.99.
+// VIP IS GONE (tier rework, 2026-09-20): PRO is the whole product now, so a VIP prize is a PRO
+// prize of the same length, and the rung under it steps down so first and second still differ
+// (owner, 2026-09-21): a VIP year became a PRO year, the PRO year under it became six months.
 // Lifetime VIP became lifetime PRO, the same membership Founders buy.
 const STANDARD_PRIZES: PrizeRow[] = [
-  { place: '1st', prize: '2 Years PRO' },
-  { place: '2nd', prize: '1 Year PRO' },
+  { place: '1st', prize: '1 Year PRO' },
+  { place: '2nd', prize: '6 Months PRO' },
   { place: '3rd–5th', prize: '3 Months PRO' },
   { place: '6th–10th', prize: '1 Month PRO' },
 ];
@@ -91,7 +92,7 @@ export const CATEGORIES: CategorySpec[] = [
     flagship: true,
     prizes: [
       { place: '1st', prize: 'LIFETIME PRO' },
-      { place: '2nd', prize: '2 Years PRO' },
+      { place: '2nd', prize: '1 Year PRO' },
       { place: '3rd–5th', prize: '3 Months PRO' },
       { place: '6th–10th', prize: '1 Month PRO' },
     ],

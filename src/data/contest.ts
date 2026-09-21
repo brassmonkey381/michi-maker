@@ -39,7 +39,10 @@ export const CONTEST = {
   /** Submission cap on PUBLIC pages — any size binder can enter with ≤N pages public; only the
    *  first N public pages show in contest views. */
   pageCap: 16,
-  headline: 'Over $1,700 in prizes, including a once-ever LIFETIME VIP grand prize.',
+  // THE SUM, at list prices on 2026-09-21 (PRO $49.99 a year or $5.99 a month, lifetime PRO
+  // $119.99): five categories at $233.83 and the grand category at $303.83 is $1,472.98. It said
+  // $1,700 when VIP existed; recompute if a price or a prize row changes.
+  headline: 'Over $1,400 in prizes, including a LIFETIME PRO grand prize.',
   subhead: '60 winners across 6 categories. Winners are decided purely by community votes.',
 } as const;
 
@@ -69,8 +72,12 @@ export function finalsVotingOpen(phase: ContestPhase = contestPhase()): boolean 
   return phase === 'finals';
 }
 
+// VIP IS GONE (tier rework, 2026-09-20): PRO is the whole product now. These prizes were already
+// promised to a contest in progress, so each VIP prize became the PRO prize of the same VALUE
+// rather than the same length: a VIP year listed at $99.99, which is two PRO years at $49.99.
+// Lifetime VIP became lifetime PRO, the same membership Founders buy.
 const STANDARD_PRIZES: PrizeRow[] = [
-  { place: '1st', prize: '1 Year VIP' },
+  { place: '1st', prize: '2 Years PRO' },
   { place: '2nd', prize: '1 Year PRO' },
   { place: '3rd–5th', prize: '3 Months PRO' },
   { place: '6th–10th', prize: '1 Month PRO' },
@@ -83,8 +90,8 @@ export const CATEGORIES: CategorySpec[] = [
     blurb: 'The most beautiful binder, full stop. Color flow, page composition, the whole vibe.',
     flagship: true,
     prizes: [
-      { place: '1st', prize: 'LIFETIME VIP' },
-      { place: '2nd', prize: '1 Year VIP' },
+      { place: '1st', prize: 'LIFETIME PRO' },
+      { place: '2nd', prize: '2 Years PRO' },
       { place: '3rd–5th', prize: '3 Months PRO' },
       { place: '6th–10th', prize: '1 Month PRO' },
     ],

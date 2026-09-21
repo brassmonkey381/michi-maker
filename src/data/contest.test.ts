@@ -2,7 +2,7 @@
  * Contest config invariants. Run: `npm test`.
  *
  * The prize table is MONEY and the phase gate decides whether entries are open, so both are
- * pinned here: a typo that duplicates a LIFETIME VIP, drops a place, or leaves the contest
+ * pinned here: a typo that duplicates a LIFETIME PRO, drops a place, or leaves the contest
  * permanently "upcoming" is expensive and silent. See docs/CONTEST.md.
  */
 import { test } from 'node:test';
@@ -38,11 +38,15 @@ test('six categories, all with unique slugs and a full prize ladder', () => {
   }
 });
 
-test('every category first place is a VIP year (or the lifetime)', () => {
+test('every category first place is two PRO years (or the lifetime), and no prize names VIP', () => {
   for (const c of CATEGORIES) {
     const first = c.prizes.find((p) => p.place === '1st')!.prize;
-    assert.ok(/VIP/.test(first), `${c.slug} 1st should be VIP, got ${first}`);
+    assert.ok(/^(2 Years PRO|LIFETIME PRO)$/.test(first), `${c.slug} 1st, got ${first}`);
+    // VIP stopped being a tier on 2026-09-20. A prize that names it promises something nobody
+    // can be given.
+    for (const p of c.prizes) assert.ok(!/VIP/.test(p.prize), `${c.slug} ${p.place} still says VIP`);
   }
+  assert.ok(!/VIP/.test(CONTEST.headline));
 });
 
 test('60 prize slots total (10 per category)', () => {

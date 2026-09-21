@@ -89,6 +89,10 @@ export default function WhatsNewScreen() {
   const [kinds, setKinds] = useState<ChangeKind[]>(CHANGE_KINDS.map((k) => k.id));
   const AREA_IDS = Object.keys(CHANGE_AREAS) as ChangeArea[];
   const [areas, setAreas] = useState<ChangeArea[]>(AREA_IDS);
+  // PINNED (owner, 2026-09-21): the curated short list, and nothing else. It does not change the
+  // other filters, it sets them ASIDE: they go quiet while it is on and come back exactly as they
+  // were left when it goes off. Off by default, because the page is a changelog first.
+  const [pinnedOnly, setPinnedOnly] = useState(false);
 
   const toggleProduct = (id: ChangelogProduct) =>
     setProducts((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -102,7 +106,11 @@ export default function WhatsNewScreen() {
   const entries = CHANGELOG.map((entry) => ({
     ...entry,
     items: entry.items
-      .filter((item) => item.products.some((p) => products.includes(p)) && kinds.includes(item.kind) && areas.includes(item.area))
+      .filter((item) =>
+        pinnedOnly
+          ? Boolean(item.pinned) && item.products.some((p) => products.includes(p))
+          : item.products.some((p) => products.includes(p)) && kinds.includes(item.kind) && areas.includes(item.area),
+      )
       // Kept apart (lib/crossApp): an item that is about the other product, in whole or in part, waits.
       .filter((item) => SHOW_CROSS_APP || !namesOtherProduct(item))
       // The ones worth stopping for come first; the rest keep the order they were written in,
@@ -129,6 +137,26 @@ export default function WhatsNewScreen() {
       </ThemedText>
 
       <View style={styles.filters}>
+        <View style={styles.filterRow}>
+          <Pressable
+            onPress={() => setPinnedOnly((on) => !on)}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: pinnedOnly }}
+            accessibilityLabel="Show only the pinned updates"
+            testID="whatsnew-pinned"
+            style={({ pressed }) => [
+              styles.kindFilter,
+              styles.pinnedFilter,
+              pinnedOnly && styles.pinnedFilterOn,
+              pressed && styles.pressed,
+            ]}>
+            <ThemedText style={[styles.kindFilterText, { color: pinnedOnly ? Palette.accentText : Palette.accent }]}>
+              {pinnedOnly ? '★ Pinned: the important ones' : '★ Pinned'}
+            </ThemedText>
+          </Pressable>
+        </View>
+        {/* Set aside, not hidden: the reader can see their filters are still there, waiting. */}
+        <View style={[styles.filterGroup, pinnedOnly && styles.setAside]} pointerEvents={pinnedOnly ? 'none' : 'auto'}>
         <View style={[styles.filterRow, !SHOW_CROSS_APP && styles.gone]}>
           {CHANGELOG_PRODUCTS.map((product) => {
             const on = products.includes(product.id);
@@ -200,11 +228,12 @@ export default function WhatsNewScreen() {
             );
           })}
         </View>
+        </View>
       </View>
 
       {entries.length === 0 ? (
         <ThemedText type="small" themeColor="textSecondary" style={styles.empty}>
-          Nothing matches. Turn something back on above.
+          {pinnedOnly ? 'Nothing is pinned yet.' : 'Nothing matches. Turn something back on above.'}
         </ThemedText>
       ) : (
         <View style={styles.list}>
@@ -262,6 +291,10 @@ const styles = StyleSheet.create({
   h1: { fontSize: FontSize.title, lineHeight: 34, marginBottom: Spacing.two },
   lede: { lineHeight: 20, marginBottom: Spacing.three },
   filters: { gap: Spacing.two, marginBottom: Spacing.four },
+  filterGroup: { gap: Spacing.two },
+  setAside: { opacity: 0.35 },
+  pinnedFilter: { borderColor: Palette.accent },
+  pinnedFilterOn: { backgroundColor: Palette.accent },
   filterRow: { flexDirection: 'row', gap: Spacing.two, flexWrap: 'wrap' },
   gone: { display: 'none' },
   pressed: { opacity: 0.7 },

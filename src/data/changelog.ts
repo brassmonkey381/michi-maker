@@ -24,6 +24,9 @@
  *     appears for a sixth of cards. Say where it works. A changelog that overstates is worse than
  *     no changelog, because the reader finds out by being disappointed.
  *   - Plain punctuation. No em-dashes, no decorative emoji.
+ *   - PINNED IS CURATED, AND SMALL. `pinned: true` puts an item on the short list the page shows
+ *     under Pinned. The owner picks them. Do not pin on your own initiative, and do not let one go
+ *     stale: see the note on the field.
  *   - ONE OR TWO SENTENCES PER ITEM. Nobody reads a changelog the way it was written; they scan
  *     it for the one line that affects them. A paragraph explaining the reasoning behind a change
  *     buries the four other items next to it. Say what changed and what the reader should do, and
@@ -97,6 +100,16 @@ export interface ChangelogItem {
    * exactly what this flag exists to prevent.
    */
   big?: boolean;
+  /**
+   * ON THE PINNED LIST: the short, hand-picked set the page shows when a reader presses Pinned,
+   * with every other filter set aside. Not the same thing as `big`. `big` says "this was the
+   * headline of its week"; `pinned` says "if someone reads sixteen things about this product,
+   * this is one of them", which is a claim about the WHOLE history and is the owner's to make.
+   * Keep it to roughly twenty: past that it is just the changelog again. And keep a pinned item
+   * TRUE: it is read long after its date, so when a plan or a price it names changes, its words
+   * are brought up to date (the date stays).
+   */
+  pinned?: boolean;
 }
 
 export interface ChangelogEntry {
@@ -115,6 +128,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'Preview your own binder before you buy its print',
+        pinned: true,
         kind: 'new',
         area: 'binders',
         big: true,
@@ -126,6 +140,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'A binder’s print-ready PDF is $1.99',
+        pinned: true,
         kind: 'better',
         area: 'account',
         body:
@@ -135,6 +150,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'Founder: lifetime PRO for one payment',
+        pinned: true,
         kind: 'new',
         area: 'account',
         big: true,
@@ -179,12 +195,14 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'Free and PRO, and PRO has no limits',
+        pinned: true,
         kind: 'better',
         area: 'account',
         big: true,
         body:
-          'PRO now has unlimited binders, pages and artworks, and includes what VIP had: theme '
-          + 'search without a meter, covers and soundtracks. VIP is no longer sold.',
+          'There are two plans now. PRO has unlimited binders, pages and artworks, and everything '
+          + 'else is in it: Find similar, Tri-Color Search, theme search without a meter, covers and '
+          + 'soundtracks.',
       },
       {
         products: ['michi'],
@@ -313,6 +331,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'Merge two pieces of art, or split one, on the page',
+        pinned: true,
         kind: 'new',
         area: 'binders',
         body:
@@ -323,6 +342,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'Art can be any shape, and printing tells you what it cuts',
+        pinned: true,
         kind: 'better',
         area: 'binders',
         body:
@@ -333,6 +353,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'Cut lines, to see it before you print',
+        pinned: true,
         kind: 'new',
         area: 'binders',
         body:
@@ -351,6 +372,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'Take a colour mix from any card you can see',
+        pinned: true,
         kind: 'new',
         area: 'browse',
         body:
@@ -398,6 +420,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'A public binder can be duplicated, when you say so',
+        pinned: true,
         kind: 'new',
         area: 'sharing',
         big: true,
@@ -502,6 +525,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'Page materials: stitched fabric, a zip, sleeves and art backing',
+        pinned: true,
         kind: 'new',
         area: 'binders',
         big: true,
@@ -512,6 +536,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'Sleeves and backing per pocket, per page, or for the whole binder',
+        pinned: true,
         kind: 'new',
         area: 'binders',
         body:
@@ -521,6 +546,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'The editor fits a phone',
+        pinned: true,
         kind: 'better',
         area: 'binders',
         body: 'A two-row header, no side docks, and an Art button in their place.',
@@ -557,12 +583,15 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'Binder links can point at a page',
+        pinned: true,
         kind: 'new',
         area: 'sharing',
         big: true,
         body:
-          'A shared link opens on the page its preview picture shows. A binder with a cover starts '
-          + 'shut, opens, and turns to that page.',
+          'Add ?page=N to the end of a binder’s link and it opens on page N, counting from 1 (use '
+          + '&page=N if the link already has a question mark). A binder with a cover starts shut, '
+          + 'opens, and turns to that page. A link copied from the Share sheet already carries the '
+          + 'page its preview picture shows.',
       },
       {
         products: ['michi'],
@@ -883,6 +912,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'Share images show the binder',
+        pinned: true,
         kind: 'better',
         area: 'sharing',
         big: true,
@@ -1060,14 +1090,15 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'Search the artwork by theme',
+        pinned: true,
         kind: 'new',
         area: 'browse',
         big: true,
         body:
-          'A Theme Search button now sits beside Tri-Color Search, and theme:, art: and scene: work '
-          + 'in the search box: theme:underwater finds cards drawn beneath the surface. Theme search '
-          + 'is VIP; the button runs a free Forest scenes demonstration for everyone, and '
-          + 'the search cheatsheet has it as a recipe.',
+          'A Theme Search button sits beside Tri-Color Search, and theme:, art: and scene: work in '
+          + 'the search box: theme:underwater finds cards drawn beneath the surface. Every plan can '
+          + 'search by theme; Free shows the top three results and PRO shows them all. The search '
+          + 'cheatsheet has it as a recipe.',
       },
       {
         products: ['michi'],
@@ -1404,6 +1435,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'A pocket holds one of your cards',
+        pinned: true,
         kind: 'new',
         area: 'collection',
         big: true,

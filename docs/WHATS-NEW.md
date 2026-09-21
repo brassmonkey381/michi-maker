@@ -67,6 +67,18 @@ them first; this file is only the procedure.
    and ship. Entries describing work that is committed but not yet deployed are fine as long as
    the same deploy carries both.
 
+## The pinned list
+
+`pinned: true` on an item puts it on the short list the page shows when a reader presses
+**Pinned**, which sets every other filter aside. It is the owner's list: do not pin anything on
+your own initiative, and do not unpin. Roughly twenty at most (`changelog.test.ts` fails past
+that).
+
+A pinned item is read long after its date, so it has to stay TRUE. When a plan, a price or a
+limit that a pinned item names changes, update that item's words and leave its date alone. The
+test fails if a pinned item still says VIP or a 14-day trial, or names the other product (which
+would hide it).
+
 ## Things that have gone wrong before
 
 - Claiming "everywhere" for something that reached one screen. Say where it works.

@@ -8,7 +8,7 @@
  */
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
 import { PageShell } from '@/components/layout/PageShell';
@@ -21,14 +21,7 @@ import { CHECKOUT_OPEN } from '@/data/subscriptions';
 import { PlanUsageSection } from '@/components/monetization/TierUsage';
 import { WelcomeAboardModal } from '@/components/monetization/WelcomeAboardModal';
 import { ThemedText } from '@/components/themed-text';
-import {
-  FontSize,
-  MaxContentWidth,
-  MaxContentWidthWide,
-  Palette,
-  Radius,
-  Spacing,
-} from '@/constants/theme';
+import { FontSize, MaxContentWidth, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { redeemHandoffHashFromLocation } from '@/data/handoff';
 import { OfferCards } from '@/components/monetization/OfferCards';
 import { promoActive } from '@/data/promo';
@@ -94,13 +87,20 @@ export default function PlansScreen() {
       description="michi-maker plans: Free and PRO."
       maxWidth={MaxContentWidthWide}>
       {/* ── masthead ───────────────────────────────────
-          Two lines, not four. The chip read "michi-maker plans" on a page whose title is already
-          "Plans", and the lede spent three lines listing what every plan includes — which the
-          table now says once, underneath itself (INCLUDED_EVERYWHERE). What a visitor needs here
-          is the shape of the offer and then the offer. */}
+          THE SAME THREE PARTS AS TCGSCAN'S PLANS PAGE (owner, 2026-09-21), so the two read as one
+          family: a small chip naming whose plans these are, a headline that says what PRO DOES,
+          and one line under it listing what comes with it. The headline used to be the Free
+          pitch, and the chip had been dropped as redundant with the page title; matching the
+          sister app won that argument. */}
       <View style={styles.masthead}>
+        <View style={styles.chip}>
+          <Text style={styles.chipText}>michi-maker plans</Text>
+        </View>
         <ThemedText type="subtitle" style={styles.h1}>
-          Build binders free. Upgrade when your collection outgrows them.
+          PRO builds pages around your cards and removes the caps.
+        </ThemedText>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
+          Unlimited binders, pages and artworks, art and colour matching, and binder covers.
         </ThemedText>
       </View>
 
@@ -208,14 +208,28 @@ export default function PlansScreen() {
 const styles = StyleSheet.create({
   masthead: {
     width: '100%',
-    maxWidth: 640,
+    maxWidth: 720,
     alignSelf: 'center',
     alignItems: 'center',
     gap: Spacing.three,
     marginBottom: Spacing.five,
   },
-  h1: { textAlign: 'center' },
-  lede: { lineHeight: 22, textAlign: 'center' },
+  chip: {
+    backgroundColor: Palette.accentSoft,
+    borderRadius: Radius.pill,
+    paddingVertical: Spacing.one,
+    paddingHorizontal: Spacing.three,
+  },
+  chipText: {
+    fontSize: FontSize.xs,
+    color: Palette.link,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    fontWeight: Weight.semibold,
+  },
+  // Bold and on one line at desktop width, the way TCGScan's headline sits.
+  h1: { textAlign: 'center', fontSize: 23, lineHeight: 30, fontWeight: Weight.bold },
+  lede: { fontSize: 14, lineHeight: 21, textAlign: 'center' },
   banner: {
     width: '100%',
     maxWidth: MaxContentWidth,

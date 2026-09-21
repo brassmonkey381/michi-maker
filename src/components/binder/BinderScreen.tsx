@@ -2176,7 +2176,13 @@ export function BinderScreen({
    * you flipped onto the odd page out. Both live with the other "how this binder shows itself"
    * choices instead of in a per-page tools card.
    */
-  const binderLookSettings = editing ? <BinderLook binder={binder} page={page} showToast={showToast} /> : null;
+  const binderLookSettings = editing ? <BinderLook
+      binder={binder}
+      page={page}
+      showToast={showToast}
+      binderLocked={!hasBinderCovers(store.tier)}
+      onBinderLocked={() => showLimitToast('Named binders, hardware and covers are a PRO feature.')}
+    /> : null;
 
   /**
    * ONE SOURCE OF TRUTH FOR THE HEADER'S CONTENT BOX. The header row and the floating title take

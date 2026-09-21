@@ -10,13 +10,16 @@
  * one object, and letting each page carry its own colour let one drift into a patchwork nobody
  * chose, invisible until you flipped onto the odd page out.
  */
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { BinderCoverSheet } from '@/components/binder/BinderCoverSheet';
 import { SoundtrackField } from '@/components/binder/SoundtrackField';
 import { ColorBox, Group, LabeledInput, PillButton, Row, Seg, ToggleChip, WearRow, styles } from '@/components/binder/inspector/controls';
 import { REAL_PAGE_SIZES } from '@/data/binderPhysics';
 import type { BinderTrack, DemoBinder, DemoPage } from '@/data/binderTypes';
 import { BINDER_PRESETS } from '@/data/binderPresets';
+import { coverForPreset, coverLabel } from '@/data/presetCovers';
 import { reflowSummary } from '@/data/pageReflow';
 import { Palette } from '@/constants/theme';
 import { SPINE_STYLES, WEAR_NONE, isImageRef } from '@/data/pageStyle';
@@ -68,14 +71,33 @@ export function BinderLook({
   binder,
   page,
   showToast,
+  binderLocked = false,
+  onBinderLocked,
 }: {
   binder: DemoBinder;
   /** The page being looked at: its size and colour stand for the binder's. */
   page: DemoPage;
   showToast: (message: string, withUndo?: boolean) => void;
+  /**
+   * THE BINDER GROUP IS PRO'S (owner, 2026-09-21, after the tier rework): named binders, the
+   * hardware, and the cover. Locked, the group still shows everything, dimmed, because it is the
+   * best advert for itself; a tap says why instead of doing it. A binder dressed before this, or
+   * during a trial, keeps its look. Nothing is taken off anyone.
+   */
+  binderLocked?: boolean;
+  onBinderLocked?: () => void;
 }) {
   const store = useBinders();
   const ps = binder.pageStyle;
+  const [coverOpen, setCoverOpen] = useState(false);
+  /** Run a change, or say why not. Every control in the Binder group goes through this. */
+  const gated = (run: () => void) => () => {
+    if (binderLocked) onBinderLocked?.();
+    else run();
+  };
+  // The cover that goes with the named binder in use, offered when it is not already the one on.
+  const match = coverForPreset(ps?.binder);
+  const matchDue = !!match && (binder.cover?.modelId !== match.modelId || binder.cover?.colourway !== match.colourway);
   const sizeId = PAGE_SIZE_OPTIONS.find((s) => s.rows === page.rows && s.cols === page.cols)?.id ?? PAGE_SIZE_OPTIONS[0].id;
   const compact = binder.pages.some(isBlankPage) ? (
     <Row label="Blank pages">
@@ -140,7 +162,10 @@ export function BinderLook({
       {/* BINDER DETAILS (owner, 2026-09-14): the hardware of the binder round the page. A set, not
           a pick: a binder can have a zip AND a spine. The zip's colour and its pull's are the
           cover colour's (owner, 2026-09-15: zipCloth), as the stitching is; none of those is a setting. */}
-      <Group title="Binder" testID="binder-group-binder">
+      <Group
+        title={binderLocked ? 'Binder · PRO' : 'Binder'}
+        note={binderLocked ? 'Named binders, hardware and covers come with PRO.' : undefined}
+        testID="binder-group-binder">
         {/* THE NAMED BINDERS (owner, 2026-09-15): one tap sets the cloth, the zip and the spine
             together, and fixes the zip's colours to the binder's own (the gold one). The rows
             under it still adjust; the name stays until another is picked. */}
@@ -150,26 +175,60 @@ export function BinderLook({
             return (
               <Pressable
                 key={preset.id}
-                onPress={() => {
+                onPress={gated(() => {
                   store.setBinderBackground(binder.id, preset.cloth);
                   store.setPageStyle(binder.id, { binder: preset.id, zip: preset.zipper ? {} : null, spine: preset.spine });
-                }}
+                })}
                 accessibilityRole="button"
-                accessibilityState={{ selected: on }}
-                accessibilityLabel={`${preset.label} binder`}
+                accessibilityState={{ selected: on, disabled: !!binderLocked }}
+                accessibilityLabel={`${preset.label} binder${binderLocked ? ', a PRO feature' : ''}`}
                 testID={`binder-preset-${preset.id}`}
-                style={[styles.chip, local.presetChip, on && styles.chipActive]}>
+                style={[styles.chip, local.presetChip, on && styles.chipActive, binderLocked && local.locked]}>
                 <View style={[local.presetSwatch, { backgroundColor: preset.cloth }, preset.zip ? { borderColor: preset.zip.pull, borderWidth: 2 } : null]} />
                 <Text style={[styles.chipText, on && styles.chipTextActive]}>{preset.label}</Text>
               </Pressable>
             );
           })}
         </Row>
+        {/* THE COVER, HERE (owner, 2026-09-21). It was chosen from the shelf's menu, a screen away
+            from the named binder it belongs with, so nothing said that the inside and the outside
+            are one object. The row names the cover in use, opens the same picker in place, and
+            offers the cover that goes with the named binder when a different one is on. */}
+        <Row label="Cover">
+          <Pressable
+            onPress={gated(() => setCoverOpen(true))}
+            accessibilityRole="button"
+            accessibilityLabel={`Binder cover: ${coverLabel(binder.cover) ?? 'none chosen'}. Choose a cover`}
+            testID="binder-cover-open"
+            style={[styles.chip, binderLocked && local.locked]}>
+            <Text style={styles.chipText}>{coverLabel(binder.cover) ?? 'Choose a cover…'}</Text>
+          </Pressable>
+          {matchDue && match ? (
+            <Pressable
+              onPress={gated(() =>
+                store.updateBinder(binder.id, {
+                  cover: {
+                    modelId: match.modelId,
+                    colourway: match.colourway,
+                    surfaces: binder.cover?.surfaces,
+                    showCover: binder.cover?.showCover,
+                  },
+                }),
+              )}
+              accessibilityRole="button"
+              accessibilityLabel={`Use the ${match.label} cover, which goes with this binder`}
+              testID="binder-cover-match"
+              style={[styles.chip, binderLocked && local.locked]}>
+              <Text style={styles.chipText}>{`Match: ${match.label}`}</Text>
+            </Pressable>
+          ) : null}
+        </Row>
+        <View style={binderLocked ? local.locked : undefined}>
         <Row label="Hardware">
           <ToggleChip
             label="Zipper"
             on={!!ps?.details?.zip}
-            onPress={() => store.setPageStyle(binder.id, { zip: ps?.details?.zip ? null : {} })}
+            onPress={gated(() => store.setPageStyle(binder.id, { zip: ps?.details?.zip ? null : {} }))}
             accessibilityLabel="Zipper: a zip round the cover, with a coloured pull"
           />
           {SPINE_STYLES.map((sp) => {
@@ -179,13 +238,21 @@ export function BinderLook({
                 key={sp.id}
                 label={sp.label}
                 on={on}
-                onPress={() => store.setPageStyle(binder.id, { spine: on ? null : sp.id })}
+                onPress={gated(() => store.setPageStyle(binder.id, { spine: on ? null : sp.id }))}
                 accessibilityLabel={`${sp.label}: ${sp.blurb}`}
               />
             );
           })}
         </Row>
+        </View>
       </Group>
+      {coverOpen ? (
+        <BinderCoverSheet
+          binder={binder}
+          onChange={(cover) => store.updateBinder(binder.id, { cover })}
+          onClose={() => setCoverOpen(false)}
+        />
+      ) : null}
       <Group title="Pockets" note="What every page's pockets wear unless a page or pocket says otherwise." testID="binder-group-pockets">
         <WearRow
           label="Sleeves"
@@ -207,6 +274,8 @@ export function BinderLook({
 }
 
 const local = StyleSheet.create({
+  /** A PRO control seen from Free: all there, and visibly not yours yet. */
+  locked: { opacity: 0.45 },
   presetChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 6 },
   /** The binder's cloth, and its zip's colour as the rim when it has one of its own. */
   presetSwatch: { width: 14, height: 14, borderRadius: 7, borderWidth: 1, borderColor: Palette.hairlineStrong },

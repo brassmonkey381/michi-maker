@@ -35,7 +35,7 @@ import {
   CHECKOUT_CLOSED_NOTE,
   CHECKOUT_OPEN,
   COMPARISON,
-  annualListMinor,
+  annualAnchor,
   annualSavingPercent,
   FOOTNOTES,
   INCLUDED_EVERYWHERE,
@@ -151,7 +151,7 @@ export function PlanComparison() {
   const [freeHead, proHead] = PLAN_HEADERS;
   // Twelve months at the monthly rate, and what the yearly plan saves against it. Always true while
   // both prices are, so it needs no promotion behind it and nothing expires.
-  const annualList = annualListMinor(proHead);
+  const annualList = annualAnchor(proHead);
   const annualSaving = annualSavingPercent(proHead);
   // An account on the legacy Free caps reads ITS numbers in the Free column (CompareRow.freeLegacy).
   const freeCell = (row: (typeof COMPARISON)[number]) => (capSet === 'legacy_free' && row.freeLegacy ? row.freeLegacy : row.free);
@@ -391,7 +391,7 @@ export function PlanComparison() {
               {onSaleYearly ? (
                 <Text style={styles.tierWas}>{proHead.price}</Text>
               ) : annualList ? (
-                <Text style={styles.tierWas}>{formatMinor(annualList)}</Text>
+                <Text style={styles.tierWas}>{annualList}</Text>
               ) : null}
               <View style={styles.priceRow}>
                 <Text style={styles.tierPrice}>

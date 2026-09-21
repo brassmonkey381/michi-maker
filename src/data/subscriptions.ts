@@ -79,11 +79,28 @@ export function annualListMinor(h: Pick<PlanHeader, 'monthlyMinor'>): number | n
   return h.monthlyMinor ? h.monthlyMinor * 12 : null;
 }
 
-/** Percent saved by paying yearly instead of monthly, rounded to a whole number for display. */
+/**
+ * The struck-through anchor, rounded to a whole dollar: $71.88 shows as "$72" (owner, 2026-09-21).
+ * An anchor is a comparison, not a charge, so it reads better without cents and nobody is ever
+ * billed it. Every figure that decides money keeps its cents.
+ */
+export function annualAnchor(h: Pick<PlanHeader, 'monthlyMinor'>): string | null {
+  const list = annualListMinor(h);
+  return list === null ? null : `$${Math.round(list / 100)}`;
+}
+
+/**
+ * Percent saved by paying yearly instead of monthly.
+ *
+ * FLOORED, AND MEASURED AGAINST THE TRUE LIST, both deliberately. The true list is $71.88, which
+ * saves 30.4%; the rounded-up $72 anchor on screen saves 30.6%, and rounding that to the nearest
+ * whole number would claim 31% while the two numbers printed beside it support 30%. Flooring the
+ * real figure means the badge is never larger than the arithmetic a reader can do on the page.
+ */
 export function annualSavingPercent(h: Pick<PlanHeader, 'monthlyMinor' | 'yearlyMinor'>): number | null {
   const list = annualListMinor(h);
   if (!list || !h.yearlyMinor || h.yearlyMinor >= list) return null;
-  return Math.round(((list - h.yearlyMinor) / list) * 100);
+  return Math.floor(((list - h.yearlyMinor) / list) * 100);
 }
 
 export const PLAN_HEADERS: PlanHeader[] = [

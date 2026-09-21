@@ -165,6 +165,10 @@ export default function WelcomeScreen() {
     markLandingSeen();
     router.replace('/');
   };
+  const browseBinders = () => {
+    markLandingSeen();
+    router.push('/discover');
+  };
   const openBinder = (id: string) => {
     markLandingSeen();
     router.push(`/binder/${id}`);
@@ -230,9 +234,9 @@ export default function WelcomeScreen() {
                 </ThemedText>
               </View>
               <Pressable
-                onPress={enterApp}
+                onPress={browseBinders}
                 style={({ pressed }) => [styles.navBtn, pressed && styles.pressed]}>
-                <ThemedText style={styles.navBtnText}>Open the app →</ThemedText>
+                <ThemedText style={styles.navBtnText}>See some binders →</ThemedText>
               </Pressable>
             </View>
 
@@ -265,7 +269,8 @@ export default function WelcomeScreen() {
                   </Pressable>
                 </View>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.betaNote}>
-                  Free to start · web, iOS and Android
+                  Free to start on the web · iOS and Android coming soon{'\n'}
+                  michi-maker is best on a big screen
                 </ThemedText>
               </Reveal>
 

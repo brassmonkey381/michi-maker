@@ -202,7 +202,7 @@ export interface CompareRow {
 export const INCLUDED_EVERYWHERE = [
   'The full card catalog',
   'Slice Studio',
-  'Your pages synced across web, iOS and Android',
+  'Your pages synced to your account (iOS and Android coming soon)',
 ];
 
 /** The capability comparison, Free and PRO (guest is unadvertised; VIP was retired 2026-09). */

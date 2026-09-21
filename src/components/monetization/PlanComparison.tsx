@@ -37,6 +37,7 @@ import {
   COMPARISON,
   FOOTNOTES,
   INCLUDED_EVERYWHERE,
+  EVERY_TIER_NOTE,
   PLAN_HEADERS,
   planCta,
   type CompareCell,
@@ -418,12 +419,13 @@ export function PlanComparison() {
         </View>
       </ScrollView>
 
-      {/* Everything the three columns agreed on, said once. */}
+      {/* Everything the columns agreed on, said once instead of twice per row. */}
       <View style={styles.everyPlan}>
         <Text style={styles.everyPlanText}>
           <Text style={styles.everyPlanLead}>In every plan: </Text>
           {INCLUDED_EVERYWHERE.join(' · ')}
         </Text>
+        <Text style={[styles.everyPlanText, styles.everyPlanNote]}>{EVERY_TIER_NOTE}</Text>
       </View>
 
       {/* ── footnotes ─────────────────────────────────────
@@ -436,13 +438,14 @@ export function PlanComparison() {
         hitSlop={6}
         style={({ pressed }) => [styles.notesToggle, pressed && { opacity: 0.7 }]}>
         <Text style={styles.notesToggleText}>
-          {notesOpen ? 'Hide the details ▴' : `What the marks mean, and the fine print ▾`}
+          {notesOpen ? 'Hide the fine print ▴' : 'The fine print ▾'}
         </Text>
       </Pressable>
       <View style={[styles.footnotes, !notesOpen && styles.hidden]}>
-        {FOOTNOTES.map((f) => (
-          <Text key={f.mark} style={styles.footnote}>
-            <Text style={styles.mark}>{f.mark}</Text> {f.text}
+        {FOOTNOTES.map((f, i) => (
+          <Text key={f.mark || `note-${i}`} style={styles.footnote}>
+            {f.mark ? <Text style={styles.mark}>{f.mark}</Text> : null}
+            {f.text}
             {f.link ? (
               <Text
                 style={styles.footnoteLink}
@@ -473,6 +476,9 @@ const styles = StyleSheet.create({
   everyPlan: { paddingTop: Spacing.three, paddingHorizontal: Spacing.two },
   everyPlanText: { color: Palette.muted, fontSize: FontSize.sm, lineHeight: 18 },
   everyPlanLead: { fontWeight: Weight.semibold, color: Palette.ink },
+  /** The second line under the table: what no plan gates. Spaced off the first so the two
+   *  read as separate facts rather than one run-on sentence. */
+  everyPlanNote: { marginTop: 6 },
   notesToggle: { alignSelf: 'flex-start', paddingVertical: Spacing.two, paddingHorizontal: Spacing.two },
   notesToggleText: { color: Palette.link, fontSize: FontSize.sm, fontWeight: Weight.semibold },
   // display:none rather than unmounting: the marks in the table point at these, and a reader who

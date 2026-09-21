@@ -205,7 +205,16 @@ export const INCLUDED_EVERYWHERE = [
   'Your pages synced to your account (iOS and Android coming soon)',
 ];
 
-/** The capability comparison, Free and PRO (guest is unadvertised; VIP was retired 2026-09). */
+/**
+ * The capability comparison, Free and PRO (guest is unadvertised; VIP was retired 2026-09).
+ *
+ * TERSE ON PURPOSE (owner, 2026-09-21). A cell is a verdict, not an explanation: "No" and a tick
+ * read in a glance, and a sentence underneath costs the reader the glance. Anything that needs a
+ * paragraph either belongs in the fine print or is not a differentiator worth a row.
+ *
+ * A ROW EARNS ITS PLACE BY DIFFERING. Owned-card tracking, print sheets and sharing are identical
+ * on both plans, so they said the same thing twice and now say it once, under the table.
+ */
 export const COMPARISON: CompareRow[] = [
   {
     capability: 'Binders',
@@ -220,61 +229,49 @@ export const COMPARISON: CompareRow[] = [
     pro: { text: 'Unlimited', strong: true },
   },
   {
-    capability: 'Slice Studio artworks in your account',
+    capability: 'Slice Studio artworks',
     free: { text: '25' },
     freeLegacy: { text: '100' },
     pro: { text: 'Unlimited', strong: true },
   },
   {
-    capability: 'Similarity matching',
-    mark: '(1)',
-    free: { text: 'Partial', sub: 'by energy colour only' },
-    pro: { text: '✓', strong: true, sub: 'Find similar' },
-  },
-  {
-    capability: 'Composer methods',
-    mark: '(2)',
-    highlight: true,
-    free: { text: '7 of 9', sub: 'all but "More Like This" and "Tri-Color Match"' },
-    pro: { text: 'All 9, at once', strong: true, sub: 'Pages around this card' },
-  },
-  {
-    capability: 'Advanced Search',
-    mark: '(3)',
-    free: { text: 'Basic', sub: 'grammar, filters, one colour' },
-    pro: { text: '✓', strong: true, sub: 'value sort, price, Tri-Color, similarity, Theme Search' },
-  },
-  {
-    capability: 'Binder covers',
+    capability: 'Art Similarity Fill and Search',
     free: { text: 'No' },
-    pro: { text: '✓', strong: true, sub: 'dress it, decorate all four surfaces' },
+    pro: { text: '✓', strong: true },
   },
   {
-    capability: 'Binder soundtrack',
+    capability: 'Advanced Color Fill and Search',
     free: { text: 'No' },
-    pro: { text: '✓', strong: true, sub: 'your own track, per binder or per page, plays on open and turn' },
+    pro: { text: '✓', strong: true },
   },
   {
-    capability: 'Build from cards you really own',
-    mark: '(4)',
-    highlight: true,
-    free: { text: '✓' },
-    pro: { text: '✓' },
+    capability: 'Value Sort and Search',
+    free: { text: 'No' },
+    pro: { text: '✓', strong: true },
   },
   {
-    // PRINTS ARE IN NO PLAN (owner, 2026-09-20). Every plan previews its OWN binder for free,
-    // watermarked (2026-09-21), and buys a binder's print-ready PDF one at a time.
-    capability: 'Print-ready fill sheets',
-    mark: '(5)',
-    free: { text: 'Free preview of your binder', sub: `print-ready PDF ${BINDER_PDF_PRICE} a binder` },
-    pro: { text: 'Free preview of your binder', sub: `print-ready PDF ${BINDER_PDF_PRICE} a binder` },
+    // Metered server-side at search_config.free_theme_depth, which is 3 today. If that number
+    // moves, this cell is wrong and nothing will tell you.
+    capability: 'Theme Search',
+    free: { text: 'Top 3 results' },
+    pro: { text: 'Unlimited results', strong: true },
   },
   {
-    capability: 'Share and like',
-    free: { text: '✓' },
-    pro: { text: '✓' },
+    capability: 'Binder Customizations',
+    free: { text: 'Sleeves and page colors' },
+    pro: { text: 'Covers, stitchings, soundtracks, stickers and more', strong: true },
   },
 ];
+
+/**
+ * The one line under the table for what no plan gates.
+ *
+ * These were three rows saying the same thing in both columns, which is a row of attention spent
+ * to learn nothing. Prints are the subtle one: no PLAN gates them, and the print-ready PDF is
+ * still bought per binder, which the fine print carries.
+ */
+export const EVERY_TIER_NOTE =
+  'Owned card tracking, print-ready fill sheets, and sharing and liking binders are unlocked and available at any tier';
 
 export const ONE_TIME_PDF = {
   name: 'Full-binder fill-sheet PDF',
@@ -286,47 +283,28 @@ export const ONE_TIME_PDF = {
     'first, free: every sheet as it will be laid out, watermarked.',
 };
 
+/**
+ * The fine print. No row carries a mark any more, so these stand on their own and there are only
+ * two, because the table stopped needing footnotes when the cells stopped explaining themselves.
+ *
+ * The print note is load-bearing: removing the print row took the only place the plans page showed
+ * what a print-ready PDF costs, and "available at any tier" must not be read as "free".
+ */
 export const FOOTNOTES: { mark: string; text: string; link?: { label: string; url: string } }[] = [
   {
-    mark: '(1)',
+    mark: '',
     text:
-      'Find similar is the visual-similarity search: pick a card, or a whole selection, and get ' +
-      'the ones that look like it across the catalog. PRO. Free and guest keep matching ' +
-      'by colour: the energy-type colour sheet, and single-colour search in the browser.',
-  },
-  {
-    mark: '(2)',
-    text:
-      'The composer fills a page around one seed card. Free: Same Pokémon, Evolution line, ' +
-      'Friends & partners, Trainer page, Same artist, Color by type, Full-page spread. PRO adds ' +
-      'More like this and Color match (tri-color). PRO runs every method at once with Pages ' +
-      'around this card and adds the pages you keep.',
-  },
-  {
-    mark: '(3)',
-    text:
-      'Advanced Search, PRO: sort by value, price filters (>$100), Tri-Color Search and ' +
-      'refine results by similarity. Theme Search: theme:, art: and scene: search what the ' +
-      'picture shows (theme:underwater), from captions written about every Illustration Rare. ' +
-      'Every tier can run it; free and guest see the top matches and how many more there are, ' +
-      'PRO sees every match. Free and guest keep the full grammar, every filter chip, ' +
-      'favourites and single-colour search.',
-  },
-  {
-    mark: '(4)',
-    ...(SHOW_CROSS_APP
-      ? {
-          text: 'Every tier. Scan the cards you own with our partner app TCGScan and your collection syncs into michi-maker.',
-          link: { label: 'Meet TCGScan →', url: TCGSCAN_URL },
-        }
-      : { text: 'Every tier. Import a CSV of the cards you own and fill binders from it: green for owned, gray for still hunting.' }),
-  },
-  {
-    mark: '(5)',
-    text:
-      // Prints are in no plan since 2026-09-20, so this no longer talks about included prints.
       `Preview any of your binders as print sheets for free, watermarked. The print-ready PDF is ${BINDER_PDF_PRICE} ` +
       'a binder, one time, on every plan, and the version you bought is yours to download again.',
+  },
+  {
+    mark: '',
+    ...(SHOW_CROSS_APP
+      ? {
+          text: 'Owned card tracking: scan the cards you own with our partner app TCGScan and your collection syncs into michi-maker.',
+          link: { label: 'Meet TCGScan →', url: TCGSCAN_URL },
+        }
+      : { text: 'Owned card tracking: import a CSV of the cards you own and fill binders from it, green for owned, gray for still hunting.' }),
   },
 ];
 

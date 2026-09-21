@@ -22,6 +22,7 @@ import {
   Text,
   View, } from 'react-native';
 
+import { AuthSheet } from '@/components/auth/AuthSheet';
 import { useTcgscanOpen } from '@/components/monetization/BundleOffer';
 import { FontSize, Palette, Radius, Shadows, Spacing, Weight } from '@/constants/theme';
 import {
@@ -141,6 +142,8 @@ export function PlanComparison() {
   const monthlyPercentOff = bundleEligible ? BUNDLE_PERCENT_OFF : PERCENT_OFF;
   // Footnotes start folded; see the block that renders them.
   const [notesOpen, setNotesOpen] = useState(false);
+  // The Free column's "Sign in free to start" opens the account sheet in place.
+  const [authOpen, setAuthOpen] = useState(false);
   // THE TABLE IS AS WIDE AS ITS BLOCK, never wider. Inside a horizontal ScrollView a child is
   // sized to its content, and a cell's content is the longest unbroken line its text could be,
   // so every sub-line of detail widened the table past the page and the VIP column fell off the
@@ -248,7 +251,20 @@ export function PlanComparison() {
   const freeFoot = () => {
     if (loading) return null;
     const cta = planCta(freeHead, tier);
-    if (cta.kind === 'signIn') return <Text style={styles.valueSub}>Sign in free to start</Text>;
+    // A BUTTON, NOT A SENTENCE (owner, 2026-09-21). It told a guest what to do and gave them
+    // nothing to press; the sign-in was a scroll away, in the header. Outlined rather than filled,
+    // so PRO's button stays the loudest thing in the row.
+    if (cta.kind === 'signIn') {
+      return (
+        <Pressable
+          onPress={() => setAuthOpen(true)}
+          accessibilityRole="button"
+          testID="plans-free-signin"
+          style={({ pressed }) => [styles.btnOutline, pressed && styles.dim]}>
+          <Text style={styles.btnOutlineText}>Sign in free to start</Text>
+        </Pressable>
+      );
+    }
     if (cta.kind === 'current') return <Text style={styles.footCurrent}>Your current plan</Text>;
     return null;
   };
@@ -509,6 +525,7 @@ export function PlanComparison() {
           </Text>
         ))}
       </View>
+      <AuthSheet visible={authOpen} onClose={() => setAuthOpen(false)} />
     </View>
   );
 }
@@ -791,6 +808,18 @@ const styles = StyleSheet.create({
     ...Shadows.page,
   },
   btnText: { color: Palette.accentText, fontSize: FontSize.body, fontWeight: Weight.semibold },
+  /** The Free column's action: the same box as `btn`, drawn as an outline. */
+  btnOutline: {
+    borderRadius: Radius.pill,
+    borderWidth: 1.5,
+    borderColor: Palette.accent,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    alignItems: 'center',
+    minHeight: 42,
+    justifyContent: 'center',
+  },
+  btnOutlineText: { color: Palette.accent, fontSize: FontSize.body, fontWeight: Weight.semibold },
   dim: { opacity: 0.7 },
   switchConfirm: { gap: Spacing.two, width: '100%' },
   switchConfirmText: {

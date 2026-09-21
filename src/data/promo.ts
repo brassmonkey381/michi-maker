@@ -55,12 +55,12 @@ export const BUNDLE_PERCENT_OFF = 60;
  * and the coupon's own redeem_by) and a past ENDS_AT turns off all three at once. Running another
  * promotion later is a date and a coupon id, not a rebuild.
  *
- * TWO THINGS THIS ALONE DOES NOT DO, because they live outside the bundle:
- *   - stripe-checkout imports promoActive from this file, so the LIVE edge function keeps the old
- *     date until it is redeployed;
- *   - the Stripe coupon OFF20_2026 still exists and STRIPE_PROMO_COUPON still names it.
- * Neither can charge anyone today (both production builds ship EXPO_PUBLIC_CHECKOUT_OPEN=0), but
- * both should be cleared before checkout reopens.
+ * THE TWO THINGS OUTSIDE THE BUNDLE, both cleared on 2026-09-21:
+ *   - stripe-checkout imports promoActive from this file; the live function was redeployed after
+ *     this date moved, so the server refuses the promo too;
+ *   - the only 20% coupon in live Stripe (OFF20, expired 2026-09-01, never redeemed) was deleted
+ *     and the STRIPE_PROMO_COUPON secret removed. A future promotion needs a new coupon, that
+ *     secret set again, and this date.
  */
 export const ENDS_AT = '2026-09-21T00:00:00Z';
 

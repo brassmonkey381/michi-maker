@@ -34,6 +34,12 @@ test('no pinned item names a plan or a price that is gone', () => {
   }
 });
 
+test('featured is the smallest tier, and every featured item is pinned', () => {
+  const featured = CHANGELOG.flatMap((e) => e.items.filter((i) => i.featured));
+  assert.ok(featured.length <= 4, `${featured.length} featured: past a few, the top card is the page`);
+  for (const item of featured) assert.ok(item.pinned, `"${item.head}" is featured but not pinned`);
+});
+
 test('a headline appears once, so pinning by headline pins one item', () => {
   const heads = CHANGELOG.flatMap((e) => e.items.map((i) => `${i.products.join()}:${i.head}`));
   const twice = heads.filter((h, i) => heads.indexOf(h) !== i);

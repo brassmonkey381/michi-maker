@@ -123,12 +123,23 @@ export default function WhatsNewScreen() {
 
   // Filter the ITEMS, then drop any release left with nothing: a day where only the other product
   // shipped, or only fixes, should not leave an empty card behind.
+  // FEATURED: lifted out of their batches into one card at the top, whatever the date and the
+  // window. Only the product filter reaches them; the rest of the filters are about the log.
+  const featured = CHANGELOG.flatMap((entry) =>
+    entry.items
+      .filter((item) => item.featured && item.products.some((p) => products.includes(p)))
+      .filter((item) => SHOW_CROSS_APP || !namesOtherProduct(item))
+      .map((item) => ({ ...item, date: entry.date })),
+  );
+
   const entries = CHANGELOG.filter((entry) => isWithin(entry.date, recencyDays, now)).map((entry) => ({
     ...entry,
     // Fresh: dated within the last week. Only a PINNED item wears it (below); the rest of a fresh
     // batch is just new, which its date already says.
     fresh: isWithin(entry.date, FRESH_DAYS, now),
     items: entry.items
+      // A featured item is shown once, at the top, not again in its batch.
+      .filter((item) => !item.featured)
       .filter((item) =>
         pinnedOnly
           ? Boolean(item.pinned) && item.products.some((p) => products.includes(p))
@@ -140,6 +151,7 @@ export default function WhatsNewScreen() {
       // which is roughly the order they matter in.
       .sort((a, b) => Number(Boolean(b.big)) - Number(Boolean(a.big))),
   })).filter((entry) => entry.items.length > 0);
+  const nothing = featured.length === 0 && entries.length === 0;
 
   const productLabel = (id: ChangelogProduct) =>
     CHANGELOG_PRODUCTS.find((p) => p.id === id)?.label ?? id;
@@ -295,7 +307,29 @@ export default function WhatsNewScreen() {
         </View>
       </View>
 
-      {entries.length === 0 ? (
+      {featured.length > 0 ? (
+        <View style={styles.featuredCard} testID="whatsnew-featured">
+          {featured.map((item) => (
+            <View key={`${item.products.join()}:${item.head}`} style={styles.featuredItem}>
+              <View style={styles.tags}>
+                <View style={styles.featuredTag}>
+                  <ThemedText style={styles.featuredTagText}>FEATURED</ThemedText>
+                </View>
+                <View style={[styles.areaTag, { backgroundColor: tint(AREA_COLOR[item.area], 0.14) }]}>
+                  <ThemedText style={[styles.areaTagText, { color: AREA_COLOR[item.area] }]}>{CHANGE_AREAS[item.area]}</ThemedText>
+                </View>
+                <ThemedText style={styles.productText}>{longDate(item.date)}</ThemedText>
+              </View>
+              <ThemedText type="subtitle" style={styles.featuredHead}>
+                {item.head}
+              </ThemedText>
+              <ThemedText style={styles.featuredBody}>{item.body}</ThemedText>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      {nothing ? (
         <ThemedText type="small" themeColor="textSecondary" style={styles.empty}>
           {recency !== 'all'
             ? `Nothing ${pinnedOnly ? 'pinned ' : ''}in the last ${recencyLabel.toLowerCase()}. Widen the window above.`
@@ -303,7 +337,7 @@ export default function WhatsNewScreen() {
               ? 'Nothing is pinned yet.'
               : 'Nothing matches. Turn something back on above.'}
         </ThemedText>
-      ) : (
+      ) : entries.length === 0 ? null : (
         <View style={styles.list}>
           {entries.map((entry) => (
             <ThemedView key={entry.date} type="backgroundElement" style={styles.card}>
@@ -422,6 +456,23 @@ const styles = StyleSheet.create({
   kindFilterText: { fontSize: FontSize.label, fontWeight: Weight.semibold },
   empty: { lineHeight: 20 },
   list: { gap: Spacing.three },
+  // THE FEATURED CARD: the accent's own border and ground, twice the tint of a fresh item, so it
+  // is the first thing on the page before a word of it is read.
+  featuredCard: {
+    borderRadius: Radius.lg,
+    borderWidth: 2,
+    borderColor: Palette.accent,
+    backgroundColor: tint(Palette.accent, 0.12),
+    padding: Spacing.four,
+    gap: Spacing.four,
+    marginBottom: Spacing.three,
+    boxShadow: `0 8px 28px ${tint(Palette.accent, 0.25)}`,
+  },
+  featuredItem: { gap: Spacing.one },
+  featuredTag: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.tag, backgroundColor: Palette.accent },
+  featuredTagText: { fontSize: FontSize.label, fontWeight: Weight.bold, letterSpacing: 0.5, color: Palette.accentText },
+  featuredHead: { fontSize: FontSize.h2, lineHeight: 26 },
+  featuredBody: { fontSize: FontSize.body, lineHeight: 22 },
   card: {
     borderRadius: Radius.lg,
     borderWidth: 1,

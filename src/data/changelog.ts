@@ -110,6 +110,14 @@ export interface ChangelogItem {
    * are brought up to date (the date stays).
    */
   pinned?: boolean;
+  /**
+   * FEATURED (owner, 2026-09-21): the tier above pinned. A handful of items, hand-picked, that
+   * the page lifts OUT of their dated batch into a card of their own at the very top, whatever
+   * the date and whatever the recency window, with a bigger head and the loudest ground on the
+   * page. Featured implies pinned (the test holds it to that). Two or three, not ten: the third
+   * tier only means something while it is the smallest.
+   */
+  featured?: boolean;
 }
 
 export interface ChangelogEntry {
@@ -322,6 +330,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         products: ['michi'],
         head: 'One Piece cards are in michi-maker',
         pinned: true,
+        featured: true,
         kind: 'new',
         area: 'cards',
         big: true,
@@ -334,6 +343,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         products: ['michi'],
         head: 'Disney Lorcana cards are in michi-maker',
         pinned: true,
+        featured: true,
         kind: 'new',
         area: 'cards',
         big: true,

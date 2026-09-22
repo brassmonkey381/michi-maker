@@ -86,6 +86,11 @@ and the rail's What's New link glows with a chevron while one exists (`freshPinn
 `changelog.ts`). Both go quiet on their own a week after the batch date, so pinning something in a
 new batch is also how the rail is lit; there is no separate switch.
 
+`featured: true` is the tier above pinned: the item leaves its dated batch and sits in a card of
+its own at the top of the page, whatever the date and whatever the recency window, with a bigger
+head and the strongest highlight. It implies `pinned` (the test checks). Two or three at most, and
+only the owner marks them.
+
 ## Things that have gone wrong before
 
 - Claiming "everywhere" for something that reached one screen. Say where it works.

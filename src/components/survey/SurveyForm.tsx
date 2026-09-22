@@ -11,6 +11,13 @@
  * THE DRAFT IS KEPT. A survey that loses ten minutes of typing to a stray refresh is a survey
  * that never gets filled in twice. It is per-browser, local only, and it is cleared the moment
  * the thing is sent.
+ *
+ * HOW IT IS LAID OUT. One card per section, numbered, because an unbroken column of seventeen
+ * questions reads as a form to escape rather than a form to fill in: a card gives the eye a
+ * place to stop, and the number says how much is left without a progress bar that lies. Inside a
+ * card each question is separated by a hairline rather than by space alone, so a prompt is never
+ * mistaken for the help text of the question above it. The submit bar is the last card and
+ * repeats the count, so the end of the page states what is about to be sent.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
@@ -24,6 +31,7 @@ import {
   SurveyTextInput,
 } from '@/components/survey/SurveyControls';
 import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import {
   answeredCount,
@@ -127,65 +135,85 @@ export function SurveyForm({
     onSubmit(merged);
   };
 
+  // Numbered over the sections that are actually SHOWING, so a section that is entirely
+  // conditional cannot leave a gap in the count.
+  const cards = def.sections
+    .map((section) => ({ section, shown: section.questions.filter((q) => isVisible(def, q, merged)) }))
+    .filter((c) => c.shown.length > 0);
+
   return (
     <View style={styles.form}>
-      {def.sections.map((section) => {
-        const shown = section.questions.filter((q) => isVisible(def, q, merged));
-        if (!shown.length) return null;
-        return (
-          <View key={section.id} style={styles.section} testID={`survey-section-${section.id}`}>
-            {section.title ? (
-              <ThemedText style={styles.sectionTitle}>{section.title.toUpperCase()}</ThemedText>
-            ) : null}
-            {section.blurb ? (
-              <ThemedText type="small" themeColor="textSecondary" style={styles.sectionBlurb}>
-                {section.blurb}
-              </ThemedText>
-            ) : null}
-            {shown.map((q) => (
-              <View key={q.id} style={styles.question} testID={`survey-q-${q.id}`}>
-                <Question def={def} q={q} answers={merged} set={set} />
+      {cards.map(({ section, shown }, index) => (
+        <ThemedView
+          key={section.id}
+          type="backgroundElement"
+          style={styles.card}
+          testID={`survey-section-${section.id}`}>
+          {section.title ? (
+            <View style={styles.cardHead}>
+              <View style={styles.stepDot}>
+                <ThemedText style={styles.stepDotText}>{index + 1}</ThemedText>
               </View>
-            ))}
-          </View>
-        );
-      })}
+              <View style={styles.cardHeadText}>
+                <ThemedText type="smallBold" style={styles.sectionTitle}>
+                  {section.title}
+                </ThemedText>
+                {section.blurb ? (
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.sectionBlurb}>
+                    {section.blurb}
+                  </ThemedText>
+                ) : null}
+              </View>
+            </View>
+          ) : null}
+          {shown.map((q, qi) => (
+            <View
+              key={q.id}
+              // A hairline between questions, never between a prompt and its own help line.
+              style={[styles.question, qi > 0 && styles.questionDivided]}
+              testID={`survey-q-${q.id}`}>
+              <Question def={def} q={q} answers={merged} set={set} />
+            </View>
+          ))}
+        </ThemedView>
+      ))}
 
-      {emailBad ? (
-        <ThemedText type="small" style={styles.warn}>
-          That address does not look right. Fix it, or clear it to send without one.
-        </ThemedText>
-      ) : null}
-      {error ? (
-        <ThemedText type="small" style={styles.warn} testID="survey-error">
-          {error}
-        </ThemedText>
-      ) : null}
-
-      <View style={styles.submitRow}>
-        <Pressable
-          onPress={submit}
-          disabled={!ready || submitting || emailBad}
-          accessibilityRole="button"
-          accessibilityState={{ disabled: !ready || submitting || emailBad, busy: submitting }}
-          accessibilityLabel={def.submitLabel}
-          testID="survey-submit"
-          style={({ pressed }) => [
-            styles.submit,
-            (!ready || emailBad) && styles.submitOff,
-            pressed && styles.pressed,
-          ]}>
-          {submitting ? <ActivityIndicator size="small" color={Palette.accentText} /> : null}
-          <ThemedText style={styles.submitText}>
-            {submitting ? 'Sending' : def.submitLabel}
+      <ThemedView type="backgroundElement" style={[styles.card, styles.submitCard]}>
+        {emailBad ? (
+          <ThemedText type="small" style={styles.warn}>
+            That address does not look right. Fix it, or clear it to send without one.
           </ThemedText>
-        </Pressable>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.progress} testID="survey-progress">
-          {answered === 0
-            ? 'Answer anything to send. Nothing is required.'
-            : `${answered} of ${total} answered. Send whenever you like.`}
-        </ThemedText>
-      </View>
+        ) : null}
+        {error ? (
+          <ThemedText type="small" style={styles.warn} testID="survey-error">
+            {error}
+          </ThemedText>
+        ) : null}
+        <View style={styles.submitRow}>
+          <Pressable
+            onPress={submit}
+            disabled={!ready || submitting || emailBad}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !ready || submitting || emailBad, busy: submitting }}
+            accessibilityLabel={def.submitLabel}
+            testID="survey-submit"
+            style={({ pressed }) => [
+              styles.submit,
+              (!ready || emailBad) && styles.submitOff,
+              pressed && styles.pressed,
+            ]}>
+            {submitting ? <ActivityIndicator size="small" color={Palette.accentText} /> : null}
+            <ThemedText style={styles.submitText}>
+              {submitting ? 'Sending' : def.submitLabel}
+            </ThemedText>
+          </Pressable>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.progress} testID="survey-progress">
+            {answered === 0
+              ? 'Answer anything to send. Nothing is required.'
+              : `${answered} of ${total} answered. Send whenever you like.`}
+          </ThemedText>
+        </View>
+      </ThemedView>
     </View>
   );
 }
@@ -231,7 +259,7 @@ function Question({
       <>
         <QuestionHead prompt={q.prompt} help={q.help} />
         <View style={styles.matrix}>
-          {q.rows.map((r) => {
+          {q.rows.map((r, i) => {
             const key = rowKey(q.id, r.id);
             const rowValue = answers[key];
             const picked = typeof rowValue === 'number' ? rowValue : undefined;
@@ -245,6 +273,7 @@ function Question({
                 skipped={rowValue === SKIPPED}
                 onPick={(n) => set(key, picked === n ? undefined : n)}
                 onSkip={() => set(key, rowValue === SKIPPED ? undefined : SKIPPED)}
+                divided={i > 0}
                 testID={`survey-matrix-${q.id}-${r.id}`}
               />
             );
@@ -313,20 +342,47 @@ function Question({
 }
 
 const styles = StyleSheet.create({
-  form: { gap: Spacing.five },
-  section: { gap: Spacing.three },
-  sectionTitle: {
-    fontSize: FontSize.xs,
-    fontWeight: Weight.semibold,
-    letterSpacing: 0.6,
-    color: Palette.muted,
+  form: { gap: Spacing.three },
+  card: {
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.four,
   },
-  sectionBlurb: { lineHeight: 18, marginTop: -Spacing.two },
-  question: { gap: Spacing.two },
-  matrix: { gap: Spacing.two },
-  warn: { color: Palette.danger, lineHeight: 18 },
+  // Sits on the card's own padding so the rule under it spans the full width.
+  cardHead: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.two,
+    paddingTop: Spacing.three,
+    paddingBottom: Spacing.three,
+  },
+  cardHeadText: { flex: 1, gap: 2 },
+  /** The section number. Small and quiet: it is a place marker, not a score. */
+  stepDot: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Palette.panel,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepDotText: { fontSize: FontSize.sm, fontWeight: Weight.bold, color: Palette.muted },
+  sectionTitle: { fontSize: FontSize.md, lineHeight: 22 },
+  sectionBlurb: { lineHeight: 18 },
+  question: { gap: Spacing.two, paddingVertical: Spacing.three },
+  questionDivided: { borderTopWidth: 1, borderTopColor: Palette.hairline },
+  matrix: { gap: 0 },
+  warn: { color: Palette.danger, lineHeight: 18, paddingTop: Spacing.three },
   pressed: { opacity: 0.7 },
-  submitRow: { gap: Spacing.two, alignItems: 'flex-start' },
+  submitCard: { paddingVertical: Spacing.four },
+  submitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: Spacing.three,
+  },
   submit: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -340,5 +396,5 @@ const styles = StyleSheet.create({
   // the thing is obvious before anybody starts.
   submitOff: { opacity: 0.45 },
   submitText: { color: Palette.accentText, fontWeight: Weight.semibold, fontSize: FontSize.control },
-  progress: { lineHeight: 18 },
+  progress: { lineHeight: 18, flexShrink: 1 },
 });

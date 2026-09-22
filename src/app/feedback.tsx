@@ -113,7 +113,6 @@ export default function FeedbackScreen() {
       title="Leave Feedback"
       description="Tell us what is working in michi-maker, what is not, and which card games and features you want next. Two minutes, no account needed.">
       <View style={styles.prose}>
-        <ThemedText style={styles.chip}>michi-maker feedback</ThemedText>
         {done ? (
           <ThanksPanel
             title={MICHI_FEEDBACK.thanks.title}
@@ -130,12 +129,17 @@ export default function FeedbackScreen() {
           />
         ) : (
           <>
-            <ThemedText type="subtitle" style={styles.h1}>
-              {MICHI_FEEDBACK.title}
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
-              {MICHI_FEEDBACK.lede}
-            </ThemedText>
+            {/* THE MASTHEAD: chip, headline, lede, in the format the plans page uses, so a
+                second full-width page does not invent a third way of opening. */}
+            <View style={styles.masthead}>
+              <ThemedText style={styles.chip}>michi-maker feedback</ThemedText>
+              <ThemedText type="subtitle" style={styles.h1}>
+                {MICHI_FEEDBACK.title}
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
+                {MICHI_FEEDBACK.lede}
+              </ThemedText>
+            </View>
             {auth.anonymousUnavailable && !auth.user ? (
               <ThemedText type="small" style={styles.notice}>
                 Sending needs a session and this browser could not start one. Signing in will fix it.
@@ -149,10 +153,18 @@ export default function FeedbackScreen() {
               onSubmit={onSubmit}
               draftKey={DRAFT_KEY}
             />
-            <ThemedText type="small" themeColor="textSecondary" style={styles.foot}>
-              We store your answers, and your email only if you give one. Nothing here is added to
-              a mailing list. See the privacy policy for what happens to it.
-            </ThemedText>
+            {/* Above the site footer, under a rule: it is the small print for the form, and it
+                should read as that rather than as one more thing to fill in. */}
+            <View style={styles.footNote}>
+              <ThemedText type="small" themeColor="textSecondary" style={styles.foot}>
+                We store your answers, and your email only if you give one. Nothing here is added
+                to a mailing list, and deleting your account removes the address. See the{' '}
+                <ThemedText type="linkPrimary" onPress={() => router.push('/legal/privacy')}>
+                  privacy policy
+                </ThemedText>{' '}
+                for what happens to it.
+              </ThemedText>
+            </View>
           </>
         )}
       </View>
@@ -202,7 +214,8 @@ function ThanksPanel({
 }
 
 const styles = StyleSheet.create({
-  prose: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', gap: Spacing.three },
+  prose: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', gap: Spacing.four },
+  masthead: { gap: Spacing.two, marginBottom: Spacing.one },
   chip: {
     alignSelf: 'flex-start',
     backgroundColor: Palette.panel,
@@ -214,14 +227,15 @@ const styles = StyleSheet.create({
     color: Palette.ink2,
   },
   h1: { fontSize: FontSize.title, lineHeight: 30 },
-  lede: { lineHeight: 20 },
+  lede: { lineHeight: 21, maxWidth: 620 },
   notice: { color: Palette.warning, lineHeight: 18 },
-  foot: { lineHeight: 18, marginTop: Spacing.two },
+  footNote: { borderTopWidth: 1, borderTopColor: Palette.hairline, paddingTop: Spacing.three },
+  foot: { lineHeight: 18, maxWidth: 620 },
   thanks: {
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: Palette.hairlineStrong,
-    padding: Spacing.four,
+    borderColor: Palette.accent,
+    padding: Spacing.five,
     gap: Spacing.three,
   },
   thanksRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },

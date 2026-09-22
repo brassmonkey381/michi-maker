@@ -128,6 +128,7 @@ export function MatrixRow({
   skipped,
   onPick,
   onSkip,
+  divided,
   testID,
 }: {
   label: string;
@@ -137,13 +138,17 @@ export function MatrixRow({
   skipped?: boolean;
   onPick: (n: number) => void;
   onSkip?: () => void;
+  /** Rule above this row. Set on every row but the first. */
+  divided?: boolean;
   testID?: string;
 }) {
   return (
-    <View style={styles.matrixRow}>
+    <View style={[styles.matrixRow, divided && styles.matrixDivided]}>
       <ThemedText type="small" style={styles.matrixLabel}>
         {label}
       </ThemedText>
+      {/* flexBasis + wrap rather than a JS breakpoint: the row puts its buttons beside the label
+          while they fit and drops them underneath when they do not, at whatever width that is. */}
       <View style={styles.matrixPoints} accessibilityRole="radiogroup" accessibilityLabel={label}>
         {points.map((p) => {
           const on = value === p.value;
@@ -318,9 +323,16 @@ const styles = StyleSheet.create({
 
   scaleWrap: { gap: 4 },
   scaleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  /**
+   * `flexGrow` with a small basis: the points share the width evenly on a wide screen and wrap
+   * into even rows on a narrow one, instead of eleven fixed cells that leave a ragged tail.
+   */
   scaleDot: {
+    flexGrow: 1,
+    flexBasis: 38,
     minWidth: 38,
-    paddingVertical: 8,
+    maxWidth: 72,
+    paddingVertical: 9,
     paddingHorizontal: 6,
     borderRadius: Radius.control,
     borderWidth: 1,
@@ -335,9 +347,18 @@ const styles = StyleSheet.create({
   endText: { fontSize: FontSize.sm, flexShrink: 1 },
   endRight: { textAlign: 'right' },
 
-  matrixRow: { gap: 4, paddingVertical: 2 },
-  matrixLabel: { lineHeight: 18 },
-  matrixPoints: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  matrixRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    columnGap: Spacing.three,
+    rowGap: 6,
+    paddingVertical: 7,
+  },
+  matrixLabel: { lineHeight: 18, flexGrow: 1, flexBasis: 190, minWidth: 150 },
+  matrixPoints: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, flexGrow: 1, flexShrink: 0 },
+  /** A hairline between rows: five unseparated rows of buttons is one grey field to the eye. */
+  matrixDivided: { borderTopWidth: 1, borderTopColor: Palette.hairline },
   point: {
     paddingVertical: 7,
     paddingHorizontal: 12,

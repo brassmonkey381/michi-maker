@@ -18,10 +18,26 @@
 
 export const MONTHS_PER_YEAR = 12;
 
-/** Included prints per month, by michi tier product key. The single source of this table. */
+/**
+ * Included prints per month, by michi tier product key. The single source of this table.
+ *
+ * ZERO ON EVERY TIER SINCE THE 2026-09 REWORK. `tier_caps.includedPrintsPerMonth` was set to 0 for
+ * the whole app (migration 20260920130000) — prints are in no plan; the print offer is being
+ * reworked and until then nothing is "included". This constant kept saying 1 and 3 for three
+ * months because it is a SECOND mirror, keyed by product rather than tier, and nothing ran the
+ * guard that compares it (scripts/check-tier-caps.mjs, which reports it by name).
+ *
+ * It was not a money leak — `michi_print_window` short-circuits at rate 0 server-side, so the
+ * server granted nothing regardless. It was worse in a quieter way: `termPrintAllocation` below
+ * feeds `payments-webhook`, which stamped `term_print_allocation: 12` onto every new PRO yearly
+ * entitlement, and it feeds the plan-change confirm dialog, which quoted a print allocation the
+ * server would never honour. The ledger and the dialog both promised something that did not exist.
+ *
+ * If prints come back, change `tier_caps` first and let the guard tell you to change this.
+ */
 export const PRINTS_PER_MONTH: Record<string, number> = {
-  tier_pro: 1,
-  tier_vip: 3,
+  tier_pro: 0,
+  tier_vip: 0,
 };
 
 /**
@@ -113,8 +129,27 @@ export function termPrintAllocation(
   const newRate = toProduct ? PRINTS_PER_MONTH[toProduct] : undefined;
   if (newRate === undefined || toInterval !== 'year' || !periodStartSec) return null;
   const oldRate = fromProduct ? PRINTS_PER_MONTH[fromProduct] : undefined;
-  const elapsed = monthsElapsed(periodStartSec * 1000, nowMs);
-  // No prior plan (fresh subscription or renewal onto a new term): the whole year at the new rate.
+  return termPrintPool(oldRate, newRate, monthsElapsed(periodStartSec * 1000, nowMs));
+}
+
+/**
+ * The pool arithmetic alone, with the rates HANDED IN rather than read from the table above.
+ *
+ * Split out so the formula can be tested independently of what michi happens to sell this month.
+ * The tests for this once asserted 12, 20, 28 and 36 by reading the live rates, so setting every
+ * tier to 0 in the 2026-09 rework turned four genuine regression tests into four failures about
+ * business policy — and the pressure then is to delete them, which would throw away the guard for
+ * a real shipped bug: a mid-term upgrade four months into a year granted a FRESH year (36) instead
+ * of the prorated 28. That bug is in the arithmetic, and the arithmetic has not changed.
+ *
+ * `oldRate === undefined` means no prior plan — a fresh subscription, or a renewal onto a new
+ * term — so the whole year bills at the new rate.
+ */
+export function termPrintPool(
+  oldRate: number | undefined,
+  newRate: number,
+  elapsedMonths: number,
+): number {
   if (oldRate === undefined) return newRate * MONTHS_PER_YEAR;
-  return oldRate * elapsed + newRate * (MONTHS_PER_YEAR - elapsed);
+  return oldRate * elapsedMonths + newRate * (MONTHS_PER_YEAR - elapsedMonths);
 }

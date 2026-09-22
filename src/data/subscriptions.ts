@@ -241,7 +241,10 @@ export interface CompareRow {
 export const INCLUDED_EVERYWHERE = [
   'The full card catalog',
   'Slice Studio',
-  'Your pages synced to your account (iOS and Android coming soon)',
+  // NOT "(iOS and Android coming soon)". michi-maker ships web only and has no native build
+  // planned, so this promised two apps to someone deciding whether to pay. What sync actually buys
+  // is the thing worth saying: the work follows the account, onto whatever you next sign in on.
+  'Your pages synced to your account, on any device you sign in from',
 ];
 
 /**

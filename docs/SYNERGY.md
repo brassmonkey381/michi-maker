@@ -2,6 +2,31 @@
 
 **Canonical doc.** tcgscan-app links here (`tcgscan-app/docs/SYNERGY.md`).
 
+## What we charge, as of 2026-09-21
+
+Verified against the live Stripe catalog on that date. These nine lookup keys are the entire
+`SELLABLE` set in `stripe-checkout/index.ts`; anything not on this list is refused with
+`400 unknown product`.
+
+| what | lookup key | price |
+| --- | --- | --- |
+| michi-maker PRO | `michi_pro_monthly` / `michi_pro_yearly` | $5.99/mo · $49.99/yr |
+| TCGScan Pro | `tcgscan_pro_monthly` / `tcgscan_pro_yearly` | $5.99/mo · $49.99/yr |
+| Both apps, one subscription | `bundle_pro_monthly` / `bundle_pro_yearly` | $8.99/mo · $74.99/yr |
+| Founder — lifetime PRO, one payment | `michi_pro_founder` / `tcgscan_pro_founder` | $119.99 once |
+| One binder's print-ready PDF | `michi_binder_pdf` | $1.99 once |
+
+**VIP is retired.** It is out of `SELLABLE` in both apps and has no column on either plans page.
+michi-maker's VIP product is still *active* in Stripe for one reason only: a single legacy
+subscription renews against it. TCGScan's is archived. A `tier_vip` / `tcgscan_vip` row that still
+exists reads as PRO everywhere.
+
+**PRO is unlimited**, not 12-of-anything: the 2026-09 rework set `tier_caps` to NULL for binders,
+pages per binder, Slice Studio artworks, collections and cards per collection. **No plan includes
+a print** — `includedPrintsPerMonth` is 0 on every tier and a PDF is $1.99 a binder regardless of
+plan. The live table is the only authority; `npm run check:caps` in each app pins the client
+mirrors to it and `deploy-web.ps1` gates on it.
+
 ## The shape: two apps, one account, one ledger
 
 michi-maker (aesthetic/printable binders) and tcgscan (scan → ROI, price tracking, analysis) sell
@@ -56,12 +81,24 @@ product. Both directions are live:
 The flagship bridge is **"binder from your collection"** — it needs *both* halves (real collection
 data from scanning + michi's binder builder), so it's the natural cross-app upsell.
 
-## Bundle cross-sell — LIVE, 60% off
+## Bundle cross-sell — RETIRED 2026-09. Replaced by the two-app bundle PRODUCT.
 
-Holding one app's plan surfaces a **discounted add-on** of the other. Live Stripe coupon
-`Si93JqYS` (60% off, `duration: once`), set as `STRIPE_BUNDLE_COUPON`; the discount is enforced
-**server-side** in `stripe-checkout` (`bundleQualifies` re-checks the entitlement ledger — the
-client asking for `bundle: true` proves nothing).
+> **This whole section is history, kept because the reasoning still applies to any future
+> cross-app offer.** `CROSS_DISCOUNT_RETIRED = true` in `stripe-checkout/index.ts` and in both
+> apps' client code, so the coupon is refused server-side, both `<BundleOffer/>` components return
+> `null` on their first line, and every banner described below is gated off. AGENTS.md names this
+> file the canonical pricing doc, and it was still presenting the discount as live — with the
+> coupon id — three weeks after the code stopped honouring it.
+>
+> **What replaced it:** one subscription that grants PRO in BOTH apps, sold as its own product at
+> `$74.99/year` or `$8.99/month` (lookup keys `bundle_pro_yearly` / `bundle_pro_monthly`). It is a
+> product with a price, not a discount on another plan, so none of the term-matching rules below
+> apply to it. See `docs/TIER-REWORK.md`.
+
+Holding one app's plan surfaced a **discounted add-on** of the other. Live Stripe coupon
+`Si93JqYS` (60% off, `duration: once`), set as `STRIPE_BUNDLE_COUPON`; the discount was enforced
+**server-side** in `stripe-checkout` (`bundleQualifies` re-checked the entitlement ledger — the
+client asking for `bundle: true` proved nothing).
 
 **The TERM must match; the TIER need not** (owner call 2026-07-28, `src/data/bundle.ts`):
 

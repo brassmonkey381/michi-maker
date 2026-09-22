@@ -56,6 +56,22 @@ if (-not $WarmOnly) {
     Fail '0' 'the installed tcgscan-browse does not match the lockfile, or is missing an export the app calls. Fix with: npm install "github:brassmonkey381/tcgscan-browse#<sha>" - nothing was deployed' $LASTEXITCODE
   }
 
+  # [0b] AND THAT THE CAP NUMBERS THIS BUILD SHIPS ARE THE ONES THE DATABASE ENFORCES. The client
+  # keeps hardcoded mirrors of tier_caps for instant UX; when they drift, a user is shown one
+  # number and hits another, and the worse direction is a paying account being promised Unlimited
+  # by a UI while a trigger refuses the next row. `npm run check:caps` existed for exactly this and
+  # NOTHING RAN IT - not npm test, not lint, not this script - so `PRINTS_PER_MONTH` sat three
+  # months out of step with the table, and the whole `legacy_free` cap set (which most existing
+  # free accounts read) went unchecked because the guard did not even look at that tier. It reads
+  # the public tier_caps rows with the anon key, so it needs no secret; it needs the network, which
+  # is why it lives here rather than in npm test.
+  Write-Host ""
+  Write-Host "[0b] Checking the shipped cap numbers match the live tier_caps table (npm run check:caps)" -ForegroundColor Cyan
+  & npm run check:caps
+  if ($LASTEXITCODE -ne 0) {
+    Fail '0b' 'the client cap mirrors disagree with the live tier_caps table. Fix the table or the mirror named above - nothing was deployed' $LASTEXITCODE
+  }
+
   Write-Host ""
   Write-Host "[1] Deploying to production (npx vercel --prod)" -ForegroundColor Cyan
   Write-Host "    A build takes a few minutes. Vercel may ask you to log in the first time."

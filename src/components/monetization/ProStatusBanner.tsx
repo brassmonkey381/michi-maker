@@ -102,7 +102,11 @@ export function ProStatusBanner() {
         liveExcess > 0 && ending
           ? `${days} of PRO left. You have ${binderCount} binders, subscribe before it ends or ${liveExcess} will be locked.`
           : ending
-            ? `${days} of your PRO trial left. Keep your binders and prints with a plan.`
+            // NOT "and prints". With TRIAL_DAYS = 3 this branch is true for the entire trial, so
+            // it is the standing conversion line every trialist reads — and subscribing keeps the
+            // binders but buys no prints: no plan has included one since the 2026-09 rework, and a
+            // print-ready PDF is still $1.99 a binder either way.
+            ? `${days} of your PRO trial left. Keep your binders and unlimited pages with a plan.`
             : `You are on the PRO trial, ${days} left. Subscribe any time to keep it when it ends.`,
       cta: ending ? 'See plans' : 'Make it permanent',
     };

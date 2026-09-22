@@ -124,9 +124,15 @@ export function ProTrialPrompt({ surface }: { surface: PromptSurface }) {
   return (
     <DialogCard visible title={`Your ${TRIAL_DAYS} free days of PRO are still here`} onClose={close} maxWidth={420}>
       <ThemedText type="small" themeColor="textSecondary" style={styles.body}>
+        {/* THE NUMBERS ARE GONE BECAUSE THE CAPS ARE GONE. This read "PRO holds 12 binders of 40
+            pages, keeps 1,000 Slice Studio artworks, and prints a full binder as fill sheets" —
+            three pre-rework caps that undersold PRO by an order of magnitude (it is unlimited on
+            all three now), plus a print that no plan has included since includedPrintsPerMonth
+            went to 0. Naming no number is the durable fix for a pitch: the plans table is the one
+            place caps are written, and it is one tap away. */}
         You were offered a free PRO trial when you first signed up, before you had much in here to
-        use it on. It has been sitting unclaimed since. PRO holds 12 binders of 40 pages, keeps
-        1,000 Slice Studio artworks, and prints a full binder as fill sheets.
+        use it on. It has been sitting unclaimed since. PRO lifts every limit on binders, pages and
+        Slice Studio artworks, and unlocks the searches: Art Similarity, Advanced Color and Value.
       </ThemedText>
       {/* Renders null if they are somehow no longer eligible by the time this paints, which is the
           honest outcome — better an empty dialog than a button the server will refuse. */}

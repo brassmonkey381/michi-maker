@@ -15,8 +15,12 @@ import {
   perMonthMinor,
   PRINTS_PER_MONTH,
   termPrintAllocation,
+  termPrintPool,
   upgradeQuoteMinor,
 } from './proration.ts';
+// The other mirror. Asserting the two against each other is the point of the print test below:
+// neither file may move without the other, and check-tier-caps.mjs pins both to the live table.
+import { TIER_LIMITS } from './tiers.ts';
 
 const PRO_YEARLY = 3999;
 const VIP_YEARLY = 9999;
@@ -91,42 +95,46 @@ test('upgrade quote: monthly → monthly uses a one-month term', () => {
 });
 
 // ── the print allocation the ledger stores ────────────────────────────────────────────────
-test('print allocation: fresh subscriptions get the whole year', () => {
-  assert.equal(termPrintAllocation(null, 'tier_pro', 'year', TERM_START_SEC, utc(2026, 1, 15, 13)), 12);
-  assert.equal(termPrintAllocation(null, 'tier_vip', 'year', TERM_START_SEC, utc(2026, 1, 15, 13)), 36);
+// THE FORMULA, TESTED WITH RATES HANDED IN. These four cases are the regression guard for a real
+// shipped bug (a mid-term upgrade four months into a year granted a fresh 36 instead of 28), and
+// that bug lives in the arithmetic, not in the price list. They used to read the live rates, so
+// when the 2026-09 rework set every tier to 0 they all failed for a reason that had nothing to do
+// with what they were guarding. Rates of 1 and 3 below are ILLUSTRATIVE — the pre-rework PRO and
+// VIP numbers, kept because the owner's worked example is written in them — not a claim about
+// what any plan includes today. The live wiring is asserted separately, at the bottom of the file.
+const PRO_RATE = 1;
+const VIP_RATE = 3;
+
+test('print pool: a fresh term is the whole year at the new rate', () => {
+  assert.equal(termPrintPool(undefined, PRO_RATE, 0), 12);
+  assert.equal(termPrintPool(undefined, VIP_RATE, 0), 36);
+  // Elapsed months are irrelevant with no prior plan — a renewal starts a whole new year.
+  assert.equal(termPrintPool(undefined, VIP_RATE, 8), 36);
 });
 
-test('print allocation: the owner’s worked example, VIP 8 months into a PRO year', () => {
+test('print pool: the owner’s worked example, VIP 8 months into a PRO year', () => {
   // "full 12 months of PRO, plus 4 months of VIP, minus the 4 months of PRO" = 20.
   assert.equal(12 + 4 * 3 - 4 * 1, 20);
-  assert.equal(
-    termPrintAllocation('tier_pro', 'tier_vip', 'year', TERM_START_SEC, utc(2026, 9, 15, 12)),
-    20,
-  );
+  assert.equal(termPrintPool(PRO_RATE, VIP_RATE, 8), 20);
 });
 
-test('print allocation: mid-term upgrades do NOT grant a fresh year', () => {
+test('print pool: mid-term upgrades do NOT grant a fresh year', () => {
   // The shipped bug: 4 months in granted 36 instead of 28. Verified live on the backdated rig.
-  assert.equal(
-    termPrintAllocation('tier_pro', 'tier_vip', 'year', TERM_START_SEC, utc(2026, 5, 15, 12)),
-    28,
-  );
-  assert.notEqual(
-    termPrintAllocation('tier_pro', 'tier_vip', 'year', TERM_START_SEC, utc(2026, 5, 15, 12)),
-    36,
-  );
+  assert.equal(termPrintPool(PRO_RATE, VIP_RATE, 4), 28);
+  assert.notEqual(termPrintPool(PRO_RATE, VIP_RATE, 4), 36);
   // Upgrading with one month left buys one month of the better rate, not a year of it.
-  assert.equal(
-    termPrintAllocation('tier_pro', 'tier_vip', 'year', TERM_START_SEC, utc(2026, 12, 15, 12)),
-    14,
-  );
+  assert.equal(termPrintPool(PRO_RATE, VIP_RATE, 11), 14);
 });
 
-test('print allocation: at month 0 an upgrade equals a fresh year (the case that hid the bug)', () => {
-  assert.equal(
-    termPrintAllocation('tier_pro', 'tier_vip', 'year', TERM_START_SEC, utc(2026, 1, 16, 12)),
-    36,
-  );
+test('print pool: at month 0 an upgrade equals a fresh year (the case that hid the bug)', () => {
+  assert.equal(termPrintPool(PRO_RATE, VIP_RATE, 0), 36);
+});
+
+test('print allocation: the dates resolve to the months the pool is computed over', () => {
+  // The wiring between real timestamps and the formula above, which the pool tests cannot see.
+  assert.equal(monthsElapsed(TERM_START_SEC * 1000, utc(2026, 9, 15, 12)), 8);
+  assert.equal(monthsElapsed(TERM_START_SEC * 1000, utc(2026, 5, 15, 12)), 4);
+  assert.equal(monthsElapsed(TERM_START_SEC * 1000, utc(2026, 1, 16, 12)), 0);
 });
 
 test('print allocation: only yearly terms have a pool', () => {
@@ -168,9 +176,21 @@ test('perMonthMinor divides yearly prices and passes monthly through', () => {
   assert.equal(perMonthMinor(null, 'year'), null);
 });
 
-test('per-tier print rates are the numbers the plans page advertises', () => {
-  assert.equal(PRINTS_PER_MONTH.tier_pro, 1);
-  assert.equal(PRINTS_PER_MONTH.tier_vip, 3);
-  assert.equal(PRINTS_PER_MONTH.tier_pro * 12, 12);
-  assert.equal(PRINTS_PER_MONTH.tier_vip * 12, 36);
+// THIS TEST USED TO PIN THE DRIFT IN PLACE. It asserted tier_pro === 1 and tier_vip === 3, which
+// were the pre-rework numbers, so `npm test` stayed green over exactly the disagreement that
+// scripts/check-tier-caps.mjs was reporting — and the test's own name claimed the numbers were
+// "what the plans page advertises" while the plans page had stopped advertising them. A test that
+// restates a constant cannot catch the constant being wrong; it only makes the constant harder to
+// fix. So it now asserts the INVARIANT instead: this mirror must agree with TIER_LIMITS, which the
+// cap guard separately pins to the live tier_caps table. Change the table, and both move together.
+test('the proration print mirror agrees with TIER_LIMITS, whatever the numbers become', () => {
+  assert.equal(PRINTS_PER_MONTH.tier_pro, TIER_LIMITS.pro.includedPrintsPerMonth);
+  assert.equal(PRINTS_PER_MONTH.tier_vip, TIER_LIMITS.vip.includedPrintsPerMonth);
+});
+
+test('prints are in no plan today, so a term allocates none', () => {
+  assert.equal(PRINTS_PER_MONTH.tier_pro, 0);
+  assert.equal(PRINTS_PER_MONTH.tier_vip, 0);
+  // The webhook stamps this onto the entitlement row; it must not promise what the server refuses.
+  assert.equal(termPrintAllocation(null, 'tier_pro', 'year', 1_700_000_000, Date.now()), 0);
 });

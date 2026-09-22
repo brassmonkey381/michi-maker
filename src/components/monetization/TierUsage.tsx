@@ -4,11 +4,16 @@
  * - `TierUsage`: a presentational meter row (label, used of limit, thin progress bar).
  *   Infinity-safe: unlimited caps render as "N · Unlimited" with no bar. Deliberately never
  *   turns red — at-limit messaging is UpgradePerk's job, the meter just informs.
- * - `PlanUsageSection`: the data-wired block used by Settings and /subscriptions. While
- *   LIMITS_ENFORCED is false it reads the PLANNED caps from TIER_LIMITS directly (useTier's
- *   limits resolve to unlimited when the flag is off) and frames them as what the plan
- *   includes. FLAG-FLIP NOTE: when LIMITS_ENFORCED goes true, switch the `caps` line to
- *   `useTier().limits` so live enforcement and the meters can never disagree.
+ * - `PlanUsageSection`: the data-wired block used by Settings and /subscriptions. It reads
+ *   `useTier().limits` — the LIVE limits, resolved against the account's own cap set — so live
+ *   enforcement and the meters cannot disagree. This is the flag-flip the old note here asked
+ *   for: LIMITS_ENFORCED has been on in production since 2026-07-23 (vercel.json sets it to 1 and
+ *   tiers.ts:78 defaults it on), and reading TIER_LIMITS directly meanwhile measured every
+ *   grandfathered `legacy_free` account against the tighter `free` numbers.
+ *
+ *   With the flag deliberately off in a dev build the live limits are unlimited, so the meters
+ *   read "N · Unlimited" for everyone. That is honest about what the build is doing, which is the
+ *   point of the flag, and it is the reason this must never go back to a hardcoded cap set.
  */
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -20,7 +25,7 @@ import { fetchEntitlementDetails } from '@/data/entitlementRepo';
 import { addMonths } from '@/data/printWindow';
 import { countLiveSavedSlices } from '@/data/sliceRepo';
 import { ANNUAL_POOL, CHECKOUT_OPEN } from '@/data/subscriptions';
-import { isActive, PRODUCTS, TIER_LIMITS, type Tier } from '@/data/tiers';
+import { isActive, PRODUCTS, type Tier } from '@/data/tiers';
 import { usePrintAllowance } from '@/hooks/use-print-allowance';
 import { useTier } from '@/hooks/use-tier';
 import { useAuth } from '@/store/auth';
@@ -103,8 +108,15 @@ export function PlanUsageSection({ onManagePlan }: { onManagePlan?: () => void }
   const { tier, hasFullPrint, interval, periodStart, termAllocation, limits } = useTier();
   const { user } = useAuth();
   const { binderCount } = useBinders();
-  // Planned caps, not live limits — see the header comment for the LIMITS_ENFORCED flip note.
-  const caps = TIER_LIMITS[tier];
+  // THE LIVE LIMITS, NOT THE PLANNED ONES. This used to read `TIER_LIMITS[tier]`, which has no
+  // notion of `legacy_free` — so every account grandfathered by the 2026-09 rework was measured
+  // against the NEW free caps (2 binders, 25 artworks) while actually being held to the legacy
+  // ones (3 and 100). The comparison table on the same page reads `useTier().limits` and got it
+  // right, so /plans told a legacy member their cap was 3 and the meter directly beneath it
+  // rendered "Binders 3 of 2" with the bar pinned at 100%. A meter that says you are over a limit
+  // you are not over is worse than no meter: it reads as a demand to upgrade, aimed at exactly the
+  // people who were promised they would not have to.
+  const caps = limits;
 
   // Included prints: allocation + usage for the CURRENT window (this billing month, or the whole
   // year for a yearly subscriber who released their pool). Resolved through the same hook the

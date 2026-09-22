@@ -9,29 +9,45 @@ Written during the 2026-07-23 enforcement rollout.
 
 ## Audit table — every tier cap and how it is enforced
 
-Values are the live `tier_caps` rows (∞ = unlimited). "Enforcement" is the *server* boundary;
-every limit also has a client-side gate that turns a refusal into an upgrade prompt.
+Values are the live `tier_caps` rows (∞ = unlimited), **re-read from the table on 2026-09-21**.
+"Enforcement" is the *server* boundary; every limit also has a client-side gate that turns a
+refusal into an upgrade prompt.
+
+> **`legacy_free` IS A TIER AND IT IS THE ONE MOST FREE ACCOUNTS ARE ON.** The 2026-09 rework
+> tightened the `free` numbers and grandfathered every account that existed before the cutover onto
+> a `legacy_free` row instead. This table had no such column for three weeks, so the audit table for
+> the revenue boundary did not mention the cap set the majority of the live free population is
+> actually held to. The database decides who is legacy (`cap_tier_for`, by account creation date
+> against a cutover recorded once); the app asks it (`my_cap_tier`).
+>
+> Two other things this table used to get wrong, both from the same rework: **PRO is unlimited**,
+> not 12-of-anything, and **no tier includes a print** — `includedPrintsPerMonth` is 0 across the
+> board, so a print-ready PDF is $1.99 a binder on every plan.
+>
+> Do not hand-maintain the numbers. `npm run check:caps` in each app compares the client mirrors
+> against these rows and names any disagreement; `deploy-web.ps1` gates on it.
 
 ### michi-maker
 
-| Limit | guest | free | pro | vip | Server enforcement | Usage tracked by |
-|---|--:|--:|--:|--:|---|---|
-| Binders | 1 | 3 | 12 | ∞ | `BEFORE INSERT` trigger on `binders` (counts live rows) | live row count |
-| Pages per binder | 6 | 16 | 40 | ∞ | trigger on `binder_pages` | live row count |
-| Art uploads (saved slices) | 10 | 100 | 1000 | ∞ | trigger on `saved_slices` | live row count |
-| Included prints / window | 0 | 0 | 1 | 3 | `record_print_event()` RPC + allowance INSERT policy on `print_events` | `print_events` ledger |
-| Full-binder PDF (own) | ✗ | ✗ | ✓ | ✓ | client gate only (`hasFullPrint`) — **not server-enforced** | — |
-| Per-binder PDF purchase | — | — | — | — | RLS owner-only on `binder_pdf_snapshots` — **no entitlement predicate** | fingerprint snapshot |
+| Limit | guest | free | legacy_free | pro | vip | Server enforcement | Usage tracked by |
+|---|--:|--:|--:|--:|--:|---|---|
+| Binders | 1 | 2 | 3 | ∞ | ∞ | `BEFORE INSERT` trigger on `binders` (counts live rows) | live row count |
+| Pages per binder | 6 | 9 | 16 | ∞ | ∞ | trigger on `binder_pages` | live row count |
+| Art uploads (saved slices) | 10 | 25 | 100 | ∞ | ∞ | trigger on `saved_slices` | live row count |
+| Included prints / window | 0 | 0 | 0 | 0 | 0 | `record_print_event()` RPC + allowance INSERT policy on `print_events` | `print_events` ledger |
+| Full-binder PDF (own) | ✗ | ✗ | ✗ | ✗ | ✗ | `michi_print_window` short-circuits at rate 0, so nobody has an included print | — |
+| Per-binder PDF purchase | $1.99 | $1.99 | $1.99 | $1.99 | $1.99 | RLS owner-only on `binder_pdf_snapshots` — **no entitlement predicate** | fingerprint snapshot |
 
 ### tcgscan-app
 
-| Limit | guest | free | pro | vip | Server enforcement | Usage tracked by |
-|---|--:|--:|--:|--:|---|---|
-| Collections | 1 | 3 | 12 | ∞ | `BEFORE INSERT` trigger on `collections` | live row count |
-| Cards per collection (Σ qty) | 60 | 250 | 1000 | ∞ | trigger on `portfolio_entries` (insert + quantity raise) | `sum(quantity)` |
-| Scans / month | 5 | 60 | 1000 | ∞ | `record_scan_event()` RPC + allowance INSERT policy on `scan_events` | `scan_events` ledger (calendar month) |
-| Price checks / hour | 15 | ∞ | ∞ | ∞ | client only (guest, unauthenticated) — **not server-enforced** | client timestamps |
-| Price history / ROI window | today | 90d | ∞ | ∞ | client only (display window) | — |
+| Limit | guest | free | legacy_free | pro | vip | Server enforcement | Usage tracked by |
+|---|--:|--:|--:|--:|--:|---|---|
+| Collections | 1 | 1 | 3 | ∞ | ∞ | `BEFORE INSERT` trigger on `collections` | live row count |
+| Cards per collection (Σ qty) | 25 | 150 | 250 | ∞ | ∞ | trigger on `portfolio_entries` (insert + quantity raise) | `sum(quantity)` |
+| Scans / month | ∞ | ∞ | ∞ | ∞ | ∞ | `record_scan_event()` RPC, but the cap is ∞ on every tier since 2026-08-15 — it never refuses | `scan_events` ledger (kept for analytics) |
+| Price checks / hour | 15 | ∞ | ∞ | ∞ | ∞ | client only (guest, unauthenticated) — **not server-enforced** | client timestamps |
+| Price history window | today | 30d | 90d | full | full | client only (display window) — NOT table-backed | — |
+| ROI window | today | 30d | 90d | full | full | client only (display window) — NOT table-backed | — |
 | set/series analytics, rapid scan, full-page scan, booster, early access | boolean features by tier | | | | client gate (`can()` / `limits.*`) — **not server-enforced** | — |
 
 **Legend for "Server enforcement":** *trigger* = `tier_cap_exceeded:<limit>` raised at write time,

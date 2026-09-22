@@ -14,6 +14,7 @@ import {
   hasFindSimilar,
   searchesArtworkUnmetered,
   limitsForTier,
+  nextExpiryMs,
   LEGACY_FREE_LIMITS,
   TIER_LIMITS,
   type EntitlementRow,
@@ -147,4 +148,48 @@ test('a paid tier searches unmetered, and so does a TCGScan member with no michi
 test('free and guest with nothing else are still the ones to offer it to', () => {
   assert.equal(searchesArtworkUnmetered('free', false), false);
   assert.equal(searchesArtworkUnmetered('guest', false), false);
+});
+
+// ── when a resolved tier stops being true ───────────────────────────────────
+// The hook freezes one answer against one clock and arms a single timer off this. Get it wrong
+// in the "too late" direction and a cancelled subscriber keeps PRO; get it wrong in the "too
+// early" direction and the app refetches in a loop.
+
+test('nextExpiryMs returns the soonest future expiry among active rows', () => {
+  const now = Date.parse('2026-09-22T12:00:00Z');
+  const rows: EntitlementRow[] = [
+    { product: 'tier_pro', expires_at: '2026-10-01T00:00:00Z' },
+    { product: 'tcgscan_pro', expires_at: '2026-09-25T00:00:00Z' },
+    { product: 'pdf_binder:x', expires_at: null },
+  ];
+  assert.equal(nextExpiryMs(rows, now), Date.parse('2026-09-25T00:00:00Z'));
+});
+
+test('a perpetual account never wakes the timer', () => {
+  const now = Date.parse('2026-09-22T12:00:00Z');
+  assert.equal(nextExpiryMs([{ product: 'tier_pro', expires_at: null }], now), null);
+  assert.equal(nextExpiryMs([], now), null);
+});
+
+test('an already-lapsed row is not a future change', () => {
+  const now = Date.parse('2026-09-22T12:00:00Z');
+  // Expired yesterday: isActive is already false, so there is nothing to wake up for.
+  const rows: EntitlementRow[] = [{ product: 'tier_pro', expires_at: '2026-09-21T00:00:00Z' }];
+  assert.equal(nextExpiryMs(rows, now), null);
+});
+
+test('a lapsed row does not mask a live one that is about to end', () => {
+  const now = Date.parse('2026-09-22T12:00:00Z');
+  const rows: EntitlementRow[] = [
+    { product: 'tier_vip', expires_at: '2026-01-01T00:00:00Z' },
+    { product: 'tier_pro', expires_at: '2026-09-22T18:00:00Z' },
+  ];
+  assert.equal(nextExpiryMs(rows, now), Date.parse('2026-09-22T18:00:00Z'));
+});
+
+test('an unparseable date never arms the timer', () => {
+  const now = Date.parse('2026-09-22T12:00:00Z');
+  // isActive reads a bad date as live rather than locking someone out; this agrees by declining
+  // to schedule a wake-up it cannot place in time.
+  assert.equal(nextExpiryMs([{ product: 'tier_pro', expires_at: 'not-a-date' }], now), null);
 });

@@ -300,6 +300,31 @@ export function isActive(row: EntitlementRow, nowMs: number): boolean {
 }
 
 /** Does the user hold an ACTIVE grant for `product`? (Direct product check, tier-independent.) */
+/**
+ * WHEN THE ANSWER GOES OFF: the soonest future expiry among the rows that are active NOW, in
+ * epoch ms, or null when nothing on the account can lapse.
+ *
+ * A resolved tier is a snapshot taken against one clock. Without this it carries no expiry date
+ * and nothing can tell that it has stopped being true, which is how a cancelled subscriber kept
+ * every PRO control until they happened to reload (use-tier arms one timer off this).
+ *
+ * EVERY active row counts, not only the one that won the tier: a sibling app's row ending changes
+ * the bundle price, and a per-binder print unlock ending changes what the print sheet offers.
+ */
+export function nextExpiryMs(rows: EntitlementRow[], nowMs: number): number | null {
+  let soonest: number | null = null;
+  for (const row of rows) {
+    if (!row.expires_at || !isActive(row, nowMs)) continue;
+    const at = Date.parse(row.expires_at);
+    // A row already past, or with an unparseable date, is not a future change. isActive treats an
+    // unparseable date as live (it will not lock somebody out over a bad string) and this agrees:
+    // there is no moment to wake up for.
+    if (!Number.isFinite(at) || at <= nowMs) continue;
+    if (soonest === null || at < soonest) soonest = at;
+  }
+  return soonest;
+}
+
 export function hasProduct(rows: EntitlementRow[], product: string, nowMs: number): boolean {
   return rows.some((r) => r.product === product && isActive(r, nowMs));
 }

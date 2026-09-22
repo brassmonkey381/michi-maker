@@ -11,6 +11,7 @@
  * subscription perk (one-time prints are per-binder, checked via `products`).
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { AppState, Platform } from 'react-native';
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 
 import type { BillingInterval } from '@/data/printWindow';
@@ -26,6 +27,7 @@ import {
   tcgscanLevel as computeTcgscanLevel,
   isActive,
   limitsForTier,
+  nextExpiryMs,
   PRODUCTS,
   resolveTier,
   type EntitlementRow,
@@ -52,6 +54,13 @@ interface TierState {
   termAllocation: number | null;
   /** Which Free cap set this account reads: the server's answer (my_cap_tier). */
   capSet: CapSet;
+  /**
+   * WHEN THIS ANSWER STOPS BEING TRUE: the soonest future `expires_at` among the rows that were
+   * active when it was resolved, in epoch ms, or null when nothing on the account can lapse.
+   * The whole state is computed against one `now`, so without this the resolution is a snapshot
+   * with no expiry date attached to it and nothing can tell it has gone off.
+   */
+  expiresAt: number | null;
 }
 
 export interface UseTier {
@@ -111,7 +120,92 @@ export function refreshAllTiers(): void {
   // The cache is what every mount reads first, so an invalidation has to clear it — otherwise a
   // screen that remounts after a checkout would rehydrate the pre-purchase tier from memory.
   tierCache = null;
+  disarmExpiry();
   for (const bump of tierListeners) bump();
+}
+
+/**
+ * THE ANSWER HAS TO BE ABLE TO GO OFF BY ITSELF.
+ *
+ * `loadTier` resolves everything against one `now` and freezes the result, so a trial that ends
+ * or a subscription that lapses WHILE THE APP IS OPEN changed nothing on screen: the cache is
+ * keyed by uid, the mount effect early-returns on a cache hit, and nothing sampled the clock
+ * again. A cancelled subscriber kept every PRO control until they happened to reload.
+ *
+ * So the cache carries its own expiry and a single timer re-reads at exactly that moment. Not a
+ * poll: one timeout, armed only when something can actually lapse, and it costs nothing when
+ * nothing can. The server was never fooled by any of this (every cap trigger and RPC re-checks
+ * `expires_at > now()`); it was the UI that kept offering what the server would refuse.
+ */
+let expiryTimer: ReturnType<typeof setTimeout> | null = null;
+/**
+ * setTimeout overflows past ~24.8 days and fires IMMEDIATELY, which would turn a distant yearly
+ * renewal into a refresh loop. Long horizons are slept in chunks and re-armed instead.
+ */
+const MAX_TIMER_MS = 6 * 60 * 60 * 1000;
+
+function disarmExpiry(): void {
+  if (expiryTimer) clearTimeout(expiryTimer);
+  expiryTimer = null;
+}
+
+function armExpiry(): void {
+  disarmExpiry();
+  const at = tierCache?.expiresAt;
+  if (!at) return;
+  const delay = at - Date.now();
+  if (delay <= 0) {
+    refreshAllTiers();
+    return;
+  }
+  expiryTimer = setTimeout(() => {
+    expiryTimer = null;
+    const due = tierCache?.expiresAt;
+    if (!due) return;
+    if (due - Date.now() <= 0) refreshAllTiers();
+    else armExpiry(); // a horizon longer than one chunk: sleep the next one
+  }, Math.min(delay, MAX_TIMER_MS));
+}
+
+/**
+ * AND IT HAS TO NOTICE WHAT HAPPENED WHILE NOBODY WAS LOOKING. The timer covers a lapse the app
+ * could predict; it cannot cover a cancellation, a refund or a purchase made somewhere else (the
+ * Stripe portal in another tab, an admin, a second device). Coming back to the app is the moment
+ * that is worth re-reading, and it is also exactly when someone returns from checkout.
+ *
+ * Throttled, because a phone can foreground several times a minute and this is a network read.
+ */
+const FOREGROUND_MIN_GAP_MS = 30_000;
+let lastForegroundCheck = 0;
+let foregroundInstalled = false;
+
+function onForeground(): void {
+  const now = Date.now();
+  if (now - lastForegroundCheck < FOREGROUND_MIN_GAP_MS) return;
+  lastForegroundCheck = now;
+  if (tierCache) refreshAllTiers();
+}
+
+/**
+ * Installed once, by the first mounted useTier, and never torn down: the tier store is a
+ * singleton for the life of the process and so is its listener.
+ */
+function installForegroundWatch(): void {
+  if (foregroundInstalled) return;
+  foregroundInstalled = true;
+  try {
+    if (Platform.OS === 'web') {
+      globalThis.document?.addEventListener?.('visibilitychange', () => {
+        if (globalThis.document?.visibilityState === 'visible') onForeground();
+      });
+    } else {
+      AppState.addEventListener('change', (s) => {
+        if (s === 'active') onForeground();
+      });
+    }
+  } catch {
+    // A platform without either is simply left with the timer, which is the important half.
+  }
 }
 
 /**
@@ -167,6 +261,7 @@ function loadTier(uid: string): Promise<void> {
       // Resolve against "now" here rather than during render — never call the clock in render.
       const now = Date.now();
       const tier = resolveTier({ isSignedIn: true, rows }, now);
+      const expiresAt = nextExpiryMs(rows, now);
       // Billing shape of the row that WON the tier resolution (a VIP row's term is the one
       // that matters when someone holds both). Absent columns read as null — same defensive
       // stance as the select('*') above.
@@ -211,7 +306,9 @@ function loadTier(uid: string): Promise<void> {
           (tierRow as { term_print_allocation?: number | null } | undefined)
             ?.term_print_allocation ?? null,
         capSet,
+        expiresAt,
       };
+      armExpiry();
     } catch {
       // Leave the cache empty and say nothing. Waking the listeners here would send every mounted
       // hook straight back into this function, which on a persistent failure is an endless retry
@@ -249,6 +346,7 @@ export function useTier(): UseTier {
   useEffect(() => {
     // Only real accounts can hold paid tiers; guests never query (they're always 'guest').
     if (!supabase || !isSignedIn || !user) return;
+    installForegroundWatch();
     // Nothing to do when this identity is already resolved. `state` is a dependency so that a
     // refresh() — which clears the cache and wakes every subscriber — lands back here and refetches.
     if (tierCache?.uid === user.id) return;

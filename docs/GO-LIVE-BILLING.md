@@ -167,6 +167,38 @@ one without the other is the common mistake.
 Also unhandled: `charge.dispute.*`. A chargeback revokes nothing, and a charged-back Founder keeps
 both PRO and its seat of the 100.
 
+## 2c. Audit findings that were reviewed and ACCEPTED (2026-09-22)
+
+A four-part audit of the billing lifecycle raised 22 items. **None was reported by a customer**,
+none was a security defect, and after review the owner accepted all but five. This section exists
+so the same list is not re-raised as news by the next audit: if something here starts costing
+money or generating support, that is the signal to act, not the fact that it is written down.
+
+FIXED, because they were costing money or were plainly wrong:
+- A replayed webhook re-armed a spent binder-PDF purchase (one payment, two prints).
+- A subscription event stamped an expiry on perpetual rows (hand-granted, and Apple lifetime).
+- A customer inside a Stripe-side trial could start a SECOND subscription in the same app.
+- `useEntitlement` ignored `expires_at` entirely (dead code, fixed rather than deleted).
+- A resolved tier never went stale, so a lapse mid-session kept PRO until a reload (this one).
+
+ACCEPTED, with the reason:
+- **A refund does not revoke or cancel.** Deliberate: refund and revocation are separate support
+  decisions here, as they are in most subscription products. See the table in 2b.
+- **Chargebacks are handled by hand.** Stripe notifies and holds the evidence flow; the only real
+  cost is a charged-back Founder keeping a seat of the 100, which is a manual correction.
+- **Refunded binder PDFs and print-pool unlocks stay unlocked.** Low value, and the pool unlock is
+  documented as irreversible by design.
+- **No trial-ending or failed-payment handling in code.** Stripe Billing sends both natively and
+  runs Smart Retries; this is a dashboard setting, not a gap in the handler.
+- **PRO feature flags are resolved client-side.** Universal practice. The numeric caps, which are
+  the ones that cost money, are enforced by insert-time triggers (20260723220000).
+- **The endpoint API version is unpinned.** Stripe does not move an account's version unasked.
+- **No webhook event dedup.** Every write is an idempotent upsert, which is the documented answer.
+- **Apple/Stripe row precedence is asymmetric** and Apple lifetime rows carry `interval: null`.
+  Dormant: no iOS purchase can be made today. Revisit before the first iOS build ships.
+- **RevenueCat authenticates with a shared header secret and no body signature.** That IS
+  RevenueCat's documented mechanism; they offer no HMAC. Not a defect.
+
 ## 3. Webhook endpoint (live mode)
 
 Dashboard → Developers → Webhooks → Add endpoint (in **live** mode).

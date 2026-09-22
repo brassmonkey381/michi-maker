@@ -190,16 +190,27 @@ async function upsertSubscriptionGrant(sub: Stripe.Subscription) {
 
 /** One ledger row from one subscription. `bundled` = this subscription grants more than one product. */
 async function upsertOneGrant(sub: Stripe.Subscription, userId: string, product: string, bundled: boolean) {
-  // A FOUNDER ROW IS NOT A SUBSCRIPTION'S TO END. Lifetime rows have no expiry; a late event from
-  // a subscription the person held before buying Founder must never put one on it.
+  // A PERPETUAL ROW IS NOT A SUBSCRIPTION'S TO END. A row with no expiry was granted to last:
+  // Founder, a comped membership, a support grant. A late event from a subscription the person
+  // held before it must never put an expiry on one.
+  //
+  // THE TEST IS `expires_at IS NULL` ALONE. It used to also require `interval === 'lifetime'`,
+  // which sounded stricter and was in fact a hole, because three real row shapes have no expiry
+  // and are not labelled lifetime: every hand-granted row written before the interval column
+  // existed (20260715130000) leaves interval null, and RevenueCat writes an Apple LIFETIME row
+  // with interval null too, since `tcgscan_pro_lifetime` ends in neither _yearly nor _monthly.
+  // All of them were being stamped with an expiry by the next subscription event.
+  //
+  // Nothing legitimate is blocked by widening it: a live subscription's own row always carries a
+  // period end, so it never has a null expiry to protect.
   const { data: held } = await service()
     .from('entitlements')
     .select('expires_at, interval')
     .eq('user_id', userId)
     .eq('product', product)
     .maybeSingle();
-  if (held && held.expires_at === null && held.interval === 'lifetime') {
-    console.log('lifetime row kept, subscription event not written', sub.id, product);
+  if (held && held.expires_at === null) {
+    console.log('perpetual row kept, subscription event not written', sub.id, product, held.interval ?? 'no interval');
     return;
   }
 
@@ -360,7 +371,15 @@ Deno.serve(async (req: Request) => {
                   product: `pdf_binder:${session.metadata.binder_id}`,
                   source: 'stripe',
                   expires_at: null,
-                  granted_at: new Date().toISOString(),
+                  // THE SESSION'S OWN CLOCK, NEVER now(). This grant is the one write in the
+                  // webhook that is not a pure function of the Stripe object, and that cost a
+                  // free print: Stripe retries a delivery on any 5xx or timeout, `now()` made
+                  // every retry a NEWER granted_at, and pdfSnapshot reads a granted_at later
+                  // than the last spend as "bought again, re-armed". One payment, two prints.
+                  // session.created is fixed for the life of the session, so a replay writes
+                  // the same value and changes nothing, while a genuine second purchase of the
+                  // same binder is a NEW session with a later created and still re-arms.
+                  granted_at: new Date(session.created * 1000).toISOString(),
                 },
                 { onConflict: 'user_id,product' },
               );

@@ -759,11 +759,22 @@ Deno.serve(async (req: Request) => {
   // the existing subscription and bills the exact whole-month figure. Checkout must never be that
   // path, so this stays as the backstop that makes a duplicate subscription impossible.
   if (mode === 'subscription' && mapping?.stripe_customer_id) {
-    const existing = await stripe.subscriptions.list({
+    // `status: 'all'`, then filtered by HOLDS_PLAN. Asking Stripe for 'active' alone was the
+    // hole: Stripe reports a trialing subscription as `trialing`, and THIS function is what
+    // creates those (the trial_end block below), so anyone inside a Stripe-side trial walked
+    // straight past the duplicate guard and could start a second subscription in the same app.
+    // past_due and unpaid are the same story mid-dunning: the customer still holds the plan.
+    // HOLDS_PLAN is the set the portal-configuration decision already uses; the two code paths
+    // disagreeing about what "holds a plan" means is what let this through.
+    // limit 100 (Stripe's max) because 'all' includes every canceled subscription this customer
+    // ever had, newest first: a small window could fill with dead ones and push the live plan out
+    // of sight, which fails OPEN and is the exact bug being closed.
+    const all = await stripe.subscriptions.list({
       customer: mapping.stripe_customer_id,
-      status: 'active',
-      limit: 10,
+      status: 'all',
+      limit: 100,
     });
+    const existing = { data: all.data.filter((s) => HOLDS_PLAN.has(s.status)) };
     // Block a SECOND subscription within the SAME app only. The two apps are independent
     // (a michi tier and a tcgscan tier co-exist by design — see docs/SYNERGY.md), but PRO↔VIP
     // within one app is a plan change, never a new subscription: a second one would bill both
@@ -780,8 +791,12 @@ Deno.serve(async (req: Request) => {
     const buyingTcgscanTier = buyingBundle || michiProduct === 'tcgscan_pro' || michiProduct === 'tcgscan_vip';
     if ((holdsMichiTier && buyingMichiTier) || (holdsTcgscanTier && buyingTcgscanTier)) {
       return json(409, {
+        // The old wording said plan changes "aren't open yet", which stopped being true when
+        // change_plan landed and the portal started switching intervals. Telling a customer a
+        // capability does not exist while it sits behind the button they just pressed is worse
+        // than the refusal itself.
         error:
-          'You already have an active plan in this app. Changing plans isn’t open yet — it has to move your existing subscription rather than start a second one.',
+          'You already have an active plan in this app. To move to a different one, open billing management from the Plans page rather than starting a second subscription.',
       });
     }
   }

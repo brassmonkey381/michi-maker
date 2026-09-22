@@ -143,6 +143,30 @@ by hand, per mode.
 
 ---
 
+## 2b. What a refund does, and does not, do
+
+Audited 2026-09-22 against the code, not against memory. Worth knowing before answering a support
+email, because the answer is not the obvious one.
+
+| Product | Refund revokes access? | Refund stops renewal? |
+|---|---|---|
+| Subscription (monthly or yearly) | **No** | **No** |
+| Founder (lifetime) | Yes, immediately | n/a |
+| Binder PDF ($1.99) | **No** | n/a |
+
+`charge.refunded` (`payments-webhook/index.ts:404`) deliberately handles ONLY Founder: a lifetime
+row has no expiry and no subscription to cancel, so nothing else would ever end it. A subscription
+renewal has no Checkout Session for its PaymentIntent at all, so the lookup finds nothing and the
+handler exits before touching the ledger.
+
+So **refunding a subscriber leaves them on PRO and bills them again next month.** To end a
+subscription you CANCEL it (the portal, or `verify-live-subscription.ps1 -Mode cancel -Yes` for an
+immediate one); the refund only returns the money. The two are separate operations here and doing
+one without the other is the common mistake.
+
+Also unhandled: `charge.dispute.*`. A chargeback revokes nothing, and a charged-back Founder keeps
+both PRO and its seat of the 100.
+
 ## 3. Webhook endpoint (live mode)
 
 Dashboard → Developers → Webhooks → Add endpoint (in **live** mode).

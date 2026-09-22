@@ -316,8 +316,31 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: '2026-09-17',
-    title: 'Auto flip, and art that joins up',
+    title: 'Two more games, auto flip, and art that joins up',
     items: [
+      {
+        products: ['michi'],
+        head: 'One Piece cards are in michi-maker',
+        pinned: true,
+        kind: 'new',
+        area: 'cards',
+        big: true,
+        body:
+          'A binder can hold One Piece cards beside Pokémon ones, with names, art and prices on every '
+          + 'page, share image and print. To pick them, add ?multi-tcg to any michi-maker address once, '
+          + 'on the web, and the card picker offers the game from then on.',
+      },
+      {
+        products: ['michi'],
+        head: 'Disney Lorcana cards are in michi-maker',
+        pinned: true,
+        kind: 'new',
+        area: 'cards',
+        big: true,
+        body:
+          'Lorcana cards work the same way, with their inks in the colour search and their prices on '
+          + 'the tile. Same switch: ?multi-tcg on the web, once.',
+      },
       {
         products: ['michi'],
         head: 'A binder can turn its own pages',
@@ -1957,3 +1980,40 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
 ];
+
+/**
+ * HOW FAR BACK THE PAGE LOOKS (owner, 2026-09-21). A changelog that opens on July is a history
+ * book; three months is what a returning reader would call "lately". The window is applied to the
+ * batch date, so a batch is in or out whole, the way it is read.
+ */
+export const RECENCY_OPTIONS = [
+  { id: '1w', label: '1 Week', days: 7 },
+  { id: '3w', label: '3 Weeks', days: 21 },
+  { id: '3m', label: '3 Months', days: 91 },
+  { id: '1y', label: '1 Year', days: 365 },
+  { id: 'all', label: 'All Time', days: null },
+] as const;
+export type RecencyId = (typeof RECENCY_OPTIONS)[number]['id'];
+export const DEFAULT_RECENCY: RecencyId = '3m';
+
+/**
+ * FRESH means within the last week. A pinned item this new is the one thing a returning visitor
+ * has not seen yet: the page highlights it, and the rail's What's New link lights up while one
+ * exists (nav/AppRail.web), so the light goes out by itself seven days after the batch's date.
+ */
+export const FRESH_DAYS = 7;
+
+const DAY_MS = 86_400_000;
+
+/** True when the batch dated `iso` is within `days` of `now`; a null window is all time. */
+export function isWithin(iso: string, days: number | null, now: number = Date.now()): boolean {
+  if (days === null) return true;
+  const t = Date.parse(`${iso}T00:00:00Z`);
+  if (Number.isNaN(t)) return true; // a malformed date is a bug in the entry, not a reason to hide it
+  return now - t <= days * DAY_MS;
+}
+
+/** The pinned items on batches dated within the last week: what the rail's glow stands for. */
+export function freshPinned(now: number = Date.now()): ChangelogItem[] {
+  return CHANGELOG.filter((e) => isWithin(e.date, FRESH_DAYS, now)).flatMap((e) => e.items.filter((i) => i.pinned));
+}

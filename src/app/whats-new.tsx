@@ -13,6 +13,11 @@
  * of these do you want" is usually "more than one". All start on. Turning a whole row off shows
  * nothing and says so, rather than silently falling back to everything, which would make the
  * toggles a lie.
+ *
+ * IT OPENS ON PINNED, AND ON THE LAST THREE MONTHS (owner, 2026-09-21). The first screen is the
+ * short list of what this product is, not the log of last Tuesday; the log is one press away. A
+ * pinned item from the last week is FRESH: it wears the accent, because it is the one thing a
+ * returning reader has not seen, and the rail's What's New link glows while one exists.
  */
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -28,7 +33,12 @@ import {
   CHANGE_KINDS,
   CHANGELOG,
   CHANGELOG_PRODUCTS,
+  DEFAULT_RECENCY,
+  FRESH_DAYS,
+  RECENCY_OPTIONS,
+  isWithin,
   type ChangeKind,
+  type RecencyId,
   type ChangelogProduct,
   type ChangeArea,
 } from '@/data/changelog';
@@ -91,8 +101,18 @@ export default function WhatsNewScreen() {
   const [areas, setAreas] = useState<ChangeArea[]>(AREA_IDS);
   // PINNED (owner, 2026-09-21): the curated short list, and nothing else. It does not change the
   // other filters, it sets them ASIDE: they go quiet while it is on and come back exactly as they
-  // were left when it goes off. Off by default, because the page is a changelog first.
-  const [pinnedOnly, setPinnedOnly] = useState(false);
+  // were left when it goes off. ON by default: the page opens on what matters, and one press
+  // turns it into the changelog.
+  const [pinnedOnly, setPinnedOnly] = useState(true);
+  // How far back to look. Its own axis, beside Pinned rather than under it: it applies to the
+  // pinned list too, so "pinned, this week" is a thing a reader can ask for.
+  const [recency, setRecency] = useState<RecencyId>(DEFAULT_RECENCY);
+  const [recencyOpen, setRecencyOpen] = useState(false);
+  const recencyDays = RECENCY_OPTIONS.find((o) => o.id === recency)?.days ?? null;
+  const recencyLabel = RECENCY_OPTIONS.find((o) => o.id === recency)?.label ?? '';
+  // The clock is read ONCE, when the page opens: a changelog does not need to notice midnight,
+  // and the compiler wants render to be pure.
+  const [now] = useState(() => Date.now());
 
   const toggleProduct = (id: ChangelogProduct) =>
     setProducts((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -103,8 +123,11 @@ export default function WhatsNewScreen() {
 
   // Filter the ITEMS, then drop any release left with nothing: a day where only the other product
   // shipped, or only fixes, should not leave an empty card behind.
-  const entries = CHANGELOG.map((entry) => ({
+  const entries = CHANGELOG.filter((entry) => isWithin(entry.date, recencyDays, now)).map((entry) => ({
     ...entry,
+    // Fresh: dated within the last week. Only a PINNED item wears it (below); the rest of a fresh
+    // batch is just new, which its date already says.
+    fresh: isWithin(entry.date, FRESH_DAYS, now),
     items: entry.items
       .filter((item) =>
         pinnedOnly
@@ -137,7 +160,7 @@ export default function WhatsNewScreen() {
       </ThemedText>
 
       <View style={styles.filters}>
-        <View style={styles.filterRow}>
+        <View style={[styles.filterRow, styles.topRow]}>
           <Pressable
             onPress={() => setPinnedOnly((on) => !on)}
             accessibilityRole="switch"
@@ -154,6 +177,47 @@ export default function WhatsNewScreen() {
               {pinnedOnly ? '★ Pinned: the important ones' : '★ Pinned'}
             </ThemedText>
           </Pressable>
+          {/* THE RECENCY SELECT: one closed pill that names the window, and the five windows under
+              it when it is open. Absolute, so opening it moves nothing on the page. */}
+          <View style={styles.recencyWrap}>
+            <Pressable
+              onPress={() => setRecencyOpen((open) => !open)}
+              accessibilityRole="button"
+              accessibilityLabel={`Show updates from the last ${recencyLabel.toLowerCase()}. Change the window`}
+              accessibilityState={{ expanded: recencyOpen }}
+              testID="whatsnew-recency"
+              style={({ pressed }) => [styles.kindFilter, styles.recencyButton, pressed && styles.pressed]}>
+              <ThemedText style={styles.kindFilterText} themeColor="textSecondary">
+                {recencyLabel}
+              </ThemedText>
+              <ThemedText style={styles.recencyChevron} themeColor="textSecondary">
+                {recencyOpen ? '▴' : '▾'}
+              </ThemedText>
+            </Pressable>
+            {recencyOpen ? (
+              <ThemedView type="backgroundElement" style={styles.recencyMenu} testID="whatsnew-recency-menu">
+                {RECENCY_OPTIONS.map((option) => {
+                  const on = option.id === recency;
+                  return (
+                    <Pressable
+                      key={option.id}
+                      onPress={() => {
+                        setRecency(option.id);
+                        setRecencyOpen(false);
+                      }}
+                      accessibilityRole="menuitem"
+                      accessibilityState={{ selected: on }}
+                      testID={`whatsnew-recency-${option.id}`}
+                      style={({ pressed }) => [styles.recencyOption, on && styles.recencyOptionOn, pressed && styles.pressed]}>
+                      <ThemedText type={on ? 'smallBold' : 'small'} themeColor={on ? undefined : 'textSecondary'}>
+                        {option.label}
+                      </ThemedText>
+                    </Pressable>
+                  );
+                })}
+              </ThemedView>
+            ) : null}
+          </View>
         </View>
         {/* Set aside, not hidden: the reader can see their filters are still there, waiting. */}
         <View style={[styles.filterGroup, pinnedOnly && styles.setAside]} pointerEvents={pinnedOnly ? 'none' : 'auto'}>
@@ -233,7 +297,11 @@ export default function WhatsNewScreen() {
 
       {entries.length === 0 ? (
         <ThemedText type="small" themeColor="textSecondary" style={styles.empty}>
-          {pinnedOnly ? 'Nothing is pinned yet.' : 'Nothing matches. Turn something back on above.'}
+          {recency !== 'all'
+            ? `Nothing ${pinnedOnly ? 'pinned ' : ''}in the last ${recencyLabel.toLowerCase()}. Widen the window above.`
+            : pinnedOnly
+              ? 'Nothing is pinned yet.'
+              : 'Nothing matches. Turn something back on above.'}
         </ThemedText>
       ) : (
         <View style={styles.list}>
@@ -249,11 +317,24 @@ export default function WhatsNewScreen() {
               </View>
               {entry.items.map((item) => {
                 const color = KIND_COLOR[item.kind];
+                const fresh = entry.fresh && Boolean(item.pinned);
                 return (
                   <View
                     key={`${item.products.join()}:${item.head}`}
-                    style={[styles.item, item.big && styles.bigItem, item.big && { borderLeftColor: color }]}>
+                    testID={fresh ? 'whatsnew-fresh' : undefined}
+                    style={[
+                      styles.item,
+                      item.big && styles.bigItem,
+                      item.big && { borderLeftColor: color },
+                      // Fresh AND pinned: the accent's ground, so it is found before it is read.
+                      fresh && styles.freshItem,
+                    ]}>
                     <View style={styles.tags}>
+                      {fresh ? (
+                        <View style={styles.freshTag}>
+                          <ThemedText style={styles.freshTagText}>THIS WEEK</ThemedText>
+                        </View>
+                      ) : null}
                       <View style={[styles.kindTag, { backgroundColor: tint(color, 0.16) }]}>
                         <ThemedText style={[styles.kindTagText, { color }]}>
                           {kindLabel(item.kind).toUpperCase()}
@@ -290,9 +371,39 @@ export default function WhatsNewScreen() {
 const styles = StyleSheet.create({
   h1: { fontSize: FontSize.title, lineHeight: 34, marginBottom: Spacing.two },
   lede: { lineHeight: 20, marginBottom: Spacing.three },
-  filters: { gap: Spacing.two, marginBottom: Spacing.four },
+  // Above the list, so the open recency menu draws over the first card rather than under it.
+  filters: { gap: Spacing.two, marginBottom: Spacing.four, zIndex: 2 },
   filterGroup: { gap: Spacing.two },
   setAside: { opacity: 0.35 },
+  // Above the set-aside group, so the open menu draws over it rather than under it.
+  topRow: { zIndex: 2, alignItems: 'center' },
+  recencyWrap: { position: 'relative', zIndex: 2 },
+  recencyButton: { borderColor: Palette.hairlineStrong, gap: 4 },
+  recencyChevron: { fontSize: FontSize.label, lineHeight: 14 },
+  recencyMenu: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    marginTop: 4,
+    minWidth: 150,
+    borderRadius: Radius.control,
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
+    paddingVertical: 4,
+    boxShadow: '0 6px 20px rgba(0, 0, 0, 0.18)',
+  },
+  recencyOption: { paddingVertical: 7, paddingHorizontal: Spacing.three },
+  recencyOptionOn: { backgroundColor: Palette.panel },
+  // A pinned item from the last week: the accent's ground, edge to edge of the item.
+  freshItem: {
+    backgroundColor: tint(Palette.accent, 0.1),
+    borderRadius: Radius.control,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.two,
+    marginHorizontal: -Spacing.two,
+  },
+  freshTag: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.tag, backgroundColor: Palette.accent },
+  freshTagText: { fontSize: FontSize.label, fontWeight: Weight.bold, letterSpacing: 0.5, color: Palette.accentText },
   pinnedFilter: { borderColor: Palette.accent },
   pinnedFilterOn: { backgroundColor: Palette.accent },
   filterRow: { flexDirection: 'row', gap: Spacing.two, flexWrap: 'wrap' },

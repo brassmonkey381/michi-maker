@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { CHANGELOG } from './changelog.ts';
+import { CHANGELOG, FRESH_DAYS, freshPinned, isWithin } from './changelog.ts';
 
 const pinned = CHANGELOG.flatMap((e) => e.items.filter((i) => i.pinned).map((i) => ({ ...i, date: e.date })));
 
@@ -38,4 +38,25 @@ test('a headline appears once, so pinning by headline pins one item', () => {
   const heads = CHANGELOG.flatMap((e) => e.items.map((i) => `${i.products.join()}:${i.head}`));
   const twice = heads.filter((h, i) => heads.indexOf(h) !== i);
   assert.deepEqual(twice, []);
+});
+
+test('a batch is within a window by its date, and all time is all time', () => {
+  const day = 86_400_000;
+  const now = Date.parse('2026-09-21T15:00:00Z');
+  assert.equal(isWithin('2026-09-21', 7, now), true);
+  assert.equal(isWithin('2026-09-15', 7, now), true);
+  assert.equal(isWithin('2026-09-13', 7, now), false);
+  assert.equal(isWithin('2026-07-11', null, now), true);
+  assert.equal(isWithin('2026-07-11', 91, now + 200 * day), false);
+});
+
+test('the rail lights up for a pinned item under a week old, and goes out by itself', () => {
+  const day = 86_400_000;
+  const newest = CHANGELOG.find((e) => e.items.some((i) => i.pinned));
+  assert.ok(newest, 'no batch has a pinned item');
+  const at = Date.parse(`${newest.date}T12:00:00Z`);
+  assert.ok(freshPinned(at).length > 0, 'nothing fresh on the day of the newest pinned batch');
+  assert.ok(freshPinned(at).every((i) => i.pinned));
+  // A year on, no batch of today's is a week old.
+  assert.equal(freshPinned(at + (FRESH_DAYS + 1) * day).length, 0);
 });

@@ -79,6 +79,13 @@ limit that a pinned item names changes, update that item's words and leave its d
 test fails if a pinned item still says VIP or a 14-day trial, or names the other product (which
 would hide it).
 
+The page OPENS on the pinned list, with the last three months showing (the recency select beside
+the Pinned switch: 1 Week, 3 Weeks, 3 Months, 1 Year, All Time). A pinned item on a batch dated
+within the last seven days is FRESH: the page gives it the accent's ground and a THIS WEEK tag,
+and the rail's What's New link glows with a chevron while one exists (`freshPinned` in
+`changelog.ts`). Both go quiet on their own a week after the batch date, so pinning something in a
+new batch is also how the rail is lit; there is no separate switch.
+
 ## Things that have gone wrong before
 
 - Claiming "everywhere" for something that reached one screen. Say where it works.

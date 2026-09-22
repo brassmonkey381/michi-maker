@@ -8,7 +8,8 @@
  * they are; the rail only carries pages.
  */
 import { usePathname, useRouter, type Href } from 'expo-router';
-import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { LogoMark } from '@/components/brand/LogoMark';
 import { useTcgscanOpen } from '@/components/monetization/BundleOffer';
@@ -17,10 +18,22 @@ import { Wordmark } from '@/components/brand/Wordmark';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Breakpoints, Fonts, FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import { freshPinned } from '@/data/changelog';
 import { SHOW_CROSS_APP } from '@/lib/crossApp';
 import { useAuth } from '@/store/auth';
 
-type RailItem = { label: string; href: Href; match: (path: string) => boolean; external?: boolean };
+type RailItem = {
+  label: string;
+  href: Href;
+  match: (path: string) => boolean;
+  external?: boolean;
+  /**
+   * LIT (owner, 2026-09-21): a glow in the accent and a chevron after the label, while there is
+   * something the reader has not seen. Today only What's New earns it, and only while a pinned
+   * item is under a week old (data/changelog: freshPinned); the light goes out on its own.
+   */
+  glow?: boolean;
+};
 
 // Two groups: "Explore" (discovery + info) and "You" (the account's own stuff). Within You,
 // My Binders sits directly above My Purchases.
@@ -35,7 +48,7 @@ const EXPLORE: RailItem[] = [
   { label: 'Plans', href: '/plans' as Href, match: (p) => p.startsWith('/plans') || p.startsWith('/subscriptions') || p.startsWith('/pricing') },
   { label: 'How-To', href: '/learn' as Href, match: (p) => p.startsWith('/learn') },
   { label: 'The Michi Method', href: '/michi-method', match: (p) => p.startsWith('/michi-method') },
-  { label: 'What’s New', href: '/whats-new' as Href, match: (p) => p.startsWith('/whats-new') },
+  { label: 'What’s New', href: '/whats-new' as Href, match: (p) => p.startsWith('/whats-new'), glow: freshPinned().length > 0 },
   // The sister app, in the rail where every page can see it. External: it leaves for tcgscan.ai.
   ...(SHOW_CROSS_APP ? [{ label: 'TCGScan ↗', href: TCGSCAN_URL as Href, match: () => false, external: true }] : []),
 ];
@@ -126,24 +139,71 @@ function RailGroup({
               disabled={item.external && opening}
               accessibilityRole="link"
               accessibilityState={{ selected: active, busy: item.external && opening }}
+              testID={item.glow ? 'rail-item-glow' : undefined}
               style={({ pressed }) => [
                 styles.item,
                 active && styles.itemActive,
+                item.glow && styles.itemGlow,
                 (pressed || (item.external && opening)) && styles.pressed,
               ]}>
+              {item.glow ? <Glow /> : null}
               <ThemedText
-                type={active ? 'smallBold' : 'small'}
-                themeColor={active ? undefined : 'textSecondary'}
-                style={styles.itemText}>
+                type={active || item.glow ? 'smallBold' : 'small'}
+                themeColor={active || item.glow ? undefined : 'textSecondary'}
+                style={[styles.itemText, item.glow && styles.itemTextGlow]}>
                 {/* The TCGScan link mints a sign-in ticket before it navigates; it says so while
                     that is happening rather than looking like a link that missed the press. */}
                 {item.external && opening ? 'Opening…' : item.label}
               </ThemedText>
+              {item.glow ? (
+                <ThemedText style={[styles.itemText, styles.itemTextGlow, styles.chevron]}>›</ThemedText>
+              ) : null}
             </Pressable>
           );
         })}
       </View>
     </>
+  );
+}
+
+/**
+ * THE LIGHT BEHIND A LIT ITEM: a ring in the accent that breathes, two seconds a breath, under the
+ * pill and never in the way of the press. Still when the reader has asked for less motion; the
+ * ring and the chevron still say it without moving.
+ */
+function Glow() {
+  const pulse = useMemo(() => new Animated.Value(0), []);
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    let active = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((on) => active && setReduceMotion(on))
+      .catch(() => {});
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', (on) => (active ? setReduceMotion(on) : undefined));
+    return () => {
+      active = false;
+      sub?.remove?.();
+    };
+  }, []);
+  useEffect(() => {
+    if (reduceMotion) {
+      pulse.setValue(0.6);
+      return;
+    }
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 1000, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 1000, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ]),
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [pulse, reduceMotion]);
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[styles.glowRing, { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] }) }]}
+    />
   );
 }
 
@@ -193,7 +253,21 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
   },
   itemActive: { backgroundColor: Palette.panel },
+  itemGlow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', position: 'relative' },
+  glowRing: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Palette.accent,
+    boxShadow: `0 0 12px ${Palette.accent}`,
+  },
   itemText: { fontSize: FontSize.label },
+  itemTextGlow: { color: Palette.accent },
+  chevron: { fontSize: FontSize.md, lineHeight: 18, marginLeft: Spacing.two },
   grow: { flexGrow: 1 },
   bottom: {
     borderTopWidth: 1,

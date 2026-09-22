@@ -381,6 +381,51 @@ export type Database = {
         }
         Relationships: []
       }
+      feedback_responses: {
+        Row: {
+          answers: Json
+          app: string
+          contact_email: string | null
+          contact_ok: boolean
+          context: Json
+          created_at: string
+          id: string
+          nps: number | null
+          survey_id: string
+          survey_version: number
+          user_id: string | null
+          was_guest: boolean | null
+        }
+        Insert: {
+          answers?: Json
+          app: string
+          contact_email?: string | null
+          contact_ok?: boolean
+          context?: Json
+          created_at?: string
+          id?: string
+          nps?: number | null
+          survey_id: string
+          survey_version: number
+          user_id?: string | null
+          was_guest?: boolean | null
+        }
+        Update: {
+          answers?: Json
+          app?: string
+          contact_email?: string | null
+          contact_ok?: boolean
+          context?: Json
+          created_at?: string
+          id?: string
+          nps?: number | null
+          survey_id?: string
+          survey_version?: number
+          user_id?: string | null
+          was_guest?: boolean | null
+        }
+        Relationships: []
+      }
       community_stats: {
         Row: {
           artwork_placed: number

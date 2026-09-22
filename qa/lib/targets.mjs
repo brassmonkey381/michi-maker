@@ -72,6 +72,8 @@ export const ROUTES = {
     { path: '/browse', alive: 'text=Browse All Cards', auth: 'any', heavy: true },
     { path: '/discover', alive: 'placeholder=Search public binders', auth: 'any' },
     { path: '/my-binders', alive: 'text=My Binders', auth: 'any' },
+    // Guests and signed-in accounts both get the whole form; there is no account-only branch.
+    { path: '/feedback', alive: 'text=Send feedback', auth: 'any' },
     // ANCHOR ON THE TABLE, NOT ON A CTA. "Build binders free" was the Free column's button, so the
     // marker only existed for a viewer who was not signed in — and it vanished outright when that
     // button became "Sign in free to start" (2026-09-21), reddening the sweep for a page that was

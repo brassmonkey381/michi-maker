@@ -23,6 +23,7 @@ const STATIC = [
   { path: '/whats-new', priority: '0.5', changefreq: 'weekly' },
   { path: '/browse', priority: '0.5', changefreq: 'weekly' },
   { path: '/auto-fill-methods', priority: '0.5', changefreq: 'yearly' },
+  { path: '/feedback', priority: '0.3', changefreq: 'yearly' },
 ];
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

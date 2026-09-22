@@ -55,6 +55,10 @@ const EXPLORE: RailItem[] = [
 const YOU: RailItem[] = [
   { label: 'My Binders', href: '/my-binders' as Href, match: (p) => p.startsWith('/my-binders') },
   { label: 'My Purchases', href: '/purchases' as Href, match: (p) => p.startsWith('/purchases') },
+  // Under My Purchases by the owner's placement. It is in the YOU group rather than EXPLORE
+  // because it is a thing you do with your own account, and it is a route rather than a modal
+  // so the phone and the narrow web, where this rail does not exist at all, can still reach it.
+  { label: 'Leave Feedback', href: '/feedback' as Href, match: (p) => p.startsWith('/feedback') },
 ];
 
 export function AppRail() {

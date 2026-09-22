@@ -18,7 +18,7 @@ import { PageShell } from '@/components/layout/PageShell';
 import { ThemedText } from '@/components/themed-text';
 import { Fonts, FontSize, Spacing } from '@/constants/theme';
 
-const LAST_UPDATED = 'August 24, 2026';
+const LAST_UPDATED = 'September 22, 2026';
 
 interface Section {
   heading: string;
@@ -33,6 +33,7 @@ const SECTIONS: Section[] = [
       'Profile: your permanent username, optional avatar, and a public or private flag you control.',
       'Your work: binders, pages, pocket contents, notes, saved art slices, and images you upload.',
       'Collection data: card inventory you import from TCGScan or by CSV, if you use those features.',
+      'Feedback you send us: if you fill in the feedback form, the ratings and written answers you give, an email address only when you supply one, and whether you asked us to reply. It is stored against the account you are using at the time, guest or signed in, along with your plan, the platform you were on and how many binders you have, so an answer can be read in context. It is never added to any mailing list, and if you delete your account the address is removed from it.',
       'On this device: small preferences like your theme choice and whether you have seen the landing page, stored locally.',
     ],
   },

@@ -130,6 +130,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-09-22',
+    title: 'Tell us what to build next',
+    items: [
+      {
+        products: ['michi'],
+        head: 'Leave Feedback, in the left menu',
+        kind: 'new',
+        area: 'account',
+        big: true,
+        body:
+          'A page for saying what is working, what is not, and which card games and features you '
+          + 'want next. Every question is optional and you do not need an account. It is under My '
+          + 'Purchases in the menu, and at the bottom of every page.',
+      },
+    ],
+  },
+  {
     date: '2026-09-21',
     title: 'Preview your print, and printing at $1.99',
     items: [

@@ -149,7 +149,18 @@ Dashboard → Developers → Webhooks → Add endpoint (in **live** mode).
 
 - [x] URL: `https://piikwvntldytjejxmcla.supabase.co/functions/v1/payments-webhook`
 - [x] Events: `checkout.session.completed`, `invoice.paid`, `customer.subscription.updated`,
-      `customer.subscription.deleted` (exactly the four the handler switches on)
+      `customer.subscription.deleted`
+- [ ] `charge.refunded` — **added to the handler 2026-09, never subscribed here.** Found
+      2026-09-21: this line said "exactly the four the handler switches on", the handler had grown
+      a fifth case, and a checked-off doc line cannot notice that it has gone stale. The case ends
+      a refunded Founder's lifetime membership and frees its seat of the 100
+      (`payments-webhook/index.ts:404`), so until it is subscribed a refunded Founder keeps PRO for
+      good and keeps consuming a seat.
+
+> **DO NOT MAINTAIN THIS LIST BY HAND.** Run `stripe-webhook-events.ps1` (workspace root): it asks
+> Stripe what the live endpoint is subscribed to, compares that against every `case` in the
+> handler's switch, and with `-Apply` subscribes what is missing. It only ever adds, and it reads
+> the result back rather than trusting the 200.
 - [x] Copy the endpoint's **live signing secret** (`whsec_…`) for §4
 
 ---

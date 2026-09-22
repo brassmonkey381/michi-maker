@@ -32,9 +32,22 @@ param(
 $ErrorActionPreference = 'Stop'
 $Repo = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $ProjectRef = 'piikwvntldytjejxmcla'
-# Plain deploys only. Per docs/GO-LIVE-BILLING.md the per-function verify_jwt settings must stay
-# payments-webhook=false and the rest=true; a plain `functions deploy` preserves them, and passing
-# --no-verify-jwt to checkout or auth-handoff would open them up.
+# THE verify_jwt SETTINGS NOW LIVE IN supabase/config.toml, AND THEY HAVE TO.
+#
+# This comment used to say "a plain `functions deploy` preserves them". IT DOES NOT. With no
+# config.toml the CLI applies its own default of verify_jwt = true to every function it deploys,
+# overwriting whatever the dashboard held. On 2026-09-22 02:07 UTC a routine run of this script
+# turned JWT verification ON for payments-webhook, and Stripe — which sends a `stripe-signature`
+# header and no Supabase JWT — was answered 401 by the edge gateway for five minutes. Nothing was
+# lost only because no billing event happened to fire in that window.
+#
+# supabase/config.toml now pins verify_jwt = false for payments-webhook and the other four
+# functions that must accept an unauthenticated caller, so a deploy reads the setting from the repo
+# instead of erasing it. Do not pass --no-verify-jwt here: it would apply to every function in the
+# list, including checkout and auth-handoff, which must keep verification on.
+#
+# If this ever drifts again, ../fix-webhook-jwt.ps1 repairs it and verifies from outside by POSTing
+# to the endpoint: 400 "missing signature" means Stripe can reach the handler, 401 means it cannot.
 $Functions = @('auth-handoff', 'stripe-checkout', 'delete-account', 'payments-webhook')
 
 function Fail($step, $msg) {

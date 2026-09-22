@@ -145,6 +145,24 @@ function appFamilyOf(lookupKey: string): AppFamily | null {
   return null;
 }
 
+/**
+ * EVERY entitlement product a tier lookup key grants. The bundle grants BOTH apps' PRO from one
+ * subscription, so it is a list, not a value — mirrors payments-webhook's
+ * `tierProductsFromLookupKey`.
+ *
+ * DERIVED FROM THE LOOKUP KEY, NOT FROM STRIPE PRODUCT METADATA, and that is the point. The rest
+ * of this function reads `michi_product` off the Stripe Product, and the bundle product has no
+ * such metadata field set — it is `null` in the live catalog. Anything keyed on that metadata
+ * silently treats a bundle purchase as "no product at all", which is exactly how a bundle
+ * checkout stopped preserving a live trial (see the trial_end block below). A lookup key is in
+ * this repo and cannot be edited out from under the code by a change in the Stripe dashboard.
+ */
+function tierProductsFor(lookupKey: string): string[] {
+  if (isBundleKey(lookupKey)) return ['tier_pro', 'tcgscan_pro'];
+  const one = tierProductFor(lookupKey);
+  return one ? [one] : [];
+}
+
 /** The entitlement product a tier lookup key grants (mirrors the webhook's map). */
 function tierProductFor(lookupKey: string): string | null {
   if (lookupKey.startsWith('michi_vip')) return 'tier_vip';
@@ -170,6 +188,76 @@ async function activeSubscriptionFor(
       return appFamilyOf(k) === family;
     }) ?? null
   );
+}
+
+/**
+ * WHICH CUSTOMER-PORTAL CONFIGURATION THIS CUSTOMER SHOULD GET, or undefined for the account
+ * default. Returning undefined is the SAFE answer: the default configuration has
+ * `subscription_update` disabled, so the customer still gets cancel, payment method and invoices —
+ * just no plan switch.
+ *
+ * WHY NOT THE ACCOUNT DEFAULT. Not because the API refuses it — `subscription_update.products`
+ * stores fine anywhere; it is merely "not returned by default" and needs
+ * `expand[]=features.subscription_update.products` to read back, which is a trap this codebase
+ * fell into twice. The reason is the LIST ITSELF: the two-app bundle must never be switchable,
+ * because a customer holding michi PRO *and* TCGScan Pro could move one onto it and pay for both,
+ * and the portal bypasses every duplicate guard in this function. Keeping one configuration per
+ * app family, built by `scripts/stripe-portal-config.mjs` and tagged in metadata, makes that
+ * exclusion a reviewable fact in the repo instead of a dashboard checkbox.
+ *
+ * CHOSEN BY WHAT THE CUSTOMER HOLDS, not by which app asked. Two of the three outcomes are the
+ * point:
+ *   - exactly one app family's subscription  -> that family's configuration; they can move between
+ *     yearly and monthly of the plan they already have.
+ *   - the two-app BUNDLE                     -> undefined, so no switch is offered. `appFamilyOf`
+ *     returns null for a bundle key, which is what produces this. Correct: the bundle's own price
+ *     pair is deliberately absent from both configurations, because a customer who holds michi PRO
+ *     *and* TCGScan Pro (two subscriptions, allowed by design) could otherwise switch one onto the
+ *     bundle and pay $74.99 + $49.99 for a ledger row that can only exist once.
+ *   - one of EACH app's plan                 -> undefined, same reasoning, and this is the exact
+ *     customer the double-bill would hit.
+ *
+ * Cached for the life of the isolate: the configurations change only when the script above is run.
+ * A lookup failure degrades to undefined rather than throwing — a portal that opens without the
+ * switch beats a portal that will not open.
+ */
+const portalConfigCache = new Map<string, string | null>();
+const PORTAL_CONFIG_TAG = 'tcgscan_portal_family';
+/** Statuses that mean the customer still holds the plan (matches the webhook's dunning handling). */
+const HOLDS_PLAN = new Set(['active', 'trialing', 'past_due', 'unpaid']);
+
+async function portalConfigurationFor(
+  stripe: Stripe,
+  customerId: string,
+): Promise<string | undefined> {
+  try {
+    const subs = await stripe.subscriptions.list({ customer: customerId, status: 'all', limit: 20 });
+    const families = new Set(
+      subs.data
+        .filter((s) => HOLDS_PLAN.has(s.status))
+        .map((s) => appFamilyOf(s.items?.data?.[0]?.price?.lookup_key ?? ''))
+        .filter((f): f is AppFamily => f !== null),
+    );
+    if (families.size !== 1) return undefined;
+    const family = [...families][0];
+
+    if (!portalConfigCache.has(family)) {
+      const all = await stripe.billingPortal.configurations.list({ limit: 20, active: true });
+      const found = all.data.find(
+        (c) => (c.metadata as Record<string, string> | null)?.[PORTAL_CONFIG_TAG] === family,
+      );
+      portalConfigCache.set(family, found?.id ?? null);
+      if (!found) {
+        console.log(
+          `no portal configuration tagged ${PORTAL_CONFIG_TAG}=${family}; falling back to the account default (no plan switch). Run scripts/stripe-portal-config.mjs.`,
+        );
+      }
+    }
+    return portalConfigCache.get(family) ?? undefined;
+  } catch (e) {
+    console.log('portal configuration lookup failed, using the account default', (e as Error).message);
+    return undefined;
+  }
 }
 
 /** current_period_start lives on the subscription in older API versions, on the item in newer. */
@@ -253,9 +341,11 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
     if (!mapping) return json(404, { error: 'no billing history yet' });
     try {
+      const configuration = await portalConfigurationFor(stripe, mapping.stripe_customer_id);
       const session = await stripe.billingPortal.sessions.create({
         customer: mapping.stripe_customer_id,
         return_url: returnUrl,
+        ...(configuration ? { configuration } : {}),
       });
       return json(200, { url: session.url });
     } catch (e) {
@@ -265,8 +355,12 @@ Deno.serve(async (req: Request) => {
       // dashboard setting. Plan changes need `subscription_update` enabled on that config.
       const message = (e as Error).message ?? 'portal session failed';
       console.error('portal session failed', message);
+      // The advice here used to say "enable subscription_update for the PRO and VIP products" in
+      // the dashboard. Both halves are wrong now: VIP is retired, and the plan-switch list cannot
+      // be set from the dashboard in any verifiable way (the API silently drops it on the default
+      // configuration). scripts/stripe-portal-config.mjs is the route.
       return json(502, {
-        error: `Stripe could not open the billing portal. If this Stripe mode has no Customer Portal configuration yet, create one (with subscription_update enabled for the PRO and VIP products) at Settings → Billing → Customer portal. Stripe said: ${message}`,
+        error: `Stripe could not open the billing portal. If this Stripe mode has no Customer Portal configuration yet, create one at Settings → Billing → Customer portal — the plan-switch options come from the dedicated configurations that scripts/stripe-portal-config.mjs creates, not from that screen. Stripe said: ${message}`,
       });
     }
   }
@@ -745,17 +839,35 @@ Deno.serve(async (req: Request) => {
    * trial_end. Ordered newest-first because the ledger can hold lapsed rows for the same product.
    */
   let trialEnd: number | undefined;
-  if (mode === 'subscription' && michiProduct) {
+  // EVERY PRODUCT THIS PURCHASE GRANTS, not the one the Stripe metadata names.
+  //
+  // This used to gate on `michiProduct` and match `.eq('product', michiProduct)`. For the two-app
+  // bundle that value is the empty string, because the bundle product carries no `michi_product`
+  // metadata in the live catalog — so the whole block was skipped and a member who was in the
+  // middle of a live PRO trial and chose to buy the bundle was charged on the spot and lost every
+  // remaining free day. Precisely the outcome the comment below says must not happen, reached
+  // through a field nobody thought of as load-bearing.
+  //
+  // `.in(...)` plus newest-first means a bundle buyer keeps the LATER of their two trials, so
+  // neither app's free days are cut short by the purchase that covers both.
+  const trialProducts = tierProductsFor(lookupKey);
+  if (mode === 'subscription' && trialProducts.length) {
     const { data: trialRows } = await service
       .from('entitlements')
       .select('expires_at')
       .eq('user_id', user.id)
-      .eq('product', michiProduct)
+      .in('product', trialProducts)
       .eq('source', 'trial')
       .order('expires_at', { ascending: false })
       .limit(1);
     const endMs = trialRows?.[0]?.expires_at ? Date.parse(trialRows[0].expires_at) : NaN;
     if (Number.isFinite(endMs) && endMs > Date.now()) {
+      // STRIPE WILL NOT ACCEPT A trial_end UNDER 48 HOURS OUT, so on a 3-day trial someone who
+      // converts on the last day is GIVEN up to two extra free days rather than refused. That is a
+      // deliberate choice between two imperfect ones: the alternative is to drop trial_end and
+      // charge immediately, which takes free days away from somebody in the act of paying us. The
+      // gift is bounded by the 48h floor and only reachable by converting early, so it is cheap and
+      // it errs toward the customer. It becomes worth revisiting if TRIAL_DAYS ever grows.
       const STRIPE_MIN_MS = Date.now() + 48 * 60 * 60 * 1000;
       trialEnd = Math.ceil(Math.max(endMs, STRIPE_MIN_MS) / 1000);
     }

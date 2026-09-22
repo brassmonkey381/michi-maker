@@ -1,0 +1,49 @@
+# Supabase project config — and specifically, THE PER-FUNCTION verify_jwt SETTINGS.
+#
+# WHY THIS FILE EXISTS, and it cost a live webhook outage to learn.
+#
+# `payments-webhook` must run with verify_jwt = false. Stripe signs its requests with a
+# `stripe-signature` header and sends no Supabase JWT, so with JWT verification on, the edge
+# gateway answers 401 UNAUTHORIZED_NO_AUTH_HEADER before the handler is ever reached: every
+# checkout, renewal, cancellation and refund silently stops granting or revoking anything. The
+# handler's own security is the signature check (`stripe.webhooks.constructEventAsync`), which is
+# stronger than a JWT for this purpose because it proves the request came from Stripe.
+#
+# That setting used to live ONLY in the Supabase dashboard, and deploy-functions.ps1 carried a
+# comment asserting that "a plain `functions deploy` preserves them". It does not. With no
+# config.toml the CLI applies its OWN default — verify_jwt = true — to every function it deploys,
+# overwriting whatever the dashboard said. On 2026-09-22 02:07 UTC a routine four-function deploy
+# therefore turned JWT verification ON for payments-webhook and broke Stripe delivery. It was
+# caught within minutes, by asking the management API what the live setting was rather than
+# trusting the dashboard, and by POSTing to the endpoint with no auth header and reading the 401.
+#
+# The tell, for next time: the webhooks NOT in that deploy (revenuecat-webhook, art-proxy,
+# scan-janitor, unsubscribe) were all still false afterwards. Only the deployed ones flipped.
+#
+# So the settings are now IN THE REPO, where a deploy reads them and a reviewer can see them.
+# Every function that must accept an unauthenticated caller is listed below with the reason.
+# A function absent from this file gets the CLI default of verify_jwt = true, which is the right
+# default for anything called by our own signed-in clients.
+project_id = "piikwvntldytjejxmcla"
+
+# Stripe calls this with a `stripe-signature` header and no JWT. The signature IS the auth.
+[functions.payments-webhook]
+verify_jwt = false
+
+# RevenueCat calls this with its own shared-secret header and no JWT, same shape as Stripe's.
+[functions.revenuecat-webhook]
+verify_jwt = false
+
+# A CORS image relay for PDF generation: it proxies public catalog art, holds no user data, and is
+# fetched by the browser without a session.
+[functions.art-proxy]
+verify_jwt = false
+
+# Runs on a schedule, not on behalf of a user.
+[functions.scan-janitor]
+verify_jwt = false
+
+# Reached from a one-click link in an email, where there is no session to carry. The link's own
+# signed token is the auth (UNSUBSCRIBE_SECRET).
+[functions.unsubscribe]
+verify_jwt = false

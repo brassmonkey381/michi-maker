@@ -6,9 +6,11 @@
  * string and a nameless pocket is a bug. This module gates one narrower thing: whether the picker
  * offers One Piece as a source you can browse and place FROM.
  *
- * `?multi-tcg` on any web URL turns it on for that browser and remembers it; `?multi-tcg=off`
- * forgets it. Same shape as the variant switch in constants/variants.ts, and web-only for the same
- * reason: native has no URL to carry it.
+ * ON FOR EVERYONE (owner, 2026-09-21). It was behind `?multi-tcg` while the other games were
+ * proved out; nobody should have to type a query string to see a game. The switch is kept the
+ * other way round: `?multi-tcg=off` on any web URL hides the other games for that browser and
+ * remembers it, and `?multi-tcg` (or `=on`) brings them back. Native has no URL to carry it and
+ * simply has them on.
  */
 import { Platform } from 'react-native';
 
@@ -23,26 +25,27 @@ export function gameLabel(game: GameId): string {
 }
 
 function readFlag(): boolean {
-  if (Platform.OS !== 'web' || typeof window === 'undefined') return false;
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return true;
   try {
     const q = new URLSearchParams(window.location.search);
     if (q.has('multi-tcg')) {
       const v = (q.get('multi-tcg') ?? '').toLowerCase();
       const on = !(v === 'off' || v === '0' || v === 'false');
-      if (on) window.localStorage?.setItem(FLAG_KEY, '1');
-      else window.localStorage?.removeItem(FLAG_KEY);
+      // Only the opt-out is remembered; on is the default and needs no record.
+      if (on) window.localStorage?.removeItem(FLAG_KEY);
+      else window.localStorage?.setItem(FLAG_KEY, 'off');
       return on;
     }
-    return window.localStorage?.getItem(FLAG_KEY) === '1';
+    return window.localStorage?.getItem(FLAG_KEY) !== 'off';
   } catch {
-    return false; // storage can throw in private mode / with site data blocked
+    return true; // storage can throw in private mode / with site data blocked
   }
 }
 
-/** True when this browser may pick One Piece cards. Constant for the page load. */
+/** True unless this browser has opted out of the other games. Constant for the page load. */
 export const MULTI_TCG: boolean = readFlag();
 
-/** The games the picker offers, in order. Pokémon alone unless the flag is on. */
+/** The games the picker offers, in order. Every game unless the browser opted out. */
 export const PICKER_GAMES: readonly GameId[] = MULTI_TCG
   ? ['pokemon', ...SECONDARY_GAMES.map((g) => g.key)]
   : ['pokemon'];

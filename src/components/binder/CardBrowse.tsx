@@ -191,7 +191,7 @@ export function CardBrowse({
   // Waiting costs a locked user nothing: the locks arrive a moment later, and the caps that
   // actually protect revenue are enforced server-side regardless of what this array says.
   /**
-   * WHICH GAME THIS BROWSER IS SHOWING (lib/games — `?multi-tcg` only; otherwise Pokémon alone).
+   * WHICH GAME THIS BROWSER IS SHOWING (lib/games — every game, unless `?multi-tcg=off`).
    *
    * One browser at a time, never two: `browseState` in the kit is a module singleton, so a second
    * mounted CatalogBrowser corrupts the first one's query and sort. Switching the chip swaps which
@@ -459,7 +459,10 @@ export function CardBrowse({
         // will run, so it reads as "this is the kind of thing you can ask for" rather than as one
         // fixed demo; the label is always one press behind what the box will show, which is the
         // right way round, because the label IS the offer.
-        onThemeSearch={() => {
+        // NO THEME BUTTON ON A GAME THAT HAS NO THEME INDEX (owner, 2026-09-21). The kit hides
+        // the button when the handler is absent. A demo that runs against Pokémon's themes while
+        // One Piece is on screen would answer with the wrong game's cards; better no offer.
+        onThemeSearch={secondary ? undefined : () => {
           runThemeDemo('browser', demoTheme);
           setDemoTheme(nextDemoTheme(demoTheme));
           demoPresses.current += 1;

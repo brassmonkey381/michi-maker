@@ -21,7 +21,7 @@
  * never issues one of these requests, and a guest (who never loads the Pokémon catalog at all)
  * cannot trigger a 1.4 MB download by missing on every id.
  *
- * `?multi-tcg` gates one thing only, in lib/games.ts: whether the card picker OFFERS another game.
+ * `?multi-tcg=off` gates one thing only, in lib/games.ts: whether the card picker OFFERS another game.
  *
  * Art is not here: the kit resolves pictures inside its own components, so each game's image
  * manifest is registered with the kit itself (registerImageManifest, lib/catalogConfig.ts) and

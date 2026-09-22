@@ -11,7 +11,7 @@ import { ProStatusBanner } from '@/components/monetization/ProStatusBanner';
 import { ThemedView } from '@/components/themed-view';
 import { AppRail } from '@/components/nav/AppRail';
 import { CatalogWarm } from '@/components/CatalogWarm';
-// READ `?multi-tcg` AT BOOT (2026-09-20). lib/games reads the flag once, when the module first
+// READ `?multi-tcg=off` AT BOOT (2026-09-20). lib/games reads the flag once, when the module first
 // evaluates, and it was only ever imported by the card browser, which loads lazily with its route.
 // By then the router can have rewritten the address: a bare `?multi-tcg` stuck from /my-binders
 // and not from /browse, while `?multi-tcg=` survived both. Importing it here evaluates it with the

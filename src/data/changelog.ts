@@ -336,8 +336,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         big: true,
         body:
           'A binder can hold One Piece cards beside Pokémon ones, with names, art and prices on every '
-          + 'page, share image and print. To pick them, add ?multi-tcg to any michi-maker address once, '
-          + 'on the web, and the card picker offers the game from then on.',
+          + 'page, share image and print. The card picker has a row of games at the top; pick One '
+          + 'Piece and browse it like any other.',
       },
       {
         products: ['michi'],
@@ -348,8 +348,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         area: 'cards',
         big: true,
         body:
-          'Lorcana cards work the same way, with their inks in the colour search and their prices on '
-          + 'the tile. Same switch: ?multi-tcg on the web, once.',
+          'Lorcana cards work the same way, from the same row of games in the card picker, with '
+          + 'their inks in the colour search and their prices on the tile.',
       },
       {
         products: ['michi'],

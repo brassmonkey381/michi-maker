@@ -32,8 +32,8 @@ them first; this file is only the procedure.
 
 3. **Throw most of it away.** A changelog is what a user would notice. Drop: refactors, tests,
    docs, scripts, migrations with no visible effect, deploy fixes, anything reverted the same
-   week, and anything still behind a flag (today: One Piece and Lorcana behind `?multi-tcg`, and
-   the iOS in-app purchases until App Review passes). Several commits that iterate on one feature
+   week, and anything still behind a flag (today: the iOS in-app purchases until App Review
+   passes; One Piece and Lorcana are on for everyone since 2026-09-21). Several commits that iterate on one feature
    are ONE item, described as it ended up.
 
 4. **Group into batches, one entry per batch.** Usually one per day that had something worth

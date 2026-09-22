@@ -9,9 +9,19 @@
  * Guests and signed-out visitors are never entitled. The resolved answer is keyed to the
  * user id it was fetched for, so an account switch can't leak a stale unlock — until the new
  * account's query lands, the hook reports `loading` with `unlocked: false`.
+ *
+ * AN EXPIRED ROW IS NOT AN UNLOCK. The RLS select policy is owner-scoped with no expiry
+ * predicate, so a lapsed row comes back to the client like any other and `expires_at` has to be
+ * checked HERE. It is checked through tiers.isActive rather than by hand, so this agrees with
+ * how every other surface decides the same question.
+ *
+ * NOTHING CALLS THIS TODAY (2026-09-22). It is kept because it is the right shape for a
+ * per-product unlock, and made correct because a dead hook that answers "yes" for a refunded or
+ * lapsed purchase is worse than no hook at all.
  */
 import { useCallback, useEffect, useState } from 'react';
 
+import { isActive } from '@/data/tiers';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/store/auth';
 
@@ -32,12 +42,14 @@ export function useEntitlement(product: string): {
     let live = true;
     supabase
       .from('entitlements')
-      .select('product')
+      .select('product, expires_at')
       .eq('user_id', user.id)
       .eq('product', product)
       .maybeSingle()
       .then(({ data }) => {
-        if (live) setState({ uid: user.id, unlocked: !!data });
+        if (!live) return;
+        const unlocked = !!data && isActive({ product: data.product, expires_at: data.expires_at }, Date.now());
+        setState({ uid: user.id, unlocked });
       });
     return () => {
       live = false;

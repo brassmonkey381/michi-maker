@@ -35,6 +35,14 @@ function aliveCheck(alive) {
       const needle = alive.slice(4);
       return { ok: ctx.url().includes(needle), detail: `final url was ${ctx.url()}, expected it to contain ${needle}` };
     }
+    // `path=` for a redirect whose target is the ROOT. `url=/` is a substring test that every URL
+    // on earth passes, so it cannot express "it landed on /" — the one assertion tcgscan /welcome
+    // needs, since that route 307s to the app root and has no content of its own on web.
+    if (alive.startsWith('path=')) {
+      const want = alive.slice(5);
+      const got = new URL(ctx.url()).pathname.replace(/\/$/, '') || '/';
+      return { ok: got === (want.replace(/\/$/, '') || '/'), detail: `final pathname was ${got}, expected exactly ${want}` };
+    }
     if (alive.startsWith('placeholder=')) {
       const needle = alive.slice(12);
       const n = await ctx.count(`[placeholder*="${needle}"]`);
@@ -87,7 +95,11 @@ for (const [app, routes] of Object.entries(ROUTES)) {
         }
 
         const verdict = await aliveCheck(route.alive)(ctx);
-        ctx.assert(verdict.ok, `${route.path} did not look alive: ${verdict.detail}`);
+        ctx.assert(
+          verdict.ok,
+          `${route.path} did not look alive: ${verdict.detail}`,
+          `${route.path} rendered its own content (${route.alive})`,
+        );
       },
     });
   }

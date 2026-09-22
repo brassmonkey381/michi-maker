@@ -47,12 +47,12 @@ function manifestChecks() {
           throw new ctx.Unmeasurable(`could not reach the bucket: ${e.message}`);
         });
         const status = res.status === 206 ? 200 : res.status;
-        if (!ctx.assert(status === a.expect, `expected HTTP ${a.expect}, got ${status} for ${url}`)) return;
+        if (!ctx.assert(status === a.expect, `expected HTTP ${a.expect}, got ${status} for ${url}`, `HTTP ${status} from ${url}, as expected`)) return;
         if (a.expect !== 200) return;
 
         const len = Number(res.headers.get('content-range')?.split('/')?.[1] ?? res.headers.get('content-length') ?? 0);
         if (a.byteFloor) {
-          ctx.assert(len >= a.byteFloor, `content-length ${len} is below the floor ${a.byteFloor}. A truncated or emptied publish looks exactly like this.`);
+          ctx.assert(len >= a.byteFloor, `content-length ${len} is below the floor ${a.byteFloor}. A truncated or emptied publish looks exactly like this.`, `${len} bytes, at or above the ${a.byteFloor} floor`);
         }
         if (a.rowFloor) {
           const full = await ctx.fetch(url).then((r) => r.json()).catch(() => null);
@@ -62,7 +62,7 @@ function manifestChecks() {
           }
           const rows = a.rowPath ? full[a.rowPath] : Array.isArray(full) ? full : full.cards || full.products || Object.keys(full);
           const n = Array.isArray(rows) ? rows.length : Object.keys(rows || {}).length;
-          ctx.assert(n >= a.rowFloor, `parsed ${n} rows, expected at least ${a.rowFloor}`);
+          ctx.assert(n >= a.rowFloor, `parsed ${n} rows, expected at least ${a.rowFloor}`, `${n} rows parsed, at or above the ${a.rowFloor} floor`);
         }
       },
     };
@@ -95,7 +95,7 @@ function modelChecks() {
         const res = await ctx.fetch(url, { method: 'HEAD' }).catch((e) => {
           throw new ctx.Unmeasurable(e.message);
         });
-        ctx.assert(res.status === 200, `expected 200, got ${res.status} for ${url}`);
+        ctx.assert(res.status === 200, `expected 200, got ${res.status} for ${url}`, `200 from ${url}`);
       },
     })),
   );
@@ -244,9 +244,9 @@ const inApp = [
 
       const gotBlob = seen.some((s) => (s.url.includes('catalog-key') || s.url.includes('catalog.enc')) && s.status < 400);
       if (ctx.persona === 'guest') {
-        ctx.assert(!gotBlob, `a guest obtained the gated catalog (${JSON.stringify(seen)}). The gate has failed open.`);
+        ctx.assert(!gotBlob, `a guest obtained the gated catalog (${JSON.stringify(seen)}). The gate has failed open.`, 'a guest never obtained the gated catalog blob');
       } else {
-        ctx.assert(seen.length > 0, 'no catalog traffic was observed at all, so the browser never tried to load cards');
+        ctx.assert(seen.length > 0, 'no catalog traffic was observed at all, so the browser never tried to load cards', `${seen.length} catalog requests observed, so the browser did try`);
       }
     },
   },
@@ -268,8 +268,8 @@ const inApp = [
       await ctx.goto('/browse', { settle: 5000 });
       await ctx.tierSettled().catch(() => {});
       const body = await ctx.text();
-      ctx.assert(body.includes('Browse'), 'the browse heading never rendered');
-      ctx.assert(!body.includes('Type to search all cards.') || (await ctx.count('img')) > 3, 'the browser rendered no card images');
+      ctx.assert(body.includes('Browse'), 'the browse heading never rendered', 'the browse heading rendered');
+      ctx.assert(!body.includes('Type to search all cards.') || (await ctx.count('img')) > 3, 'the browser rendered no card images', 'the browser rendered card images');
     },
   },
 ];

@@ -45,6 +45,46 @@ function matchRule(url, method) {
 }
 
 /**
+ * ONE URL, MANY ACTIONS. `stripe-checkout` multiplexes: `history` lists receipts you already paid
+ * for, `preview_change` quotes an upgrade, and `change_plan` charges the saved card. A URL-shaped
+ * rule cannot tell them apart, so michi /purchases — a page whose entire job is to show what you
+ * have already bought — voided every run that merely loaded it, and the rig could not audit any
+ * billing surface at all.
+ *
+ * `readOnlyActions` on a rule names the actions that only read. Everything else still trips.
+ *
+ * FAIL CLOSED, in both directions. A body that is absent, is not JSON, or carries no string
+ * `action` is refused, because not knowing what a request does is exactly the case the airlock
+ * exists for. Returns the permitted action, or null to abort.
+ */
+/**
+ * What a tripped request was ASKING for, for the event log. A guard that fires and does not say
+ * which action it refused sends you reading source to find out; this run cost exactly that.
+ * Best-effort and never throws: it only ever annotates a refusal that has already happened.
+ */
+function actionOf(body) {
+  if (typeof body !== 'string' || !body) return null;
+  try {
+    const a = JSON.parse(body)?.action;
+    return typeof a === 'string' ? a : null;
+  } catch {
+    return null;
+  }
+}
+
+function readOnlyAction(rule, body) {
+  if (!rule.readOnlyActions?.length) return null;
+  if (typeof body !== 'string' || !body) return null;
+  let action;
+  try {
+    action = JSON.parse(body)?.action;
+  } catch {
+    return null;
+  }
+  return typeof action === 'string' && rule.readOnlyActions.includes(action) ? action : null;
+}
+
+/**
  * Is this failed request already-known noise?
  * Returns the entry, the string 'expired' when its waiver has run out, or null.
  */
@@ -77,7 +117,12 @@ export async function install(context, { capabilities = [], onTrip, onNet, app }
     if (!rule) return route.continue();
 
     if (rule.policy === 'abort') {
-      onTrip?.({ url, method, rule: rule.match, why: rule.why });
+      const allowed = readOnlyAction(rule, req.postData());
+      if (allowed) {
+        onNet?.({ url, method, rule: rule.match, action: allowed });
+        return route.continue();
+      }
+      onTrip?.({ url, method, rule: rule.match, why: rule.why, action: actionOf(req.postData()) });
       return route.abort('blockedbyclient');
     }
     if (rule.policy === 'gated' && !has(rule.capability)) {
@@ -144,8 +189,11 @@ export function guardedFetch({ onTrip, capabilities = [] }) {
     const rule = matchRule(String(url), method);
 
     if (rule) {
-      if (rule.policy === 'abort' || (rule.policy === 'gated' && !capabilities.includes(rule.capability))) {
-        const detail = { url: String(url), method, rule: rule.match, why: rule.why, side: 'node' };
+      // The multiplexed-URL exception, applied identically to node-side traffic. The two layers
+      // must agree on what is a read: a rule the browser honours and node does not is a hole.
+      const allowed = rule.policy === 'abort' ? readOnlyAction(rule, init.body) : null;
+      if (!allowed && (rule.policy === 'abort' || (rule.policy === 'gated' && !capabilities.includes(rule.capability)))) {
+        const detail = { url: String(url), method, rule: rule.match, why: rule.why, action: actionOf(init.body), side: 'node' };
         onTrip?.(detail);
         throw new Error(`BLOCKED REQUEST: ${method} ${url} matches ${rule.match}. ${rule.why}`);
       }

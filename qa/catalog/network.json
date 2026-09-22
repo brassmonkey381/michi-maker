@@ -17,7 +17,8 @@
     {
       "match": "**/functions/v1/stripe-checkout**",
       "policy": "abort",
-      "why": "The shared checkout function. Its change_plan action finalizes an invoice and calls invoices.pay against the saved card with no hosted Stripe page in front of it (michi-maker/supabase/functions/stripe-checkout/index.ts:505). Nothing in a QA run may reach it."
+      "why": "The shared checkout function, MULTIPLEXED over one URL. Its change_plan action finalizes an invoice and calls invoices.pay against the saved card with no hosted Stripe page in front of it (michi-maker/supabase/functions/stripe-checkout/index.ts:505), and checkout and portal hand back live Stripe URLs. Nothing in a QA run may reach any of those. The two actions in readOnlyActions are pure reads and are the exception: history lists invoices already paid, preview_change calls invoices.createPreview and persists nothing.",
+      "readOnlyActions": ["history", "preview_change"]
     },
     {
       "match": "https://checkout.stripe.com/**",

@@ -60,6 +60,14 @@ async function deployedCaps(fetchFn, base) {
   const bundle = await (await fetchFn(url)).text();
 
   const out = {};
+  // WHY `legacy_free` IS NOT IN THIS LIST, and where it IS covered. This reads the caps out of the
+  // MINIFIED bundle by regex, keyed on the tier being a property of TIER_LIMITS. `legacy_free` is
+  // not one: it is a separate export built by spreading TIER_LIMITS.free and overriding three
+  // fields, so after minification there is no `legacy_free:{binders:...}` shape to match and any
+  // pattern for it would be guessing at the minifier's output. Source-exact coverage for that tier
+  // lives in scripts/check-tier-caps.mjs, which imports both objects directly and now checks all
+  // five tiers, and deploy-web.ps1 gates on it before a deploy. This check is the deployed-artifact
+  // half of the same question, and is deliberately the narrower one.
   for (const tier of ['guest', 'free', 'pro', 'vip']) {
     const m = new RegExp(`${tier}:\\{binders:([^,]+),pagesPerBinder:([^,]+),composerPagesPerMonth:[^,]+,artUploads:([^,]+)`).exec(bundle);
     if (!m) continue;
@@ -108,7 +116,7 @@ export default {
             if (norm(caps[key]) !== server) drift.push(`${key}/${tier}: deployed ${norm(caps[key])} vs table ${server}`);
           }
         }
-        ctx.assert(drift.length === 0, drift.length ? `the shipped app and the live table disagree: ${drift.join('; ')}` : 'in agreement');
+        ctx.assert(drift.length === 0, `the shipped app and the live table disagree: ${drift.join('; ')}`, 'the shipped cap numbers and the live tier_caps table are in agreement');
       },
     },
     {

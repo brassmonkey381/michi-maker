@@ -86,8 +86,15 @@ export function makeNodeCtx({ persona, app, target, resolved, capabilities = [],
      * of the security-definer RPCs are exactly the second case.
      */
     token: resolved?.session?.access_token ?? null,
-    assert(ok, detail) {
-      assertions.push({ ok: Boolean(ok), detail });
+    /**
+     * WHAT IT PROVES, NOT ONLY WHAT WOULD BE WRONG. `detail` is the FAILURE message — it is written
+     * for the case where `ok` is false. Reporting it on a pass printed 30 green rows reading
+     * "/plans did not look alive" and "the kit pin has rolled back", which is how a clean sweep came
+     * to read like a broken one. `proved` is the optional pass-side sentence; a check that supplies
+     * one says what held, and one that does not is counted rather than quoted.
+     */
+    assert(ok, detail, proved) {
+      assertions.push({ ok: Boolean(ok), detail, proved });
       return Boolean(ok);
     },
     assertions: () => assertions,
@@ -189,9 +196,15 @@ export function makeCtx({ page, app, target, persona, resolved, capabilities, le
 
     click,
 
-    /** Every assertion a check makes. The first failure wins; the rest still record. */
-    assert(ok, detail) {
-      assertions.push({ ok: Boolean(ok), detail });
+    /**
+     * WHAT IT PROVES, NOT ONLY WHAT WOULD BE WRONG. `detail` is the FAILURE message — it is written
+     * for the case where `ok` is false. Reporting it on a pass printed 30 green rows reading
+     * "/plans did not look alive" and "the kit pin has rolled back", which is how a clean sweep came
+     * to read like a broken one. `proved` is the optional pass-side sentence; a check that supplies
+     * one says what held, and one that does not is counted rather than quoted.
+     */
+    assert(ok, detail, proved) {
+      assertions.push({ ok: Boolean(ok), detail, proved });
       return Boolean(ok);
     },
 

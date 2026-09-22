@@ -72,7 +72,12 @@ export const ROUTES = {
     { path: '/browse', alive: 'text=Browse All Cards', auth: 'any', heavy: true },
     { path: '/discover', alive: 'placeholder=Search public binders', auth: 'any' },
     { path: '/my-binders', alive: 'text=My Binders', auth: 'any' },
-    { path: '/plans', alive: 'text=Build binders free', auth: 'any' },
+    // ANCHOR ON THE TABLE, NOT ON A CTA. "Build binders free" was the Free column's button, so the
+    // marker only existed for a viewer who was not signed in — and it vanished outright when that
+    // button became "Sign in free to start" (2026-09-21), reddening the sweep for a page that was
+    // perfectly healthy. A capability label is rendered for every persona and every tier, which is
+    // what `auth: 'any'` needs, and two of them means one copy edit cannot red the sweep alone.
+    { path: '/plans', alive: 'any=Pages per binder|Slice Studio artworks', auth: 'any', note: 'Anchored on the comparison table, which every tier sees. CTA copy differs per tier and is not a liveness marker.' },
     { path: '/pricing', alive: 'url=/plans', auth: 'any', note: 'Redirects. The assertion is the final pathname.' },
     { path: '/subscriptions', alive: 'url=/plans', auth: 'any' },
     { path: '/contest', alive: 'text=How it works', auth: 'any' },
@@ -91,7 +96,12 @@ export const ROUTES = {
     { path: '/collection', alive: 'tab=Collection', auth: 'any' },
     { path: '/settings', alive: 'tab=Settings', auth: 'any' },
     { path: '/plans', alive: 'text=PRO', auth: 'any' },
-    { path: '/welcome', alive: 'text=One trading card game today', auth: 'any' },
+    // /welcome IS A NATIVE SCREEN AND THE WEB ROUTE IS A REDIRECT. Measured 2026-09-21:
+    // https://www.tcgscan.ai/welcome answers 307 to /, and it is the only tcgscan route that does.
+    // The web first-run surface is /landing.html; welcome.tsx is what the iOS and Android binaries
+    // show. Asserting its copy here reddened the sweep for a route behaving exactly as designed, so
+    // what is asserted is the redirect. If /welcome ever stops bouncing, THAT is the regression.
+    { path: '/welcome', alive: 'path=/', auth: 'any', note: 'Web-only behaviour: 307s to the app root. The first-run copy lives in /landing.html on web and in the native binary.' },
     { path: '/sessions', alive: 'text=Scan sessions', auth: 'signed-in' },
     { path: '/scan', alive: 'tab=Scan', auth: 'any', heavy: true, note: 'Downloads a model. Excluded from the light sweep.' },
   ],

@@ -302,7 +302,14 @@ async function runOne(check, ctx, ledger, onEvent, persona, { nodeOnly }) {
       detail = failed.map((f) => f.detail).join(' | ');
       if (!nodeOnly) shot = await ctx.shot(`${check.id}-${persona}`);
     } else {
-      detail = ctx.assertions().map((a) => a.detail).filter(Boolean).slice(0, 2).join(' | ');
+      // A PASS MAY NOT BORROW THE FAILURE MESSAGE. `a.detail` describes what would be wrong, so
+      // printing it on a green row produced a ledger of PASSes reading "did not look alive" and
+      // "the kit pin has rolled back" — the report said the opposite of the result, on the very
+      // rows the owner scans fastest. Quote only what a check explicitly claims it PROVED; when it
+      // claims nothing, count the assertions instead, which is true and says nothing it cannot.
+      const proved = ctx.assertions().map((a) => a.proved).filter(Boolean);
+      const n = ctx.assertions().length;
+      detail = proved.length ? proved.slice(0, 2).join(' | ') : `${n} assertion${n === 1 ? '' : 's'} held`;
     }
     ctx.assertions().length = 0;
   } catch (e) {

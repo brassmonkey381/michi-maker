@@ -59,7 +59,7 @@ export default {
         await ctx.goto('/scan?multi-tcg', { settle: 6000 });
         const body = await ctx.text();
         if (!body.includes('Scan') && !body.includes('scan')) throw new ctx.Unmeasurable('the scan surface never rendered');
-        ctx.assert(!body.includes(TASTE_USED_TITLE), 'a guest was shown the exhausted-taste wall, which belongs to Free accounts only');
+        ctx.assert(!body.includes(TASTE_USED_TITLE), 'a guest was shown the exhausted-taste wall, which belongs to Free accounts only', 'a guest was not shown the Free exhausted-taste wall');
       },
     },
     {
@@ -83,8 +83,8 @@ export default {
         await ctx.goto('/scan?multi-tcg', { settle: 6000 });
         await ctx.tierSettled().catch(() => {});
         const body = await ctx.text();
-        ctx.assert(!body.includes(TASTE_USED_TITLE), 'the exhausted wall appeared with zero pages filed');
-        ctx.assert(!body.includes(BINDER_LOCK), 'the PRO binder lock appeared while free pages remained');
+        ctx.assert(!body.includes(TASTE_USED_TITLE), 'the exhausted wall appeared with zero pages filed', 'no exhausted wall at zero pages filed');
+        ctx.assert(!body.includes(BINDER_LOCK), 'the PRO binder lock appeared while free pages remained', 'no PRO binder lock while free pages remained');
       },
     },
     {
@@ -117,10 +117,10 @@ export default {
           // THE CONTROL. Same seeded counter, PRO account: the wall must not appear. Without this
           // the Free assertion could pass for the wrong reason, such as the wall showing for
           // everyone, and a suite that cannot tell those apart is not testing the cap.
-          ctx.assert(!walled, 'a PRO account was walled by the free binder-page cap');
+          ctx.assert(!walled, 'a PRO account was walled by the free binder-page cap', 'a PRO account passed the free binder-page cap unwalled');
           return;
         }
-        ctx.assert(walled, 'with three pages filed, no wall of any kind was shown to a Free account');
+        ctx.assert(walled, 'with three pages filed, no wall of any kind was shown to a Free account', 'the Free account was walled at the third filed page, as the cap requires');
       },
     },
     {
@@ -151,7 +151,7 @@ export default {
           }
         });
         if (after === null) throw new ctx.Unmeasurable('no binder-taste key was present, so nothing could be measured');
-        ctx.assert(after >= 2, `the counter fell to ${after} from a seeded 2`);
+        ctx.assert(after >= 2, `the counter fell to ${after} from a seeded 2`, `the taste counter held at ${after} and never went backwards`);
       },
     },
     {
@@ -191,10 +191,10 @@ export default {
         if (ctx.persona === 'pro-trial') {
           // The half that proves the gate is a GATE and not just paint. If the marker shows for a
           // PRO account too, the lock is unconditional and the paid tier buys nothing here.
-          ctx.assert(locked === 0, 'a PRO account still saw the "not included on your plan" marker, so Advanced Search never unlocks');
+          ctx.assert(locked === 0, 'a PRO account still saw the "not included on your plan" marker, so Advanced Search never unlocks', 'Advanced Search carried no locked marker for a PRO account');
           return;
         }
-        ctx.assert(locked > 0, 'the Value sort chip rendered with no locked marker for an unpaid tier, so value sort is open to everyone');
+        ctx.assert(locked > 0, 'the Value sort chip rendered with no locked marker for an unpaid tier, so value sort is open to everyone', 'the Value sort chip carried its locked marker for an unpaid tier');
       },
     },
     {
@@ -228,7 +228,7 @@ export default {
           }
         });
         if (!src) throw new ctx.Unmeasurable('could not read the entry bundle to inspect the lock list');
-        ctx.assert(src.includes('registerPriceSummary'), 'the deployed bundle has no registerPriceSummary, so the kit pin has rolled back below 0.9.24');
+        ctx.assert(src.includes('registerPriceSummary'), 'the deployed bundle has no registerPriceSummary, so the kit pin has rolled back below 0.9.24', 'the deployed bundle carries registerPriceSummary, so the kit pin is 0.9.24 or newer');
       },
     },
     {
@@ -259,9 +259,9 @@ export default {
         });
         await ctx.goto('/plans', { settle: 4000 });
         await ctx.tierSettled().catch(() => {});
-        ctx.assert(hits.length === 0, hits.length ? `the plans page reached checkout without a click: ${hits.join(', ')}` : 'no checkout traffic on load');
+        ctx.assert(hits.length === 0, `the plans page reached checkout without a click: ${hits.join(', ')}`, 'the plans page took no money-moving action on load');
         const body = await ctx.text();
-        ctx.assert(body.length > 300, 'the plans page rendered nothing to read');
+        ctx.assert(body.length > 300, 'the plans page rendered nothing to read', `the plans page rendered ${body.length} characters`);
       },
     },
   ],

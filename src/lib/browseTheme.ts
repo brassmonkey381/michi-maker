@@ -25,5 +25,9 @@ export function useBrowseTheme(): Partial<BrowseTheme> {
     danger: Palette.danger,
     imagePlaceholder: Palette.panel,
     overlay: Palette.scrim45,
+    // OUR tile, not TCGPlayer's. A card the catalogue has no art for gets this instead of a
+    // grey box reading "no image"; the kit falls back to that text if this is ever omitted.
+    // Drawn by tcgscan-data's catalog/coming_soon.py from this app's own mark.
+    comingSoonImage: require('@/assets/images/image-coming-soon.png'),
   };
 }

@@ -81,3 +81,7 @@ state/thirty-live.json
 # QA rig run artifacts and browser profiles
 qa/runs/
 qa/state/
+
+# Connected-artwork import working files: 201 source photographs fetched for card identification
+# only, plus the intermediate json. Working files, not product assets, and not ours to redistribute.
+state/connected-art/

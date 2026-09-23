@@ -24,6 +24,25 @@ export const PAGE_SIZES = [
 /**
  * Group detection boxes into rows by their vertical centres.
  *
+ * AND IT IS THE ONE WE USE, which was not the expectation. tcgscan-app already infers a page's
+ * shape (page-from-still's latticeIndices, tuned against labelled scan sessions), and the plan was
+ * to delete this and call theirs. Measured on the real photographs, theirs is wrong for this input
+ * and this is right, on 13 of the first 14 groups.
+ *
+ * WHY, because it is a difference in the subject and not a defect in their code. latticeIndices
+ * looks for TWO POPULATIONS of gaps along an axis: "same line", near zero, because a full binder
+ * page has several cards sharing every row and column, and "next line", about a pocket wide. It
+ * splits at the widest jump between them. A LOOSE GROUP OF CARDS LAID IN ONE ROW has only the
+ * second population: every gap is about a pocket, there is no jump, and every centre collapses
+ * onto a single line. Three cards in a row come back as 1x1 and snap to 2x2, a page that cannot
+ * hold three cards.
+ *
+ * Their module photographs a BINDER PAGE. We photograph two to seven cards on a table, and most of
+ * these groups are exactly the single line its heuristic cannot see. Absolute proximity clustering
+ * has no such assumption: it asks "is this centre within half a card of that row", which is true
+ * for one line and for a grid alike. The two readings are computed side by side in 3-detect-shapes
+ * and they agree only on the groups that ARE grids, which is the boundary this comment describes.
+ *
  * Cards photographed on a table are never perfectly aligned, so rows are found by clustering
  * rather than by equality: a box starts a new row when its centre sits more than `tolerance` of
  * the median card height below the current row's centre. Within a row, boxes are ordered left to

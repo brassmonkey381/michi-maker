@@ -14,17 +14,11 @@
  * launches later).
  */
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator, Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View, } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { AuthSheet } from '@/components/auth/AuthSheet';
 import { useTcgscanOpen } from '@/components/monetization/BundleOffer';
-import { FontSize, Palette, Radius, Shadows, Spacing, Weight } from '@/constants/theme';
+import { Breakpoints, FontSize, Palette, Radius, Shadows, Spacing, Weight } from '@/constants/theme';
 import {
   changePlan,
   formatMoney,
@@ -149,6 +143,12 @@ export function PlanComparison() {
   // so every sub-line of detail widened the table past the page and the VIP column fell off the
   // right edge. Measured width in, wrapping follows; the 720 floor is where panning takes over.
   const [blockW, setBlockW] = useState(0);
+  const { width } = useWindowDimensions();
+  // A PHONE CANNOT PAN TO A PRICE IT CANNOT SEE. Four columns need 720px; at 375 the table showed
+  // the labels and a sliver of Free, with the whole PRO column and its buy button off the right
+  // edge and no scrollbar to say so (the indicator is hidden here, deliberately, for the wide
+  // case). Below this width the comparison stops being a table and becomes two cards.
+  const phone = width < Breakpoints.phone;
   // The note under the pressed CTA: the coming-soon line while checkout is closed, a sign-in
   // nudge for guests, or a checkout error. Never a silent no-op.
   const [note, setNote] = useState<{ tier: string; text: string; error?: boolean } | null>(null);
@@ -248,6 +248,90 @@ export function PlanComparison() {
    */
   /** Free's foot cell. Never a purchase: a sign-up for guests, "your plan" for Free users, and
    *  nothing for subscribers (that would be a downgrade). Same planCta rules as the paid columns. */
+  /**
+   * The two column heads, as functions rather than inline JSX, because the phone layout needs the
+   * same prices and the same "Your current plan" marker. Two copies of the sale/annual-saving
+   * logic would drift the day one of them is edited, and the one nobody is looking at would be
+   * the one quoting the wrong price. Plain functions, matching freeFoot/paidFoot below: a
+   * component defined during render would remount on every keystroke.
+   */
+  const freeHeadBody = () => (
+    <>
+      <Text style={styles.tierName}>{freeHead.name}</Text>
+      <Text style={styles.tierPrice}>{freeHead.price}</Text>
+      <Text style={styles.tierSub}>{freeHead.sub}</Text>
+      {!loading && tier === 'free' ? <Text style={styles.current}>Your current plan</Text> : null}
+    </>
+  );
+
+  const proHeadBody = () => (
+    <>
+      <View style={styles.badgePro}>
+        <Text style={styles.badgeProText}>{proHead.badge}</Text>
+      </View>
+      <Text style={styles.tierName}>{proHead.name}</Text>
+      {/*
+        WHAT THE STRUCK PRICE COMPARES AGAINST. On a bundle it is the list yearly price, because
+        the bundle genuinely discounts it. Otherwise it is twelve months at the monthly rate,
+        which is the honest thing an annual plan is cheaper than. Striking the yearly price
+        against a coupon on itself flatters the number and expires.
+      */}
+      {onSaleYearly ? (
+        <Text style={styles.tierWas}>{proHead.price}</Text>
+      ) : annualList ? (
+        <Text style={styles.tierWas}>{annualList}</Text>
+      ) : null}
+      <View style={styles.priceRow}>
+        <Text style={styles.tierPrice}>
+          {onSaleYearly && proHead.yearlyMinor
+            ? formatMinor(promoPriceMinor(proHead.yearlyMinor, yearlyPercentOff))
+            : proHead.price}
+          <Text style={styles.tierPer}>{proHead.per}</Text>
+        </Text>
+        {!onSaleYearly && annualSaving ? (
+          <View style={styles.saveSticker}>
+            <Text style={styles.saveStickerText}>Save {annualSaving}%</Text>
+          </View>
+        ) : null}
+      </View>
+      <Text style={styles.tierSub}>{onSaleYearly ? saleSub(proHead, yearlyPercentOff) : proHead.sub}</Text>
+      {!loading && tier === 'pro' ? <Text style={styles.current}>Your current plan</Text> : null}
+    </>
+  );
+
+  /**
+   * ONE CARD PER PLAN, PRO FIRST. A comparison table works by letting the eye travel sideways
+   * between two columns; a phone has no sideways, so the comparison is carried by repeating each
+   * capability's name inside both cards instead. PRO leads because it is what the page is for and
+   * because it was the half that used to be off-screen entirely.
+   */
+  const planCards = () => (
+    <View style={styles.phoneCards}>
+      {[
+        { key: 'pro', head: proHeadBody, cell: (row: (typeof COMPARISON)[number]) => row.pro, pro: true, foot: () => paidFoot(proHead) },
+        { key: 'free', head: freeHeadBody, cell: (row: (typeof COMPARISON)[number]) => freeCell(row), pro: false, foot: freeFoot },
+      ].map((col) => (
+        <View key={col.key} style={[styles.phoneCard, col.pro && styles.phoneCardPro]} testID={`plan-card-${col.key}`}>
+          <View style={styles.phoneHead}>{col.head()}</View>
+          <View style={styles.phoneRows}>
+            {COMPARISON.map((row) => (
+              <View key={row.capability} style={[styles.phoneRow, row.highlight && styles.phoneRowHl]}>
+                <Text style={[styles.phoneRowLabel, row.highlight && styles.hlLabel]}>
+                  {row.capability}
+                  {row.mark ? <Text style={styles.mark}>{row.mark}</Text> : ''}
+                </Text>
+                <View style={styles.phoneRowValue}>
+                  <ValueCell cell={col.cell(row)} pro={col.pro} />
+                </View>
+              </View>
+            ))}
+          </View>
+          <View style={styles.phoneFoot}>{col.foot()}</View>
+        </View>
+      ))}
+    </View>
+  );
+
   const freeFoot = () => {
     if (loading) return null;
     const cta = planCta(freeHead, tier);
@@ -402,6 +486,8 @@ export function PlanComparison() {
     // (1440 on this page) capped at 720 and left-aligned, while the table centred itself at
     // 1040 — so the fine print visibly failed to line up with the table above it.
     <View style={styles.block} onLayout={(e) => setBlockW(e.nativeEvent.layout.width)}>
+      {phone ? planCards() : (
+      <>
       {/* The indicator is hidden, not the scrolling: RN Web renders a horizontal ScrollView with
           a permanent scrollbar TRACK even when nothing overflows, which is the useless bar this
           table used to show at every width. Panning still works on genuinely narrow screens,
@@ -484,6 +570,8 @@ export function PlanComparison() {
           </View>
         </View>
       </ScrollView>
+      </>
+      )}
 
       {/* Everything the columns agreed on, said once instead of twice per row. */}
       <View style={styles.everyPlan}>
@@ -563,6 +651,36 @@ const styles = StyleSheet.create({
   // minWidth keeps four columns legible; below that the ScrollView pans, which is the right
   // trade on a narrow window. At full width the block cap means nothing overflows.
   table: { minWidth: 720, flex: 1, paddingTop: TAB_RISE },
+
+  // ── the phone's two cards ──────────────────────────────────────────────────
+  phoneCards: { gap: Spacing.three, paddingTop: Spacing.two },
+  phoneCard: {
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
+    borderRadius: Radius.lg,
+    backgroundColor: Palette.surface,
+    overflow: 'hidden',
+  },
+  /** The one being sold carries the accent, the way the PRO column does in the table. */
+  phoneCardPro: { borderWidth: 2, borderColor: Palette.accent },
+  phoneHead: { padding: Spacing.four, gap: 4, alignItems: 'flex-start' },
+  phoneRows: { borderTopWidth: 1, borderTopColor: Palette.hairline },
+  // Label left, value right, wrapping rather than clipping: some values are a sentence.
+  phoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+    paddingVertical: 10,
+    paddingHorizontal: Spacing.four,
+    borderBottomWidth: 1,
+    borderBottomColor: Palette.hairline,
+  },
+  phoneRowHl: { backgroundColor: Palette.selectionSoft },
+  phoneRowLabel: { fontSize: FontSize.body, color: Palette.ink2, flexShrink: 1, minWidth: 0 },
+  phoneRowValue: { alignItems: 'flex-end', flexShrink: 0 },
+  phoneFoot: { padding: Spacing.four },
   row: { flexDirection: 'row', alignItems: 'stretch' },
 
   cell: {

@@ -63,17 +63,22 @@ for (const e of ent) {
 console.log('\nStep 3: the caps the server would enforce');
 const caps = await trySql(`
   select public.michi_tier('${me.id}'::uuid) as tier,
-         (select count(*) from public.binders where owner_id = '${me.id}' and removed_at is null) as binders_now;
+         (select count(*) from public.binders where owner_id = '${me.id}' and archived_at is null and coalesce(is_demo, false) = false) as binders_now;
 `);
 if (caps) console.log(`  server-derived tier: ${caps[0].tier}   binders today: ${caps[0].binders_now}`);
 
+// The columns are (app, limit_key, tier, value), NOT (tier, key, value); the first version of
+// this script guessed and silently printed nothing, which is exactly the failure mode a
+// pre-flight check exists to prevent. A NULL value means unlimited.
 const capRows = await trySql(`
-  select tier, key, value from public.tier_caps
-  where key in ('binders', 'pagesPerBinder', 'artworks') order by tier, key;
+  select tier, limit_key, value from public.tier_caps
+  where app = 'michi' and limit_key in ('binders', 'pagesPerBinder') order by tier, limit_key;
 `) ?? [];
 if (capRows.length) {
-  console.log('  tier_caps table:');
-  for (const c of capRows) console.log(`    ${String(c.tier).padEnd(12)} ${String(c.key).padEnd(16)} ${c.value}`);
+  console.log('  tier_caps (michi), null = unlimited:');
+  for (const c of capRows) {
+    console.log(`    ${String(c.tier).padEnd(12)} ${String(c.limit_key).padEnd(16)} ${c.value ?? 'unlimited'}`);
+  }
 }
 
 console.log('\nStep 4: the verdict');
@@ -81,7 +86,9 @@ const tier = caps?.[0]?.tier ?? 'unknown';
 const held = caps?.[0]?.binders_now ?? '?';
 // PRO and VIP are Infinity for binders and pages (src/data/tiers.ts). Only Free is finite, and it
 // is finite in two flavours depending on when the account signed up, which the server decides.
-const unlimited = tier === 'pro' || tier === 'vip';
+const row = capRows.find((c) => c.tier === tier && c.limit_key === 'binders');
+// null in tier_caps IS the unlimited marker; an absent row means the tier is not capped here.
+const unlimited = !row || row.value === null;
 console.log(`  tier=${tier}  binders held=${held}  binder cap=${unlimited ? 'unlimited' : 'FINITE'}`);
 if (unlimited) {
   console.log('  OK: the caps will not refuse an import of a handful of binders.');

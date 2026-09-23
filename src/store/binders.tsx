@@ -574,8 +574,29 @@ export function BinderProvider({ children }: { children: ReactNode }) {
    * entirely — the guest banner tells the user their work isn't saving — rather than firing a
    * stream of scary errors. Genuine failures (with a session) log a soft warning, not an error.
    */
+  /**
+   * ONE WRITE AT A TIME, PER BINDER. This is what stopped cards vanishing.
+   *
+   * Every slot op is a multi-REQUEST dance, and each request is its own transaction because
+   * PostgREST has no other kind: `upsertSlot` DELETEs whatever sits in the destination cell
+   * before it writes, `moveSlotToCell` does the same, and `swapSlotCells` parks a pocket at
+   * PARK_ROW and sweeps that cell first. Fire two of those at once and the second one's opening
+   * DELETE can destroy a row the first one has parked or displaced — and the first one's
+   * remaining steps are UPDATEs, which cannot put a row back. The screen kept showing the card
+   * because the local state is optimistic; the server no longer had it; the reload is where the
+   * owner found out.
+   *
+   * The reported trigger was "drag cards around quickly, before one has settled", and that is
+   * exactly the window: a drop fires one write, that write needs two to four round trips, and the
+   * card springs into its new box long before the last of them lands.
+   *
+   * The chain is the whole fix: op N+1 does not open until op N has closed. Keyed per binder so
+   * an unrelated binder's save never waits behind this one, and a FAILED op does not break the
+   * chain — the next edit still gets its turn, it just also learns the save is broken.
+   */
+  const writeChains = useRef(new Map<string, Promise<void>>());
   const persist = useCallback(
-    (op: () => Promise<void>) => {
+    (op: () => Promise<void>, key = 'all') => {
       if (!CLOUD || !user) return;
       // THE BACKSTOP for the edit lease. The UI already stops a read-only tab from reaching most
       // of these paths, but this is the single place every write funnels through, so it is the
@@ -586,10 +607,18 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         console.warn('[michi-maker] save skipped: another tab holds editing for this account');
         return;
       }
-      op().catch((error) => {
-        const message = (error as Error).message;
-        console.warn(`[michi-maker] cloud save failed: ${message}`);
-        setSaveError((prev) => prev ?? message);
+      const chains = writeChains.current;
+      const tail: Promise<void> = (chains.get(key) ?? Promise.resolve())
+        .then(() => op())
+        .catch((error) => {
+          const message = (error as Error).message;
+          console.warn(`[michi-maker] cloud save failed: ${message}`);
+          setSaveError((prev) => prev ?? message);
+        });
+      chains.set(key, tail);
+      // Drop an idle binder's chain rather than growing a map entry per binder for the session.
+      void tail.then(() => {
+        if (chains.get(key) === tail) chains.delete(key);
       });
     },
     [user],
@@ -1575,8 +1604,11 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         ),
       );
       if (!target.isExample) {
-        for (const removedId of removedSlotIds) persist(() => repo.deleteSlot(removedId));
-        persist(() => repo.upsertSlot(pageId, slot));
+        // Same chain, so the clears land BEFORE the placement. These were two independent
+        // fire-and-forget ops: the upsert could arrive first and then be deleted by its own
+        // clear-up, which is the same class of loss on a single action.
+        for (const removedId of removedSlotIds) persist(() => repo.deleteSlot(removedId), target.id);
+        persist(() => repo.upsertSlot(pageId, slot), target.id);
       }
       // Count only a NEW card landing in a pocket (not span/edit tweaks of an existing slot).
       if (!existing && slot.type === 'card' && slot.cardId) {
@@ -2251,7 +2283,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
             : binder,
         ),
       );
-      if (!target.isExample) persist(() => repo.upsertSlot(pageId, moved));
+      if (!target.isExample) persist(() => repo.upsertSlot(pageId, moved), target.id);
     },
     [binders, commit, persist],
   );
@@ -2292,7 +2324,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       );
       // ONE write, in order. Two concurrent upserts raced each other for the same two cells: each
       // cleared "whatever else sits here" and could delete the pocket the other was placing.
-      if (!target.isExample) persist(() => repo.swapSlotCells(pageId, movedA, pageId, movedB));
+      if (!target.isExample) persist(() => repo.swapSlotCells(pageId, movedA, pageId, movedB), target.id);
     },
     [binders, commit, persist],
   );
@@ -2353,7 +2385,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         p.id === fromPageId ? { ...p, slots: fromSlots } : p.id === toPageId ? { ...p, slots: toSlots } : p,
       );
       commit((prev) => prev.map((b) => (b.id === binderId ? { ...b, pages } : b)));
-      if (!target.isExample) persist(save);
+      if (!target.isExample) persist(save, binderId);
     },
     [binders, commit, persist],
   );
@@ -2410,7 +2442,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
             : binder,
         ),
       );
-      if (target && !target.isExample) persist(() => repo.deleteSlot(slotId));
+      if (target && !target.isExample) persist(() => repo.deleteSlot(slotId), target.id);
     },
     [binders, commit, persist],
   );

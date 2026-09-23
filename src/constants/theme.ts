@@ -68,7 +68,13 @@ export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
  * Responsive breakpoints (px). `rail` gates the wide-web left nav rail (matches the editor and
  * spread's existing 900 threshold); `hero` is the landing page's open-spread width.
  */
-export const Breakpoints = { rail: 900, hero: 1180 } as const;
+/**
+ * `phone` is where a layout has to stop being a desktop layout that shrank: one column, no
+ * decorative chrome, and every control earning its vertical space. `rail` is a different
+ * question (is there room for the left rail beside the content) and they are deliberately not
+ * the same number.
+ */
+export const Breakpoints = { phone: 700, rail: 900, hero: 1180 } as const;
 /** Readable column for prose and forms (descriptions, empty states, auth). Text wider than
  *  this gets hard to read, so it stays capped even inside a wide shell. */
 export const MaxContentWidth = 800;

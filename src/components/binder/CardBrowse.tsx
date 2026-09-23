@@ -12,10 +12,11 @@
  */
 import { useRouter, type Href } from 'expo-router';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { browseState, CatalogBrowser, sendBrowseCommand, setColorUrl, type BrowseFeature, type CardAction, type CardActionsFactory, type CardLanguage } from 'tcgscan-browse';
 
+import { Breakpoints } from '@/constants/theme';
 import { ColorSearchSheet } from '@/components/ColorSearchSheet';
 import { promoteArtCards } from '@/data/artRank';
 import { nextDemoTheme } from '@/data/demoThemes';
@@ -105,6 +106,7 @@ export function CardBrowse({
   /** The meter row's tap ("+N more matches") on a metered themed search. Default: the plans page. */
   onThemeLocked?: () => void;
 }) {
+  const { width } = useWindowDimensions();
   // App tokens → the kit's color contract, so the browser follows light/dark + variant
   // instead of falling back to the kit's built-in light look.
   const browseTheme = useBrowseTheme();
@@ -362,6 +364,10 @@ export function CardBrowse({
     // row under them. That row's tap comes back through onLockedFeature('themeSearch') below.
     return locked.length ? locked : undefined;
   }, [hasAdvancedSearch, hasFindSimilar, tierUnknown, secondary]);
+  // A phone, not merely a narrow window: at 375px this page spent 59% of the screen on chrome
+  // before the first card, and every label on it is competing for the same row.
+  const phone = width < Breakpoints.phone;
+
   return (
     <>
       {PICKER_GAMES.length > 1 ? (
@@ -476,7 +482,10 @@ export function CardBrowse({
           }
         }}
         themeSearchLabel={`Theme: ${demoTheme}`}
-        colorSearchLabel="Color Search"
+        // "Color Search" on a phone pushed its own row into a wrap and shoved the kit's NEW!
+        // nudge off the right edge. "Color" says the same thing beside a button that is visibly a
+        // button; "Search" was doing no work the row's position did not already do.
+        colorSearchLabel={phone ? 'Color' : 'Color Search'}
         onColorSearch={() => (isPaid ? setColorOpen(true) : setEnergyOpen(true))}
         footer={null}
         cardTileWidth={CARD_BROWSE_TILE_WIDTH}

@@ -53,6 +53,9 @@ export default function BrowseScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const railHidden = Platform.OS !== 'web' || width < Breakpoints.rail;
+  // Phone, not merely rail-less: a 1000px tablet has room for the full header, a 375px phone does
+  // not, and the two questions have different answers.
+  const phone = width < Breakpoints.phone;
   const openBinder = (id: string) => router.push(`/binder/${id}`);
 
   // A dedicated page loads the catalog on mount (the browser runs cold/server-search until it's in).
@@ -227,8 +230,22 @@ export default function BrowseScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.flex} edges={['top']}>
         <View style={styles.shell}>
+          {/*
+            THE HEADER IS ONE LINE ON A PHONE, and it used to be three.
+            Measured at 375px: eleven rows of chrome stood between the top of this page and the
+            first card, which is 59% of the screen spent before any content. Two of those rows
+            were this header, and neither was carrying its weight:
+
+            - The 34pt serif title wrapped onto THREE lines to say what the search box under it
+              already says ("Search 58,888 cards"). It stays, because a page needs a heading and
+              a screen reader needs an h1, but at a size a phone can afford.
+            - "‹ Home" is gone below the rail breakpoint. It existed because a phone had no
+              navigation at all; it now has a drawer with every destination in it, so this was one
+              link duplicating eleven. It also happened to be the element clipped off the right
+              edge, which is how a redundant control became the only way off the page.
+          */}
           <View style={styles.headerRow}>
-            <ThemedText type="title" style={styles.h1}>
+            <ThemedText type="title" style={[styles.h1, phone && styles.h1Phone]} numberOfLines={phone ? 1 : undefined}>
               Browse All Cards
             </ThemedText>
             <View style={styles.headerRight}>
@@ -237,7 +254,7 @@ export default function BrowseScreen() {
                   `showLanguageToggle`, on by default) so every entry point that opens a browser —
                   this page, the binder card picker, Slice Studio — has the same control in the
                   same place, instead of only the one surface whose header happened to carry it. */}
-              {railHidden ? (
+              {railHidden && !phone ? (
                 <Pressable onPress={() => router.push('/')} hitSlop={8}>
                   <ThemedText type="smallBold" themeColor="textSecondary">
                     ‹ Home
@@ -331,13 +348,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: Spacing.three,
+    marginBottom: Spacing.two,
     gap: Spacing.two,
     flexWrap: 'wrap',
   },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, flexShrink: 0 },
   // flexShrink so the title yields to the controls beside it before anything is pushed off.
   h1: { fontFamily: Fonts?.brand, fontSize: FontSize.display, lineHeight: 40, flexShrink: 1 },
+  /** A heading, not a hero: one line at a size that leaves the screen for cards. */
+  h1Phone: { fontSize: FontSize.h2, lineHeight: 26 },
   panel: {
     flex: 1,
     borderWidth: 1,

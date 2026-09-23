@@ -1095,8 +1095,16 @@ export function BinderScreen({
   const clearMulti = () => setMultiIds((cur) => (cur.size ? new Set() : cur));
 
   // Change page and drop any pocket selection (selection is per-page).
+  //
+  // THE PICKER'S AIM IS PER-PAGE TOO, and it was not being dropped. `pickerCell` is a bare
+  // {row, col} with no page identity, and the same row/col exists on every page, so turning the
+  // page left the browser aimed at the SAME CELL ON THE NEW PAGE. Picking a card then wrote
+  // there, over whatever was already in it (store.upsertSlot merges onto the occupant). The
+  // owner's "clicking a pocket targets another" is this: the aim followed the page, not the
+  // pocket. Turning the page now un-aims, which is also what the ring on screen implies.
   const changePage = (i: number) => {
     setSelectedSlotId(null);
+    setPickerCell(null);
     clearMulti();
     setPageIndex(Math.max(0, Math.min(i, binder.pages.length - 1)));
   };
@@ -1154,6 +1162,14 @@ export function BinderScreen({
     }
     clearMulti();
     setSelectedSlotId(slot.id);
+    // RE-AIM. Tapping a FILLED pocket never called setPickerCell, so with the browser aimed at
+    // one cell you could click pocket after pocket and every card you picked still landed on the
+    // first one: "I can't get it to change targets", exactly. Only an empty pocket re-aimed it,
+    // and only the toolbar's Replace button re-aimed it onto a filled one.
+    //
+    // Guarded on the picker already being aimed, so this changes nothing when the browser is not
+    // pointed anywhere: selecting a pocket to use its toolbar does not silently arm a placement.
+    if (pickerCell) setPickerCell({ row: slot.row, col: slot.col });
   };
   const handleAddCell = (row: number, col: number) => {
     if (landMove(page, row, col)) return;
@@ -2897,7 +2913,16 @@ export function BinderScreen({
         <EditorKeyboardShortcuts
           active={canEdit && !studio && !confirm}
           undoable={editing && !studio && !confirm}
-          pocketKeys={!pickerCell}
+          // WHY THIS IS NOT JUST `!pickerCell`. The intent was that a Delete meant for the
+          // picker's search box must not clear a pocket instead, but that is already covered by
+          // the INPUT/TEXTAREA guard inside the handler. On the web the picker is a PERMANENTLY
+          // DOCKED panel, not something layered over the page, and `pickerCell` sticks around
+          // after a placement (it auto-advances to the next empty pocket). The result was that
+          // one click on an empty pocket switched Delete off for the rest of the session, while
+          // the pocket still drew its selection ring AND its Remove button: the key documented
+          // on the shortcuts card as "Clear pocket" did nothing, silently, and the page arrows
+          // died with it. A pocket the user has explicitly selected answers Delete.
+          pocketKeys={!pickerCell || !!selectedSlot || multiIds.size > 0}
           onUndo={store.undo}
           onRedo={store.redo}
           onDelete={deleteSelection}
@@ -2921,7 +2946,10 @@ export function BinderScreen({
             else if (shareOpen) setShareOpen(false);
             else if (likesOpen) setLikesOpen(false);
             else if (multiActionsOpen) setMultiActionsOpen(false);
-            else if (selectedSlotId) setSelectedSlotId(null);
+            else if (selectedSlotId) {
+              setSelectedSlotId(null);
+              setPickerCell(null);
+            } else if (pickerCell) setPickerCell(null);
             else if (selectMode) {
               setSelectMode(false);
               clearMulti();

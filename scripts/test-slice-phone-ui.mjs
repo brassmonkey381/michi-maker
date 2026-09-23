@@ -28,7 +28,11 @@ const BASE = process.env.MICHI_BASE ?? 'http://localhost:8081';
 const PROJECT = 'piikwvntldytjejxmcla';
 const SECRETS = 'C:/Users/Brian/source/repos/tcgscan/tcgscan.secrets';
 // Narrow enough to stack (TWO_COL_MIN is 800), and a real phone size rather than a contrived one.
-const VIEWPORT = { width: 414, height: 896 };
+// 375 x 812: an iPhone 13 mini, which is the NARROWEST phone in real use and the one the owner
+// carries. 414 x 896 is 39px wider, and 39px is exactly enough to hide a whole class of bug: the
+// 2026-09-22 sweep found rows overflowing between 375 and 414 that this harness had been passing
+// over for months. Test the small one; the big one is covered by it.
+const VIEWPORT = { width: 375, height: 812 };
 
 const raw = readFileSync(SECRETS, 'utf8');
 const read = (k) => {

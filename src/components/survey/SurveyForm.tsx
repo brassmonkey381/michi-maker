@@ -135,15 +135,24 @@ export function SurveyForm({
     onSubmit(merged);
   };
 
-  // Numbered over the sections that are actually SHOWING, so a section that is entirely
-  // conditional cannot leave a gap in the count.
-  const cards = def.sections
+  // Numbered over the sections that are actually SHOWING AND TITLED. Showing, so a section that
+  // is entirely conditional cannot leave a gap in the count; titled, because an untitled section
+  // draws no header and therefore no number, and counting it anyway made the first number a
+  // reader ever saw a "2".
+  const showing = def.sections
     .map((section) => ({ section, shown: section.questions.filter((q) => isVisible(def, q, merged)) }))
     .filter((c) => c.shown.length > 0);
+  // Positions taken from the titled sections alone, rather than a counter bumped while mapping:
+  // render has to stay pure, and a reassignment mid-map is exactly what the compiler refuses.
+  const titled = showing.filter((c) => c.section.title).map((c) => c.section.id);
+  const cards = showing.map((c) => ({
+    ...c,
+    step: c.section.title ? titled.indexOf(c.section.id) + 1 : null,
+  }));
 
   return (
     <View style={styles.form}>
-      {cards.map(({ section, shown }, index) => (
+      {cards.map(({ section, shown, step: number }) => (
         <ThemedView
           key={section.id}
           type="backgroundElement"
@@ -152,7 +161,7 @@ export function SurveyForm({
           {section.title ? (
             <View style={styles.cardHead}>
               <View style={styles.stepDot}>
-                <ThemedText style={styles.stepDotText}>{index + 1}</ThemedText>
+                <ThemedText style={styles.stepDotText}>{number}</ThemedText>
               </View>
               <View style={styles.cardHeadText}>
                 <ThemedText type="smallBold" style={styles.sectionTitle}>

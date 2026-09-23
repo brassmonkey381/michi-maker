@@ -323,15 +323,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.four,
   },
+  // WRAPS RATHER THAN CLIPS. At 375px the 34pt title took three lines and pushed the row's right
+  // half off the edge: the Cheatsheet button and the "Home" link, which on a phone with no rail
+  // was the only way off this page at all. Wrapping lets the right half drop onto its own line
+  // instead of leaving the screen.
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: Spacing.three,
-    gap: Spacing.three,
+    gap: Spacing.two,
+    flexWrap: 'wrap',
   },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  h1: { fontFamily: Fonts?.brand, fontSize: FontSize.display, lineHeight: 40 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, flexShrink: 0 },
+  // flexShrink so the title yields to the controls beside it before anything is pushed off.
+  h1: { fontFamily: Fonts?.brand, fontSize: FontSize.display, lineHeight: 40, flexShrink: 1 },
   panel: {
     flex: 1,
     borderWidth: 1,

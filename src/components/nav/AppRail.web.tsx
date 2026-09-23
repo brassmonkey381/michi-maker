@@ -19,47 +19,30 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Breakpoints, Fonts, FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { freshPinned } from '@/data/changelog';
+import { NAV_EXPLORE, NAV_YOU, navHiddenOn, type NavItem } from '@/components/nav/navItems';
 import { SHOW_CROSS_APP } from '@/lib/crossApp';
 import { useAuth } from '@/store/auth';
 
-type RailItem = {
-  label: string;
-  href: Href;
-  match: (path: string) => boolean;
-  external?: boolean;
-  /**
-   * LIT (owner, 2026-09-21): a glow in the accent and a chevron after the label, while there is
-   * something the reader has not seen. Today only What's New earns it, and only while a pinned
-   * item is under a week old (data/changelog: freshPinned); the light goes out on its own.
-   */
-  glow?: boolean;
-};
+/**
+ * The items live in nav/navItems now, shared with the phone drawer (nav/MobileNav). Two copies of
+ * a nav list drift, and the drift is silent: a page gets added to the one you were looking at and
+ * is missing from the other for months.
+ *
+ * LIT (owner, 2026-09-21): a glow in the accent and a chevron after the label, while there is
+ * something the reader has not seen. Today only What's New earns it, and only while a pinned item
+ * is under a week old (data/changelog: freshPinned); the light goes out on its own.
+ */
+type RailItem = NavItem;
 
-// Two groups: "Explore" (discovery + info) and "You" (the account's own stuff). Within You,
-// My Binders sits directly above My Purchases.
+// Two groups: "Explore" (discovery + info) and "You" (the account's own stuff). Both come from
+// nav/navItems; only the What's New glow and the sister-app link are decided here, because both
+// depend on state the list itself should not carry.
 const EXPLORE: RailItem[] = [
-  { label: 'Home', href: '/', match: (p) => p === '/' },
-  { label: 'Discover Binders', href: '/discover' as Href, match: (p) => p.startsWith('/discover') },
-  // ONE contest line (owner call, 2026-09-15). /contest-binders is reached from the contest page's
-  // "See the entries" and from Discover's card, not from its own rail item; the rail item stays lit
-  // while you are on either contest page.
-  { label: 'Contest 🏆', href: '/contest' as Href, match: (p) => p.startsWith('/contest') },
-  { label: 'Browse Cards', href: '/browse' as Href, match: (p) => p.startsWith('/browse') },
-  { label: 'Plans', href: '/plans' as Href, match: (p) => p.startsWith('/plans') || p.startsWith('/subscriptions') || p.startsWith('/pricing') },
-  { label: 'How-To', href: '/learn' as Href, match: (p) => p.startsWith('/learn') },
-  { label: 'The Michi Method', href: '/michi-method', match: (p) => p.startsWith('/michi-method') },
-  { label: 'What’s New', href: '/whats-new' as Href, match: (p) => p.startsWith('/whats-new'), glow: freshPinned().length > 0 },
+  ...NAV_EXPLORE.map((i) => (i.label === 'What’s New' ? { ...i, glow: freshPinned().length > 0 } : i)),
   // The sister app, in the rail where every page can see it. External: it leaves for tcgscan.ai.
   ...(SHOW_CROSS_APP ? [{ label: 'TCGScan ↗', href: TCGSCAN_URL as Href, match: () => false, external: true }] : []),
 ];
-const YOU: RailItem[] = [
-  { label: 'My Binders', href: '/my-binders' as Href, match: (p) => p.startsWith('/my-binders') },
-  { label: 'My Purchases', href: '/purchases' as Href, match: (p) => p.startsWith('/purchases') },
-  // Under My Purchases by the owner's placement. It is in the YOU group rather than EXPLORE
-  // because it is a thing you do with your own account, and it is a route rather than a modal
-  // so the phone and the narrow web, where this rail does not exist at all, can still reach it.
-  { label: 'Leave Feedback', href: '/feedback' as Href, match: (p) => p.startsWith('/feedback') },
-];
+const YOU: RailItem[] = NAV_YOU;
 
 export function AppRail() {
   const { width } = useWindowDimensions();
@@ -69,7 +52,7 @@ export function AppRail() {
   const isAdmin = !!profile?.is_admin;
 
   if (width < Breakpoints.rail) return null;
-  if (pathname === '/welcome' || pathname.startsWith('/binder/')) return null;
+  if (navHiddenOn(pathname)) return null;
 
   return (
     <ThemedView style={styles.rail}>

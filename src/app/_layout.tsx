@@ -10,6 +10,7 @@ import { UsernameGate } from '@/components/auth/UsernameGate';
 import { ProStatusBanner } from '@/components/monetization/ProStatusBanner';
 import { ThemedView } from '@/components/themed-view';
 import { AppRail } from '@/components/nav/AppRail';
+import { MobileNav } from '@/components/nav/MobileNav';
 import { CatalogWarm } from '@/components/CatalogWarm';
 // READ `?multi-tcg=off` AT BOOT (2026-09-20). lib/games reads the flag once, when the module first
 // evaluates, and it was only ever imported by the card browser, which loads lazily with its route.
@@ -71,6 +72,10 @@ export default function TabLayout() {
                 {/* PRO trial nudge / over-cap reclaim warning / restore — null unless it applies. */}
                 <ProStatusBanner />
                 <Slot />
+                {/* The phone's navigation: renders EXACTLY where the rail does not (narrow web and
+                    native), so the app is never left with no way between pages. Inside this column
+                    rather than beside the rail, because it is pinned over the routed screen. */}
+                <MobileNav />
               </ThemedView>
             </ThemedView>
             {/* Blocks any real account with no @username yet — required, immutable, once per account. */}

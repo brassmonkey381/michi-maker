@@ -324,15 +324,30 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidthWide,
     alignSelf: 'center',
   },
+  // WRAPS AT PHONE WIDTH. The 34pt title plus the actions measured past the right edge at 375px
+  // and the page does not scroll sideways, so People, Settings and Sign in were simply not on the
+  // screen: you could not sign in from the app's busiest page. The row now wraps, and the title
+  // shrinks before anything is pushed off.
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: Spacing.four,
-    gap: Spacing.three,
+    gap: Spacing.two,
+    flexWrap: 'wrap',
   },
-  h1: { fontFamily: Fonts?.brand, fontSize: FontSize.display, lineHeight: 40 },
-  headerActions: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.two },
+  h1: { fontFamily: Fonts?.brand, fontSize: FontSize.display, lineHeight: 40, flexShrink: 1 },
+  // `minWidth: 0` and a shrink because react-native-web defaults every flex child to
+  // `flexShrink: 0`: without them the row is wider than its parent, and a row that cannot shrink
+  // never reaches the point where its own flexWrap would fire.
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+    flexShrink: 1,
+    minWidth: 0,
+  },
   headerLink: { padding: Spacing.one },
   headerLinkText: { fontSize: FontSize.control, fontWeight: Weight.semibold, lineHeight: 28 },
   quickNav: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, marginBottom: Spacing.three },

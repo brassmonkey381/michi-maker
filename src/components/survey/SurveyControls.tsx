@@ -356,7 +356,11 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   matrixLabel: { lineHeight: 18, flexGrow: 1, flexBasis: 190, minWidth: 150 },
-  matrixPoints: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, flexGrow: 1, flexShrink: 0 },
+  // `flexShrink: 0` clipped the skip button clean off the right edge at 375px: five point buttons
+  // plus "Not used" do not fit one phone-width line, and a row that cannot shrink does not wrap,
+  // it overflows. Shrinking lets the buttons reflow onto a second line, which is what the wrap
+  // was there for.
+  matrixPoints: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, flexGrow: 1, flexShrink: 1, minWidth: 0 },
   /** A hairline between rows: five unseparated rows of buttons is one grey field to the eye. */
   matrixDivided: { borderTopWidth: 1, borderTopColor: Palette.hairline },
   point: {

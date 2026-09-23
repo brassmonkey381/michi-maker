@@ -6,7 +6,16 @@
  * Guests and signed-out users never see it. No-op in local mode.
  */
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -64,8 +73,14 @@ export function UsernameGate() {
 
   return (
     <Modal visible transparent animationType="fade">
+      {/* THE KEYBOARD USED TO COVER THE ONLY BUTTON. This gate is mandatory and its input is
+          autoFocused, so on a phone the keyboard opens the instant a new account first sees the
+          app, over a card centred in the viewport, and Claim was underneath it with no way to
+          scroll. Same treatment AuthSheet already gives its card. */}
       <View style={styles.backdrop}>
-        <View style={styles.cardWrap}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.cardWrap}>
           <ThemedView type="backgroundElement" style={styles.card}>
             <ThemedText type="subtitle" style={styles.title}>{autoState === 'claiming' ? `Setting up @${requestedName}…` : autoState === 'failed' ? 'That username needs a change' : 'Pick your username'}</ThemedText>
             <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>{autoState === 'claiming'
@@ -119,7 +134,7 @@ export function UsernameGate() {
               </ThemedText>
             ) : null}
           </ThemedView>
-        </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );

@@ -41,6 +41,20 @@ async function sql(query) {
   if (!res.ok) fail(`query refused (${res.status}): ${text.slice(0, 500)}`);
   return JSON.parse(text);
 }
+/**
+ * Run SQL that is EXPECTED to end in an error, because the only way to prove a change and then
+ * not keep it is to raise at the end of a DO block. `sql` exits the process on any non-200, so a
+ * deliberate rollback could never reach a .catch(); this returns the message instead.
+ */
+async function sqlExpectingError(query) {
+  const res = await fetch(`https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query }),
+  });
+  return res.ok ? '' : await res.text();
+}
+
 const step = (n, what) => console.log(`Step ${n}: ${what}`);
 
 // --- 1. apply -----------------------------------------------------------------
@@ -68,7 +82,7 @@ console.log(`  ${fns.length} functions, all security invoker, all granted to aut
 
 // --- 3 + 4. the behaviour, on real rows, rolled back --------------------------
 step(3, 'swapping two real pockets with no park row, then rolling back');
-await sql(`
+const rolled = await sqlExpectingError(`
   do $$
   declare
     v_page uuid; v_a uuid; v_b uuid;
@@ -105,7 +119,13 @@ await sql(`
 
     raise exception 'rollback: the checks passed' using errcode = 'P0001';
   end $$;
-`).catch(() => undefined);
+`);
+// The sentinel is the SUCCESS signal: it is raised only after every assertion above has passed,
+// and raising is what discards the swap. Any other error is a real failure.
+if (rolled && !rolled.includes('rollback: the checks passed')) {
+  if (rolled.includes('behaviour checks skipped')) console.log('  (no page with two pockets; behaviour checks skipped)');
+  else fail(`behaviour check failed: ${rolled.slice(0, 400)}`);
+}
 
 const [{ left_parked }] = await sql(
   `select count(*)::int as left_parked from public.binder_slots where row_index >= 1000000;`,

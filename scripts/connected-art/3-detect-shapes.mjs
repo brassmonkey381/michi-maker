@@ -51,6 +51,8 @@ const fail = (msg) => {
 const step = (n, what) => console.log(`Step ${n}: ${what}`);
 
 const LIMIT = Number(process.argv[2]) || Infinity;
+/** Resume point, so a stopped run continues instead of redoing what it already did. */
+const FROM = Number(process.argv[3]) || 0;
 
 const entriesPath = join(DIR, 'entries.json');
 if (!existsSync(entriesPath)) fail('entries.json not found. Run 1-scrape.mjs first.');
@@ -106,6 +108,9 @@ async function detect(file) {
   }
   const head = new Float32Array(await (Array.isArray(out) ? out[0] : out).data());
   (Array.isArray(out) ? out : [out]).forEach((o) => o.dispose());
+  // The first full pass was stopped for memory. tfjs holds every intermediate until told not to,
+  // and a 1536px RGBA buffer per image on top of that adds up over 201 of them.
+  tf.disposeVariables();
   const n = head.length / 6;
   const boxes = nms(decodeYolox(head, n, lb.ratio, width, height, DETECTION_THRESHOLD));
   // StillDetection is {box, candidates}. This pass runs no classifier, so `candidates` is empty
@@ -123,8 +128,9 @@ const tierOf = () => 'unsure';
 step(2, 'reading each photograph');
 const results = [];
 let done = 0;
-for (const entry of entries) {
+for (const [idx, entry] of entries.entries()) {
   if (done >= LIMIT) break;
+  if (idx < FROM) continue;
   const file = join(IMAGES, `${entry.hash}.jpg`);
   if (!existsSync(file)) continue;
   done += 1;
@@ -158,6 +164,17 @@ for (const entry of entries) {
       namedCards: named,
       detected: dets.length,
       grid,
+      // The boxes themselves, normalised 0-1, in the reading order the grid put them in. Kept so
+      // a review page can draw what the detector actually saw: a shape is only checkable against
+      // the picture it was read from.
+      boxes: dets.map((d) => ({
+        xmin: Number(d.box.xmin.toFixed(4)),
+        ymin: Number(d.box.ymin.toFixed(4)),
+        xmax: Number(d.box.xmax.toFixed(4)),
+        ymax: Number(d.box.ymax.toFixed(4)),
+        score: Number((d.score ?? 0).toFixed(3)),
+      })),
+      order: near.grid,
       latticeGrid: lattice,
       agree: lattice.rows === grid.rows && lattice.cols === grid.cols,
       michiPage: fits?.label ?? null,

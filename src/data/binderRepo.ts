@@ -11,6 +11,8 @@
  */
 
 import { demoteHouseAccounts } from '@/data/houseAccounts';
+import type { SupabaseClient } from '@supabase/supabase-js';
+
 import { requireSupabase } from '@/lib/supabase';
 import type { Database, Json } from '@/types/database';
 import type { BinderCover, BinderTrack, DemoBinder, DemoPage, DemoSlot, MichiLayoutStyle } from '@/data/binderTypes';
@@ -551,6 +553,26 @@ export async function upsertSlot(pageId: string, slot: DemoSlot): Promise<void> 
  */
 const PARK_ROW = 1_000_000;
 
+/**
+ * Call an RPC, and say whether it was THERE. A web deploy and a migration are two separate steps
+ * in this project, in either order, so a bundle that assumes a function exists is a bundle that
+ * can break every drag for as long as the gap lasts. PGRST202 is PostgREST's "no such function";
+ * anything else is a real failure and is rethrown.
+ *
+ * The fallbacks below are the pre-20260923 multi-request paths, kept only for that window. Once
+ * the migration is applied everywhere they are dead code and should go.
+ */
+async function tryRpc(name: string, args: Record<string, unknown>): Promise<boolean> {
+  // Through the generic client: 20260923120000's functions are not in the generated database.ts
+  // yet, the same escape hatch data/trial.ts and data/printRepo.ts use for their RPCs.
+  const supabase = requireSupabase() as unknown as SupabaseClient;
+  const { error } = await supabase.rpc(name, args);
+  if (!error) return true;
+  const missing = error.code === 'PGRST202' || /Could not find the function/i.test(error.message);
+  if (missing) return false;
+  throw new Error(`${name}: ${error.message}`);
+}
+
 /** One UPDATE that must land on exactly one row: RLS turns a miss into a silent zero-row PATCH. */
 async function moveOne(id: string, to: { page_id?: string; row_index: number; col_index: number }, what: string): Promise<void> {
   const supabase = requireSupabase();
@@ -578,6 +600,21 @@ export async function swapSlotCells(
   toB: string = fromA,
 ): Promise<void> {
   const supabase = requireSupabase();
+  // ONE TRANSACTION, TWO UPDATES, NO PARK. Inside a single statement pair the two pockets may
+  // transiently share a cell, which is exactly what the deferred unique constraint allows; the
+  // check runs at COMMIT on the final layout. The park-and-sweep dance below existed only
+  // because four separate requests are four separate transactions, and its opening DELETE was
+  // one of the ways a live pocket disappeared.
+  if (
+    await tryRpc('swap_slot_cells', {
+      p_a_id: a.id, p_a_page: toA, p_a_row: a.row, p_a_col: a.col,
+      p_b_id: b.id, p_b_page: toB, p_b_row: b.row, p_b_col: b.col,
+    })
+  ) {
+    return;
+  }
+
+  // ---- fallback: pre-20260923 servers only ----
   // The cell A started in is the cell B ends in, and vice versa; the callers' moved copies say so.
   const startA = { row_index: b.row, col_index: b.col };
   const startB = { row_index: a.row, col_index: a.col };
@@ -607,6 +644,13 @@ export async function swapSlotCells(
  * touched, which is what makes a cross-page drag cheap and safe.
  */
 export async function moveSlotToCell(slot: DemoSlot, toPageId: string, row: number, col: number): Promise<void> {
+  // The clear and the move in one transaction: if the move fails, the occupant comes back with
+  // it. Separately, the clear landed and the move did not, and nothing ever put the occupant back.
+  if (await tryRpc('move_slot_to_cell', { p_slot_id: slot.id, p_page_id: toPageId, p_row: row, p_col: col })) {
+    return;
+  }
+
+  // ---- fallback: pre-20260923 servers only ----
   const supabase = requireSupabase();
   const { error } = await supabase
     .from('binder_slots')

@@ -12,7 +12,7 @@
  * components/survey. Swapping in another survey is a one-line change here.
  */
 import { useRouter, type Href } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { PageShell } from '@/components/layout/PageShell';
@@ -35,6 +35,19 @@ const DRAFT_KEY = 'michi.feedback.draft.v1';
 
 export default function FeedbackScreen() {
   const router = useRouter();
+  // The form was put in front of somebody. Without this, feedback.submitted is a
+  // numerator with no denominator: five sends is a triumph off six openings and a
+  // problem off six hundred, and the two are indistinguishable.
+  //
+  // Once per mount, ref-guarded, and NOT on the thank-you re-render - "Send another"
+  // resets `done` and arms a genuinely new form, which is a second impression and is
+  // meant to count as one.
+  const announced = useRef(false);
+  useEffect(() => {
+    if (announced.current) return;
+    announced.current = true;
+    track('feedback.shown', { survey: MICHI_FEEDBACK.id, version: MICHI_FEEDBACK.version });
+  }, []);
   const auth = useAuth();
   const { tier, loading: tierLoading } = useTier();
   const store = useBinders();
@@ -52,6 +65,9 @@ export default function FeedbackScreen() {
     if (email) out.email = email;
     return out;
   }, [auth.user?.email]);
+
+  const trackFeedbackFailed = (reason: 'no-session' | 'rate-limited' | 'error') =>
+    track('feedback.failed', { survey: MICHI_FEEDBACK.id, version: MICHI_FEEDBACK.version, reason });
 
   const onSubmit = async (answers: AnswerMap) => {
     // Nothing goes out before the auth bootstrap has settled. Submitting into that window is how
@@ -99,9 +115,20 @@ export default function FeedbackScreen() {
         setDone(true);
         return;
       }
+      // A send that did not land. Three different refusals, kept apart on purpose:
+      // `no-session` is the auth sheet opening (recoverable, and the user is still
+      // here), `rate-limited` is the insert policy's five-a-day cap, and `error` is
+      // ours. Pooling them would hide a broken write behind a working guard.
+      // `reason` is the repo's own fixed enum and never the server's message, which
+      // can carry ids.
+      trackFeedbackFailed(result.reason);
       if (result.reason === 'no-session') setAuthOpen(true);
       setError(result.message);
     } catch (e) {
+      // Threw before the repo could classify it - a network drop, usually. Recorded
+      // as `error` rather than left out, or the failure rate would only ever count
+      // the failures polite enough to return.
+      trackFeedbackFailed('error');
       setError(e instanceof Error ? e.message : 'That did not send. Try again in a moment.');
     } finally {
       setSubmitting(false);

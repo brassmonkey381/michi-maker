@@ -68,6 +68,55 @@ const step = (n, what) => console.log(`Step ${n}: ${what}`);
 const resolvedPath = join(DIR, 'resolved.json');
 if (!existsSync(resolvedPath)) fail('resolved.json not found. Run 5-identify.mjs first.');
 const { results } = JSON.parse(readFileSync(resolvedPath, 'utf8'));
+
+/**
+ * PREFER THE NAME-SCOPED ANSWER (stage 8). Scoping the search to the species the caption names is
+ * what stopped a Japanese Palkia resolving to Metang: the impostor was never removed by a
+ * threshold, because it SCORED HIGHER than the right card. It is removed from the race instead.
+ *
+ * ONLY THE CARD CHANGES. Stage 8 runs the same detector on the same images, so the boxes, the grid
+ * and the pocket order come out identical (resolved.json merely rounds the boxes to 4dp). The page
+ * shapes reviewed at stage 4 therefore stand, and the count guard below makes that an assertion
+ * rather than an assumption: a group whose pockets do not line up keeps its unscoped answer and is
+ * named in the report.
+ */
+const rescopedPath = join(DIR, 'rescoped.json');
+const scoped = existsSync(rescopedPath) ? JSON.parse(readFileSync(rescopedPath, 'utf8')).results : {};
+let rescopedGroups = 0;
+let mismatched = 0;
+for (const [hash, g] of Object.entries(results)) {
+  const sc = scoped[hash];
+  if (!sc?.pockets?.length) continue;
+  if (sc.pockets.length !== g.pockets.length) {
+    console.log(`  POCKET COUNT MOVED for ${hash}: ${g.pockets.length} -> ${sc.pockets.length}, keeping the unscoped answer`);
+    mismatched += 1;
+    continue;
+  }
+  rescopedGroups += 1;
+  g.scopeSize = sc.scopeSize;
+  g.pockets = g.pockets.map((p, i) => {
+    const s = sc.pockets[i];
+    return {
+      ...p,
+      cardId: s.cardId,
+      name: s.name ?? null,
+      similarity: s.similarity,
+      accepted: s.accepted,
+      scoped: s.scoped,
+      // What the unscoped run said, so the change is auditable in the dry run and the review page
+      // rather than asserted here.
+      wasCardId: p.cardId ?? null,
+      wasName: s.unscopedName ?? null,
+      wasSimilarity: s.unscopedSimilarity ?? null,
+    };
+  });
+}
+console.log(
+  `  ${rescopedGroups} of ${Object.keys(results).length} groups use the name-scoped card`
+  + (mismatched ? `, ${mismatched} refused` : '')
+  + `, ${Object.keys(results).length - rescopedGroups - mismatched} not rescoped`,
+);
+
 const groups = Object.values(results).filter((g) => g.michiPage && g.pockets?.some((p) => p.cardId));
 
 step(1, `laying out ${groups.length} groups`);
@@ -115,6 +164,13 @@ for (const [shape, list] of [...byShape.entries()].sort()) {
           cardId: p.cardId,
           similarity: p.similarity,
           accepted: p.accepted,
+          name: p.name ?? null,
+          wasCardId: p.wasCardId ?? null,
+          wasName: p.wasName ?? null,
+          changed: !!p.wasCardId && p.wasCardId !== p.cardId,
+          // true = the search was narrowed to the caption's species. false = it was rescoped but
+          // the caption named nothing the catalog knows. undefined = stage 8 has not reached it.
+          scoped: p.scoped,
         };
       })
       // A pocket outside the page cannot be written: the unique (page_id,row,col) would take it,
@@ -191,7 +247,25 @@ for (const b of binders) {
   console.log(`  ${b.title}`);
   console.log(`    ${b.pageShape} pages  x${String(b.pages.length).padStart(3)}   ${slots} cards`);
 }
+const changedCards = binders.reduce(
+  (n, b) => n + b.pages.reduce((m, p) => m + p.slots.filter((s) => s.changed).length, 0),
+  0,
+);
+// THREE STATES, NOT TWO. A page whose caption named nothing the catalog knows keeps exactly the
+// failure this stage exists to remove, and is worth saying out loud. A page stage 8 has not reached
+// yet is a different thing entirely, and counting the two together would report a finished run as
+// riddled with holes.
+const unscopable = binders.reduce(
+  (n, b) => n + b.pages.filter((p) => p.slots.some((s) => s.scoped === false)).length,
+  0,
+);
+const pending = binders.reduce(
+  (n, b) => n + b.pages.filter((p) => p.slots.some((s) => s.scoped === undefined)).length,
+  0,
+);
 console.log(`  TOTAL: ${binders.length} binders, ${totalPages} pages, ${totalSlots} cards (${low} below the accept gate)`);
+console.log(`  name scoping moved ${changedCards} card(s); ${unscopable} page(s) had no caption to scope by`);
+if (pending) console.log(`  ${pending} page(s) NOT RESCOPED YET, still on the unscoped answer`);
 
 const outPath = join(DIR, 'payload.json');
 writeFileSync(outPath, JSON.stringify({ source: SOURCE, credit: CREDIT, binders }, null, 2));

@@ -117,7 +117,30 @@ console.log(
   + `, ${Object.keys(results).length - rescopedGroups - mismatched} not rescoped`,
 );
 
-const groups = Object.values(results).filter((g) => g.michiPage && g.pockets?.some((p) => p.cardId));
+/**
+ * THE ENGLISH PASS. Stage 11 marks every group with how its pockets scored against the English and
+ * Japanese anchor indexes. Only groups where every pocket's ARTWORK is confidently in the English
+ * catalog are built, because one pocket resolved to the wrong painting ruins a page of connecting
+ * artwork and the other pockets being right does not redeem it. The rest are in
+ * deferred-groups.json for a later pass; they are held back, not discarded.
+ */
+const languagePath = join(DIR, 'language.json');
+let gated = null;
+if (existsSync(languagePath)) {
+  const lang = JSON.parse(readFileSync(languagePath, 'utf8'));
+  gated = new Set(
+    Object.values(lang.results)
+      .filter((g) => g.language?.reads?.length && g.language.reads.every((r) => r.pass))
+      .map((g) => g.hash),
+  );
+  console.log(`  language gate: ${gated.size} of ${Object.keys(lang.results).length} groups have English artwork throughout`);
+} else {
+  console.log('  language.json not found, building every group (run 11-language-gate.mjs to gate)');
+}
+
+const groups = Object.values(results)
+  .filter((g) => g.michiPage && g.pockets?.some((p) => p.cardId))
+  .filter((g) => !gated || gated.has(g.hash));
 
 step(1, `laying out ${groups.length} groups`);
 

@@ -37,8 +37,12 @@ const need = (name) => {
 };
 
 const { results: unscoped } = need('resolved.json');
-const { results: scoped } = need('rescoped.json');
 const catalog = need('scanner-catalog.json');
+// language.json is rescoped.json plus stage 11's English/Japanese reads, so prefer it: it is the
+// same groups with the numbers that decide which ones were built.
+const scoped = existsSync(join(DIR, 'language.json'))
+  ? JSON.parse(readFileSync(join(DIR, 'language.json'), 'utf8')).results
+  : need('rescoped.json').results;
 
 // `cards` is an OBJECT keyed by card id, so the id is the key and not a field on the value.
 const card = (id) => (id === null || id === undefined ? null : catalog.cards?.[String(id)] ?? null);
@@ -75,6 +79,14 @@ function inOrder(g) {
 let changedCards = 0;
 let changedGroups = 0;
 let noCaption = 0;
+let keptGroups = 0;
+
+/** Stage 11's verdict for a group, or null when the gate has not been run. */
+function verdict(g) {
+  const reads = g.language?.reads;
+  if (!reads?.length) return null;
+  return reads.every((r) => r.pass);
+}
 
 const cards = groups
   .map((g) => {
@@ -97,9 +109,21 @@ const cards = groups
       })
       .join('');
 
+    const keep = verdict(g);
+    if (keep) keptGroups += 1;
+    const reads = g.language?.reads ?? [];
+
     const strip = pockets
-      .map(({ p, n }) => {
+      .map(({ p, n, i }) => {
         const moved = p.cardId !== p.unscopedCardId;
+        const r = reads[i];
+        // The two numbers that decided it. A pocket the Japanese index wins is the failure this
+        // whole stage exists to catch, so it is coloured rather than merely printed.
+        const lang = r
+          ? `<div class="lang${r.pass ? '' : ' fails'}">EN <b>${r.en.toFixed(3)}</b>
+               &nbsp;JP <b>${r.jp.toFixed(3)}</b>
+               <span class="sim">${r.margin >= 0 ? '+' : ''}${r.margin.toFixed(3)}</span></div>`
+          : '';
         const was = moved
           ? `<div class="was">
                ${thumb(p.unscopedCardId, 'small')}
@@ -115,6 +139,7 @@ const cards = groups
       <span class="sim">${(p.similarity ?? 0).toFixed(3)}</span>
       ${p.scoped ? '' : '<span class="tag warn">unscoped</span>'}
     </div>
+    ${lang}
   </div>
   ${was}
 </div>`;
@@ -122,10 +147,13 @@ const cards = groups
       .join('');
 
     const filter = flips.length ? 'changed' : !scopedOk ? 'nocap' : 'same';
-    return `<section class="group" data-f="${filter}">
+    const badge = keep === null ? '' : keep
+      ? '<span class="badge in">in the binders</span>'
+      : '<span class="badge out">deferred</span>';
+    return `<section class="group${keep === false ? ' dim' : ''}" data-f="${filter}" data-keep="${keep === null ? 'na' : keep ? 'in' : 'out'}">
   <div class="shot"><img loading="lazy" src="images/${esc(g.hash)}.jpg" alt="">${boxes}</div>
   <div class="side">
-    <h2>${esc(g.caption || '(no caption)')}</h2>
+    <h2>${esc(g.caption || '(no caption)')} ${badge}</h2>
     <div class="meta">
       ${esc(g.section ?? '')} &middot; ${g.grid.rows}&times;${g.grid.cols}
       &middot; ${scopedOk ? `scoped to ${g.scopeSize} anchors` : '<span class="warn">no caption to scope by</span>'}
@@ -143,7 +171,7 @@ const html = `<!doctype html>
 <title>Connected art: was and now</title>
 <style>
   :root{--bg:#14161a;--panel:#1c1f26;--line:#2b303a;--ink:#e8eaee;--muted:#8b93a1;--accent:#5b8cff;
-        --ok:#3fb27f;--warn:#e0a33e;--chg:#c07ae8}
+        --ok:#3fb27f;--warn:#e0a33e;--chg:#c07ae8;--bad:#e2584d}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);
        font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
@@ -192,6 +220,15 @@ const html = `<!doctype html>
   .tag{font-size:10px;padding:1px 6px;border-radius:999px;border:1px solid var(--line);
        color:var(--muted);white-space:nowrap}
   .tag.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent)}
+  .lang{margin-top:4px;font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .lang b{color:var(--ink);font-weight:600}
+  .lang.fails{color:var(--bad)}
+  .lang.fails b{color:var(--bad)}
+  .badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;vertical-align:middle;
+         margin-left:6px;letter-spacing:.3px;text-transform:uppercase}
+  .badge.in{background:color-mix(in srgb,var(--ok) 22%,transparent);color:var(--ok)}
+  .badge.out{background:color-mix(in srgb,var(--bad) 18%,transparent);color:var(--bad)}
+  .group.dim .shot,.group.dim .strip{opacity:.62}
   .hidden{display:none}
 </style></head>
 <body>
@@ -204,10 +241,11 @@ const html = `<!doctype html>
     than right ones.
   </div>
   <div class="filters">
-    <button data-f="all" aria-pressed="true">All ${groups.length}</button>
+    <button data-k="in" aria-pressed="true">In the binders ${keptGroups}</button>
+    <button data-k="out" aria-pressed="false">Deferred ${groups.length - keptGroups}</button>
+    <button data-k="all" aria-pressed="false">All ${groups.length}</button>
     <button data-f="changed" aria-pressed="false">Changed ${changedGroups}</button>
     <button data-f="nocap" aria-pressed="false">No caption ${noCaption}</button>
-    <button data-f="same" aria-pressed="false">Unchanged ${groups.length - changedGroups - noCaption}</button>
   </div>
 </header>
 <main>
@@ -216,11 +254,17 @@ ${cards}
 <script>
   const buttons = [...document.querySelectorAll('.filters button')];
   const groups = [...document.querySelectorAll('.group')];
-  buttons.forEach((b) => b.addEventListener('click', () => {
+  const show = (b) => {
     buttons.forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
+    const k = b.dataset.k;
     const f = b.dataset.f;
-    groups.forEach((g) => g.classList.toggle('hidden', f !== 'all' && g.dataset.f !== f));
-  }));
+    groups.forEach((g) => {
+      const hit = k ? (k === 'all' || g.dataset.keep === k) : g.dataset.f === f;
+      g.classList.toggle('hidden', !hit);
+    });
+  };
+  buttons.forEach((b) => b.addEventListener('click', () => show(b)));
+  show(buttons[0]);
 </script>
 </body></html>`;
 

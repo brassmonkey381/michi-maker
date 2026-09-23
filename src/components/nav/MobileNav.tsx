@@ -19,8 +19,8 @@
  * already rests, and it means this component changes no page's layout at all.
  */
 import { usePathname, useRouter, type Href } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LogoMark } from '@/components/brand/LogoMark';
@@ -40,6 +40,58 @@ export function MobileNav() {
   const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
   const { opening, open: openTcgscan } = useTcgscanOpen();
+
+  /**
+   * THE BUTTON GETS OUT OF THE WAY WHILE YOU READ.
+   *
+   * It is pinned bottom-right, which is the one corner no route's own chrome uses, but a page
+   * whose content is right-aligned puts something under it on every scroll: on /plans it sat on
+   * the value column and hid a row's answer. Rather than move it somewhere that collides with a
+   * header, it hides on the way DOWN and comes back the moment you scroll UP, which is where a
+   * person reaches for navigation anyway.
+   *
+   * The listener is on `document` in the CAPTURE phase, because scroll events do not bubble and
+   * nothing here scrolls the window: every routed screen scrolls an inner element (PageShell's
+   * ScrollView). Capture is what sees a nested scroller's events at all.
+   *
+   * Web only. On native the rail does not exist at any width, so this button is the ONLY way
+   * between pages and hiding it on a flick would be taking the menu away.
+   */
+  const [hidden, setHidden] = useState(false);
+  const slide = useMemo(() => new Animated.Value(0), []);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    let lastY = 0;
+    let queued = false;
+    const onScroll = (e: Event) => {
+      const target = e.target as HTMLElement | null;
+      const y = target && typeof target.scrollTop === 'number' ? target.scrollTop : 0;
+      if (queued) return;
+      queued = true;
+      // One decision per frame: a scroll handler that runs on every event is a scroll handler
+      // that makes the scroll itself stutter.
+      requestAnimationFrame(() => {
+        queued = false;
+        const dy = y - lastY;
+        // Ignore the jitter of a finger resting on the glass.
+        if (Math.abs(dy) < 8) return;
+        lastY = y;
+        // Near the top it is always shown: a page you have just opened must offer its menu.
+        setHidden(y > 120 && dy > 0);
+      });
+    };
+    document.addEventListener('scroll', onScroll, true);
+    return () => document.removeEventListener('scroll', onScroll, true);
+  }, []);
+
+  useEffect(() => {
+    Animated.timing(slide, {
+      toValue: hidden ? 1 : 0,
+      duration: 160,
+      useNativeDriver: true,
+    }).start();
+  }, [hidden, slide]);
 
   // Closing on navigation is done by `go` below, at the moment of the tap, rather than by an
   // effect watching the pathname: a setState in an effect is a second render the compiler rightly
@@ -68,24 +120,32 @@ export function MobileNav() {
 
   return (
     <>
-      <Pressable
-        onPress={() => setOpen(true)}
-        accessibilityRole="button"
-        accessibilityLabel="Open the menu"
-        accessibilityState={{ expanded: open }}
-        testID="mobile-nav-open"
-        // Clear of the home indicator, and of anything a page pins to its own bottom edge.
-        style={({ pressed }) => [
-          styles.fab,
+      <Animated.View
+        // Not just faded: it slides out past its own corner, so a half-finished transition never
+        // leaves a ghost button sitting over the text.
+        pointerEvents={hidden ? 'none' : 'auto'}
+        style={[
+          styles.fabWrap,
           { bottom: Spacing.four + insets.bottom, right: Spacing.three + insets.right },
-          pressed && styles.pressed,
+          {
+            opacity: slide.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+            transform: [{ translateY: slide.interpolate({ inputRange: [0, 1], outputRange: [0, 96] }) }],
+          },
         ]}>
-        <View style={styles.bars}>
-          <View style={styles.bar} />
-          <View style={styles.bar} />
-          <View style={styles.bar} />
-        </View>
-      </Pressable>
+        <Pressable
+          onPress={() => setOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Open the menu"
+          accessibilityState={{ expanded: open }}
+          testID="mobile-nav-open"
+          style={({ pressed }) => [styles.fab, pressed && styles.pressed]}>
+          <View style={styles.bars}>
+            <View style={styles.bar} />
+            <View style={styles.bar} />
+            <View style={styles.bar} />
+          </View>
+        </Pressable>
+      </Animated.View>
 
       <Modal visible={open} animationType="slide" transparent onRequestClose={() => setOpen(false)}>
         {/* SCRIM AND DRAWER ARE SIBLINGS, not parent and child. Nesting them meant a Pressable
@@ -175,9 +235,10 @@ function Group({
 }
 
 const styles = StyleSheet.create({
+  /** Position and the hide animation live here; the pill below is only the look. */
+  fabWrap: { position: 'absolute', zIndex: 40 },
   /** 52pt: comfortably past the 44pt minimum, and still small enough to ignore. */
   fab: {
-    position: 'absolute',
     width: 52,
     height: 52,
     borderRadius: 26,
@@ -185,7 +246,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     boxShadow: '0 4px 16px rgba(0, 0, 0, 0.28)',
-    zIndex: 40,
   },
   bars: { gap: 4 },
   bar: { width: 20, height: 2, borderRadius: 1, backgroundColor: Palette.accentText },

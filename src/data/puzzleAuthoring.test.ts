@@ -74,13 +74,17 @@ test('nothing in, nothing out', () => {
 });
 
 /**
- * The day boundary is UTC, so "today" must not be the device's idea of it. A machine in Honolulu at
- * 20:00 on the 23rd is already the 24th in UTC, and the puzzle it should be offered is the 24th's.
+ * Studio's default publish date follows the PUZZLE day, not UTC. Between 5pm and 8pm Pacific a UTC
+ * default offers tomorrow's date as today's, and the puzzle would go live a day early. This asserts
+ * the alias still points at the right definition, because a well-meaning "fix" back to
+ * toISOString().slice(0,10) would look correct and be wrong for three hours every evening.
  */
-test('today is the UTC date, not the local one', () => {
-  assert.equal(utcToday(new Date('2026-09-24T06:00:00Z')), '2026-09-24');
-  assert.equal(utcToday(new Date('2026-09-24T06:00:00-10:00')), '2026-09-24');
-  assert.equal(utcToday(new Date('2026-09-23T23:30:00Z')), '2026-09-23');
+test('the publish form defaults to the puzzle day, not the UTC date', () => {
+  // 01:00 UTC on the 25th is 6pm Pacific on the 24th, and the puzzle day is still the 24th.
+  assert.equal(utcToday(new Date('2026-09-25T01:00:00Z')), '2026-09-24');
+  // 09:59 UTC is 02:59 Pacific, one minute before the rollover.
+  assert.equal(utcToday(new Date('2026-09-24T09:59:00Z')), '2026-09-23');
+  assert.equal(utcToday(new Date('2026-09-24T10:00:00Z')), '2026-09-24');
 });
 
 const binder = (over: Partial<PuzzleSourceBinder>): PuzzleSourceBinder => ({

@@ -86,25 +86,48 @@ export default function DailyScreen() {
     return () => clearTimeout(t);
   }, [left]);
 
+  /**
+   * THE PUZZLE NEEDS NO SESSION. A published puzzle is readable by `anon`, so a visitor arriving
+   * cold from a link sees the cards on the first paint rather than after the app has minted them a
+   * guest session. Before that policy existed this query ran as `anon`, was correctly handed an
+   * empty list, and the page confidently announced there was no puzzle while one was live.
+   */
   const load = useCallback(async () => {
     setLoaded(true);
     const p = await todaysPuzzle();
     setPuzzle(p);
-    if (!p) return;
-    const mine = await myPlay(p.id);
+    if (p) setYesterday(await revealedAnswer(p.id));
+  }, []);
+
+  /**
+   * WHAT DOES need the session: this reader's own play, their streak, and recording that they have
+   * been shown it. It runs separately and later, because waiting for auth before drawing anything
+   * is what made the page wrong in the first place.
+   */
+  const loadMine = useCallback(async (id: string) => {
+    const mine = await myPlay(id);
     if (mine) {
       setFound(mine.guess ?? []);
       setSolved(!!mine.correct);
     }
     setStreak(await myStreak());
-    setYesterday(await revealedAnswer(p.id));
-    if (userId) await markSeen(p.id, userId);
+    if (userId) await markSeen(id, userId);
   }, [userId]);
 
   /** A callback ref, not an effect: the React Compiler rules here forbid setState inside one. */
   const onMount = useCallback((node: ScrollView | null) => {
     if (node && !loaded) void load();
   }, [loaded, load]);
+
+  /**
+   * FIRED BY A REMOUNT, not by an effect. The marker below is keyed on the session and the puzzle,
+   * so React tears it down and builds it again whenever either arrives, and a callback ref runs on
+   * mount. That is how this re-runs when the guest session lands a moment after the first paint,
+   * without a `useEffect` those rules forbid.
+   */
+  const onMine = useCallback((node: View | null) => {
+    if (node && userId && puzzle) void loadMine(puzzle.id);
+  }, [userId, puzzle, loadMine]);
 
   const submit = async () => {
     const word = typed.trim();
@@ -180,6 +203,7 @@ export default function DailyScreen() {
       />
       <SafeAreaView style={styles.flex} edges={['top']}>
         <ScrollView ref={onMount} contentContainerStyle={styles.scroll}>
+          <View key={`${userId ?? 'anon'}:${puzzle?.id ?? ''}`} ref={onMine} />
 
           <View style={styles.hero}>
             <ThemedText type="small" style={styles.eyebrow}>DAILY PUZZLE</ThemedText>

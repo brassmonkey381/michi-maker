@@ -1,0 +1,159 @@
+{
+  "themes": [
+    "flowers",
+    "city"
+  ],
+  "total": 15,
+  "cards": [
+    {
+      "id": "485259",
+      "name": "Miraidon ex",
+      "number": "244/198",
+      "rarity": "Special Illustration Rare",
+      "set": "SV01: Scarlet & Violet Base Set",
+      "illustrator": "kantaro",
+      "language": "en",
+      "price": 24.29
+    },
+    {
+      "id": "490063",
+      "name": "Armarouge",
+      "number": "203/198",
+      "rarity": "Illustration Rare",
+      "set": "SV01: Scarlet & Violet Base Set",
+      "illustrator": "nagimiso",
+      "language": "en",
+      "price": 14.37
+    },
+    {
+      "id": "497612",
+      "name": "Arctibax",
+      "number": "209/193",
+      "rarity": "Illustration Rare",
+      "set": "SV02: Paldea Evolved",
+      "illustrator": "Tomokazu Komiya",
+      "language": "en",
+      "price": 17.22
+    },
+    {
+      "id": "500263",
+      "name": "Pikachu",
+      "number": "027",
+      "rarity": "Promo",
+      "set": "SV: Scarlet & Violet Promo Cards",
+      "illustrator": "Atsushi Furusawa",
+      "language": "en",
+      "price": 20.69
+    },
+    {
+      "id": "500264",
+      "name": "Pikachu",
+      "number": "027",
+      "rarity": "Promo",
+      "set": "SV: Scarlet & Violet Promo Cards",
+      "illustrator": "Atsushi Furusawa",
+      "language": "en",
+      "price": 162.16
+    },
+    {
+      "id": "509990",
+      "name": "Artazon",
+      "number": "229/197",
+      "rarity": "Hyper Rare",
+      "set": "SV03: Obsidian Flames",
+      "illustrator": "Oswaldo KATO",
+      "language": "en",
+      "price": 1.42
+    },
+    {
+      "id": "513721",
+      "name": "Pikachu",
+      "number": "173/165",
+      "rarity": "Illustration Rare",
+      "set": "SV: Scarlet & Violet 151",
+      "illustrator": "Hiroyuki Yamamoto",
+      "language": "en",
+      "price": 79.69
+    },
+    {
+      "id": "523896",
+      "name": "Cyclizar",
+      "number": "215/182",
+      "rarity": "Illustration Rare",
+      "set": "SV04: Paradox Rift",
+      "illustrator": "Mina Nakai",
+      "language": "en",
+      "price": 7.99
+    },
+    {
+      "id": "523935",
+      "name": "Mela",
+      "number": "254/182",
+      "rarity": "Special Illustration Rare",
+      "set": "SV04: Paradox Rift",
+      "illustrator": "rika",
+      "language": "en",
+      "price": 9.18
+    },
+    {
+      "id": "523939",
+      "name": "Rika",
+      "number": "258/182",
+      "rarity": "Special Illustration Rare",
+      "set": "SV04: Paradox Rift",
+      "illustrator": "kantaro",
+      "language": "en",
+      "price": 9.69
+    },
+    {
+      "id": "542923",
+      "name": "Salvatore",
+      "number": "202/162",
+      "rarity": "Ultra Rare",
+      "set": "SV05: Temporal Forces",
+      "illustrator": "Ryuta Fuse",
+      "language": "en",
+      "price": 3.75
+    },
+    {
+      "id": "550226",
+      "name": "Probopass",
+      "number": "182/167",
+      "rarity": "Illustration Rare",
+      "set": "SV06: Twilight Masquerade",
+      "illustrator": "Kariya",
+      "language": "en",
+      "price": 4.97
+    },
+    {
+      "id": "642602",
+      "name": "Pidove",
+      "number": "148/086",
+      "rarity": "Illustration Rare",
+      "set": "SV: Black Bolt",
+      "illustrator": "Mori Yuu",
+      "language": "en",
+      "price": 37.89
+    },
+    {
+      "id": "704847",
+      "name": "Slowbro",
+      "number": "090/084",
+      "rarity": "Illustration Rare",
+      "set": "ME05: Pitch Black",
+      "illustrator": "Mékayu",
+      "language": "en",
+      "price": 7.87
+    },
+    {
+      "id": "94637",
+      "name": "Slurpuff",
+      "number": "69/119",
+      "rarity": "Holo Rare",
+      "set": "XY - Phantom Forces",
+      "illustrator": "sui",
+      "language": "en",
+      "price": 4.61
+    }
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "themes": [
+    "forest",
+    "ruins"
+  ],
+  "total": 8,
+  "cards": [
+    {
+      "id": "108612",
+      "name": "Regigigas (Full Art Promo)",
+      "number": "XY82",
+      "rarity": "Promo",
+      "set": "XY Promos",
+      "illustrator": "Shin Nagasawa",
+      "language": "en",
+      "price": 47.28
+    },
+    {
+      "id": "253138",
+      "name": "Celebi V (Alternate Full Art)",
+      "number": "245/264",
+      "rarity": "Ultra Rare",
+      "set": "SWSH08: Fusion Strike",
+      "illustrator": "Teeziro",
+      "language": "en",
+      "price": 89.42
+    },
+    {
+      "id": "497615",
+      "name": "Mismagius",
+      "number": "212/193",
+      "rarity": "Illustration Rare",
+      "set": "SV02: Paldea Evolved",
+      "illustrator": "aoki",
+      "language": "en",
+      "price": 38.01
+    },
+    {
+      "id": "560376",
+      "name": "Tapu Bulu",
+      "number": "065/064",
+      "rarity": "Illustration Rare",
+      "set": "SV: Shrouded Fable",
+      "illustrator": "IKEDA Saki",
+      "language": "en",
+      "price": 12.55
+    },
+    {
+      "id": "642234",
+      "name": "Yamask",
+      "number": "122/086",
+      "rarity": "Illustration Rare",
+      "set": "SV: White Flare",
+      "illustrator": "YASHIRO Nanaco",
+      "language": "en",
+      "price": 10.15
+    },
+    {
+      "id": "642248",
+      "name": "Terrakion",
+      "number": "135/086",
+      "rarity": "Illustration Rare",
+      "set": "SV: White Flare",
+      "illustrator": "Shiburingaru",
+      "language": "en",
+      "price": 25.15
+    },
+    {
+      "id": "677068",
+      "name": "Hop's Trevenant",
+      "number": "096/217",
+      "rarity": "Rare",
+      "set": "ME: Ascended Heroes",
+      "illustrator": "",
+      "language": "en",
+      "price": 0.43
+    },
+    {
+      "id": "85320",
+      "name": "Espeon (20)",
+      "number": "20/75",
+      "rarity": "Rare",
+      "set": "Neo Discovery",
+      "illustrator": "Naoyo Kimura",
+      "language": "en",
+      "price": 104.14
+    }
+  ]
+}

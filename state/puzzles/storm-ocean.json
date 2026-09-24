@@ -1,0 +1,99 @@
+{
+  "themes": [
+    "storm",
+    "ocean"
+  ],
+  "total": 9,
+  "cards": [
+    {
+      "id": "126906",
+      "name": "Lapras GX",
+      "number": "35/149",
+      "rarity": "Ultra Rare",
+      "set": "SM Base Set",
+      "illustrator": "5ban Graphics",
+      "language": "en",
+      "price": 4.61
+    },
+    {
+      "id": "141249",
+      "name": "Gyarados",
+      "number": "020/098",
+      "rarity": "Promo",
+      "set": "Miscellaneous Cards & Products",
+      "illustrator": "Shin Nagasawa",
+      "language": "en",
+      "price": 21.42
+    },
+    {
+      "id": "246732",
+      "name": "Gyarados V (Full Art)",
+      "number": "171/203",
+      "rarity": "Ultra Rare",
+      "set": "SWSH07: Evolving Skies",
+      "illustrator": "PLANETA Tsuji",
+      "language": "en",
+      "price": 18.56
+    },
+    {
+      "id": "450289",
+      "name": "Lugia V",
+      "number": "138/195",
+      "rarity": "Ultra Rare",
+      "set": "SWSH12: Silver Tempest",
+      "illustrator": "Mitsuhiro Arita",
+      "language": "en",
+      "price": 14.98
+    },
+    {
+      "id": "451834",
+      "name": "Lugia V (Alternate Full Art)",
+      "number": "186/195",
+      "rarity": "Ultra Rare",
+      "set": "SWSH12: Silver Tempest",
+      "illustrator": "kawayoo",
+      "language": "en",
+      "price": 518.63
+    },
+    {
+      "id": "478135",
+      "name": "Kyogre",
+      "number": "036/159",
+      "rarity": "Holo Rare",
+      "set": "SWSH: Crown Zenith",
+      "illustrator": "Kouki Saitou",
+      "language": "en",
+      "price": 0.6
+    },
+    {
+      "id": "534736",
+      "name": "Palafin",
+      "number": "225/091",
+      "rarity": "Illustration Rare",
+      "set": "SV: Paldean Fates",
+      "illustrator": "akagi",
+      "language": "en",
+      "price": 2.02
+    },
+    {
+      "id": "633028",
+      "name": "Yanmega ex",
+      "number": "228/182",
+      "rarity": "Special Illustration Rare",
+      "set": "SV10: Destined Rivals",
+      "illustrator": "Tonji Matsuno",
+      "language": "en",
+      "price": 18.98
+    },
+    {
+      "id": "642227",
+      "name": "Zebstrika",
+      "number": "115/086",
+      "rarity": "Illustration Rare",
+      "set": "SV: White Flare",
+      "illustrator": "REND",
+      "language": "en",
+      "price": 27.55
+    }
+  ]
+}

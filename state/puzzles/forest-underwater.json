@@ -1,0 +1,49 @@
+{
+  "themes": [
+    "forest",
+    "underwater"
+  ],
+  "total": 4,
+  "cards": [
+    {
+      "id": "497606",
+      "name": "Magikarp",
+      "number": "203/193",
+      "rarity": "Illustration Rare",
+      "set": "SV02: Paldea Evolved",
+      "illustrator": "Shinji Kanda",
+      "language": "en",
+      "price": 368.75
+    },
+    {
+      "id": "542926",
+      "name": "Walking Wake ex",
+      "number": "205/162",
+      "rarity": "Special Illustration Rare",
+      "set": "SV05: Temporal Forces",
+      "illustrator": "Teeziro",
+      "language": "en",
+      "price": 46.01
+    },
+    {
+      "id": "642573",
+      "name": "Duosion",
+      "number": "119/086",
+      "rarity": "Illustration Rare",
+      "set": "SV: Black Bolt",
+      "illustrator": "Kedamahadaitai Yawarakai",
+      "language": "en",
+      "price": 14.87
+    },
+    {
+      "id": "85416",
+      "name": "Feraligatr (47)",
+      "number": "047/165",
+      "rarity": "Rare",
+      "set": "Expedition",
+      "illustrator": "Mitsuhiro Arita",
+      "language": "en",
+      "price": 124.99
+    }
+  ]
+}

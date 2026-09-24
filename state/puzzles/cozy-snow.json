@@ -1,0 +1,79 @@
+{
+  "themes": [
+    "cozy",
+    "snow"
+  ],
+  "total": 7,
+  "cards": [
+    {
+      "id": "497688",
+      "name": "Grusha",
+      "number": "268/193",
+      "rarity": "Special Illustration Rare",
+      "set": "SV02: Paldea Evolved",
+      "illustrator": "DOM",
+      "language": "en",
+      "price": 20.98
+    },
+    {
+      "id": "542899",
+      "name": "Metagross",
+      "number": "178/162",
+      "rarity": "Illustration Rare",
+      "set": "SV05: Temporal Forces",
+      "illustrator": "Katsunori Sato",
+      "language": "en",
+      "price": 34.18
+    },
+    {
+      "id": "590063",
+      "name": "Spheal",
+      "number": "199/191",
+      "rarity": "Illustration Rare",
+      "set": "SV08: Surging Sparks",
+      "illustrator": "miki kudo",
+      "language": "en",
+      "price": 8.86
+    },
+    {
+      "id": "623592",
+      "name": "Swinub",
+      "number": "165/159",
+      "rarity": "Illustration Rare",
+      "set": "SV09: Journey Together",
+      "illustrator": "Nakamura Ippan",
+      "language": "en",
+      "price": 3.49
+    },
+    {
+      "id": "642225",
+      "name": "Vanilluxe",
+      "number": "113/086",
+      "rarity": "Illustration Rare",
+      "set": "SV: White Flare",
+      "illustrator": "aoki",
+      "language": "en",
+      "price": 40.73
+    },
+    {
+      "id": "642236",
+      "name": "Gothita",
+      "number": "124/086",
+      "rarity": "Illustration Rare",
+      "set": "SV: White Flare",
+      "illustrator": "Kanami Ogata",
+      "language": "en",
+      "price": 24.53
+    },
+    {
+      "id": "89409",
+      "name": "Snow-cloud Castform",
+      "number": "29/113",
+      "rarity": "Rare",
+      "set": "EX Delta Species",
+      "illustrator": "Miki Tanaka",
+      "language": "en",
+      "price": 36.99
+    }
+  ]
+}

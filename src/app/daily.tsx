@@ -14,9 +14,9 @@
  *
  * SEEN IS RECORDED ON ARRIVAL, so the home page stops offering a puzzle this person has opened.
  */
-import { useRouter, type Href } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Image } from 'expo-image';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -31,6 +31,9 @@ import {
   type DailyPuzzle, type GradeResult, type MyPlay,
 } from '@/data/dailyPuzzle';
 import { cardThumbUrl } from '@/lib/catalogConfig';
+import {
+  trackPuzzleGuess, trackPuzzleGuessFailed, trackPuzzleOpened, trackPuzzleSolved,
+} from '@/lib/analytics';
 import { useAuth } from '@/store/auth';
 
 export default function DailyScreen() {
@@ -40,6 +43,9 @@ export default function DailyScreen() {
   // Hoisted out of the dependency list: an optional chain in there defeats the React Compiler's
   // memoization check ("existing memoization could not be preserved") for no benefit.
   const userId = auth.user?.id ?? null;
+  // How they arrived. The home card appends ?from=card; the rail appends ?from=nav.
+  // Anything else is a direct hit - a bookmark, a share, or a typed URL.
+  const { from } = useLocalSearchParams<{ from?: string }>();
   const phone = width < Breakpoints.phone;
 
   const [loaded, setLoaded] = useState(false);
@@ -54,6 +60,8 @@ export default function DailyScreen() {
   const [result, setResult] = useState<GradeResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  /** Guesses made in this visit, for the attempt number on each one. */
+  const attempts = useRef(0);
 
   /**
    * LOADED AT THE TAP OR ON MOUNT VIA A CALLBACK REF, never in an effect: the React Compiler rules
@@ -74,7 +82,15 @@ export default function DailyScreen() {
     setStreak(await myStreak());
     setAnswer(await revealedAnswer(p.id));
     if (userId) await markSeen(p.id, userId);
-  }, [userId]);
+    // After the play is known, so `state` can say what they actually arrived at.
+    // A visit to a puzzle already solved is a different visit from a first look,
+    // and one "opened" count would hide the difference.
+    trackPuzzleOpened(
+      p.id,
+      from === 'card' ? 'card' : from === 'nav' ? 'nav' : 'direct',
+      mine?.correct ? 'solved' : mine ? 'played' : 'fresh',
+    );
+  }, [userId, from]);
 
   /**
    * A CALLBACK REF, not an effect. The React Compiler rules here forbid setState inside an effect,
@@ -98,12 +114,27 @@ export default function DailyScreen() {
   const submit = async () => {
     if (!puzzle || !canSubmit) return;
     setBusy(true);
+    // Counted in a ref rather than state: it must be correct inside this same
+    // call, and a state update would not be readable until the next render.
+    attempts.current += 1;
+    const attempt = attempts.current;
     try {
       const r = await gradeGuess(puzzle.id, picked);
       setResult(r);
-      if (r.correct) setStreak(await myStreak());
+      trackPuzzleGuess(puzzle.id, attempt, picked, r);
+      if (r.correct) {
+        const next = await myStreak();
+        setStreak(next);
+        // Separate from the guess: solving is the outcome the puzzle exists for,
+        // and it carries how many tries and the run it extends, neither of which
+        // belongs on every wrong answer.
+        trackPuzzleSolved(puzzle.id, attempt, next);
+      }
     } catch {
       setResult(null);
+      // The RPC failed. NOT a wrong answer - pooling the two would put our
+      // outage in the same bucket as a player getting it wrong.
+      trackPuzzleGuessFailed(puzzle.id, attempt);
     } finally {
       setBusy(false);
     }

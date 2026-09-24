@@ -25,7 +25,10 @@ export type NavItem = {
 
 export const NAV_EXPLORE: NavItem[] = [
   { label: 'Home', href: '/', match: (p) => p === '/' },
-  { label: 'Daily Puzzle', href: '/daily' as Href, match: (p) => p.startsWith('/daily') },
+  // ?from=nav so the puzzle page can tell a rail click from the home card and
+  // from a direct hit. `match` still tests the path, so the query is invisible
+  // to the active-item highlight.
+  { label: 'Daily Puzzle', href: '/daily?from=nav' as Href, match: (p) => p.startsWith('/daily') },
   { label: 'Discover Binders', href: '/discover' as Href, match: (p) => p.startsWith('/discover') },
   // ONE contest line (owner call, 2026-09-15). /contest-binders is reached from the contest page's
   // "See the entries" and from Discover's card, not from its own item; the item stays lit on both.

@@ -828,6 +828,84 @@ function emit(name: string, props?: Record<string, unknown>, ts?: string): void 
  * Ensure a session exists for the current user. The auth store calls this on cold-start /
  * session bootstrap; idempotent, so extra calls are no-ops.
  */
+/* -- Daily puzzle ---------------------------------------------------------- */
+
+/** Where a puzzle moment happened. `home_card` is the invitation, `daily` the page. */
+export type PuzzleSurface = 'home_card' | 'daily';
+
+/**
+ * The home card actually rendered. It is gated on four things before it draws -
+ * signed in, not a guest, not previously declined, a puzzle published today, and
+ * not already played - so this fires far less often than the home page loads,
+ * and without it `puzzle.choice` has no denominator.
+ */
+export function trackPuzzleOffered(puzzle: string, asking: boolean): void {
+  // `asking` separates the FIRST offer, which carries the opt-in question, from
+  // the ones after it. Only the first can produce a choice, so pooling them
+  // would sink the opt-in rate as the same people see the card again.
+  track('puzzle.offer_shown', { puzzle, surface: 'home_card', asking });
+}
+
+/** They said yes or no to being shown the puzzle at all. Once per account. */
+export function trackPuzzleChoice(choice: 'on' | 'declined', puzzle: string): void {
+  track('puzzle.choice', { choice, puzzle, surface: 'home_card' });
+}
+
+/**
+ * The puzzle page was opened. `entry` is how they got there and `state` is what
+ * they found: a puzzle they have never answered, or one they already solved and
+ * came back to. Those are different visits and a single "opened" count hides it.
+ */
+export function trackPuzzleOpened(
+  puzzle: string,
+  entry: 'card' | 'nav' | 'direct',
+  state: 'fresh' | 'played' | 'solved',
+): void {
+  track('puzzle.opened', { puzzle, entry, state });
+}
+
+/**
+ * A graded guess. `words` is the picked vocabulary, and it is SAFE to send here
+ * for one specific reason: the guess box cannot receive free text. Words enter
+ * `picked` only through the suggestion chips, which come from the curated
+ * `puzzle_vocabulary` table - a closed set we author. They are enum values, like
+ * a tier_caps limit key, not something a person typed.
+ *
+ * IF THAT INPUT EVER ACCEPTS A TYPED WORD, THIS PROP MUST GO. Free text in an
+ * analytics prop is the one thing the emitter contract does not allow, and the
+ * whole justification above rests on `add()` being reachable only from a chip.
+ *
+ * Which words get guessed wrongly is the point of the event: the puzzle exists
+ * to teach the vocabulary that the paid search feature runs on, so a word people
+ * reach for and miss is a gap between what the art shows and what it is tagged.
+ */
+export function trackPuzzleGuess(
+  puzzle: string,
+  attempt: number,
+  words: string[],
+  r: { correct: boolean; matched: number; of: number },
+): void {
+  track('puzzle.guess_submitted', {
+    puzzle,
+    attempt,
+    words,
+    picked: words.length,
+    matched: r.matched,
+    of: r.of,
+    correct: r.correct,
+  });
+}
+
+/** Solved it. `attempts` is how many guesses it took, `streak` the run it extends. */
+export function trackPuzzleSolved(puzzle: string, attempts: number, streak: number): void {
+  track('puzzle.solved', { puzzle, attempts, streak });
+}
+
+/** A guess that could not be graded - the RPC threw. Not a wrong answer. */
+export function trackPuzzleGuessFailed(puzzle: string, attempt: number): void {
+  track('puzzle.guess_failed', { puzzle, attempt });
+}
+
 export function startSession(): void {
   void ensureSession();
 }

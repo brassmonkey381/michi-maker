@@ -16,6 +16,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { trackPuzzleChoice, trackPuzzleOffered } from '@/lib/analytics';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import {
   dailyPuzzleChoice, myPlay, todaysPuzzle, withDailyPuzzleChoice, type DailyPuzzle,
@@ -60,11 +61,18 @@ export function DailyPuzzleCard() {
       setPuzzle(p);
       setAsking(choice === null);
       setPhase('ready');
+      // Here, not at render: this runs once when the card is resolved, whereas a
+      // render can repeat. `asking` marks the one offer that can produce a choice.
+      trackPuzzleOffered(p.id, choice === null);
     })();
   }, [phase, userId, isGuest]);
 
   const record = async (choice: 'on' | 'declined') => {
     setPhase('hidden');
+    // Before the write, and outside the guard below: a choice the user made is a
+    // fact whether or not the preference row saves, and a failed save is exactly
+    // when you want to know they chose.
+    if (puzzle) trackPuzzleChoice(choice, puzzle.id);
     if (!supabase || !userId) return;
     const { data } = await supabase.from('profiles').select('preferences').eq('id', userId).maybeSingle();
     await supabase
@@ -91,8 +99,11 @@ export function DailyPuzzleCard() {
       <View style={styles.actions}>
         <Pressable
           onPress={() => {
+            // Pressing Play IS the opt-in when the question is still open - it is
+            // recorded as a choice, not just a navigation, or the opt-in rate
+            // would only ever count people who pressed the quieter button.
             if (asking) void record('on');
-            router.push('/daily' as Href);
+            router.push('/daily?from=card' as Href);
           }}
           style={styles.primary}
           testID="daily-card-play"

@@ -85,3 +85,8 @@ qa/state/
 # Connected-artwork import working files: 201 source photographs fetched for card identification
 # only, plus the intermediate json. Working files, not product assets, and not ours to redistribute.
 state/connected-art/
+
+# Puzzle working files: the contact sheet is a re-creatable check (scripts/presets/rehost-surfaces.mjs)
+# and the pair sweep is a long log, neither of which anyone reads from the repo.
+state/presets/
+state/theme-pairs.log

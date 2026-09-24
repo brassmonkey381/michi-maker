@@ -19,6 +19,7 @@
  * SEEN IS RECORDED ON ARRIVAL, so the home page stops offering a puzzle this person has opened.
  */
 import { useRouter, type Href } from 'expo-router';
+import { sendBrowseCommand } from 'tcgscan-browse';
 import { Image } from 'expo-image';
 import { useCallback, useState } from 'react';
 import {
@@ -114,6 +115,20 @@ export default function DailyScreen() {
     }
   };
 
+  /**
+   * THROUGH THE COMMAND BUS, not a query string. /browse reads no `?q=` parameter; every other
+   * surface that drives it (home's recent feed, my collection) sends a command and then navigates,
+   * and the bus HOLDS one command for the next subscriber, so it cannot race the browser mounting.
+   *
+   * The first version of this link passed `?q=`, which nothing consumes. It looked like it worked
+   * intermittently because the browser keeps the last search it ran, so arriving with the box
+   * already holding something was mistaken for the link having filled it.
+   */
+  const runTheSearch = () => {
+    sendBrowseCommand({ type: 'search', query: found.map((w) => `theme:${w}`).join(' ') });
+    router.push('/browse' as Href);
+  };
+
   // Big enough to read the illustration, and laid out in the page's own column count so the shape
   // a reader sees is the shape it was curated in.
   const wide = width >= Breakpoints.phone;
@@ -200,11 +215,7 @@ export default function DailyScreen() {
                     {tries > 0 ? `${tries} ${tries === 1 ? 'guess' : 'guesses'}. ` : ''}
                     Come back tomorrow for the next one.
                   </ThemedText>
-                  <Pressable
-                    onPress={() => router.push(
-                      `/browse?q=${encodeURIComponent(found.map((w) => `theme:${w}`).join(' '))}` as Href,
-                    )}
-                  >
+                  <Pressable onPress={runTheSearch}>
                     <ThemedText type="smallBold" style={styles.link}>See every card that matches</ThemedText>
                   </Pressable>
                 </View>

@@ -68,6 +68,6 @@ say which in the rules, because the first person who comments nine days and lose
 ## Why the site link still matters
 
 It is not an entry condition, so it has to earn the tap on its own. Keep it high in the caption:
-the puzzle is better played on the site than guessed at in a comment, the answer is checked as it
-is typed, and a streak only exists there. The raffle grows the following; the link is what turns a
+the puzzle is better played on the site than guessed at in a comment, guesses are checked there,
+and a streak only exists there. The raffle grows the following; the link is what turns a
 follower into someone with an account.

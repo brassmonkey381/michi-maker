@@ -57,13 +57,53 @@ export function pageRenderUrl(binderId: string, pageId: string | null, cacheKey:
   return `${base}/api/og-image-hires?id=${encodeURIComponent(binderId)}&v=2&t=${encodeURIComponent(cacheKey)}${page}`;
 }
 
-function loadImage(url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('The page image could not be drawn. Is the binder showcased?'));
-    img.src = url;
-  });
+/**
+ * FETCHED, NOT `new Image()`. An <img> that fails reports nothing at all: no status, no body, just
+ * `onerror`. The first version of this threw one guessed explanation ("is the binder showcased?")
+ * for every possible cause, which is worse than useless when the real cause is something else, and
+ * the real cause usually is: /api/* are Vercel functions and the Expo dev server does not serve
+ * them, so on localhost this 404s instantly no matter what the binder's settings are.
+ *
+ * A fetch gives the status and the endpoint's own JSON error, so the message names what happened.
+ */
+async function loadPageImage(url: string): Promise<HTMLImageElement> {
+  let res: Response;
+  try {
+    res = await fetch(url);
+  } catch {
+    throw new Error(`Could not reach ${new URL(url).origin}/api. If this is a dev server, that endpoint only exists on a deployed build.`);
+  }
+  if (!res.ok) {
+    let why = '';
+    try {
+      const body = await res.clone().json();
+      why = typeof body?.error === 'string' ? `: ${body.error}` : '';
+    } catch {
+      /* not JSON, the status is all there is */
+    }
+    if (res.status === 404) {
+      throw new Error(`The renderer returned 404${why}. It only draws PUBLIC binders, so turn showcase on for this one.`);
+    }
+    throw new Error(`The renderer returned ${res.status}${why}.`);
+  }
+  const type = res.headers.get('content-type') ?? '';
+  if (!type.startsWith('image/')) {
+    throw new Error(`The renderer answered with ${type || 'no content type'} rather than an image.`);
+  }
+
+  const blob = await res.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    return await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('The renderer returned an image the browser could not decode.'));
+      img.src = objectUrl;
+    });
+  } finally {
+    // Revoked after decode; the pixels are in the element by then.
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 10_000);
+  }
 }
 
 /**
@@ -79,7 +119,7 @@ export async function buildPuzzleImage(input: PuzzleImageInput): Promise<Blob> {
     throw new Error('The puzzle image is built in a browser.');
   }
   const aspect = input.aspect ?? '3:4';
-  const page = await loadImage(pageRenderUrl(input.binderId, input.pageId, input.publishOn));
+  const page = await loadPageImage(pageRenderUrl(input.binderId, input.pageId, input.publishOn));
 
   const W = 2000;
   const H = Math.round(W * (ASPECTS[aspect] ?? ASPECTS['3:4']));

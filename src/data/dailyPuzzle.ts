@@ -11,15 +11,18 @@
  * lands therefore gets it the next time they reach the home page, which is the behaviour asked for.
  */
 import {
+  puzzleDay,
   streakLength,
-  utcDate,
   type PlayedDay,
 } from '@/data/dailyPuzzleLogic';
 import { requireSupabase, supabase } from '@/lib/supabase';
 
 export {
+  countdownText,
   DAILY_PUZZLE_KEY,
+  nextRollover,
   PUZZLE_BACKDROP_FALLBACK,
+  puzzleDay,
   dailyPuzzleChoice,
   shiftUtcDate,
   streakLength,
@@ -71,7 +74,7 @@ export async function todaysPuzzle(now = new Date()): Promise<DailyPuzzle | null
   const { data, error } = await supabase
     .from('daily_puzzles')
     .select('id, publish_on, theme_count, card_ids, card_image_urls, rows, cols, backdrop_url, hint')
-    .eq('publish_on', utcDate(now))
+    .eq('publish_on', puzzleDay(now))
     .maybeSingle();
   // A miss is not an error here: most of the interesting states (no puzzle today, not signed in
   // yet, RLS hiding an unpublished row) all look like "nothing", and none of them are worth an
@@ -173,5 +176,5 @@ export async function myPlayedDays(limit = 400): Promise<PlayedDay[]> {
 }
 
 export async function myStreak(now = new Date()): Promise<number> {
-  return streakLength(await myPlayedDays(), utcDate(now));
+  return streakLength(await myPlayedDays(), puzzleDay(now));
 }

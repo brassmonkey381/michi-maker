@@ -44,7 +44,74 @@ export function withDailyPuzzleChoice(preferences: unknown, choice: Exclude<Dail
   return base;
 }
 
-/** The UTC date, which is the day boundary every puzzle uses. */
+/**
+ * THE PUZZLE DAY, and the only client-side definition of it. Mirrors public.puzzle_today().
+ *
+ * It turns over at 03:00 Pacific, not midnight UTC (owner, 2026-09-24): midnight UTC is 5pm the
+ * previous afternoon in California, so "a new one every morning" was landing mid-afternoon the day
+ * before for the readers most likely to see it.
+ *
+ * A NAMED ZONE, never a fixed offset. "3am PST" is ambiguous for half the year: -8 gives 3am in
+ * winter and 4am in summer, -7 the other way round. Intl follows the change.
+ */
+export const PUZZLE_ZONE = 'America/Los_Angeles';
+export const ROLLOVER_HOUR = 3;
+
+/** How far the named zone is from UTC at a given instant, in ms. */
+function zoneOffsetMs(at: Date): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: PUZZLE_ZONE, hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).formatToParts(at).reduce<Record<string, string>>((acc, p) => {
+    if (p.type !== 'literal') acc[p.type] = p.value;
+    return acc;
+  }, {});
+  // `hour` comes back as 24 at midnight under hour12:false in some engines.
+  const hour = Number(parts.hour) % 24;
+  const asIfUtc = Date.UTC(
+    Number(parts.year), Number(parts.month) - 1, Number(parts.day),
+    hour, Number(parts.minute), Number(parts.second),
+  );
+  return asIfUtc - at.getTime();
+}
+
+/** Today, as the puzzle counts it: the zone's date, three hours back. */
+export function puzzleDay(now: Date): string {
+  const shifted = new Date(now.getTime() - ROLLOVER_HOUR * 3600_000);
+  // en-CA formats as YYYY-MM-DD, which is the shape the database stores.
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: PUZZLE_ZONE, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(shifted);
+}
+
+/**
+ * The instant the next puzzle day begins.
+ *
+ * The offset is applied TWICE because the first guess can land on the wrong side of a daylight
+ * saving change, and the offset that matters is the one in force at the answer, not at the guess.
+ */
+export function nextRollover(now: Date): Date {
+  const tomorrow = shiftUtcDate(puzzleDay(now), 1);
+  const wall = `${tomorrow}T${String(ROLLOVER_HOUR).padStart(2, '0')}:00:00Z`;
+  let t = Date.parse(wall);
+  for (let i = 0; i < 2; i += 1) t = Date.parse(wall) - zoneOffsetMs(new Date(t));
+  return new Date(t);
+}
+
+/** "12h 27m", or "4m 10s" in the last hour. Never a bare number of seconds ticking from 3600. */
+export function countdownText(ms: number): string {
+  if (!Number.isFinite(ms) || ms <= 0) return 'any moment';
+  const total = Math.floor(ms / 1000);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const sec = total % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${sec}s`;
+  return `${sec}s`;
+}
+
+/** The UTC date. Kept because the streak's tests and its stored dates are plain date strings. */
 export function utcDate(now: Date): string {
   return now.toISOString().slice(0, 10);
 }

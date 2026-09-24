@@ -33,7 +33,8 @@ import {
   BottomTabInset, Breakpoints, FontSize, MaxContentWidthDoc, Palette, Radius, Spacing, Weight,
 } from '@/constants/theme';
 import {
-  guessWord, markSeen, myPlay, myStreak, PUZZLE_BACKDROP_FALLBACK, revealedAnswer, todaysPuzzle,
+  countdownText, guessWord, markSeen, myPlay, myStreak, nextRollover,
+  PUZZLE_BACKDROP_FALLBACK, revealedAnswer, todaysPuzzle,
   type DailyPuzzle, type GuessResult,
 } from '@/data/dailyPuzzle';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
@@ -67,6 +68,23 @@ export default function DailyScreen() {
   const [busy, setBusy] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [zoom, setZoom] = useState<string | null>(null);
+
+  /**
+   * THE COUNTDOWN. Held as state and re-armed by a timeout after each render rather than driven by
+   * an interval in an effect, because the React Compiler rules here forbid setState inside an
+   * effect. `left` is recomputed from the clock each tick, so a sleeping tab that misses ticks
+   * still shows the right number when it wakes rather than a drifted one.
+   */
+  const [tick, setTick] = useState(() => Date.now());
+  const rollover = nextRollover(new Date(tick));
+  const left = rollover.getTime() - tick;
+  const armTick = useCallback((node: View | null) => {
+    if (!node) return;
+    // A minute is enough above an hour; a second only matters at the end.
+    const every = left > 3600_000 ? 30_000 : 1000;
+    const t = setTimeout(() => setTick(Date.now()), every);
+    return () => clearTimeout(t);
+  }, [left]);
 
   const load = useCallback(async () => {
     setLoaded(true);
@@ -171,11 +189,20 @@ export default function DailyScreen() {
                 {`Every card matches the same ${puzzle.themeCount === 1 ? 'idea' : `${puzzle.themeCount} ideas`}. Tap a card to look closer.`}
               </ThemedText>
             ) : null}
-            {streak > 0 ? (
-              <View style={styles.streakPill}>
-                <ThemedText type="smallBold" style={styles.streakText}>{`${streak} day streak`}</ThemedText>
+            <View style={styles.pills}>
+              {streak > 0 ? (
+                <View style={styles.streakPill}>
+                  <ThemedText type="smallBold" style={styles.streakText}>{`${streak} day streak`}</ThemedText>
+                </View>
+              ) : null}
+              <View ref={armTick} style={styles.clockPill}>
+                <ThemedText type="small" themeColor="textSecondary" testID="daily-countdown">
+                  {puzzle
+                    ? `Next puzzle in ${countdownText(left)}`
+                    : `Tomorrow's puzzle in ${countdownText(left)}`}
+                </ThemedText>
               </View>
-            ) : null}
+            </View>
           </View>
 
           {!loaded ? (
@@ -213,7 +240,7 @@ export default function DailyScreen() {
                   </ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">
                     {tries > 0 ? `${tries} ${tries === 1 ? 'guess' : 'guesses'}. ` : ''}
-                    Come back tomorrow for the next one.
+                    {`The next one lands in ${countdownText(left)}.`}
                   </ThemedText>
                   <Pressable onPress={runTheSearch}>
                     <ThemedText type="smallBold" style={styles.link}>See every card that matches</ThemedText>
@@ -335,6 +362,15 @@ const styles = StyleSheet.create({
   eyebrow: { letterSpacing: 2, color: Palette.accent, fontWeight: Weight.bold },
   h1: { textAlign: 'center' },
   lead: { textAlign: 'center', maxWidth: 420 },
+  pills: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.one, justifyContent: 'center', alignItems: 'center' },
+  clockPill: {
+    marginTop: Spacing.one,
+    borderWidth: 1,
+    borderColor: Palette.hairline,
+    borderRadius: Radius.pill,
+    paddingVertical: 4,
+    paddingHorizontal: Spacing.three,
+  },
   streakPill: {
     marginTop: Spacing.one,
     backgroundColor: Palette.accentSoft,

@@ -71,10 +71,14 @@ export function parseThemes(input: string): string[] {
   return [...new Set(cleaned)];
 }
 
-/** Today in UTC as YYYY-MM-DD, which is the day boundary the puzzle uses. */
-export function utcToday(now: Date): string {
-  return now.toISOString().slice(0, 10);
-}
+/**
+ * Today as the puzzle counts it, for the publish form's default date.
+ *
+ * NOT UTC (owner, 2026-09-24): the day turns over at 03:00 Pacific, so between 5pm and 8pm
+ * California time a UTC default would offer tomorrow's date as today's and the puzzle would go live
+ * a day early. Re-exported from dailyPuzzleLogic so there is one definition, not two.
+ */
+export { puzzleDay as utcToday } from './dailyPuzzleLogic.ts';
 
 /**
  * Which binders the picker shows by default.

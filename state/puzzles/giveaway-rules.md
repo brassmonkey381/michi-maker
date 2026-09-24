@@ -24,12 +24,14 @@ That is what settled it, but the post is the better home for this anyway:
   reconstructed from notes.
 
 The Story's one real advantage was that the Questions sticker kept guesses private. That mattered
-while a correct answer was an entry condition. It is not one (owner, 2026-09-24), so the advantage
-is gone and the costs are not worth paying.
+while a correct answer was an entry condition. It is not one, and public guesses are wanted rather
+than tolerated, so the advantage is gone twice over and the costs are not worth paying.
 
-**The cost that remains:** comments are public, so somebody will post a guess and spoil it for a
-later reader. The caption asks for the username only and asks people to keep the guess to
-themselves, which mostly works and cannot be enforced. Worth knowing rather than being surprised by.
+**Guesses in the comments are fine** (owner, 2026-09-24). Comments are public, so people will
+post answers and later readers will see them. The caption does NOT ask anyone to hold back: a
+rule that cannot be enforced and that everybody breaks is worse than no rule, and a thread
+arguing about a puzzle is the engagement this is for. Regulars work out for themselves not to
+read the comments first.
 
 ## Running it
 

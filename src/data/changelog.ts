@@ -130,6 +130,94 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-09-24',
+    title: 'A puzzle every day',
+    items: [
+      {
+        products: ['michi'],
+        head: 'Daily puzzle: name what the cards have in common',
+        pinned: true,
+        kind: 'new',
+        area: 'browse',
+        big: true,
+        body:
+          'A page of cards that all match the same one or two ideas, and you name them. One word at '
+          + 'a time, close spellings count, and a new one goes up every morning. It is in the left '
+          + 'menu under Daily Puzzle, free on every plan, and you need to be signed in so your '
+          + 'streak is kept.',
+      },
+      {
+        products: ['michi'],
+        head: 'Tap a puzzle card to see it full size',
+        kind: 'better',
+        area: 'browse',
+        body:
+          'What the cards share is often a small detail, so every card on the puzzle opens to the '
+          + 'full picture.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-23',
+    title: 'A menu on the phone, and the editor stops losing cards',
+    items: [
+      {
+        products: ['michi'],
+        head: 'The phone gets a menu',
+        kind: 'new',
+        area: 'account',
+        big: true,
+        body:
+          'A button in the bottom corner opens the whole site: Discover, Browse, your binders, your '
+          + 'purchases. Before this there were no links at all on a narrow screen. It slides out of '
+          + 'the way while you scroll.',
+      },
+      {
+        products: ['michi'],
+        head: 'Cards no longer vanish when you rearrange a page quickly',
+        kind: 'fix',
+        area: 'binders',
+        body:
+          'Moving several cards in quick succession could drop one and show "A change did not save". '
+          + 'A move is now one step that either happens or does not. Binders already affected are '
+          + 'not changed by this.',
+      },
+      {
+        products: ['michi'],
+        head: 'Delete removes the card you picked, and the picker aims where you clicked',
+        kind: 'fix',
+        area: 'binders',
+        body:
+          'Pressing Delete sometimes did nothing, and clicking a pocket could target a different one '
+          + 'with no way to change it. Both were the same stuck selection.',
+      },
+      {
+        products: ['michi'],
+        head: 'The plans page fits a phone',
+        kind: 'better',
+        area: 'account',
+        body:
+          'The comparison was a wide table you could not reach the right-hand side of. On a narrow '
+          + 'screen it is now one card per plan.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    title: 'Unlocks expire when they should',
+    items: [
+      {
+        products: ['michi'],
+        head: 'An expired unlock no longer reads as owned',
+        kind: 'fix',
+        area: 'account',
+        body:
+          'A one-off unlock with an end date kept working past it. Anything you bought outright, '
+          + 'with no end date, is unaffected and stays yours.',
+      },
+    ],
+  },
+  {
     date: '2026-09-22',
     title: 'Tell us what to build next',
     items: [

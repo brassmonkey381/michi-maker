@@ -6,6 +6,17 @@
  * src/data/dailyPuzzle.ts holds the calls and re-exports these.
  */
 
+/**
+ * The backdrop a puzzle wears when the page it came from had no picture of its own.
+ *
+ * Our own copy of the question marks, re-hosted from Pixabay (BlenderTimer) by
+ * scripts/puzzles/rehost-backdrop.mjs and content-addressed, so it cannot rot the way the signed
+ * pixabay.com/get address it replaced could.
+ */
+export const PUZZLE_BACKDROP_FALLBACK =
+  'https://piikwvntldytjejxmcla.supabase.co/storage/v1/object/public/binder-art/'
+  + '29a6e25c-c5a0-4c2a-9a5b-62c98e288605/puzzle-backdrop-a6e33f992de04a67.jpg';
+
 /** Where the opt-in lives inside profiles.preferences. */
 export const DAILY_PUZZLE_KEY = 'dailyPuzzle';
 

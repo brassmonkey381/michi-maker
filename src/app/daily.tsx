@@ -32,7 +32,7 @@ import {
   BottomTabInset, Breakpoints, FontSize, MaxContentWidthDoc, Palette, Radius, Spacing, Weight,
 } from '@/constants/theme';
 import {
-  guessWord, markSeen, myPlay, myStreak, revealedAnswer, todaysPuzzle,
+  guessWord, markSeen, myPlay, myStreak, PUZZLE_BACKDROP_FALLBACK, revealedAnswer, todaysPuzzle,
   type DailyPuzzle, type GuessResult,
 } from '@/data/dailyPuzzle';
 import { cardThumbUrl } from '@/lib/catalogConfig';
@@ -116,8 +116,24 @@ export default function DailyScreen() {
   );
   const remaining = puzzle ? puzzle.themeCount - found.length : 0;
 
+  /**
+   * THE BACKDROP IS THE PAGE'S OWN, when it has one: a published puzzle carries the background of
+   * the binder page it came from, so the screen looks like the page it is. Held at a low opacity
+   * rather than behind a scrim, because a scrim has to be got right twice (once per theme) and an
+   * opacity works on either ground.
+   */
+  const backdrop = puzzle?.backdropUrl ?? PUZZLE_BACKDROP_FALLBACK;
+
   return (
     <ThemedView style={styles.container}>
+      <Image
+        source={{ uri: backdrop }}
+        style={[StyleSheet.absoluteFill, styles.backdrop]}
+        contentFit="cover"
+        transition={200}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      />
       <SafeAreaView style={styles.flex} edges={['top']}>
         <ScrollView ref={onMount} contentContainerStyle={styles.scroll}>
 
@@ -280,6 +296,8 @@ export default function DailyScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  // A watermark, not a picture: the cards are the thing to look at.
+  backdrop: { opacity: 0.14 },
   flex: { flex: 1 },
   scroll: {
     padding: Spacing.four,

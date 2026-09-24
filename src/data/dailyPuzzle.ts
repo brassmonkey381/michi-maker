@@ -19,6 +19,7 @@ import { requireSupabase, supabase } from '@/lib/supabase';
 
 export {
   DAILY_PUZZLE_KEY,
+  PUZZLE_BACKDROP_FALLBACK,
   dailyPuzzleChoice,
   shiftUtcDate,
   streakLength,

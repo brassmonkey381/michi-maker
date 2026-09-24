@@ -11,6 +11,7 @@
 import { Platform } from 'react-native';
 
 import { requireSupabase } from '@/lib/supabase';
+import { track } from '@/lib/analytics';
 
 async function invokeStripe(body: Record<string, string | boolean>): Promise<unknown> {
   const supabase = requireSupabase();
@@ -83,20 +84,46 @@ function currentReturnUrl(): string {
   return 'https://www.michi-maker.com/plans';
 }
 
-/** Launch Stripe Checkout for a catalog lookup_key (subscriptions or the one-time binder PDF).
- *  `bundle: true` asks for the cross-app bundle discount — the server verifies the caller
- *  actually owns the sibling Pro before applying the coupon (see docs/SYNERGY.md). */
+/**
+ * Launch Stripe Checkout for a catalog lookup_key (subscriptions or the one-time binder PDF).
+ * `bundle: true` asks for the cross-app bundle discount - the server verifies the caller
+ * actually owns the sibling Pro before applying the coupon (see docs/SYNERGY.md).
+ *
+ * THE TRACKING LIVES HERE, not at the buttons. Three call sites reach this function and only
+ * one of them used to record anything, so a bundle upgrade and a PDF purchase reached Stripe
+ * with nothing in the stream at all. Instrumenting the function instead of its callers makes
+ * coverage structural: a new checkout button is tracked the moment it is wired, with no second
+ * thing to remember.
+ *
+ * TWO EVENTS, because there are two outcomes and they used to look identical. `fetchStripeUrl`
+ * is an edge-function round trip before any navigation happens; when it fails the user pressed
+ * a button and went nowhere, which is not the same fact as pressing it and arriving. `surface`
+ * says which button, so a failure can be traced back to the one that produced it.
+ *
+ * What this canNOT see is whether they got to Stripe and paid: navigation leaves the page, and
+ * the return trip is a fresh load. Completion is ground truth - an entitlement row whose source
+ * is not 'trial' - and the two are read together, never one instead of the other.
+ */
 export async function startCheckout(
   lookupKey: string,
-  opts?: { binderId?: string; bundle?: boolean },
+  opts?: { binderId?: string; bundle?: boolean; surface?: string },
 ): Promise<void> {
-  const url = await fetchStripeUrl({
-    action: 'checkout',
-    lookupKey,
-    returnUrl: currentReturnUrl(),
-    ...(opts?.binderId ? { binderId: opts.binderId } : {}),
-    ...(opts?.bundle ? { bundle: true } : {}),
-  });
+  const surface = opts?.surface ?? 'unknown';
+  track('offer.checkout_start', { lookup_key: lookupKey, surface, bundle: !!opts?.bundle });
+  let url: string;
+  try {
+    url = await fetchStripeUrl({
+      action: 'checkout',
+      lookupKey,
+      returnUrl: currentReturnUrl(),
+      ...(opts?.binderId ? { binderId: opts.binderId } : {}),
+      ...(opts?.bundle ? { bundle: true } : {}),
+    });
+  } catch (e) {
+    // A fixed class, never the thrown message - those carry ids and sometimes URLs.
+    track('offer.checkout_failed', { lookup_key: lookupKey, surface, reason: 'no_url' });
+    throw e;
+  }
   if (Platform.OS === 'web') window.location.assign(url);
 }
 

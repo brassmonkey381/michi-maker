@@ -67,9 +67,9 @@ export function OfferCards() {
     if (!CHECKOUT_OPEN) return setNote('Checkout opens shortly. Nothing has been charged.');
     if (!isSignedIn) return setNote('Sign in first, so the membership lands on your account.');
     setBusy(lookupKey);
-    track('offer_checkout_start', { lookup_key: lookupKey });
     try {
-      await startCheckout(lookupKey); // navigates away on success
+      // startCheckout emits offer.checkout_start / offer.checkout_failed itself.
+      await startCheckout(lookupKey, { surface: 'offer_cards' }); // navigates away on success
     } catch (e) {
       setNote((e as Error).message || 'Checkout could not be started. Nothing was charged.');
     } finally {

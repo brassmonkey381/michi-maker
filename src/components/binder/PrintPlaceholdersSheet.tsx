@@ -375,7 +375,7 @@ export function PrintPlaceholdersSheet({
     setConfirming(null);
     setBuying(true);
     setError(null);
-    startCheckout(BINDER_PDF_LOOKUP_KEY, { binderId: binder.id })
+    startCheckout(BINDER_PDF_LOOKUP_KEY, { binderId: binder.id, surface: 'print_gate' })
       .catch((e) => setError((e as Error).message))
       .finally(() => setBuying(false));
   };

@@ -16,6 +16,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, useWindowDimensio
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GrowthPanel } from '@/components/analytics/GrowthPanel';
+import { PuzzlePanel } from '@/components/analytics/PuzzlePanel';
 import { ReportsPanel } from '@/components/analytics/ReportsPanel';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -245,6 +246,11 @@ export default function StudioScreen() {
         {/* The takedown queue. michi-only: reports are filed on binders and profiles, which
             tcgscan does not have. */}
         {app === 'michi' ? <ReportsPanel /> : null}
+
+        {/* Authoring the daily puzzle. michi-only for the same reason: it publishes a binder page,
+            and tcgscan has no binders. Collapsed until opened, because it is used on the days a
+            puzzle is made and is in the way on the days it is not. */}
+        {app === 'michi' ? <PuzzlePanel /> : null}
 
         <View style={[styles.body, wide && styles.bodyWide]}>
           {showList ? (

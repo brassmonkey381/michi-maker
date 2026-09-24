@@ -1091,6 +1091,61 @@ export type Database = {
           last_at: string
         }[]
       }
+      admin_publish_puzzle: {
+        Args: { p_publish_on: string; p_page_id: string; p_themes: string[]; p_hint?: string | null }
+        Returns: string
+      }
+      admin_puzzle_list: {
+        Args: { p_limit?: number }
+        Returns: {
+          id: string
+          publish_on: string
+          theme_count: number
+          card_count: number
+          rows: number
+          cols: number
+          hint: string | null
+          source_binder_id: string | null
+          plays: number
+          correct: number
+          published: boolean
+        }[]
+      }
+      admin_puzzle_sources: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          binder_id: string
+          binder_title: string
+          is_public: boolean
+          hidden_from_feeds: boolean
+          page_id: string
+          page_position: number
+          page_title: string | null
+          rows: number
+          cols: number
+          card_count: number
+        }[]
+      }
+      admin_puzzle_themes: {
+        Args: { p_puzzle_id: string }
+        Returns: string[]
+      }
+      admin_set_binder_showcase: {
+        Args: { p_binder_id: string; p_on: boolean }
+        Returns: undefined
+      }
+      admin_set_vocabulary: {
+        Args: { p_words: string[]; p_suggest?: boolean }
+        Returns: number
+      }
+      admin_unpublish_puzzle: {
+        Args: { p_puzzle_id: string }
+        Returns: undefined
+      }
+      admin_vocabulary: {
+        Args: { p_limit?: number }
+        Returns: { word: string; suggest: boolean; used_in: number }[]
+      }
       admin_recent_users: {
         Args: { p_app?: string | null; p_limit?: number }
         Returns: {

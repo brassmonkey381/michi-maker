@@ -5,7 +5,6 @@ import {
   dailyPuzzleChoice,
   shiftUtcDate,
   streakLength,
-  suggestWords,
   utcDate,
   verdictText,
   withDailyPuzzleChoice,
@@ -57,21 +56,6 @@ test('a missed day ends it, and a wrong answer is a missed day', () => {
 
 test('no plays is no streak', () => {
   assert.equal(streakLength([], '2026-09-24'), 0);
-});
-
-test('suggestions put prefixes before substrings', () => {
-  const vocab = ['great lakes', 'lake', 'lakeside', 'city'];
-  assert.deepEqual(suggestWords(vocab, 'lak', []), ['lake', 'lakeside', 'great lakes']);
-});
-
-test('suggestions drop what has already been picked', () => {
-  const vocab = ['lake', 'lakeside'];
-  assert.deepEqual(suggestWords(vocab, 'lak', ['lake']), ['lakeside']);
-  assert.deepEqual(suggestWords(vocab, 'lak', ['LAKE']), ['lakeside']);
-});
-
-test('nothing typed suggests nothing, rather than the whole vocabulary', () => {
-  assert.deepEqual(suggestWords(['lake', 'city'], '   ', []), []);
 });
 
 test('the verdict says how many and never which', () => {

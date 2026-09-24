@@ -238,6 +238,18 @@ export default function StudioScreen() {
         </View>
 
         {/*
+          THE PAGE SCROLLS. Studio used to lay the panels out in a plain flex column and give the
+          scrolling to the two columns at the bottom, so anything taller than the window was clipped
+          with no way to reach it. The panels have only grown since.
+
+          The catch, and the reason it was not simply wrapped before: a `flex: 1` ScrollView inside
+          a scrolling parent collapses to nothing. So the two inner scrollers are bounded by a share
+          of the window instead (listScroll / journeyScroll below), which gives them a real height
+          here and keeps them independently scrollable.
+        */}
+        <ScrollView contentContainerStyle={styles.pageContent}>
+
+        {/*
           Community growth. michi-only: these totals count binders, pages and slots, which
           tcgscan does not have — the app switcher must not appear to filter them.
         */}
@@ -277,6 +289,7 @@ export default function StudioScreen() {
             </View>
           ) : null}
         </View>
+        </ScrollView>
       </SafeAreaView>
     </ThemedView>
   );
@@ -469,7 +482,8 @@ const styles = StyleSheet.create({
   switchBtn: { paddingVertical: Spacing.one, paddingHorizontal: Spacing.three, borderRadius: Radius.pill },
   switchBtnActive: { backgroundColor: Palette.panel },
   switchText: { textTransform: 'capitalize' },
-  body: { flex: 1 },
+  pageContent: { paddingBottom: Spacing.four },
+  body: {},
   bodyWide: { flexDirection: 'row' },
   listCol: { flex: 1 },
   listColWide: {
@@ -480,7 +494,8 @@ const styles = StyleSheet.create({
   },
   journeyCol: { flex: 1 },
   backRow: { paddingHorizontal: Spacing.four, paddingTop: Spacing.three },
-  listScroll: { flex: 1 },
+  // Bounded, not flexed: see the note by the page ScrollView.
+  listScroll: { maxHeight: 520 },
   listContent: { padding: Spacing.three, gap: Spacing.one },
   userRow: {
     padding: Spacing.three,
@@ -490,7 +505,7 @@ const styles = StyleSheet.create({
   userRowActive: { backgroundColor: Palette.panel },
   userMeta: { fontSize: FontSize.sm },
   emptyText: { padding: Spacing.four, lineHeight: 20 },
-  journeyScroll: { flex: 1 },
+  journeyScroll: { maxHeight: 640 },
   journeyContent: { padding: Spacing.four, gap: Spacing.two },
   journeyHeader: {
     gap: 2,

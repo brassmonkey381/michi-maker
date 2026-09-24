@@ -68,24 +68,9 @@ export function streakLength(plays: PlayedDay[], today: string): number {
 }
 
 /**
- * The words to offer for what has been typed.
- *
- * PREFIX FIRST, then anywhere in the word, because someone typing "lak" means lake far more often
- * than they mean "great lakes", and a list that buries the obvious answer under substring matches
- * reads as broken. Already-used words are dropped: the answer is a SET, so offering a word the
- * player has already picked can only produce a duplicate that the grader then ignores.
+ * How a finished game reads. Kept for the "how many of how many" line; the per-guess wording lives
+ * on the screen now that guesses are one word at a time.
  */
-export function suggestWords(vocabulary: string[], typed: string, already: string[], limit = 6): string[] {
-  const q = typed.trim().toLowerCase();
-  if (!q) return [];
-  const taken = new Set(already.map((w) => w.toLowerCase()));
-  const pool = vocabulary.filter((w) => !taken.has(w));
-  const starts = pool.filter((w) => w.startsWith(q));
-  const contains = pool.filter((w) => !w.startsWith(q) && w.includes(q));
-  return [...starts, ...contains].slice(0, limit);
-}
-
-/** How the result reads to a player: right, close, or wrong. Never which word was which. */
 export function verdictText(matched: number, of: number): string {
   if (matched === of) return of === 1 ? 'Correct.' : `Correct, all ${of}.`;
   if (matched === 0) return of === 1 ? 'Not this time.' : 'None of those, not this time.';

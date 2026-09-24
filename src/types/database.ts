@@ -1214,9 +1214,15 @@ export type Database = {
           last_at: string
         }[]
       }
-      grade_puzzle_guess: {
-        Args: { p_puzzle_id: string; p_guess: string[] }
-        Returns: { correct: boolean; matched: number; of: number }[]
+      guess_puzzle_word: {
+        Args: { p_puzzle_id: string; p_word: string }
+        Returns: {
+          hit: boolean
+          matched_word: string | null
+          found_count: number
+          total: number
+          solved: boolean
+        }[]
       }
       puzzle_answer: {
         Args: { p_puzzle_id: string }

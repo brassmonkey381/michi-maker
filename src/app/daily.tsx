@@ -2,22 +2,28 @@
  * `/daily` — the daily theme-search puzzle, for whoever is playing it.
  *
  * ONE PUZZLE A DAY, the same one worldwide, keyed on the UTC date. The page shows the cards and
- * asks for the words that pull them together. It never receives the answer: the guess goes to
- * `grade_puzzle_guess`, which replies with how many were right and never which, and yesterday's
- * words are readable only once the puzzle is yesterday's.
+ * asks for the words that pull them together.
  *
- * WHY THE GUESS BOX SUGGESTS. A free-text answer makes "lake" versus "pond" a support complaint
- * rather than a decision, and the suggestions come from a curated list rather than the tag corpus,
- * so playing the game teaches the vocabulary without handing it over. That vocabulary IS the
- * product's paid feature, which is the point: a player who learns the words has a reason to type
- * one into the search box.
+ * ONE WORD AT A TIME (owner, 2026-09-24), and no autocomplete. The earlier design took every word
+ * at once from a suggesting box and answered "how many were right, never which", which protected
+ * the answer perfectly and played badly: the reader committed blind and the autocomplete did most
+ * of the work. Now a word is submitted, the server says whether it landed, and found words stack up.
+ *
+ * THE CARDS ARE BIG AND TAPPABLE, because the puzzle IS looking at them: the shared idea is often a
+ * detail in a corner, and a 245px thumbnail hides exactly the thing being asked about. They load at
+ * 640 and open full size.
+ *
+ * NEAR MISSES COUNT, decided on the server (puzzle_words_match): plurals and typos land. Exact-only
+ * spelling turns a game about noticing pictures into a spelling test, and fails silently when it does.
  *
  * SEEN IS RECORDED ON ARRIVAL, so the home page stops offering a puzzle this person has opened.
  */
-import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { Image } from 'expo-image';
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from 'react-native';
+import { useCallback, useState } from 'react';
+import {
+  ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -26,255 +32,247 @@ import {
   BottomTabInset, Breakpoints, FontSize, MaxContentWidthDoc, Palette, Radius, Spacing, Weight,
 } from '@/constants/theme';
 import {
-  gradeGuess, markSeen, myPlay, myStreak, revealedAnswer, suggestWords, todaysPuzzle,
-  verdictText, vocabulary,
-  type DailyPuzzle, type GradeResult, type MyPlay,
+  guessWord, markSeen, myPlay, myStreak, revealedAnswer, todaysPuzzle,
+  type DailyPuzzle, type GuessResult,
 } from '@/data/dailyPuzzle';
 import { cardThumbUrl } from '@/lib/catalogConfig';
-import {
-  trackPuzzleGuess, trackPuzzleGuessFailed, trackPuzzleOpened, trackPuzzleSolved,
-} from '@/lib/analytics';
 import { useAuth } from '@/store/auth';
 
 export default function DailyScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const auth = useAuth();
-  // Hoisted out of the dependency list: an optional chain in there defeats the React Compiler's
-  // memoization check ("existing memoization could not be preserved") for no benefit.
   const userId = auth.user?.id ?? null;
-  // How they arrived. The home card appends ?from=card; the rail appends ?from=nav.
-  // Anything else is a direct hit - a bookmark, a share, or a typed URL.
-  const { from } = useLocalSearchParams<{ from?: string }>();
-  const phone = width < Breakpoints.phone;
 
   const [loaded, setLoaded] = useState(false);
   const [puzzle, setPuzzle] = useState<DailyPuzzle | null>(null);
-  const [play, setPlay] = useState<MyPlay | null>(null);
-  const [words, setWords] = useState<string[]>([]);
+  const [found, setFound] = useState<string[]>([]);
+  const [solved, setSolved] = useState(false);
   const [streak, setStreak] = useState(0);
-  const [answer, setAnswer] = useState<string[] | null>(null);
+  const [yesterday, setYesterday] = useState<string[] | null>(null);
 
-  const [picked, setPicked] = useState<string[]>([]);
   const [typed, setTyped] = useState('');
-  const [result, setResult] = useState<GradeResult | null>(null);
+  const [last, setLast] = useState<{ word: string; result: GuessResult } | null>(null);
+  const [tries, setTries] = useState(0);
   const [busy, setBusy] = useState(false);
   const [showHint, setShowHint] = useState(false);
-  /** Guesses made in this visit, for the attempt number on each one. */
-  const attempts = useRef(0);
+  const [zoom, setZoom] = useState<string | null>(null);
 
-  /**
-   * LOADED AT THE TAP OR ON MOUNT VIA A CALLBACK REF, never in an effect: the React Compiler rules
-   * here forbid setState inside one. The ref fires once when the scroll view first mounts, which is
-   * the moment the screen genuinely appears.
-   */
   const load = useCallback(async () => {
     setLoaded(true);
     const p = await todaysPuzzle();
     setPuzzle(p);
-    setWords(await vocabulary());
     if (!p) return;
     const mine = await myPlay(p.id);
-    setPlay(mine);
-    if (mine?.correct !== null && mine?.correct !== undefined) {
-      setResult({ correct: !!mine.correct, matched: Number(mine.matched ?? 0), of: p.themeCount });
+    if (mine) {
+      setFound(mine.guess ?? []);
+      setSolved(!!mine.correct);
     }
     setStreak(await myStreak());
-    setAnswer(await revealedAnswer(p.id));
+    setYesterday(await revealedAnswer(p.id));
     if (userId) await markSeen(p.id, userId);
-    // After the play is known, so `state` can say what they actually arrived at.
-    // A visit to a puzzle already solved is a different visit from a first look,
-    // and one "opened" count would hide the difference.
-    trackPuzzleOpened(
-      p.id,
-      from === 'card' ? 'card' : from === 'nav' ? 'nav' : 'direct',
-      mine?.correct ? 'solved' : mine ? 'played' : 'fresh',
-    );
-  }, [userId, from]);
+  }, [userId]);
 
-  /**
-   * A CALLBACK REF, not an effect. The React Compiler rules here forbid setState inside an effect,
-   * and a screen has to fetch on arrival; the ref fires once when the list first mounts, which is
-   * that moment. It must return void, so the promise is deliberately not returned.
-   */
+  /** A callback ref, not an effect: the React Compiler rules here forbid setState inside one. */
   const onMount = useCallback((node: ScrollView | null) => {
     if (node && !loaded) void load();
   }, [loaded, load]);
 
-  const suggestions = useMemo(() => suggestWords(words, typed, picked), [words, typed, picked]);
-  const solved = result?.correct === true;
-  const canSubmit = picked.length > 0 && !busy && !solved;
-
-  const add = (word: string) => {
-    if (picked.length >= (puzzle?.themeCount ?? 1)) return;
-    setPicked((p) => (p.includes(word) ? p : [...p, word]));
-    setTyped('');
-  };
-
   const submit = async () => {
-    if (!puzzle || !canSubmit) return;
+    const word = typed.trim();
+    if (!puzzle || !word || busy || solved) return;
     setBusy(true);
-    // Counted in a ref rather than state: it must be correct inside this same
-    // call, and a state update would not be readable until the next render.
-    attempts.current += 1;
-    const attempt = attempts.current;
     try {
-      const r = await gradeGuess(puzzle.id, picked);
-      setResult(r);
-      trackPuzzleGuess(puzzle.id, attempt, picked, r);
-      if (r.correct) {
-        const next = await myStreak();
-        setStreak(next);
-        // Separate from the guess: solving is the outcome the puzzle exists for,
-        // and it carries how many tries and the run it extends, neither of which
-        // belongs on every wrong answer.
-        trackPuzzleSolved(puzzle.id, attempt, next);
+      const r = await guessWord(puzzle.id, word);
+      setLast({ word, result: r });
+      setTries((n) => n + 1);
+      if (r.hit && r.matchedWord) {
+        const hitWord = r.matchedWord;
+        setFound((f) => (f.includes(hitWord) ? f : [...f, hitWord]));
       }
+      if (r.solved) {
+        setSolved(true);
+        setStreak(await myStreak());
+      }
+      setTyped('');
     } catch {
-      setResult(null);
-      // The RPC failed. NOT a wrong answer - pooling the two would put our
-      // outage in the same bucket as a player getting it wrong.
-      trackPuzzleGuessFailed(puzzle.id, attempt);
+      setLast({
+        word,
+        result: { hit: false, matchedWord: null, foundCount: found.length, total: puzzle.themeCount, solved: false },
+      });
     } finally {
       setBusy(false);
     }
   };
 
-  const cell = phone ? Math.min(110, (width - Spacing.four * 2) / 3 - Spacing.one) : 132;
+  // Big enough to read the illustration, and laid out in the page's own column count so the shape
+  // a reader sees is the shape it was curated in.
+  const wide = width >= Breakpoints.phone;
+  const cols = puzzle ? Math.min(puzzle.cols, wide ? puzzle.cols : 3) : 3;
+  const gutter = Spacing.four * 2;
+  const cell = Math.min(
+    wide ? 210 : 150,
+    (Math.min(width, MaxContentWidthDoc) - gutter - Spacing.two * (cols - 1)) / cols,
+  );
+  const remaining = puzzle ? puzzle.themeCount - found.length : 0;
 
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.flex} edges={['top']}>
         <ScrollView ref={onMount} contentContainerStyle={styles.scroll}>
-          <View style={styles.head}>
-            <ThemedText type="title">Daily puzzle</ThemedText>
+
+          <View style={styles.hero}>
+            <ThemedText type="small" style={styles.eyebrow}>DAILY PUZZLE</ThemedText>
+            <ThemedText type="title" style={styles.h1}>What do these share?</ThemedText>
+            {puzzle ? (
+              <ThemedText type="small" themeColor="textSecondary" style={styles.lead}>
+                {`Every card matches the same ${puzzle.themeCount === 1 ? 'idea' : `${puzzle.themeCount} ideas`}. Tap a card to look closer.`}
+              </ThemedText>
+            ) : null}
             {streak > 0 ? (
-              <ThemedText type="smallBold" style={styles.streak}>{`${streak} day streak`}</ThemedText>
+              <View style={styles.streakPill}>
+                <ThemedText type="smallBold" style={styles.streakText}>{`${streak} day streak`}</ThemedText>
+              </View>
             ) : null}
           </View>
 
           {!loaded ? (
             <ActivityIndicator style={styles.loading} />
           ) : !puzzle ? (
-            <View style={styles.card}>
-              <ThemedText type="small">
-                There is no puzzle today. A new one goes up every morning.
-              </ThemedText>
-              <Pressable onPress={() => router.push('/browse' as Href)} style={styles.secondary}>
-                <ThemedText type="smallBold">Browse cards instead</ThemedText>
+            <View style={styles.panel}>
+              <ThemedText type="small">There is no puzzle today. A new one goes up every morning.</ThemedText>
+              <Pressable onPress={() => router.push('/browse' as Href)}>
+                <ThemedText type="smallBold" style={styles.link}>Browse cards instead</ThemedText>
               </Pressable>
             </View>
           ) : (
             <>
-              <ThemedText type="small" themeColor="textSecondary" style={styles.lead}>
-                {`Every card below matches the same ${puzzle.themeCount === 1 ? 'idea' : `${puzzle.themeCount} ideas`}. Name ${puzzle.themeCount === 1 ? 'it' : 'them'}.`}
-              </ThemedText>
-
-              <View style={[styles.grid, { maxWidth: (cell + Spacing.one) * puzzle.cols }]}>
+              <View style={[styles.grid, { maxWidth: (cell + Spacing.two) * cols }]}>
                 {puzzle.cardIds.map((id, i) => (
-                  <Image
+                  <Pressable
                     key={`${id}-${i}`}
-                    source={{ uri: cardThumbUrl(id, 245) }}
-                    style={{ width: cell, height: cell * 1.4, borderRadius: Radius.control }}
-                    contentFit="cover"
-                    transition={120}
-                    accessibilityLabel="A card in today's puzzle"
-                  />
+                    onPress={() => setZoom(id)}
+                    accessibilityLabel="Look closer at this card"
+                  >
+                    <Image
+                      source={{ uri: cardThumbUrl(id, 640) }}
+                      style={[styles.card, { width: cell, height: cell * 1.396 }]}
+                      contentFit="contain"
+                      transition={140}
+                    />
+                  </Pressable>
                 ))}
               </View>
 
-              {/* THE ANSWER AREA -------------------------------------------------------- */}
-              {solved || (play?.correct && !result) ? (
-                <View style={styles.card}>
-                  <ThemedText type="smallBold" style={styles.good}>
-                    {verdictText(puzzle.themeCount, puzzle.themeCount)}
+              {solved ? (
+                <View style={[styles.panel, styles.won]}>
+                  <ThemedText type="smallBold" style={styles.wonText}>
+                    {found.length === 1 ? `Got it. ${found[0]}.` : `Got them. ${found.join(' and ')}.`}
                   </ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">
+                    {tries > 0 ? `${tries} ${tries === 1 ? 'guess' : 'guesses'}. ` : ''}
                     Come back tomorrow for the next one.
                   </ThemedText>
+                  <Pressable
+                    onPress={() => router.push(
+                      `/browse?q=${encodeURIComponent(found.map((w) => `theme:${w}`).join(' '))}` as Href,
+                    )}
+                  >
+                    <ThemedText type="smallBold" style={styles.link}>See every card that matches</ThemedText>
+                  </Pressable>
                 </View>
               ) : (
-                <View style={styles.card}>
-                  <View style={styles.pickedRow}>
-                    {picked.map((w) => (
-                      <Pressable
-                        key={w}
-                        onPress={() => setPicked((p) => p.filter((x) => x !== w))}
-                        style={styles.pickedChip}
-                      >
-                        <ThemedText type="small" style={styles.pickedText}>{`${w}  ×`}</ThemedText>
-                      </Pressable>
+                <View style={styles.panel}>
+                  <View style={styles.foundRow}>
+                    {found.map((w) => (
+                      <View key={w} style={styles.foundChip}>
+                        <ThemedText type="small" style={styles.foundText}>{w}</ThemedText>
+                      </View>
                     ))}
-                    {picked.length < puzzle.themeCount ? (
-                      <ThemedText type="small" themeColor="textSecondary">
-                        {`${puzzle.themeCount - picked.length} to go`}
-                      </ThemedText>
-                    ) : null}
+                    {Array.from({ length: Math.max(0, remaining) }, (_, i) => (
+                      <View key={`blank-${i}`} style={styles.blankChip}>
+                        <ThemedText type="small" themeColor="textSecondary">?</ThemedText>
+                      </View>
+                    ))}
                   </View>
 
-                  <TextInput
-                    value={typed}
-                    onChangeText={setTyped}
-                    placeholder="Start typing a word about the pictures"
-                    placeholderTextColor={Palette.muted}
-                    style={styles.input}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    editable={picked.length < puzzle.themeCount}
-                    testID="daily-guess"
-                  />
+                  <View style={styles.guessRow}>
+                    <TextInput
+                      value={typed}
+                      onChangeText={setTyped}
+                      onSubmitEditing={submit}
+                      placeholder="One word at a time"
+                      placeholderTextColor={Palette.muted}
+                      style={styles.input}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      returnKeyType="send"
+                      editable={!busy}
+                      testID="daily-guess"
+                    />
+                    <Pressable
+                      onPress={submit}
+                      disabled={!typed.trim() || busy}
+                      style={[styles.go, (!typed.trim() || busy) && styles.goOff]}
+                      testID="daily-submit"
+                    >
+                      <ThemedText type="smallBold" style={styles.goText}>{busy ? '…' : 'Guess'}</ThemedText>
+                    </Pressable>
+                  </View>
 
-                  {suggestions.length ? (
-                    <View style={styles.suggestRow}>
-                      {suggestions.map((w) => (
-                        <Pressable key={w} onPress={() => add(w)} style={styles.suggestChip} testID={`suggest-${w}`}>
-                          <ThemedText type="small">{w}</ThemedText>
-                        </Pressable>
-                      ))}
-                    </View>
-                  ) : null}
-
-                  {/* The count is feedback, and deliberately never says WHICH word was right. */}
-                  {result && !result.correct ? (
-                    <ThemedText type="smallBold" style={styles.near} testID="daily-verdict">
-                      {verdictText(result.matched, result.of)}
+                  {last ? (
+                    <ThemedText
+                      type="smallBold"
+                      style={last.result.hit ? styles.yes : styles.no}
+                      testID="daily-verdict"
+                    >
+                      {last.result.hit
+                        ? `Yes, "${last.word}" is one of them.`
+                        : `"${last.word}" is not one of them.`}
                     </ThemedText>
-                  ) : null}
-
-                  <Pressable
-                    onPress={submit}
-                    disabled={!canSubmit}
-                    style={[styles.primary, !canSubmit && styles.primaryOff]}
-                    testID="daily-submit"
-                  >
-                    <ThemedText type="smallBold" style={styles.primaryText}>
-                      {busy ? 'Checking…' : 'Check my answer'}
+                  ) : (
+                    <ThemedText type="small" themeColor="textSecondary">
+                      Close spellings and plurals count.
                     </ThemedText>
-                  </Pressable>
+                  )}
 
                   {puzzle.hint ? (
                     showHint ? (
                       <ThemedText type="small" themeColor="textSecondary">{puzzle.hint}</ThemedText>
                     ) : (
                       <Pressable onPress={() => setShowHint(true)} hitSlop={6}>
-                        <ThemedText type="small" themeColor="textSecondary">Show the hint</ThemedText>
+                        <ThemedText type="smallBold" style={styles.link}>Show the hint</ThemedText>
                       </Pressable>
                     )
                   ) : null}
                 </View>
               )}
 
-              {answer?.length ? (
-                <View style={styles.card}>
+              {yesterday?.length ? (
+                <View style={styles.panel}>
                   <ThemedText type="smallBold">Yesterday</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">
-                    {`The words were ${answer.join(' and ')}. Try searching one.`}
+                    {`The words were ${yesterday.join(' and ')}.`}
                   </ThemedText>
                 </View>
               ) : null}
             </>
           )}
         </ScrollView>
+
+        {/* Full size, for the detail the puzzle is actually about. */}
+        <Modal visible={!!zoom} transparent animationType="fade" onRequestClose={() => setZoom(null)}>
+          <Pressable style={styles.zoomBack} onPress={() => setZoom(null)}>
+            {zoom ? (
+              <Image
+                source={{ uri: cardThumbUrl(zoom, 'full') }}
+                style={styles.zoomImage}
+                contentFit="contain"
+                transition={120}
+              />
+            ) : null}
+          </Pressable>
+        </Modal>
       </SafeAreaView>
     </ThemedView>
   );
@@ -291,27 +289,58 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     gap: Spacing.three,
   },
-  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
-  streak: { color: Palette.accent },
-  lead: { marginTop: -Spacing.two },
+  hero: { gap: Spacing.one, alignItems: 'center', paddingVertical: Spacing.three },
+  eyebrow: { letterSpacing: 2, color: Palette.accent, fontWeight: Weight.bold },
+  h1: { textAlign: 'center' },
+  lead: { textAlign: 'center', maxWidth: 420 },
+  streakPill: {
+    marginTop: Spacing.one,
+    backgroundColor: Palette.accentSoft,
+    borderRadius: Radius.pill,
+    paddingVertical: 4,
+    paddingHorizontal: Spacing.three,
+  },
+  streakText: { color: Palette.accent },
   loading: { alignSelf: 'center', marginTop: Spacing.four },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.one, alignSelf: 'center' },
-  card: {
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+    alignSelf: 'center',
+    justifyContent: 'center',
+  },
+  card: { borderRadius: Radius.control, backgroundColor: Palette.panel },
+  panel: {
     borderWidth: 1,
     borderColor: Palette.hairline,
     borderRadius: Radius.control,
     padding: Spacing.three,
     gap: Spacing.two,
+    width: '100%',
+    maxWidth: 520,
+    alignSelf: 'center',
   },
-  pickedRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.one },
-  pickedChip: {
+  won: { borderColor: Palette.accent, backgroundColor: Palette.accentSoft },
+  wonText: { color: Palette.accent, fontSize: FontSize.md },
+  foundRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.one, justifyContent: 'center' },
+  foundChip: {
     backgroundColor: Palette.accent,
     borderRadius: Radius.pill,
-    paddingVertical: 4,
-    paddingHorizontal: Spacing.two,
+    paddingVertical: 5,
+    paddingHorizontal: Spacing.three,
   },
-  pickedText: { color: Palette.accentText, fontWeight: Weight.semibold },
+  foundText: { color: Palette.accentText, fontWeight: Weight.semibold },
+  blankChip: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: Palette.hairline,
+    borderRadius: Radius.pill,
+    paddingVertical: 5,
+    paddingHorizontal: Spacing.three,
+  },
+  guessRow: { flexDirection: 'row', gap: Spacing.two },
   input: {
+    flex: 1,
     borderWidth: 1,
     borderColor: Palette.hairline,
     borderRadius: Radius.control,
@@ -320,23 +349,24 @@ const styles = StyleSheet.create({
     color: Palette.ink,
     fontSize: FontSize.body,
   },
-  suggestRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.one },
-  suggestChip: {
-    borderWidth: 1,
-    borderColor: Palette.hairline,
-    borderRadius: Radius.pill,
-    paddingVertical: 4,
-    paddingHorizontal: Spacing.two,
-  },
-  primary: {
+  go: {
     backgroundColor: Palette.accent,
     borderRadius: Radius.control,
     paddingVertical: Spacing.two,
-    alignItems: 'center',
+    paddingHorizontal: Spacing.four,
+    justifyContent: 'center',
   },
-  primaryOff: { opacity: 0.45 },
-  primaryText: { color: Palette.accentText },
-  secondary: { paddingVertical: Spacing.one },
-  good: { color: Palette.accent },
-  near: { color: Palette.muted },
+  goOff: { opacity: 0.45 },
+  goText: { color: Palette.accentText },
+  yes: { color: Palette.accent },
+  no: { color: Palette.muted },
+  link: { color: Palette.accent },
+  zoomBack: {
+    flex: 1,
+    backgroundColor: Palette.scrim30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.four,
+  },
+  zoomImage: { width: '100%', height: '100%', maxWidth: 640 },
 });

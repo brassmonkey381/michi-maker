@@ -22,7 +22,6 @@ export {
   dailyPuzzleChoice,
   shiftUtcDate,
   streakLength,
-  suggestWords,
   utcDate,
   verdictText,
   withDailyPuzzleChoice,
@@ -48,10 +47,14 @@ export interface MyPlay {
   answeredAt: string | null;
 }
 
-export interface GradeResult {
-  correct: boolean;
-  matched: number;
-  of: number;
+export interface GuessResult {
+  /** Whether this word landed on a theme not already found. */
+  hit: boolean;
+  /** The answer word it landed on, or null. Safe to show: they just named it. */
+  matchedWord: string | null;
+  foundCount: number;
+  total: number;
+  solved: boolean;
 }
 
 /** Today's puzzle, or null when none is published for today. */
@@ -109,13 +112,23 @@ export async function markSeen(puzzleId: string, userId: string): Promise<void> 
     .upsert({ puzzle_id: puzzleId, user_id: userId }, { onConflict: 'user_id,puzzle_id', ignoreDuplicates: true });
 }
 
-export async function gradeGuess(puzzleId: string, guess: string[]): Promise<GradeResult> {
+/**
+ * ONE WORD AT A TIME (owner, 2026-09-24). The server decides whether it landed, tolerating plurals
+ * and typos, and says which answer word it was. That is safe to show: the player just typed it.
+ */
+export async function guessWord(puzzleId: string, word: string): Promise<GuessResult> {
   const client = requireSupabase();
-  const { data, error } = await client.rpc('grade_puzzle_guess', { p_puzzle_id: puzzleId, p_guess: guess });
+  const { data, error } = await client.rpc('guess_puzzle_word', { p_puzzle_id: puzzleId, p_word: word });
   if (error) throw new Error(error.message);
   const row = Array.isArray(data) ? data[0] : data;
-  if (!row) throw new Error('The puzzle could not be graded.');
-  return { correct: !!row.correct, matched: Number(row.matched), of: Number(row.of) };
+  if (!row) throw new Error('That guess could not be checked.');
+  return {
+    hit: !!row.hit,
+    matchedWord: row.matched_word ?? null,
+    foundCount: Number(row.found_count),
+    total: Number(row.total),
+    solved: !!row.solved,
+  };
 }
 
 /** The words the guess box offers. Curated, and never the tag corpus. */

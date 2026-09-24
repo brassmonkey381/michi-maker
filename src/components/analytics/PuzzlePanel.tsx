@@ -24,9 +24,7 @@
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { useCallback, useMemo, useState } from 'react';
-import {
-  ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions,
-} from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -50,7 +48,6 @@ import { cardThumbUrl } from '@/lib/catalogConfig';
 
 export function PuzzlePanel() {
   const router = useRouter();
-  const { height } = useWindowDimensions();
   const [open, setOpen] = useState(false);
   const [puzzles, setPuzzles] = useState<AdminPuzzle[] | null>(null);
   const [sources, setSources] = useState<PuzzleSourceBinder[] | null>(null);
@@ -183,15 +180,10 @@ export function PuzzlePanel() {
 
   const ready = !!chosen && themes.length > 0;
 
-  /**
-   * THE PANEL SCROLLS ITSELF. /studio lays its panels out in a plain flex column and gives the
-   * scrolling to the two columns below them, so a panel taller than the window is simply clipped
-   * and the page cannot be scrolled to reach it. Wrapping the whole screen in a ScrollView is the
-   * obvious fix and the wrong one: those columns are `flex: 1` ScrollViews, and a flex child inside
-   * a scrolling parent collapses to nothing. So this bounds itself instead.
-   */
+  // No self-scroll and no height cap: /studio itself scrolls now, and a scroller inside a scroller
+  // is worse than either.
   return (
-    <ThemedView type="backgroundElement" style={[styles.card, { maxHeight: Math.max(360, height * 0.75) }]}>
+    <ThemedView type="backgroundElement" style={styles.card}>
       <View style={styles.row}>
         <View style={styles.flex}>
           <ThemedText type="smallBold">Daily puzzle</ThemedText>
@@ -206,7 +198,6 @@ export function PuzzlePanel() {
 
       {note ? <ThemedText type="small" style={styles.note} testID="puzzle-panel-note">{note}</ThemedText> : null}
 
-      <ScrollView contentContainerStyle={styles.inner} showsVerticalScrollIndicator>
       {/* 1. WHAT IS ABOUT TO BE PUBLISHED, at the top, so the form is never under a wall of pages. */}
       <View style={styles.step}>
         <ThemedText type="smallBold">1. The page</ThemedText>
@@ -386,7 +377,6 @@ export function PuzzlePanel() {
           ))
         )}
       </View>
-      </ScrollView>
     </ThemedView>
   );
 }
@@ -410,7 +400,6 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  inner: { gap: Spacing.three, paddingBottom: Spacing.two },
   step: {
     gap: Spacing.two,
     borderTopWidth: 1,

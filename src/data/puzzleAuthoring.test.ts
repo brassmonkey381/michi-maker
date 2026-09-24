@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { groupSources, parseThemes, utcToday, type PuzzleSourcePage } from './puzzleAuthoring.ts';
+import {
+  groupSources,
+  parseThemes,
+  relevantBinders,
+  utcToday,
+  type PuzzleSourceBinder,
+  type PuzzleSourcePage,
+} from './puzzleAuthoring.ts';
 
 const page = (over: Partial<PuzzleSourcePage>): PuzzleSourcePage => ({
   binderId: 'b1',
@@ -74,4 +81,29 @@ test('today is the UTC date, not the local one', () => {
   assert.equal(utcToday(new Date('2026-09-24T06:00:00Z')), '2026-09-24');
   assert.equal(utcToday(new Date('2026-09-24T06:00:00-10:00')), '2026-09-24');
   assert.equal(utcToday(new Date('2026-09-23T23:30:00Z')), '2026-09-23');
+});
+
+const binder = (over: Partial<PuzzleSourceBinder>): PuzzleSourceBinder => ({
+  id: 'b', title: 'Binder 1', isPublic: false, hiddenFromFeeds: false, pages: [], ...over,
+});
+
+test('the picker defaults to puzzle binders, not every binder you own', () => {
+  const all = [
+    binder({ id: '1', title: 'Buco' }),
+    binder({ id: '2', title: 'Daily Puzzle: clouds + lake' }),
+    binder({ id: '3', title: 'All Things Autumn', isPublic: true, hiddenFromFeeds: true }),
+  ];
+  assert.deepEqual(relevantBinders(all, '', false).map((b) => b.id), ['2', '3']);
+  assert.deepEqual(relevantBinders(all, '', true).map((b) => b.id), ['1', '2', '3']);
+});
+
+test('a filter searches everything, showcase or not', () => {
+  const all = [binder({ id: '1', title: 'Buco' }), binder({ id: '2', title: 'Daily Puzzle: x' })];
+  assert.deepEqual(relevantBinders(all, 'buc', false).map((b) => b.id), ['1']);
+});
+
+/** An empty list with no explanation reads as broken, so a fresh account sees everything. */
+test('nothing marked yet falls back to every binder', () => {
+  const all = [binder({ id: '1', title: 'Buco' })];
+  assert.deepEqual(relevantBinders(all, '', false).map((b) => b.id), ['1']);
 });

@@ -75,3 +75,28 @@ export function parseThemes(input: string): string[] {
 export function utcToday(now: Date): string {
   return now.toISOString().slice(0, 10);
 }
+
+/**
+ * Which binders the picker shows by default.
+ *
+ * ALL OF THEM IS THE WRONG ANSWER, and was the first version's actual behaviour: an account that
+ * has been used for anything has dozens, one of them thirty pages long, and the list buried the
+ * form underneath it. A puzzle is published from a binder kept FOR publishing puzzles, so the
+ * default is the ones already marked as showcase plus the ones named like one, and a filter or the
+ * "show all" escape hatch reaches the rest.
+ */
+export function relevantBinders(
+  binders: PuzzleSourceBinder[],
+  filter: string,
+  showAll: boolean,
+): PuzzleSourceBinder[] {
+  const q = filter.trim().toLowerCase();
+  if (q) return binders.filter((b) => b.title.toLowerCase().includes(q));
+  if (showAll) return binders;
+  const likely = binders.filter(
+    (b) => (b.isPublic && b.hiddenFromFeeds) || /puzzle/i.test(b.title),
+  );
+  // Nothing marked yet on a fresh account: showing an empty list with no explanation reads as
+  // broken, so fall back to everything rather than to nothing.
+  return likely.length ? likely : binders;
+}

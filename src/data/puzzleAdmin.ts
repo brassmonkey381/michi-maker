@@ -13,7 +13,7 @@
 import { groupSources, type PuzzleSourceBinder, type PuzzleSourcePage } from '@/data/puzzleAuthoring';
 import { requireSupabase } from '@/lib/supabase';
 
-export { groupSources, parseThemes, utcToday } from '@/data/puzzleAuthoring';
+export { groupSources, parseThemes, relevantBinders, utcToday } from '@/data/puzzleAuthoring';
 export type { PuzzleSourceBinder, PuzzleSourcePage } from '@/data/puzzleAuthoring';
 
 export interface AdminPuzzle {
@@ -121,6 +121,26 @@ export async function listVocabulary(limit = 500): Promise<VocabularyWord[]> {
     suggest: !!r.suggest,
     usedIn: Number(r.used_in),
   }));
+}
+
+/**
+ * The cards on one page, in reading order, so the panel can SHOW what is about to be published.
+ *
+ * A plain table read, not an RPC: these are the caller's own binder slots and the existing policies
+ * already scope them to the owner. Picking a page by "p2 · 3x3 · 9" and hoping is what made the
+ * first version of this panel unusable.
+ */
+export async function pageCardIds(pageId: string): Promise<string[]> {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from('binder_slots')
+    .select('card_id, row_index, col_index')
+    .eq('page_id', pageId)
+    .eq('slot_type', 'card')
+    .order('row_index')
+    .order('col_index');
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => r.card_id).filter((id): id is string => !!id);
 }
 
 export async function setVocabulary(words: string[], suggest = true): Promise<number> {

@@ -45,6 +45,11 @@ import {
   type PuzzleSourcePage,
 } from '@/data/puzzleAdmin';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
+import { downloadPuzzleImage } from '@/lib/puzzleImage';
+
+/** The footer line on the post image. Here rather than in the renderer so it can be changed with
+ *  the campaign, and it is the same line the offline script is given. */
+const POST_CTA = 'Like, follow, and comment your michi-maker username to enter';
 
 export function PuzzlePanel() {
   const router = useRouter();
@@ -65,18 +70,51 @@ export function PuzzlePanel() {
   const [filter, setFilter] = useState('');
   const [showAll, setShowAll] = useState(false);
   const [revealed, setRevealed] = useState<Record<string, string[]>>({});
+  const [drawing, setDrawing] = useState<string | null>(null);
+
+  /**
+   * THE POST IMAGE. The page render is on-demand and slow the first time (the endpoint says half a
+   * minute or more), so this always says what it is doing rather than appearing to hang. It is also
+   * the one step that needs the binder PUBLIC: api/og-image-binder.js reads binders with
+   * `is_public=eq.true` hardcoded, so a private one answers 404 and no image exists to compose.
+   */
+  const download = async (p: AdminPuzzle) => {
+    if (drawing) return;
+    if (!p.binderIsPublic) {
+      setNote('The binder behind that puzzle is not public, so its page cannot be rendered. Turn showcase on for it below, then try again.');
+      return;
+    }
+    setDrawing(p.id);
+    setNote(`Drawing ${p.publishOn}. The first render of a page takes up to a minute.`);
+    try {
+      await downloadPuzzleImage({
+        binderId: p.sourceBinderId ?? '',
+        pageId: p.sourcePageId,
+        publishOn: p.publishOn,
+        themeCount: p.themeCount,
+        cta: POST_CTA,
+      });
+      setNote(`Downloaded michi-daily-${p.publishOn}.png`);
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : 'The image could not be drawn.');
+    } finally {
+      setDrawing(null);
+    }
+  };
 
   const themes = useMemo(() => parseThemes(themeText), [themeText]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (): Promise<AdminPuzzle[] | null> => {
     try {
       const [p, s] = await Promise.all([listPuzzles(40), listSources()]);
       setPuzzles(p);
       setSources(s);
+      return p;
     } catch (e) {
       setNote(e instanceof Error ? e.message : 'Could not load the puzzles.');
       setPuzzles([]);
       setSources([]);
+      return null;
     }
   }, []);
 
@@ -126,7 +164,11 @@ export function PuzzlePanel() {
       );
       setThemeText('');
       setHint('');
-      await load();
+      const fresh = await load();
+      // THE POST IMAGE FOLLOWS THE PUBLISH, which is what was asked for. It is not awaited into the
+      // publish itself: the render is slow and a failed drawing must not read as a failed publish.
+      const made = fresh?.find((x) => x.publishOn === date);
+      if (made) void download(made);
     } catch (e) {
       setNote(e instanceof Error ? e.message : 'Could not publish.');
     } finally {
@@ -381,6 +423,11 @@ export function PuzzlePanel() {
                   {revealed[p.id]?.length ? `  ·  ${revealed[p.id].join(' + ')}` : ''}
                 </ThemedText>
               </View>
+              <Pressable onPress={() => download(p)} hitSlop={6} disabled={!!drawing}>
+                <ThemedText type="small" style={p.binderIsPublic ? styles.link : styles.off}>
+                  {drawing === p.id ? 'drawing…' : 'image'}
+                </ThemedText>
+              </Pressable>
               <Pressable onPress={() => reveal(p)} hitSlop={6}>
                 <ThemedText type="small" themeColor="textSecondary">
                   {revealed[p.id] ? 'hide' : 'answer'}

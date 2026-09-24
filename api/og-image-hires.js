@@ -45,7 +45,23 @@ module.exports = async (req, res) => {
       res.setHeader('content-type', 'application/json');
       return res.end(JSON.stringify({ error: 'not a public binder' }));
     }
-    const pages = pickPages(binder);
+    /**
+     * ONE NAMED PAGE, for the daily puzzle. Left to itself the renderer picks by its own rule,
+     * which is right for a share link and wrong here: a puzzle binder holds every candidate page
+     * from the curation pass, so that rule draws the two fullest ones side by side instead of the
+     * one that was actually published.
+     *
+     * Still filtered to pages with something on them, so a `?page=` pointing at a blank page falls
+     * through to the normal choice rather than rendering an empty sheet.
+     */
+    const wanted = String((req.query && req.query.page) || '').trim();
+    let pages = pickPages(binder);
+    if (wanted) {
+      const named = ((binder && binder.binder_pages) || []).filter(
+        (p) => p.id === wanted && (p.binder_slots || []).some((s) => s.card_id || s.image_url),
+      );
+      if (named.length) pages = named;
+    }
     if (!pages.length) {
       res.statusCode = 404;
       res.setHeader('content-type', 'application/json');

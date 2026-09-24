@@ -388,6 +388,7 @@ export type Database = {
           theme_count: number
           card_ids: string[]
           card_image_urls: string[] | null
+          source_page_id: string | null
           rows: number
           cols: number
           backdrop_url: string | null
@@ -416,6 +417,7 @@ export type Database = {
           theme_count?: number
           card_ids?: string[]
           card_image_urls?: string[] | null
+          source_page_id?: string | null
           rows?: number
           cols?: number
           backdrop_url?: string | null
@@ -1252,6 +1254,8 @@ export type Database = {
           cols: number
           hint: string | null
           source_binder_id: string | null
+          source_page_id: string | null
+          binder_is_public: boolean
           plays: number
           correct: number
           published: boolean

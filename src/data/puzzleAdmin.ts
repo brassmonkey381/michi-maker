@@ -25,6 +25,9 @@ export interface AdminPuzzle {
   cols: number;
   hint: string | null;
   sourceBinderId: string | null;
+  sourcePageId: string | null;
+  /** The renderer reads binders with is_public hardcoded, so a private one cannot be drawn. */
+  binderIsPublic: boolean;
   plays: number;
   correct: number;
   published: boolean;
@@ -49,6 +52,8 @@ export async function listPuzzles(limit = 60): Promise<AdminPuzzle[]> {
     cols: Number(r.cols),
     hint: (r.hint as string | null) ?? null,
     sourceBinderId: (r.source_binder_id as string | null) ?? null,
+    sourcePageId: (r.source_page_id as string | null) ?? null,
+    binderIsPublic: !!r.binder_is_public,
     plays: Number(r.plays),
     correct: Number(r.correct),
     published: !!r.published,

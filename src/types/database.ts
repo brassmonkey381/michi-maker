@@ -387,6 +387,7 @@ export type Database = {
           publish_on: string
           theme_count: number
           card_ids: string[]
+          card_image_urls: string[] | null
           rows: number
           cols: number
           backdrop_url: string | null
@@ -400,6 +401,7 @@ export type Database = {
           publish_on: string
           theme_count: number
           card_ids: string[]
+          card_image_urls?: string[] | null
           rows?: number
           cols?: number
           backdrop_url?: string | null
@@ -413,6 +415,7 @@ export type Database = {
           publish_on?: string
           theme_count?: number
           card_ids?: string[]
+          card_image_urls?: string[] | null
           rows?: number
           cols?: number
           backdrop_url?: string | null
@@ -1229,7 +1232,13 @@ export type Database = {
         Returns: string[]
       }
       admin_publish_puzzle: {
-        Args: { p_publish_on: string; p_page_id: string; p_themes: string[]; p_hint?: string | null }
+        Args: {
+          p_publish_on: string
+          p_page_id: string
+          p_themes: string[]
+          p_hint?: string | null
+          p_image_urls?: string[] | null
+        }
         Returns: string
       }
       admin_puzzle_list: {

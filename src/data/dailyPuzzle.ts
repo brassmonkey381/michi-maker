@@ -38,6 +38,13 @@ export interface DailyPuzzle {
   cols: number;
   backdropUrl: string | null;
   hint: string | null;
+  /**
+   * The card pictures, already resolved, in card order. Present when the puzzle was published from
+   * a Studio tab that had the image manifest; null on older ones. When it is here the page needs no
+   * manifest at all, which is the difference between a cold visitor waiting on 5.2 MB of JSON and
+   * seeing the cards immediately.
+   */
+  cardImageUrls: string[] | null;
 }
 
 export interface MyPlay {
@@ -63,7 +70,7 @@ export async function todaysPuzzle(now = new Date()): Promise<DailyPuzzle | null
   if (!supabase) return null;
   const { data, error } = await supabase
     .from('daily_puzzles')
-    .select('id, publish_on, theme_count, card_ids, rows, cols, backdrop_url, hint')
+    .select('id, publish_on, theme_count, card_ids, card_image_urls, rows, cols, backdrop_url, hint')
     .eq('publish_on', utcDate(now))
     .maybeSingle();
   // A miss is not an error here: most of the interesting states (no puzzle today, not signed in
@@ -79,6 +86,7 @@ export async function todaysPuzzle(now = new Date()): Promise<DailyPuzzle | null
     cols: Number(data.cols),
     backdropUrl: data.backdrop_url ?? null,
     hint: data.hint ?? null,
+    cardImageUrls: data.card_image_urls?.length ? data.card_image_urls.map(String) : null,
   };
 }
 

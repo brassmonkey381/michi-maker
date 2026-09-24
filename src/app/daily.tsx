@@ -35,7 +35,7 @@ import {
   guessWord, markSeen, myPlay, myStreak, PUZZLE_BACKDROP_FALLBACK, revealedAnswer, todaysPuzzle,
   type DailyPuzzle, type GuessResult,
 } from '@/data/dailyPuzzle';
-import { cardThumbUrl } from '@/lib/catalogConfig';
+import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 import { useAuth } from '@/store/auth';
 
 export default function DailyScreen() {
@@ -43,6 +43,15 @@ export default function DailyScreen() {
   const { width } = useWindowDimensions();
   const auth = useAuth();
   const userId = auth.user?.id ?? null;
+  /**
+   * WHY THIS HOOK IS STILL HERE even though a published puzzle carries its own picture addresses.
+   * It is the fallback path's repaint. `cardThumbUrl` correctly returns '' until the image manifest
+   * has hydrated, and a component that reads it once in render never paints again when it lands,
+   * which is exactly the blank pockets a hard refresh used to show. The kit's own note on
+   * useImageManifest describes this. An older puzzle, published before the column existed, still
+   * goes down that path.
+   */
+  useImageManifest();
 
   const [loaded, setLoaded] = useState(false);
   const [puzzle, setPuzzle] = useState<DailyPuzzle | null>(null);
@@ -123,6 +132,8 @@ export default function DailyScreen() {
    * opacity works on either ground.
    */
   const backdrop = puzzle?.backdropUrl ?? PUZZLE_BACKDROP_FALLBACK;
+  const zoomIndex = zoom ? puzzle?.cardIds.indexOf(zoom) ?? -1 : -1;
+  const zoomFallback = zoomIndex >= 0 ? (puzzle?.cardImageUrls?.[zoomIndex] ?? '') : '';
 
   return (
     <ThemedView style={styles.container}>
@@ -171,7 +182,7 @@ export default function DailyScreen() {
                     accessibilityLabel="Look closer at this card"
                   >
                     <Image
-                      source={{ uri: cardThumbUrl(id, 640) }}
+                      source={{ uri: puzzle.cardImageUrls?.[i] || cardThumbUrl(id, 640) }}
                       style={[styles.card, { width: cell, height: cell * 1.396 }]}
                       contentFit="contain"
                       transition={140}
@@ -281,7 +292,9 @@ export default function DailyScreen() {
           <Pressable style={styles.zoomBack} onPress={() => setZoom(null)}>
             {zoom ? (
               <Image
-                source={{ uri: cardThumbUrl(zoom, 'full') }}
+                // The full picture when the manifest can give one, otherwise the stored address,
+                // which is a 640 and still worth opening.
+                source={{ uri: cardThumbUrl(zoom, 'full') || zoomFallback }}
                 style={styles.zoomImage}
                 contentFit="contain"
                 transition={120}

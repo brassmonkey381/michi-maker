@@ -87,6 +87,12 @@ export async function publishPuzzle(input: {
   pageId: string;
   themes: string[];
   hint?: string | null;
+  /**
+   * The resolved card pictures, in card order, so the player's page needs no image manifest. Only
+   * sent when every one of them resolved: the server refuses a partial array, and a partial one
+   * would draw some pockets and leave others blank with nothing to explain why.
+   */
+  imageUrls?: string[] | null;
 }): Promise<string> {
   const supabase = requireSupabase();
   const { data, error } = await supabase.rpc('admin_publish_puzzle', {
@@ -94,6 +100,7 @@ export async function publishPuzzle(input: {
     p_page_id: input.pageId,
     p_themes: input.themes,
     p_hint: input.hint ?? null,
+    p_image_urls: input.imageUrls?.length ? input.imageUrls : null,
   });
   if (error) throw new Error(error.message);
   return String(data);

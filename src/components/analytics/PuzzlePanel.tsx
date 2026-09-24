@@ -44,10 +44,13 @@ import {
   type PuzzleSourceBinder,
   type PuzzleSourcePage,
 } from '@/data/puzzleAdmin';
-import { cardThumbUrl } from '@/lib/catalogConfig';
+import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 
 export function PuzzlePanel() {
   const router = useRouter();
+  // The preview draws through the manifest, so this panel needs the repaint too; and the addresses
+  // it resolves are what get stored with the puzzle.
+  useImageManifest();
   const [open, setOpen] = useState(false);
   const [puzzles, setPuzzles] = useState<AdminPuzzle[] | null>(null);
   const [sources, setSources] = useState<PuzzleSourceBinder[] | null>(null);
@@ -106,8 +109,21 @@ export function PuzzlePanel() {
     setBusy(true);
     setNote(null);
     try {
-      await publishPuzzle({ publishOn: date, pageId: chosen.pageId, themes, hint: hint.trim() || null });
-      setNote(`Published ${date}: ${themes.join(' + ')}, ${chosen.cardCount} cards.`);
+      /**
+       * The pictures are resolved HERE and sent, so the player's page never has to fetch the 5.2 MB
+       * manifest to draw nine cards. All or nothing: a partial array is refused by the server, and
+       * would draw some pockets and leave the rest blank with nothing to explain it. If the manifest
+       * has not hydrated in this tab, none are sent and the puzzle keeps whatever it already had.
+       */
+      const resolved = preview.map((id) => cardThumbUrl(id, 640));
+      const imageUrls = resolved.length === preview.length && resolved.every((u) => !!u) ? resolved : null;
+      await publishPuzzle({
+        publishOn: date, pageId: chosen.pageId, themes, hint: hint.trim() || null, imageUrls,
+      });
+      setNote(
+        `Published ${date}: ${themes.join(' + ')}, ${chosen.cardCount} cards.`
+        + (imageUrls ? '' : ' Pictures were not resolved in this tab, so the page will load them itself.'),
+      );
       setThemeText('');
       setHint('');
       await load();

@@ -381,6 +381,123 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_puzzles: {
+        Row: {
+          id: string
+          publish_on: string
+          theme_count: number
+          card_ids: string[]
+          rows: number
+          cols: number
+          backdrop_url: string | null
+          hint: string | null
+          source_binder_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          publish_on: string
+          theme_count: number
+          card_ids: string[]
+          rows?: number
+          cols?: number
+          backdrop_url?: string | null
+          hint?: string | null
+          source_binder_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          publish_on?: string
+          theme_count?: number
+          card_ids?: string[]
+          rows?: number
+          cols?: number
+          backdrop_url?: string | null
+          hint?: string | null
+          source_binder_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_puzzles_source_binder_id_fkey"
+            columns: ["source_binder_id"]
+            isOneToOne: false
+            referencedRelation: "binders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daily_puzzle_answers: {
+        Row: { puzzle_id: string; themes: string[] }
+        Insert: { puzzle_id: string; themes: string[] }
+        Update: { puzzle_id?: string; themes?: string[] }
+        Relationships: [
+          {
+            foreignKeyName: "daily_puzzle_answers_puzzle_id_fkey"
+            columns: ["puzzle_id"]
+            isOneToOne: true
+            referencedRelation: "daily_puzzles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      puzzle_plays: {
+        Row: {
+          id: string
+          user_id: string
+          puzzle_id: string
+          seen_at: string
+          guess: string[] | null
+          correct: boolean | null
+          matched: number | null
+          answered_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          puzzle_id: string
+          seen_at?: string
+          guess?: string[] | null
+          correct?: boolean | null
+          matched?: number | null
+          answered_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          puzzle_id?: string
+          seen_at?: string
+          guess?: string[] | null
+          correct?: boolean | null
+          matched?: number | null
+          answered_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "puzzle_plays_puzzle_id_fkey"
+            columns: ["puzzle_id"]
+            isOneToOne: false
+            referencedRelation: "daily_puzzles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      puzzle_vocabulary: {
+        Row: { word: string; suggest: boolean; created_at: string }
+        Insert: { word: string; suggest?: boolean; created_at?: string }
+        Update: { word?: string; suggest?: boolean; created_at?: string }
+        Relationships: []
+      }
       feedback_responses: {
         Row: {
           answers: Json
@@ -604,6 +721,7 @@ export type Database = {
       }
       binders: {
         Row: {
+          hidden_from_feeds: boolean
           cover: Json | null
           page_style: Json | null
           track: Json | null
@@ -624,6 +742,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          hidden_from_feeds?: boolean
           cover?: Json | null
           page_style?: Json | null
           track?: Json | null
@@ -644,6 +763,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          hidden_from_feeds?: boolean
           cover?: Json | null
           page_style?: Json | null
           track?: Json | null
@@ -867,6 +987,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          daily_puzzle_prompt_at: string | null
           avatar_consented_at: string | null
           avatar_prompt_at: string | null
           pro_trial_offer_due: boolean
@@ -889,6 +1010,7 @@ export type Database = {
           username: string | null
         }
         Insert: {
+          daily_puzzle_prompt_at?: string | null
           avatar_consented_at?: string | null
           avatar_prompt_at?: string | null
           pro_trial_offer_due?: boolean
@@ -911,6 +1033,7 @@ export type Database = {
           username?: string | null
         }
         Update: {
+          daily_puzzle_prompt_at?: string | null
           avatar_consented_at?: string | null
           avatar_prompt_at?: string | null
           pro_trial_offer_due?: boolean
@@ -1090,6 +1213,14 @@ export type Database = {
           strikes: number
           last_at: string
         }[]
+      }
+      grade_puzzle_guess: {
+        Args: { p_puzzle_id: string; p_guess: string[] }
+        Returns: { correct: boolean; matched: number; of: number }[]
+      }
+      puzzle_answer: {
+        Args: { p_puzzle_id: string }
+        Returns: string[]
       }
       admin_publish_puzzle: {
         Args: { p_publish_on: string; p_page_id: string; p_themes: string[]; p_hint?: string | null }

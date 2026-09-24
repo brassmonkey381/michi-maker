@@ -22,6 +22,7 @@ import { PeopleButton } from '@/components/people/PeopleButton';
 import { ProfileAvatarButton, TILE_AVATAR } from '@/components/people/ProfileAvatarButton';
 import { SettingsButton } from '@/components/settings/SettingsSheet';
 import { Wordmark } from '@/components/brand/Wordmark';
+import { DailyPuzzleCard } from '@/components/DailyPuzzleCard';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Breakpoints, Fonts, FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
@@ -204,6 +205,9 @@ export default function HomeScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.flex} edges={['top']}>
         <ScrollView contentContainerStyle={styles.scroll}>
+          {/* Today's puzzle, when this person has not seen it. Renders nothing otherwise, including
+              for guests and for anyone who said no once. */}
+          <DailyPuzzleCard />
           <View style={styles.headerRow}>
             <ThemedText type="title" style={styles.h1}>
               <Wordmark />

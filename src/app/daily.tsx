@@ -21,7 +21,7 @@
 import { useRouter, type Href } from 'expo-router';
 import { sendBrowseCommand } from 'tcgscan-browse';
 import { Image } from 'expo-image';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions,
 } from 'react-native';
@@ -38,6 +38,9 @@ import {
   type DailyPuzzle, type GuessResult,
 } from '@/data/dailyPuzzle';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
+import {
+  trackPuzzleGuess, trackPuzzleGuessFailed, trackPuzzleOpened, trackPuzzleSolved,
+} from '@/lib/analytics';
 import { useAuth } from '@/store/auth';
 
 export default function DailyScreen() {
@@ -112,6 +115,11 @@ export default function DailyScreen() {
     }
     setStreak(await myStreak());
     if (userId) await markSeen(id, userId);
+    // After myPlay, so `state` says what they actually arrived at rather than
+    // just that they arrived. This call site was lost when the page was rewritten
+    // on 2026-09-24 and the puzzle went dark in the stream while real people were
+    // solving it - three answers landed with nothing recorded.
+    trackPuzzleOpened(id, 'direct', mine?.correct ? 'solved' : mine ? 'played' : 'fresh');
   }, [userId]);
 
   /** A callback ref, not an effect: the React Compiler rules here forbid setState inside one. */
@@ -129,10 +137,17 @@ export default function DailyScreen() {
     if (node && userId && puzzle) void loadMine(puzzle.id);
   }, [userId, puzzle, loadMine]);
 
+  /** Words guessed in this visit, for the attempt number on each one. */
+  const attempts = useRef(0);
+
   const submit = async () => {
     const word = typed.trim();
     if (!puzzle || !word || busy || solved) return;
     setBusy(true);
+    // Read from the ref, not `tries`: state is a render behind, and the attempt
+    // number has to be right inside this same call.
+    attempts.current += 1;
+    const attempt = attempts.current;
     try {
       const r = await guessWord(puzzle.id, word);
       setLast({ word, result: r });
@@ -141,12 +156,20 @@ export default function DailyScreen() {
         const hitWord = r.matchedWord;
         setFound((f) => (f.includes(hitWord) ? f : [...f, hitWord]));
       }
+      trackPuzzleGuess(puzzle.id, attempt, r);
       if (r.solved) {
         setSolved(true);
-        setStreak(await myStreak());
+        const next = await myStreak();
+        setStreak(next);
+        // The outcome the puzzle exists for, with how many words it took and the
+        // run it extends - neither belongs on every individual guess.
+        trackPuzzleSolved(puzzle.id, attempt, next);
       }
       setTyped('');
     } catch {
+      // The RPC failed. NOT a wrong word: our outage and their miss must not
+      // share a bucket.
+      trackPuzzleGuessFailed(puzzle.id, attempt);
       setLast({
         word,
         result: { hit: false, matchedWord: null, foundCount: found.length, total: puzzle.themeCount, solved: false },

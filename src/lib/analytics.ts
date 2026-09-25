@@ -865,38 +865,34 @@ export function trackPuzzleOpened(
 }
 
 /**
- * A graded guess. `words` is the picked vocabulary, and it is SAFE to send here
- * for one specific reason: the guess box cannot receive free text. Words enter
- * `picked` only through the suggestion chips, which come from the curated
- * `puzzle_vocabulary` table - a closed set we author. They are enum values, like
- * a tier_caps limit key, not something a person typed.
+ * One guessed word, graded.
  *
- * IF THAT INPUT EVER ACCEPTS A TYPED WORD, THIS PROP MUST GO. Free text in an
- * analytics prop is the one thing the emitter contract does not allow, and the
- * whole justification above rests on `add()` being reachable only from a chip.
+ * THE TYPED WORD IS NOT SENT, and that is a reversal of how this shipped. The first version of
+ * the page built a guess from suggestion chips drawn from the curated puzzle_vocabulary table, a
+ * closed set we author, so the picked words were enum values and safe to record. The page was
+ * rewritten on 2026-09-24 to take ONE TYPED WORD from a free TextInput, which is exactly the
+ * condition the original comment said must remove the prop. It is removed.
  *
- * Which words get guessed wrongly is the point of the event: the puzzle exists
- * to teach the vocabulary that the paid search feature runs on, so a word people
- * reach for and miss is a gap between what the art shows and what it is tagged.
+ * `matched_word` is sent instead, and only on a hit. That value comes back from the server as one
+ * of the puzzle's own answer words - it is our vocabulary, never their typing - so it keeps the
+ * part that was actually useful: which ideas people find, and which of a puzzle's words nobody
+ * ever reaches.
  */
 export function trackPuzzleGuess(
   puzzle: string,
   attempt: number,
-  words: string[],
-  r: { correct: boolean; matched: number; of: number },
+  r: { hit: boolean; matchedWord: string | null; foundCount: number; total: number },
 ): void {
   track('puzzle.guess_submitted', {
     puzzle,
     attempt,
-    words,
-    picked: words.length,
-    matched: r.matched,
-    of: r.of,
-    correct: r.correct,
+    hit: r.hit,
+    ...(r.hit && r.matchedWord ? { matched_word: r.matchedWord } : {}),
+    found: r.foundCount,
+    of: r.total,
   });
 }
 
-/** Solved it. `attempts` is how many guesses it took, `streak` the run it extends. */
 export function trackPuzzleSolved(puzzle: string, attempts: number, streak: number): void {
   track('puzzle.solved', { puzzle, attempts, streak });
 }

@@ -252,18 +252,6 @@ export default function HomeScreen() {
             </View>
           ) : null}
 
-          {/* Recent & Upcoming, FIRST on the page (owner call, 2026-09-15, in place of the contest
-              promo card that used to sit here): what is out this week is the reason to come back,
-              and it was below three sections of binders. ONE feed for every auth state (the kit's
-              RecentProducts runs catalog-free for guests/cold and from the catalog when
-              signed-in). The contest is one tap away from the rail's Contest line. */}
-          <HomeRecent
-            onFindSimilar={driveSimilar}
-            onViewSet={driveViewSet}
-            onOpenSet={driveViewSetById}
-            onAddToBinder={setAddCardId}
-          />
-
           <GuestBanner />
 
           {store.featuredBinders.length > 0 ? (
@@ -284,6 +272,18 @@ export default function HomeScreen() {
               />
             </HomeSection>
           ) : null}
+
+          {/* Recent & Upcoming, now BELOW Featured Binders (owner call, 2026-09-24). It led the
+              page from 2026-09-15, on the reasoning that what is out this week is the reason to
+              come back; the binders are what the site is FOR, so they lead and the feed follows.
+              ONE feed for every auth state: the kit's RecentProducts runs catalog-free for guests
+              and from the catalog once signed in. */}
+          <HomeRecent
+            onFindSimilar={driveSimilar}
+            onViewSet={driveViewSet}
+            onOpenSet={driveViewSetById}
+            onAddToBinder={setAddCardId}
+          />
 
           {/* Where a collection comes from. The curator card that sat above this moved to My
               binders (2026-09-06), where it greets an account with no collection yet. */}

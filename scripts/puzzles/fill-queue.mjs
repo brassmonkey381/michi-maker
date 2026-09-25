@@ -5,10 +5,11 @@
  *   node scripts/puzzles/fill-queue.mjs --days 7 --apply
  *
  * WHAT IT DOES PER DAY: picks a theme combination, pulls the cards that match it, creates a binder
- * under the admin account, finds a backdrop photograph, showcases the binder, and schedules the
- * puzzle for a future date. It stops there. A future-dated puzzle is NOT live: the read policy on
- * `daily_puzzles` is `publish_on <= puzzle_today()`, so a scheduled row is invisible to every
- * player until its morning. Studio lists it so it can be reviewed, edited or unpublished first.
+ * under the admin account, points its share image at the question marks, showcases the binder, and
+ * schedules the puzzle for a future date. It stops there. A future-dated puzzle is NOT live: the
+ * read policy on `daily_puzzles` is `publish_on <= puzzle_today()`, so a scheduled row is invisible
+ * to every player until its morning. Studio lists it so it can be reviewed, edited or unpublished
+ * first.
  *
  * THE HINT IS LEFT EMPTY ON PURPOSE. The hints that work are wordplay ("put the two words side by
  * side and you have somewhere a company keeps its data"), and a generated one would be filler that
@@ -28,11 +29,11 @@
  *      show; far above it the connection stops being visible in nine pictures.
  */
 import { randomUUID } from 'node:crypto';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
-  ROOT, adminSql, adminUser, appSql, backdropFor, cardImageUrl, dataSql,
+  ROOT, adminSql, adminUser, appSql, cardImageUrl, dataSql,
   fail, imageManifest, longDate, puzzleToday, addDays, q, step, textArray,
 } from '../lib/michi.mjs';
 
@@ -228,14 +229,25 @@ for (const c of chosen) {
   if (c.page.length < c.grid.size) fail(`${c.w1} + ${c.w2} cannot fill a ${c.grid.rows}x${c.grid.cols} page`);
 }
 
-step(6, 'finding backdrops');
-const seenArt = new Set();
-for (const c of chosen) {
-  c.art = await backdropFor(`${c.w1} ${c.w2}`, { seen: seenArt });
-  if (!c.art) c.art = await backdropFor(c.w1, { seen: seenArt });
-  if (c.art) seenArt.add(c.art.url);
-  console.log(`  ${c.publish_on}: ${c.art ? `${c.art.source}, ${c.art.credit}` : 'NONE (page keeps its default colour)'}`);
-}
+/**
+ * THE PAGE GETS NO PICTURE, AND THAT IS THE POINT.
+ *
+ * This step used to search a photograph for the puzzle's own answer words, so the forest + sky
+ * puzzle was published over a photograph of a forest under a sky. It looked good and it answered
+ * the question the picture was asking. Every page written before 2026-09-25 carried that leak;
+ * scripts/puzzles/set-share-backdrop.mjs cleaned them up.
+ *
+ * So the page keeps its default ground, and the SHARE image gets the question marks instead
+ * (binders.share_backdrop), which are the same for every puzzle and give nothing away.
+ */
+step(6, 'the share backdrop, which gives nothing away');
+const fallbackSrc = readFileSync(join(ROOT, 'src', 'data', 'dailyPuzzleLogic.ts'), 'utf8');
+const fallbackMatch = /PUZZLE_BACKDROP_FALLBACK\s*=\s*([\s\S]*?);\s*$/m.exec(fallbackSrc);
+if (!fallbackMatch) fail('PUZZLE_BACKDROP_FALLBACK not found in src/data/dailyPuzzleLogic.ts');
+const SHARE_BACKDROP = [...fallbackMatch[1].matchAll(/'([^']*)'/g)].map((x) => x[1]).join('');
+if (!/^https:\/\/\S+$/.test(SHARE_BACKDROP)) fail(`that did not parse as an address: ${SHARE_BACKDROP}`);
+console.log(`  ${SHARE_BACKDROP}`);
+console.log('  pages are left with no picture, so none of them hints at its own answer');
 
 if (!APPLY) {
   console.log(`\nOK: ${chosen.length} day(s) proposed, nothing written. Re-run with --apply.`);
@@ -254,10 +266,11 @@ for (const c of chosen) {
   // The description is the answer in plain sight, which is safe because these binders are
   // hidden_from_feeds and only reachable by someone who already has the link.
   await appSql(`
-    insert into public.binders (id, owner_id, title, description, layout_style, cover_card_id, is_public, is_demo)
+    insert into public.binders (id, owner_id, title, description, layout_style, cover_card_id,
+                                is_public, is_demo, share_backdrop)
     values (${q(binderId)}, ${q(me.id)}, ${q(title)},
             ${q(`Answer: ${c.w1} + ${c.w2}. Scheduled for ${c.publish_on}.`)},
-            'themed_story', ${q(c.page[0].id)}, false, false);
+            'themed_story', ${q(c.page[0].id)}, false, false, ${q(SHARE_BACKDROP)});
   `);
 
   // Page 0 blank so every later page has a facing partner in double-sided mode; page 1 is the
@@ -275,7 +288,7 @@ for (const c of chosen) {
   await appSql(`
     insert into public.binder_pages (id, binder_id, position, title, rows, cols, background_color, is_public)
     values ${pages.map((p, i) =>
-      `(${q(p.id)}, ${q(binderId)}, ${i}, ${q(p.title)}, ${c.grid.rows}, ${c.grid.cols}, ${q(c.art?.url ?? null)}, true)`,
+      `(${q(p.id)}, ${q(binderId)}, ${i}, ${q(p.title)}, ${c.grid.rows}, ${c.grid.cols}, null, true)`,
     ).join(',\n            ')};
   `);
   const slots = pages.flatMap((p) => p.cards.map((card, k) =>
@@ -366,7 +379,8 @@ HINT: <write one, or delete this line and publish without a hint>
 Generated by scripts/puzzles/fill-queue.mjs. The puzzle is scheduled, not live: it appears for
 players on the morning of ${c.publish_on} and is listed in Studio until then.
 
-${c.art ? `Backdrop: ${c.art.source}, ${c.art.credit}, ${c.art.page}` : 'Backdrop: none found.'}
+The share image carries the question marks, the same on every puzzle, so the picture never hints
+at its own answer.
 
 ---
 

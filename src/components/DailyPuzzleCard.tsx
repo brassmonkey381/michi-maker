@@ -7,9 +7,22 @@
  * appears, opening it records the row, and it stops appearing. That is the behaviour the owner
  * asked for, and it falls out of the row rather than out of a timestamp comparison.
  *
- * IT ASKS ONCE. A reader who says "not for me" has `dailyPuzzle: 'declined'` written to their
- * preferences and is never shown it again, on the pattern profiles already uses for the avatar
- * offer. Guests are not asked at all (src/data/prompts.ts): they have no account to record it on.
+ * IT ASKS ONCE, AND ONCE MEANS ONCE (owner, 2026-09-25). The first sighting stamps
+ * `daily_puzzle_prompt_at` and that stamp is what closes the question - not the answer. Saying
+ * "not for me" writes `dailyPuzzle: 'declined'`; saying yes writes 'on'; and IGNORING IT is also
+ * an answer, recorded by the stamp alone. All three mean the card never asks again.
+ *
+ * WHY THE STAMP AND NOT THE PREFERENCE. Until this change the question stayed open until somebody
+ * answered it, so a reader who ignored the card got it again on every home page load: two people
+ * were asked five times each in one day and never replied. Asking a sixth time is not a second
+ * chance, it is the same question shouted louder, and the fifth impression made the opt-in rate
+ * read as a fifth of what it was.
+ *
+ * AFTER AN IGNORE THE CARD STOPS ENTIRELY, rather than staying on without its question. They were
+ * offered it once and said nothing, which is closer to "no" than to "yes"; the puzzle stays in the
+ * nav for anyone who wants to find it. Only an explicit 'on' keeps the card coming back.
+ *
+ * Guests are not asked at all (src/data/prompts.ts): they have no account to record it on.
  */
 import { useRouter, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -47,23 +60,38 @@ export function DailyPuzzleCard() {
     void (async () => {
       const { data: profile } = await supabase!
         .from('profiles')
-        .select('preferences')
+        .select('preferences, daily_puzzle_prompt_at')
         .eq('id', userId)
         .maybeSingle();
       const choice = dailyPuzzleChoice(profile?.preferences);
       if (choice === 'declined') return;
+      // Asked before and never answered. That silence is the answer; do not ask
+      // again, and do not show the card either - see the header.
+      const askedBefore = !!profile?.daily_puzzle_prompt_at;
+      if (choice === null && askedBefore) return;
 
       const p = await todaysPuzzle();
       if (!p) return;
       // Seen already means played, dismissed, or simply opened. Either way it is not news.
       if (await myPlay(p.id)) return;
 
+      const asking = choice === null;
       setPuzzle(p);
-      setAsking(choice === null);
+      setAsking(asking);
       setPhase('ready');
       // Here, not at render: this runs once when the card is resolved, whereas a
       // render can repeat. `asking` marks the one offer that can produce a choice.
-      trackPuzzleOffered(p.id, choice === null);
+      trackPuzzleOffered(p.id, asking);
+      // The stamp goes down the moment the question is PUT, not when it is
+      // answered - otherwise an ignored card asks again tomorrow, which is the
+      // whole behaviour this replaces. record() stamps it again on an explicit
+      // answer, which is harmless: the column only ever needs to be non-null.
+      if (asking) {
+        void supabase!
+          .from('profiles')
+          .update({ daily_puzzle_prompt_at: new Date().toISOString() })
+          .eq('id', userId);
+      }
     })();
   }, [phase, userId, isGuest]);
 

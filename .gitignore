@@ -90,3 +90,9 @@ state/connected-art/
 # and the pair sweep is a long log, neither of which anyone reads from the repo.
 state/presets/
 state/theme-pairs.log
+
+# Rendered post images: 1.5 MB each and re-creatable by re-running the generator that made them
+# (scripts/social/reddit-post.mjs, scripts/social/color-pages.mjs). The markdown beside them, which
+# holds the titles, bodies and photographer credits, IS tracked.
+state/social/*.jpg
+state/social/*.png

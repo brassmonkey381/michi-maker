@@ -28,6 +28,10 @@ const PKG = 'tcgscan-browse';
 /** Kit exports michi depends on. `registerImageManifest` is the one that took the site down. */
 const REQUIRED = ['registerImageManifest', 'registerPriceSummary', 'loadImageManifest', 'imageManifestRevision', 'buildCatalog'];
 
+/** How hard to try before believing a live bundle really is missing a symbol (see fetchBundle). */
+const ATTEMPTS = 4;
+const WAIT_MS = 6000;
+
 const fail = (msg) => {
   console.log(`FAIL  ${msg}`);
   process.exitCode = 1;
@@ -79,13 +83,44 @@ if (process.argv.includes('--bundle') && target) {
   }
 }
 
+/**
+ * IT RETRIES, AND THAT IS NOT BELT AND BRACES. Run seconds after a deploy, this check reported all
+ * five symbols missing from a bundle that had every one of them: the same entry hash passed a
+ * minute later, unchanged. A 5 MB asset that the CDN has only partly pulled from the origin reads
+ * short, and a short read fails `includes()` for every symbol at once. The check then printed
+ * "ROLL BACK NOW" over a perfectly good deploy, which is a worse outcome than not checking: it
+ * talks you into reverting the thing that was fine.
+ *
+ * So a miss is retried before it is believed, and a body that arrives shorter than the one before
+ * it is treated as still arriving rather than as evidence. Only a stable, complete read fails.
+ */
 async function fetchBundle(origin) {
   try {
-    const html = await (await fetch(origin)).text();
+    const html = await (await fetch(origin, { cache: 'no-store' })).text();
     const src = /src="([^"]*_expo\/static\/js\/web\/[^"]+\.js)"/.exec(html)?.[1];
     if (!src) return fail(`no Expo bundle referenced by ${origin} (is it serving the app at all?)`);
     const url = src.startsWith('http') ? src : new URL(src, origin).toString();
-    return { where: url.slice(url.lastIndexOf('/') + 1), text: await (await fetch(url)).text() };
+    const where = url.slice(url.lastIndexOf('/') + 1);
+
+    let best = '';
+    for (let i = 1; i <= ATTEMPTS; i += 1) {
+      const res = await fetch(url, { cache: 'no-store' });
+      const declared = Number(res.headers.get('content-length') ?? 0);
+      const text = await res.text();
+      if (text.length > best.length) best = text;
+      const short = declared > 0 && text.length < declared;
+      const missing = REQUIRED.filter((s) => !text.includes(s));
+      if (!missing.length && !short) return { where, text };
+      if (i < ATTEMPTS) {
+        console.log(
+          `      attempt ${i}: ${Math.round(text.length / 1024)} KB`
+          + `${short ? ` (truncated, ${Math.round(declared / 1024)} KB declared)` : ''}`
+          + `${missing.length ? `, missing ${missing.length} symbol(s)` : ''} — retrying`,
+        );
+        await new Promise((r) => setTimeout(r, WAIT_MS));
+      }
+    }
+    return { where, text: best };
   } catch (e) {
     return fail(`could not read the bundle at ${origin}: ${e.message}`);
   }

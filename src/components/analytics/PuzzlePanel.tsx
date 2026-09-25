@@ -71,6 +71,12 @@ export function PuzzlePanel() {
   const [showAll, setShowAll] = useState(false);
   const [revealed, setRevealed] = useState<Record<string, string[]>>({});
   const [drawing, setDrawing] = useState<string | null>(null);
+  /**
+   * WHAT HAPPENED, ON THE ROW. The panel's one note line sits at the top, and the puzzle rows are
+   * at the bottom of a long panel, so a failure reported up there is a failure nobody sees: the
+   * button flicked back to "image" a fraction of a second later and said nothing. Per-row.
+   */
+  const [rowNote, setRowNote] = useState<Record<string, string>>({});
 
   /**
    * THE POST IMAGE. The page render is on-demand and slow the first time (the endpoint says half a
@@ -81,11 +87,11 @@ export function PuzzlePanel() {
   const download = async (p: AdminPuzzle) => {
     if (drawing) return;
     if (!p.binderIsPublic) {
-      setNote('The binder behind that puzzle is not public, so its page cannot be rendered. Turn showcase on for it below, then try again.');
+      setRowNote((r) => ({ ...r, [p.id]: 'Its binder is not showcased, so there is nothing to render. Turn showcase on below.' }));
       return;
     }
     setDrawing(p.id);
-    setNote(`Drawing ${p.publishOn}. The first render of a page takes up to a minute.`);
+    setRowNote((r) => ({ ...r, [p.id]: 'Drawing. A page can take up to a minute the first time.' }));
     try {
       await downloadPuzzleImage({
         binderId: p.sourceBinderId ?? '',
@@ -94,9 +100,9 @@ export function PuzzlePanel() {
         themeCount: p.themeCount,
         cta: POST_CTA,
       });
-      setNote(`Downloaded michi-daily-${p.publishOn}.png`);
+      setRowNote((r) => ({ ...r, [p.id]: `Downloaded michi-daily-${p.publishOn}.png` }));
     } catch (e) {
-      setNote(e instanceof Error ? e.message : 'The image could not be drawn.');
+      setRowNote((r) => ({ ...r, [p.id]: e instanceof Error ? e.message : 'The image could not be drawn.' }));
     } finally {
       setDrawing(null);
     }
@@ -422,6 +428,11 @@ export function PuzzlePanel() {
                   {p.published ? `${p.plays} played, ${p.correct} correct` : 'scheduled, not visible yet'}
                   {revealed[p.id]?.length ? `  ·  ${revealed[p.id].join(' + ')}` : ''}
                 </ThemedText>
+                {rowNote[p.id] ? (
+                  <ThemedText type="small" style={styles.rowNote} testID={`puzzle-note-${p.publishOn}`}>
+                    {rowNote[p.id]}
+                  </ThemedText>
+                ) : null}
               </View>
               <Pressable onPress={() => download(p)} hitSlop={6} disabled={!!drawing}>
                 <ThemedText type="small" style={p.binderIsPublic ? styles.link : styles.off}>
@@ -515,6 +526,7 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     paddingVertical: Spacing.one,
   },
+  rowNote: { color: Palette.accent },
   link: { color: Palette.accent },
   on: { color: Palette.accent },
   off: { color: Palette.muted },

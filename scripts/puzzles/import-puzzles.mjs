@@ -11,6 +11,13 @@
  * THE HINT IS THE DESCRIPTION. It is the puzzle's clue, kept with the puzzle rather than in a
  * separate file that can drift away from the cards it belongs to.
  *
+ * PAGES ARE CREATED PUBLIC, and the binder is not. That looks backwards and is not: a page's
+ * `is_public` is what the SHARE RENDERER can see, and it reads the binder as an anonymous caller.
+ * A binder that is private is invisible either way, so a private page inside it buys nothing; but
+ * the day the binder is showcased, private pages make it render "nothing to draw" and show an empty
+ * binder to anyone who opens the link. That is exactly what happened: this script wrote `false`
+ * here, and the Studio download failed with no useful message until it was found.
+ *
  * THE BACKGROUND IS A HOTLINKED PHOTOGRAPH, which is what `binder_pages.background_color` takes
  * besides a colour: an http(s) URL is read as a picture and a #rrggbb as a colour (see
  * src/data/pageStyle.ts, isImageRef). The app's own stock-art picker re-hosts and credits a picture
@@ -203,7 +210,7 @@ if (!APPLY) {
     `);
     const pageValues = b.pages
       .map((pg, i) =>
-        `(${q(pg.id)}, ${q(b.id)}, ${i}, ${q(pg.title)}, ${b.rows}, ${b.cols}, ${q(b.art?.url ?? null)}, false)`,
+        `(${q(pg.id)}, ${q(b.id)}, ${i}, ${q(pg.title)}, ${b.rows}, ${b.cols}, ${q(b.art?.url ?? null)}, true)`,
       )
       .join(',\n        ');
     await sql(`

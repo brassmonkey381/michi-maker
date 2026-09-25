@@ -9,6 +9,11 @@
  * running it twice replaces rather than duplicates. That delete is the only destructive thing here
  * and it is scoped to the three titles this script owns, on one account.
  *
+ * PAGES ARE CREATED VISIBLE, the binder is not. A page's `is_public` is what the share renderer
+ * can see, and it reads as an anonymous caller; a private page inside a private binder buys
+ * nothing, while a private page inside a binder that is later made public renders "nothing to
+ * draw". This wrote `false` and cost an afternoon to find.
+ *
  * CAPS. The insert-time triggers enforce binders and pages per tier, and they refuse mid-batch, so
  * an account that cannot hold this ends up with half of it. The target was checked beforehand
  * (scripts/check-import-target.mjs): @fakemichi is vip, both caps unlimited. The dry run prints
@@ -106,7 +111,7 @@ if (APPLY) {
     `);
     const pageValues = b.pages
       .map((p, i) =>
-        `(${q(p.id)}, ${q(b.id)}, ${i}, ${q(p.title)}, ${q(p.description)}, ${p.rows}, ${p.cols}, false)`,
+        `(${q(p.id)}, ${q(b.id)}, ${i}, ${q(p.title)}, ${q(p.description)}, ${p.rows}, ${p.cols}, true)`,
       )
       .join(',\n    ');
     await sql(`

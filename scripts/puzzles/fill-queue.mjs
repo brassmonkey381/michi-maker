@@ -36,6 +36,7 @@ import {
   ROOT, adminSql, adminUser, appSql, cardImageUrl, dataSql,
   fail, imageManifest, longDate, puzzleToday, addDays, q, step, textArray,
 } from '../lib/michi.mjs';
+import { familyList } from '../../src/data/puzzleSynonyms.ts';
 
 const APPLY = process.argv.includes('--apply');
 const argOf = (name, dflt) => {
@@ -59,27 +60,17 @@ const UNGUESSABLE = new Set([
 ]);
 
 /**
- * Words too close to each other to be two separate answers. The overlap rule below catches a word
- * that IMPLIES another; it does not catch two words for nearly the same thing that happen to be
- * tagged independently. `field + meadow` overlaps only 48% of the time and still makes a puzzle
- * whose second answer is a synonym of the first, which reads as a trick rather than a connection.
- * Same family, so never paired together.
+ * Two answer words must never come from one synonym family, and the list is THE SAME ONE the
+ * grader uses (src/data/puzzleSynonyms.ts, seeded into public.puzzle_synonyms).
+ *
+ * It has to be the same list. The grader accepts any word in a family as the answer, so if a
+ * puzzle's two answers shared a family, one guess would satisfy either of them: it would count
+ * once, the player would be told they were right, and the second theme would be unreachable
+ * because the word that reaches it has already been spent. Keeping a second hand-written copy here
+ * would mean that invariant held only until the two drifted.
  */
-const FAMILIES = [
-  ['water', 'underwater', 'ocean', 'river', 'lake', 'sea', 'waves', 'bubbles'],
-  ['field', 'meadow', 'grass', 'plains'],
-  ['house', 'town', 'city', 'street', 'road', 'market', 'shop', 'buildings'],
-  ['forest', 'trees', 'jungle', 'leaves', 'undergrowth', 'branches', 'woods'],
-  ['flowers', 'petals', 'garden', 'blossoms'],
-  ['snow', 'ice', 'winter', 'frost'],
-  ['night', 'stars', 'moon', 'darkness'],
-  ['sky', 'clouds', 'sunset', 'sunrise'],
-  ['cave', 'rocks', 'crystals', 'gems', 'stones'],
-  ['flames', 'fire', 'lava', 'embers'],
-  ['storm', 'lightning', 'rain', 'thunder'],
-];
 const familyOf = new Map();
-FAMILIES.forEach((group, i) => group.forEach((w) => familyOf.set(w, i)));
+for (const { family, words } of familyList()) for (const w of words) familyOf.set(w, family);
 
 console.log(APPLY ? '*** APPLY: this will write to the live database ***\n' : 'DRY RUN: nothing will be written.\n');
 
@@ -172,21 +163,93 @@ for (const s of scored.slice(0, 8)) {
   console.log(`    ${s.w1} + ${s.w2}: ${s.n} cards, ${s.grid.rows}x${s.grid.cols}, overlap ${(s.implies * 100).toFixed(0)}%, score ${s.score.toFixed(2)}`);
 }
 
-step(4, `choosing ${DAYS} day(s)`);
+step(4, `choosing ${DAYS} fair day(s)`);
 // No word is reused, within this run or against anything already published, so a player never
 // sees the same answer twice and the vocabulary list stays a fair guessing pool.
+/**
+ * A CANDIDATE IS NOT ACCEPTED UNTIL ITS OWN PAGE HAS BEEN LOOKED AT.
+ *
+ * Choosing the pair and then pulling its cards, in that order, was how the first week went out
+ * with three puzzles nobody could win. "food + house" reads as a page about a kitchen: `cup` is on
+ * seven of its nine cards and `kitchen` on six, neither is food or a house, and a player who types
+ * either is told they are wrong. The pair looked fine; only the page it produced showed the
+ * problem.
+ *
+ * So the loop pulls the cards, reads what ELSE those exact cards have in common, asks the real
+ * grader whether it would accept those words, and drops the pair when a word carried by most of
+ * the page would be refused. It then moves on to the next candidate rather than shrinking the week.
+ *
+ * A rival the grader ACCEPTS is fine: that is the synonym table doing its job (`trees` on a forest
+ * page). A rival on half the page or less is a word the page does not really support.
+ */
+const STRONG_RIVAL = 0.66;
+const manifest = await imageManifest();
 const chosen = [];
 const blocked = new Set(spent);
+const rejected = [];
+
 for (const s of scored) {
   if (chosen.length >= DAYS) break;
   if (blocked.has(s.w1) || blocked.has(s.w2)) continue;
+
+  const rows = await dataSql(`
+    select c.id::text as id, c.name, c.number, c.rarity, c.set_name, c.illustrator,
+           c.full_art_kind, coalesce(c.full_art_score, 0) as art_score
+      from public.cards_en c
+     where c.full_art_kind in ${ART_KINDS}
+       and c.scene_tags && array[${q(`scene:${s.w1}`)}, ${q(`object:${s.w1}`)}]
+       and c.scene_tags && array[${q(`scene:${s.w2}`)}, ${q(`object:${s.w2}`)}]
+     order by case c.full_art_kind
+                when 'special_illustration_rare' then 0
+                when 'illustration_rare' then 1 else 2 end,
+              c.full_art_score desc nulls last, c.id
+     limit 60;
+  `);
+  // Only cards whose picture resolves: a pocket with no address draws blank, and the publish RPC
+  // refuses a partial address list outright.
+  const cards = rows.filter((r) => cardImageUrl(manifest, r.id));
+  if (cards.length < s.grid.size) {
+    rejected.push(`${s.w1} + ${s.w2}: only ${cards.length} card(s) with pictures`);
+    continue;
+  }
+  const page = cards.slice(0, s.grid.size);
+
+  // What else do the cards ACTUALLY ON THE PAGE have in common?
+  const rivalRows = await dataSql(`
+    select split_part(t, ':', 2) as word, count(distinct c.id)::int as hits
+      from public.cards_en c, unnest(c.scene_tags) t
+     where c.id::text = any(${textArray(page.map((x) => x.id))})
+       and (t like 'scene:%' or t like 'object:%')
+       and split_part(t, ':', 2) !~ '[^a-z]'
+     group by 1 having count(distinct c.id)::numeric / ${page.length} >= ${STRONG_RIVAL}
+     order by hits desc;
+  `);
+  const rivals = rivalRows.filter((r) => r.word !== s.w1 && r.word !== s.w2);
+  const unfair = [];
+  if (rivals.length) {
+    const graded = await appSql(`
+      select w, public.puzzle_words_match(w, ${q(s.w1)})
+              or public.puzzle_words_match(w, ${q(s.w2)}) as accepted
+        from unnest(${textArray(rivals.map((r) => r.word))}) as w;
+    `);
+    for (const g of graded) if (!g.accepted) unfair.push(g.w);
+  }
+  if (unfair.length) {
+    rejected.push(`${s.w1} + ${s.w2}: the page also says ${unfair.join(', ')}, which would be marked wrong`);
+    continue;
+  }
+
   blocked.add(s.w1);
   blocked.add(s.w2);
-  chosen.push(s);
+  chosen.push({ ...s, cards, page });
 }
+
+for (const r of rejected.slice(0, 10)) console.log(`  dropped  ${r}`);
+if (rejected.length > 10) console.log(`  dropped  ...and ${rejected.length - 10} more`);
 if (chosen.length < DAYS) {
-  console.log(`  only ${chosen.length} distinct combination(s) available without reusing a word`);
+  console.log(`  only ${chosen.length} fair combination(s) available without reusing a word`);
 }
+if (!chosen.length) fail('nothing left to publish; every good combination is spent or unfair');
 
 // The first free morning from tomorrow on, so a run never overwrites a puzzle already scheduled.
 const today = puzzleToday();
@@ -197,36 +260,10 @@ for (const c of chosen) {
   c.publish_on = cursor;
 }
 for (const c of chosen) {
-  console.log(`  ${c.publish_on}  ${c.w1} + ${c.w2}  ${c.grid.rows}x${c.grid.cols}, ${c.n} candidates`);
-}
-if (!chosen.length) fail('nothing left to publish; every good combination uses a word already spent');
-
-step(5, 'pulling the cards');
-const manifest = await imageManifest();
-for (const c of chosen) {
-  const rows = await dataSql(`
-    select c.id::text as id, c.name, c.number, c.rarity, c.set_name, c.illustrator,
-           c.full_art_kind, coalesce(c.full_art_score, 0) as art_score
-      from public.cards_en c
-     where c.full_art_kind in ${ART_KINDS}
-       and c.scene_tags && array[${q(`scene:${c.w1}`)}, ${q(`object:${c.w1}`)}]
-       and c.scene_tags && array[${q(`scene:${c.w2}`)}, ${q(`object:${c.w2}`)}]
-     order by case c.full_art_kind
-                when 'special_illustration_rare' then 0
-                when 'illustration_rare' then 1 else 2 end,
-              c.full_art_score desc nulls last, c.id
-     limit 60;
-  `);
-  // Only cards whose picture actually resolves: a pocket with no address draws blank, and the
-  // publish RPC refuses a partial address list outright.
-  c.cards = rows.filter((r) => cardImageUrl(manifest, r.id));
-  const lost = rows.length - c.cards.length;
-  c.page = c.cards.slice(0, c.grid.size);
   console.log(
-    `  ${c.publish_on}  ${c.w1} + ${c.w2}: ${rows.length} matched`
-    + `${lost ? `, ${lost} without a picture` : ''}, ${c.page.length} on the page`,
+    `  ${c.publish_on}  ${c.w1} + ${c.w2}  ${c.grid.rows}x${c.grid.cols}, `
+    + `${c.n} candidates, ${c.page.length} on the page`,
   );
-  if (c.page.length < c.grid.size) fail(`${c.w1} + ${c.w2} cannot fill a ${c.grid.rows}x${c.grid.cols} page`);
 }
 
 /**
@@ -240,7 +277,7 @@ for (const c of chosen) {
  * So the page keeps its default ground, and the SHARE image gets the question marks instead
  * (binders.share_backdrop), which are the same for every puzzle and give nothing away.
  */
-step(6, 'the share backdrop, which gives nothing away');
+step(5, 'the share backdrop, which gives nothing away');
 const fallbackSrc = readFileSync(join(ROOT, 'src', 'data', 'dailyPuzzleLogic.ts'), 'utf8');
 const fallbackMatch = /PUZZLE_BACKDROP_FALLBACK\s*=\s*([\s\S]*?);\s*$/m.exec(fallbackSrc);
 if (!fallbackMatch) fail('PUZZLE_BACKDROP_FALLBACK not found in src/data/dailyPuzzleLogic.ts');
@@ -257,7 +294,7 @@ if (!APPLY) {
 // ---------------------------------------------------------------------------
 
 const me = await adminUser();
-step(7, `writing as @${me.username}`);
+step(6, `writing as @${me.username}`);
 for (const c of chosen) {
   const title = `Daily Puzzle: ${c.w1} + ${c.w2}`;
   const binderId = randomUUID();
@@ -303,7 +340,7 @@ for (const c of chosen) {
   console.log(`  "${title}": ${pages.length} pages, ${slots.length} cards`);
 }
 
-step(8, 'showcasing and scheduling');
+step(7, 'showcasing and scheduling');
 for (const c of chosen) {
   // The real RPCs, called as the admin, so this stays one definition with Studio rather than two.
   await adminSql(`select public.admin_set_binder_showcase(${q(c.binderId)}, true);`);
@@ -317,7 +354,7 @@ for (const c of chosen) {
   console.log(`  ${c.publish_on}  ${c.w1} + ${c.w2}  puzzle ${String(pub.id).slice(0, 8)}`);
 }
 
-step(9, 'reading it back the way a player and the renderer would');
+step(8, 'reading it back the way a player and the renderer would');
 const check = await appSql(`
   select d.publish_on, d.theme_count, cardinality(d.card_ids) as cards,
          cardinality(d.card_image_urls) as pics, d.rows, d.cols,
@@ -354,7 +391,7 @@ const early = await appSql(`
 console.log(`  ${early[0].n} of ${chosen.length} are still in the future, so no player can see them yet`);
 if (Number(early[0].n) !== chosen.length) fail('a puzzle was scheduled for today or earlier and is live now');
 
-step(10, 'writing the captions');
+step(9, 'writing the captions');
 const dir = join(ROOT, 'state', 'puzzles');
 mkdirSync(dir, { recursive: true });
 for (const c of chosen) {

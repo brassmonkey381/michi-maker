@@ -853,6 +853,30 @@ Deno.serve(async (req: Request) => {
    * SAME tier: buying VIP while trialling PRO is a different product and correctly gets no
    * trial_end. Ordered newest-first because the ledger can hold lapsed rows for the same product.
    */
+  /**
+   * CHECKOUT DOES NOT DO TRIALS (owner, 2026-09-29). Stripe Checkout is for paid subscriptions
+   * only; the free 3-day trial is granted by start_pro_trial, one click and no card, which is the
+   * low-barrier route while the contest runs.
+   *
+   * WHAT THIS FLAG TURNS OFF is the carry-over below: handing Stripe a `trial_end` equal to the
+   * remaining days of a live in-app trial. That is what put "2 days free, then $49.99 per year
+   * starting October 2" in front of a buyer who thought they were subscribing - a number that is
+   * neither our trial length nor anything they chose, because Stripe will not accept a trial_end
+   * under 48 hours and a part-used 3-day trial rounds to two.
+   *
+   * WHAT IT COSTS, stated because it is a real cost and not a rounding error. entitlements is
+   * PRIMARY KEY (user_id, product), so the purchase REPLACES the trial row rather than sitting
+   * beside it: somebody who subscribes on day one of a 3-day trial is charged today and forfeits
+   * the rest. At three days that is under three days of $5.99/mo or $49.99/yr, and the owner has
+   * taken that trade knowingly. It was NOT an acceptable trade at fourteen days, which is why this
+   * carry-over was built in the first place (2026-07-27).
+   *
+   * TO RESTORE IT after the contest, flip this to true. The block below is left intact and
+   * working; nothing else needs to change, and the 48-hour floor should be revisited at the same
+   * time if TRIAL_DAYS has grown.
+   */
+  const CARRY_TRIAL_ONTO_CHECKOUT = false;
+
   let trialEnd: number | undefined;
   // EVERY PRODUCT THIS PURCHASE GRANTS, not the one the Stripe metadata names.
   //
@@ -866,7 +890,7 @@ Deno.serve(async (req: Request) => {
   // `.in(...)` plus newest-first means a bundle buyer keeps the LATER of their two trials, so
   // neither app's free days are cut short by the purchase that covers both.
   const trialProducts = tierProductsFor(lookupKey);
-  if (mode === 'subscription' && trialProducts.length) {
+  if (CARRY_TRIAL_ONTO_CHECKOUT && mode === 'subscription' && trialProducts.length) {
     const { data: trialRows } = await service
       .from('entitlements')
       .select('expires_at')

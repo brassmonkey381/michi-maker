@@ -840,39 +840,30 @@ Deno.serve(async (req: Request) => {
   cancel.searchParams.set('checkout', 'cancelled');
 
   /**
-   * If the buyer holds a LIVE free trial of the very product they're buying, carry its expiry onto
-   * the new subscription so the trial is honoured rather than cancelled by the purchase.
+   * A LIVE TRIAL IS HONOURED, NOT SOLD. Checkout never hands anybody a trial: this only fires for a
+   * buyer who ALREADY holds a live in-app trial of the same product, and all it does is stop the
+   * purchase cutting that trial short. A cold visitor sees "$49.99/year, charged today".
    *
-   * Stripe requires `trial_end` to be at least 48 HOURS in the future and rejects anything sooner,
-   * so a trial with less than two days left is rounded UP to now+48h (owner call 2026-07-27). That
-   * gifts a few hours rather than failing the checkout or silently charging today — the amount is
-   * trivial and the alternative is an error at the worst possible moment, right as someone is
-   * trying to give us money.
-   *
-   * Looked up by (user, product, source='trial') so it only ever matches a real free trial of the
-   * SAME tier: buying VIP while trialling PRO is a different product and correctly gets no
-   * trial_end. Ordered newest-first because the ledger can hold lapsed rows for the same product.
-   */
-  /**
-   * A LIVE TRIAL IS HONOURED, NOT SOLD. Checkout never offers a trial to anybody: this only ever
-   * fires for a buyer who already holds a live in-app trial of the same product, and it hands
-   * Stripe that trial's own end date so paying early does not cost them the days they have left.
-   *
-   * A cold visitor with no trial sees "$49.99/year, charged today" and always has.
+   * There is exactly one 3-day trial per account and the "Start 3 Day Pro Trial" button is the only
+   * thing that grants it. public.start_pro_trial enforces that, not this file: the pro_trials ledger
+   * raises 'trial already used' on a second attempt, and a no-win-back check refuses anyone who ever
+   * held a real entitlement.
    *
    * WHY IT MUST STAY ON. entitlements is PRIMARY KEY (user_id, product), so the purchase REPLACES
-   * the trial row rather than sitting beside it. Without a trial_end, subscribing on day one of a
-   * 3-day trial charges immediately and forfeits the rest - which punishes deciding early, and
-   * deciding early is the behaviour we want.
+   * the trial row rather than sitting beside it. Without this, subscribing on day one of a 3-day
+   * trial charges immediately and forfeits the rest - which punishes deciding early, and deciding
+   * early is the behaviour we want.
    *
-   * Briefly disabled on 2026-09-29 and restored the same day: the "2 days free, then $49.99 per
-   * year" line that prompted it was Stripe rendering this carry-over, working correctly, for a
-   * buyer who was two thirds of the way through a trial. The fix was the floor below, not the
-   * feature.
+   * Looked up by (user, product, source='trial') so it only matches a real free trial of the SAME
+   * tier: buying VIP while trialling PRO is a different product and correctly carries nothing.
+   *
+   * Briefly disabled on 2026-09-29 and restored the same day. The "2 days free" line that prompted
+   * it was this block working correctly for a part-used trial; the fix was how the remainder is
+   * expressed to Stripe, below, not the feature.
    */
   const CARRY_TRIAL_ONTO_CHECKOUT = true;
 
-  let trialEnd: number | undefined;
+  let trialDays: number | undefined;
   // EVERY PRODUCT THIS PURCHASE GRANTS, not the one the Stripe metadata names.
   //
   // This used to gate on `michiProduct` and match `.eq('product', michiProduct)`. For the two-app
@@ -896,24 +887,22 @@ Deno.serve(async (req: Request) => {
       .limit(1);
     const endMs = trialRows?.[0]?.expires_at ? Date.parse(trialRows[0].expires_at) : NaN;
     if (Number.isFinite(endMs) && endMs > Date.now()) {
-      // THE FLOOR IS A FULL TRIAL, NOT STRIPE'S 48-HOUR MINIMUM (owner, 2026-09-29).
+      // STRIPE SHOWS THE TIME LEFT, ROUNDED UP TO A WHOLE DAY (owner, 2026-09-29): 3, then 2,
+      // then 1. It is a remainder, never a fresh trial.
       //
-      // Stripe refuses a trial_end under 48 hours out, so the floor used to be exactly that. The
-      // result was a checkout page reading "2 days free" to someone two thirds of the way through
-      // a 3-day trial - a number that is neither our trial length nor anything they chose, and
-      // which moved with how much of the trial they had already spent. It read as arbitrary
-      // because it was.
+      // trial_period_days, NOT trial_end. Checkout rejects a trial_end under 48 hours out, so with
+      // trial_end the back half of a 3-day trial could only ever render as "2 days free" - neither
+      // the time left nor the trial length, and it drifted with how much had been spent. Raising
+      // that floor to a full 3 days was worse: endMs stopped mattering at all and every buyer got
+      // a fresh trial, so someone converting with 2 hours left was handed 3 more days.
+      // trial_period_days has a minimum of 1, so the final day says "1 day free" and means it.
       //
-      // The floor is now TRIAL_DAYS itself, so the page always says the trial length we advertise.
-      // Converting early can hand back up to a full trial's worth of free days; that is bounded,
-      // it is cheap at three days, and it errs toward somebody in the act of paying us.
-      //
-      // Keep TRIAL_DAYS_MS at or above 48 hours or Stripe will reject the session. At three days
-      // there is ample headroom; if the trial is ever shortened below two days, this must fall
-      // back to the 48-hour minimum.
-      const TRIAL_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
-      const floorMs = Date.now() + Math.max(TRIAL_DAYS_MS, 48 * 60 * 60 * 1000);
-      trialEnd = Math.ceil(Math.max(endMs, floorMs) / 1000);
+      // Rounding up costs at most the tail of one day, always in the buyer's favour, and is what
+      // keeps the number a whole day. There is deliberately NO upper clamp at TRIAL_DAYS: trials
+      // granted before 2026-09-20 ran 14 days and some are still live, so clamping to 3 would cut
+      // one short.
+      const DAY_MS = 24 * 60 * 60 * 1000;
+      trialDays = Math.max(1, Math.ceil((endMs - Date.now()) / DAY_MS));
     }
   }
 
@@ -933,7 +922,7 @@ Deno.serve(async (req: Request) => {
             // days — strictly worse than waiting, which is not a choice anyone should be punished
             // for making. With it, Checkout collects the card now and the first charge lands when
             // the free trial would have ended anyway, so access never gaps.
-            ...(trialEnd ? { trial_end: trialEnd } : {}),
+            ...(trialDays ? { trial_period_days: trialDays } : {}),
           },
         }
       : {}),

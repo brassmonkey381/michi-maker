@@ -26,14 +26,23 @@ export function PagedCarousel({
   pages,
   prevLabel = 'Previous page',
   nextLabel = 'Next page',
+  initialPage = 0,
+  onPageChange,
 }: {
   /** Measured container width — each page snaps to exactly this. 0 renders nothing (pre-layout). */
   width: number;
   pages: ReactNode[];
   prevLabel?: string;
   nextLabel?: string;
+  /**
+   * Page to open on. Read ONCE, as the initial state, not tracked: a carousel someone is paging
+   * through must not jump because its parent re-rendered with a stale remembered value.
+   */
+  initialPage?: number;
+  /** Every settled page change, including wheel and swipe, so a parent can remember the place. */
+  onPageChange?: (page: number) => void;
 }) {
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(initialPage);
   const scrollRef = useRef<ScrollView>(null);
   const rootRef = useRef<View>(null);
   const pageCount = pages.length;
@@ -46,11 +55,31 @@ export function PagedCarousel({
     const next = ((p % pageCount) + pageCount) % pageCount; // wrap both directions
     scrollRef.current?.scrollTo({ x: next * width, animated: true });
     setPage(next);
+    onPageChange?.(next);
   };
 
   const onMomentumEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (width > 0) setPage(Math.round(e.nativeEvent.contentOffset.x / width));
+    if (width <= 0) return;
+    const landed = Math.round(e.nativeEvent.contentOffset.x / width);
+    setPage(landed);
+    onPageChange?.(landed);
   };
+
+  /**
+   * Put the scroll offset where the restored state already says it is.
+   *
+   * The state starts at `initialPage`, but the ScrollView starts at zero, so without this the dots
+   * say page four and the shelf shows page one. It runs on the first layout that has a real width
+   * and at least one page, and only once: after that the offset is whatever the reader has done
+   * with it, and a second scroll would be this component fighting them.
+   */
+  const restored = useRef(false);
+  useEffect(() => {
+    if (restored.current || width <= 0 || pageCount === 0) return;
+    restored.current = true;
+    const target = Math.min(Math.max(initialPage, 0), pageCount - 1);
+    if (target > 0) scrollRef.current?.scrollTo({ x: target * width, animated: false });
+  }, [width, pageCount, initialPage]);
 
   // Double-tap an arrow (<200ms) to jump to the first / last page; a single tap steps one page.
   const lastPrev = useRef(0);

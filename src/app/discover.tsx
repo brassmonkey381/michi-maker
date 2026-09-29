@@ -38,6 +38,7 @@ import { ProfileAvatarButton, TILE_AVATAR } from '@/components/people/ProfileAva
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { CONTEST, contestPhase } from '@/data/contest';
+import { noteDiscoverVisit, recallShelfPage, rememberShelfPage, shelfKey } from '@/data/discoverReturn';
 import {
   BottomTabInset,
   Breakpoints,
@@ -102,11 +103,12 @@ function shelfPages<T>(items: T[], perPage: number, tile: (item: T) => ReactNode
  * default lives where the state is initialised (`useState<DiscoverSort>` below), so change it
  * there, not by reordering this.
  *
- * The default is "most liked": someone arriving at /discover for the first time should meet the
- * binders the community rated highest, not whatever happened to go public most recently. The cost
- * is real and is what this list used to be ordered around — a binder published today has to earn
- * its way up a leaderboard the same few binders hold — which is what the "Recently public" chip
- * is still here for.
+ * The default is "recently public" (owner, 2026-09-29). It used to be "most liked", on the
+ * argument that a first-time visitor should meet the community's best work. What that actually
+ * produced was a shelf that barely moves: the same few binders hold the top of a leaderboard, so
+ * a reader who comes back a week later sees the page they already saw, and a binder published
+ * today has to climb past them to be seen at all. Recency gives every new binder its day at the
+ * front and gives returning readers a reason to return. "Most liked" is still one chip away.
  */
 const SORTS: { key: DiscoverSort; label: string }[] = [
   { key: 'recent', label: 'Recently public' },
@@ -156,8 +158,15 @@ export default function DiscoverScreen() {
   // views live there; this page only advertises it while a contest is running.
   const contestOn = contestPhase() !== 'ended' && contestPhase() !== 'upcoming' && isSupabaseConfigured;
 
-  // The default ordering for public binders — see SORTS above for why it is likes and not recency.
-  const [sort, setSort] = useState<DiscoverSort>('likes');
+  // Being here is what makes a binder's back link come back HERE rather than to the home page.
+  // Recorded on arrival rather than when a shelf is paged, so it also holds for someone who opens
+  // the first binder they see without touching a carousel. No state, so no re-render.
+  useEffect(() => {
+    noteDiscoverVisit();
+  }, []);
+
+  // The default ordering for public binders — see SORTS above for why it is recency.
+  const [sort, setSort] = useState<DiscoverSort>('recent');
   const [others, setOthers] = useState<DemoBinder[] | null>(null);
 
   // Re-fetches when the sort flips. Contest entries are INCLUDED here: since the contest moved to
@@ -395,6 +404,11 @@ export default function DiscoverScreen() {
                     width={contentW}
                     prevLabel="Previous binders"
                     nextLabel="More binders"
+                    // Keyed by the ordering, so flipping the chip starts at the top of the new
+                    // list instead of page four of a list that no longer has one.
+                    key={`public-${sort}`}
+                    initialPage={recallShelfPage(shelfKey('public', sort))}
+                    onPageChange={(p) => rememberShelfPage(shelfKey('public', sort), p)}
                     pages={shelfPages(others, perShelf, (b) => (
                       <BinderThumb
                         key={b.id}
@@ -446,6 +460,8 @@ export default function DiscoverScreen() {
                     width={contentW}
                     prevLabel="Previous reference binders"
                     nextLabel="More reference binders"
+                    initialPage={recallShelfPage(shelfKey('house'))}
+                    onPageChange={(p) => rememberShelfPage(shelfKey('house'), p)}
                     pages={shelfPages(house, perShelf, (b) => (
                       <BinderThumb
                         key={b.id}

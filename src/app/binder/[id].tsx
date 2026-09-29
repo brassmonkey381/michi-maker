@@ -7,7 +7,7 @@
  * Falling back to Supabase for a shared link to someone ELSE's public binder → a read-only viewer.
  * Card images resolve from ids (no catalog needed), so a shared page paints without the catalog.
  */
-import { Link, useLocalSearchParams, useRouter } from 'expo-router';
+import { Link, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { pageSide } from '@/data/binderPhysics';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -34,6 +34,7 @@ import { setTrack, stopPlayer } from '@/lib/binderAudio';
 import type { DemoBinder } from '@/data/binderTypes';
 import { fetchBinderOwner, profileHandle, type PublicProfile } from '@/data/profileRepo';
 import { CONTEST } from '@/data/contest';
+import { binderBackHref } from '@/data/discoverReturn';
 import { fetchEntry } from '@/data/contestRepo';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useBinders } from '@/store/binders';
@@ -123,6 +124,17 @@ function PublicViewer({ id, openAt }: { id?: string; openAt: number }) {
   const [state, setState] = useState<State>({ status: 'loading' });
   const [pageIndex, setPageIndex] = useState(0);
 
+  /**
+   * Where "‹ Michi-Maker" goes. Discover when the reader has been there this session, so paging
+   * four shelves deep and opening a binder does not cost them those four pages; the home page
+   * otherwise, because someone who arrived on a shared link has no position to return to and a
+   * feed is not an answer to a question they asked.
+   *
+   * Read during render rather than held in state: it cannot change while this screen is up (the
+   * only thing that sets it is Discover mounting, which means this screen has gone).
+   */
+  const backHref = binderBackHref() as Href;
+
 
   /* eslint-disable react-hooks/set-state-in-effect -- fetch-on-id-change: reset to loading, then resolve. */
   useEffect(() => {
@@ -202,7 +214,7 @@ function PublicViewer({ id, openAt }: { id?: string; openAt: number }) {
             binder is up, it sits on the title row (Viewer), which gives the pages that row back. */}
         {state.status !== 'ok' ? (
           <View style={styles.topbar}>
-            <Link href="/" asChild>
+            <Link href={backHref} asChild>
               <Pressable hitSlop={8}>
                 <ThemedText type="link" themeColor="textSecondary">‹ Michi-Maker</ThemedText>
               </Pressable>
@@ -270,6 +282,8 @@ function Viewer({
   wideHead: boolean;
 }) {
   const store = useBinders();
+  // Same rule as the loading screen's link above: back to Discover for a reader who came from it.
+  const backHref = binderBackHref() as Href;
   const [needAccount, setNeedAccount] = useState(false);
   const [copyHint, setCopyHint] = useState<string | null>(null);
   const [reporting, setReporting] = useState(false);
@@ -332,7 +346,7 @@ function Viewer({
         {/* On a phone the same link sits at the left of the BYLINE row instead, which is short
             and centred, so it costs no row of its own there either and never touches the title. */}
         <View style={wideHead ? styles.headLeading : styles.headLeadingNarrow}>
-          <Link href="/" asChild>
+          <Link href={backHref} asChild>
             <Pressable hitSlop={8}>
               <ThemedText type="link" themeColor="textSecondary">‹ Michi-Maker</ThemedText>
             </Pressable>

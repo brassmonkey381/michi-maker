@@ -69,17 +69,30 @@ export function PagedCarousel({
    * Put the scroll offset where the restored state already says it is.
    *
    * The state starts at `initialPage`, but the ScrollView starts at zero, so without this the dots
-   * say page four and the shelf shows page one. It runs on the first layout that has a real width
-   * and at least one page, and only once: after that the offset is whatever the reader has done
-   * with it, and a second scroll would be this component fighting them.
+   * say page three and the shelf shows page one.
+   *
+   * IT WAITS FOR THE CONTENT, not for the container. The first version of this ran in an effect on
+   * the first layout that had a real width, and silently did nothing: a browser test asking for
+   * `?shelf=2` got page one back. `scrollTo` clamps to the content that exists at the moment it is
+   * called, and at that moment the pages had not been laid out, so the content was one page wide
+   * and an offset of two pages became zero. So the restore hangs off onContentSizeChange and only
+   * fires once the content is actually wide enough to hold the page being asked for.
+   *
+   * Once only. After that the offset is whatever the reader has done with it, and a second scroll
+   * would be this component fighting them.
    */
   const restored = useRef(false);
-  useEffect(() => {
+  const restoreWhenWideEnough = (contentWidth: number) => {
     if (restored.current || width <= 0 || pageCount === 0) return;
-    restored.current = true;
     const target = Math.min(Math.max(initialPage, 0), pageCount - 1);
-    if (target > 0) scrollRef.current?.scrollTo({ x: target * width, animated: false });
-  }, [width, pageCount, initialPage]);
+    if (target <= 0) {
+      restored.current = true;   // nothing to do, and nothing to wait for
+      return;
+    }
+    if (contentWidth < (target + 1) * width) return;   // still laying out
+    restored.current = true;
+    scrollRef.current?.scrollTo({ x: target * width, animated: false });
+  };
 
   // Double-tap an arrow (<200ms) to jump to the first / last page; a single tap steps one page.
   const lastPrev = useRef(0);
@@ -128,6 +141,7 @@ export function PagedCarousel({
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={onMomentumEnd}
+        onContentSizeChange={restoreWhenWideEnough}
         scrollEventThrottle={16}>
         {width > 0 &&
           pages.map((content, i) => (

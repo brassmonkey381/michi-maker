@@ -34,7 +34,7 @@ import { setTrack, stopPlayer } from '@/lib/binderAudio';
 import type { DemoBinder } from '@/data/binderTypes';
 import { fetchBinderOwner, profileHandle, type PublicProfile } from '@/data/profileRepo';
 import { CONTEST } from '@/data/contest';
-import { binderBackHref } from '@/data/discoverReturn';
+import { safeBackHref } from '@/data/backLink';
 import { fetchEntry } from '@/data/contestRepo';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useBinders } from '@/store/binders';
@@ -59,12 +59,14 @@ function pageParam(page: string | string[] | undefined): number {
 }
 
 export default function BinderRoute() {
-  const { id, print, edit, slice, page } = useLocalSearchParams<{
+  const { id, print, edit, slice, page, back } = useLocalSearchParams<{
     id: string;
     print?: string;
     edit?: string;
     slice?: string;
     page?: string;
+    /** Where "‹ Michi-Maker" goes, put here by whichever feed opened this binder. */
+    back?: string;
   }>();
   const router = useRouter();
   const store = useBinders();
@@ -98,7 +100,7 @@ export default function BinderRoute() {
       </ThemedView>
     );
   }
-  return <PublicViewer id={id} openAt={openAt} />;
+  return <PublicViewer id={id} openAt={openAt} backHref={safeBackHref(back) as Href} />;
 }
 
 type State =
@@ -107,8 +109,17 @@ type State =
   | { status: 'missing' };
 
 /** Read-only viewer for a shared link (a public binder that isn't in your local store). */
-function PublicViewer({ id, openAt }: { id?: string; openAt: number }) {
+function PublicViewer({ id, openAt, backHref }: { id?: string; openAt: number; backHref: Href }) {
   const { width } = useWindowDimensions();
+  const backRouter = useRouter();
+  /**
+   * POP, DO NOT PUSH. Opening a binder is a push, so a back link that pushes Discover again grows
+   * the history stack: discover, binder, discover, binder. The browser's own back button then
+   * walks the reader backwards through that trail instead of leaving. Going back really goes back,
+   * and the address it falls back to is only used when there is no history to pop, which is the
+   * case for someone who arrived on a shared link.
+   */
+  const goBack = () => (backRouter.canGoBack() ? backRouter.back() : backRouter.replace(backHref));
   // Clamp to the scroll shell's usable width (max width minus its padding) — the window can be
   // wider than the shell, and BinderPages sizes the wide-screen spread from this number. On a
   // desktop this now crosses the ≥900 spread breakpoint, so shared binders get the full
@@ -123,17 +134,6 @@ function PublicViewer({ id, openAt }: { id?: string; openAt: number }) {
   const wideHead = width >= WIDE_HEAD_MIN;
   const [state, setState] = useState<State>({ status: 'loading' });
   const [pageIndex, setPageIndex] = useState(0);
-
-  /**
-   * Where "‹ Michi-Maker" goes. Discover when the reader has been there this session, so paging
-   * four shelves deep and opening a binder does not cost them those four pages; the home page
-   * otherwise, because someone who arrived on a shared link has no position to return to and a
-   * feed is not an answer to a question they asked.
-   *
-   * Read during render rather than held in state: it cannot change while this screen is up (the
-   * only thing that sets it is Discover mounting, which means this screen has gone).
-   */
-  const backHref = binderBackHref() as Href;
 
 
   /* eslint-disable react-hooks/set-state-in-effect -- fetch-on-id-change: reset to loading, then resolve. */
@@ -214,11 +214,9 @@ function PublicViewer({ id, openAt }: { id?: string; openAt: number }) {
             binder is up, it sits on the title row (Viewer), which gives the pages that row back. */}
         {state.status !== 'ok' ? (
           <View style={styles.topbar}>
-            <Link href={backHref} asChild>
-              <Pressable hitSlop={8}>
-                <ThemedText type="link" themeColor="textSecondary">‹ Michi-Maker</ThemedText>
-              </Pressable>
-            </Link>
+            <Pressable hitSlop={8} onPress={goBack} accessibilityRole="button" accessibilityLabel="Back">
+              <ThemedText type="link" themeColor="textSecondary">‹ Michi-Maker</ThemedText>
+            </Pressable>
           </View>
         ) : null}
 
@@ -256,6 +254,7 @@ function PublicViewer({ id, openAt }: { id?: string; openAt: number }) {
               openAt={openAt}
               availableWidth={availableWidth}
               wideHead={wideHead}
+              backHref={backHref}
             />
           </>
         )}
@@ -271,6 +270,7 @@ function Viewer({
   openAt,
   availableWidth,
   wideHead,
+  backHref,
 }: {
   binder: DemoBinder;
   pageIndex: number;
@@ -280,10 +280,10 @@ function Viewer({
   availableWidth: number;
   /** The back link shares the title row (wide windows) rather than sitting above it. */
   wideHead: boolean;
+  /** Already resolved and checked by BinderRoute; never re-derive it from the raw parameter. */
+  backHref: Href;
 }) {
   const store = useBinders();
-  // Same rule as the loading screen's link above: back to Discover for a reader who came from it.
-  const backHref = binderBackHref() as Href;
   const [needAccount, setNeedAccount] = useState(false);
   const [copyHint, setCopyHint] = useState<string | null>(null);
   const [reporting, setReporting] = useState(false);
@@ -293,6 +293,8 @@ function Viewer({
   const setViewportTop = (y: number) =>
     setViewportTopRaw((cur) => (Math.abs(cur - y) > 2 ? Math.round(y) : cur));
   const router = useRouter();
+  // Pops rather than pushes; see the note on PublicViewer's goBack.
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace(backHref));
 
   // Who made this. A shared binder arrives with no owner attached — a DemoBinder carries pages,
   // not people — so the author is resolved separately and appears when it lands. Deliberately NOT
@@ -346,11 +348,9 @@ function Viewer({
         {/* On a phone the same link sits at the left of the BYLINE row instead, which is short
             and centred, so it costs no row of its own there either and never touches the title. */}
         <View style={wideHead ? styles.headLeading : styles.headLeadingNarrow}>
-          <Link href={backHref} asChild>
-            <Pressable hitSlop={8}>
-              <ThemedText type="link" themeColor="textSecondary">‹ Michi-Maker</ThemedText>
-            </Pressable>
-          </Link>
+          <Pressable hitSlop={8} onPress={goBack} accessibilityRole="button" accessibilityLabel="Back">
+            <ThemedText type="link" themeColor="textSecondary">‹ Michi-Maker</ThemedText>
+          </Pressable>
           {/* Renders nothing unless this binder has a track. */}
           <TrackPill />
         </View>

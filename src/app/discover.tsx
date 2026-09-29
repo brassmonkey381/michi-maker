@@ -17,7 +17,7 @@
  * surface. Reached from the web rail's Explore group and, where the rail is hidden, the Home
  * quick-nav.
  */
-import { useRouter, type Href } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
@@ -38,7 +38,7 @@ import { ProfileAvatarButton, TILE_AVATAR } from '@/components/people/ProfileAva
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { CONTEST, contestPhase } from '@/data/contest';
-import { noteDiscoverVisit, recallShelfPage, rememberShelfPage, shelfKey } from '@/data/discoverReturn';
+import { discoverHref, shelfFromParam } from '@/data/backLink';
 import {
   BottomTabInset,
   Breakpoints,
@@ -137,7 +137,9 @@ export default function DiscoverScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const railHidden = Platform.OS !== 'web' || width < Breakpoints.rail;
-  const openBinder = (id: string) => router.push(`/binder/${id}`);
+  // The way back rides in the address, so it survives a reload and a new tab.
+  const openBinder = (id: string) =>
+    router.push(`/binder/${id}?back=${encodeURIComponent(returnTo.current)}` as Href);
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<DemoBinder[] | null>(null);
@@ -158,15 +160,36 @@ export default function DiscoverScreen() {
   // views live there; this page only advertises it while a contest is running.
   const contestOn = contestPhase() !== 'ended' && contestPhase() !== 'upcoming' && isSupabaseConfigured;
 
-  // Being here is what makes a binder's back link come back HERE rather than to the home page.
-  // Recorded on arrival rather than when a shelf is paged, so it also holds for someone who opens
-  // the first binder they see without touching a carousel. No state, so no re-render.
-  useEffect(() => {
-    noteDiscoverVisit();
-  }, []);
+  /**
+   * THE SHELF POSITION AND THE ORDERING LIVE IN THE URL.
+   *
+   * `/discover?sort=likes&shelf=3`. They were held in a module-level Map, which worked and was the
+   * wrong shape: nothing showed in the address bar, so a reload or a middle-click into a new tab
+   * lost the position, and there was no way to see the state or tell whether it had worked.
+   *
+   * Both are read ONCE, as the initial state. Re-reading them would fight the reader: `setParams`
+   * below rewrites the address as they page, and feeding that back in would make the carousel jump
+   * to wherever the address said on the last render.
+   */
+  const params = useLocalSearchParams<{ sort?: string; shelf?: string }>();
+  const [initialShelf] = useState(() => shelfFromParam(params.shelf));
 
   // The default ordering for public binders — see SORTS above for why it is recency.
-  const [sort, setSort] = useState<DiscoverSort>('recent');
+  const [sort, setSort] = useState<DiscoverSort>(() =>
+    (SORTS.some((s) => s.key === params.sort) ? (params.sort as DiscoverSort) : 'recent'));
+
+  /**
+   * The address a binder opened from here should come back to. Kept in a ref, not state: it
+   * changes on every swipe and nothing renders from it, so making it state would re-render the
+   * whole page for each one.
+   */
+  const returnTo = useRef(discoverHref(sort, initialShelf));
+  const rememberShelf = (page: number) => {
+    returnTo.current = discoverHref(sort, page);
+    // `setParams` rewrites the current history entry rather than pushing one, so paging a shelf
+    // does not fill the back button with a trail of shelf positions.
+    router.setParams({ sort, shelf: page > 0 ? String(page) : undefined });
+  };
   const [others, setOthers] = useState<DemoBinder[] | null>(null);
 
   // Re-fetches when the sort flips. Contest entries are INCLUDED here: since the contest moved to
@@ -407,8 +430,8 @@ export default function DiscoverScreen() {
                     // Keyed by the ordering, so flipping the chip starts at the top of the new
                     // list instead of page four of a list that no longer has one.
                     key={`public-${sort}`}
-                    initialPage={recallShelfPage(shelfKey('public', sort))}
-                    onPageChange={(p) => rememberShelfPage(shelfKey('public', sort), p)}
+                    initialPage={initialShelf}
+                    onPageChange={rememberShelf}
                     pages={shelfPages(others, perShelf, (b) => (
                       <BinderThumb
                         key={b.id}
@@ -460,8 +483,6 @@ export default function DiscoverScreen() {
                     width={contentW}
                     prevLabel="Previous reference binders"
                     nextLabel="More reference binders"
-                    initialPage={recallShelfPage(shelfKey('house'))}
-                    onPageChange={(p) => rememberShelfPage(shelfKey('house'), p)}
                     pages={shelfPages(house, perShelf, (b) => (
                       <BinderThumb
                         key={b.id}

@@ -137,6 +137,11 @@ export default function DiscoverScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const railHidden = Platform.OS !== 'web' || width < Breakpoints.rail;
+
+  // The scroller's own width, which is the window minus the navigation rail. Only accepted on a
+  // real change so a sub-pixel wobble cannot loop; set from an event, never from an effect.
+  const [frameW, setFrameW] = useState(0);
+  const measureFrame = (w: number) => setFrameW((cur) => (Math.abs(cur - w) > 1 ? Math.round(w) : cur));
   // The way back rides in the address, so it survives a reload and a new tab.
   const openBinder = (id: string) =>
     router.push(`/binder/${id}?back=${encodeURIComponent(returnTo.current)}` as Href);
@@ -275,10 +280,22 @@ export default function DiscoverScreen() {
     return () => clearTimeout(handle);
   }, [query]);
 
-  // Responsive grid: cap the content column, then fit as many ≥MIN_TILE tiles as the width allows.
-  // Search results and a contest leaderboard stay plain grids — they are answers to a question the
-  // reader asked, so they run as long as they need to.
-  const contentW = Math.min(width, MaxContentWidthWide) - Spacing.four * 2;
+  /**
+   * Responsive grid: cap the content column, then fit as many >=MIN_TILE tiles as the width allows.
+   * Search results and a contest leaderboard stay plain grids — they are answers to a question the
+   * reader asked, so they run as long as they need to.
+   *
+   * MEASURED, NOT DERIVED FROM THE WINDOW. This used to read `useWindowDimensions().width`, which
+   * on web is the whole window and includes the navigation rail down the left. At 1280px that made
+   * the column 1232 while the scroller was really 1016, so `perShelf` packed FIVE tiles onto a
+   * shelf page where four fit: the fifth sat past the right edge and paging jumped a full page
+   * over it, so roughly one binder in five could not be reached at all. Measuring the scroller
+   * itself is also the only version that survives the rail changing width.
+   *
+   * The window width is the fallback for the first frame, before any layout has happened, so the
+   * page renders something sane rather than a column of zero.
+   */
+  const contentW = Math.min(frameW || width, MaxContentWidthWide) - Spacing.four * 2;
   const cols = Math.max(2, Math.floor((contentW + GRID_GAP) / (MIN_TILE + GRID_GAP)));
   const tileW = Math.max(120, Math.floor((contentW - GRID_GAP * (cols - 1)) / cols));
   // The shelves cap at SHELF_COLS and take the width that frees as extra tile, so a slot is always
@@ -323,7 +340,10 @@ export default function DiscoverScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.flex} edges={['top']}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          onLayout={(e) => measureFrame(e.nativeEvent.layout.width)}>
           {railHidden ? (
             <View style={styles.backRow}>
               <Pressable onPress={() => router.push('/')} hitSlop={8}>

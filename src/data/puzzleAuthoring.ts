@@ -77,8 +77,12 @@ export function parseThemes(input: string): string[] {
  * NOT UTC (owner, 2026-09-24): the day turns over at 03:00 Pacific, so between 5pm and 8pm
  * California time a UTC default would offer tomorrow's date as today's and the puzzle would go live
  * a day early. Re-exported from dailyPuzzleLogic so there is one definition, not two.
+ *
+ * IT WAS CALLED `utcToday` UNTIL 2026-10-02, which is the opposite of what it does. The behaviour
+ * was right and the name was wrong, and a field labelled "Date (UTC)" on a form that means Pacific
+ * is the kind of detail that makes someone distrust a value they should be able to trust.
  */
-export { puzzleDay as utcToday } from './dailyPuzzleLogic.ts';
+export { puzzleDay as puzzleToday } from './dailyPuzzleLogic.ts';
 
 /**
  * Which binders the picker shows by default.

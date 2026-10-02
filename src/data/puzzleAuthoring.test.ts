@@ -5,7 +5,7 @@ import {
   groupSources,
   parseThemes,
   relevantBinders,
-  utcToday,
+  puzzleToday,
   type PuzzleSourceBinder,
   type PuzzleSourcePage,
 } from './puzzleAuthoring.ts';
@@ -81,10 +81,10 @@ test('nothing in, nothing out', () => {
  */
 test('the publish form defaults to the puzzle day, not the UTC date', () => {
   // 01:00 UTC on the 25th is 6pm Pacific on the 24th, and the puzzle day is still the 24th.
-  assert.equal(utcToday(new Date('2026-09-25T01:00:00Z')), '2026-09-24');
+  assert.equal(puzzleToday(new Date('2026-09-25T01:00:00Z')), '2026-09-24');
   // 09:59 UTC is 02:59 Pacific, one minute before the rollover.
-  assert.equal(utcToday(new Date('2026-09-24T09:59:00Z')), '2026-09-23');
-  assert.equal(utcToday(new Date('2026-09-24T10:00:00Z')), '2026-09-24');
+  assert.equal(puzzleToday(new Date('2026-09-24T09:59:00Z')), '2026-09-23');
+  assert.equal(puzzleToday(new Date('2026-09-24T10:00:00Z')), '2026-09-24');
 });
 
 const binder = (over: Partial<PuzzleSourceBinder>): PuzzleSourceBinder => ({

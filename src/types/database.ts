@@ -1292,6 +1292,10 @@ export type Database = {
         Args: { p_puzzle_id: string }
         Returns: undefined
       }
+      admin_set_puzzle_hint: {
+        Args: { p_puzzle_id: string; p_hint: string | null }
+        Returns: string | null
+      }
       admin_vocabulary: {
         Args: { p_limit?: number }
         Returns: { word: string; suggest: boolean; used_in: number }[]

@@ -13,7 +13,7 @@
 import { groupSources, type PuzzleSourceBinder, type PuzzleSourcePage } from '@/data/puzzleAuthoring';
 import { requireSupabase } from '@/lib/supabase';
 
-export { groupSources, parseThemes, relevantBinders, utcToday } from '@/data/puzzleAuthoring';
+export { groupSources, parseThemes, relevantBinders, puzzleToday } from '@/data/puzzleAuthoring';
 export type { PuzzleSourceBinder, PuzzleSourcePage } from '@/data/puzzleAuthoring';
 
 export interface AdminPuzzle {
@@ -109,6 +109,23 @@ export async function publishPuzzle(input: {
   });
   if (error) throw new Error(error.message);
   return String(data);
+}
+
+/**
+ * Set or clear one hint, without republishing the puzzle.
+ *
+ * Publishing rewrites the card list, the picture addresses, the grid and the source page, which is
+ * far too much machinery to move one string — and is why every scheduled puzzle still had no hint.
+ * Returns the hint as stored: trimmed, or null when it was blank.
+ */
+export async function setPuzzleHint(puzzleId: string, hint: string | null): Promise<string | null> {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase.rpc('admin_set_puzzle_hint', {
+    p_puzzle_id: puzzleId,
+    p_hint: hint,
+  });
+  if (error) throw new Error(error.message);
+  return (data as string | null) ?? null;
 }
 
 export async function unpublishPuzzle(puzzleId: string): Promise<void> {

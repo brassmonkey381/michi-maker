@@ -24,6 +24,8 @@
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { useCallback, useMemo, useState } from 'react';
+import { buildAgenda, clashOnDate, firstFreeDay, runwayDays } from '@/data/puzzleAgenda';
+import { shiftUtcDate } from '@/data/dailyPuzzleLogic';
 import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -35,11 +37,12 @@ import {
   pageCardIds,
   parseThemes,
   publishPuzzle,
+  setPuzzleHint,
   puzzleThemes,
   relevantBinders,
   setBinderShowcase,
   unpublishPuzzle,
-  utcToday,
+  puzzleToday,
   type AdminPuzzle,
   type PuzzleSourceBinder,
   type PuzzleSourcePage,
@@ -62,7 +65,7 @@ export function PuzzlePanel() {
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const [date, setDate] = useState(() => utcToday(new Date()));
+  const [date, setDate] = useState(() => puzzleToday(new Date()));
   const [pageId, setPageId] = useState<string | null>(null);
   const [preview, setPreview] = useState<string[]>([]);
   const [themeText, setThemeText] = useState('');
@@ -77,6 +80,10 @@ export function PuzzlePanel() {
    * button flicked back to "image" a fraction of a second later and said nothing. Per-row.
    */
   const [rowNote, setRowNote] = useState<Record<string, string>>({});
+  /** Hint being edited, per puzzle id. Absent means "not editing"; '' is a hint being cleared. */
+  const [hintEdit, setHintEdit] = useState<Record<string, string>>({});
+  /** A date whose existing puzzle a publish would replace, held until it is confirmed or dropped. */
+  const [clash, setClash] = useState<{ date: string; replacing: string } | null>(null);
 
   /**
    * THE POST IMAGE. The page render is on-demand and slow the first time (the endpoint says half a
@@ -148,8 +155,37 @@ export function PuzzlePanel() {
     [sources, filter, showAll],
   );
 
-  const publish = async () => {
+  /**
+   * THE QUEUE AS DAYS. A missing puzzle is invisible in a list of what exists and obvious in a list
+   * of dates, and "the queue ends on the 3rd" was something a script had to say rather than
+   * something the screen showed. Starts a day back so the day just gone, and its play count, is
+   * still on screen. Costs no extra fetch: it is a regrouping of what `load` already returned.
+   */
+  const today = puzzleToday(new Date());
+  const agenda = useMemo(
+    () => buildAgenda(puzzles ?? [], today, { from: shiftUtcDate(today, -1), days: 15 }),
+    [puzzles, today],
+  );
+  const runway = runwayDays(agenda);
+  const nextFree = firstFreeDay(agenda);
+
+  /**
+   * THE GUARD THAT 2026-09-28 NEEDED. admin_publish_puzzle upserts on publish_on, so publishing
+   * while the date says one day and the picker is on another silently replaces whatever was
+   * scheduled. It happened: two dates ended up holding the same binder and the same page, and
+   * nothing on screen said so. Re-publishing the SAME page to the same date is not a clash, since
+   * that is how a theme gets corrected.
+   */
+  const publish = async (confirmed = false) => {
     if (!chosen || !themes.length || busy) return;
+    if (!confirmed) {
+      const hit = clashOnDate(puzzles ?? [], date, chosen.pageId);
+      if (hit) {
+        setClash({ date, replacing: `${hit.publishOn}: ${hit.cardCount} cards, ${hit.rows}×${hit.cols}` });
+        return;
+      }
+    }
+    setClash(null);
     setBusy(true);
     setNote(null);
     try {
@@ -177,6 +213,23 @@ export function PuzzlePanel() {
       if (made) void download(made);
     } catch (e) {
       setNote(e instanceof Error ? e.message : 'Could not publish.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /** One hint, without republishing the puzzle and rewriting its cards, pictures and grid. */
+  const saveHint = async (p: AdminPuzzle) => {
+    const next = hintEdit[p.id];
+    if (next === undefined || busy) return;
+    setBusy(true);
+    try {
+      const stored = await setPuzzleHint(p.id, next);
+      setHintEdit(({ [p.id]: _drop, ...rest }) => rest);
+      setRowNote((r) => ({ ...r, [p.id]: stored ? 'Hint saved.' : 'Hint cleared.' }));
+      await load();
+    } catch (e) {
+      setRowNote((r) => ({ ...r, [p.id]: e instanceof Error ? e.message : 'Could not save the hint.' }));
     } finally {
       setBusy(false);
     }
@@ -262,6 +315,55 @@ export function PuzzlePanel() {
 
       {note ? <ThemedText type="small" style={styles.note} testID="puzzle-panel-note">{note}</ThemedText> : null}
 
+      {/* 0. THE NEXT FORTNIGHT, so an empty day is something you see rather than something you are told. */}
+      <View style={styles.step}>
+        <View style={styles.agendaHead}>
+          <ThemedText type="smallBold">The next fortnight</ThemedText>
+          <ThemedText type="small" themeColor={runway <= 3 ? 'text' : 'textSecondary'}>
+            {runway === 0
+              ? 'nothing scheduled from today'
+              : `${runway} day${runway === 1 ? '' : 's'} of runway`}
+          </ThemedText>
+        </View>
+        {puzzles === null ? (
+          <ActivityIndicator style={styles.loading} />
+        ) : (
+          agenda.map((d) => {
+            const picked = d.date === date;
+            return (
+              <Pressable
+                key={d.date}
+                onPress={() => setDate(d.date)}
+                style={[styles.agendaRow, picked && styles.agendaRowOn]}
+                testID={`agenda-${d.date}`}
+              >
+                <ThemedText type="small" themeColor={d.isPast ? 'textSecondary' : 'text'} style={styles.agendaDay}>
+                  {`${d.weekday} ${d.date.slice(5)}`}
+                </ThemedText>
+                <ThemedText
+                  type="small"
+                  themeColor={d.puzzle ? 'text' : 'textSecondary'}
+                  style={styles.flex}
+                >
+                  {d.puzzle
+                    ? `${d.puzzle.rows}×${d.puzzle.cols} · ${d.puzzle.cardCount} cards`
+                      + (d.puzzle.hint ? ' · hint' : ' · no hint')
+                    : d.isPast ? '—' : 'empty'}
+                </ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {d.isToday ? 'today' : d.puzzle?.published ? `${d.puzzle.plays} played` : ''}
+                </ThemedText>
+              </Pressable>
+            );
+          })
+        )}
+        <ThemedText type="small" themeColor="textSecondary" style={styles.agendaFoot}>
+          {nextFree
+            ? `Tap a day to publish to it. The next empty one is ${nextFree}.`
+            : 'Tap a day to publish to it. Every day on show is filled.'}
+        </ThemedText>
+      </View>
+
       {/* 1. WHAT IS ABOUT TO BE PUBLISHED, at the top, so the form is never under a wall of pages. */}
       <View style={styles.step}>
         <ThemedText type="smallBold">1. The page</ThemedText>
@@ -332,8 +434,23 @@ export function PuzzlePanel() {
           style={styles.input}
           testID="puzzle-hint"
         />
+        {clash ? (
+          <View style={styles.clash} testID="puzzle-clash">
+            <ThemedText type="small">
+              {`${clash.date} already holds a different puzzle (${clash.replacing}). Publishing replaces it.`}
+            </ThemedText>
+            <View style={styles.clashRow}>
+              <Pressable onPress={() => publish(true)} hitSlop={6} testID="puzzle-clash-go">
+                <ThemedText type="smallBold" style={styles.off}>Replace it</ThemedText>
+              </Pressable>
+              <Pressable onPress={() => setClash(null)} hitSlop={6}>
+                <ThemedText type="smallBold" style={styles.link}>Keep what is there</ThemedText>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
         <Pressable
-          onPress={publish}
+          onPress={() => publish()}
           disabled={!ready || busy}
           style={[styles.primary, (!ready || busy) && styles.primaryOff]}
           testID="puzzle-publish"
@@ -433,6 +550,39 @@ export function PuzzlePanel() {
                     {rowNote[p.id]}
                   </ThemedText>
                 ) : null}
+                {/* THE HINT, EDITABLE IN PLACE. It is the one part of a puzzle still written by
+                    hand, and the only way to set one used to be republishing — which rewrites the
+                    cards, the pictures, the grid and the source page to change one string. That is
+                    why every scheduled puzzle had none. */}
+                {hintEdit[p.id] !== undefined ? (
+                  <View style={styles.hintRow}>
+                    <TextInput
+                      value={hintEdit[p.id]}
+                      onChangeText={(t) => setHintEdit((h) => ({ ...h, [p.id]: t }))}
+                      placeholder="Hint, or empty to clear it"
+                      placeholderTextColor={Palette.muted}
+                      style={[styles.input, styles.flex]}
+                      testID={`puzzle-hint-${p.publishOn}`}
+                    />
+                    <Pressable onPress={() => saveHint(p)} hitSlop={6} disabled={busy}>
+                      <ThemedText type="smallBold" style={styles.link}>save</ThemedText>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setHintEdit(({ [p.id]: _drop, ...rest }) => rest)}
+                      hitSlop={6}>
+                      <ThemedText type="small" themeColor="textSecondary">cancel</ThemedText>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Pressable
+                    onPress={() => setHintEdit((h) => ({ ...h, [p.id]: p.hint ?? '' }))}
+                    hitSlop={6}
+                    testID={`puzzle-hint-edit-${p.publishOn}`}>
+                    <ThemedText type="small" themeColor={p.hint ? 'textSecondary' : 'text'}>
+                      {p.hint ? `hint: ${p.hint}` : 'no hint — add one'}
+                    </ThemedText>
+                  </Pressable>
+                )}
               </View>
               <Pressable onPress={() => download(p)} hitSlop={6} disabled={!!drawing}>
                 <ThemedText type="small" style={p.binderIsPublic ? styles.link : styles.off}>
@@ -526,6 +676,28 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     paddingVertical: Spacing.one,
   },
+  agendaHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  agendaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingVertical: Spacing.one,
+    paddingHorizontal: Spacing.one,
+    borderRadius: Radius.control,
+  },
+  // The chosen day is the one the form will publish to, so it is marked rather than merely hovered.
+  agendaRowOn: { backgroundColor: Palette.accentSoft },
+  agendaDay: { width: 72 },
+  agendaFoot: { marginTop: Spacing.one },
+  clash: {
+    borderWidth: 1,
+    borderColor: Palette.accent,
+    borderRadius: Radius.control,
+    padding: Spacing.two,
+    gap: Spacing.one,
+  },
+  clashRow: { flexDirection: 'row', gap: Spacing.four },
+  hintRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginTop: Spacing.one },
   rowNote: { color: Palette.accent },
   link: { color: Palette.accent },
   on: { color: Palette.accent },

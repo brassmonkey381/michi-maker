@@ -184,8 +184,10 @@ export default function FeedbackScreen() {
                 should read as that rather than as one more thing to fill in. */}
             <View style={styles.footNote}>
               <ThemedText type="small" themeColor="textSecondary" style={styles.foot}>
-                We store your answers, and your email only if you give one. Nothing here is added
-                to a mailing list, and deleting your account removes the address. See the{' '}
+                We store your answers. Your email is kept only if you tick the box above to let
+                us reply - the field is filled in from your account, so leaving it alone is not
+                giving it to us. Nothing here is added to a mailing list, and deleting your
+                account removes the address. See the{' '}
                 <ThemedText type="linkPrimary" onPress={() => router.push('/legal/privacy')}>
                   privacy policy
                 </ThemedText>{' '}

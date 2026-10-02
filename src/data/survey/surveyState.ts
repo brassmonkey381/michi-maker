@@ -114,9 +114,20 @@ export function contactOf(def: SurveyDef, answers: AnswerMap): { email: string |
   // keystroke, and storing those as addresses means a follow-up list full of things nobody can
   // write to, plus a CHECK violation on the way in for anything without an '@'.
   const trimmed = typeof raw === 'string' ? raw.trim().slice(0, 254) : '';
-  const email = looksLikeEmail(trimmed) ? trimmed.toLowerCase() : null;
-  const ok = !!(email && consentQ && answers[consentQ.id] === true);
-  return { email, ok };
+  const valid = looksLikeEmail(trimmed) ? trimmed.toLowerCase() : null;
+  const ok = !!(valid && consentQ && answers[consentQ.id] === true);
+  // CONSENT IS WHAT MAKES THE ADDRESS OURS TO KEEP (owner, 2026-10-02).
+  //
+  // The field is PREFILLED from the account (app/feedback.tsx), so the answer map cannot tell us
+  // whether anybody gave us an address: a signed-in visitor who never looked at that question
+  // still submits one. The page promises "your email only if you give one", and the first real
+  // response arrived with the prefilled address stored against contact_ok: false - that promise,
+  // broken, in production.
+  //
+  // Ticking the consent box is the only unambiguous act in the flow, so it is the only thing that
+  // persists an address. An address with no consent has no use anyway: the sole reason to keep one
+  // is to write to it, and that is exactly what was declined.
+  return { email: ok ? valid : null, ok };
 }
 
 /** Enough to reject an obvious typo, not enough to reject a valid address. */

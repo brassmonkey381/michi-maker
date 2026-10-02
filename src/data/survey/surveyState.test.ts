@@ -112,7 +112,19 @@ test('the anchor score and the contact pair are lifted out for their own columns
   assert.equal(anchorScore(DEF, { nps: 8 }), 8);
   assert.equal(anchorScore(DEF, {}), null);
   assert.deepEqual(contactOf(DEF, { email: ' a@b.com ', contact_ok: true }), { email: 'a@b.com', ok: true });
-  assert.deepEqual(contactOf(DEF, { email: 'a@b.com' }), { email: 'a@b.com', ok: false });
+  // The PREFILLED case, and the reason contactOf exists in this shape: a signed-in visitor
+  // submits their account address whether or not they ever saw that question, so an address
+  // without consent must not survive the call. See the comment in contactOf.
+  assert.deepEqual(
+    contactOf(DEF, { email: 'a@b.com' }),
+    { email: null, ok: false },
+    'an address with no consent is not stored',
+  );
+  assert.deepEqual(
+    contactOf(DEF, { email: 'a@b.com', contact_ok: false }),
+    { email: null, ok: false },
+    'consent explicitly declined is not stored either',
+  );
   assert.deepEqual(contactOf(DEF, { contact_ok: true }), { email: null, ok: false }, 'consent with no address is nothing');
 });
 

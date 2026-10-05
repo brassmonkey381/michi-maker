@@ -39,6 +39,12 @@ export interface CapWall {
   message: string;
   /** The same wall phrased as what the trial opens. Omit where a trial would unlock nothing. */
   trialMessage?: string;
+  /**
+   * `false` withholds the one-press trial on this wall even from an account that could have it,
+   * and shows the plans note instead. The dialog otherwise decides on eligibility alone, which is
+   * right for a wall someone hit while building and wrong for a search box: see themeGate.ts.
+   */
+  offersTrial?: false;
   /** Dialog heading. Short, and never a pitch. */
   title: string;
 }
@@ -93,6 +99,7 @@ export function CapGateDialog({
         <CapGateOffer
           message={wall.message}
           trialMessage={wall.trialMessage}
+          offersTrial={wall.offersTrial}
           surface={wall.surface}
           onBeforePress={onResolve}
         />

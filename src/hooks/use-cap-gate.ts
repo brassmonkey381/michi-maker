@@ -74,7 +74,7 @@ export function useCapGate(onToast: (message: string) => void) {
       const asDialog = always === true || shouldPromptCap(w.limit);
       if (asDialog) {
         markCapPrompted(w.limit);
-        offeredTrialRef.current = !w.isGuest && offersTrial;
+        offeredTrialRef.current = !w.isGuest && offersTrial && w.offersTrial !== false;
         setWall(w);
       } else {
         onToast(w.message);
@@ -90,7 +90,7 @@ export function useCapGate(onToast: (message: string) => void) {
         // Exactly what the dialog is about to draw (CapGateDialog → SignInPerk | CapGateOffer),
         // resolved from the same predicate CapGateOffer branches on so the two cannot disagree. A
         // toast draws no offer at all, and says so rather than borrowing the dialog's answer.
-        offer: !asDialog ? 'toast' : w.isGuest ? 'signin' : offersTrial ? 'trial' : 'upgrade',
+        offer: !asDialog ? 'toast' : w.isGuest ? 'signin' : offersTrial && w.offersTrial !== false ? 'trial' : 'upgrade',
       });
     },
     [onToast, offersTrial],

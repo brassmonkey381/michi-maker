@@ -38,15 +38,29 @@ export function themeSearchTrialMessage(): string {
   return UNLOCK;
 }
 
+/**
+ * WHERE THIS WALL OFFERS THE TRIAL, AND WHERE IT DOES NOT (owner, 2026-10-04).
+ *
+ * The rule since 2026-08-27 is that the trial belongs at a wall someone hits while BUILDING: the
+ * binder cap, the page cap, the artwork cap, the print gate. The browse page is a search box, and
+ * it was the one place still handing out one-press trials to people three minutes into a first
+ * visit. Every trial started there was spent on four or five searches and never reached the
+ * editor; none converted. So on `browse` the wall shows the plans note. In the editor the same
+ * wall keeps the trial, because there the person is mid-way through making something it unlocks.
+ */
+const SURFACES_WITHOUT_TRIAL: ReadonlySet<CapSurface> = new Set<CapSurface>(['browse']);
+
 export function themeSearchWall(tier: Tier, surface: CapSurface) {
   const isGuest = tier === 'guest';
+  const noTrial = SURFACES_WITHOUT_TRIAL.has(surface);
   return {
     limit: THEME_SEARCH_LIMIT_KEY,
     surface,
     isGuest,
     title: 'Every match comes with PRO',
     message: themeSearchGateMessage(tier),
-    trialMessage: isGuest ? undefined : themeSearchTrialMessage(),
+    trialMessage: isGuest || noTrial ? undefined : themeSearchTrialMessage(),
+    ...(noTrial ? { offersTrial: false as const } : {}),
     // Every time, not once a day. Nothing raises this wall by accident: it takes a press on
     // "+N more matches" or a third press of the theme demo, and both are someone asking to see
     // the offer. A toast on the second ask would drop the one control that answers them.

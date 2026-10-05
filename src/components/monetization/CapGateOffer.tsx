@@ -29,6 +29,8 @@ export function CapGateOffer({
   /** The same wall phrased as what the trial opens. Falls back to `message`. */
   trialMessage,
   surface,
+  /** `false` means this wall never offers the trial, eligible or not (CapWall.offersTrial). */
+  offersTrial,
   /** Upgrade-note button label (the trial has its own). */
   cta,
   /** Close the covering sheet first, so the plans page — or the unlocked app — is actually visible. */
@@ -37,6 +39,7 @@ export function CapGateOffer({
   message: string;
   trialMessage?: string;
   surface: CapSurface;
+  offersTrial?: false;
   cta?: string;
   onBeforePress?: () => void;
 }) {
@@ -44,7 +47,7 @@ export function CapGateOffer({
 
   // Not `<TrialCta/>` plus a fallback rendered blind: TrialCta returns null for the ineligible, so
   // drawing both would stack two notes on the one screen for everybody who can still be sold to.
-  if (trialOfferVisible(trial)) {
+  if (offersTrial !== false && trialOfferVisible(trial)) {
     return (
       <TrialCta message={trialMessage ?? message} surface={surface} onBeforeStart={onBeforePress} />
     );

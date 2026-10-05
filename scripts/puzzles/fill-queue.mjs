@@ -34,8 +34,9 @@ import { join } from 'node:path';
 
 import {
   ROOT, adminSql, adminUser, appSql, cardImageUrl, dataSql,
-  fail, imageManifest, longDate, puzzleToday, addDays, q, step, textArray,
+  fail, imageManifest, puzzleToday, addDays, q, step, textArray,
 } from '../lib/michi.mjs';
+import { caption } from './caption.mjs';
 import { familyList } from '../../src/data/puzzleSynonyms.ts';
 
 const APPLY = process.argv.includes('--apply');
@@ -101,14 +102,42 @@ if (words.length < 20) fail('too few usable words to build a queue from');
 
 step(2, 'what has already been used');
 const used = await appSql(`
-  select d.publish_on, a.themes
+  select d.publish_on, a.themes, d.card_ids
     from public.daily_puzzles d join public.daily_puzzle_answers a on a.puzzle_id = d.id
    order by d.publish_on;
 `);
-const spent = new Set(used.flatMap((r) => r.themes));
 const taken = new Set(used.map((r) => r.publish_on));
-console.log(`  ${used.length} puzzle(s) so far, using ${spent.size} distinct word(s)`);
-console.log(`  already spent: ${[...spent].sort().join(', ') || '(none)'}`);
+
+/**
+ * WHAT COUNTS AS A REPEAT (owner, 2026-09-29: "don't repeat 10-01; if the cards are different,
+ * that's ok"). The first version retired both words of every puzzle for good, and with 77 usable
+ * words that left NINE fair pairs in the whole vocabulary after one week: the queue was a cliff.
+ * So a WORD may come back with a different partner, and three things are refused instead:
+ *   1. the same PAIR, ever: that is the same puzzle;
+ *   2. a page sharing more than a third of its cards with any earlier page: same puzzle in a
+ *      different costume, which is what 10-01 was to 09-28;
+ *   3. either word within the last COOLDOWN days: `forest + sky` on Monday and `forest + river`
+ *      on Tuesday is a repeat to anyone who played both, whatever the cards.
+ */
+const COOLDOWN_DAYS = 7;
+const MAX_SHARED = 1 / 3;
+const pairKey = (a, b) => [a, b].sort().join('+');
+const usedPairs = new Set(used.map((r) => pairKey(r.themes[0], r.themes[1] ?? r.themes[0])));
+const usedPages = used.map((r) => ({ on: r.publish_on, ids: new Set(r.card_ids) }));
+const today = puzzleToday();
+/** Words used within COOLDOWN_DAYS either side of `on`, across history and this run so far. */
+const dayGap = (a, b) => Math.abs((Date.parse(`${a}T00:00:00Z`) - Date.parse(`${b}T00:00:00Z`)) / 86400000);
+const restingOn = (on, extra) =>
+  new Set([...used, ...extra].filter((r) => dayGap(r.publish_on, on) < COOLDOWN_DAYS).flatMap((r) => r.themes));
+console.log(`  ${used.length} puzzle(s) so far; ${usedPairs.size} pair(s) retired`);
+console.log(`  resting on ${today}: ${[...restingOn(today, [])].sort().join(', ') || '(none)'}`);
+
+/**
+ * A page needs something to choose FROM. A 2x2 with exactly four matching cards is not curated,
+ * it is whatever matched, and the last few puzzles of a long run were exactly that. Two spare
+ * candidates is the floor: enough that the weakest card on the page was left off for a reason.
+ */
+const MIN_SPARE = 2;
 
 step(3, 'scoring every pair');
 const names = words.map((w) => w.word);
@@ -185,12 +214,22 @@ step(4, `choosing ${DAYS} fair day(s)`);
 const STRONG_RIVAL = 0.66;
 const manifest = await imageManifest();
 const chosen = [];
-const blocked = new Set(spent);
 const rejected = [];
+// The day the NEXT accepted candidate lands on: the first free morning from today. Computed before
+// the cooldown check, because the cooldown is relative to that day, and only advanced on accept.
+const nextFree = () => {
+  let d = addDays(today, -1);
+  do { d = addDays(d, 1); } while (taken.has(d) || chosen.some((c) => c.publish_on === d));
+  return d;
+};
 
 for (const s of scored) {
   if (chosen.length >= DAYS) break;
-  if (blocked.has(s.w1) || blocked.has(s.w2)) continue;
+  if (usedPairs.has(pairKey(s.w1, s.w2))) continue;
+  const landsOn = nextFree();
+  const resting = restingOn(landsOn, chosen);
+  if (resting.has(s.w1) || resting.has(s.w2)) continue;
+  if (s.n < s.grid.size + MIN_SPARE) continue;
 
   const rows = await dataSql(`
     select c.id::text as id, c.name, c.number, c.rarity, c.set_name, c.illustrator,
@@ -239,26 +278,28 @@ for (const s of scored) {
     continue;
   }
 
-  blocked.add(s.w1);
-  blocked.add(s.w2);
-  chosen.push({ ...s, cards, page });
+  // Rule 2: the page has to be its own page, not an earlier one with a few swaps.
+  const ids = new Set(page.map((x) => x.id));
+  const twin = [...usedPages, ...chosen.map((c) => ({ on: 'this run', ids: new Set(c.page.map((x) => x.id)) }))]
+    .find((u) => [...ids].filter((id) => u.ids.has(id)).length > page.length * MAX_SHARED);
+  if (twin) {
+    rejected.push(`${s.w1} + ${s.w2}: shares most of its cards with the ${twin.on} page`);
+    continue;
+  }
+
+  // `themes` is what restingOn reads, for history and for this run alike. Leaving it off made the
+  // within-run cooldown read undefined and silently pass, which put `city` on three consecutive
+  // days in the first dry run.
+  chosen.push({ ...s, cards, page, publish_on: landsOn, themes: [s.w1, s.w2] });
 }
 
 for (const r of rejected.slice(0, 10)) console.log(`  dropped  ${r}`);
 if (rejected.length > 10) console.log(`  dropped  ...and ${rejected.length - 10} more`);
 if (chosen.length < DAYS) {
-  console.log(`  only ${chosen.length} fair combination(s) available without reusing a word`);
+  console.log(`  only ${chosen.length} fair, unrepeated combination(s) available`);
 }
 if (!chosen.length) fail('nothing left to publish; every good combination is spent or unfair');
 
-// The first free morning from tomorrow on, so a run never overwrites a puzzle already scheduled.
-const today = puzzleToday();
-let cursor = today;
-for (const c of chosen) {
-  do { cursor = addDays(cursor, 1); } while (taken.has(cursor));
-  taken.add(cursor);
-  c.publish_on = cursor;
-}
 for (const c of chosen) {
   console.log(
     `  ${c.publish_on}  ${c.w1} + ${c.w2}  ${c.grid.rows}x${c.grid.cols}, `
@@ -382,87 +423,28 @@ for (const r of check) {
 }
 if (bad) fail(`${bad} scheduled puzzle(s) would not draw`);
 
-// A scheduled puzzle must not be readable yet. This is the check that catches a policy regression.
-const early = await appSql(`
-  select count(*)::int as n from public.daily_puzzles
-   where publish_on > public.puzzle_today()
-     and publish_on = any(${textArray(chosen.map((c) => c.publish_on))}::date[]);
+// Nothing may have landed in the PAST. Today is allowed, and is the point: the 2026-10-04 run
+// found the queue had ended the day before, and filling today is what it was for. A date before
+// today would mean a puzzle went live retroactively, which is the regression this guards against.
+const [when] = await appSql(`
+  select count(*) filter (where publish_on < public.puzzle_today())::int as past,
+         count(*) filter (where publish_on = public.puzzle_today())::int as today,
+         count(*) filter (where publish_on > public.puzzle_today())::int as future
+    from public.daily_puzzles
+   where publish_on = any(${textArray(chosen.map((c) => c.publish_on))}::date[]);
 `);
-console.log(`  ${early[0].n} of ${chosen.length} are still in the future, so no player can see them yet`);
-if (Number(early[0].n) !== chosen.length) fail('a puzzle was scheduled for today or earlier and is live now');
+console.log(`  ${when.today} live today, ${when.future} still to come, ${when.past} in the past`);
+if (Number(when.past) > 0) fail('a puzzle was scheduled for a day already gone');
 
 step(9, 'writing the captions');
 const dir = join(ROOT, 'state', 'puzzles');
 mkdirSync(dir, { recursive: true });
 for (const c of chosen) {
   const file = join(dir, `captions-${c.publish_on}.md`);
-  writeFileSync(file, caption(c), 'utf8');
+  writeFileSync(file, caption({ publishOn: c.publish_on, themes: [c.w1, c.w2], cardNames: c.page.map((x) => x.name), candidates: c.n }), 'utf8');
   console.log(`  ${file}`);
 }
 
 console.log(`\nOK: ${chosen.length} day(s) scheduled. Review them in Studio; none is live until its morning.`);
 
 // ---------------------------------------------------------------------------
-
-function caption(c) {
-  const n = c.page.length;
-  const themes = `${c.w1} + ${c.w2}`;
-  return `# Daily Theme Search Puzzle, ${longDate(c.publish_on)}
-
-Answer: \`theme:${c.w1} theme:${c.w2}\` (${c.n} candidates, ${n} on the page)
-
-HINT: <write one, or delete this line and publish without a hint>
-
-Generated by scripts/puzzles/fill-queue.mjs. The puzzle is scheduled, not live: it appears for
-players on the morning of ${c.publish_on} and is listed in Studio until then.
-
-The share image carries the question marks, the same on every puzzle, so the picture never hints
-at its own answer.
-
----
-
-## Instagram feed post
-
-Download the image from Studio (the "image" button on this row), then paste:
-
-> ${n} cards. Two theme search terms connect all of them.
->
-> Can you get both? Play at michi-maker.com/daily, where your guesses are checked and your streak
-> keeps going.
->
-> To enter this week's draw for a free month of michi-maker: like this post, follow
-> @michimakerofficial, and comment your michi-maker.com username.
->
-> New puzzle every morning. Answer tomorrow.
->
-> #pokemon #pokemontcg #pokemoncards #pokemonbinder #binder #tcgcollector #pokemoncollection
-> #pokemoncardcollection #cardcollector
->
-> Full rules: michi-maker.com/giveaway. Not sponsored, endorsed or administered by, or associated
-> with, Instagram.
-
-The hint goes LAST if you write one, so nobody reads it before trying the puzzle.
-
-## Reddit, r/MichiMakers
-
-**Title:** Daily Theme Search Puzzle, ${longDate(c.publish_on)}: can you guess the two themes?
-
-**Body:**
-
-> Every card on this page matches both of two artwork search terms. Guess them both.
->
-> Put your answer in spoiler tags so the next person still gets to play: type \`>!like this!<\`.
->
-> I will confirm answers in the comments tomorrow, when the next one goes up.
->
-> New puzzle daily. Some are one theme, some are three.
-
-No "like and follow" on Reddit: it reads as advertising, and tying a giveaway to upvotes breaks
-the site rules on vote manipulation. Entry is the comment, never the vote.
-
-## The page
-
-Cards: ${c.page.map((x) => x.name).join(', ')}
-Answer words: ${themes}
-`;
-}

@@ -130,6 +130,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-10-11',
+    title: 'The first contest has its winners',
+    items: [
+      {
+        products: ['michi'],
+        head: 'First Annual Michi Binder Contest: winners announced',
+        kind: 'new',
+        area: 'account',
+        body:
+          'Best Aesthetic took home LIFETIME PRO and Best 2x2 took home a year of PRO. Both winners '
+          + 'wear a trophy on their public profile, and the contest page is now the Hall of Fame. A '
+          + 'bigger contest with game-specific categories comes once more collectors have found the site.',
+      },
+    ],
+  },
+  {
     date: '2026-09-24',
     title: 'A puzzle every day',
     items: [

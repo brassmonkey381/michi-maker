@@ -20,7 +20,8 @@ import { fetchContestWinners, type ContestWinner } from '@/data/contestRepo';
 import { isSupabaseConfigured } from '@/lib/env';
 
 function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+  // The instants are UTC midnights, so without timeZone a US reader sees the day before.
+  return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
 }
 
 /** The first-place prize of a category, from the same table the contest was announced with. */

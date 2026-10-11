@@ -156,6 +156,27 @@ export async function fetchContestWinners(contest = CONTEST.id): Promise<Contest
   }));
 }
 
+/**
+ * Every contest a person has won, across all contests. Drives the trophy on a public profile, so
+ * it is read for one owner at a time and is empty for almost everyone.
+ */
+export async function fetchWinsForOwner(ownerId: string): Promise<ContestWinner[]> {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from('contest_winners')
+    .select('contest, category, place, binder_id, owner_id')
+    .eq('owner_id', ownerId)
+    .order('place');
+  if (error) throw new Error(`wins: ${error.message}`);
+  return (data ?? []).map((r) => ({
+    contest: r.contest,
+    category: r.category,
+    place: r.place,
+    binderId: r.binder_id,
+    ownerId: r.owner_id,
+  }));
+}
+
 /** One entry in the Discover feed: the binder plus which category it was entered in. */
 export interface FeedEntry {
   binder: DemoBinder;

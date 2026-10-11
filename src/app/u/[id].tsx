@@ -31,13 +31,21 @@ import { ThemedView } from '@/components/themed-view';
 import { FontSize, MaxContentWidthWide, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { fetchPublicBinders } from '@/data/binderRepo';
 import { sortByRecentEdit, type DemoBinder } from '@/data/binderTypes';
+import { CONTEST, categoryLabel } from '@/data/contest';
+import { fetchWinsForOwner, type ContestWinner } from '@/data/contestRepo';
 import { fetchProfile, type PublicProfile } from '@/data/profileRepo';
 import { isSupabaseConfigured } from '@/lib/env';
 import { useAuth } from '@/store/auth';
 
+/** 1 → 1st, 2 → 2nd, 3 → 3rd, 4 → 4th. */
+function ordinal(n: number): string {
+  const suffix = n % 100 >= 11 && n % 100 <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th');
+  return `${n}${suffix}`;
+}
+
 type State =
   | { status: 'loading' }
-  | { status: 'ok'; profile: PublicProfile; binders: DemoBinder[] }
+  | { status: 'ok'; profile: PublicProfile; binders: DemoBinder[]; wins: ContestWinner[] }
   | { status: 'missing' };
 
 export default function ProfileRoute() {
@@ -73,8 +81,12 @@ export default function ProfileRoute() {
         // RLS only returns a private profile to its owner, so reaching here with isPublic false
         // IS the owner's own view; no second check needed.
         // Most recently edited first, same as the owner's own shelf.
-        const binders = sortByRecentEdit(await fetchPublicBinders(profile.id));
-        if (active) setState({ status: 'ok', profile, binders });
+        // The trophy is decoration: a failed read of it must not take the profile down with it.
+        const [binders, wins] = await Promise.all([
+          fetchPublicBinders(profile.id).then(sortByRecentEdit),
+          fetchWinsForOwner(profile.id).catch(() => [] as ContestWinner[]),
+        ]);
+        if (active) setState({ status: 'ok', profile, binders, wins });
       } catch {
         if (active) setState({ status: 'missing' });
       }
@@ -127,22 +139,48 @@ export default function ProfileRoute() {
           </View>
         ) : (
           <ScrollView contentContainerStyle={styles.scroll}>
-            {state.profile.avatarUrl ? (
-              <Image
-                source={{ uri: state.profile.avatarUrl }}
-                style={styles.avatar}
-                contentFit="cover"
-              />
-            ) : (
-              <View style={styles.avatar}>
-                <ThemedText style={styles.avatarText}>
-                  {(state.profile.username || '?').trim().charAt(0).toUpperCase()}
-                </ThemedText>
-              </View>
-            )}
+            {/* CONTEST WINNERS wear a small trophy on the avatar's corner and one quiet line under
+                the name that goes to the Hall of Fame. On the account, not the binder (owner call,
+                2026-10-11): the person won, and the binder may be edited or deleted later. */}
+            <View style={styles.avatarWrap}>
+              {state.profile.avatarUrl ? (
+                <Image
+                  source={{ uri: state.profile.avatarUrl }}
+                  style={styles.avatar}
+                  contentFit="cover"
+                />
+              ) : (
+                <View style={styles.avatar}>
+                  <ThemedText style={styles.avatarText}>
+                    {(state.profile.username || '?').trim().charAt(0).toUpperCase()}
+                  </ThemedText>
+                </View>
+              )}
+              {state.wins.length > 0 ? (
+                <View
+                  style={styles.trophy}
+                  accessibilityLabel="Contest winner"
+                  accessibilityRole="image">
+                  <ThemedText style={styles.trophyText}>🏆</ThemedText>
+                </View>
+              ) : null}
+            </View>
             <ThemedText type="subtitle" style={styles.name}>
               {name}
             </ThemedText>
+            {state.wins.length > 0 ? (
+              <Link href="/contest" asChild>
+                <Pressable hitSlop={6}>
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.winLine}>
+                    {state.wins
+                      .map((w) => `${ordinal(w.place)} place, ${categoryLabel(w.category)}`)
+                      .join(' · ')}
+                    {' · '}
+                    {CONTEST.name} ›
+                  </ThemedText>
+                </Pressable>
+              </Link>
+            ) : null}
             {state.profile.bio ? (
               <ThemedText type="small" themeColor="textSecondary" style={styles.bio}>
                 {state.profile.bio}
@@ -213,6 +251,24 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   avatarText: { color: Palette.accentText, fontWeight: Weight.bold, fontSize: FontSize.display },
+  avatarWrap: { width: 72, height: 72 },
+  // Sits on the avatar's lower-right edge, on a disc the page's own colour so it reads as a pin
+  // rather than part of the picture.
+  trophy: {
+    position: 'absolute',
+    right: -4,
+    bottom: -4,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: Palette.surface,
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trophyText: { fontSize: 14, lineHeight: 18 },
+  winLine: { marginTop: Spacing.one, textAlign: 'center' },
   name: { marginTop: Spacing.two, textAlign: 'center' },
   bio: { marginTop: Spacing.two, textAlign: 'center', maxWidth: 480, lineHeight: 20 },
   reportLink: { marginTop: Spacing.five, alignSelf: 'center', opacity: 0.8 },

@@ -30,9 +30,8 @@ export const NAV_EXPLORE: NavItem[] = [
   // to the active-item highlight.
   { label: 'Daily Puzzle', href: '/daily?from=nav' as Href, match: (p) => p.startsWith('/daily') },
   { label: 'Discover Binders', href: '/discover' as Href, match: (p) => p.startsWith('/discover') },
-  // ONE contest line (owner call, 2026-09-15). /contest-binders is reached from the contest page's
-  // "See the entries" and from Discover's card, not from its own item; the item stays lit on both.
-  { label: 'Contest 🏆', href: '/contest' as Href, match: (p) => p.startsWith('/contest') },
+  // No contest line (owner call, 2026-10-11): the first contest is over and /contest is its
+  // record, reached from the winning binders and by URL. Re-add here when the next one opens.
   { label: 'Browse Cards', href: '/browse' as Href, match: (p) => p.startsWith('/browse') },
   {
     label: 'Plans',

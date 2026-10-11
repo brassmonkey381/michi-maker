@@ -33,7 +33,7 @@ export const CONTEST = {
   // ballot (contest_finals_votes), so stage 1's likes are never rewritten to stage the rematch.
   opensAt: '2026-08-01T00:00:00Z',
   finalsOpenAt: '2026-10-10T00:00:00Z',
-  endsAt: '2026-10-17T23:59:59Z',
+  endsAt: '2026-10-11T00:00:00Z',
   /** How many of each category carry into the stage-2 final. */
   finalistsPerCategory: 10,
   /** Submission cap on PUBLIC pages — any size binder can enter with ≤N pages public; only the

@@ -188,6 +188,15 @@ Market as: **"Over $1,700 in prizes, including a once-ever LIFETIME VIP grand pr
    `contest_finals_leaderboard`, then follow prize fulfilment below. Finalists stay locked until
    you clear `locked` (`update public.contest_finalists set locked = false where contest = '…'`).
 
+## How the first contest ended (2026-10-11)
+
+Stage 1 closed on 2026-10-10 with three entries, one of them the owner's own. The final was never
+run: with one eligible binder in each of two categories there was nothing to vote between, so the
+owner ended the contest a week early (`endsAt` moved to 2026-10-11) and awarded each entrant its
+category's first prize directly. @anini, Best Aesthetic, LIFETIME PRO; @shelfofsheelfs, Best 2x2,
+1 Year PRO. `contest_finalists` stayed empty, so no binder was ever locked. Awarded by
+`state/out/award-contest-prizes.ps1` (gitignored) using the grants below.
+
 ## Prize fulfillment (post-contest runbook)
 
 Manual SQL grants to the shared `entitlements` ledger (see docs/PAYMENTS.md "manual grant"):

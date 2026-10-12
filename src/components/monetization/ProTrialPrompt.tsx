@@ -21,6 +21,7 @@ import { StyleSheet } from 'react-native';
 
 import { TrialCta } from '@/components/monetization/TrialCta';
 import { TRIAL_DAYS } from '@/data/trialLength';
+import { TRIALS_OPEN } from '@/data/subscriptions';
 import { ThemedText } from '@/components/themed-text';
 import { DialogCard } from '@/components/ui/DialogCard';
 import { promptById, type PromptSurface } from '@/data/prompts';
@@ -51,7 +52,9 @@ export function ProTrialPrompt({ surface }: { surface: PromptSurface }) {
     if (trial.loading) return;
     const def = promptById(ID);
     if (!def.surfaces.includes(surface)) return;
-    if (!def.due({ profile: auth.profile, isGuest: !!auth.isGuest, trialEligible: trial.state === 'eligible' })) return;
+    // trialEligible is also false while trials are closed: the recovery prompt offers the in-app
+    // trial, so with the offer withdrawn it has nothing to ask.
+    if (!def.due({ profile: auth.profile, isGuest: !!auth.isGuest, trialEligible: TRIALS_OPEN && trial.state === 'eligible' })) return;
     if (!takeTurn(ID)) return;
     shownRef.current = true;
     setOpen(true);

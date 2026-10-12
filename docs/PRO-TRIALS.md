@@ -17,6 +17,14 @@
 > **Neither app's reclaim path has been exercised end to end with a real lapsed subscription.** It
 > is sandbox-verified (see the test plan at the bottom), not production-observed.
 
+> **CLOSED (2026-10-11, owner).** The one-press, no-card trial is withdrawn in michi-maker: 25 real
+> trials produced 0 subscriptions, and PRO is now $2.99 a month. `TRIALS_OPEN` is its own flag
+> again (no longer implied by `CHECKOUT_OPEN`), production builds with it at 0, and
+> `start_pro_trial` refuses every caller (`20261011120000_close_in_app_trial.sql`, which logs each
+> refusal as `trial.refused_closed`). Trials already running finish normally; the reclaim machinery
+> and the carry-a-live-trial-onto-checkout logic are untouched. Any future trial lives inside
+> Stripe Checkout with a card on file. tcgscan-app's trial is not affected by this.
+
 > **TRIAL LENGTH, CURRENT STATE (2026-09-20).** The trial is **3 days in both apps**. The server is
 > the authority: `public.trial_days()` returns 3 and both `start_pro_trial` and
 > `start_tcgscan_pro_trial` read it (migration `20260920125000_trial_three_days.sql`, which is the

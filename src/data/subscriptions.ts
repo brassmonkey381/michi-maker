@@ -25,7 +25,15 @@ export const CHECKOUT_OPEN = process.env.EXPO_PUBLIC_CHECKOUT_OPEN === '1';
  * intended: a trial costs nothing to grant and is the main way a Free account meets PRO. So it
  * has its own switch now (owner, 2026-09-20). Open checkout still implies open trials.
  */
-export const TRIALS_OPEN = process.env.EXPO_PUBLIC_TRIALS_OPEN === '1' || CHECKOUT_OPEN;
+/*
+ * CLOSED 2026-10-11 (owner): the one-press, no-card trial is withdrawn. 25 real trials produced 0
+ * subscriptions, and PRO is now $2.99 a month. The flag no longer follows CHECKOUT_OPEN, so an open
+ * checkout no longer implies an open trial; vercel.json builds production with it at 0, and
+ * start_pro_trial refuses on the server too (20261011120000_close_in_app_trial.sql). Any trial
+ * that returns lives inside Stripe Checkout with a card on file. Set the flag to 1 to re-open the
+ * in-app offer, and re-open the server function with it.
+ */
+export const TRIALS_OPEN = process.env.EXPO_PUBLIC_TRIALS_OPEN === '1';
 
 /**
  * Upgrades are driven SERVER-SIDE (`change_plan` in stripe-checkout), not through Checkout or the

@@ -13,26 +13,26 @@ import { PLAN_HEADERS, annualAnchor, annualListMinor, annualSavingPercent } from
 
 const pro = PLAN_HEADERS.find((h) => h.tier === 'pro')!;
 
-test('PRO is $49.99 a year and $5.99 a month, with no coupon', () => {
-  assert.equal(pro.yearlyMinor, 4999);
-  assert.equal(pro.monthlyMinor, 599);
-  assert.equal(pro.price, '$49.99');
+test('PRO is $24.99 a year and $2.99 a month, with no coupon (price cut 2026-10-11)', () => {
+  assert.equal(pro.yearlyMinor, 2499);
+  assert.equal(pro.monthlyMinor, 299);
+  assert.equal(pro.price, '$24.99');
   assert.equal(pro.badge, 'Best value');
 });
 
 test('the anchor is twelve months at the monthly rate', () => {
-  assert.equal(annualListMinor(pro), 7188, '12 x $5.99');
-  assert.equal(annualAnchor(pro), '$72', 'shown flat, without cents (owner, 2026-09-21)');
+  assert.equal(annualListMinor(pro), 3588, '12 x $2.99');
+  assert.equal(annualAnchor(pro), '$36', 'shown flat, without cents (owner, 2026-09-21)');
 });
 
 test('THE SAVING IS NEVER LARGER THAN THE PAGE CAN JUSTIFY', () => {
-  // The two figures on screen are $72 and $49.99, which is a 30.57% saving; the true list of
-  // $71.88 is 30.45%. Rounding either to the nearest whole number gives 31% and 30% respectively,
+  // The two figures on screen are $36 and $24.99, which is a 30.58% saving; the true list of
+  // $35.88 is 30.35%. Rounding either to the nearest whole number gives 31% and 30% respectively,
   // so rounding the DISPLAYED pair would print a bigger number than the true prices support.
   // Flooring the true figure gives 30 from both, which is the number a reader can check.
   assert.equal(annualSavingPercent(pro), 30);
 
-  const roundedFromAnchor = Math.round(((7200 - 4999) / 7200) * 100);
+  const roundedFromAnchor = Math.round(((3600 - 2499) / 3600) * 100);
   assert.equal(roundedFromAnchor, 31, 'this is the overstatement the flooring avoids');
   assert.ok(annualSavingPercent(pro)! < roundedFromAnchor, 'the badge must understate, never overstate');
 });

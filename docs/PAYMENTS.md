@@ -188,8 +188,8 @@ build run against either mode:
 
 | lookup_key | price | product (metadata.michi_product) |
 | --- | --- | --- |
-| `michi_pro_monthly` | $3.99/mo | michi-maker PRO (`tier_pro`) |
-| `michi_pro_yearly` | $39.99/yr | michi-maker PRO (`tier_pro`) |
+| `michi_pro_monthly` | $2.99/mo (was $3.99, then $5.99 from 2026-09-21, cut 2026-10-11) | michi-maker PRO (`tier_pro`) |
+| `michi_pro_yearly` | $24.99/yr (was $39.99, then $49.99 from 2026-09-21, cut 2026-10-11) | michi-maker PRO (`tier_pro`) |
 | `michi_vip_monthly` | $9.99/mo | michi-maker VIP (`tier_vip`) |
 | `michi_vip_yearly` | $99.99/yr | michi-maker VIP (`tier_vip`) |
 | `michi_binder_pdf` | $1.99 one-time (was $3.99 until 2026-09-21) | Full-binder fill-sheet PDF (`pdf_binder`) |
@@ -215,6 +215,15 @@ kept" when PRO's cap is 1,000** (100 is the Free limit) — wrong since the cata
 
 The product ids above are the **test-mode** objects. Live mode has its own, created at go-live with
 the same descriptions — when you edit copy, edit it in both modes or invoices drift.
+
+### The 2026-10-11 price cut (michi PRO only)
+
+PRO is $2.99 a month and $24.99 a year as the LIST price: a real price, not a standing coupon, so
+nothing is struck through and nothing expires. `scripts/stripe-pro-price-2026-10.mjs` (via its
+.ps1) creates the new Prices with `transfer_lookup_key` and, unlike the September rework, moves
+every active michi PRO subscriber onto them with `proration_behavior: none`, so the next renewal is
+at the new amount and nobody is charged or credited today. TCGScan PRO and the bundle were not
+changed; note the bundle ($8.99/mo) is now within a cent of michi + TCGScan bought separately.
 
 ### Limited-time promotion (20% off, all plans)
 

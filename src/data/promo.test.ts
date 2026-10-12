@@ -52,7 +52,8 @@ test('the promotion is time-boxed', () => {
 });
 
 test('THE PROMOTION IS RETIRED: PRO sells at list', () => {
-  // Retired 2026-09-21 (owner): PRO is $49.99 a year and $5.99 a month, with no coupon. The 20%
+  // Retired 2026-09-21 (owner): PRO sells at its list price with no coupon (since 2026-10-11 that
+  // is $24.99 a year and $2.99 a month, a real price cut rather than a standing sale). The 20%
   // off was undercutting the price the tier rework had just set.
   //
   // This is the assertion that matters now, and it is deliberately the live clock rather than a

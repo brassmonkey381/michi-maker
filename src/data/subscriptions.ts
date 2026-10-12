@@ -72,7 +72,7 @@ export interface PlanHeader {
  * that used to sit here struck through the yearly price to show a discount on itself, which flatters
  * the number and makes the plan page disagree with the plan.
  *
- * DERIVED, never typed. 12 x $5.99 is $71.88, not $72, and a rounded marketing figure struck through
+ * DERIVED, never typed. 12 x $2.99 is $35.88, not $36, and a rounded marketing figure struck through
  * next to an exact one is the kind of small lie a careful reader notices.
  */
 export function annualListMinor(h: Pick<PlanHeader, 'monthlyMinor'>): number | null {
@@ -80,7 +80,7 @@ export function annualListMinor(h: Pick<PlanHeader, 'monthlyMinor'>): number | n
 }
 
 /**
- * The struck-through anchor, rounded to a whole dollar: $71.88 shows as "$72" (owner, 2026-09-21).
+ * The struck-through anchor, rounded to a whole dollar: $35.88 shows as "$36" (owner, 2026-09-21).
  * An anchor is a comparison, not a charge, so it reads better without cents and nobody is ever
  * billed it. Every figure that decides money keeps its cents.
  */
@@ -92,8 +92,8 @@ export function annualAnchor(h: Pick<PlanHeader, 'monthlyMinor'>): string | null
 /**
  * Percent saved by paying yearly instead of monthly.
  *
- * FLOORED, AND MEASURED AGAINST THE TRUE LIST, both deliberately. The true list is $71.88, which
- * saves 30.4%; the rounded-up $72 anchor on screen saves 30.6%, and rounding that to the nearest
+ * FLOORED, AND MEASURED AGAINST THE TRUE LIST, both deliberately. The true list is $35.88, which
+ * saves 30.3%; the rounded-up $36 anchor on screen saves 30.6%, and rounding that to the nearest
  * whole number would claim 31% while the two numbers printed beside it support 30%. Flooring the
  * real figure means the badge is never larger than the arithmetic a reader can do on the page.
  */
@@ -105,18 +105,21 @@ export function annualSavingPercent(h: Pick<PlanHeader, 'monthlyMinor' | 'yearly
 
 export const PLAN_HEADERS: PlanHeader[] = [
   { tier: 'free', name: 'Free', price: '$0', sub: 'with a free account' },
+  // PRICE CUT 2026-10-11 (owner): $2.99 a month, $24.99 a year, as the LIST price. A real price
+  // rather than a standing coupon, so nothing is struck through and nothing expires. Existing
+  // subscribers were moved to it at their next renewal (scripts/stripe-pro-price-2026-10.mjs).
   {
     tier: 'pro',
     name: 'PRO',
-    price: '$49.99',
+    price: '$24.99',
     per: '/yr',
-    sub: 'about $4.17 a month, billed yearly · or $5.99 month to month',
+    sub: 'about $2.08 a month, billed yearly · or $2.99 month to month',
     badge: 'Best value',
     yearlyKey: 'michi_pro_yearly',
     monthlyKey: 'michi_pro_monthly',
-    monthlyLabel: 'or $5.99 month to month',
-    yearlyMinor: 4999,
-    monthlyMinor: 599,
+    monthlyLabel: 'or $2.99 month to month',
+    yearlyMinor: 2499,
+    monthlyMinor: 299,
   },
   // VIP WAS RETIRED FROM SALE in the 2026-09 tier rework (tcgscan-app docs/TIER-REWORK.md): two
   // plans, Free and PRO. Soundtracks and the all-at-once composer are PRO now. A tier_vip row that

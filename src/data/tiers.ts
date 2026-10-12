@@ -223,7 +223,7 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
   },
 
   // 12 binders × 40 pages × 16 cards = 7,680 ("over 7,500 cards"). $3.99/mo or $39.99/yr.
-  // $5.99/mo, $49.99/yr, or Founder (one-time). EVERYTHING, UNLIMITED: VIP is retired, so its
+  // $2.99/mo, $24.99/yr (cut 2026-10-11), or Founder (one-time). EVERYTHING, UNLIMITED: VIP is retired, so its
   // real features (soundtracks, the multi-page composer) live here, and a PRO cap would be a wall
   // with nothing behind it. PRINTS ARE IN NO PLAN: the print offer is being reworked separately.
   pro: {

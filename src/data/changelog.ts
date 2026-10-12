@@ -135,6 +135,16 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         products: ['michi'],
+        head: 'PRO is now $2.99 a month or $24.99 a year',
+        kind: 'better',
+        area: 'account',
+        big: true,
+        body:
+          'Half the old price, as the regular price, not a sale. Anyone already subscribed moves to '
+          + 'the new price at their next renewal with nothing to do. Founder stays $119.99 once.',
+      },
+      {
+        products: ['michi'],
         head: 'First Annual Michi Binder Contest: winners announced',
         kind: 'new',
         area: 'account',

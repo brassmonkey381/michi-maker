@@ -9,7 +9,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { PLAN_HEADERS, annualAnchor, annualListMinor, annualSavingPercent } from './subscriptions.ts';
+import { PLAN_HEADERS, TRIAL_CTA_LABEL, annualAnchor, annualListMinor, annualSavingPercent, planCta } from './subscriptions.ts';
 
 const pro = PLAN_HEADERS.find((h) => h.tier === 'pro')!;
 
@@ -51,4 +51,17 @@ test('Free advertises no price to discount', () => {
   const free = PLAN_HEADERS.find((h) => h.tier === 'free')!;
   assert.equal(free.price, '$0');
   assert.equal(annualAnchor(free), null);
+});
+
+test('THE PRO BUTTON NAMES THE FREE DAYS for an account that can still have them (2026-10-11)', () => {
+  // The trial lives in Stripe Checkout now, so the gate says what pressing it gets you.
+  assert.deepEqual(planCta(pro, 'free', false, true), { kind: 'buy', label: TRIAL_CTA_LABEL });
+  assert.equal(TRIAL_CTA_LABEL, 'Try PRO for FREE');
+  // Used or ineligible: an ordinary purchase, and it says so.
+  assert.deepEqual(planCta(pro, 'free', false, false), { kind: 'buy', label: 'Upgrade to PRO' });
+  // A guest chooses first: checkout needs an account, so the free days are not promised yet.
+  assert.deepEqual(planCta(pro, 'guest', false, true), { kind: 'buy', label: 'Choose PRO' });
+  // Mid-trial and already-paid cases are untouched by the flag.
+  assert.deepEqual(planCta(pro, 'pro', true, true), { kind: 'buy', label: 'Subscribe to PRO' });
+  assert.deepEqual(planCta(pro, 'pro', false, true), { kind: 'current' });
 });

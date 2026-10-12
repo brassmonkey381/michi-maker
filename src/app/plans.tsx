@@ -15,7 +15,6 @@ import { PageShell } from '@/components/layout/PageShell';
 import { BundleOffer } from '@/components/monetization/BundleOffer';
 import { PlanComparison, PLAN_BLOCK_WIDTH } from '@/components/monetization/PlanComparison';
 import { PromoBanner } from '@/components/monetization/PromoBanner';
-import { TrialCta } from '@/components/monetization/TrialCta';
 import { TRIAL_DAYS_TEXT } from '@/data/trialLength';
 import { CHECKOUT_OPEN } from '@/data/subscriptions';
 import { PlanUsageSection } from '@/components/monetization/TierUsage';
@@ -38,7 +37,11 @@ export default function PlansScreen() {
   // A michi free trial reads as isPaid (tier 'pro') but has no paid subscription — so the bundle
   // offer must reach trial holders too; only a truly paid (non-trial) plan hides it. This is the
   // existing trial signal (entitlement source='trial', resolved by useTrial), reused verbatim.
-  const isTrial = useTrial().state === 'active';
+  const trialState = useTrial().state;
+  const isTrial = trialState === 'active';
+  // Never trialled, never paid: checkout gives 3 days free with a card on file, and the page
+  // says so above the plans. stripe-checkout re-checks eligibility; this only draws the line.
+  const trialEligible = trialState === 'eligible';
 
   // Inbound cross-app SSO: a "save 60% on michi" link from tcgscan carries a one-time #th=
   // hash — redeem it into a session here (no-op without one), then re-read the tier so the
@@ -111,12 +114,17 @@ export default function PlansScreen() {
           to press: an urgent offer nobody could take. It comes back with checkout. */}
       {CHECKOUT_OPEN && promoActive() && !bundleEligible && !bundleArrival ? <PromoBanner /> : null}
 
-      {/* Eligible free users: the trial offer, front and centre. Self-gates (null unless eligible
-          and trials are open, which is its own switch), so it simply doesn't show for subscribers
-          or the ineligible. */}
-      <View style={styles.trialHero}>
-        <TrialCta message={`Try everything PRO before you decide, free for ${TRIAL_DAYS_TEXT}.`} surface="plans" />
-      </View>
+      {/* THE FREE TRIAL IS AT CHECKOUT (owner, 2026-10-11). The one-press in-app trial is closed;
+          an account that has never held PRO gets the free days when it picks a plan below, with a
+          card on file. This line says so, once, where the plan is chosen. */}
+      {CHECKOUT_OPEN && trialEligible ? (
+        <View style={styles.trialHero}>
+          <ThemedText type="smallBold">Try everything PRO free for {TRIAL_DAYS_TEXT}.</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.trialHeroSub}>
+            Pick a plan below. Your card is not charged until the free days end, and you can cancel before then.
+          </ThemedText>
+        </View>
+      ) : null}
 
       {bundleEligible ? (
         <View style={styles.banner}>
@@ -250,7 +258,9 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     alignItems: 'center',
     marginBottom: Spacing.four,
+    gap: Spacing.one,
   },
+  trialHeroSub: { textAlign: 'center', maxWidth: 480 },
   // Same cap as the comparison table, so 'Your plan' and the closing note share its left edge.
   prose: { width: '100%', maxWidth: PLAN_BLOCK_WIDTH, alignSelf: 'center' },
   sectionLabel: {

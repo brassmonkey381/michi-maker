@@ -44,6 +44,8 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { sheet } from '@/constants/ui';
+import { TRIAL_CTA_LABEL } from '@/data/subscriptions';
+import { useTrial } from '@/hooks/use-trial';
 import { track } from '@/lib/analytics';
 import type { Catalog } from '@/lib/catalog';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
@@ -123,6 +125,7 @@ export function TriColorUpsell({
   onBeforeUpgrade?: () => void;
 }) {
   const router = useRouter();
+  const trial = useTrial();
   const { height: winH } = useWindowDimensions();
   useImageManifest(); // so cardThumbUrl resolves once the hashed manifest hydrates
   useColorIndex(true); // warm the on-device colour index so searchByColors has a path
@@ -260,7 +263,7 @@ export function TriColorUpsell({
                 </Pressable>
               ) : (
                 <Pressable onPress={upgrade} style={styles.ctaBtn} hitSlop={8}>
-                  <Text style={styles.ctaText}>See plans</Text>
+                  <Text style={styles.ctaText}>{!trial.loading && trial.state === 'eligible' ? TRIAL_CTA_LABEL : 'See plans'}</Text>
                 </Pressable>
               )}
             </View>

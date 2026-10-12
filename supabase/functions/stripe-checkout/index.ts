@@ -906,6 +906,58 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  /**
+   * THE FREE TRIAL LIVES HERE NOW (owner, 2026-10-11). The one-press, no-card trial in the app is
+   * closed (start_pro_trial refuses everyone); the only way to try PRO free is this page, with a
+   * card on file. Checkout shows "3 days free", then the plan's price. Stripe charges the card when
+   * the trial ends unless the subscription is cancelled first, and the trial-ending reminder email
+   * is Stripe's (Settings → Subscriptions and emails → trial ending).
+   *
+   * ONCE PER ACCOUNT, EVER, and only for someone who has never held PRO in this app:
+   *   - no pro_trials row (the in-app ledger; the webhook writes one when a checkout trial starts,
+   *     so the two mechanisms share one "already trialled" record);
+   *   - no entitlement row for the product from any source but a trial (a lapsed subscriber, a
+   *     refunded Founder or an Apple member is a win-back, and win-backs get no free days);
+   *   - no Stripe subscription of this app's tier on the mapped customer, in any status, which
+   *     catches a trial that was started and cancelled before its webhook landed.
+   * michi PRO only: the bundle and TCGScan keep their own rules.
+   */
+  const CHECKOUT_TRIAL_DAYS = 3;
+  let checkoutTrial = false;
+  if (
+    trialDays === undefined &&
+    mode === 'subscription' &&
+    !founder &&
+    (michiProduct === 'tier_pro' || michiProduct === 'tier_vip') &&
+    !isBundleKey(lookupKey)
+  ) {
+    const [{ data: ledger }, { data: held }] = await Promise.all([
+      service.from('pro_trials').select('user_id').eq('user_id', user.id).maybeSingle(),
+      service
+        .from('entitlements')
+        .select('product, source')
+        .eq('user_id', user.id)
+        .in('product', ['tier_pro', 'tier_vip']),
+    ]);
+    const everPaid = (held ?? []).some((r) => r.source !== 'trial');
+    let everSubscribed = false;
+    if (mapping?.stripe_customer_id) {
+      const subs = await stripe.subscriptions.list({
+        customer: mapping.stripe_customer_id,
+        status: 'all',
+        limit: 100,
+      });
+      everSubscribed = subs.data.some((s) => {
+        const k = s.items?.data?.[0]?.price?.lookup_key ?? '';
+        return k.startsWith('michi_pro') || k.startsWith('michi_vip') || isBundleKey(k);
+      });
+    }
+    if (!ledger && !everPaid && !everSubscribed) {
+      trialDays = CHECKOUT_TRIAL_DAYS;
+      checkoutTrial = true;
+    }
+  }
+
   const params: Stripe.Checkout.SessionCreateParams = {
     mode,
     line_items: [{ price: price.id, quantity: 1 }],
@@ -916,7 +968,13 @@ Deno.serve(async (req: Request) => {
     ...(mode === 'subscription'
       ? {
           subscription_data: {
-            metadata: { supabase_user_id: user.id, michi_product: michiProduct },
+            metadata: {
+              supabase_user_id: user.id,
+              michi_product: michiProduct,
+              // The webhook writes the pro_trials row for exactly this flag, so the free days are
+              // handed out once per account across both the old in-app trial and this one.
+              ...(checkoutTrial ? { checkout_trial: 'true' } : {}),
+            },
             // Buying the tier you are already TRIALLING must not cut the trial short. Without
             // this, deciding early to keep PRO would charge immediately and bin the remaining free
             // days — strictly worse than waiting, which is not a choice anyone should be punished
@@ -924,6 +982,10 @@ Deno.serve(async (req: Request) => {
             // the free trial would have ended anyway, so access never gaps.
             ...(trialDays ? { trial_period_days: trialDays } : {}),
           },
+          // A trial with no card is the thing being retired; Checkout collects one up front and
+          // charges it when the free days end. (Stripe's default for a trial is already 'always';
+          // stated so a future default cannot quietly turn this back into a no-card trial.)
+          ...(trialDays ? { payment_method_collection: 'always' as const } : {}),
         }
       : {}),
     metadata: {

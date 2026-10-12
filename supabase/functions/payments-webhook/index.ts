@@ -391,6 +391,33 @@ Deno.serve(async (req: Request) => {
               : session.subscription.id,
           );
           await upsertSubscriptionGrant(sub);
+          // A CHECKOUT TRIAL IS RECORDED IN THE SAME LEDGER THE IN-APP TRIAL USED, so an account
+          // gets free days once whichever door it came through. stripe-checkout reads pro_trials
+          // before offering the days; this is what makes that read true next time. Upsert, so a
+          // replayed event changes nothing. Isolated: the grant above is the thing this event is for.
+          if (sub.metadata?.checkout_trial === 'true' && sub.trial_end) {
+            try {
+              await service()
+                .from('pro_trials')
+                .upsert(
+                  {
+                    user_id: userId,
+                    started_at: new Date((sub.trial_start ?? sub.created) * 1000).toISOString(),
+                    expires_at: new Date(sub.trial_end * 1000).toISOString(),
+                  },
+                  { onConflict: 'user_id', ignoreDuplicates: true },
+                );
+              await service().from('analytics_events').insert({
+                user_id: userId,
+                app: 'michi',
+                name: 'trial.start',
+                props: { surface: 'checkout', via: 'stripe', lookup_key: sub.items?.data?.[0]?.price?.lookup_key ?? null },
+                session_id: null,
+              });
+            } catch (e) {
+              console.error('checkout trial not recorded', sub.id, (e as Error).message);
+            }
+          }
         }
         break;
       }

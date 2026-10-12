@@ -12,11 +12,14 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing } from '@/constants/theme';
+import { TRIAL_CTA_LABEL } from '@/data/subscriptions';
+import { useTrial } from '@/hooks/use-trial';
 
 export function UpgradePerk({
   message,
-  /** Button label — defaults to "Upgrade". */
-  cta = 'Upgrade',
+  /** Button label. Defaults to "Try PRO for FREE" for an account that can still have the free
+   *  days at checkout, and "Upgrade to PRO" otherwise (owner, 2026-10-11). */
+  cta,
   /** Runs before navigating (e.g. close a covering modal so /plans is actually visible). */
   onBeforePress,
 }: {
@@ -25,6 +28,8 @@ export function UpgradePerk({
   onBeforePress?: () => void;
 }) {
   const router = useRouter();
+  const trial = useTrial();
+  const label = cta ?? (!trial.loading && trial.state === 'eligible' ? TRIAL_CTA_LABEL : 'Upgrade to PRO');
   return (
     <View style={styles.wrap}>
       <View style={styles.note}>
@@ -39,7 +44,7 @@ export function UpgradePerk({
           hitSlop={6}
           style={({ pressed }) => [styles.btn, pressed && styles.pressed]}>
           <ThemedText type="smallBold" style={styles.btnText}>
-            {cta}
+            {label}
           </ThemedText>
         </Pressable>
       </View>

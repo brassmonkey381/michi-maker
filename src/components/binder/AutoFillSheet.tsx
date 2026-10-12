@@ -280,7 +280,6 @@ export function AutoFillSheet({
                   ) : (
                     <UpgradePerk
                       message={`PRO builds all ${methods.length} of these as finished pages at once, so you can pick between them instead of choosing blind.`}
-                      cta="See PRO"
                       onBeforePress={onClose}
                     />
                   )

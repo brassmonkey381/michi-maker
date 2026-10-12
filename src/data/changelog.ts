@@ -135,6 +135,16 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         products: ['michi'],
+        head: 'Try PRO free for 3 days, from checkout',
+        kind: 'better',
+        area: 'account',
+        body:
+          'The free trial now starts when you pick a plan: checkout shows 3 days free, your card is '
+          + 'not charged until they end, and you can cancel before then. Every PRO button says so for '
+          + 'accounts that have not tried PRO yet. The one-press trial button is gone.',
+      },
+      {
+        products: ['michi'],
         head: 'PRO is now $2.99 a month or $24.99 a year',
         kind: 'better',
         area: 'account',

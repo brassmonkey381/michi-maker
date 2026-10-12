@@ -24,6 +24,19 @@
 > refusal as `trial.refused_closed`). Trials already running finish normally; the reclaim machinery
 > and the carry-a-live-trial-onto-checkout logic are untouched. Any future trial lives inside
 > Stripe Checkout with a card on file. tcgscan-app's trial is not affected by this.
+>
+> **THE TRIAL AT CHECKOUT (same day).** `stripe-checkout` gives `trial_period_days: 3` with
+> `payment_method_collection: 'always'` to a michi PRO subscription checkout for an account that has
+> no `pro_trials` row, no non-trial `tier_pro`/`tier_vip` entitlement ever, and no michi/bundle
+> subscription of any status on its Stripe customer. Checkout shows "3 days free", then the price;
+> Stripe charges the card when the trial ends unless cancelled. `payments-webhook` writes the
+> `pro_trials` row (and a `trial.start` event with `surface: 'checkout'`) when such a subscription
+> completes, so the free days are once per account across both mechanisms. Every PRO gate's button
+> reads "Try PRO for FREE" for an eligible account (`TRIAL_CTA_LABEL`, `planCta`, `UpgradePerk`,
+> `CapGateOffer`) and goes to /plans, where each PRO button opens Checkout. Stripe's own
+> trial-ending reminder email should be ON in the dashboard (Settings → Subscriptions and emails).
+> A checkout-trial row has `source: 'stripe'`, so `useTrial` reads it as paid, not as a trial: the
+> in-app countdown banner does not show for it.
 
 > **TRIAL LENGTH, CURRENT STATE (2026-09-20).** The trial is **3 days in both apps**. The server is
 > the authority: `public.trial_days()` returns 3 and both `start_pro_trial` and

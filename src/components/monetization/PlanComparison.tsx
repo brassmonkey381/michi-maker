@@ -118,7 +118,11 @@ export function PlanComparison() {
   // /plans banner gate exactly — shown to FREE and TRIAL holders, hidden from a fully-paid plan.
   // The server (stripe-checkout) is the source of truth for the charged price and for term-level
   // bundle matching; this only mirrors the banner's promise on the page.
-  const onTrial = useTrial().state === 'active';
+  const trialState = useTrial().state;
+  const onTrial = trialState === 'active';
+  // Never trialled, never paid: the PRO button reads "Try PRO for FREE" and checkout gives the
+  // free days. Resolved by the server again at checkout; this only chooses the words.
+  const trialEligible = trialState === 'eligible';
   // tcgscanIsPaid, not hasTcgscanPro: a TRIALLING sibling earns no bundle, so quoting 60% off
   // monthly here would advertise a price stripe-checkout now refuses.
   const bundleEligible = !CROSS_DISCOUNT_RETIRED && !loading && tcgscanIsPaid && !(isPaid && !onTrial);
@@ -219,7 +223,7 @@ export function PlanComparison() {
     if (loading) return;
     // Only a paying subscriber has anything to prorate — planCta calls that case 'switch'.
     const upgrades = PLAN_HEADERS.filter(
-      (p) => p.tier !== 'free' && planCta(p, tier, onTrial).kind === 'switch' && p.yearlyKey,
+      (p) => p.tier !== 'free' && planCta(p, tier, onTrial, trialEligible).kind === 'switch' && p.yearlyKey,
     );
     if (!upgrades.length) return;
     let live = true;
@@ -239,7 +243,7 @@ export function PlanComparison() {
     // onTrial belongs here too: a trial holds no subscription, so it turns every 'switch' into a
     // purchase and there is nothing left to prorate. If it changes under an open page (a refresh
     // lands after checkout), the previews have to be recomputed rather than left as the trial's.
-  }, [loading, tier, onTrial]);
+  }, [loading, tier, onTrial, trialEligible]);
 
   /**
    * One paid column's foot cell. What it offers depends entirely on the viewer's current plan
@@ -357,7 +361,7 @@ export function PlanComparison() {
     // Resolve nothing until the tier is known — a flash of "Choose PRO" at someone who already
     // pays for PRO is exactly the wrong first impression.
     if (loading) return <View style={styles.footPlaceholder} />;
-    const cta = planCta(plan, tier, onTrial);
+    const cta = planCta(plan, tier, onTrial, trialEligible);
 
     if (cta.kind === 'none') return <View style={styles.footPlaceholder} />;
     if (cta.kind === 'current') {

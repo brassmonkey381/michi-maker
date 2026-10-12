@@ -171,7 +171,15 @@ const TIER_RANK: Record<Tier, number> = { guest: 0, free: 1, pro: 2, vip: 3 };
  * because switching modifies a subscription that does not exist. With `onTrial` every paid column
  * is an ordinary purchase, and the one matching the trial says so plainly.
  */
-export function planCta(column: PlanHeader, current: Tier, onTrial = false): PlanCta {
+/**
+ * THE BUTTON AT EVERY PRO GATE for someone who can still have the free days (owner, 2026-10-11).
+ * The free trial lives inside Stripe Checkout now: 3 days free with a card on file, then the
+ * plan's price. So the gate's button names the trial, and the plans page is where the plan is
+ * picked. stripe-checkout decides eligibility for real; the client reads useTrial().state.
+ */
+export const TRIAL_CTA_LABEL = 'Try PRO for FREE';
+
+export function planCta(column: PlanHeader, current: Tier, onTrial = false, trialEligible = false): PlanCta {
   const columnRank = TIER_RANK[column.tier];
   const currentRank = TIER_RANK[current];
   if (onTrial && column.tier !== 'free' && columnRank >= currentRank) {
@@ -187,9 +195,11 @@ export function planCta(column: PlanHeader, current: Tier, onTrial = false): Pla
   // Upgrading from a plan that is already billing means switching that subscription, not buying
   // alongside it. 'guest' and 'free' have nothing to switch, so they're ordinary purchases.
   const label = `Upgrade to ${column.name}`;
-  return currentRank >= TIER_RANK.pro
-    ? { kind: 'switch', label }
-    : { kind: 'buy', label: current === 'guest' ? `Choose ${column.name}` : label };
+  if (currentRank >= TIER_RANK.pro) return { kind: 'switch', label };
+  // A new subscription. Someone who has never held PRO gets the free days at checkout, and the
+  // button says so; a guest is asked to choose first (checkout needs an account either way).
+  if (current === 'guest') return { kind: 'buy', label: `Choose ${column.name}` };
+  return { kind: 'buy', label: trialEligible && column.tier === 'pro' ? TRIAL_CTA_LABEL : label };
 }
 
 /** Lookup key for the one-time full-binder PDF (payment mode; needs a binderId). */

@@ -20,6 +20,7 @@
  */
 import { TrialCta, trialOfferVisible } from '@/components/monetization/TrialCta';
 import { UpgradePerk } from '@/components/monetization/UpgradePerk';
+import { TRIAL_CTA_LABEL } from '@/data/subscriptions';
 import { useTrial } from '@/hooks/use-trial';
 import type { CapSurface } from '@/lib/analytics';
 
@@ -52,5 +53,15 @@ export function CapGateOffer({
       <TrialCta message={trialMessage ?? message} surface={surface} onBeforeStart={onBeforePress} />
     );
   }
-  return <UpgradePerk message={message} cta={cta} onBeforePress={onBeforePress} />;
+  // THE TRIAL IS AT CHECKOUT NOW (owner, 2026-10-11): the in-app one-press trial is closed, so the
+  // wall keeps the trial's wording for anyone who can still have the free days and its button
+  // goes to the plans page, where every PRO button opens Checkout with "3 days free".
+  const eligible = offersTrial !== false && !trial.loading && trial.state === 'eligible';
+  return (
+    <UpgradePerk
+      message={eligible ? (trialMessage ?? message) : message}
+      cta={eligible ? TRIAL_CTA_LABEL : cta}
+      onBeforePress={onBeforePress}
+    />
+  );
 }

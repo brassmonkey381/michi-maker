@@ -130,6 +130,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-10-12',
+    title: 'N for a new page',
+    items: [
+      {
+        products: ['michi'],
+        head: 'Press N to add a page',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'In the editor, N adds a page at the end, the same as the + Page button. The separate '
+          + 'insert-after-this-page arrow is gone; it was the same thing with a harder-to-read icon.',
+      },
+    ],
+  },
+  {
     date: '2026-10-11',
     title: 'The first contest has its winners',
     items: [

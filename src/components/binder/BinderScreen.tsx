@@ -1028,19 +1028,16 @@ export function BinderScreen({
     }
   };
 
-  // "Insert" opens a BLANK page right after this one and jumps onto it, so room for the next run
-  // of cards appears where you are standing. `+ Page` still appends; this is the one that inserts.
-  const handleInsertPage = () => {
+  // A new page at the end: the `+ Page` button and the N key (owner, 2026-10-12). The "insert an
+  // empty page after this one" button that sat beside it was removed the same day: two ways to add
+  // a page, one of them a bare arrow glyph, read as one feature twice. store.insertPage remains for
+  // the day it is wanted again.
+  const handleAddPage = () => {
     if (store.pageLimitReached(binder.id)) {
       showLimitToast(pageLimitMessage(store.tier, store.limits));
       return;
     }
-    const result = store.insertPage(binder.id, page.id);
-    if (result) {
-      setSelectedSlotId(null);
-      setPageIndex(result.pageIndex);
-      showToast(parityNote('Empty page inserted', result.blanksInserted));
-    }
+    store.addPage(binder.id);
   };
 
   /**
@@ -2135,19 +2132,7 @@ export function BinderScreen({
           // here" — which it has never done.
           label="Add a page at the end"
           testID="tool-add-page"
-          onPress={() =>
-            store.pageLimitReached(binder.id)
-              ? showLimitToast(pageLimitMessage(store.tier, store.limits))
-              : store.addPage(binder.id)
-          }
-        />
-        {/* The insert, next to the append it is easy to confuse with — both say which they are in
-            their label, because "add a page" was read as "here" long before there was a here. */}
-        <IconBtn
-          glyph="⤵"
-          label="Insert an empty page after this one"
-          testID="tool-insert-page"
-          onPress={handleInsertPage}
+          onPress={handleAddPage}
         />
         <IconBtn glyph="⧉" label="Duplicate this page" onPress={handleDuplicatePage} testID="tool-duplicate" />
         {/* Send this page into ANOTHER of your binders (copy, or move it out of this one). */}
@@ -2935,6 +2920,7 @@ export function BinderScreen({
           onQuickPreview={() => setQuickOpen((v) => !v)}
           onMovePage={() => setMovePageOpen((v) => !v)}
           onMergeSplit={editing ? mergeOrSplit : undefined}
+          onNewPage={editing ? handleAddPage : undefined}
           onGoToPage={(n) => changePage(n - 1)}
           onEscape={() => {
             // The topmost thing first, one per press: a preview, a sheet, a selection, select mode.
@@ -3173,6 +3159,7 @@ function EditorKeyboardShortcuts({
   onQuickPreview,
   onMovePage,
   onMergeSplit,
+  onNewPage,
   onGoToPage,
   onEscape,
 }: {
@@ -3200,6 +3187,8 @@ function EditorKeyboardShortcuts({
   onMovePage?: () => void;
   /** M: merge the two selected art pieces, or split the selected one. Editing only. */
   onMergeSplit?: () => void;
+  /** N: a new page at the end, the same as the + Page button. Editing only. */
+  onNewPage?: () => void;
   /** Digits: a page number, 1-based, acted on after a short pause; the caller clamps it. */
   onGoToPage?: (n: number) => void;
   /** Escape: close the topmost thing. */
@@ -3256,6 +3245,9 @@ function EditorKeyboardShortcuts({
       } else if (!meta && !e.altKey && key === PLAIN_KEYS.mergeSplit && onMergeSplit) {
         e.preventDefault();
         onMergeSplit();
+      } else if (!meta && !e.altKey && key === PLAIN_KEYS.newPage && onNewPage) {
+        e.preventDefault();
+        onNewPage();
       } else if (!meta && !e.altKey && key === PLAIN_KEYS.artDock && onToggleArt) {
         e.preventDefault();
         onToggleArt();
@@ -3284,7 +3276,7 @@ function EditorKeyboardShortcuts({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [active, undoable, pocketKeys, onUndo, onRedo, onDelete, onPrevPage, onNextPage, onToggleEdit, onToggleArt, onToggleCards, onToggleSettings, onQuickPreview, onMovePage, onMergeSplit, onGoToPage, onEscape]);
+  }, [active, undoable, pocketKeys, onUndo, onRedo, onDelete, onPrevPage, onNextPage, onToggleEdit, onToggleArt, onToggleCards, onToggleSettings, onQuickPreview, onMovePage, onMergeSplit, onNewPage, onGoToPage, onEscape]);
   return null;
 }
 

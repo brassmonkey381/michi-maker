@@ -920,24 +920,33 @@ Deno.serve(async (req: Request) => {
    *     refunded Founder or an Apple member is a win-back, and win-backs get no free days);
    *   - no Stripe subscription of this app's tier on the mapped customer, in any status, which
    *     catches a trial that was started and cancelled before its webhook landed.
-   * michi PRO only: the bundle and TCGScan keep their own rules.
+   * Each app on its own terms (TCGScan joined 2026-10-12, owner): michi PRO reads pro_trials and
+   * the tier_* products; TCGScan PRO reads tcgscan_pro_trials and the tcgscan_* products, so trying
+   * one app never spends the other's free days. The bundle and Founder get no checkout trial.
    */
   const CHECKOUT_TRIAL_DAYS = 3;
+  const TRIAL_FAMILY = {
+    michi: { ledger: 'pro_trials', products: ['tier_pro', 'tier_vip'], keys: ['michi_pro', 'michi_vip'] },
+    tcgscan: { ledger: 'tcgscan_pro_trials', products: ['tcgscan_pro', 'tcgscan_vip'], keys: ['tcgscan_pro', 'tcgscan_vip'] },
+  } as const;
+  const family = appFamilyOf(lookupKey);
+  const rules = family ? TRIAL_FAMILY[family] : null;
   let checkoutTrial = false;
   if (
+    rules &&
     trialDays === undefined &&
     mode === 'subscription' &&
     !founder &&
-    (michiProduct === 'tier_pro' || michiProduct === 'tier_vip') &&
+    (rules.products as readonly string[]).includes(michiProduct) &&
     !isBundleKey(lookupKey)
   ) {
     const [{ data: ledger }, { data: held }] = await Promise.all([
-      service.from('pro_trials').select('user_id').eq('user_id', user.id).maybeSingle(),
+      service.from(rules.ledger).select('user_id').eq('user_id', user.id).maybeSingle(),
       service
         .from('entitlements')
         .select('product, source')
         .eq('user_id', user.id)
-        .in('product', ['tier_pro', 'tier_vip']),
+        .in('product', [...rules.products]),
     ]);
     const everPaid = (held ?? []).some((r) => r.source !== 'trial');
     let everSubscribed = false;
@@ -949,7 +958,7 @@ Deno.serve(async (req: Request) => {
       });
       everSubscribed = subs.data.some((s) => {
         const k = s.items?.data?.[0]?.price?.lookup_key ?? '';
-        return k.startsWith('michi_pro') || k.startsWith('michi_vip') || isBundleKey(k);
+        return rules.keys.some((p) => k.startsWith(p)) || isBundleKey(k);
       });
     }
     if (!ledger && !everPaid && !everSubscribed) {

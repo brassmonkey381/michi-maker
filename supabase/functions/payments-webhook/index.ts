@@ -409,9 +409,11 @@ Deno.serve(async (req: Request) => {
           // before offering the days; this is what makes that read true next time. Upsert, so a
           // replayed event changes nothing. Isolated: the grant above is the thing this event is for.
           if (sub.metadata?.checkout_trial === 'true' && sub.trial_end) {
+            // Each app keeps its own one-per-account ledger (stripe-checkout TRIAL_FAMILY).
+            const tcgscan = String(sub.metadata?.michi_product ?? '').startsWith('tcgscan_');
             try {
               await service()
-                .from('pro_trials')
+                .from(tcgscan ? 'tcgscan_pro_trials' : 'pro_trials')
                 .upsert(
                   {
                     user_id: userId,
@@ -422,7 +424,7 @@ Deno.serve(async (req: Request) => {
                 );
               await service().from('analytics_events').insert({
                 user_id: userId,
-                app: 'michi',
+                app: tcgscan ? 'tcgscan' : 'michi',
                 name: 'trial.start',
                 props: { surface: 'checkout', via: 'stripe', lookup_key: sub.items?.data?.[0]?.price?.lookup_key ?? null },
                 session_id: null,

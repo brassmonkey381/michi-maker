@@ -145,13 +145,16 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         products: ['michi'],
-        head: 'PRO is now $2.99 a month or $24.99 a year',
+        head: 'PRO is half price: $2.99 a month or $24.99 a year',
+        pinned: true,
+        featured: true,
         kind: 'better',
         area: 'account',
         big: true,
         body:
-          'Half the old price, as the regular price, not a sale. Anyone already subscribed moves to '
-          + 'the new price at their next renewal with nothing to do. Founder stays $119.99 once.',
+          'Every PRO plan is 50% less than before, as the regular price, not a sale. Yearly was '
+          + '$49.99 and monthly was $5.99. Anyone already subscribed moves to the new price at their '
+          + 'next renewal with nothing to do. Founder stays $119.99 once.',
       },
       {
         products: ['michi'],
@@ -162,6 +165,81 @@ export const CHANGELOG: ChangelogEntry[] = [
           'Best Aesthetic took home LIFETIME PRO and Best 2x2 took home a year of PRO. Both winners '
           + 'wear a trophy on their public profile, and the contest page is now the Hall of Fame. A '
           + 'bigger contest with game-specific categories comes once more collectors have found the site.',
+      },
+      {
+        products: ['tcgscan'],
+        head: 'Continue with Google works on tcgscan.ai',
+        kind: 'fix',
+        area: 'account',
+        body:
+          'Signing in with Google on the website used to land you on michi-maker.com, or on a page '
+          + 'that did not exist. It now brings you back to tcgscan.ai, signed in.',
+      },
+    ],
+  },
+  {
+    date: '2026-10-04',
+    title: 'A puzzle every day, without gaps',
+    items: [
+      {
+        products: ['michi'],
+        head: 'The daily puzzle no longer runs out',
+        kind: 'fix',
+        area: 'browse',
+        body:
+          'On October 4 there was no puzzle to play. The queue now keeps two weeks scheduled ahead, '
+          + 'and a day that is empty is filled on the spot.',
+      },
+      {
+        products: ['michi'],
+        head: 'Your email is kept only when you tick the box',
+        kind: 'fix',
+        area: 'account',
+        body:
+          'The feedback form prefilled your address, so it was stored even when you had not agreed '
+          + 'to be contacted. It is now kept only with the consent box ticked, as the page always said.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-30',
+    title: 'Discover leads with what is new',
+    items: [
+      {
+        products: ['michi'],
+        head: 'Discover shows the newest public binders first',
+        kind: 'better',
+        area: 'browse',
+        body:
+          'A binder you make public today is on the first shelf today, instead of behind the same '
+          + 'few most-liked binders from August. Most liked is still one chip away.',
+      },
+      {
+        products: ['michi'],
+        head: 'Discover remembers your place',
+        kind: 'better',
+        area: 'browse',
+        body:
+          'Open a binder from the fourth shelf page and come back to the fourth shelf page, not the '
+          + 'first. The ordering and the page are in the address, so a reload or a new tab keeps them.',
+      },
+      {
+        products: ['michi'],
+        head: 'Every binder on a shelf can be reached',
+        kind: 'fix',
+        area: 'browse',
+        body:
+          'On a desktop, Discover packed five binders onto a shelf page that showed four, so about one '
+          + 'binder in five could not be scrolled to. Shelves now measure their own width.',
+      },
+      {
+        products: ['michi'],
+        head: 'The puzzle accepts a different word for the same thing',
+        kind: 'better',
+        area: 'browse',
+        body:
+          'Forest counts for trees, lake for water, ice for snow. Guessing the thing in the picture '
+          + 'with an ordinary word for it is no longer marked wrong.',
       },
     ],
   },
@@ -757,7 +835,6 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'Binder links can point at a page',
-        pinned: true,
         kind: 'new',
         area: 'sharing',
         big: true,

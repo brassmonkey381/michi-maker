@@ -41,6 +41,11 @@ Add every URL the providers may return to:
 - `pokemichi://auth-callback` — native (iOS/Android) deep link
 - `http://localhost:8081/auth-callback` — local web dev
 - `https://michi-maker.com/auth-callback` (and any other deployed web origins)
+- `https://tcgscan.ai/**` AND `https://www.tcgscan.ai/**` — the shared project serves tcgscan.ai
+  too, and that site lives on the www host (the apex 308s to it). The www form was missing until
+  2026-10-11: a Google sign-in on tcgscan.ai returned to a URL outside the list, so Supabase fell
+  back to the Site URL and landed every TCGScan user on michi-maker.com. A redirect that is not
+  in this list does not fail loudly; it goes to the Site URL. When a host changes, add both forms.
 
 ### 2. Anonymous guest mode — Authentication → Sign In / Providers → Anonymous
 Toggle **ON** to enable the guest flow. *(Currently ON — enabled for the tcgscan portfolio

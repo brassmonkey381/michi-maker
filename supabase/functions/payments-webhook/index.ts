@@ -255,6 +255,18 @@ async function upsertOneGrant(sub: Stripe.Subscription, userId: string, product:
     Date.now(),
   );
 
+  // WHAT THEY PAY, from the Stripe Price on the subscription - the only authority for it. The
+  // list price changed on 2026-10-11 ($49.99 -> $24.99 a year) and without this column the
+  // ledger could not say which price a subscriber is on, so the morning email could count
+  // "1 paying" and never say how much. `bundled` means this one price grants two products:
+  // both rows carry the whole amount, and the studio counts it once per (user, lookup key).
+  const price = sub.items?.data?.[0]?.price;
+  const priceCols = {
+    price_lookup_key: price?.lookup_key ?? null,
+    unit_amount_minor: typeof price?.unit_amount === 'number' ? price.unit_amount : null,
+    currency: price?.currency ?? null,
+  };
+
   const db = service();
   await db.from('entitlements').upsert(
     {
@@ -265,6 +277,7 @@ async function upsertOneGrant(sub: Stripe.Subscription, userId: string, product:
       interval,
       period_start: periodStartIso,
       term_print_allocation: termAllocation,
+      ...priceCols,
     },
     { onConflict: 'user_id,product' },
   );

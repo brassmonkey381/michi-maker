@@ -80,6 +80,10 @@ interface RcEvent {
   cancel_reason?: string;
   environment?: string;
   store?: string;
+  /** USD price of the product as RevenueCat reports it (a decimal, e.g. 24.99). */
+  price?: number;
+  currency?: string;
+  price_in_purchased_currency?: number;
 }
 
 /** Constant-time string compare, so the header check leaks nothing about the secret's prefix. */
@@ -194,6 +198,12 @@ Deno.serve(async (req) => {
       period_start: ev.purchased_at_ms ? new Date(ev.purchased_at_ms).toISOString() : null,
       // The included-print pool is a michi-maker tier benefit; tcgscan tiers carry none.
       term_print_allocation: null,
+      // What they pay. RevenueCat's `price` is the USD list price as a decimal; stored in cents so
+      // it matches the Stripe rows. The Apple product id is the price identity - there is no
+      // lookup key on this side. NULL when the event carries no price (a cancellation does not).
+      price_lookup_key: productId,
+      unit_amount_minor: typeof ev.price === 'number' ? Math.round(ev.price * 100) : null,
+      currency: typeof ev.price === 'number' ? 'usd' : null,
     },
     { onConflict: 'user_id,product' },
   );

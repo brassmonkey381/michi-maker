@@ -38,9 +38,13 @@ export function BinderCoverPicker({
   onChange,
 }: {
   binder: DemoBinder;
-  onChange: (cover: BinderCover) => void;
+  /** A cover, or null for "no binder" (the shell and anything placed on it are removed). */
+  onChange: (cover: BinderCover | null) => void;
 }) {
   const current = binder.cover;
+  // ON BY DEFAULT when a cover is first chosen (owner, 2026-10-13); a binder that already has one
+  // keeps whatever its owner set.
+  const showCover = current ? current.showCover : true;
   const model = binderModel(current?.modelId);
   const colour = binderColourway(model, current?.colourway);
   // Which of the four surfaces the preview is showing. The front is what anyone wants to see first.
@@ -54,7 +58,7 @@ export function BinderCoverPicker({
       colourway: keep && current ? current.colourway : next.defaultColourway,
       surfaces: current?.surfaces,
       // Changing the binder must not silently switch "show this cover on the shelf" back off.
-      showCover: current?.showCover,
+      showCover,
     });
   };
 
@@ -82,8 +86,23 @@ export function BinderCoverPicker({
       </View>
 
       <ScrollView style={styles.list} contentContainerStyle={styles.listInner}>
+        {/* NO BINDER (owner, 2026-10-13): the way back to bare pages, and the way to drop a cover
+            that was picked by mistake. It is the first entry so it is a choice like the others. */}
+        <Pressable
+          onPress={() => (current ? onChange(null) : undefined)}
+          accessibilityRole="button"
+          accessibilityState={{ selected: !current }}
+          testID="binder-cover-none"
+          style={[styles.model, !current && styles.modelOn]}>
+          <ThemedText type="smallBold">No binder cover</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {current
+              ? 'Remove the cover. Anything placed on its covers goes with it.'
+              : 'The pages on their own, no shell. Pick a binder below to give them one.'}
+          </ThemedText>
+        </Pressable>
         {BINDER_MODELS.map((m) => {
-          const on = m.id === model.id;
+          const on = !!current && m.id === model.id;
           return (
             <Pressable
               key={m.id}
@@ -101,7 +120,7 @@ export function BinderCoverPicker({
                   {m.colourways.map((c) => (
                     <Pressable
                       key={c.id}
-                      onPress={() => onChange({ modelId: m.id, colourway: c.id, surfaces: current?.surfaces, showCover: current?.showCover })}
+                      onPress={() => onChange({ modelId: m.id, colourway: c.id, surfaces: current?.surfaces, showCover })}
                       accessibilityLabel={c.name}
                       style={[
                         styles.swatch,

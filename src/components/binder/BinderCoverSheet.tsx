@@ -11,7 +11,7 @@ import { Modal, Pressable, StyleSheet, View } from 'react-native';
 
 import { BinderCoverPicker } from '@/components/binder/BinderCoverPicker';
 import { ThemedText } from '@/components/themed-text';
-import { Palette, Radius, Spacing } from '@/constants/theme';
+import { Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import type { BinderCover, DemoBinder } from '@/data/binderTypes';
 
 export function BinderCoverSheet({
@@ -20,7 +20,8 @@ export function BinderCoverSheet({
   onClose,
 }: {
   binder: DemoBinder;
-  onChange: (cover: BinderCover) => void;
+  /** A cover, or null for "no binder": the shell and everything placed on it go. */
+  onChange: (cover: BinderCover | null) => void;
   onClose: () => void;
 }) {
   return (
@@ -42,8 +43,10 @@ export function BinderCoverSheet({
                   </ThemedText>
                 ) : null}
               </View>
-              <ThemedText type="small">
-                Show cover — use the front cover as this binder&apos;s face on the shelf
+              {/* THE SWITCH PEOPLE MISSED (owner, 2026-10-13): body size and bold, so it reads
+                  as the decision it is rather than a footnote under the title. */}
+              <ThemedText type="default" style={styles.showText}>
+                Show cover: use the front cover as this binder&apos;s face on the shelf
               </ThemedText>
             </Pressable>
           ) : null}
@@ -78,10 +81,11 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   sub: { marginTop: -4 },
-  showRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  showRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingVertical: Spacing.one },
+  showText: { fontWeight: Weight.semibold },
   check: {
-    width: 18,
-    height: 18,
+    width: 22,
+    height: 22,
     borderRadius: 4,
     borderWidth: 1,
     borderColor: Palette.hairlineStrong,

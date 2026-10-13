@@ -282,8 +282,10 @@ export interface BinderCover {
   surfaces?: Partial<Record<CoverSurfaceId, CoverDecoration[]>>;
   /**
    * Show the FRONT COVER as this binder's face wherever a binder is shown small: the shelf, a
-   * profile, Discover. Off by default, because a binder people recognise by its first page should
-   * not silently start showing a plain shell the moment its owner picks a model.
+   * profile, Discover. ON when a cover is first chosen (owner, 2026-10-13; it was off, so that a
+   * binder people knew by its first page did not silently turn into a plain shell, and in practice
+   * nobody found the switch). Absent on a cover from before that day still reads as off, so no
+   * existing shelf changes on its own.
    */
   showCover?: boolean;
 }
@@ -360,8 +362,12 @@ export interface DemoBinder {
   /**
    * The real binder these pages live in: model, colourway, and whatever has been stuck to its four
    * surfaces. Absent means undressed, which is every binder made before covers existed.
+   *
+   * `null` means REMOVED and is different from absent, the same rule as `track` on a page: the
+   * repo writes the column only for a patch whose `cover` is not `undefined`, so "No binder" in the
+   * cover sheet sends null, and the column is cleared rather than left alone.
    */
-  cover?: BinderCover;
+  cover?: BinderCover | null;
   /**
    * What the pages are made of and what the pockets wear: material, sleeve, art backing. Absent
    * is the plain page; `null` is an explicit clearing, the value a removal must carry (see track).

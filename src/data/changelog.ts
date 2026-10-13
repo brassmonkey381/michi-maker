@@ -135,6 +135,15 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         products: ['michi'],
+        head: 'A new binder cover shows on the shelf straight away',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'Choosing a binder now turns on "Show cover" by itself, and the switch is easier to see. '
+          + 'The cover list also starts with "No binder cover", which removes a cover you no longer want.',
+      },
+      {
+        products: ['michi'],
         head: 'Scan Cards in the menu takes you to TCGScan, signed in',
         kind: 'new',
         area: 'account',

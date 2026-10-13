@@ -211,7 +211,8 @@ export function BinderLook({
                     modelId: match.modelId,
                     colourway: match.colourway,
                     surfaces: binder.cover?.surfaces,
-                    showCover: binder.cover?.showCover,
+                    // On by default for a binder's first cover (owner, 2026-10-13).
+                    showCover: binder.cover ? binder.cover.showCover : true,
                   },
                 }),
               )}

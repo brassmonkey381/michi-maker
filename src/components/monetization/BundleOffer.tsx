@@ -19,7 +19,7 @@
  * Every TCGScan mention links to its landing page (TCGSCAN_URL → tcgscan.ai).
  * Nothing here removes access — these are additive CTAs.
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -50,13 +50,27 @@ export function openTcgscan(): Promise<void> {
  * changing — during which this used to look like a button that did nothing, and a second press
  * minted a second ticket. Every caller should hold a pending state over it; `useTcgscanOpen` is
  * that state, and the reason this returns a promise rather than firing and forgetting.
+ *
+ * NEW TAB (owner, 2026-10-13, for the rail's Scan Cards link): `tab` is a window the CALLER opened
+ * synchronously inside the press, before any await, because a popup blocker only allows a window
+ * opened while the click is still the current task. The ticket is minted and the tab is then
+ * pointed at the destination; this page stays. A blocked popup (null) falls back to the same tab,
+ * so the press always goes somewhere.
  */
-export function openTcgscanUrl(url: string): Promise<void> {
+export function openTcgscanUrl(url: string, tab: Window | null = null): Promise<void> {
   return (async () => {
     const isTcgscan = /^https:\/\/([a-z0-9-]+\.)?tcgscan\.ai(\/|$)/i.test(url);
     const target = isTcgscan ? withHandoffHash(url, await mintHandoffHash()) : url;
-    if (Platform.OS === 'web' && typeof window !== 'undefined') window.location.assign(target);
-    else await Linking.openURL(target).catch(() => {});
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      if (tab && !tab.closed) {
+        tab.opener = null;
+        tab.location.href = target;
+      } else {
+        window.location.assign(target);
+      }
+    } else {
+      await Linking.openURL(target).catch(() => {});
+    }
   })();
 }
 
@@ -68,18 +82,23 @@ export function openTcgscanUrl(url: string): Promise<void> {
  * press while it is true is ignored: two tickets for one journey is a wasted mint, and the second
  * would be the one redeemed while the first went stale.
  */
-export function useTcgscanOpen(): { opening: boolean; open: (url?: string) => void } {
+export function useTcgscanOpen(): { opening: boolean; open: (url?: string, opts?: { newTab?: boolean }) => void } {
   const [opening, setOpening] = useState(false);
-  const open = useCallback(
-    (url?: string) => {
-      setOpening((was) => {
-        if (was) return was;
-        void openTcgscanUrl(url ?? TCGSCAN_URL).finally(() => setOpening(false));
-        return true;
-      });
-    },
-    [],
-  );
+  // A ref, not the functional updater it used to be: the guard has to be decided synchronously in
+  // the press so the new tab can be opened in the same task (see openTcgscanUrl), and React runs
+  // an updater function on its own schedule.
+  const inFlight = useRef(false);
+  const open = useCallback((url?: string, opts?: { newTab?: boolean }) => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setOpening(true);
+    const tab =
+      opts?.newTab && Platform.OS === 'web' && typeof window !== 'undefined' ? window.open('', '_blank') : null;
+    void openTcgscanUrl(url ?? TCGSCAN_URL, tab).finally(() => {
+      inFlight.current = false;
+      setOpening(false);
+    });
+  }, []);
   return { opening, open };
 }
 

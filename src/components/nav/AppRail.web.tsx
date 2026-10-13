@@ -13,14 +13,12 @@ import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, useWindowDi
 
 import { LogoMark } from '@/components/brand/LogoMark';
 import { useTcgscanOpen } from '@/components/monetization/BundleOffer';
-import { TCGSCAN_URL } from '@/data/subscriptions';
 import { Wordmark } from '@/components/brand/Wordmark';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Breakpoints, Fonts, FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { freshPinned } from '@/data/changelog';
 import { NAV_EXPLORE, NAV_YOU, navHiddenOn, type NavItem } from '@/components/nav/navItems';
-import { SHOW_CROSS_APP } from '@/lib/crossApp';
 import { useAuth } from '@/store/auth';
 
 /**
@@ -35,13 +33,11 @@ import { useAuth } from '@/store/auth';
 type RailItem = NavItem;
 
 // Two groups: "Explore" (discovery + info) and "You" (the account's own stuff). Both come from
-// nav/navItems; only the What's New glow and the sister-app link are decided here, because both
-// depend on state the list itself should not carry.
-const EXPLORE: RailItem[] = [
-  ...NAV_EXPLORE.map((i) => (i.label === 'What’s New' ? { ...i, glow: freshPinned().length > 0 } : i)),
-  // The sister app, in the rail where every page can see it. External: it leaves for tcgscan.ai.
-  ...(SHOW_CROSS_APP ? [{ label: 'TCGScan ↗', href: TCGSCAN_URL as Href, match: () => false, external: true }] : []),
-];
+// nav/navItems; only the What's New glow is decided here, because it depends on state the list
+// itself should not carry. The sister-app link (Scan Cards) lives in the list since 2026-10-13.
+const EXPLORE: RailItem[] = NAV_EXPLORE.map((i) =>
+  i.label === 'What’s New' ? { ...i, glow: freshPinned().length > 0 } : i,
+);
 const YOU: RailItem[] = NAV_YOU;
 
 export function AppRail() {
@@ -108,8 +104,8 @@ function RailGroup({
   pathname: string;
   onNavigate: (href: Href) => void;
 }) {
-  // The TCGScan item is the one link here that is not instant: it mints a sign-in ticket first.
-  // Only the group holding it ever shows a pending state, and the others simply never set it.
+  // The Scan Cards item is the one link here that is not instant: it mints a sign-in ticket first
+  // and opens tcgscan.ai in a new tab. Only the group holding it ever shows a pending state.
   const { opening, open } = useTcgscanOpen();
   return (
     <>
@@ -122,7 +118,7 @@ function RailGroup({
           return (
             <Pressable
               key={item.label}
-              onPress={() => (item.external ? open() : onNavigate(item.href))}
+              onPress={() => (item.external ? open(String(item.href), { newTab: item.newTab }) : onNavigate(item.href))}
               disabled={item.external && opening}
               accessibilityRole="link"
               accessibilityState={{ selected: active, busy: item.external && opening }}
@@ -138,7 +134,7 @@ function RailGroup({
                 type={active || item.glow ? 'smallBold' : 'small'}
                 themeColor={active || item.glow ? undefined : 'textSecondary'}
                 style={[styles.itemText, item.glow && styles.itemTextGlow]}>
-                {/* The TCGScan link mints a sign-in ticket before it navigates; it says so while
+                {/* The Scan Cards link mints a sign-in ticket before it navigates; it says so while
                     that is happening rather than looking like a link that missed the press. */}
                 {item.external && opening ? 'Opening…' : item.label}
               </ThemedText>

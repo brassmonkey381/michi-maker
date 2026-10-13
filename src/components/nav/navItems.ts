@@ -12,6 +12,8 @@
  */
 import type { Href } from 'expo-router';
 
+import { TCGSCAN_URL } from '@/data/subscriptions';
+
 export type NavItem = {
   label: string;
   href: Href;
@@ -19,6 +21,8 @@ export type NavItem = {
   match: (path: string) => boolean;
   /** Leaves for the sister app: minted sign-in ticket first, so it cannot be a plain link. */
   external?: boolean;
+  /** Opens in a new tab, so this site stays where it was. Only meaningful with `external`. */
+  newTab?: boolean;
   /** A glow and a chevron while there is something unread. Today only What's New earns it. */
   glow?: boolean;
 };
@@ -33,6 +37,12 @@ export const NAV_EXPLORE: NavItem[] = [
   // No contest line (owner call, 2026-10-11): the first contest is over and /contest is its
   // record, reached from the winning binders and by URL. Re-add here when the next one opens.
   { label: 'Browse Cards', href: '/browse' as Href, match: (p) => p.startsWith('/browse') },
+  // SCAN CARDS (owner, 2026-10-13): tcgscan.ai in a new tab, signed in as this account by way of
+  // the one-time handoff ticket (data/handoff.ts), so a member does not sign in twice. Shown in
+  // every build, NOT behind SHOW_CROSS_APP: the owner asked for the link itself; the bundle,
+  // pairing card and the rest of the cross-selling stay behind that flag. `match` is never true
+  // because this rail never shows tcgscan's pages.
+  { label: 'Scan Cards', href: TCGSCAN_URL as Href, match: () => false, external: true, newTab: true },
   {
     label: 'Plans',
     href: '/plans' as Href,

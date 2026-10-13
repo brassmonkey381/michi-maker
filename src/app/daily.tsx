@@ -344,7 +344,7 @@ export default function DailyScreen() {
                     </ThemedText>
                   ) : (
                     <ThemedText type="small" themeColor="textSecondary">
-                      Close spellings and plurals count.
+                      Close spellings, plurals, and synonyms count.
                     </ThemedText>
                   )}
 

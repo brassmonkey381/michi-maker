@@ -18,7 +18,7 @@
  * collides with one of them. The bottom-right corner is empty on every route, it is where a thumb
  * already rests, and it means this component changes no page's layout at all.
  */
-import { usePathname, useRouter, type Href } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,8 +28,6 @@ import { useTcgscanOpen } from '@/components/monetization/BundleOffer';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Breakpoints, FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
-import { SHOW_CROSS_APP } from '@/lib/crossApp';
-import { TCGSCAN_URL } from '@/data/subscriptions';
 import { freshPinned } from '@/data/changelog';
 import { NAV_EXPLORE, NAV_YOU, navHiddenOn, type NavItem } from '@/components/nav/navItems';
 
@@ -100,7 +98,7 @@ export function MobileNav() {
   const go = useCallback(
     (item: NavItem) => {
       if (item.external) {
-        openTcgscan();
+        openTcgscan(String(item.href), { newTab: item.newTab });
         return;
       }
       setOpen(false);
@@ -113,10 +111,9 @@ export function MobileNav() {
   const railShowing = Platform.OS === 'web' && width >= Breakpoints.rail;
   if (railShowing || navHiddenOn(pathname)) return null;
 
-  const explore: NavItem[] = [
-    ...NAV_EXPLORE.map((i) => (i.label === 'What’s New' ? { ...i, glow: freshPinned().length > 0 } : i)),
-    ...(SHOW_CROSS_APP ? [{ label: 'TCGScan ↗', href: TCGSCAN_URL as Href, match: () => false, external: true }] : []),
-  ];
+  const explore: NavItem[] = NAV_EXPLORE.map((i) =>
+    i.label === 'What’s New' ? { ...i, glow: freshPinned().length > 0 } : i,
+  );
 
   return (
     <>

@@ -135,6 +135,15 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         products: ['michi'],
+        head: 'Scan Cards in the menu takes you to TCGScan, signed in',
+        kind: 'new',
+        area: 'account',
+        body:
+          'Under Browse Cards there is now Scan Cards. It opens tcgscan.ai in a new tab and signs '
+          + 'you in there with the same account, so your scans and your binders share one login.',
+      },
+      {
+        products: ['michi'],
         head: 'Every daily puzzle now comes with an easy hint',
         kind: 'better',
         area: 'browse',

@@ -15,6 +15,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { ImageLinkField, PillButton } from '@/components/binder/inspector/controls';
+import { PresetPictureGrid } from '@/components/binder/PresetPictureGrid';
 import { ThemedText } from '@/components/themed-text';
 import { Palette, Radius, Spacing } from '@/constants/theme';
 import type { DemoBinder } from '@/data/binderTypes';
@@ -38,11 +39,20 @@ export function ShareBackdropField({ binder }: { binder: DemoBinder }) {
         Shown edge to edge behind the page in link previews and the full-size download, in place of the blurred page art. It never prints.
       </ThemedText>
       {open || binder.shareBackdrop ? (
-        <ImageLinkField
-          value={binder.shareBackdrop ?? undefined}
-          onChange={(shareBackdrop) => store.updateBinder(binder.id, { shareBackdrop })}
-          testID="share-backdrop-link"
-        />
+        <>
+          {/* Twenty themes to tap (owner, 2026-10-13), then the link field for a picture of your own. */}
+          <PresetPictureGrid
+            kind="theme"
+            value={binder.shareBackdrop}
+            onPick={(shareBackdrop) => store.updateBinder(binder.id, { shareBackdrop })}
+            testID="share-backdrop-presets"
+          />
+          <ImageLinkField
+            value={binder.shareBackdrop ?? undefined}
+            onChange={(shareBackdrop) => store.updateBinder(binder.id, { shareBackdrop })}
+            testID="share-backdrop-link"
+          />
+        </>
       ) : null}
     </View>
   );

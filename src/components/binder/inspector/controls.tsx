@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ColorField } from '@/components/binder/ColorField';
+import { PresetPictureGrid } from '@/components/binder/PresetPictureGrid';
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Weight } from '@/constants/theme';
 import { WEAR_NONE, isImageRef, resolveWear } from '@/data/pageStyle';
@@ -250,6 +251,9 @@ export function WearRow({
         <PillButton label="None" active={isNone} onPress={() => onChange(inherit ? WEAR_NONE : null)} testID={testID ? `${testID}-none` : undefined} />
         {inherit && own ? <PillButton label={inherit} onPress={() => onChange(null)} testID={testID ? `${testID}-inherit` : undefined} /> : null}
       </Row>
+      {/* PRESETS FIRST (owner, 2026-10-13): a row of textures to tap, then the link field for a
+          picture of your own. Both store an address; the row only makes the common case one tap. */}
+      {showLink ? <PresetPictureGrid kind="texture" value={pictured ? inEffect : undefined} onPick={onChange} testID={testID ? `${testID}-presets` : undefined} /> : null}
       {showLink ? <ImageLinkField value={pictured ? inEffect : undefined} onChange={onChange} testID={testID ? `${testID}-link` : undefined} /> : null}
     </View>
   );

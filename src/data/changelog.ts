@@ -135,6 +135,16 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         products: ['michi'],
+        head: 'Ready-made pictures for sleeves, art backings and the share image',
+        kind: 'new',
+        area: 'binders',
+        body:
+          'Press Picture on a sleeve or art backing and a row of textures is waiting: rainbow, gold, '
+          + 'silver, marble, wood, leather and more. The picture behind the share image has twenty '
+          + 'themes to tap, from water and fire to city, space and sunset. Pasting your own link still works.',
+      },
+      {
+        products: ['michi'],
         head: 'A new binder cover shows on the shelf straight away',
         kind: 'better',
         area: 'binders',

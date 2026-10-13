@@ -135,6 +135,16 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         products: ['michi'],
+        head: 'Find art for the page you are on',
+        kind: 'new',
+        area: 'binders',
+        body:
+          'A page of Pikachu now gets Pikachu searches. Press Find art in the Artwork panel and each '
+          + 'art site opens on what the page is about: Art of Pokémon, Bulbagarden, DeviantArt, Pixiv, '
+          + 'Bluesky and more. Bring back what you choose, as your own art, the same way as before.',
+      },
+      {
+        products: ['michi'],
         head: 'Ready-made pictures for sleeves, art backings and the share image',
         kind: 'new',
         area: 'binders',

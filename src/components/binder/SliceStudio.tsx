@@ -27,6 +27,8 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Palette, Radius, Weight, FontSize } from '@/constants/theme';
 import { sheet } from '@/constants/ui';
+import { usePageArtSubject } from '@/components/binder/FindArtSheet';
+import { artSearchLinks } from '@/data/pageArtSubject';
 import { StockArtSearch } from '@/components/binder/StockArtSearch';
 import { importRemoteArtToBucket } from '@/lib/importArt';
 import { stockAttribution, type StockHit } from '@/lib/stockArt';
@@ -96,6 +98,8 @@ const clampAxis = (v: number, size: number) => clamp(v, -OVER * size, 1 - size +
  * marks hosts whose images reliably load when dragged/pasted straight into the studio; the rest
  * often block hotlinking (403 → blank pocket), so the modal steers those users to save + Upload.
  */
+const NO_CARDS: readonly string[] = [];
+
 const ART_SOURCES: { title: string; blurb: string; url: string; dragFriendly: boolean }[] = [
   {
     title: 'Art of Pokémon',
@@ -235,6 +239,8 @@ interface SliceStudioProps {
   /** Render inline (inside the picker's Artwork tab) instead of as a full-screen modal: no outer
    *  Modal/SafeAreaView chrome and no Close button — the host sheet's tab bar handles navigation. */
   embedded?: boolean;
+  /** The page the studio was opened from, so Art sources can lead with searches for its subject. */
+  pageArt?: { cardIds: readonly string[]; title?: string | null };
 }
 
 export interface SliceStudioHandle {
@@ -255,6 +261,7 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
     trayLimit = Infinity,
     guest = false,
     embedded = false,
+    pageArt,
   },
   ref,
 ) {
@@ -390,6 +397,10 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
     if (Platform.OS === 'web' && typeof window !== 'undefined') window.open(url, '_blank', 'noopener');
     else void Linking.openURL(url);
   }, []);
+  // FOR THIS PAGE (owner, 2026-10-13): the sources modal leads with one search per site for what
+  // the page is about. The catalog loads only once the modal is open and there is a page to read.
+  const pageSubject = usePageArtSubject(pageArt?.cardIds ?? NO_CARDS, pageArt?.title, sourcesOpen && !!pageArt);
+  const pageLinks = pageSubject.subject.query ? artSearchLinks(pageSubject.subject.query) : [];
 
   // Resolve the image's natural size — re-runs per source. getSize failing (odd host / blob
   // quirk) just leaves `natural` null and the studio behaves like before this feature.
@@ -1608,6 +1619,23 @@ export const SliceStudio = forwardRef<SliceStudioHandle, SliceStudioProps>(funct
                     for your own personal binders, only use images you have the right to use, and
                     credit the artist and source. You are responsible for the art you add.
                   </Text>
+                  {pageLinks.length ? (
+                    <>
+                      <Text style={styles.sourcesGroup}>For this page: {pageSubject.subject.label}</Text>
+                      {pageLinks.map((s) => (
+                        <Pressable key={`page-${s.title}`} style={styles.sourceRow} onPress={() => openGallery(s.url)}>
+                          <View style={styles.sourceRowHead}>
+                            <Text style={styles.sourceTitle}>{s.title} ↗</Text>
+                            <Text style={[styles.sourceTag, s.dragFriendly ? styles.sourceTagGood : styles.sourceTagWarn]}>
+                              {s.dragFriendly ? 'drag-drop OK' : 'may block hotlinks'}
+                            </Text>
+                          </View>
+                          <Text style={styles.sourceBlurb}>{s.blurb}</Text>
+                        </Pressable>
+                      ))}
+                      <Text style={styles.sourcesGroup}>Browse</Text>
+                    </>
+                  ) : null}
                   {ART_SOURCES.map((s) => (
                     <Pressable key={s.title} style={styles.sourceRow} onPress={() => openGallery(s.url)}>
                       <View style={styles.sourceRowHead}>
@@ -1943,6 +1971,7 @@ const styles = StyleSheet.create({
   cardPickHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   sourcesCard: { width: '100%', maxWidth: 520, maxHeight: '80%' },
   sourcesList: { gap: 10, paddingBottom: 12 },
+  sourcesGroup: { fontSize: FontSize.xs, fontWeight: Weight.semibold, textTransform: 'uppercase', letterSpacing: 0.6, color: Palette.muted, marginTop: 4 },
   sourcesResponsibility: {
     fontSize: FontSize.sm,
     color: Palette.ink4,

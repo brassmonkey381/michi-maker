@@ -69,6 +69,20 @@ still generated client-side. Linking OUT to art sources stays (linking is not re
 sources list is framed neutrally ("art you have the right to use", responsibility on the user), and
 we do not encourage copying art the user hasn't sourced and licensed.
 
+### The finder, not the library — SHIPPED (2026-10-13)
+The owner asked for "intelligently add custom artwork" (a page of Pikachu gets Pikachu fan art
+from artofpkm and the like). That is Option A again, so the intelligence went into the SEARCH
+instead: `src/data/pageArtSubject.ts` reads the page's cards, names the subject, and builds one
+tuned search per source; `FindArtSheet` (Artwork panel, "Find art ↗") and the Slice Studio's Art
+sources modal ("For this page") open them in a new tab. The user brings back what they choose
+through the same paste/Upload path, hosted as their own external, private art. Nothing is fetched
+by the app. Linking out is not reproduction; the posture above is unchanged.
+
+**Internal-only exception, not a product feature (owner, 2026-10-13):** a fan-art gallery may be
+built as a PRIVATE tool for the owner's own mock-ups (story binders, auto-curated example pages
+that show what a hand-curated binder could look like). It must never be reachable by users, never
+feed a public or featured binder, and anything it places stays `external`/private. Not built yet.
+
 ## Risk ladder (lowest → highest exposure)
 
 | Use | Posture | Exposure |

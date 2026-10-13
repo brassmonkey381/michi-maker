@@ -130,6 +130,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-10-13',
+    title: 'Every puzzle has a hint',
+    items: [
+      {
+        products: ['michi'],
+        head: 'Every daily puzzle now comes with an easy hint',
+        kind: 'better',
+        area: 'browse',
+        body:
+          'Most puzzles had no hint to show. Every one, past and scheduled, now has a plain one that '
+          + 'points at both answers without naming either. Tap "Show the hint" when you are stuck.',
+      },
+    ],
+  },
+  {
     date: '2026-10-12',
     title: 'N for a new page',
     items: [

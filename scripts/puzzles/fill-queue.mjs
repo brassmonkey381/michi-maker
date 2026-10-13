@@ -11,10 +11,12 @@
  * to every player until its morning. Studio lists it so it can be reviewed, edited or unpublished
  * first.
  *
- * THE HINT IS LEFT EMPTY ON PURPOSE. The hints that work are wordplay ("put the two words side by
- * side and you have somewhere a company keeps its data"), and a generated one would be filler that
- * reads as filler. Each day's caption file carries a `HINT:` line to fill in, and the puzzle plays
- * perfectly well with no hint at all, so nothing is blocked on writing one.
+ * EVERY PUZZLE GETS AN EASY HINT (owner, 2026-10-13: "they all need hints"). Until then the hint
+ * was left for a person to write as wordplay, and twenty-one of twenty-four puzzles shipped with
+ * none. The hint is now built from the two answers by src/data/puzzleHints.ts, one plain clue per
+ * word and never a word the grader accepts, and it goes in with the publish. A word with no clue
+ * yet is reported in step 4 and the puzzle still ships; add the clue there, then set the hint in
+ * Studio. Studio can still replace any generated hint with a hand-written one.
  *
  * HOW A COMBINATION IS CHOSEN. Four rules, each of which killed a bad puzzle in testing:
  *   1. Only `scene:` and `object:` tags. The corpus also carries mood:, action:, style:, medium:,
@@ -37,6 +39,7 @@ import {
   fail, imageManifest, puzzleToday, addDays, q, step, textArray,
 } from '../lib/michi.mjs';
 import { caption } from './caption.mjs';
+import { hintFor } from '../../src/data/puzzleHints.ts';
 import { familyList } from '../../src/data/puzzleSynonyms.ts';
 
 const APPLY = process.argv.includes('--apply');
@@ -290,7 +293,9 @@ for (const s of scored) {
   // `themes` is what restingOn reads, for history and for this run alike. Leaving it off made the
   // within-run cooldown read undefined and silently pass, which put `city` on three consecutive
   // days in the first dry run.
-  chosen.push({ ...s, cards, page, publish_on: landsOn, themes: [s.w1, s.w2] });
+  const hint = hintFor([s.w1, s.w2]);
+  if (!hint) console.log(`  NO HINT for ${s.w1} + ${s.w2}: add the missing clue to src/data/puzzleHints.ts`);
+  chosen.push({ ...s, cards, page, publish_on: landsOn, themes: [s.w1, s.w2], hint });
 }
 
 for (const r of rejected.slice(0, 10)) console.log(`  dropped  ${r}`);
@@ -305,6 +310,7 @@ for (const c of chosen) {
     `  ${c.publish_on}  ${c.w1} + ${c.w2}  ${c.grid.rows}x${c.grid.cols}, `
     + `${c.n} candidates, ${c.page.length} on the page`,
   );
+  console.log(`              hint: ${c.hint ?? '(none)'}`);
 }
 
 /**
@@ -389,10 +395,10 @@ for (const c of chosen) {
   const [pub] = await adminSql(`
     select public.admin_publish_puzzle(
       ${q(c.publish_on)}::date, ${q(c.pageId)}::uuid,
-      ${textArray([c.w1, c.w2])}, null, ${textArray(urls)}) as id;
+      ${textArray([c.w1, c.w2])}, ${q(c.hint)}, ${textArray(urls)}) as id;
   `);
   c.puzzleId = pub.id;
-  console.log(`  ${c.publish_on}  ${c.w1} + ${c.w2}  puzzle ${String(pub.id).slice(0, 8)}`);
+  console.log(`  ${c.publish_on}  ${c.w1} + ${c.w2}  puzzle ${String(pub.id).slice(0, 8)}  hint: ${c.hint ?? '(none)'}`);
 }
 
 step(8, 'reading it back the way a player and the renderer would');
@@ -441,7 +447,7 @@ const dir = join(ROOT, 'state', 'puzzles');
 mkdirSync(dir, { recursive: true });
 for (const c of chosen) {
   const file = join(dir, `captions-${c.publish_on}.md`);
-  writeFileSync(file, caption({ publishOn: c.publish_on, themes: [c.w1, c.w2], cardNames: c.page.map((x) => x.name), candidates: c.n }), 'utf8');
+  writeFileSync(file, caption({ publishOn: c.publish_on, themes: [c.w1, c.w2], cardNames: c.page.map((x) => x.name), candidates: c.n, hint: c.hint }), 'utf8');
   console.log(`  ${file}`);
 }
 

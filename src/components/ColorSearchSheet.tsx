@@ -181,20 +181,28 @@ export function ColorSearchSheet({
             </Text>
           ) : !seedCardId ? (
             <View style={styles.picker}>
-              <View style={styles.hintRow}>
-                <Text style={styles.hint}>Drag a stop to reweight · pick its color below</Text>
-                {/* START FROM A REAL CARD. Mixing three colours from nothing is the hard way to
-                    ask "more cards like this one looks"; a card already IS a palette. */}
-                {onEyedropper ? (
-                  <Pressable
-                    onPress={onEyedropper}
-                    style={({ pressed }) => [styles.cardBtn, pressed && styles.pressed]}
-                    accessibilityRole="button"
-                    accessibilityLabel="Take colours from a card on screen">
-                    <Text style={styles.cardBtnTxt}>⌇ Take from a card</Text>
-                  </Pressable>
-                ) : null}
-              </View>
+              {/* START FROM A REAL CARD, as the obvious way in (owner, 2026-10-14). Mixing three
+                  colours from nothing is the hard way to ask "more cards like this one looks"; a
+                  card already IS a palette. The hand mix below stays as the second path. */}
+              {onEyedropper ? (
+                <Pressable
+                  onPress={onEyedropper}
+                  style={({ pressed }) => [styles.cardBtn, pressed && styles.pressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Take colours from a card on screen"
+                  testID="color-take-from-card">
+                  <View style={styles.cardBtnDots}>
+                    {stops.map((s, i) => (
+                      <View key={i} style={[styles.cardBtnDot, { backgroundColor: `rgb(${s.rgb[0]},${s.rgb[1]},${s.rgb[2]})` }]} />
+                    ))}
+                  </View>
+                  <View style={styles.cardBtnText}>
+                    <Text style={styles.cardBtnTxt}>Take colours from a card</Text>
+                    <Text style={styles.cardBtnHelp}>Tap any card on screen: in your binder, the dock or the results.</Text>
+                  </View>
+                </Pressable>
+              ) : null}
+              <Text style={styles.hint}>Or mix by hand: drag a stop to reweight, pick its colour below</Text>
               <GradientMixBar stops={stops} active={active} onChange={setStops} onActive={setActive} />
               <HsvColorPicker
                 rgb={stops[active].rgb}
@@ -222,14 +230,22 @@ export function ColorSearchSheet({
 }
 
 const styles = StyleSheet.create({
-  hintRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   cardBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
     paddingHorizontal: Spacing.three,
-    paddingVertical: 4,
-    borderRadius: Radius.pill,
+    paddingVertical: Spacing.two,
+    borderRadius: Radius.control,
+    borderWidth: 1.5,
+    borderColor: Palette.accent,
     backgroundColor: Palette.panel,
   },
-  cardBtnTxt: { color: Palette.ink, fontSize: FontSize.xs, fontWeight: Weight.semibold },
+  cardBtnDots: { flexDirection: 'row', gap: 3 },
+  cardBtnDot: { width: 12, height: 12, borderRadius: 6, borderWidth: 1, borderColor: Palette.surface },
+  cardBtnText: { flex: 1, gap: 2 },
+  cardBtnTxt: { color: Palette.accent, fontSize: FontSize.control, fontWeight: Weight.bold },
+  cardBtnHelp: { color: Palette.muted, fontSize: FontSize.xs, lineHeight: 16 },
   backdrop: { flex: 1, backgroundColor: Palette.scrim45, justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: Palette.surface,

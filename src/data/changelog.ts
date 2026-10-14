@@ -145,6 +145,15 @@ export const CHANGELOG: ChangelogEntry[] = [
           + 'tracks are by Kevin MacLeod and the credit stays in the name. Your own upload still '
           + 'works underneath.',
       },
+      {
+        products: ['michi'],
+        head: 'Take colours from a card is the way in',
+        kind: 'better',
+        area: 'browse',
+        body:
+          'In Search by color the card button is now a full row above the mix bar, with the mix '
+          + 'colours as dots and a line on where to tap. Mixing by hand sits underneath.',
+      },
     ],
   },
   {

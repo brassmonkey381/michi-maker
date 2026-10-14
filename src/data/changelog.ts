@@ -161,7 +161,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         body:
           'Press Picture on a sleeve or art backing and a row of textures is waiting: rainbow, gold, '
           + 'silver, marble, wood, leather and more. The picture behind the share image has twenty '
-          + 'themes to tap, from water and fire to city, space and sunset. Pasting your own link still works.',
+          + 'themes to tap, from water and fire to city, space and sunset. Both are carousels: arrows, '
+          + 'the mouse wheel or a swipe page through them. Pasting your own link still works.',
       },
       {
         products: ['michi'],

@@ -188,11 +188,8 @@ function PublicViewer({ id, openAt, backHref }: { id?: string; openAt: number; b
    * than pretending, and a muted visitor stays muted across binders (the preference is remembered).
    */
   const binderNow = state.status === 'ok' ? state.binder : undefined;
-  const trackNow = (() => {
-    const pages = binderNow?.pages ?? [];
-    const pg = pages[Math.min(pageIndex, Math.max(0, pages.length - 1))];
-    return pg?.track ?? binderNow?.track;
-  })();
+  // One track per binder (owner, 2026-10-14); a page's own stored track, if any, is ignored.
+  const trackNow = binderNow?.track;
   useEffect(() => {
     setTrack(trackNow?.url ?? null, trackNow?.name ?? '');
   }, [trackNow?.url, trackNow?.name]);

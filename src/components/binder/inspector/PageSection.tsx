@@ -1,5 +1,6 @@
 /**
- * THE PAGE SECTION of the inspector: this page's name, what its pockets wear, and its track.
+ * THE PAGE SECTION of the inspector: this page's name and what its pockets wear. (Its track went
+ * on 2026-10-14: one soundtrack per binder, set in the binder's settings.)
  *
  * Blank sleeve and backing mean the binder's; "None" means bare pockets here; a pocket can still
  * say otherwise on top (see PocketSection). The composition notes at the end say why the page
@@ -8,22 +9,11 @@
 import { View } from 'react-native';
 
 import { PageComposition } from '@/components/binder/PageComposition';
-import { SoundtrackField } from '@/components/binder/SoundtrackField';
 import { LabeledInput, WearRow, styles } from '@/components/binder/inspector/controls';
-import type { BinderTrack, DemoBinder, DemoPage } from '@/data/binderTypes';
+import type { DemoBinder, DemoPage } from '@/data/binderTypes';
 import { useBinders } from '@/store/binders';
 
-export function PageFields({
-  binder,
-  page,
-  tracksLocked,
-  onTracksLocked,
-}: {
-  binder: DemoBinder;
-  page: DemoPage;
-  tracksLocked: boolean;
-  onTracksLocked: () => void;
-}) {
+export function PageFields({ binder, page }: { binder: DemoBinder; page: DemoPage }) {
   const store = useBinders();
   return (
     <View style={styles.section}>
@@ -58,13 +48,6 @@ export function PageFields({
         inherit="Use binder's"
         onChange={(artBacking) => store.updatePage(binder.id, page.id, { artBacking })}
         testID="page-backing"
-      />
-      <SoundtrackField
-        label="This page's track"
-        track={page.track}
-        onChange={(track: BinderTrack | null) => store.updatePage(binder.id, page.id, { track })}
-        locked={tracksLocked}
-        onLocked={onTracksLocked}
       />
       <PageComposition page={page} />
     </View>

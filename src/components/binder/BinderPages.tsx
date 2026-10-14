@@ -2421,9 +2421,12 @@ function SpreadColumn({
   // the old layout left a full-page-wide empty band where the previous page would have been.
   if (!page) return <View style={{ width: peekWidth ?? width }} />;
   const peeking = peekWidth != null && peekWidth > 0 && peekWidth < width;
+  // THE PEN SAYS IT OPENS (owner, 2026-10-14): while editing, a page's name carries a small pen
+  // so a tap on it reads as "rename" rather than as decoration.
   const labelEl = (
     <ThemedText type="small" themeColor="textSecondary" style={styles.neighborLabel} numberOfLines={1}>
       {label}
+      {editable && onPressLabel ? <Text style={styles.labelPen}> ✎</Text> : null}
     </ThemedText>
   );
   return (
@@ -2576,6 +2579,7 @@ const styles = StyleSheet.create({
   neighborLabel: { marginBottom: 6, height: 20 },
   /** The page title's hover/press target: the full width of its column, text centred. */
   labelPress: { alignSelf: 'stretch', alignItems: 'center' },
+  labelPen: { color: Palette.muted },
   // Under the label, overlapping the top of the page it describes — which is the page you are
   // looking at, so the card lands on the thing it is talking about.
   labelHover: { top: 30 },

@@ -533,15 +533,10 @@ export function BinderScreen({
     [binder],
   );
 
-  // THE SOUNDTRACK FOLLOWS THE PAGE. The page's own track while it is open, else the binder's,
-  // else silence; the player crossfades between them on a turn and stops when the binder closes.
-  // Above the early return below, with the other hooks; the page is read from the index because
-  // `page` itself is derived after that return.
-  const trackNow = (() => {
-    const pages = binder?.pages ?? [];
-    const pg = pages[Math.min(pageIndex, Math.max(0, pages.length - 1))];
-    return pg?.track ?? binder?.track;
-  })();
+  // ONE TRACK PER BINDER (owner, 2026-10-14): the binder's track or silence, and it stops when
+  // the binder closes. Pages used to carry their own on top; any still stored are ignored.
+  // Above the early return below, with the other hooks.
+  const trackNow = binder?.track;
   useEffect(() => {
     setTrack(trackNow?.url ?? null, trackNow?.name ?? '');
   }, [trackNow?.url, trackNow?.name]);
@@ -2188,6 +2183,8 @@ export function BinderScreen({
       showToast={showToast}
       binderLocked={!hasBinderCovers(store.tier)}
       onBinderLocked={() => showLimitToast('Named binders, hardware and covers are a PRO feature.')}
+      tracksLocked={tracksLocked}
+      onTracksLocked={onTracksLocked}
     /> : null;
 
   /**
@@ -2395,6 +2392,7 @@ export function BinderScreen({
                   accessibilityLabel={titleA11y}>
                   <ThemedText type="subtitle" numberOfLines={1} style={styles.phoneTitleText}>
                     {titleWords}
+                    {editing ? <Text style={styles.titlePen}> ✎</Text> : null}
                   </ThemedText>
                 </Pressable>
                 {primaryAction}
@@ -2462,8 +2460,11 @@ export function BinderScreen({
                   accessibilityRole="button"
                   testID="binder-title"
                   accessibilityLabel={titleA11y}>
+                  {/* THE PEN SAYS IT OPENS (owner, 2026-10-14). A plain title gave no sign that a
+                      tap renames the binder, so people hunted the settings for the field. */}
                   <ThemedText type="subtitle" numberOfLines={1} style={styles.titleText}>
                     {titleWords}
+                    {editing ? <Text style={styles.titlePen}> ✎</Text> : null}
                   </ThemedText>
                 </Pressable>
                 {binderHover.shown ? (
@@ -2838,7 +2839,7 @@ export function BinderScreen({
                 {/* Scrolls, like the page dialog: the track carousel made the fields taller than the
                     300 the plain View was sized to, and they spilled past the card's edge. */}
                 <ScrollView contentContainerStyle={styles.binderFields} keyboardShouldPersistTaps="handled">
-                  <BinderFields binder={binder} tracksLocked={tracksLocked} onTracksLocked={onTracksLocked} />
+                  <BinderFields binder={binder} />
                 </ScrollView>
               </ThemedView>
             </View>
@@ -2884,7 +2885,7 @@ export function BinderScreen({
                 </View>
                 {/* Scrolls: the composition notes below can run past a short phone. */}
                 <ScrollView contentContainerStyle={styles.binderFields} keyboardShouldPersistTaps="handled">
-                  <PageFields binder={binder} page={page} tracksLocked={tracksLocked} onTracksLocked={onTracksLocked} />
+                  <PageFields binder={binder} page={page} />
                 </ScrollView>
               </ThemedView>
             </View>
@@ -3551,6 +3552,8 @@ const styles = StyleSheet.create({
   },
   // Self-sized, so only the words take the click and the buttons underneath stay reachable.
   titlePress: { minWidth: 0 },
+  /** The small pen after an editable name: a hint, not a second control. */
+  titlePen: { fontSize: FontSize.md, color: Palette.muted },
   // Clear of the header's bottom rule, so the card reads as floating over the binder rather than
   // as another band of chrome attached to the header.
   // Clear of the header's bottom rule. The float spans the header's full height, where the old

@@ -154,6 +154,16 @@ export const CHANGELOG: ChangelogEntry[] = [
           'In Search by color the card button is now a full row above the mix bar, with the mix '
           + 'colours as dots and a line on where to tap. Mixing by hand sits underneath.',
       },
+      {
+        products: ['michi'],
+        head: 'The soundtrack lives in Binder settings',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'One track per binder, chosen under Settings with the rest of how the binder looks. It '
+          + 'plays from the first page to the last. Tapping a binder or page title now shows a '
+          + 'small pen while you edit, so it is clear the title opens for renaming.',
+      },
     ],
   },
   {

@@ -1,10 +1,11 @@
 /**
  * THE BINDER SECTION of the inspector: what the binder is called, and how the whole of it looks.
  *
- * Two halves, because today they are still shown in two places: `BinderFields` (title,
- * description, soundtrack) behind the title, and `BinderLook` (page size, background, page style,
- * thread, binder details, zip pull, sleeves, art backing, compact blanks) behind the gear. The
- * docked inspector shows both, in this order, as one section.
+ * Two halves, because today they are still shown in two places: `BinderFields` (title and
+ * description) behind the title, and `BinderLook` (page size, background, page style, thread,
+ * binder details, zip pull, sleeves, art backing, compact blanks, soundtrack) behind the gear.
+ * The soundtrack moved from behind the title to the gear on 2026-10-14 (owner): a dialog opened
+ * by tapping a name is for naming, and music is a setting of the whole binder, one per binder.
  *
  * Every row here is BINDER-WIDE. Page size was already; background became so because a binder is
  * one object, and letting each page carry its own colour let one drift into a patchwork nobody
@@ -27,15 +28,7 @@ import { isBlankPage, useBinders } from '@/store/binders';
 
 const PAGE_SIZE_OPTIONS = REAL_PAGE_SIZES.map((s) => ({ id: s.label, label: s.label, rows: s.rows, cols: s.cols }));
 
-export function BinderFields({
-  binder,
-  tracksLocked,
-  onTracksLocked,
-}: {
-  binder: DemoBinder;
-  tracksLocked: boolean;
-  onTracksLocked: () => void;
-}) {
+export function BinderFields({ binder }: { binder: DemoBinder }) {
   const store = useBinders();
   return (
     <View style={styles.section}>
@@ -53,16 +46,6 @@ export function BinderFields({
         placeholder="What is this binder about?"
         multiline
       />
-      <SoundtrackField
-        label="Soundtrack"
-        track={binder.track}
-        // `track` straight through: Remove hands over null, and null is what the repo needs to
-        // write the column. `?? undefined` turned a removal into an absent field, which the
-        // patch guard reads as "do not touch this column".
-        onChange={(track: BinderTrack | null) => store.updateBinder(binder.id, { track })}
-        locked={tracksLocked}
-        onLocked={onTracksLocked}
-      />
     </View>
   );
 }
@@ -73,6 +56,8 @@ export function BinderLook({
   showToast,
   binderLocked = false,
   onBinderLocked,
+  tracksLocked,
+  onTracksLocked,
 }: {
   binder: DemoBinder;
   /** The page being looked at: its size and colour stand for the binder's. */
@@ -86,6 +71,9 @@ export function BinderLook({
    */
   binderLocked?: boolean;
   onBinderLocked?: () => void;
+  /** Soundtracks are PRO's too; the row shows and the tap explains. */
+  tracksLocked: boolean;
+  onTracksLocked: () => void;
 }) {
   const store = useBinders();
   const ps = binder.pageStyle;
@@ -268,6 +256,19 @@ export function BinderLook({
           own={ps?.artBacking ?? WEAR_NONE}
           onChange={(artBacking) => store.setPageStyle(binder.id, { artBacking })}
           testID="binder-backing"
+        />
+      </Group>
+      {/* ONE TRACK PER BINDER (owner, 2026-10-14). It plays from the first page to the last. */}
+      <Group title="Soundtrack" note="Plays while anyone has this binder open." testID="binder-group-soundtrack">
+        <SoundtrackField
+          label="Track"
+          track={binder.track}
+          // `track` straight through: Remove hands over null, and null is what the repo needs to
+          // write the column. `?? undefined` turned a removal into an absent field, which the
+          // patch guard reads as "do not touch this column".
+          onChange={(track: BinderTrack | null) => store.updateBinder(binder.id, { track })}
+          locked={tracksLocked}
+          onLocked={onTracksLocked}
         />
       </Group>
     </View>

@@ -7,14 +7,21 @@
  * RIGHTS, UP FRONT. Music is the most-litigated upload there is, so the picker does not open
  * until the owner has ticked that they hold the rights to play this track publicly. The tick is
  * stored with the track (attested_at), the same shape the art attestation takes.
+ *
+ * STOCK TRACKS FIRST (owner, 2026-10-14). A carousel of preset tracks sits above the upload row,
+ * the way sleeves and share backdrops offer presets: one tap and the binder has music, no file
+ * and no tick, because the licence is ours to attest. The upload row keeps its place underneath
+ * for anyone with a track of their own.
  */
 import { useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { PresetTrackGrid } from '@/components/binder/PresetTrackGrid';
 import { ThemedText } from '@/components/themed-text';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
 import { pillChip } from '@/constants/ui';
 import type { BinderTrack } from '@/data/binderTypes';
+import { type PresetTrack, presetTrackName } from '@/data/presetTracks';
 import { MAX_AUDIO_BYTES, uploadAudio } from '@/lib/uploadAudio';
 
 export function SoundtrackField({
@@ -77,12 +84,22 @@ export function SoundtrackField({
     input.click();
   };
 
+  const pickPreset = (t: PresetTrack) => {
+    setError(null);
+    if (locked) {
+      onLocked();
+      return;
+    }
+    onChange({ url: t.url, name: presetTrackName(t), bytes: t.bytes, attestedAt: new Date().toISOString() });
+  };
+
   return (
     <View style={styles.wrap}>
       <ThemedText type="smallBold" style={styles.label}>
         {label}
         <Text style={styles.vip}> · PRO</Text>
       </ThemedText>
+      <PresetTrackGrid value={track?.url} onPick={pickPreset} testID="track-presets" />
       {track ? (
         <View style={styles.row}>
           <ThemedText type="small" numberOfLines={1} style={styles.name}>

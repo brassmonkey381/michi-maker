@@ -130,6 +130,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-10-14',
+    title: 'Stock soundtracks',
+    items: [
+      {
+        products: ['michi'],
+        head: 'Ready-made soundtracks, one tap',
+        kind: 'new',
+        area: 'binders',
+        body:
+          'The Soundtrack row now opens on a carousel of seventeen stock tracks: calm, cheerful, '
+          + 'playful, jazzy, spooky and more, each with its length. Press play to hear one, tap it '
+          + 'and your binder or page has music. No file to find and no rights box to tick; the '
+          + 'tracks are by Kevin MacLeod and the credit stays in the name. Your own upload still '
+          + 'works underneath.',
+      },
+    ],
+  },
+  {
     date: '2026-10-13',
     title: 'Every puzzle has a hint',
     items: [

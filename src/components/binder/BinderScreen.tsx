@@ -2835,9 +2835,11 @@ export function BinderScreen({
                     <Text style={[styles.headerAction, styles.primaryText]}>Done</Text>
                   </Pressable>
                 </View>
-                <View style={styles.binderFields}>
+                {/* Scrolls, like the page dialog: the track carousel made the fields taller than the
+                    300 the plain View was sized to, and they spilled past the card's edge. */}
+                <ScrollView contentContainerStyle={styles.binderFields} keyboardShouldPersistTaps="handled">
                   <BinderFields binder={binder} tracksLocked={tracksLocked} onTracksLocked={onTracksLocked} />
-                </View>
+                </ScrollView>
               </ThemedView>
             </View>
           </Modal>
@@ -3650,7 +3652,9 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.two,
   },
   primaryText: { color: Palette.accent },
-  binderFields: { gap: 10, flexGrow: 1, flexBasis: 300, minWidth: 240 },
+  // A scroll content container: no flexBasis. With one, the content was pinned to 300 tall and
+  // anything past it (the rights box under the track carousel) drew outside the card.
+  binderFields: { gap: 10 },
   // "Send page to…" copy/move switch, shown above the destination list.
   sendModeRow: {
     flexDirection: 'row',

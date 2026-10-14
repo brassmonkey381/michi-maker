@@ -363,6 +363,8 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
   // drawn on the card itself, so turning only that on must not carve height out of every pocket.
   const theme = useTheme();
   const captionOn = hasTextCaption(captionFields);
+  // The art credit draws over the art pocket, so it needs no strip and no catalog.
+  const artCreditOn = captionFields.includes('art');
   // The catalog load is likewise only forced by fields that actually read card metadata.
   // LABELS ARE LINKS WHEN YOU ARE READING. The price opens the card's TCGplayer page (through
   // the affiliate deep link); every other label runs the browse search that filters to it — this
@@ -888,10 +890,11 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
             );
           })}
 
-        {/* Source attribution under custom artwork, every piece carries its credit, so a
-            sliced scene labels each pocket. Derived from the stored source URL; slices are
-            never re-hosted. */}
-        {captionOn &&
+        {/* Source attribution OVER the bottom of custom artwork (owner, 2026-10-13): its own
+            label, "Art", on by default, so it no longer depends on a strip field being on. Every
+            piece carries its credit, so a sliced scene labels each pocket. Derived from the stored
+            source URL; slices are never re-hosted. */}
+        {artCreditOn &&
           page.slots.map((slot) => {
             if (slot.type !== 'artwork' || !slot.imageUrl || slot.cardId) return null;
             const b = box(slot.row, slot.col, slot.rowSpan, slot.colSpan);
@@ -901,9 +904,9 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
                 url={slot.imageUrl}
                 attribution={slot.attribution}
                 left={b.left}
-                top={b.top + b.height}
+                top={b.top}
                 width={b.width}
-                height={captionH}
+                height={b.height}
                 small={small}
               />
             );
@@ -2103,11 +2106,14 @@ function ArtCaption({
   height: number;
   small: boolean;
 }) {
+  // The box IS the pocket; the pill sits at its bottom centre, over the picture, the way the
+  // on-card chips sit over a card. Over rather than under, so the credit costs no pocket height
+  // and shows whether or not any strip field is on.
   return (
-    <View pointerEvents="none" style={[styles.caption, { left, top, width, height }]}>
+    <View pointerEvents="none" style={[styles.caption, styles.artCredit, { left, top, width, height }]}>
       <View style={styles.captionPill}>
         <Text numberOfLines={2} style={[styles.captionText, small && styles.captionTextSmall]}>
-          {`art · ${attributionLabel(deriveAttribution(url, attribution))}`}
+          {attributionLabel(deriveAttribution(url, attribution))}
         </Text>
       </View>
     </View>
@@ -2787,6 +2793,8 @@ const styles = StyleSheet.create({
     paddingTop: 3,
     paddingHorizontal: 2,
   },
+  // The art credit: same pill, anchored to the bottom of the pocket it labels.
+  artCredit: { justifyContent: 'flex-end', paddingTop: 0, paddingBottom: 4, paddingHorizontal: 4 },
   captionPill: {
     maxWidth: '100%',
     paddingHorizontal: 5,

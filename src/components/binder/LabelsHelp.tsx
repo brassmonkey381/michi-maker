@@ -30,6 +30,7 @@ const FIELD_HELP: Record<CaptionFieldKey, string> = {
   released: 'Full release date (e.g. Mar 15, 2022), under the card',
   price: 'Latest market value for the finish you own — bottom-right of the card',
   finish: 'Print finish of the copy you own — a coloured N / H / RH chip on the card itself',
+  art: 'Artist and source of each art pocket, across the bottom of the picture',
 };
 
 const GROUP_TITLES: Record<RarityGroup, string> = {

@@ -23,7 +23,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { CAPTION_FIELDS, DEFAULT_CAPTION_FIELDS, type CaptionFieldKey } from '@/data/cardCaption';
+import { CAPTION_FIELDS, DEFAULT_CAPTION_FIELDS, ROLLED_OUT_FIELDS, type CaptionFieldKey } from '@/data/cardCaption';
 import { isCurrentEpoch, stamp } from '@/data/prefsEpoch';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/store/auth';
@@ -62,13 +62,19 @@ function storageKey(userId: string | null): string {
  */
 function normalize(value: unknown): CardLabelPrefs | null {
   if (!value || typeof value !== 'object') return null;
-  const raw = value as { on?: unknown; fields?: unknown };
+  const raw = value as { on?: unknown; fields?: unknown; offered?: unknown };
   if (typeof raw.on !== 'boolean' || !Array.isArray(raw.fields)) return null;
   const known = new Set(CAPTION_FIELDS.map((f) => f.key as string));
   const fields = raw.fields.filter((f): f is CaptionFieldKey => typeof f === 'string' && known.has(f));
   // Written before the current rollout: hand back that rollout's answer instead. Pure and
   // idempotent, so it re-applies on every read until this person saves a choice of their own.
-  return isCurrentEpoch(raw) ? { on: raw.on, fields } : applyEpoch();
+  if (!isCurrentEpoch(raw)) return applyEpoch();
+  // A field rolled out AFTER this bag was written is switched on once (owner, 2026-10-13: the art
+  // credit). The bag says which of these it was offered; the next write records all of them, so
+  // switching one off afterwards is a choice this never reaches past again.
+  const offered = new Set(Array.isArray(raw.offered) ? raw.offered.filter((f): f is string => typeof f === 'string') : []);
+  const added = ROLLED_OUT_FIELDS.filter((f) => !offered.has(f) && !fields.includes(f));
+  return { on: raw.on, fields: added.length ? [...fields, ...added] : fields };
 }
 
 export interface CardLabelPrefsState extends CardLabelPrefs {
@@ -126,7 +132,7 @@ export function useCardLabelPrefs(): CardLabelPrefsState {
     (next: CardLabelPrefs) => {
       // Stamped with the current prefs epoch, so the rollout above stops applying to this person
       // the moment they say otherwise (see `prefsEpoch`).
-      const bag = stamp({ on: next.on, fields: [...next.fields] });
+      const bag = stamp({ on: next.on, fields: [...next.fields], offered: [...ROLLED_OUT_FIELDS] });
       AsyncStorage.setItem(storageKey(userId), JSON.stringify(bag)).catch(() => {});
       // Real accounts only: an anonymous session's profile is thrown away with the session, so
       // writing to it spends a round trip on something nobody will ever read back.

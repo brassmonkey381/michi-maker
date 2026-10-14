@@ -24,7 +24,9 @@ export type CaptionFieldKey =
   | 'released'
   | 'price'
   /** The print finish — drawn as a coloured chip ON the card, not as caption text. See below. */
-  | 'finish';
+  | 'finish'
+  /** The credit on an art pocket (artist, source), drawn over the bottom of the art. See below. */
+  | 'art';
 
 /**
  * Per-card extras a caption field may need that don't live on `CatalogCard` — today just the
@@ -78,7 +80,9 @@ export type LabelSpot =
   /** The lowest row, right-hand end. One short, high-value number. */
   | 'bottomRight'
   /** The top-right corner. Drawn from the OWNED COPY rather than the card (see BinderScreen). */
-  | 'topRight';
+  | 'topRight'
+  /** Bottom centre of an ART pocket, over the picture. Not a card field at all (see 'art'). */
+  | 'artPocket';
 
 /** A chip is a filled pill for something short and scannable; text is for everything else. */
 export type LabelRender = 'chip' | 'text';
@@ -167,6 +171,11 @@ export const CAPTION_FIELDS: {
   // The print finish (N / H / RH …). Its value comes from the owned COPY in the pocket, not from
   // the card, so there is nothing for `get` to read here — BinderGrid draws it from the collection.
   { key: 'finish', label: 'Finish', get: () => '', spot: 'topRight', render: 'chip', chipOnly: true },
+  // THE ART CREDIT (owner, 2026-10-13). It used to be text in the strip under the pocket, which
+  // meant it only existed while one of the strip fields (rarity code, stage, released) was on, and
+  // nobody has those on. It is its own label now, on by default, drawn over the bottom of the art
+  // pocket rather than under it, so it costs no pocket height. Nothing to read from a card.
+  { key: 'art', label: 'Art', get: () => '', spot: 'artPocket', render: 'text', chipOnly: true },
 ];
 
 /**
@@ -183,6 +192,7 @@ export const CAPTION_FIELDS: {
 export const PICKER_ORDER: CaptionFieldKey[] = [
   'price',
   'finish',
+  'art',
   'artist',
   'number',
   'set',
@@ -218,7 +228,17 @@ export const DEFAULT_CAPTION_FIELDS: CaptionFieldKey[] = [
   'number',
   'price',
   'finish',
+  'art',
 ];
+
+/**
+ * Fields switched on for people who ALREADY chose their labels, once each, without bumping the
+ * global prefs epoch (which would re-run every store's rollout over choices made since). A stored
+ * label bag records which of these it has been offered; any it has not is added on read and the
+ * offer is recorded on the next write, so turning one off afterwards sticks. See
+ * use-card-label-prefs.
+ */
+export const ROLLED_OUT_FIELDS: CaptionFieldKey[] = ['art'];
 
 /**
  * Build a card's caption: the enabled fields, in `CAPTION_FIELDS` order, dropping any that are

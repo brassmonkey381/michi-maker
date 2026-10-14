@@ -135,6 +135,16 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         products: ['michi'],
+        head: 'Art credits show on the art',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'The artist and source of an art pocket now sit across the bottom of the picture, on by '
+          + 'default as the Art label. They used to hide under the pocket and only appear when a '
+          + 'rarity code, stage, or release date label was on.',
+      },
+      {
+        products: ['michi'],
         head: 'Find art for the page you are on',
         kind: 'new',
         area: 'binders',

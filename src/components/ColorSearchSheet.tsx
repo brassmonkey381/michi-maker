@@ -47,6 +47,20 @@ let savedStops: Stop[] = [
 let savedRegion: ColorRegion = 'noborder';
 let savedActive = 0; // which stop the HSV picker edits (open by default)
 
+/** A pipette drawn from views, tilted the way an eyedropper sits in a hand: no icon font here. */
+function Eyedropper() {
+  return (
+    <View style={styles.dropper}>
+      <View style={styles.dropperBody}>
+        <View style={styles.dropperBulb} />
+        <View style={styles.dropperNeck} />
+        <View style={styles.dropperTube} />
+        <View style={styles.dropperTip} />
+      </View>
+    </View>
+  );
+}
+
 export function ColorSearchSheet({
   seedCardId,
   seedName,
@@ -185,22 +199,18 @@ export function ColorSearchSheet({
                   colours from nothing is the hard way to ask "more cards like this one looks"; a
                   card already IS a palette. The hand mix below stays as the second path. */}
               {onEyedropper ? (
-                <Pressable
-                  onPress={onEyedropper}
-                  style={({ pressed }) => [styles.cardBtn, pressed && styles.pressed]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Take colours from a card on screen"
-                  testID="color-take-from-card">
-                  <View style={styles.cardBtnDots}>
-                    {stops.map((s, i) => (
-                      <View key={i} style={[styles.cardBtnDot, { backgroundColor: `rgb(${s.rgb[0]},${s.rgb[1]},${s.rgb[2]})` }]} />
-                    ))}
-                  </View>
-                  <View style={styles.cardBtnText}>
-                    <Text style={styles.cardBtnTxt}>Take colours from a card</Text>
-                    <Text style={styles.cardBtnHelp}>Tap any card on screen: in your binder, the dock or the results.</Text>
-                  </View>
-                </Pressable>
+                <View style={styles.cardRow}>
+                  <Pressable
+                    onPress={onEyedropper}
+                    style={({ pressed }) => [styles.cardBtn, pressed && styles.pressed]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Take colours from a card on screen"
+                    testID="color-take-from-card">
+                    <Eyedropper />
+                    <Text style={styles.cardBtnTxt}>Take from a card</Text>
+                  </Pressable>
+                  <Text style={styles.cardBtnHelp}>Then tap any card on screen: in your binder, the dock or the results.</Text>
+                </View>
               ) : null}
               <Text style={styles.hint}>Or mix by hand: drag a stop to reweight, pick its colour below</Text>
               <GradientMixBar stops={stops} active={active} onChange={setStops} onActive={setActive} />
@@ -230,22 +240,25 @@ export function ColorSearchSheet({
 }
 
 const styles = StyleSheet.create({
+  cardRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, flexWrap: 'wrap' },
   cardBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.three,
-    paddingHorizontal: Spacing.three,
+    gap: Spacing.two,
+    paddingLeft: Spacing.three,
+    paddingRight: Spacing.four,
     paddingVertical: Spacing.two,
-    borderRadius: Radius.control,
-    borderWidth: 1.5,
-    borderColor: Palette.accent,
-    backgroundColor: Palette.panel,
+    borderRadius: Radius.pill,
+    backgroundColor: Palette.accent,
   },
-  cardBtnDots: { flexDirection: 'row', gap: 3 },
-  cardBtnDot: { width: 12, height: 12, borderRadius: 6, borderWidth: 1, borderColor: Palette.surface },
-  cardBtnText: { flex: 1, gap: 2 },
-  cardBtnTxt: { color: Palette.accent, fontSize: FontSize.control, fontWeight: Weight.bold },
-  cardBtnHelp: { color: Palette.muted, fontSize: FontSize.xs, lineHeight: 16 },
+  cardBtnTxt: { color: Palette.accentText, fontSize: FontSize.control, fontWeight: Weight.bold },
+  cardBtnHelp: { flex: 1, minWidth: 180, color: Palette.muted, fontSize: FontSize.xs, lineHeight: 16 },
+  dropper: { width: 18, height: 18, alignItems: 'center', justifyContent: 'center' },
+  dropperBody: { alignItems: 'center', transform: [{ rotate: '45deg' }] },
+  dropperBulb: { width: 7, height: 7, borderRadius: 2, backgroundColor: Palette.accentText },
+  dropperNeck: { width: 9, height: 2, backgroundColor: Palette.accentText },
+  dropperTube: { width: 4, height: 8, backgroundColor: Palette.accentText },
+  dropperTip: { width: 0, height: 0, borderLeftWidth: 2, borderRightWidth: 2, borderTopWidth: 4, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: Palette.accentText },
   backdrop: { flex: 1, backgroundColor: Palette.scrim45, justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: Palette.surface,

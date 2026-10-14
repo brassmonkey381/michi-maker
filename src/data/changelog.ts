@@ -135,6 +135,15 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         products: ['michi'],
+        head: 'Public or private, right in the header',
+        kind: 'new',
+        area: 'binders',
+        body:
+          'Your binders now wear a PUBLIC or PRIVATE chip beside Share, so you can tell at a glance '
+          + 'which way one faces. Tap it to open sharing, or press R on a keyboard.',
+      },
+      {
+        products: ['michi'],
         head: 'Art credits show on the art',
         kind: 'better',
         area: 'binders',

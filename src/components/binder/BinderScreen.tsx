@@ -2295,6 +2295,24 @@ export function BinderScreen({
         ) : null}
         <TrackPill />
         {!editing ? printLink : null}
+        {/* PUBLIC OR PRIVATE, SAID OUT LOUD (owner, 2026-10-13): the owner's binders carry a chip
+            beside Share, so which way a binder faces is read at a glance rather than found inside
+            the sheet. Owner only: to anyone else a binder they can see is public by definition. */}
+        {!editing && isSupabaseConfigured && store.canEdit ? (
+          <Tipped text={binder.isPublic ? 'Anyone with the link can see this binder' : 'Only you can see this binder'}>
+            <Pressable
+              onPress={() => setShareOpen(true)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={`${binder.isPublic ? 'Public' : 'Private'} binder, open sharing`}
+              testID="visibility-chip"
+              style={[styles.visChip, binder.isPublic ? styles.visChipPublic : styles.visChipPrivate]}>
+              <Text style={[styles.visChipText, binder.isPublic ? styles.visChipTextPublic : styles.visChipTextPrivate]}>
+                {binder.isPublic ? 'PUBLIC' : 'PRIVATE'}
+              </Text>
+            </Pressable>
+          </Tipped>
+        ) : null}
         {!editing && isSupabaseConfigured ? (
           <Pressable onPress={() => setShareOpen(true)} hitSlop={10}>
             <Text style={[styles.headerAction, { color: theme.text }]}>Share</Text>
@@ -2929,6 +2947,7 @@ export function BinderScreen({
           onToggleCards={phone ? undefined : () => setCardsCollapsed((v) => !v)}
           onToggleSettings={() => setSettingsOpen((v) => !v)}
           onQuickPreview={() => setQuickOpen((v) => !v)}
+          onShare={isSupabaseConfigured ? () => setShareOpen((v) => !v) : undefined}
           onMovePage={() => setMovePageOpen((v) => !v)}
           onMergeSplit={editing ? mergeOrSplit : undefined}
           onNewPage={editing ? handleAddPage : undefined}
@@ -3168,6 +3187,7 @@ function EditorKeyboardShortcuts({
   onToggleCards,
   onToggleSettings,
   onQuickPreview,
+  onShare,
   onMovePage,
   onMergeSplit,
   onNewPage,
@@ -3194,6 +3214,8 @@ function EditorKeyboardShortcuts({
   onToggleSettings?: () => void;
   /** Q: the quick share image. */
   onQuickPreview?: () => void;
+  /** R: the Share panel (owner, 2026-10-13), where the binder goes public or private. */
+  onShare?: () => void;
   /** W: move this page. Editing only. */
   onMovePage?: () => void;
   /** M: merge the two selected art pieces, or split the selected one. Editing only. */
@@ -3249,6 +3271,11 @@ function EditorKeyboardShortcuts({
         onToggleSettings();
         return;
       }
+      if (!meta && !e.altKey && key === PLAIN_KEYS.share && onShare) {
+        e.preventDefault();
+        onShare();
+        return;
+      }
       if (!undoable) return;
       if (!meta && !e.altKey && key === PLAIN_KEYS.movePage && onMovePage) {
         e.preventDefault();
@@ -3287,7 +3314,7 @@ function EditorKeyboardShortcuts({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [active, undoable, pocketKeys, onUndo, onRedo, onDelete, onPrevPage, onNextPage, onToggleEdit, onToggleArt, onToggleCards, onToggleSettings, onQuickPreview, onMovePage, onMergeSplit, onNewPage, onGoToPage, onEscape]);
+  }, [active, undoable, pocketKeys, onUndo, onRedo, onDelete, onPrevPage, onNextPage, onToggleEdit, onToggleArt, onToggleCards, onToggleSettings, onQuickPreview, onShare, onMovePage, onMergeSplit, onNewPage, onGoToPage, onEscape]);
   return null;
 }
 
@@ -3586,6 +3613,14 @@ const styles = StyleSheet.create({
   // The Edit/Done mode toggle — filled pill, same voice as the studio's "Save slices".
   modeBtn: { paddingVertical: 8, paddingHorizontal: 18, borderRadius: Radius.pill, backgroundColor: Palette.accent },
   modeBtnText: { fontSize: FontSize.body, fontWeight: Weight.bold, color: Palette.accentText },
+  // The public/private chip: a filled accent pill when public, an outlined one when private, so
+  // the two read as different states and not as two colours of the same thing.
+  visChip: { paddingVertical: 3, paddingHorizontal: 9, borderRadius: Radius.pill, borderWidth: 1 },
+  visChipPublic: { backgroundColor: Palette.accent, borderColor: Palette.accent },
+  visChipPrivate: { backgroundColor: 'transparent', borderColor: Palette.hairlineStrong },
+  visChipText: { fontSize: FontSize.xs, fontWeight: Weight.bold, letterSpacing: 0.6 },
+  visChipTextPublic: { color: Palette.accentText },
+  visChipTextPrivate: { color: Palette.muted },
   likeChip: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   likeChipHeart: { color: Palette.accent, fontSize: FontSize.md, lineHeight: 18 },
   likeChipText: { color: Palette.ink2, fontSize: FontSize.control, fontWeight: Weight.semibold },

@@ -80,6 +80,7 @@ interface RcEvent {
   cancel_reason?: string;
   environment?: string;
   store?: string;
+  event_timestamp_ms?: number;
   /** USD price of the product as RevenueCat reports it (a decimal, e.g. 24.99). */
   price?: number;
   currency?: string;
@@ -129,6 +130,22 @@ function expiryFor(ev: RcEvent, now: number): number | 'never' | null {
       return Math.min(paidThrough ?? now, now);
     default:
       return null; // TEST, TRANSFER, SUBSCRIPTION_PAUSED, INVOICE_ISSUANCE, ...
+  }
+}
+
+function cancelledAtFor(ev: RcEvent): string | null | undefined {
+  switch (ev.type) {
+    case 'CANCELLATION':
+      return new Date(ev.event_timestamp_ms ?? Date.now()).toISOString();
+    case 'INITIAL_PURCHASE':
+    case 'RENEWAL':
+    case 'UNCANCELLATION':
+    case 'PRODUCT_CHANGE':
+    case 'NON_RENEWING_PURCHASE':
+    case 'SUBSCRIPTION_EXTENDED':
+      return null;
+    default:
+      return undefined;
   }
 }
 
@@ -204,6 +221,11 @@ Deno.serve(async (req) => {
       price_lookup_key: productId,
       unit_amount_minor: typeof ev.price === 'number' ? Math.round(ev.price * 100) : null,
       currency: typeof ev.price === 'number' ? 'usd' : null,
+      // Will it renew. CANCELLATION is auto-renew turned off (or a refund); a purchase, renewal
+      // or UNCANCELLATION means it will, so those clear it. Every other event (BILLING_ISSUE,
+      // EXPIRATION, ...) says nothing about intent and leaves the column as it was - an
+      // undefined key is dropped from the upsert body, a null would overwrite.
+      cancelled_at: cancelledAtFor(ev),
     },
     { onConflict: 'user_id,product' },
   );

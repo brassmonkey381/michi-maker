@@ -266,6 +266,16 @@ async function upsertOneGrant(sub: Stripe.Subscription, userId: string, product:
     unit_amount_minor: typeof price?.unit_amount === 'number' ? price.unit_amount : null,
     currency: price?.currency ?? null,
   };
+  // WILL IT RENEW. Stripe sets cancel_at_period_end when the customer turns renewal off and
+  // canceled_at when that happened; a hard-ended subscription has canceled_at too. Before this
+  // column (2026-10-14) the fact only showed as the grace being dropped from expires_at, so the
+  // morning email said "first charge <date>" about trials nobody was going to be charged for.
+  // NULL = renews. Resubscribing clears cancel_at_period_end, so this goes back to NULL by itself.
+  const willEnd =
+    sub.cancel_at_period_end || sub.status === 'canceled' || sub.status === 'incomplete_expired';
+  const cancelledAt = willEnd
+    ? new Date((sub.canceled_at ?? Math.floor(Date.now() / 1000)) * 1000).toISOString()
+    : null;
 
   const db = service();
   await db.from('entitlements').upsert(
@@ -278,6 +288,7 @@ async function upsertOneGrant(sub: Stripe.Subscription, userId: string, product:
       period_start: periodStartIso,
       term_print_allocation: termAllocation,
       ...priceCols,
+      cancelled_at: cancelledAt,
     },
     { onConflict: 'user_id,product' },
   );

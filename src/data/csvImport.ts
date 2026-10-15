@@ -14,7 +14,7 @@
  */
 import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { uuidv4 } from '@/data/binderTypes';
-import { type CsvOverrides, detectColumns, type ImportAnalysis, type ImportMatch, normCardName, normProductId, sameCardNumber, sameSetName } from '@/data/csvShape';
+import { type CsvOverrides, detectColumns, type ImportAnalysis, type ImportMatch, normCardName, normCardNumber, normProductId, sameCardNumber, sameSetName } from '@/data/csvShape';
 import { requireSupabase } from '@/lib/supabase';
 import { getPriceSummary, type PriceSummary } from '@/lib/prices';
 
@@ -58,6 +58,21 @@ export function analyzeCsv(rows: string[][], catalog: Catalog, overrides?: CsvOv
       }
     }
     return nameIndex.get(name) ?? [];
+  };
+
+  // What sits at a set and number, for the hint on a row whose name is not there: built once,
+  // lazily, the way the name index is.
+  let placeIndex: Map<string, CatalogCard> | null = null;
+  const cardAt = (setName: string, number: string): CatalogCard | undefined => {
+    if (!placeIndex) {
+      placeIndex = new Map();
+      for (const c of catalog.listAll()) placeIndex.set(`${normCardName(c.setName)}|${normCardNumber(c.number)}`, c);
+    }
+    return placeIndex.get(`${normCardName(setName)}|${normCardNumber(number)}`);
+  };
+  const listOf = (xs: string[], max = 3) => {
+    const u = [...new Set(xs)];
+    return u.slice(0, max).join(', ') + (u.length > max ? ` and ${u.length - max} more` : '');
   };
 
   const first = columns.headerless ? 0 : 1;
@@ -122,14 +137,22 @@ export function analyzeCsv(rows: string[][], catalog: Catalog, overrides?: CsvOv
       unmatched.push({ line, reason: `no card named "${rawName.slice(0, 40)}"`, kind: 'name_not_found' });
       return;
     }
+    // THE SKIP SAYS WHAT IS TRUE (owner, 2026-10-15). A row can be wrong three ways from here,
+    // and each message names the person's own words, then what the catalog has instead: the sets
+    // this card is in, or the card that sits at that number in that set.
+    const shown = rawName.slice(0, 40);
     const inSet = byName.filter((c) => sameSet(c, rawSet));
     if (inSet.length === 0) {
-      unmatched.push({ line, reason: `no ${byName[0].name} in a set called "${rawSet.slice(0, 40)}"`, kind: 'set_not_found' });
+      const at = cardAt(rawSet, rawNumber);
+      const where = at ? `${rawNumber} in that set is ${at.name}` : `it is in ${listOf(byName.map((c) => c.setName))}`;
+      unmatched.push({ line, reason: `no ${shown} in "${rawSet.slice(0, 40)}"; ${where}`, kind: 'set_not_found' });
       return;
     }
     const byNumber = inSet.filter((c) => sameNumber(c, rawNumber));
     if (byNumber.length === 0) {
-      unmatched.push({ line, reason: `no ${byName[0].name} number "${rawNumber.slice(0, 20)}" in ${inSet[0].setName}`, kind: 'number_not_found' });
+      const at = cardAt(inSet[0].setName, rawNumber);
+      const where = at ? `that number is ${at.name}` : `its numbers there are ${listOf(inSet.map((c) => c.number))}`;
+      unmatched.push({ line, reason: `no ${shown} number ${rawNumber.slice(0, 20)} in ${inSet[0].setName}; ${where}`, kind: 'number_not_found' });
       return;
     }
     // Several prints can share a name, set and number (a reverse holo of the same card); the

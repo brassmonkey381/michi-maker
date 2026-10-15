@@ -174,8 +174,9 @@ export const CHANGELOG: ChangelogEntry[] = [
         body:
           'A made-up product id beside a real name used to import the card by name as if the id were '
           + 'fine. Now an id must be in the catalog and must agree with the name, set and number on its '
-          + 'row. Without an id, all three are needed and all three must match. Every skipped row says '
-          + 'which check it failed.',
+          + 'row. Without an id, all three are needed and all three must match, but loosely: "Evolving '
+          + 'Skies" finds SWSH07: Evolving Skies, "Rayquaza V" with its number finds the alternate art, '
+          + 'and 044 is 44. Every skipped row says which check it failed and what the catalog has there.',
       },
     ],
   },

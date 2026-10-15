@@ -43,17 +43,21 @@ export function ProStatusBanner() {
     };
   }, [isSignedIn, user]);
 
-  // Back in a paid tier with binders still archived → restore up to the new cap, then reload so
-  // they reappear in the grid (the store loads binders on identity change, not on demand). A ref
-  // (not state) guards against re-running so the effect never sets state synchronously.
+  // Binders still archived with room under the cap → restore into that room, then reload so they
+  // reappear in the grid (the store loads binders on identity change, not on demand). Back in a
+  // paid tier the cap is unlimited and everything comes back. ROOM UNDER FREE COUNTS TOO (owner,
+  // 2026-10-15): an account that lost all of its binders to the reclaim, or deleted the ones it
+  // kept, sat locked out of its own work with its Free cap unused, because this only ran for paid
+  // tiers. A ref (not state) guards against re-running so the effect never sets state synchronously.
   const restoredRef = useRef(false);
+  const room = Number.isFinite(limits.binders) ? limits.binders - binderCount : Infinity;
   useEffect(() => {
-    if (!isPaid || archived <= 0 || restoredRef.current) return;
+    if (archived <= 0 || room <= 0 || restoredRef.current) return;
     restoredRef.current = true;
     restoreArchivedBinders(limits.binders).then((n) => {
       if (n > 0 && Platform.OS === 'web' && typeof window !== 'undefined') window.location.reload();
     });
-  }, [isPaid, archived, limits.binders]);
+  }, [archived, room, limits.binders]);
 
   if (!isSignedIn) return null;
 

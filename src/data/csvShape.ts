@@ -162,6 +162,33 @@ export function detectColumns(firstRow: string[], overrides?: CsvOverrides): Csv
   return cols;
 }
 
+/**
+ * A card number as the catalog and a spreadsheet would both agree on it: lowercase, one space
+ * between parts, and NO LEADING ZEROS in any run of digits (owner, 2026-10-15). A sheet pads
+ * "58/102" to "058/102", a set list writes "TG05", and the catalog may hold either; stripping the
+ * padding on both sides makes them the same card.
+ */
+export function normCardNumber(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/\d+/g, (d) => String(Number(d)))
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+/** "58" matches "58/102", and so does "058/102" or "58/102" itself. */
+export function sameCardNumber(catalogNumber: string, raw: string): boolean {
+  const n = normCardNumber(catalogNumber);
+  const r = normCardNumber(raw);
+  return n === r || n.startsWith(`${r} `) || r.startsWith(`${n} `);
+}
+
+/** A product id as typed, less any zero padding a spreadsheet added; not a number if not digits. */
+export function normProductId(raw: string): string {
+  const t = raw.trim();
+  return /^\d+$/.test(t) ? String(Number(t)) : t;
+}
+
 /** The role a column plays, if any. */
 export function roleOfColumn(columns: CsvColumns, col: number): CsvRole | null {
   for (const role of CSV_ROLES) if (columns[role] === col) return role;

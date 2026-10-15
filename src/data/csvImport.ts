@@ -14,7 +14,7 @@
  */
 import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { uuidv4 } from '@/data/binderTypes';
-import { type CsvOverrides, detectColumns, type ImportAnalysis, type ImportMatch } from '@/data/csvShape';
+import { type CsvOverrides, detectColumns, type ImportAnalysis, type ImportMatch, normProductId, sameCardNumber } from '@/data/csvShape';
 import { requireSupabase } from '@/lib/supabase';
 import { getPriceSummary, type PriceSummary } from '@/lib/prices';
 
@@ -62,17 +62,13 @@ export function analyzeCsv(rows: string[][], catalog: Catalog, overrides?: CsvOv
   // Loose equality for a cell against the catalog: case, spacing and punctuation do not count.
   const norm = (v: string) => v.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
   const sameSet = (c: CatalogCard, raw: string) => norm(c.setName) === norm(raw) || norm(c.setCode) === norm(raw);
-  // "58" matches "58/102", and so does "58/102" itself.
-  const sameNumber = (c: CatalogCard, raw: string) => {
-    const n = norm(c.number);
-    const r = norm(raw);
-    return n === r || n.startsWith(`${r} `) || r.startsWith(`${n} `);
-  };
+  // Zero padding and the set total do not count: "058" is "58" is "58/102" (csvShape.ts).
+  const sameNumber = (c: CatalogCard, raw: string) => sameCardNumber(c.number, raw);
 
   rows.slice(first).forEach((r, i) => {
     const line = i + first + 1;
     const quantity = qtyCol >= 0 ? Math.max(1, parseInt(r[qtyCol] ?? '1', 10) || 1) : 1;
-    const rawId = idCol >= 0 ? (r[idCol]?.trim() ?? '') : '';
+    const rawId = idCol >= 0 ? normProductId(r[idCol] ?? '') : '';
     const rawName = nameCol >= 0 ? (r[nameCol]?.trim() ?? '') : '';
     const rawSet = setCol >= 0 ? (r[setCol]?.trim() ?? '') : '';
     const rawNumber = numberCol >= 0 ? (r[numberCol]?.trim() ?? '') : '';

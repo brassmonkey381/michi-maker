@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { csvShape, detectColumns, looksHeaderless, parseCsv, roleOfColumn, type ImportAnalysis } from './csvShape.ts';
+import { csvShape, detectColumns, looksHeaderless, normProductId, parseCsv, roleOfColumn, sameCardNumber, type ImportAnalysis } from './csvShape.ts';
 
 test('a TCGPlayer export header is read by product id, quantity, name, set and number', () => {
   const header = parseCsv('Quantity,Name,Simple Name,Set,Card Number,Set Code,Printing,Condition,Language,Rarity,Product ID,SKU')[0];
@@ -68,4 +68,20 @@ test('a headerless shape records no header names at all', () => {
   assert.equal(shape.headerless, true);
   assert.deepEqual(shape.header, []);
   assert.equal(shape.cols, 2);
+});
+
+test('zero padding never keeps a card number or product id from matching', () => {
+  assert.ok(sameCardNumber('58/102', '058/102'));
+  assert.ok(sameCardNumber('58/102', '058'));
+  assert.ok(sameCardNumber('58/102', '58'));
+  assert.ok(sameCardNumber('058/102', '58/102'));
+  assert.ok(sameCardNumber('TG05', 'tg5'));
+  assert.ok(sameCardNumber('TG05/TG30', 'TG05'));
+  assert.ok(!sameCardNumber('58/102', '5'));
+  assert.ok(!sameCardNumber('58/102', '580'));
+  assert.ok(!sameCardNumber('58/102', '59/102'));
+  assert.equal(normProductId('0610516'), '610516');
+  assert.equal(normProductId(' 610516 '), '610516');
+  assert.equal(normProductId('abc'), 'abc');
+  assert.equal(normProductId('0'), '0');
 });

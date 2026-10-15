@@ -139,6 +139,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'new',
         area: 'collection',
         big: true,
+        pinned: true,
+        featured: true,
         body:
           'Paste or pick a file and the rows draw as a grid under the box, header pinned. Over every '
           + 'column a green tick says how we read it (Product ID, Quantity, Name, Set, Number) or a '
@@ -797,7 +799,6 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'Cut lines, to see it before you print',
-        pinned: true,
         kind: 'new',
         area: 'binders',
         body:

@@ -212,14 +212,23 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         products: ['michi'],
-        head: 'Ready-made pictures for sleeves, art backings and the share image',
+        head: 'Ready-made textures for sleeves and art backings',
         kind: 'new',
         area: 'binders',
+        big: true,
         body:
-          'Press Picture on a sleeve or art backing and a row of textures is waiting: rainbow, gold, '
-          + 'silver, marble, wood, leather and more. The picture behind the share image has twenty '
-          + 'themes to tap, from water and fire to city, space and sunset. Both are carousels: arrows, '
-          + 'the mouse wheel or a swipe page through them. Pasting your own link still works.',
+          'Press Picture on a sleeve or art backing and ten textures are waiting: rainbow, gold, '
+          + 'silver, marble, wood, leather, linen, carbon and more. Tap one and every pocket wears it. '
+          + 'Pasting your own picture link still works.',
+      },
+      {
+        products: ['michi'],
+        head: 'Twenty backdrops for the share image',
+        kind: 'new',
+        area: 'sharing',
+        body:
+          'The picture behind your share image now has twenty themes to tap, from water, fire and '
+          + 'forest to city, space and sunset. Arrows, the mouse wheel or a swipe page through them.',
       },
       {
         products: ['michi'],
@@ -262,6 +271,16 @@ export const CHANGELOG: ChangelogEntry[] = [
         body:
           'In the editor, N adds a page at the end, the same as the + Page button. The separate '
           + 'insert-after-this-page arrow is gone; it was the same thing with a harder-to-read icon.',
+      },
+      {
+        products: ['tcgscan'],
+        head: 'Try TCGScan PRO free for 3 days, from checkout',
+        kind: 'better',
+        area: 'account',
+        body:
+          'The TCGScan PRO trial now starts when you pick a plan on the website: checkout shows 3 '
+          + 'days free, your card is not charged until they end, and you can cancel before then. The '
+          + 'one-press trial button is gone. Trying one app never spends the other app\'s trial days.',
       },
     ],
   },

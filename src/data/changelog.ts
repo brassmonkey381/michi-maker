@@ -130,6 +130,43 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-10-15',
+    title: 'The CSV importer shows its work',
+    items: [
+      {
+        products: ['michi'],
+        head: 'See your CSV as a sheet before you import it',
+        kind: 'new',
+        area: 'collection',
+        big: true,
+        body:
+          'Paste or pick a file and the rows draw as a grid under the box, header pinned. Over every '
+          + 'column a green tick says how we read it (Product ID, Quantity, Name, Set, Number) or a '
+          + 'red cross says it is not used. Rows that will be skipped are marked, with the reason on '
+          + 'the row.',
+      },
+      {
+        products: ['michi'],
+        head: 'Tap a column to say what it is',
+        kind: 'new',
+        area: 'collection',
+        body:
+          'A quantity column called "Count Owned" used to be ignored without a word. Now tap its '
+          + 'heading and pick Quantity; the import reads it at once. No editing the file.',
+      },
+      {
+        products: ['michi'],
+        head: 'A column guide, and a warning when nothing can be read',
+        kind: 'better',
+        area: 'collection',
+        body:
+          'The ? beside the importer lists every column we read, the header words we know it by and '
+          + 'what it does. A file with no Product ID or Name column gets a plain warning with the three '
+          + 'ways to fix it, instead of a quiet zero.',
+      },
+    ],
+  },
+  {
     date: '2026-10-14',
     title: 'Stock soundtracks, in Settings',
     items: [

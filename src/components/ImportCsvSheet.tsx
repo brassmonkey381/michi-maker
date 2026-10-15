@@ -8,12 +8,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { SignInPerk } from '@/components/auth/SignInPerk';
+import { CsvPreviewGrid } from '@/components/CsvPreviewGrid';
 import { TcgscanLink } from '@/components/monetization/BundleOffer';
 import { LogoLoader } from '@/components/brand/LogoLoader';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
-import { analyzeCsv, csvShape, importAsPortfolio, parseCsv } from '@/data/csvImport';
+import { CSV_ROLE_INFO, CSV_ROLES, analyzeCsv, csvShape, type CsvOverrides, type CsvRole, importAsPortfolio, parseCsv } from '@/data/csvImport';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useTheme } from '@/hooks/use-theme';
 import { track } from '@/lib/analytics';
@@ -47,6 +48,10 @@ export function ImportCsvSheet({
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Column roles the person assigned by tapping a column in the grid. Reset with the text: a
+  // new paste has its own columns.
+  const [overrides, setOverrides] = useState<CsvOverrides>({});
+  const [guideOpen, setGuideOpen] = useState(false);
 
   // Seed the fields once each time the sheet opens with an initial CSV (the "Try it out!" flow
   // passes the bundled example). Cleared on close so the next open re-seeds.
@@ -66,8 +71,25 @@ export function ImportCsvSheet({
   const rows = useMemo(() => (text.trim() ? parseCsv(text) : []), [text]);
   const analysis = useMemo(() => {
     if (!catalog || rows.length === 0) return null;
-    return analyzeCsv(rows, catalog);
-  }, [catalog, rows]);
+    return analyzeCsv(rows, catalog, overrides);
+  }, [catalog, rows, overrides]);
+  const skipped = useMemo(() => new Map(analysis?.unmatched.map((u) => [u.line, u.reason]) ?? []), [analysis]);
+  // Nothing to read a card from: no id and no name column, and the person has not said which
+  // column is which. The grid above shows the columns; this says what to do about them.
+  const noKeyColumn = !!analysis && !analysis.columns.headerless && analysis.columns.id < 0 && analysis.columns.name < 0;
+  const assign = (col: number, role: CsvRole | null) =>
+    setOverrides((prev) => {
+      const next: CsvOverrides = { ...prev };
+      // The column's old role, if a person gave it one, is released.
+      for (const r of CSV_ROLES) if (next[r] === col) delete next[r];
+      if (role) next[role] = col;
+      else {
+        // "Not used" on a column we detected on our own: remember the refusal as -1.
+        const detected = analysis?.columns;
+        for (const r of CSV_ROLES) if (detected && detected[r] === col) next[r] = -1;
+      }
+      return next;
+    });
 
   // THE SHAPE OF EVERY ATTEMPT (owner, 2026-10-15). Until now only a finished import or an
   // unreadable file left a record, so a paste that matched nothing, the commonest failure, left
@@ -77,10 +99,10 @@ export function ImportCsvSheet({
   const source = useRef<'paste' | 'file'>('paste');
   useEffect(() => {
     if (!analysis || isDemoImport || text === initialCsv) return;
-    const shape = csvShape(rows, analysis, text.length);
+    const shape = csvShape(rows, analysis, text.length, overrides);
     const t = setTimeout(() => track('csv.analyzed', { ...shape, source: source.current }), 1500);
     return () => clearTimeout(t);
-  }, [analysis, rows, text, initialCsv, isDemoImport]);
+  }, [analysis, rows, text, initialCsv, isDemoImport, overrides]);
 
   // Web: let desktop users pick a .csv from disk instead of only pasting. Opens the native file
   // dialog, reads the file, and drops its text into the same paste box (so preview/import are
@@ -97,6 +119,7 @@ export function ImportCsvSheet({
         .text()
         .then((t) => {
           source.current = 'file';
+          setOverrides({});
           setText(t);
           if (!name.trim()) setName(file.name.replace(/\.[^.]+$/, ''));
           setError(null);
@@ -118,7 +141,7 @@ export function ImportCsvSheet({
       await importAsPortfolio(portfolioName, analysis.matches);
       // A real import completed. The demo flow reports demo.csv_import at its trigger instead,
       // so it doesn't double-count here.
-      if (!isDemoImport) track('csv.import', { cards: analysis.matches.length, ...csvShape(rows, analysis, text.length), source: source.current });
+      if (!isDemoImport) track('csv.import', { cards: analysis.matches.length, ...csvShape(rows, analysis, text.length, overrides), source: source.current });
       onImported(portfolioName, analysis.matches.length, analysis.totalCopies);
       setText('');
       setName('');
@@ -152,6 +175,9 @@ export function ImportCsvSheet({
               </Pressable>
             </View>
 
+            {/* Scrolls: with the column guide open and a grid under the box, the card runs past a
+                short window, and a dialog that cannot scroll hides its own Import button. */}
+            <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
             {guestGated ? (
               <SignInPerk message="Importing reads the full card catalog to match your rows. Sign in (free) to use it." />
             ) : (
@@ -161,11 +187,47 @@ export function ImportCsvSheet({
                     <Text style={styles.introText}>{intro}</Text>
                   </View>
                 ) : null}
-                <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
-                  Paste a TCGPlayer collection export, any CSV with a product-id or name column,
-                  or bare “productId,quantity” lines. The import becomes a portfolio.
-                  {SHOW_CROSS_APP ? <> It shows up in <TcgscanLink /> too, and deleting it there removes these cards again.</> : null}
-                </ThemedText>
+                <View style={styles.subRow}>
+                  <ThemedText type="small" themeColor="textSecondary" style={[styles.sub, styles.subText]}>
+                    Paste a TCGPlayer collection export, any CSV with a product-id or name column,
+                    or bare “productId,quantity” lines. The import becomes a portfolio.
+                    {SHOW_CROSS_APP ? <> It shows up in <TcgscanLink /> too, and deleting it there removes these cards again.</> : null}
+                  </ThemedText>
+                  {/* THE COLUMN GUIDE (owner, 2026-10-15): which columns we read and the header
+                      words we know them by. A "?" rather than a block of text, because most people
+                      bring a TCGPlayer export and never need it. */}
+                  <Pressable
+                    onPress={() => setGuideOpen((v) => !v)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: guideOpen }}
+                    accessibilityLabel="Which columns can be imported?"
+                    testID="csv-guide-btn"
+                    style={[styles.guideBtn, guideOpen && styles.guideBtnOn]}>
+                    <Text style={[styles.guideBtnText, guideOpen && styles.guideBtnTextOn]}>?</Text>
+                  </Pressable>
+                </View>
+                {guideOpen ? (
+                  <View style={styles.guide} testID="csv-guide">
+                    <ThemedText type="smallBold">Columns we read</ThemedText>
+                    {CSV_ROLES.map((r) => (
+                      <View key={r} style={styles.guideRow}>
+                        <Text style={styles.guideTick}>✓</Text>
+                        <View style={styles.guideBody}>
+                          <Text style={styles.guideLabel}>
+                            {CSV_ROLE_INFO[r].label}
+                            <Text style={styles.guideAccepts}>  ·  {CSV_ROLE_INFO[r].accepts}</Text>
+                          </Text>
+                          <Text style={styles.guideBlurb}>{CSV_ROLE_INFO[r].blurb}</Text>
+                        </View>
+                      </View>
+                    ))}
+                    <Text style={styles.guideBlurb}>
+                      A product id or a name is needed; the rest is optional. Any other column is left alone. If a
+                      column of yours is named differently, tap its heading in the preview and say what it is.
+                    </Text>
+                  </View>
+                ) : null}
 
                 {Platform.OS === 'web' ? (
                   <View style={styles.uploadRow}>
@@ -183,6 +245,7 @@ export function ImportCsvSheet({
                   value={text}
                   onChangeText={(t) => {
                     source.current = 'paste';
+                    setOverrides({});
                     setText(t);
                   }}
                   placeholder="Paste your CSV here…"
@@ -209,7 +272,16 @@ export function ImportCsvSheet({
 
                 {analysis ? (
                   <>
-                    <ThemedText type="small" themeColor="textSecondary">
+                    <CsvPreviewGrid rows={rows} columns={analysis.columns} skipped={skipped} onAssign={assign} />
+                    {noKeyColumn ? (
+                      <View style={styles.warnBox} testID="csv-no-key-column">
+                        <Text style={styles.warnText}>
+                          No column named Product ID or Name. Tap a column heading above to say which one it is,
+                          add one of those headers to your file, or paste one product id per line.
+                        </Text>
+                      </View>
+                    ) : null}
+                    <ThemedText type="small" themeColor="textSecondary" testID="csv-summary">
                       Matched{' '}
                       <ThemedText type="smallBold">
                         {analysis.matches.length} card{analysis.matches.length === 1 ? '' : 's'}
@@ -219,20 +291,6 @@ export function ImportCsvSheet({
                         ? ` · ${analysis.unmatched.length} row${analysis.unmatched.length === 1 ? '' : 's'} skipped`
                         : ''}
                     </ThemedText>
-                    {analysis.unmatched.length > 0 ? (
-                      <ScrollView style={styles.unmatchedBox}>
-                        {analysis.unmatched.slice(0, 8).map((u) => (
-                          <Text key={u.line} style={styles.unmatchedText}>
-                            line {u.line}: {u.reason}
-                          </Text>
-                        ))}
-                        {analysis.unmatched.length > 8 ? (
-                          <Text style={styles.unmatchedText}>
-                            …and {analysis.unmatched.length - 8} more
-                          </Text>
-                        ) : null}
-                      </ScrollView>
-                    ) : null}
                   </>
                 ) : null}
 
@@ -261,6 +319,7 @@ export function ImportCsvSheet({
                 ) : null}
               </>
             )}
+            </ScrollView>
           </ThemedView>
         </Pressable>
       </Pressable>
@@ -276,11 +335,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: Spacing.four,
   },
-  cardWrap: { width: '100%', maxWidth: 480 },
+  cardWrap: { width: '100%', maxWidth: 560 },
   card: { borderRadius: Radii.page, padding: Spacing.four, gap: Spacing.three, maxHeight: '100%' },
+  body: { gap: Spacing.three },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: FontSize.h2, lineHeight: 26 },
   sub: { lineHeight: 20 },
+  subRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
+  subText: { flex: 1 },
+  guideBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: Palette.hairlineStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  guideBtnOn: { backgroundColor: Palette.accent, borderColor: Palette.accent },
+  guideBtnText: { fontSize: FontSize.control, fontWeight: Weight.bold, color: Palette.ink2 },
+  guideBtnTextOn: { color: Palette.accentText },
+  guide: { backgroundColor: Palette.panel, borderRadius: Radius.control, padding: Spacing.three, gap: Spacing.two },
+  guideRow: { flexDirection: 'row', gap: Spacing.two, alignItems: 'flex-start' },
+  guideTick: { color: Palette.success, fontWeight: Weight.bold, fontSize: FontSize.sm, lineHeight: 18 },
+  guideBody: { flex: 1, gap: 1 },
+  guideLabel: { fontSize: FontSize.sm, fontWeight: Weight.semibold, color: Palette.ink, lineHeight: 18 },
+  guideAccepts: { fontWeight: Weight.regular, color: Palette.muted },
+  guideBlurb: { fontSize: FontSize.xs, color: Palette.muted2, lineHeight: 16 },
+  warnBox: { backgroundColor: Palette.dangerBg, borderRadius: Radius.control, borderLeftWidth: 3, borderLeftColor: Palette.danger, paddingVertical: Spacing.two, paddingHorizontal: Spacing.three },
+  warnText: { fontSize: FontSize.sm, color: Palette.danger, lineHeight: 18 },
   introBox: {
     backgroundColor: Palette.panel,
     borderRadius: Radius.control,
@@ -308,8 +391,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
   },
   uploadBtnText: { color: Palette.accent, fontSize: FontSize.control, fontWeight: Weight.semibold },
-  unmatchedBox: { maxHeight: 110 },
-  unmatchedText: { fontSize: FontSize.sm, color: Palette.muted2, lineHeight: 17 },
   importBtn: {
     backgroundColor: Palette.accent,
     borderRadius: Radius.pill,

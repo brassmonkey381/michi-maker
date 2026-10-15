@@ -14,17 +14,23 @@
  */
 import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { uuidv4 } from '@/data/binderTypes';
-import { detectColumns, type ImportAnalysis, type ImportMatch } from '@/data/csvShape';
+import { type CsvOverrides, detectColumns, type ImportAnalysis, type ImportMatch } from '@/data/csvShape';
 import { requireSupabase } from '@/lib/supabase';
 import { getPriceSummary, type PriceSummary } from '@/lib/prices';
 
 // The parser, the column detection and the shape record have no dependencies and live in
 // csvShape.ts so they can be unit-tested; re-exported here so callers keep one import.
-export { csvShape, detectColumns, parseCsv } from '@/data/csvShape';
-export type { CsvColumns, ImportAnalysis, ImportMatch, UnmatchedKind } from '@/data/csvShape';
+export { CSV_ROLE_INFO, CSV_ROLES, csvShape, detectColumns, parseCsv, roleOfColumn } from '@/data/csvShape';
+export type { CsvColumns, CsvOverrides, CsvRole, ImportAnalysis, ImportMatch, UnmatchedKind } from '@/data/csvShape';
 
-/** Resolve parsed CSV rows against the catalog. */
-export function analyzeCsv(rows: string[][], catalog: Catalog): ImportAnalysis {
+/**
+ * Resolve parsed CSV rows against the catalog. `overrides` are the column roles a person assigned
+ * by tapping a column in the preview (owner, 2026-10-15); see detectColumns.
+ *
+ * One loop for every shape. A headerless paste is the same walk with the first line as data and
+ * column 0 as the id, so a hand-assigned role behaves the same whether or not there is a header.
+ */
+export function analyzeCsv(rows: string[][], catalog: Catalog, overrides?: CsvOverrides): ImportAnalysis {
   const unmatched: ImportAnalysis['unmatched'] = [];
   const byId = new Map<string, ImportMatch>();
   const add = (card: CatalogCard, quantity: number, via: 'id' | 'name') => {
@@ -33,88 +39,73 @@ export function analyzeCsv(rows: string[][], catalog: Catalog): ImportAnalysis {
     else byId.set(card.id, { cardId: card.id, quantity, name: card.name, via });
   };
 
-  const columns = detectColumns(rows[0] ?? []);
+  const columns = detectColumns(rows[0] ?? [], overrides);
   if (rows.length === 0) return { matches: [], unmatched: [], totalCopies: 0, columns };
-
   const { id: idCol, qty: qtyCol, name: nameCol, set: setCol, number: numberCol } = columns;
 
-  // Headerless fallback: every line `productId[,quantity]`.
-  if (columns.headerless) {
-    rows.forEach((r, i) => {
-      const id = r[0]?.trim();
-      if (!/^\d+$/.test(id ?? '')) {
-        unmatched.push({ line: i + 1, reason: `"${(id ?? '').slice(0, 30)}" isn't a product id`, kind: 'not_an_id' });
+  // Name index built lazily: only when some row actually needs name matching.
+  let nameIndex: Map<string, CatalogCard[]> | null = null;
+  const namesFor = (name: string): CatalogCard[] => {
+    if (!nameIndex) {
+      nameIndex = new Map();
+      for (const c of catalog.listAll()) {
+        const k = c.name.toLowerCase();
+        const list = nameIndex.get(k) ?? [];
+        list.push(c);
+        nameIndex.set(k, list);
+      }
+    }
+    return nameIndex.get(name) ?? [];
+  };
+
+  const first = columns.headerless ? 0 : 1;
+  rows.slice(first).forEach((r, i) => {
+    const line = i + first + 1;
+    const quantity = qtyCol >= 0 ? Math.max(1, parseInt(r[qtyCol] ?? '1', 10) || 1) : 1;
+
+    const rawId = idCol >= 0 ? (r[idCol]?.trim() ?? '') : '';
+    if (rawId && /^\d+$/.test(rawId)) {
+      const card = catalog.getCard(rawId);
+      if (card) {
+        add(card, quantity, 'id');
         return;
       }
-      const card = catalog.getCard(id);
-      if (!card) {
-        unmatched.push({ line: i + 1, reason: `product id ${id} isn't in the catalog`, kind: 'id_not_in_catalog' });
-        return;
-      }
-      add(card, Math.max(1, parseInt(r[1] ?? '1', 10) || 1), 'id');
-    });
-  } else {
-    // Name index built lazily — only when some row actually needs name matching.
-    let nameIndex: Map<string, CatalogCard[]> | null = null;
-    const namesFor = (name: string): CatalogCard[] => {
-      if (!nameIndex) {
-        nameIndex = new Map();
-        for (const c of catalog.listAll()) {
-          const k = c.name.toLowerCase();
-          const list = nameIndex.get(k) ?? [];
-          list.push(c);
-          nameIndex.set(k, list);
-        }
-      }
-      return nameIndex.get(name) ?? [];
-    };
+    }
 
-    rows.slice(1).forEach((r, i) => {
-      const line = i + 2;
-      const quantity = qtyCol >= 0 ? Math.max(1, parseInt(r[qtyCol] ?? '1', 10) || 1) : 1;
-
-      const rawId = idCol >= 0 ? r[idCol]?.trim() : '';
-      if (rawId && /^\d+$/.test(rawId)) {
-        const card = catalog.getCard(rawId);
-        if (card) {
-          add(card, quantity, 'id');
-          return;
-        }
-      }
-
-      const rawName = nameCol >= 0 ? r[nameCol]?.trim() : '';
-      if (!rawName) {
-        unmatched.push(
-          rawId
-            ? { line, reason: `product id ${rawId} isn't in the catalog`, kind: 'id_not_in_catalog' }
+    const rawName = nameCol >= 0 ? (r[nameCol]?.trim() ?? '') : '';
+    if (!rawName) {
+      unmatched.push(
+        rawId && /^\d+$/.test(rawId)
+          ? { line, reason: `product id ${rawId} isn't in the catalog`, kind: 'id_not_in_catalog' }
+          : rawId
+            ? { line, reason: `"${rawId.slice(0, 30)}" isn't a product id`, kind: 'not_an_id' }
             : { line, reason: 'no id or name', kind: 'no_id_or_name' },
-        );
-        return;
-      }
-      let candidates = namesFor(rawName.toLowerCase());
-      if (candidates.length === 0) {
-        unmatched.push({ line, reason: `no card named "${rawName.slice(0, 40)}"`, kind: 'name_not_found' });
-        return;
-      }
-      const rawSet = setCol >= 0 ? r[setCol]?.trim().toLowerCase() : '';
-      if (rawSet) {
-        const inSet = candidates.filter(
-          (c) => c.setName.toLowerCase() === rawSet || c.setCode.toLowerCase() === rawSet,
-        );
-        if (inSet.length > 0) candidates = inSet;
-      }
-      const rawNumber = numberCol >= 0 ? r[numberCol]?.trim().toLowerCase() : '';
-      if (rawNumber) {
-        const byNumber = candidates.filter((c) => c.number.toLowerCase().startsWith(rawNumber));
-        if (byNumber.length > 0) candidates = byNumber;
-      }
-      // Ambiguity falls to the newest print — the likeliest thing a collector owns.
-      const pick = [...candidates].sort((a, b) =>
-        (b.releaseDate || '').localeCompare(a.releaseDate || ''),
-      )[0];
-      add(pick, quantity, 'name');
-    });
-  }
+      );
+      return;
+    }
+    let candidates = namesFor(rawName.toLowerCase());
+    if (candidates.length === 0) {
+      unmatched.push({ line, reason: `no card named "${rawName.slice(0, 40)}"`, kind: 'name_not_found' });
+      return;
+    }
+    const rawSet = setCol >= 0 ? (r[setCol]?.trim().toLowerCase() ?? '') : '';
+    if (rawSet) {
+      const inSet = candidates.filter(
+        (c) => c.setName.toLowerCase() === rawSet || c.setCode.toLowerCase() === rawSet,
+      );
+      if (inSet.length > 0) candidates = inSet;
+    }
+    const rawNumber = numberCol >= 0 ? (r[numberCol]?.trim().toLowerCase() ?? '') : '';
+    if (rawNumber) {
+      const byNumber = candidates.filter((c) => c.number.toLowerCase().startsWith(rawNumber));
+      if (byNumber.length > 0) candidates = byNumber;
+    }
+    // Ambiguity falls to the newest print, the likeliest thing a collector owns.
+    const pick = [...candidates].sort((a, b) =>
+      (b.releaseDate || '').localeCompare(a.releaseDate || ''),
+    )[0];
+    add(pick, quantity, 'name');
+  });
 
   const matches = [...byId.values()];
   return {

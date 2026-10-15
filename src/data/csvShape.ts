@@ -1,8 +1,9 @@
 /**
- * The CSV importer's pure half: the parser, which columns a header offers, and the shape record
- * the `csv.analyzed` analytics event carries. No imports, so `node --test` can load it; the
- * catalog-matching half is csvImport.ts.
+ * The CSV importer's pure half: the parser, which columns a header offers, the column roles a
+ * person can assign by hand, and the shape record the `csv.analyzed` analytics event carries.
+ * No imports, so `node --test` can load it; the catalog-matching half is csvImport.ts.
  */
+
 /** RFC4180-ish CSV parse: quoted fields, escaped quotes, CR/LF. Returns rows of cells. */
 export function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
@@ -59,15 +60,52 @@ export interface ImportAnalysis {
   columns: CsvColumns;
 }
 
+/** The things the importer can read from a column. */
+export type CsvRole = 'id' | 'qty' | 'name' | 'set' | 'number';
+export const CSV_ROLES: readonly CsvRole[] = ['id', 'qty', 'name', 'set', 'number'];
+
+/** What each role is, for the column badges and the "?" guide. `accepts` lists header words the
+ *  importer recognises on its own; anything else can be assigned by tapping the column. */
+export const CSV_ROLE_INFO: Record<CsvRole, { label: string; blurb: string; accepts: string }> = {
+  id: {
+    label: 'Product ID',
+    blurb: 'The TCGPlayer product id. An exact match, the surest way to land a card.',
+    accepts: 'Product ID, TCGPlayer ID, ID',
+  },
+  qty: {
+    label: 'Quantity',
+    blurb: 'How many copies. A row with no quantity counts as one.',
+    accepts: 'Quantity, Qty, Count, Total Quantity',
+  },
+  name: {
+    label: 'Name',
+    blurb: 'The card name, matched against the catalog. On its own it lands the newest print.',
+    accepts: 'Name, Card Name, Simple Name',
+  },
+  set: {
+    label: 'Set',
+    blurb: 'The set name or code. Narrows a name to the print from that set.',
+    accepts: 'Set, Set Name, Product Line',
+  },
+  number: {
+    label: 'Number',
+    blurb: 'The card number in its set. Narrows a name to that exact print.',
+    accepts: 'Number, Card Number',
+  },
+};
+
 export interface CsvColumns {
   id: number;
   qty: number;
   name: number;
   set: number;
   number: number;
-  /** No id and no name column: every line is read as `productId[,quantity]`. */
+  /** No header row: the first line is data, read as `productId[,quantity]`. */
   headerless: boolean;
 }
+
+/** Columns a person assigned by tapping a column: role -> column index, or -1 for "not used". */
+export type CsvOverrides = Partial<Record<CsvRole, number>>;
 
 const findCol = (header: string[], patterns: RegExp[]): number => {
   for (const p of patterns) {
@@ -77,16 +115,45 @@ const findCol = (header: string[], patterns: RegExp[]): number => {
   return -1;
 };
 
-/** Which columns the importer will read, from the first row. Exported so the shape record and
- *  the sheet's column guide say the same thing the import does. */
-export function detectColumns(firstRow: string[]): CsvColumns {
-  const header = firstRow.map((h) => h.trim().toLowerCase());
-  const id = findCol(header, [/product.?id/, /tcgplayer/, /^id$/]);
-  const qty = findCol(header, [/^(qty|quantity|count|total.?quantity)$/]);
-  const name = findCol(header, [/^simple.?name$/, /^(card.?)?name$/, /name/]);
-  const set = findCol(header, [/^set(\s?name)?$/, /product.?line/]);
-  const number = findCol(header, [/(card.?)?number/]);
-  return { id, qty, name, set, number, headerless: id < 0 && name < 0 };
+/** A first row made only of numbers (and blanks) is data, not a header: `123456,2`. */
+export function looksHeaderless(firstRow: string[]): boolean {
+  const cells = firstRow.map((c) => c.trim());
+  return cells.some((c) => c !== '') && cells.every((c) => /^\d*$/.test(c));
+}
+
+/**
+ * Which columns the importer will read, from the first row, then any assignments a person made
+ * on top. Exported so the shape record, the preview grid and the import all say the same thing.
+ *
+ * A column answers for one role only: assigning "Quantity" to the column we had read as the
+ * name takes it away from name, so two badges never claim one column.
+ */
+export function detectColumns(firstRow: string[], overrides?: CsvOverrides): CsvColumns {
+  const headerless = looksHeaderless(firstRow);
+  const header = headerless ? [] : firstRow.map((h) => h.trim().toLowerCase());
+  const cols: CsvColumns = headerless
+    ? { id: 0, qty: firstRow.length > 1 ? 1 : -1, name: -1, set: -1, number: -1, headerless }
+    : {
+        id: findCol(header, [/product.?id/, /tcgplayer/, /^id$/]),
+        qty: findCol(header, [/^(qty|quantity|count|total.?quantity)$/]),
+        name: findCol(header, [/^simple.?name$/, /^(card.?)?name$/, /name/]),
+        set: findCol(header, [/^set(\s?name)?$/, /product.?line/]),
+        number: findCol(header, [/(card.?)?number/]),
+        headerless,
+      };
+  for (const role of CSV_ROLES) {
+    const to = overrides?.[role];
+    if (to === undefined) continue;
+    if (to >= 0) for (const other of CSV_ROLES) if (other !== role && cols[other] === to) cols[other] = -1;
+    cols[role] = to;
+  }
+  return cols;
+}
+
+/** The role a column plays, if any. */
+export function roleOfColumn(columns: CsvColumns, col: number): CsvRole | null {
+  for (const role of CSV_ROLES) if (columns[role] === col) return role;
+  return null;
 }
 
 /**
@@ -95,7 +162,12 @@ export function detectColumns(firstRow: string[]): CsvColumns {
  * did not. Column names and counts only: no cell values, no card names, so a collection stays
  * the owner's. Header names are clipped so a stray data row pasted as a header cannot carry much.
  */
-export function csvShape(rows: string[][], analysis: ImportAnalysis, bytes: number): Record<string, unknown> {
+export function csvShape(
+  rows: string[][],
+  analysis: ImportAnalysis,
+  bytes: number,
+  overrides?: CsvOverrides,
+): Record<string, unknown> {
   const header = analysis.columns.headerless ? [] : rows[0] ?? [];
   const skipped: Record<string, number> = {};
   for (const u of analysis.unmatched) skipped[u.kind] = (skipped[u.kind] ?? 0) + 1;
@@ -114,6 +186,9 @@ export function csvShape(rows: string[][], analysis: ImportAnalysis, bytes: numb
       set: analysis.columns.set,
       number: analysis.columns.number,
     },
+    // Which roles the person assigned by hand, and to which column: the header words we should
+    // learn to read on our own.
+    remapped: overrides && Object.keys(overrides).length > 0 ? overrides : null,
     matched: analysis.matches.length,
     copies: analysis.totalCopies,
     matched_via: via,

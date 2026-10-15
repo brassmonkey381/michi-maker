@@ -25,6 +25,7 @@ that apply to all of them:
 | [TCGSCAN-SUBDOMAIN.md](TCGSCAN-SUBDOMAIN.md) | Bring tcgscan under a michi-maker subdomain | open |
 | [REFACTOR.md](REFACTOR.md) | Codebase simplification | ongoing |
 | [ART-RIGHTS.md](ART-RIGHTS.md) | Art rights & copyright risk brief | risk brief, non-blocking |
+| [CSV-IMPORT-COLUMNS.md](CSV-IMPORT-COLUMNS.md) | Keep unread CSV columns (grades, condition, printing) for later parsing | open |
 
 Suggested order for what remains: REFACTOR light passes can happen anytime; UI-REDESIGN
 feeds the landing page's screenshots; TCGSCAN-SUBDOMAIN is independent.

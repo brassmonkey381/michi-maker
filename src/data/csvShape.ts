@@ -65,7 +65,11 @@ export type CsvRole = 'id' | 'qty' | 'name' | 'set' | 'number';
 export const CSV_ROLES: readonly CsvRole[] = ['id', 'qty', 'name', 'set', 'number'];
 
 /** What each role is, for the column badges and the "?" guide. `accepts` lists header words the
- *  importer recognises on its own; anything else can be assigned by tapping the column. */
+ *  importer recognises on its own; anything else can be assigned by tapping the column.
+ *
+ *  THE COLUMNS WE DO NOT READ ARE WORTH KEEPING (owner, 2026-10-15): grades, cert numbers,
+ *  condition, printing, language, prices. The plan to store them with the import and parse them
+ *  later is docs/roadmap/CSV-IMPORT-COLUMNS.md; until then "Not used" means dropped. */
 export const CSV_ROLE_INFO: Record<CsvRole, { label: string; blurb: string; accepts: string }> = {
   id: {
     label: 'Product ID',

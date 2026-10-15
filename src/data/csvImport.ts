@@ -14,72 +14,18 @@
  */
 import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { uuidv4 } from '@/data/binderTypes';
+import { detectColumns, type ImportAnalysis, type ImportMatch } from '@/data/csvShape';
 import { requireSupabase } from '@/lib/supabase';
 import { getPriceSummary, type PriceSummary } from '@/lib/prices';
 
-/** RFC4180-ish CSV parse: quoted fields, escaped quotes, CR/LF. Returns rows of cells. */
-export function parseCsv(text: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let cell = '';
-  let quoted = false;
-  for (let i = 0; i < text.length; i += 1) {
-    const ch = text[i];
-    if (quoted) {
-      if (ch === '"') {
-        if (text[i + 1] === '"') {
-          cell += '"';
-          i += 1;
-        } else {
-          quoted = false;
-        }
-      } else {
-        cell += ch;
-      }
-    } else if (ch === '"') {
-      quoted = true;
-    } else if (ch === ',') {
-      row.push(cell);
-      cell = '';
-    } else if (ch === '\n' || ch === '\r') {
-      if (ch === '\r' && text[i + 1] === '\n') i += 1;
-      row.push(cell);
-      cell = '';
-      if (row.some((c) => c.trim() !== '')) rows.push(row);
-      row = [];
-    } else {
-      cell += ch;
-    }
-  }
-  row.push(cell);
-  if (row.some((c) => c.trim() !== '')) rows.push(row);
-  return rows;
-}
-
-export interface ImportMatch {
-  cardId: string;
-  quantity: number;
-  name: string;
-  via: 'id' | 'name';
-}
-export interface ImportAnalysis {
-  matches: ImportMatch[];
-  /** 1-based CSV line + why it couldn't be resolved. */
-  unmatched: { line: number; reason: string }[];
-  totalCopies: number;
-}
-
-const findCol = (header: string[], patterns: RegExp[]): number => {
-  for (const p of patterns) {
-    const i = header.findIndex((h) => p.test(h));
-    if (i >= 0) return i;
-  }
-  return -1;
-};
+// The parser, the column detection and the shape record have no dependencies and live in
+// csvShape.ts so they can be unit-tested; re-exported here so callers keep one import.
+export { csvShape, detectColumns, parseCsv } from '@/data/csvShape';
+export type { CsvColumns, ImportAnalysis, ImportMatch, UnmatchedKind } from '@/data/csvShape';
 
 /** Resolve parsed CSV rows against the catalog. */
 export function analyzeCsv(rows: string[][], catalog: Catalog): ImportAnalysis {
-  const unmatched: { line: number; reason: string }[] = [];
+  const unmatched: ImportAnalysis['unmatched'] = [];
   const byId = new Map<string, ImportMatch>();
   const add = (card: CatalogCard, quantity: number, via: 'id' | 'name') => {
     const existing = byId.get(card.id);
@@ -87,27 +33,22 @@ export function analyzeCsv(rows: string[][], catalog: Catalog): ImportAnalysis {
     else byId.set(card.id, { cardId: card.id, quantity, name: card.name, via });
   };
 
-  if (rows.length === 0) return { matches: [], unmatched: [], totalCopies: 0 };
+  const columns = detectColumns(rows[0] ?? []);
+  if (rows.length === 0) return { matches: [], unmatched: [], totalCopies: 0, columns };
 
-  const header = rows[0].map((h) => h.trim().toLowerCase());
-  const idCol = findCol(header, [/product.?id/, /tcgplayer/, /^id$/]);
-  const qtyCol = findCol(header, [/^(qty|quantity|count|total.?quantity)$/]);
-  const nameCol = findCol(header, [/^simple.?name$/, /^(card.?)?name$/, /name/]);
-  const setCol = findCol(header, [/^set(\s?name)?$/, /product.?line/]);
-  const numberCol = findCol(header, [/(card.?)?number/]);
-  const hasHeader = idCol >= 0 || nameCol >= 0;
+  const { id: idCol, qty: qtyCol, name: nameCol, set: setCol, number: numberCol } = columns;
 
   // Headerless fallback: every line `productId[,quantity]`.
-  if (!hasHeader) {
+  if (columns.headerless) {
     rows.forEach((r, i) => {
       const id = r[0]?.trim();
       if (!/^\d+$/.test(id ?? '')) {
-        unmatched.push({ line: i + 1, reason: `"${(id ?? '').slice(0, 30)}" isn't a product id` });
+        unmatched.push({ line: i + 1, reason: `"${(id ?? '').slice(0, 30)}" isn't a product id`, kind: 'not_an_id' });
         return;
       }
       const card = catalog.getCard(id);
       if (!card) {
-        unmatched.push({ line: i + 1, reason: `product id ${id} isn't in the catalog` });
+        unmatched.push({ line: i + 1, reason: `product id ${id} isn't in the catalog`, kind: 'id_not_in_catalog' });
         return;
       }
       add(card, Math.max(1, parseInt(r[1] ?? '1', 10) || 1), 'id');
@@ -143,12 +84,16 @@ export function analyzeCsv(rows: string[][], catalog: Catalog): ImportAnalysis {
 
       const rawName = nameCol >= 0 ? r[nameCol]?.trim() : '';
       if (!rawName) {
-        unmatched.push({ line, reason: rawId ? `product id ${rawId} isn't in the catalog` : 'no id or name' });
+        unmatched.push(
+          rawId
+            ? { line, reason: `product id ${rawId} isn't in the catalog`, kind: 'id_not_in_catalog' }
+            : { line, reason: 'no id or name', kind: 'no_id_or_name' },
+        );
         return;
       }
       let candidates = namesFor(rawName.toLowerCase());
       if (candidates.length === 0) {
-        unmatched.push({ line, reason: `no card named "${rawName.slice(0, 40)}"` });
+        unmatched.push({ line, reason: `no card named "${rawName.slice(0, 40)}"`, kind: 'name_not_found' });
         return;
       }
       const rawSet = setCol >= 0 ? r[setCol]?.trim().toLowerCase() : '';
@@ -176,6 +121,7 @@ export function analyzeCsv(rows: string[][], catalog: Catalog): ImportAnalysis {
     matches,
     unmatched,
     totalCopies: matches.reduce((n, m) => n + m.quantity, 0),
+    columns,
   };
 }
 

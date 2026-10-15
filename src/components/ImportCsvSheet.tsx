@@ -13,7 +13,7 @@ import { LogoLoader } from '@/components/brand/LogoLoader';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radii, Radius, Spacing, Weight } from '@/constants/theme';
-import { analyzeCsv, importAsPortfolio, parseCsv } from '@/data/csvImport';
+import { analyzeCsv, csvShape, importAsPortfolio, parseCsv } from '@/data/csvImport';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useTheme } from '@/hooks/use-theme';
 import { track } from '@/lib/analytics';
@@ -63,10 +63,24 @@ export function ImportCsvSheet({
     setError(null);
   }, [visible, initialCsv, initialName]);
 
+  const rows = useMemo(() => (text.trim() ? parseCsv(text) : []), [text]);
   const analysis = useMemo(() => {
-    if (!catalog || !text.trim()) return null;
-    return analyzeCsv(parseCsv(text), catalog);
-  }, [catalog, text]);
+    if (!catalog || rows.length === 0) return null;
+    return analyzeCsv(rows, catalog);
+  }, [catalog, rows]);
+
+  // THE SHAPE OF EVERY ATTEMPT (owner, 2026-10-15). Until now only a finished import or an
+  // unreadable file left a record, so a paste that matched nothing, the commonest failure, left
+  // none. One `csv.analyzed` per settled paste or file: header names, which columns we read, how
+  // many rows landed and why the rest did not. No cell values. Debounced so typing in the box
+  // is one event, not one per keystroke; the demo example is skipped, its shape is ours.
+  const source = useRef<'paste' | 'file'>('paste');
+  useEffect(() => {
+    if (!analysis || isDemoImport || text === initialCsv) return;
+    const shape = csvShape(rows, analysis, text.length);
+    const t = setTimeout(() => track('csv.analyzed', { ...shape, source: source.current }), 1500);
+    return () => clearTimeout(t);
+  }, [analysis, rows, text, initialCsv, isDemoImport]);
 
   // Web: let desktop users pick a .csv from disk instead of only pasting. Opens the native file
   // dialog, reads the file, and drops its text into the same paste box (so preview/import are
@@ -82,6 +96,7 @@ export function ImportCsvSheet({
       file
         .text()
         .then((t) => {
+          source.current = 'file';
           setText(t);
           if (!name.trim()) setName(file.name.replace(/\.[^.]+$/, ''));
           setError(null);
@@ -103,7 +118,7 @@ export function ImportCsvSheet({
       await importAsPortfolio(portfolioName, analysis.matches);
       // A real import completed. The demo flow reports demo.csv_import at its trigger instead,
       // so it doesn't double-count here.
-      if (!isDemoImport) track('csv.import', { cards: analysis.matches.length });
+      if (!isDemoImport) track('csv.import', { cards: analysis.matches.length, ...csvShape(rows, analysis, text.length), source: source.current });
       onImported(portfolioName, analysis.matches.length, analysis.totalCopies);
       setText('');
       setName('');
@@ -166,7 +181,10 @@ export function ImportCsvSheet({
                 ) : null}
                 <TextInput
                   value={text}
-                  onChangeText={setText}
+                  onChangeText={(t) => {
+                    source.current = 'paste';
+                    setText(t);
+                  }}
                   placeholder="Paste your CSV here…"
                   placeholderTextColor={theme.textSecondary}
                   multiline

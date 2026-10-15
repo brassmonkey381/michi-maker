@@ -131,38 +131,49 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-10-14',
-    title: 'Stock soundtracks',
+    title: 'Stock soundtracks, in Settings',
     items: [
       {
         products: ['michi'],
         head: 'Ready-made soundtracks, one tap',
         kind: 'new',
         area: 'binders',
+        big: true,
         body:
-          'The Soundtrack row now opens on a carousel of seventeen stock tracks: calm, cheerful, '
-          + 'playful, jazzy, spooky and more, each with its length. Press play to hear one, tap it '
-          + 'and your binder or page has music. No file to find and no rights box to tick; the '
-          + 'tracks are by Kevin MacLeod and the credit stays in the name. Your own upload still '
-          + 'works underneath.',
+          'Open Settings while editing and the new Soundtrack group offers seventeen stock tracks on '
+          + 'a carousel: calm, cheerful, playful, jazzy, spooky and more, each with its length. Press '
+          + 'play to hear one, tap it and the binder has music. No file to find and no rights box to '
+          + 'tick; the tracks are by Kevin MacLeod and the credit stays in the name. Your own upload '
+          + 'still works underneath. PRO.',
       },
       {
         products: ['michi'],
-        head: 'Take colours from a card is the way in',
-        kind: 'better',
-        area: 'browse',
-        body:
-          'In Search by color the card button is now a full row above the mix bar, with the mix '
-          + 'colours as dots and a line on where to tap. Mixing by hand sits underneath.',
-      },
-      {
-        products: ['michi'],
-        head: 'The soundtrack lives in Binder settings',
+        head: 'One soundtrack per binder',
         kind: 'better',
         area: 'binders',
         body:
-          'One track per binder, chosen under Settings with the rest of how the binder looks. It '
-          + 'plays from the first page to the last. Tapping a binder or page title now shows a '
-          + 'small pen while you edit, so it is clear the title opens for renaming.',
+          'A binder has one track and it plays from the first page to the last. It moved out of the '
+          + 'dialog behind the title, which is for naming, into Settings with the rest of how the '
+          + 'binder looks. The page dialog no longer offers a track of its own.',
+      },
+      {
+        products: ['michi'],
+        head: 'Titles show a pen while you edit',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'The binder title and every page title carry a small pen in edit mode, so it is clear a '
+          + 'tap opens them for renaming. Viewing, the titles are plain as before.',
+      },
+      {
+        products: ['michi'],
+        head: 'Take from a card is a button',
+        kind: 'better',
+        area: 'browse',
+        body:
+          'In Search by color the eyedropper is now a proper button above the mix bar, with an '
+          + 'eyedropper icon and a line on where to tap next: any card on screen, in your binder, the '
+          + 'dock or the results. Mixing colours by hand sits underneath as the second path.',
       },
     ],
   },

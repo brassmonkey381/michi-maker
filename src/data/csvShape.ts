@@ -189,6 +189,40 @@ export function normProductId(raw: string): string {
   return /^\d+$/.test(t) ? String(Number(t)) : t;
 }
 
+/** Lowercase, accents folded (Pokémon is pokemon), "&" read as "and", punctuation gone. */
+function foldText(raw: string): string {
+  return raw
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+/**
+ * A card name the way a collector writes it (owner, 2026-10-15): the catalog calls the alternate
+ * art "Rayquaza V (Alternate Full Art)", a spreadsheet says "Rayquaza V" and lets the number say
+ * which print. Trailing parenthetical tags are dropped on both sides, so the name finds the
+ * family and the set and number pick the card.
+ */
+export function normCardName(raw: string): string {
+  return foldText(raw.replace(/\s*\([^)]*\)\s*$/g, '').replace(/\s*\([^)]*\)/g, ' '));
+}
+
+/**
+ * A set name as the catalog spells it, "SWSH07: Evolving Skies", matches what a collector writes:
+ * "Evolving Skies", "SWSH07 Evolving Skies", "swsh07", "Sword and Shield Base Set" for
+ * "Sword & Shield Base Set". Every spelling the catalog could be known by is tried.
+ */
+export function sameSetName(catalogName: string, catalogCode: string, raw: string): boolean {
+  const r = foldText(raw);
+  if (!r) return false;
+  const afterColon = catalogName.includes(':') ? catalogName.slice(catalogName.indexOf(':') + 1) : '';
+  const forms = [catalogName, afterColon, catalogCode].map(foldText).filter(Boolean);
+  return forms.includes(r);
+}
+
 /** The role a column plays, if any. */
 export function roleOfColumn(columns: CsvColumns, col: number): CsvRole | null {
   for (const role of CSV_ROLES) if (columns[role] === col) return role;

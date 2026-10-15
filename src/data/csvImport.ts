@@ -14,7 +14,7 @@
  */
 import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { uuidv4 } from '@/data/binderTypes';
-import { type CsvOverrides, detectColumns, type ImportAnalysis, type ImportMatch, normProductId, sameCardNumber } from '@/data/csvShape';
+import { type CsvOverrides, detectColumns, type ImportAnalysis, type ImportMatch, normCardName, normProductId, sameCardNumber, sameSetName } from '@/data/csvShape';
 import { requireSupabase } from '@/lib/supabase';
 import { getPriceSummary, type PriceSummary } from '@/lib/prices';
 
@@ -49,7 +49,9 @@ export function analyzeCsv(rows: string[][], catalog: Catalog, overrides?: CsvOv
     if (!nameIndex) {
       nameIndex = new Map();
       for (const c of catalog.listAll()) {
-        const k = c.name.toLowerCase();
+        // Keyed by the family name: "Rayquaza V (Alternate Full Art)" files under "rayquaza v",
+        // and the set and number pick the print (csvShape.ts).
+        const k = normCardName(c.name);
         const list = nameIndex.get(k) ?? [];
         list.push(c);
         nameIndex.set(k, list);
@@ -60,8 +62,9 @@ export function analyzeCsv(rows: string[][], catalog: Catalog, overrides?: CsvOv
 
   const first = columns.headerless ? 0 : 1;
   // Loose equality for a cell against the catalog: case, spacing and punctuation do not count.
-  const norm = (v: string) => v.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-  const sameSet = (c: CatalogCard, raw: string) => norm(c.setName) === norm(raw) || norm(c.setCode) === norm(raw);
+  const norm = (v: string) => normCardName(v);
+  // "Evolving Skies" is "SWSH07: Evolving Skies" is "SWSH07" (csvShape.ts).
+  const sameSet = (c: CatalogCard, raw: string) => sameSetName(c.setName, c.setCode, raw);
   // Zero padding and the set total do not count: "058" is "58" is "58/102" (csvShape.ts).
   const sameNumber = (c: CatalogCard, raw: string) => sameCardNumber(c.number, raw);
 
@@ -114,7 +117,7 @@ export function analyzeCsv(rows: string[][], catalog: Catalog, overrides?: CsvOv
       unmatched.push({ line, reason: `"${rawName.slice(0, 40)}" needs a set and a number without a product id`, kind: 'needs_set_and_number' });
       return;
     }
-    const byName = namesFor(rawName.toLowerCase());
+    const byName = namesFor(normCardName(rawName));
     if (byName.length === 0) {
       unmatched.push({ line, reason: `no card named "${rawName.slice(0, 40)}"`, kind: 'name_not_found' });
       return;

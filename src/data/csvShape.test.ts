@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { csvShape, detectColumns, looksHeaderless, normProductId, parseCsv, roleOfColumn, sameCardNumber, type ImportAnalysis } from './csvShape.ts';
+import { csvShape, detectColumns, looksHeaderless, normCardName, normProductId, parseCsv, roleOfColumn, sameCardNumber, sameSetName, type ImportAnalysis } from './csvShape.ts';
 
 test('a TCGPlayer export header is read by product id, quantity, name, set and number', () => {
   const header = parseCsv('Quantity,Name,Simple Name,Set,Card Number,Set Code,Printing,Condition,Language,Rarity,Product ID,SKU')[0];
@@ -84,4 +84,27 @@ test('zero padding never keeps a card number or product id from matching', () =>
   assert.equal(normProductId(' 610516 '), '610516');
   assert.equal(normProductId('abc'), 'abc');
   assert.equal(normProductId('0'), '0');
+});
+
+test('a card name matches its family: variant tags, accents, case and punctuation do not count', () => {
+  assert.equal(normCardName('Rayquaza V (Alternate Full Art)'), 'rayquaza v');
+  assert.equal(normCardName('Umbreon VMAX (Alternate Art Secret)'), 'umbreon vmax');
+  assert.equal(normCardName('rayquaza v'), 'rayquaza v');
+  assert.equal(normCardName('Pokémon Catcher'), 'pokemon catcher');
+  assert.equal(normCardName("Farfetch'd"), 'farfetch d');
+  assert.equal(normCardName('Ho-Oh & Lugia GX'), 'ho oh and lugia gx');
+  assert.equal(normCardName("______'s Pikachu"), 's pikachu');
+});
+
+test('a set matches by its full name, the part after the code, or the code itself', () => {
+  assert.ok(sameSetName('SWSH07: Evolving Skies', 'SWSH07', 'Evolving Skies'));
+  assert.ok(sameSetName('SWSH07: Evolving Skies', 'SWSH07', 'evolving  skies'));
+  assert.ok(sameSetName('SWSH07: Evolving Skies', 'SWSH07', 'SWSH07: Evolving Skies'));
+  assert.ok(sameSetName('SWSH07: Evolving Skies', 'SWSH07', 'swsh07'));
+  assert.ok(sameSetName('SWSH01: Sword & Shield Base Set', 'SWSH01', 'Sword and Shield Base Set'));
+  assert.ok(sameSetName('SV: Prismatic Evolutions', 'PRE', 'Prismatic Evolutions'));
+  assert.ok(sameSetName('Base Set', 'BS', 'base set'));
+  assert.ok(!sameSetName('SWSH07: Evolving Skies', 'SWSH07', 'Evolving'));
+  assert.ok(!sameSetName('SWSH09: Brilliant Stars Trainer Gallery', 'SWSH09:TG', 'Brilliant Stars'));
+  assert.ok(!sameSetName('Base Set', 'BS', ''));
 });

@@ -163,8 +163,19 @@ export const CHANGELOG: ChangelogEntry[] = [
         area: 'collection',
         body:
           'The ? beside the importer lists every column we read, the header words we know it by and '
-          + 'what it does. A file with no Product ID or Name column gets a plain warning with the three '
-          + 'ways to fix it, instead of a quiet zero.',
+          + 'what it does. A file that cannot name a card gets a plain warning with the three ways to '
+          + 'fix it, instead of a quiet zero.',
+      },
+      {
+        products: ['michi'],
+        head: 'A product id has to be real, and a name needs its set and number',
+        kind: 'fix',
+        area: 'collection',
+        body:
+          'A made-up product id beside a real name used to import the card by name as if the id were '
+          + 'fine. Now an id must be in the catalog and must agree with the name, set and number on its '
+          + 'row. Without an id, all three are needed and all three must match. Every skipped row says '
+          + 'which check it failed.',
       },
     ],
   },

@@ -50,7 +50,15 @@ export interface ImportMatch {
   via: 'id' | 'name';
 }
 /** Why a row was skipped, as a bucket the shape record can count (the `reason` is for people). */
-export type UnmatchedKind = 'not_an_id' | 'id_not_in_catalog' | 'no_id_or_name' | 'name_not_found';
+export type UnmatchedKind =
+  | 'not_an_id'
+  | 'id_not_in_catalog'
+  | 'id_mismatch'
+  | 'no_id_or_name'
+  | 'needs_set_and_number'
+  | 'name_not_found'
+  | 'set_not_found'
+  | 'number_not_found';
 export interface ImportAnalysis {
   matches: ImportMatch[];
   /** 1-based CSV line + why it couldn't be resolved. */
@@ -73,7 +81,7 @@ export const CSV_ROLES: readonly CsvRole[] = ['id', 'qty', 'name', 'set', 'numbe
 export const CSV_ROLE_INFO: Record<CsvRole, { label: string; blurb: string; accepts: string }> = {
   id: {
     label: 'Product ID',
-    blurb: 'The TCGPlayer product id. An exact match, the surest way to land a card.',
+    blurb: 'The TCGPlayer product id. An exact match, the surest way to land a card. If the row also names the card, set or number, they have to agree with it.',
     accepts: 'Product ID, TCGPlayer ID, ID',
   },
   qty: {
@@ -83,17 +91,17 @@ export const CSV_ROLE_INFO: Record<CsvRole, { label: string; blurb: string; acce
   },
   name: {
     label: 'Name',
-    blurb: 'The card name, matched against the catalog. On its own it lands the newest print.',
+    blurb: 'The card name, matched against the catalog. Without a product id, the set and number are needed too.',
     accepts: 'Name, Card Name, Simple Name',
   },
   set: {
     label: 'Set',
-    blurb: 'The set name or code. Narrows a name to the print from that set.',
+    blurb: 'The set name or code. With the name and number, it names one card.',
     accepts: 'Set, Set Name, Product Line',
   },
   number: {
     label: 'Number',
-    blurb: 'The card number in its set. Narrows a name to that exact print.',
+    blurb: 'The card number in its set, like 58 or 58/102. With the name and set, it names one card.',
     accepts: 'Number, Card Number',
   },
 };

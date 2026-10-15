@@ -59,51 +59,83 @@ export function analyzeCsv(rows: string[][], catalog: Catalog, overrides?: CsvOv
   };
 
   const first = columns.headerless ? 0 : 1;
+  // Loose equality for a cell against the catalog: case, spacing and punctuation do not count.
+  const norm = (v: string) => v.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const sameSet = (c: CatalogCard, raw: string) => norm(c.setName) === norm(raw) || norm(c.setCode) === norm(raw);
+  // "58" matches "58/102", and so does "58/102" itself.
+  const sameNumber = (c: CatalogCard, raw: string) => {
+    const n = norm(c.number);
+    const r = norm(raw);
+    return n === r || n.startsWith(`${r} `) || r.startsWith(`${n} `);
+  };
+
   rows.slice(first).forEach((r, i) => {
     const line = i + first + 1;
     const quantity = qtyCol >= 0 ? Math.max(1, parseInt(r[qtyCol] ?? '1', 10) || 1) : 1;
-
     const rawId = idCol >= 0 ? (r[idCol]?.trim() ?? '') : '';
-    if (rawId && /^\d+$/.test(rawId)) {
-      const card = catalog.getCard(rawId);
-      if (card) {
-        add(card, quantity, 'id');
+    const rawName = nameCol >= 0 ? (r[nameCol]?.trim() ?? '') : '';
+    const rawSet = setCol >= 0 ? (r[setCol]?.trim() ?? '') : '';
+    const rawNumber = numberCol >= 0 ? (r[numberCol]?.trim() ?? '') : '';
+
+    // A PRODUCT ID IS A CLAIM, NOT A HINT (owner, 2026-10-15). A made-up id with a real name
+    // used to land the card by name as if the id had never been there. Now an id has to be real,
+    // and whatever else the row says about the card has to agree with it; a wrong id skips the
+    // row rather than quietly importing something else.
+    if (rawId) {
+      if (!/^\d+$/.test(rawId)) {
+        unmatched.push({ line, reason: `"${rawId.slice(0, 30)}" isn't a product id`, kind: 'not_an_id' });
         return;
       }
-    }
-
-    const rawName = nameCol >= 0 ? (r[nameCol]?.trim() ?? '') : '';
-    if (!rawName) {
-      unmatched.push(
-        rawId && /^\d+$/.test(rawId)
-          ? { line, reason: `product id ${rawId} isn't in the catalog`, kind: 'id_not_in_catalog' }
-          : rawId
-            ? { line, reason: `"${rawId.slice(0, 30)}" isn't a product id`, kind: 'not_an_id' }
-            : { line, reason: 'no id or name', kind: 'no_id_or_name' },
-      );
+      const card = catalog.getCard(rawId);
+      if (!card) {
+        unmatched.push({ line, reason: `product id ${rawId} isn't in the catalog`, kind: 'id_not_in_catalog' });
+        return;
+      }
+      if (rawName && norm(rawName) !== norm(card.name)) {
+        unmatched.push({ line, reason: `product id ${rawId} is ${card.name}, not "${rawName.slice(0, 40)}"`, kind: 'id_mismatch' });
+        return;
+      }
+      if (rawSet && !sameSet(card, rawSet)) {
+        unmatched.push({ line, reason: `product id ${rawId} is from ${card.setName}, not "${rawSet.slice(0, 40)}"`, kind: 'id_mismatch' });
+        return;
+      }
+      if (rawNumber && !sameNumber(card, rawNumber)) {
+        unmatched.push({ line, reason: `product id ${rawId} is number ${card.number}, not "${rawNumber.slice(0, 20)}"`, kind: 'id_mismatch' });
+        return;
+      }
+      add(card, quantity, 'id');
       return;
     }
-    let candidates = namesFor(rawName.toLowerCase());
-    if (candidates.length === 0) {
+
+    // WITHOUT AN ID, THE NAME ALONE IS NOT ENOUGH (owner, 2026-10-15). A name has many prints;
+    // picking the newest was a guess dressed as a match. Name, set and number together name one
+    // card, so all three are required and all three have to agree.
+    if (!rawName) {
+      unmatched.push({ line, reason: 'no product id or name', kind: 'no_id_or_name' });
+      return;
+    }
+    if (!rawSet || !rawNumber) {
+      unmatched.push({ line, reason: `"${rawName.slice(0, 40)}" needs a set and a number without a product id`, kind: 'needs_set_and_number' });
+      return;
+    }
+    const byName = namesFor(rawName.toLowerCase());
+    if (byName.length === 0) {
       unmatched.push({ line, reason: `no card named "${rawName.slice(0, 40)}"`, kind: 'name_not_found' });
       return;
     }
-    const rawSet = setCol >= 0 ? (r[setCol]?.trim().toLowerCase() ?? '') : '';
-    if (rawSet) {
-      const inSet = candidates.filter(
-        (c) => c.setName.toLowerCase() === rawSet || c.setCode.toLowerCase() === rawSet,
-      );
-      if (inSet.length > 0) candidates = inSet;
+    const inSet = byName.filter((c) => sameSet(c, rawSet));
+    if (inSet.length === 0) {
+      unmatched.push({ line, reason: `no ${byName[0].name} in a set called "${rawSet.slice(0, 40)}"`, kind: 'set_not_found' });
+      return;
     }
-    const rawNumber = numberCol >= 0 ? (r[numberCol]?.trim().toLowerCase() ?? '') : '';
-    if (rawNumber) {
-      const byNumber = candidates.filter((c) => c.number.toLowerCase().startsWith(rawNumber));
-      if (byNumber.length > 0) candidates = byNumber;
+    const byNumber = inSet.filter((c) => sameNumber(c, rawNumber));
+    if (byNumber.length === 0) {
+      unmatched.push({ line, reason: `no ${byName[0].name} number "${rawNumber.slice(0, 20)}" in ${inSet[0].setName}`, kind: 'number_not_found' });
+      return;
     }
-    // Ambiguity falls to the newest print, the likeliest thing a collector owns.
-    const pick = [...candidates].sort((a, b) =>
-      (b.releaseDate || '').localeCompare(a.releaseDate || ''),
-    )[0];
+    // Several prints can share a name, set and number (a reverse holo of the same card); the
+    // newest is the likeliest thing a collector owns.
+    const pick = [...byNumber].sort((a, b) => (b.releaseDate || '').localeCompare(a.releaseDate || ''))[0];
     add(pick, quantity, 'name');
   });
 

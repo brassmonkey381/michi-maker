@@ -76,7 +76,11 @@ export function ImportCsvSheet({
   const skipped = useMemo(() => new Map(analysis?.unmatched.map((u) => [u.line, u.reason]) ?? []), [analysis]);
   // Nothing to read a card from: no id and no name column, and the person has not said which
   // column is which. The grid above shows the columns; this says what to do about them.
-  const noKeyColumn = !!analysis && !analysis.columns.headerless && analysis.columns.id < 0 && analysis.columns.name < 0;
+  const noKeyColumn =
+    !!analysis &&
+    !analysis.columns.headerless &&
+    analysis.columns.id < 0 &&
+    (analysis.columns.name < 0 || analysis.columns.set < 0 || analysis.columns.number < 0);
   const assign = (col: number, role: CsvRole | null) =>
     setOverrides((prev) => {
       const next: CsvOverrides = { ...prev };
@@ -189,8 +193,8 @@ export function ImportCsvSheet({
                 ) : null}
                 <View style={styles.subRow}>
                   <ThemedText type="small" themeColor="textSecondary" style={[styles.sub, styles.subText]}>
-                    Paste a TCGPlayer collection export, any CSV with a product-id or name column,
-                    or bare “productId,quantity” lines. The import becomes a portfolio.
+                    Paste a TCGPlayer collection export, any CSV with a Product ID column or with Name,
+                    Set and Number columns, or bare “productId,quantity” lines. The import becomes a portfolio.
                     {SHOW_CROSS_APP ? <> It shows up in <TcgscanLink /> too, and deleting it there removes these cards again.</> : null}
                   </ThemedText>
                   {/* THE COLUMN GUIDE (owner, 2026-10-15): which columns we read and the header
@@ -223,8 +227,9 @@ export function ImportCsvSheet({
                       </View>
                     ))}
                     <Text style={styles.guideBlurb}>
-                      A product id or a name is needed; the rest is optional. Any other column is left alone. If a
-                      column of yours is named differently, tap its heading in the preview and say what it is.
+                      A product id is enough on its own. Without one, name, set and number are all needed.
+                      Any other column is left alone. If a column of yours is named differently, tap its heading
+                      in the preview and say what it is.
                     </Text>
                   </View>
                 ) : null}
@@ -276,8 +281,9 @@ export function ImportCsvSheet({
                     {noKeyColumn ? (
                       <View style={styles.warnBox} testID="csv-no-key-column">
                         <Text style={styles.warnText}>
-                          No column named Product ID or Name. Tap a column heading above to say which one it is,
-                          add one of those headers to your file, or paste one product id per line.
+                          Nothing here names a card: a file needs a Product ID column, or all three of Name, Set
+                          and Number. Tap a column heading above to say which it is, add the headers to your file,
+                          or paste one product id per line.
                         </Text>
                       </View>
                     ) : null}

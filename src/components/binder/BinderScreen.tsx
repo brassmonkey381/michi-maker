@@ -453,6 +453,9 @@ export function BinderScreen({
   // the free example. The sheet gates the paid path by entitlement as it always has; a visitor
   // gets the free sample and the pitch.
   const [printOpen, setPrintOpen] = useState(initialPrintOpen);
+  // P opens the print sheet with the preview already rendering (owner, 2026-10-16); the buttons
+  // open it at rest, as before.
+  const [printPreviewAtOpen, setPrintPreviewAtOpen] = useState(false);
   const [toast, setToast] = useState<ToastSpec | null>(null);
   // Likes this binder has received (owner view). Fetched on open; tapping opens the likers list.
   const [likeCount, setLikeCount] = useState<number | null>(null);
@@ -2261,20 +2264,6 @@ export function BinderScreen({
         {artToggle}
         {editing ? editIcons : null}
         {editing ? <View style={styles.groupRule} /> : null}
-        {/* The view settings, in both modes. Named, not a bare gear: a gear in a row of glyphs
-            was one more thing to guess at. */}
-        <Tipped text="How this binder looks: page size, background, page style, sleeves">
-          <Pressable
-            onPress={() => setSettingsOpen(true)}
-            hitSlop={10}
-            accessibilityRole="button"
-            accessibilityLabel="View settings"
-            testID="binder-settings-btn">
-            {/* On a phone while editing the row is full, and the name is what pushed it past the
-                edge; the gear keeps its accessible name. Everywhere else it is named. */}
-            <Text style={[styles.headerAction, { color: theme.text }]}>{phone && editing ? '⚙' : '⚙ Settings'}</Text>
-          </Pressable>
-        </Tipped>
         {/* LIKES, PRINT AND SHARE ARE FOR LOOKING, NOT MAKING (owner, 2026-09-15): they show while
             viewing and step aside while editing, so the editing row holds only editing. Selecting
             several pockets lives on the page bar now, beside the page's other controls. */}
@@ -2329,6 +2318,21 @@ export function BinderScreen({
             </Pressable>
           </Tipped>
         ) : null}
+        {/* The view settings, in both modes, and LAST in both (owner, 2026-10-16): it used to sit
+            before the viewing-only items, so it changed neighbours with every mode switch. Named,
+            not a bare gear: a gear in a row of glyphs was one more thing to guess at. */}
+        <Tipped text="How this binder looks: page size, background, page style, sleeves">
+          <Pressable
+            onPress={() => setSettingsOpen(true)}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="View settings"
+            testID="binder-settings-btn">
+            {/* On a phone while editing the row is full, and the name is what pushed it past the
+                edge; the gear keeps its accessible name. Everywhere else it is named. */}
+            <Text style={[styles.headerAction, { color: theme.text }]}>{phone && editing ? '⚙' : '⚙ Settings'}</Text>
+          </Pressable>
+        </Tipped>
       </>
     );
     primaryAction = (
@@ -2951,6 +2955,10 @@ export function BinderScreen({
           onToggleSettings={() => setSettingsOpen((v) => !v)}
           onQuickPreview={() => setQuickOpen((v) => !v)}
           onShare={isSupabaseConfigured ? () => setShareOpen((v) => !v) : undefined}
+          onPrint={() => {
+            setPrintPreviewAtOpen(true);
+            setPrintOpen(true);
+          }}
           onMovePage={() => setMovePageOpen((v) => !v)}
           onMergeSplit={editing ? mergeOrSplit : undefined}
           onNewPage={editing ? handleAddPage : undefined}
@@ -3105,7 +3113,11 @@ export function BinderScreen({
         {printOpen ? (
           <PrintPlaceholdersSheet
             binder={binder}
-            onClose={() => setPrintOpen(false)}
+            previewAtOpen={printPreviewAtOpen}
+            onClose={() => {
+              setPrintOpen(false);
+              setPrintPreviewAtOpen(false);
+            }}
             onDone={(sheets) => showToast(`Placeholder PDF downloaded (${sheets + 1} pages)`)}
           />
         ) : null}
@@ -3191,6 +3203,7 @@ function EditorKeyboardShortcuts({
   onToggleSettings,
   onQuickPreview,
   onShare,
+  onPrint,
   onMovePage,
   onMergeSplit,
   onNewPage,
@@ -3219,6 +3232,8 @@ function EditorKeyboardShortcuts({
   onQuickPreview?: () => void;
   /** R: the Share panel (owner, 2026-10-13), where the binder goes public or private. */
   onShare?: () => void;
+  /** P: the Print sheet, with the preview of this binder's sheets already rendering. */
+  onPrint?: () => void;
   /** W: move this page. Editing only. */
   onMovePage?: () => void;
   /** M: merge the two selected art pieces, or split the selected one. Editing only. */
@@ -3279,6 +3294,11 @@ function EditorKeyboardShortcuts({
         onShare();
         return;
       }
+      if (!meta && !e.altKey && key === PLAIN_KEYS.print && onPrint) {
+        e.preventDefault();
+        onPrint();
+        return;
+      }
       if (!undoable) return;
       if (!meta && !e.altKey && key === PLAIN_KEYS.movePage && onMovePage) {
         e.preventDefault();
@@ -3317,7 +3337,7 @@ function EditorKeyboardShortcuts({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [active, undoable, pocketKeys, onUndo, onRedo, onDelete, onPrevPage, onNextPage, onToggleEdit, onToggleArt, onToggleCards, onToggleSettings, onQuickPreview, onShare, onMovePage, onMergeSplit, onNewPage, onGoToPage, onEscape]);
+  }, [active, undoable, pocketKeys, onUndo, onRedo, onDelete, onPrevPage, onNextPage, onToggleEdit, onToggleArt, onToggleCards, onToggleSettings, onQuickPreview, onShare, onPrint, onMovePage, onMergeSplit, onNewPage, onGoToPage, onEscape]);
   return null;
 }
 

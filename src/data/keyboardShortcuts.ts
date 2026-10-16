@@ -28,6 +28,7 @@ export function shortcutList(mod: 'Ctrl' | '⌘'): Shortcut[] {
     { keys: 'S', does: 'Settings' },
     { keys: 'Q', does: 'Share image preview' },
     { keys: 'R', does: 'Share panel' },
+    { keys: 'P', does: 'Print preview' },
     { keys: 'N', does: 'New page' },
     { keys: 'W', does: 'Move page' },
     { keys: 'M', does: 'Merge / split art' },
@@ -38,7 +39,7 @@ export function shortcutList(mod: 'Ctrl' | '⌘'): Shortcut[] {
 }
 
 /** The plain keys (no modifier) the editor listens for, so a handler and the card agree. */
-export const PLAIN_KEYS = { editMode: 'e', artDock: 'a', cardsDock: ['c', 'd'], settings: 's', quickPreview: 'q', share: 'r', movePage: 'w', mergeSplit: 'm', newPage: 'n' } as const;
+export const PLAIN_KEYS = { editMode: 'e', artDock: 'a', cardsDock: ['c', 'd'], settings: 's', quickPreview: 'q', share: 'r', print: 'p', movePage: 'w', mergeSplit: 'm', newPage: 'n' } as const;
 /** How long after the last digit a typed page number is acted on. Long enough for a two-digit number, short enough to feel like a jump. */
 export const PAGE_NUMBER_DEBOUNCE_MS = 650;
 

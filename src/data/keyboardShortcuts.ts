@@ -8,35 +8,48 @@
  * and so the card and the handlers cannot drift apart without a test noticing.
  */
 
+export type ShortcutGroup = 'Pages' | 'Panels' | 'Editing';
+
 export interface Shortcut {
   /** The keys, as they are printed on the card. */
   keys: string;
   /** What happens, in the user's words. */
   does: string;
+  /** Which heading it sits under (owner, 2026-10-16: sixteen keys read as three short lists). */
+  group: ShortcutGroup;
 }
+
+/** The headings, in the order the card prints them. */
+export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = ['Pages', 'Panels', 'Editing'];
 
 /** Mac shows ⌘ where Windows shows Ctrl; the card swaps the word, nothing else. */
 export function shortcutList(mod: 'Ctrl' | '⌘'): Shortcut[] {
   // TWO OR THREE WORDS EACH (owner, 2026-09-18): the key is the subject, the label only names what
   // it toggles or does. Sentences made the card a page of reading for twelve keys.
   return [
-    { keys: `${mod} Z`, does: 'Undo (Shift: redo)' },
-    { keys: `${mod} click`, does: 'Multi-select' },
-    { keys: 'E', does: 'Edit / View' },
-    { keys: 'A', does: 'Art dock' },
-    { keys: 'C or D', does: 'Cards dock' },
-    { keys: 'S', does: 'Settings' },
-    { keys: 'Q', does: 'Share image preview' },
-    { keys: 'R', does: 'Share panel' },
-    { keys: 'P', does: 'Print preview' },
-    { keys: 'F', does: 'Download full-size image' },
-    { keys: 'N', does: 'New page' },
-    { keys: 'W', does: 'Move page' },
-    { keys: 'M', does: 'Merge / split art' },
-    { keys: 'Esc', does: 'Close' },
-    { keys: '← → or wheel', does: 'Turn page (or type its number)' },
-    { keys: 'Delete', does: 'Clear pocket' },
+    { keys: '← → or wheel', does: 'Turn page, or type one', group: 'Pages' },
+    { keys: 'N', does: 'New page', group: 'Pages' },
+    { keys: 'W', does: 'Move page', group: 'Pages' },
+    { keys: 'E', does: 'Edit / View', group: 'Pages' },
+    { keys: 'A', does: 'Art dock', group: 'Panels' },
+    { keys: 'C or D', does: 'Cards dock', group: 'Panels' },
+    { keys: 'S', does: 'Settings', group: 'Panels' },
+    { keys: 'Q', does: 'Share image preview', group: 'Panels' },
+    { keys: 'R', does: 'Share panel', group: 'Panels' },
+    { keys: 'P', does: 'Print preview', group: 'Panels' },
+    { keys: 'F', does: 'Save full-size image', group: 'Panels' },
+    { keys: 'Esc', does: 'Close', group: 'Panels' },
+    { keys: `${mod} Z`, does: 'Undo (Shift: redo)', group: 'Editing' },
+    { keys: `${mod} click`, does: 'Multi-select', group: 'Editing' },
+    { keys: 'M', does: 'Merge / split art', group: 'Editing' },
+    { keys: 'Delete', does: 'Clear pocket', group: 'Editing' },
   ];
+}
+
+/** The same list under its three headings, for the card. */
+export function shortcutGroups(mod: 'Ctrl' | '⌘'): { title: ShortcutGroup; items: Shortcut[] }[] {
+  const list = shortcutList(mod);
+  return SHORTCUT_GROUPS.map((title) => ({ title, items: list.filter((s) => s.group === title) }));
 }
 
 /** The plain keys (no modifier) the editor listens for, so a handler and the card agree. */

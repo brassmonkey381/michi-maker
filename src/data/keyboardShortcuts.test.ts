@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { PLAIN_KEYS, shortcutList } from './keyboardShortcuts.ts';
+import { PLAIN_KEYS, SHORTCUT_GROUPS, shortcutGroups, shortcutList } from './keyboardShortcuts.ts';
+
+test('every shortcut sits under exactly one of the three headings, none empty', () => {
+  const groups = shortcutGroups('Ctrl');
+  assert.deepEqual(groups.map((g) => g.title), [...SHORTCUT_GROUPS]);
+  assert.equal(groups.reduce((n, g) => n + g.items.length, 0), shortcutList('Ctrl').length);
+  for (const g of groups) assert.ok(g.items.length >= 3 && g.items.length <= 8, `${g.title}: ${g.items.length}`);
+});
 
 test('the card lists the plain keys the editor listens for, under the same letters', () => {
   const list = shortcutList('Ctrl');

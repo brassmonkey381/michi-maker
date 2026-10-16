@@ -7,7 +7,7 @@
  */
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { shortcutList } from '@/data/keyboardShortcuts';
+import { shortcutGroups } from '@/data/keyboardShortcuts';
 import { FontSize, Palette, Radius, Shadows, Spacing, Weight } from '@/constants/theme';
 
 function modWord(): 'Ctrl' | '⌘' {
@@ -16,7 +16,7 @@ function modWord(): 'Ctrl' | '⌘' {
 }
 
 export function ShortcutsCard({ onDismiss }: { onDismiss: () => void }) {
-  const list = shortcutList(modWord());
+  const groups = shortcutGroups(modWord());
   return (
     <View style={styles.card} testID="shortcuts-card" accessibilityRole="summary">
       <View style={styles.head}>
@@ -25,20 +25,27 @@ export function ShortcutsCard({ onDismiss }: { onDismiss: () => void }) {
           <Text style={styles.closeGlyph}>✕</Text>
         </Pressable>
       </View>
-      <View style={styles.rows}>
-        {list.map((s) => (
-          <View key={s.keys} style={styles.row}>
-            <View style={styles.keys}>
-              {s.keys.split(' ').map((k, i) => (
-                <View key={`${k}-${i}`} style={styles.key}>
-                  <Text style={styles.keyText}>{k}</Text>
+      {/* THREE SHORT LISTS, NOT ONE LONG ONE (owner, 2026-10-16): sixteen keys under Pages,
+          Panels and Editing, so the eye finds the one it wants without reading the rest. */}
+      {groups.map((g) => (
+        <View key={g.title} style={styles.group} testID={`shortcuts-group-${g.title.toLowerCase()}`}>
+          <Text style={styles.groupTitle}>{g.title}</Text>
+          <View style={styles.rows}>
+            {g.items.map((s) => (
+              <View key={s.keys} style={styles.row}>
+                <View style={styles.keys}>
+                  {s.keys.split(' ').map((k, i) => (
+                    <View key={`${k}-${i}`} style={styles.key}>
+                      <Text style={styles.keyText}>{k}</Text>
+                    </View>
+                  ))}
                 </View>
-              ))}
-            </View>
-            <Text style={styles.does}>{s.does}</Text>
+                <Text style={styles.does}>{s.does}</Text>
+              </View>
+            ))}
           </View>
-        ))}
-      </View>
+        </View>
+      ))}
       <Pressable onPress={onDismiss} style={({ pressed }) => [styles.gotIt, pressed && styles.pressed]} accessibilityRole="button" testID="shortcuts-got-it">
         <Text style={styles.gotItText}>Got it</Text>
       </Pressable>
@@ -48,8 +55,8 @@ export function ShortcutsCard({ onDismiss }: { onDismiss: () => void }) {
 
 const styles = StyleSheet.create({
   card: {
-    width: 300,
-    gap: Spacing.two,
+    width: 320,
+    gap: Spacing.two + 2,
     padding: Spacing.three,
     borderRadius: Radius.panel,
     borderWidth: 1,
@@ -60,6 +67,8 @@ const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: FontSize.control, fontWeight: Weight.bold, color: Palette.ink },
   closeGlyph: { fontSize: FontSize.md, color: Palette.ink2, lineHeight: 18 },
+  group: { gap: 4 },
+  groupTitle: { fontSize: FontSize.sm, fontWeight: Weight.semibold, color: Palette.ink2, letterSpacing: 0.6, textTransform: 'uppercase' },
   rows: { gap: 6 },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   keys: { flexDirection: 'row', gap: 3, width: 118, flexWrap: 'wrap' },

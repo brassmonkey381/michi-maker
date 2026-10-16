@@ -166,6 +166,16 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         products: ['michi'],
+        head: 'Press F for the full-size image',
+        kind: 'new',
+        area: 'binders',
+        body:
+          'F downloads your public binder’s share picture at poster size, the same file as the Share '
+          + 'panel’s Download full-size image button, without opening the panel. A private binder '
+          + 'opens the Share panel instead so you can make it public first.',
+      },
+      {
+        products: ['michi'],
         head: 'Settings stays on the right',
         kind: 'better',
         area: 'binders',

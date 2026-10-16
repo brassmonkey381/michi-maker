@@ -14,6 +14,7 @@ test('the card lists the plain keys the editor listens for, under the same lette
   assert.ok(keys.includes(PLAIN_KEYS.quickPreview.toUpperCase()));
   assert.ok(keys.includes(PLAIN_KEYS.share.toUpperCase()));
   assert.ok(keys.includes(PLAIN_KEYS.print.toUpperCase()));
+  assert.ok(keys.includes(PLAIN_KEYS.fullImage.toUpperCase()));
   assert.ok(keys.includes(PLAIN_KEYS.movePage.toUpperCase()));
   assert.ok(keys.includes(PLAIN_KEYS.newPage.toUpperCase()));
   assert.ok(keys.includes('Esc'));
@@ -22,10 +23,10 @@ test('the card lists the plain keys the editor listens for, under the same lette
 test('the card stays short, and swaps only the modifier word between platforms', () => {
   const win = shortcutList('Ctrl');
   const mac = shortcutList('⌘');
-  // Fifteen at most (owner, 2026-10-16, up from fourteen when P joined; fourteen on 2026-10-13
-  // when R did; thirteen on 2026-10-12 when N did; twelve on 2026-09-16 when S, Q, W and Esc
-  // did): still one screen.
-  assert.ok(win.length >= 5 && win.length <= 15, `${win.length} shortcuts`);
+  // Sixteen at most (owner, 2026-10-16, up from fifteen when F joined the same day P did;
+  // fourteen on 2026-10-13 when R did; thirteen on 2026-10-12 when N did; twelve on 2026-09-16
+  // when S, Q, W and Esc did): still one screen, though the card is due a grouping.
+  assert.ok(win.length >= 5 && win.length <= 16, `${win.length} shortcuts`);
   assert.deepEqual(
     win.map((s) => s.does),
     mac.map((s) => s.does),

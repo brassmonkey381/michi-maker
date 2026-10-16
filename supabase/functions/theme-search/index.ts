@@ -1,7 +1,8 @@
 /**
  * theme-search — the PAID path for artwork theme search (`theme:` / `art:` / `scene:`).
  *
- *  POST <search_cards RPC body> → <search_cards RPC rows>
+ *  POST <search_cards RPC body>                 → <search_cards RPC rows>
+ *  POST { rpc: 'theme_search', <its RPC body> } → <theme_search RPC rows>   (another game)
  *
  * WHY THIS EXISTS. Card data and the `search_cards` RPC live on the DATA project
  * (bmhjizcmwtmcrstadqto); sign-in and the entitlements ledger live on THIS project. The data
@@ -23,6 +24,16 @@
  * same degrade as the kit's other locked features. A body that is not the RPC's shape is refused
  * before anything is forwarded: this is a forwarder, not an open proxy to the data project.
  *
+ * THE OTHER GAMES. `{ rpc: 'theme_search', p_game, ... }` is the same hop for a game other than
+ * Pokemon (Lorcana, One Piece): the data project's `theme_search` RPC (data migration 79) answers
+ * ranked product ids and rank fields only, never a tag or caption, and the device maps them onto its
+ * public catalog. rules.ts checks the body: its keys, a registry-shaped p_game, p_limit ≤ 1000, a
+ * theme field. WHICH games are served is not decided here. The data project serves a game only while
+ * its `theme_search_games` row is enabled, and since every call from here carries `x-rl-identity`,
+ * that row binds this path as well: a disabled game answers `[]` to PRO and free-forest callers
+ * alike, so the registry is the kill switch with no redeploy. `theme:forest` is free in every game
+ * the data project serves (owner decision 2026-10-15), on the same terms as on Pokemon.
+ *
  * SECRETS. `DATA_SECRET_KEY` (sb_secret_… or the legacy service_role JWT) for the data project,
  * set with `supabase secrets set` on THIS project. `DATA_SUPABASE_URL` is optional (public value,
  * defaults to the data project). Never returned to a caller.
@@ -33,6 +44,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { publishableKey, secretKey } from '../_shared/keys.ts';
+import { isForestOnly, themeSearchForward } from './rules.ts';
 
 const DATA_URL = Deno.env.get('DATA_SUPABASE_URL') ?? 'https://bmhjizcmwtmcrstadqto.supabase.co';
 /** The products whose holders search unmetered: TCGScan's two paid tiers (mirrors tcgscan-app
@@ -60,16 +72,6 @@ function json(status: number, body: unknown): Response {
     status,
     headers: { ...CORS, 'Content-Type': 'application/json' },
   });
-}
-
-/** The theme every caller may search unmetered. Keep in step with michi's FREE_THEME_QUERY. */
-const FREE_THEME = 'forest';
-
-/** A search_cards body whose theme fields are all the free theme (and there is at least one). */
-function isForestOnly(body: Record<string, unknown>): boolean {
-  const fields = Array.isArray(body.p_fields) ? (body.p_fields as { key?: unknown; value?: unknown }[]) : [];
-  const themes = fields.filter((f) => f && f.key === 'theme');
-  return themes.length > 0 && themes.every((f) => typeof f.value === 'string' && f.value.trim().toLowerCase() === FREE_THEME);
 }
 
 /** Is a grant currently in effect? Lifetime rows (null expiry) always are — tcgscan-app's isActive. */
@@ -102,9 +104,10 @@ Deno.serve(async (req: Request) => {
   // THE FREE THEME. `theme:forest` answers unmetered for every caller, guest included (owner
   // decision 2026-09-08): it is the demonstration the Theme Search button and the cheatsheet run,
   // and a demonstration that stops at three cards demonstrates the meter, not the feature. Only
-  // a search whose EVERY theme field is forest qualifies; any other theme, or the bulk tag read,
-  // takes the ledger check as before.
-  const onTheHouse = body.rpc === undefined && isForestOnly(body);
+  // a search whose EVERY theme field is forest qualifies (rules.ts, FREE_THEME); any other theme,
+  // or the bulk tag read, takes the ledger check as before. It holds in every game theme_search
+  // serves: a disabled game still answers `[]` (see the header).
+  const onTheHouse = (body.rpc === undefined || body.rpc === 'theme_search') && isForestOnly(body);
 
   // 3) Do they hold it. Read with the service client so a ledger RLS change can never turn
   //    this into a silent "everyone is free".
@@ -140,6 +143,15 @@ Deno.serve(async (req: Request) => {
     return forwardRpc('tagged_cards', tagged, `user:${user.id}`);
   }
 
+  // 3b) ANOTHER GAME. `{ rpc: 'theme_search', p_game, ... }` (data migration 79): ranked ids for
+  //     one game's artwork themes. rules.ts checks the body; the data project decides whether the
+  //     game is served (its registry row), for this path too.
+  if (body.rpc === 'theme_search') {
+    const r = themeSearchForward(body);
+    if (!r.ok) return json(400, { error: r.error });
+    return forwardRpc('theme_search', r.forward, `user:${user.id}`);
+  }
+
   const forward: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(body)) {
     if (!RPC_KEYS.has(k)) return json(400, { error: `unknown parameter ${k}` });
@@ -168,7 +180,7 @@ Deno.serve(async (req: Request) => {
  * right granularity (one visitor, one bucket).
  */
 async function forwardRpc(
-  rpc: 'search_cards' | 'tagged_cards',
+  rpc: 'search_cards' | 'tagged_cards' | 'theme_search',
   body: Record<string, unknown>,
   identity: string,
 ): Promise<Response> {

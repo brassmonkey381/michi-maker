@@ -246,3 +246,45 @@ work is larger than it looks and needs a replacement path first.
 - `tcgscan-app/src/lib/model-rollout.ts` no longer calls `get_scanner_rollout`. tsc and eslint
   clean. Track A can drop the function whenever it likes; installs that never take the update land
   on `DEFAULT_MODEL_SET` because the old path already fell through cache-then-default on any error.
+
+---
+
+## 9. The other games' theme search (tcgscan-data migrations 78 and 79)
+
+Added 2026-10-15 for Lorcana and One Piece theme search. **Read from source, not measured**: 78 and
+79 are staged and not live when this was written, so nothing in this section is a wire reading
+(section 6 is why that distinction is kept). `npm run check:exposure` section 3c measures it once
+they are, and until then reports "none enabled".
+
+| Relation / function | Who reads it | Columns |
+| --- | --- | --- |
+| `theme_search_games` (78), the registry | anon, `select=*` in the exposure check | **exactly 10**: `game, label, type_label, type_groups, enabled, tools, cards, rules_version, published_at, updated_at` |
+| | michi `src/lib/themeGames.ts` (`themeGamesCore.ts` `REGISTRY_SELECT`) | 6: `game, label, type_label, type_groups, enabled, tools` |
+| `rpc/theme_search` (79) | kit 0.9.28 `searchThemes`, via michi's `theme-search` edge function or anon | **5**: `id, art_band, full_art, type_group, total_count` |
+| `rpc/theme_facets` (79) | kit 0.9.28 `themeFacets` | 3: `facet, value, n`, with `facet` in `frame`, `type` |
+| `card_themes` (78) | nobody: no client grant, RLS on with no policy | none. Holds captions and tags; `theme_search` reads it as definer |
+
+Four notes.
+
+**The registry is public forever.** Any column added to `theme_search_games` is readable by anon the
+moment it exists. The exposure check pins the 10 and calls an 11th a `LEAK` until it is reviewed and
+added to `REGISTRY_COLS`. It must never hold a tag, caption, count per tag or any other private field.
+
+**`theme_search` returns ids and rank fields, never a tag, caption, scene score or probability.** The
+device maps the ids onto that game's public `catalog.json` and answers `rarity:`, `set:`, price and
+`have:` itself. Anon is clamped to `free_theme_depth` rows at offset 0 with the true `total_count`,
+whatever the theme; the free `theme:forest` is free only through michi's edge function.
+
+**The edge function's `theme_search` branch (M1).** `supabase/functions/theme-search/index.ts`
+forwards `{ rpc: 'theme_search', ... }` with the data project's secret key and `x-rl-identity`.
+`supabase/functions/theme-search/rules.ts` (pure; tested by `src/lib/themeSearchRules.test.ts`)
+decides what may be forwarded: only theme_search's nine parameters (`p_game, p_fields, p_words,
+p_frame, p_types, p_group, p_limit, p_offset, p_lang`), a registry-shaped `p_game`, `p_limit`
+clamped to 1000, at least one `theme` field. `isForestOnly` reads `theme` AND `art` fields, so an
+`art` term cannot ride free beside a forest one. A disabled game answers `[]` on this path too: the
+forwarded call carries `x-rl-identity`, so the registry row binds it.
+
+**Which games are served is the registry's call, not michi's.** `CardBrowse` unlocks `themeSearch`,
+passes `themeServer` and shows the `Theme: forest` button only for a game whose row is `enabled`.
+Any read failure, an unknown game or a malformed row leaves the game locked (fail closed), and a
+typed `theme:` there shows a "not available" line under the game picker rather than the plans page.

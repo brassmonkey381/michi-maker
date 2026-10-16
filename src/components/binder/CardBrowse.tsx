@@ -20,6 +20,7 @@ import { Breakpoints } from '@/constants/theme';
 import { ColorSearchSheet } from '@/components/ColorSearchSheet';
 import { promoteArtCards } from '@/data/artRank';
 import { nextDemoTheme } from '@/data/demoThemes';
+import { FREE_THEME } from '@/data/freeTheme';
 import { runThemeDemo } from '@/data/themeDemo';
 import { EnergyColorSheet } from '@/components/EnergyColorSheet';
 import { searchesArtworkUnmetered } from '@/data/tiers';
@@ -31,6 +32,7 @@ import { browseUrl } from '@/lib/catalogConfig';
 import { armEyedropper, cancelEyedropper, eyedropperArmed, pickWithEyedropper, subscribeEyedropper } from '@/lib/eyedropper';
 import { loadOtherGameCatalog, loadOtherGameSimilar, otherGameCatalog, otherGameCatalogFor, otherGameSimilar, otherGameVersion, subscribeOtherGame } from '@/lib/otherGame';
 import { SECONDARY_GAMES } from '@/lib/otherGameKeys';
+import { subscribeThemeGames, themeGame, themeGamesState } from '@/lib/themeGames';
 
 /**
  * Dev/QA override: append `?coldsearch` to the URL (web) to force the COLD path — the kit
@@ -224,6 +226,22 @@ export function CardBrowse({
   }, [game]);
   // Every game but Pokémon is a secondary source, browsed from its own published catalog.
   const secondary = game !== 'pokemon';
+  /**
+   * DOES THIS GAME SEARCH ITS ARTWORK? The data project's registry says (lib/themeGames), one row
+   * per game: games go live one at a time by flipping that row, with no deploy here. Read through
+   * the store for the same React Compiler reason as the catalog below. Fails closed: no row, an
+   * unreadable row or a failed read is a game without theme search, exactly as before.
+   */
+  const tg = useSyncExternalStore(subscribeThemeGames, () => themeGame(game), () => themeGame(game));
+  const gameThemed = secondary && tg?.enabled === true;
+  const themeGamesLoad = useSyncExternalStore(subscribeThemeGames, themeGamesState, themeGamesState);
+  /**
+   * A TYPED `theme:` ON A GAME WITHOUT THEME SEARCH is a gap in the game, not in the account, so it
+   * gets a line under the game picker rather than the plans page: selling PRO to somebody who may
+   * already hold it, for something PRO would not give them, is the app not knowing what it is
+   * saying. Cleared on every game change (switchGame).
+   */
+  const [themeNote, setThemeNote] = useState(false);
   // READ THROUGH THE STORE, NOT CALLED BARE (2026-09-20). `otherGameCatalog(game)` reads module
   // state, and the React Compiler memoises a bare call on `game` alone: it cannot know the
   // catalog landed. The version subscription above re-rendered this component and the cached
@@ -244,6 +262,7 @@ export function CardBrowse({
    */
   const switchGame = (next: GameId) => {
     if (next === game) return;
+    setThemeNote(false);
     Object.assign(browseState, {
       cardQuery: '',
       seriesId: null,
@@ -330,12 +349,15 @@ export function CardBrowse({
     if (secondary) {
       /**
        * WHAT A SECONDARY GAME HAS NO DATA FOR, locked rather than left to fail quietly. Similarity
-       * and artwork themes are Pokémon-only server features.
+       * is a Pokémon-only server feature; artwork themes are served per game by the data project's
+       * `theme_search`, and locked here only for a game its registry has not enabled.
        *
-       * Locking `themeSearch` also closes the one real leak: the kit falls back to the server's
-       * `search_cards` RPC when a query is themed or the catalog is missing, and that RPC only
-       * knows Pokémon — so another game's search could silently return Pokémon cards. With a warm
-       * secondary catalog AND themeSearch locked, the cold path is unreachable by construction.
+       * THE OLD LEAK STAYS CLOSED. The kit falls back to the server's `search_cards` RPC when a
+       * query is themed or the catalog is missing, and that RPC only knows Pokémon, so another
+       * game's themed search could silently return Pokémon cards. A themed game gets `themeServer`
+       * below, and a browser holding one never calls `search_cards` at all (kit >= 0.9.28): its
+       * themed queries go to `theme_search` for THIS game. An unthemed game keeps themeSearch
+       * locked. Either way, with a warm secondary catalog the cold path is unreachable.
        */
       /**
        * COLOUR SEARCH IS NOT LOCKED ANY MORE for a game that publishes palettes: One Piece's blob
@@ -352,7 +374,7 @@ export function CardBrowse({
        *
        * `findSimilar` stays locked: that one is an RPC this game has no server for.
        */
-      locked.push('themeSearch', 'findSimilar', 'similarRefine');
+      locked.push(...(gameThemed ? [] : (['themeSearch'] as BrowseFeature[])), 'findSimilar', 'similarRefine');
       return locked;
     }
     if (!hasFindSimilar) locked.push('findSimilar');
@@ -363,7 +385,7 @@ export function CardBrowse({
     // guest caller the top few rows and the true total, and the kit draws the "+N more matches"
     // row under them. That row's tap comes back through onLockedFeature('themeSearch') below.
     return locked.length ? locked : undefined;
-  }, [hasAdvancedSearch, hasFindSimilar, tierUnknown, secondary]);
+  }, [hasAdvancedSearch, hasFindSimilar, tierUnknown, secondary, gameThemed]);
   // A phone, not merely a narrow window: at 375px this page spent 59% of the screen on chrome
   // before the first card, and every label on it is competing for the same row.
   const phone = width < Breakpoints.phone;
@@ -402,6 +424,13 @@ export function CardBrowse({
               </Text>
             </Pressable>
           ) : null}
+          {secondary && themeNote && !gameThemed ? (
+            <Text style={[styles.gameNote, { color: browseTheme.subtext ?? '#888' }]}>
+              {themeGamesLoad === 'loading'
+                ? `Checking artwork search for ${gameLabel(game)}…`
+                : `Artwork search isn't available for ${gameLabel(game)} yet.`}
+            </Text>
+          ) : null}
         </View>
       ) : null}
       {/*
@@ -416,6 +445,10 @@ export function CardBrowse({
         key={game}
         theme={browseTheme}
         catalog={activeCatalog}
+        // A THEMED SECONDARY GAME searches its artwork on the data project's `theme_search`, for
+        // this game only; the ids come back ranked and are mapped onto the catalog above. The
+        // registry row names and colours the type chips, and `tools` decides the toolbar.
+        themeServer={gameThemed && tg ? { game, typeLabel: tg.type_label, typeGroups: tg.type_groups, tools: tg.tools } : undefined}
         selectedCardId={selectedCardId}
         onPickCard={onPickCard ?? (() => {})}
         onPickVUnion={onPickVUnion}
@@ -455,6 +488,9 @@ export function CardBrowse({
         onLockedFeature={(f) => {
           if (f === 'colorSearch') setEnergyOpen(true);
           else if (f === 'findSimilar' && onSimilarLocked) onSimilarLocked();
+          // A theme on a game that has none (or whose registry read has not landed): say so here,
+          // never the plans page, which cannot sell what the game does not have.
+          else if (f === 'themeSearch' && secondary && !gameThemed) setThemeNote(true);
           // The meter row under a free themed search ("+N more matches"): a deliberate tap on an
           // unlock offer, so the plans page is the right answer unless the surface says otherwise
           // (the binder editor toasts rather than navigating away from an open binder).
@@ -468,7 +504,10 @@ export function CardBrowse({
         // NO THEME BUTTON ON A GAME THAT HAS NO THEME INDEX (owner, 2026-09-21). The kit hides
         // the button when the handler is absent. A demo that runs against Pokémon's themes while
         // One Piece is on screen would answer with the wrong game's cards; better no offer.
-        onThemeSearch={secondary ? undefined : () => {
+        // A GAME THE REGISTRY HAS ENABLED gets the button, always offering `forest` (owner,
+        // 2026-10-15): it is free in every enabled game, and the rotation's other themes were
+        // chosen for Pokémon's art. One theme, so there is no rotation and no fifth-press offer.
+        onThemeSearch={secondary ? (gameThemed ? () => runThemeDemo('browser', FREE_THEME) : undefined) : () => {
           runThemeDemo('browser', demoTheme);
           setDemoTheme(nextDemoTheme(demoTheme));
           demoPresses.current += 1;
@@ -481,7 +520,7 @@ export function CardBrowse({
             (onThemeLocked ?? (() => router.push('/plans' as Href)))();
           }
         }}
-        themeSearchLabel={`Theme: ${demoTheme}`}
+        themeSearchLabel={`Theme: ${secondary ? FREE_THEME : demoTheme}`}
         // "Color Search" on a phone pushed its own row into a wrap and shoved the kit's NEW!
         // nudge off the right edge. "Color" says the same thing beside a button that is visibly a
         // button; "Search" was doing no work the row's position did not already do.

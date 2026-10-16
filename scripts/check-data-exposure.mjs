@@ -150,6 +150,22 @@ const PARITY = [
   },
 ];
 
+/**
+ * THE OTHER GAMES' THEME SEARCH (tcgscan-data migrations 78 and 79). The registry is public and
+ * tag-free BY DESIGN, so its shape is pinned exactly: any column added to it is readable by anon the
+ * moment it exists, and is a LEAK here until someone has reviewed it and added it to this list.
+ */
+const REGISTRY_COLS = [
+  'game', 'label', 'type_label', 'type_groups', 'enabled', 'tools', 'cards', 'rules_version',
+  'published_at', 'updated_at',
+];
+/** theme_search's five contract columns: ids and rank fields, never a tag, caption or score. */
+const THEME_SEARCH_COLS = ['id', 'art_band', 'full_art', 'type_group', 'total_count'];
+const THEME_FACET_COLS = ['facet', 'value', 'n'];
+const THEME_FACETS = ['frame', 'type'];
+/** Tried in order until one has more hits than the free depth, so the clamp can be seen working. */
+const GAME_THEMES = ['forest', 'water', 'sky'];
+
 /** Dropped on 2026-09-11. A 200 here means something was put back. */
 const DROPPED = ['find_similar_by_color', 'get_scanner_rollout', 'set_scanner_rollout'];
 
@@ -351,6 +367,77 @@ for (const c of PARITY) {
   await pause(250);
 }
 
+// ---------------------------------------------------------------- 3c. THE GAME METER METERS
+// The other games' theme search: `theme_search` / `theme_facets` for each game the registry has
+// enabled. Called as anon, so the clamp must hold whatever the theme (the free forest is free on
+// michi's edge function, never on the bare RPC).
+console.log("3c. the other games' theme search meters, and returns ids only");
+const registry = await get('theme_search_games?select=*');
+// Until migration 78 is live the registry is not in the API at all. That is a state, not a fault:
+// nothing is enabled, so there is nothing to meter. Section 4 reads the same flag for card_themes.
+const registryLive = !(registry.status === 404 && registry.body?.code === 'PGRST205');
+checks++;
+if (!registryLive) {
+  notes.push('  ok   theme_search_games not deployed yet (78 not live): none enabled');
+  console.log('    none enabled: theme_search_games is not deployed yet (78 not live)');
+} else if (registry.status !== 200 || !registry.rows) {
+  fail('INCONCLUSIVE', 'theme_search_games', `HTTP ${registry.status} ${String(registry.body?.message ?? '').slice(0, 70)}`);
+} else {
+  if (!registry.rows.length) {
+    notes.push('  ok   theme_search_games is empty: none enabled (row shape unprovable until a row exists)');
+  } else {
+    const keys = Object.keys(registry.rows[0]);
+    const extra = keys.filter((k) => !REGISTRY_COLS.includes(k));
+    const missing = REGISTRY_COLS.filter((k) => !keys.includes(k));
+    if (extra.length) fail('LEAK', 'theme_search_games has an unreviewed column', `${extra.join(', ')}: anon reads it; review it, then add it to REGISTRY_COLS`);
+    else if (missing.length) fail('BROKEN', 'theme_search_games lost a column', missing.join(', '));
+    else notes.push(`  ok   theme_search_games has exactly its ${REGISTRY_COLS.length} public columns`);
+  }
+  const enabled = registry.rows.filter((r) => r.enabled === true).map((r) => String(r.game));
+  // Said on the section line as well: notes are printed only on a clean run.
+  console.log(`    ${enabled.length ? `enabled: ${enabled.join(', ')}` : 'none enabled'} (${registry.rows.length} registry row(s))`);
+  if (!enabled.length && registry.rows.length) notes.push(`  ok   theme_search_games: none enabled (${registry.rows.length} row(s))`);
+  for (const game of enabled) {
+    checks++;
+    if (!depth) {
+      fail('INCONCLUSIVE', `theme_search ${game}`, 'free_theme_depth could not be read, so the clamp cannot be judged');
+      continue;
+    }
+    let hit = null;
+    let last = null;
+    for (const theme of GAME_THEMES) {
+      const res = await rpc('theme_search', { p_game: game, p_fields: [{ key: 'theme', value: theme }], p_limit: 50, p_offset: 0 });
+      last = res;
+      await pause(250);
+      if (res.status === 200 && res.rows?.length && Number(res.rows[0].total_count) > depth) { hit = { theme, res }; break; }
+    }
+    if (!hit) {
+      fail('BROKEN', `theme_search ${game}`, `no theme of ${GAME_THEMES.join('/')} has more than ${depth} hits `
+        + `(last: HTTP ${last?.status}, ${last?.rows?.length ?? 0} rows), so the meter has nothing to clamp`);
+      continue;
+    }
+    const { theme, res } = hit;
+    const extraCols = [...new Set(res.rows.flatMap((r) => Object.keys(r)))].filter((k) => !THEME_SEARCH_COLS.includes(k));
+    if (extraCols.length) fail('LEAK', `theme_search ${game} returned more than ids`, `${extraCols.join(', ')}: only ${THEME_SEARCH_COLS.join(', ')} may leave`);
+    else if (res.rows.length > depth) fail('LEAK', `theme_search ${game} clamp`, `theme:${theme} asked for 50, got ${res.rows.length}, free_theme_depth is ${depth}`);
+    else if (res.rows.length < depth) fail('BROKEN', `theme_search ${game} clamp`, `theme:${theme} got ${res.rows.length} of ${res.rows[0].total_count}, free_theme_depth is ${depth}`);
+    else ok(`theme_search ${game} clamps and reports the true total`, `theme:${theme} ${res.rows.length} of ${res.rows[0].total_count}`);
+
+    const facets = await rpc('theme_facets', { p_game: game, p_fields: [{ key: 'theme', value: theme }] });
+    await pause(250);
+    checks++;
+    if (facets.status !== 200 || !facets.rows?.length) {
+      fail('BROKEN', `theme_facets ${game}`, `HTTP ${facets.status}, ${facets.rows?.length ?? 0} rows`);
+    } else {
+      const extraF = [...new Set(facets.rows.flatMap((r) => Object.keys(r)))].filter((k) => !THEME_FACET_COLS.includes(k));
+      const oddFacet = [...new Set(facets.rows.map((r) => String(r.facet)))].filter((f) => !THEME_FACETS.includes(f));
+      if (extraF.length) fail('LEAK', `theme_facets ${game} returned more than counts`, extraF.join(', '));
+      else if (oddFacet.length) fail('LEAK', `theme_facets ${game} returned an unknown facet`, `${oddFacet.join(', ')}: only ${THEME_FACETS.join(', ')} are reviewed`);
+      else ok(`theme_facets ${game} returns facet, value, n only`, `${facets.rows.length} row(s)`);
+    }
+  }
+}
+
 // ---------------------------------------------------------------- 4. THE MOAT IS CLOSED
 console.log('4. the moat is closed');
 for (const relation of CARD_RELATIONS) {
@@ -377,10 +464,14 @@ else ok('public.alternates refused');
 for (const [table, column] of [
   ['prices_tcgcsv', 'product_id'],
   ...['onepiece', 'lorcana', 'riftbound', 'digimon'].flatMap((g) => [[`${g}_sets`, 'id'], [`${g}_cards`, 'id'], [`${g}_sealed`, 'id']]),
+  // The other games' theme rows, captions and tags included (tcgscan-data migration 78). No client
+  // grant at all: theme_search reads it as definer and returns ids only.
+  ['card_themes', 'product_id'],
 ]) {
   const res = await get(`${table}?select=${column}&limit=1`);
   checks++;
-  if (res.status === 401 || res.status === 403) ok(`${table} refused (private tcgcsv table)`);
+  if (table === 'card_themes' && !registryLive && res.status === 404) ok('card_themes not deployed yet (78 not live)');
+  else if (res.status === 401 || res.status === 403) ok(`${table} refused (private table)`);
   else if (res.status === 200) fail('LEAK', `${table} is readable by anon`, 'a private table answered 200; the revoke did not hold');
   else fail('INCONCLUSIVE', `${table} could not be probed`, `HTTP ${res.status}: if 404, the table is not in the API schema cache yet`);
   await pause(250);

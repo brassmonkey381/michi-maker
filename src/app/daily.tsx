@@ -203,6 +203,16 @@ export default function DailyScreen() {
     (Math.min(width, MaxContentWidthDoc) - gutter - Spacing.two * (cols - 1)) / cols,
   );
   const remaining = puzzle ? puzzle.themeCount - found.length : 0;
+  /**
+   * NOTHING BELOW THE FOLD (owner, 2026-10-16). The cards keep their size, so the only way to get
+   * the guess box and the hint on screen without scrolling is beside the grid, not under it. When
+   * the row has room for the grid plus a panel at least SIDE_MIN wide, the panel moves to the right
+   * and the hero loses its padding; otherwise everything stacks as before.
+   */
+  const gridWidth = cell * cols + Spacing.two * (cols - 1);
+  const rowWidth = Math.min(width, MaxContentWidthDoc) - gutter;
+  const sideWidth = Math.min(SIDE_MAX, rowWidth - gridWidth - Spacing.three);
+  const beside = !!puzzle && sideWidth >= SIDE_MIN;
 
   /**
    * THE BACKDROP IS THE PAGE'S OWN, when it has one: a published puzzle carries the background of
@@ -231,12 +241,12 @@ export default function DailyScreen() {
           <View style={styles.hero}>
             <ThemedText type="small" style={styles.eyebrow}>DAILY PUZZLE</ThemedText>
             <ThemedText type="title" style={styles.h1}>What do these share?</ThemedText>
-            {puzzle ? (
-              <ThemedText type="small" themeColor="textSecondary" style={styles.lead}>
-                {`Every card matches the same ${puzzle.themeCount === 1 ? 'idea' : `${puzzle.themeCount} ideas`}. Tap a card to look closer.`}
-              </ThemedText>
-            ) : null}
             <View style={styles.pills}>
+              {puzzle ? (
+                <ThemedText type="small" themeColor="textSecondary" style={styles.lead}>
+                  {`Every card matches the same ${puzzle.themeCount === 1 ? 'idea' : `${puzzle.themeCount} ideas`}. Tap a card to look closer.`}
+                </ThemedText>
+              ) : null}
               {streak > 0 ? (
                 <View style={styles.streakPill}>
                   <ThemedText type="smallBold" style={styles.streakText}>{`${streak} day streak`}</ThemedText>
@@ -262,7 +272,7 @@ export default function DailyScreen() {
               </Pressable>
             </View>
           ) : (
-            <>
+            <View style={beside ? styles.beside : styles.stacked}>
               <View style={[styles.grid, { maxWidth: (cell + Spacing.two) * cols }]}>
                 {puzzle.cardIds.map((id, i) => (
                   <Pressable
@@ -280,6 +290,7 @@ export default function DailyScreen() {
                 ))}
               </View>
 
+              <View style={[styles.side, beside && styles.sideBeside, beside && { width: sideWidth }]}>
               {solved ? (
                 <View style={[styles.panel, styles.won]}>
                   <ThemedText type="smallBold" style={styles.wonText}>
@@ -332,30 +343,30 @@ export default function DailyScreen() {
                     </Pressable>
                   </View>
 
-                  {last ? (
-                    <ThemedText
-                      type="smallBold"
-                      style={last.result.hit ? styles.yes : styles.no}
-                      testID="daily-verdict"
-                    >
-                      {last.result.hit
-                        ? `Yes, "${last.word}" is one of them.`
-                        : `"${last.word}" is not one of them.`}
-                    </ThemedText>
-                  ) : (
-                    <ThemedText type="small" themeColor="textSecondary">
-                      Close spellings, plurals, and synonyms count.
-                    </ThemedText>
-                  )}
-
-                  {puzzle.hint ? (
-                    showHint ? (
-                      <ThemedText type="small" themeColor="textSecondary">{puzzle.hint}</ThemedText>
+                  <View style={styles.noteRow}>
+                    {last ? (
+                      <ThemedText
+                        type="smallBold"
+                        style={[styles.note, last.result.hit ? styles.yes : styles.no]}
+                        testID="daily-verdict"
+                      >
+                        {last.result.hit
+                          ? `Yes, "${last.word}" is one of them.`
+                          : `"${last.word}" is not one of them.`}
+                      </ThemedText>
                     ) : (
+                      <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
+                        Close spellings, plurals, and synonyms count.
+                      </ThemedText>
+                    )}
+                    {puzzle.hint && !showHint ? (
                       <Pressable onPress={() => setShowHint(true)} hitSlop={6}>
                         <ThemedText type="smallBold" style={styles.link}>Show the hint</ThemedText>
                       </Pressable>
-                    )
+                    ) : null}
+                  </View>
+                  {puzzle.hint && showHint ? (
+                    <ThemedText type="small" themeColor="textSecondary">{puzzle.hint}</ThemedText>
                   ) : null}
                 </View>
               )}
@@ -368,7 +379,8 @@ export default function DailyScreen() {
                   </ThemedText>
                 </View>
               ) : null}
-            </>
+              </View>
+            </View>
           )}
         </ScrollView>
 
@@ -392,6 +404,9 @@ export default function DailyScreen() {
   );
 }
 
+const SIDE_MIN = 240;
+const SIDE_MAX = 340;
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
   // A watermark, not a picture: the cards are the thing to look at.
@@ -405,13 +420,18 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     gap: Spacing.three,
   },
-  hero: { gap: Spacing.one, alignItems: 'center', paddingVertical: Spacing.three },
+  hero: { gap: Spacing.one, alignItems: 'center' },
   eyebrow: { letterSpacing: 2, color: Palette.accent, fontWeight: Weight.bold },
   h1: { textAlign: 'center' },
   lead: { textAlign: 'center', maxWidth: 420 },
-  pills: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.one, justifyContent: 'center', alignItems: 'center' },
+  stacked: { gap: Spacing.three },
+  beside: { flexDirection: 'row', gap: Spacing.three, alignItems: 'flex-start', justifyContent: 'center' },
+  side: { gap: Spacing.three, width: '100%', maxWidth: 520, alignSelf: 'center' },
+  sideBeside: { alignSelf: 'flex-start' },
+  noteRow: { flexDirection: 'row', flexWrap: 'wrap', columnGap: Spacing.three, rowGap: Spacing.one, alignItems: 'center' },
+  note: { flexShrink: 1 },
+  pills: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, justifyContent: 'center', alignItems: 'center' },
   clockPill: {
-    marginTop: Spacing.one,
     borderWidth: 1,
     borderColor: Palette.hairline,
     borderRadius: Radius.pill,
@@ -419,7 +439,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
   },
   streakPill: {
-    marginTop: Spacing.one,
     backgroundColor: Palette.accentSoft,
     borderRadius: Radius.pill,
     paddingVertical: 4,

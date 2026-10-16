@@ -124,6 +124,10 @@ const SIGNED = {
  * of 2,248 cards the weights were not the published ranking at all. These five moved because the
  * arithmetic was corrected, not because it broke: 509987 and 117892 did not move, and the two
  * properties each case exists to pin still hold.
+ *
+ * RE-BLESSED 2026-10-16 for the Pokemon tag publish of 2026-10-15 (20,498 tag records, tags
+ * reordered on republish): 567424 went 1.90 -> 1.83 with the same two hits. No SQL changed:
+ * score_cards_by_theme is untouched by migrations 77-81. The three ranks still differ (2.28 > 1.83 > 1.74).
  */
 const PARITY = [
   {
@@ -131,7 +135,7 @@ const PARITY = [
     want: ['scene:forest', 'object:tree'], bonus: [], avoid: [],
     expect: [
       { id: '509987', score: 2.28, hits: ['scene:forest', 'object:tree'], qualifies: true },
-      { id: '567424', score: 1.90, hits: ['object:tree', 'scene:forest'], qualifies: true },
+      { id: '567424', score: 1.83, hits: ['object:tree', 'scene:forest'], qualifies: true },
       { id: '654525', score: 1.74, hits: ['object:tree', 'scene:forest'], qualifies: true },
     ],
   },
@@ -165,6 +169,20 @@ const THEME_FACET_COLS = ['facet', 'value', 'n'];
 const THEME_FACETS = ['frame', 'type'];
 /** Tried in order until one has more hits than the free depth, so the clamp can be seen working. */
 const GAME_THEMES = ['forest', 'water', 'sky'];
+
+/**
+ * search_cards' 21 output columns (`RETURNS TABLE`, tcgscan-data migration 70; unchanged by the
+ * Pokemon parity cut-over, migration 81). After 81 a THEMED call joins `card_themes` for its rank
+ * facts (`ct_band`, `ct_scene`, `ct_full`, `ct_fap`, `ct_rank`, `ct_type_order`); those order the
+ * rows and must never leave. Any other key on a themed row is a LEAK until it is reviewed here.
+ */
+const SEARCH_CARDS_COLS = [
+  'id', 'name', 'number', 'rarity', 'card_type', 'set_id', 'set_name', 'series', 'release_date',
+  'illustrator', 'types', 'stage', 'hp', 'evolution_stage_index', 'evolves_from', 'evolution_line',
+  'jumbo', 'language', 'cur', 'score', 'total_count',
+];
+/** Pokemon's toolbar chip used by the 3d probe when the registry row is not readable. */
+const POKEMON_TOOLBAR_TYPE = 'Fire';
 
 /** Dropped on 2026-09-11. A 200 here means something was put back. */
 const DROPPED = ['find_similar_by_color', 'get_scanner_rollout', 'set_scanner_rollout'];
@@ -336,6 +354,12 @@ if (themed.status !== 200 || !themed.rows?.length) {
 } else {
   ok('themed search clamps and still reports the true total', `${themed.rows.length} of ${themed.rows[0].total_count}`);
 }
+if (themed.rows?.length) {
+  checks++;
+  const extraThemed = [...new Set(themed.rows.flatMap((r) => Object.keys(r)))].filter((k) => !SEARCH_CARDS_COLS.includes(k));
+  if (extraThemed.length) fail('LEAK', 'themed search_cards returned an unreviewed column', `${extraThemed.join(', ')}: only the ${SEARCH_CARDS_COLS.length} search_cards columns may leave`);
+  else notes.push(`  ok   themed search_cards returns its ${SEARCH_CARDS_COLS.length} columns only`);
+}
 
 // ---------------------------------------------------------------- 3b. THE SCORING HAS NOT DRIFTED
 console.log('3b. the scoring matches what it produced when it was written');
@@ -435,6 +459,36 @@ if (!registryLive) {
       else if (oddFacet.length) fail('LEAK', `theme_facets ${game} returned an unknown facet`, `${oddFacet.join(', ')}: only ${THEME_FACETS.join(', ')} are reviewed`);
       else ok(`theme_facets ${game} returns facet, value, n only`, `${facets.rows.length} row(s)`);
     }
+  }
+}
+
+// ---------------------------------------------------------------- 3d. POKEMON'S TOOLBAR
+// Kit 0.9.29 `themeTools`: the toolbar rides on search_cards as extra p_fields of a THEMED query
+// (`frame`, `tgroup` per chip, `group`=`type`). Before migration 81 search_cards ignores those keys;
+// after it they filter on card_themes. Either way, as anon: 200, rows, the clamp holds (grouping is
+// for privileged callers only, CP-2) and no rank fact leaves the database. Runs whatever the
+// registry's `tools` flag says: the RPC answers these fields for anyone who sends them.
+console.log("3d. Pokemon's theme toolbar on search_cards clamps and returns its columns only");
+{
+  const pokeRow = registryLive && registry.rows ? registry.rows.find((r) => r.game === 'pokemon') : undefined;
+  const pokeGroups = Array.isArray(pokeRow?.type_groups) ? pokeRow.type_groups.map((g) => String(g?.key ?? '')) : [];
+  const chip = pokeGroups.includes(POKEMON_TOOLBAR_TYPE) || !pokeGroups.length ? POKEMON_TOOLBAR_TYPE : pokeGroups[0];
+  console.log(`    pokemon registry row: ${pokeRow ? `tools ${pokeRow.tools === true ? 'on' : 'off'}` : 'absent'}; probing frame:full tgroup:${chip} group:type`);
+  const tool = await rpc('search_cards', {
+    p_words: [],
+    p_fields: [{ key: 'theme', value: 'fire' }, { key: 'frame', value: 'full' }, { key: 'tgroup', value: chip }, { key: 'group', value: 'type' }],
+    p_compares: [], p_facets: {}, p_limit: 50, p_offset: 0,
+  });
+  await pause(250);
+  checks++;
+  if (tool.status !== 200 || !tool.rows?.length) {
+    fail('BROKEN', 'themed search_cards with the toolbar fields', `HTTP ${tool.status} ${String(tool.body?.message ?? '').slice(0, 60)}, ${tool.rows?.length ?? 0} rows`);
+  } else {
+    const extraTool = [...new Set(tool.rows.flatMap((r) => Object.keys(r)))].filter((k) => !SEARCH_CARDS_COLS.includes(k));
+    if (extraTool.length) fail('LEAK', 'search_cards with the toolbar fields returned an unreviewed column', `${extraTool.join(', ')}: only the ${SEARCH_CARDS_COLS.length} search_cards columns may leave`);
+    else if (!depth) fail('INCONCLUSIVE', 'the toolbar clamp', 'free_theme_depth could not be read, so the clamp cannot be judged');
+    else if (tool.rows.length > depth) fail('LEAK', 'the toolbar clamp', `theme:fire frame:full tgroup:${chip} group:type asked for 50, got ${tool.rows.length}, free_theme_depth is ${depth}`);
+    else ok('the Pokemon toolbar fields keep the clamp and the 21 columns', `${tool.rows.length} of ${tool.rows[0].total_count}`);
   }
 }
 

@@ -234,6 +234,19 @@ export function CardBrowse({
    */
   const tg = useSyncExternalStore(subscribeThemeGames, () => themeGame(game), () => themeGame(game));
   const gameThemed = secondary && tg?.enabled === true;
+  /**
+   * POKEMON'S THEME TOOLBAR (All art / Full art / Windowed, type chips, Group by type). Pokemon has
+   * no `themeServer`: its themed queries stay on `search_cards`, and the kit (0.9.29 `themeTools`)
+   * adds the toolbar's `frame` / `tgroup` / `group` fields to them. The registry row's `tools` is
+   * the switch (`publish_theme.ps1 -Game pokemon -Tools on|off`), NOT `enabled`: that one says
+   * whether `theme_search` serves a game, and Pokemon never uses it. Fails closed like the rest:
+   * no row, an unreadable row or a failed read is Pokemon without the toolbar, exactly as before.
+   * Memoised on the registry row (a stable reference until re-read) so the prop does not churn.
+   */
+  const pokemonTools = useMemo(
+    () => (!secondary && tg?.tools === true ? { typeLabel: tg.type_label, typeGroups: tg.type_groups } : undefined),
+    [secondary, tg],
+  );
   const themeGamesLoad = useSyncExternalStore(subscribeThemeGames, themeGamesState, themeGamesState);
   /**
    * A TYPED `theme:` ON A GAME WITHOUT THEME SEARCH is a gap in the game, not in the account, so it
@@ -449,6 +462,9 @@ export function CardBrowse({
         // this game only; the ids come back ranked and are mapped onto the catalog above. The
         // registry row names and colours the type chips, and `tools` decides the toolbar.
         themeServer={gameThemed && tg ? { game, typeLabel: tg.type_label, typeGroups: tg.type_groups, tools: tg.tools } : undefined}
+        // POKEMON'S toolbar over `search_cards` (see `pokemonTools`); the kit ignores it beside a
+        // `themeServer`, and a secondary game never gets it.
+        themeTools={pokemonTools}
         selectedCardId={selectedCardId}
         onPickCard={onPickCard ?? (() => {})}
         onPickVUnion={onPickVUnion}

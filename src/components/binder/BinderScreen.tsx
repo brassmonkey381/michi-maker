@@ -101,6 +101,8 @@ import { DOCK_PCT_MAX, LEGACY_MIN_WIDTH, MIN_PAGE_WIDTH, PANEL_GAP, PANEL_MAX_WI
 import type { CaptionFieldKey } from '@/data/cardCaption';
 import type { ComposePlacement } from '@/data/pageComposer';
 import { isSupabaseConfigured } from '@/lib/env';
+import { downloadBinderHiresImage } from '@/lib/appUrl';
+import { track } from '@/lib/analytics';
 import { footprintForKind } from '@/data/cardSizing';
 import { resolveCard } from '@/data/cardResolver';
 import { addSavedSlices, removeSavedSlice, sliceSignature, slotSignature, useSavedSlices, useSavedSlicesSync, type SavedSlice } from '@/data/savedSlices';
@@ -456,6 +458,12 @@ export function BinderScreen({
   // P opens the print sheet with the preview already rendering (owner, 2026-10-16); the buttons
   // open it at rest, as before.
   const [printPreviewAtOpen, setPrintPreviewAtOpen] = useState(false);
+  // F: THE POSTER-SCALE SHARE IMAGE AS A DOWNLOAD (owner, 2026-10-16), the Share panel's
+  // "Download full-size image" without opening the panel. The render takes about half a minute
+  // the first time, so the toasts say so, and one render at a time: a second F while one is
+  // running is ignored. The server renders public binders only, so a private one gets the Share
+  // panel (where it goes public) instead of a failed download.
+  const hiresBusy = useRef(false);
   const [toast, setToast] = useState<ToastSpec | null>(null);
   // Likes this binder has received (owner view). Fetched on open; tapping opens the likers list.
   const [likeCount, setLikeCount] = useState<number | null>(null);
@@ -2959,6 +2967,27 @@ export function BinderScreen({
             setPrintPreviewAtOpen(true);
             setPrintOpen(true);
           }}
+          onDownloadFullImage={
+            isSupabaseConfigured
+              ? () => {
+                  if (hiresBusy.current) return;
+                  if (!binder.isPublic) {
+                    showToast('Make the binder public to download its full-size image');
+                    setShareOpen(true);
+                    return;
+                  }
+                  hiresBusy.current = true;
+                  showToast('Rendering the full-size image, about half a minute…');
+                  track('share.hires', { surface: 'f_key', binder_id: binder.id });
+                  void downloadBinderHiresImage(binder.id, binder.updatedAt)
+                    .then(() => showToast('Full-size image downloaded'))
+                    .catch(() => showToast('That render did not finish. Press F to try again in a moment.'))
+                    .finally(() => {
+                      hiresBusy.current = false;
+                    });
+                }
+              : undefined
+          }
           onMovePage={() => setMovePageOpen((v) => !v)}
           onMergeSplit={editing ? mergeOrSplit : undefined}
           onNewPage={editing ? handleAddPage : undefined}
@@ -3204,6 +3233,7 @@ function EditorKeyboardShortcuts({
   onQuickPreview,
   onShare,
   onPrint,
+  onDownloadFullImage,
   onMovePage,
   onMergeSplit,
   onNewPage,
@@ -3234,6 +3264,8 @@ function EditorKeyboardShortcuts({
   onShare?: () => void;
   /** P: the Print sheet, with the preview of this binder's sheets already rendering. */
   onPrint?: () => void;
+  /** F: download the poster-scale share image (owner, 2026-10-16), as the Share panel's button does. */
+  onDownloadFullImage?: () => void;
   /** W: move this page. Editing only. */
   onMovePage?: () => void;
   /** M: merge the two selected art pieces, or split the selected one. Editing only. */
@@ -3299,6 +3331,11 @@ function EditorKeyboardShortcuts({
         onPrint();
         return;
       }
+      if (!meta && !e.altKey && key === PLAIN_KEYS.fullImage && onDownloadFullImage) {
+        e.preventDefault();
+        onDownloadFullImage();
+        return;
+      }
       if (!undoable) return;
       if (!meta && !e.altKey && key === PLAIN_KEYS.movePage && onMovePage) {
         e.preventDefault();
@@ -3337,7 +3374,7 @@ function EditorKeyboardShortcuts({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [active, undoable, pocketKeys, onUndo, onRedo, onDelete, onPrevPage, onNextPage, onToggleEdit, onToggleArt, onToggleCards, onToggleSettings, onQuickPreview, onShare, onPrint, onMovePage, onMergeSplit, onNewPage, onGoToPage, onEscape]);
+  }, [active, undoable, pocketKeys, onUndo, onRedo, onDelete, onPrevPage, onNextPage, onToggleEdit, onToggleArt, onToggleCards, onToggleSettings, onQuickPreview, onShare, onPrint, onDownloadFullImage, onMovePage, onMergeSplit, onNewPage, onGoToPage, onEscape]);
   return null;
 }
 

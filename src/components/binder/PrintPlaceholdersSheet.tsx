@@ -85,10 +85,13 @@ async function saveFillSheetFiles(files: FillSheetPdf[], stem: string, suffix = 
 
 export function PrintPlaceholdersSheet({
   binder,
+  previewAtOpen = false,
   onClose,
   onDone,
 }: {
   binder: DemoBinder;
+  /** Open with the preview of this binder already rendering (the P key). */
+  previewAtOpen?: boolean;
   onClose: () => void;
   /** Fired after a successful download (for a host toast). */
   onDone?: (sheets: number) => void;
@@ -461,9 +464,15 @@ export function PrintPlaceholdersSheet({
   // preview mode: watermarked, art at half the pixels, no instructions file. It is shown as
   // pictures and never handed over as a file (PrintPreview). Armed like the example above, so the
   // button is never hidden behind a cold catalog: the modal opens at once and says it is working.
-  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(previewAtOpen);
   const [previewFiles, setPreviewFiles] = useState<FillSheetPdf[] | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const previewTracked = useRef(false);
+  useEffect(() => {
+    if (!previewAtOpen || previewTracked.current) return;
+    previewTracked.current = true;
+    track('print.preview', { surface: 'print_key', binder_id: binder.id });
+  }, [previewAtOpen, binder.id]);
   const openPreview = () => {
     track('print.preview', { surface: 'print_gate', binder_id: binder.id });
     setPreviewFiles(null);

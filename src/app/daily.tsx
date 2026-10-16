@@ -203,16 +203,10 @@ export default function DailyScreen() {
     (Math.min(width, MaxContentWidthDoc) - gutter - Spacing.two * (cols - 1)) / cols,
   );
   const remaining = puzzle ? puzzle.themeCount - found.length : 0;
-  /**
-   * NOTHING BELOW THE FOLD (owner, 2026-10-16). The cards keep their size, so the only way to get
-   * the guess box and the hint on screen without scrolling is beside the grid, not under it. When
-   * the row has room for the grid plus a panel at least SIDE_MIN wide, the panel moves to the right
-   * and the hero loses its padding; otherwise everything stacks as before.
-   */
-  const gridWidth = cell * cols + Spacing.two * (cols - 1);
-  const rowWidth = Math.min(width, MaxContentWidthDoc) - gutter;
-  const sideWidth = Math.min(SIDE_MAX, rowWidth - gridWidth - Spacing.three);
-  const beside = !!puzzle && sideWidth >= SIDE_MIN;
+  // AS LITTLE UNDER THE CARDS AS POSSIBLE (owner, 2026-10-16). The cards keep their size and the
+  // guess box stays under them (a side panel was tried and turned down), so everything else is
+  // compact: the lead and the countdown share a row, the found chips sit in the guess row, and
+  // the spelling tip shares a line with the hint link.
 
   /**
    * THE BACKDROP IS THE PAGE'S OWN, when it has one: a published puzzle carries the background of
@@ -240,7 +234,7 @@ export default function DailyScreen() {
 
           <View style={styles.hero}>
             <ThemedText type="small" style={styles.eyebrow}>DAILY PUZZLE</ThemedText>
-            <ThemedText type="title" style={styles.h1}>What do these share?</ThemedText>
+            <ThemedText type="subtitle" style={styles.h1}>What do these share?</ThemedText>
             <View style={styles.pills}>
               {puzzle ? (
                 <ThemedText type="small" themeColor="textSecondary" style={styles.lead}>
@@ -272,7 +266,7 @@ export default function DailyScreen() {
               </Pressable>
             </View>
           ) : (
-            <View style={beside ? styles.beside : styles.stacked}>
+            <View style={styles.stacked}>
               <View style={[styles.grid, { maxWidth: (cell + Spacing.two) * cols }]}>
                 {puzzle.cardIds.map((id, i) => (
                   <Pressable
@@ -290,7 +284,7 @@ export default function DailyScreen() {
                 ))}
               </View>
 
-              <View style={[styles.side, beside && styles.sideBeside, beside && { width: sideWidth }]}>
+              <View style={styles.side}>
               {solved ? (
                 <View style={[styles.panel, styles.won]}>
                   <ThemedText type="smallBold" style={styles.wonText}>
@@ -306,20 +300,19 @@ export default function DailyScreen() {
                 </View>
               ) : (
                 <View style={styles.panel}>
-                  <View style={styles.foundRow}>
-                    {found.map((w) => (
-                      <View key={w} style={styles.foundChip}>
-                        <ThemedText type="small" style={styles.foundText}>{w}</ThemedText>
-                      </View>
-                    ))}
-                    {Array.from({ length: Math.max(0, remaining) }, (_, i) => (
-                      <View key={`blank-${i}`} style={styles.blankChip}>
-                        <ThemedText type="small" themeColor="textSecondary">?</ThemedText>
-                      </View>
-                    ))}
-                  </View>
-
                   <View style={styles.guessRow}>
+                    <View style={styles.foundRow}>
+                      {found.map((w) => (
+                        <View key={w} style={styles.foundChip}>
+                          <ThemedText type="small" style={styles.foundText}>{w}</ThemedText>
+                        </View>
+                      ))}
+                      {Array.from({ length: Math.max(0, remaining) }, (_, i) => (
+                        <View key={`blank-${i}`} style={styles.blankChip}>
+                          <ThemedText type="small" themeColor="textSecondary">?</ThemedText>
+                        </View>
+                      ))}
+                    </View>
                     <TextInput
                       value={typed}
                       onChangeText={setTyped}
@@ -404,9 +397,6 @@ export default function DailyScreen() {
   );
 }
 
-const SIDE_MIN = 240;
-const SIDE_MAX = 340;
-
 const styles = StyleSheet.create({
   container: { flex: 1 },
   // A watermark, not a picture: the cards are the thing to look at.
@@ -414,20 +404,19 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   scroll: {
     padding: Spacing.four,
+    paddingTop: Spacing.two,
     paddingBottom: BottomTabInset + Spacing.four,
     maxWidth: MaxContentWidthDoc,
     width: '100%',
     alignSelf: 'center',
-    gap: Spacing.three,
+    gap: Spacing.two,
   },
   hero: { gap: Spacing.one, alignItems: 'center' },
   eyebrow: { letterSpacing: 2, color: Palette.accent, fontWeight: Weight.bold },
   h1: { textAlign: 'center' },
   lead: { textAlign: 'center', maxWidth: 420 },
-  stacked: { gap: Spacing.three },
-  beside: { flexDirection: 'row', gap: Spacing.three, alignItems: 'flex-start', justifyContent: 'center' },
-  side: { gap: Spacing.three, width: '100%', maxWidth: 520, alignSelf: 'center' },
-  sideBeside: { alignSelf: 'flex-start' },
+  stacked: { gap: Spacing.two },
+  side: { gap: Spacing.two, width: '100%', maxWidth: 520, alignSelf: 'center' },
   noteRow: { flexDirection: 'row', flexWrap: 'wrap', columnGap: Spacing.three, rowGap: Spacing.one, alignItems: 'center' },
   note: { flexShrink: 1 },
   pills: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, justifyContent: 'center', alignItems: 'center' },
@@ -458,7 +447,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Palette.hairline,
     borderRadius: Radius.control,
-    padding: Spacing.three,
+    padding: Spacing.two,
     gap: Spacing.two,
     width: '100%',
     maxWidth: 520,
@@ -466,7 +455,7 @@ const styles = StyleSheet.create({
   },
   won: { borderColor: Palette.accent, backgroundColor: Palette.accentSoft },
   wonText: { color: Palette.accent, fontSize: FontSize.md },
-  foundRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.one, justifyContent: 'center' },
+  foundRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.one, alignItems: 'center', maxWidth: '45%' },
   foundChip: {
     backgroundColor: Palette.accent,
     borderRadius: Radius.pill,
@@ -482,7 +471,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: Spacing.three,
   },
-  guessRow: { flexDirection: 'row', gap: Spacing.two },
+  guessRow: { flexDirection: 'row', gap: Spacing.two, alignItems: 'center' },
   input: {
     flex: 1,
     borderWidth: 1,

@@ -153,12 +153,13 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         products: ['michi'],
-        head: 'The daily puzzle fits on one screen',
+        head: 'The daily puzzle takes less scrolling',
         kind: 'better',
         area: 'browse',
         body:
-          'On a wide screen the guess box and the hint sit beside the cards instead of under them, '
-          + 'and the heading is tighter, so nothing is below the fold. The cards are the same size.',
+          'A smaller heading, the countdown on the same line as the lead, and the found words in '
+          + 'the guess row: the guess box and the hint are much nearer the cards. The cards are the '
+          + 'same size.',
       },
     ],
   },

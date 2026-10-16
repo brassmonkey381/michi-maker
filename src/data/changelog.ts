@@ -131,8 +131,30 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-10-16',
-    title: 'P for print, and the puzzle fits the screen',
+    title: 'Fill page, only the cards you mean',
     items: [
+      {
+        products: ['michi'],
+        head: 'Only: a frame and a type for every fill',
+        kind: 'new',
+        area: 'binders',
+        big: true,
+        body:
+          'The Fill page sheet has an Only row: Any art, Full art, Illustration rares or Windowed, '
+          + 'and any energy types you tap. Every method honours it, so an evolution line of windowed '
+          + 'cards, or a same-scene page of Fire illustration rares, is one tap. The choice sticks '
+          + 'while you fill page after page.',
+      },
+      {
+        products: ['michi'],
+        head: 'Same scene fills in browse order',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'Same scene used to draw at random from the closest matches. It now lays the page out '
+          + 'the way a theme search lists them: closest first, artwork cards leading, windowed cards '
+          + 'only when the scene runs short.',
+      },
       {
         products: ['michi'],
         head: 'Press P to preview your print',

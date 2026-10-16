@@ -7,7 +7,7 @@ test('every shortcut sits under exactly one of the three headings, none empty', 
   const groups = shortcutGroups('Ctrl');
   assert.deepEqual(groups.map((g) => g.title), [...SHORTCUT_GROUPS]);
   assert.equal(groups.reduce((n, g) => n + g.items.length, 0), shortcutList('Ctrl').length);
-  for (const g of groups) assert.ok(g.items.length >= 3 && g.items.length <= 8, `${g.title}: ${g.items.length}`);
+  for (const g of groups) assert.ok(g.items.length >= 3 && g.items.length <= 7, `${g.title}: ${g.items.length}`);
 });
 
 test('the card lists the plain keys the editor listens for, under the same letters', () => {
@@ -33,7 +33,9 @@ test('the card stays short, and swaps only the modifier word between platforms',
   // Sixteen at most (owner, 2026-10-16, up from fifteen when F joined the same day P did;
   // fourteen on 2026-10-13 when R did; thirteen on 2026-10-12 when N did; twelve on 2026-09-16
   // when S, Q, W and Esc did): still one screen, though the card is due a grouping.
+  // M (merge / split) left the same day: fifteen.
   assert.ok(win.length >= 5 && win.length <= 16, `${win.length} shortcuts`);
+  assert.ok(!win.some((s) => s.keys === 'M'), 'M is gone');
   assert.deepEqual(
     win.map((s) => s.does),
     mac.map((s) => s.does),

@@ -51,6 +51,8 @@ import {
 import type { Catalog, CatalogCard } from '@/lib/catalog';
 import { otherGameColorUrl, otherGameSimilar, otherGameSimilarReady } from '@/lib/otherGame';
 import { similarByTags } from '@/lib/themeScores';
+import { promoteArtCards } from '@/data/artRank';
+import { type ComposeFilter, filterActive, matchesComposeFilter } from '@/data/composeFilter';
 import { occupiedCells, type DemoPage } from '@/data/binderTypes';
 import { hasToken } from '@/data/nameMatch';
 import { THEME_BACKGROUNDS, themeBackgroundDataUri } from '@/data/themeBackgrounds';
@@ -374,7 +376,7 @@ function printKey(c: CatalogCard): string {
  * (name, set) print at most once across the result — and, when `pool` is given ("fill from my
  * collection"), only cards the user owns.
  */
-function filterAndDedupe(
+function dedupeCandidates(
   candidates: CatalogCard[],
   page: DemoPage,
   pool?: ReadonlySet<string> | null,
@@ -624,9 +626,24 @@ export async function composePage(
   /** The seed's game (see availableMethods). A secondary game ranks from its published
    *  neighbour graph instead of Pokémon's embedding RPC, which it has no server for. */
   game?: string,
+  /** The sheet's "Only" row (composeFilter.ts): a frame and types every method honours. */
+  filter?: ComposeFilter | null,
 ): Promise<ComposePlacement[]> {
   const cells = method === 'evolutionLine' ? emptyCellsColMajor(page) : emptyCellsRowMajor(page);
   if (cells.length === 0) return [];
+  // EVERY METHOD'S CANDIDATES PASS THE FILTER FIRST (owner, 2026-10-16), before ranking and
+  // spreading, so "evolution line, windowed only" is that line's windowed prints in their usual
+  // order rather than the usual page with holes. The ranked methods ask the server for more when
+  // a filter is on, since most of what comes back may be the wrong frame or type.
+  const narrowed = filterActive(filter);
+  const filterAndDedupe = (
+    candidates: CatalogCard[],
+    pg: DemoPage,
+    pl?: ReadonlySet<string> | null,
+    lg?: CardLanguage[],
+    cat?: Catalog,
+  ) => dedupeCandidates(narrowed ? candidates.filter((c) => matchesComposeFilter(c, filter)) : candidates, pg, pl, lg, cat);
+  const rankedWant = (plain: number) => (narrowed || pool ? 200 : plain);
   // Effective bound for the LOCAL scans (undefined when unconstrained). The RPCs take the raw list
   // and normalise it themselves, so they're handed `languages` directly.
   const langs = effectiveLanguages(languages);
@@ -636,21 +653,28 @@ export async function composePage(
     // every card's tags, multiplying rank weights pairwise. It is a similarity query and it now
     // runs beside find_similar on the server (lib/themeScores), which is both where the tags live
     // and the only place they now are. Ids and scores come back; no tag does.
-    const hits = await similarByTags(seed.id, { pool, languages, limit: pool ? 200 : cells.length * 6 + 16 });
+    const hits = await similarByTags(seed.id, { pool, languages, limit: rankedWant(cells.length * 6 + 16) });
     const cards = filterAndDedupe(
       hits.map((h) => catalog.getCard(h.id)).filter((c): c is CatalogCard => !!c),
       page, pool, langs, catalog,
     );
-    // Closest-first within a subject; across subjects one card each before a second of any, so a
-    // page of "the same scene" is nine pictures of it, not nine prints of one Pokemon in it.
-    return place(cells, spreadBySubject(varied(cards, RANKED_WINDOW)).slice(0, cells.length));
+    // THE SAME ORDER AS BROWSING (owner, 2026-10-16): the server's nearest-first, with the
+    // artwork cards promoted the way a theme: search promotes them (artRank), and NO shuffle,
+    // so the page reads like the top of the browse grid for this scene. Then one card per
+    // subject before a second of any, so a page of "the same scene" is nine pictures of it, not
+    // nine prints of one Pokemon in it.
+    const byId = new Map(cards.map((c) => [c.id, c]));
+    const led = promoteArtCards(cards.map((c) => c.id), (id) => byId.get(id)?.fullArtKind)
+      .map((id) => byId.get(id))
+      .filter((c): c is CatalogCard => !!c);
+    return place(cells, spreadBySubject(led).slice(0, cells.length));
   }
 
   if (method === 'moreLikeThis') {
     // Ask for extra hits: some resolve to jumbo/V-UNION or cards already placed and get
     // filtered. A pool run casts a much wider net — the owned subset of a global ranking is
     // sparse, so rank deep and keep whichever owned cards surface.
-    const want = pool ? 200 : cells.length * 3 + 8;
+    const want = rankedWant(cells.length * 3 + 8);
     // A secondary game's neighbours are precomputed and already sorted nearest-first; Pokémon's
     // come from the RPC. Everything below this line is identical for both.
     const hits =
@@ -724,7 +748,7 @@ export async function composePage(
     // on-device/server, fails soft to []). Nearest-first, so we KEEP that order (no variety re-rank,
     // which would scramble the colour ranking). Every pocket gets a CARD (see the note above
     // COMPOSE_METHODS on why the tonal inserts are gone).
-    const want = cells.length * 3 + 8;
+    const want = rankedWant(cells.length * 3 + 8);
     /**
      * A SECONDARY GAME'S PAGE IS COMPOSED FROM ITS OWN PALETTES. The kit derives its colour blob
      * from the configured browseUrl, which here is always Pokémon's — michi's binder is Pokémon's

@@ -22,6 +22,14 @@ import { pillChip } from '@/constants/ui';
 import { occupiedCells, type DemoPage } from '@/data/binderTypes';
 import { fetchUserCards } from '@/data/collectionRepo';
 import {
+  COMPOSE_FRAMES,
+  COMPOSE_TYPES,
+  type ComposeFilter,
+  type ComposeFrame,
+  describeComposeFilter,
+  filterActive,
+} from '@/data/composeFilter';
+import {
   COMPOSE_METHODS,
   methodCopy,
   availableMethods,
@@ -42,6 +50,9 @@ import { useLanguagePref } from '@/store/languagePref';
 
 // Session-remembered preference: once a collector fills from their collection, keep doing so.
 let fromCollectionPref = false;
+// The "Only" row (composeFilter.ts) sticks the same way: a person building a windowed Fire binder
+// sets it once and fills page after page.
+let filterPref: ComposeFilter = { frame: 'all', types: [] };
 
 export function AutoFillSheet({
   visible,
@@ -89,6 +100,18 @@ export function AutoFillSheet({
       fromCollectionPref = !v;
       return !v;
     });
+  const [filter, setFilterState] = useState<ComposeFilter>(filterPref);
+  const setFilter = (next: ComposeFilter) =>
+    setFilterState(() => {
+      filterPref = next;
+      return next;
+    });
+  const pickFrame = (frame: ComposeFrame) => setFilter({ ...filter, frame });
+  const toggleType = (t: string) => {
+    const types = filter.types ?? [];
+    setFilter({ ...filter, types: types.includes(t) ? types.filter((x) => x !== t) : [...types, t] });
+  };
+  const narrowed = filterActive(filter);
   useEffect(() => {
     if (!visible) return;
     let active = true;
@@ -121,6 +144,9 @@ export function AutoFillSheet({
   const other = catalog && seedCardId && !catalog.getCard(seedCardId) ? otherGameCatalogFor(seedCardId) : null;
   const seedCatalog = other?.catalog ?? catalog;
   const seedGame = other?.game ?? 'pokemon';
+  // Secondary games publish no art kinds and no energy types, so the Only row would filter to
+  // nothing; it is withheld for them and the fill runs unfiltered.
+  const filterApplies = seedGame === 'pokemon';
   // "More like this" for a secondary game reads a published neighbour graph, not an RPC — load it
   // when a seed from that game opens the sheet, so the method can be offered rather than withheld.
   useEffect(() => {
@@ -192,6 +218,7 @@ export function AutoFillSheet({
         poolActive ? ownedIds : null,
         languages,
         seedGame,
+        filterApplies ? filter : null,
       );
       // Pool fills consume owned copies — tag card pockets with collection provenance so the
       // (free/owned) inventory accounting and Reclaim see them.
@@ -200,9 +227,11 @@ export function AutoFillSheet({
       }
       if (placements.length === 0) {
         setError(
-          poolActive
-            ? 'None of your collection fits this method. Try another, or fill from the whole catalog.'
-            : 'Nothing suitable found for this method. Try another.',
+          filterApplies && narrowed
+            ? `Nothing ${describeComposeFilter(filter)} fits this method. Widen the Only row or try another.`
+            : poolActive
+              ? 'None of your collection fits this method. Try another, or fill from the whole catalog.'
+              : 'Nothing suitable found for this method. Try another.',
         );
         return;
       }
@@ -254,6 +283,57 @@ export function AutoFillSheet({
                     <LanguageToggle value={languages} onChange={setLanguages} theme={browseTheme} />
                   </View>
                 </View>
+
+                {/* THE ONLY ROW (owner, 2026-10-16): a frame and types that every method below
+                    honours, so "evolution line, windowed only" or "same scene, Fire illustration
+                    rares" is one tap on the method, not a second dialog. Sticks for the session. */}
+                {filterApplies ? (
+                  <View style={styles.only} testID="fill-only">
+                    <View style={styles.onlyRow}>
+                      <ThemedText type="small" themeColor="textSecondary" style={styles.onlyLabel}>
+                        Only
+                      </ThemedText>
+                      {COMPOSE_FRAMES.map((f) => {
+                        const on = (filter.frame ?? 'all') === f.key;
+                        return (
+                          <Pressable
+                            key={f.key}
+                            onPress={() => pickFrame(f.key)}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: on }}
+                            testID={`fill-frame-${f.key}`}
+                            style={[pillChip.base, on && pillChip.active]}>
+                            <Text style={[pillChip.text, on && pillChip.textActive]}>{f.label}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                    <View style={styles.onlyRow}>
+                      <ThemedText type="small" themeColor="textSecondary" style={styles.onlyLabel}>
+                        Type
+                      </ThemedText>
+                      {COMPOSE_TYPES.map((t) => {
+                        const on = (filter.types ?? []).includes(t);
+                        return (
+                          <Pressable
+                            key={t}
+                            onPress={() => toggleType(t)}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: on }}
+                            testID={`fill-type-${t.toLowerCase()}`}
+                            style={[pillChip.base, styles.typeChip, on && pillChip.active]}>
+                            <Text style={[pillChip.text, on && pillChip.textActive]}>{t}</Text>
+                          </Pressable>
+                        );
+                      })}
+                      {(filter.types?.length ?? 0) > 0 ? (
+                        <Pressable onPress={() => setFilter({ ...filter, types: [] })} hitSlop={6} testID="fill-type-any">
+                          <ThemedText type="small" style={styles.anyLink}>Any type</ThemedText>
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  </View>
+                ) : null}
 
                 {/* VIP: run every method at once and choose between finished pages, instead of
                     committing to one method against the page you are standing on. */}
@@ -375,6 +455,11 @@ const styles = StyleSheet.create({
   },
   center: { paddingVertical: Spacing.four, alignItems: 'center', gap: Spacing.two },
   controls: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.three, rowGap: Spacing.two },
+  only: { gap: Spacing.two },
+  onlyRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.one },
+  onlyLabel: { width: 36 },
+  typeChip: { paddingHorizontal: 9, paddingVertical: 4 },
+  anyLink: { color: Palette.link, marginLeft: Spacing.one },
   langRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   method: {
     flexDirection: 'row',

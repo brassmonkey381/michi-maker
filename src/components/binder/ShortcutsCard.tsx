@@ -25,8 +25,8 @@ export function ShortcutsCard({ onDismiss }: { onDismiss: () => void }) {
           <Text style={styles.closeGlyph}>✕</Text>
         </Pressable>
       </View>
-      {/* THREE SHORT LISTS, NOT ONE LONG ONE (owner, 2026-10-16): sixteen keys under Pages,
-          Panels and Editing, so the eye finds the one it wants without reading the rest. */}
+      {/* THREE SHORT LISTS, NOT ONE LONG ONE (owner, 2026-10-16): fifteen keys under Binder,
+          Editing and Share, so the eye finds the one it wants without reading the rest. */}
       {groups.map((g) => (
         <View key={g.title} style={styles.group} testID={`shortcuts-group-${g.title.toLowerCase()}`}>
           <Text style={styles.groupTitle}>{g.title}</Text>

@@ -1498,12 +1498,6 @@ export function BinderScreen({
       showToast('Merged into one piece', true);
     }
   };
-  // M: merge the two selected pieces, or split the selected one, whichever the selection allows.
-  const mergeOrSplit = () => {
-    if (mergePair && 'merged' in mergePair.result) mergeMany();
-    else if (selectedSlot && canSplitSlice(selectedSlot)) splitSelected();
-  };
-
   // ✨ Fill page: place the composer's picks (one commit → one Undo) and report the result.
   const handleComposeAll = (seed: CatalogCard, pool: ReadonlySet<string> | null) => {
     setAutoFillOpen(false);
@@ -2989,7 +2983,6 @@ export function BinderScreen({
               : undefined
           }
           onMovePage={() => setMovePageOpen((v) => !v)}
-          onMergeSplit={editing ? mergeOrSplit : undefined}
           onNewPage={editing ? handleAddPage : undefined}
           onGoToPage={(n) => changePage(n - 1)}
           onEscape={() => {
@@ -3235,7 +3228,6 @@ function EditorKeyboardShortcuts({
   onPrint,
   onDownloadFullImage,
   onMovePage,
-  onMergeSplit,
   onNewPage,
   onGoToPage,
   onEscape,
@@ -3268,8 +3260,6 @@ function EditorKeyboardShortcuts({
   onDownloadFullImage?: () => void;
   /** W: move this page. Editing only. */
   onMovePage?: () => void;
-  /** M: merge the two selected art pieces, or split the selected one. Editing only. */
-  onMergeSplit?: () => void;
   /** N: a new page at the end, the same as the + Page button. Editing only. */
   onNewPage?: () => void;
   /** Digits: a page number, 1-based, acted on after a short pause; the caller clamps it. */
@@ -3340,9 +3330,6 @@ function EditorKeyboardShortcuts({
       if (!meta && !e.altKey && key === PLAIN_KEYS.movePage && onMovePage) {
         e.preventDefault();
         onMovePage();
-      } else if (!meta && !e.altKey && key === PLAIN_KEYS.mergeSplit && onMergeSplit) {
-        e.preventDefault();
-        onMergeSplit();
       } else if (!meta && !e.altKey && key === PLAIN_KEYS.newPage && onNewPage) {
         e.preventDefault();
         onNewPage();
@@ -3374,7 +3361,7 @@ function EditorKeyboardShortcuts({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [active, undoable, pocketKeys, onUndo, onRedo, onDelete, onPrevPage, onNextPage, onToggleEdit, onToggleArt, onToggleCards, onToggleSettings, onQuickPreview, onShare, onPrint, onDownloadFullImage, onMovePage, onMergeSplit, onNewPage, onGoToPage, onEscape]);
+  }, [active, undoable, pocketKeys, onUndo, onRedo, onDelete, onPrevPage, onNextPage, onToggleEdit, onToggleArt, onToggleCards, onToggleSettings, onQuickPreview, onShare, onPrint, onDownloadFullImage, onMovePage, onNewPage, onGoToPage, onEscape]);
   return null;
 }
 

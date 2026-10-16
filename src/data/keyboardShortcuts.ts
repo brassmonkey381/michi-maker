@@ -8,7 +8,7 @@
  * and so the card and the handlers cannot drift apart without a test noticing.
  */
 
-export type ShortcutGroup = 'Pages' | 'Panels' | 'Editing';
+export type ShortcutGroup = 'Binder' | 'Editing' | 'Share';
 
 export interface Shortcut {
   /** The keys, as they are printed on the card. */
@@ -19,30 +19,30 @@ export interface Shortcut {
   group: ShortcutGroup;
 }
 
-/** The headings, in the order the card prints them. */
-export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = ['Pages', 'Panels', 'Editing'];
+/** The headings, in the order the card prints them (owner, 2026-10-16: the binder itself, then
+ *  changing it, then getting it out). */
+export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = ['Binder', 'Editing', 'Share'];
 
 /** Mac shows ⌘ where Windows shows Ctrl; the card swaps the word, nothing else. */
 export function shortcutList(mod: 'Ctrl' | '⌘'): Shortcut[] {
   // TWO OR THREE WORDS EACH (owner, 2026-09-18): the key is the subject, the label only names what
   // it toggles or does. Sentences made the card a page of reading for twelve keys.
   return [
-    { keys: '← → or wheel', does: 'Turn page, or type one', group: 'Pages' },
-    { keys: 'N', does: 'New page', group: 'Pages' },
-    { keys: 'W', does: 'Move page', group: 'Pages' },
-    { keys: 'E', does: 'Edit / View', group: 'Pages' },
-    { keys: 'A', does: 'Art dock', group: 'Panels' },
-    { keys: 'C or D', does: 'Cards dock', group: 'Panels' },
-    { keys: 'S', does: 'Settings', group: 'Panels' },
-    { keys: 'Q', does: 'Share image preview', group: 'Panels' },
-    { keys: 'R', does: 'Share panel', group: 'Panels' },
-    { keys: 'P', does: 'Print preview', group: 'Panels' },
-    { keys: 'F', does: 'Save full-size image', group: 'Panels' },
-    { keys: 'Esc', does: 'Close', group: 'Panels' },
+    { keys: '← → or wheel', does: 'Turn page, or type one', group: 'Binder' },
+    { keys: 'E', does: 'Edit / View', group: 'Binder' },
+    { keys: 'S', does: 'Settings', group: 'Binder' },
+    { keys: 'Esc', does: 'Close', group: 'Binder' },
     { keys: `${mod} Z`, does: 'Undo (Shift: redo)', group: 'Editing' },
     { keys: `${mod} click`, does: 'Multi-select', group: 'Editing' },
-    { keys: 'M', does: 'Merge / split art', group: 'Editing' },
     { keys: 'Delete', does: 'Clear pocket', group: 'Editing' },
+    { keys: 'N', does: 'New page', group: 'Editing' },
+    { keys: 'W', does: 'Move page', group: 'Editing' },
+    { keys: 'C or D', does: 'Cards dock', group: 'Editing' },
+    { keys: 'A', does: 'Art dock', group: 'Editing' },
+    { keys: 'Q', does: 'Share image preview', group: 'Share' },
+    { keys: 'R', does: 'Share panel', group: 'Share' },
+    { keys: 'P', does: 'Print preview', group: 'Share' },
+    { keys: 'F', does: 'Save full-size image', group: 'Share' },
   ];
 }
 
@@ -53,7 +53,7 @@ export function shortcutGroups(mod: 'Ctrl' | '⌘'): { title: ShortcutGroup; ite
 }
 
 /** The plain keys (no modifier) the editor listens for, so a handler and the card agree. */
-export const PLAIN_KEYS = { editMode: 'e', artDock: 'a', cardsDock: ['c', 'd'], settings: 's', quickPreview: 'q', share: 'r', print: 'p', fullImage: 'f', movePage: 'w', mergeSplit: 'm', newPage: 'n' } as const;
+export const PLAIN_KEYS = { editMode: 'e', artDock: 'a', cardsDock: ['c', 'd'], settings: 's', quickPreview: 'q', share: 'r', print: 'p', fullImage: 'f', movePage: 'w', newPage: 'n' } as const;
 /** How long after the last digit a typed page number is acted on. Long enough for a two-digit number, short enough to feel like a jump. */
 export const PAGE_NUMBER_DEBOUNCE_MS = 650;
 

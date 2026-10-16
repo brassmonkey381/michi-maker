@@ -130,6 +130,39 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-10-16',
+    title: 'P for print, and the puzzle fits the screen',
+    items: [
+      {
+        products: ['michi'],
+        head: 'Press P to preview your print',
+        kind: 'new',
+        area: 'binders',
+        body:
+          'In your binder, P opens the Print sheet with the preview of your fill sheets already '
+          + 'drawing: every page laid out as it will print, watermarked. It joins the shortcuts card.',
+      },
+      {
+        products: ['michi'],
+        head: 'Settings stays on the right',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'The Settings button sat in a different place in Edit Mode and Viewing Mode. It is now '
+          + 'the last thing on the tools row in both, so your hand goes to the same spot.',
+      },
+      {
+        products: ['michi'],
+        head: 'The daily puzzle fits on one screen',
+        kind: 'better',
+        area: 'browse',
+        body:
+          'On a wide screen the guess box and the hint sit beside the cards instead of under them, '
+          + 'and the heading is tighter, so nothing is below the fold. The cards are the same size.',
+      },
+    ],
+  },
+  {
     date: '2026-10-15',
     title: 'The CSV importer shows its work',
     items: [
@@ -177,6 +210,16 @@ export const CHANGELOG: ChangelogEntry[] = [
           + 'row. Without an id, all three are needed and all three must match, but loosely: "Evolving '
           + 'Skies" finds SWSH07: Evolving Skies, "Rayquaza V" with its number finds the alternate art, '
           + 'and 044 is 44. Every skipped row says which check it failed and what the catalog has there.',
+      },
+      {
+        products: ['michi'],
+        head: 'Locked binders come back whenever there is room',
+        kind: 'fix',
+        area: 'binders',
+        body:
+          'A Free account with locked binders and room under its limit, after deleting a binder or '
+          + 'after losing more than it should have, stayed locked out of its own work. Now any room '
+          + 'under the limit pulls the newest locked binders back on sign-in, on every plan.',
       },
     ],
   },

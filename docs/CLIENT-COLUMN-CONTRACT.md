@@ -288,3 +288,36 @@ forwarded call carries `x-rl-identity`, so the registry row binds it.
 passes `themeServer` and shows the `Theme: forest` button only for a game whose row is `enabled`.
 Any read failure, an unknown game or a malformed row leaves the game locked (fail closed), and a
 typed `theme:` there shows a "not available" line under the game picker rather than the plans page.
+
+## 10. Pokemon's theme toolbar (tcgscan-data migrations 80 and 81, kit 0.9.29)
+
+Added 2026-10-16. **Read from source, not measured**: 80 (the `_search_cards_v2` shadow) and 81
+(the cut-over) are staged and not live when this was written. `npm run check:exposure` sections 3
+and 3d measure it on every run, before and after 81.
+
+| Relation / function | Who reads it | Columns |
+| --- | --- | --- |
+| `rpc/search_cards` (81), themed, with the toolbar fields | kit 0.9.29 `searchCards` (`themeTools`), via michi's `theme-search` edge function or anon | **21, unchanged**: the same `RETURNS TABLE` as 70 (section 3) |
+| `rpc/_search_cards_v2` (80, dropped by 81) | nobody: EXECUTE is service_role only | the same 21 |
+| `theme_search_games` row `pokemon` | michi `src/lib/themeGames.ts` | the 6 of section 9; `tools` is the toolbar switch |
+
+Three notes.
+
+**The rank facts never leave.** After 81 a themed `search_cards` joins `card_themes` for
+`art_band`, `scene`, `full_art`, `full_art_prob`, `showcase_rank` and `type_order`, aliased `ct_*`.
+They order and filter the rows inside the function; the output stays the 21 columns, so Pokemon
+rows carry no `type_group`, `full_art` or `art_band` (the kit groups by the card's own types). The
+exposure check pins the 21 (`SEARCH_CARDS_COLS`) on a themed call and on a call with every toolbar
+field, and calls any extra key a `LEAK`. Returning `type_group` later is a DROP + CREATE migration
+with its own review, and must add the column to `SEARCH_CARDS_COLS` in the same change.
+
+**The toolbar is three more `p_fields` keys, nothing else.** `frame` (`full` / `window`), `tgroup`
+(one per chip, a registry `type_groups` key) and `group` (`type`). Before 81 `search_cards` answers
+them with `else true`, so they change nothing; the edge function forwards `p_fields` as it is, so
+no edge change is needed. The clamp holds with them (section 3d), and `group` only orders a
+privileged caller's rows; a free caller's best N are grouped on the device.
+
+**`tools`, not `enabled`, turns it on.** `CardBrowse` passes `themeTools` to the Pokemon browser
+only while the `pokemon` registry row has `tools = true` (`publish_theme.ps1 -Game pokemon -Tools
+on|off`). `enabled` says whether `theme_search` serves a game, and Pokemon never uses
+`theme_search`. A failed or missing registry read is Pokemon without the toolbar.

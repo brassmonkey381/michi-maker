@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   REVEAL_AFTER,
   canReveal,
+  revealCountdownText,
   dailyPuzzleChoice,
   shiftUtcDate,
   streakLength,
@@ -113,4 +114,7 @@ test('the answer can be revealed after five guesses, never once solved', () => {
   assert.ok(canReveal(5, false));
   assert.ok(canReveal(9, false));
   assert.ok(!canReveal(9, true));
+  assert.equal(revealCountdownText(0), 'Reveal the answer after 5 more guesses');
+  assert.equal(revealCountdownText(4), 'Reveal the answer after 1 more guess');
+  assert.equal(revealCountdownText(7), 'Reveal the answer after 0 more guesses');
 });

@@ -161,6 +161,12 @@ export function canReveal(attempts: number, solved: boolean): boolean {
   return !solved && attempts >= REVEAL_AFTER;
 }
 
+/** The line under the guess box before the reveal is open: how many more guesses it takes. */
+export function revealCountdownText(attempts: number): string {
+  const left = Math.max(0, REVEAL_AFTER - attempts);
+  return left === 1 ? 'Reveal the answer after 1 more guess' : `Reveal the answer after ${left} more guesses`;
+}
+
 export function verdictText(matched: number, of: number): string {
   if (matched === of) return of === 1 ? 'Correct.' : `Correct, all ${of}.`;
   if (matched === 0) return of === 1 ? 'Not this time.' : 'None of those, not this time.';

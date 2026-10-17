@@ -34,7 +34,7 @@ import {
 } from '@/constants/theme';
 import {
   countdownText, guessWord, markSeen, myPlay, myStreak, nextRollover,
-  PUZZLE_BACKDROP_FALLBACK, canReveal, revealPuzzleAnswer, revealedAnswer, todaysPuzzle,
+  PUZZLE_BACKDROP_FALLBACK, canReveal, revealCountdownText, revealPuzzleAnswer, revealedAnswer, todaysPuzzle,
   type DailyPuzzle, type GuessResult,
 } from '@/data/dailyPuzzle';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
@@ -400,6 +400,11 @@ export default function DailyScreen() {
                       <Pressable onPress={() => void reveal()} hitSlop={6} disabled={revealing} testID="daily-reveal">
                         <ThemedText type="smallBold" style={styles.link}>{revealing ? 'One moment…' : 'Reveal the answer'}</ThemedText>
                       </Pressable>
+                    ) : last ? (
+                      // From the first guess on (owner, 2026-10-16): how far away the way out is.
+                      <ThemedText type="small" themeColor="textSecondary" testID="daily-reveal-countdown">
+                        {revealCountdownText(tries)}
+                      </ThemedText>
                     ) : null}
                   </View>
                   {puzzle.hint && showHint ? (

@@ -30,6 +30,7 @@ export {
   verdictText,
   canReveal,
   REVEAL_AFTER,
+  revealCountdownText,
   withDailyPuzzleChoice,
 } from '@/data/dailyPuzzleLogic';
 export type { DailyPuzzleChoice, PlayedDay } from '@/data/dailyPuzzleLogic';

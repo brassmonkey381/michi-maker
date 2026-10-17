@@ -404,6 +404,12 @@ Deno.serve(async (req: Request) => {
                   // the same value and changes nothing, while a genuine second purchase of the
                   // same binder is a NEW session with a later created and still re-arms.
                   granted_at: new Date(session.created * 1000).toISOString(),
+                  // What they paid, from the session total: the one price this grant can have.
+                  // The subscription rows carry the same three columns (20261012120000); without
+                  // these a PDF sale read "price not recorded" in the morning email.
+                  price_lookup_key: 'pdf_binder',
+                  unit_amount_minor: typeof session.amount_total === 'number' ? session.amount_total : null,
+                  currency: session.currency ?? null,
                 },
                 { onConflict: 'user_id,product' },
               );

@@ -31,6 +31,7 @@ import { previewDeepLinkPage } from '@/data/previewPages';
 import { binderShareUrl, downloadBinderHiresImage, warmBinderPreview } from '@/lib/appUrl';
 import { useAuth } from '@/store/auth';
 import { useBinders } from '@/store/binders';
+import { AuthSheet } from '@/components/auth/AuthSheet';
 
 export function ShareSheet({
   visible,
@@ -155,6 +156,12 @@ export function ShareSheet({
   const accountAttested = !!auth.profile?.rights_attested_at;
   const [privateArt, setPrivateArt] = useState<PrivateArtRef[] | null>(null);
   const [awaitingAttest, setAwaitingAttest] = useState(false);
+  // SHARING NEEDS AN ACCOUNT (owner, 2026-10-16). A guest (anonymous session) can build, but a
+  // binder credited to nobody is not published: the policy refuses the flip (migration
+  // 20261017000000), and here the toggle opens the account sheet instead. Upgrading keeps the
+  // same user id, so the binder is theirs to share the moment they are signed up.
+  const [awaitingAccount, setAwaitingAccount] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
   const [attested, setAttested] = useState(false);
   const [attestBusy, setAttestBusy] = useState(false);
   // Converting hotlink art into copies we host. Since the only thing that still blocks sharing
@@ -193,7 +200,12 @@ export function ShareSheet({
     if (!next) {
       setPrivateArt(null);
       setAwaitingAttest(false);
+      setAwaitingAccount(false);
       onSetPublic(false); // going private is always allowed
+      return;
+    }
+    if (auth.isGuest) {
+      setAwaitingAccount(true);
       return;
     }
     const priv = privateArtInBinder(binder);
@@ -462,6 +474,22 @@ export function ShareSheet({
                     </ThemedText>
                   ))}
                 </ScrollView>
+              </View>
+            ) : null}
+
+            {awaitingAccount ? (
+              <View style={styles.gateBox} testID="share-account-gate">
+                <ThemedText type="smallBold">Sign up to share</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary" style={styles.gateText}>
+                  Public binders carry their maker’s name, and you are building as a guest. Create
+                  an account and this binder, and everything else you have made, comes with you.
+                </ThemedText>
+                <Pressable onPress={() => setAuthOpen(true)} style={({ pressed }) => [styles.publicBtn, pressed && styles.dim]}>
+                  <ThemedText type="smallBold" style={styles.publicBtnText}>
+                    Create an account
+                  </ThemedText>
+                </Pressable>
+                <AuthSheet visible={authOpen} onClose={() => setAuthOpen(false)} />
               </View>
             ) : null}
 

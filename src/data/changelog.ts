@@ -206,6 +206,16 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         products: ['michi'],
+        head: 'Sharing a binder needs an account',
+        kind: 'better',
+        area: 'binders',
+        body:
+          'You can build as a guest, but a public binder carries its maker’s name, so the Share '
+          + 'panel now asks a guest to create an account first. Everything you made as a guest comes '
+          + 'with you.',
+      },
+      {
+        products: ['michi'],
         head: 'Press F for the full-size image',
         kind: 'new',
         area: 'binders',

@@ -28,6 +28,8 @@ export {
   streakLength,
   utcDate,
   verdictText,
+  canReveal,
+  REVEAL_AFTER,
   withDailyPuzzleChoice,
 } from '@/data/dailyPuzzleLogic';
 export type { DailyPuzzleChoice, PlayedDay } from '@/data/dailyPuzzleLogic';
@@ -56,6 +58,10 @@ export interface MyPlay {
   correct: boolean | null;
   matched: number | null;
   answeredAt: string | null;
+  /** Every guess so far, hits and misses, counted by the server. */
+  attempts: number;
+  /** Set once they asked for the words (reveal_puzzle_answer). */
+  revealedAt: string | null;
 }
 
 export interface GuessResult {
@@ -97,7 +103,7 @@ export async function myPlay(puzzleId: string): Promise<MyPlay | null> {
   if (!supabase) return null;
   const { data, error } = await supabase
     .from('puzzle_plays')
-    .select('puzzle_id, guess, correct, matched, answered_at')
+    .select('puzzle_id, guess, correct, matched, answered_at, attempts, revealed_at')
     .eq('puzzle_id', puzzleId)
     .maybeSingle();
   if (error || !data) return null;
@@ -107,6 +113,8 @@ export async function myPlay(puzzleId: string): Promise<MyPlay | null> {
     correct: data.correct ?? null,
     matched: data.matched ?? null,
     answeredAt: data.answered_at ?? null,
+    attempts: Number(data.attempts ?? 0),
+    revealedAt: data.revealed_at ?? null,
   };
 }
 
@@ -149,6 +157,17 @@ export async function vocabulary(): Promise<string[]> {
   const { data, error } = await supabase.from('puzzle_vocabulary').select('word').eq('suggest', true);
   if (error || !data) return [];
   return data.map((r) => String(r.word)).sort();
+}
+
+/**
+ * Today's words, for a player REVEAL_AFTER guesses in (dailyPuzzleLogic). The server refuses
+ * anyone earlier, and stamps the play so the words come back on a reload too. Not a win.
+ */
+export async function revealPuzzleAnswer(puzzleId: string): Promise<string[]> {
+  const client = requireSupabase();
+  const { data, error } = await client.rpc('reveal_puzzle_answer', { p_puzzle_id: puzzleId });
+  if (error) throw new Error(error.message);
+  return (data as string[] | null) ?? [];
 }
 
 /** Yesterday's answer, once it is yesterday's. Today's returns null by the function's own rule. */

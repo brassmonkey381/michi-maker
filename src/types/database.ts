@@ -460,6 +460,8 @@ export type Database = {
           correct: boolean | null
           matched: number | null
           answered_at: string | null
+          attempts: number
+          revealed_at: string | null
           created_at: string
           updated_at: string
         }
@@ -472,6 +474,8 @@ export type Database = {
           correct?: boolean | null
           matched?: number | null
           answered_at?: string | null
+          attempts?: number
+          revealed_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -484,6 +488,8 @@ export type Database = {
           correct?: boolean | null
           matched?: number | null
           answered_at?: string | null
+          attempts?: number
+          revealed_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -1218,6 +1224,10 @@ export type Database = {
           strikes: number
           last_at: string
         }[]
+      }
+      reveal_puzzle_answer: {
+        Args: { p_puzzle_id: string }
+        Returns: string[] | null
       }
       guess_puzzle_word: {
         Args: { p_puzzle_id: string; p_word: string }

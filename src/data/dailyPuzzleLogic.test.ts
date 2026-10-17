@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  REVEAL_AFTER,
+  canReveal,
   dailyPuzzleChoice,
   shiftUtcDate,
   streakLength,
@@ -102,4 +104,13 @@ test('a countdown reads in the units a person cares about', () => {
   assert.equal(countdownText(9_000), '9s');
   assert.equal(countdownText(0), 'any moment');
   assert.equal(countdownText(-5), 'any moment');
+});
+
+test('the answer can be revealed after five guesses, never once solved', () => {
+  assert.equal(REVEAL_AFTER, 5);
+  assert.ok(!canReveal(0, false));
+  assert.ok(!canReveal(4, false));
+  assert.ok(canReveal(5, false));
+  assert.ok(canReveal(9, false));
+  assert.ok(!canReveal(9, true));
 });

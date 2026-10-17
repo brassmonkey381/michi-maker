@@ -34,12 +34,12 @@ import {
 } from '@/constants/theme';
 import {
   countdownText, guessWord, markSeen, myPlay, myStreak, nextRollover,
-  PUZZLE_BACKDROP_FALLBACK, revealedAnswer, todaysPuzzle,
+  PUZZLE_BACKDROP_FALLBACK, canReveal, revealPuzzleAnswer, revealedAnswer, todaysPuzzle,
   type DailyPuzzle, type GuessResult,
 } from '@/data/dailyPuzzle';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 import {
-  trackPuzzleGuess, trackPuzzleGuessFailed, trackPuzzleOpened, trackPuzzleSolved,
+  trackPuzzleGuess, trackPuzzleGuessFailed, trackPuzzleOpened, trackPuzzleRevealed, trackPuzzleSolved,
 } from '@/lib/analytics';
 import { useAuth } from '@/store/auth';
 
@@ -62,6 +62,9 @@ export default function DailyScreen() {
   const [puzzle, setPuzzle] = useState<DailyPuzzle | null>(null);
   const [found, setFound] = useState<string[]>([]);
   const [solved, setSolved] = useState(false);
+  /** Today's words, once they asked for them (REVEAL_AFTER guesses in). Ends the day, not a win. */
+  const [revealed, setRevealed] = useState<string[] | null>(null);
+  const [revealing, setRevealing] = useState(false);
   const [streak, setStreak] = useState(0);
   const [yesterday, setYesterday] = useState<string[] | null>(null);
 
@@ -112,6 +115,11 @@ export default function DailyScreen() {
     if (mine) {
       setFound(mine.guess ?? []);
       setSolved(!!mine.correct);
+      // The server's count, so a reload after five guesses still offers the reveal.
+      setTries(mine.attempts);
+      if (mine.revealedAt && !mine.correct) {
+        setRevealed(await revealPuzzleAnswer(id).catch(() => null));
+      }
     }
     setStreak(await myStreak());
     if (userId) await markSeen(id, userId);
@@ -140,9 +148,24 @@ export default function DailyScreen() {
   /** Words guessed in this visit, for the attempt number on each one. */
   const attempts = useRef(0);
 
+  const reveal = async () => {
+    if (!puzzle || revealing || solved || revealed) return;
+    setRevealing(true);
+    try {
+      const words = await revealPuzzleAnswer(puzzle.id);
+      setRevealed(words);
+      trackPuzzleRevealed(puzzle.id, tries, found.length);
+    } catch {
+      // The server said no (fewer than five guesses on its count, or the RPC failed): the link
+      // simply stays, and the next press asks again.
+    } finally {
+      setRevealing(false);
+    }
+  };
+
   const submit = async () => {
     const word = typed.trim();
-    if (!puzzle || !word || busy || solved) return;
+    if (!puzzle || !word || busy || solved || revealed) return;
     setBusy(true);
     // Read from the ref, not `tries`: state is a render behind, and the attempt
     // number has to be right inside this same call.
@@ -188,10 +211,11 @@ export default function DailyScreen() {
    * intermittently because the browser keeps the last search it ran, so arriving with the box
    * already holding something was mistaken for the link having filled it.
    */
-  const runTheSearch = () => {
-    sendBrowseCommand({ type: 'search', query: found.map((w) => `theme:${w}`).join(' ') });
+  const seeMatches = (words: string[]) => {
+    sendBrowseCommand({ type: 'search', query: words.map((w) => `theme:${w}`).join(' ') });
     router.push('/browse' as Href);
   };
+  const runTheSearch = () => seeMatches(found);
 
   // Big enough to read the illustration, and laid out in the page's own column count so the shape
   // a reader sees is the shape it was curated in.
@@ -285,7 +309,20 @@ export default function DailyScreen() {
               </View>
 
               <View style={styles.side}>
-              {solved ? (
+              {revealed && !solved ? (
+                <View style={styles.panel} testID="daily-revealed">
+                  <ThemedText type="smallBold">
+                    {revealed.length === 1 ? `The word was ${revealed[0]}.` : `The words were ${revealed.join(' and ')}.`}
+                  </ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {found.length > 0 ? `You had ${found.join(' and ')}. ` : ''}
+                    {`The next one lands in ${countdownText(left)}.`}
+                  </ThemedText>
+                  <Pressable onPress={() => seeMatches(revealed)}>
+                    <ThemedText type="smallBold" style={styles.link}>See every card that matches</ThemedText>
+                  </Pressable>
+                </View>
+              ) : solved ? (
                 <View style={[styles.panel, styles.won]}>
                   <ThemedText type="smallBold" style={styles.wonText}>
                     {found.length === 1 ? `Got it. ${found[0]}.` : `Got them. ${found.join(' and ')}.`}
@@ -355,6 +392,13 @@ export default function DailyScreen() {
                     {puzzle.hint && !showHint ? (
                       <Pressable onPress={() => setShowHint(true)} hitSlop={6}>
                         <ThemedText type="smallBold" style={styles.link}>Show the hint</ThemedText>
+                      </Pressable>
+                    ) : null}
+                    {/* THE WAY OUT (owner, 2026-10-16): after REVEAL_AFTER guesses the words can be
+                        asked for. The server holds the same rule, so a reload cannot get them early. */}
+                    {canReveal(tries, solved) ? (
+                      <Pressable onPress={() => void reveal()} hitSlop={6} disabled={revealing} testID="daily-reveal">
+                        <ThemedText type="smallBold" style={styles.link}>{revealing ? 'One moment…' : 'Reveal the answer'}</ThemedText>
                       </Pressable>
                     ) : null}
                   </View>

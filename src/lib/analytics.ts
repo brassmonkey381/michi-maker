@@ -897,6 +897,11 @@ export function trackPuzzleSolved(puzzle: string, attempts: number, streak: numb
   track('puzzle.solved', { puzzle, attempts, streak });
 }
 
+/** They asked for the words after `attempts` guesses. The other way a day ends; not a win. */
+export function trackPuzzleRevealed(puzzle: string, attempts: number, found: number): void {
+  track('puzzle.revealed', { puzzle, attempts, found });
+}
+
 /** A guess that could not be graded - the RPC threw. Not a wrong answer. */
 export function trackPuzzleGuessFailed(puzzle: string, attempt: number): void {
   track('puzzle.guess_failed', { puzzle, attempt });

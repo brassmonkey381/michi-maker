@@ -252,6 +252,16 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         products: ['michi'],
+        head: 'Daily puzzle: reveal the answer after five guesses',
+        kind: 'new',
+        area: 'browse',
+        body:
+          'Five guesses in, a Reveal the answer link appears under the guess box. It shows the '
+          + 'words and a link to every card that matches. A revealed day is not a win, so your '
+          + 'streak is what it was.',
+      },
+      {
+        products: ['michi'],
         head: 'The daily puzzle takes less scrolling',
         kind: 'better',
         area: 'browse',

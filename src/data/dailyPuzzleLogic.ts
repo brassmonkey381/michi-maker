@@ -149,6 +149,18 @@ export function streakLength(plays: PlayedDay[], today: string): number {
  * How a finished game reads. Kept for the "how many of how many" line; the per-guess wording lives
  * on the screen now that guesses are one word at a time.
  */
+/**
+ * REVEAL AFTER FIVE (owner, 2026-10-16). A player five guesses in may ask for the words. The
+ * server holds the same number (reveal_puzzle_answer); this is what the page uses to show the
+ * link, so the two cannot disagree without a test noticing.
+ */
+export const REVEAL_AFTER = 5;
+
+/** May this player ask for today's words? Never once solved: there is nothing left to reveal. */
+export function canReveal(attempts: number, solved: boolean): boolean {
+  return !solved && attempts >= REVEAL_AFTER;
+}
+
 export function verdictText(matched: number, of: number): string {
   if (matched === of) return of === 1 ? 'Correct.' : `Correct, all ${of}.`;
   if (matched === 0) return of === 1 ? 'Not this time.' : 'None of those, not this time.';

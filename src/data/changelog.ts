@@ -131,8 +131,48 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-10-16',
-    title: 'Fill page, only the cards you mean',
+    title: 'Theme search for Lorcana and One Piece, and fills with only the cards you mean',
     items: [
+      {
+        products: ['michi'],
+        head: 'Search Lorcana and One Piece by what is in the picture',
+        kind: 'new',
+        area: 'browse',
+        big: true,
+        body:
+          'Theme search now works in Disney Lorcana and the One Piece Card Game. Type theme: and a '
+          + 'word, or press the Theme button, and the cards whose art shows it come up: a storm, a '
+          + 'castle, a crew laughing. A toolbar over the results narrows by ink or colour, and by '
+          + 'Full art or Windowed.',
+      },
+      {
+        products: ['michi'],
+        head: 'Full art or windowed, your pick',
+        kind: 'new',
+        area: 'browse',
+        body:
+          'Every theme search has a toolbar: All art, Full art or Windowed, plus the energy, ink '
+          + 'or colour you want. A page of windowed Fire scenes, or only the edge-to-edge art, is '
+          + 'one tap on the results.',
+      },
+      {
+        products: ['michi'],
+        head: 'Theme search reaches more than 20,000 Pokemon cards',
+        kind: 'better',
+        area: 'browse',
+        body:
+          'Searching by what is in the picture now covers over twenty thousand Pokemon cards, up '
+          + 'from a fraction of that, so an unusual theme finds a page instead of a card or two.',
+      },
+      {
+        products: ['michi'],
+        head: 'The Theme button rotates in every game',
+        kind: 'better',
+        area: 'browse',
+        body:
+          'In Lorcana and One Piece the Theme button offered one theme. It now draws a different one '
+          + 'each press from a list made for that game, the way it does for Pokemon.',
+      },
       {
         products: ['michi'],
         head: 'Only: a frame and a type for every fill',

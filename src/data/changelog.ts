@@ -135,10 +135,26 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         products: ['michi'],
+        head: 'Theme search, all the way through',
+        kind: 'new',
+        area: 'browse',
+        big: true,
+        pinned: true,
+        featured: true,
+        body:
+          'Searching by what is in the picture now reaches more than 20,000 Pokemon cards and works '
+          + 'in Disney Lorcana and the One Piece Card Game. A toolbar over every theme search narrows '
+          + 'to Full art or Windowed and to the energy, ink or colour you want. And in a binder, Fill '
+          + 'page with Same scene lays a page out in that same order, with an Only row so a page of '
+          + 'windowed Fire scenes is one tap.',
+      },
+      {
+        products: ['michi'],
         head: 'Search Lorcana and One Piece by what is in the picture',
         kind: 'new',
         area: 'browse',
         big: true,
+        pinned: true,
         body:
           'Theme search now works in Disney Lorcana and the One Piece Card Game. Type theme: and a '
           + 'word, or press the Theme button, and the cards whose art shows it come up: a storm, a '
@@ -150,6 +166,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         head: 'Full art or windowed, your pick',
         kind: 'new',
         area: 'browse',
+        pinned: true,
         body:
           'Every theme search has a toolbar: All art, Full art or Windowed, plus the energy, ink '
           + 'or colour you want. A page of windowed Fire scenes, or only the edge-to-edge art, is '
@@ -256,7 +273,6 @@ export const CHANGELOG: ChangelogEntry[] = [
         area: 'collection',
         big: true,
         pinned: true,
-        featured: true,
         body:
           'Paste or pick a file and the rows draw as a grid under the box, header pinned. Over every '
           + 'column a green tick says how we read it (Product ID, Quantity, Name, Set, Number) or a '
@@ -915,7 +931,6 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'Merge two pieces of art, or split one, on the page',
-        pinned: true,
         kind: 'new',
         area: 'binders',
         body:
@@ -1119,7 +1134,6 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'Sleeves and backing per pocket, per page, or for the whole binder',
-        pinned: true,
         kind: 'new',
         area: 'binders',
         body:
@@ -1672,7 +1686,6 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         products: ['michi'],
         head: 'Search the artwork by theme',
-        pinned: true,
         kind: 'new',
         area: 'browse',
         big: true,

@@ -60,11 +60,72 @@ export const DEMO_THEMES: readonly string[] = [
 ];
 
 /**
+ * THE OTHER GAMES ROTATE TOO (owner, 2026-10-16). Each enabled game has its own list, measured
+ * the same way against its own themes (`node scripts/theme-counts.mjs --game lorcana --list`),
+ * because the words that are dense in Pokémon's art are not the ones dense in a pirate's or a
+ * princess's. Twenty each, spread across kinds the same way; counts are from 2026-10-16. The
+ * free theme leads every list, since it is free in every enabled game.
+ */
+export const DEMO_THEMES_BY_GAME: Readonly<Record<string, readonly string[]>> = {
+  pokemon: DEMO_THEMES,
+  lorcana: [
+    FREE_THEME, //   383
+    'flowers', //    281
+    'clouds', //     630
+    'night', //      606
+    'flying', //     312
+    'mountain', //   317
+    'snow', //       248
+    'jungle', //     239
+    'ocean', //      238
+    'castle', //     242
+    'cave', //       220
+    'stars', //      201
+    'ruins', //      189
+    'glowing', //    958
+    'dreamy', //     799
+    'eerie', //      556
+    'cozy', //       158
+    'festive', //    185
+    'floating', //   294
+    'grass', //      289
+  ],
+  onepiece: [
+    FREE_THEME, //   160
+    'clouds', //    1629
+    'fighting', //  1639
+    'sword', //      881
+    'pirate', //     965
+    'laughing', //   466
+    'ruins', //      364
+    'fire', //       312
+    'night', //      311
+    'ocean', //      264
+    'flowers', //    262
+    'snow', //       233
+    'lightning', //  228
+    'smoke', //      282
+    'town', //       248
+    'bubbles', //    225
+    'city', //       215
+    'eerie', //      322
+    'flying', //     253
+    'festive', //    233
+  ],
+};
+
+/** The rotation for a game; a game without one of its own gets Pokémon's. */
+export function demoThemesFor(game: string): readonly string[] {
+  return DEMO_THEMES_BY_GAME[game] ?? DEMO_THEMES;
+}
+
+/**
  * The next theme to show, given the one on screen. Never repeats itself twice in a row, which is
  * the whole complaint the rotation answers; `Math.random` rather than a cursor because a cursor
  * would make the second press predictable and the list is walked by a person, not a test.
  */
-export function nextDemoTheme(current: string | null): string {
-  const pool = DEMO_THEMES.filter((t) => t !== current);
-  return pool[Math.floor(Math.random() * pool.length)] ?? DEMO_THEMES[0];
+export function nextDemoTheme(current: string | null, game = 'pokemon'): string {
+  const list = demoThemesFor(game);
+  const pool = list.filter((t) => t !== current);
+  return pool[Math.floor(Math.random() * pool.length)] ?? list[0];
 }

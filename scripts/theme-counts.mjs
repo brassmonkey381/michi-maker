@@ -3,6 +3,7 @@
  *
  *   node scripts/theme-counts.mjs word another "two words"
  *   node scripts/theme-counts.mjs --list          # re-measure the demo rotation itself
+ *   node scripts/theme-counts.mjs --game lorcana --list   # another game's rotation, via theme_search
  *
  * WHY THIS EXISTS. The demo button's thirty themes were once picked by hand, from what sounded
  * like a word a card artist would paint. One of them (`fog`) matched a single card, so every
@@ -35,31 +36,44 @@ function envKey() {
 }
 
 /** The demo rotation, read as text so this script needs no TypeScript loader. */
-function demoThemes() {
+function demoThemes(game) {
   const src = fs.readFileSync(path.join(ROOT, 'src/data/demoThemes.ts'), 'utf8');
-  const block = src.slice(src.indexOf('DEMO_THEMES'), src.indexOf('];', src.indexOf('DEMO_THEMES')));
+  // Pokémon's list is `DEMO_THEMES = [`; another game's is `<game>: [` inside DEMO_THEMES_BY_GAME.
+  const start = src.indexOf(game === 'pokemon' ? 'DEMO_THEMES: readonly' : `  ${game}: [`);
+  if (start < 0) { console.error(`FAILED: no rotation for ${game} in demoThemes.ts (exit 1)`); process.exit(1); }
+  const block = src.slice(start, src.indexOf('],', start) + 1 || src.indexOf('];', start));
   const words = [...block.matchAll(/'([^']+)'/g)].map((m) => m[1]);
   // FREE_THEME leads the array as an identifier, not a literal, so name it here.
   return ['forest', ...words];
 }
 
-async function count(key, theme) {
-  const res = await fetch(`${API}/rpc/search_cards`, {
-    method: 'POST',
-    headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      p_words: [], p_fields: [{ key: 'theme', value: theme }], p_compares: [], p_facets: {},
-      p_min_price: null, p_max_price: null, p_sort: null, p_dir: null, p_limit: 1, p_offset: 0,
-    }),
-  });
+/** Pokémon counts through `search_cards`; another game through its own `theme_search`. */
+async function count(key, theme, game) {
+  const res = game === 'pokemon'
+    ? await fetch(`${API}/rpc/search_cards`, {
+        method: 'POST',
+        headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          p_words: [], p_fields: [{ key: 'theme', value: theme }], p_compares: [], p_facets: {},
+          p_min_price: null, p_max_price: null, p_sort: null, p_dir: null, p_limit: 1, p_offset: 0,
+        }),
+      })
+    : await fetch(`${API}/rpc/theme_search`, {
+        method: 'POST',
+        headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_game: game, p_fields: [{ key: 'theme', value: theme }], p_limit: 1, p_offset: 0 }),
+      });
   if (!res.ok) return { theme, total: -1, note: `HTTP ${res.status} ${(await res.text()).slice(0, 120)}` };
   const rows = await res.json();
   if (!Array.isArray(rows)) return { theme, total: -1, note: 'unexpected response shape' };
   return { theme, total: rows.length ? Number(rows[0].total_count) || 0 : 0 };
 }
 
-const args = process.argv.slice(2);
-const words = args.includes('--list') ? demoThemes() : args;
+const argv = process.argv.slice(2);
+const gameAt = argv.indexOf('--game');
+const game = gameAt >= 0 ? argv[gameAt + 1] : 'pokemon';
+const args = gameAt >= 0 ? argv.filter((_, i) => i !== gameAt && i !== gameAt + 1) : argv;
+const words = args.includes('--list') ? demoThemes(game) : args;
 if (!words.length) {
   console.error('Usage: node scripts/theme-counts.mjs <word...>   |   --list');
   process.exit(1);
@@ -73,7 +87,7 @@ if (!key) {
 const results = [];
 for (let i = 0; i < words.length; i += 2) {
   if (i) await new Promise((r) => setTimeout(r, 1500));
-  results.push(...(await Promise.all(words.slice(i, i + 2).map((w) => count(key, w)))));
+  results.push(...(await Promise.all(words.slice(i, i + 2).map((w) => count(key, w, game)))));
   process.stderr.write(`  measured ${results.length}/${words.length}\n`);
 }
 results.sort((a, b) => b.total - a.total);

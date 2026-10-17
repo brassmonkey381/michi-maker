@@ -20,7 +20,6 @@ import { Breakpoints } from '@/constants/theme';
 import { ColorSearchSheet } from '@/components/ColorSearchSheet';
 import { promoteArtCards } from '@/data/artRank';
 import { nextDemoTheme } from '@/data/demoThemes';
-import { FREE_THEME } from '@/data/freeTheme';
 import { runThemeDemo } from '@/data/themeDemo';
 import { EnergyColorSheet } from '@/components/EnergyColorSheet';
 import { searchesArtworkUnmetered } from '@/data/tiers';
@@ -276,6 +275,8 @@ export function CardBrowse({
   const switchGame = (next: GameId) => {
     if (next === game) return;
     setThemeNote(false);
+    // The theme button offers a theme from the NEXT game's rotation (data/demoThemes).
+    setDemoTheme(nextDemoTheme(null, next));
     Object.assign(browseState, {
       cardQuery: '',
       seriesId: null,
@@ -520,12 +521,11 @@ export function CardBrowse({
         // NO THEME BUTTON ON A GAME THAT HAS NO THEME INDEX (owner, 2026-09-21). The kit hides
         // the button when the handler is absent. A demo that runs against Pokémon's themes while
         // One Piece is on screen would answer with the wrong game's cards; better no offer.
-        // A GAME THE REGISTRY HAS ENABLED gets the button, always offering `forest` (owner,
-        // 2026-10-15): it is free in every enabled game, and the rotation's other themes were
-        // chosen for Pokémon's art. One theme, so there is no rotation and no fifth-press offer.
-        onThemeSearch={secondary ? (gameThemed ? () => runThemeDemo('browser', FREE_THEME) : undefined) : () => {
+        // A GAME THE REGISTRY HAS ENABLED rotates like Pokémon does (owner, 2026-10-16), through
+        // its own measured list (data/demoThemes, DEMO_THEMES_BY_GAME), fifth-press offer included.
+        onThemeSearch={secondary && !gameThemed ? undefined : () => {
           runThemeDemo('browser', demoTheme);
-          setDemoTheme(nextDemoTheme(demoTheme));
+          setDemoTheme(nextDemoTheme(demoTheme, game));
           demoPresses.current += 1;
           // Every fifth press: they have understood the feature and are still pressing a button
           // for it, which is the moment to say what searching one of their own costs. NEVER to
@@ -536,7 +536,7 @@ export function CardBrowse({
             (onThemeLocked ?? (() => router.push('/plans' as Href)))();
           }
         }}
-        themeSearchLabel={`Theme: ${secondary ? FREE_THEME : demoTheme}`}
+        themeSearchLabel={`Theme: ${demoTheme}`}
         // "Color Search" on a phone pushed its own row into a wrap and shoved the kit's NEW!
         // nudge off the right edge. "Color" says the same thing beside a button that is visibly a
         // button; "Search" was doing no work the row's position did not already do.

@@ -51,6 +51,13 @@ import { hintFor } from '../../src/data/puzzleHints.ts';
 import { familyList } from '../../src/data/puzzleSynonyms.ts';
 
 const APPLY = process.argv.includes('--apply');
+/**
+ * --redo: the days still to come are rebuilt. Every puzzle dated after today is withdrawn (nobody
+ * has played it: it was never visible), its fortnight binder goes with it once nothing points at
+ * it, and the run fills those days again. For when the picking rules change under a queue that
+ * is already scheduled, as they did on 2026-10-18.
+ */
+const REDO = process.argv.includes('--redo');
 const argOf = (name, dflt) => {
   const i = process.argv.indexOf(name);
   return i > 0 && process.argv[i + 1] ? process.argv[i + 1] : dflt;
@@ -59,6 +66,13 @@ const DAYS = Math.max(1, Math.min(21, Number(argOf('--days', '14'))));
 
 /** The picture kinds where the artwork is the whole card. */
 const ART_KINDS = `('special_illustration_rare','illustration_rare','named_full_art')`;
+/**
+ * Worth about one place in the order of its kind. A full art is the picture and the page is made
+ * of pictures, so it wins unless a windowed card shows BOTH themes clearly higher up.
+ */
+const FULL_ART_BONUS = 0.3;
+/** The fainter theme must be in the top three of its kind, which is what the caption carries. */
+const MIN_WEAKEST = 0.5;
 
 /**
  * Words that are in the scene/object namespaces but are not things a player can name. Some are
@@ -112,12 +126,19 @@ console.log(`  ${words.length - scenes.length} props:    ${words.filter((w) => w
 if (words.length < 20) fail('too few usable words to build a queue from');
 
 step(2, 'what has already been used');
-const used = await appSql(`
-  select d.publish_on, a.themes, d.card_ids
+const everyPuzzle = await appSql(`
+  select d.id, d.publish_on, a.themes, d.card_ids, d.source_binder_id,
+         d.publish_on > public.puzzle_today() as still_to_come
     from public.daily_puzzles d join public.daily_puzzle_answers a on a.puzzle_id = d.id
    order by d.publish_on;
 `);
+// Under --redo the days still to come are treated as empty: their pairs and pages are not history.
+const redone = REDO ? everyPuzzle.filter((r) => r.still_to_come) : [];
+const used = everyPuzzle.filter((r) => !redone.includes(r));
 const taken = new Set(used.map((r) => r.publish_on));
+if (redone.length) {
+  console.log(`  --redo: ${redone.length} scheduled day(s) will be rebuilt: ${redone[0].publish_on} to ${redone[redone.length - 1].publish_on}`);
+}
 
 /**
  * WHAT COUNTS AS A REPEAT (owner, 2026-09-29: "don't repeat 10-01; if the cards are different,
@@ -248,50 +269,62 @@ const inspect = async (s) => {
   const key = pairKey(s.w1, s.w2);
   if (inspected.has(key)) return inspected.get(key);
   const result = await (async () => {
+    /**
+     * HOW OBVIOUS ARE THE THEMES ON THIS CARD (owner, 2026-10-18)? The berries + jungle page carried
+     * an illustration rare whose "berries" were something tiny in a background character's hand. The
+     * tag list is written in order of salience, so each word is weighted by where it sits AMONG ITS
+     * OWN KIND (the scene: tags, or the object: tags): first 1.0, second 0.75, third 0.5, fourth
+     * 0.25, after that nothing. The caption the tagger writes is the top three of each kind, so "in
+     * the caption" and "worth a weight" are the same test. Ranking within the kind, not across the
+     * whole list as the server's tag_rank_weights does, matters because a full art carries forty
+     * tags and an old windowed card a dozen: across the whole list the windowed card's scenery
+     * always looked more prominent, and a first try put nine windowed cards on nine pages.
+     *
+     * The weaker of the two words counts most, because a page is only about two things if each is
+     * plainly there. A full-art kind adds about one place, so it wins unless a windowed card shows
+     * both themes clearly higher up, which is the trade the owner asked for.
+     */
     const rows = await dataSql(`
-      select c.id::text as id, c.name, c.number, c.rarity, c.set_name, c.illustrator,
-             c.full_art_kind, coalesce(c.full_art_score, 0) as art_score
-        from public.cards_en c
-       where c.full_art_kind in ${ART_KINDS}
-         and c.scene_tags && array[${q(`scene:${s.w1}`)}, ${q(`object:${s.w1}`)}]
-         and c.scene_tags && array[${q(`scene:${s.w2}`)}, ${q(`object:${s.w2}`)}]
-       order by case c.full_art_kind
-                  when 'special_illustration_rare' then 0
-                  when 'illustration_rare' then 1 else 2 end,
-                c.full_art_score desc nulls last, c.id
-       limit 60;
+      with hit as (
+        select c.id::text as id, c.name, c.number, c.rarity, c.set_name, c.illustrator,
+               c.full_art_kind, coalesce(c.full_art_score, 0) as art_score,
+               coalesce(max(t.w) filter (where t.tag in (${q(`scene:${s.w1}`)}, ${q(`object:${s.w1}`)})), 0) as w1,
+               coalesce(max(t.w) filter (where t.tag in (${q(`scene:${s.w2}`)}, ${q(`object:${s.w2}`)})), 0) as w2
+          from public.cards_en c, lateral (
+            select u.tag, greatest(0, 1 - 0.25 * (row_number() over (partition by split_part(u.tag, ':', 1) order by u.ord) - 1)) as w
+              from unnest(c.scene_tags) with ordinality as u(tag, ord)
+             where u.tag like 'scene:%' or u.tag like 'object:%'
+          ) t
+         where c.scene_tags && array[${q(`scene:${s.w1}`)}, ${q(`object:${s.w1}`)}]
+           and c.scene_tags && array[${q(`scene:${s.w2}`)}, ${q(`object:${s.w2}`)}]
+         group by c.id, c.name, c.number, c.rarity, c.set_name, c.illustrator, c.full_art_kind, c.full_art_score
+      )
+      select *, least(w1, w2) as weakest,
+             least(w1, w2) * 0.6 + greatest(w1, w2) * 0.4
+               + case when full_art_kind in ${ART_KINDS} then ${FULL_ART_BONUS} else 0 end as salience
+        from hit
+       order by salience desc, art_score desc, id
+       limit 120;
     `);
     // Only cards whose picture resolves: a pocket with no address draws blank, and the publish RPC
     // refuses a partial address list outright.
-    const cards = rows.filter((r) => cardImageUrl(manifest, r.id));
-    if (cards.length < s.grid.size + MIN_SPARE) {
-      return { reason: `only ${cards.length} card(s) with pictures` };
+    const pictured = rows.filter((r) => cardImageUrl(manifest, r.id));
+    // The puzzle page takes only cards where the fainter theme is still in the top handful of tags;
+    // anything below that is a spare at best, however good the artwork.
+    const obvious = pictured.filter((r) => Number(r.weakest) >= MIN_WEAKEST);
+    if (obvious.length < s.grid.size) {
+      return { reason: `only ${obvious.length} card(s) show both words plainly` };
     }
-    const page = cards.slice(0, s.grid.size);
-    // The right-hand page: the next nine, for swapping in. Most pairs have fewer than nine more
-    // illustration rares, so the page is topped up with the best WINDOWED cards that carry both
-    // tags (ranked by their own artwork score). They are alternates for the owner to weigh, never
-    // the first choice, and the count of them is said out loud below.
-    const spares = cards.slice(s.grid.size, s.grid.size * 2);
-    let windowed = 0;
-    if (spares.length < s.grid.size) {
-      const more = await dataSql(`
-        select c.id::text as id, c.name, c.number, c.rarity, c.set_name, c.illustrator,
-               c.full_art_kind, coalesce(c.full_art_score, 0) as art_score
-          from public.cards_en c
-         where c.full_art_kind not in ${ART_KINDS}
-           and c.scene_tags && array[${q(`scene:${s.w1}`)}, ${q(`object:${s.w1}`)}]
-           and c.scene_tags && array[${q(`scene:${s.w2}`)}, ${q(`object:${s.w2}`)}]
-         order by c.full_art_score desc nulls last, c.id
-         limit 40;
-      `);
-      for (const r of more) {
-        if (spares.length >= s.grid.size) break;
-        if (!cardImageUrl(manifest, r.id)) continue;
-        spares.push(r);
-        windowed += 1;
-      }
+    const page = obvious.slice(0, s.grid.size);
+    // The right-hand page: the next nine by the same score, for swapping in.
+    const onPage = new Set(page.map((x) => x.id));
+    const spares = pictured.filter((r) => !onPage.has(r.id)).slice(0, s.grid.size);
+    if (spares.length < MIN_SPARE) {
+      return { reason: `only ${spares.length} spare card(s) with pictures` };
     }
+    const cards = [...page, ...spares];
+    const isWindowed = (r) => !ART_KINDS.includes(`'${r.full_art_kind}'`);
+    const windowed = { page: page.filter(isWindowed).length, spares: spares.filter(isWindowed).length };
 
     // What else do the cards ACTUALLY ON THE PAGE have in common?
     const rivalRows = await dataSql(`
@@ -331,7 +364,8 @@ while (chosen.length < DAYS) {
     const key = pairKey(s.w1, s.w2);
     if (usedPairs.has(key) || chosen.some((c) => pairKey(c.w1, c.w2) === key)) continue;
     if (resting.has(s.w1) || resting.has(s.w2)) continue;
-    if (s.n < s.grid.size + MIN_SPARE) continue;
+    // s.n counts full arts only (step 3); the pull below is wider, so this is a floor, not the pool.
+    if (s.n < MIN_SPARE) continue;
 
     const look = await inspect(s);
     if (look.reason) continue;
@@ -369,8 +403,9 @@ if (!chosen.length) fail('nothing left to publish; every good combination is spe
 for (const c of chosen) {
   console.log(
     `  ${c.publish_on}  ${c.w1} + ${c.w2}  ${c.grid.rows}x${c.grid.cols}, `
-    + `${c.n} candidates, ${c.page.length} on the page, ${c.spares.length} spare`
-    + `${c.windowed ? ` (${c.windowed} windowed)` : ''}${c.spares.length < 9 ? ' (short of nine)' : ''}`,
+    + `${c.n} candidates, ${c.page.length} on the page`
+    + `${c.windowed.page ? ` (${c.windowed.page} windowed)` : ''}, ${c.spares.length} spare`
+    + `${c.windowed.spares ? ` (${c.windowed.spares} windowed)` : ''}${c.spares.length < 9 ? ' (short of nine)' : ''}`,
   );
   console.log(`              hint: ${c.hint ?? '(none)'}`);
 }
@@ -403,7 +438,19 @@ if (!APPLY) {
 // ---------------------------------------------------------------------------
 
 const me = await adminUser();
-step(6, `writing as @${me.username}`);
+if (redone.length) {
+  step(6, `withdrawing the ${redone.length} day(s) being rebuilt`);
+  for (const r of redone) await adminSql(`select public.admin_unpublish_puzzle(${q(r.id)}::uuid);`);
+  // A fortnight binder nothing points at any more was only ever these puzzles' pages.
+  const gone = await appSql(`
+    delete from public.binders b
+     where b.owner_id = ${q(me.id)} and b.title like 'Daily Puzzles: %'
+       and not exists (select 1 from public.daily_puzzles d where d.source_binder_id = b.id)
+    returning b.title;
+  `);
+  for (const g of gone) console.log(`  removed binder "${g.title}"`);
+}
+step(redone.length ? 7 : 6, `writing as @${me.username}`);
 const first = chosen[0].publish_on;
 const last = chosen[chosen.length - 1].publish_on;
 const title = `Daily Puzzles: ${first} to ${last}`;

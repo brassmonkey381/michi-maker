@@ -136,13 +136,13 @@ step(1, 'the guessable vocabulary');
  * ordinary days further down.
  */
 const SPECIAL = Object.keys(SPECIAL_WORDS);
+const SPECIAL_TAGS = Object.entries(SPECIAL_WORDS).map(([w, ns]) => `${ns}:${w}`);
 const TOP3 = `
   with top as (
     select c.id, split_part(u.tag, ':', 2) as word, split_part(u.tag, ':', 1) as ns,
            row_number() over (partition by c.id, split_part(u.tag, ':', 1) order by u.ord) as rk
       from public.cards_en c, unnest(c.scene_tags) with ordinality as u(tag, ord)
-     where (u.tag like 'scene:%' or u.tag like 'object:%'
-            or (u.tag like 'mood:%' and split_part(u.tag, ':', 2) = any(${textArray(SPECIAL)})))
+     where (u.tag like 'scene:%' or u.tag like 'object:%' or u.tag = any(${textArray(SPECIAL_TAGS)}))
        and split_part(u.tag, ':', 2) !~ '[^a-z]'
   ), t3 as (
     select distinct id, word, ns from top where rk <= 3
@@ -153,7 +153,7 @@ const vocab = await dataSql(`${TOP3}
    group by 1 having count(distinct id) >= 40 or word = any(${textArray(SPECIAL)})
    order by n desc limit 200;
 `);
-const words = vocab.filter((v) => !UNGUESSABLE.has(v.word));
+const words = vocab.filter((v) => !UNGUESSABLE.has(v.word) || SPECIAL_WORDS[v.word]);
 const scenes = words.filter((w) => w.kind === 'scene');
 console.log(`  ${words.length} usable words (dropped ${vocab.length - words.length} unguessable)`);
 console.log(`  ${scenes.length} settings: ${scenes.slice(0, 16).map((w) => w.word).join(', ')} ...`);
@@ -239,16 +239,21 @@ const kindOf = new Map(words.map((w) => [w.word, w.kind]));
 const scored = [];
 for (const p of pairs) {
   // Under twelve there is no page and no spares; far above 150 the link stops being visible.
-  if (p.n < 12 || p.n > 150) continue;
+  const special = Boolean(SPECIAL_WORDS[p.w1] || SPECIAL_WORDS[p.w2]);
+  if (p.n < 12 || (p.n > 150 && !special)) continue;
   const rarer = Math.min(counts.get(p.w1) ?? 0, counts.get(p.w2) ?? 0);
   const implies = rarer ? p.n / rarer : 1;
-  if (implies > 0.40) continue;            // rule 3: one word gives the other away
+  // Rule 3: one word gives the other away. A holiday pair gets more room, because its page is
+  // about the day: tender + flowers (44%) is a Valentine's page, celebrating + festive (98%) is
+  // still one word twice.
+  if (implies > (special ? 0.60 : 0.40)) continue;
   // Two words for the same thing is a trick, not a puzzle.
   const f1 = familyOf.get(p.w1);
   if (f1 !== undefined && f1 === familyOf.get(p.w2)) continue;
-  // Two props is a puzzle about nothing. At least one word has to name a place.
+  // Two props is a puzzle about nothing. At least one word has to name a place. A holiday word is
+  // excused: "tender + flowers" on the 14th of February is about the day, which is setting enough.
   const settings = [p.w1, p.w2].filter((w) => kindOf.get(w) === 'scene').length;
-  if (settings === 0) continue;
+  if (settings === 0 && !SPECIAL_WORDS[p.w1] && !SPECIAL_WORDS[p.w2]) continue;
   const grid = GRID(p.n);
   // Best when the matched set is about three grids: enough to choose from, still a visible link.
   const ratio = p.n / grid.size;
@@ -333,7 +338,7 @@ const inspect = async (s) => {
           from public.cards_en c, lateral (
             select u.tag, greatest(0, 1 - 0.25 * (row_number() over (partition by split_part(u.tag, ':', 1) order by u.ord) - 1)) as w
               from unnest(c.scene_tags) with ordinality as u(tag, ord)
-             where u.tag like 'scene:%' or u.tag like 'object:%' or u.tag like 'mood:%'
+             where u.tag like 'scene:%' or u.tag like 'object:%' or u.tag = any(${textArray(SPECIAL_TAGS)})
           ) t
          where c.scene_tags && ${textArray(tagsFor(s.w1))}
            and c.scene_tags && ${textArray(tagsFor(s.w2))}
@@ -414,7 +419,7 @@ while (chosen.length < DAYS) {
   const resting = restingOn(landsOn, chosen);
   const holiday = holidayOn(landsOn);
   const rounds = holiday
-    ? [...holiday.words.map((w) => ({ word: w, list: scored.filter((s) => s.w1 === w || s.w2 === w) })),
+    ? [...holiday.words.map((w) => ({ word: w, list: scored.filter((s) => s.w1 === w || s.w2 === w).sort((a, b) => b.n - a.n) })),
        { word: null, list: scored }]
     : [{ word: null, list: scored }];
   let picked = null;
@@ -423,9 +428,13 @@ while (chosen.length < DAYS) {
     for (const s of round.list) {
     const key = pairKey(s.w1, s.w2);
     if (pairResting(key, landsOn)) continue;
-    if (resting.has(s.w1) || resting.has(s.w2)) continue;
-    // A reserved word only on its holiday, and only as the word the holiday asked for.
-    if ((isSpecial(s.w1) && s.w1 !== round.word) || (isSpecial(s.w2) && s.w2 !== round.word)) continue;
+    // A reserved word only on a holiday that lists it; the round's own word has to be on the page.
+    const listed = (w) => holiday !== null && holiday.words.includes(w);
+    if ((isSpecial(s.w1) && !listed(s.w1)) || (isSpecial(s.w2) && !listed(s.w2))) continue;
+    if (round.word && s.w1 !== round.word && s.w2 !== round.word) continue;
+    // The holiday's own words are excused the cooldown: festive is right on Christmas and right
+    // again at New Year, six days later. Every other word rests as usual.
+    if ((resting.has(s.w1) && !listed(s.w1)) || (resting.has(s.w2) && !listed(s.w2))) continue;
     // Every puzzle ships with a hint (owner, 2026-10-13), so a word with no clue is not an answer yet.
     if (!hintFor([s.w1, s.w2])) {
       for (const w of [s.w1, s.w2]) if (!CLUES[w]) noClue.add(w);

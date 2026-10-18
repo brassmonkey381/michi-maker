@@ -51,9 +51,15 @@ export const SYNONYM_FAMILIES: Record<string, readonly string[]> = {
   // are accepted here because a Halloween page is about how it feels, and a player who types
   // "spooky" has it.
   eerie: ['eerie', 'spooky', 'creepy', 'scary', 'haunted', 'halloween', 'ghostly', 'sinister'],
-  festive: ['festive', 'christmas', 'xmas', 'holiday', 'holidays', 'celebration', 'celebrating', 'festival'],
+  festive: ['festive', 'christmas', 'xmas', 'holiday', 'holidays', 'festival'],
   cozy: ['cozy', 'cosy', 'snug', 'comfy', 'comfortable', 'warm'],
-  hearts: ['heart', 'hearts', 'love', 'valentine', 'valentines', 'romantic', 'romance'],
+  // The love word for Valentine's Day; "hearts" had seven cards, "tender" has hundreds.
+  tender: ['tender', 'love', 'loving', 'affection', 'affectionate', 'romance', 'romantic', 'valentine', 'valentines', 'caring', 'gentle', 'cuddling', 'hugging', 'hug', 'hugs'],
+  // The celebration word for New Year's Eve; kept apart from festive so a page can carry both.
+  celebrating: ['celebrating', 'celebrate', 'celebration', 'celebrations', 'party', 'partying', 'cheering', 'cheer', 'cheers', 'festivities', 'hooray'],
+  confetti: ['confetti', 'streamers'],
+  dancing: ['dancing', 'dance', 'dances', 'dancer', 'dancers'],
+  sparkles: ['sparkles', 'sparkle', 'sparkling', 'sparkly', 'glitter', 'glittering', 'glittery', 'twinkle', 'twinkles', 'twinkling', 'shimmer', 'shimmering'],
   lantern: ['lantern', 'lanterns', 'lamp', 'lamps'],
   fireworks: ['firework', 'fireworks'],
   flag: ['flag', 'flags', 'banner', 'banners'],

@@ -3,9 +3,11 @@ import test from 'node:test';
 
 import {
   groupSources,
+  pageLabel,
   parseThemes,
   relevantBinders,
   puzzleToday,
+  unscheduledPages,
   type PuzzleSourceBinder,
   type PuzzleSourcePage,
 } from './puzzleAuthoring.ts';
@@ -110,4 +112,26 @@ test('a filter searches everything, showcase or not', () => {
 test('nothing marked yet falls back to every binder', () => {
   const all = [binder({ id: '1', title: 'Buco' })];
   assert.deepEqual(relevantBinders(all, '', false).map((b) => b.id), ['1']);
+});
+
+test('a chip reads the page title when there is one, else its position', () => {
+  assert.equal(pageLabel(page({ pageTitle: '2026-10-18', cardCount: 9 })), '2026-10-18 · 9');
+  assert.equal(pageLabel(page({ pageTitle: 'city + house', cardCount: 9 })), 'city + house · 9');
+  assert.equal(pageLabel(page({ pageTitle: '  ', position: 2, cardCount: 4 })), 'p3 · 4');
+  assert.equal(pageLabel(page({ pageTitle: null, position: 0, cardCount: 4 })), 'p1 · 4');
+});
+
+test('the picker leaves out empty pages and pages already scheduled', () => {
+  const b = binder({
+    id: 'f',
+    title: 'Daily Puzzles: 2026-10-18 to 2026-10-31',
+    pages: [
+      page({ pageId: 'blank', position: 0, cardCount: 0 }),
+      page({ pageId: 'left1', position: 1, pageTitle: '2026-10-18', cardCount: 9 }),
+      page({ pageId: 'right1', position: 2, pageTitle: 'berries + jungle', cardCount: 9 }),
+      page({ pageId: 'left2', position: 3, pageTitle: '2026-10-19', cardCount: 9 }),
+    ],
+  });
+  assert.deepEqual(unscheduledPages(b, new Set(['left1', 'left2'])).map((p) => p.pageId), ['right1']);
+  assert.deepEqual(unscheduledPages(b, new Set()).map((p) => p.pageId), ['left1', 'right1', 'left2']);
 });

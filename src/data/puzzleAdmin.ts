@@ -13,7 +13,7 @@
 import { groupSources, type PuzzleSourceBinder, type PuzzleSourcePage } from '@/data/puzzleAuthoring';
 import { requireSupabase } from '@/lib/supabase';
 
-export { groupSources, parseThemes, relevantBinders, puzzleToday } from '@/data/puzzleAuthoring';
+export { groupSources, pageLabel, parseThemes, relevantBinders, puzzleToday, unscheduledPages } from '@/data/puzzleAuthoring';
 export type { PuzzleSourceBinder, PuzzleSourcePage } from '@/data/puzzleAuthoring';
 
 export interface AdminPuzzle {

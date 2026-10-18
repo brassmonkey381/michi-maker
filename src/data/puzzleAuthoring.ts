@@ -108,3 +108,25 @@ export function relevantBinders(
   // broken, so fall back to everything rather than to nothing.
   return likely.length ? likely : binders;
 }
+
+/**
+ * What a page chip says. The fortnight binders title every page (the puzzle page with its date,
+ * the spares page with its themes), and that title is what an author recognises. An untitled page
+ * falls back to its position and card count, which is all the first picker ever showed.
+ */
+export function pageLabel(page: Pick<PuzzleSourcePage, 'pageTitle' | 'position' | 'cardCount'>): string {
+  const title = page.pageTitle?.trim();
+  return title ? `${title} · ${page.cardCount}` : `p${page.position + 1} · ${page.cardCount}`;
+}
+
+/**
+ * The pages still worth offering: ones with cards on them that no puzzle has claimed yet. A
+ * fortnight binder has 28 such pages, half of which are already scheduled, and a chip for a page
+ * that is already a puzzle is a chip for a mistake.
+ */
+export function unscheduledPages(
+  binder: PuzzleSourceBinder,
+  scheduledPageIds: ReadonlySet<string>,
+): PuzzleSourcePage[] {
+  return binder.pages.filter((p) => p.cardCount > 0 && !scheduledPageIds.has(p.pageId));
+}

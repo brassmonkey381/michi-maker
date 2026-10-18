@@ -59,6 +59,11 @@ const APPLY = process.argv.includes('--apply');
  * is already scheduled, as they did on 2026-10-18.
  */
 const REDO = process.argv.includes('--redo');
+const argOf = (name, dflt) => {
+  const i = process.argv.indexOf(name);
+  return i > 0 && process.argv[i + 1] ? process.argv[i + 1] : dflt;
+};
+const DAYS = Math.max(1, Math.min(400, Number(argOf('--days', '14'))));
 /**
  * --pair-rest <days>: how long before the same two words may be a puzzle again. The default is
  * never (owner, 2026-09-29: "the same PAIR, ever: that is the same puzzle"), which the vocabulary
@@ -67,11 +72,6 @@ const REDO = process.argv.includes('--redo');
  * pair is a different page about the same two words, half a year on.
  */
 const PAIR_REST_DAYS = Number(argOf('--pair-rest', 'Infinity'));
-const argOf = (name, dflt) => {
-  const i = process.argv.indexOf(name);
-  return i > 0 && process.argv[i + 1] ? process.argv[i + 1] : dflt;
-};
-const DAYS = Math.max(1, Math.min(400, Number(argOf('--days', '14'))));
 
 /** The picture kinds where the artwork is the whole card. */
 const ART_KINDS = `('special_illustration_rare','illustration_rare','named_full_art')`;

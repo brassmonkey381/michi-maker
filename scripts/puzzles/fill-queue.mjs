@@ -65,13 +65,14 @@ const argOf = (name, dflt) => {
 };
 const DAYS = Math.max(1, Math.min(400, Number(argOf('--days', '14'))));
 /**
- * --pair-rest <days>: how long before the same two words may be a puzzle again. The default is
- * never (owner, 2026-09-29: "the same PAIR, ever: that is the same puzzle"), which the vocabulary
- * supports for about seven months. A year needs some pairs back; with a rest of 180 days and the
- * page-overlap rule still refusing a page that shares more than a third of its cards, a returning
- * pair is a different page about the same two words, half a year on.
+ * --pair-rest <days>: how long before the same two words may be a puzzle again. It used to be never
+ * (owner, 2026-09-29: "the same PAIR, ever: that is the same puzzle"), which the vocabulary supports
+ * for about eight months. The owner then asked for a year that repeats (2026-10-18: "have it cycle,
+ * maybe some slight shuffling of cards, but it would be nice to have an infinite repeatable 365
+ * schedule"), so a pair may come back after half a year, and when it does its page is built from
+ * the cards it has NOT shown yet first; see inspect(). Pass `--pair-rest Infinity` for the old rule.
  */
-const PAIR_REST_DAYS = Number(argOf('--pair-rest', 'Infinity'));
+const PAIR_REST_DAYS = Number(argOf('--pair-rest', '180'));
 
 /** The picture kinds where the artwork is the whole card. */
 const ART_KINDS = `('special_illustration_rare','illustration_rare','named_full_art')`;
@@ -181,9 +182,11 @@ if (redone.length) {
  * that's ok"). The first version retired both words of every puzzle for good, and with 77 usable
  * words that left NINE fair pairs in the whole vocabulary after one week: the queue was a cliff.
  * So a WORD may come back with a different partner, and three things are refused instead:
- *   1. the same PAIR, ever: that is the same puzzle;
- *   2. a page sharing more than a third of its cards with any earlier page: same puzzle in a
- *      different costume, which is what 10-01 was to 09-28;
+ *   1. the same PAIR within PAIR_REST_DAYS: that is the same puzzle;
+ *   2. a page sharing more than a third of its cards with an earlier page about OTHER words: same
+ *      puzzle in a different costume, which is what 10-01 was to 09-28. A returning pair is allowed
+ *      to overlap its own earlier page; it is the same two answers, and the cards it has not shown
+ *      yet go on first (the "slight shuffling" the owner asked for);
  *   3. either word within the last COOLDOWN days: `forest + sky` on Monday and `forest + river`
  *      on Tuesday is a repeat to anyone who played both, whatever the cards.
  */
@@ -198,7 +201,9 @@ const pairResting = (key, on) => {
   return last !== undefined && dayGap(last, on) < PAIR_REST_DAYS;
 };
 const usedPairs = new Set(pairLastOn.keys());
-const usedPages = used.map((r) => ({ on: r.publish_on, ids: new Set(r.card_ids) }));
+const usedPages = used.map((r) => ({ on: r.publish_on, key: pairKey(r.themes[0], r.themes[1] ?? r.themes[0]), ids: new Set(r.card_ids) }));
+/** Every card that has been on a puzzle page, in history or in this run so far; fresh cards go first. */
+const usedCards = new Set(used.flatMap((r) => r.card_ids ?? []));
 const today = puzzleToday();
 /** Words used within COOLDOWN_DAYS either side of `on`, across history and this run so far. */
 const dayGap = (a, b) => Math.abs((Date.parse(`${a}T00:00:00Z`) - Date.parse(`${b}T00:00:00Z`)) / 86400000);
@@ -309,10 +314,20 @@ const nextFree = () => {
 /** The tags a word can appear under: scene or object for everyone, its own namespace for a holiday word. */
 const tagsFor = (w) => [`scene:${w}`, `object:${w}`, ...(SPECIAL_WORDS[w] ? [`${SPECIAL_WORDS[w]}:${w}`] : [])];
 
+/**
+ * THE PULL IS REMEMBERED, THE PAGE IS NOT (2026-10-18). One query per pair fetches its candidates,
+ * ranked, with every scene and object word each card carries. From then on a page is dealt locally,
+ * cheaply, on every day the pair is considered, because two things about the page depend on the day:
+ *   - cards that have not been on any page yet go first, so a returning pair shows new cards;
+ *   - a page that turns out to say a third word the grader refuses (the year run lost a third of
+ *     its pairs to "the page also says trees") is re-dealt WITHOUT the cards that say it, instead
+ *     of the pair being thrown away. The grader's verdict on a word is remembered per pair.
+ */
 const inspected = new Map();
+const graded = new Map();
+const reported = new Set();
 const inspect = async (s) => {
   const key = pairKey(s.w1, s.w2);
-  if (inspected.has(key)) return inspected.get(key);
   const result = await (async () => {
     /**
      * HOW OBVIOUS ARE THE THEMES ON THIS CARD (owner, 2026-10-18)? The berries + jungle page carried
@@ -329,10 +344,14 @@ const inspect = async (s) => {
      * plainly there. A full-art kind adds about one place, so it wins unless a windowed card shows
      * both themes clearly higher up, which is the trade the owner asked for.
      */
+    let ranked = inspected.get(key);
+    if (!ranked) {
     const rows = await dataSql(`
       with hit as (
         select c.id::text as id, c.name, c.number, c.rarity, c.set_name, c.illustrator,
                c.full_art_kind, coalesce(c.full_art_score, 0) as art_score,
+               array_remove(array_agg(distinct split_part(t.tag, ':', 2))
+                 filter (where t.tag like 'scene:%' or t.tag like 'object:%'), null) as words,
                coalesce(max(t.w) filter (where t.tag = any(${textArray(tagsFor(s.w1))})), 0) as w1,
                coalesce(max(t.w) filter (where t.tag = any(${textArray(tagsFor(s.w2))})), 0) as w2
           from public.cards_en c, lateral (
@@ -357,51 +376,63 @@ const inspect = async (s) => {
     `);
     // Only cards whose picture resolves: a pocket with no address draws blank, and the publish RPC
     // refuses a partial address list outright.
-    const pictured = rows.filter((r) => cardImageUrl(manifest, r.id));
+    ranked = rows.filter((r) => cardImageUrl(manifest, r.id))
+      .map((r) => ({ ...r, words: (r.words ?? []).filter((w) => /^[a-z]+$/.test(w)) }));
+    inspected.set(key, ranked);
+    }
     // The puzzle page takes only cards where the fainter theme is still in the top handful of tags;
     // anything below that is a spare at best, however good the artwork.
-    const obvious = pictured.filter((r) => Number(r.weakest) >= MIN_WEAKEST);
+    const obvious = ranked.filter((r) => Number(r.weakest) >= MIN_WEAKEST);
     if (obvious.length < s.grid.size) {
       return { reason: `only ${obvious.length} card(s) show both words plainly` };
     }
-    const page = obvious.slice(0, s.grid.size);
-    // The right-hand page: the next nine by the same score, for swapping in.
-    const onPage = new Set(page.map((x) => x.id));
-    const spares = pictured.filter((r) => !onPage.has(r.id)).slice(0, s.grid.size);
-    if (spares.length < MIN_SPARE) {
-      return { reason: `only ${spares.length} spare card(s) with pictures` };
+    // Cards nobody has seen on a page yet come first, in their ranked order; the rest follow.
+    let pool = [...obvious.filter((r) => !usedCards.has(r.id)), ...obvious.filter((r) => usedCards.has(r.id))];
+    const unfairWords = [];
+    for (let attempt = 0; attempt < 6; attempt++) {
+      if (pool.length < s.grid.size) {
+        return { reason: `only ${pool.length} card(s) show both words plainly without also saying ${unfairWords.join(', ')}` };
+      }
+      const page = pool.slice(0, s.grid.size);
+      // What else do the cards ACTUALLY ON THE PAGE have in common?
+      const hits = new Map();
+      for (const card of page) for (const w of card.words) hits.set(w, (hits.get(w) ?? 0) + 1);
+      const rivals = [...hits].filter(([w, n]) => w !== s.w1 && w !== s.w2 && n / page.length >= STRONG_RIVAL).map(([w]) => w);
+      const unknown = rivals.filter((w) => !graded.has(`${key}|${w}`));
+      if (unknown.length) {
+        const verdicts = await appSql(`
+          select w, public.puzzle_words_match(w, ${q(s.w1)})
+                  or public.puzzle_words_match(w, ${q(s.w2)}) as accepted
+            from unnest(${textArray(unknown)}) as w;
+        `);
+        for (const g of verdicts) graded.set(`${key}|${g.w}`, Boolean(g.accepted));
+      }
+      // A rival the grader ACCEPTS is fine: that is the synonym table doing its job (`trees` on a
+      // forest page). A rival it refuses is a word the page is about and the player cannot say, so
+      // the cards that say it come off and the page is dealt again.
+      const unfair = rivals.filter((w) => !graded.get(`${key}|${w}`));
+      if (unfair.length) {
+        unfairWords.push(...unfair.filter((w) => !unfairWords.includes(w)));
+        pool = pool.filter((c) => !c.words.some((w) => unfair.includes(w)));
+        continue;
+      }
+      // The right-hand page: the next nine by the same score, for swapping in.
+      const onPage = new Set(page.map((x) => x.id));
+      const spares = ranked.filter((r) => !onPage.has(r.id)).slice(0, s.grid.size);
+      if (spares.length < MIN_SPARE) {
+        return { reason: `only ${spares.length} spare card(s) with pictures` };
+      }
+      const cards = [...page, ...spares];
+      const isWindowed = (r) => !ART_KINDS.includes(`'${r.full_art_kind}'`);
+      const windowed = { page: page.filter(isWindowed).length, spares: spares.filter(isWindowed).length };
+      return { cards, page, spares, windowed };
     }
-    const cards = [...page, ...spares];
-    const isWindowed = (r) => !ART_KINDS.includes(`'${r.full_art_kind}'`);
-    const windowed = { page: page.filter(isWindowed).length, spares: spares.filter(isWindowed).length };
-
-    // What else do the cards ACTUALLY ON THE PAGE have in common?
-    const rivalRows = await dataSql(`
-      select split_part(t, ':', 2) as word, count(distinct c.id)::int as hits
-        from public.cards_en c, unnest(c.scene_tags) t
-       where c.id::text = any(${textArray(page.map((x) => x.id))})
-         and (t like 'scene:%' or t like 'object:%')
-         and split_part(t, ':', 2) !~ '[^a-z]'
-       group by 1 having count(distinct c.id)::numeric / ${page.length} >= ${STRONG_RIVAL}
-       order by hits desc;
-    `);
-    const rivals = rivalRows.filter((r) => r.word !== s.w1 && r.word !== s.w2);
-    const unfair = [];
-    if (rivals.length) {
-      const graded = await appSql(`
-        select w, public.puzzle_words_match(w, ${q(s.w1)})
-                or public.puzzle_words_match(w, ${q(s.w2)}) as accepted
-          from unnest(${textArray(rivals.map((r) => r.word))}) as w;
-      `);
-      for (const g of graded) if (!g.accepted) unfair.push(g.w);
-    }
-    if (unfair.length) {
-      return { reason: `the page also says ${unfair.join(', ')}, which would be marked wrong` };
-    }
-    return { cards, page, spares, windowed };
+    return { reason: `its cards keep saying ${unfairWords.join(', ')}, which would be marked wrong` };
   })();
-  inspected.set(key, result);
-  if (result.reason) rejected.push(`${s.w1} + ${s.w2}: ${result.reason}`);
+  if (result.reason && !reported.has(key)) {
+    reported.add(key);
+    rejected.push(`${s.w1} + ${s.w2}: ${result.reason}`);
+  }
   return result;
 };
 
@@ -445,11 +476,11 @@ while (chosen.length < DAYS) {
     if (look.reason) continue;
     const { cards, page, spares, windowed } = look;
 
-    // Rule 2: the page has to be its own page, not an earlier one with a few swaps. Checked here
-    // and not in inspect(), because the pages chosen in this run are part of what it compares to.
+    // Rule 2: the page has to be its own page, not an earlier page about OTHER words with a few
+    // swaps. A returning pair may overlap its own earlier page: same answers, cards shuffled.
     const ids = new Set(page.map((x) => x.id));
-    const twin = [...usedPages, ...chosen.map((c) => ({ on: c.publish_on, ids: new Set(c.page.map((x) => x.id)) }))]
-      .find((u) => [...ids].filter((id) => u.ids.has(id)).length > page.length * MAX_SHARED);
+    const twin = [...usedPages, ...chosen.map((c) => ({ on: c.publish_on, key: pairKey(c.w1, c.w2), ids: new Set(c.page.map((x) => x.id)) }))]
+      .find((u) => u.key !== key && [...ids].filter((id) => u.ids.has(id)).length > page.length * MAX_SHARED);
     if (twin) {
       rejected.push(`${s.w1} + ${s.w2}: shares most of its cards with the ${twin.on} page`);
       continue;
@@ -468,6 +499,7 @@ while (chosen.length < DAYS) {
   }
   if (!picked) break;
   pairLastOn.set(pairKey(picked.w1, picked.w2), landsOn);
+  for (const x of picked.page) usedCards.add(x.id);
   if (holiday && !picked.holiday) console.log(`  ${landsOn} is ${holiday.name}, but none of ${holiday.words.join(', ')} had a fair pair; an ordinary day`);
   chosen.push(picked);
 }

@@ -51,7 +51,7 @@ import { useImageManifest } from '@/lib/catalogConfig';
 import { useBinders } from '@/store/binders';
 
 /** Which binders the list shows. Module-level so it survives leaving and coming back. */
-type Visibility = 'all' | 'public' | 'private';
+type Visibility = 'all' | 'public' | 'private' | 'puzzles';
 let visibilityPref: Visibility = 'all';
 
 export default function MyBindersScreen() {
@@ -175,16 +175,21 @@ export default function MyBindersScreen() {
     });
   const publicCount = store.userBinders.filter((b) => b.isPublic).length;
   const privateCount = store.userBinders.length - publicCount;
-  const showVisibilityFilter = store.userBinders.length >= 2;
+  // THE PUZZLE BINDERS ARE THEIR OWN SHELF (owner, 2026-10-18). They are public only so the daily
+  // post can draw its picture, and a year of them is 27 binders; under All they would bury
+  // everything else. They sit behind one chip that only appears for an account that has any.
+  const puzzleBinders = store.showcaseBinders;
+  const showVisibilityFilter = store.userBinders.length >= 2 || puzzleBinders.length > 0;
   const q = binderQuery.trim().toLowerCase();
   // Most recently edited first: the binder someone is working on is the one they came back for.
-  const visibleBinders = sortByRecentEdit(store.userBinders).filter((b) => {
+  const shelf = visibility === 'puzzles' ? puzzleBinders : store.userBinders;
+  const visibleBinders = sortByRecentEdit(shelf).filter((b) => {
     if (showVisibilityFilter && visibility === 'public' && !b.isPublic) return false;
     if (showVisibilityFilter && visibility === 'private' && b.isPublic) return false;
     return !showBinderSearch || !q || b.title.toLowerCase().includes(q);
   });
 
-  const menuBinder = menuId ? store.userBinders.find((b) => b.id === menuId) : null;
+  const menuBinder = menuId ? (store.getBinder(menuId) ?? null) : null;
   const shareBinder = shareId ? store.getBinder(shareId) : null;
   const coverBinder = coverId ? store.getBinder(coverId) : null;
   const printBinder = printId ? store.getBinder(printId) : null;
@@ -359,7 +364,8 @@ export default function MyBindersScreen() {
                         ['all', 'All', store.userBinders.length],
                         ['public', 'Public', publicCount],
                         ['private', 'Private', privateCount],
-                      ] as const
+                        ...(puzzleBinders.length ? [['puzzles', 'Puzzles', puzzleBinders.length]] : []),
+                      ] as [Visibility, string, number][]
                     ).map(([v, label, n]) => (
                       <Pressable
                         key={v}
@@ -391,7 +397,7 @@ export default function MyBindersScreen() {
                     {/* Name the filter that emptied the list, not "no results": with two filters
                         running, the useful thing is knowing which one to undo. */}
                     {q && showBinderSearch
-                      ? `No ${visibility === 'all' ? '' : `${visibility} `}binders match “${binderQuery.trim()}”.`
+                      ? `No ${visibility === 'all' ? '' : visibility === 'puzzles' ? 'puzzle ' : `${visibility} `}binders match “${binderQuery.trim()}”.`
                       : visibility === 'public'
                         ? 'None of your binders are public yet. Open one and turn on sharing to get a link.'
                         : visibility === 'private'

@@ -156,6 +156,7 @@ interface BinderRowIn {
   track?: BinderTrack | null;
   is_public: boolean;
   is_demo: boolean | null;
+  hidden_from_feeds?: boolean | null;
   share_page_ids: string[] | null;
   share_backdrop?: string | null;
   allow_copies?: boolean | null;
@@ -254,6 +255,7 @@ function mapBinder(row: BinderRowIn): DemoBinder {
     pageStyle: normalizePageStyle(row.page_style),
     track: trackOf(row.track),
     isPublic: row.is_public,
+    hiddenFromFeeds: row.hidden_from_feeds === true,
     sharePageIds: row.share_page_ids ?? undefined,
     shareBackdrop: isImageRef(row.share_backdrop) ? row.share_backdrop : undefined,
     allowCopies: row.allow_copies === true,
@@ -344,6 +346,9 @@ export async function fetchPublicBinders(ownerId: string): Promise<DemoBinder[]>
     .select('*, binder_pages(*, binder_slots(*))')
     .eq('owner_id', ownerId)
     .eq('is_public', true)
+    // Showcase binders (the daily puzzles) are public only so their share image renders; the
+    // feeds already leave them out and so does the profile (owner, 2026-10-18).
+    .eq('hidden_from_feeds', false)
     // A removed (taken-down) binder is hidden from the public by RLS regardless; this filter is
     // for the OWNER, whose profile page should not present a removed binder as shared.
     .is('removed_at', null)

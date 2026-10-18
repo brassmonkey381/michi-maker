@@ -379,6 +379,14 @@ export interface DemoBinder {
   /** When true, anyone with the link can view this binder (see the `/binder/[id]` route). */
   isPublic?: boolean;
   /**
+   * Public so its share image renders, but not part of the community: kept out of discover,
+   * search, featured, the contest feed, the owner's public profile and the owner's own shelf,
+   * which shows these under their own filter instead. The daily puzzle binders (owner, 2026-10-18:
+   * "their own category under my account ... hidden from others, but I can still render images").
+   * Mirrors binders.hidden_from_feeds; set only by the Studio's showcase toggle.
+   */
+  hiddenFromFeeds?: boolean;
+  /**
    * A picture behind the share image (owner, 2026-09-15): a hotlinked image address drawn edge to
    * edge under the page in place of the blurred page art. A share setting, set in the Share sheet.
    * Persisted to binders.share_backdrop; read by api/og-image-binder.js.

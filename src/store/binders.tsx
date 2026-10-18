@@ -146,7 +146,14 @@ interface BinderStore {
   binders: DemoBinder[];
   exampleBinders: DemoBinder[];
   featuredBinders: DemoBinder[];
+  /** The owner's shelf: everything they made, minus the showcase binders below. */
   userBinders: DemoBinder[];
+  /**
+   * The owner's binders that are public only for their share image (binders.hidden_from_feeds):
+   * the daily puzzle binders. Shown under their own filter on My binders and nowhere else, so a
+   * year of puzzle pages does not bury the shelf (owner, 2026-10-18).
+   */
+  showcaseBinders: DemoBinder[];
   /** True while user binders are loading from Supabase (always false in local mode). */
   loading: boolean;
   /**
@@ -429,7 +436,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   const binders = history.present;
 
   // Demo binders (the "Try it out!" showcase) are free of the cap, like bundled examples.
-  const binderCount = binders.filter((b) => !b.isExample && !b.isDemo).length;
+  const binderCount = binders.filter((b) => !b.isExample && !b.isDemo && !b.hiddenFromFeeds).length;
   const atBinderLimit = LIMITS_ENFORCED && binderCount >= limits.binders;
   const pageLimitReached = useCallback(
     (binderId: string) => {
@@ -2553,7 +2560,8 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       // data/featuredPin). `binders` is passed as the lookup because the pinned binder is a
       // BUNDLED example with no database row, so it is never in `featured` itself.
       featuredBinders: withPinnedFeatured(featured, pinnedLive ? [...binders, pinnedLive] : binders, pinNow),
-      userBinders: binders.filter((binder) => !binder.isExample),
+      userBinders: binders.filter((binder) => !binder.isExample && !binder.hiddenFromFeeds),
+      showcaseBinders: binders.filter((binder) => binder.hiddenFromFeeds),
       loading,
       canEdit,
       saveError,

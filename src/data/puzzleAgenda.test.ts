@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  buildAgenda, clashOnDate, firstFreeDay, runwayDays, weekdayOf,
+  buildAgenda, clashOnDate, firstFreeDay, monthGrid, monthLabel, monthOf, runwayDays, shiftMonth, weekdayOf,
 } from './puzzleAgenda.ts';
 
 const p = (publishOn: string, sourcePageId: string | null = 'page-' + publishOn, hint: string | null = null) =>
@@ -72,4 +72,25 @@ test('an empty date never clashes', () => {
 test('with no page chosen yet, an occupied date still warns', () => {
   const queue = [p('2026-10-03', 'page-A')];
   assert.equal(clashOnDate(queue, '2026-10-03', null)?.id, 'id-2026-10-03');
+});
+
+test('a month grid is seven wide, padded to the weekday, with every day of the month once', () => {
+  const grid = monthGrid([p('2026-10-31')], '2026-10-18', '2026-10');
+  assert.ok(grid.every((w) => w.length === 7));
+  // October 2026 starts on a Thursday (column 4) and has 31 days.
+  assert.deepEqual(grid[0].slice(0, 4), [null, null, null, null]);
+  assert.equal(grid[0][4]?.date, '2026-10-01');
+  const days = grid.flat().filter((d): d is NonNullable<typeof d> => d !== null);
+  assert.equal(days.length, 31);
+  assert.equal(days[30].date, '2026-10-31');
+  assert.ok(days[30].puzzle);
+  assert.equal(days.find((d) => d.isToday)?.date, '2026-10-18');
+});
+
+test('months shift either way across a year end', () => {
+  assert.equal(shiftMonth('2026-12', 1), '2027-01');
+  assert.equal(shiftMonth('2027-01', -1), '2026-12');
+  assert.equal(shiftMonth('2026-10', 14), '2027-12');
+  assert.equal(monthOf('2026-10-18'), '2026-10');
+  assert.equal(monthLabel('2026-10'), 'October 2026');
 });

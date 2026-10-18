@@ -20,6 +20,12 @@ export interface AdminPuzzle {
   id: string;
   publishOn: string;
   themeCount: number;
+  /** The answer words, known to the admin up front since the calendar writes them on each day. */
+  themes: string[];
+  /** The source page's title; the scheduler writes "yyyy-mm-dd · Holiday" on a holiday's page. */
+  pageTitle: string | null;
+  /** The holiday name from the page title, if the page carries one. */
+  holiday: string | null;
   cardCount: number;
   rows: number;
   cols: number;
@@ -47,6 +53,9 @@ export async function listPuzzles(limit = 60): Promise<AdminPuzzle[]> {
     id: String(r.id),
     publishOn: String(r.publish_on),
     themeCount: Number(r.theme_count),
+    themes: [],
+    pageTitle: null,
+    holiday: null,
     cardCount: Number(r.card_count),
     rows: Number(r.rows),
     cols: Number(r.cols),
@@ -58,6 +67,45 @@ export async function listPuzzles(limit = 60): Promise<AdminPuzzle[]> {
     correct: Number(r.correct),
     published: !!r.published,
   }));
+}
+
+/**
+ * The whole schedule, answers included, for the Studio calendar. One call: a year is 365 rows of a
+ * few columns, and the page title is what carries the holiday a day was built for.
+ */
+export async function listPuzzleCalendar(): Promise<AdminPuzzle[]> {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase.rpc('admin_puzzle_calendar');
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r: Record<string, unknown>) => {
+    const themes = Array.isArray(r.themes) ? (r.themes as unknown[]).map(String) : [];
+    const pageTitle = (r.page_title as string | null) ?? null;
+    return {
+      id: String(r.id),
+      publishOn: String(r.publish_on),
+      themeCount: themes.length,
+      themes,
+      pageTitle,
+      holiday: holidayOfTitle(pageTitle),
+      cardCount: Number(r.card_count),
+      rows: Number(r.rows),
+      cols: Number(r.cols),
+      hint: (r.hint as string | null) ?? null,
+      sourceBinderId: (r.source_binder_id as string | null) ?? null,
+      sourcePageId: (r.source_page_id as string | null) ?? null,
+      binderIsPublic: !!r.binder_is_public,
+      plays: Number(r.plays),
+      correct: Number(r.correct),
+      published: !!r.published,
+    };
+  });
+}
+
+/** "2026-12-25 · Christmas" -> "Christmas"; a plain title or none -> null. */
+export function holidayOfTitle(title: string | null): string | null {
+  if (!title) return null;
+  const m = /^\d{4}-\d{2}-\d{2} · (.+)$/.exec(title.trim());
+  return m ? m[1].trim() || null : null;
 }
 
 export async function puzzleThemes(puzzleId: string): Promise<string[]> {

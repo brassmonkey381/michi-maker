@@ -1253,6 +1253,25 @@ export type Database = {
         }
         Returns: string
       }
+      admin_puzzle_calendar: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          publish_on: string
+          themes: string[]
+          card_count: number
+          rows: number
+          cols: number
+          hint: string | null
+          source_binder_id: string | null
+          source_page_id: string | null
+          page_title: string | null
+          binder_is_public: boolean
+          plays: number
+          correct: number
+          published: boolean
+        }[]
+      }
       admin_puzzle_list: {
         Args: { p_limit?: number }
         Returns: {

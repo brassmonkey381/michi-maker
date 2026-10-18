@@ -5,15 +5,16 @@
  * for a person is to look at what is queued, fix a hint, swap a page, draw the post image, and very
  * occasionally publish a day by hand. The panel is shaped for that and nothing else.
  *
- * ONE LIST, AND IT IS THE CALENDAR (owner, 2026-10-18: "scrolling through all my pages and
- * scheduled puzzles is overwhelming"). The previous panel showed the same fourteen days three times
- * over: an agenda, then a publish form with a picker listing every page of every puzzle binder as
- * an anonymous chip ("p2 · 9", twenty-eight of them for one fortnight binder), then forty puzzle
- * rows each carrying five controls. Now there is the agenda and nothing under it. A day opens when
- * it is tapped, and only then shows its cards, its answer on request, its hint, and its actions.
- * The page picker exists only inside an open day, lists only pages no puzzle has claimed, and names
- * each one by its page title (the fortnight binder titles every page with its date or its themes).
- * Days already gone sit behind one "earlier" line with their play counts.
+ * A MONTH GRID WITH THE ANSWER ON EVERY DAY (owner, 2026-10-18: "a calendar with themes on the
+ * calendar cell might be ideal", after "scrolling through all my pages and scheduled puzzles is
+ * overwhelming"). The schedule is a year long now (scripts/puzzles/fill-queue.mjs --days 365), so
+ * the panel shows one month at a time, Sunday to Saturday, each day carrying its two answer words,
+ * a dot for a holiday page, "no hint" or "empty" where that is the problem, and the play count once
+ * it has run. Earlier and later months are a tap away; the title jumps back to this month. A day
+ * opens UNDER the grid when tapped and only then shows its cards, hint, actions, or the publish form
+ * for a blank. The page picker exists only inside an open day, lists only pages no puzzle has
+ * claimed, and names each by its page title (the fortnight binders title every page with its date or
+ * its themes).
  *
  * NO PUZZLE TABLE IS READ HERE. Publishing, listing and revealing go through admin RPCs
  * (src/data/puzzleAdmin.ts), because the answers table has no read policy for anybody. The one
@@ -27,15 +28,13 @@ import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
-import { shiftUtcDate } from '@/data/dailyPuzzleLogic';
 import {
-  listPuzzles,
+  listPuzzleCalendar,
   listSources,
   pageCardIds,
   pageLabel,
   parseThemes,
   publishPuzzle,
-  puzzleThemes,
   puzzleToday,
   relevantBinders,
   setBinderShowcase,
@@ -46,7 +45,9 @@ import {
   type PuzzleSourceBinder,
   type PuzzleSourcePage,
 } from '@/data/puzzleAdmin';
-import { buildAgenda, clashOnDate, firstFreeDay, runwayDays, type AgendaDay } from '@/data/puzzleAgenda';
+import {
+  buildAgenda, clashOnDate, firstFreeDay, monthGrid, monthLabel, monthOf, runwayDays, shiftMonth, type AgendaDay,
+} from '@/data/puzzleAgenda';
 import { cardThumbUrl, useImageManifest } from '@/lib/catalogConfig';
 import { downloadPuzzleImage } from '@/lib/puzzleImage';
 
@@ -67,9 +68,8 @@ export function PuzzlePanel() {
 
   /** The one day that is open, which is also the day a publish would go to. */
   const [openDay, setOpenDay] = useState<string | null>(null);
-  /** Two weeks by default; four when the owner asks, so a run can be checked without scrolling by default. */
-  const [weeks, setWeeks] = useState<2 | 4>(2);
-  const [showEarlier, setShowEarlier] = useState(false);
+  /** The month on the calendar, 'yyyy-mm'. Starts on the current puzzle day's month. */
+  const [month, setMonth] = useState<string>(() => monthOf(puzzleToday(new Date())));
   /** The cards of each page looked at so far, so re-opening a day costs nothing. */
   const [pageCards, setPageCards] = useState<Record<string, string[]>>({});
 
@@ -81,7 +81,6 @@ export function PuzzlePanel() {
   const [filter, setFilter] = useState('');
   const [showAll, setShowAll] = useState(false);
 
-  const [revealed, setRevealed] = useState<Record<string, string[]>>({});
   const [drawing, setDrawing] = useState<string | null>(null);
   /** What happened, on the row it happened to, because the panel's one note line is far from it. */
   const [rowNote, setRowNote] = useState<Record<string, string>>({});
@@ -92,7 +91,7 @@ export function PuzzlePanel() {
 
   const load = useCallback(async (): Promise<AdminPuzzle[] | null> => {
     try {
-      const [p, s] = await Promise.all([listPuzzles(60), listSources()]);
+      const [p, s] = await Promise.all([listPuzzleCalendar(), listSources()]);
       setPuzzles(p);
       setSources(s);
       return p;
@@ -116,22 +115,25 @@ export function PuzzlePanel() {
   }, []);
 
   /**
-   * THE QUEUE AS DAYS. A missing puzzle is invisible in a list of what exists and obvious in a list
-   * of dates. Starts a day back so the day just gone, and its play count, is still on screen.
+   * THE QUEUE AS A CALENDAR (owner, 2026-10-18: "a calendar with themes on the calendar cell might
+   * be ideal"). A month at a time, the answer words written on each day, a tap opens the day under
+   * the grid. A missing puzzle is a blank cell, which is the whole point of a calendar over a list.
+   * The runway is still measured from today over the coming year, whatever month is on screen.
    */
   const today = puzzleToday(new Date());
-  const from = shiftUtcDate(today, -1);
   const agenda = useMemo(
-    () => buildAgenda(puzzles ?? [], today, { from, days: weeks * 7 + 1 }),
-    [puzzles, today, from, weeks],
+    () => buildAgenda(puzzles ?? [], today, { from: today, days: 400 }),
+    [puzzles, today],
   );
   const runway = runwayDays(agenda);
   const nextFree = firstFreeDay(agenda);
-  /** Everything before the agenda's first day: played out, kept for its numbers. */
-  const earlier = useMemo(
-    () => (puzzles ?? []).filter((p) => p.publishOn < from).sort((a, b) => (a.publishOn < b.publishOn ? 1 : -1)),
-    [puzzles, from],
-  );
+  const grid = useMemo(() => monthGrid(puzzles ?? [], today, month), [puzzles, today, month]);
+  const thisMonth = monthOf(today);
+  /** Months that hold anything, so the arrows can say when there is nothing further. */
+  const monthsHeld = useMemo(() => {
+    const ms = (puzzles ?? []).map((p) => monthOf(p.publishOn));
+    return { first: ms.length ? ms.reduce((a, b) => (a < b ? a : b)) : thisMonth, last: ms.length ? ms.reduce((a, b) => (a > b ? a : b)) : thisMonth };
+  }, [puzzles, thisMonth]);
 
   const scheduledPageIds = useMemo(
     () => new Set((puzzles ?? []).map((p) => p.sourcePageId).filter((x): x is string => !!x)),
@@ -277,20 +279,6 @@ export function PuzzlePanel() {
       setNote(e instanceof Error ? e.message : 'Could not withdraw it.');
     } finally {
       setBusy(false);
-    }
-  };
-
-  const reveal = async (p: AdminPuzzle) => {
-    if (revealed[p.id]) {
-      setRevealed(({ [p.id]: _drop, ...rest }) => rest);
-      return;
-    }
-    try {
-      setRevealed((r) => ({ ...r, [p.id]: [] }));
-      const words = await puzzleThemes(p.id);
-      setRevealed((r) => ({ ...r, [p.id]: words }));
-    } catch {
-      setNote('Could not read that answer.');
     }
   };
 
@@ -471,7 +459,10 @@ export function PuzzlePanel() {
       <ThemedText type="small" themeColor="textSecondary">
         {`${p.rows}×${p.cols} · ${p.cardCount} cards · ${p.themeCount} themes`}
         {p.published ? ` · ${p.plays} played, ${p.correct} correct` : ' · not visible until its morning'}
-        {revealed[p.id]?.length ? `  ·  ${revealed[p.id].join(' + ')}` : ''}
+      </ThemedText>
+      <ThemedText type="smallBold">
+        {p.themes.length ? p.themes.join(' + ') : 'no answer recorded'}
+        {p.holiday ? `   ·   ${p.holiday}` : ''}
       </ThemedText>
       {rowNote[p.id] ? (
         <ThemedText type="small" style={styles.rowNote} testID={`puzzle-note-${p.publishOn}`}>
@@ -507,9 +498,6 @@ export function PuzzlePanel() {
         </Pressable>
       )}
       <View style={styles.actions}>
-        <Pressable onPress={() => reveal(p)} hitSlop={6}>
-          <ThemedText type="small" style={styles.link}>{revealed[p.id] ? 'hide answer' : 'answer'}</ThemedText>
-        </Pressable>
         <Pressable onPress={() => download(p)} hitSlop={6} disabled={!!drawing}>
           <ThemedText type="small" style={p.binderIsPublic ? styles.link : styles.off}>
             {drawing === p.id ? 'drawing…' : 'post image'}
@@ -556,83 +544,113 @@ export function PuzzlePanel() {
 
       {note ? <ThemedText type="small" style={styles.note} testID="puzzle-panel-note">{note}</ThemedText> : null}
 
-      {/* THE CALENDAR, and the only list. */}
+      {/* THE CALENDAR: one month, the answer on every day. */}
       <View style={styles.agenda}>
+        <View style={styles.monthBar}>
+          <Pressable onPress={() => setMonth((m) => shiftMonth(m, -1))} hitSlop={8} testID="puzzle-month-prev">
+            <ThemedText type="small" style={styles.link}>‹ earlier</ThemedText>
+          </Pressable>
+          <Pressable onPress={() => setMonth(thisMonth)} hitSlop={8}>
+            <ThemedText type="smallBold" testID="puzzle-month">{monthLabel(month)}</ThemedText>
+          </Pressable>
+          <Pressable onPress={() => setMonth((m) => shiftMonth(m, 1))} hitSlop={8} testID="puzzle-month-next">
+            <ThemedText type="small" style={styles.link}>later ›</ThemedText>
+          </Pressable>
+        </View>
+        {month < monthsHeld.first || month > monthsHeld.last ? (
+          <ThemedText type="small" themeColor="textSecondary" style={styles.monthNote}>
+            {`Nothing scheduled this month. The schedule runs ${monthLabel(monthsHeld.first)} to ${monthLabel(monthsHeld.last)}.`}
+          </ThemedText>
+        ) : null}
+        <View style={styles.week}>
+          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((w, i) => (
+            <ThemedText key={i} type="small" themeColor="textSecondary" style={styles.weekday}>{w}</ThemedText>
+          ))}
+        </View>
         {puzzles === null ? (
           <ActivityIndicator style={styles.loading} />
         ) : (
-          agenda.map((d) => {
-            const isOpen = openDay === d.date;
-            const p = d.puzzle;
-            return (
-              <View key={d.date} style={[styles.day, isOpen && styles.dayOpen]}>
-                <Pressable onPress={() => toggleDay(d)} style={styles.agendaRow} testID={`agenda-${d.date}`}>
-                  <ThemedText
-                    type={d.isToday ? 'smallBold' : 'small'}
-                    themeColor={d.isPast ? 'textSecondary' : 'text'}
-                    style={styles.agendaDay}
-                  >
-                    {`${d.weekday} ${d.date.slice(5)}`}
-                  </ThemedText>
-                  <ThemedText type="small" themeColor={p ? 'text' : 'textSecondary'} style={styles.flex}>
-                    {p
-                      ? `${p.rows}×${p.cols}${p.hint ? '' : ' · no hint'}${revealed[p.id]?.length ? ` · ${revealed[p.id].join(' + ')}` : ''}`
-                      : d.isPast ? '—' : 'empty'}
-                  </ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {d.isToday ? 'today' : p?.published ? `${p.plays} played` : ''}
-                  </ThemedText>
-                </Pressable>
-                {isOpen ? (
-                  p ? dayDetail(p) : (
-                    <View style={styles.detail} testID={`puzzle-row-${d.date}`}>
-                      {picking ? publishForm(null) : (
-                        <Pressable onPress={() => setPicking(true)} hitSlop={6} testID="puzzle-publish-here">
-                          <ThemedText type="small" style={styles.link}>
-                            {d.isPast ? 'Nothing ran this day. Publish a page to it anyway' : 'Publish a page to this day'}
-                          </ThemedText>
-                        </Pressable>
-                      )}
+          grid.map((week, wi) => (
+            <View key={wi} style={styles.week}>
+              {week.map((d, di) => {
+                if (!d) return <View key={`pad-${di}`} style={styles.cell} />;
+                const p = d.puzzle;
+                const isOpen = openDay === d.date;
+                return (
+                  <Pressable
+                    key={d.date}
+                    onPress={() => toggleDay(d)}
+                    style={[
+                      styles.cell,
+                      styles.cellDay,
+                      d.isToday && styles.cellToday,
+                      isOpen && styles.dayOpen,
+                      !p && !d.isPast && styles.cellEmpty,
+                    ]}
+                    accessibilityLabel={`${d.date}${p ? `, ${p.themes.join(' and ')}` : d.isPast ? '' : ', empty'}${p?.holiday ? `, ${p.holiday}` : ''}`}
+                    testID={`agenda-${d.date}`}>
+                    <View style={styles.cellHead}>
+                      <ThemedText
+                        type={d.isToday ? 'smallBold' : 'small'}
+                        themeColor={d.isPast ? 'textSecondary' : 'text'}>
+                        {String(Number(d.date.slice(8)))}
+                      </ThemedText>
+                      {p?.holiday ? <View style={styles.holidayDot} /> : null}
                     </View>
-                  )
-                ) : null}
-              </View>
-            );
-          })
+                    {p ? (
+                      <>
+                        <ThemedText
+                          type="small"
+                          themeColor={d.isPast ? 'textSecondary' : 'text'}
+                          style={styles.cellThemes}
+                          numberOfLines={3}>
+                          {p.themes.length ? p.themes.join('\n') : '?'}
+                        </ThemedText>
+                        {!p.hint ? <ThemedText type="small" style={styles.cellWarn}>no hint</ThemedText> : null}
+                        {p.published && p.plays ? (
+                          <ThemedText type="small" themeColor="textSecondary" style={styles.cellMeta}>{`${p.plays} played`}</ThemedText>
+                        ) : null}
+                      </>
+                    ) : d.isPast ? null : (
+                      <ThemedText type="small" style={styles.cellWarn}>empty</ThemedText>
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+          ))
         )}
-        <View style={styles.foot}>
-          <Pressable onPress={() => setWeeks((w) => (w === 2 ? 4 : 2))} hitSlop={6}>
-            <ThemedText type="small" themeColor="textSecondary">
-              {weeks === 2 ? 'show two more weeks' : 'show two weeks'}
-            </ThemedText>
-          </Pressable>
-          {earlier.length ? (
-            <Pressable onPress={() => setShowEarlier((v) => !v)} hitSlop={6} testID="puzzle-earlier">
-              <ThemedText type="small" themeColor="textSecondary">
-                {showEarlier ? 'hide earlier' : `${earlier.length} earlier`}
-              </ThemedText>
-            </Pressable>
-          ) : null}
-        </View>
       </View>
 
-      {/* DAYS GONE BY: numbers only, and the answer on request. */}
-      {showEarlier ? (
-        <View style={styles.agenda}>
-          {earlier.map((p) => (
-            <View key={p.id} style={styles.agendaRow} testID={`puzzle-row-${p.publishOn}`}>
-              <ThemedText type="small" themeColor="textSecondary" style={styles.agendaDay}>{p.publishOn.slice(5)}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary" style={styles.flex}>
-                {`${p.plays} played, ${p.correct} correct`}
-                {revealed[p.id]?.length ? `  ·  ${revealed[p.id].join(' + ')}` : ''}
+      {/* THE OPEN DAY, under the grid: its cards, hint, controls, or the publish form for a blank. */}
+      {openDay ? (() => {
+        const p = (puzzles ?? []).find((x) => x.publishOn === openDay) ?? null;
+        const isPast = openDay < today;
+        return (
+          <View style={styles.openDay}>
+            <View style={styles.row}>
+              <ThemedText type="smallBold">
+                {`${openDay}${openDay === today ? ' · today' : ''}${p?.holiday ? ` · ${p.holiday}` : ''}`}
               </ThemedText>
-              <Pressable onPress={() => reveal(p)} hitSlop={6}>
-                <ThemedText type="small" themeColor="textSecondary">{revealed[p.id] ? 'hide' : 'answer'}</ThemedText>
+              <View style={styles.flex} />
+              <Pressable onPress={() => { setOpenDay(null); setPicking(false); }} hitSlop={8}>
+                <ThemedText type="small" themeColor="textSecondary">close</ThemedText>
               </Pressable>
             </View>
-          ))}
-        </View>
-      ) : null}
+            {p ? dayDetail(p) : (
+              <View style={styles.detail} testID={`puzzle-row-${openDay}`}>
+                {picking ? publishForm(null) : (
+                  <Pressable onPress={() => setPicking(true)} hitSlop={6} testID="puzzle-publish-here">
+                    <ThemedText type="small" style={styles.link}>
+                      {isPast ? 'Nothing ran this day. Publish a page to it anyway' : 'Publish a page to this day'}
+                    </ThemedText>
+                  </Pressable>
+                )}
+              </View>
+            )}
+          </View>
+        );
+      })() : null}
     </ThemedView>
   );
 }
@@ -663,24 +681,46 @@ const styles = StyleSheet.create({
     borderTopColor: Palette.hairline,
     paddingTop: Spacing.one,
   },
-  day: { borderRadius: Radius.control },
   // The open day is the one a publish would go to, so it is marked rather than merely hovered.
   dayOpen: { backgroundColor: Palette.accentSoft },
-  agendaRow: {
+  monthBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
+    justifyContent: 'space-between',
     paddingVertical: Spacing.one,
     paddingHorizontal: Spacing.one,
   },
-  agendaDay: { width: 72 },
+  monthNote: { paddingHorizontal: Spacing.one, paddingBottom: Spacing.one },
+  week: { flexDirection: 'row' },
+  weekday: { flex: 1, textAlign: 'center', paddingBottom: 2 },
+  // Seven to a row, so the cell is whatever a seventh of the panel is; the words wrap inside it.
+  cell: { flex: 1, minHeight: 64, padding: 3 },
+  cellDay: {
+    borderWidth: 1,
+    borderColor: Palette.hairline,
+    borderRadius: 6,
+    margin: 1,
+  },
+  cellToday: { borderColor: Palette.accent, borderWidth: 2 },
+  // A blank day still to come is the thing this screen exists to show.
+  cellEmpty: { borderStyle: 'dashed', borderColor: Palette.accent },
+  cellHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  holidayDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Palette.accent },
+  cellThemes: { fontSize: 11, lineHeight: 13 },
+  cellWarn: { fontSize: 10, lineHeight: 12, color: Palette.accent },
+  cellMeta: { fontSize: 10, lineHeight: 12 },
+  openDay: {
+    borderTopWidth: 1,
+    borderTopColor: Palette.hairline,
+    paddingTop: Spacing.two,
+    gap: Spacing.one,
+  },
   detail: {
     gap: Spacing.two,
     paddingHorizontal: Spacing.one,
     paddingBottom: Spacing.two,
   },
   actions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, flexWrap: 'wrap' },
-  foot: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: Spacing.one, paddingHorizontal: Spacing.one },
   preview: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.one },
   thumb: { borderRadius: 4, backgroundColor: Palette.panel },
   form: {

@@ -72,6 +72,49 @@ export function buildAgenda<P extends AgendaPuzzle>(
   return out;
 }
 
+/** 'yyyy-mm' of a yyyy-mm-dd. */
+export function monthOf(date: string): string {
+  return date.slice(0, 7);
+}
+
+/** 'yyyy-mm' moved by `n` months, either way. */
+export function shiftMonth(month: string, n: number): string {
+  const [y, m] = month.split('-').map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + n, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+/** 'October 2026' for '2026-10'. */
+export function monthLabel(month: string): string {
+  const [y, m] = month.split('-').map(Number);
+  return `${MONTHS[m - 1] ?? ''} ${y}`.trim();
+}
+
+/**
+ * A MONTH AS A GRID (owner, 2026-10-18: "a calendar with themes on the calendar cell might be
+ * ideal"). Weeks run Sunday to Saturday; the first and last weeks are padded with null so every row
+ * is seven wide and a day's column is its weekday. Each day carries the same AgendaDay the list did,
+ * so what opens on tap is unchanged.
+ */
+export function monthGrid<P extends AgendaPuzzle>(
+  puzzles: readonly P[],
+  today: string,
+  month: string,
+): (AgendaDay<P> | null)[][] {
+  const [y, m] = month.split('-').map(Number);
+  const first = `${month}-01`;
+  const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const agenda = buildAgenda(puzzles, today, { from: first, days });
+  const lead = new Date(Date.parse(`${first}T00:00:00Z`)).getUTCDay();
+  const cells: (AgendaDay<P> | null)[] = [...Array<null>(lead).fill(null), ...agenda];
+  while (cells.length % 7) cells.push(null);
+  const weeks: (AgendaDay<P> | null)[][] = [];
+  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+  return weeks;
+}
+
 /** The first empty day at or after today, which is where a new puzzle should go by default. */
 export function firstFreeDay<P extends AgendaPuzzle>(agenda: readonly AgendaDay<P>[]): string | null {
   return agenda.find((d) => !d.puzzle && !d.isPast)?.date ?? null;

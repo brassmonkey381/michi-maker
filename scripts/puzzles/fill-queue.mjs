@@ -1,15 +1,23 @@
 /**
- * Build a week of daily puzzles with one command. Dry run by default; --apply writes.
+ * Build a fortnight of daily puzzles with one command. Dry run by default; --apply writes.
  *
  *   node scripts/puzzles/fill-queue.mjs                    (proposes, writes nothing)
- *   node scripts/puzzles/fill-queue.mjs --days 7 --apply
+ *   node scripts/puzzles/fill-queue.mjs --days 14 --apply
  *
- * WHAT IT DOES PER DAY: picks a theme combination, pulls the cards that match it, creates a binder
- * under the admin account, points its share image at the question marks, showcases the binder, and
- * schedules the puzzle for a future date. It stops there. A future-dated puzzle is NOT live: the
- * read policy on `daily_puzzles` is `publish_on <= puzzle_today()`, so a scheduled row is invisible
- * to every player until its morning. Studio lists it so it can be reviewed, edited or unpublished
- * first.
+ * WHAT IT DOES: picks a theme combination for each day, pulls the cards that match it, and writes
+ * ONE binder for the whole run under the admin account (owner, 2026-10-18: "1 binder for the next
+ * fortnight, all pages 3x3"). Page 1 is blank, so that in double-sided view every day that follows
+ * is a spread: the LEFT page is the puzzle itself, the best nine matches, titled with its date; the
+ * RIGHT page is nine more matches, titled with the themes, there in case the owner wants to swap a
+ * card before the day comes. The share image points at the question marks, the binder is
+ * showcased, and each left page is scheduled as that day's puzzle. It stops there. A future-dated
+ * puzzle is NOT live: the read policy on `daily_puzzles` is `publish_on <= puzzle_today()`, so a
+ * scheduled row is invisible to every player until its morning. Studio lists it so it can be
+ * reviewed, edited or unpublished first.
+ *
+ * Before 2026-10-18 every day got its own binder (26 of them by then), with the puzzle on page 2
+ * and the leftover matches spilled across "Also matched" pages. Those binders are left as they are;
+ * the puzzles they produced point at them.
  *
  * EVERY PUZZLE GETS AN EASY HINT (owner, 2026-10-13: "they all need hints"). Until then the hint
  * was left for a person to write as wordplay, and twenty-one of twenty-four puzzles shipped with
@@ -47,7 +55,7 @@ const argOf = (name, dflt) => {
   const i = process.argv.indexOf(name);
   return i > 0 && process.argv[i + 1] ? process.argv[i + 1] : dflt;
 };
-const DAYS = Math.max(1, Math.min(21, Number(argOf('--days', '7'))));
+const DAYS = Math.max(1, Math.min(21, Number(argOf('--days', '14'))));
 
 /** The picture kinds where the artwork is the whole card. */
 const ART_KINDS = `('special_illustration_rare','illustration_rare','named_full_art')`;
@@ -165,8 +173,11 @@ console.log(`  ${pairs.length} pair(s) with at least 4 cards in common`);
  * A pair is worth publishing when it fills a grid without being a near-synonym of itself. The
  * score prefers a set a little larger than the grid (so the page is the pick of the bunch rather
  * than everything that matched) and penalises implication.
+ *
+ * EVERY PAGE IS 3x3 (owner, 2026-10-18). A 2x2 used to be the fallback for a thin pair; it made a
+ * weaker post and an odd spread beside nine spares, so a pair that cannot fill nine is skipped.
  */
-const GRID = (n) => (n >= 9 ? { rows: 3, cols: 3, size: 9 } : { rows: 2, cols: 2, size: 4 });
+const GRID = () => ({ rows: 3, cols: 3, size: 9 });
 const kindOf = new Map(words.map((w) => [w.word, w.kind]));
 const scored = [];
 for (const p of pairs) {
@@ -184,10 +195,8 @@ for (const p of pairs) {
   // Best when the matched set is 1.5x to 4x the grid: enough to choose from, still a visible link.
   const ratio = p.n / grid.size;
   const fit = ratio < 1 ? 0 : Math.max(0, 1 - Math.abs(Math.log(ratio / 2.2)));
-  // A 3x3 is the better post: nine pictures carry the connection where four only hint at it.
-  const gridBonus = grid.size === 9 ? 1 : 0.55;
   const settingBonus = settings === 2 ? 1 : 0.7;
-  scored.push({ ...p, grid, implies, settings, score: fit * (1 - implies) * gridBonus * settingBonus });
+  scored.push({ ...p, grid, implies, settings, score: fit * (1 - implies) * settingBonus });
 }
 scored.sort((a, b) => b.score - a.score);
 console.log(`  ${scored.length} publishable after the implication, size and setting rules`);
@@ -226,76 +235,128 @@ const nextFree = () => {
   return d;
 };
 
-for (const s of scored) {
-  if (chosen.length >= DAYS) break;
-  if (usedPairs.has(pairKey(s.w1, s.w2))) continue;
+/**
+ * ONE PASS PER DAY, NOT ONE PASS OVER THE PAIRS (2026-10-18). The loop used to walk the scored list
+ * once, and a pair turned away because a word was resting that day was never looked at again, even
+ * though the word would be rested a week later. Asked for a fortnight it stopped at seven, with
+ * the best-scoring pairs of the vocabulary all unused. Now each day starts again at the top of the
+ * list and takes the first pair that is fair ON THAT DAY. What a pair's page says about itself does
+ * not depend on the day, so that inspection is done once and remembered.
+ */
+const inspected = new Map();
+const inspect = async (s) => {
+  const key = pairKey(s.w1, s.w2);
+  if (inspected.has(key)) return inspected.get(key);
+  const result = await (async () => {
+    const rows = await dataSql(`
+      select c.id::text as id, c.name, c.number, c.rarity, c.set_name, c.illustrator,
+             c.full_art_kind, coalesce(c.full_art_score, 0) as art_score
+        from public.cards_en c
+       where c.full_art_kind in ${ART_KINDS}
+         and c.scene_tags && array[${q(`scene:${s.w1}`)}, ${q(`object:${s.w1}`)}]
+         and c.scene_tags && array[${q(`scene:${s.w2}`)}, ${q(`object:${s.w2}`)}]
+       order by case c.full_art_kind
+                  when 'special_illustration_rare' then 0
+                  when 'illustration_rare' then 1 else 2 end,
+                c.full_art_score desc nulls last, c.id
+       limit 60;
+    `);
+    // Only cards whose picture resolves: a pocket with no address draws blank, and the publish RPC
+    // refuses a partial address list outright.
+    const cards = rows.filter((r) => cardImageUrl(manifest, r.id));
+    if (cards.length < s.grid.size + MIN_SPARE) {
+      return { reason: `only ${cards.length} card(s) with pictures` };
+    }
+    const page = cards.slice(0, s.grid.size);
+    // The right-hand page: the next nine, for swapping in. Most pairs have fewer than nine more
+    // illustration rares, so the page is topped up with the best WINDOWED cards that carry both
+    // tags (ranked by their own artwork score). They are alternates for the owner to weigh, never
+    // the first choice, and the count of them is said out loud below.
+    const spares = cards.slice(s.grid.size, s.grid.size * 2);
+    let windowed = 0;
+    if (spares.length < s.grid.size) {
+      const more = await dataSql(`
+        select c.id::text as id, c.name, c.number, c.rarity, c.set_name, c.illustrator,
+               c.full_art_kind, coalesce(c.full_art_score, 0) as art_score
+          from public.cards_en c
+         where c.full_art_kind not in ${ART_KINDS}
+           and c.scene_tags && array[${q(`scene:${s.w1}`)}, ${q(`object:${s.w1}`)}]
+           and c.scene_tags && array[${q(`scene:${s.w2}`)}, ${q(`object:${s.w2}`)}]
+         order by c.full_art_score desc nulls last, c.id
+         limit 40;
+      `);
+      for (const r of more) {
+        if (spares.length >= s.grid.size) break;
+        if (!cardImageUrl(manifest, r.id)) continue;
+        spares.push(r);
+        windowed += 1;
+      }
+    }
+
+    // What else do the cards ACTUALLY ON THE PAGE have in common?
+    const rivalRows = await dataSql(`
+      select split_part(t, ':', 2) as word, count(distinct c.id)::int as hits
+        from public.cards_en c, unnest(c.scene_tags) t
+       where c.id::text = any(${textArray(page.map((x) => x.id))})
+         and (t like 'scene:%' or t like 'object:%')
+         and split_part(t, ':', 2) !~ '[^a-z]'
+       group by 1 having count(distinct c.id)::numeric / ${page.length} >= ${STRONG_RIVAL}
+       order by hits desc;
+    `);
+    const rivals = rivalRows.filter((r) => r.word !== s.w1 && r.word !== s.w2);
+    const unfair = [];
+    if (rivals.length) {
+      const graded = await appSql(`
+        select w, public.puzzle_words_match(w, ${q(s.w1)})
+                or public.puzzle_words_match(w, ${q(s.w2)}) as accepted
+          from unnest(${textArray(rivals.map((r) => r.word))}) as w;
+      `);
+      for (const g of graded) if (!g.accepted) unfair.push(g.w);
+    }
+    if (unfair.length) {
+      return { reason: `the page also says ${unfair.join(', ')}, which would be marked wrong` };
+    }
+    return { cards, page, spares, windowed };
+  })();
+  inspected.set(key, result);
+  if (result.reason) rejected.push(`${s.w1} + ${s.w2}: ${result.reason}`);
+  return result;
+};
+
+while (chosen.length < DAYS) {
   const landsOn = nextFree();
   const resting = restingOn(landsOn, chosen);
-  if (resting.has(s.w1) || resting.has(s.w2)) continue;
-  if (s.n < s.grid.size + MIN_SPARE) continue;
+  let picked = null;
+  for (const s of scored) {
+    const key = pairKey(s.w1, s.w2);
+    if (usedPairs.has(key) || chosen.some((c) => pairKey(c.w1, c.w2) === key)) continue;
+    if (resting.has(s.w1) || resting.has(s.w2)) continue;
+    if (s.n < s.grid.size + MIN_SPARE) continue;
 
-  const rows = await dataSql(`
-    select c.id::text as id, c.name, c.number, c.rarity, c.set_name, c.illustrator,
-           c.full_art_kind, coalesce(c.full_art_score, 0) as art_score
-      from public.cards_en c
-     where c.full_art_kind in ${ART_KINDS}
-       and c.scene_tags && array[${q(`scene:${s.w1}`)}, ${q(`object:${s.w1}`)}]
-       and c.scene_tags && array[${q(`scene:${s.w2}`)}, ${q(`object:${s.w2}`)}]
-     order by case c.full_art_kind
-                when 'special_illustration_rare' then 0
-                when 'illustration_rare' then 1 else 2 end,
-              c.full_art_score desc nulls last, c.id
-     limit 60;
-  `);
-  // Only cards whose picture resolves: a pocket with no address draws blank, and the publish RPC
-  // refuses a partial address list outright.
-  const cards = rows.filter((r) => cardImageUrl(manifest, r.id));
-  if (cards.length < s.grid.size) {
-    rejected.push(`${s.w1} + ${s.w2}: only ${cards.length} card(s) with pictures`);
-    continue;
-  }
-  const page = cards.slice(0, s.grid.size);
+    const look = await inspect(s);
+    if (look.reason) continue;
+    const { cards, page, spares, windowed } = look;
 
-  // What else do the cards ACTUALLY ON THE PAGE have in common?
-  const rivalRows = await dataSql(`
-    select split_part(t, ':', 2) as word, count(distinct c.id)::int as hits
-      from public.cards_en c, unnest(c.scene_tags) t
-     where c.id::text = any(${textArray(page.map((x) => x.id))})
-       and (t like 'scene:%' or t like 'object:%')
-       and split_part(t, ':', 2) !~ '[^a-z]'
-     group by 1 having count(distinct c.id)::numeric / ${page.length} >= ${STRONG_RIVAL}
-     order by hits desc;
-  `);
-  const rivals = rivalRows.filter((r) => r.word !== s.w1 && r.word !== s.w2);
-  const unfair = [];
-  if (rivals.length) {
-    const graded = await appSql(`
-      select w, public.puzzle_words_match(w, ${q(s.w1)})
-              or public.puzzle_words_match(w, ${q(s.w2)}) as accepted
-        from unnest(${textArray(rivals.map((r) => r.word))}) as w;
-    `);
-    for (const g of graded) if (!g.accepted) unfair.push(g.w);
-  }
-  if (unfair.length) {
-    rejected.push(`${s.w1} + ${s.w2}: the page also says ${unfair.join(', ')}, which would be marked wrong`);
-    continue;
-  }
+    // Rule 2: the page has to be its own page, not an earlier one with a few swaps. Checked here
+    // and not in inspect(), because the pages chosen in this run are part of what it compares to.
+    const ids = new Set(page.map((x) => x.id));
+    const twin = [...usedPages, ...chosen.map((c) => ({ on: c.publish_on, ids: new Set(c.page.map((x) => x.id)) }))]
+      .find((u) => [...ids].filter((id) => u.ids.has(id)).length > page.length * MAX_SHARED);
+    if (twin) {
+      rejected.push(`${s.w1} + ${s.w2}: shares most of its cards with the ${twin.on} page`);
+      continue;
+    }
 
-  // Rule 2: the page has to be its own page, not an earlier one with a few swaps.
-  const ids = new Set(page.map((x) => x.id));
-  const twin = [...usedPages, ...chosen.map((c) => ({ on: 'this run', ids: new Set(c.page.map((x) => x.id)) }))]
-    .find((u) => [...ids].filter((id) => u.ids.has(id)).length > page.length * MAX_SHARED);
-  if (twin) {
-    rejected.push(`${s.w1} + ${s.w2}: shares most of its cards with the ${twin.on} page`);
-    continue;
+    // `themes` is what restingOn reads, for history and for this run alike. Leaving it off made the
+    // within-run cooldown read undefined and silently pass, which put `city` on three consecutive
+    // days in the first dry run.
+    const hint = hintFor([s.w1, s.w2]);
+    if (!hint) console.log(`  NO HINT for ${s.w1} + ${s.w2}: add the missing clue to src/data/puzzleHints.ts`);
+    picked = { ...s, cards, page, spares, windowed, publish_on: landsOn, themes: [s.w1, s.w2], hint };
+    break;
   }
-
-  // `themes` is what restingOn reads, for history and for this run alike. Leaving it off made the
-  // within-run cooldown read undefined and silently pass, which put `city` on three consecutive
-  // days in the first dry run.
-  const hint = hintFor([s.w1, s.w2]);
-  if (!hint) console.log(`  NO HINT for ${s.w1} + ${s.w2}: add the missing clue to src/data/puzzleHints.ts`);
-  chosen.push({ ...s, cards, page, publish_on: landsOn, themes: [s.w1, s.w2], hint });
+  if (!picked) break;
+  chosen.push(picked);
 }
 
 for (const r of rejected.slice(0, 10)) console.log(`  dropped  ${r}`);
@@ -308,7 +369,8 @@ if (!chosen.length) fail('nothing left to publish; every good combination is spe
 for (const c of chosen) {
   console.log(
     `  ${c.publish_on}  ${c.w1} + ${c.w2}  ${c.grid.rows}x${c.grid.cols}, `
-    + `${c.n} candidates, ${c.page.length} on the page`,
+    + `${c.n} candidates, ${c.page.length} on the page, ${c.spares.length} spare`
+    + `${c.windowed ? ` (${c.windowed} windowed)` : ''}${c.spares.length < 9 ? ' (short of nine)' : ''}`,
   );
   console.log(`              hint: ${c.hint ?? '(none)'}`);
 }
@@ -342,55 +404,55 @@ if (!APPLY) {
 
 const me = await adminUser();
 step(6, `writing as @${me.username}`);
+const first = chosen[0].publish_on;
+const last = chosen[chosen.length - 1].publish_on;
+const title = `Daily Puzzles: ${first} to ${last}`;
+const binderId = randomUUID();
+// Re-running the same span replaces its binder; the puzzles are re-pointed at the new pages below.
+await appSql(`delete from public.binders where owner_id = ${q(me.id)} and title = ${q(title)};`);
+
+// No answers in the description any more: the themes are the right-hand page titles, which is
+// enough for the owner and is only reachable by someone who already has the link (hidden_from_feeds).
+await appSql(`
+  insert into public.binders (id, owner_id, title, description, layout_style, cover_card_id,
+                              is_public, is_demo, share_backdrop)
+  values (${q(binderId)}, ${q(me.id)}, ${q(title)},
+          ${q(`Puzzle pages for ${first} to ${last}. Each spread: the puzzle on the left, titled with its date; nine spare matches on the right, titled with the themes.`)},
+          'themed_story', ${q(chosen[0].page[0].id)}, false, false, ${q(SHARE_BACKDROP)});
+`);
+
+// Page 0 blank, so every day that follows is a facing pair in double-sided view: left the puzzle,
+// right its spares.
+const pages = [{ id: randomUUID(), title: null, cards: [] }];
 for (const c of chosen) {
-  const title = `Daily Puzzle: ${c.w1} + ${c.w2}`;
-  const binderId = randomUUID();
-  await appSql(`delete from public.binders where owner_id = ${q(me.id)} and title = ${q(title)};`);
-
-  // The description is the answer in plain sight, which is safe because these binders are
-  // hidden_from_feeds and only reachable by someone who already has the link.
-  await appSql(`
-    insert into public.binders (id, owner_id, title, description, layout_style, cover_card_id,
-                                is_public, is_demo, share_backdrop)
-    values (${q(binderId)}, ${q(me.id)}, ${q(title)},
-            ${q(`Answer: ${c.w1} + ${c.w2}. Scheduled for ${c.publish_on}.`)},
-            'themed_story', ${q(c.page[0].id)}, false, false, ${q(SHARE_BACKDROP)});
-  `);
-
-  // Page 0 blank so every later page has a facing partner in double-sided mode; page 1 is the
-  // puzzle itself; the rest hold the cards that did not make the cut, for inspection.
-  const pages = [{ id: randomUUID(), title: null, cards: [] },
-                 { id: randomUUID(), title: `${c.w1} + ${c.w2}`, cards: c.page }];
-  const rest = c.cards.slice(c.grid.size);
-  for (let i = 0; i < rest.length; i += c.grid.size) {
-    pages.push({ id: randomUUID(), title: `Also matched ${i + 1}+`, cards: rest.slice(i, i + c.grid.size) });
-  }
-  c.pageId = pages[1].id;
-
-  // Pages are created PUBLIC. A page's is_public is what the share renderer sees, and it reads the
-  // binder as an anonymous caller; a public binder full of private pages draws nothing at all.
-  await appSql(`
-    insert into public.binder_pages (id, binder_id, position, title, rows, cols, background_color, is_public)
-    values ${pages.map((p, i) =>
-      `(${q(p.id)}, ${q(binderId)}, ${i}, ${q(p.title)}, ${c.grid.rows}, ${c.grid.cols}, null, true)`,
-    ).join(',\n            ')};
-  `);
-  const slots = pages.flatMap((p) => p.cards.map((card, k) =>
-    `(${q(randomUUID())}, ${q(p.id)}, ${Math.floor(k / c.grid.cols)}, ${k % c.grid.cols}, 1, 1, 'card', ${q(card.id)})`));
-  if (slots.length) {
-    await appSql(`
-      insert into public.binder_slots (id, page_id, row_index, col_index, row_span, col_span, slot_type, card_id)
-      values ${slots.join(',\n              ')};
-    `);
-  }
-  c.binderId = binderId;
-  console.log(`  "${title}": ${pages.length} pages, ${slots.length} cards`);
+  c.pageId = randomUUID();
+  pages.push({ id: c.pageId, title: c.publish_on, cards: c.page });
+  pages.push({ id: randomUUID(), title: `${c.w1} + ${c.w2}`, cards: c.spares });
 }
 
+// Pages are created PUBLIC. A page's is_public is what the share renderer sees, and it reads the
+// binder as an anonymous caller; a public binder full of private pages draws nothing at all.
+await appSql(`
+  insert into public.binder_pages (id, binder_id, position, title, rows, cols, background_color, is_public)
+  values ${pages.map((p, i) =>
+    `(${q(p.id)}, ${q(binderId)}, ${i}, ${q(p.title)}, 3, 3, null, true)`,
+  ).join(',\n          ')};
+`);
+const slots = pages.flatMap((p) => p.cards.map((card, k) =>
+  `(${q(randomUUID())}, ${q(p.id)}, ${Math.floor(k / 3)}, ${k % 3}, 1, 1, 'card', ${q(card.id)})`));
+await appSql(`
+  insert into public.binder_slots (id, page_id, row_index, col_index, row_span, col_span, slot_type, card_id)
+  values ${slots.join(',\n            ')};
+`);
+for (const c of chosen) c.binderId = binderId;
+console.log(`  "${title}": ${pages.length} pages (1 blank + ${chosen.length} spreads), ${slots.length} cards`);
+
 step(7, 'showcasing and scheduling');
+// The real RPCs, called as the admin, so this stays one definition with Studio rather than two.
+// One binder, showcased once: it has to stay showcased for the whole fortnight, because the post
+// image for every day in it is drawn from this binder.
+await adminSql(`select public.admin_set_binder_showcase(${q(binderId)}, true);`);
 for (const c of chosen) {
-  // The real RPCs, called as the admin, so this stays one definition with Studio rather than two.
-  await adminSql(`select public.admin_set_binder_showcase(${q(c.binderId)}, true);`);
   const urls = c.page.map((card) => cardImageUrl(manifest, card.id));
   const [pub] = await adminSql(`
     select public.admin_publish_puzzle(

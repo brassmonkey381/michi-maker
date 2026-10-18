@@ -47,7 +47,8 @@ import {
   fail, imageManifest, puzzleToday, addDays, q, step, textArray,
 } from '../lib/michi.mjs';
 import { caption } from './caption.mjs';
-import { hintFor } from '../../src/data/puzzleHints.ts';
+import { HOLIDAYS, SPECIAL_WORDS, holidayOn } from './holidays.mjs';
+import { CLUES, hintFor } from '../../src/data/puzzleHints.ts';
 import { familyList } from '../../src/data/puzzleSynonyms.ts';
 
 const APPLY = process.argv.includes('--apply');
@@ -58,17 +59,25 @@ const APPLY = process.argv.includes('--apply');
  * is already scheduled, as they did on 2026-10-18.
  */
 const REDO = process.argv.includes('--redo');
+/**
+ * --pair-rest <days>: how long before the same two words may be a puzzle again. The default is
+ * never (owner, 2026-09-29: "the same PAIR, ever: that is the same puzzle"), which the vocabulary
+ * supports for about seven months. A year needs some pairs back; with a rest of 180 days and the
+ * page-overlap rule still refusing a page that shares more than a third of its cards, a returning
+ * pair is a different page about the same two words, half a year on.
+ */
+const PAIR_REST_DAYS = Number(argOf('--pair-rest', 'Infinity'));
 const argOf = (name, dflt) => {
   const i = process.argv.indexOf(name);
   return i > 0 && process.argv[i + 1] ? process.argv[i + 1] : dflt;
 };
-const DAYS = Math.max(1, Math.min(21, Number(argOf('--days', '14'))));
+const DAYS = Math.max(1, Math.min(400, Number(argOf('--days', '14'))));
 
 /** The picture kinds where the artwork is the whole card. */
 const ART_KINDS = `('special_illustration_rare','illustration_rare','named_full_art')`;
 /**
- * Worth about one place in the order of its kind. A full art is the picture and the page is made
- * of pictures, so it wins unless a windowed card shows BOTH themes clearly higher up.
+ * Worth about one place in the order of its kind, among the cards that did not make the first
+ * group (see the order by): a full art with a faint theme still edges a windowed one on the spares.
  */
 const FULL_ART_BONUS = 0.3;
 /** The fainter theme must be in the top three of its kind, which is what the caption carries. */
@@ -83,6 +92,13 @@ const UNGUESSABLE = new Set([
   'abstract', 'outlines', 'sparkles', 'streaks', 'swirls', 'light', 'lettering', 'shapes',
   'claws', 'fins', 'wings', 'tail', 'eyes', 'horns', 'fur', 'scales',
   'indoors', 'outdoors', 'background', 'foreground', 'patterns', 'texture',
+  // Real places, but not what anyone calls the picture (owner, 2026-10-18: ruins is not intuitive).
+  'ruins',
+  // The wider vocabulary brought in things that are in pictures without being what a picture is
+  // about: furniture, fittings, parts of things, and words that duplicate a better one.
+  'arena', 'bag', 'belt', 'bone', 'branch', 'building', 'buildings', 'debris', 'door', 'festival',
+  'fossil', 'glasses', 'laboratory', 'leaf', 'log', 'machinery', 'pillars', 'pipes', 'railing',
+  'stadium', 'stairs', 'table', 'window', 'windows',
 ]);
 
 /**
@@ -103,26 +119,46 @@ console.log(APPLY ? '*** APPLY: this will write to the live database ***\n' : 'D
 // ---------------------------------------------------------------------------
 
 step(1, 'the guessable vocabulary');
-// The namespace a word mostly appears under is what separates a setting from a prop: `scene:cave`
-// is somewhere the picture happens, `object:bottle` is a thing lying in it. Both are guessable, but
-// two settings make a puzzle worth posting and two props ("leaves + rocks") make one nobody
-// remembers, so the namespace is carried through to the scoring rather than thrown away here.
-const vocab = await dataSql(`
-  select split_part(t, ':', 2) as word,
-         count(distinct c.id)::int as n,
-         mode() within group (order by split_part(t, ':', 1)) as kind
-    from public.cards_en c, unnest(c.scene_tags) t
-   where c.full_art_kind in ${ART_KINDS}
-     and (t like 'scene:%' or t like 'object:%')
-     and split_part(t, ':', 2) !~ '[^a-z]'
-   group by 1 having count(distinct c.id) >= 12
-   order by n desc limit 90;
+/**
+ * THE POOL IS EVERY CARD WHERE THE WORD IS PLAINLY THERE (2026-10-18). Until now a word counted
+ * only on full arts, which gave 77 words and ran dry after 107 days; a year needs more. A card now
+ * counts for a word when the word is in the top three of its kind (scene: or object:) in the tag
+ * order, which is the caption and is the same test the page itself applies. Frame does not enter
+ * into it here: the page prefers full arts when it is built, but the vocabulary and the pair counts
+ * are about whether a page CAN be made of cards where both things are obvious.
+ *
+ * The namespace a word mostly appears under separates a setting from a prop: `scene:cave` is
+ * somewhere the picture happens, `object:bottle` is a thing lying in it. Both are guessable, but
+ * two settings make a puzzle worth posting and two props ("leaves + rocks") make one nobody
+ * remembers, so the namespace is carried through to the scoring rather than thrown away here.
+ *
+ * Holiday words (holidays.mjs) join with their own namespace, mood included, and are kept out of
+ * ordinary days further down.
+ */
+const SPECIAL = Object.keys(SPECIAL_WORDS);
+const TOP3 = `
+  with top as (
+    select c.id, split_part(u.tag, ':', 2) as word, split_part(u.tag, ':', 1) as ns,
+           row_number() over (partition by c.id, split_part(u.tag, ':', 1) order by u.ord) as rk
+      from public.cards_en c, unnest(c.scene_tags) with ordinality as u(tag, ord)
+     where (u.tag like 'scene:%' or u.tag like 'object:%'
+            or (u.tag like 'mood:%' and split_part(u.tag, ':', 2) = any(${textArray(SPECIAL)})))
+       and split_part(u.tag, ':', 2) !~ '[^a-z]'
+  ), t3 as (
+    select distinct id, word, ns from top where rk <= 3
+  )`;
+const vocab = await dataSql(`${TOP3}
+  select word, count(distinct id)::int as n, mode() within group (order by ns) as kind
+    from t3
+   group by 1 having count(distinct id) >= 40 or word = any(${textArray(SPECIAL)})
+   order by n desc limit 200;
 `);
 const words = vocab.filter((v) => !UNGUESSABLE.has(v.word));
 const scenes = words.filter((w) => w.kind === 'scene');
 console.log(`  ${words.length} usable words (dropped ${vocab.length - words.length} unguessable)`);
 console.log(`  ${scenes.length} settings: ${scenes.slice(0, 16).map((w) => w.word).join(', ')} ...`);
 console.log(`  ${words.length - scenes.length} props:    ${words.filter((w) => w.kind !== 'scene').slice(0, 12).map((w) => w.word).join(', ')} ...`);
+console.log(`  ${SPECIAL.length} holiday words kept back: ${SPECIAL.join(', ')}`);
 if (words.length < 20) fail('too few usable words to build a queue from');
 
 step(2, 'what has already been used');
@@ -154,14 +190,21 @@ if (redone.length) {
 const COOLDOWN_DAYS = 7;
 const MAX_SHARED = 1 / 3;
 const pairKey = (a, b) => [a, b].sort().join('+');
-const usedPairs = new Set(used.map((r) => pairKey(r.themes[0], r.themes[1] ?? r.themes[0])));
+/** pair -> the last day it ran, so a rest can be measured from it. */
+const pairLastOn = new Map();
+for (const r of used) pairLastOn.set(pairKey(r.themes[0], r.themes[1] ?? r.themes[0]), r.publish_on);
+const pairResting = (key, on) => {
+  const last = pairLastOn.get(key);
+  return last !== undefined && dayGap(last, on) < PAIR_REST_DAYS;
+};
+const usedPairs = new Set(pairLastOn.keys());
 const usedPages = used.map((r) => ({ on: r.publish_on, ids: new Set(r.card_ids) }));
 const today = puzzleToday();
 /** Words used within COOLDOWN_DAYS either side of `on`, across history and this run so far. */
 const dayGap = (a, b) => Math.abs((Date.parse(`${a}T00:00:00Z`) - Date.parse(`${b}T00:00:00Z`)) / 86400000);
 const restingOn = (on, extra) =>
   new Set([...used, ...extra].filter((r) => dayGap(r.publish_on, on) < COOLDOWN_DAYS).flatMap((r) => r.themes));
-console.log(`  ${used.length} puzzle(s) so far; ${usedPairs.size} pair(s) retired`);
+console.log(`  ${used.length} puzzle(s) so far; ${usedPairs.size} pair(s) used, resting ${Number.isFinite(PAIR_REST_DAYS) ? `${PAIR_REST_DAYS} days` : 'for good'}`);
 console.log(`  resting on ${today}: ${[...restingOn(today, [])].sort().join(', ') || '(none)'}`);
 
 /**
@@ -174,21 +217,14 @@ const MIN_SPARE = 2;
 step(3, 'scoring every pair');
 const names = words.map((w) => w.word);
 const counts = new Map(words.map((w) => [w.word, w.n]));
-const pairs = await dataSql(`
-  with fa as (
-    select c.id, c.scene_tags from public.cards_en c where c.full_art_kind in ${ART_KINDS}
-  ), tagged as (
-    select f.id, split_part(t, ':', 2) as word
-      from fa f, unnest(f.scene_tags) t
-     where (t like 'scene:%' or t like 'object:%')
-       and split_part(t, ':', 2) = any(${textArray(names)})
-  )
+const pairs = await dataSql(`${TOP3}
   select a.word as w1, b.word as w2, count(distinct a.id)::int as n
-    from tagged a join tagged b on b.id = a.id and b.word > a.word
-   group by 1, 2 having count(distinct a.id) >= 4
+    from t3 a join t3 b on b.id = a.id and b.word > a.word
+   where a.word = any(${textArray(names)}) and b.word = any(${textArray(names)})
+   group by 1, 2 having count(distinct a.id) >= 12
    order by n desc;
 `);
-console.log(`  ${pairs.length} pair(s) with at least 4 cards in common`);
+console.log(`  ${pairs.length} pair(s) with at least 12 cards showing both plainly`);
 
 /**
  * A pair is worth publishing when it fills a grid without being a near-synonym of itself. The
@@ -202,7 +238,8 @@ const GRID = () => ({ rows: 3, cols: 3, size: 9 });
 const kindOf = new Map(words.map((w) => [w.word, w.kind]));
 const scored = [];
 for (const p of pairs) {
-  if (p.n < 4 || p.n > 60) continue;
+  // Under twelve there is no page and no spares; far above 150 the link stops being visible.
+  if (p.n < 12 || p.n > 150) continue;
   const rarer = Math.min(counts.get(p.w1) ?? 0, counts.get(p.w2) ?? 0);
   const implies = rarer ? p.n / rarer : 1;
   if (implies > 0.40) continue;            // rule 3: one word gives the other away
@@ -213,9 +250,9 @@ for (const p of pairs) {
   const settings = [p.w1, p.w2].filter((w) => kindOf.get(w) === 'scene').length;
   if (settings === 0) continue;
   const grid = GRID(p.n);
-  // Best when the matched set is 1.5x to 4x the grid: enough to choose from, still a visible link.
+  // Best when the matched set is about three grids: enough to choose from, still a visible link.
   const ratio = p.n / grid.size;
-  const fit = ratio < 1 ? 0 : Math.max(0, 1 - Math.abs(Math.log(ratio / 2.2)));
+  const fit = ratio < 1 ? 0 : Math.max(0, 1 - Math.abs(Math.log(ratio / 3)));
   const settingBonus = settings === 2 ? 1 : 0.7;
   scored.push({ ...p, grid, implies, settings, score: fit * (1 - implies) * settingBonus });
 }
@@ -264,6 +301,9 @@ const nextFree = () => {
  * list and takes the first pair that is fair ON THAT DAY. What a pair's page says about itself does
  * not depend on the day, so that inspection is done once and remembered.
  */
+/** The tags a word can appear under: scene or object for everyone, its own namespace for a holiday word. */
+const tagsFor = (w) => [`scene:${w}`, `object:${w}`, ...(SPECIAL_WORDS[w] ? [`${SPECIAL_WORDS[w]}:${w}`] : [])];
+
 const inspected = new Map();
 const inspect = async (s) => {
   const key = pairKey(s.w1, s.w2);
@@ -288,22 +328,26 @@ const inspect = async (s) => {
       with hit as (
         select c.id::text as id, c.name, c.number, c.rarity, c.set_name, c.illustrator,
                c.full_art_kind, coalesce(c.full_art_score, 0) as art_score,
-               coalesce(max(t.w) filter (where t.tag in (${q(`scene:${s.w1}`)}, ${q(`object:${s.w1}`)})), 0) as w1,
-               coalesce(max(t.w) filter (where t.tag in (${q(`scene:${s.w2}`)}, ${q(`object:${s.w2}`)})), 0) as w2
+               coalesce(max(t.w) filter (where t.tag = any(${textArray(tagsFor(s.w1))})), 0) as w1,
+               coalesce(max(t.w) filter (where t.tag = any(${textArray(tagsFor(s.w2))})), 0) as w2
           from public.cards_en c, lateral (
             select u.tag, greatest(0, 1 - 0.25 * (row_number() over (partition by split_part(u.tag, ':', 1) order by u.ord) - 1)) as w
               from unnest(c.scene_tags) with ordinality as u(tag, ord)
-             where u.tag like 'scene:%' or u.tag like 'object:%'
+             where u.tag like 'scene:%' or u.tag like 'object:%' or u.tag like 'mood:%'
           ) t
-         where c.scene_tags && array[${q(`scene:${s.w1}`)}, ${q(`object:${s.w1}`)}]
-           and c.scene_tags && array[${q(`scene:${s.w2}`)}, ${q(`object:${s.w2}`)}]
+         where c.scene_tags && ${textArray(tagsFor(s.w1))}
+           and c.scene_tags && ${textArray(tagsFor(s.w2))}
          group by c.id, c.name, c.number, c.rarity, c.set_name, c.illustrator, c.full_art_kind, c.full_art_score
       )
       select *, least(w1, w2) as weakest,
              least(w1, w2) * 0.6 + greatest(w1, w2) * 0.4
                + case when full_art_kind in ${ART_KINDS} then ${FULL_ART_BONUS} else 0 end as salience
         from hit
-       order by salience desc, art_score desc, id
+       -- FULL ART FIRST, as long as both themes are plainly there (owner, 2026-10-18): a full art
+       -- whose fainter theme is in the caption outranks every windowed card; windowed cards fill
+       -- what is left. Within each group, how plainly the themes show still decides the order.
+       order by (full_art_kind in ${ART_KINDS} and least(w1, w2) >= ${MIN_WEAKEST}) desc,
+                salience desc, art_score desc, id
        limit 120;
     `);
     // Only cards whose picture resolves: a pocket with no address draws blank, and the publish RPC
@@ -356,16 +400,37 @@ const inspect = async (s) => {
   return result;
 };
 
+/**
+ * HOLIDAYS GET FIRST PICK OF THEIR OWN WORDS (owner, 2026-10-18). On a holiday the list is walked
+ * once per preferred word, best pair first, and the first fair pair wins; a word nobody can pair
+ * fairly falls through to the next preference, and a holiday with none at all becomes an ordinary
+ * day and says so. On every other day a pair carrying a reserved word is skipped, so the one eerie
+ * page of the year is the one on the 31st.
+ */
+const noClue = new Set();
+const isSpecial = (w) => SPECIAL_WORDS[w] !== undefined;
 while (chosen.length < DAYS) {
   const landsOn = nextFree();
   const resting = restingOn(landsOn, chosen);
+  const holiday = holidayOn(landsOn);
+  const rounds = holiday
+    ? [...holiday.words.map((w) => ({ word: w, list: scored.filter((s) => s.w1 === w || s.w2 === w) })),
+       { word: null, list: scored }]
+    : [{ word: null, list: scored }];
   let picked = null;
-  for (const s of scored) {
+  for (const round of rounds) {
+    if (picked) break;
+    for (const s of round.list) {
     const key = pairKey(s.w1, s.w2);
-    if (usedPairs.has(key) || chosen.some((c) => pairKey(c.w1, c.w2) === key)) continue;
+    if (pairResting(key, landsOn)) continue;
     if (resting.has(s.w1) || resting.has(s.w2)) continue;
-    // s.n counts full arts only (step 3); the pull below is wider, so this is a floor, not the pool.
-    if (s.n < MIN_SPARE) continue;
+    // A reserved word only on its holiday, and only as the word the holiday asked for.
+    if ((isSpecial(s.w1) && s.w1 !== round.word) || (isSpecial(s.w2) && s.w2 !== round.word)) continue;
+    // Every puzzle ships with a hint (owner, 2026-10-13), so a word with no clue is not an answer yet.
+    if (!hintFor([s.w1, s.w2])) {
+      for (const w of [s.w1, s.w2]) if (!CLUES[w]) noClue.add(w);
+      continue;
+    }
 
     const look = await inspect(s);
     if (look.reason) continue;
@@ -385,12 +450,20 @@ while (chosen.length < DAYS) {
     // within-run cooldown read undefined and silently pass, which put `city` on three consecutive
     // days in the first dry run.
     const hint = hintFor([s.w1, s.w2]);
-    if (!hint) console.log(`  NO HINT for ${s.w1} + ${s.w2}: add the missing clue to src/data/puzzleHints.ts`);
-    picked = { ...s, cards, page, spares, windowed, publish_on: landsOn, themes: [s.w1, s.w2], hint };
+    picked = {
+      ...s, cards, page, spares, windowed, publish_on: landsOn, themes: [s.w1, s.w2], hint,
+      holiday: round.word ? holiday.name : null,
+    };
     break;
+    }
   }
   if (!picked) break;
+  pairLastOn.set(pairKey(picked.w1, picked.w2), landsOn);
+  if (holiday && !picked.holiday) console.log(`  ${landsOn} is ${holiday.name}, but none of ${holiday.words.join(', ')} had a fair pair; an ordinary day`);
   chosen.push(picked);
+}
+if (noClue.size) {
+  console.log(`  ${noClue.size} word(s) skipped for want of a clue (add them to src/data/puzzleHints.ts): ${[...noClue].sort().join(', ')}`);
 }
 
 for (const r of rejected.slice(0, 10)) console.log(`  dropped  ${r}`);
@@ -407,8 +480,13 @@ for (const c of chosen) {
     + `${c.windowed.page ? ` (${c.windowed.page} windowed)` : ''}, ${c.spares.length} spare`
     + `${c.windowed.spares ? ` (${c.windowed.spares} windowed)` : ''}${c.spares.length < 9 ? ' (short of nine)' : ''}`,
   );
-  console.log(`              hint: ${c.hint ?? '(none)'}`);
+  console.log(`              hint: ${c.hint ?? '(none)'}${c.holiday ? `   (${c.holiday})` : ''}`);
 }
+const pageCards = chosen.reduce((n, c) => n + c.page.length, 0);
+const pageWindowed = chosen.reduce((n, c) => n + c.windowed.page, 0);
+console.log(`  ${pageWindowed} of ${pageCards} puzzle-page cards are windowed (${Math.round((100 * pageWindowed) / Math.max(1, pageCards))}%)`);
+const holidaysInRange = HOLIDAYS.filter((h) => chosen.some((c) => c.publish_on === h.date));
+console.log(`  ${chosen.filter((c) => c.holiday).length} of ${holidaysInRange.length} holiday(s) in range got their own theme`);
 
 /**
  * THE PAGE GETS NO PICTURE, AND THAT IS THE POINT.
@@ -450,55 +528,66 @@ if (redone.length) {
   `);
   for (const g of gone) console.log(`  removed binder "${g.title}"`);
 }
-step(redone.length ? 7 : 6, `writing as @${me.username}`);
-const first = chosen[0].publish_on;
-const last = chosen[chosen.length - 1].publish_on;
-const title = `Daily Puzzles: ${first} to ${last}`;
-const binderId = randomUUID();
-// Re-running the same span replaces its binder; the puzzles are re-pointed at the new pages below.
-await appSql(`delete from public.binders where owner_id = ${q(me.id)} and title = ${q(title)};`);
+step(redone.length ? 7 : 6, `writing as @${me.username}, one binder per fortnight`);
+/**
+ * A YEAR IS TWENTY-SIX FORTNIGHTS, each its own binder, so the account reads as a shelf of
+ * fortnights rather than one 730-page book. Each binder: page 0 blank, then a spread per day,
+ * the puzzle on the left titled with its date and the spares on the right titled with the themes.
+ */
+const FORTNIGHT = 14;
+const binderIds = [];
+for (let i = 0; i < chosen.length; i += FORTNIGHT) {
+  const span = chosen.slice(i, i + FORTNIGHT);
+  const first = span[0].publish_on;
+  const last = span[span.length - 1].publish_on;
+  const title = `Daily Puzzles: ${first} to ${last}`;
+  const binderId = randomUUID();
+  // Re-running the same span replaces its binder; the puzzles are re-pointed at the new pages below.
+  await appSql(`delete from public.binders where owner_id = ${q(me.id)} and title = ${q(title)};`);
 
-// No answers in the description any more: the themes are the right-hand page titles, which is
-// enough for the owner and is only reachable by someone who already has the link (hidden_from_feeds).
-await appSql(`
-  insert into public.binders (id, owner_id, title, description, layout_style, cover_card_id,
-                              is_public, is_demo, share_backdrop)
-  values (${q(binderId)}, ${q(me.id)}, ${q(title)},
-          ${q(`Puzzle pages for ${first} to ${last}. Each spread: the puzzle on the left, titled with its date; nine spare matches on the right, titled with the themes.`)},
-          'themed_story', ${q(chosen[0].page[0].id)}, false, false, ${q(SHARE_BACKDROP)});
-`);
+  // No answers in the description: the themes are the right-hand page titles, which is enough for
+  // the owner and is only reachable by someone who already has the link (hidden_from_feeds).
+  await appSql(`
+    insert into public.binders (id, owner_id, title, description, layout_style, cover_card_id,
+                                is_public, is_demo, share_backdrop)
+    values (${q(binderId)}, ${q(me.id)}, ${q(title)},
+            ${q(`Puzzle pages for ${first} to ${last}. Each spread: the puzzle on the left, titled with its date; nine spare matches on the right, titled with the themes.`)},
+            'themed_story', ${q(span[0].page[0].id)}, false, false, ${q(SHARE_BACKDROP)});
+  `);
 
-// Page 0 blank, so every day that follows is a facing pair in double-sided view: left the puzzle,
-// right its spares.
-const pages = [{ id: randomUUID(), title: null, cards: [] }];
-for (const c of chosen) {
-  c.pageId = randomUUID();
-  pages.push({ id: c.pageId, title: c.publish_on, cards: c.page });
-  pages.push({ id: randomUUID(), title: `${c.w1} + ${c.w2}`, cards: c.spares });
+  // Page 0 blank, so every day that follows is a facing pair in double-sided view: left the puzzle,
+  // right its spares.
+  const pages = [{ id: randomUUID(), title: null, cards: [] }];
+  for (const c of span) {
+    c.pageId = randomUUID();
+    c.binderId = binderId;
+    pages.push({ id: c.pageId, title: c.holiday ? `${c.publish_on} · ${c.holiday}` : c.publish_on, cards: c.page });
+    pages.push({ id: randomUUID(), title: `${c.w1} + ${c.w2}`, cards: c.spares });
+  }
+
+  // Pages are created PUBLIC. A page's is_public is what the share renderer sees, and it reads the
+  // binder as an anonymous caller; a public binder full of private pages draws nothing at all.
+  await appSql(`
+    insert into public.binder_pages (id, binder_id, position, title, rows, cols, background_color, is_public)
+    values ${pages.map((p, k) =>
+      `(${q(p.id)}, ${q(binderId)}, ${k}, ${q(p.title)}, 3, 3, null, true)`,
+    ).join(',\n            ')};
+  `);
+  const slots = pages.flatMap((p) => p.cards.map((card, k) =>
+    `(${q(randomUUID())}, ${q(p.id)}, ${Math.floor(k / 3)}, ${k % 3}, 1, 1, 'card', ${q(card.id)})`));
+  await appSql(`
+    insert into public.binder_slots (id, page_id, row_index, col_index, row_span, col_span, slot_type, card_id)
+    values ${slots.join(',\n              ')};
+  `);
+  binderIds.push(binderId);
+  console.log(`  "${title}": ${pages.length} pages (1 blank + ${span.length} spreads), ${slots.length} cards`);
 }
-
-// Pages are created PUBLIC. A page's is_public is what the share renderer sees, and it reads the
-// binder as an anonymous caller; a public binder full of private pages draws nothing at all.
-await appSql(`
-  insert into public.binder_pages (id, binder_id, position, title, rows, cols, background_color, is_public)
-  values ${pages.map((p, i) =>
-    `(${q(p.id)}, ${q(binderId)}, ${i}, ${q(p.title)}, 3, 3, null, true)`,
-  ).join(',\n          ')};
-`);
-const slots = pages.flatMap((p) => p.cards.map((card, k) =>
-  `(${q(randomUUID())}, ${q(p.id)}, ${Math.floor(k / 3)}, ${k % 3}, 1, 1, 'card', ${q(card.id)})`));
-await appSql(`
-  insert into public.binder_slots (id, page_id, row_index, col_index, row_span, col_span, slot_type, card_id)
-  values ${slots.join(',\n            ')};
-`);
-for (const c of chosen) c.binderId = binderId;
-console.log(`  "${title}": ${pages.length} pages (1 blank + ${chosen.length} spreads), ${slots.length} cards`);
 
 step(7, 'showcasing and scheduling');
 // The real RPCs, called as the admin, so this stays one definition with Studio rather than two.
-// One binder, showcased once: it has to stay showcased for the whole fortnight, because the post
-// image for every day in it is drawn from this binder.
-await adminSql(`select public.admin_set_binder_showcase(${q(binderId)}, true);`);
+// Each binder showcased once: it has to stay showcased for its whole fortnight, because the post
+// image for every day in it is drawn from it.
+for (const id of binderIds) await adminSql(`select public.admin_set_binder_showcase(${q(id)}, true);`);
 for (const c of chosen) {
   const urls = c.page.map((card) => cardImageUrl(manifest, card.id));
   const [pub] = await adminSql(`

@@ -47,6 +47,22 @@ export const SYNONYM_FAMILIES: Record<string, readonly string[]> = {
   leaves: ['leaf', 'leaves', 'foliage'],
   rocks: ['rock', 'rocks', 'stone', 'stones', 'boulder'],
   garden: ['garden', 'greenhouse', 'orchard'],
+  // HOLIDAY WORDS (2026-10-18), used only on their day (scripts/puzzles/holidays.mjs). Mood words
+  // are accepted here because a Halloween page is about how it feels, and a player who types
+  // "spooky" has it.
+  eerie: ['eerie', 'spooky', 'creepy', 'scary', 'haunted', 'halloween', 'ghostly', 'sinister'],
+  festive: ['festive', 'christmas', 'xmas', 'holiday', 'holidays', 'celebration', 'celebrating', 'festival'],
+  cozy: ['cozy', 'cosy', 'snug', 'comfy', 'comfortable', 'warm'],
+  hearts: ['heart', 'hearts', 'love', 'valentine', 'valentines', 'romantic', 'romance'],
+  lantern: ['lantern', 'lanterns', 'lamp', 'lamps'],
+  fireworks: ['firework', 'fireworks'],
+  flag: ['flag', 'flags', 'banner', 'banners'],
+  clover: ['clover', 'clovers', 'shamrock', 'shamrocks'],
+  rainbow: ['rainbow', 'rainbows'],
+  autumn: ['autumn', 'fall'],
+  balloons: ['balloon', 'balloons'],
+  candles: ['candle', 'candles', 'candlelight'],
+  graveyard: ['graveyard', 'cemetery', 'tombstone', 'tombstones', 'grave', 'graves'],
 };
 
 /** Strip to the form the families are keyed on: lower case, letters only, no trailing plural. */

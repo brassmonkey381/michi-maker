@@ -1,0 +1,60 @@
+/**
+ * The days that get a themed puzzle, and the words kept back for them.
+ *
+ * WHY (owner, 2026-10-18): "saving special themes for holidays (love for valentines day, eerie for
+ * halloween, etc.)". A holiday's words are tried in order; the first one with a fair pair wins and
+ * the run says which. A word listed in SPECIAL_WORDS is never used on an ordinary day, so Halloween
+ * is the only eerie page of the year. A plain word (snow, flowers, food) may be a holiday's choice
+ * too; it is simply preferred that day and lives its normal life otherwise.
+ *
+ * Mood words are allowed here and nowhere else. The ordinary vocabulary is things you can SEE
+ * (scene: and object: tags); "eerie" and "festive" are how a picture feels, which is unguessable on
+ * a Tuesday and exactly right on the 31st of October.
+ *
+ * DATES ARE WRITTEN OUT, not computed. Thanksgiving, Easter and Lunar New Year move, and a wrong
+ * rule is worse than a list that has to be extended each autumn. Covers 2026-10 to 2027-10; add the
+ * next year's dates before scheduling past that.
+ */
+
+/** word -> the tag namespace it lives in. Reserved for holidays; never an ordinary day's answer. */
+export const SPECIAL_WORDS = {
+  eerie: 'mood',
+  festive: 'mood',
+  cozy: 'mood',
+  hearts: 'object',
+  lantern: 'object',
+  fireworks: 'object',
+  flag: 'object',
+  clover: 'scene',
+  rainbow: 'scene',
+  autumn: 'scene',
+  balloons: 'object',
+  candles: 'object',
+  graveyard: 'scene',
+};
+
+/** @type {{ date: string, name: string, words: string[] }[]} */
+export const HOLIDAYS = [
+  { date: '2026-10-31', name: 'Halloween', words: ['eerie', 'graveyard'] },
+  { date: '2026-11-26', name: 'Thanksgiving', words: ['food', 'autumn'] },
+  { date: '2026-12-21', name: 'First day of winter', words: ['snow', 'ice'] },
+  { date: '2026-12-24', name: 'Christmas Eve', words: ['cozy', 'candles', 'snow'] },
+  { date: '2026-12-25', name: 'Christmas', words: ['festive', 'lights', 'snow'] },
+  { date: '2026-12-31', name: "New Year's Eve", words: ['fireworks', 'festive', 'night'] },
+  { date: '2027-01-01', name: "New Year's Day", words: ['balloons', 'fireworks', 'sky'] },
+  { date: '2027-02-06', name: 'Lunar New Year', words: ['lantern', 'festive'] },
+  { date: '2027-02-14', name: "Valentine's Day", words: ['hearts', 'flowers', 'cozy'] },
+  { date: '2027-03-17', name: "St Patrick's Day", words: ['clover', 'rainbow', 'grass'] },
+  { date: '2027-03-20', name: 'First day of spring', words: ['flowers', 'garden'] },
+  { date: '2027-03-28', name: 'Easter', words: ['flowers', 'meadow', 'garden'] },
+  { date: '2027-05-09', name: "Mother's Day", words: ['flowers', 'garden'] },
+  { date: '2027-06-21', name: 'First day of summer', words: ['beach', 'ocean'] },
+  { date: '2027-07-04', name: 'Independence Day', words: ['fireworks', 'flag', 'night'] },
+  { date: '2027-09-22', name: 'First day of autumn', words: ['autumn', 'leaves'] },
+  { date: '2027-10-31', name: 'Halloween', words: ['eerie', 'graveyard'] },
+];
+
+/** The holiday on a yyyy-mm-dd, or null. */
+export function holidayOn(date) {
+  return HOLIDAYS.find((h) => h.date === date) ?? null;
+}

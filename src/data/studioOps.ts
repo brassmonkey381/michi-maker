@@ -55,7 +55,6 @@ export interface DropoffRow {
   lastEvent: string;
   lastRoute: string | null;
   sessions: number;
-  guestSessions: number;
   medianEvents: number;
   lastAt: string;
 }
@@ -68,7 +67,6 @@ export async function fetchDropoffs(app: StudioApp, days: number): Promise<Dropo
     lastEvent: r.last_event,
     lastRoute: r.last_route,
     sessions: Number(r.sessions) || 0,
-    guestSessions: Number(r.guest_sessions) || 0,
     medianEvents: Number(r.median_events) || 0,
     lastAt: r.last_at,
   }));

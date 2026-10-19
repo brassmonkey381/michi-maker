@@ -1364,7 +1364,6 @@ export type Database = {
           last_event: string
           last_route: string | null
           sessions: number
-          guest_sessions: number
           median_events: number
           last_at: string
         }[]

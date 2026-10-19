@@ -154,6 +154,7 @@ export default function StudioScreen() {
   }, [profile?.is_admin]);
 
   // User list for the active app. Newest-active first (the RPC orders it). Resets selection.
+  // Guests (anonymous auth users) are not listed (owner, 2026-10-19; migration 20261019120000).
   useEffect(() => {
     if (!adminOk || !supabase) return;
     let active = true;

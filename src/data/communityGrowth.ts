@@ -1,7 +1,8 @@
 /**
  * Daily community-totals history for the analytics report (`/studio`).
  *
- * Reads `admin_community_growth` (migration 20260819130000), which is admin-gated the same
+ * Reads `admin_community_growth` (migration 20260819130000; since 20261019120000 it returns the
+ * public totals minus what our own and the QA accounts built), which is admin-gated the same
  * way every other analytics read is — security definer + `is_admin()`, no table read policy.
  * A non-admin caller gets an empty series rather than an error.
  *

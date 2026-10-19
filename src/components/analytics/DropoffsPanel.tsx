@@ -8,8 +8,9 @@
  *   - A session that ended on a finishing step (placed a card, printed, paid) is not a drop-off,
  *     it is a done. The list does not pretend to know which is which; the median event count
  *     beside each row is the tell: a high median on a last step is people finishing there.
- *   - Guests are counted inside the number and shown beside it, never dropped.
- * Test and admin accounts are excluded server-side.
+ *   - Guests are not here (owner, 2026-10-19): a session is counted only when it belongs to a
+ *     signed-in account. A guest who signs in mid-session is a person and stays in.
+ * Test and admin accounts are excluded server-side, the same way.
  */
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
@@ -28,23 +29,26 @@ function labelOf(r: DropoffRow): string {
 
 export function DropoffsPanel({ app }: { app: StudioApp }) {
   const [days, setDays] = useState<(typeof WINDOWS)[number]>(7);
-  const [rows, setRows] = useState<DropoffRow[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // The result remembers which app and window it answers, so switching either shows the spinner
+  // (a stale answer is never shown for a new question) without resetting state inside the effect.
+  const key = `${app}|${days}`;
+  const [result, setResult] = useState<{ key: string; rows?: DropoffRow[]; error?: string } | null>(null);
 
   useEffect(() => {
     let active = true;
-    setRows(null);
-    setError(null);
     fetchDropoffs(app, days)
-      .then((r) => active && setRows(r))
-      .catch((e: Error) => active && setError(e.message));
+      .then((r) => active && setResult({ key, rows: r }))
+      .catch((e: Error) => active && setResult({ key, error: e.message }));
     return () => {
       active = false;
     };
-  }, [app, days]);
+  }, [app, days, key]);
+
+  const current = result?.key === key ? result : null;
+  const rows = current?.rows ?? null;
+  const error = current?.error ?? null;
 
   const total = rows?.reduce((n, r) => n + r.sessions, 0) ?? 0;
-  const guests = rows?.reduce((n, r) => n + r.guestSessions, 0) ?? 0;
 
   return (
     <View style={styles.panel}>
@@ -75,7 +79,7 @@ export function DropoffsPanel({ app }: { app: StudioApp }) {
       ) : (
         <>
           <ThemedText type="small" themeColor="textSecondary">
-            {total} session{total === 1 ? '' : 's'} · {guests} as a guest · last event per session, most common first
+            {total} signed-in session{total === 1 ? '' : 's'} · last event per session, most common first
           </ThemedText>
           {rows.map((r) => {
             const share = total ? Math.round((r.sessions / total) * 100) : 0;
@@ -91,13 +95,13 @@ export function DropoffsPanel({ app }: { app: StudioApp }) {
                   {labelOf(r)}
                 </ThemedText>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.meta}>
-                  {r.guestSessions ? `${r.guestSessions} guest · ` : ''}median {r.medianEvents} event{r.medianEvents === 1 ? '' : 's'}
+                  median {r.medianEvents} event{r.medianEvents === 1 ? '' : 's'}
                 </ThemedText>
               </View>
             );
           })}
           <ThemedText type="small" themeColor="textSecondary">
-            A last step with a high median is people finishing there, not leaving. Sessions with no events are not here.
+            A last step with a high median is people finishing there, not leaving. Guest sessions and sessions with no events are not here.
           </ThemedText>
         </>
       )}
@@ -128,5 +132,5 @@ const styles = StyleSheet.create({
   fill: { height: 6, borderRadius: 3, backgroundColor: Palette.accent },
   num: { minWidth: 28, textAlign: 'right', fontWeight: Weight.semibold },
   label: { flex: 1 },
-  meta: { minWidth: 120, textAlign: 'right' },
+  meta: { minWidth: 96, textAlign: 'right' },
 });

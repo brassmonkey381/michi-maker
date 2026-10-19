@@ -10,6 +10,11 @@
  * a nearly straight line that hides every interesting day; the deltas show which days people
  * actually built things.
  *
+ * NOT THE LANDING BAND'S NUMBERS (owner, 2026-10-19). admin_community_growth subtracts what our
+ * own and the QA accounts built (the daily-puzzle binders among them) from each day's public
+ * totals, so the strip reads the community alone. Migration 20261019120000 has the arithmetic
+ * and its one caveat: anything of ours deleted since cannot be subtracted, so this is a ceiling.
+ *
  * Reconstructed days (`backfilled`) are drawn muted. That boundary matters: those days were
  * derived from surviving rows' `created_at`, so they cannot show a deletion and can never dip
  * (see migration 20260819130000). Captured days are real observations and can. Do not restyle
@@ -78,7 +83,7 @@ export function GrowthPanel() {
       <View style={styles.headerRow}>
         <ThemedText type="smallBold">Community growth</ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
-          {shortDay(series[0].day)} to {shortDay(latest.day)} · bars are per-day
+          {shortDay(series[0].day)} to {shortDay(latest.day)} · bars are per-day · our own and QA accounts left out
         </ThemedText>
       </View>
 

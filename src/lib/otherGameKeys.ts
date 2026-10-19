@@ -13,7 +13,7 @@
  * in catalogConfig), not a secondary one.
  */
 /** Every secondary game's key. Widen this AND add the entry below to onboard a game. */
-export type SecondaryGameKey = 'onepiece' | 'lorcana';
+export type SecondaryGameKey = 'onepiece' | 'lorcana' | 'riftbound';
 
 export interface SecondaryGameDef {
   /** Also the image-manifest key and the cache-key suffix the kit stores it under. */
@@ -26,6 +26,9 @@ export interface SecondaryGameDef {
 export const SECONDARY_GAMES: readonly SecondaryGameDef[] = [
   { key: 'onepiece', label: 'One Piece', prefix: 'onepiece' },
   { key: 'lorcana', label: 'Disney Lorcana', prefix: 'lorcana' },
+  // Published 2026-10-18 (first bundle; the data lanes refresh it). No colour blob and no theme
+  // rows yet, so it resolves cards and nothing more.
+  { key: 'riftbound', label: 'Riftbound', prefix: 'riftbound' },
 ];
 
 /** The key One Piece's secondary image manifest is registered and cached under (kit >= 0.9.17). */

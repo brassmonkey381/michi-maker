@@ -137,7 +137,7 @@ async function fetchManifest() {
  * MEANS BOTH PLACES: the app resolved Lorcana cards from the day its artifacts were published
  * (2026-09-18) while this render still asked for One Piece alone, so a Lorcana pocket drew empty.
  */
-const SECONDARY_PREFIXES = ['onepiece', 'lorcana'];
+const SECONDARY_PREFIXES = ['onepiece', 'lorcana', 'riftbound'];
 
 /**
  * OTHER GAMES' CARDS (One Piece 2026-09-17, Lorcana 2026-09-19). A pocket's card_id is a TCGplayer

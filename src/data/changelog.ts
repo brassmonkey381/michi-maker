@@ -130,6 +130,59 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-10-19',
+    title: 'Riftbound cards, and a theme toolbar that fits a phone',
+    items: [
+      {
+        products: ['michi'],
+        head: 'Riftbound cards in your binders',
+        kind: 'new',
+        area: 'cards',
+        big: true,
+        body:
+          'Riftbound, the League of Legends trading card game, can go in a binder: names, images and '
+          + 'prices all resolve. No theme search or colour filters for it yet.',
+      },
+      {
+        products: ['tcgscan'],
+        head: 'Scan Riftbound cards',
+        kind: 'new',
+        area: 'scanning',
+        big: true,
+        body:
+          'Riftbound is the fourth game in the scanner on the web. Pick it from the game chips; '
+          + 'the phone app follows in a later release.',
+      },
+      {
+        products: ['michi'],
+        head: 'The theme toolbar fits a phone',
+        kind: 'better',
+        area: 'browse',
+        body:
+          'On a phone the energy chips, the counts and the Group switch fold into two rows, so the '
+          + 'cards start higher on the screen.',
+      },
+      {
+        products: ['michi'],
+        head: 'Every daily puzzle is nine cards',
+        kind: 'better',
+        area: 'browse',
+        body:
+          'A day whose themes cannot fill a full 3x3 page is skipped for one that can, so the puzzle '
+          + 'is never a four-card grid.',
+      },
+      {
+        products: ['michi'],
+        head: 'Puzzle binders stay out of the way',
+        kind: 'better',
+        area: 'sharing',
+        body:
+          'The binders behind the daily puzzle no longer show on their owner’s public profile or '
+          + 'count in the People ranking. Under My binders they sit in their own Puzzles chip.',
+      },
+    ],
+  },
+  {
     date: '2026-10-16',
     title: 'Theme search for Lorcana and One Piece, and fills with only the cards you mean',
     items: [

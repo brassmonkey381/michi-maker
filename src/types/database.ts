@@ -1341,6 +1341,38 @@ export type Database = {
           last_seen: string
         }[]
       }
+      admin_money_ledger: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          kind: string
+          app: string
+          user_id: string
+          username: string | null
+          product: string
+          source: string | null
+          granted_at: string
+          expires_at: string | null
+          interval: string | null
+          unit_amount_minor: number | null
+          currency: string | null
+          cancelled_at: string | null
+        }[]
+      }
+      admin_dropoffs: {
+        Args: { p_app: string; p_days?: number }
+        Returns: {
+          last_event: string
+          last_route: string | null
+          sessions: number
+          guest_sessions: number
+          median_events: number
+          last_at: string
+        }[]
+      }
+      admin_health: {
+        Args: Record<PropertyKey, never>
+        Returns: { signal: string; at: string | null; detail: string }[]
+      }
       admin_user_journey: {
         Args: { target_user: string; p_app?: string | null }
         Returns: {

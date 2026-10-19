@@ -15,7 +15,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { DropoffsPanel } from '@/components/analytics/DropoffsPanel';
 import { GrowthPanel } from '@/components/analytics/GrowthPanel';
+import { HealthPanel } from '@/components/analytics/HealthPanel';
+import { MoneyPanel } from '@/components/analytics/MoneyPanel';
 import { PuzzlePanel } from '@/components/analytics/PuzzlePanel';
 import { ReportsPanel } from '@/components/analytics/ReportsPanel';
 import { ThemedText } from '@/components/themed-text';
@@ -263,7 +266,19 @@ export default function StudioScreen() {
           Community growth. michi-only: these totals count binders, pages and slots, which
           tcgscan does not have — the app switcher must not appear to filter them.
         */}
+        {/* Health first: if a webhook or the event stream has stopped, every number below it is
+            stale, and this row is the only thing on the page that says so. Fleet-wide. */}
+        <HealthPanel />
+
+        {/* Money, grouped the way the morning email groups it, but live. Per app: tcgscan tiers
+            are tcgscan_* products on the same ledger. */}
+        <MoneyPanel app={app} />
+
         {app === 'michi' ? <GrowthPanel /> : null}
+
+        {/* The last event of every session in the window, ranked: what people were doing when
+            they left. Per app. */}
+        <DropoffsPanel app={app} />
 
         {/* The takedown queue. michi-only: reports are filed on binders and profiles, which
             tcgscan does not have. */}

@@ -139,12 +139,12 @@ async function fetchManifest() {
  * Piece alone, so a Lorcana pocket drew empty.
  * Since 2026-10-18 src/lib/otherGameKeys.test.ts pins this list to that table's published rows
  * (read through __tooling at the bottom), so a game added or flipped to published in one place and
- * not the other fails `npm test` instead of drawing empty. A row with `published: false` (Digimon
- * until its first publish; Magic and Yu-Gi-Oh!, whose bundles tcgscan-data refuses to publish for
- * now) stays out of this list, so a render never asks the bucket for an images.json that cannot be
+ * not the other fails `npm test` instead of drawing empty. A row with `published: false` (Magic and
+ * Yu-Gi-Oh!, whose bundles tcgscan-data refuses to publish for now; Digimon was one until its first
+ * publish on 2026-10-19) stays out of this list, so a render never asks the bucket for an images.json that cannot be
  * there.
  */
-const SECONDARY_PREFIXES = ['onepiece', 'lorcana', 'riftbound'];
+const SECONDARY_PREFIXES = ['onepiece', 'lorcana', 'riftbound', 'digimon'];
 
 /**
  * OTHER GAMES' CARDS (One Piece 2026-09-17, Lorcana 2026-09-19). A pocket's card_id is a TCGplayer

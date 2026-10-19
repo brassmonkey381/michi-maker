@@ -120,6 +120,9 @@ export default function StudioScreen() {
   const [adminOk, setAdminOk] = useState<boolean | null>(null);
   const [app, setApp] = useState<AnalyticsApp>('michi');
   const [users, setUsers] = useState<RecentUser[] | null>(null);
+  // An RPC failure is shown, not swallowed: for two weeks (2026-10-04..18) admin_recent_users timed
+  // out and this page said "No activity recorded" because the error became an empty array.
+  const [usersError, setUsersError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [journey, setJourney] = useState<JourneyEvent[] | null>(null);
   const [loadingJourney, setLoadingJourney] = useState(false);
@@ -153,13 +156,20 @@ export default function StudioScreen() {
     let active = true;
     (async () => {
       setUsers(null);
+      setUsersError(null);
       setSelected(null);
       setJourney(null);
       try {
-        const { data } = await supabase!.rpc('admin_recent_users', { p_app: app, p_limit: 200 });
-        if (active) setUsers((data as RecentUser[] | null) ?? []);
-      } catch {
-        if (active) setUsers([]);
+        const { data, error } = await supabase!.rpc('admin_recent_users', { p_app: app, p_limit: 200 });
+        if (active) {
+          setUsers((data as RecentUser[] | null) ?? []);
+          setUsersError(error ? error.message : null);
+        }
+      } catch (e) {
+        if (active) {
+          setUsers([]);
+          setUsersError(e instanceof Error ? e.message : String(e));
+        }
       }
     })();
     return () => {
@@ -267,7 +277,7 @@ export default function StudioScreen() {
         <View style={[styles.body, wide && styles.bodyWide]}>
           {showList ? (
             <View style={[styles.listCol, wide && styles.listColWide]}>
-              <UserList users={users} selected={selected} onSelect={selectUser} />
+              <UserList users={users} error={usersError} selected={selected} onSelect={selectUser} />
             </View>
           ) : null}
 
@@ -323,10 +333,12 @@ function AppSwitcher({ app, onChange }: { app: AnalyticsApp; onChange: (a: Analy
 
 function UserList({
   users,
+  error,
   selected,
   onSelect,
 }: {
   users: RecentUser[] | null;
+  error?: string | null;
   selected: string | null;
   onSelect: (id: string) => void;
 }) {
@@ -340,7 +352,7 @@ function UserList({
   if (users.length === 0) {
     return (
       <ThemedText type="small" themeColor="textSecondary" style={styles.emptyText}>
-        No activity recorded for this app yet.
+        {error ? `Could not load users: ${error}` : 'No activity recorded for this app yet.'}
       </ThemedText>
     );
   }

@@ -25,7 +25,7 @@ import {
 } from 'tcgscan-browse';
 
 import { FREE_THEME } from '@/data/freeTheme';
-import { SECONDARY_GAMES } from '@/lib/otherGameKeys';
+import { PUBLISHED_SECONDARY_GAMES } from '@/lib/otherGameKeys';
 import { freshToken, gatedCatalogSource } from '@/lib/catalogSource';
 import { supabaseUrl } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
@@ -117,9 +117,11 @@ configureBrowse({
  * is worth far less than michi-maker.com booting, so a kit that cannot do this simply does not.
  */
 if (typeof registerImageManifest === 'function') {
-  // One per secondary game (lib/otherGameKeys). The kit's registry is a real Map, so a third
-  // game's art costs one more entry in that list and nothing here.
-  for (const game of SECONDARY_GAMES) {
+  // One per PUBLISHED secondary game (lib/otherGameKeys). The kit's registry is a real Map, so a
+  // third game's art costs one more entry in that list and nothing here. A row still waiting on its
+  // first publish is not registered: the kit would ask the bucket for an images.json that is not
+  // there on the first Pokémon miss of every session.
+  for (const game of PUBLISHED_SECONDARY_GAMES) {
     registerImageManifest({
       key: game.key,
       browseUrl: `${browseUrl}/${game.prefix}`,
@@ -137,9 +139,13 @@ if (typeof registerImageManifest === 'function') {
  *
  * Guarded like the manifest above: an installed kit that predates this export must not turn every
  * route into `undefined(...)`.
+ *
+ * PUBLISHED ROWS ONLY, and here it matters more than for images: the kit fetches EVERY registered
+ * summary beside Pokémon's on the first price read of a session, whatever the binder holds, so an
+ * unpublished row was a failed request in every visitor's console.
  */
 if (typeof registerPriceSummary === 'function') {
-  for (const game of SECONDARY_GAMES) {
+  for (const game of PUBLISHED_SECONDARY_GAMES) {
     registerPriceSummary({ key: game.key, browseUrl: `${browseUrl}/${game.prefix}` });
   }
 }

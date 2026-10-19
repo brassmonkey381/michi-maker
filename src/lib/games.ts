@@ -14,7 +14,7 @@
  */
 import { Platform } from 'react-native';
 
-import { SECONDARY_GAMES, type SecondaryGameKey } from '@/lib/otherGameKeys';
+import { PUBLISHED_SECONDARY_GAMES, SECONDARY_GAMES, type SecondaryGameKey } from '@/lib/otherGameKeys';
 
 export type GameId = 'pokemon' | SecondaryGameKey;
 
@@ -45,7 +45,11 @@ function readFlag(): boolean {
 /** True unless this browser has opted out of the other games. Constant for the page load. */
 export const MULTI_TCG: boolean = readFlag();
 
-/** The games the picker offers, in order. Every game unless the browser opted out. */
+/**
+ * The games the picker offers, in order: every PUBLISHED game unless the browser opted out. A row
+ * whose bundle is not in the bucket would be a chip that can only ever say it is loading
+ * (lib/otherGameKeys `published`).
+ */
 export const PICKER_GAMES: readonly GameId[] = MULTI_TCG
-  ? ['pokemon', ...SECONDARY_GAMES.map((g) => g.key)]
+  ? ['pokemon', ...PUBLISHED_SECONDARY_GAMES.map((g) => g.key)]
   : ['pokemon'];

@@ -29,8 +29,8 @@ import { useBrowseTheme } from '@/lib/browseTheme';
 import { gameLabel, PICKER_GAMES, type GameId } from '@/lib/games';
 import { browseUrl } from '@/lib/catalogConfig';
 import { armEyedropper, cancelEyedropper, eyedropperArmed, pickWithEyedropper, subscribeEyedropper } from '@/lib/eyedropper';
-import { loadOtherGameCatalog, loadOtherGameSimilar, otherGameCatalog, otherGameCatalogFor, otherGameSimilar, otherGameVersion, subscribeOtherGame } from '@/lib/otherGame';
-import { SECONDARY_GAMES } from '@/lib/otherGameKeys';
+import { loadOtherGameCatalog, loadOtherGameSimilar, otherGameAbsent, otherGameCatalog, otherGameCatalogFor, otherGameSimilar, otherGameVersion, subscribeOtherGame } from '@/lib/otherGame';
+import { PUBLISHED_SECONDARY_GAMES } from '@/lib/otherGameKeys';
 import { subscribeThemeGames, themeGame, themeGamesState } from '@/lib/themeGames';
 
 /**
@@ -220,7 +220,7 @@ export function CardBrowse({
    * kit keys its colour index by URL, so flipping between games keeps both loaded.
    */
   useEffect(() => {
-    const secondaryGame = SECONDARY_GAMES.find((g) => g.key === game);
+    const secondaryGame = PUBLISHED_SECONDARY_GAMES.find((g) => g.key === game);
     setColorUrl(secondaryGame ? `${browseUrl}/${secondaryGame.prefix}/color` : '');
   }, [game]);
   // Every game but Pokémon is a secondary source, browsed from its own published catalog.
@@ -266,6 +266,14 @@ export function CardBrowse({
     () => (game === 'pokemon' ? null : otherGameCatalog(game)),
   );
   const activeCatalog = secondary ? secondaryCatalog : FORCE_COLD ? null : catalog;
+  // The bucket said this game's catalog is not there (lib/otherGame `absent`): final for the
+  // session, so "loading… (tap to retry)" would be a promise the tap cannot keep. Read through the
+  // store for the same reason as the catalog above.
+  const secondaryAbsent = useSyncExternalStore(
+    subscribeOtherGame,
+    () => game !== 'pokemon' && otherGameAbsent(game),
+    () => game !== 'pokemon' && otherGameAbsent(game),
+  );
   /**
    * THE KIT'S BROWSE STATE IS A MODULE SINGLETON (`browseState`), not component state, so a
    * remount re-reads the query, drill-down and facets the OTHER game left behind — a `key` change
@@ -432,14 +440,20 @@ export function CardBrowse({
             );
           })}
           {secondary && !activeCatalog ? (
-            <Pressable onPress={() => setAttempt((n) => n + 1)} accessibilityRole="button">
-              <Text style={[styles.gameNote, { color: browseTheme.subtext ?? '#888' }]}>
-                {`loading ${gameLabel(game)}… (tap to retry)`}
+            secondaryAbsent ? (
+              <Text style={[styles.gameNote, styles.gameNoteLine, { color: browseTheme.subtext ?? '#888' }]}>
+                {`${gameLabel(game)} isn't available yet.`}
               </Text>
-            </Pressable>
+            ) : (
+              <Pressable style={styles.gameNoteLine} onPress={() => setAttempt((n) => n + 1)} accessibilityRole="button">
+                <Text style={[styles.gameNote, { color: browseTheme.subtext ?? '#888' }]}>
+                  {`loading ${gameLabel(game)}… (tap to retry)`}
+                </Text>
+              </Pressable>
+            )
           ) : null}
           {secondary && themeNote && !gameThemed ? (
-            <Text style={[styles.gameNote, { color: browseTheme.subtext ?? '#888' }]}>
+            <Text style={[styles.gameNote, styles.gameNoteLine, { color: browseTheme.subtext ?? '#888' }]}>
               {themeGamesLoad === 'loading'
                 ? `Checking artwork search for ${gameLabel(game)}…`
                 : `Artwork search isn't available for ${gameLabel(game)} yet.`}
@@ -582,8 +596,13 @@ export function CardBrowse({
 }
 
 const styles = StyleSheet.create({
-  gameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 8, paddingBottom: 6 },
+  // WRAPS (2026-10-18). One unwrapped row fit four chips at 375px only just, and seven ran past the
+  // edge: on /browse the panel clips, so the chips past it could not be tapped at all. A chip never
+  // shrinks (a View's flexShrink is 0), so the row breaks between chips instead.
+  gameRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, rowGap: 6, paddingHorizontal: 8, paddingBottom: 6 },
   gameChip: { paddingVertical: 4, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1 },
   gameChipText: { fontSize: 12, fontWeight: '600' },
   gameNote: { fontSize: 11 },
+  // A status note takes a line of its own under the chips, never a slot between them.
+  gameNoteLine: { flexBasis: '100%' },
 });

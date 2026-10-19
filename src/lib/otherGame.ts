@@ -12,7 +12,9 @@
  * PLURAL, ON PURPOSE (owner, 2026-09-17). This was written for exactly one secondary game, with
  * one catalog variable and one URL. A binder holding three games would have resolved only whichever
  * one that variable happened to be — the rest read "Unknown card", which is the blank-pocket bug
- * this module exists to prevent. Everything is keyed by game now; the list lives in otherGameKeys.
+ * this module exists to prevent. Everything is keyed by game now; the list lives in otherGameKeys,
+ * and only its PUBLISHED rows are here: a game whose bundle is not meant to be in the bucket is
+ * never asked about.
  *
  * ALWAYS ON, NEVER EAGER (matching tcgscan-app's 2026-09-17 call). A binder opened from a share
  * link, a bookmark or a crawler carries no query string, and a nameless pocket there is a bug, not
@@ -30,10 +32,7 @@
 import { buildCatalog, type Catalog, type CatalogCard, type PriceSummary, type RawCatalog } from 'tcgscan-browse';
 
 import { browseUrl } from '@/lib/catalogConfig';
-import { SECONDARY_GAMES, ONE_PIECE_PREFIX, type SecondaryGameDef } from '@/lib/otherGameKeys';
-
-/** Where One Piece's public artifacts live, beside Pokémon's in the same bucket. */
-export const ONE_PIECE_BROWSE = `${browseUrl}/${ONE_PIECE_PREFIX}`;
+import { bucketSaysMissing, PUBLISHED_SECONDARY_GAMES, type SecondaryGameDef } from '@/lib/otherGameKeys';
 
 /**
  * Worth asking the other games about: card ids are numeric TCGplayer productIds. michi mints its
@@ -78,14 +77,16 @@ interface GameState {
   catalog: Catalog | null;
   load: Promise<Catalog | null> | null;
   failedAt: number;
+  /** The bucket said catalog.json is not there (bucketSaysMissing). Final for the session. */
+  absent: boolean;
   summary: Promise<PriceSummary> | null;
 }
 
 /** PER GAME, not per module: one shared `catalog` variable could only ever hold one game's. */
 const games = new Map<string, GameState>(
-  SECONDARY_GAMES.map((def) => [
+  PUBLISHED_SECONDARY_GAMES.map((def) => [
     def.key,
-    { def, browse: `${browseUrl}/${def.prefix}`, catalog: null, load: null, failedAt: 0, summary: null },
+    { def, browse: `${browseUrl}/${def.prefix}`, catalog: null, load: null, failedAt: 0, absent: false, summary: null },
   ]),
 );
 
@@ -94,14 +95,28 @@ function stateOf(game: string): GameState | undefined {
 }
 
 /**
- * Fetch + build one game's catalog once. A failure is retryable but RATE-LIMITED: this is reached
- * from render (a pocket resolving its name), so an un-cooled retry would re-request on every
- * render pass for as long as the file is unavailable.
+ * Fetch + build one game's catalog once. A transient failure (a 5xx, the network, a build that
+ * throws) is retryable but RATE-LIMITED: this is reached from render (a pocket resolving its name),
+ * so an un-cooled retry would re-request on every render pass for as long as the file is unavailable.
+ *
+ * NOT THERE IS FINAL FOR THE SESSION (2026-10-18). A published row can reach the table before its
+ * first bundle reaches the bucket (Riftbound and Digimon wait on a hand publish), and the cooldown
+ * alone made that a request plus a warning per game every minute, for as long as a binder held an
+ * id no loaded catalog owns: `otherGameCard` kept seeing a catalog-less game and asking again. The
+ * bucket's "no such file" now marks the game `absent`: one warning, no more requests, and the
+ * picker says the game is not available. A publish heals on the next page load, with no deploy.
  */
 function loadOne(s: GameState): Promise<Catalog | null> {
+  if (s.absent) return Promise.resolve(null);
   if (!s.load && Date.now() - s.failedAt < RETRY_MS) return Promise.resolve(s.catalog);
   s.load ??= fetch(`${s.browse}/catalog.json`)
-    .then((r) => (r.ok ? (r.json() as Promise<RawCatalog>) : null))
+    .then((r) => {
+      if (bucketSaysMissing(r.status)) {
+        s.absent = true;
+        throw new Error(`${s.def.key} catalog is not in the bucket (HTTP ${r.status}); not asking again this session`);
+      }
+      return r.ok ? (r.json() as Promise<RawCatalog>) : null;
+    })
     .then(async (raw) => {
       if (!raw?.cards) throw new Error(`${s.def.key} catalog unavailable`);
       s.catalog = await buildCatalog(raw);
@@ -112,8 +127,12 @@ function loadOne(s: GameState): Promise<Catalog | null> {
       // SAID OUT LOUD. This swallowed a build failure whole on 2026-09-20: the file arrived with a
       // 200, the picker said "loading" for ever, and nothing anywhere said why.
       console.warn(`[otherGame] ${s.def.key} catalog failed:`, e instanceof Error ? e.message : e);
-      s.load = null; // never pin a failure: a later miss retries, after the cooldown
-      s.failedAt = Date.now();
+      s.load = null;
+      if (s.absent) {
+        bump(); // the picker swaps "loading" for "not available"; loadOne never fetches it again
+        return null;
+      }
+      s.failedAt = Date.now(); // never pin a transient failure: a later miss retries, after the cooldown
       return null;
     });
   return s.load;
@@ -157,6 +176,15 @@ export function otherGameCatalog(game: string): Catalog | null {
 }
 
 /**
+ * True once the bucket has said this game's catalog is not there (see loadOne). Final for the
+ * session, so the picker stops offering a retry that would never fetch. Synchronous; subscribe for
+ * the moment it is known.
+ */
+export function otherGameAbsent(game: string): boolean {
+  return stateOf(game)?.absent ?? false;
+}
+
+/**
  * WHICH GAME OWNS `id`, and its catalog — for the surfaces that must SCAN a game rather than just
  * name one card. "Pages around this card" composes against a whole catalog, and handing it
  * Pokémon's for a One Piece seed is why every fill method came back empty: the methods themselves
@@ -192,7 +220,8 @@ export function otherGameCard(id: string | null | undefined, pokemonLoaded: bool
   let missing = false;
   for (const s of games.values()) {
     if (!s.catalog) {
-      missing = true;
+      // An absent game cannot own the id this session; only one still to load is worth asking.
+      if (!s.absent) missing = true;
       continue;
     }
     const card = s.catalog.getCard(id);

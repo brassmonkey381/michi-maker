@@ -131,13 +131,19 @@ async function fetchManifest() {
 }
 
 /**
- * EVERY SECONDARY GAME'S PREFIX, mirroring src/lib/otherGameKeys.ts (SECONDARY_GAMES), which is the
- * source of truth. These api/ functions are plain CommonJS on purpose - outside the Expo tsc and
- * lint build - so they cannot import that module and the list is copied here instead. ADDING A GAME
- * MEANS BOTH PLACES: the app resolved Lorcana cards from the day its artifacts were published
- * (2026-09-18) while this render still asked for One Piece alone, so a Lorcana pocket drew empty.
+ * EVERY PUBLISHED SECONDARY GAME'S PREFIX, mirroring src/lib/otherGameKeys.ts
+ * (PUBLISHED_SECONDARY_GAMES), which is the source of truth. These api/ functions are plain
+ * CommonJS on purpose - outside the Expo tsc and lint build - so they cannot import that module and
+ * the list is copied here instead. ADDING A GAME MEANS BOTH PLACES: the app resolved Lorcana cards
+ * from the day its artifacts were published (2026-09-18) while this render still asked for One
+ * Piece alone, so a Lorcana pocket drew empty.
+ * Since 2026-10-18 src/lib/otherGameKeys.test.ts pins this list to that table's published rows
+ * (read through __tooling at the bottom), so a game added or flipped to published in one place and
+ * not the other fails `npm test` instead of drawing empty. A row with `published: false` (Magic and
+ * Yu-Gi-Oh!, whose bundles tcgscan-data refuses to publish for now) stays out of this list, so a
+ * render never asks the bucket for an images.json that cannot be there.
  */
-const SECONDARY_PREFIXES = ['onepiece', 'lorcana', 'riftbound'];
+const SECONDARY_PREFIXES = ['onepiece', 'lorcana', 'riftbound', 'digimon'];
 
 /**
  * OTHER GAMES' CARDS (One Piece 2026-09-17, Lorcana 2026-09-19). A pocket's card_id is a TCGplayer
@@ -1575,9 +1581,10 @@ module.exports = async (req, res) => {
 };
 
 // Tooling seam for scripts/og-preview.mjs, which renders a binder's real share image to a file so
-// a design change can be judged on the shipping path rather than on a mock. Not reachable from the
-// handler.
+// a design change can be judged on the shipping path rather than on a mock, and for the test that
+// pins SECONDARY_PREFIXES to src/lib/otherGameKeys.ts. Not reachable from the handler.
 module.exports.__tooling = {
+  SECONDARY_PREFIXES,
   fetchBinder,
   fetchManifest,
   completeManifest,

@@ -48,9 +48,10 @@ const DEFS: Record<SecondaryGameKey, Omit<SecondaryGameDef, 'key'>> = {
   // Until the bundle is in the bucket, lib/otherGame takes the bucket's "no such file" as final for
   // the session (the picker says "isn't available yet") instead of asking again every minute.
   riftbound: { label: 'Riftbound', prefix: 'riftbound', published: true },
-  // live=True upstream (proof of concept, owner 2026-10-18), first publish by hand: the same gap
-  // as Riftbound until it lands.
-  digimon: { label: 'Digimon', prefix: 'digimon', published: true },
+  // live=True upstream (proof of concept, owner 2026-10-18) but NOTHING of it is in the bucket yet:
+  // its first publish is the owner's handover run (state\poc-game.ps1 -Game digimon). Hidden until
+  // then, as in tcgscan-app's game-defs.ts; flip here and in the OG copy once its catalog.json is up.
+  digimon: { label: 'Digimon', prefix: 'digimon', published: false },
   // live=False upstream: tcgscan-data refuses their publish until their TCGplayer categories join
   // the daily price ingest, an owner call with no date. Rows only, so keys and labels exist; flip
   // each here (and in the OG copy) the day its catalog.json is in the bucket.

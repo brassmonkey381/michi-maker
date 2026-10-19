@@ -26,11 +26,14 @@ if (trig.length !== 2) fail(`expected two triggers, found ${trig.map((t) => t.tg
 console.log('  OK');
 
 step(3, 'a future puzzle follows a card swap on its page (swapped, read, swapped back)');
+// Swaps the LIVE cells of the two probe slots, so running it twice is a swap and a swap back. (The
+// first version joined probe_two to itself and reassigned the saved original cells both times: the
+// same assignment twice, which left the page swapped. Caught on 2026-10-19 by the probe itself.)
 const SWAP = `
   update public.binder_slots s
      set row_index = o.row_index, col_index = o.col_index
-    from probe_two me join probe_two o on o.rn <> me.rn
-   where s.id = me.id;`;
+    from probe_two me, probe_two om, public.binder_slots o
+   where s.id = me.id and om.rn <> me.rn and o.id = om.id;`;
 const [probe] = await appSql(`
   create temp table probe_target as
     select d.id, d.source_page_id as page_id, d.card_ids, d.publish_on

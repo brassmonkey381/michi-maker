@@ -217,25 +217,43 @@ async function upsertOneGrant(sub: Stripe.Subscription, userId: string, product:
   const periodEnd = periodEndSeconds(sub);
   const periodStartSec = periodStartSeconds(sub);
   const GRACE_MS = 3 * 24 * 60 * 60 * 1000;
+  // GRACE IS FOR PEOPLE WHO HAVE PAID. Narrowed 2026-10-19 after a trial's first charge was
+  // declined (insufficient funds) and the row still read trial end + 3 days: six days of PRO
+  // for a card that never worked. The grace exists so a paying customer's renewal hiccup does
+  // not lock them out over a weekend. It is not for:
+  //   - a subscription still in its trial (status 'trialing'): access ends at trial_end, exactly;
+  //   - dunning on the FIRST term after a trial (the unpaid period begins at trial_end): nothing
+  //     was ever paid, so there is nothing to bridge. Access ends where the trial ended;
+  //   - a subscription that never completed its first payment ('incomplete'): no access at all.
+  // Stripe's retries still run. If one succeeds, invoice.paid routes through the active branch
+  // and the full term is granted then.
+  const trialEndSec = typeof sub.trial_end === 'number' ? sub.trial_end : null;
+  const inTrial = sub.status === 'trialing';
+  const firstTermAfterTrial =
+    trialEndSec !== null && periodStartSec !== null && periodStartSec === trialEndSec;
   let expiresAtMs: number;
   if (sub.status === 'canceled' || sub.status === 'incomplete_expired') {
     // Hard-ended: lapse at the recorded end (or immediately).
     expiresAtMs = (sub.ended_at ?? sub.canceled_at ?? Math.floor(Date.now() / 1000)) * 1000;
+  } else if (sub.status === 'incomplete') {
+    // First payment never went through. Checkout grants nothing until it does.
+    expiresAtMs = Date.now();
   } else if ((sub.status === 'past_due' || sub.status === 'unpaid') && periodStartSec) {
     // DUNNING: the renewal payment failed, but Stripe has already rolled the period — so
     // periodEnd is the end of a term nobody has paid for. The active branch below would grant
     // that whole year (caught live on the test-clock rig: a declined renewal produced a full
     // year of access + a fresh print allocation on an open invoice). Access is held at
     // PAID-THROUGH — the unpaid term's start, which is exactly where the old term ended — plus
-    // the same grace, so a customer mid-recovery gets their 3 days and no more. invoice.paid on
-    // recovery routes through the active branch and restores the full term.
-    expiresAtMs = periodStartSec * 1000 + GRACE_MS;
+    // the grace ONLY when an earlier term was actually paid for. invoice.paid on recovery
+    // routes through the active branch and restores the full term.
+    expiresAtMs = periodStartSec * 1000 + (firstTermAfterTrial ? 0 : GRACE_MS);
   } else if (sub.cancel_at_period_end && periodEnd) {
     // User cancelled but the term is paid through — lapse exactly at period end.
     expiresAtMs = periodEnd * 1000;
   } else if (periodEnd) {
-    // Active: period end + grace. (Dunning no longer reaches this branch — see past_due above.)
-    expiresAtMs = periodEnd * 1000 + GRACE_MS;
+    // Active and paid: period end + grace. In trial: trial end, exactly. (Dunning no longer
+    // reaches this branch — see past_due above.)
+    expiresAtMs = periodEnd * 1000 + (inTrial ? 0 : GRACE_MS);
   } else {
     expiresAtMs = Date.now();
   }

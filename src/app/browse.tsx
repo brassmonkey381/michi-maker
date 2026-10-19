@@ -274,7 +274,9 @@ export default function BrowseScreen() {
               runs where it answers a live question — inside the fill sheet, next to the button
               that uses the model (AutoFillSheet) — and for an admin the picker chips below still
               name the selected candidate. */}
-          <SimilarityModelPicker showVersion={false} />
+          {/* Not on a phone: the chips ("Live", "capG-e15") are an admin's model switch, and on a
+              390pt screen they were the first row of nine above the first card. */}
+          {phone ? null : <SimilarityModelPicker showVersion={false} />}
 
           {/* The browser owns the remaining height; its inner FlatList scrolls (no page ScrollView
               around it, so the list gets a bounded viewport). */}

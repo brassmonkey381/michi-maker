@@ -87,6 +87,13 @@ interface RcEvent {
   price_in_purchased_currency?: number;
 }
 
+/** RevenueCat's `environment` as the ledger spells it; undefined (column untouched) when absent or unknown. */
+function environmentOf(ev: RcEvent): 'production' | 'sandbox' | undefined {
+  if (ev.environment === 'PRODUCTION') return 'production';
+  if (ev.environment === 'SANDBOX') return 'sandbox';
+  return undefined;
+}
+
 /** Constant-time string compare, so the header check leaks nothing about the secret's prefix. */
 function same(a: string, b: string): boolean {
   if (a.length !== b.length) return false;

@@ -4,7 +4,9 @@ Spec for an **Arrange** button in the binder editor. Status: approved for a v1 o
 ("we can always move forward with this and make improvements after we see how it turns out").
 Nothing is built yet. The visual demo of each mode on real pages is at
 https://claude.ai/artifact/LS4NwvX98QTMbqDmLa58ax (owner-private artifact; the generator is in the
-session scratchpad, not this repo). Lines marked **[owner]** are decisions that are theirs.
+session scratchpad, not this repo). The demo pool is 24 lava cards whose depth comes from their
+tags, not hand labels; it includes one conflicted card (Galarian Moltres, flying over a volcano)
+on purpose so the hold-out reads. Lines marked **[owner]** are decisions that are theirs.
 
 ## What it is
 
@@ -44,9 +46,23 @@ Rows are depths. The eye reads the page as a cross-section: sky, surface, below.
 natural case; a 2x4 page gets two bands.
 
 - Hard: every card in a row shares the row's stratum, where the card has one.
+- Hard, **row purity** (owner, 2026-10-20: "make sure the themes at the top row are not present
+  in the other rows"): a row owns its band's words, so no other row may show them. Each card is
+  one of:
+  - **clean**: all its depth words are in one band;
+  - **transition**: its first depth word is its band and a word of another band comes third or
+    later in its caption ("partially underground, mostly above ground"). Allowed in its own row,
+    seated at the row's ends, and marked so the user can see which cards carry a little of the
+    next depth;
+  - **conflicted**: another band's word is its first or second depth word. Never seated by Strata.
+    It is held out and named with the reason, so the owner can swap it for a printing that reads
+    one depth.
+- Nothing is borrowed across bands. A pocket stays open rather than hold a card from the wrong
+  depth, and that open pocket is what earns the one sparing suggestion (a clean card of the short
+  band, same theme, a species the page does not have).
 - Soft: palette flows left to right within a row; brighter rows above darker ones.
-- Offered only when each band has enough cards to fill its row. Otherwise the two-band version, or
-  not at all.
+- Offered only when each band has enough clean and transition cards to fill its row, or is at most
+  one short (then with the suggestion). Otherwise the two-band version, or not at all.
 - Evolution lines go **vertical** here, one stage per row, only when the stages' own scenes climb
   with the stage (Magikarp underwater, Gyarados at the surface). When they do not, the line is
   left to Lines.
@@ -56,12 +72,15 @@ Stratum from tags, in caption rank order (the first matching tag wins):
 | Band | Tags |
 | --- | --- |
 | Above | sky, clouds, stars, moon, space, storm, lightning, rainbow, sunset, airborne |
-| Surface | grass, field, meadow, forest, trees, jungle, beach, desert, city, town, road, mountain, volcano, rocks, lake, river, ocean (surface), snow, ice |
+| Surface | grass, field, meadow, forest, trees, jungle, beach, desert, city, town, road, mountain, volcano, lake, river, ocean (surface), snow, ice |
 | Below | underwater, seaweed, coral, cave, underground, ruins (when with cave), lava (when with cave or underground) |
 
-A card whose first tag is a stratum word in one band and whose second is in another (a horizon
-card) belongs to the first. A card with no stratum word is **free** and can sit in any band; free
-cards fill whatever the strata leave short.
+Not depth words: **rocks** (they are in every band) and **smoke** (it rises; a smoking volcano is a
+surface card). Both were in the first draft and mis-sorted real cards.
+
+A card with no stratum word is **free** and can sit in any band; free cards fill whatever the
+strata leave short. A free card whose connected partner is seated goes under or over it first
+(the Legend's bottom half sits under its top half, in the row below).
 
 ### Lines
 

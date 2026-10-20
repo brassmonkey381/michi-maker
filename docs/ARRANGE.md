@@ -1,7 +1,10 @@
 # Arrange: seating cards on a page so the page reads
 
-Spec for an **Arrange** button in the binder editor. Status: proposal for the owner to mark up
-(2026-10-20). Nothing here is built. Lines marked **[owner]** are decisions that are theirs.
+Spec for an **Arrange** button in the binder editor. Status: approved for a v1 on 2026-10-20
+("we can always move forward with this and make improvements after we see how it turns out").
+Nothing is built yet. The visual demo of each mode on real pages is at
+https://claude.ai/artifact/LS4NwvX98QTMbqDmLa58ax (owner-private artifact; the generator is in the
+session scratchpad, not this repo). Lines marked **[owner]** are decisions that are theirs.
 
 ## What it is
 
@@ -18,9 +21,12 @@ and a brief (`ART_ROLE_GUIDE`). Spending pockets on art is the point of this app
 that preference: among the candidates it shows, at least one spends more pockets on art than the
 page does now.
 
-Arrange seats the cards the page has. It does not add cards, and it does not drop any: a template
-with fewer card pockets than the page has cards is not offered. **[owner]** confirm, or allow
-"seat what fits, spares to the facing page".
+Arrange seats the cards the page has. A template with fewer card pockets than the page has cards
+is still offered; the cards it cannot seat are listed as held for the next page, never dropped.
+It may **suggest** one card the page does not have, sparingly (owner, 2026-10-20: "a good feature,
+but should be used sparingly"): at most one per candidate, only when a single card completes a row
+or a band (the missing middle stage of a line that is otherwise on the page; the one card short of
+a depth band), drawn from the same theme the page came from. A suggestion is a chip, not a change.
 
 ## The four modes
 
@@ -156,7 +162,7 @@ restarts. Milliseconds in the browser, no server. Pure functions in `src/data/ar
 
 ## Open for the owner
 
-- **[owner]** Add or drop cards: never (default), or seat what fits.
+- Add cards: decided, one sparing suggestion per candidate, see above.
 - **[owner]** When Strata and Lines both fit the same cards, both are offered. Agreed?
 - **[owner]** Spread as one canvas for Strata and Flow (default yes).
 - **[owner]** Stratum table above: words to add, move, or remove.

@@ -53,11 +53,12 @@ const DEFS: Record<SecondaryGameKey, Omit<SecondaryGameDef, 'key'>> = {
   // beside it and no theme rows yet. Published here and in the OG copy in one change, as in
   // tcgscan-app's game-defs.ts.
   digimon: { label: 'Digimon', prefix: 'digimon', published: true },
-  // live=False upstream: tcgscan-data refuses their publish until their TCGplayer categories join
-  // the daily price ingest, an owner call with no date. Rows only, so keys and labels exist; flip
-  // each here (and in the OG copy) the day its catalog.json is in the bucket.
-  magic: { label: 'Magic: The Gathering', prefix: 'magic', published: false },
-  yugioh: { label: 'Yu-Gi-Oh!', prefix: 'yugioh', published: false },
+  // Partial games (live=True upstream since 2026-10-20, catalog="imaged"): only their pictured cards
+  // are published, ~14k each, and the image mirror is capped for now. First publish landed
+  // 2026-10-20: both catalog.json answer 200. michi shows every game as soon as its bundle is up
+  // (owner, 2026-10-20), while tcgscan-app keeps them hidden until App Store review news.
+  magic: { label: 'Magic: The Gathering', prefix: 'magic', published: true },
+  yugioh: { label: 'Yu-Gi-Oh!', prefix: 'yugioh', published: true },
 };
 
 /** Every row, published or not: keys and labels. Whatever FETCHES reads PUBLISHED_SECONDARY_GAMES. */

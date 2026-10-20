@@ -30,6 +30,8 @@
  *
  * SANDBOX EVENTS GRANT TOO, on purpose: App Review buys in the sandbox, and a reviewer who pays
  * and sees nothing unlock is a rejection. The cost is that a TestFlight tester can hold a tier.
+ * The row is stamped `environment: 'sandbox'` so Money (admin_money_ledger, the morning email)
+ * does not count it as a sale.
  *
  * NEVER CLOBBER A LIVE STRIPE ROW. The ledger is keyed (user_id, product), so an Apple purchase of
  * a product the user already holds through Stripe would overwrite `source` and orphan the Stripe
@@ -228,6 +230,9 @@ Deno.serve(async (req) => {
       price_lookup_key: productId,
       unit_amount_minor: typeof ev.price === 'number' ? Math.round(ev.price * 100) : null,
       currency: typeof ev.price === 'number' ? 'usd' : null,
+      // Sandbox or real money. Access ignores it (a sandbox buyer still unlocks, see SANDBOX
+      // above); the Money readers skip sandbox rows. An unknown value leaves the column as it was.
+      environment: environmentOf(ev),
       // Will it renew. CANCELLATION is auto-renew turned off (or a refund); a purchase, renewal
       // or UNCANCELLATION means it will, so those clear it. Every other event (BILLING_ISSUE,
       // EXPIRATION, ...) says nothing about intent and leaves the column as it was - an

@@ -28,6 +28,16 @@ end $$;
 comment on column public.entitlements.environment is
   'Store environment that granted this row: production or sandbox (RevenueCat environment). NULL = not recorded, read as production. Money readers skip sandbox; access checks ignore this column.';
 
+-- Backfill, one time. Every Apple row written before this migration is a sandbox purchase: TCGScan
+-- had never been released on the App Store (build 15 still in review), TestFlight buys in the
+-- sandbox, and the owner confirmed the rows in RevenueCat's sandbox data on 2026-10-20. The date
+-- bound keeps a re-run from ever touching a real sale written after release.
+update public.entitlements
+   set environment = 'sandbox'
+ where source = 'apple'
+   and environment is null
+   and granted_at < '2026-10-21T00:00:00Z';
+
 -- Same function as 20261018160000_studio_money_dropoffs_health.sql, plus one line: sandbox rows out.
 create or replace function public.admin_money_ledger()
 returns table (

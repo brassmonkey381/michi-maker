@@ -1,0 +1,162 @@
+# Arrange: seating cards on a page so the page reads
+
+Spec for an **Arrange** button in the binder editor. Status: proposal for the owner to mark up
+(2026-10-20). Nothing here is built. Lines marked **[owner]** are decisions that are theirs.
+
+## What it is
+
+A page or spread holds a set of cards the owner already chose (say, 24 lava cards on a 3x4 spread).
+Arrange proposes several finished layouts for those cards, each one a pairing of:
+
+- a **template** from the michi layout catalogue (`src/data/artTemplates.ts`: 33 compositions, 15
+  single-page and 18 spread), which decides which pockets are art and which are cards, and
+- an **arrangement mode**, which decides which card sits in which card pocket.
+
+Arrange never invents a composition. The template catalogue is the whole set of compositions it
+can offer, so a proposed page is always one a curator named, with art panels that each have a role
+and a brief (`ART_ROLE_GUIDE`). Spending pockets on art is the point of this app, and Arrange keeps
+that preference: among the candidates it shows, at least one spends more pockets on art than the
+page does now.
+
+Arrange seats the cards the page has. It does not add cards, and it does not drop any: a template
+with fewer card pockets than the page has cards is not offered. **[owner]** confirm, or allow
+"seat what fits, spares to the facing page".
+
+## The four modes
+
+Each mode has hard rules (a seating that breaks one is not a candidate) and soft rules (a score).
+Two rules hold in every mode:
+
+- **Connected art is adjacent**, in the orientation the art continues. Hard.
+- **Shared minor themes touch.** Two cards that share a tag the rest of the page lacks (the same
+  species, the same illustrator, "night") score higher as neighbours. Soft, and the lightest weight
+  of all, so it breaks ties rather than bending a gradient.
+
+### Strata
+
+Rows are depths. The eye reads the page as a cross-section: sky, surface, below. Three rows is the
+natural case; a 2x4 page gets two bands.
+
+- Hard: every card in a row shares the row's stratum, where the card has one.
+- Soft: palette flows left to right within a row; brighter rows above darker ones.
+- Offered only when each band has enough cards to fill its row. Otherwise the two-band version, or
+  not at all.
+- Evolution lines go **vertical** here, one stage per row, only when the stages' own scenes climb
+  with the stage (Magikarp underwater, Gyarados at the surface). When they do not, the line is
+  left to Lines.
+
+Stratum from tags, in caption rank order (the first matching tag wins):
+
+| Band | Tags |
+| --- | --- |
+| Above | sky, clouds, stars, moon, space, storm, lightning, rainbow, sunset, airborne |
+| Surface | grass, field, meadow, forest, trees, jungle, beach, desert, city, town, road, mountain, volcano, rocks, lake, river, ocean (surface), snow, ice |
+| Below | underwater, seaweed, coral, cave, underground, ruins (when with cave), lava (when with cave or underground) |
+
+A card whose first tag is a stratum word in one band and whose second is in another (a horizon
+card) belongs to the first. A card with no stratum word is **free** and can sit in any band; free
+cards fill whatever the strata leave short.
+
+### Lines
+
+Rows are evolution lines, read left to right in stage order.
+
+- Hard: a line's stages are in one row, adjacent, ascending.
+- Soft: a two-stage line sits at a row's edge and its third cell goes to kin (the same species in
+  another era, its trainer, its partner). Lines of the same type share a page.
+- Offered when at least two rows can be full lines.
+
+### Flow
+
+One palette gradient across the whole page or spread, no grouping.
+
+- Soft: minimise total palette distance between horizontal neighbours, and between vertical
+  neighbours at half weight. A spread is one canvas, so the gradient crosses the gutter.
+- Always offered. It is the mode that needs nothing from the cards but their pictures.
+
+### Mirror
+
+Symmetric weight across the gutter, or across a single page's centre column.
+
+- Soft: the two strongest cards (full art, then rarity) in mirrored cells: the outer corners, or
+  the centre of each leaf. The same illustrator in the same cell on each leaf. Palette mirrored
+  rather than flowing.
+- Offered on spreads, and on single pages with an odd column count.
+
+## Pairing a mode with a template
+
+Some panel roles make a mode read better; some fight it. The pairing score is added to the
+seating score, so a fighting pair is ranked down rather than banned.
+
+| Role | Strata | Lines | Flow | Mirror |
+| --- | --- | --- | --- | --- |
+| title (top band) | strong: the art is the sky | neutral | neutral | neutral |
+| band (between rows) | strong: it is the horizon or the waterline | weak: it cuts a line | weak: it breaks the gradient | neutral |
+| footer | neutral | neutral | strong: caption under the run | neutral |
+| rail | neutral | strong: frames the list | neutral | strong when on both leaves |
+| anchor | weak if it spans bands | weak if it eats a row's middle | weak | strong when centred |
+| post | neutral | neutral | neutral | strong in matching corners |
+| plate | not offered (no cards) | | | |
+| accent | neutral | neutral | neutral | neutral |
+
+Examples that should rank high for a lava spread: Establishing Tier with Strata (sky band above,
+lava fields, caves below); Titled Run with Flow; Twin Anchors or Bookends with Mirror; Triptych
+Rails with Lines on a single page.
+
+## The candidate sheet
+
+One button on a page or spread. It opens a sheet of **four to six** candidates as thumbnails of
+the actual cards in the actual pockets, each named by its pairing with a one-line reason the user
+can check against the picture:
+
+- "Establishing Tier · strata: sky above, lava fields, caves below"
+- "Titled Run · flow: dark basalt left to white heat right"
+- "Twin Anchors · mirror: the two full arts in the corners"
+
+Rules for the list:
+
+- The page as it is now is always the first card, so looking costs nothing.
+- Ranked by score, but **diverse**: never two of the same mode in the top three, and at least one
+  candidate with more art than the current page.
+- Tapping one rearranges the page with undo. Hand placements made afterwards are never overridden;
+  Arrange is run again by choice.
+- Each pick is recorded (template, mode, rank shown, rank picked) so the weights can be tuned
+  later from what the owner actually chooses.
+
+## Signals and where they come from
+
+| Signal | Source | Notes |
+| --- | --- | --- |
+| Evolution line, stage | catalog `evolution_line`, `evolves_from`, `evolution_stage_index` | already selected by the kit's `CARD_COLS` |
+| Scene and object tags, ranked | `cards_en.scene_tags` (`scene:`, `object:` namespaces) | the puzzle scheduler reads the same column |
+| Palette | `color_art` vectors, `color_neighbors_art` | public Storage files; the tri-color search uses them |
+| Art likeness | 64-d art embeddings behind Find Similar | for connected art and minor-theme ties |
+| Full art, rarity | catalog `full_art_kind`, `rarity` | weight for Mirror |
+| Illustrator, set, number | catalog | connected-art proxy, mirror pairs |
+
+**Connected art has no flag anywhere.** Proxy: same set, same illustrator, consecutive numbers,
+art embeddings very close. It will catch most and miss some.
+
+## Solver
+
+24 cells and 24 cards is small. Seed each mode's seating (strata: bucket then sort by palette;
+lines: rows by line; flow: nearest-neighbour chain from the darkest card; mirror: strongest to the
+corners), then improve by pairwise swaps until no swap raises the score, with a few random
+restarts. Milliseconds in the browser, no server. Pure functions in `src/data/arrange.ts` with
+`node --test` coverage, like `pageComposer.ts`.
+
+## Effort
+
+| Piece | Estimate |
+| --- | --- |
+| Scoring, four modes, solver, tests | 1 day |
+| Candidate sheet with thumbnails, undo, pick log | 1 day |
+| Stratum table and connected-art proxy, tuned on real pages | 1 day |
+| Template pairing weights, tuned by eye | half a day |
+
+## Open for the owner
+
+- **[owner]** Add or drop cards: never (default), or seat what fits.
+- **[owner]** When Strata and Lines both fit the same cards, both are offered. Agreed?
+- **[owner]** Spread as one canvas for Strata and Flow (default yes).
+- **[owner]** Stratum table above: words to add, move, or remove.

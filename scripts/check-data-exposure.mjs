@@ -517,7 +517,7 @@ else ok('public.alternates refused');
 // policy is holding. Only a 401/403 proves it is closed.
 for (const [table, column] of [
   ['prices_tcgcsv', 'product_id'],
-  ...['onepiece', 'lorcana', 'riftbound', 'digimon'].flatMap((g) => [[`${g}_sets`, 'id'], [`${g}_cards`, 'id'], [`${g}_sealed`, 'id']]),
+  ...['onepiece', 'lorcana', 'riftbound', 'digimon', 'cyberpunk'].flatMap((g) => [[`${g}_sets`, 'id'], [`${g}_cards`, 'id'], [`${g}_sealed`, 'id']]),
   // The other games' theme rows, captions and tags included (tcgscan-data migration 78). No client
   // grant at all: theme_search reads it as definer and returns ids only.
   ['card_themes', 'product_id'],

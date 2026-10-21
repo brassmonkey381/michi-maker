@@ -224,17 +224,6 @@ function gridOf(shape, placements, artKeys) {
   });
 }
 
-function ctxFor(shape, cards, reservedKeys = new Set(), tuning) {
-  return {
-    cells: A.cardCells(shape.rows, shape.cols, shape.spread, reservedKeys),
-    rows: shape.rows,
-    cols: shape.cols,
-    spread: shape.spread,
-    pairs: A.connectedPairs(cards),
-    tuning,
-  };
-}
-
 const signature = (grid) => grid.map((c) => c.card ?? (c.art ? '#' : '.')).join('|');
 
 const cardsOfPage = (p) => slotsByPage.get(p.id).map((s) => arrangeCard(s.card_id)).filter(Boolean);

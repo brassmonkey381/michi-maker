@@ -2208,7 +2208,7 @@ export function BinderScreen({
         <IconBtn glyph="⧉" label="Duplicate this page" onPress={handleDuplicatePage} testID="tool-duplicate" />
         {/* Arrange: the cards this page has, seated several ways (docs/ARRANGE.md). Carries its
             word like "+ Page" does: a bare glyph for a feature nobody has seen yet is a riddle. */}
-        <IconBtn glyph="☷" word="Arrange" label="Arrange the cards on this page" onPress={() => setArrangeOpen(true)} testID="tool-arrange" />
+        <IconBtn glyph="☷" word="Arrange" label="Arrange the cards on this page (G)" onPress={() => setArrangeOpen(true)} testID="tool-arrange" />
         {/* Send this page into ANOTHER of your binders (copy, or move it out of this one). */}
         {store.userBinders.some((b) => b.id !== binder.id) ? (
           <IconBtn
@@ -2870,6 +2870,10 @@ export function BinderScreen({
                 onDragStart={handleTrayDragStart}
                 onDrop={handleTrayDrop}
                 onRemove={handleTrayRemove}
+                onClear={() => {
+                  const n = store.clearTray(binder.id);
+                  if (n) showToast(`Tray cleared, ${n} card${n === 1 ? '' : 's'} removed`, true);
+                }}
                 ghostOn={ghostOn}
                 ghostX={ghostX}
                 ghostY={ghostY}
@@ -3085,6 +3089,7 @@ export function BinderScreen({
           }
           onMovePage={() => setMovePageOpen((v) => !v)}
           onNewPage={editing ? handleAddPage : undefined}
+          onArrange={editing ? () => setArrangeOpen(true) : undefined}
           onGoToPage={(n) => changePage(n - 1)}
           onEscape={() => {
             // The topmost thing first, one per press: a preview, a sheet, a selection, select mode.
@@ -3330,6 +3335,7 @@ function EditorKeyboardShortcuts({
   onDownloadFullImage,
   onMovePage,
   onNewPage,
+  onArrange,
   onGoToPage,
   onEscape,
 }: {
@@ -3363,6 +3369,8 @@ function EditorKeyboardShortcuts({
   onMovePage?: () => void;
   /** N: a new page at the end, the same as the + Page button. Editing only. */
   onNewPage?: () => void;
+  /** G: Arrange this page (owner, 2026-10-22: "feature worthy ... needs a shortcut key"). Editing only. */
+  onArrange?: () => void;
   /** Digits: a page number, 1-based, acted on after a short pause; the caller clamps it. */
   onGoToPage?: (n: number) => void;
   /** Escape: close the topmost thing. */
@@ -3434,6 +3442,9 @@ function EditorKeyboardShortcuts({
       } else if (!meta && !e.altKey && key === PLAIN_KEYS.newPage && onNewPage) {
         e.preventDefault();
         onNewPage();
+      } else if (!meta && !e.altKey && key === PLAIN_KEYS.arrange && onArrange) {
+        e.preventDefault();
+        onArrange();
       } else if (!meta && !e.altKey && key === PLAIN_KEYS.artDock && onToggleArt) {
         e.preventDefault();
         onToggleArt();

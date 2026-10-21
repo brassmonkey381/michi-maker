@@ -7,7 +7,8 @@ test('every shortcut sits under exactly one of the three headings, none empty', 
   const groups = shortcutGroups('Ctrl');
   assert.deepEqual(groups.map((g) => g.title), [...SHORTCUT_GROUPS]);
   assert.equal(groups.reduce((n, g) => n + g.items.length, 0), shortcutList('Ctrl').length);
-  for (const g of groups) assert.ok(g.items.length >= 3 && g.items.length <= 7, `${g.title}: ${g.items.length}`);
+  // Eight since Arrange took G (owner, 2026-10-22); the card is still one short column per heading.
+  for (const g of groups) assert.ok(g.items.length >= 3 && g.items.length <= 8, `${g.title}: ${g.items.length}`);
 });
 
 test('the card lists the plain keys the editor listens for, under the same letters', () => {

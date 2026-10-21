@@ -391,6 +391,8 @@ interface BinderStore {
   moveSlotToTray: (binderId: string, pageId: string, slotId: string) => boolean;
   moveSlotFromTray: (binderId: string, slotId: string, toPageId: string, toRow: number, toCol: number) => 'moved' | 'swapped' | null;
   removeTraySlot: (binderId: string, slotId: string) => void;
+  /** Empty the tray: one commit, one Undo, one delete. Returns how many cards went. */
+  clearTray: (binderId: string) => number;
   /** Move (or same-footprint-swap) a slot from one page to another — dragging across the spread. */
   moveSlotAcrossPages: (
     binderId: string,
@@ -2652,6 +2654,18 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     [binders, commit, persist],
   );
 
+  const clearTray = useCallback(
+    (binderId: string): number => {
+      const target = binders.find((b) => b.id === binderId);
+      const n = target?.tray?.length ?? 0;
+      if (!target || !n) return 0;
+      commit((prev) => prev.map((b) => (b.id === binderId ? { ...b, tray: [] } : b)));
+      if (!target.isExample) persist(() => repo.clearTray(binderId), binderId);
+      return n;
+    },
+    [binders, commit, persist],
+  );
+
   const mergeSlots = useCallback(
     (binderId: string, pageId: string, slotIdA: string, slotIdB: string): MergeResult | null => {
       const target = binders.find((binder) => binder.id === binderId);
@@ -2808,6 +2822,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       moveSlotToTray,
       moveSlotFromTray,
       removeTraySlot,
+      clearTray,
       moveSlotAcrossPages,
       removeSlot,
       mergeSlots,
@@ -2871,6 +2886,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       moveSlotToTray,
       moveSlotFromTray,
       removeTraySlot,
+      clearTray,
       moveSlotAcrossPages,
       removeSlot,
       mergeSlots,

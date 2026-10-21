@@ -32,6 +32,7 @@ export function CardTray({
   onDragStart,
   onDrop,
   onRemove,
+  onClear,
   ghostOn,
   ghostX,
   ghostY,
@@ -43,6 +44,8 @@ export function CardTray({
   onDragStart: (slot: DemoSlot) => void;
   onDrop: (slot: DemoSlot, windowX: number, windowY: number) => void;
   onRemove: (slot: DemoSlot) => void;
+  /** Empty the tray in one go (owner, 2026-10-22): one commit, one Undo. */
+  onClear: () => void;
   ghostOn: SharedValue<number>;
   ghostX: SharedValue<number>;
   ghostY: SharedValue<number>;
@@ -59,7 +62,14 @@ export function CardTray({
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}>
         <Text style={styles.headerTitle}>Tray{ordered.length ? ` · ${ordered.length}` : ''}</Text>
-        <Text style={styles.chevron}>{open ? '▾' : '▸'}</Text>
+        <View style={styles.headerRight}>
+          {ordered.length ? (
+            <Pressable onPress={onClear} hitSlop={8} style={styles.clearBtn} accessibilityRole="button" accessibilityLabel="Clear the tray">
+              <Text style={styles.clearBtnText}>Clear tray</Text>
+            </Pressable>
+          ) : null}
+          <Text style={styles.chevron}>{open ? '▾' : '▸'}</Text>
+        </View>
       </Pressable>
       {open ? (
         ordered.length === 0 ? (
@@ -167,6 +177,9 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
   },
   headerTitle: { fontSize: FontSize.label, fontWeight: Weight.bold, color: Palette.ink2 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  clearBtn: { paddingVertical: 3, paddingHorizontal: 9, borderRadius: Radius.pill, backgroundColor: Palette.panel },
+  clearBtnText: { fontSize: FontSize.sm, fontWeight: Weight.semibold, color: Palette.ink2 },
   chevron: { fontSize: FontSize.md, color: Palette.muted },
   emptyText: { fontSize: FontSize.sm, color: Palette.muted3, lineHeight: 17, paddingHorizontal: Spacing.three, paddingBottom: Spacing.three },
   strip: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: Spacing.three, paddingBottom: Spacing.two },

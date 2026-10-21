@@ -819,6 +819,13 @@ export async function replaceBinder(binder: DemoBinder): Promise<void> {
   await pruneTray(binder);
 }
 
+/** Every tray row of a binder, in one delete. */
+export async function clearTray(binderId: string): Promise<void> {
+  const supabase = requireSupabase();
+  const { error } = await supabase.from('binder_slots').delete().eq('binder_id', binderId);
+  if (error) throw new Error(`clear tray: ${error.message}`);
+}
+
 /**
  * The tray as the snapshot has it: upsert what is there, and (after) delete what is not. A binder
  * that never had a tray (`tray` absent) writes nothing and prunes nothing, so a snapshot taken on

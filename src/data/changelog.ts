@@ -139,12 +139,14 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: 'new',
         area: 'binders',
         big: true,
+        featured: true,
+        pinned: true,
         body:
           'In the page tools, Arrange reads the cards on a page and proposes one seating, with two '
           + 'other takes: rows by depth (sky, ground, underground), evolution lines in order, frame '
           + 'colours grouped on windowed cards, lookalikes side by side, connected art joined. It '
-          + 'offers the art layouts that fit, and one Undo brings the old order back. Single pages '
-          + 'only, and a page that mixes full arts with windowed cards is left as it is.',
+          + 'offers the art layouts that fit, and one Undo brings the old order back. Press G in the '
+          + 'editor. Single pages only, and a page that mixes full arts with windowed cards is left as it is.',
       },
       {
         products: ['michi'],
@@ -155,7 +157,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         body:
           'Take a card off a page with the Tray button on its bar, or drag it onto the tray at the '
           + 'top of the Cards side. Drag it back into any pocket on any page, or tap it then tap a '
-          + 'pocket. Cards an Arrange layout displaces go there too, never lost.',
+          + 'pocket, or Clear tray to empty it. Cards an Arrange layout displaces go there too, never lost.',
       },
     ],
   },

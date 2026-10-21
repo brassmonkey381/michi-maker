@@ -167,9 +167,11 @@ can check against the picture:
 Rules for the list:
 
 - The page as it is now is always the first card, so looking costs nothing.
-- Ranked by score: a **mode prior** (`MODE_PRIOR`: Lines +1, Strata 0, Mirror -0.25, Flow -1.5,
-  from lab run 1, where the owner read structure before gradient), then fit, pairing, art share,
-  less held and open pockets.
+- Ranked by score: a **mode prior** (`MODE_PRIOR`: Lines +1, Strata 0, Mirror -0.25, Flow -0.5,
+  from the lab runs, where the owner read structure before gradient), then fit x3, pairing x0.5,
+  art share x4, less 0.1 per card sent to the tray and 0.25 per open pocket (`SCORE_WEIGHTS`).
+  The art weight and the near-free tray come from run 2, where an art template beat the plain page
+  7 times in 8 and every pick sent cards to the tray.
 - **Diverse**: never two of the same mode in the top three, and at least one
   candidate with more art than the current page.
 - Tapping one rearranges the page with undo. Hand placements made afterwards are never overridden;
@@ -251,6 +253,15 @@ only. Templates with art were not tested; a page with held cards (the lab's Stra
 lopsided pool) was picked anyway in three modes rounds, which is what led to the tray: since
 2026-10-22 the sheet offers every template for the page's shape and the displaced cards go to the
 tray, and the lab's sheet rounds do the same.
+
+### Lab run 2 (2026-10-22, 52 rounds, all answered; templates and the tray in play)
+
+| Test | Result | Change made |
+| --- | --- | --- |
+| modes | Strata 5 of 11, Flow 3 of 12, Mirror 1 of 5, Lines 0 of 2; one tie, two "none" | none |
+| sheet | the app's #1 picked 2 of 10, #3 picked 4; Wall Text won 5 of 7, Establishing Tier 1 of 1, the plain page 1 of 8; the pick sent 3 to 5 cards to the tray every time | art share x4, tray cost 0.1 per card, Flow prior -0.5: the pick ranks first in 9 of 17 decided rounds, 5 before |
+| variants | every knob but one tied in nearly every round; `flowByType` on won 3 of 5 against the plain gradient | `flowByType` stays on; the other defaults stay |
+| misses | Strata 1 of 69 cards (a Shellos at the sea surface whose first word was sky); Flow 3 of 27 | none |
 
 ## Open for the owner
 

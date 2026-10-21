@@ -918,8 +918,17 @@ export const MODE_LABEL: Record<ArrangeMode, string> = { strata: 'Strata', lines
  * reads structure first. Flow won 5 of its 22 columns, Mirror 8 of 13, Strata 7 of 16, Lines 2 of
  * 3. With these added to the score the picked candidate ranks first in 17 of the 22 decided
  * rounds (8 before). Flow stays offered: it is the fallback that needs nothing from the cards.
+ *
+ * Run 2 (2026-10-22, 52 rounds), after Flow learned to group a windowed page by type: Flow won 8
+ * of its 22 columns and the owner's picks were pages with three to five cards sent to the tray
+ * every time (an art template over the plain page 7 times in 8). Flow's prior eased to -0.5,
+ * the art share went from x1 to x4, and a held card costs almost nothing now that the tray
+ * exists: the pick ranks first in 9 of 17 decided rounds, 5 before.
  */
-export const MODE_PRIOR: Record<ArrangeMode, number> = { strata: 0, lines: 1, flow: -1.5, mirror: -0.25 };
+export const MODE_PRIOR: Record<ArrangeMode, number> = { strata: 0, lines: 1, flow: -0.5, mirror: -0.25 };
+
+/** The rest of the ranking (see MODE_PRIOR): fit, template pairing, art share, held and open pockets. */
+export const SCORE_WEIGHTS = { fit: 3, pairing: 0.5, art: 4, held: 0.1, open: 0.25 } as const;
 
 export interface Placement {
   cardId: string;
@@ -969,7 +978,8 @@ export function toCandidate(res: ModeResult, mode: ArrangeMode, t: ArtTemplate |
     else open.push(ctx.cells[i]);
   });
   const artCells = total - ctx.cells.length;
-  const score = MODE_PRIOR[mode] + res.fit * 3 + pairingScore(t, mode) * 0.5 + (artCells / Math.max(1, total)) * 1 - res.held.length * 0.5 - open.length * 0.25;
+  const W = SCORE_WEIGHTS;
+  const score = MODE_PRIOR[mode] + res.fit * W.fit + pairingScore(t, mode) * W.pairing + (artCells / Math.max(1, total)) * W.art - res.held.length * W.held - open.length * W.open;
   return {
     id: `${t?.id ?? 'page'}:${mode}`,
     template: t,

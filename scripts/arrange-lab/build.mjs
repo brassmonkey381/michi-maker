@@ -149,7 +149,7 @@ const ids = [...wantIds];
 const facts = new Map();
 for (let i = 0; i < ids.length; i += 400) {
   const rows = await dataSql(`
-    select id, name, set_name, number, rarity, illustrator, evolution_line, evolution_stage_index, full_art_kind, scene_tags, color_art
+    select id, name, set_name, number, rarity, illustrator, evolution_line, evolution_stage_index, full_art_kind, scene_tags, color_art, types
       from public.cards_en where id = any(${textArray(ids.slice(i, i + 400))});`);
   for (const r of rows) facts.set(r.id, r);
 }
@@ -169,6 +169,7 @@ function arrangeCard(id) {
     fullArtKind: f.full_art_kind || undefined,
     rarity: f.rarity || undefined,
     palette: (f.color_art ?? []).map(([L, a, b, w]) => ({ L, a, b, w })),
+    types: f.types ?? [],
   };
 }
 const cardInfo = {};
@@ -315,6 +316,8 @@ const noteCards = (grid) => grid.forEach((c) => c.card && usedCards.add(c.card))
     { knob: 'flowVertical', mode: 'flow', values: [0.5, 0, 1], pools: pagePools, take: 4 },
     { knob: 'flowStart', mode: 'flow', values: ['dark', 'light'], pools: [...theme, ...pagePools], take: 3 },
     { knob: 'mirrorTwin', mode: 'mirror', values: ['illustrator', 'palette'], pools: pagePools.filter((p) => p.shape.cols % 2 === 1), take: 3 },
+    // Windowed pages only: on a full-art page the knob changes nothing, so the columns would be identical and the round dropped.
+    { knob: 'flowByType', mode: 'flow', values: [true, false], pools: pagePools.filter((p) => !A.pageArtMix(p.cards).full), take: 5 },
   ];
   let total = 0;
   for (const k of KNOBS) {

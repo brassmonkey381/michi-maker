@@ -34,6 +34,7 @@ import {
   seatMirror,
   seatStrata,
   templateCells,
+  typeOf,
 } from './arrange.ts';
 
 const lab = (L: number, a: number, b: number) => [{ L, a, b, w: 1 }];
@@ -356,7 +357,7 @@ test('tuning: mirrorTwin palette ignores the illustrator', () => {
 });
 
 test('tuning: the app passes nothing and gets the defaults', () => {
-  assert.deepEqual(DEFAULT_TUNING, { strataOrder: 'hue', transitionsAtEnds: false, flowVertical: 0.5, flowStart: 'dark', mirrorTwin: 'illustrator' });
+  assert.deepEqual(DEFAULT_TUNING, { strataOrder: 'hue', transitionsAtEnds: false, flowVertical: 0.5, flowStart: 'dark', mirrorTwin: 'illustrator', flowByType: true });
   const cards = lavaPool();
   const a = arrangeCandidates({ ...spread, cards });
   const b = arrangeCandidates({ ...spread, cards, tuning: {} });
@@ -371,4 +372,35 @@ test('art class: the three full-art kinds are full, everything else is windowed;
   assert.deepEqual(pageArtMix([{ fullArtKind: 'illustration_rare' }, { fullArtKind: 'scene_tagged' }, { fullArtKind: '' }]), { full: 1, windowed: 2, mixed: true });
   assert.equal(pageArtMix([{ fullArtKind: 'named_full_art' }, { fullArtKind: 'illustration_rare' }]).mixed, false);
   assert.equal(pageArtMix([]).mixed, false);
+});
+
+// --- Flow by type on a windowed page ------------------------------------------------------------
+
+test('flow: a windowed page groups by energy type into rows or columns, art flowing inside; full arts keep the gradient', () => {
+  // 4 fire, 3 water, 2 grass on a 3x3 page, all windowed (no full-art kind).
+  const cards: ArrangeCard[] = [
+    ...[0, 1, 2, 3].map((i) => card(`fire${i}`, { types: ['Fire'], palette: lab(40 + i * 5, 50, 40) })),
+    ...[0, 1, 2].map((i) => card(`water${i}`, { types: ['Water'], palette: lab(40 + i * 5, -10, -40) })),
+    ...[0, 1].map((i) => card(`grass${i}`, { types: ['Grass'], palette: lab(40 + i * 5, -40, 30) })),
+  ];
+  const single = { rows: 3, cols: 3, spread: false };
+  const ctx = { cells: cardCells(3, 3, false, new Set<string>()), rows: 3, cols: 3, spread: false, pairs: [] };
+  const res = seatFlow(cards, ctx)!;
+  assert.equal(res.held.length, 0);
+  // Every line of the chosen orientation holds one type, except the one line the odd fire and the two grass share.
+  const lineTypes = (byRow: boolean) =>
+    [0, 1, 2].map((n) => new Set(ctx.cells.map((c, i) => ((byRow ? c.row : c.col) === n ? typeOf(res.seating[i]!) : null)).filter(Boolean)).size);
+  const pureRows = lineTypes(true).filter((n) => n === 1).length;
+  const pureCols = lineTypes(false).filter((n) => n === 1).length;
+  assert.equal(Math.max(pureRows, pureCols), 2, 'two lines of one type, one shared');
+  assert.match(res.note, /each type together/);
+  // The knob off: the plain gradient, no type reading in the note.
+  const plain = seatFlow(cards, { ...ctx, tuning: { flowByType: false } })!;
+  assert.doesNotMatch(plain.note, /each type together/);
+  // A full-art page is the plain gradient whatever the knob says.
+  const full = cards.map((c) => ({ ...c, fullArtKind: 'illustration_rare' }));
+  assert.doesNotMatch(seatFlow(full, ctx)!.note, /each type together/);
+  // And it is offered the same way through the sheet's list.
+  const cands = arrangeCandidates({ ...single, cards });
+  assert.ok(cands.some((c) => c.mode === 'flow' && /each type together/.test(c.reason)));
 });

@@ -145,6 +145,7 @@ export function ArrangeSheet({
         fullArtKind: c?.fullArtKind,
         rarity: c?.rarity,
         palette: index?.has(id) ? index.colors(id, 'art') : undefined,
+        types: c?.types,
       };
     });
     const current = new Map<string, Cell>();

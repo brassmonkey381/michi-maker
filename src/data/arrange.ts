@@ -63,6 +63,8 @@ export interface ArrangeCard {
   fullArtKind?: string;
   rarity?: string;
   palette?: readonly PaletteColor[];
+  /** The card's energy types, e.g. ["Fire"]; empty or absent for a Trainer. The frame's colour. */
+  types?: readonly string[];
 }
 
 export interface Cell {
@@ -126,6 +128,13 @@ export interface Tuning {
   flowStart: 'dark' | 'light';
   /** Mirror: a card's twin is one by the same illustrator first, or the closest palette outright. */
   mirrorTwin: 'illustrator' | 'palette';
+  /**
+   * Flow on an all-WINDOWED page: group by energy type first (the frame is what the eye sees on
+   * a windowed card; owner, 2026-10-21: "fires should go in a row or column together, as should
+   * waters ... the art comes secondary"), with the art gradient inside each group. A full-art page
+   * has no frame to read and keeps the plain gradient whatever this says.
+   */
+  flowByType: boolean;
 }
 
 /**
@@ -140,6 +149,7 @@ export const DEFAULT_TUNING: Tuning = {
   flowVertical: 0.5,
   flowStart: 'dark',
   mirrorTwin: 'illustrator',
+  flowByType: true,
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -681,6 +691,8 @@ export function seatLines(cards: readonly ArrangeCard[], ctx: Ctx): ModeResult |
 /** FLOW. Nearest-neighbour chain from the darkest card, then swaps until no swap shortens the gradient. */
 export function seatFlow(cards: readonly ArrangeCard[], ctx: Ctx): ModeResult | null {
   if (cards.length < 2) return null;
+  const tune = tuningOf(ctx);
+  if (tune.flowByType && pageArtMix(cards).full === 0 && new Set(cards.map(typeOf)).size >= 2) return seatFlowTyped(cards, ctx, tune);
   const whole = paletteChain(cards, tuningOf(ctx).flowStart);
   const chain = whole.slice(0, ctx.cells.length);
   const held = whole.slice(ctx.cells.length);
@@ -698,6 +710,82 @@ export function seatFlow(cards: readonly ArrangeCard[], ctx: Ctx): ModeResult | 
   const last = [...fixed].reverse().find(Boolean);
   const note = first && last ? `one palette gradient across the ${ctx.spread ? 'spread' : 'page'}, ${first.name} to ${last.name}` : 'one palette gradient';
   return { seating: fixed, held, fit, note };
+}
+
+/**
+ * The energy types in the order their frames sit round the colour wheel, so neighbouring groups
+ * read as one gradient: red, brown, gold, yellow, green, blue, steel, purple, pink, dark, grey.
+ * A card with no type (a Trainer) is its own white group at the end.
+ */
+export const TYPE_WHEEL: readonly string[] = ['Fire', 'Fighting', 'Dragon', 'Lightning', 'Grass', 'Water', 'Metal', 'Psychic', 'Fairy', 'Darkness', 'Colorless', 'Trainer'];
+
+export const typeOf = (card: Pick<ArrangeCard, 'types'>): string => card.types?.[0] ?? 'Trainer';
+
+const wheelIndex = (t: string): number => {
+  const i = TYPE_WHEEL.indexOf(t);
+  return i < 0 ? TYPE_WHEEL.length : i;
+};
+
+/**
+ * FLOW BY TYPE, for a windowed page. Each type's cards are one group, ordered inside by the art
+ * gradient; the groups run round the wheel; the sequence is cut into the page's rows, or its
+ * columns, whichever leaves more lines of one type, trying every group as the starting point.
+ * A group the size of a line gets a line to itself; a smaller one shares a line with its wheel
+ * neighbour, which is the next-best thing the eye can read.
+ */
+function seatFlowTyped(cards: readonly ArrangeCard[], ctx: Ctx, tune: Tuning): ModeResult {
+  const byType = new Map<string, ArrangeCard[]>();
+  for (const c of cards) {
+    const t = typeOf(c);
+    byType.set(t, [...(byType.get(t) ?? []), c]);
+  }
+  const groups = [...byType.entries()]
+    .sort((a, b) => wheelIndex(a[0]) - wheelIndex(b[0]) || a[0].localeCompare(b[0]))
+    .map(([type, xs]) => ({ type, cards: paletteChain(xs, tune.flowStart) }));
+  // The page's lines, as cell indices into ctx.cells: its rows, or its columns.
+  const linesOf = (byRow: boolean): number[][] => {
+    const keyed = new Map<string, number[]>();
+    ctx.cells.forEach((c, i) => {
+      const k = byRow ? `${c.leaf}:${c.row}` : `${c.leaf}:${c.col}`;
+      keyed.set(k, [...(keyed.get(k) ?? []), i]);
+    });
+    const lines = [...keyed.values()];
+    for (const line of lines) line.sort((p, q) => (byRow ? ctx.cells[p].col - ctx.cells[q].col : ctx.cells[p].row - ctx.cells[q].row));
+    return lines;
+  };
+  let best: { seating: Seating; pure: number; lines: number; byRow: boolean } | null = null;
+  for (const byRow of [true, false]) {
+    const lines = linesOf(byRow);
+    if (!byRow && lines.length === ctx.cells.length) continue; // a one-row page has no columns to speak of
+    for (let start = 0; start < groups.length; start += 1) {
+      const seq = [...groups.slice(start), ...groups.slice(0, start)].flatMap((g) => g.cards);
+      const seating: Seating = new Array(ctx.cells.length).fill(null);
+      let k = 0;
+      for (const line of lines) for (const i of line) if (k < seq.length) seating[i] = seq[k++];
+      let pure = 0;
+      let counted = 0;
+      for (const line of lines) {
+        const held = line.map((i) => seating[i]).filter((x): x is ArrangeCard => !!x);
+        if (held.length < 2) continue;
+        counted += 1;
+        if (new Set(held.map(typeOf)).size === 1) pure += 1;
+      }
+      if (!best || pure > best.pure || (pure === best.pure && byRow && !best.byRow)) best = { seating, pure, lines: counted, byRow };
+    }
+  }
+  const chosen = best!;
+  const seated = new Set(chosen.seating.filter(Boolean).map((c) => c!.id));
+  const held = cards.filter((c) => !seated.has(c.id));
+  const byId = new Map(cards.map((c) => [c.id, c]));
+  const fixed = fixConnected(chosen.seating, ctx, held, byId);
+  const fit = chosen.lines ? chosen.pure / chosen.lines : 1;
+  const names = groups.map((g) => g.type.toLowerCase());
+  return {
+    seating: fixed,
+    held,
+    fit,
+    note: `${names.slice(0, 3).join(', ')}${names.length > 3 ? ' and more' : ''}: each type together in its own ${chosen.byRow ? 'row' : 'column'}, the art flowing inside it`,
+  };
 }
 
 /** How many neighbour pairs the roughness summed over, weighted the same way. */

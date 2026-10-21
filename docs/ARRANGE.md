@@ -111,10 +111,18 @@ Rows are evolution lines, read left to right in stage order.
 
 ### Flow
 
-One palette gradient across the whole page or spread, no grouping.
+One palette gradient across the whole page, no grouping, on a full-art page. On a **windowed**
+page the frame is what the eye reads, so Flow groups by energy type first (owner, 2026-10-21:
+"fires should go in a row or column together, as should waters, etc ... the art comes
+secondary"): each type is one group, the groups run round the colour wheel (fire, fighting,
+dragon, lightning, grass, water, metal, psychic, fairy, darkness, colorless, trainer), the art
+gradient runs inside each group, and the sequence is cut into the page's rows or its columns,
+whichever leaves more lines of one type. `Tuning.flowByType`, on by default; the lab's variants
+test puts it against the plain gradient on windowed pages.
 
-- Soft: minimise total palette distance between horizontal neighbours, and between vertical
-  neighbours at half weight. A spread is one canvas, so the gradient crosses the gutter.
+- Soft (full art): minimise total palette distance between horizontal neighbours, and between
+  vertical neighbours at half weight.
+- Soft (windowed): lines of one type; fit is the share of lines that are.
 - Always offered. It is the mode that needs nothing from the cards but their pictures.
 
 ### Mirror

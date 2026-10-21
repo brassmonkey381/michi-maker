@@ -846,15 +846,6 @@ export function BinderScreen({
   // layout that shows them lives in BinderPages.
   const prevPage = idx > 0 ? binder.pages[idx - 1] : null;
   const nextPage = idx < binder.pages.length - 1 ? binder.pages[idx + 1] : null;
-  // The canvas Arrange works on: the open spread in double-sided mode ([odd, odd+1], the same
-  // pairing BinderPages draws; page one faces the cover and stands alone), else this page.
-  const arrangePages: DemoPage[] = (() => {
-    if (!view.doubleSided || idx === 0) return [page];
-    const left = idx % 2 === 1 ? idx : idx - 1;
-    const l = binder.pages[left];
-    const r = binder.pages[left + 1];
-    return l && r && l.rows === r.rows && l.cols === r.cols ? [l, r] : [page];
-  })();
   const slotAtCell = pickerCell
     ? (page.slots.find((s) => s.row === pickerCell.row && s.col === pickerCell.col) ?? null)
     : null;
@@ -2812,7 +2803,7 @@ export function BinderScreen({
 
         <ArrangeSheet
           visible={arrangeOpen}
-          pages={arrangePages}
+          page={page}
           onClose={() => setArrangeOpen(false)}
           onApply={(what, moves, art) => {
             const moved = store.arrangeSlots(binder.id, moves, art);

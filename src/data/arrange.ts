@@ -198,6 +198,28 @@ export const DEPTH_LABEL: Record<Depth, string> = { above: 'sky', surface: 'grou
 // Card facts the modes read
 // ---------------------------------------------------------------------------------------------
 
+/**
+ * The pipeline's full-art kinds whose picture is the whole card. Everything else (scene_tagged,
+ * measured, double_rare, unknown) is a WINDOWED card: the picture sits in a frame.
+ */
+export const FULL_ART_KINDS: ReadonlySet<string> = new Set(['special_illustration_rare', 'illustration_rare', 'named_full_art']);
+
+export type ArtClass = 'full' | 'windowed';
+
+export const artClassOf = (fullArtKind: string | undefined): ArtClass => (FULL_ART_KINDS.has(fullArtKind ?? '') ? 'full' : 'windowed');
+
+/**
+ * A page Arrange seats is all full arts or all windowed cards (owner, 2026-10-21: "either the
+ * entire page is full arts, or the entire page is windowed arts"; a product rule, not only a lab
+ * one). A page that mixes the two is not offered. This counts both, so the sheet can say which.
+ */
+export function pageArtMix(cards: readonly Pick<ArrangeCard, 'fullArtKind'>[]): { full: number; windowed: number; mixed: boolean } {
+  let full = 0;
+  let windowed = 0;
+  for (const c of cards) if (artClassOf(c.fullArtKind) === 'full') full += 1; else windowed += 1;
+  return { full, windowed, mixed: full > 0 && windowed > 0 };
+}
+
 /** How much a card carries a page: full-art kind first, then a picture rarity. */
 export function strength(card: ArrangeCard): number {
   const kind: Record<string, number> = { special_illustration_rare: 4, illustration_rare: 3, named_full_art: 3, double_rare: 1 };

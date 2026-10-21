@@ -114,7 +114,7 @@ function render() {
     </div>`).join('');
   app.innerHTML = `<p class="prompt">${esc(r.prompt)}</p>
     <div class="keys">${esc(r.pool.kind === 'theme' ? `${r.pool.label} pool` : 'one of your pages')} · Press 1–${r.cols.length} or the Pick button. T = about equal. 0 = none are good. Click a card to see it large.</div>
-    <div class="cols" style="grid-template-columns:repeat(${Math.min(r.cols.length, r.shape.spread ? 2 : 3)},1fr)">${cols}</div>
+    <div class="cols" style="grid-template-columns:repeat(${r.cols.length === 4 ? 2 : Math.min(r.cols.length, 3)},1fr)">${cols}</div>
     <div class="bar"><button id="tie">About equal (T)</button><button id="none">None are good (0)</button></div>`;
   app.querySelectorAll('.pickbtn').forEach((el) => (el.onclick = () => pick(el.dataset.pick)));
   app.querySelectorAll('.cell img').forEach((el) => (el.onclick = () => zoom(el.parentElement.dataset.id)));

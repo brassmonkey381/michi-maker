@@ -6,11 +6,13 @@
  * that reads best (or ties, or none). Every pick is a row in votes.jsonl; results.mjs tallies them
  * per hidden variant. Nothing here is published and the app is not touched.
  *
- * Pools come from two places, both real:
+ * SINGLE PAGES ONLY, and every pool is ALL FULL ARTS or ALL WINDOWED cards (owner, 2026-10-21;
+ * the product's constraint too, so the bench only tests what ships). Pools come from two places:
  *   page   the owner's own full pages (fakemichi, michimaker): 3x3 and 3x4 pages holding only
- *          one-by-one cards, and facing spreads of two such pages. What Arrange actually meets.
- *   theme  24 cards sharing a scene (lava, sea, forest, night, snow, city) on a 3x4 spread: the
- *          pools where Strata has something to say.
+ *          one-by-one cards of one art class. What Arrange actually meets.
+ *   theme  12 cards sharing a scene (lava, sea, forest, night, snow, city), four per depth band,
+ *          one pool of full arts and one of windowed cards per theme, on a 3x4 page: the pools
+ *          where Strata has something to say.
  *
  * Card facts come straight from the data project's cards_en (the pipeline's columns), and the depth
  * words are the card's scene tags filtered to the stratum vocabulary in caption order, which is
@@ -74,7 +76,8 @@ const THEMES = [
 
 step(1, 'the owner\'s full pages: 3x3 and 3x4, cards only');
 // Every page of the two house accounts holding only one-by-one cards, with its rank inside the
-// binder (the editor pairs ranks (1,2), (3,4)... as spreads; rank 0 is the cover page, alone).
+// binder (for the label). Art class is checked once the card facts are in: a page that mixes
+// full arts and windowed cards is left out, as the product leaves it out.
 const pages = await appSql(`
   with pg as (
     select p.id, p.binder_id, p.rows, p.cols, b.title,
@@ -99,50 +102,48 @@ const slots = await appSql(`
 const slotsByPage = new Map();
 for (const s of slots) slotsByPage.set(s.page_id, [...(slotsByPage.get(s.page_id) ?? []), s]);
 
-// Spreads: two neighbouring pages of one binder, same shape, both full.
-const byBinder = new Map();
-for (const p of pages) byBinder.set(p.binder_id, [...(byBinder.get(p.binder_id) ?? []), p]);
-const spreads = [];
-for (const list of byBinder.values()) {
-  const byRank = new Map(list.map((p) => [p.rank, p]));
-  for (const p of list) {
-    if (p.rank % 2 !== 1) continue;
-    const r = byRank.get(p.rank + 1);
-    if (r && r.rows === p.rows && r.cols === p.cols) spreads.push({ left: p, right: r });
-  }
-}
-console.log(`  ${spreads.length} full spreads`);
-
 step(2, 'theme pools from the card catalog');
-// Each theme pool is STRATIFIED: eight cards whose first depth word is sky, eight ground, eight
-// underground (a band that is short gives its pockets to the others), so Strata has the material
-// it would have on a page the owner built for it. The candidates are hash-ordered, full arts
-// first, so the pages have pictures to read and a rebuild draws the same ones.
+// Each theme gives two pools, one of full arts and one of windowed cards, each STRATIFIED: four
+// cards whose first depth word is sky, four ground, four underground (a short band gives its
+// pockets to the others), so Strata has the material it would have on a page the owner built
+// for it. Hash-ordered, so a rebuild draws the same cards.
 const DEPTH_TAGS = new Set(A.depthTagQuery());
 const themePools = [];
 for (const t of THEMES) {
   const rows = await dataSql(`
-    select id, scene_tags from public.cards_en
+    select id, scene_tags, full_art_kind from public.cards_en
      where scene_tags && ${textArray(t.tags)} and color_art is not null
-     order by (full_art_kind in ('illustration_rare','special_illustration_rare','named_full_art')) desc, md5(id || ${q(String(SEED))}) limit 400;`);
-  const byBand = { above: [], surface: [], below: [], free: [] };
-  for (const r of rows) byBand[A.depthOf({ depthWords: (r.scene_tags ?? []).filter((x) => DEPTH_TAGS.has(x)) }).depth ?? 'free'].push(r.id);
-  const take = [];
-  for (const b of ['above', 'surface', 'below']) take.push(...byBand[b].splice(0, 8));
-  for (const b of ['surface', 'above', 'below', 'free']) while (take.length < 24 && byBand[b].length) take.push(byBand[b].shift());
-  if (take.length < 24) fail(`theme ${t.label}: only ${take.length} cards`);
-  themePools.push({ label: t.label, ids: take });
-  console.log(`  ${t.label}: 24 cards (${['above', 'surface', 'below'].map((b) => `${b} ${8 - Math.max(0, 8 - (take.length && rows.filter((r) => take.includes(r.id) && (A.depthOf({ depthWords: (r.scene_tags ?? []).filter((x) => DEPTH_TAGS.has(x)) }).depth ?? 'free') === b).length))}`).join(', ')})`);
+     order by md5(id || ${q(String(SEED))}) limit 1200;`);
+  for (const cls of ['full', 'windowed']) {
+    const byBand = { above: [], surface: [], below: [], free: [] };
+    for (const r of rows) {
+      if (A.artClassOf(r.full_art_kind) !== cls) continue;
+      byBand[A.depthOf({ depthWords: (r.scene_tags ?? []).filter((x) => DEPTH_TAGS.has(x)) }).depth ?? 'free'].push(r.id);
+    }
+    const take = [];
+    const got = {};
+    for (const b of ['above', 'surface', 'below']) {
+      const xs = byBand[b].splice(0, 4);
+      got[b] = xs.length;
+      take.push(...xs);
+    }
+    for (const b of ['surface', 'above', 'below', 'free']) while (take.length < 12 && byBand[b].length) take.push(byBand[b].shift());
+    if (take.length < 12) {
+      console.log(`  ${t.label} ${cls}: only ${take.length} cards, skipped`);
+      continue;
+    }
+    themePools.push({ label: `${t.label} ${cls}`, cls, ids: take });
+    console.log(`  ${t.label} ${cls}: 12 cards (sky ${got.above}, ground ${got.surface}, underground ${got.below})`);
+  }
 }
 
 step(3, 'card facts and pictures');
 const r0 = rng(SEED);
-const pagePick = shuffle(pages.filter((p) => p.cols === 3), r0).slice(0, 18);
-const wide = shuffle(pages.filter((p) => p.cols === 4), r0).slice(0, 6);
-const spreadPick = shuffle(spreads, r0).slice(0, 8);
+// More pages than the rounds need, because the art-class check below drops the mixed ones.
+const pagePick = shuffle(pages.filter((p) => p.cols === 3), r0).slice(0, 80);
+const wide = shuffle(pages.filter((p) => p.cols === 4), r0).slice(0, 20);
 const wantIds = new Set();
 for (const p of [...pagePick, ...wide]) for (const s of slotsByPage.get(p.id)) wantIds.add(s.card_id);
-for (const sp of spreadPick) for (const p of [sp.left, sp.right]) for (const s of slotsByPage.get(p.id)) wantIds.add(s.card_id);
 for (const t of themePools) for (const id of t.ids) wantIds.add(id);
 const ids = [...wantIds];
 const facts = new Map();
@@ -230,22 +231,18 @@ function distinctColumns(cols) {
 
 const cardsOfPage = (p) => slotsByPage.get(p.id).map((s) => arrangeCard(s.card_id)).filter(Boolean);
 const poolOfPage = (p) => ({ kind: 'page', label: `${p.title ?? 'untitled'} p${p.rank + 1}`, shape: { rows: p.rows, cols: p.cols, spread: false }, cards: cardsOfPage(p), current: new Map(slotsByPage.get(p.id).map((s) => [s.card_id, { leaf: 'single', row: s.row_index, col: s.col_index }])) });
-const poolOfSpread = (sp) => {
-  const cards = [...cardsOfPage(sp.left), ...cardsOfPage(sp.right)];
-  const current = new Map();
-  for (const s of slotsByPage.get(sp.left.id)) current.set(s.card_id, { leaf: 'left', row: s.row_index, col: s.col_index });
-  for (const s of slotsByPage.get(sp.right.id)) current.set(s.card_id, { leaf: 'right', row: s.row_index, col: s.col_index });
-  return { kind: 'page', label: `${sp.left.title ?? 'untitled'} p${sp.left.rank + 1}-${sp.right.rank + 1}`, shape: { rows: sp.left.rows, cols: sp.left.cols, spread: true }, cards, current };
-};
-const poolOfTheme = (t) => ({ kind: 'theme', label: t.label, shape: { rows: 3, cols: 4, spread: true }, cards: t.ids.map(arrangeCard).filter(Boolean) });
+const poolOfTheme = (t) => ({ kind: 'theme', label: t.label, shape: { rows: 3, cols: 4, spread: false }, cards: t.ids.map(arrangeCard).filter(Boolean) });
 
 // A pool whose cards repeat an id (the same card twice on a page) is skipped: Arrange seats by
 // pocket in the app, but here the picture is the card, and two of one card would read as a bug.
-const clean = (pool) => new Set(pool.cards.map((c) => c.id)).size === pool.cards.length;
+// A pool that mixes full arts and windowed cards is skipped because the product skips it.
+const clean = (pool) => new Set(pool.cards.map((c) => c.id)).size === pool.cards.length && !A.pageArtMix(pool.cards).mixed;
 
-const pagePools = [...pagePick.map(poolOfPage), ...wide.map(poolOfPage)].filter(clean);
-const spreadPools = spreadPick.map(poolOfSpread).filter(clean);
+const allPagePools = [...pagePick.map(poolOfPage), ...wide.map(poolOfPage)];
+const pagePools = allPagePools.filter(clean);
 const theme = themePools.map(poolOfTheme).filter(clean);
+console.log(`  ${pagePools.length} of ${allPagePools.length} owner pages are one art class (${pagePools.filter((p) => A.pageArtMix(p.cards).full).length} full art, ${pagePools.filter((p) => !A.pageArtMix(p.cards).full).length} windowed)`);
+if (pagePools.length < 12) fail('too few one-class owner pages');
 
 // ---------------------------------------------------------------------------------------------
 // Rounds
@@ -261,7 +258,7 @@ const noteCards = (grid) => grid.forEach((c) => c.card && usedCards.add(c.card))
 // modes: theme spreads and owner pages, one column per offered mode.
 {
   let n = 0;
-  const pools = [...theme, ...shuffle([...pagePools, ...spreadPools], r1).slice(0, 8)];
+  const pools = [...shuffle(theme, r1).slice(0, 6), ...shuffle(pagePools, r1).slice(0, 8)];
   for (const pool of pools) {
     const cols = distinctColumns(MODES.map((m) => modeColumn(pool.shape, pool.cards, m)).filter(Boolean).map((c) => ({ v: c.cand.mode, grid: c.grid, held: c.held })));
     if (cols.length < 2) continue;
@@ -284,7 +281,7 @@ const noteCards = (grid) => grid.forEach((c) => c.card && usedCards.add(c.card))
 // sheet: the app's own list, top three, on owner pages (templates offered as the sheet offers them).
 {
   let n = 0;
-  for (const pool of shuffle([...pagePools, ...spreadPools], r1)) {
+  for (const pool of shuffle(pagePools, r1)) {
     const templates = ART_TEMPLATES.filter((t) => t.rows === pool.shape.rows && t.cols === pool.shape.cols && t.spread === pool.shape.spread);
     const cands = A.arrangeCandidates({ ...pool.shape, cards: pool.cards, templates, current: pool.current }).filter((c) => c.mode !== 'current');
     if (cands.length < 2) continue;
@@ -315,9 +312,9 @@ const noteCards = (grid) => grid.forEach((c) => c.card && usedCards.add(c.card))
   const KNOBS = [
     { knob: 'strataOrder', mode: 'strata', values: ['hue', 'light', 'chain'], pools: theme, take: 4 },
     { knob: 'transitionsAtEnds', mode: 'strata', values: [true, false], pools: theme, take: 3 },
-    { knob: 'flowVertical', mode: 'flow', values: [0.5, 0, 1], pools: [...spreadPools, ...pagePools], take: 4 },
-    { knob: 'flowStart', mode: 'flow', values: ['dark', 'light'], pools: [...theme, ...spreadPools], take: 3 },
-    { knob: 'mirrorTwin', mode: 'mirror', values: ['illustrator', 'palette'], pools: [...spreadPools, ...pagePools.filter((p) => p.shape.cols % 2 === 1)], take: 3 },
+    { knob: 'flowVertical', mode: 'flow', values: [0.5, 0, 1], pools: pagePools, take: 4 },
+    { knob: 'flowStart', mode: 'flow', values: ['dark', 'light'], pools: [...theme, ...pagePools], take: 3 },
+    { knob: 'mirrorTwin', mode: 'mirror', values: ['illustrator', 'palette'], pools: pagePools.filter((p) => p.shape.cols % 2 === 1), take: 3 },
   ];
   let total = 0;
   for (const k of KNOBS) {
@@ -351,7 +348,7 @@ const noteCards = (grid) => grid.forEach((c) => c.card && usedCards.add(c.card))
 {
   let n = 0;
   const BAND_NAME = { above: 'sky', surface: 'ground', below: 'underground' };
-  for (const pool of theme) {
+  for (const pool of shuffle(theme, r1).slice(0, 6)) {
     const col = modeColumn(pool.shape, pool.cards, 'strata');
     if (!col) continue;
     n += 1;
@@ -367,7 +364,7 @@ const noteCards = (grid) => grid.forEach((c) => c.card && usedCards.add(c.card))
     for (const c of pool.cards) words[c.id] = c.depthWords;
     const order = Array.from({ length: pool.shape.rows }, (_, i) => bands[i] ?? 'open').join(', ');
     rounds.push({
-      id: `misses-strata-${pool.label}-${n}`,
+      id: `misses-strata-${pool.label.replace(/\W+/g, '_')}-${n}`,
       test: 'misses',
       mode: 'strata',
       prompt: `Rows are depths, top to bottom: ${order}. Click every card that sits in the wrong row.`,
@@ -378,7 +375,7 @@ const noteCards = (grid) => grid.forEach((c) => c.card && usedCards.add(c.card))
       grid: col.grid,
     });
   }
-  for (const pool of shuffle(spreadPools, r1).slice(0, 4)) {
+  for (const pool of shuffle(pagePools, r1).slice(0, 4)) {
     const col = modeColumn(pool.shape, pool.cards, 'flow');
     if (!col) continue;
     n += 1;

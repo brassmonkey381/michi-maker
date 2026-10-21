@@ -13,6 +13,15 @@ https://claude.ai/artifact/LS4NwvX98QTMbqDmLa58ax (owner-private artifact; the g
 session scratchpad, not this repo). The demo pool is 24 lava cards whose depth comes from their
 tags, not hand labels. Lines marked **[owner]** are decisions that are theirs.
 
+## Scope (owner, 2026-10-21; the product's constraints, not only the lab's)
+
+- **Single pages only.** No facing spreads as one canvas. The module can still seat a spread
+  (`ArrangeInput.spread`, kept for the tests); the sheet and the lab never ask it to.
+- **One art class per page.** Either every card on the page is a full art (`full_art_kind`
+  special_illustration_rare, illustration_rare, named_full_art) or every card is a windowed card
+  (everything else). A page that mixes the two is not arranged: the sheet says how many of each it
+  has and stops. `artClassOf` and `pageArtMix` in `src/data/arrange.ts` are the one definition.
+
 ## What it is
 
 A page or spread holds a set of cards the owner already chose (say, 24 lava cards on a 3x4 spread).
@@ -191,19 +200,20 @@ lab testing where I picked or skipped"). The shape is the data-science repo's Co
 columns, hidden variant keys, pick / about equal / none / skip, a tally at the end.
 
 `scripts/arrange-lab/`: `build.mjs` writes `state/out/arrange-lab/rounds.json` from the owner's own
-full pages and spreads (fakemichi, michimaker; cards only, no art) and six theme pools of 24 cards
-(lava, sea, forest, night, snow, city; eight per band so Strata has material); `serve.mjs` serves
+full single pages (fakemichi, michimaker; cards only, no art, one art class per page) and twelve
+theme pools of 12 cards on a 3x4 page (lava, sea, forest, night, snow, city, one pool of full arts
+and one of windowed cards each, four per band so Strata has material); `serve.mjs` serves
 `lab.html` on 127.0.0.1:8766 and appends votes to `votes.jsonl`; `results.mjs` tallies. The seating
 is the real module, run by Node as TypeScript, with the card facts straight from `cards_en`.
 Launcher: `state/out/arrange-lab.ps1` (`-SkipBuild` keeps the rounds and the answers so far,
-`-Results` prints the tally). Four tests, 49 rounds, about ten minutes:
+`-Results` prints the tally). Four tests, about 47 rounds, about ten minutes:
 
 | Test | Shows | Answers |
 | --- | --- | --- |
 | modes | one pool, one column per mode that is offered | which modes read, on which pools |
 | sheet | the three candidates the app would rank first, art panels hatched | whether rank 1 is what the owner picks; wins by mode and template |
 | variants | one mode, one `Tuning` knob changed per column | which setting becomes the default |
-| misses | one arranged spread, big; click the cards that sit wrong | per-card precision; for Strata, by first depth word, which tunes the table |
+| misses | one arranged page, big; click the cards that sit wrong | per-card precision; for Strata, by first depth word, which tunes the table |
 
 `Tuning` (`src/data/arrange.ts`) holds the taste knobs the variants test turns: Strata row order
 (hue, light, chain) and transitions at the ends; Flow vertical weight and seed card; Mirror twin by
@@ -214,5 +224,5 @@ moves the default, not the app code.
 
 - Add cards: decided, one sparing suggestion per candidate, see above.
 - **[owner]** When Strata and Lines both fit the same cards, both are offered. Agreed?
-- **[owner]** Spread as one canvas for Strata and Flow (default yes).
+- Spread as one canvas: decided no, single pages only (2026-10-21).
 - **[owner]** Stratum table above: words to add, move, or remove.

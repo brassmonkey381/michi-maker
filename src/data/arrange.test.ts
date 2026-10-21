@@ -18,6 +18,7 @@ import {
   type ArrangeCard,
   type Cell,
   DEFAULT_TUNING,
+  artClassOf,
   arrangeCandidates,
   bandRows,
   cardCells,
@@ -27,6 +28,7 @@ import {
   depthTagQuery,
   flowRoughness,
   movesFor,
+  pageArtMix,
   seatFlow,
   seatLines,
   seatMirror,
@@ -354,4 +356,14 @@ test('tuning: the app passes nothing and gets the defaults', () => {
   const a = arrangeCandidates({ ...spread, cards });
   const b = arrangeCandidates({ ...spread, cards, tuning: {} });
   assert.deepEqual(a.map((c) => c.placements), b.map((c) => c.placements));
+});
+
+test('art class: the three full-art kinds are full, everything else is windowed; a mixed page is named', () => {
+  assert.equal(artClassOf('illustration_rare'), 'full');
+  assert.equal(artClassOf('special_illustration_rare'), 'full');
+  assert.equal(artClassOf('named_full_art'), 'full');
+  for (const k of ['scene_tagged', 'measured', 'double_rare', '', undefined]) assert.equal(artClassOf(k), 'windowed');
+  assert.deepEqual(pageArtMix([{ fullArtKind: 'illustration_rare' }, { fullArtKind: 'scene_tagged' }, { fullArtKind: '' }]), { full: 1, windowed: 2, mixed: true });
+  assert.equal(pageArtMix([{ fullArtKind: 'named_full_art' }, { fullArtKind: 'illustration_rare' }]).mixed, false);
+  assert.equal(pageArtMix([]).mixed, false);
 });

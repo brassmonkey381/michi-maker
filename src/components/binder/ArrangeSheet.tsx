@@ -1,8 +1,9 @@
 /**
  * ARRANGE SHEET: several finished layouts for the cards a page already has (docs/ARRANGE.md).
  *
- * One button on a page or spread opens this. It shows the page as it is now first, so looking
- * costs nothing, then four to six candidates as thumbnails of the actual cards in the actual
+ * One button on a page opens this. SINGLE PAGES ONLY, and only a page that is all full arts or all
+ * windowed cards (owner, 2026-10-21; a product rule, so a mixed page is told why rather than
+ * seated). It shows the page as it is now first, so looking costs nothing, then four to six candidates as thumbnails of the actual cards in the actual
  * pockets, each named by its template and mode with a one-line reason the user can check against
  * the picture. Tapping one reseats the page in ONE store commit (one Undo) and one server
  * transaction (reseat_slots). Hand placements made afterwards are never overridden: Arrange runs
@@ -41,6 +42,7 @@ import {
   arrangeCandidates,
   cellKey,
   movesFor,
+  pageArtMix,
 } from '@/data/arrange';
 import { ART_TEMPLATES, templateArtSlots } from '@/data/artTemplates';
 import { slotCells, uuidv4, type DemoPage, type DemoSlot } from '@/data/binderTypes';
@@ -59,21 +61,22 @@ export type ArrangeMove = { slotId: string; fromPageId: string; toPageId: string
 
 export function ArrangeSheet({
   visible,
-  pages,
+  page,
   onClose,
   onApply,
 }: {
   visible: boolean;
-  /** The page, or the two pages of an open spread, left then right. */
-  pages: readonly DemoPage[];
+  page: DemoPage;
   onClose: () => void;
   /** The store write: the moves and any template art gaps, applied as one commit by the screen. */
   onApply: (what: string, moves: ArrangeMove[], art: { pageId: string; slot: DemoSlot }[]) => void;
 }) {
   const { catalog } = useCatalog(visible);
-  const spread = pages.length === 2;
-  const rows = pages[0]?.rows ?? 3;
-  const cols = pages[0]?.cols ?? 3;
+  // The module can seat a facing spread as one canvas; the product does not offer it.
+  const spread = false;
+  const pages = useMemo(() => [page], [page]);
+  const rows = page.rows;
+  const cols = page.cols;
 
   // The pockets Arrange may seat (1x1 cards) and the cells it must leave alone (art, big pieces).
   const { pockets, reserved, hasArt } = useMemo(() => {
@@ -117,8 +120,11 @@ export function ArrangeSheet({
   }, [visible, pockets, idsKey, spread, hasArt]);
   const depth = depthAnswer && depthAnswer.key === idsKey ? depthAnswer.map : null;
 
+  // All full arts or all windowed cards: a mixed page is refused with the count, not seated.
+  const mix = useMemo(() => (catalog ? pageArtMix(pockets.map((p) => ({ fullArtKind: catalog.getCard(p.slot.cardId!)?.fullArtKind }))) : null), [catalog, pockets]);
+
   const candidates = useMemo<Candidate[] | null>(() => {
-    if (!visible || !catalog || !depth || pockets.length < 2) return null;
+    if (!visible || !catalog || !depth || pockets.length < 2 || !mix || mix.mixed) return null;
     const index = getColorIndex();
     const cards: ArrangeCard[] = pockets.map((p) => {
       const id = p.slot.cardId!;
@@ -144,7 +150,7 @@ export function ArrangeSheet({
     return arrangeCandidates({ rows, cols, spread, cards, reserved, current, templates });
     // paletteTick re-reads the index once it has loaded; it carries no value of its own.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, catalog, depth, pockets, reserved, hasArt, rows, cols, spread, paletteTick]);
+  }, [visible, catalog, depth, pockets, reserved, hasArt, rows, cols, spread, paletteTick, mix]);
 
   const cardIdOf = useMemo(() => new Map(pockets.map((p) => [p.slot.id, p.slot.cardId!])), [pockets]);
   const pageOf = (leaf: Leaf): DemoPage => (leaf === 'right' ? pages[1] : pages[0]);
@@ -185,7 +191,11 @@ export function ArrangeSheet({
       </ThemedText>
       {pockets.length < 2 ? (
         <ThemedText type="small" themeColor="textSecondary" style={styles.empty}>
-          Arrange needs at least two cards on the {spread ? 'spread' : 'page'}.
+          Arrange needs at least two cards on the page.
+        </ThemedText>
+      ) : mix?.mixed ? (
+        <ThemedText type="small" themeColor="textSecondary" style={styles.empty}>
+          Arrange works on a page that is all full arts or all windowed cards. This page has {mix.full} full art{mix.full === 1 ? '' : 's'} and {mix.windowed} windowed card{mix.windowed === 1 ? '' : 's'}.
         </ThemedText>
       ) : !candidates ? (
         <View style={styles.loading}>

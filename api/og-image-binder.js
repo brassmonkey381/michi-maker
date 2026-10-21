@@ -144,7 +144,7 @@ async function fetchManifest() {
  * secondary game is published since 2026-10-20 (Digimon 2026-10-19, Magic and Yu-Gi-Oh! as
  * partial games of their pictured cards).
  */
-const SECONDARY_PREFIXES = ['onepiece', 'lorcana', 'riftbound', 'digimon', 'magic', 'yugioh'];
+const SECONDARY_PREFIXES = ['onepiece', 'lorcana', 'riftbound', 'digimon', 'magic', 'yugioh', 'cyberpunk'];
 
 /**
  * OTHER GAMES' CARDS (One Piece 2026-09-17, Lorcana 2026-09-19). A pocket's card_id is a TCGplayer

@@ -21,7 +21,7 @@
  * in catalogConfig), not a secondary one.
  */
 /** Every secondary game's key. Widen this and `DEFS` below must gain the row, or tsc fails. */
-export type SecondaryGameKey = 'onepiece' | 'lorcana' | 'riftbound' | 'digimon' | 'magic' | 'yugioh';
+export type SecondaryGameKey = 'onepiece' | 'lorcana' | 'riftbound' | 'digimon' | 'magic' | 'yugioh' | 'cyberpunk';
 
 export interface SecondaryGameDef {
   /** Also the image-manifest key and the cache-key suffix the kit stores it under. */
@@ -59,6 +59,9 @@ const DEFS: Record<SecondaryGameKey, Omit<SecondaryGameDef, 'key'>> = {
   // (owner, 2026-10-20), while tcgscan-app keeps them hidden until App Store review news.
   magic: { label: 'Magic: The Gathering', prefix: 'magic', published: true },
   yugioh: { label: 'Yu-Gi-Oh!', prefix: 'yugioh', published: true },
+  // live=True upstream since 2026-10-21 (onboarded with state/new-game.ps1): browse/cyberpunk/catalog.json
+  // answers 200 (459 cards, all pictured). Colour, neighbours and theme rows follow in later steps.
+  cyberpunk: { label: 'Cyberpunk TCG', prefix: 'cyberpunk', published: true },
 };
 
 /** Every row, published or not: keys and labels. Whatever FETCHES reads PUBLISHED_SECONDARY_GAMES. */

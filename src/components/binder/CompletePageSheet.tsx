@@ -22,6 +22,7 @@ import { COMPLETE_METHODS, completeMethodsFor, completePage, emptyPockets, type 
 import { useCatalog } from '@/hooks/use-catalog';
 import { useTier } from '@/hooks/use-tier';
 import { track } from '@/lib/analytics';
+import { themeFill } from '@/lib/themeFill';
 import { useLanguagePref } from '@/store/languagePref';
 
 type FillPreview = { method: CompleteMethod; placements: ComposePlacement[] | null; failed?: boolean };
@@ -60,6 +61,7 @@ export function CompletePageSheet({
       if (m === 'similar' && !hasFindSimilar) continue;
       const providers = {
         similar: (ids: string[], limit: number) => findSimilarToMany(ids, limit, { languages }),
+        theme: (ids: string[], limit: number, fullArt: boolean | undefined) => themeFill(ids, limit, { fullArt }),
       };
       const run = m === 'palette'
         ? loadColorIndex().then((index) => completePage(m, page, catalog, { ...providers, palette: index ?? undefined }))
@@ -131,7 +133,7 @@ export function CompletePageSheet({
                   ) : null}
                 </View>
                 <ThemedText type="small" themeColor="textSecondary" numberOfLines={2} style={styles.cardDesc}>
-                  {locked ? 'Find Similar, for the whole page at once.' : none ? (p?.failed ? 'Could not reach the server.' : 'Nothing found for this page.') : m.description}
+                  {locked ? 'Find Similar, for the whole page at once.' : none ? (p?.failed ? 'Could not reach the server.' : m.key === 'theme' ? 'No scene two of these cards share, or the server does not have theme fill yet.' : 'Nothing found for this page.') : m.description}
                 </ThemedText>
                 {ready && p!.placements!.length > 0 && p!.placements!.length < empties ? (
                   <ThemedText type="small" themeColor="textSecondary" style={styles.cardDesc}>

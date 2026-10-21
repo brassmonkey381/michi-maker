@@ -34,9 +34,23 @@ test('reads the page: which fills apply, and the empty pockets in reading order'
   assert.deepEqual(cardsOnPage(p, catalog).map((c) => c.id), ['charmander', 'charmeleon']);
   const m = completeMethodsFor(p, catalog);
   assert.ok(m.includes('lines'), 'the line is missing charizard');
-  assert.ok(m.includes('type') && m.includes('artist') && m.includes('palette') && m.includes('similar'));
+  assert.ok(m.includes('type') && m.includes('artist') && m.includes('palette') && m.includes('similar') && m.includes('theme'));
   assert.deepEqual(completeMethodsFor(page(['charmander', 'charmeleon', 'charizard', 'vulpix']), catalog), [], 'a full page has nothing to fill');
   assert.deepEqual(completeMethodsFor(page([null, null, null, null]), catalog), [], 'an empty page has nothing to read');
+});
+
+test('theme: the provider gets the page ids and its class, and the page itself never comes back', async () => {
+  const p = page(['charmander', null, 'charmeleon', null]);
+  let asked: { ids: string[]; fullArt: boolean | undefined } | null = null;
+  const out = await completePage('theme', p, catalog, {
+    theme: async (ids, _limit, fullArt) => {
+      asked = { ids, fullArt };
+      return [{ id: 'charmander' }, { id: 'vulpix' }, { id: 'squirtle' }];
+    },
+  });
+  assert.deepEqual(asked, { ids: ['charmander', 'charmeleon'], fullArt: false });
+  assert.deepEqual(out.map((x) => x.cardId), ['vulpix', 'squirtle']);
+  assert.deepEqual(await completePage('theme', p, catalog, {}), [], 'no provider, nothing');
 });
 
 test('finish the lines: the missing stage, from the set the line is already in', async () => {

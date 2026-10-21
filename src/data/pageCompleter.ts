@@ -18,8 +18,8 @@
  *   artist    more by the illustrator who drew most of the page.
  *   lines     the stages the page's evolution lines are missing, each from the set the line is
  *             already in when that set has it.
- *   theme     NOT YET: the page's shared scene words into theme search needs one data-server RPC
- *             (the tags never reach the client); see docs/DATA-SERVER.md handoffs.
+ *   theme     the scene words two or more of the page's cards share, into the data server's
+ *             theme_fill (migration 85): cards sharing at least two of them. Ids only come back.
  *
  * Nothing already on the page is placed again, not even as another print of the same card, and
  * no species appears twice among the new cards.
@@ -50,6 +50,8 @@ export interface PaletteColor {
 export interface CompleteProviders {
   /** Find Similar for several seeds at once: the server averages their art vectors. */
   similar?: (ids: string[], limit: number) => Promise<{ id: string }[]>;
+  /** theme_fill: the cards sharing the scene words the page's cards share; `fullArt` keeps a full-art page full art. */
+  theme?: (ids: string[], limit: number, fullArt: boolean | undefined) => Promise<{ id: string }[]>;
   /** The on-device colour index, when loaded. */
   palette?: {
     has(id: string): boolean;
@@ -77,9 +79,10 @@ export function speciesOf(card: CatalogCard): string {
   return n.split(/\s+/).filter((t) => !NAME_DECORATIONS.has(t) && !/['’]s$/.test(t)).join(' ').trim();
 }
 
-export type CompleteMethod = 'similar' | 'palette' | 'type' | 'artist' | 'lines';
+export type CompleteMethod = 'theme' | 'similar' | 'palette' | 'type' | 'artist' | 'lines';
 
 export const COMPLETE_METHODS: { key: CompleteMethod; label: string; description: string; paid?: 'similarity' }[] = [
+  { key: 'theme', label: 'Same theme', description: 'Cards that share the scene this page already shows.' },
   { key: 'similar', label: '≈ Like the whole page', description: 'The cards that most look like what is here, taken together.', paid: 'similarity' },
   { key: 'palette', label: 'Same palette', description: 'Cards in the colours this page already has.' },
   { key: 'type', label: 'Same type', description: 'More of the type most of this page is.' },
@@ -116,7 +119,7 @@ const mode = (xs: string[]): string | null => {
 export function completeMethodsFor(page: DemoPage, catalog: CompleteCatalog): CompleteMethod[] {
   const cards = cardsOnPage(page, catalog);
   if (!cards.length || !emptyPockets(page).length) return [];
-  const out: CompleteMethod[] = ['similar'];
+  const out: CompleteMethod[] = ['theme', 'similar'];
   if (cards.some((c) => c.id)) out.push('palette');
   if (mode(cards.map((c) => c.types[0] ?? ''))) out.push('type');
   if (mode(cards.map((c) => c.illustrator.trim()))) out.push('artist');
@@ -185,6 +188,15 @@ export async function completePage(
   const full = cards.filter(isFull).length * 2 > cards.length;
   const sameClass = (xs: CatalogCard[]) => [...xs.filter((c) => isFull(c) === full), ...xs.filter((c) => isFull(c) !== full)];
 
+  if (method === 'theme') {
+    if (!providers.theme) return [];
+    // A page that is all one class asks for that class; a mixed page lets the server decide.
+    const allFull = cards.every(isFull);
+    const allWindowed = cards.every((c) => !isFull(c));
+    const hits = await providers.theme(cards.map((c) => c.id), want * 6 + 24, allFull ? true : allWindowed ? false : undefined);
+    const found = hits.map((h) => catalog.getCard(h.id)).filter((c): c is CatalogCard => !!c);
+    return place(cells, dedupe(found, page, catalog));
+  }
   if (method === 'similar') {
     if (!providers.similar) return [];
     const hits = await providers.similar(cards.map((c) => c.id), want * 6 + 24);

@@ -3,13 +3,14 @@
  *
  * One button on a page opens this. SINGLE PAGES ONLY, and only a page that is all full arts or all
  * windowed cards (owner, 2026-10-21; a product rule, so a mixed page is told why rather than
- * seated). It shows the page as it is now first, so looking costs nothing, then four to six candidates as thumbnails of the actual cards in the actual
- * pockets, each named by its template and mode with a one-line reason the user can check against
- * the picture. Tapping one reseats the page in ONE store commit (one Undo) and one server
+ * seated). It shows the page as it is now first, so looking costs nothing, then THE ARRANGER'S
+ * answer (data/arranger: one score the lab tunes to the owner's eye, over every template the
+ * shape allows) and two other takes, as thumbnails of the actual cards in the actual pockets, each
+ * with a one-line reason the user can check against the picture. Tapping one reseats the page in ONE store commit (one Undo) and one server
  * transaction (reseat_slots). Hand placements made afterwards are never overridden: Arrange runs
  * again by choice.
  *
- * WHAT IT READS. The seating itself is `data/arrange` (pure). This sheet only gathers the facts:
+ * WHAT IT READS. The seating itself is `data/arranger` (pure). This sheet only gathers the facts:
  * the catalog record for each pocket (line, stage, illustrator, set, number, rarity, full-art
  * kind), each card's depth words from the server (`lib/depth`, which sends the vocabulary and
  * gets back a subset of it, so no tag reaches the device), and the palette from the on-device
@@ -41,7 +42,7 @@ import {
   type Cell,
   type Leaf,
   DEPTH_LABEL,
-  arrangeCandidates,
+  cardCells,
   cellKey,
   movesFor,
   pageArtMix,
@@ -50,7 +51,9 @@ import { ART_TEMPLATES, templateArtSlots } from '@/data/artTemplates';
 import { slotCells, uuidv4, type DemoPage, type DemoSlot } from '@/data/binderTypes';
 import { useCatalog } from '@/hooks/use-catalog';
 import { track } from '@/lib/analytics';
+import { arrangePage } from '@/data/arranger';
 import { depthOfCards } from '@/lib/depth';
+import { similarityAmong, type Similarity } from '@/lib/similarity';
 
 /** A card pocket as Arrange sees it: the pocket is the unit (two pockets may hold one card id). */
 interface Pocket {
@@ -106,14 +109,15 @@ export function ArrangeSheet({
   // keyed by the cards it was asked for, so a page edited while the sheet was closed is read again
   // rather than seated on a stale answer.
   const idsKey = pockets.map((p) => p.slot.cardId).join(',');
-  const [depthAnswer, setDepthAnswer] = useState<{ key: string; map: Map<string, string[]> } | null>(null);
+  const [depthAnswer, setDepthAnswer] = useState<{ key: string; map: Map<string, string[]>; sim: Similarity } | null>(null);
   const [paletteTick, setPaletteTick] = useState(0);
   useEffect(() => {
     if (!visible) return;
     let active = true;
     const ids = [...new Set(pockets.map((p) => p.slot.cardId!))];
-    void depthOfCards(ids).then((m) => {
-      if (active) setDepthAnswer({ key: idsKey, map: m });
+    // Depth words and art likeness together: both are one round trip per open, both fail soft.
+    void Promise.all([depthOfCards(ids), similarityAmong(ids)]).then(([m, sim]) => {
+      if (active) setDepthAnswer({ key: idsKey, map: m, sim });
     });
     if (!getColorIndex()) void loadColorIndex().then(() => active && setPaletteTick((t) => t + 1));
     track('arrange_open', { pockets: pockets.length, spread, hasArt });
@@ -122,6 +126,7 @@ export function ArrangeSheet({
     };
   }, [visible, pockets, idsKey, spread, hasArt]);
   const depth = depthAnswer && depthAnswer.key === idsKey ? depthAnswer.map : null;
+  const similarity = depthAnswer && depthAnswer.key === idsKey ? depthAnswer.sim : null;
 
   // All full arts or all windowed cards: a mixed page is refused with the count, not seated.
   const mix = useMemo(() => (catalog ? pageArtMix(pockets.map((p) => ({ fullArtKind: catalog.getCard(p.slot.cardId!)?.fullArtKind }))) : null), [catalog, pockets]);
@@ -151,10 +156,40 @@ export function ArrangeSheet({
     const current = new Map<string, Cell>();
     for (const p of pockets) current.set(p.slot.id, { leaf: p.leaf, row: p.slot.row, col: p.slot.col });
     const templates = hasArt ? [] : ART_TEMPLATES.filter((t) => t.rows === rows && t.cols === cols && t.spread === spread);
-    return arrangeCandidates({ rows, cols, spread, cards, reserved, current, templates, allowHeld: true });
+    // Likeness arrives keyed by card id; the arranger seats pockets, so it is re-keyed by pocket.
+    const sim = new Map<string, Map<string, number>>();
+    for (const a of pockets) {
+      const row = similarity?.get(a.slot.cardId!);
+      if (!row) continue;
+      const m = new Map<string, number>();
+      for (const b of pockets) {
+        const v = row.get(b.slot.cardId!);
+        if (v !== undefined && b.slot.id !== a.slot.id) m.set(b.slot.id, v);
+      }
+      sim.set(a.slot.id, m);
+    }
+    const answer = arrangePage({ rows, cols, spread, cards, reserved, current, templates, similarity: sim });
+    if (!answer) return null;
+    const cells = cardCells(rows, cols, spread, reserved);
+    const placements = pockets.map((p) => ({ cardId: p.slot.id, cell: current.get(p.slot.id)! }));
+    const used = new Set(placements.map((pl) => cellKey(pl.cell)));
+    const asIs: Candidate = {
+      id: 'current',
+      template: null,
+      mode: 'current',
+      name: 'As it is now',
+      reason: 'No change',
+      placements,
+      open: cells.filter((c) => !used.has(cellKey(c))),
+      held: [],
+      artCells: reserved.size,
+      fit: 0,
+      score: 0,
+    };
+    return [asIs, answer.best, ...answer.alternates];
     // paletteTick re-reads the index once it has loaded; it carries no value of its own.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, catalog, depth, pockets, reserved, hasArt, rows, cols, spread, paletteTick, mix]);
+  }, [visible, catalog, depth, similarity, pockets, reserved, hasArt, rows, cols, spread, paletteTick, mix]);
 
   const cardIdOf = useMemo(() => new Map(pockets.map((p) => [p.slot.id, p.slot.cardId!])), [pockets]);
   const pageOf = (leaf: Leaf): DemoPage => (leaf === 'right' ? pages[1] : pages[0]);
@@ -197,7 +232,7 @@ export function ArrangeSheet({
   return (
     <DialogCard visible={visible} title={spread ? 'Arrange this spread' : 'Arrange this page'} onClose={onClose} maxWidth={640} scroll={false}>
       <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
-        The same cards, seated so the {spread ? 'spread' : 'page'} reads. Tap one to use it; Undo brings the old order back.
+        The same cards, seated so the page reads, and two other takes. Tap one to use it; Undo brings the old order back.
       </ThemedText>
       {pockets.length < 2 ? (
         <ThemedText type="small" themeColor="textSecondary" style={styles.empty}>

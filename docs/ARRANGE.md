@@ -221,34 +221,34 @@ restarts. Milliseconds in the browser, no server. Pure functions in `src/data/ar
 | Stratum table and connected-art proxy, tuned on real pages | 1 day |
 | Template pairing weights, tuned by eye | half a day |
 
-## The Arrange Lab: blind testing, like the Colour Lab
+## The arranger: one score, tuned to the owner's eye
 
-Looking at one page at a time cannot tell which rule or setting earns its place, so the lab puts
-several finished pages side by side, never says which mode or setting made which, and records what
-the owner picks (owner, 2026-10-21: "we need more testing, kind of like how you designed the color
-lab testing where I picked or skipped"). The shape is the data-science repo's Colour Lab: shuffled
-columns, hidden variant keys, pick / about equal / none / skip, a tally at the end.
+Owner, 2026-10-22: "What if we just had one optimal arranger, and we just worked iteratively on
+tuning it? Kind of like an AI, arrange this page." So since then there is ONE arranger
+(`src/data/arranger.ts`) and the four modes above are the seatings it starts its search from.
 
-`scripts/arrange-lab/`: `build.mjs` writes `state/out/arrange-lab/rounds.json` from the owner's own
-full single pages (fakemichi, michimaker; cards only, no art, one art class per page) and twelve
-theme pools of 12 cards on a 3x4 page (lava, sea, forest, night, snow, city, one pool of full arts
-and one of windowed cards each, four per band so Strata has material); `serve.mjs` serves
-`lab.html` on 127.0.0.1:8766 and appends votes to `votes.jsonl`; `results.mjs` tallies. The seating
-is the real module, run by Node as TypeScript, with the card facts straight from `cards_en`.
-Launcher: `state/out/arrange-lab.ps1` (`-SkipBuild` keeps the rounds and the answers so far,
-`-Results` prints the tally). Four tests, about 47 rounds, about ten minutes:
+One score, the weighted sum of terms a collector reads a page by, each 0 to 1 and absent where it
+cannot apply: **palette** (neighbours close in colour), **similar** (neighbours that look alike:
+Find Similar's art likeness, colour, geometry and style), **rowSimilar** (each row one family),
+**depth** (rows by depth, pure, sky above ground above underground), **lines** (a line's stages
+adjacent and in order), **type** (on a windowed page, lines of one frame colour), **art** (pockets
+the template spends on art), less **held** (cards sent to the tray) and **open** pockets.
+Connected art is adjacent, hard. A template must seat at least half the page's cards.
 
-| Test | Shows | Answers |
-| --- | --- | --- |
-| modes | one pool, one column per mode that is offered | which modes read, on which pools |
-| sheet | the three candidates the app would rank first, art panels hatched | whether rank 1 is what the owner picks; wins by mode and template |
-| variants | one mode, one `Tuning` knob changed per column | which setting becomes the default |
-| misses | one arranged page, big; click the cards that sit wrong | per-card precision; for Strata, by first depth word, which tunes the table |
+The search: on every layout the shape allows (the page as it is, then each template), climb from
+each mode's seating, the page as it is and a plain fill, let a held card trade in while that reads
+better, keep the best; the best across layouts is the answer, the next two that differ are the
+other takes. One weight set, `ARRANGER_WEIGHTS`, is the champion.
 
-`Tuning` (`src/data/arrange.ts`) holds the taste knobs the variants test turns: Strata row order
-(hue, light, chain) and transitions at the ends; Flow vertical weight and seed card; Mirror twin by
-illustrator or palette. The app passes nothing and gets `DEFAULT_TUNING`; a knob the lab settles
-moves the default, not the app code.
+**The lab is champion against challenger.** `scripts/arrange-lab/`: `build.mjs` makes duel rounds
+(the champion's answer beside a copy with one weight halved or doubled, on the owner's own pages
+and the theme pools, only where the nudge changes the answer; likeness read off
+`cards_en.embedding`) and misses rounds on the champion's answers; `serve.mjs` serves `lab.html` on
+127.0.0.1:8766; `results.mjs` tallies per nudge and `--adopt` moves the champion
+(`state/out/arrange-lab/weights.json`, which the next build duels from; `ARRANGER_WEIGHTS` is
+brought in line by hand). Launcher `state/out/arrange-lab.ps1` (`-SkipBuild`, `-Results`,
+`-Adopt`). Run it as often as the arranger needs; every run only ever moves it toward the owner's
+eye. The two runs before the arranger are kept below for the rules they settled.
 
 ### Lab run 1 (2026-10-21, 47 rounds, all answered)
 

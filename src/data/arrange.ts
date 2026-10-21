@@ -278,7 +278,7 @@ export function hue(card: ArrangeCard): number {
   return (Math.atan2(d.b, d.a) * 180) / Math.PI;
 }
 
-const lineKey = (c: ArrangeCard): string => (c.evolutionLine?.length ? c.evolutionLine.join('>') : '');
+export const lineKey = (c: ArrangeCard): string => (c.evolutionLine?.length ? c.evolutionLine.join('>') : '');
 
 /**
  * Connected art has no flag anywhere. The proxy: the two halves of a Legend ("(Top)" / "(Bottom)")
@@ -354,13 +354,13 @@ function findCell(cells: readonly Cell[], leaf: Leaf, row: number, col: number):
 }
 
 /** Are these two cells horizontal neighbours, counting across the gutter of a spread? */
-function besideOf(a: Cell, b: Cell, cols: number): boolean {
+export function besideOf(a: Cell, b: Cell, cols: number): boolean {
   if (a.row !== b.row) return false;
   if (a.leaf === b.leaf) return Math.abs(a.col - b.col) === 1;
   return (a.leaf === 'left' && b.leaf === 'right' && a.col === cols - 1 && b.col === 0) || (b.leaf === 'left' && a.leaf === 'right' && b.col === cols - 1 && a.col === 0);
 }
 
-function belowOf(a: Cell, b: Cell): boolean {
+export function belowOf(a: Cell, b: Cell): boolean {
   return a.leaf === b.leaf && a.col === b.col && Math.abs(a.row - b.row) === 1;
 }
 
@@ -437,7 +437,7 @@ function paletteChain(cards: readonly ArrangeCard[], start: 'dark' | 'light'): A
  * Pairwise-swap hill climb: try every pair of cells, keep a swap that raises the score, repeat
  * until none does. `allowed` says which cells may trade (a Strata row, the whole canvas for Flow).
  */
-function improve(seating: Seating, score: (s: Seating) => number, allowed: (i: number, j: number) => boolean): Seating {
+export function improve(seating: Seating, score: (s: Seating) => number, allowed: (i: number, j: number) => boolean): Seating {
   const s = [...seating];
   let best = score(s);
   let moved = true;
@@ -982,10 +982,10 @@ export interface Placement {
 }
 
 export interface Candidate {
-  /** Stable within one run: `${templateId|page}:${mode}`, or 'current'. */
+  /** Stable within one run: `${templateId|page}:${mode}`, or 'current', or the arranger's 'arranged' / 'alt-n'. */
   id: string;
   template: ArtTemplate | null;
-  mode: ArrangeMode | 'current';
+  mode: ArrangeMode | 'current' | 'arranged';
   name: string;
   /** One line the user can check against the picture. */
   reason: string;

@@ -19,15 +19,19 @@
  * exactly what `score_cards_by_theme` hands the app. The seating is the real module,
  * src/data/arrange.ts, imported as TypeScript by Node.
  *
- * Tests (variant keys are hidden in the page; columns are shuffled per round):
- *   modes     one pool, one column per mode that is offered          strata | lines | flow | mirror
- *   sheet     the three candidates the app would rank first, with their art panels; which one?
- *   variants  one mode, one column per setting of one Tuning knob    (DEFAULT_TUNING vs the rest)
- *   misses    one arranged page, big; click the cards that sit wrong (per-card precision)
+ * Tests (which column is which is hidden in the page; columns are shuffled per round):
+ *   duel      the ARRANGER (data/arranger) as it stands, against a copy with one weight nudged
+ *             (halved or doubled); the owner picks the page that reads better. results.mjs
+ *             tallies per nudge, and `--adopt` moves the champion (weights.json) to the nudges
+ *             that won; the app's ARRANGER_WEIGHTS then follows by hand.
+ *   misses    the arranger's own answer, big; click the cards that sit wrong (per-card precision)
+ *
+ * Likeness between the pool's cards is read straight off cards_en.embedding here (cosine, the
+ * same number Find Similar hands the app), one query per pool.
  *
  *   node scripts/arrange-lab/build.mjs            -> state/out/arrange-lab/rounds.json
  */
-import { existsSync, mkdirSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -35,10 +39,14 @@ import { ROOT, appSql, dataSql, cardImageUrl, fail, imageManifest, q, step, text
 
 const src = (p) => pathToFileURL(join(ROOT, 'src', p)).href;
 const A = await import(src('data/arrange.ts'));
+const R = await import(src('data/arranger.ts'));
 const { ART_TEMPLATES } = await import(src('data/artTemplates.ts'));
 
 const OUT_DIR = join(ROOT, 'state', 'out', 'arrange-lab');
 const OUT = join(OUT_DIR, 'rounds.json');
+/** The champion so far: ARRANGER_WEIGHTS under any nudges earlier runs adopted (results.mjs --adopt). */
+const WEIGHTS_FILE = join(OUT_DIR, 'weights.json');
+const champion = { ...R.ARRANGER_WEIGHTS, ...(existsSync(WEIGHTS_FILE) ? JSON.parse(readFileSync(WEIGHTS_FILE, 'utf8')) : {}) };
 const SEED = 20261021;
 
 // Deterministic shuffles, so a rebuild with the same data keeps the same rounds and their votes.
@@ -154,6 +162,25 @@ for (let i = 0; i < ids.length; i += 400) {
   for (const r of rows) facts.set(r.id, r);
 }
 const manifest = await imageManifest();
+
+/** Pairwise likeness among a pool's cards: cosine between their art embeddings, 0..1. */
+async function similarityOf(ids) {
+  const rows = await dataSql(`
+    select a.id as a, b.id as b, (1 - (a.embedding <=> b.embedding))::float as sim
+      from public.cards_en a join public.cards_en b on b.id > a.id
+     where a.id = any(${textArray(ids)}) and b.id = any(${textArray(ids)})
+       and a.embedding is not null and b.embedding is not null;`);
+  const sim = new Map();
+  const put = (x, y, v) => {
+    if (!sim.has(x)) sim.set(x, new Map());
+    sim.get(x).set(y, Math.max(0, Math.min(1, v)));
+  };
+  for (const r of rows) {
+    put(r.a, r.b, r.sim);
+    put(r.b, r.a, r.sim);
+  }
+  return sim;
+}
 function arrangeCard(id) {
   const f = facts.get(id);
   if (!f) return null;
@@ -208,27 +235,7 @@ function ctxFor(shape, cards, reservedKeys = new Set(), tuning) {
   };
 }
 
-/** One mode on a bare canvas (no template), as a column: null when the mode is not offered. */
-function modeColumn(shape, cards, mode, tuning) {
-  const ctx = ctxFor(shape, cards, new Set(), tuning);
-  const res = A.seatWith(mode, cards, ctx);
-  if (!res) return null;
-  const cand = A.toCandidate(res, mode, null, ctx, ctx.cells.length);
-  return { cand, grid: gridOf(shape, cand.placements, new Set()), held: cand.held.map((c) => c.id), fit: cand.fit, score: cand.score };
-}
-
 const signature = (grid) => grid.map((c) => c.card ?? (c.art ? '#' : '.')).join('|');
-
-/** Drop columns whose seating repeats an earlier column: the owner cannot tell them apart. */
-function distinctColumns(cols) {
-  const seen = new Set();
-  return cols.filter((c) => {
-    const k = signature(c.grid);
-    if (seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
-}
 
 const cardsOfPage = (p) => slotsByPage.get(p.id).map((s) => arrangeCard(s.card_id)).filter(Boolean);
 const poolOfPage = (p) => ({ kind: 'page', label: `${p.title ?? 'untitled'} p${p.rank + 1}`, shape: { rows: p.rows, cols: p.cols, spread: false }, cards: cardsOfPage(p), current: new Map(slotsByPage.get(p.id).map((s) => [s.card_id, { leaf: 'single', row: s.row_index, col: s.col_index }])) });
@@ -252,148 +259,76 @@ if (pagePools.length < 12) fail('too few one-class owner pages');
 step(4, 'rounds');
 const rounds = [];
 const r1 = rng(SEED + 1);
-const MODES = ['strata', 'lines', 'flow', 'mirror'];
 const usedCards = new Set();
 const noteCards = (grid) => grid.forEach((c) => c.card && usedCards.add(c.card));
 
-// modes: theme spreads and owner pages, one column per offered mode.
-{
-  let n = 0;
-  const pools = [...shuffle(theme, r1).slice(0, 6), ...shuffle(pagePools, r1).slice(0, 8)];
-  for (const pool of pools) {
-    const cols = distinctColumns(MODES.map((m) => modeColumn(pool.shape, pool.cards, m)).filter(Boolean).map((c) => ({ v: c.cand.mode, grid: c.grid, held: c.held, fit: c.fit, score: c.score })));
-    if (cols.length < 2) continue;
-    n += 1;
-    const shuffled = shuffle(cols, r1);
-    shuffled.forEach((c) => noteCards(c.grid));
-    rounds.push({
-      id: `modes-${pool.label.replace(/\W+/g, '_')}-${n}`,
-      test: 'modes',
-      prompt: 'The same cards, seated four ways. Which page reads best?',
-      pool: { kind: pool.kind, label: pool.label },
-      shape: pool.shape,
-      cols: shuffled,
-    });
-    if (n >= 12) break;
-  }
-  console.log(`  modes: ${n} rounds`);
+// The arranger's answer on a pool, as a column.
+function arrangerColumn(pool, weights, sim) {
+  const templates = ART_TEMPLATES.filter((t) => t.rows === pool.shape.rows && t.cols === pool.shape.cols && t.spread === pool.shape.spread);
+  const a = R.arrangePage({ ...pool.shape, cards: pool.cards, templates, current: pool.current, similarity: sim, weights });
+  if (!a) return null;
+  const b = a.best;
+  const artKeys = b.template ? A.templateCells(b.template, pool.shape.spread) : new Set();
+  return { grid: gridOf(pool.shape, b.placements, artKeys), held: b.held.map((c) => c.id), template: b.template?.id ?? 'page', terms: b.terms, score: b.score, reason: b.reason };
 }
 
-// sheet: the app's own list, top three, on owner pages (templates offered as the sheet offers them).
+// duel: the champion against one nudge, on pools where the nudge changes the answer.
+const NUDGES = [];
+for (const term of ['palette', 'similar', 'rowSimilar', 'depth', 'lines', 'type', 'art', 'held', 'open']) for (const factor of [0.5, 2]) NUDGES.push({ term, factor });
 {
+  const pools = shuffle([...theme, ...pagePools], r1);
+  const simOf = new Map();
+  for (const pool of pools) simOf.set(pool.label, await similarityOf(pool.cards.map((c) => c.id)));
   let n = 0;
-  for (const pool of shuffle(pagePools, r1)) {
-    const templates = ART_TEMPLATES.filter((t) => t.rows === pool.shape.rows && t.cols === pool.shape.cols && t.spread === pool.shape.spread);
-    const cands = A.arrangeCandidates({ ...pool.shape, cards: pool.cards, templates, current: pool.current, allowHeld: true }).filter((c) => c.mode !== 'current');
-    if (cands.length < 2) continue;
-    const top = cands.slice(0, 3).map((c, rank) => {
-      const artKeys = c.template ? A.templateCells(c.template, pool.shape.spread) : new Set();
-      return { v: c.id, rank: rank + 1, mode: c.mode, template: c.template?.id ?? 'page', grid: gridOf(pool.shape, c.placements, artKeys), held: c.held.map((x) => x.id), fit: c.fit, score: c.score };
-    });
-    const cols = distinctColumns(top);
-    if (cols.length < 2) continue;
-    n += 1;
-    const shuffled = shuffle(cols, r1);
-    shuffled.forEach((c) => noteCards(c.grid));
-    rounds.push({
-      id: `sheet-${pool.label.replace(/\W+/g, '_')}-${n}`,
-      test: 'sheet',
-      prompt: 'Arrange would offer these first for this page. Hatched pockets are where a template puts art. Which would you use?',
-      pool: { kind: pool.kind, label: pool.label },
-      shape: pool.shape,
-      cols: shuffled,
-    });
-    if (n >= 10) break;
-  }
-  console.log(`  sheet: ${n} rounds`);
-}
-
-// variants: one knob at a time, the default against the alternatives, on the pools where the mode shows.
-{
-  const KNOBS = [
-    { knob: 'strataOrder', mode: 'strata', values: ['hue', 'light', 'chain'], pools: theme, take: 4 },
-    { knob: 'transitionsAtEnds', mode: 'strata', values: [true, false], pools: theme, take: 3 },
-    { knob: 'flowVertical', mode: 'flow', values: [0.5, 0, 1], pools: pagePools, take: 4 },
-    { knob: 'flowStart', mode: 'flow', values: ['dark', 'light'], pools: [...theme, ...pagePools], take: 3 },
-    { knob: 'mirrorTwin', mode: 'mirror', values: ['illustrator', 'palette'], pools: pagePools.filter((p) => p.shape.cols % 2 === 1), take: 3 },
-    // Windowed pages only: on a full-art page the knob changes nothing, so the columns would be identical and the round dropped.
-    { knob: 'flowByType', mode: 'flow', values: [true, false], pools: pagePools.filter((p) => !A.pageArtMix(p.cards).full), take: 5 },
-  ];
-  let total = 0;
-  for (const k of KNOBS) {
-    let n = 0;
-    for (const pool of shuffle(k.pools, r1)) {
-      const cols = distinctColumns(
-        k.values.map((v) => modeColumn(pool.shape, pool.cards, k.mode, { [k.knob]: v })).map((c, i) => c && { v: `${k.knob}=${String(k.values[i])}`, grid: c.grid, held: c.held }).filter(Boolean),
-      );
-      if (cols.length < 2) continue;
+  const perNudge = new Map();
+  for (const nudge of shuffle(NUDGES, r1)) {
+    const challenger = { ...champion, [nudge.term]: champion[nudge.term] * nudge.factor };
+    let got = 0;
+    for (const pool of shuffle(pools, r1)) {
+      if (got >= 2) break;
+      const sim = simOf.get(pool.label);
+      const a = arrangerColumn(pool, champion, sim);
+      const b = arrangerColumn(pool, challenger, sim);
+      if (!a || !b || signature(a.grid) === signature(b.grid)) continue;
+      got += 1;
       n += 1;
-      const shuffled = shuffle(cols, r1);
-      shuffled.forEach((c) => noteCards(c.grid));
+      const cols = shuffle([{ v: 'champion', ...a }, { v: `${nudge.term}x${nudge.factor}`, ...b }], r1);
+      cols.forEach((c) => noteCards(c.grid));
       rounds.push({
-        id: `variants-${k.knob}-${pool.label.replace(/\W+/g, '_')}-${n}`,
-        test: 'variants',
-        knob: k.knob,
-        prompt: `${A.MODE_LABEL[k.mode]}, the same cards, one setting changed. Which page reads best?`,
+        id: `duel-${nudge.term}-${nudge.factor}-${pool.label.replace(/\W+/g, '_')}-${n}`,
+        test: 'duel',
+        nudge,
+        prompt: 'The same cards, arranged twice. Which page reads better?',
         pool: { kind: pool.kind, label: pool.label },
         shape: pool.shape,
-        cols: shuffled,
+        cols,
       });
-      if (n >= k.take) break;
     }
-    console.log(`  variants ${k.knob}: ${n} rounds`);
-    total += n;
+    perNudge.set(`${nudge.term}x${nudge.factor}`, got);
   }
-  console.log(`  variants: ${total} rounds`);
-}
+  console.log(`  duel: ${n} rounds (${[...perNudge.entries()].filter(([, k]) => k === 0).map(([k]) => k).join(', ') || 'every nudge'} ${[...perNudge.values()].some((k) => k === 0) ? 'changed nothing on these pools' : 'changed an answer'})`);
 
-// misses: one arranged page, big; the owner clicks the cards that sit wrong.
-{
-  let n = 0;
-  const BAND_NAME = { above: 'sky', surface: 'ground', below: 'underground' };
-  for (const pool of shuffle(theme, r1).slice(0, 6)) {
-    const col = modeColumn(pool.shape, pool.cards, 'strata');
-    if (!col) continue;
-    n += 1;
-    noteCards(col.grid);
-    // Which band each row shows, read from the cards seated there (the module's bandRows after merging).
-    const bands = {};
-    for (const c of col.grid) {
-      if (!c.card || bands[c.row]) continue;
-      const d = A.depthOf({ depthWords: arrangeCard(c.card).depthWords }).depth;
-      if (d) bands[c.row] = BAND_NAME[d];
-    }
+  // misses: the champion's own answer, big.
+  let m = 0;
+  for (const pool of shuffle(pools, r1).slice(0, 6)) {
+    const a = arrangerColumn(pool, champion, simOf.get(pool.label));
+    if (!a) continue;
+    m += 1;
+    noteCards(a.grid);
     const words = {};
     for (const c of pool.cards) words[c.id] = c.depthWords;
-    const order = Array.from({ length: pool.shape.rows }, (_, i) => bands[i] ?? 'open').join(', ');
     rounds.push({
-      id: `misses-strata-${pool.label.replace(/\W+/g, '_')}-${n}`,
+      id: `misses-arranger-${pool.label.replace(/\W+/g, '_')}-${m}`,
       test: 'misses',
-      mode: 'strata',
-      prompt: `Rows are depths, top to bottom: ${order}. Click every card that sits in the wrong row.`,
+      mode: 'arranger',
+      prompt: `Arranged: ${a.reason}. Click every card that sits wrong.`,
       pool: { kind: pool.kind, label: pool.label },
       shape: pool.shape,
-      bands,
       words,
-      grid: col.grid,
+      grid: a.grid,
     });
   }
-  for (const pool of shuffle(pagePools, r1).slice(0, 4)) {
-    const col = modeColumn(pool.shape, pool.cards, 'flow');
-    if (!col) continue;
-    n += 1;
-    noteCards(col.grid);
-    rounds.push({
-      id: `misses-flow-${pool.label.replace(/\W+/g, '_')}-${n}`,
-      test: 'misses',
-      mode: 'flow',
-      prompt: 'One colour gradient across the spread. Click every card that breaks it.',
-      pool: { kind: pool.kind, label: pool.label },
-      shape: pool.shape,
-      grid: col.grid,
-    });
-  }
-  console.log(`  misses: ${n} rounds`);
+  console.log(`  misses: ${m} rounds`);
 }
 
 // Only the cards the rounds show go into the file.
@@ -407,6 +342,6 @@ if (existsSync(VOTES)) {
   renameSync(VOTES, join(OUT_DIR, `votes-${stamp}.jsonl`));
   console.log(`  earlier answers moved aside as votes-${stamp}.jsonl (the rounds are new)`);
 }
-writeFileSync(OUT, JSON.stringify({ built: new Date().toISOString(), seed: SEED, cards, rounds }));
+writeFileSync(OUT, JSON.stringify({ built: new Date().toISOString(), seed: SEED, champion, cards, rounds }));
 console.log(`  ${rounds.length} rounds, ${Object.keys(cards).length} cards -> ${OUT}`);
 console.log('DONE.');

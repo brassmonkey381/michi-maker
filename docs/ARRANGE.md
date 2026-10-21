@@ -72,7 +72,9 @@ natural case; a 2x4 page gets two bands.
 - Nothing is borrowed across bands. A pocket stays open rather than hold a card from the wrong
   depth, and that open pocket is what earns the one sparing suggestion (a clean card of the short
   band, same theme, a species the page does not have).
-- Soft: palette flows left to right within a row; brighter rows above darker ones.
+- Soft: palette flows left to right within a row (hue order; `Tuning.strataOrder`), transition
+  cards wherever their colour falls (lab run 1 preferred that to forcing them to the ends).
+- Soft: brighter rows above darker ones.
 - Offered only when each band has enough clean and transition cards to fill its row, or is at most
   one short (then with the suggestion). Otherwise the two-band version, or not at all.
 - Evolution lines go **vertical** here, one stage per row, only when the stages' own scenes climb
@@ -83,12 +85,14 @@ Stratum from tags, in caption rank order (the first matching tag wins):
 
 | Band | Tags |
 | --- | --- |
-| Above | sky, clouds, stars, moon, space, storm, lightning, rainbow, sunset, airborne |
+| Above | sky, clouds, stars, moon, space, rainbow, aurora, airborne, flying |
 | Surface | grass, field, meadow, forest, trees, jungle, beach, desert, city, town, road, mountain, volcano, lake, river, ocean (surface), snow, ice |
-| Below | underwater, seaweed, coral, cave, underground, ruins (when with cave), lava (when with cave or underground) |
+| Below | underwater, seaweed, coral, cave, underground, mine, sewer, dungeon, deep sea |
 
 Not depth words: **rocks** (they are in every band) and **smoke** (it rises; a smoking volcano is a
-surface card). Both were in the first draft and mis-sorted real cards.
+surface card), both from the first draft; and, from the first lab run (2026-10-21), **weather and
+light** (storm, lightning, sunset, sunrise: a storm over a city is a city card, a sunset on a beach
+is a beach card) and **tunnel** (a mouse in a road tunnel is not underground).
 
 A card with no stratum word is **free** and can sit in any band; free cards fill whatever the
 strata leave short. A free card whose connected partner is seated goes under or over it first
@@ -153,7 +157,10 @@ can check against the picture:
 Rules for the list:
 
 - The page as it is now is always the first card, so looking costs nothing.
-- Ranked by score, but **diverse**: never two of the same mode in the top three, and at least one
+- Ranked by score: a **mode prior** (`MODE_PRIOR`: Lines +1, Strata 0, Mirror -0.25, Flow -1.5,
+  from lab run 1, where the owner read structure before gradient), then fit, pairing, art share,
+  less held and open pockets.
+- **Diverse**: never two of the same mode in the top three, and at least one
   candidate with more art than the current page.
 - Tapping one rearranges the page with undo. Hand placements made afterwards are never overridden;
   Arrange is run again by choice.
@@ -219,6 +226,20 @@ Launcher: `state/out/arrange-lab.ps1` (`-SkipBuild` keeps the rounds and the ans
 (hue, light, chain) and transitions at the ends; Flow vertical weight and seed card; Mirror twin by
 illustrator or palette. The app passes nothing and gets `DEFAULT_TUNING`; a knob the lab settles
 moves the default, not the app code.
+
+### Lab run 1 (2026-10-21, 47 rounds, all answered)
+
+| Test | Result | Change made |
+| --- | --- | --- |
+| modes | Mirror won 3 of 5 columns, Strata 6 of 11, Flow 3 of 12, Lines 0 of 1 | with sheet: `MODE_PRIOR` |
+| sheet | the app's #1 picked 3 of 10, its #2 7 of 10; Lines 2 of 2, Mirror 5 of 8, Flow 2 of 10, Strata 1 of 5 | `MODE_PRIOR` Lines +1, Mirror -0.25, Flow -1.5: the pick ranks first in 17 of 22 decided rounds, 8 before |
+| variants | hue 1, chain 1, light 0 (2 ties); mixed transitions 1, at ends 0 (2 ties); vertical 0.5 wins 2 of 4; dark seed 2 of 3; illustrator twin 2 of 2 | `transitionsAtEnds` default off; the rest unchanged |
+| misses | Strata 4 of 66 cards wrong (storm, tunnel, sunset, one beach); Flow 3 of 30 | storm, lightning, sunset, sunrise, tunnel out of the table |
+
+The sheet rounds were all 3x3 pages, where no art template seats nine cards, so they ranked modes
+only. Templates with art were not tested; a page with held cards (the lab's Strata column on a
+lopsided pool) was picked anyway in three modes rounds, so holding cards for the next page is
+worth building.
 
 ## Open for the owner
 

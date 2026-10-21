@@ -27,7 +27,7 @@
  *
  *   node scripts/arrange-lab/build.mjs            -> state/out/arrange-lab/rounds.json
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -213,7 +213,7 @@ function modeColumn(shape, cards, mode, tuning) {
   const res = A.seatWith(mode, cards, ctx);
   if (!res) return null;
   const cand = A.toCandidate(res, mode, null, ctx, ctx.cells.length);
-  return { cand, grid: gridOf(shape, cand.placements, new Set()), held: cand.held.map((c) => c.id) };
+  return { cand, grid: gridOf(shape, cand.placements, new Set()), held: cand.held.map((c) => c.id), fit: cand.fit, score: cand.score };
 }
 
 const signature = (grid) => grid.map((c) => c.card ?? (c.art ? '#' : '.')).join('|');
@@ -260,7 +260,7 @@ const noteCards = (grid) => grid.forEach((c) => c.card && usedCards.add(c.card))
   let n = 0;
   const pools = [...shuffle(theme, r1).slice(0, 6), ...shuffle(pagePools, r1).slice(0, 8)];
   for (const pool of pools) {
-    const cols = distinctColumns(MODES.map((m) => modeColumn(pool.shape, pool.cards, m)).filter(Boolean).map((c) => ({ v: c.cand.mode, grid: c.grid, held: c.held })));
+    const cols = distinctColumns(MODES.map((m) => modeColumn(pool.shape, pool.cards, m)).filter(Boolean).map((c) => ({ v: c.cand.mode, grid: c.grid, held: c.held, fit: c.fit, score: c.score })));
     if (cols.length < 2) continue;
     n += 1;
     const shuffled = shuffle(cols, r1);
@@ -287,7 +287,7 @@ const noteCards = (grid) => grid.forEach((c) => c.card && usedCards.add(c.card))
     if (cands.length < 2) continue;
     const top = cands.slice(0, 3).map((c, rank) => {
       const artKeys = c.template ? A.templateCells(c.template, pool.shape.spread) : new Set();
-      return { v: c.id, rank: rank + 1, mode: c.mode, template: c.template?.id ?? 'page', grid: gridOf(pool.shape, c.placements, artKeys), held: c.held.map((x) => x.id) };
+      return { v: c.id, rank: rank + 1, mode: c.mode, template: c.template?.id ?? 'page', grid: gridOf(pool.shape, c.placements, artKeys), held: c.held.map((x) => x.id), fit: c.fit, score: c.score };
     });
     const cols = distinctColumns(top);
     if (cols.length < 2) continue;
@@ -398,6 +398,12 @@ const cards = {};
 for (const id of usedCards) if (cardInfo[id]) cards[id] = cardInfo[id];
 
 mkdirSync(OUT_DIR, { recursive: true });
+const VOTES = join(OUT_DIR, 'votes.jsonl');
+if (existsSync(VOTES)) {
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  renameSync(VOTES, join(OUT_DIR, `votes-${stamp}.jsonl`));
+  console.log(`  earlier answers moved aside as votes-${stamp}.jsonl (the rounds are new)`);
+}
 writeFileSync(OUT, JSON.stringify({ built: new Date().toISOString(), seed: SEED, cards, rounds }));
 console.log(`  ${rounds.length} rounds, ${Object.keys(cards).length} cards -> ${OUT}`);
 console.log('DONE.');

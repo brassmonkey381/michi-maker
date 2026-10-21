@@ -94,14 +94,19 @@ test('strata: every row holds one depth and nothing is borrowed across bands', (
   assert.equal(res.seating.filter(Boolean).length, 24);
 });
 
-test('strata: transition cards sit at the ends of their row, clean cards between them', () => {
+test('strata: with transitionsAtEnds, transition cards frame their row; the default mixes them in', () => {
   const cards = lavaPool();
-  const ctx = ctxFor(cards);
+  const ctx = { ...ctxFor(cards), tuning: { transitionsAtEnds: true } };
   const res = seatStrata(cards, ctx)!;
   const top = ctx.cells.map((c, i) => (c.row === 0 ? res.seating[i] : null)).filter((c): c is ArrangeCard => !!c);
   assert.equal(top.length, 8);
   const partlyIdx = top.map((c, i) => (depthOf(c).partly ? i : -1)).filter((i) => i >= 0);
   assert.deepEqual(partlyIdx, [0, 7], 'the two transition cards frame the sky row');
+  // The default (lab run 1): the row is one hue order, transitions wherever their colour falls.
+  const mixed = seatStrata(cards, ctxFor(cards))!;
+  const topMixed = ctxFor(cards).cells.map((c, i) => (c.row === 0 ? mixed.seating[i] : null)).filter((c): c is ArrangeCard => !!c);
+  assert.deepEqual(new Set(topMixed.map((c) => c.id)), new Set(top.map((c) => c.id)), 'the same cards in the sky row');
+  assert.notDeepEqual(topMixed.map((c) => c.id), top.map((c) => c.id));
 });
 
 test('strata: a band one card short leaves the pocket open and asks for that band', () => {
@@ -304,8 +309,8 @@ test('tuning: strataOrder light sorts a row dark to bright; hue is the default',
   const base = seatStrata(cards, ctxFor(cards))!;
   const light = seatStrata(cards, { ...ctxFor(cards), tuning: { strataOrder: 'light' } })!;
   const ctx = ctxFor(cards);
-  // The sky row (row 0) under 'light': its clean cards run dark to bright (the transition cards keep the ends).
-  const row0 = (ctx.cells.map((c, i) => (c.row === 0 ? light.seating[i] : null)).filter(Boolean) as ArrangeCard[]).filter((c) => !depthOf(c).partly);
+  // The sky row (row 0) under 'light' runs dark to bright.
+  const row0 = ctx.cells.map((c, i) => (c.row === 0 ? light.seating[i] : null)).filter(Boolean) as ArrangeCard[];
   assert.ok(row0.length >= 4);
   for (let i = 1; i < row0.length; i += 1) assert.ok(row0[i].palette![0].L >= row0[i - 1].palette![0].L);
   // Still pure: the same cards per row as the default, only the order inside the row differs.
@@ -316,7 +321,7 @@ test('tuning: strataOrder light sorts a row dark to bright; hue is the default',
 test('tuning: transitionsAtEnds off lets a transition card sit mid-row', () => {
   const cards = lavaPool();
   const ctx = ctxFor(cards);
-  const mixed = seatStrata(cards, { ...ctx, tuning: { transitionsAtEnds: false, strataOrder: 'light' } })!;
+  const mixed = seatStrata(cards, { ...ctx, tuning: { strataOrder: 'light' } })!;
   const row0 = ctx.cells.map((c, i) => (c.row === 0 ? mixed.seating[i] : null)).filter(Boolean) as ArrangeCard[];
   // The two flying-over-volcano transitions are the darkest sky cards, so under 'light' they come first, together.
   const ends = row0.filter((c) => depthOf(c).partly);
@@ -351,7 +356,7 @@ test('tuning: mirrorTwin palette ignores the illustrator', () => {
 });
 
 test('tuning: the app passes nothing and gets the defaults', () => {
-  assert.deepEqual(DEFAULT_TUNING, { strataOrder: 'hue', transitionsAtEnds: true, flowVertical: 0.5, flowStart: 'dark', mirrorTwin: 'illustrator' });
+  assert.deepEqual(DEFAULT_TUNING, { strataOrder: 'hue', transitionsAtEnds: false, flowVertical: 0.5, flowStart: 'dark', mirrorTwin: 'illustrator' });
   const cards = lavaPool();
   const a = arrangeCandidates({ ...spread, cards });
   const b = arrangeCandidates({ ...spread, cards, tuning: {} });

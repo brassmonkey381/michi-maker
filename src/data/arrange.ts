@@ -128,9 +128,15 @@ export interface Tuning {
   mirrorTwin: 'illustrator' | 'palette';
 }
 
+/**
+ * The defaults follow the first Arrange Lab run (2026-10-21, 47 rounds): hue order and the dark
+ * seed, half-weight vertical neighbours and the illustrator twin each won or tied their rounds;
+ * transition cards mixed in with the row won the one round the owner could tell apart (the other
+ * two were "about equal"), so they are no longer forced to the ends.
+ */
 export const DEFAULT_TUNING: Tuning = {
   strataOrder: 'hue',
-  transitionsAtEnds: true,
+  transitionsAtEnds: false,
   flowVertical: 0.5,
   flowStart: 'dark',
   mirrorTwin: 'illustrator',
@@ -142,16 +148,19 @@ export const DEFAULT_TUNING: Tuning = {
 
 /**
  * The stratum table (docs/ARRANGE.md). Bare words; the server query sends them namespaced and the
- * classifier strips the namespace back off. Rocks and smoke are deliberately absent: rocks are in
- * every band and smoke rises, and both mis-sorted real cards in the first draft.
+ * classifier strips the namespace back off. Deliberately absent: rocks (in every band) and smoke
+ * (it rises), which mis-sorted real cards in the first draft; and weather and light (storm,
+ * lightning, sunset, sunrise) and tunnel, which the owner clicked as wrong in the first Arrange
+ * Lab run (2026-10-21): a storm over a city is a city card, a sunset on a beach is a beach card, a
+ * mouse in a road tunnel is not underground.
  */
 export const DEPTH_WORDS: Record<Depth, readonly string[]> = {
-  above: ['sky', 'clouds', 'stars', 'moon', 'space', 'storm', 'lightning', 'rainbow', 'sunset', 'sunrise', 'aurora', 'airborne', 'flying'],
+  above: ['sky', 'clouds', 'stars', 'moon', 'space', 'rainbow', 'aurora', 'airborne', 'flying'],
   surface: [
     'grass', 'field', 'meadow', 'forest', 'trees', 'jungle', 'beach', 'shore', 'desert', 'city', 'town', 'road', 'garden', 'arena',
     'mountain', 'volcano', 'canyon', 'cliff', 'lake', 'river', 'ocean', 'waves', 'swamp', 'snow', 'ice', 'ruins',
   ],
-  below: ['underwater', 'seaweed', 'coral', 'cave', 'underground', 'tunnel', 'mine', 'sewer', 'dungeon', 'deep sea'],
+  below: ['underwater', 'seaweed', 'coral', 'cave', 'underground', 'mine', 'sewer', 'dungeon', 'deep sea'],
 };
 
 /** The namespaced forms the tag data actually uses for the table's words, for `score_cards_by_theme`. */
@@ -814,6 +823,16 @@ export function pairingScore(t: ArtTemplate | null, mode: ArrangeMode): number {
 
 export const MODE_LABEL: Record<ArrangeMode, string> = { strata: 'Strata', lines: 'Lines', flow: 'Flow', mirror: 'Mirror' };
 
+/**
+ * What a mode is worth before its fit, from the first Arrange Lab run (2026-10-21). Shown the
+ * same cards seated several ways, the owner picked the app's first-ranked candidate 3 times in 10
+ * and its second 7 times: Flow's fit runs high (a smooth gradient is easy to make) while the owner
+ * reads structure first. Flow won 5 of its 22 columns, Mirror 8 of 13, Strata 7 of 16, Lines 2 of
+ * 3. With these added to the score the picked candidate ranks first in 17 of the 22 decided
+ * rounds (8 before). Flow stays offered: it is the fallback that needs nothing from the cards.
+ */
+export const MODE_PRIOR: Record<ArrangeMode, number> = { strata: 0, lines: 1, flow: -1.5, mirror: -0.25 };
+
 export interface Placement {
   cardId: string;
   cell: Cell;
@@ -862,7 +881,7 @@ export function toCandidate(res: ModeResult, mode: ArrangeMode, t: ArtTemplate |
     else open.push(ctx.cells[i]);
   });
   const artCells = total - ctx.cells.length;
-  const score = res.fit * 3 + pairingScore(t, mode) * 0.5 + (artCells / Math.max(1, total)) * 1 - res.held.length * 0.5 - open.length * 0.25;
+  const score = MODE_PRIOR[mode] + res.fit * 3 + pairingScore(t, mode) * 0.5 + (artCells / Math.max(1, total)) * 1 - res.held.length * 0.5 - open.length * 0.25;
   return {
     id: `${t?.id ?? 'page'}:${mode}`,
     template: t,

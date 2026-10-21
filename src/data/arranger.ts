@@ -43,8 +43,8 @@ import {
   fixConnected,
   improve,
   lineKey,
-  pageArtMix,
   paletteDist,
+  readsWindowed,
   seatFlow,
   seatLines,
   seatStrata,
@@ -210,7 +210,7 @@ export function scoreTerms(seating: Seating, ctx: SeatCtx, total: number, sim?: 
   let type: number | null = null;
   {
     const all = cardsOnPage ?? seated;
-    if (all.length && pageArtMix(all).full === 0 && new Set(seated.map(typeOf)).size >= 2) {
+    if (all.length && readsWindowed(all) && new Set(seated.map(typeOf)).size >= 2) {
       const share = (byRow: boolean) => {
         const groups = new Map<string, string[]>();
         cells.forEach((c, i) => {

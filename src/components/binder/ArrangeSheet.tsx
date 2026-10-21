@@ -1,9 +1,10 @@
 /**
  * ARRANGE SHEET: several finished layouts for the cards a page already has (docs/ARRANGE.md).
  *
- * One button on a page opens this. SINGLE PAGES ONLY, and only a page that is all full arts or all
- * windowed cards (owner, 2026-10-21; a product rule, so a mixed page is told why rather than
- * seated). It shows the page as it is now first, so looking costs nothing, then THE ARRANGER'S
+ * One button on a page opens this. SINGLE PAGES ONLY. A page is read as full art or windowed by its
+ * majority (the owner's pages are one or the other; the catalogue's kinds miss some full arts, and
+ * refusing a mixed page blocked the owner on an all-full-art page on 2026-10-22, so it is read, not
+ * refused). It shows the page as it is now first, so looking costs nothing, then THE ARRANGER'S
  * answer (data/arranger: one score the lab tunes to the owner's eye, over every template the
  * shape allows) and two other takes, as thumbnails of the actual cards in the actual pockets, each
  * with a one-line reason the user can check against the picture. Tapping one reseats the page in ONE store commit (one Undo) and one server
@@ -132,7 +133,7 @@ export function ArrangeSheet({
   const mix = useMemo(() => (catalog ? pageArtMix(pockets.map((p) => ({ fullArtKind: catalog.getCard(p.slot.cardId!)?.fullArtKind }))) : null), [catalog, pockets]);
 
   const candidates = useMemo<Candidate[] | null>(() => {
-    if (!visible || !catalog || !depth || pockets.length < 2 || !mix || mix.mixed) return null;
+    if (!visible || !catalog || !depth || pockets.length < 2 || !mix) return null;
     const index = getColorIndex();
     const cards: ArrangeCard[] = pockets.map((p) => {
       const id = p.slot.cardId!;
@@ -233,14 +234,11 @@ export function ArrangeSheet({
     <DialogCard visible={visible} title={spread ? 'Arrange this spread' : 'Arrange this page'} onClose={onClose} maxWidth={640} scroll={false}>
       <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
         The same cards, seated so the page reads, and two other takes. Tap one to use it; Undo brings the old order back.
+        {mix?.mixed ? ` Read as a ${mix.dominant === 'full' ? 'full-art' : 'windowed'} page: ${mix.dominant === 'full' ? mix.windowed : mix.full} card${(mix.dominant === 'full' ? mix.windowed : mix.full) === 1 ? ' looks' : 's look'} ${mix.dominant === 'full' ? 'windowed' : 'full art'} to the catalogue.` : ''}
       </ThemedText>
       {pockets.length < 2 ? (
         <ThemedText type="small" themeColor="textSecondary" style={styles.empty}>
           Arrange needs at least two cards on the page.
-        </ThemedText>
-      ) : mix?.mixed ? (
-        <ThemedText type="small" themeColor="textSecondary" style={styles.empty}>
-          Arrange works on a page that is all full arts or all windowed cards. This page has {mix.full} full art{mix.full === 1 ? '' : 's'} and {mix.windowed} windowed card{mix.windowed === 1 ? '' : 's'}.
         </ThemedText>
       ) : !candidates ? (
         <View style={styles.loading}>

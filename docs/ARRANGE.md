@@ -18,10 +18,13 @@ tags, not hand labels. Lines marked **[owner]** are decisions that are theirs.
 
 - **Single pages only.** No facing spreads as one canvas. The module can still seat a spread
   (`ArrangeInput.spread`, kept for the tests); the sheet and the lab never ask it to.
-- **One art class per page.** Either every card on the page is a full art (`full_art_kind`
-  special_illustration_rare, illustration_rare, named_full_art) or every card is a windowed card
-  (everything else). A page that mixes the two is not arranged: the sheet says how many of each it
-  has and stops. `artClassOf` and `pageArtMix` in `src/data/arrange.ts` are the one definition.
+- **One art class per page**, read by majority. Full art is `full_art_kind` special_illustration_rare,
+  illustration_rare, named_full_art, measured or double_rare; the rest is windowed. The catalogue's
+  kinds miss some full arts (2,651 `scene_tagged` rows are full art by the data server's own flag,
+  which the app's catalogue does not carry), so a page is read as whatever most of its cards are
+  and never refused: refusing blocked the owner on an all-full-art page (2026-10-22). The sheet says
+  when it had to decide. `artClassOf`, `pageArtMix` and `readsWindowed` in `src/data/arrange.ts`
+  are the one definition. Handoff: ship the server's `full_art` flag in the browse catalogue.
 
 ## What it is
 

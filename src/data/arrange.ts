@@ -218,10 +218,14 @@ export const DEPTH_LABEL: Record<Depth, string> = { above: 'sky', surface: 'grou
 // ---------------------------------------------------------------------------------------------
 
 /**
- * The pipeline's full-art kinds whose picture is the whole card. Everything else (scene_tagged,
- * measured, double_rare, unknown) is a WINDOWED card: the picture sits in a frame.
+ * The pipeline's full-art kinds whose picture is the whole card. On the data server every
+ * `measured` and `double_rare` row carries full_art = true as well (checked 2026-10-22), so they
+ * are full here too. `scene_tagged` and '' are the ambiguous kinds: 2,651 of their rows are full
+ * art by the server's own flag, which the catalogue the app holds does not carry. Until it does
+ * (a kit/data handoff), a page is read by its MAJORITY class and never refused: the owner was
+ * blocked on an all-full-art page the catalogue called mixed.
  */
-export const FULL_ART_KINDS: ReadonlySet<string> = new Set(['special_illustration_rare', 'illustration_rare', 'named_full_art']);
+export const FULL_ART_KINDS: ReadonlySet<string> = new Set(['special_illustration_rare', 'illustration_rare', 'named_full_art', 'measured', 'double_rare']);
 
 export type ArtClass = 'full' | 'windowed';
 
@@ -232,12 +236,15 @@ export const artClassOf = (fullArtKind: string | undefined): ArtClass => (FULL_A
  * entire page is full arts, or the entire page is windowed arts"; a product rule, not only a lab
  * one). A page that mixes the two is not offered. This counts both, so the sheet can say which.
  */
-export function pageArtMix(cards: readonly Pick<ArrangeCard, 'fullArtKind'>[]): { full: number; windowed: number; mixed: boolean } {
+export function pageArtMix(cards: readonly Pick<ArrangeCard, 'fullArtKind'>[]): { full: number; windowed: number; mixed: boolean; dominant: ArtClass } {
   let full = 0;
   let windowed = 0;
   for (const c of cards) if (artClassOf(c.fullArtKind) === 'full') full += 1; else windowed += 1;
-  return { full, windowed, mixed: full > 0 && windowed > 0 };
+  return { full, windowed, mixed: full > 0 && windowed > 0, dominant: full > windowed ? 'full' : 'windowed' };
 }
+
+/** The page reads as windowed: its frames are what the eye sees (majority rule, see pageArtMix). */
+export const readsWindowed = (cards: readonly Pick<ArrangeCard, 'fullArtKind'>[]): boolean => pageArtMix(cards).dominant === 'windowed';
 
 /** How much a card carries a page: full-art kind first, then a picture rarity. */
 export function strength(card: ArrangeCard): number {
@@ -562,7 +569,7 @@ export function bandRows(rows: number): Record<Depth, number[]> {
  */
 export function seatStrata(cards: readonly ArrangeCard[], ctx: Ctx): ModeResult | null {
   const tune = tuningOf(ctx);
-  const windowed = pageArtMix(cards).full === 0;
+  const windowed = readsWindowed(cards);
   const bands: Record<Depth, ArrangeCard[]> = { above: [], surface: [], below: [] };
   const free: ArrangeCard[] = [];
   for (const c of cards) {
@@ -735,7 +742,7 @@ export function seatLines(cards: readonly ArrangeCard[], ctx: Ctx): ModeResult |
 export function seatFlow(cards: readonly ArrangeCard[], ctx: Ctx): ModeResult | null {
   if (cards.length < 2) return null;
   const tune = tuningOf(ctx);
-  if (tune.flowByType && pageArtMix(cards).full === 0 && new Set(cards.map(typeOf)).size >= 2) return seatFlowTyped(cards, ctx, tune);
+  if (tune.flowByType && readsWindowed(cards) && new Set(cards.map(typeOf)).size >= 2) return seatFlowTyped(cards, ctx, tune);
   const whole = paletteChain(cards, tuningOf(ctx).flowStart);
   const chain = whole.slice(0, ctx.cells.length);
   const held = whole.slice(ctx.cells.length);

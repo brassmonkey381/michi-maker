@@ -74,8 +74,12 @@ natural case; a 2x4 page gets two bands.
 - Nothing is borrowed across bands. A pocket stays open rather than hold a card from the wrong
   depth, and that open pocket is what earns the one sparing suggestion (a clean card of the short
   band, same theme, a species the page does not have).
-- Soft: palette flows left to right within a row (hue order; `Tuning.strataOrder`), transition
-  cards wherever their colour falls (lab run 1 preferred that to forcing them to the ends).
+- Soft: inside a row, on a **windowed** page the frame colours group first in colour-wheel order
+  (owner, 2026-10-22: "windowed cards should favor color groupings, THEN themes / strata"), an
+  evolution line's stages lead their group in stage order ("evolution lines of course at a high
+  priority"), and the palette order (`Tuning.strataOrder`, hue) settles the rest. A full-art row
+  keeps lines together and flows by palette. Transition cards sit wherever their colour falls (lab
+  run 1 preferred that to forcing them to the ends).
 - Soft: brighter rows above darker ones.
 - Offered only when each band has enough clean and transition cards to fill its row, or is at most
   one short (then with the suggestion). Otherwise the two-band version, or not at all.
@@ -107,7 +111,7 @@ Rows are evolution lines, read left to right in stage order.
 - Hard: a line's stages are in one row, adjacent, ascending.
 - Soft: a two-stage line sits at a row's edge and its third cell goes to kin (the same species in
   another era, its trainer, its partner). Lines of the same type share a page.
-- Offered when at least two rows can be full lines.
+- Offered from one line of two or more stages onward (2026-10-22; it used to want two).
 
 ### Flow
 
@@ -117,7 +121,10 @@ page the frame is what the eye reads, so Flow groups by energy type first (owner
 secondary"): each type is one group, the groups run round the colour wheel (fire, fighting,
 dragon, lightning, grass, water, metal, psychic, fairy, darkness, colorless, trainer), the art
 gradient runs inside each group, and the sequence is cut into the page's rows or its columns,
-whichever leaves more lines of one type. `Tuning.flowByType`, on by default; the lab's variants
+whichever leaves more lines of one type. Inside a group the evolution lines lead in stage order,
+then sky before ground before underground, the art gradient inside each depth: colour first, then
+lines, then depth. A typed Flow ranks level with Strata (no fallback prior) because on a windowed
+page it is the structure the eye reads first. `Tuning.flowByType`, on by default; the lab's variants
 test puts it against the plain gradient on windowed pages.
 
 - Soft (full art): minimise total palette distance between horizontal neighbours, and between
@@ -149,6 +156,10 @@ seating score, so a fighting pair is ranked down rather than banned.
 | post | neutral | neutral | neutral | strong in matching corners |
 | plate | not offered (no cards) | | | |
 | accent | neutral | neutral | neutral | neutral |
+
+Why the lab preferred six-card templates on windowed pages (owner, 2026-10-22): fewer cards make
+clean colour groups likelier, so a template that sends three cards to the tray can read better than
+the full nine. The ranking lets that happen (art x4, the tray nearly free).
 
 Examples that should rank high for a lava spread: Establishing Tier with Strata (sky band above,
 lava fields, caves below); Titled Run with Flow; Twin Anchors or Bookends with Mirror; Triptych

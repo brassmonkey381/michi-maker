@@ -404,3 +404,56 @@ test('flow: a windowed page groups by energy type into rows or columns, art flow
   const cands = arrangeCandidates({ ...single, cards });
   assert.ok(cands.some((c) => c.mode === 'flow' && /each type together/.test(c.reason)));
 });
+
+// --- Colour first, then depth, lines leading (owner, 2026-10-22) ------------------------------
+
+test('windowed: a depth row groups by type colour, a line leads its group in stage order', () => {
+  // One ground row of a 3x4 page: fire line (Charmander, Charmeleon) + a fire single + grass cards.
+  const ground = (id: string, over: Partial<ArrangeCard>) => card(id, { depthWords: ['scene:field'], ...over });
+  const cards: ArrangeCard[] = [
+    ground('char2', { types: ['Fire'], evolutionLine: ['charmander', 'charmeleon', 'charizard'], evolutionStage: 2, palette: lab(60, 40, 40) }),
+    ground('grass1', { types: ['Grass'], palette: lab(40, -40, 30) }),
+    ground('char1', { types: ['Fire'], evolutionLine: ['charmander', 'charmeleon', 'charizard'], evolutionStage: 1, palette: lab(70, 30, 50) }),
+    ground('fire3', { types: ['Fire'], palette: lab(30, 50, 40) }),
+    card('sky1', { depthWords: ['scene:sky'], types: ['Water'] }),
+    card('cave1', { depthWords: ['scene:cave'], types: ['Water'] }),
+  ];
+  const ctx = { cells: cardCells(3, 4, false, new Set<string>()), rows: 3, cols: 4, spread: false, pairs: [] };
+  const res = seatStrata(cards, ctx)!;
+  const row1 = ctx.cells.map((c, i) => (c.row === 1 ? res.seating[i] : null)).filter((c): c is ArrangeCard => !!c).map((c) => c.id);
+  assert.deepEqual(row1, ['char1', 'char2', 'fire3', 'grass1'], 'fire together first, the line leading in stage order, grass after');
+});
+
+test('typed flow: inside a colour group the line leads, then sky before ground before underground', () => {
+  const cards: ArrangeCard[] = [
+    card('w-cave', { types: ['Water'], depthWords: ['scene:cave'] }),
+    card('w-sky', { types: ['Water'], depthWords: ['scene:sky'] }),
+    card('w-line2', { types: ['Water'], evolutionLine: ['magikarp', 'gyarados'], evolutionStage: 2, depthWords: ['scene:cave'] }),
+    card('w-line1', { types: ['Water'], evolutionLine: ['magikarp', 'gyarados'], evolutionStage: 1, depthWords: ['scene:underwater'] }),
+    card('w-ground', { types: ['Water'], depthWords: ['scene:beach'] }),
+    card('f-1', { types: ['Fire'] }),
+    card('f-2', { types: ['Fire'] }),
+  ];
+  const ctx = { cells: cardCells(3, 3, false, new Set<string>()), rows: 3, cols: 3, spread: false, pairs: [] };
+  const res = seatFlow(cards, ctx)!;
+  assert.equal(res.typed, true);
+  const seq = res.seating.filter((c): c is ArrangeCard => !!c).map((c) => c.id);
+  const water = seq.filter((id) => id.startsWith('w-'));
+  assert.deepEqual(water, ['w-line1', 'w-line2', 'w-sky', 'w-ground', 'w-cave']);
+});
+
+test('lines: one line is enough to offer the mode; typed flow ranks level with strata', () => {
+  const cards: ArrangeCard[] = [
+    card('a1', { evolutionLine: ['a', 'b'], evolutionStage: 1, types: ['Fire'] }),
+    card('a2', { evolutionLine: ['a', 'b'], evolutionStage: 2, types: ['Fire'] }),
+    card('x', { types: ['Water'] }),
+    card('y', { types: ['Water'] }),
+  ];
+  const ctx = { cells: cardCells(2, 2, false, new Set<string>()), rows: 2, cols: 2, spread: false, pairs: [] };
+  assert.ok(seatLines(cards, ctx), 'a single two-stage line is offered');
+  const cands = arrangeCandidates({ rows: 2, cols: 2, spread: false, cards });
+  const flow = cands.find((c) => c.mode === 'flow')!;
+  // Both rows pure (fire line, water pair): a perfect typed flow carries no fallback penalty.
+  assert.equal(flow.fit, 1);
+  assert.ok(flow.score >= 3, `typed flow scores like a perfect strata would: ${flow.score}`);
+});

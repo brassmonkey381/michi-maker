@@ -385,6 +385,41 @@ type Ctx = SeatCtx;
 
 const tuningOf = (ctx: Ctx): Tuning => ({ ...DEFAULT_TUNING, ...(ctx.tuning ?? {}) });
 
+/**
+ * EVOLUTION LINES FIRST (owner, 2026-10-22: "evolution lines of course at a high priority"). The
+ * stages of a line present on the page lead the run, adjacent and ascending; `rest` orders what
+ * is left. Used inside a colour group and inside a depth row, so a line never splits for a hue.
+ */
+function linesFirst(xs: readonly ArrangeCard[], rest: (ys: ArrangeCard[]) => ArrangeCard[]): ArrangeCard[] {
+  const byLine = new Map<string, ArrangeCard[]>();
+  for (const c of xs) {
+    const k = lineKey(c);
+    if (k) byLine.set(k, [...(byLine.get(k) ?? []), c]);
+  }
+  const runs = [...byLine.values()]
+    .filter((g) => g.length >= 2)
+    .map((g) => [...g].sort((a, b) => (a.evolutionStage ?? 0) - (b.evolutionStage ?? 0)));
+  const inRun = new Set(runs.flat().map((c) => c.id));
+  return [...runs.flat(), ...rest(xs.filter((c) => !inRun.has(c.id)))];
+}
+
+/** Cards grouped by energy type in colour-wheel order (the frame's colour), each group ordered by `inside`. */
+function byTypeWheel(xs: readonly ArrangeCard[], inside: (ys: ArrangeCard[]) => ArrangeCard[]): ArrangeCard[] {
+  const groups = new Map<string, ArrangeCard[]>();
+  for (const c of xs) groups.set(typeOf(c), [...(groups.get(typeOf(c)) ?? []), c]);
+  return [...groups.entries()]
+    .sort((a, b) => wheelIndex(a[0]) - wheelIndex(b[0]) || a[0].localeCompare(b[0]))
+    .flatMap(([, g]) => inside(g));
+}
+
+/** Sky, then ground, then underground, then free cards; a palette gradient inside each. */
+function depthThenPalette(xs: readonly ArrangeCard[], start: 'dark' | 'light'): ArrangeCard[] {
+  const rank = (c: ArrangeCard) => ({ above: 0, surface: 1, below: 2 })[depthOf(c).depth ?? 'surface'] + (depthOf(c).depth ? 0 : 0.5);
+  const buckets = new Map<number, ArrangeCard[]>();
+  for (const c of xs) buckets.set(rank(c), [...(buckets.get(rank(c)) ?? []), c]);
+  return [...buckets.entries()].sort((a, b) => a[0] - b[0]).flatMap(([, g]) => paletteChain(g, start));
+}
+
 /** Nearest palette neighbour chain from the darkest card: the order the eye reads as one gradient. */
 function paletteChain(cards: readonly ArrangeCard[], start: 'dark' | 'light'): ArrangeCard[] {
   const rest = [...cards].sort((x, y) => (start === 'dark' ? dominant(x).L - dominant(y).L : dominant(y).L - dominant(x).L));
@@ -498,6 +533,8 @@ export interface ModeResult {
   note: string;
   /** What one more card would complete, for the sparing suggestion. Absent when nothing is short. */
   ask?: Ask;
+  /** Flow grouped a windowed page by type: it ranks level with Strata there, not as the fallback. */
+  typed?: boolean;
 }
 
 export type Ask =
@@ -525,6 +562,7 @@ export function bandRows(rows: number): Record<Depth, number[]> {
  */
 export function seatStrata(cards: readonly ArrangeCard[], ctx: Ctx): ModeResult | null {
   const tune = tuningOf(ctx);
+  const windowed = pageArtMix(cards).full === 0;
   const bands: Record<Depth, ArrangeCard[]> = { above: [], surface: [], below: [] };
   const free: ArrangeCard[] = [];
   for (const c of cards) {
@@ -569,10 +607,15 @@ export function seatStrata(cards: readonly ArrangeCard[], ctx: Ctx): ModeResult 
     const take = bands[d].slice(0, idx.length);
     held.push(...bands[d].slice(idx.length));
     // Palette flows left to right; transition cards sit at the ends, where the eye expects an edge.
-    const order = (xs: ArrangeCard[]): ArrangeCard[] =>
+    // Inside a row: on a WINDOWED page the frame colours group first (owner, 2026-10-22:
+    // "windowed cards should favor color groupings, THEN themes / strata"), a line's stages lead
+    // their group, and the chosen palette order settles the rest. A full-art row keeps lines
+    // together and flows by palette.
+    const base = (xs: ArrangeCard[]): ArrangeCard[] =>
       tune.strataOrder === 'hue' ? [...xs].sort((x, y) => hue(x) - hue(y))
         : tune.strataOrder === 'light' ? [...xs].sort((x, y) => dominant(x).L - dominant(y).L)
           : paletteChain(xs, 'dark');
+    const order = (xs: ArrangeCard[]): ArrangeCard[] => (windowed ? byTypeWheel(xs, (g) => linesFirst(g, base)) : linesFirst(xs, base));
     const clean = order(take.filter((c) => !depthOf(c).partly));
     const trans = order(take.filter((c) => depthOf(c).partly));
     const half = Math.ceil(trans.length / 2);
@@ -641,7 +684,7 @@ export function seatLines(cards: readonly ArrangeCard[], ctx: Ctx): ModeResult |
     .filter((g) => g.length >= 2)
     .map((g) => [...g].sort((x, y) => (x.evolutionStage ?? 0) - (y.evolutionStage ?? 0)))
     .sort((x, y) => y.length - x.length);
-  if (runs.length < 2) return null;
+  if (runs.length < 1) return null;
   const singles = [...groups.values()].filter((g) => g.length === 1).flat().sort((x, y) => strength(y) - strength(x));
   const leaves: Leaf[] = ctx.spread ? ['left', 'right'] : ['single'];
   const segs: number[][] = [];
@@ -739,9 +782,11 @@ function seatFlowTyped(cards: readonly ArrangeCard[], ctx: Ctx, tune: Tuning): M
     const t = typeOf(c);
     byType.set(t, [...(byType.get(t) ?? []), c]);
   }
+  // Inside a colour group: the evolution lines first, then sky to underground ("color
+  // groupings, THEN themes / strata"), the art gradient inside each depth.
   const groups = [...byType.entries()]
     .sort((a, b) => wheelIndex(a[0]) - wheelIndex(b[0]) || a[0].localeCompare(b[0]))
-    .map(([type, xs]) => ({ type, cards: paletteChain(xs, tune.flowStart) }));
+    .map(([type, xs]) => ({ type, cards: linesFirst(xs, (ys) => depthThenPalette(ys, tune.flowStart)) }));
   // The page's lines, as cell indices into ctx.cells: its rows, or its columns.
   const linesOf = (byRow: boolean): number[][] => {
     const keyed = new Map<string, number[]>();
@@ -784,7 +829,8 @@ function seatFlowTyped(cards: readonly ArrangeCard[], ctx: Ctx, tune: Tuning): M
     seating: fixed,
     held,
     fit,
-    note: `${names.slice(0, 3).join(', ')}${names.length > 3 ? ' and more' : ''}: each type together in its own ${chosen.byRow ? 'row' : 'column'}, the art flowing inside it`,
+    typed: true,
+    note: `${names.slice(0, 3).join(', ')}${names.length > 3 ? ' and more' : ''}: each type together in its own ${chosen.byRow ? 'row' : 'column'}, lines and depths in order inside it`,
   };
 }
 
@@ -979,7 +1025,8 @@ export function toCandidate(res: ModeResult, mode: ArrangeMode, t: ArtTemplate |
   });
   const artCells = total - ctx.cells.length;
   const W = SCORE_WEIGHTS;
-  const score = MODE_PRIOR[mode] + res.fit * W.fit + pairingScore(t, mode) * W.pairing + (artCells / Math.max(1, total)) * W.art - res.held.length * W.held - open.length * W.open;
+  const prior = mode === 'flow' && res.typed ? MODE_PRIOR.strata : MODE_PRIOR[mode];
+  const score = prior + res.fit * W.fit + pairingScore(t, mode) * W.pairing + (artCells / Math.max(1, total)) * W.art - res.held.length * W.held - open.length * W.open;
   return {
     id: `${t?.id ?? 'page'}:${mode}`,
     template: t,

@@ -66,22 +66,20 @@ export interface ArrangerWeights {
 }
 
 /**
- * The champion. Starting values follow the two lab runs (structure before gradient; lines and
- * colour groups high on windowed pages; art templates welcome; the tray nearly free). Every
- * later change comes from a lab duel the owner decided; see docs/ARRANGE.md.
+ * The champion. Starting values followed the two lab runs before the arranger; every change
+ * since comes from a lab duel the owner decided (docs/ARRANGE.md, "Lab run 3" onward). Run 3
+ * (2026-10-22): depth x2, type x2, lines x0.5, similar x0.5, held x0.5; palette and art stayed.
+ * A card to the tray is cheap but not free: templates must seat half the cards (arrangePage).
  */
 export const ARRANGER_WEIGHTS: ArrangerWeights = {
   palette: 1,
-  similar: 1.5,
+  similar: 0.75,
   rowSimilar: 0.5,
-  depth: 2,
-  lines: 2,
-  type: 1.5,
+  depth: 4,
+  lines: 1,
+  type: 3,
   art: 1,
-  // A card sent to the tray is cheap, not free: with it near zero the arranger emptied a page
-  // into a two-pocket template for the art share (lab build, 2026-10-22). Templates that seat
-  // under half the cards are not offered at all; see arrangePage.
-  held: 0.25,
+  held: 0.125,
   open: 0.3,
 };
 

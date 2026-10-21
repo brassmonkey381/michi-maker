@@ -274,6 +274,22 @@ tray, and the lab's sheet rounds do the same.
 | variants | every knob but one tied in nearly every round; `flowByType` on won 3 of 5 against the plain gradient | `flowByType` stays on; the other defaults stay |
 | misses | Strata 1 of 69 cards (a Shellos at the sea surface whose first word was sky); Flow 3 of 27 | none |
 
+### Lab run 3 (2026-10-22, 36 of 38 rounds; the first duel run, champion against one nudge)
+
+| Nudge | Record | Adopted |
+| --- | --- | --- |
+| depth x2 | 1 won, 1 none | yes: depth 4 |
+| type x2 | 2 won | yes: type 3 |
+| lines x0.5 | 2 won | yes: lines 1 |
+| similar x0.5 | 1 won, 1 equal | yes: similar 0.75 |
+| held x0.5 | 1 won, 1 none | yes: held 0.125 |
+| art x0.5 and art x2 | 2 won and 1 won | both won, so art stays 1 |
+| palette, rowSimilar | ties or lost | unchanged |
+
+Misses: 4 of 33 cards on the arranger's answers (a Hiker and a Skarmory in a sky row on
+clouds-first captions; a rainbow Togekiss; a Patrat on a field). The clouds and rainbow words
+want watching in run 4.
+
 ## Open for the owner
 
 - Add cards: decided, one sparing suggestion per candidate, see above.

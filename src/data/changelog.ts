@@ -131,6 +131,36 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-10-20',
+    title: 'Arrange a page, and a tray for cards between pages',
+    items: [
+      {
+        products: ['michi'],
+        head: 'Arrange: one tap seats the cards a page already has',
+        kind: 'new',
+        area: 'binders',
+        big: true,
+        body:
+          'In the page tools, Arrange reads the cards on a page and proposes one seating, with two '
+          + 'other takes: rows by depth (sky, ground, underground), evolution lines in order, frame '
+          + 'colours grouped on windowed cards, lookalikes side by side, connected art joined. It '
+          + 'offers the art layouts that fit, and one Undo brings the old order back. Single pages '
+          + 'only, and a page that mixes full arts with windowed cards is left as it is.',
+      },
+      {
+        products: ['michi'],
+        head: 'A tray for cards that are in the binder but not on a page',
+        kind: 'new',
+        area: 'binders',
+        big: true,
+        body:
+          'Take a card off a page with the Tray button on its bar, or drag it onto the tray at the '
+          + 'top of the Cards side. Drag it back into any pocket on any page, or tap it then tap a '
+          + 'pocket. Cards an Arrange layout displaces go there too, never lost.',
+      },
+    ],
+  },
+  {
+    date: '2026-10-20',
     title: 'Digimon, Magic, Yu-Gi-Oh! and Cyberpunk in your binders',
     items: [
       {

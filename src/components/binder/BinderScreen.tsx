@@ -16,6 +16,7 @@ import { similarAvailable } from 'tcgscan-browse';
 
 import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
 import { AutoFillSheet } from '@/components/binder/AutoFillSheet';
+import { ArrangeSheet } from '@/components/binder/ArrangeSheet';
 import { ComposeAllSheet } from '@/components/binder/ComposeAllSheet';
 import { BinderGrid, type BinderGridHandle } from '@/components/binder/BinderGrid';
 import {
@@ -339,6 +340,8 @@ export function BinderScreen({
   const [moving, setMoving] = useState<{ pageId: string; slotId: string } | null>(null);
   // "✨ Fill page" sheet (auto-curate around the selected card).
   const [autoFillOpen, setAutoFillOpen] = useState(false);
+  // Arrange sheet: several finished seatings of the cards this page (or spread) already has.
+  const [arrangeOpen, setArrangeOpen] = useState(false);
   // "Find art" sheet: searches tuned to what the open page is about (owner, 2026-10-13).
   const [findArtOpen, setFindArtOpen] = useState(false);
   // Ctrl/Cmd multi-select (web): a set of pocket ids highlighted together; releasing the modifier
@@ -843,6 +846,15 @@ export function BinderScreen({
   // layout that shows them lives in BinderPages.
   const prevPage = idx > 0 ? binder.pages[idx - 1] : null;
   const nextPage = idx < binder.pages.length - 1 ? binder.pages[idx + 1] : null;
+  // The canvas Arrange works on: the open spread in double-sided mode ([odd, odd+1], the same
+  // pairing BinderPages draws; page one faces the cover and stands alone), else this page.
+  const arrangePages: DemoPage[] = (() => {
+    if (!view.doubleSided || idx === 0) return [page];
+    const left = idx % 2 === 1 ? idx : idx - 1;
+    const l = binder.pages[left];
+    const r = binder.pages[left + 1];
+    return l && r && l.rows === r.rows && l.cols === r.cols ? [l, r] : [page];
+  })();
   const slotAtCell = pickerCell
     ? (page.slots.find((s) => s.row === pickerCell.row && s.col === pickerCell.col) ?? null)
     : null;
@@ -2140,6 +2152,9 @@ export function BinderScreen({
           onPress={handleAddPage}
         />
         <IconBtn glyph="⧉" label="Duplicate this page" onPress={handleDuplicatePage} testID="tool-duplicate" />
+        {/* Arrange: the cards this page has, seated several ways (docs/ARRANGE.md). Carries its
+            word like "+ Page" does: a bare glyph for a feature nobody has seen yet is a riddle. */}
+        <IconBtn glyph="☷" word="Arrange" label="Arrange the cards on this page" onPress={() => setArrangeOpen(true)} testID="tool-arrange" />
         {/* Send this page into ANOTHER of your binders (copy, or move it out of this one). */}
         {store.userBinders.some((b) => b.id !== binder.id) ? (
           <IconBtn
@@ -2793,6 +2808,17 @@ export function BinderScreen({
           resizeMax={dockCeiling(artworkDocked ? artworkWidth : 0)}
           docked={pickerDocked}
           dockWidth={pickerWidth}
+        />
+
+        <ArrangeSheet
+          visible={arrangeOpen}
+          pages={arrangePages}
+          onClose={() => setArrangeOpen(false)}
+          onApply={(what, moves, art) => {
+            const moved = store.arrangeSlots(binder.id, moves, art);
+            setSelectedSlotId(null);
+            showToast(moved || art.length ? `${what} · ${moved} pocket${moved === 1 ? '' : 's'} moved` : 'Already seated that way', moved > 0 || art.length > 0);
+          }}
         />
 
         <AutoFillSheet

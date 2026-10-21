@@ -2,7 +2,12 @@
 
 Spec for an **Arrange** button in the binder editor. Status: approved for a v1 on 2026-10-20
 ("we can always move forward with this and make improvements after we see how it turns out").
-Nothing is built yet. The visual demo of each mode on real pages is at
+Built 2026-10-21 as a first version: `src/data/arrange.ts` (pure seating, tests),
+`src/lib/depth.ts` (depth words via the server), `ArrangeSheet.tsx` (the sheet) and an **Arrange**
+button in the page tools; `reseat_slots` (migration 20261021120000) lands a whole rearrangement
+in one transaction. Not yet: holding cards for the next page, the card lookup behind a
+suggestion (the chip names what would complete the row; it does not yet fetch the card), and
+the connected-art embedding proxy. The visual demo of each mode on real pages is at
 https://claude.ai/artifact/LS4NwvX98QTMbqDmLa58ax (owner-private artifact; the generator is in the
 session scratchpad, not this repo). The demo pool is 24 lava cards whose depth comes from their
 tags, not hand labels. Lines marked **[owner]** are decisions that are theirs.

@@ -587,6 +587,20 @@ async function moveOne(id: string, to: { page_id?: string; row_index: number; co
 }
 
 /**
+ * RESEAT MANY POCKETS AT ONCE (Arrange, docs/ARRANGE.md): every move lands in one transaction
+ * through `reseat_slots` (20261021120000), or none does. Pockets may cross to the facing page.
+ * There is no request-by-request fallback on purpose: twenty-four single moves are twenty-four
+ * chances to leave the server between two layouts, which is the failure 20260923120000 ended.
+ */
+export async function reseatSlots(moves: readonly { slotId: string; pageId: string; row: number; col: number }[]): Promise<void> {
+  if (moves.length === 0) return;
+  const landed = await tryRpc('reseat_slots', {
+    p_moves: moves.map((m) => ({ id: m.slotId, page_id: m.pageId, row_index: m.row, col_index: m.col })),
+  });
+  if (!landed) throw new Error('reseat: the server does not have reseat_slots yet (apply 20261021120000)');
+}
+
+/**
  * SWAP TWO POCKETS' CELLS, on one page or across two, as a sequence of UPDATEs that never has two
  * rows on one cell. `a` and `b` carry the cells they END in; `fromA` / `fromB` are the pages they
  * start on. Nothing is deleted, so a failure part way is a failed save, not a lost pocket.

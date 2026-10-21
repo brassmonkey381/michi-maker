@@ -359,6 +359,17 @@ interface BinderStore {
   ) => void;
   moveSlot: (binderId: string, pageId: string, slotId: string, toRow: number, toCol: number) => void;
   swapSlots: (binderId: string, pageId: string, slotIdA: string, slotIdB: string) => void;
+  /**
+   * ARRANGE (docs/ARRANGE.md): reseat many pockets in ONE commit, so a whole-page rearrangement is
+   * one Undo, and ONE server transaction (repo.reseatSlots). Pockets may cross to the facing page
+   * of a spread. `artPanels` adds a template's reserved art gaps (placeholders, no image) on the
+   * same commit. Returns how many pockets moved.
+   */
+  arrangeSlots: (
+    binderId: string,
+    moves: readonly { slotId: string; fromPageId: string; toPageId: string; row: number; col: number }[],
+    artPanels?: readonly { pageId: string; slot: DemoSlot }[],
+  ) => number;
   /** Move (or same-footprint-swap) a slot from one page to another — dragging across the spread. */
   moveSlotAcrossPages: (
     binderId: string,
@@ -2336,6 +2347,57 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     [binders, commit, persist],
   );
 
+  const arrangeSlots = useCallback(
+    (
+      binderId: string,
+      moves: readonly { slotId: string; fromPageId: string; toPageId: string; row: number; col: number }[],
+      artPanels: readonly { pageId: string; slot: DemoSlot }[] = [],
+    ) => {
+      const target = binders.find((binder) => binder.id === binderId);
+      if (!target) return 0;
+      const byId = new Map(moves.map((m) => [m.slotId, m]));
+      const movedSlots = new Map<string, DemoSlot>();
+      for (const p of target.pages) {
+        for (const s of p.slots) {
+          const m = byId.get(s.id);
+          if (m) movedSlots.set(s.id, { ...s, row: m.row, col: m.col });
+        }
+      }
+      if (movedSlots.size === 0 && artPanels.length === 0) return 0;
+      const pageIds = new Set([...moves.map((m) => m.fromPageId), ...moves.map((m) => m.toPageId), ...artPanels.map((a) => a.pageId)]);
+      commit((prev) =>
+        prev.map((binder) =>
+          binder.id === binderId
+            ? {
+                ...binder,
+                pages: binder.pages.map((p) => {
+                  if (!pageIds.has(p.id)) return p;
+                  // Pockets that leave this page, pockets that stay (at their new cell), pockets
+                  // that arrive from the facing page, then the template's art gaps.
+                  const kept = p.slots.filter((s) => {
+                    const m = byId.get(s.id);
+                    return !m || m.toPageId === p.id;
+                  }).map((s) => movedSlots.get(s.id) ?? s);
+                  const arriving = moves
+                    .filter((m) => m.toPageId === p.id && m.fromPageId !== p.id)
+                    .map((m) => movedSlots.get(m.slotId))
+                    .filter((s): s is DemoSlot => !!s);
+                  const art = artPanels.filter((a) => a.pageId === p.id).map((a) => a.slot);
+                  return { ...p, slots: [...kept, ...arriving, ...art] };
+                }),
+              }
+            : binder,
+        ),
+      );
+      if (!target.isExample) {
+        persist(() => repo.reseatSlots(moves.map((m) => ({ slotId: m.slotId, pageId: m.toPageId, row: m.row, col: m.col }))), target.id);
+        for (const a of artPanels) persist(() => repo.upsertSlot(a.pageId, a.slot), target.id);
+      }
+      return movedSlots.size;
+    },
+    [binders, commit, persist],
+  );
+
   /**
    * Move a slot from one page to another (drag across the edit spread). If the destination cell
    * holds a same-footprint occupant, the two swap pages; if it's free, the slot moves; otherwise
@@ -2606,6 +2668,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       placeArtPanels,
       moveSlot,
       swapSlots,
+      arrangeSlots,
       moveSlotAcrossPages,
       removeSlot,
       mergeSlots,
@@ -2665,6 +2728,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       placeArtPanels,
       moveSlot,
       swapSlots,
+      arrangeSlots,
       moveSlotAcrossPages,
       removeSlot,
       mergeSlots,

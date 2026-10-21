@@ -1,0 +1,328 @@
+/**
+ * ARRANGE SHEET: several finished layouts for the cards a page already has (docs/ARRANGE.md).
+ *
+ * One button on a page or spread opens this. It shows the page as it is now first, so looking
+ * costs nothing, then four to six candidates as thumbnails of the actual cards in the actual
+ * pockets, each named by its template and mode with a one-line reason the user can check against
+ * the picture. Tapping one reseats the page in ONE store commit (one Undo) and one server
+ * transaction (reseat_slots). Hand placements made afterwards are never overridden: Arrange runs
+ * again by choice.
+ *
+ * WHAT IT READS. The seating itself is `data/arrange` (pure). This sheet only gathers the facts:
+ * the catalog record for each pocket (line, stage, illustrator, set, number, rarity, full-art
+ * kind), each card's depth words from the server (`lib/depth`, which sends the vocabulary and
+ * gets back a subset of it, so no tag reaches the device), and the palette from the on-device
+ * colour index when it is loaded. A card with none of these is still seated: it is free in Strata,
+ * single in Lines, mid grey in Flow.
+ *
+ * TEMPLATES ARE OFFERED ONLY ON A PAGE WITH NO ART. A template reserves pockets for art panels;
+ * on a page that already has art the layout is the owner's, so Arrange keeps every art pocket
+ * where it is and seats the cards around it. Templates with fewer card pockets than the page has
+ * cards are not offered either (the editor cannot yet carry a held card to the next page).
+ *
+ * EVERY PICK IS RECORDED (template, mode, rank shown, rank picked) so the weights can be tuned
+ * later from what the owner actually chooses.
+ */
+import { useEffect, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Image } from 'expo-image';
+import { cardThumbUrl, getColorIndex, loadColorIndex } from 'tcgscan-browse';
+
+import { LogoLoader } from '@/components/brand/LogoLoader';
+import { ThemedText } from '@/components/themed-text';
+import { DialogCard } from '@/components/ui/DialogCard';
+import { FontSize, Palette, Radius, Spacing, Weight } from '@/constants/theme';
+import {
+  type ArrangeCard,
+  type Candidate,
+  type Cell,
+  type Leaf,
+  DEPTH_LABEL,
+  arrangeCandidates,
+  cellKey,
+  movesFor,
+} from '@/data/arrange';
+import { ART_TEMPLATES, templateArtSlots } from '@/data/artTemplates';
+import { slotCells, uuidv4, type DemoPage, type DemoSlot } from '@/data/binderTypes';
+import { useCatalog } from '@/hooks/use-catalog';
+import { track } from '@/lib/analytics';
+import { depthOfCards } from '@/lib/depth';
+
+/** A card pocket as Arrange sees it: the pocket is the unit (two pockets may hold one card id). */
+interface Pocket {
+  slot: DemoSlot;
+  pageId: string;
+  leaf: Leaf;
+}
+
+export type ArrangeMove = { slotId: string; fromPageId: string; toPageId: string; row: number; col: number };
+
+export function ArrangeSheet({
+  visible,
+  pages,
+  onClose,
+  onApply,
+}: {
+  visible: boolean;
+  /** The page, or the two pages of an open spread, left then right. */
+  pages: readonly DemoPage[];
+  onClose: () => void;
+  /** The store write: the moves and any template art gaps, applied as one commit by the screen. */
+  onApply: (what: string, moves: ArrangeMove[], art: { pageId: string; slot: DemoSlot }[]) => void;
+}) {
+  const { catalog } = useCatalog(visible);
+  const spread = pages.length === 2;
+  const rows = pages[0]?.rows ?? 3;
+  const cols = pages[0]?.cols ?? 3;
+
+  // The pockets Arrange may seat (1x1 cards) and the cells it must leave alone (art, big pieces).
+  const { pockets, reserved, hasArt } = useMemo(() => {
+    const ps: Pocket[] = [];
+    const rs = new Set<string>();
+    let art = false;
+    pages.forEach((p, i) => {
+      const leaf: Leaf = spread ? (i === 0 ? 'left' : 'right') : 'single';
+      for (const s of p.slots) {
+        if (s.type === 'card' && s.cardId && s.rowSpan === 1 && s.colSpan === 1) ps.push({ slot: s, pageId: p.id, leaf });
+        else {
+          if (s.type === 'artwork') art = true;
+          for (const k of slotCells(s)) {
+            const [r, c] = k.split(',').map(Number);
+            rs.add(cellKey({ leaf, row: r, col: c }));
+          }
+        }
+      }
+    });
+    return { pockets: ps, reserved: rs, hasArt: art };
+  }, [pages, spread]);
+
+  // Depth words from the server and the palette index, gathered once per open. The answer is
+  // keyed by the cards it was asked for, so a page edited while the sheet was closed is read again
+  // rather than seated on a stale answer.
+  const idsKey = pockets.map((p) => p.slot.cardId).join(',');
+  const [depthAnswer, setDepthAnswer] = useState<{ key: string; map: Map<string, string[]> } | null>(null);
+  const [paletteTick, setPaletteTick] = useState(0);
+  useEffect(() => {
+    if (!visible) return;
+    let active = true;
+    const ids = [...new Set(pockets.map((p) => p.slot.cardId!))];
+    void depthOfCards(ids).then((m) => {
+      if (active) setDepthAnswer({ key: idsKey, map: m });
+    });
+    if (!getColorIndex()) void loadColorIndex().then(() => active && setPaletteTick((t) => t + 1));
+    track('arrange_open', { pockets: pockets.length, spread, hasArt });
+    return () => {
+      active = false;
+    };
+  }, [visible, pockets, idsKey, spread, hasArt]);
+  const depth = depthAnswer && depthAnswer.key === idsKey ? depthAnswer.map : null;
+
+  const candidates = useMemo<Candidate[] | null>(() => {
+    if (!visible || !catalog || !depth || pockets.length < 2) return null;
+    const index = getColorIndex();
+    const cards: ArrangeCard[] = pockets.map((p) => {
+      const id = p.slot.cardId!;
+      const c = catalog.getCard(id);
+      const words = depth.get(id) ?? c?.sceneTags ?? [];
+      return {
+        id: p.slot.id,
+        name: c?.name ?? id,
+        depthWords: words,
+        evolutionLine: c?.evolutionLine,
+        evolutionStage: c?.evolutionStage,
+        illustrator: c?.illustrator || undefined,
+        setId: c?.setId,
+        number: c?.number,
+        fullArtKind: c?.fullArtKind,
+        rarity: c?.rarity,
+        palette: index?.has(id) ? index.colors(id, 'art') : undefined,
+      };
+    });
+    const current = new Map<string, Cell>();
+    for (const p of pockets) current.set(p.slot.id, { leaf: p.leaf, row: p.slot.row, col: p.slot.col });
+    const templates = hasArt ? [] : ART_TEMPLATES.filter((t) => t.rows === rows && t.cols === cols && t.spread === spread);
+    return arrangeCandidates({ rows, cols, spread, cards, reserved, current, templates });
+    // paletteTick re-reads the index once it has loaded; it carries no value of its own.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, catalog, depth, pockets, reserved, hasArt, rows, cols, spread, paletteTick]);
+
+  const cardIdOf = useMemo(() => new Map(pockets.map((p) => [p.slot.id, p.slot.cardId!])), [pockets]);
+  const pageOf = (leaf: Leaf): DemoPage => (leaf === 'right' ? pages[1] : pages[0]);
+
+  const [applying, setApplying] = useState(false);
+  const apply = (cand: Candidate, rank: number) => {
+    if (applying || !candidates) return;
+    const current = new Map<string, Cell>();
+    for (const p of pockets) current.set(p.slot.id, { leaf: p.leaf, row: p.slot.row, col: p.slot.col });
+    const moves = movesFor(cand, current).map((m) => {
+      const from = pockets.find((p) => p.slot.id === m.cardId)!;
+      return { slotId: m.cardId, fromPageId: from.pageId, toPageId: pageOf(m.cell.leaf).id, row: m.cell.row, col: m.cell.col };
+    });
+    const art = cand.template
+      ? pages.flatMap((p, i) => {
+          const leaf: 'left' | 'right' | undefined = spread ? (i === 0 ? 'left' : 'right') : undefined;
+          return templateArtSlots(cand.template!, uuidv4, leaf).map((slot) => ({ pageId: p.id, slot }));
+        })
+      : [];
+    track('arrange_pick', {
+      template: cand.template?.id ?? 'page',
+      mode: cand.mode,
+      rank,
+      shown: candidates.length - 1,
+      moves: moves.length,
+      spread,
+    });
+    setApplying(true);
+    onApply(cand.name, moves, art);
+    onClose();
+    setApplying(false);
+  };
+
+  return (
+    <DialogCard visible={visible} title={spread ? 'Arrange this spread' : 'Arrange this page'} onClose={onClose} maxWidth={640} scroll={false}>
+      <ThemedText type="small" themeColor="textSecondary" style={styles.lede}>
+        The same cards, seated so the {spread ? 'spread' : 'page'} reads. Tap one to use it; Undo brings the old order back.
+      </ThemedText>
+      {pockets.length < 2 ? (
+        <ThemedText type="small" themeColor="textSecondary" style={styles.empty}>
+          Arrange needs at least two cards on the {spread ? 'spread' : 'page'}.
+        </ThemedText>
+      ) : !candidates ? (
+        <View style={styles.loading}>
+          <LogoLoader />
+          <ThemedText type="small" themeColor="textSecondary">
+            Reading the cards…
+          </ThemedText>
+        </View>
+      ) : (
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.grid}>
+          {candidates.map((cand, i) => (
+            <Pressable
+              key={cand.id}
+              onPress={() => (cand.mode === 'current' ? onClose() : apply(cand, i))}
+              accessibilityRole="button"
+              accessibilityLabel={`${cand.name}. ${cand.reason}`}
+              style={({ pressed }) => [styles.card, cand.mode === 'current' && styles.cardCurrent, pressed && styles.pressed]}>
+              <Preview cand={cand} rows={rows} cols={cols} spread={spread} cardIdOf={cardIdOf} reserved={reserved} />
+              <ThemedText type="smallBold" numberOfLines={1} style={styles.cardTitle}>
+                {cand.name}
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary" numberOfLines={3} style={styles.cardDesc}>
+                {cand.reason}
+              </ThemedText>
+              <View style={styles.chips}>
+                {cand.artCells > reserved.size ? <Chip text={`${cand.artCells - reserved.size} more for art`} /> : null}
+                {cand.open.length ? <Chip text={`${cand.open.length} open`} /> : null}
+                {cand.ask ? <Chip accent text={askText(cand)} /> : null}
+              </View>
+            </Pressable>
+          ))}
+        </ScrollView>
+      )}
+    </DialogCard>
+  );
+}
+
+/** The one sparing suggestion, as a chip: what a single card would complete. Not a change. */
+function askText(c: Candidate): string {
+  if (!c.ask) return '';
+  if (c.ask.kind === 'band') return `one more ${DEPTH_LABEL[c.ask.depth]} card fills the row`;
+  const species = c.ask.species.charAt(0).toUpperCase() + c.ask.species.slice(1);
+  return `a ${species} would complete the line`;
+}
+
+function Chip({ text, accent }: { text: string; accent?: boolean }) {
+  return (
+    <View style={[styles.chip, accent && styles.chipAccent]}>
+      <ThemedText type="small" style={[styles.chipText, accent && styles.chipTextAccent]}>
+        {text}
+      </ThemedText>
+    </View>
+  );
+}
+
+/** The candidate as a tiny page or spread: real thumbnails in the pockets, hatching where art goes. */
+function Preview({
+  cand,
+  rows,
+  cols,
+  spread,
+  cardIdOf,
+  reserved,
+}: {
+  cand: Candidate;
+  rows: number;
+  cols: number;
+  spread: boolean;
+  cardIdOf: ReadonlyMap<string, string>;
+  reserved: ReadonlySet<string>;
+}) {
+  const at = new Map(cand.placements.map((p) => [cellKey(p.cell), p.cardId]));
+  const art = cand.template ? new Set<string>() : reserved;
+  if (cand.template) {
+    for (const p of cand.template.panels) {
+      const leaf: Leaf = spread ? (p.page ?? 'left') : 'single';
+      for (let r = p.row; r < p.row + p.rowSpan; r += 1) for (let c = p.col; c < p.col + p.colSpan; c += 1) (art as Set<string>).add(cellKey({ leaf, row: r, col: c }));
+    }
+  }
+  const leaves: Leaf[] = spread ? ['left', 'right'] : ['single'];
+  return (
+    <View style={styles.previewRow}>
+      {leaves.map((leaf) => (
+        <View key={leaf} style={[styles.leaf, { aspectRatio: (cols * 2.5) / (rows * 3.5) }]}>
+          {Array.from({ length: rows * cols }, (_, i) => {
+            const cell: Cell = { leaf, row: Math.floor(i / cols), col: i % cols };
+            const k = cellKey(cell);
+            const slotId = at.get(k);
+            const cardId = slotId ? cardIdOf.get(slotId) : undefined;
+            return (
+              <View key={k} style={[styles.cell, { width: `${100 / cols}%` }]}>
+                {cardId ? (
+                  <Image source={{ uri: cardThumbUrl(cardId, 245) }} style={styles.cellImg} contentFit="cover" transition={0} />
+                ) : art.has(k) ? (
+                  <View style={styles.cellArt} />
+                ) : (
+                  <View style={styles.cellOpen} />
+                )}
+              </View>
+            );
+          })}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  lede: { marginBottom: Spacing.three, lineHeight: 18 },
+  empty: { paddingVertical: Spacing.four },
+  loading: { paddingVertical: Spacing.five, alignItems: 'center', gap: Spacing.two },
+  scroll: { maxHeight: 520 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three, paddingBottom: Spacing.two },
+  card: {
+    flexGrow: 1,
+    flexBasis: 270,
+    maxWidth: 300,
+    padding: Spacing.two,
+    borderRadius: Radius.panel,
+    borderWidth: 1,
+    borderColor: Palette.controlBorder,
+    backgroundColor: Palette.panelAlt,
+    gap: Spacing.one,
+  },
+  cardCurrent: { borderStyle: 'dashed' },
+  pressed: { opacity: 0.85 },
+  previewRow: { flexDirection: 'row', gap: 3 },
+  leaf: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', borderRadius: Radius.sm, overflow: 'hidden', backgroundColor: Palette.hairline },
+  cell: { aspectRatio: 2.5 / 3.5, padding: 1 },
+  cellImg: { width: '100%', height: '100%', borderRadius: 2 },
+  cellArt: { width: '100%', height: '100%', borderRadius: 2, backgroundColor: Palette.accentSoft, opacity: 0.8 },
+  cellOpen: { width: '100%', height: '100%', borderRadius: 2, borderWidth: 1, borderStyle: 'dashed', borderColor: Palette.controlBorder },
+  cardTitle: { marginTop: Spacing.one },
+  cardDesc: { lineHeight: 15 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 2 },
+  chip: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: Radius.tag, backgroundColor: Palette.hairline },
+  chipAccent: { backgroundColor: Palette.accent },
+  chipText: { fontSize: FontSize.tag, fontWeight: Weight.medium },
+  chipTextAccent: { color: Palette.accentText },
+});

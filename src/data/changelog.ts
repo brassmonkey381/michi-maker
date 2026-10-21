@@ -130,6 +130,53 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-10-20',
+    title: 'Digimon, Magic, Yu-Gi-Oh! and Cyberpunk in your binders',
+    items: [
+      {
+        products: ['michi'],
+        head: 'Four more games in your binders',
+        kind: 'new',
+        area: 'cards',
+        big: true,
+        body:
+          'Digimon, Magic: The Gathering, Yu-Gi-Oh! and Cyberpunk TCG cards can go in a binder, with '
+          + 'names, images and prices. Magic and Yu-Gi-Oh! start with about 13,000 pictured cards '
+          + 'each, not their whole catalogues.',
+      },
+      {
+        products: ['michi'],
+        head: 'Theme, colour and similarity search for the new games',
+        kind: 'new',
+        area: 'browse',
+        big: true,
+        body:
+          'Riftbound, Digimon, Magic and Yu-Gi-Oh! now have the foundations of theme search, colour '
+          + 'search and More like this (colour and similarity on PRO), with Cyberpunk’s close behind. '
+          + 'Theme search covers a few hundred of each game’s richest artworks so far.',
+      },
+      {
+        products: ['michi'],
+        head: 'More of each game is on the way',
+        kind: 'better',
+        area: 'cards',
+        body:
+          'More cards for every new game, and theme tags for the rest of their artwork, are planned. '
+          + 'Sealed products for these games stay out of the card browser.',
+      },
+      {
+        products: ['tcgscan'],
+        head: 'First scanner models for five new games',
+        kind: 'new',
+        area: 'scanning',
+        body:
+          'Riftbound, Digimon, Magic: The Gathering and Yu-Gi-Oh! have first scanner models, with '
+          + 'Cyberpunk TCG next. They stay out of the game chips for now: more cards and better '
+          + 'scanning models are planned before they are switched on.',
+      },
+    ],
+  },
+  {
     date: '2026-10-19',
     title: 'Riftbound cards, and a theme toolbar that fits a phone',
     items: [

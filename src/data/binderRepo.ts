@@ -591,6 +591,38 @@ export async function upsertSlot(pageId: string, slot: DemoSlot): Promise<void> 
 const PARK_ROW = 1_000_000;
 
 /**
+ * STRAYS OUT OF THE WAY BEFORE A SNAPSHOT WRITE. A snapshot (undo, redo) upserts the pockets a page
+ * had and prunes the rest afterwards, in a later request; but a row that is about to be pruned may
+ * still hold a cell the snapshot gives to another pocket, and the one-pocket-per-cell rule is
+ * checked at the end of the upsert's own transaction, where the stray still sits there. That is
+ * exactly an Undo of an Arrange that used an art template: the placeholders the template put in
+ * are the strays, the cards coming back want their cells, and the write was refused (owner,
+ * 2026-10-22: "UNDOing a chosen arrangement leads to that reload error"). So the strays are PARKED
+ * first, by UPDATE (nothing destroyed), at rows no page reaches; the prune then removes them, and
+ * a failed upsert puts them back where they were.
+ */
+async function parkStrays(pages: readonly { id: string; keep: readonly string[] }[]): Promise<{ id: string; row_index: number; col_index: number }[]> {
+  const supabase = requireSupabase();
+  const parked: { id: string; row_index: number; col_index: number }[] = [];
+  for (const page of pages) {
+    const base = supabase.from('binder_slots').select('id, row_index, col_index').eq('page_id', page.id);
+    const { data, error } = page.keep.length > 0 ? await base.not('id', 'in', `(${page.keep.join(',')})`) : await base;
+    if (error) throw new Error(`replace slots (strays): ${error.message}`);
+    for (const row of (data ?? []) as { id: string; row_index: number; col_index: number }[]) {
+      const { error: pErr } = await supabase.from('binder_slots').update({ row_index: PARK_ROW + parked.length, col_index: 0 }).eq('id', row.id);
+      if (pErr) throw new Error(`replace slots (park): ${pErr.message}`);
+      parked.push(row);
+    }
+  }
+  return parked;
+}
+
+async function unparkStrays(parked: readonly { id: string; row_index: number; col_index: number }[]): Promise<void> {
+  const supabase = requireSupabase();
+  for (const row of parked) await supabase.from('binder_slots').update({ row_index: row.row_index, col_index: row.col_index }).eq('id', row.id);
+}
+
+/**
  * Call an RPC, and say whether it was THERE. A web deploy and a migration are two separate steps
  * in this project, in either order, so a bundle that assumes a function exists is a bundle that
  * can break every drag for as long as the gap lasts. PGRST202 is PostgREST's "no such function";
@@ -784,10 +816,14 @@ export async function replaceBinder(binder: DemoBinder): Promise<void> {
 
       const slots = binder.pages.flatMap((page) => page.slots.map((slot) => slotRow(slot, page.id)));
       if (slots.length > 0) {
+        const parked = await parkStrays(binder.pages.map((page) => ({ id: page.id, keep: page.slots.map((slot) => slot.id) })));
         const { error: sErr } = await supabase
           .from('binder_slots')
           .upsert(slots, { onConflict: 'id' });
-        if (sErr) throw new Error(`replace slots: ${sErr.message}`);
+        if (sErr) {
+          await unparkStrays(parked);
+          throw new Error(`replace slots: ${sErr.message}`);
+        }
       }
     }
     await writeTray(binder);
@@ -881,8 +917,12 @@ export async function replaceBinderPages(binder: DemoBinder, pageIds: string[], 
   if (pErr) throw new Error(`replace pages (upsert): ${pErr.message}`);
   const slots = pages.flatMap(({ page }) => page.slots.map((slot) => slotRow(slot, page.id)));
   if (slots.length > 0) {
+    const parked = await parkStrays(pages.map(({ page }) => ({ id: page.id, keep: page.slots.map((slot) => slot.id) })));
     const { error: sErr } = await supabase.from('binder_slots').upsert(slots, { onConflict: 'id' });
-    if (sErr) throw new Error(`replace slots: ${sErr.message}`);
+    if (sErr) {
+      await unparkStrays(parked);
+      throw new Error(`replace slots: ${sErr.message}`);
+    }
   }
   if (tray) await writeTray(binder);
   // Prune only within the pages written, and only after their new state is in the table.

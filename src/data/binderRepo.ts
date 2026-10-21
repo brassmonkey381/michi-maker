@@ -72,10 +72,17 @@ function pageRow(page: DemoPage, binderId: string, position: number): Tables['bi
   };
 }
 
-function slotRow(slot: DemoSlot, pageId: string): Tables['binder_slots']['Insert'] {
+/**
+ * A page row names its page. A TRAY row names its binder instead and no page (the migration's
+ * check constraint wants exactly one of the two), with `col` as its position in the tray. The
+ * binder_id key is only ever sent for a tray row, so a page write still works on a database the
+ * tray migration (20261022120000) has not reached.
+ */
+function slotRow(slot: DemoSlot, pageId: string | null, binderId?: string): Tables['binder_slots']['Insert'] {
   return {
     id: slot.id,
     page_id: pageId,
+    ...(pageId === null && binderId ? { binder_id: binderId } : {}),
     row_index: slot.row,
     col_index: slot.col,
     row_span: slot.rowSpan,
@@ -147,6 +154,8 @@ interface PageRowIn {
 
 interface BinderRowIn {
   id: string;
+  /** The tray: slot rows that name this binder and no page. Only the owner's own load asks for them. */
+  binder_slots?: SlotRowIn[] | null;
   title: string;
   description: string | null;
   layout_style: MichiLayoutStyle;
@@ -263,8 +272,16 @@ function mapBinder(row: BinderRowIn): DemoBinder {
     madePublicAt: row.made_public_at ?? undefined,
     updatedAt: lastEditedAt(row),
     pages,
+    ...(row.binder_slots?.length
+      ? { tray: [...row.binder_slots].sort((a, b) => a.col_index - b.col_index).map(mapSlot) }
+      : {}),
   };
 }
+
+/** The owner's load, with each binder's tray embedded through binder_slots.binder_id. */
+const OWNER_SELECT = '*, binder_pages(*, binder_slots(*)), binder_slots!binder_slots_binder_id_fkey(*)';
+/** The same load on a database without the tray migration: everything but the trays. */
+const OWNER_SELECT_NO_TRAY = '*, binder_pages(*, binder_slots(*))';
 
 // --- reads -----------------------------------------------------------------
 
@@ -274,15 +291,21 @@ export async function fetchUserBinders(ownerId: string): Promise<DemoBinder[]> {
   // "owner can view" OR "public is viewable" — so an unfiltered select returns the caller's own
   // binders *plus every public binder in the system*. Without this eq(), another user's public
   // binder leaks into this user's "Your binders" list (the "same binder under both accounts" bug).
-  const { data, error } = await supabase
-    .from('binders')
-    .select('*, binder_pages(*, binder_slots(*))')
-    .eq('owner_id', ownerId)
-    // Archived binders (over-cap reclaim after a downgrade — see docs/PRO-TRIALS.md) are hidden
-    // from the owner's grid and every cap count until they upgrade and restore them.
-    .is('archived_at', null)
-    .order('created_at', { ascending: true })
-    .order('position', { referencedTable: 'binder_pages', ascending: true });
+  const load = (select: string) =>
+    supabase
+      .from('binders')
+      .select(select)
+      .eq('owner_id', ownerId)
+      // Archived binders (over-cap reclaim after a downgrade — see docs/PRO-TRIALS.md) are hidden
+      // from the owner's grid and every cap count until they upgrade and restore them.
+      .is('archived_at', null)
+      .order('created_at', { ascending: true })
+      .order('position', { referencedTable: 'binder_pages', ascending: true });
+  let { data, error } = await load(OWNER_SELECT);
+  // A web deploy and a migration are two separate steps in either order: until the tray
+  // migration is applied the embed names a relationship that does not exist, and the shelf
+  // must still load. Trays are then empty, which is also what they are.
+  if (error && /binder_slots_binder_id_fkey|relationship/i.test(error.message)) ({ data, error } = await load(OWNER_SELECT_NO_TRAY));
   if (error) throw new Error(`load binders: ${error.message}`);
   return ((data ?? []) as unknown as BinderRowIn[]).map(mapBinder);
 }
@@ -387,8 +410,13 @@ export async function insertBinder(binder: DemoBinder): Promise<void> {
         if (slotErr) throw new Error(`insert slots: ${slotErr.message}`);
       }
     }
+    const tray = (binder.tray ?? []).map((slot) => slotRow(slot, null, binder.id));
+    if (tray.length > 0) {
+      const { error: trayErr } = await supabase.from('binder_slots').insert(tray);
+      if (trayErr) throw new Error(`insert tray: ${trayErr.message}`);
+    }
   } catch (e) {
-    // The binder row owns its pages by cascade, so removing it removes everything that landed.
+    // The binder row owns its pages and its tray by cascade, so removing it removes everything that landed.
     await supabase.from('binders').delete().eq('id', binder.id);
     throw e;
   }
@@ -592,13 +620,22 @@ async function moveOne(id: string, to: { page_id?: string; row_index: number; co
  * There is no request-by-request fallback on purpose: twenty-four single moves are twenty-four
  * chances to leave the server between two layouts, which is the failure 20260923120000 ended.
  */
-export async function reseatSlots(moves: readonly { slotId: string; pageId: string; row: number; col: number }[]): Promise<void> {
+export async function reseatSlots(moves: readonly ReseatMove[]): Promise<void> {
   if (moves.length === 0) return;
   const landed = await tryRpc('reseat_slots', {
-    p_moves: moves.map((m) => ({ id: m.slotId, page_id: m.pageId, row_index: m.row, col_index: m.col })),
+    p_moves: moves.map((m) =>
+      m.pageId === null
+        ? { id: m.slotId, page_id: null, binder_id: m.binderId, row_index: 0, col_index: m.col }
+        : { id: m.slotId, page_id: m.pageId, binder_id: null, row_index: m.row, col_index: m.col },
+    ),
   });
   if (!landed) throw new Error('reseat: the server does not have reseat_slots yet (apply 20261021120000)');
 }
+
+/** A pocket's destination: a cell on a page, or a position in the binder's tray (pageId null). */
+export type ReseatMove =
+  | { slotId: string; pageId: string; row: number; col: number }
+  | { slotId: string; pageId: null; binderId: string; row: 0; col: number };
 
 /**
  * SWAP TWO POCKETS' CELLS, on one page or across two, as a sequence of UPDATEs that never has two
@@ -749,6 +786,7 @@ export async function replaceBinder(binder: DemoBinder): Promise<void> {
         if (sErr) throw new Error(`replace slots: ${sErr.message}`);
       }
     }
+    await writeTray(binder);
   } catch (e) {
     // Everything is still here — put the pages back where they were and let the caller hear it.
     // A failed save that leaves the binder exactly as it was is the whole point of this ordering.
@@ -774,6 +812,29 @@ export async function replaceBinder(binder: DemoBinder): Promise<void> {
     const { error } = ids.length > 0 ? await query.not('id', 'in', `(${ids.join(',')})`) : await query;
     if (error) throw new Error(`replace slots (prune): ${error.message}`);
   }
+  await pruneTray(binder);
+}
+
+/**
+ * The tray as the snapshot has it: upsert what is there, and (after) delete what is not. A binder
+ * that never had a tray (`tray` absent) writes nothing and prunes nothing, so a snapshot taken on
+ * a database without the tray migration cannot fail on a column it has never heard of.
+ */
+async function writeTray(binder: DemoBinder): Promise<void> {
+  if (!binder.tray || binder.tray.length === 0) return;
+  const supabase = requireSupabase();
+  const rows = binder.tray.map((slot) => slotRow(slot, null, binder.id));
+  const { error } = await supabase.from('binder_slots').upsert(rows, { onConflict: 'id' });
+  if (error) throw new Error(`replace tray: ${error.message}`);
+}
+
+async function pruneTray(binder: DemoBinder): Promise<void> {
+  if (!binder.tray) return;
+  const supabase = requireSupabase();
+  const ids = binder.tray.map((slot) => slot.id);
+  const query = supabase.from('binder_slots').delete().eq('binder_id', binder.id);
+  const { error } = ids.length > 0 ? await query.not('id', 'in', `(${ids.join(',')})`) : await query;
+  if (error) throw new Error(`replace tray (prune): ${error.message}`);
 }
 
 /**
@@ -785,7 +846,7 @@ export async function replaceBinder(binder: DemoBinder): Promise<void> {
  * Positions are written as they stand; the caller guarantees the page list (ids and order) is
  * unchanged, so no position can collide and nothing needs parking.
  */
-export async function replaceBinderPages(binder: DemoBinder, pageIds: string[], meta: boolean): Promise<void> {
+export async function replaceBinderPages(binder: DemoBinder, pageIds: string[], meta: boolean, tray = false): Promise<void> {
   const supabase = requireSupabase();
   if (meta) {
     const { error } = await supabase.from('binders').upsert(binderRow(binder), { onConflict: 'id' });
@@ -793,7 +854,16 @@ export async function replaceBinderPages(binder: DemoBinder, pageIds: string[], 
   }
   const wanted = new Set(pageIds);
   const pages = binder.pages.map((page, index) => ({ page, index })).filter(({ page }) => wanted.has(page.id));
-  if (pages.length === 0) return;
+  // A pocket moving between a page and the tray changes both; the pages are written first so the
+  // row exists on its page before the tray prune could see it as gone, and the tray prune runs
+  // last for the same reason in the other direction (the row is already a tray row by then).
+  if (pages.length === 0) {
+    if (tray) {
+      await writeTray(binder);
+      await pruneTray(binder);
+    }
+    return;
+  }
   const { error: pErr } = await supabase
     .from('binder_pages')
     .upsert(pages.map(({ page, index }) => pageRow(page, binder.id, index)), { onConflict: 'id' });
@@ -803,6 +873,7 @@ export async function replaceBinderPages(binder: DemoBinder, pageIds: string[], 
     const { error: sErr } = await supabase.from('binder_slots').upsert(slots, { onConflict: 'id' });
     if (sErr) throw new Error(`replace slots: ${sErr.message}`);
   }
+  if (tray) await writeTray(binder);
   // Prune only within the pages written, and only after their new state is in the table.
   for (const { page } of pages) {
     const ids = page.slots.map((slot) => slot.id);
@@ -810,6 +881,7 @@ export async function replaceBinderPages(binder: DemoBinder, pageIds: string[], 
     const { error } = ids.length > 0 ? await query.not('id', 'in', `(${ids.join(',')})`) : await query;
     if (error) throw new Error(`replace slots (prune): ${error.message}`);
   }
+  if (tray) await pruneTray(binder);
 }
 
 /**

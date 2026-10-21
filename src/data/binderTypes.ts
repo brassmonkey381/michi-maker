@@ -417,6 +417,16 @@ export interface DemoBinder {
    * example binder.
    */
   updatedAt?: string;
+  /**
+   * THE TRAY (owner, 2026-10-21): cards that are in this binder but on no page. A card taken off
+   * a page while rearranging, or displaced from a full page by an Arrange template, waits here
+   * and goes back into any pocket on any page. Each entry is an ordinary card slot whose `col` is
+   * its position in the tray and whose `row` is 0; on the server it is the same binder_slots row
+   * with page_id null and binder_id set, so it keeps its id and its claim stamp across the move.
+   * Owner-only: never loaded for a public viewer, never counted by anything that reads pages.
+   * Absent on a binder loaded before the tray existed or on an example binder; treat as empty.
+   */
+  tray?: DemoSlot[];
   /** Total likes this binder has received. Populated for Featured + when viewing a public binder. */
   likeCount?: number;
   /**
@@ -691,6 +701,8 @@ export function cloneBinder(binder: DemoBinder, overrides?: Partial<DemoBinder>)
         id: uuidv4(),
       })),
     })),
+    // The tray comes along the same way: a copy of the cards waiting, with no claim on anything.
+    tray: binder.tray?.length ? duplicatedSlots(binder.tray) : undefined,
     ...overrides,
   };
 }
@@ -721,6 +733,7 @@ export function remintBinderIds(binder: DemoBinder): DemoBinder {
       id: newPageIds.get(page.id) as string,
       slots: movedSlots(page.slots),
     })),
+    tray: binder.tray?.length ? movedSlots(binder.tray) : undefined,
     // Empty stays absent: [] and undefined both mean "auto (fullest pages)".
     sharePageIds: sharePageIds?.length ? sharePageIds : undefined,
   };

@@ -22,6 +22,7 @@ module.exports = defineConfig([
       "src/components/binder/BinderGrid.tsx",
       "src/components/binder/PageStrip.tsx",
       "src/components/binder/SliceTray.tsx",
+      "src/components/binder/CardTray.tsx",
     ],
     rules: { "react-hooks/immutability": "off" },
   },

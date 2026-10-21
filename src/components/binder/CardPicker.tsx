@@ -110,6 +110,8 @@ interface CardPickerProps {
   /** Live tray size + the account's artwork cap (Infinity = uncapped) — gates the studio's Save. */
   trayCount?: number;
   trayLimit?: number;
+  /** The card tray (CardTray), drawn under the header on every tab. The editor owns its wiring. */
+  trayHead?: ReactNode;
   /** Guests can't keep artworks (cap 0): the studio shows a sign-in note, not an upgrade pitch. */
   guest?: boolean;
   onPickInsert: (color: string, rowSpan: number, colSpan: number) => void;
@@ -161,6 +163,7 @@ export function CardPicker({
   onSaveSlices,
   trayCount,
   trayLimit,
+  trayHead,
   guest,
   armedSliceId,
   onArmSlice,
@@ -403,6 +406,8 @@ export function CardPicker({
           </Pressable>
         ) : null}
       </View>
+
+      {trayHead}
 
       {/* Content type — decide *what* goes in the pocket first.
 

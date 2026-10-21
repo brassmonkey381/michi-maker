@@ -52,3 +52,15 @@ test('example binders are never written or removed', () => {
   const d = diffSnapshots([ex], [{ ...ex, pages: [page('p')] }]);
   assert.deepEqual(d, { full: [], scoped: [], removed: [] });
 });
+
+test('a tray change alone is written as a tray write, and a tray is not binder metadata', () => {
+  const p1 = page('p1');
+  const trayA = [{ id: 's1' }];
+  const trayB = [{ id: 's1' }, { id: 's2' }];
+  const d = diffSnapshots([binder('b', [p1], { tray: trayA })], [binder('b', [p1], { tray: trayB })]);
+  assert.equal(d.full.length, 0);
+  assert.deepEqual(d.scoped.map((s) => ({ meta: s.meta, pageIds: s.pageIds, tray: s.tray })), [{ meta: false, pageIds: [], tray: true }]);
+  // The same tray object: nothing to write.
+  const same = diffSnapshots([binder('b', [p1], { tray: trayA })], [binder('b', [p1], { tray: trayA })]);
+  assert.equal(same.scoped.length, 0);
+});

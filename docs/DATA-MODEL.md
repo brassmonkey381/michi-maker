@@ -84,3 +84,28 @@ scrapers in this repo.
 Card artwork and Pokémon are © Nintendo / Creatures Inc. / GAME FREAK inc. michi-maker is a fan
 project for personal collection display. The rights posture for user-placed artwork
 (attribution, DMCA agent, takedowns) is tracked in [roadmap/ART-RIGHTS.md](roadmap/ART-RIGHTS.md).
+
+## The tray: a card in the binder but on no page
+
+Added 2026-10-22 (owner: "a scratch work dock / tray"). A card taken off a page while rearranging,
+or displaced from a full page by an Arrange template, waits in the binder's tray and goes back
+into any pocket on any page from the Cards side of the editor.
+
+A tray card is **a `binder_slots` row with `page_id` null and `binder_id` set**
+(migration 20261022120000). The same row moves between a page and the tray by UPDATE, so it keeps
+its id, its `source_entry_id` claim stamp and its `from_collection` flag; a separate tray table
+would mean delete-and-insert on every move and a second place for those stamps to go wrong. The
+check `binder_slots_page_or_tray` wants exactly one of the two set. `row_index` is 0 and
+`col_index` is the position in the tray (only ever appended, never renumbered). The cell rule
+`unique (page_id, row_index, col_index)` ignores null page ids, so the tray needs no cell
+bookkeeping.
+
+Owner-only by construction: the public-viewing policy reaches a slot through its page, and a tray
+row has none. Everything that joins through `binder_pages` (discover, the shelf's face page, the
+share image, puzzle sync, page counts) leaves tray rows out. The owner's own load embeds them
+through `binder_slots!binder_slots_binder_id_fkey` and falls back to a load without trays on a
+database the migration has not reached. Client side: `DemoBinder.tray`, the store's
+`moveSlotToTray` / `moveSlotFromTray` / `removeTraySlot`, and `reseat_slots` moves pockets to and
+from the tray in the same transaction as the rest of an Arrange. Undo writes the tray when only
+the tray changed (`diffSnapshots` is tray-aware). A duplicate copies the tray with its stamps
+stripped, like every page; the guest-to-account re-mint keeps them.

@@ -108,6 +108,18 @@ function withParitySpacers(pages: DemoPage[]): { pages: DemoPage[]; blanksInsert
   return { pages: out, blanksInserted };
 }
 
+/** One pocket's destination in an Arrange: a cell on a page, or the tray (`toPageId` null). */
+/** The next free position at the end of a tray (positions are never renumbered, only appended). */
+const nextTrayCol = (tray: readonly DemoSlot[] | undefined): number => (tray?.length ? Math.max(...tray.map((s) => s.col)) + 1 : 0);
+
+export interface ArrangeSlotMove {
+  slotId: string;
+  fromPageId: string;
+  toPageId: string | null;
+  row: number;
+  col: number;
+}
+
 export interface SlotInput {
   row: number;
   col: number;
@@ -367,9 +379,18 @@ interface BinderStore {
    */
   arrangeSlots: (
     binderId: string,
-    moves: readonly { slotId: string; fromPageId: string; toPageId: string; row: number; col: number }[],
+    moves: readonly ArrangeSlotMove[],
     artPanels?: readonly { pageId: string; slot: DemoSlot }[],
   ) => number;
+  /**
+   * THE TRAY (owner, 2026-10-21): cards in the binder but on no page. `moveSlotToTray` takes a
+   * card pocket off its page; `moveSlotFromTray` puts a tray card into a free footprint, or trades
+   * places with a same-footprint occupant (which goes to the tray); `removeTraySlot` discards a
+   * tray card. One commit (one Undo) and one server transaction each.
+   */
+  moveSlotToTray: (binderId: string, pageId: string, slotId: string) => boolean;
+  moveSlotFromTray: (binderId: string, slotId: string, toPageId: string, toRow: number, toCol: number) => 'moved' | 'swapped' | null;
+  removeTraySlot: (binderId: string, slotId: string) => void;
   /** Move (or same-footprint-swap) a slot from one page to another — dragging across the spread. */
   moveSlotAcrossPages: (
     binderId: string,
@@ -723,7 +744,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       // partial failure contiguous (everything before the failed write landed, nothing after).
       persist(async () => {
         for (const b of full) await repo.replaceBinder(b);
-        for (const w of scoped) await repo.replaceBinderPages(w.binder, w.pageIds, w.meta);
+        for (const w of scoped) await repo.replaceBinderPages(w.binder, w.pageIds, w.meta, w.tray);
         for (const b of removed) await repo.deleteBinder(b.id);
       });
     },
@@ -2350,21 +2371,28 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   const arrangeSlots = useCallback(
     (
       binderId: string,
-      moves: readonly { slotId: string; fromPageId: string; toPageId: string; row: number; col: number }[],
+      moves: readonly ArrangeSlotMove[],
       artPanels: readonly { pageId: string; slot: DemoSlot }[] = [],
     ) => {
       const target = binders.find((binder) => binder.id === binderId);
       if (!target) return 0;
       const byId = new Map(moves.map((m) => [m.slotId, m]));
+      // A pocket bound for the tray takes the next free tray position, in the order the moves name it.
+      let trayNext = nextTrayCol(target.tray);
       const movedSlots = new Map<string, DemoSlot>();
       for (const p of target.pages) {
         for (const s of p.slots) {
           const m = byId.get(s.id);
-          if (m) movedSlots.set(s.id, { ...s, row: m.row, col: m.col });
+          if (!m) continue;
+          if (m.toPageId === null) {
+            movedSlots.set(s.id, { ...s, row: 0, col: trayNext });
+            trayNext += 1;
+          } else movedSlots.set(s.id, { ...s, row: m.row, col: m.col });
         }
       }
       if (movedSlots.size === 0 && artPanels.length === 0) return 0;
       const pageIds = new Set([...moves.map((m) => m.fromPageId), ...moves.map((m) => m.toPageId), ...artPanels.map((a) => a.pageId)]);
+      const toTray = moves.filter((m) => m.toPageId === null).map((m) => movedSlots.get(m.slotId)).filter((x): x is DemoSlot => !!x);
       commit((prev) =>
         prev.map((binder) =>
           binder.id === binderId
@@ -2372,8 +2400,9 @@ export function BinderProvider({ children }: { children: ReactNode }) {
                 ...binder,
                 pages: binder.pages.map((p) => {
                   if (!pageIds.has(p.id)) return p;
-                  // Pockets that leave this page, pockets that stay (at their new cell), pockets
-                  // that arrive from the facing page, then the template's art gaps.
+                  // Pockets that leave this page (to another page or the tray), pockets that stay
+                  // (at their new cell), pockets that arrive from the facing page, then the
+                  // template's art gaps.
                   const kept = p.slots.filter((s) => {
                     const m = byId.get(s.id);
                     return !m || m.toPageId === p.id;
@@ -2385,15 +2414,122 @@ export function BinderProvider({ children }: { children: ReactNode }) {
                   const art = artPanels.filter((a) => a.pageId === p.id).map((a) => a.slot);
                   return { ...p, slots: [...kept, ...arriving, ...art] };
                 }),
+                ...(toTray.length ? { tray: [...(binder.tray ?? []), ...toTray] } : {}),
               }
             : binder,
         ),
       );
       if (!target.isExample) {
-        persist(() => repo.reseatSlots(moves.map((m) => ({ slotId: m.slotId, pageId: m.toPageId, row: m.row, col: m.col }))), target.id);
+        const reseat: repo.ReseatMove[] = moves.map((m) => {
+          const moved = movedSlots.get(m.slotId);
+          return m.toPageId === null
+            ? { slotId: m.slotId, pageId: null, binderId, row: 0, col: moved?.col ?? 0 }
+            : { slotId: m.slotId, pageId: m.toPageId, row: m.row, col: m.col };
+        });
+        persist(() => repo.reseatSlots(reseat), target.id);
         for (const a of artPanels) persist(() => repo.upsertSlot(a.pageId, a.slot), target.id);
       }
       return movedSlots.size;
+    },
+    [binders, commit, persist],
+  );
+
+  /**
+   * Take a card pocket off its page into the binder's tray. The pocket keeps its id and its claim
+   * stamp: on the server it is the same row with page_id cleared and binder_id set (one
+   * reseat_slots call). Only one-by-one card pockets go to the tray; art pieces have the slice
+   * tray and a spanning piece is not a card.
+   */
+  const moveSlotToTray = useCallback(
+    (binderId: string, pageId: string, slotId: string): boolean => {
+      const target = binders.find((b) => b.id === binderId);
+      const fromPage = target?.pages.find((p) => p.id === pageId);
+      const slot = fromPage?.slots.find((s) => s.id === slotId);
+      if (!target || !fromPage || !slot || slot.type !== 'card' || slot.rowSpan !== 1 || slot.colSpan !== 1) return false;
+      const col = nextTrayCol(target.tray);
+      const trayed: DemoSlot = { ...slot, row: 0, col };
+      commit((prev) =>
+        prev.map((b) =>
+          b.id === binderId
+            ? {
+                ...b,
+                pages: b.pages.map((p) => (p.id === pageId ? { ...p, slots: p.slots.filter((s) => s.id !== slotId) } : p)),
+                tray: [...(b.tray ?? []), trayed],
+              }
+            : b,
+        ),
+      );
+      if (!target.isExample) persist(() => repo.reseatSlots([{ slotId, pageId: null, binderId, row: 0, col }]), binderId);
+      return true;
+    },
+    [binders, commit, persist],
+  );
+
+  /**
+   * Put a tray card into a pocket. A free footprint takes it; a same-footprint occupant trades
+   * places with it and goes to the tray in its stead (both moves in one transaction); anything
+   * else is refused (null) so the caller can say why.
+   */
+  const moveSlotFromTray = useCallback(
+    (binderId: string, slotId: string, toPageId: string, toRow: number, toCol: number): 'moved' | 'swapped' | null => {
+      const target = binders.find((b) => b.id === binderId);
+      const toPage = target?.pages.find((p) => p.id === toPageId);
+      const slot = target?.tray?.find((s) => s.id === slotId);
+      if (!target || !toPage || !slot) return null;
+      const row = Math.max(0, Math.min(toRow, toPage.rows - 1));
+      const col = Math.max(0, Math.min(toCol, toPage.cols - 1));
+      const occupant = toPage.slots.find((s) => slotCells(s).includes(`${row},${col}`));
+      const placed: DemoSlot = { ...slot, row, col };
+      if (occupant) {
+        if (occupant.rowSpan !== 1 || occupant.colSpan !== 1) return null;
+        const trayed: DemoSlot = { ...occupant, row: 0, col: slot.col };
+        commit((prev) =>
+          prev.map((b) =>
+            b.id === binderId
+              ? {
+                  ...b,
+                  pages: b.pages.map((p) => (p.id === toPageId ? { ...p, slots: p.slots.map((s) => (s.id === occupant.id ? placed : s)) } : p)),
+                  tray: (b.tray ?? []).map((s) => (s.id === slotId ? trayed : s)),
+                }
+              : b,
+          ),
+        );
+        if (!target.isExample) {
+          persist(
+            () =>
+              repo.reseatSlots([
+                { slotId, pageId: toPageId, row, col },
+                { slotId: occupant.id, pageId: null, binderId, row: 0, col: slot.col },
+              ]),
+            binderId,
+          );
+        }
+        return 'swapped';
+      }
+      if (!canPlaceSlot(toPage, { row, col, rowSpan: 1, colSpan: 1 })) return null;
+      commit((prev) =>
+        prev.map((b) =>
+          b.id === binderId
+            ? {
+                ...b,
+                pages: b.pages.map((p) => (p.id === toPageId ? { ...p, slots: [...p.slots, placed] } : p)),
+                tray: (b.tray ?? []).filter((s) => s.id !== slotId),
+              }
+            : b,
+        ),
+      );
+      if (!target.isExample) persist(() => repo.reseatSlots([{ slotId, pageId: toPageId, row, col }]), binderId);
+      return 'moved';
+    },
+    [binders, commit, persist],
+  );
+
+  const removeTraySlot = useCallback(
+    (binderId: string, slotId: string) => {
+      const target = binders.find((b) => b.id === binderId);
+      if (!target?.tray?.some((s) => s.id === slotId)) return;
+      commit((prev) => prev.map((b) => (b.id === binderId ? { ...b, tray: (b.tray ?? []).filter((s) => s.id !== slotId) } : b)));
+      if (!target.isExample) persist(() => repo.deleteSlot(slotId), binderId);
     },
     [binders, commit, persist],
   );
@@ -2669,6 +2805,9 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       moveSlot,
       swapSlots,
       arrangeSlots,
+      moveSlotToTray,
+      moveSlotFromTray,
+      removeTraySlot,
       moveSlotAcrossPages,
       removeSlot,
       mergeSlots,
@@ -2729,6 +2868,9 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       moveSlot,
       swapSlots,
       arrangeSlots,
+      moveSlotToTray,
+      moveSlotFromTray,
+      removeTraySlot,
       moveSlotAcrossPages,
       removeSlot,
       mergeSlots,

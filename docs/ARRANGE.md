@@ -5,9 +5,10 @@ Spec for an **Arrange** button in the binder editor. Status: approved for a v1 o
 Built 2026-10-21 as a first version: `src/data/arrange.ts` (pure seating, tests),
 `src/lib/depth.ts` (depth words via the server), `ArrangeSheet.tsx` (the sheet) and an **Arrange**
 button in the page tools; `reseat_slots` (migration 20261021120000) lands a whole rearrangement
-in one transaction. Not yet: holding cards for the next page, the card lookup behind a
-suggestion (the chip names what would complete the row; it does not yet fetch the card), and
-the connected-art embedding proxy. The Arrange Lab (below) is the blind test bench for
+in one transaction. A template with fewer pockets than the page has cards is offered too: the
+cards it cannot seat go to the binder's **tray** (2026-10-22, see docs/DATA-MODEL.md), from where
+they go back into any pocket. Not yet: the card lookup behind a suggestion (the chip names what
+would complete the row; it does not yet fetch the card), and the connected-art embedding proxy. The Arrange Lab (below) is the blind test bench for
 what is built. The visual demo of each mode on real pages is at
 https://claude.ai/artifact/LS4NwvX98QTMbqDmLa58ax (owner-private artifact; the generator is in the
 session scratchpad, not this repo). The demo pool is 24 lava cards whose depth comes from their
@@ -38,7 +39,8 @@ that preference: among the candidates it shows, at least one spends more pockets
 page does now.
 
 Arrange seats the cards the page has. A template with fewer card pockets than the page has cards
-is still offered; the cards it cannot seat are listed as held for the next page, never dropped.
+is still offered; the cards it cannot seat go to the binder's tray, named on the candidate ("2 to
+the tray"), never dropped.
 It may **suggest** one card the page does not have, sparingly (owner, 2026-10-20: "a good feature,
 but should be used sparingly"): at most one per candidate, only when a single card completes a row
 or a band (the missing middle stage of a line that is otherwise on the page; the one card short of
@@ -238,8 +240,9 @@ moves the default, not the app code.
 
 The sheet rounds were all 3x3 pages, where no art template seats nine cards, so they ranked modes
 only. Templates with art were not tested; a page with held cards (the lab's Strata column on a
-lopsided pool) was picked anyway in three modes rounds, so holding cards for the next page is
-worth building.
+lopsided pool) was picked anyway in three modes rounds, which is what led to the tray: since
+2026-10-22 the sheet offers every template for the page's shape and the displaced cards go to the
+tray, and the lab's sheet rounds do the same.
 
 ## Open for the owner
 

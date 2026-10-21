@@ -18,8 +18,10 @@
  *
  * TEMPLATES ARE OFFERED ONLY ON A PAGE WITH NO ART. A template reserves pockets for art panels;
  * on a page that already has art the layout is the owner's, so Arrange keeps every art pocket
- * where it is and seats the cards around it. Templates with fewer card pockets than the page has
- * cards are not offered either (the editor cannot yet carry a held card to the next page).
+ * where it is and seats the cards around it. A template with fewer card pockets than the page has
+ * cards is offered too: the cards it cannot seat go to the binder's TRAY (the chip says how many),
+ * from where they go back into any pocket. Lab run 1 (docs/ARRANGE.md) showed the owner picking
+ * such a page over complete ones.
  *
  * EVERY PICK IS RECORDED (template, mode, rank shown, rank picked) so the weights can be tuned
  * later from what the owner actually chooses.
@@ -57,7 +59,8 @@ interface Pocket {
   leaf: Leaf;
 }
 
-export type ArrangeMove = { slotId: string; fromPageId: string; toPageId: string; row: number; col: number };
+/** A pocket's destination: a cell on a page, or the tray (`toPageId` null). */
+export type ArrangeMove = { slotId: string; fromPageId: string; toPageId: string | null; row: number; col: number };
 
 export function ArrangeSheet({
   visible,
@@ -147,7 +150,7 @@ export function ArrangeSheet({
     const current = new Map<string, Cell>();
     for (const p of pockets) current.set(p.slot.id, { leaf: p.leaf, row: p.slot.row, col: p.slot.col });
     const templates = hasArt ? [] : ART_TEMPLATES.filter((t) => t.rows === rows && t.cols === cols && t.spread === spread);
-    return arrangeCandidates({ rows, cols, spread, cards, reserved, current, templates });
+    return arrangeCandidates({ rows, cols, spread, cards, reserved, current, templates, allowHeld: true });
     // paletteTick re-reads the index once it has loaded; it carries no value of its own.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, catalog, depth, pockets, reserved, hasArt, rows, cols, spread, paletteTick, mix]);
@@ -160,10 +163,15 @@ export function ArrangeSheet({
     if (applying || !candidates) return;
     const current = new Map<string, Cell>();
     for (const p of pockets) current.set(p.slot.id, { leaf: p.leaf, row: p.slot.row, col: p.slot.col });
-    const moves = movesFor(cand, current).map((m) => {
+    const moves: ArrangeMove[] = movesFor(cand, current).map((m) => {
       const from = pockets.find((p) => p.slot.id === m.cardId)!;
       return { slotId: m.cardId, fromPageId: from.pageId, toPageId: pageOf(m.cell.leaf).id, row: m.cell.row, col: m.cell.col };
     });
+    // The cards the template cannot seat leave the page for the tray, in the same commit.
+    for (const h of cand.held) {
+      const from = pockets.find((p) => p.slot.id === h.id);
+      if (from) moves.push({ slotId: h.id, fromPageId: from.pageId, toPageId: null, row: 0, col: 0 });
+    }
     const art = cand.template
       ? pages.flatMap((p, i) => {
           const leaf: 'left' | 'right' | undefined = spread ? (i === 0 ? 'left' : 'right') : undefined;
@@ -176,6 +184,7 @@ export function ArrangeSheet({
       rank,
       shown: candidates.length - 1,
       moves: moves.length,
+      toTray: cand.held.length,
       spread,
     });
     setApplying(true);
@@ -222,6 +231,7 @@ export function ArrangeSheet({
               </ThemedText>
               <View style={styles.chips}>
                 {cand.artCells > reserved.size ? <Chip text={`${cand.artCells - reserved.size} more for art`} /> : null}
+                {cand.held.length ? <Chip text={`${cand.held.length} to the tray`} /> : null}
                 {cand.open.length ? <Chip text={`${cand.open.length} open`} /> : null}
                 {cand.ask ? <Chip accent text={askText(cand)} /> : null}
               </View>

@@ -110,7 +110,7 @@ function render() {
   const cols = r.cols.map((c, i) => `<div class="col ${prev === c.v ? 'chosen' : ''}" data-v="${esc(c.v)}">
       <h3><span>${LETTERS[i]} <span class="meta">(key ${i + 1})</span></span><button class="pickbtn" data-pick="${esc(c.v)}">Pick ${LETTERS[i]}</button></h3>
       ${canvas(r, c.grid, false)}
-      ${c.held && c.held.length ? `<div class="held">${c.held.length} card${c.held.length > 1 ? 's' : ''} held for the next page</div>` : ''}
+      ${c.held && c.held.length ? `<div class="held">${c.held.length} card${c.held.length > 1 ? 's' : ''} to the tray</div>` : ''}
     </div>`).join('');
   app.innerHTML = `<p class="prompt">${esc(r.prompt)}</p>
     <div class="keys">${esc(r.pool.kind === 'theme' ? `${r.pool.label} pool` : 'one of your pages')} · Press 1–${r.cols.length} or the Pick button. T = about equal. 0 = none are good. Click a card to see it large.</div>

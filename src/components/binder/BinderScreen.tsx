@@ -12,6 +12,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import { Image } from 'expo-image';
+
+import { cardThumbUrl } from '@/lib/catalogConfig';
 import { similarAvailable } from 'tcgscan-browse';
 
 import { AddToBinderSheet } from '@/components/binder/AddToBinderSheet';
@@ -19,6 +22,7 @@ import { AutoFillSheet } from '@/components/binder/AutoFillSheet';
 import { ArrangeSheet } from '@/components/binder/ArrangeSheet';
 import { ComposeAllSheet } from '@/components/binder/ComposeAllSheet';
 import { BinderGrid, type BinderGridHandle } from '@/components/binder/BinderGrid';
+import { CardTray } from '@/components/binder/CardTray';
 import {
   CARD_PICKER_RAIL_WIDTH,
   CardPicker,
@@ -337,7 +341,9 @@ export function BinderScreen({
   // The pocket selected for quick actions (action bar + resize handle); distinct from pickerCell.
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   // A pocket armed by Move, waiting for the tap that says where it goes (see armMove below).
-  const [moving, setMoving] = useState<{ pageId: string; slotId: string } | null>(null);
+  // A move in progress: a pocket armed from its bar (pageId set) or a card armed in the tray
+  // (pageId null). The next pocket tapped, on any page, receives it.
+  const [moving, setMoving] = useState<{ pageId: string | null; slotId: string } | null>(null);
   // "✨ Fill page" sheet (auto-curate around the selected card).
   const [autoFillOpen, setAutoFillOpen] = useState(false);
   // Arrange sheet: several finished seatings of the cards this page (or spread) already has.
@@ -488,6 +494,10 @@ export function BinderScreen({
   // a drag so the floating preview follows without re-rendering.
   const [armedSlice, setArmedSlice] = useState<SavedSlice | null>(null);
   const [dragSlice, setDragSlice] = useState<SavedSlice | null>(null);
+  // A tray card mid-drag (the ghost shows it) and the tray strip itself, measured at drop time so
+  // a card dragged off a page can land on it.
+  const [dragTray, setDragTray] = useState<DemoSlot | null>(null);
+  const trayRef = useRef<View | null>(null);
   // VIP "Pages around this card": the fill sheet hands up the (evolution-enriched) seed and the
   // active collection pool, and this owns the preview sheet + the store write.
   const [composeAll, setComposeAll] = useState<{
@@ -1647,9 +1657,53 @@ export function BinderScreen({
     setSelectedSlotId(null);
     clearMulti();
   };
+  // THE TRAY. "Tray" on a card's bar takes it off the page; a tray chip arms like Move does
+  // (tap a pocket to land it) or drags onto a pocket with the same ghost the slices use.
+  const trayToSelected = () => {
+    if (!selectedSlot) return;
+    if (store.moveSlotToTray(binder.id, page.id, selectedSlot.id)) {
+      setSelectedSlotId(null);
+      showToast('To the tray', true);
+    }
+  };
+  const handleTrayArm = (slotId: string | null) => {
+    setMoving(slotId ? { pageId: null, slotId } : null);
+    setSelectedSlotId(null);
+    clearMulti();
+  };
+  const handleTrayDragStart = (slot: DemoSlot) => {
+    prevRef.current?.remeasure();
+    curRef.current?.remeasure();
+    nextRef.current?.remeasure();
+    setMoving(null);
+    setDragTray(slot);
+  };
+  const handleTrayDrop = (slot: DemoSlot, windowX: number, windowY: number) => {
+    setDragTray(null);
+    const hit = resolveSpreadHit(windowX, windowY);
+    if (!hit) return;
+    const toPage = binder.pages.find((p) => p.id === hit.pageId);
+    if (toPage) landFromTray(slot.id, toPage, hit.row, hit.col);
+  };
+  const handleTrayRemove = (slot: DemoSlot) => {
+    store.removeTraySlot(binder.id, slot.id);
+    showToast('Removed from the tray', true);
+  };
+  /** A tray card into a pocket: a free pocket takes it, a one-by-one occupant trades places with it. */
+  const landFromTray = (slotId: string, toPage: DemoPage, row: number, col: number) => {
+    const r = store.moveSlotFromTray(binder.id, slotId, toPage.id, row, col);
+    if (r === 'moved') showToast('Placed from the tray', true);
+    else if (r === 'swapped') showToast('Swapped with the tray', true);
+    else showToast('It does not fit there.');
+  };
   /** A tap while a move is armed. True when the tap was spent on the move (landed or refused). */
   const landMove = (toPage: DemoPage, row: number, col: number): boolean => {
     if (!moving) return false;
+    if (moving.pageId === null) {
+      setMoving(null);
+      landFromTray(moving.slotId, toPage, row, col);
+      return true;
+    }
     const fromPage = binder.pages.find((p) => p.id === moving.pageId);
     const slot = fromPage?.slots.find((s) => s.id === moving.slotId);
     setMoving(null);
@@ -1889,7 +1943,15 @@ export function BinderScreen({
     const win = sourceRefFor(fromPageId).current?.localToWindow(localX, localY);
     if (!win) return; // source grid not measured yet → springs back
     const hit = resolveSpreadHit(win.x, win.y);
-    if (!hit) return; // dropped outside any visible page → springs back
+    if (!hit) {
+      // Not a pocket. Onto the tray strip, the card leaves the page for the tray; anywhere else
+      // it springs back. Measured at drop time, because the dock scrolls and resizes.
+      trayRef.current?.measureInWindow((x, y, w, h) => {
+        if (!w || win.x < x || win.x > x + w || win.y < y || win.y > y + h) return;
+        if (store.moveSlotToTray(binder.id, fromPageId, slotId)) showToast('To the tray', true);
+      });
+      return;
+    }
     if (hit.pageId === fromPageId) handleDropOnPage(fromPageId, slotId, hit.row, hit.col);
     else store.moveSlotAcrossPages(binder.id, fromPageId, slotId, hit.pageId, hit.row, hit.col);
   };
@@ -2036,6 +2098,7 @@ export function BinderScreen({
         onDeselectSlot={() => setSelectedSlotId(null)}
         onStyleSlot={() => setSlotStyleOpen(true)}
         onMoveSlot={armMove}
+        onTraySlot={selectedSlot?.type === 'card' && selectedSlot.rowSpan === 1 && selectedSlot.colSpan === 1 ? trayToSelected : undefined}
         hintToolbar={!!pocketHint.copy}
         onSplitSlot={selectedSlot && canSplitSlice(selectedSlot) ? splitSelected : undefined}
         onSimilarSlot={similarAvailable() ? findSimilarToSelected : undefined}
@@ -2619,6 +2682,11 @@ export function BinderScreen({
               <SliceThumb slice={dragSlice} style={StyleSheet.absoluteFill} />
             </Animated.View>
           ) : null}
+          {dragTray?.cardId ? (
+            <Animated.View pointerEvents="none" style={[styles.dragGhost, styles.dragGhostCard, ghostStyle]}>
+              <Image source={{ uri: cardThumbUrl(dragTray.cardId, 245) }} style={StyleSheet.absoluteFill} contentFit="cover" transition={0} />
+            </Animated.View>
+          ) : null}
         </SafeAreaView>
 
         {/* "Which finish?" — the one sheet here that edits the COLLECTION rather than the binder.
@@ -2793,6 +2861,22 @@ export function BinderScreen({
           collapsed={!cardsWantsPanel}
           onToggleCollapsed={() => setCardsCollapsed((v) => !v)}
           collapsedLabel="Cards"
+          trayHead={
+            editing ? (
+              <CardTray
+                slots={binder.tray ?? []}
+                armedId={moving?.pageId === null ? moving.slotId : null}
+                onArm={handleTrayArm}
+                onDragStart={handleTrayDragStart}
+                onDrop={handleTrayDrop}
+                onRemove={handleTrayRemove}
+                ghostOn={ghostOn}
+                ghostX={ghostX}
+                ghostY={ghostY}
+                trayRef={trayRef}
+              />
+            ) : undefined
+          }
           onResize={commitDock('cardsDockPct')}
           onResizeReset={resetDock('cardsDockPct')}
           resizeMin={PANEL_MIN_WIDTH}
@@ -3744,6 +3828,7 @@ const styles = StyleSheet.create({
   // A contained danger chip, centred and sized to its label — so the tap target is the button,
   // not the whole row width (an easy place to fat-finger a destructive action).
   // Floating drag preview that follows the finger while a slice is dragged from the tray.
+  dragGhostCard: { width: 56, height: 78 },
   dragGhost: {
     position: 'absolute',
     top: 0,

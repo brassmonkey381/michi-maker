@@ -236,6 +236,8 @@ interface BinderGridProps {
   hintToolbar?: boolean;
   /** "Move" — arm this pocket so the next pocket tapped, on any page, receives it. */
   onMoveSlot?: () => void;
+  /** "Tray" — take this card off the page into the binder's tray (one-by-one card pockets only). */
+  onTraySlot?: () => void;
   /** "Colors" — open the card browser on cards in the selected card's colours (card slots only). */
   onColorsSlot?: () => void;
   /** "Similar" — open the card browser on cards like the selected one (card slots only). */
@@ -340,6 +342,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
     onSplitSlot,
     hintToolbar = false,
     onMoveSlot,
+    onTraySlot,
     onColorsSlot,
     onSimilarSlot,
     onAutoFillSlot,
@@ -1006,6 +1009,7 @@ export const BinderGrid = forwardRef<BinderGridHandle, BinderGridProps>(function
             onStyle={onStyleSlot}
             onSplit={onSplitSlot}
             onMove={onMoveSlot}
+            onToTray={onTraySlot}
             hint={hintToolbar}
             onSimilar={resizeSlot.cardId ? onSimilarSlot : undefined}
             onColors={resizeSlot.cardId ? onColorsSlot : undefined}
@@ -1039,6 +1043,7 @@ function SlotToolbar({
   onStyle,
   onSplit,
   onMove,
+  onToTray,
   hint,
   onSimilar,
   onColors,
@@ -1066,6 +1071,8 @@ function SlotToolbar({
   onColors?: () => void;
   /** Arm this pocket for a move to any pocket on any page. */
   onMove?: () => void;
+  /** Send this card to the binder's tray. */
+  onToTray?: () => void;
   /** A one-time hint is pointing at this bar: ring it. */
   hint?: boolean;
   onAutoFill?: () => void;
@@ -1112,6 +1119,7 @@ function SlotToolbar({
       {onSimilar && !more ? <ToolButton label="Similar" onPress={onSimilar} /> : null}
       {onColors && !more ? <ToolButton label="Colors" onPress={onColors} /> : null}
       {onMove && !more ? <ToolButton label="Move" onPress={onMove} /> : null}
+      {onToTray && !more ? <ToolButton label="Tray" onPress={onToTray} accessibilityLabel="Send this card to the tray" /> : null}
       {/* Whose card is in this pocket - a tick when it is one of the owner's, so the answer is
           visible without opening anything. The ✓ is state, not decoration, which is the line this
           row draws: a glyph earns its place by saying something the word does not. */}

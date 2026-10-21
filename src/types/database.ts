@@ -258,6 +258,7 @@ export type Database = {
       }
       binder_slots: {
         Row: {
+          binder_id: string | null
           card_id: string | null
           col_index: number
           col_span: number
@@ -275,7 +276,7 @@ export type Database = {
           insert_image_url: string | null
           notes: string | null
           orientation: Database["public"]["Enums"]["card_orientation"]
-          page_id: string
+          page_id: string | null
           row_index: number
           row_span: number
           slot_type: Database["public"]["Enums"]["binder_slot_type"]
@@ -283,6 +284,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          binder_id?: string | null
           card_id?: string | null
           col_index: number
           col_span?: number
@@ -300,7 +302,7 @@ export type Database = {
           insert_image_url?: string | null
           notes?: string | null
           orientation?: Database["public"]["Enums"]["card_orientation"]
-          page_id: string
+          page_id?: string | null
           row_index: number
           row_span?: number
           slot_type?: Database["public"]["Enums"]["binder_slot_type"]
@@ -308,6 +310,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          binder_id?: string | null
           card_id?: string | null
           col_index?: number
           col_span?: number
@@ -325,7 +328,7 @@ export type Database = {
           insert_image_url?: string | null
           notes?: string | null
           orientation?: Database["public"]["Enums"]["card_orientation"]
-          page_id?: string
+          page_id?: string | null
           row_index?: number
           row_span?: number
           slot_type?: Database["public"]["Enums"]["binder_slot_type"]
@@ -333,6 +336,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "binder_slots_binder_id_fkey"
+            columns: ["binder_id"]
+            isOneToOne: false
+            referencedRelation: "binders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "binder_slots_page_id_fkey"
             columns: ["page_id"]

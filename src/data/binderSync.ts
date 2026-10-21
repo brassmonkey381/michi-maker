@@ -23,6 +23,8 @@ export interface ScopedWrite<B> {
   meta: boolean;
   /** Ids of the pages whose content differs, in binder order. */
   pageIds: string[];
+  /** The tray (cards on no page) differs. */
+  tray: boolean;
 }
 
 export interface SnapshotDiff<B> {
@@ -35,7 +37,7 @@ export interface SnapshotDiff<B> {
 }
 
 type PageLike = Pick<DemoPage, 'id'>;
-type BinderLike = Pick<DemoBinder, 'id' | 'isExample'> & { pages: PageLike[] };
+type BinderLike = Pick<DemoBinder, 'id' | 'isExample'> & { pages: PageLike[]; tray?: unknown };
 
 /** True when both binders list the same page ids in the same order. */
 function samePageList(a: BinderLike, b: BinderLike): boolean {
@@ -44,10 +46,11 @@ function samePageList(a: BinderLike, b: BinderLike): boolean {
   return true;
 }
 
-/** The binder row differs when anything but `pages` does. */
+/** The binder row differs when anything but `pages` and `tray` does. */
 function metaDiffers(a: BinderLike, b: BinderLike): boolean {
   const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
   keys.delete('pages');
+  keys.delete('tray');
   for (const k of keys) {
     if ((a as Record<string, unknown>)[k] !== (b as Record<string, unknown>)[k]) return true;
   }
@@ -69,7 +72,8 @@ export function diffSnapshots<B extends BinderLike>(from: B[], to: B[]): Snapsho
     }
     const pageIds = b.pages.filter((p, i) => prev.pages[i] !== p).map((p) => p.id);
     const meta = metaDiffers(prev, b);
-    if (pageIds.length > 0 || meta) scoped.push({ binder: b, meta, pageIds });
+    const tray = (prev.tray ?? undefined) !== (b.tray ?? undefined);
+    if (pageIds.length > 0 || meta || tray) scoped.push({ binder: b, meta, pageIds, tray });
   }
   const removed = from.filter((b) => !b.isExample && !toIds.has(b.id));
   return { full, scoped, removed };

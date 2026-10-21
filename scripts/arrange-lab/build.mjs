@@ -283,7 +283,7 @@ const noteCards = (grid) => grid.forEach((c) => c.card && usedCards.add(c.card))
   let n = 0;
   for (const pool of shuffle(pagePools, r1)) {
     const templates = ART_TEMPLATES.filter((t) => t.rows === pool.shape.rows && t.cols === pool.shape.cols && t.spread === pool.shape.spread);
-    const cands = A.arrangeCandidates({ ...pool.shape, cards: pool.cards, templates, current: pool.current }).filter((c) => c.mode !== 'current');
+    const cands = A.arrangeCandidates({ ...pool.shape, cards: pool.cards, templates, current: pool.current, allowHeld: true }).filter((c) => c.mode !== 'current');
     if (cands.length < 2) continue;
     const top = cands.slice(0, 3).map((c, rank) => {
       const artKeys = c.template ? A.templateCells(c.template, pool.shape.spread) : new Set();
